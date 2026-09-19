@@ -20,6 +20,7 @@ from agentmonitor.adapters.persistence._shared.sqlite.core.policy import (
     DatabaseRefV1,
     SqlitePolicyError,
     open_sqlite_database,
+    open_sqlite_inspection,
 )
 from agentmonitor.contracts.database_v1 import SchemaCompatibilityV1
 from agentmonitor.contracts.foundation_v1 import MigrationMetadataV1
@@ -269,6 +270,8 @@ def _inspect(
     }
     if not objects <= allowed or ("table", "alembic_version") not in objects:
         return "migration_failed", None
+    if not _marker_structure_is_valid(connection):
+        return "migration_failed", None
     heads = (
         connection.exec_driver_sql("SELECT version_num FROM alembic_version LIMIT 2")
         .scalars()
@@ -306,6 +309,45 @@ def _inspect(
     return "compatible", "v1_0000"
 
 
+def _marker_structure_is_valid(connection: Connection) -> bool:
+    """Exact admitted Alembic marker, including otherwise invisible constraints.
+
+    All statements/identifiers are code-owned. Only technical schema metadata is
+    read, never business content. SQL text remains inside this validator and is
+    not returned or attached to errors. Any externally changed structure refuses.
+    """
+    expected: tuple[tuple[str, list[tuple[object, ...]]], ...] = (
+        (
+            "PRAGMA table_xinfo(alembic_version)",
+            [(0, "version_num", "VARCHAR(32)", 1, None, 1, 0)],
+        ),
+        (
+            "PRAGMA index_list(alembic_version)",
+            [(0, "sqlite_autoindex_alembic_version_1", 1, "pk", 0)],
+        ),
+        (
+            "PRAGMA index_xinfo(sqlite_autoindex_alembic_version_1)",
+            [(0, 0, "version_num", 0, "BINARY", 1), (1, -1, None, 0, "BINARY", 0)],
+        ),
+        ("PRAGMA foreign_key_list(alembic_version)", []),
+    )
+    for statement, rows in expected:
+        actual = [
+            tuple(row) for row in connection.exec_driver_sql(statement).fetchmany(3)
+        ]
+        if actual != rows:
+            return False
+    definition = connection.exec_driver_sql(
+        "SELECT sql FROM sqlite_schema WHERE type='table' AND name='alembic_version'"
+    ).scalar()
+    # PRAGMA does not expose CHECK expressions or the PK constraint name. The
+    # pinned Alembic dialect emits this one statement for the approved anchor.
+    return isinstance(definition, str) and " ".join(definition.split()) == (
+        "CREATE TABLE alembic_version ( version_num VARCHAR(32) NOT NULL, "
+        "CONSTRAINT alembic_version_pkc PRIMARY KEY (version_num) )"
+    )
+
+
 def InspectSchemaCompatibilityV1(
     database_ref: DatabaseRefV1,
     application_range: ApplicationSchemaRangeV1,
@@ -326,20 +368,20 @@ def InspectSchemaCompatibilityV1(
             state = "policy_incompatible"
         elif database_ref.validate(missing_ok=True) is None:
             state = "missing"
-        elif database_ref._path.stat().st_size == 0:
-            state = "empty"
         else:
-            with open_sqlite_database(database_ref, "runtime_read_only") as handle:
-                with handle.connect() as connection:
-                    state, current = _inspect(connection, application_range)
-                    policy = "passed"
-                    integrity = "failed" if state == "corrupt" else "passed"
+            with open_sqlite_inspection(database_ref) as connection:
+                state, current = _inspect(connection, application_range)
+                policy = "passed"
+                integrity = "failed" if state == "corrupt" else "passed"
     except SchemaCompatibilityError:
         state = "checksum_mismatch"
     except SqlitePolicyError as error:
         states: dict[str, SchemaState] = {
             "database_missing": "missing",
             "persistence_busy": "locked",
+            "database_inspection_requires_quiescence": "locked",
+            "database_inspection_changed": "locked",
+            "database_identity_changed": "locked",
             "persistence_corrupt": "corrupt",
             "database_policy_incompatible": "policy_incompatible",
         }

@@ -1,6 +1,7 @@
 """FND-DB-001/002/004, FND-MIG-003 and DB-MIG: real Alembic only."""
 
 import dataclasses
+import hashlib
 import importlib
 import shutil
 import sys
@@ -32,7 +33,7 @@ def test_v1_0000_uses_real_file_and_creates_no_business_tables(tmp_path: Path) -
     ref = DatabaseRefV1(path, tmp_path)
     schema.migrate_to_head(ref)
     assert path.is_file()
-    with open_sqlite_database(ref, "runtime_read_only") as handle:
+    with open_sqlite_database(ref, "runtime_read_write") as handle:
         with handle.connect() as connection:
             assert connection.exec_driver_sql(
                 "SELECT name FROM sqlite_schema WHERE type='table' ORDER BY name"
@@ -225,8 +226,8 @@ def test_locked_migration_is_bounded_preserves_target_and_closes(
             started = time.monotonic()
             with pytest.raises(schema.SchemaCompatibilityError) as caught:
                 schema.migrate_to_head(ref)
-            assert caught.value.code == "persistence_busy"
-            assert 4.5 <= time.monotonic() - started < 8
+            assert caught.value.code == "migration_preflight_refused"
+            assert time.monotonic() - started < 1
             assert (
                 connection.exec_driver_sql(
                     "SELECT count(*) FROM sqlite_schema WHERE type='table'"
@@ -347,3 +348,218 @@ def test_actual_revision_metadata_cannot_mutate_and_downgrade_is_refused(
         ).state
         == "compatible"
     )
+
+
+def database_inventory(root: Path) -> dict[str, tuple[int, int, str]]:
+    """Record actual main file and every journal/sidecar, including timestamps."""
+    return {
+        path.name: (
+            path.stat().st_size,
+            path.stat().st_mtime_ns,
+            hashlib.sha256(path.read_bytes()).hexdigest(),
+        )
+        for path in root.iterdir()
+        if path.name.startswith("agentmonitor.db")
+    }
+
+
+def test_closed_database_inspection_never_creates_or_changes_sidecars(
+    tmp_path: Path,
+) -> None:
+    schema = implementation()
+    from agentmonitor.adapters.persistence._shared.sqlite.core.policy import (
+        DatabaseRefV1,
+    )
+
+    ref = DatabaseRefV1(tmp_path / "agentmonitor.db", tmp_path)
+    schema.migrate_to_head(ref)
+    before = database_inventory(tmp_path)
+    assert set(before) == {"agentmonitor.db"}
+    view = schema.InspectSchemaCompatibilityV1(
+        ref, schema.application_schema_range(), "runtime_read_write"
+    )
+    assert database_inventory(tmp_path) == before
+    assert view.state == "compatible"
+    schema.RequireWritableSchemaV1(view)
+    assert database_inventory(tmp_path) == before
+
+
+def test_live_wal_inspection_refuses_without_sidecar_mutation(tmp_path: Path) -> None:
+    schema = implementation()
+    from agentmonitor.adapters.persistence._shared.sqlite.core.policy import (
+        DatabaseRefV1,
+        open_sqlite_database,
+    )
+
+    ref = DatabaseRefV1(tmp_path / "agentmonitor.db", tmp_path)
+    schema.migrate_to_head(ref)
+    with open_sqlite_database(ref, "runtime_read_write") as writer:
+        with writer.connect() as connection:
+            connection.exec_driver_sql("PRAGMA user_version=1")
+            connection.commit()
+            before = database_inventory(tmp_path)
+            assert {"agentmonitor.db-wal", "agentmonitor.db-shm"} <= before.keys()
+            view = schema.InspectSchemaCompatibilityV1(
+                ref, schema.application_schema_range(), "runtime_read_write"
+            )
+            assert database_inventory(tmp_path) == before
+            assert view.state == "locked"
+            with pytest.raises(schema.SchemaCompatibilityError):
+                schema.RequireWritableSchemaV1(view)
+            assert database_inventory(tmp_path) == before
+            connection.rollback()
+
+
+@pytest.mark.parametrize(
+    "definition",
+    [
+        "version_num VARCHAR(32) NOT NULL PRIMARY KEY, unowned_metadata TEXT",
+        "renamed_version VARCHAR(32) NOT NULL PRIMARY KEY",
+        "version_num VARCHAR(32) PRIMARY KEY",
+        "version_num VARCHAR(32) NOT NULL UNIQUE",
+        "version_num TEXT NOT NULL PRIMARY KEY",
+        "version_num VARCHAR(32) NOT NULL DEFAULT 'v1_0000' PRIMARY KEY",
+        "version_num VARCHAR(32) COLLATE NOCASE NOT NULL PRIMARY KEY",
+        "version_num VARCHAR(32) NOT NULL PRIMARY KEY DESC",
+        "version_num VARCHAR(32) NOT NULL PRIMARY KEY CHECK(length(version_num)>0)",
+    ],
+    ids=[
+        "extra",
+        "renamed",
+        "nullable",
+        "no-pk",
+        "type",
+        "default",
+        "collation",
+        "descending",
+        "check",
+    ],
+)
+def test_marker_structure_changes_refuse_without_inspection_mutation(
+    tmp_path: Path, definition: str
+) -> None:
+    schema = implementation()
+    from agentmonitor.adapters.persistence._shared.sqlite.core.policy import (
+        DatabaseRefV1,
+        open_sqlite_database,
+    )
+
+    ref = DatabaseRefV1(tmp_path / "agentmonitor.db", tmp_path)
+    schema.migrate_to_head(ref)
+    with open_sqlite_database(ref, "migration_existing") as handle:
+        with handle.connect() as connection:
+            # Mutate only the real migrated technical marker, preserving its row.
+            # Each deliberate defect tests refusal, never an alternate valid schema.
+            connection.exec_driver_sql(
+                "ALTER TABLE alembic_version RENAME TO old_marker"
+            )
+            connection.exec_driver_sql(f"CREATE TABLE alembic_version ({definition})")
+            target = (
+                "renamed_version" if definition.startswith("renamed") else "version_num"
+            )
+            connection.exec_driver_sql(
+                f"INSERT INTO alembic_version ({target}) "
+                "SELECT version_num FROM old_marker"
+            )
+            connection.exec_driver_sql("DROP TABLE old_marker")
+            connection.commit()
+    before = database_inventory(tmp_path)
+    view = schema.InspectSchemaCompatibilityV1(
+        ref, schema.application_schema_range(), "runtime_read_write"
+    )
+    assert view.state == "migration_failed"
+    with pytest.raises(schema.SchemaCompatibilityError):
+        schema.RequireWritableSchemaV1(view)
+    assert database_inventory(tmp_path) == before
+
+
+def test_added_column_to_real_anchor_refuses_writable_receipt(tmp_path: Path) -> None:
+    schema = implementation()
+    from agentmonitor.adapters.persistence._shared.sqlite.core.policy import (
+        DatabaseRefV1,
+        open_sqlite_database,
+    )
+
+    ref = DatabaseRefV1(tmp_path / "agentmonitor.db", tmp_path)
+    schema.migrate_to_head(ref)
+    with open_sqlite_database(ref, "migration_existing") as handle:
+        with handle.connect() as connection:
+            connection.exec_driver_sql(
+                "ALTER TABLE alembic_version ADD COLUMN unowned_metadata TEXT"
+            )
+            connection.commit()
+    before = database_inventory(tmp_path)
+    view = schema.InspectSchemaCompatibilityV1(
+        ref, schema.application_schema_range(), "runtime_read_write"
+    )
+    assert view.state == "migration_failed"
+    with pytest.raises(schema.SchemaCompatibilityError):
+        schema.RequireWritableSchemaV1(view)
+    assert database_inventory(tmp_path) == before
+
+
+def test_stale_sidecars_also_refuse_before_sqlite_open(tmp_path: Path) -> None:
+    schema = implementation()
+    from agentmonitor.adapters.persistence._shared.sqlite.core.policy import (
+        DatabaseRefV1,
+        open_sqlite_database,
+    )
+
+    ref = DatabaseRefV1(tmp_path / "agentmonitor.db", tmp_path)
+    schema.migrate_to_head(ref)
+    # Real ordinary SQLite read-only use can leave sidecars after its final close.
+    with open_sqlite_database(ref, "runtime_read_only") as handle:
+        with handle.connect() as connection:
+            connection.exec_driver_sql("SELECT version_num FROM alembic_version").all()
+    before = database_inventory(tmp_path)
+    assert {"agentmonitor.db-wal", "agentmonitor.db-shm"} <= before.keys()
+    view = schema.InspectSchemaCompatibilityV1(
+        ref, schema.application_schema_range(), "runtime_read_write"
+    )
+    assert view.state == "locked"
+    assert database_inventory(tmp_path) == before
+
+
+def test_immutable_inspection_rejects_actual_change_during_read(tmp_path: Path) -> None:
+    schema = implementation()
+    from agentmonitor.adapters.persistence._shared.sqlite.core.policy import (
+        DatabaseRefV1,
+        SqlitePolicyError,
+        open_sqlite_database,
+        open_sqlite_inspection,
+    )
+
+    ref = DatabaseRefV1(tmp_path / "agentmonitor.db", tmp_path)
+    schema.migrate_to_head(ref)
+    before = database_inventory(tmp_path)
+    with pytest.raises(SqlitePolicyError) as caught:
+        with open_sqlite_inspection(ref) as reader:
+            assert reader.exec_driver_sql("PRAGMA journal_mode").scalar() == "delete"
+            assert reader.exec_driver_sql("PRAGMA foreign_keys").scalar() == 1
+            assert database_inventory(tmp_path) == before
+            with open_sqlite_database(ref, "runtime_read_write") as writer:
+                with writer.connect() as connection:
+                    connection.exec_driver_sql("PRAGMA user_version=2")
+                    connection.commit()
+            after_writer = database_inventory(tmp_path)
+    assert caught.value.code == "database_inspection_changed"
+    assert database_inventory(tmp_path) == after_writer
+    assert before != after_writer
+
+
+def test_immutable_inspection_refuses_actual_write_attempt(tmp_path: Path) -> None:
+    schema = implementation()
+    from agentmonitor.adapters.persistence._shared.sqlite.core.policy import (
+        DatabaseRefV1,
+        SqlitePolicyError,
+        open_sqlite_inspection,
+    )
+
+    ref = DatabaseRefV1(tmp_path / "agentmonitor.db", tmp_path)
+    schema.migrate_to_head(ref)
+    before = database_inventory(tmp_path)
+    with pytest.raises(SqlitePolicyError) as caught:
+        with open_sqlite_inspection(ref) as reader:
+            reader.exec_driver_sql("PRAGMA user_version=9")
+    assert caught.value.code == "persistence_read_only"
+    assert database_inventory(tmp_path) == before

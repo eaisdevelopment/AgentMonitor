@@ -20,7 +20,7 @@ from typing import Literal
 from sqlalchemy import create_engine, event
 from sqlalchemy.engine import Connection, Engine
 from sqlalchemy.exc import DBAPIError, SQLAlchemyError, TimeoutError
-from sqlalchemy.pool import QueuePool
+from sqlalchemy.pool import NullPool, QueuePool
 
 DatabaseOpenModeV1 = Literal[
     "runtime_read_write",
@@ -147,16 +147,21 @@ def _check_owner(path: Path, *, directory: bool = False) -> tuple[int, int]:
     return info.st_dev, info.st_ino
 
 
-def _apply_policy(connection: sqlite3.Connection, *, read_only: bool) -> None:
+def _apply_policy(
+    connection: sqlite3.Connection, *, read_only: bool, immutable: bool = False
+) -> None:
     # PRAGMA names/values are a closed code-owned list; SQLite does not bind these.
     cursor = connection.cursor()
     try:
         for name, value in _PRAGMAS:
+            # Immutable inspection ignores journals and reports DELETE. Its
+            # separate file preflight verifies the persisted WAL header instead.
+            expected = "delete" if immutable and name == "journal_mode" else value
             if name != "journal_mode" or not read_only:
                 cursor.execute(f"PRAGMA {name}={value}")
             cursor.execute(f"PRAGMA {name}")
             row = cursor.fetchone()
-            if row is None or row[0] != value:
+            if row is None or row[0] != expected:
                 raise SqlitePolicyError("database_policy_incompatible")
     finally:
         cursor.close()
@@ -286,3 +291,89 @@ def open_sqlite_database(
         handle.close()
         raise
     return handle
+
+
+def _inspection_state(database_ref: DatabaseRefV1) -> tuple[int, int, int, int, int]:
+    """Read physical metadata only; reject all live or leftover journal state."""
+    database_ref.validate()
+    for suffix in ("-wal", "-shm", "-journal"):
+        try:
+            database_ref._path.with_name(database_ref._path.name + suffix).lstat()
+        except FileNotFoundError:
+            continue
+        raise SqlitePolicyError("database_inspection_requires_quiescence")
+    descriptor = os.open(database_ref._path, os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0))
+    try:
+        info = os.fstat(descriptor)
+        header = os.read(descriptor, 100)
+    finally:
+        os.close(descriptor)
+    if info.st_size:
+        if len(header) != 100 or header[:16] != b"SQLite format 3\x00":
+            raise SqlitePolicyError("persistence_corrupt")
+        # Bytes 18/19 are the file-format write/read versions: 2 means WAL.
+        if header[18:20] != b"\x02\x02":
+            raise SqlitePolicyError("database_policy_incompatible")
+    if database_ref.validate() != (info.st_dev, info.st_ino):
+        raise SqlitePolicyError("database_identity_changed")
+    return info.st_dev, info.st_ino, info.st_size, info.st_mtime_ns, info.st_ctime_ns
+
+
+@contextmanager
+def open_sqlite_inspection(database_ref: DatabaseRefV1) -> Iterator[Connection]:
+    """Inspect a quiescent real file without ever creating/modifying sidecars.
+
+    Ordinary SQLite mode=ro can write SHM and create WAL/SHM. This dedicated
+    immutable reader is admitted only with no WAL/SHM/rollback journal and a
+    persisted WAL header (or an empty file). Identity, size, modification/change
+    times and sidecar absence are rechecked before and after inspection. Any
+    observed concurrent activity refuses the result; the caller must close its
+    writer and retry explicitly. This is not a live-WAL inspection/snapshot API.
+
+    Immutable SQLite reports journal_mode=delete even when the physical file is
+    WAL. All connection-local PRAGMAs are enforced; normal runtime/migration
+    connections retain the exact WAL PRAGMA policy independently.
+    """
+    failure: str | None = None
+    engine: Engine | None = None
+    try:
+        initial = _inspection_state(database_ref)
+
+        def verify_stable() -> None:
+            if _inspection_state(database_ref) != initial:
+                raise SqlitePolicyError("database_inspection_changed")
+
+        def connect_driver() -> sqlite3.Connection:
+            verify_stable()
+            connection = sqlite3.connect(
+                database_ref._path.as_uri() + "?mode=ro&immutable=1",
+                uri=True,
+                timeout=5,
+                check_same_thread=False,
+            )
+            try:
+                _apply_policy(connection, read_only=True, immutable=True)
+                verify_stable()
+            except BaseException:
+                connection.close()
+                raise
+            return connection
+
+        engine = create_engine(
+            "sqlite+pysqlite://",
+            creator=connect_driver,
+            poolclass=NullPool,
+            echo=False,
+            hide_parameters=True,
+        )
+        with engine.connect() as connection:
+            verify_stable()
+            yield connection
+        verify_stable()
+    except (SqlitePolicyError, SQLAlchemyError, sqlite3.Error, OSError) as error:
+        failure = _error_code(error)
+    finally:
+        if engine is not None:
+            engine.dispose()
+    if failure is not None:
+        raise SqlitePolicyError(failure) from None
