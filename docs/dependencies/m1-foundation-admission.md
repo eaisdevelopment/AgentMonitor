@@ -109,21 +109,36 @@ benchmark. Performance remains Not Run until FND-I01's clean real resolution.
 
 ## Sanitized upstream runtime/tool advisory evidence
 
-Method actually executed: `GET` each selected upstream repository's public
+Supplemental method actually executed: `GET` each selected upstream repository's public
 GitHub advisory endpoint
 `https://api.github.com/repos/<owner>/<repo>/security-advisories?state=published&per_page=100`
 at **2026-09-19T14:47:26Z**. No response bodies were retained. `Published
 record count` is the returned array length. A zero record count is not evidence
 that the product has no vulnerabilities: it means only that the queried upstream
 repository endpoint returned no published GHSA records. Where that leaves
-version-specific advisory coverage ambiguous, the selection stays fail-closed.
+version-specific advisory coverage ambiguous, it is not used as the sole
+assessment source.
 
 | Evidence | Exact item | Upstream endpoint HTTP/result | Exact version assessment |
 |---|---|---|---|
-| GHSA-RT-01 | CPython 3.12.14 candidate | `python/cpython`: HTTP 200; published record count 0. | The endpoint has no published repository GHSA record, but it is not a complete CPython security-release/CVE coverage source. Advisory status is **ambiguous; Blocked** pending an approved comprehensive upstream advisory method at FND-I01. |
-| GHSA-RT-02 | Node.js 22.23.2 | `nodejs/node`: HTTP 200; published record count 0. | The endpoint has no published repository GHSA record, but it is not a complete Node security-release/CVE coverage source. Advisory status is **ambiguous; Blocked** pending an approved comprehensive upstream advisory method at FND-I01. |
-| GHSA-RT-03 | npm 10.9.8 | `npm/cli`: HTTP 200; published record count 5. Declared npm ranges: `>=7.9.0,<8.11.0`, `<6.14.6`, and three `<6.13.4`. | 10.9.8 is outside all five returned declared ranges. This is a point-in-time upstream endpoint result only; FND-I01 still rechecks full tool/distribution provenance. |
+| GHSA-RT-01 | CPython 3.12.14 candidate | `python/cpython`: HTTP 200; published record count 0. | Supplemental only. Exact release/index assessment is recorded in RT-REL-01; no universal-absence conclusion is drawn from this endpoint. |
+| GHSA-RT-02 | Node.js 22.23.2 | `nodejs/node`: HTTP 200; published record count 0. | Supplemental only. Exact release/index assessment is recorded in RT-REL-02; no universal-absence conclusion is drawn from this endpoint. |
+| GHSA-RT-03 | npm 10.9.8 | `npm/cli`: HTTP 200; published record count 5. Declared npm ranges: `>=7.9.0,<8.11.0`, `<6.14.6`, `<6.13.4`, `<6.13.3`, `<6.13.3`. | 10.9.8 is outside all five returned declared ranges. This is a point-in-time upstream endpoint result only; FND-I01 still rechecks full tool/distribution provenance. |
 | GHSA-RT-04 | uv 0.11.16 | `astral-sh/uv`: HTTP 200; published record count 6. Declared `uv` ranges: `<0.11.15`, `<=0.11.5`, `<=0.9.5`, `<=0.9.4`, `<=0.8.21`, `<0.8.5`. | 0.11.16 is outside all six returned declared ranges. This is a point-in-time upstream endpoint result only; owner license-branch decision remains Blocked. |
+
+### Exact CPython and Node release/index assessment
+
+This direct assessment was executed at **2026-09-19T14:54:32Z** using the
+official release pages and current canonical publication indexes. It assesses
+what the selected release includes and whether the reviewed current index shows
+a subsequent security-release publication. It makes no universal claim that no
+other vulnerability, disclosure, operating-system library issue, or future
+advisory exists.
+
+| Evidence | Exact candidate and official source | Dated result and applicability | Boundary |
+|---|---|---|---|
+| RT-REL-01 | [CPython 3.12.14 official release](https://www.python.org/downloads/release/python-31214/) and [official Python source-release index](https://www.python.org/ftp/python/) | The release page identifies 3.12.14 as a security release and lists fixes including CVE-2021-4189, CVE-2025-4330, CVE-2026-2297, CVE-2026-3644, and CVE-2026-4224. Those listed fixes are included in the exact 3.12.14 candidate. At review time, 3.12.14 was the highest published `3.12.*` entry in the official index; no subsequent 3.12 security-release artifact was listed. | Direct candidate advisory assessment recorded. This is not a complete distribution/native-library scan and does not prove universal absence. Those remain FND-I01 work. |
+| RT-REL-02 | [Node.js 22.23.2 official release](https://nodejs.org/en/blog/release/v22.23.2) and [current official Node security-release feed](https://nodejs.org/en/feed/blog.xml) | The exact release page lists CVE-2026-56846, CVE-2026-56847, CVE-2026-56848, CVE-2026-56850, CVE-2026-58039, CVE-2026-58040, CVE-2026-58042, CVE-2026-58043, CVE-2026-58044, and CVE-2026-58045; the release includes the corresponding fixes. At review time, the feed's newest `Security Releases` entry was 2026-07-29 and linked the exact 22.23.2 release event; no later security-release feed entry was present. | Direct candidate advisory assessment recorded. This is not a complete distribution/OpenSSL/native-library scan and does not prove universal absence. Those remain FND-I01 work. |
 
 ## Python direct packages
 
@@ -182,10 +197,13 @@ packages, browser archives, runtimes, future advisories, or package provenance.
 | OSV-E13 | npm | `@vitejs/plugin-react` | `6.1.1` | 200 / advisory count 0 |
 | OSV-E14 | npm | `@playwright/test` | `1.63.0` | 200 / advisory count 0 |
 
-CPython, Node.js, npm CLI, uv, and Chromium were not submitted to OSV because
-this executed query had no canonical package tuple for their selected
-distribution/artifact. Their advisory assessment is therefore **Not Run** and
-must be completed with the selected distribution/artifact at FND-I01.
+CPython, Node.js, npm CLI, uv, and Chromium were **not queried through OSV**
+because this executed query had no canonical package tuple for their selected
+distribution/artifact. That OSV-query fact is distinct from advisory assessment:
+CPython and Node have the direct upstream assessments in `RT-REL-01/02`, and
+npm/uv have upstream GHSA assessments in `GHSA-RT-03/04`. Chromium's advisory
+assessment remains **Not Run**. Full distribution/native-library and resolved
+graph assessment remains FND-I01 work for every item.
 
 ## Cross-cutting supply-chain controls
 
@@ -248,16 +266,14 @@ download is authorized:
 3. For uv 0.11.16, select either upstream **MIT** or **Apache-2.0** and approve
    that selected branch. This record intentionally makes no choice between them.
 
-Until those three decisions and the current CPython patch selection exist, the
+Until those three owner decisions exist, the
 whole `FND-I00-DEP-001` admission is **Blocked**. FND-I01, package installation,
 browser download, manifest creation, and lockfile creation are prohibited.
 
-Two non-owner technical blockers also remain: the executed upstream GHSA
-endpoints for CPython and Node returned zero repository records but do not
-provide complete version-specific security-release/CVE coverage. Before FND-I01,
-the dependency/security reviewer must record a comprehensive canonical upstream
-advisory method and its exact result for CPython 3.12.14 and Node 22.23.2. Until
-then those selections remain fail-closed.
+The prior direct CPython/Node advisory-evidence blocker is closed by the dated
+official release/index assessments in `RT-REL-01/02`. Their narrow scope does
+not approve an artifact, native library, resolved graph, or future advisory;
+those checks remain mandatory and fail-closed at FND-I01.
 
 ## Compatibility, security, and documentation impact
 
