@@ -201,6 +201,7 @@ async def _run_server(
             raise LoopbackServerError("shutdown_failed")
 
     task = asyncio.create_task(drive())
+    cancelled = False
     try:
         while not server.started:
             if task.done():
@@ -212,11 +213,22 @@ async def _run_server(
         while not stop.is_set() and not task.done():
             await asyncio.sleep(0.02)
         server.should_exit = True
-        await task
+        await asyncio.shield(task)
+    except asyncio.CancelledError:
+        cancelled = True
     finally:
         server.should_exit = True
-        if not task.done():
-            await task
+        while not task.done():
+            try:
+                # Uvicorn's bounded HTTP drain and application cleanup must finish
+                # before caller cancellation is propagated or the socket is closed.
+                await asyncio.shield(task)
+            except asyncio.CancelledError:
+                cancelled = True
+    # A shutdown failure takes precedence over cancellation and remains typed.
+    task.result()
+    if cancelled:
+        raise asyncio.CancelledError
 
 
 async def serve_loopback(

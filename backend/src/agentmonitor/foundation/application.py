@@ -40,6 +40,14 @@ class ComponentFactorySetV1:
 
 @dataclass(frozen=True, slots=True)
 class LifecycleHooksV1:
+    """Cleanup runs once in reverse order after every attempted lifespan.
+
+    Shutdown hooks must be idempotent and tolerate incomplete or absent startup
+    acquisition. Each receives a share of the shutdown deadline, so one failed,
+    cancelled or timed-out hook cannot prevent the remaining cleanup attempts.
+    All hooks must cooperate with cancellation, including their own I/O cleanup.
+    """
+
     startup: tuple[AsyncHook, ...] = field(default=(), repr=False)
     shutdown: tuple[AsyncHook, ...] = field(default=(), repr=False)
     tasks: tuple[AsyncHook, ...] = field(default=(), repr=False)
@@ -78,13 +86,47 @@ class ApplicationLifecycleV1:
             # Never retain exception objects, text, command, paths or tracebacks.
             self.task_failures += ("background_task_failed",)
 
+    async def _cleanup(
+        self, resource: CloseableResource | None, tasks: list[asyncio.Task[None]]
+    ) -> None:
+        self.phase = "stopping"
+        for task in tasks:
+            task.cancel()
+        stages = len(self.hooks.shutdown) + bool(tasks)
+        deadline = self.hooks.shutdown_timeout_seconds / max(stages, 1)
+        try:
+            if tasks:
+                try:
+                    await asyncio.wait_for(
+                        asyncio.gather(*tasks, return_exceptions=True), deadline
+                    )
+                except TimeoutError:
+                    self.failure_code = self.failure_code or "shutdown_timeout"
+            for hook in reversed(self.hooks.shutdown):
+                try:
+                    # Separate tasks contain a hook's self-cancellation; cleanup
+                    # of the other resources must still execute and be awaited.
+                    await asyncio.wait_for(hook(), deadline)
+                except TimeoutError:
+                    self.failure_code = self.failure_code or "shutdown_timeout"
+                except asyncio.CancelledError:
+                    self.failure_code = self.failure_code or "shutdown_cancelled"
+                except Exception:
+                    self.failure_code = self.failure_code or "shutdown_failed"
+        finally:
+            if resource is not None:
+                try:
+                    resource.close()
+                except Exception:
+                    self.failure_code = self.failure_code or "resource_close_failed"
+            self.phase = "failed" if self.failure_code else "stopped"
+
     @asynccontextmanager
     async def lifespan(self) -> AsyncIterator[None]:
         if self.phase != "created":
             raise ApplicationLifecycleError("lifecycle_already_used")
         resource: CloseableResource | None = None
         tasks: list[asyncio.Task[None]] = []
-        started = False
         self.phase = "starting"
         self.startup_context = CorrelationContextV1()
         try:
@@ -101,8 +143,10 @@ class ApplicationLifecycleV1:
                     asyncio.create_task(self._supervise(hook))
                     for hook in self.hooks.tasks
                 ]
-                started = True
                 self.phase = "running"
+            except asyncio.CancelledError:
+                self.failure_code = "startup_cancelled"
+                raise
             except TimeoutError:
                 self.failure_code = "startup_timeout"
             except ApplicationLifecycleError as error:
@@ -112,27 +156,17 @@ class ApplicationLifecycleV1:
             if self.failure_code is None:
                 yield
         finally:
-            self.phase = "stopping"
-            for task in tasks:
-                task.cancel()
-            try:
-                async with asyncio.timeout(self.hooks.shutdown_timeout_seconds):
-                    if tasks:
-                        await asyncio.gather(*tasks, return_exceptions=True)
-                    if started:
-                        for hook in reversed(self.hooks.shutdown):
-                            await hook()
-            except TimeoutError:
-                self.failure_code = self.failure_code or "shutdown_timeout"
-            except Exception:
-                self.failure_code = self.failure_code or "shutdown_failed"
-            finally:
-                if resource is not None:
-                    try:
-                        resource.close()
-                    except Exception:
-                        self.failure_code = self.failure_code or "resource_close_failed"
-                self.phase = "failed" if self.failure_code else "stopped"
+            cleanup = asyncio.create_task(self._cleanup(resource, tasks))
+            cancelled = False
+            while not cleanup.done():
+                try:
+                    await asyncio.shield(cleanup)
+                except asyncio.CancelledError:
+                    # Repeated caller cancellation cannot abandon owned cleanup.
+                    cancelled = True
+            cleanup.result()
+            if cancelled:
+                raise asyncio.CancelledError
         # Raise outside the handler so raw exceptions cannot leak in the chain.
         if self.failure_code is not None:
             raise ApplicationLifecycleError(self.failure_code) from None

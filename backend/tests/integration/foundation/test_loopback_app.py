@@ -314,6 +314,203 @@ async def real_child_wait() -> None:
         await child.wait()
 
 
+@pytest.mark.parametrize("shutdown", ["normal", "failure", "timeout"])
+def test_cancelling_server_during_shutdown_drains_lifespan_and_restarts(
+    configured_database: tuple[Path, Path],
+    shutdown: str,
+) -> None:
+    bootstrap = implementation()
+    from agentmonitor.foundation.application import LifecycleHooksV1
+
+    async def exercise() -> None:
+        original_tasks = asyncio.all_tasks()
+        app = bootstrap.create_foundation_application(
+            *configured_database,
+            lifecycle=LifecycleHooksV1(
+                foundation_contract_mode=True,
+                shutdown_timeout_seconds=0.4,
+                shutdown=()
+                if shutdown == "normal"
+                else (
+                    real_child_failure if shutdown == "failure" else real_child_wait,
+                ),
+            ),
+        )
+        ready: asyncio.Future[str] = asyncio.get_running_loop().create_future()
+        stop = asyncio.Event()
+        server_task = asyncio.create_task(
+            bootstrap.serve_loopback(
+                app,
+                host="127.0.0.1",
+                port=0,
+                ready=ready.set_result,
+                stop=stop,
+            )
+        )
+        try:
+            origin = await asyncio.wait_for(ready, 5)
+            assert (await asyncio.to_thread(request, origin, "/openapi.json"))[0] == 200
+            stop.set()
+            await asyncio.sleep(0.04)
+            server_task.cancel()
+            # Repeated cancellation must not interrupt the owned cleanup either.
+            again = asyncio.get_running_loop().call_later(0.02, server_task.cancel)
+            try:
+                expected = (
+                    asyncio.CancelledError
+                    if shutdown == "normal"
+                    else bootstrap.LoopbackServerError
+                )
+                with pytest.raises(expected):
+                    await asyncio.wait_for(server_task, 5)
+            finally:
+                again.cancel()
+            assert app.state.lifecycle.phase == (
+                "stopped" if shutdown == "normal" else "failed"
+            ), "FND-LIFE-001: caller cancellation abandoned the real lifespan"
+            assert (
+                app.state.lifecycle.failure_code
+                == {
+                    "normal": None,
+                    "failure": "shutdown_failed",
+                    "timeout": "shutdown_timeout",
+                }[shutdown]
+            )
+            assert not (configured_database[1] / "agentmonitor.db-wal").exists()
+            assert not (configured_database[1] / "agentmonitor.db-shm").exists()
+            await asyncio.sleep(0)
+            assert not (asyncio.all_tasks() - original_tasks), "owned task leaked"
+            restarted = bootstrap.create_foundation_application(
+                *configured_database,
+                lifecycle=LifecycleHooksV1(foundation_contract_mode=True),
+            )
+            async with running(
+                restarted, port=int(origin.rsplit(":", 1)[1])
+            ) as new_origin:
+                assert (await asyncio.to_thread(request, new_origin, "/openapi.json"))[
+                    0
+                ] == 200
+            assert restarted.state.lifecycle.phase == "stopped"
+        finally:
+            # Preserve genuine Red while cleaning up this test's owned tasks.
+            remaining = asyncio.all_tasks() - original_tasks
+            for task in remaining:
+                task.cancel()
+            await asyncio.gather(*remaining, return_exceptions=True)
+
+    asyncio.run(exercise())
+
+
+@pytest.mark.parametrize(
+    "condition",
+    [
+        "startup_failure",
+        "startup_cancellation",
+        "shutdown_failure",
+        "shutdown_cancellation",
+        "shutdown_timeout",
+        "normal",
+    ],
+)
+def test_partial_startup_and_cleanup_failures_reap_owned_resources(
+    configured_database: tuple[Path, Path],
+    condition: str,
+) -> None:
+    bootstrap = implementation()
+    from agentmonitor.foundation.application import LifecycleHooksV1
+
+    async def exercise() -> None:
+        original_tasks = asyncio.all_tasks()
+        children: list[asyncio.subprocess.Process] = []
+        cleanup_order: list[str] = []
+
+        async def acquire() -> None:
+            children.append(
+                await asyncio.create_subprocess_exec(
+                    sys.executable,
+                    "-c",
+                    "import time; time.sleep(30)",
+                )
+            )
+
+        async def release() -> None:
+            # Idempotent cleanup also tolerates acquisition not having happened.
+            cleanup_order.append("resource")
+            for child in children:
+                if child.returncode is None:
+                    child.terminate()
+                await child.wait()
+
+        async def cancel_this_hook() -> None:
+            task = asyncio.current_task()
+            assert task is not None
+            task.cancel()
+            await asyncio.sleep(0)
+
+        async def second_startup() -> None:
+            if condition == "startup_failure":
+                await real_child_failure()
+            elif condition == "startup_cancellation":
+                await cancel_this_hook()
+
+        async def second_cleanup() -> None:
+            cleanup_order.append("second")
+            if condition == "shutdown_failure":
+                await real_child_failure()
+            elif condition == "shutdown_cancellation":
+                await cancel_this_hook()
+            elif condition == "shutdown_timeout":
+                await real_child_wait()
+
+        app = bootstrap.create_foundation_application(
+            *configured_database,
+            lifecycle=LifecycleHooksV1(
+                startup=(acquire, second_startup),
+                shutdown=(release, second_cleanup),
+                shutdown_timeout_seconds=0.4,
+            ),
+        )
+        try:
+            if condition == "normal":
+                async with running(app):
+                    pass
+            else:
+                # A self-cancelled hook must also be a visible typed failure.
+                with pytest.raises(bootstrap.LoopbackServerError):
+                    async with running(app):
+                        pass
+            assert children and all(
+                child.returncode is not None for child in children
+            ), "FND-LIFE-001: registered cleanup left an owned child alive"
+            assert cleanup_order == ["second", "resource"]
+            expected_codes = {
+                "startup_failure": "startup_failed",
+                "startup_cancellation": "startup_cancelled",
+                "shutdown_failure": "shutdown_failed",
+                "shutdown_cancellation": "shutdown_cancelled",
+                "shutdown_timeout": "shutdown_timeout",
+                "normal": None,
+            }
+            assert app.state.lifecycle.failure_code == expected_codes[condition]
+            assert app.state.lifecycle.phase == (
+                "stopped" if condition == "normal" else "failed"
+            )
+            assert not (configured_database[1] / "agentmonitor.db-wal").exists()
+            await asyncio.sleep(0)
+            assert not (asyncio.all_tasks() - original_tasks), "owned task leaked"
+        finally:
+            for child in children:
+                if child.returncode is None:
+                    child.terminate()
+                await child.wait()
+            remaining = asyncio.all_tasks() - original_tasks
+            for task in remaining:
+                task.cancel()
+            await asyncio.gather(*remaining, return_exceptions=True)
+
+    asyncio.run(exercise())
+
+
 def test_real_task_failure_is_surfaced_without_stopping_http(
     configured_database: tuple[Path, Path],
 ) -> None:
