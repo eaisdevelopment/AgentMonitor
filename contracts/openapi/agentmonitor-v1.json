@@ -1,0 +1,22 @@
+{
+  "info": {
+    "title": "AgentMonitor",
+    "version": "0.0.0"
+  },
+  "openapi": "3.1.0",
+  "paths": {},
+  "x-agentmonitor-generation": {
+    "api_major": 1,
+    "components": {
+      "fastapi": "0.141.1",
+      "pydantic": "2.13.5",
+      "starlette": "1.6.0"
+    },
+    "generator": "agentmonitor-openapi-client",
+    "generator_sha256": "157eceedf6f90b0de0bf15c65d125d07ec2073b54f3af34b788a34251558e98f",
+    "generator_version": "1.0.0",
+    "openapi_version": "3.1.0",
+    "schema_sha256": "70cabfcd6b1306b58660727fef0179fb8ed90bc222026f3a71758883fcbd748d",
+    "source_sha256": "e8c74330e0b5bb2163ac40dedc5e19fea7457c3034aea83004bf1a8c6fb95c3b"
+  }
+}
