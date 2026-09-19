@@ -361,6 +361,7 @@ def _contract_consumption_errors(
                 continue
             tree = ast.parse(path.read_text(encoding="utf-8"))
             names: set[str] = set()
+            rebound_names: set[str] = set()
             for node in tree.body:
                 if isinstance(
                     node, (ast.ClassDef, ast.FunctionDef, ast.AsyncFunctionDef)
@@ -372,6 +373,25 @@ def _contract_consumption_errors(
                     node.target, ast.Name
                 ):
                     names.add(node.target.id)
+                if isinstance(node, (ast.Assign, ast.AnnAssign, ast.AugAssign)):
+                    targets = (
+                        node.targets if isinstance(node, ast.Assign) else [node.target]
+                    )
+                    for assignment_target in targets:
+                        for binding in ast.walk(assignment_target):
+                            if (
+                                isinstance(binding, ast.Name)
+                                and isinstance(binding.ctx, ast.Store)
+                                and binding.id in definitions
+                            ):
+                                rebound_names.add(binding.id)
+                                errors.append(
+                                    f"{path.relative_to(root)}:{node.lineno}:"
+                                    f"catalog-name-rebinding:{binding.id}"
+                                )
+            # Assignments cannot establish a catalog identity or replace a real
+            # declaration, even if a class of that name appears earlier/later.
+            names.difference_update(rebound_names)
             exports[module] = {
                 name: str(definitions[name]["id"]) if name in definitions else None
                 for name in names

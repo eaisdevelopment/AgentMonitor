@@ -130,6 +130,52 @@ def test_public_alias_cannot_disguise_an_undeclared_contract(tmp_path: Path) -> 
     )
 
 
+@pytest.mark.parametrize(
+    "assignment",
+    [
+        "OpaqueIdV1 = SchemaCompatibilityV1",
+        "OpaqueIdV1: type = SchemaCompatibilityV1",
+        "(OpaqueIdV1, ordinary_name) = (SchemaCompatibilityV1, 1)",
+    ],
+)
+def test_catalog_name_rebinding_cannot_disguise_an_undeclared_contract(
+    tmp_path: Path,
+    assignment: str,
+) -> None:
+    copy_contract_policy(tmp_path)
+    foundation_path = tmp_path / SOURCE / "contracts/foundation_v1.py"
+    foundation_path.write_text(
+        foundation_path.read_text(encoding="utf-8") + f"\n{assignment}\n",
+        encoding="utf-8",
+    )
+    source = write_source(
+        tmp_path,
+        "modules/registry/domain/rule.py",
+        "from agentmonitor.contracts.foundation_v1 import OpaqueIdV1\n",
+    )
+    assert f"{source}:1:unresolved-contract-symbol" in checker().find_forbidden_imports(
+        tmp_path
+    )
+
+
+def test_ordinary_assignments_do_not_change_contract_declarations(
+    tmp_path: Path,
+) -> None:
+    copy_contract_policy(tmp_path)
+    foundation_path = tmp_path / SOURCE / "contracts/foundation_v1.py"
+    foundation_path.write_text(
+        foundation_path.read_text(encoding="utf-8")
+        + "\nREVIEWED_MAJOR = 1\nreviewed: bool = True\n",
+        encoding="utf-8",
+    )
+    write_source(
+        tmp_path,
+        "modules/registry/domain/rule.py",
+        "from agentmonitor.contracts.common_v1 import OpaqueIdV1\n",
+    )
+    assert checker().find_forbidden_imports(tmp_path) == []
+
+
 def test_missing_contract_adoption_fails_closed(tmp_path: Path) -> None:
     source = write_source(
         tmp_path,
