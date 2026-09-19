@@ -201,6 +201,7 @@ def _read_explicit(config_path: Path) -> str:
         not isinstance(config_path, Path)
         or not config_path.is_absolute()
         or ".." in config_path.parts
+        or any("\x00" in part for part in config_path.parts)
     ):
         raise BootstrapConfigurationError("invalid_configuration_path")
     if os.name != "posix":

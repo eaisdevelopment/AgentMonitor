@@ -393,3 +393,49 @@ def test_configuration_error_traceback_does_not_chain_raw_caller_exception(
         pytest.fail(
             "unsafe caller exception appeared in safe-error traceback", pytrace=False
         )
+
+
+@pytest.mark.parametrize("intermediate", [False, True], ids=["final", "intermediate"])
+def test_nul_configuration_path_has_stable_safe_error(
+    tmp_path: Path, intermediate: bool
+) -> None:
+    from agentmonitor.foundation.configuration import BootstrapConfigurationError
+
+    config = implementation()
+    invalid = tmp_path / "bad\x00path"
+    if intermediate:
+        invalid /= "selected.env"
+    cli = config.BootstrapCliOptionsV1(
+        registry=dataclasses.replace(registry(), descriptors=())
+    )
+    with pytest.raises(ValueError) as caught:
+        config.load_bootstrap_configuration(invalid, {}, cli)
+    assert type(caught.value) is BootstrapConfigurationError
+    assert caught.value.code == "invalid_configuration_path"
+    assert caught.value.setting_name is None
+    assert str(caught.value) == "invalid_configuration_path"
+
+
+@pytest.mark.parametrize("intermediate", [False, True], ids=["final", "intermediate"])
+def test_nul_configuration_path_traceback_excludes_caller_canary(
+    tmp_path: Path, intermediate: bool
+) -> None:
+    config = implementation()
+    invalid = tmp_path / "bad\x00path"
+    if intermediate:
+        invalid /= "selected.env"
+    cli = config.BootstrapCliOptionsV1(
+        registry=dataclasses.replace(registry(), descriptors=())
+    )
+    canary = secrets.token_urlsafe(32)
+    try:
+        raise RuntimeError(canary)
+    except RuntimeError:
+        with pytest.raises(ValueError) as caught:
+            config.load_bootstrap_configuration(invalid, {}, cli)
+        rendered = "".join(traceback.format_exception(caught.value))
+    if canary in rendered:
+        pytest.fail(
+            "unsafe caller exception appeared in NUL-path error traceback",
+            pytrace=False,
+        )
