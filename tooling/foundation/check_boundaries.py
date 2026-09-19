@@ -57,6 +57,12 @@ CONTRACT_MODULES = frozenset(
         "ui_v1",
     }
 )
+# Published supporting values have no independent catalog ID. This closed list
+# prevents arbitrary aliases/re-exports from masquerading as support metadata.
+SUPPORT_SYMBOLS = {
+    "agentmonitor.contracts.common_v1": {"TechnicalValueV1", "AvailabilityStateV1"},
+    "agentmonitor.contracts.configuration_v1": {"ConfigurationDescriptorV1"},
+}
 TASK_CONTRACT_IDS = frozenset(
     {
         "CTR-COMMON-001",
@@ -147,11 +153,19 @@ def _allowed(source: str, target: str) -> bool:
     if any(part.startswith("_") for part in dst[1:]) and src[1:3] != dst[1:3]:
         return False
     if dst[1] == "contracts":
-        return len(dst) == 3 and dst[2] in CONTRACT_MODULES
+        return (
+            len(dst) in {3, 4}
+            and dst[2] in CONTRACT_MODULES
+            and (len(dst) == 3 or not dst[3].startswith("_"))
+        )
     if pure:
         return src[1:2] == ["modules"] and dst[:4] == src[:4]
     if src[1:2] == ["modules"]:
-        return dst[1:3] == src[1:3]
+        return (
+            src[3:4] == ["application"]
+            and dst[1:3] == src[1:3]
+            and dst[3:4] in (["application"], ["domain"])
+        )
     if src[1:2] == ["foundation"]:
         return dst[1] == "foundation"
     if src[1:2] == ["api"]:
@@ -195,18 +209,25 @@ def _imports(
                 base = ".".join(
                     package[: len(package) - node.level + 1] + ([base] if base else [])
                 )
-            # Package imports must expose the imported child to policy; external
-            # names and versioned contract symbols remain on their base module.
-            if base.startswith("agentmonitor") and not (
-                base.startswith("agentmonitor.contracts.")
-                and base.split(".")[-1] in CONTRACT_MODULES
-            ):
+            # Keep contract symbols until privacy and adoption checks complete;
+            # aliases cannot hide the original imported name.
+            if base.startswith("agentmonitor.contracts."):
+                edges.extend((node.lineno, f"{base}.{a.name}") for a in node.names)
+            elif base.startswith("agentmonitor"):
                 # `from package import Symbol` may be a symbol or a module.
                 # Check the base direction as well as each child for bypasses.
-                if base not in {
-                    "agentmonitor",
-                    "agentmonitor.contracts",
-                } and not _allowed(module, base):
+                if (
+                    base
+                    not in {
+                        "agentmonitor",
+                        "agentmonitor.contracts",
+                    }
+                    and not (
+                        base.startswith("agentmonitor.modules.")
+                        and len(base.split(".")) == 3
+                    )
+                    and not _allowed(module, base)
+                ):
                     edges.append((node.lineno, base))
                 else:
                     edges.extend((node.lineno, f"{base}.{a.name}") for a in node.names)
@@ -238,7 +259,19 @@ def find_forbidden_imports(root: Path) -> list[str]:
     paths, errors = _sources(root)
     graph: dict[str, set[str]] = {}
     locations: list[tuple[str, str, int, str]] = []
-    modules = {_module(path, root): path for path in paths}
+    module_paths: dict[str, list[Path]] = {}
+    for path in paths:
+        module_paths.setdefault(_module(path, root), []).append(path)
+    collisions = [
+        f"{path.relative_to(root)}:0:duplicate-module:{module}"
+        for module, candidates in module_paths.items()
+        if len(candidates) > 1
+        for path in candidates
+    ]
+    if collisions:
+        return sorted(set(errors + collisions))
+    modules = {module: candidates[0] for module, candidates in module_paths.items()}
+    contract_imports: list[tuple[Path, int, str]] = []
     for module, path in modules.items():
         relative = path.relative_to(root).as_posix()
         try:
@@ -252,6 +285,8 @@ def find_forbidden_imports(root: Path) -> list[str]:
         for line, target in edges:
             if not _allowed(module, target):
                 errors.append(f"{relative}:{line}:{target}")
+            elif target.startswith("agentmonitor.contracts."):
+                contract_imports.append((path, line, target))
             resolved = target
             while resolved not in modules and "." in resolved:
                 resolved = resolved.rsplit(".", 1)[0]
@@ -274,7 +309,138 @@ def find_forbidden_imports(root: Path) -> list[str]:
     for module, relative, line, target in locations:
         if reaches(target, module):
             errors.append(f"{relative}:{line}:cycle:{target}")
+    errors.extend(_contract_consumption_errors(root, modules, contract_imports))
     return sorted(set(errors))
+
+
+def _contract_consumption_errors(
+    root: Path,
+    modules: dict[str, Path],
+    imports: list[tuple[Path, int, str]],
+) -> list[str]:
+    """Resolve real published definitions and semantic owners against adoption.
+
+    A symbol import needs its declared ID. A module import grants access to all
+    its contracts, so all must be adopted. Public support values with no separate
+    catalog ID require adoption of at least one contract from their defining
+    family; re-exports and unresolved symbols are not accepted as declarations.
+    """
+    if not imports:
+        return []
+    errors: list[str] = []
+    try:
+        documents = _policy_documents(root)
+        contracts = _records(documents["contract-baseline"], "contracts")
+        plans = _records(documents["contract-adoption"], "plans")
+        ownership = documents["parallel-ownership"]
+        definitions = {str(entry["name"]): entry for entry in contracts}
+        permissions = {
+            str(plan["id"]): set(
+                _strings(plan["consumes"]) + _strings(plan["publishes"])
+            )
+            for plan in plans
+        }
+        allocations = [
+            (pattern, str(unit["id"]))
+            for unit in _records(ownership, "units")
+            for pattern in _strings(unit["write_paths"])
+        ]
+        # Shared writers are edit custodians. Only an unambiguous semantic plan
+        # may consume contracts; contract-file owners are resolved below instead.
+        for shared in _records(ownership, "shared_writers"):
+            owner = str(shared["semantic_owner"]).split()[0]
+            if owner in permissions:
+                allocations.extend(
+                    (pattern, owner) for pattern in _strings(shared["paths"])
+                )
+        exports: dict[str, dict[str, str | None]] = {}
+        families: dict[str, set[str]] = {}
+        contract_owners: dict[str, str] = {}
+        for module, path in modules.items():
+            if not module.startswith("agentmonitor.contracts."):
+                continue
+            tree = ast.parse(path.read_text(encoding="utf-8"))
+            names: set[str] = set()
+            for node in tree.body:
+                if isinstance(
+                    node, (ast.ClassDef, ast.FunctionDef, ast.AsyncFunctionDef)
+                ):
+                    names.add(node.name)
+                elif isinstance(node, ast.Assign):
+                    names.update(n.id for n in node.targets if isinstance(n, ast.Name))
+                elif isinstance(node, ast.AnnAssign) and isinstance(
+                    node.target, ast.Name
+                ):
+                    names.add(node.target.id)
+            exports[module] = {
+                name: str(definitions[name]["id"]) if name in definitions else None
+                for name in names
+                if name in definitions or name in SUPPORT_SYMBOLS.get(module, set())
+            }
+            families[module] = {
+                value for value in exports[module].values() if value is not None
+            }
+            owners = {
+                str(definitions[name]["producer"])
+                for name in names
+                if name in definitions
+            }
+            if len(owners) == 1:
+                contract_owners[module] = owners.pop()
+        for path, line, target in imports:
+            relative = path.relative_to(root).as_posix()
+            prefix = f"{relative}:{line}"
+            source_module = _module(path, root)
+            source_owners = (
+                [contract_owners[source_module]]
+                if source_module in contract_owners
+                else [
+                    owner
+                    for pattern, owner in allocations
+                    if fnmatch.fnmatchcase(relative, pattern)
+                ]
+            )
+            if len(source_owners) != 1 or source_owners[0] not in permissions:
+                errors.append(f"{prefix}:unresolved-contract-owner")
+                continue
+            allowed = permissions[source_owners[0]]
+            parts = target.split(".")
+            module = ".".join(parts[:3])
+            if module not in exports or not families[module]:
+                errors.append(f"{prefix}:unresolved-contract-module")
+                continue
+            required = families[module]
+            if len(parts) == 4:
+                symbol = parts[3]
+                if symbol not in exports[module]:
+                    errors.append(f"{prefix}:unresolved-contract-symbol")
+                    continue
+                contract_id = exports[module][symbol]
+                if contract_id is None:
+                    if not required & allowed:
+                        errors.append(f"{prefix}:undeclared-contract-support:{target}")
+                    continue
+                required = {contract_id}
+            errors.extend(
+                f"{prefix}:undeclared-contract:{contract_id}"
+                for contract_id in sorted(required - allowed)
+            )
+    except (OSError, UnicodeError, ValueError, KeyError, TypeError, SyntaxError):
+        return [
+            f"{path.relative_to(root)}:{line}:unresolved-contract-policy"
+            for path, line, _ in imports
+        ]
+    return errors
+
+
+def _policy_documents(root: Path) -> dict[str, dict[str, object]]:
+    documents: dict[str, dict[str, object]] = {}
+    for name in ("contract-baseline", "contract-adoption", "parallel-ownership"):
+        path = root / "docs/plans" / f"{name}.toml"
+        if path.is_symlink():
+            raise ValueError("symlink-manifest")
+        documents[name] = tomllib.loads(path.read_text(encoding="utf-8"))
+    return documents
 
 
 def _records(document: dict[str, object], key: str) -> list[dict[str, object]]:
@@ -305,12 +471,7 @@ def find_ownership_violations(root: Path) -> list[str]:
     paths, source_errors = _sources(root)
     errors.extend(source_errors)
     try:
-        documents = {}
-        for name in ("contract-baseline", "contract-adoption", "parallel-ownership"):
-            path = root / "docs/plans" / f"{name}.toml"
-            if path.is_symlink():
-                raise ValueError("symlink-manifest")
-            documents[name] = tomllib.loads(path.read_text(encoding="utf-8"))
+        documents = _policy_documents(root)
         contracts = _records(documents["contract-baseline"], "contracts")
         plans = _records(documents["contract-adoption"], "plans")
         ownership = documents["parallel-ownership"]

@@ -84,6 +84,23 @@ each other; foundation cannot import module internals. Cross-owner private
 imports and generic `utils` imports fail. This static Python checker is not a
 runtime sandbox, table-access analyzer or frontend TypeScript analyzer.
 
+Application code may import its own application ports/use cases and domain,
+plus declared contracts; arbitrary same-module infrastructure or unknown layers
+are not inward dependencies. Private contract symbol names are checked before
+normalization, including aliases and relative imports. Two source paths that
+normalize to the same module name fail before traversal, so neither can hide
+the other's imports.
+
+Contract imports resolve real source definitions to baseline IDs and the source
+file's semantic owner. The owner's adoption record must publish or consume each
+requested contract. Prefer explicit symbol imports: importing a whole contract
+module requires adoption of every contract it exposes. The closed supporting
+symbol list is TechnicalValueV1, AvailabilityStateV1 and
+ConfigurationDescriptorV1; these require adoption of at least one contract from
+their defining family. Arbitrary aliases are not support values. Missing
+definitions, owners or policy documents fail closed. Editing custody is not
+semantic consumption authority.
+
 The same command validates real ownership/adoption/baseline TOML: each source
 path has exactly one allocation; each contract has its unique declared
 producer, V1 version, and recognized baseline maturity. Shared writer authority

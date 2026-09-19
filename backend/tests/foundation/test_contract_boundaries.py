@@ -64,6 +64,137 @@ def write_source(root: Path, name: str, text: str) -> Path:
     return path.relative_to(root)
 
 
+def copy_contract_policy(root: Path) -> None:
+    """Copy repository-owned policy inputs, never external product responses."""
+    for filename in (
+        "contract-baseline.toml",
+        "contract-adoption.toml",
+        "parallel-ownership.toml",
+    ):
+        path = root / "docs/plans" / filename
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_bytes((ROOT / "docs/plans" / filename).read_bytes())
+    for module in PUBLIC:
+        write_source(
+            root,
+            f"contracts/{module}.py",
+            (ROOT / SOURCE / "contracts" / f"{module}.py").read_text(),
+        )
+
+
+@pytest.mark.parametrize(
+    "statement",
+    [
+        "from agentmonitor.contracts.database_v1 import SchemaCompatibilityV1",
+        "from agentmonitor.contracts.database_v1 import SchemaCompatibilityV1 as S",
+        "import agentmonitor.contracts.database_v1 as database",
+        "from agentmonitor.contracts import database_v1 as database",
+    ],
+)
+def test_undeclared_contract_consumption_is_rejected(
+    tmp_path: Path, statement: str
+) -> None:
+    copy_contract_policy(tmp_path)
+    source = write_source(tmp_path, "modules/registry/domain/rule.py", statement + "\n")
+    assert any(
+        error.startswith(f"{source}:1:undeclared-contract:CTR-DB-001")
+        for error in checker().find_forbidden_imports(tmp_path)
+    )
+
+
+def test_declared_contract_consumption_remains_allowed(tmp_path: Path) -> None:
+    copy_contract_policy(tmp_path)
+    write_source(
+        tmp_path,
+        "modules/capacity/domain/rule.py",
+        "from agentmonitor.contracts.database_v1 import SchemaCompatibilityV1\n",
+    )
+    assert checker().find_forbidden_imports(tmp_path) == []
+
+
+def test_public_alias_cannot_disguise_an_undeclared_contract(tmp_path: Path) -> None:
+    copy_contract_policy(tmp_path)
+    foundation_path = tmp_path / SOURCE / "contracts/foundation_v1.py"
+    foundation_path.write_text(
+        foundation_path.read_text(encoding="utf-8")
+        + "\nRenamedSchema = SchemaCompatibilityV1\n",
+        encoding="utf-8",
+    )
+    source = write_source(
+        tmp_path,
+        "modules/registry/domain/rule.py",
+        "from agentmonitor.contracts.foundation_v1 import RenamedSchema\n",
+    )
+    assert f"{source}:1:unresolved-contract-symbol" in checker().find_forbidden_imports(
+        tmp_path
+    )
+
+
+def test_missing_contract_adoption_fails_closed(tmp_path: Path) -> None:
+    source = write_source(
+        tmp_path,
+        "modules/registry/domain/rule.py",
+        "from agentmonitor.contracts.common_v1 import OpaqueIdV1\n",
+    )
+    assert f"{source}:1:unresolved-contract-policy" in checker().find_forbidden_imports(
+        tmp_path
+    )
+
+
+@pytest.mark.parametrize("layer", ["infrastructure", "api", "adapters", "unknown"])
+def test_application_rejects_own_outward_layers(tmp_path: Path, layer: str) -> None:
+    target = f"agentmonitor.modules.registry.{layer}.sqlite"
+    path = write_source(
+        tmp_path, "modules/registry/application/run.py", f"import {target}\n"
+    )
+    assert checker().find_forbidden_imports(tmp_path) == [f"{path}:1:{target}"]
+
+
+@pytest.mark.parametrize(
+    "statement",
+    [
+        "from .. import domain",
+        "from ..domain import rule",
+        "from . import ports",
+        "from agentmonitor.modules.registry import domain",
+    ],
+)
+def test_application_inward_import_forms_remain_allowed(
+    tmp_path: Path, statement: str
+) -> None:
+    write_source(tmp_path, "modules/registry/application/run.py", statement + "\n")
+    assert checker().find_forbidden_imports(tmp_path) == []
+
+
+@pytest.mark.parametrize(
+    "statement",
+    [
+        "from agentmonitor.contracts.common_v1 import _private",
+        "from agentmonitor.contracts.common_v1 import _private as public_name",
+        "from ....contracts.common_v1 import _private as public_name",
+    ],
+)
+def test_private_contract_symbols_are_rejected(tmp_path: Path, statement: str) -> None:
+    source = write_source(tmp_path, "modules/registry/domain/rule.py", statement + "\n")
+    assert checker().find_forbidden_imports(tmp_path) == [
+        f"{source}:1:agentmonitor.contracts.common_v1._private"
+    ]
+
+
+def test_module_name_collisions_fail_before_traversal(tmp_path: Path) -> None:
+    module = "agentmonitor.modules.registry.domain.rule"
+    first = write_source(tmp_path, "modules/registry/domain/rule.py", "value = 1\n")
+    second = write_source(
+        tmp_path, "modules/registry/domain/rule/__init__.py", "import fastapi\n"
+    )
+    assert checker().find_forbidden_imports(tmp_path) == sorted(
+        [
+            f"{first}:0:duplicate-module:{module}",
+            f"{second}:0:duplicate-module:{module}",
+        ]
+    )
+
+
 def test_domain_rejects_fastapi_import(tmp_path: Path) -> None:
     source = write_source(
         tmp_path, "modules/example/domain/rule.py", "from fastapi import FastAPI\n"
@@ -142,6 +273,7 @@ def test_relative_and_from_parent_imports_cannot_bypass_policy(tmp_path: Path) -
 
 
 def test_allowed_inward_dependencies(tmp_path: Path) -> None:
+    copy_contract_policy(tmp_path)
     for name, text in {
         "modules/example/domain/rule.py": (
             "from dataclasses import dataclass\nfrom decimal import Decimal\n"
@@ -161,7 +293,11 @@ def test_allowed_inward_dependencies(tmp_path: Path) -> None:
         ),
         "composition/app.py": "from agentmonitor.api import routes\n",
     }.items():
-        write_source(tmp_path, name, text)
+        write_source(
+            tmp_path,
+            name.replace("example", "registry"),
+            text.replace("example", "registry"),
+        )
     assert checker().find_forbidden_imports(tmp_path) == []
 
 
