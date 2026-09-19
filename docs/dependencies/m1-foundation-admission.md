@@ -1,5 +1,27 @@
 # M1 foundation dependency admission
 
+## Subsequent owner scope ruling — 2026-09-19
+
+The owner subsequently authorized FND-I01 development with the exact direct
+pins and reviewed candidate graph. Known development-tool license, advisory,
+native and provenance findings are deferred to FND-I09/M1 Task 5 and must be
+reassessed before public release or redistribution; they are not cleared.
+This supersedes the earlier FND-I01 entry blockers in this historical admission.
+Browser acquisition/execution is outside FND-I01: Chromium is test
+infrastructure, not an AgentMonitor delivery artifact. Package lifecycle
+scripts remain disabled. See the [lock review](m1-foundation-lock-review.md)
+for the current scope, evidence and deferred risks. Package pins are unchanged.
+
+The subsequent controller instruction accepts the complete system CPython
+3.12.3 for this local M1 development milestone only. The version file and
+development compatibility floor are therefore 3.12.3; upgrade to 3.12.14 or
+later in the 3.12 series remains required before release/deployment. This
+supersedes the historical rejection of 3.12.3 below, without asserting that
+3.12.3 includes later security fixes. The partial project-local 3.12.14 source
+build was not selected; no system runtime was modified.
+
+## Original direct-selection decision
+
 - Record ID: `FND-I00-DEP-001`
 - Status: **Approved for M1 direct-selection scope only.** Owner approval
   resolves CPython's PSF-2.0, npm's Artistic-2.0, and uv's MIT branch selection.
