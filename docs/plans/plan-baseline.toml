@@ -1,0 +1,205 @@
+schema_version = "1.0"
+baseline_version = "1.0.0-draft"
+status = "draft_synchronized"
+owner = "integration_steward"
+plan_count = 20
+control_count = 9
+owner_approved = false
+implementation_authorized = false
+implemented = false
+live_verified = false
+readiness_audit = "docs/plans/integration/cs1-final-readiness-audit.md"
+
+[[plans]]
+id = "PLAN-M0-DISCOVERY"
+path = "docs/plans/discovery/m0-execution-plan.md"
+plan_version = "0.2.0"
+sha256 = "6db9f5c048c6b3bf74c86b39e0388222766937f907a47a14e51a323cd3719192"
+bytes = 78412
+
+[[plans]]
+id = "PLAN-FND"
+path = "docs/plans/foundation/plan-v1.md"
+plan_version = "0.2.0-draft"
+sha256 = "07c892e3908b4be52e4d878f478a23f8be38a77fca72e5f2d192263e68d7a8c7"
+bytes = 97594
+
+[[plans]]
+id = "PLAN-M01"
+path = "docs/plans/modules/m01-identity-access/plan-v1.md"
+plan_version = "0.2.0-draft"
+sha256 = "e53f44d769e12825b2b6ec805f2c2d29c5406a587a85bc035d7f40b98c049b07"
+bytes = 103382
+
+[[plans]]
+id = "PLAN-M02"
+path = "docs/plans/modules/m02-registry/plan-v1.md"
+plan_version = "0.2.0-draft"
+sha256 = "8712d0faa7419e90bd39c249030b4a3d3023c2f7be8a7adc476e0b027af8bb36"
+bytes = 135328
+
+[[plans]]
+id = "PLAN-M03"
+path = "docs/plans/modules/m03-provider-system/plan-v1.md"
+plan_version = "0.2.0-draft"
+sha256 = "c3bdb5226f38df96447f571bea592b04915997193ad5a594221a99268afd24a0"
+bytes = 106045
+
+[[plans]]
+id = "PLAN-M04"
+path = "docs/plans/modules/m04-collection-control/plan-v1.md"
+plan_version = "0.2.0-draft"
+sha256 = "ece01a247bca1d32d75c61ed750afb5d8d4fe0e08542fb0fcd1a61ce5a97ab78"
+bytes = 124490
+
+[[plans]]
+id = "PLAN-M05"
+path = "docs/plans/modules/m05-capacity/plan-v1.md"
+plan_version = "0.2.0-draft"
+sha256 = "9ebb0c289de1567166ac53ef84b5f591a93040687c37cd0a0650e15318afec0d"
+bytes = 151158
+
+[[plans]]
+id = "PLAN-M06"
+path = "docs/plans/modules/m06-runtime-observation/plan-v1.md"
+plan_version = "0.2.0-draft"
+sha256 = "b06cc3f7e6a4fbb900d52aadc70d62cbc5eff9e88a296196cd552dd8e1f45fbb"
+bytes = 114896
+
+[[plans]]
+id = "PLAN-M07"
+path = "docs/plans/modules/m07-alerting/plan-v1.md"
+plan_version = "0.2.0-draft"
+sha256 = "9998744dd614c39bb3c7c7568a1b008c0c9b67f09a558fef822a5a51eca91a89"
+bytes = 107680
+
+[[plans]]
+id = "PLAN-M08"
+path = "docs/plans/modules/m08-operations/plan-v1.md"
+plan_version = "0.2.0-draft"
+sha256 = "5492df7377003d42ef88928b25a252b416d7d9d17d6066a9b07dbf4c211c55be"
+bytes = 139226
+
+[[plans]]
+id = "PLAN-A01"
+path = "docs/plans/adapters/claude/plan-v1.md"
+plan_version = "0.2.1-draft"
+sha256 = "9b3747e4fa8e063f0471cd42cd77d52a22a98be929bba6f4706670d3c2ae9660"
+bytes = 89331
+
+[[plans]]
+id = "PLAN-A02"
+path = "docs/plans/adapters/codex/plan-v1.md"
+plan_version = "0.2.0-draft"
+sha256 = "1dc5b4fa1bab06b13c87d059415ef913848d10b4ad887ce5b914e1dd66bdcf1e"
+bytes = 104008
+
+[[plans]]
+id = "PLAN-A03"
+path = "docs/plans/adapters/ollama/plan-v1.md"
+plan_version = "0.2.1-draft"
+sha256 = "f433efa8797695a99d85ca539bccb3f77ed80394fbd3bd998aaf61e55be43c9a"
+bytes = 115492
+
+[[plans]]
+id = "PLAN-A04-LINUX"
+path = "docs/plans/platform/linux/plan-v1.md"
+plan_version = "0.2.0-draft"
+sha256 = "163466660ac1e5efcf9103602971a5e67a1ae751a441e3dcd8fd55e7343bd8b2"
+bytes = 106931
+
+[[plans]]
+id = "PLAN-A04-MAC"
+path = "docs/plans/platform/macos/plan-v1.md"
+plan_version = "0.2.0-draft"
+sha256 = "df45ec120f9e3f0e09600358402a778c51585c79c9e9f322e694a2f982b07fb0"
+bytes = 87039
+
+[[plans]]
+id = "PLAN-P01"
+path = "docs/plans/api/fastapi-boundary/plan-v1.md"
+plan_version = "0.2.0-draft"
+sha256 = "f20f697bd9facf83448d8c327350457f82ae147510c0024cf8c3287822fa5d6c"
+bytes = 139185
+
+[[plans]]
+id = "PLAN-P02"
+path = "docs/plans/ui/react-dashboard/plan-v1.md"
+plan_version = "0.2.0-draft"
+sha256 = "bb8db08c7ab509c7876a093a0182dd660e99ab4f4dc0f755e3219fd0b8b2c9ae"
+bytes = 129133
+
+[[plans]]
+id = "PLAN-DB"
+path = "docs/plans/persistence/sqlite/plan-v1.md"
+plan_version = "0.2.0-draft"
+sha256 = "2a9a609c65c877cb6a8c5f42f272b002b3ea0991b002b1c7f0aa0821ce478562"
+bytes = 115016
+
+[[plans]]
+id = "PLAN-DEP"
+path = "docs/plans/deployment/linux-native/plan-v1.md"
+plan_version = "0.2.0-draft"
+sha256 = "e0874e30a64feb9c7bd88e3256510ca16fb3c610071737e2196befca63baddba"
+bytes = 138806
+
+[[plans]]
+id = "PLAN-INT"
+path = "docs/plans/integration/v1-plan.md"
+plan_version = "0.1.0"
+sha256 = "ada604ad7cdeeb8f70fd897c71e77a9bd0c9ecf42bd4ceb50c79eac2d0352c32"
+bytes = 138513
+
+[[controls]]
+id = "planning-catalog"
+path = "docs/plans/planning-catalog.toml"
+sha256 = "22a01a19bf2e760b3c1e6af4f9ee772fbc28b898ffcef773fd04277e012372d9"
+bytes = 4124
+
+[[controls]]
+id = "contract-baseline"
+path = "docs/plans/contract-baseline.toml"
+sha256 = "d7499bd3356bae0bb0c1890acfefa3f2c7711319778d9f4fc62ec008bd4b465c"
+bytes = 58197
+
+[[controls]]
+id = "contract-adoption"
+path = "docs/plans/contract-adoption.toml"
+sha256 = "ca98d2ce181dd12089291feca983035f425f667c90b8f8d82fcbbd0dddf4015f"
+bytes = 15937
+
+[[controls]]
+id = "configuration-baseline"
+path = "docs/plans/configuration-baseline.toml"
+sha256 = "ba187c1638736f893a36c24c24db2df5e1c91365c7980062a3e29bc4653b2409"
+bytes = 21881
+
+[[controls]]
+id = "requirement-ownership"
+path = "docs/plans/requirement-ownership.toml"
+sha256 = "98b6964c2f22f4384f24c696f8ec61119779d6f2298fe4547dfb08ead1d1472f"
+bytes = 73372
+
+[[controls]]
+id = "parallel-ownership"
+path = "docs/plans/parallel-ownership.toml"
+sha256 = "96b8c8a06adcf2e9c1c39e9aadfdc36a9f411f833bc8d918c3dec505bf8d0460"
+bytes = 22652
+
+[[controls]]
+id = "automation-routines"
+path = "tools/automation/routines.toml"
+sha256 = "ed823854bf690935ab97857f5797de7cac9b4033c515a4f9812c3e0ae66deed3"
+bytes = 5318
+
+[[controls]]
+id = "automation-standard"
+path = "docs/engineering/completion-and-automation-gates.md"
+sha256 = "80e0afba1a5f64fe915df09f12dabe3c1e2ec5f29089c18795646b9c93538a86"
+bytes = 13107
+
+[[controls]]
+id = "m0-g0-approval"
+path = "docs/plans/discovery/m0-g0-approval.toml"
+sha256 = "c1c7370c611bfa0029cd54bc25e185e76e53533b7a4e56609a90ab57d321cc2d"
+bytes = 2253

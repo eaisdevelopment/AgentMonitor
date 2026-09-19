@@ -1,0 +1,814 @@
+schema_version = "1.0"
+baseline_version = "0.1.0-draft"
+status = "draft_exact_allocation"
+owner = "integration_steward"
+key_count = 57
+owner_approved = false
+implementation_authorized = false
+implemented = false
+live_verified = false
+source_standard = "docs/engineering/configuration-standard.md"
+
+[semantics]
+allocation = "Every exact AGENTMONITOR_* key mentioned by a V1 plan appears exactly once. This prevents naming/ownership collisions but does not approve unresolved values."
+decision_required = "The key name and owner are allocated, but an exact default, bound, derivation, reload rule, path, or policy still blocks implementation."
+secrets = "All current records are non-secret settings. Future secret-presence settings require a new reviewed record; secret values never enter this registry."
+
+[[keys]]
+name = "AGENTMONITOR_ALERTING_DEADLINE_SCAN_INTERVAL_SECONDS"
+owner = "PLAN-M07"
+referenced_by = ["PLAN-M07"]
+value_type = "integer"
+unit = "seconds"
+default_or_derivation = "30"
+constraints = "5..300; worker cadence only, never condition truth"
+secret = false
+sensitivity = "non_secret"
+reload = "restart"
+status = "proposed_exact"
+first_version = "1.0.0"
+
+[[keys]]
+name = "AGENTMONITOR_ALERTING_LEASE_SECONDS"
+owner = "PLAN-M07"
+referenced_by = ["PLAN-M07"]
+value_type = "integer"
+unit = "seconds"
+default_or_derivation = "derived; unresolved"
+constraints = "must exceed the bounded job step and include fencing margin"
+secret = false
+sensitivity = "non_secret"
+reload = "restart"
+status = "decision_required"
+first_version = "1.0.0"
+
+[[keys]]
+name = "AGENTMONITOR_ALERTING_WORK_BATCH_COUNT"
+owner = "PLAN-M07"
+referenced_by = ["PLAN-M07"]
+value_type = "integer"
+unit = "count"
+default_or_derivation = "100"
+constraints = "1..1000"
+secret = false
+sensitivity = "non_secret"
+reload = "restart"
+status = "proposed_exact"
+first_version = "1.0.0"
+
+[[keys]]
+name = "AGENTMONITOR_API_BIND_HOST"
+owner = "PLAN-P01"
+referenced_by = ["PLAN-DEP"]
+value_type = "string"
+unit = "host"
+default_or_derivation = "127.0.0.1"
+constraints = "V1 local profile accepts only the exact loopback literal"
+secret = false
+sensitivity = "non_secret"
+reload = "restart"
+status = "proposed_exact"
+first_version = "1.0.0"
+
+[[keys]]
+name = "AGENTMONITOR_API_PORT"
+owner = "PLAN-P01"
+referenced_by = ["PLAN-DEP"]
+value_type = "integer"
+unit = "TCP port"
+default_or_derivation = "unresolved"
+constraints = "1..65535; must be available and agree with origin/trusted hosts"
+secret = false
+sensitivity = "non_secret"
+reload = "restart"
+status = "decision_required"
+first_version = "1.0.0"
+
+[[keys]]
+name = "AGENTMONITOR_API_PUBLIC_ORIGIN"
+owner = "PLAN-P01"
+referenced_by = ["PLAN-DEP"]
+value_type = "URL"
+unit = "origin"
+default_or_derivation = "derived as http://127.0.0.1:<port>"
+constraints = "no alias, path, query, fragment, or credentials"
+secret = false
+sensitivity = "non_secret"
+reload = "restart"
+status = "proposed_exact"
+first_version = "1.0.0"
+
+[[keys]]
+name = "AGENTMONITOR_API_TRUSTED_HOSTS"
+owner = "PLAN-P01"
+referenced_by = ["PLAN-DEP"]
+value_type = "list[string]"
+unit = "host:port"
+default_or_derivation = "derived singleton from loopback host and port"
+constraints = "no wildcard or comma ambiguity"
+secret = false
+sensitivity = "non_secret"
+reload = "restart"
+status = "proposed_exact"
+first_version = "1.0.0"
+
+[[keys]]
+name = "AGENTMONITOR_CAPACITY_HISTORY_PAGE_MAX_COUNT"
+owner = "PLAN-M05"
+referenced_by = ["PLAN-M05"]
+value_type = "integer"
+unit = "count"
+default_or_derivation = "unresolved"
+constraints = "bounded positive count; exact maximum required before implementation"
+secret = false
+sensitivity = "non_secret"
+reload = "restart"
+status = "decision_required"
+first_version = "1.0.0"
+
+[[keys]]
+name = "AGENTMONITOR_CAPACITY_HISTORY_RANGE_MAX_DAYS"
+owner = "PLAN-M05"
+referenced_by = ["PLAN-M05"]
+value_type = "integer"
+unit = "days"
+default_or_derivation = "unresolved"
+constraints = "bounded positive days; exports use paging"
+secret = false
+sensitivity = "non_secret"
+reload = "restart"
+status = "decision_required"
+first_version = "1.0.0"
+
+[[keys]]
+name = "AGENTMONITOR_CAPACITY_HISTORY_RETENTION_DAYS"
+owner = "PLAN-M05"
+referenced_by = ["PLAN-M05"]
+value_type = "integer"
+unit = "days"
+default_or_derivation = "365"
+constraints = "must remain 365 in V1 unless requirements change"
+secret = false
+sensitivity = "non_secret"
+reload = "config_migration"
+status = "proposed_exact"
+first_version = "1.0.0"
+
+[[keys]]
+name = "AGENTMONITOR_CAPACITY_RETENTION_BATCH_COUNT"
+owner = "PLAN-M05"
+referenced_by = ["PLAN-M05"]
+value_type = "integer"
+unit = "count"
+default_or_derivation = "unresolved"
+constraints = "bounded positive measured value required"
+secret = false
+sensitivity = "non_secret"
+reload = "restart"
+status = "decision_required"
+first_version = "1.0.0"
+
+[[keys]]
+name = "AGENTMONITOR_COLLECTION_ACTIVE_INTERVAL_SECONDS"
+owner = "PLAN-M04"
+referenced_by = ["PLAN-M04"]
+value_type = "integer"
+unit = "seconds"
+default_or_derivation = "60"
+constraints = "positive and may not undercut source constraints"
+secret = false
+sensitivity = "non_secret"
+reload = "restart_or_authorized_runtime_policy"
+status = "decision_required"
+first_version = "1.0.0"
+
+[[keys]]
+name = "AGENTMONITOR_COLLECTION_DUE_BATCH_COUNT"
+owner = "PLAN-M04"
+referenced_by = ["PLAN-M04"]
+value_type = "integer"
+unit = "count"
+default_or_derivation = "unresolved"
+constraints = "bounded positive measured value required"
+secret = false
+sensitivity = "non_secret"
+reload = "restart"
+status = "decision_required"
+first_version = "1.0.0"
+
+[[keys]]
+name = "AGENTMONITOR_COLLECTION_GLOBAL_CONCURRENCY_COUNT"
+owner = "PLAN-M04"
+referenced_by = ["PLAN-M04"]
+value_type = "integer"
+unit = "count"
+default_or_derivation = "unresolved"
+constraints = "positive conservative default/maximum; provider/source minimum wins"
+secret = false
+sensitivity = "non_secret"
+reload = "restart"
+status = "decision_required"
+first_version = "1.0.0"
+
+[[keys]]
+name = "AGENTMONITOR_COLLECTION_HISTORY_RETENTION_DAYS"
+owner = "PLAN-M04"
+referenced_by = ["PLAN-M04"]
+value_type = "integer"
+unit = "days"
+default_or_derivation = "365"
+constraints = "must remain 365 in V1 unless requirements change"
+secret = false
+sensitivity = "non_secret"
+reload = "config_migration"
+status = "proposed_exact"
+first_version = "1.0.0"
+
+[[keys]]
+name = "AGENTMONITOR_COLLECTION_IDLE_INTERVAL_SECONDS"
+owner = "PLAN-M04"
+referenced_by = ["PLAN-M04"]
+value_type = "integer"
+unit = "seconds"
+default_or_derivation = "300"
+constraints = "must be greater than or equal to active interval and respect source constraints"
+secret = false
+sensitivity = "non_secret"
+reload = "restart_or_authorized_runtime_policy"
+status = "decision_required"
+first_version = "1.0.0"
+
+[[keys]]
+name = "AGENTMONITOR_COLLECTION_JITTER_BASIS_POINTS"
+owner = "PLAN-M04"
+referenced_by = ["PLAN-M04"]
+value_type = "integer"
+unit = "basis points"
+default_or_derivation = "unresolved"
+constraints = "0..approved maximum; may not violate source minimum cadence"
+secret = false
+sensitivity = "non_secret"
+reload = "restart"
+status = "decision_required"
+first_version = "1.0.0"
+
+[[keys]]
+name = "AGENTMONITOR_COLLECTION_LEASE_HEARTBEAT_SECONDS"
+owner = "PLAN-M04"
+referenced_by = ["PLAN-M04"]
+value_type = "integer"
+unit = "seconds"
+default_or_derivation = "unresolved"
+constraints = "positive and no greater than one-third of lease duration"
+secret = false
+sensitivity = "non_secret"
+reload = "restart"
+status = "decision_required"
+first_version = "1.0.0"
+
+[[keys]]
+name = "AGENTMONITOR_COLLECTION_LEASE_SECONDS"
+owner = "PLAN-M04"
+referenced_by = ["PLAN-M04"]
+value_type = "integer"
+unit = "seconds"
+default_or_derivation = "derived; unresolved"
+constraints = "must exceed maximum admitted deadline plus commit margin"
+secret = false
+sensitivity = "non_secret"
+reload = "restart"
+status = "decision_required"
+first_version = "1.0.0"
+
+[[keys]]
+name = "AGENTMONITOR_COLLECTION_MANUAL_REQUEST_TTL_SECONDS"
+owner = "PLAN-M04"
+referenced_by = ["PLAN-M04"]
+value_type = "integer"
+unit = "seconds"
+default_or_derivation = "unresolved"
+constraints = "bounded positive pending-request lifetime"
+secret = false
+sensitivity = "non_secret"
+reload = "restart"
+status = "decision_required"
+first_version = "1.0.0"
+
+[[keys]]
+name = "AGENTMONITOR_COLLECTION_QUEUE_CAPACITY_COUNT"
+owner = "PLAN-M04"
+referenced_by = ["PLAN-M04"]
+value_type = "integer"
+unit = "count"
+default_or_derivation = "unresolved"
+constraints = "bounded positive measured capacity; excess remains durable due work"
+secret = false
+sensitivity = "non_secret"
+reload = "restart"
+status = "decision_required"
+first_version = "1.0.0"
+
+[[keys]]
+name = "AGENTMONITOR_COLLECTION_SCHEDULER_TICK_MILLISECONDS"
+owner = "PLAN-M04"
+referenced_by = ["PLAN-M04"]
+value_type = "integer"
+unit = "milliseconds"
+default_or_derivation = "unresolved"
+constraints = "positive measured scheduler cadence; not provider polling cadence"
+secret = false
+sensitivity = "non_secret"
+reload = "restart"
+status = "decision_required"
+first_version = "1.0.0"
+
+[[keys]]
+name = "AGENTMONITOR_COLLECTION_SHUTDOWN_GRACE_SECONDS"
+owner = "PLAN-M04"
+referenced_by = ["PLAN-M04"]
+value_type = "integer"
+unit = "seconds"
+default_or_derivation = "unresolved"
+constraints = "positive and no greater than service-manager stop window"
+secret = false
+sensitivity = "non_secret"
+reload = "restart"
+status = "decision_required"
+first_version = "1.0.0"
+
+[[keys]]
+name = "AGENTMONITOR_DEPLOYMENT_PROFILE"
+owner = "PLAN-DEP"
+referenced_by = ["PLAN-DEP"]
+value_type = "enum"
+unit = "none"
+default_or_derivation = "linux_local_v1"
+constraints = "only linux_local_v1 is admitted for V1"
+secret = false
+sensitivity = "non_secret"
+reload = "restart"
+status = "proposed_exact"
+first_version = "1.0.0"
+
+[[keys]]
+name = "AGENTMONITOR_DEPLOYMENT_RELEASE_DIR"
+owner = "PLAN-DEP"
+referenced_by = ["PLAN-DEP"]
+value_type = "absolute path"
+unit = "path"
+default_or_derivation = "derived from approved data root"
+constraints = "must remain inside approved root; value is not diagnosed"
+secret = false
+sensitivity = "path_sensitive"
+reload = "restart"
+status = "decision_required"
+first_version = "1.0.0"
+
+[[keys]]
+name = "AGENTMONITOR_DEPLOYMENT_STATE_DIR"
+owner = "PLAN-DEP"
+referenced_by = ["PLAN-DEP"]
+value_type = "absolute path"
+unit = "path"
+default_or_derivation = "derived from approved state root"
+constraints = "owner-only deployment journal/receipts path"
+secret = false
+sensitivity = "path_sensitive"
+reload = "restart"
+status = "decision_required"
+first_version = "1.0.0"
+
+[[keys]]
+name = "AGENTMONITOR_IAM_IDEMPOTENCY_RETENTION_SECONDS"
+owner = "PLAN-M01"
+referenced_by = ["PLAN-M01"]
+value_type = "integer"
+unit = "seconds"
+default_or_derivation = "86400"
+constraints = "positive bounded duration"
+secret = false
+sensitivity = "non_secret"
+reload = "restart"
+status = "proposed_exact"
+first_version = "1.0.0"
+
+[[keys]]
+name = "AGENTMONITOR_IAM_LOGIN_INITIAL_LOCK_SECONDS"
+owner = "PLAN-M01"
+referenced_by = ["PLAN-M01"]
+value_type = "integer"
+unit = "seconds"
+default_or_derivation = "30"
+constraints = "positive and no greater than maximum lock"
+secret = false
+sensitivity = "non_secret"
+reload = "restart"
+status = "proposed_exact"
+first_version = "1.0.0"
+
+[[keys]]
+name = "AGENTMONITOR_IAM_LOGIN_MAX_FAILURES"
+owner = "PLAN-M01"
+referenced_by = ["PLAN-M01"]
+value_type = "integer"
+unit = "count"
+default_or_derivation = "5"
+constraints = "positive bounded count"
+secret = false
+sensitivity = "non_secret"
+reload = "restart"
+status = "proposed_exact"
+first_version = "1.0.0"
+
+[[keys]]
+name = "AGENTMONITOR_IAM_LOGIN_MAX_LOCK_SECONDS"
+owner = "PLAN-M01"
+referenced_by = ["PLAN-M01"]
+value_type = "integer"
+unit = "seconds"
+default_or_derivation = "900"
+constraints = "positive and no lower than initial lock"
+secret = false
+sensitivity = "non_secret"
+reload = "restart"
+status = "proposed_exact"
+first_version = "1.0.0"
+
+[[keys]]
+name = "AGENTMONITOR_IAM_LOGIN_WINDOW_SECONDS"
+owner = "PLAN-M01"
+referenced_by = ["PLAN-M01"]
+value_type = "integer"
+unit = "seconds"
+default_or_derivation = "900"
+constraints = "positive bounded duration"
+secret = false
+sensitivity = "non_secret"
+reload = "restart"
+status = "proposed_exact"
+first_version = "1.0.0"
+
+[[keys]]
+name = "AGENTMONITOR_IAM_SESSION_ABSOLUTE_SECONDS"
+owner = "PLAN-M01"
+referenced_by = ["PLAN-M01"]
+value_type = "integer"
+unit = "seconds"
+default_or_derivation = "43200"
+constraints = "positive bounded duration greater than idle timeout"
+secret = false
+sensitivity = "non_secret"
+reload = "restart"
+status = "proposed_exact"
+first_version = "1.0.0"
+
+[[keys]]
+name = "AGENTMONITOR_IAM_SESSION_IDLE_SECONDS"
+owner = "PLAN-M01"
+referenced_by = ["PLAN-M01"]
+value_type = "integer"
+unit = "seconds"
+default_or_derivation = "1800"
+constraints = "positive approved range below absolute timeout"
+secret = false
+sensitivity = "non_secret"
+reload = "restart"
+status = "proposed_exact"
+first_version = "1.0.0"
+
+[[keys]]
+name = "AGENTMONITOR_IAM_SESSION_TOUCH_INTERVAL_SECONDS"
+owner = "PLAN-M01"
+referenced_by = ["PLAN-M01"]
+value_type = "integer"
+unit = "seconds"
+default_or_derivation = "60"
+constraints = "positive duration lower than idle timeout"
+secret = false
+sensitivity = "non_secret"
+reload = "restart"
+status = "proposed_exact"
+first_version = "1.0.0"
+
+[[keys]]
+name = "AGENTMONITOR_IAM_TERMINAL_RECORD_RETENTION_DAYS"
+owner = "PLAN-M01"
+referenced_by = ["PLAN-M01"]
+value_type = "integer"
+unit = "days"
+default_or_derivation = "365"
+constraints = "must not undercut approved history without requirement change"
+secret = false
+sensitivity = "non_secret"
+reload = "restart"
+status = "proposed_exact"
+first_version = "1.0.0"
+
+[[keys]]
+name = "AGENTMONITOR_OPERATIONS_ARTIFACT_DIR"
+owner = "PLAN-M08"
+referenced_by = ["PLAN-M08", "PLAN-DEP"]
+value_type = "absolute path"
+unit = "path"
+default_or_derivation = "derived from approved deployment artifact root"
+constraints = "owner-only; approved root; not provider state"
+secret = false
+sensitivity = "path_sensitive"
+reload = "restart"
+status = "decision_required"
+first_version = "1.0.0"
+
+[[keys]]
+name = "AGENTMONITOR_OPERATIONS_ARTIFACT_MAX_BYTES"
+owner = "PLAN-M08"
+referenced_by = ["PLAN-M08"]
+value_type = "integer"
+unit = "bytes"
+default_or_derivation = "unresolved"
+constraints = "bounded positive fail-closed output limit"
+secret = false
+sensitivity = "non_secret"
+reload = "restart"
+status = "decision_required"
+first_version = "1.0.0"
+
+[[keys]]
+name = "AGENTMONITOR_OPERATIONS_BACKUP_DAILY_AT_UTC"
+owner = "PLAN-M08"
+referenced_by = ["PLAN-M08"]
+value_type = "HH:MM string"
+unit = "UTC time"
+default_or_derivation = "02:00"
+constraints = "valid UTC hour/minute; schedule collision policy required"
+secret = false
+sensitivity = "non_secret"
+reload = "restart"
+status = "proposed_exact"
+first_version = "1.0.0"
+
+[[keys]]
+name = "AGENTMONITOR_OPERATIONS_BACKUP_DIR"
+owner = "PLAN-M08"
+referenced_by = ["PLAN-M08", "PLAN-DEP"]
+value_type = "absolute path"
+unit = "path"
+default_or_derivation = "derived from approved deployment backup root"
+constraints = "owner-only and outside release/config/profile roots"
+secret = false
+sensitivity = "path_sensitive"
+reload = "restart"
+status = "decision_required"
+first_version = "1.0.0"
+
+[[keys]]
+name = "AGENTMONITOR_OPERATIONS_BACKUP_MIN_FREE_BYTES"
+owner = "PLAN-M08"
+referenced_by = ["PLAN-M08"]
+value_type = "integer"
+unit = "bytes"
+default_or_derivation = "unresolved"
+constraints = "positive measured backup/restore preflight minimum"
+secret = false
+sensitivity = "non_secret"
+reload = "restart"
+status = "decision_required"
+first_version = "1.0.0"
+
+[[keys]]
+name = "AGENTMONITOR_OPERATIONS_BACKUP_RETIRE_GRACE_HOURS"
+owner = "PLAN-M08"
+referenced_by = ["PLAN-M08"]
+value_type = "integer"
+unit = "hours"
+default_or_derivation = "24"
+constraints = "positive bounded two-phase deletion grace; exact bound unresolved"
+secret = false
+sensitivity = "non_secret"
+reload = "restart"
+status = "decision_required"
+first_version = "1.0.0"
+
+[[keys]]
+name = "AGENTMONITOR_OPERATIONS_DIAGNOSTIC_EXPIRY_HOURS"
+owner = "PLAN-M08"
+referenced_by = ["PLAN-M08"]
+value_type = "integer"
+unit = "hours"
+default_or_derivation = "24"
+constraints = "positive bounded diagnostic lifetime; exact bound unresolved"
+secret = false
+sensitivity = "non_secret"
+reload = "restart"
+status = "decision_required"
+first_version = "1.0.0"
+
+[[keys]]
+name = "AGENTMONITOR_OPERATIONS_EXPORT_EXPIRY_HOURS"
+owner = "PLAN-M08"
+referenced_by = ["PLAN-M08"]
+value_type = "integer"
+unit = "hours"
+default_or_derivation = "168"
+constraints = "positive bounded export lifetime; exact bound unresolved"
+secret = false
+sensitivity = "non_secret"
+reload = "restart"
+status = "decision_required"
+first_version = "1.0.0"
+
+[[keys]]
+name = "AGENTMONITOR_OPERATIONS_EXPORT_PAGE_COUNT"
+owner = "PLAN-M08"
+referenced_by = ["PLAN-M08"]
+value_type = "integer"
+unit = "count"
+default_or_derivation = "unresolved"
+constraints = "bounded positive streaming page size"
+secret = false
+sensitivity = "non_secret"
+reload = "restart"
+status = "decision_required"
+first_version = "1.0.0"
+
+[[keys]]
+name = "AGENTMONITOR_OPERATIONS_HEALTH_TIMEOUT_MILLISECONDS"
+owner = "PLAN-M08"
+referenced_by = ["PLAN-M08"]
+value_type = "integer"
+unit = "milliseconds"
+default_or_derivation = "unresolved"
+constraints = "bounded positive measured per-aggregation deadline"
+secret = false
+sensitivity = "non_secret"
+reload = "restart"
+status = "decision_required"
+first_version = "1.0.0"
+
+[[keys]]
+name = "AGENTMONITOR_OPERATIONS_JOB_LEASE_SECONDS"
+owner = "PLAN-M08"
+referenced_by = ["PLAN-M08"]
+value_type = "integer"
+unit = "seconds"
+default_or_derivation = "derived; unresolved"
+constraints = "positive bounded value exceeding job step with fencing margin"
+secret = false
+sensitivity = "non_secret"
+reload = "restart"
+status = "decision_required"
+first_version = "1.0.0"
+
+[[keys]]
+name = "AGENTMONITOR_OPERATIONS_LOG_BACKUP_COUNT"
+owner = "PLAN-M08"
+referenced_by = ["PLAN-M08"]
+value_type = "integer"
+unit = "count"
+default_or_derivation = "unresolved"
+constraints = "bounded positive local rotation count"
+secret = false
+sensitivity = "non_secret"
+reload = "restart"
+status = "decision_required"
+first_version = "1.0.0"
+
+[[keys]]
+name = "AGENTMONITOR_OPERATIONS_LOG_DIR"
+owner = "PLAN-M08"
+referenced_by = ["PLAN-M08", "PLAN-DEP"]
+value_type = "absolute path"
+unit = "path"
+default_or_derivation = "derived from approved deployment log root"
+constraints = "owner-only local path"
+secret = false
+sensitivity = "path_sensitive"
+reload = "restart"
+status = "decision_required"
+first_version = "1.0.0"
+
+[[keys]]
+name = "AGENTMONITOR_OPERATIONS_LOG_LEVEL"
+owner = "PLAN-M08"
+referenced_by = ["PLAN-M08"]
+value_type = "enum"
+unit = "none"
+default_or_derivation = "INFO"
+constraints = "approved allowlist required; bodies/content remain prohibited"
+secret = false
+sensitivity = "non_secret"
+reload = "restart_or_reload_decision"
+status = "decision_required"
+first_version = "1.0.0"
+
+[[keys]]
+name = "AGENTMONITOR_OPERATIONS_LOG_MAX_BYTES"
+owner = "PLAN-M08"
+referenced_by = ["PLAN-M08"]
+value_type = "integer"
+unit = "bytes"
+default_or_derivation = "unresolved"
+constraints = "bounded positive local rotation size"
+secret = false
+sensitivity = "non_secret"
+reload = "restart"
+status = "decision_required"
+first_version = "1.0.0"
+
+[[keys]]
+name = "AGENTMONITOR_OPERATIONS_RETENTION_CHECKPOINT_EXPIRY_HOURS"
+owner = "PLAN-M08"
+referenced_by = ["PLAN-M08"]
+value_type = "integer"
+unit = "hours"
+default_or_derivation = "168"
+constraints = "positive bounded recovery window; owner/privacy approval required"
+secret = false
+sensitivity = "non_secret"
+reload = "restart"
+status = "decision_required"
+first_version = "1.0.0"
+
+[[keys]]
+name = "AGENTMONITOR_OPERATIONS_RETENTION_DAILY_AT_UTC"
+owner = "PLAN-M08"
+referenced_by = ["PLAN-M08"]
+value_type = "HH:MM string"
+unit = "UTC time"
+default_or_derivation = "unresolved"
+constraints = "valid UTC hour/minute scheduled after backup"
+secret = false
+sensitivity = "non_secret"
+reload = "restart"
+status = "decision_required"
+first_version = "1.0.0"
+
+[[keys]]
+name = "AGENTMONITOR_OPERATIONS_STATE_DIR"
+owner = "PLAN-M08"
+referenced_by = ["PLAN-M08", "PLAN-DEP"]
+value_type = "absolute path"
+unit = "path"
+default_or_derivation = "derived from approved deployment operations-state root"
+constraints = "owner-only; distinct from provider state and deployment journal when required"
+secret = false
+sensitivity = "path_sensitive"
+reload = "restart"
+status = "decision_required"
+first_version = "1.0.0"
+
+[[keys]]
+name = "AGENTMONITOR_PERSISTENCE_BUSY_TIMEOUT_MILLISECONDS"
+owner = "PLAN-DB"
+referenced_by = ["PLAN-DB"]
+value_type = "integer"
+unit = "milliseconds"
+default_or_derivation = "5000"
+constraints = "100..60000"
+secret = false
+sensitivity = "non_secret"
+reload = "restart"
+status = "proposed_exact"
+first_version = "1.0.0"
+
+[[keys]]
+name = "AGENTMONITOR_PERSISTENCE_DATABASE_PATH"
+owner = "PLAN-DB"
+referenced_by = ["PLAN-DB", "PLAN-DEP"]
+value_type = "absolute path"
+unit = "path"
+default_or_derivation = "derived from approved installed data root; isolated tests provide explicit path"
+constraints = "resolved inside approved root; exact installed database only; never diagnosed"
+secret = false
+sensitivity = "privacy_sensitive_path"
+reload = "restart"
+status = "decision_required"
+first_version = "1.0.0"
+
+[[keys]]
+name = "AGENTMONITOR_PERSISTENCE_POOL_SIZE"
+owner = "PLAN-DB"
+referenced_by = ["PLAN-DB"]
+value_type = "integer"
+unit = "count"
+default_or_derivation = "5"
+constraints = "1..16; max_overflow remains 0 in V1"
+secret = false
+sensitivity = "non_secret"
+reload = "restart"
+status = "proposed_exact"
+first_version = "1.0.0"
+
+[[keys]]
+name = "AGENTMONITOR_PERSISTENCE_POOL_TIMEOUT_SECONDS"
+owner = "PLAN-DB"
+referenced_by = ["PLAN-DB"]
+value_type = "integer"
+unit = "seconds"
+default_or_derivation = "5"
+constraints = "1..60"
+secret = false
+sensitivity = "non_secret"
+reload = "restart"
+status = "proposed_exact"
+first_version = "1.0.0"
+

@@ -1,0 +1,5 @@
+# M0 G1 repository-gate dependency only. Runtime/provider code must not import it.
+jsonschema==4.26.0
+# 0.36+ adds PSF-2.0 typing-extensions; 0.35.1 satisfies jsonschema's API
+# requirement while keeping this isolated tool graph entirely MIT.
+referencing==0.35.1

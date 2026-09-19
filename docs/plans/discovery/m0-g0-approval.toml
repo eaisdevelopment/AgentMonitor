@@ -1,0 +1,63 @@
+schema_version = "1.0"
+approval_id = "M0-G0-2026-09-18-01"
+status = "approved_for_gated_discovery"
+approved_at = "2026-09-18"
+plan_id = "PLAN-M0-DISCOVERY"
+plan_path = "docs/plans/discovery/m0-execution-plan.md"
+plan_version = "0.2.0"
+plan_sha256 = "6db9f5c048c6b3bf74c86b39e0388222766937f907a47a14e51a323cd3719192"
+plan_bytes = 78412
+owner_direction = "Continue from the explicitly stated M0 plan-approval checkpoint."
+scope = "G0 plan approval only; advance next to owner-controlled G1 evidence custody and operation-framework design."
+implementation_authorized = false
+provider_operations_authorized = false
+account_access_authorized = false
+evidence_custody_approved = false
+g1_complete = false
+preflight_implemented = false
+required_control_ids = [
+  "M0CTL-NOREAD",
+  "M0CTL-NETWORK",
+  "M0CTL-E1-ADMISSION",
+  "M0CTL-ASSERTIONS",
+  "M0CTL-ATIME",
+  "M0CTL-G5-OPERATIONS",
+  "M0CTL-AUTH-SCOPE",
+  "M0CTL-CAPABILITY-VOCABULARY",
+  "M0CTL-API-OWNERSHIP",
+]
+
+[[reviewers]]
+role = "owner"
+decision = "approved"
+reviewed_plan_version = "0.2.0"
+date = "2026-09-18"
+conditions = "Approval is limited to G0; no provider/account/process/profile operation, credential use, evidence-root selection, implementation, or scenario execution is authorized."
+
+[[reviewers]]
+role = "root_integration"
+decision = "approved"
+reviewed_plan_version = "0.2.0"
+date = "2026-09-18"
+conditions = "The exact plan digest must pass AUTO-M0-G0; G1 and signed per-run preflight remain mandatory."
+
+[[reviewers]]
+role = "security_privacy"
+decision = "approved"
+reviewed_plan_version = "0.2.0"
+date = "2026-09-18"
+conditions = "M0CTL-NOREAD, M0CTL-NETWORK, and M0CTL-E1-ADMISSION remain mandatory; approval is plan-safety review only."
+
+[[reviewers]]
+role = "test_integrity"
+decision = "approved"
+reviewed_plan_version = "0.2.0"
+date = "2026-09-18"
+conditions = "M0CTL-AUTH-SCOPE, M0CTL-ATIME, M0CTL-G5-OPERATIONS, and M0CTL-ASSERTIONS remain mandatory; approval is test-integrity review only."
+
+[[reviewers]]
+role = "provider_system"
+decision = "approved"
+reviewed_plan_version = "0.2.0"
+date = "2026-09-18"
+conditions = "ProviderAdapterV1 1.0.0-draft.2, M0CTL-CAPABILITY-VOCABULARY, and M0CTL-API-OWNERSHIP remain mandatory; capability maturity cannot transfer lane ownership."

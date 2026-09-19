@@ -1,0 +1,174 @@
+schema_version = "1.0"
+required_plan_count = 20
+registry_path = "docs/plans/README.md"
+synchronization_review_path = "docs/plans/integration/cs1-full-plan-synchronization.md"
+readiness_audit_path = "docs/plans/integration/cs1-final-readiness-audit.md"
+automation_standard_path = "docs/engineering/completion-and-automation-gates.md"
+automation_catalog_path = "tools/automation/routines.toml"
+contract_baseline_path = "docs/plans/contract-baseline.toml"
+contract_adoption_path = "docs/plans/contract-adoption.toml"
+configuration_baseline_path = "docs/plans/configuration-baseline.toml"
+requirement_ownership_path = "docs/plans/requirement-ownership.toml"
+parallel_ownership_path = "docs/plans/parallel-ownership.toml"
+plan_snapshot_path = "docs/plans/plan-baseline.toml"
+m0_g0_approval_path = "docs/plans/discovery/m0-g0-approval.toml"
+
+[[plans]]
+id = "PLAN-M0-DISCOVERY"
+path = "docs/plans/discovery/m0-execution-plan.md"
+kind = "discovery"
+scenario_prefix = "M0-"
+minimum_lines = 700
+minimum_scenarios = 70
+
+[[plans]]
+id = "PLAN-FND"
+path = "docs/plans/foundation/plan-v1.md"
+kind = "foundation"
+scenario_prefix = "FND-"
+minimum_lines = 700
+minimum_scenarios = 45
+
+[[plans]]
+id = "PLAN-M01"
+path = "docs/plans/modules/m01-identity-access/plan-v1.md"
+kind = "module"
+scenario_prefix = "M01-"
+minimum_lines = 700
+minimum_scenarios = 65
+
+[[plans]]
+id = "PLAN-M02"
+path = "docs/plans/modules/m02-registry/plan-v1.md"
+kind = "module"
+scenario_prefix = "M02-"
+minimum_lines = 450
+minimum_scenarios = 30
+
+[[plans]]
+id = "PLAN-M03"
+path = "docs/plans/modules/m03-provider-system/plan-v1.md"
+kind = "module"
+scenario_prefix = "M03-"
+minimum_lines = 450
+minimum_scenarios = 30
+
+[[plans]]
+id = "PLAN-M04"
+path = "docs/plans/modules/m04-collection-control/plan-v1.md"
+kind = "module"
+scenario_prefix = "M04-"
+minimum_lines = 450
+minimum_scenarios = 30
+
+[[plans]]
+id = "PLAN-M05"
+path = "docs/plans/modules/m05-capacity/plan-v1.md"
+kind = "module"
+scenario_prefix = "M05-"
+minimum_lines = 450
+minimum_scenarios = 30
+
+[[plans]]
+id = "PLAN-M06"
+path = "docs/plans/modules/m06-runtime-observation/plan-v1.md"
+kind = "module"
+scenario_prefix = "M06-"
+minimum_lines = 450
+minimum_scenarios = 30
+
+[[plans]]
+id = "PLAN-M07"
+path = "docs/plans/modules/m07-alerting/plan-v1.md"
+kind = "module"
+scenario_prefix = "M07-"
+minimum_lines = 450
+minimum_scenarios = 30
+
+[[plans]]
+id = "PLAN-M08"
+path = "docs/plans/modules/m08-operations/plan-v1.md"
+kind = "module"
+scenario_prefix = "M08-"
+minimum_lines = 450
+minimum_scenarios = 30
+
+[[plans]]
+id = "PLAN-A01"
+path = "docs/plans/adapters/claude/plan-v1.md"
+kind = "adapter"
+scenario_prefix = "CLA-"
+minimum_lines = 450
+minimum_scenarios = 30
+
+[[plans]]
+id = "PLAN-A02"
+path = "docs/plans/adapters/codex/plan-v1.md"
+kind = "adapter"
+scenario_prefix = "CDX-"
+minimum_lines = 450
+minimum_scenarios = 30
+
+[[plans]]
+id = "PLAN-A03"
+path = "docs/plans/adapters/ollama/plan-v1.md"
+kind = "adapter"
+scenario_prefix = "OLL-"
+minimum_lines = 450
+minimum_scenarios = 30
+
+[[plans]]
+id = "PLAN-A04-LINUX"
+path = "docs/plans/platform/linux/plan-v1.md"
+kind = "adapter"
+scenario_prefix = "LNX-"
+minimum_lines = 450
+minimum_scenarios = 30
+
+[[plans]]
+id = "PLAN-A04-MAC"
+path = "docs/plans/platform/macos/plan-v1.md"
+kind = "adapter"
+scenario_prefix = "MAC-"
+minimum_lines = 400
+minimum_scenarios = 25
+
+[[plans]]
+id = "PLAN-P01"
+path = "docs/plans/api/fastapi-boundary/plan-v1.md"
+kind = "boundary"
+scenario_prefix = "API-"
+minimum_lines = 500
+minimum_scenarios = 40
+
+[[plans]]
+id = "PLAN-P02"
+path = "docs/plans/ui/react-dashboard/plan-v1.md"
+kind = "boundary"
+scenario_prefix = "UI-"
+minimum_lines = 500
+minimum_scenarios = 40
+
+[[plans]]
+id = "PLAN-DB"
+path = "docs/plans/persistence/sqlite/plan-v1.md"
+kind = "adapter"
+scenario_prefix = "DB-"
+minimum_lines = 450
+minimum_scenarios = 30
+
+[[plans]]
+id = "PLAN-DEP"
+path = "docs/plans/deployment/linux-native/plan-v1.md"
+kind = "deployment"
+scenario_prefix = "DEP-"
+minimum_lines = 450
+minimum_scenarios = 30
+
+[[plans]]
+id = "PLAN-INT"
+path = "docs/plans/integration/v1-plan.md"
+kind = "integration"
+scenario_prefix = "INT-"
+minimum_lines = 500
+minimum_scenarios = 40

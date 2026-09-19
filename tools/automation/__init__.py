@@ -1,0 +1,1 @@
+"""Canonical routine-dispatch automation."""

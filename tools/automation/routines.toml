@@ -1,0 +1,149 @@
+schema_version = "1.0"
+catalog_version = "0.2.0-draft"
+status = "codified_fail_closed"
+owner_approved = false
+implementation_authorized = false
+
+[[routines]]
+id = "AUTO-PLAN-CHECK"
+owner = "PLAN-INT"
+status = "operational"
+scope = "20-plan synchronized Draft baseline"
+implementation_command = ["python3", "tools/planning/validate_plans.py", "--stage", "synchronized"]
+blockers = []
+
+[[routines]]
+id = "AUTO-M0-G0"
+owner = "PLAN-M0-DISCOVERY"
+status = "operational"
+scope = "exact restricted G0 plan approval; no provider, account, process, profile, or evidence-root access"
+implementation_command = ["python3", "tools/discovery/m0_gate.py"]
+blockers = []
+
+[[routines]]
+id = "AUTO-M0-G1-CONTRACT"
+owner = "PLAN-M0-DISCOVERY"
+status = "operational"
+scope = "repository-only structural validation of the bounded Draft M0 G1 specification, schema, templates, and indexes; no G1 completion or live-boundary claim"
+implementation_command = ["python3", "-m", "unittest", "tools.discovery.test_m0_g1_contract"]
+blockers = []
+
+[[routines]]
+id = "AUTO-M0-G1-FINALIZE"
+owner = "PLAN-M0-DISCOVERY"
+status = "operational"
+scope = "interactive owner approval of one fixed custody control record, the verified E1 scanner admission, and the exact current G1 bundle"
+implementation_command = [".venv-m0-g1/bin/python", "tools/discovery/m0_g1_approve.py"]
+blockers = []
+
+[[routines]]
+id = "AUTO-M0-G1-EXIT"
+owner = "PLAN-M0-DISCOVERY"
+status = "operational"
+scope = "sole G1 approval gate over the exact minimal controls, real custody, scanner admission, and reviewer decisions"
+implementation_command = [".venv-m0-g1/bin/python", "tools/discovery/m0_g1_exit.py"]
+blockers = []
+
+[[routines]]
+id = "AUTO-M0-PREFLIGHT"
+owner = "PLAN-M0-DISCOVERY"
+status = "blocked"
+scope = "exact-digest, detached role-approved per-run M0-GATE-PREFLIGHT validation for exact reviewed discovery operations"
+implementation_command = []
+blockers = ["G1 external evidence custody selected by owner", "approved operation and assertion packet schema", "Red-Green-refactor preflight validator implementation"]
+
+[[routines]]
+id = "AUTO-M0-POSTFLIGHT"
+owner = "PLAN-M0-DISCOVERY"
+status = "blocked"
+scope = "immutable M0 run-result, per-assertion evidence, side-effect reconciliation, and derived scenario status"
+implementation_command = []
+blockers = ["approved G1 schema", "real approved operation packet and run result", "Red-Green-refactor validator implementation"]
+
+[[routines]]
+id = "AUTO-M0-LEDGER"
+owner = "PLAN-M0-DISCOVERY"
+status = "blocked"
+scope = "generated complete M0 scenario ledger with unique status and exact-scope evidence"
+implementation_command = []
+blockers = ["approved G1 schema", "AUTO-M0-POSTFLIGHT", "real scenario outcomes", "Red-Green-refactor ledger validator implementation"]
+
+[[routines]]
+id = "AUTO-DOCS-CHECK"
+owner = "PLAN-FND"
+status = "operational"
+scope = "Markdown links, identifiers, metadata, generated references, and routing"
+implementation_command = ["python3", "tools/docs/check.py"]
+blockers = []
+
+[[routines]]
+id = "AUTO-TEST"
+owner = "PLAN-FND"
+status = "operational_limited"
+scope = "repository governance tests only; application T1..T7 suites do not exist"
+implementation_command = ["python3", "-m", "unittest", "discover", "-s", "tools", "-p", "test_*.py"]
+blockers = ["approved module implementations and their real-boundary suites"]
+
+[[routines]]
+id = "AUTO-QUALITY"
+owner = "PLAN-FND"
+status = "blocked"
+scope = "format, lint, type, import, security, secret, dependency, license, compatibility"
+implementation_command = []
+blockers = ["approved toolchain and dependency admission records"]
+
+[[routines]]
+id = "AUTO-GIT-PREFLIGHT"
+owner = "PLAN-FND"
+status = "operational"
+scope = "repository identity, branch, upstream, declared changes, secrets, commit policy"
+implementation_command = ["python3", "tools/git/preflight.py"]
+blockers = []
+
+[[routines]]
+id = "AUTO-BUILD"
+owner = "PLAN-FND"
+status = "blocked"
+scope = "locked backend/frontend artifacts, metadata, SBOM, and notices"
+implementation_command = []
+blockers = ["approved runtime/toolchain/dependencies and application source"]
+
+[[routines]]
+id = "AUTO-MIGRATE"
+owner = "PLAN-DB"
+status = "blocked"
+scope = "schema preflight, backup, migration lock/apply, and integrity verification"
+implementation_command = []
+blockers = ["PLAN-DB approval and real migration implementation"]
+
+[[routines]]
+id = "AUTO-DEPLOY"
+owner = "PLAN-DEP"
+status = "blocked"
+scope = "native Linux user-service install, upgrade, preflight, and rollback"
+implementation_command = []
+blockers = ["PLAN-DEP approval and deployable artifacts"]
+
+[[routines]]
+id = "AUTO-BACKUP"
+owner = "PLAN-M08"
+status = "blocked"
+scope = "checksum and integrity verified retention-classified backup"
+implementation_command = []
+blockers = ["PLAN-M08 and PLAN-DB approval and real database"]
+
+[[routines]]
+id = "AUTO-RESTORE"
+owner = "PLAN-M08"
+status = "blocked"
+scope = "isolated restore, schema/integrity validation, and security-state rotation"
+implementation_command = []
+blockers = ["PLAN-M08 and PLAN-DB approval and real backup artifact"]
+
+[[routines]]
+id = "AUTO-RELEASE"
+owner = "PLAN-INT"
+status = "blocked"
+scope = "release gates, artifacts, SBOM/notices/evidence/notes, and rollback"
+implementation_command = []
+blockers = ["all release prerequisites and real T1..T7 evidence"]
