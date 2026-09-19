@@ -23,11 +23,13 @@ Node.js 22.23.2, npm 10.9.8, and uv 0.11.16. It is not an admission while the
 status above is Blocked.
 
 CPython 3.12.3 is an observed local executable, not an approved supported
-baseline: it is superseded by later security-maintenance releases on Python's
-still-supported 3.12 line. Before FND-I01, the owner must approve PSF-2.0 and
-the dependency steward must select an exact current supported 3.12 patch,
-provision it through an approved path, and record its provenance. FND-I01 must
-fail rather than resolve against 3.12.3 merely because it is locally installed.
+baseline: it is superseded by the proposed current 3.12 security-maintenance
+candidate, **CPython 3.12.14**. The official source provenance proposed for a
+later approved FND-I01 is the Python 3.12.14 source distribution with its
+published `.asc` and Sigstore verification artifacts. Before FND-I01, the owner
+must approve PSF-2.0 and the dependency steward must approve/provision that
+exact candidate through an authorized path. FND-I01 must fail rather than
+resolve against 3.12.3 merely because it is locally installed.
 
 The record deliberately selects no extra HTTP client and no third-party
 OpenAPI/client generator. T3 requests use Python's standard-library HTTP
@@ -68,7 +70,7 @@ exception from then-current upstream evidence.
 
 | Direct item and exact selection | Purpose / necessity and alternative considered | License and notice obligation | Platform, binary/install/network/telemetry assessment | Pin, update, removal, SBOM decision | Decision |
 |---|---|---|---|---|---|
-| CPython 3.12.3 observed locally (policy: exact current supported 3.12 patch still to select) | Backend runtime. Python is required by the approved backend architecture; no alternative runtime is in M1 scope. | PSF-2.0; retain its license/copyright material in release notices if redistributed. | Linux-first and macOS-compatible source/runtime. No AgentMonitor telemetry; obtaining runtime distributions is a network operation outside this increment. | FND-I01 records the exact current 3.12 distribution provenance and resolver compatibility. Upgrade only through a new admission and clean locked verification; removal means replacing the backend architecture. Include runtime in SBOM/release inventory. | **Blocked:** owner must explicitly approve PSF-2.0; 3.12.3 is superseded and cannot be selected as the baseline. |
+| CPython 3.12.14 proposed candidate; 3.12.3 observed locally and rejected as superseded | Backend runtime. Python is required by the approved backend architecture; no alternative runtime is in M1 scope. | PSF-2.0; retain its license/copyright material in release notices if redistributed. | Linux-first and macOS-compatible source/runtime. No AgentMonitor telemetry; obtaining runtime distributions is a network operation outside this increment. | FND-I01 records the exact 3.12.14 distribution provenance and resolver compatibility. Upgrade only through a new admission and clean locked verification; removal means replacing the backend architecture. Include runtime in SBOM/release inventory. | **Blocked:** owner must explicitly approve PSF-2.0; 3.12.3 cannot be selected as the baseline. |
 | Node.js 22.23.2 | Frontend build/browser-test runtime. Node 20/24 were considered; Node 22 is the required baseline and satisfies the selected package engine ranges. | MIT; preserve attribution in redistributed runtime material. npm bundled material needs its own notice inventory. | Linux/macOS official binaries; native runtime. No AgentMonitor telemetry. Registry access during install is network I/O. | FND-I01 pins node/npm provenance and fails unsupported engines. Upgrade/remove only by new admission; include runtime in SBOM/release inventory. | Approved for M1 direct selection; overall admission remains Blocked. |
 | npm 10.9.8 | The one selected JavaScript package-manager and lock workflow. pnpm/yarn were rejected to avoid competing locks. | Artistic-2.0 for npm CLI; preserve required notices when redistributed. | Cross-platform Node CLI; package lifecycle scripts are an explicit lock-time gate. npm registry access is network I/O; no project analytics/crash service is permitted. | Commit one `package-lock.json` only after FND-I01 review. Frozen install and lock mismatch must fail. Upgrade/remove only with new admission and lock diff; inventory npm/tool components in SBOM/notices. | **Blocked:** owner must explicitly approve Artistic-2.0 under ADR-0011. |
 | uv 0.11.16 | The one Python resolver/environment/lock workflow. pip/Poetry were rejected to prevent competing resolution state and weaker one-tool governance. | Upstream offers selectable MIT **or** Apache-2.0 license branches; retain the eventually selected text and attribution. This record does not select either branch. | Native Rust binary for Linux/macOS; resolver downloads are network I/O. No AgentMonitor telemetry may be enabled or introduced. | FND-I01 must pin the uv binary provenance, generate the single Python lock, and inspect all resolver/download behavior. Update/remove only with new admission and clean resolve. Include uv in tooling SBOM/notices. | **Blocked:** owner must select and approve an upstream license branch; no selection is inferred. |
@@ -85,10 +87,10 @@ benchmark. Performance remains Not Run until FND-I01's clean real resolution.
 
 | Evidence | Exact release and tagged license evidence | Ownership, maintenance/security route, release/support horizon | Size/performance impact before lock |
 |---|---|---|---|
-| E-RT-01 CPython 3.12.3 (observed only) | [official release](https://www.python.org/downloads/release/python-3123/); [tagged PSF license](https://github.com/python/cpython/blob/v3.12.3/LICENSE) | [python/cpython](https://github.com/python/cpython); [official version-status policy](https://devguide.python.org/versions/). The 3.12 line remains in security maintenance, but 3.12.3 is superseded; exact current patch and its horizon require selection before FND-I01. | Distribution size and startup performance not measured; varies by official platform artifact. **Not Run**. |
-| E-RT-02 Node.js 22.23.2 | [tagged MIT license](https://github.com/nodejs/node/blob/v22.23.2/LICENSE) | [nodejs/node](https://github.com/nodejs/node); [security route](https://github.com/nodejs/node/security/policy); [official release schedule](https://github.com/nodejs/Release#release-schedule) gives the Node 22 line's planned 2027-04 end. | Native runtime binary; artifact size and runtime performance not measured. **Not Run**. |
-| E-RT-03 npm 10.9.8 | [tagged Artistic-2.0 license](https://github.com/npm/cli/blob/v10.9.8/LICENSE) | [npm/cli](https://github.com/npm/cli); [security route](https://github.com/npm/cli/security/policy). No separate time-bounded npm 10 support horizon located in canonical source; recheck against Node 22 support. | Bundled Node CLI; artifact size/performance not measured. Lifecycle scripts are a FND-I01 stop condition. |
-| E-RT-04 uv 0.11.16 | [release](https://github.com/astral-sh/uv/releases/tag/0.11.16); [MIT branch](https://github.com/astral-sh/uv/blob/0.11.16/LICENSE-MIT); [Apache-2.0 branch](https://github.com/astral-sh/uv/blob/0.11.16/LICENSE-APACHE) | [astral-sh/uv](https://github.com/astral-sh/uv); [security route](https://github.com/astral-sh/uv/security/policy). No published time-bounded support horizon located. | Native resolver binary; artifact size and resolution performance not measured. **Not Run**. |
+| E-RT-01 CPython 3.12.14 proposed candidate; 3.12.3 observed only | [official 3.12.14 release](https://www.python.org/downloads/release/python-31214/); [tagged PSF license](https://github.com/python/cpython/blob/v3.12.14/LICENSE); [official source directory](https://www.python.org/ftp/python/3.12.14/) | [python/cpython](https://github.com/python/cpython); [official version-status policy](https://devguide.python.org/versions/). Python 3.12 is in security maintenance through 2028-10. Candidate released 2026-08-12; 3.12.3 is superseded and rejected. | Official source provenance proposed: `Python-3.12.14.tar.xz` (20,820,300 bytes) plus published `.asc` and `.sigstore` files; no download/install performed. Startup performance **Not Run**. |
+| E-RT-02 Node.js 22.23.2 | [official distribution directory](https://nodejs.org/dist/v22.23.2/); [tagged MIT license](https://github.com/nodejs/node/blob/v22.23.2/LICENSE) | [nodejs/node](https://github.com/nodejs/node); [security route](https://github.com/nodejs/node/security/policy); [official release schedule](https://github.com/nodejs/Release#release-schedule) gives the Node 22 line's planned 2027-04 end. | Official Linux x64 archive is 31 MB; official `SHASUMS256.txt` and signature are published in the same directory. No download/install or runtime benchmark was performed. |
+| E-RT-03 npm 10.9.8 | [npm registry release metadata](https://registry.npmjs.org/npm/10.9.8); [tagged Artistic-2.0 license](https://github.com/npm/cli/blob/v10.9.8/LICENSE) | [npm/cli](https://github.com/npm/cli); [security route](https://github.com/npm/cli/security/policy). No separate time-bounded npm 10 support horizon located in canonical source; recheck against Node 22 support. | Registry reports `dist.unpackedSize` 11,682,638 bytes / 2,009 files and SHA-512 integrity metadata for the official tarball. No download/install or benchmark was performed. Lifecycle scripts remain a FND-I01 stop condition. |
+| E-RT-04 uv 0.11.16 | [official release](https://github.com/astral-sh/uv/releases/tag/0.11.16); [MIT branch](https://github.com/astral-sh/uv/blob/0.11.16/LICENSE-MIT); [Apache-2.0 branch](https://github.com/astral-sh/uv/blob/0.11.16/LICENSE-APACHE) | [astral-sh/uv](https://github.com/astral-sh/uv); [security route](https://github.com/astral-sh/uv/security/policy). No published time-bounded support horizon located. | Official release assets: Linux x86_64 GNU tarball 24,014,155 bytes; macOS x86_64 tarball 22,381,489 bytes. No download/install or resolver benchmark was performed. |
 | E-PY-01 FastAPI 0.141.1 | [PyPI release](https://pypi.org/project/fastapi/0.141.1/); [tagged MIT license](https://github.com/fastapi/fastapi/blob/0.141.1/LICENSE) | [fastapi/fastapi](https://github.com/fastapi/fastapi); [security route](https://github.com/fastapi/fastapi/security/policy). Current registry release on research date; no published time-bounded support horizon located. | PyPI files: 131,954–425,799 bytes; pure Python. Runtime performance not measured. |
 | E-PY-02 Uvicorn 0.53.0 | [PyPI release](https://pypi.org/project/uvicorn/0.53.0/); [tagged BSD-3-Clause license](https://github.com/Kludex/uvicorn/blob/0.53.0/LICENSE.md) | [Kludex/uvicorn](https://github.com/Kludex/uvicorn); [security route](https://github.com/Kludex/uvicorn/security/policy). Current registry release; no published time-bounded support horizon located. | PyPI files: 87,081–110,881 bytes; pure Python baseline. Runtime performance not measured. |
 | E-PY-03 Pydantic 2.13.5 | [PyPI release](https://pypi.org/project/pydantic/2.13.5/); [tagged MIT license](https://github.com/pydantic/pydantic/blob/v2.13.5/LICENSE) | [pydantic/pydantic](https://github.com/pydantic/pydantic); [security route](https://github.com/pydantic/pydantic/security/policy). Current registry release; no published time-bounded support horizon located. | PyPI files: 472,589–845,750 bytes; `pydantic-core` native artifact adds platform impact. Runtime performance not measured. |
@@ -104,6 +106,24 @@ benchmark. Performance remains Not Run until FND-I01's clean real resolution.
 | E-JS-05 @vitejs/plugin-react 6.1.1 | [npm release](https://www.npmjs.com/package/@vitejs/plugin-react/v/6.1.1); [tagged MIT license](https://github.com/vitejs/vite-plugin-react/blob/plugin-react@6.1.1/LICENSE) | [vitejs/vite-plugin-react](https://github.com/vitejs/vite-plugin-react); [security route](https://github.com/vitejs/vite-plugin-react/security/policy). Current registry release; no published time-bounded support horizon located. | npm unpacked size: 44,804 bytes / 8 files. Transform/build performance not measured. |
 | E-JS-06 @playwright/test 1.63.0 | [npm release](https://www.npmjs.com/package/@playwright/test/v/1.63.0); [tagged Apache-2.0 license](https://github.com/microsoft/playwright/blob/v1.63.0/LICENSE) | [microsoft/playwright](https://github.com/microsoft/playwright); [security route](https://github.com/microsoft/playwright/security/policy). Current registry release; no published time-bounded support horizon located. | npm unpacked size: 28,544 bytes / 11 files; the `playwright` package and browser archive are separate. Browser execution performance not measured. |
 | E-BR-01 Chromium r1243 / 153.0.8010.12 | [tagged browser manifest](https://github.com/microsoft/playwright/blob/v1.63.0/packages/playwright-core/browsers.json); Chromium license/notices source is not available until the official platform artifact is resolved. | Microsoft Playwright controls revision selection; security/support status of the not-yet-acquired browser artifact is unresolved. | Browser archive size, hash, platform selection, install behavior, and performance are **Not Run**. This blocks browser acquisition. |
+
+## Sanitized upstream runtime/tool advisory evidence
+
+Method actually executed: `GET` each selected upstream repository's public
+GitHub advisory endpoint
+`https://api.github.com/repos/<owner>/<repo>/security-advisories?state=published&per_page=100`
+at **2026-09-19T14:47:26Z**. No response bodies were retained. `Published
+record count` is the returned array length. A zero record count is not evidence
+that the product has no vulnerabilities: it means only that the queried upstream
+repository endpoint returned no published GHSA records. Where that leaves
+version-specific advisory coverage ambiguous, the selection stays fail-closed.
+
+| Evidence | Exact item | Upstream endpoint HTTP/result | Exact version assessment |
+|---|---|---|---|
+| GHSA-RT-01 | CPython 3.12.14 candidate | `python/cpython`: HTTP 200; published record count 0. | The endpoint has no published repository GHSA record, but it is not a complete CPython security-release/CVE coverage source. Advisory status is **ambiguous; Blocked** pending an approved comprehensive upstream advisory method at FND-I01. |
+| GHSA-RT-02 | Node.js 22.23.2 | `nodejs/node`: HTTP 200; published record count 0. | The endpoint has no published repository GHSA record, but it is not a complete Node security-release/CVE coverage source. Advisory status is **ambiguous; Blocked** pending an approved comprehensive upstream advisory method at FND-I01. |
+| GHSA-RT-03 | npm 10.9.8 | `npm/cli`: HTTP 200; published record count 5. Declared npm ranges: `>=7.9.0,<8.11.0`, `<6.14.6`, and three `<6.13.4`. | 10.9.8 is outside all five returned declared ranges. This is a point-in-time upstream endpoint result only; FND-I01 still rechecks full tool/distribution provenance. |
+| GHSA-RT-04 | uv 0.11.16 | `astral-sh/uv`: HTTP 200; published record count 6. Declared `uv` ranges: `<0.11.15`, `<=0.11.5`, `<=0.9.5`, `<=0.9.4`, `<=0.8.21`, `<0.8.5`. | 0.11.16 is outside all six returned declared ranges. This is a point-in-time upstream endpoint result only; owner license-branch decision remains Blocked. |
 
 ## Python direct packages
 
@@ -219,10 +239,10 @@ ADR-0011 normally admits verified MIT/BSD/ISC/Apache-2.0 only. The owner must
 record all of the following, with reviewer/date, before a manifest, lock, or
 download is authorized:
 
-1. Approve or reject **PSF-2.0** for the selected CPython 3.12 distribution.
-   If approved, the dependency steward must replace observed 3.12.3 with one
-   exact currently supported 3.12 security-maintenance patch and record its
-   official provenance; if rejected, choose a compliant runtime architecture.
+1. Approve or reject **PSF-2.0** for proposed **CPython 3.12.14**. If approved,
+   the dependency steward may provision that exact official source distribution
+   with its published verification artifacts; observed 3.12.3 remains rejected.
+   If rejected, choose a compliant runtime architecture.
 2. Approve or reject **Artistic-2.0** for npm 10.9.8. If rejected, select and
    fully admit a replacement single Node package-manager/lock workflow.
 3. For uv 0.11.16, select either upstream **MIT** or **Apache-2.0** and approve
@@ -231,6 +251,13 @@ download is authorized:
 Until those three decisions and the current CPython patch selection exist, the
 whole `FND-I00-DEP-001` admission is **Blocked**. FND-I01, package installation,
 browser download, manifest creation, and lockfile creation are prohibited.
+
+Two non-owner technical blockers also remain: the executed upstream GHSA
+endpoints for CPython and Node returned zero repository records but do not
+provide complete version-specific security-release/CVE coverage. Before FND-I01,
+the dependency/security reviewer must record a comprehensive canonical upstream
+advisory method and its exact result for CPython 3.12.14 and Node 22.23.2. Until
+then those selections remain fail-closed.
 
 ## Compatibility, security, and documentation impact
 
