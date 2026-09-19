@@ -41,6 +41,10 @@ PUBLIC = {
         "DatabaseSnapshotActivationV1",
     ),
 }
+SQLITE_POLICY = "agentmonitor.adapters.persistence._shared.sqlite.core.policy"
+SQLITE_COMPATIBILITY = (
+    "agentmonitor.adapters.persistence._shared.sqlite.schema.compatibility"
+)
 
 
 def checker() -> ModuleType:
@@ -417,6 +421,97 @@ def test_allowed_inward_dependencies(tmp_path: Path) -> None:
             text.replace("example", "registry"),
         )
     assert checker().find_forbidden_imports(tmp_path) == []
+
+
+@pytest.mark.parametrize(
+    "statement",
+    [
+        f"from {SQLITE_POLICY} import DatabaseRefV1",
+        f"from {SQLITE_POLICY} import SqliteDatabaseHandleV1 as DatabaseHandle",
+        f"from {SQLITE_POLICY} import open_sqlite_database",
+        f"from {SQLITE_COMPATIBILITY} import application_schema_range",
+        f"from {SQLITE_COMPATIBILITY} import InspectSchemaCompatibilityV1 as Inspector",
+        (
+            "from ..adapters.persistence._shared.sqlite.schema.compatibility "
+            "import RequireWritableSchemaV1"
+        ),
+    ],
+)
+def test_composition_can_import_approved_sqlite_entry_points(
+    tmp_path: Path, statement: str
+) -> None:
+    copy_contract_policy(tmp_path)
+    write_source(tmp_path, "composition/bootstrap.py", statement + "\n")
+    assert checker().find_forbidden_imports(tmp_path) == []
+
+
+@pytest.mark.parametrize(
+    ("statement", "target"),
+    [
+        (
+            f"import {SQLITE_POLICY}",
+            SQLITE_POLICY,
+        ),
+        (
+            f"import {SQLITE_POLICY}.DatabaseRefV1",
+            f"{SQLITE_POLICY}.DatabaseRefV1",
+        ),
+        (
+            "from agentmonitor.adapters.persistence._shared.sqlite.core import policy",
+            "agentmonitor.adapters.persistence._shared.sqlite.core",
+        ),
+        (
+            f"from {SQLITE_POLICY} import SqlitePolicyError",
+            f"{SQLITE_POLICY}.SqlitePolicyError",
+        ),
+        (
+            f"from {SQLITE_POLICY} import open_sqlite_inspection",
+            f"{SQLITE_POLICY}.open_sqlite_inspection",
+        ),
+        (
+            f"from {SQLITE_COMPATIBILITY} import SchemaCompatibilityViewV1",
+            f"{SQLITE_COMPATIBILITY}.SchemaCompatibilityViewV1",
+        ),
+        (
+            f"from {SQLITE_COMPATIBILITY} import migrate_to_head",
+            f"{SQLITE_COMPATIBILITY}.migrate_to_head",
+        ),
+        (
+            f"from {SQLITE_COMPATIBILITY}._private import hidden",
+            f"{SQLITE_COMPATIBILITY}._private",
+        ),
+        (
+            "from agentmonitor.adapters.persistence._shared.sqlite.unrelated.factory "
+            "import build",
+            "agentmonitor.adapters.persistence._shared.sqlite.unrelated.factory",
+        ),
+    ],
+)
+def test_composition_rejects_non_entry_point_sqlite_imports(
+    tmp_path: Path, statement: str, target: str
+) -> None:
+    copy_contract_policy(tmp_path)
+    source = write_source(tmp_path, "composition/bootstrap.py", statement + "\n")
+    assert checker().find_forbidden_imports(tmp_path) == [f"{source}:1:{target}"]
+
+
+@pytest.mark.parametrize(
+    "source_name",
+    [
+        "api/app.py",
+        "foundation/application.py",
+        "modules/registry/application/start.py",
+        "adapters/providers/claude/start.py",
+    ],
+)
+def test_non_composition_sources_reject_approved_sqlite_entry_points(
+    tmp_path: Path, source_name: str
+) -> None:
+    copy_contract_policy(tmp_path)
+    source = write_source(
+        tmp_path, source_name, f"from {SQLITE_POLICY} import DatabaseRefV1\n"
+    )
+    assert checker().find_forbidden_imports(tmp_path) == [f"{source}:1:{SQLITE_POLICY}"]
 
 
 def test_cycles_are_reported_deterministically(tmp_path: Path) -> None:

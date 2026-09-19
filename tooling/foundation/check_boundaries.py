@@ -87,6 +87,27 @@ TASK_CONTRACT_IDS = frozenset(
         "CTR-DB-003",
     }
 )
+# Composition alone wires this closed subset of the Task 3 SQLite adapter.
+# Keeping the allowance at symbol granularity prevents a module import from
+# exposing migration, inspection-internal, or future public-looking helpers.
+COMPOSITION_SQLITE_SYMBOLS = {
+    "agentmonitor.adapters.persistence._shared.sqlite.core.policy": frozenset(
+        {
+            "DatabaseRefV1",
+            "SqliteDatabaseHandleV1",
+            "open_sqlite_database",
+        }
+    ),
+    "agentmonitor.adapters.persistence._shared.sqlite.schema.compatibility": (
+        frozenset(
+            {
+                "InspectSchemaCompatibilityV1",
+                "RequireWritableSchemaV1",
+                "application_schema_range",
+            }
+        )
+    ),
+}
 
 
 def _sources(root: Path) -> tuple[list[Path], list[str]]:
@@ -128,7 +149,23 @@ def _module(path: Path, root: Path) -> str:
     return ".".join(["agentmonitor", *parts])
 
 
-def _allowed(source: str, target: str) -> bool:
+def _composition_sqlite_symbol_module(source: str, target: str) -> bool:
+    is_composition = source == "agentmonitor.composition" or source.startswith(
+        "agentmonitor.composition."
+    )
+    return is_composition and target in COMPOSITION_SQLITE_SYMBOLS
+
+
+def _approved_composition_sqlite_symbol(source: str, target: str) -> bool:
+    module, separator, symbol = target.rpartition(".")
+    return (
+        bool(separator)
+        and _composition_sqlite_symbol_module(source, module)
+        and symbol in COMPOSITION_SQLITE_SYMBOLS[module]
+    )
+
+
+def _allowed(source: str, target: str, *, symbol_import: bool = False) -> bool:
     src, dst = source.split("."), target.split(".")
     if "utils" in dst or dst[0] in {"frontend", "backend"}:
         return False
@@ -150,6 +187,8 @@ def _allowed(source: str, target: str) -> bool:
         return True
     if len(dst) < 2:
         return False
+    if symbol_import and _approved_composition_sqlite_symbol(source, target):
+        return True
     if any(part.startswith("_") for part in dst[1:]) and src[1:3] != dst[1:3]:
         return False
     if dst[1] == "contracts":
@@ -190,12 +229,12 @@ def _allowed(source: str, target: str) -> bool:
 
 def _imports(
     tree: ast.Module, module: str, is_package: bool
-) -> tuple[list[tuple[int, str]], list[tuple[int, str]]]:
-    edges: list[tuple[int, str]] = []
+) -> tuple[list[tuple[int, str, bool]], list[tuple[int, str]]]:
+    edges: list[tuple[int, str, bool]] = []
     errors: list[tuple[int, str]] = []
     for node in ast.walk(tree):
         if isinstance(node, ast.Import):
-            edges.extend((node.lineno, alias.name) for alias in node.names)
+            edges.extend((node.lineno, alias.name, False) for alias in node.names)
         elif isinstance(node, ast.ImportFrom):
             if any(alias.name == "*" for alias in node.names):
                 errors.append((node.lineno, "wildcard-import"))
@@ -212,7 +251,9 @@ def _imports(
             # Keep contract symbols until privacy and adoption checks complete;
             # aliases cannot hide the original imported name.
             if base.startswith("agentmonitor.contracts."):
-                edges.extend((node.lineno, f"{base}.{a.name}") for a in node.names)
+                edges.extend(
+                    (node.lineno, f"{base}.{alias.name}", True) for alias in node.names
+                )
             elif base.startswith("agentmonitor"):
                 # `from package import Symbol` may be a symbol or a module.
                 # Check the base direction as well as each child for bypasses.
@@ -226,13 +267,17 @@ def _imports(
                         base.startswith("agentmonitor.modules.")
                         and len(base.split(".")) == 3
                     )
+                    and not _composition_sqlite_symbol_module(module, base)
                     and not _allowed(module, base)
                 ):
-                    edges.append((node.lineno, base))
+                    edges.append((node.lineno, base, False))
                 else:
-                    edges.extend((node.lineno, f"{base}.{a.name}") for a in node.names)
+                    edges.extend(
+                        (node.lineno, f"{base}.{alias.name}", True)
+                        for alias in node.names
+                    )
             else:
-                edges.append((node.lineno, base))
+                edges.append((node.lineno, base, False))
         elif isinstance(node, ast.Call):
             if isinstance(node.func, ast.Name) and node.func.id in {
                 "__import__",
@@ -282,8 +327,8 @@ def find_forbidden_imports(root: Path) -> list[str]:
         edges, failures = _imports(tree, module, path.name == "__init__.py")
         errors.extend(f"{relative}:{line}:{reason}" for line, reason in failures)
         graph.setdefault(module, set())
-        for line, target in edges:
-            if not _allowed(module, target):
+        for line, target, symbol_import in edges:
+            if not _allowed(module, target, symbol_import=symbol_import):
                 errors.append(f"{relative}:{line}:{target}")
             elif target.startswith("agentmonitor.contracts."):
                 contract_imports.append((path, line, target))
