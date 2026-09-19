@@ -15,13 +15,6 @@ REQUIREMENT_ID = re.compile(
 )
 CONTRACT_ID = re.compile(r"\bCTR-[A-Z]+-\d{3}\b")
 EXTERNAL_SCHEMES = ("http://", "https://", "mailto:", "app://", "data:")
-EXCLUDED_MARKDOWN_DIRECTORY_NAMES = {
-    ".git",
-    ".superpowers",
-    ".venv",
-    "__pycache__",
-    "node_modules",
-}
 
 
 def _link_target(raw_target: str) -> str:
@@ -31,17 +24,6 @@ def _link_target(raw_target: str) -> str:
     else:
         target = target.split(maxsplit=1)[0]
     return unquote(target).split("#", maxsplit=1)[0]
-
-
-def enumerate_repository_markdown(repository_root: Path) -> list[Path]:
-    return sorted(
-        path
-        for path in repository_root.rglob("*.md")
-        if path.is_file()
-        and EXCLUDED_MARKDOWN_DIRECTORY_NAMES.isdisjoint(
-            path.relative_to(repository_root).parts
-        )
-    )
 
 
 def check_repository(repository_root: Path) -> list[str]:
@@ -58,7 +40,14 @@ def check_repository(repository_root: Path) -> list[str]:
         contract_raw = tomllib.load(stream)
     known_contracts = {item["id"] for item in contract_raw["contracts"]}
 
-    for document in enumerate_repository_markdown(repository_root):
+    markdown_files = sorted(
+        path
+        for path in repository_root.rglob("*.md")
+        if path.is_file()
+        and ".git" not in path.parts
+        and "__pycache__" not in path.parts
+    )
+    for document in markdown_files:
         relative = document.relative_to(repository_root)
         text = document.read_text(encoding="utf-8")
         for raw_target in MARKDOWN_LINK.findall(text):
@@ -99,7 +88,7 @@ def main() -> int:
         for violation in violations:
             print(f"- {violation}")
         return 1
-    markdown_count = len(enumerate_repository_markdown(root))
+    markdown_count = sum(1 for path in root.rglob("*.md") if path.is_file())
     print(f"DOCUMENTATION CHECK: PASSED ({markdown_count} Markdown files)")
     return 0
 
