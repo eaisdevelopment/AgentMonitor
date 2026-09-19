@@ -313,6 +313,91 @@ def find_forbidden_imports(root: Path) -> list[str]:
     return sorted(set(errors))
 
 
+def _catalog_rebindings(
+    tree: ast.Module, catalog_names: set[str]
+) -> list[tuple[int, str]]:
+    """Find module-name mutations without treating local bindings as exports.
+
+    Compound statements keep their enclosing scope. Functions/classes introduce
+    local scopes except explicit globals; their defaults/decorators/bases are
+    evaluated in the enclosing scope. Comprehension iteration targets are local,
+    while assignment expressions bind in the containing non-comprehension scope.
+    """
+    result: list[tuple[int, str]] = []
+    declared_names: set[str] = set()
+
+    def globals_in(body: list[ast.stmt]) -> set[str]:
+        names: set[str] = set()
+        pending: list[ast.AST] = list(body)
+        while pending:
+            node = pending.pop()
+            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+                continue
+            if isinstance(node, ast.Global):
+                names.update(node.names)
+            pending.extend(ast.iter_child_nodes(node))
+        return names & catalog_names
+
+    def visit(node: ast.AST, scope: set[str], walrus_scope: set[str]) -> None:
+        if isinstance(node, ast.Name) and isinstance(node.ctx, (ast.Store, ast.Del)):
+            if node.id in scope:
+                result.append((node.lineno, node.id))
+        elif isinstance(node, ast.NamedExpr):
+            visit(node.target, walrus_scope, walrus_scope)
+            visit(node.value, scope, walrus_scope)
+            return
+        elif isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+            if node.name in scope:
+                if node.name in declared_names:
+                    result.append((node.lineno, node.name))
+                declared_names.add(node.name)
+            for child in ast.iter_child_nodes(node):
+                if child not in node.body:
+                    visit(child, scope, walrus_scope)
+            local_globals = globals_in(node.body)
+            for statement in node.body:
+                visit(statement, local_globals, local_globals)
+            return
+        elif isinstance(node, (ast.Import, ast.ImportFrom)):
+            for alias in node.names:
+                bound_name = alias.asname or alias.name.split(".")[0]
+                if bound_name in scope and (
+                    bound_name != alias.name or bound_name in declared_names
+                ):
+                    result.append((node.lineno, bound_name))
+        elif isinstance(node, ast.Lambda):
+            visit(node.args, scope, walrus_scope)
+            visit(node.body, set(), set())
+            return
+        elif isinstance(
+            node, (ast.ListComp, ast.SetComp, ast.DictComp, ast.GeneratorExp)
+        ):
+            # The first iterable is evaluated in the enclosing scope. All
+            # remaining comprehension bindings live in its implicit local scope.
+            for index, generator in enumerate(node.generators):
+                visit(generator.iter, scope if index == 0 else set(), walrus_scope)
+                visit(generator.target, set(), walrus_scope)
+                for condition in generator.ifs:
+                    visit(condition, set(), walrus_scope)
+            if isinstance(node, ast.DictComp):
+                visit(node.key, set(), walrus_scope)
+                visit(node.value, set(), walrus_scope)
+            else:
+                visit(node.elt, set(), walrus_scope)
+            return
+        elif isinstance(node, (ast.ExceptHandler, ast.MatchAs, ast.MatchStar)):
+            if node.name is not None and node.name in scope:
+                result.append((node.lineno, node.name))
+        elif isinstance(node, ast.MatchMapping):
+            if node.rest is not None and node.rest in scope:
+                result.append((node.lineno, node.rest))
+        for child in ast.iter_child_nodes(node):
+            visit(child, scope, walrus_scope)
+
+    visit(tree, catalog_names, catalog_names)
+    return sorted(set(result))
+
+
 def _contract_consumption_errors(
     root: Path,
     modules: dict[str, Path],
@@ -361,7 +446,12 @@ def _contract_consumption_errors(
                 continue
             tree = ast.parse(path.read_text(encoding="utf-8"))
             names: set[str] = set()
-            rebound_names: set[str] = set()
+            rebindings = _catalog_rebindings(tree, set(definitions))
+            rebound_names = {name for _, name in rebindings}
+            errors.extend(
+                f"{path.relative_to(root)}:{line}:catalog-name-rebinding:{name}"
+                for line, name in rebindings
+            )
             for node in tree.body:
                 if isinstance(
                     node, (ast.ClassDef, ast.FunctionDef, ast.AsyncFunctionDef)
@@ -373,22 +463,6 @@ def _contract_consumption_errors(
                     node.target, ast.Name
                 ):
                     names.add(node.target.id)
-                if isinstance(node, (ast.Assign, ast.AnnAssign, ast.AugAssign)):
-                    targets = (
-                        node.targets if isinstance(node, ast.Assign) else [node.target]
-                    )
-                    for assignment_target in targets:
-                        for binding in ast.walk(assignment_target):
-                            if (
-                                isinstance(binding, ast.Name)
-                                and isinstance(binding.ctx, ast.Store)
-                                and binding.id in definitions
-                            ):
-                                rebound_names.add(binding.id)
-                                errors.append(
-                                    f"{path.relative_to(root)}:{node.lineno}:"
-                                    f"catalog-name-rebinding:{binding.id}"
-                                )
             # Assignments cannot establish a catalog identity or replace a real
             # declaration, even if a class of that name appears earlier/later.
             names.difference_update(rebound_names)

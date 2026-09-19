@@ -176,6 +176,78 @@ def test_ordinary_assignments_do_not_change_contract_declarations(
     assert checker().find_forbidden_imports(tmp_path) == []
 
 
+@pytest.mark.parametrize(
+    "mutation",
+    [
+        "if True:\n    OpaqueIdV1 = SchemaCompatibilityV1",
+        "while False:\n    OpaqueIdV1 = SchemaCompatibilityV1",
+        "(OpaqueIdV1 := SchemaCompatibilityV1)",
+        "for OpaqueIdV1 in (SchemaCompatibilityV1,):\n    pass",
+        "with context() as OpaqueIdV1:\n    pass",
+        "try:\n    pass\nexcept Exception as OpaqueIdV1:\n    pass",
+        "[(OpaqueIdV1 := SchemaCompatibilityV1) for item in ()]",
+        "[[(OpaqueIdV1 := SchemaCompatibilityV1) for inner in ()] for outer in ()]",
+        "def change():\n    global OpaqueIdV1\n    OpaqueIdV1 = SchemaCompatibilityV1",
+        "def definition(value=(OpaqueIdV1 := SchemaCompatibilityV1)):\n    pass",
+        "match candidate:\n    case {'kind': OpaqueIdV1}:\n        pass",
+        "ordinary = OpaqueIdV1 = SchemaCompatibilityV1",
+        "if True:\n    from agentmonitor.contracts.database_v1 import "
+        "SchemaCompatibilityV1 as OpaqueIdV1",
+        "def OpaqueIdV1():\n    return SchemaCompatibilityV1",
+        "class OpaqueIdV1(SchemaCompatibilityV1):\n    pass",
+    ],
+)
+def test_compound_catalog_rebinding_is_rejected(tmp_path: Path, mutation: str) -> None:
+    copy_contract_policy(tmp_path)
+    path = tmp_path / SOURCE / "contracts/foundation_v1.py"
+    path.write_text(
+        path.read_text(encoding="utf-8")
+        + "\nclass OpaqueIdV1: pass\n"
+        + mutation
+        + "\n",
+        encoding="utf-8",
+    )
+    source = write_source(
+        tmp_path,
+        "modules/registry/domain/rule.py",
+        "from agentmonitor.contracts.foundation_v1 import OpaqueIdV1\n",
+    )
+    errors = checker().find_forbidden_imports(tmp_path)
+    assert any(":catalog-name-rebinding:OpaqueIdV1" in error for error in errors)
+    assert f"{source}:1:unresolved-contract-symbol" in errors
+
+
+@pytest.mark.parametrize(
+    "local_code",
+    [
+        "def local():\n    OpaqueIdV1 = 1\n    return OpaqueIdV1",
+        "def local():\n    if True:\n        OpaqueIdV1 = 1",
+        "def local():\n    return (OpaqueIdV1 := 1)",
+        "def local():\n    return [(OpaqueIdV1 := item) for item in ()]",
+        "[OpaqueIdV1 for OpaqueIdV1 in ()]",
+        "{OpaqueIdV1: 1 for OpaqueIdV1 in ()}",
+        "{OpaqueIdV1 for OpaqueIdV1 in ()}",
+        "(OpaqueIdV1 for OpaqueIdV1 in ())",
+        "class Local:\n    OpaqueIdV1 = 1",
+        "(lambda OpaqueIdV1: (OpaqueIdV1 := 1))",
+        "if True:\n    ordinary = 1\nfor ordinary in ():\n    pass",
+        "def local():\n    def OpaqueIdV1():\n        pass",
+        "def local():\n    from agentmonitor.contracts.database_v1 import "
+        "SchemaCompatibilityV1 as OpaqueIdV1",
+    ],
+)
+def test_local_catalog_names_and_ordinary_bindings_remain_allowed(
+    tmp_path: Path,
+    local_code: str,
+) -> None:
+    copy_contract_policy(tmp_path)
+    path = tmp_path / SOURCE / "contracts/foundation_v1.py"
+    path.write_text(
+        path.read_text(encoding="utf-8") + "\n" + local_code + "\n", encoding="utf-8"
+    )
+    assert checker().find_forbidden_imports(tmp_path) == []
+
+
 def test_missing_contract_adoption_fails_closed(tmp_path: Path) -> None:
     source = write_source(
         tmp_path,
