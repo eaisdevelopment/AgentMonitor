@@ -78,6 +78,20 @@ def test_one_time_replay_metadata_is_all_or_none_and_secret_free() -> None:
         ApiTokenMutationOutcomeV1("scope_escalation_denied", summary.api_token_id, 1)
 
 
+def test_stale_active_precondition_outcome_carries_no_resource_metadata() -> None:
+    summary = _summary()
+    stale = ApiTokenMutationOutcomeV1("precondition_failed")
+    assert stale.code == "precondition_failed"
+    assert stale.api_token_id is None
+    with pytest.raises(ValueError, match="token_mutation_metadata_pair_invalid"):
+        ApiTokenMutationOutcomeV1(
+            "precondition_failed",
+            summary.api_token_id,
+            summary.record_version,
+            "active",
+        )
+
+
 def test_token_audit_projection_accepts_only_reviewed_shapes() -> None:
     now = datetime(2026, 1, 1, tzinfo=UTC)
     created = IamSecurityEventViewV1(

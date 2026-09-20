@@ -110,6 +110,156 @@ def _owner_actor(reference: DatabaseRefV1, owner_credential: str) -> TokenCaller
     )
 
 
+@pytest.mark.parametrize("action", ("rotate", "revoke"))
+def test_stale_active_token_version_is_precondition_not_terminal_conflict(
+    real_iam_installation: tuple[DatabaseRefV1, str], action: str
+) -> None:
+    reference, owner_credential = real_iam_installation
+    actor = _owner_actor(reference, owner_credential)
+    repository = SqliteIdentityAccessApiTokenRepositoryV1(reference)
+    issued = CreateApiTokenV1(repository)(
+        actor,
+        name="versioned target",
+        scopes=("read:diagnostics",),
+        lifetime_seconds=None,
+        idempotency_key="active_version_setup_0001",
+        correlation_id="active-version-setup",
+    )
+    assert isinstance(issued, ApiTokenCredentialIssueV1)
+    touched = ResolveBearerTokenV1(repository)(
+        SecretInputV1(issued.bearer_credential),
+        correlation_id="active-version-real-touch",
+    )
+    assert touched.code == "authenticated"
+    assert touched.token is not None
+    assert touched.token.record_version > issued.token.record_version
+    if action == "rotate":
+        stale = RotateApiTokenV1(repository)(
+            actor,
+            issued.token.api_token_id,
+            issued.token.record_version,
+            idempotency_key="active_version_rotate_0001",
+            correlation_id="active-version-stale-rotate",
+        )
+    else:
+        stale = RevokeApiTokenV1(repository)(
+            actor,
+            issued.token.api_token_id,
+            issued.token.record_version,
+            correlation_id="active-version-stale-revoke",
+        )
+    assert isinstance(stale, ApiTokenMutationOutcomeV1)
+    assert stale.code == "precondition_failed"
+    assert stale.api_token_id is None
+    with open_sqlite_database(reference, "runtime_read_write") as handle:
+        with handle.connect() as connection:
+            row = connection.exec_driver_sql(
+                "SELECT record_version, revoked_at, verification_digest "
+                "FROM iam_api_token WHERE api_token_id=?",
+                (issued.token.api_token_id.value,),
+            ).one()
+            assert row[0] == touched.token.record_version
+            assert row[1] is None
+            assert len(row[2]) == 64
+            assert (
+                connection.exec_driver_sql(
+                    "SELECT count(*) FROM iam_security_audit_event "
+                    "WHERE event_type IN ('api_token_rotated', 'api_token_revoked')"
+                ).scalar_one()
+                == 0
+            )
+    if action == "rotate":
+        accepted = RotateApiTokenV1(repository)(
+            actor,
+            issued.token.api_token_id,
+            touched.token.record_version,
+            idempotency_key="active_version_rotate_0001",
+            correlation_id="active-version-current-rotate",
+        )
+        assert isinstance(accepted, ApiTokenCredentialIssueV1)
+        assert accepted.code == "rotated"
+    else:
+        accepted = RevokeApiTokenV1(repository)(
+            actor,
+            issued.token.api_token_id,
+            touched.token.record_version,
+            correlation_id="active-version-current-revoke",
+        )
+        assert accepted.code == "revoked"
+        repeated = RevokeApiTokenV1(repository)(
+            actor,
+            issued.token.api_token_id,
+            issued.token.record_version,
+            correlation_id="active-version-repeat-revoke",
+        )
+        assert repeated.code == "revoked"
+
+
+def test_rotated_terminal_target_keeps_state_conflict_for_revoke(
+    real_iam_installation: tuple[DatabaseRefV1, str],
+) -> None:
+    reference, owner_credential = real_iam_installation
+    actor = _owner_actor(reference, owner_credential)
+    repository = SqliteIdentityAccessApiTokenRepositoryV1(reference)
+    issued = CreateApiTokenV1(repository)(
+        actor,
+        name="terminal target",
+        scopes=("read:diagnostics",),
+        lifetime_seconds=None,
+        idempotency_key="terminal_precondition_setup_0001",
+        correlation_id="terminal-precondition-setup",
+    )
+    assert isinstance(issued, ApiTokenCredentialIssueV1)
+    rotated = RotateApiTokenV1(repository)(
+        actor,
+        issued.token.api_token_id,
+        issued.token.record_version,
+        idempotency_key="terminal_precondition_rotate_0001",
+        correlation_id="terminal-precondition-rotate",
+    )
+    assert isinstance(rotated, ApiTokenCredentialIssueV1)
+    denied = RevokeApiTokenV1(repository)(
+        actor,
+        issued.token.api_token_id,
+        issued.token.record_version,
+        correlation_id="terminal-precondition-revoke",
+    )
+    assert denied.code == "credential_state_conflict"
+
+
+def test_revoked_terminal_target_keeps_state_conflict_for_rotate(
+    real_iam_installation: tuple[DatabaseRefV1, str],
+) -> None:
+    reference, owner_credential = real_iam_installation
+    actor = _owner_actor(reference, owner_credential)
+    repository = SqliteIdentityAccessApiTokenRepositoryV1(reference)
+    issued = CreateApiTokenV1(repository)(
+        actor,
+        name="revoked target",
+        scopes=("read:diagnostics",),
+        lifetime_seconds=None,
+        idempotency_key="revoked_precondition_setup_0001",
+        correlation_id="revoked-precondition-setup",
+    )
+    assert isinstance(issued, ApiTokenCredentialIssueV1)
+    revoked = RevokeApiTokenV1(repository)(
+        actor,
+        issued.token.api_token_id,
+        issued.token.record_version,
+        correlation_id="revoked-precondition-revoke",
+    )
+    assert revoked.code == "revoked"
+    denied = RotateApiTokenV1(repository)(
+        actor,
+        issued.token.api_token_id,
+        issued.token.record_version,
+        idempotency_key="revoked_precondition_rotate_0001",
+        correlation_id="revoked-precondition-rotate",
+    )
+    assert isinstance(denied, ApiTokenMutationOutcomeV1)
+    assert denied.code == "credential_state_conflict"
+
+
 def test_rotation_revoke_and_safe_replay_are_durable(
     real_iam_installation: tuple[DatabaseRefV1, str],
 ) -> None:

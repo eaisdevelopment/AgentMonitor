@@ -996,13 +996,15 @@ class SqliteIdentityAccessApiTokenRepositoryV1:
                     ):
                         connection.rollback()
                         return ApiTokenMutationOutcomeV1("scope_escalation_denied")
+                    if target["revoked_at"] is not None:
+                        connection.rollback()
+                        return ApiTokenMutationOutcomeV1("credential_state_conflict")
                     if (
                         type(target_version) is not int
                         or target["record_version"] != target_version
-                        or target["revoked_at"] is not None
                     ):
                         connection.rollback()
-                        return ApiTokenMutationOutcomeV1("credential_state_conflict")
+                        return ApiTokenMutationOutcomeV1("precondition_failed")
                     count = connection.exec_driver_sql(
                         "SELECT count(*) FROM iam_api_token WHERE administrator_id=? "
                         "AND revoked_at IS NULL AND expires_at>?",
@@ -1116,13 +1118,15 @@ class SqliteIdentityAccessApiTokenRepositoryV1:
                     if _expire_token(connection, target, instant, correlation_id):
                         connection.commit()
                         return ApiTokenMutationOutcomeV1("credential_state_conflict")
+                    if target["revoked_at"] is not None:
+                        connection.rollback()
+                        return ApiTokenMutationOutcomeV1("credential_state_conflict")
                     if (
                         type(target_version) is not int
                         or target["record_version"] != target_version
-                        or target["revoked_at"] is not None
                     ):
                         connection.rollback()
-                        return ApiTokenMutationOutcomeV1("credential_state_conflict")
+                        return ApiTokenMutationOutcomeV1("precondition_failed")
                     connection.exec_driver_sql(
                         "UPDATE iam_api_token SET revoked_at=?, "
                         "revocation_reason='administrator', verification_digest=NULL, "

@@ -459,6 +459,7 @@ class ApiTokenMutationOutcomeV1(TechnicalValueV1):
         "token_policy_violation",
         "api_token_not_found",
         "credential_state_conflict",
+        "precondition_failed",
         "one_time_secret_not_replayable",
         "idempotency_key_reused",
         "active_token_limit_reached",
