@@ -458,7 +458,7 @@ History APIs must remain capable of traversing the approved one-year retained hi
 
 `SafeProblemV1` implements RFC 9457 with these required fields:
 
-- `type`: stable AgentMonitor documentation URI or approved relative problem type.
+- `type`: the stable same-origin relative `/problems/{closed_safe_code}` URI. The code is selected only from the reviewed safe problem catalog, never copied from submitted input. Its authenticated local HTML documentation transport is not a versioned resource operation; an unauthenticated caller can follow a 401 type after signing in. No placeholder domain or external request is permitted.
 - `title`: stable non-sensitive summary.
 - `status`: HTTP status.
 - `code`: stable machine-readable lowercase snake-case code.
@@ -538,7 +538,7 @@ The login response uses 204 and sets cookies; it never returns the password, pas
 
 There is no HTTP administrator bootstrap or password-recovery operation. An uninitialized installation exposes only the approved coarse initialization state and directs the local owner to the protected native runbook. Bootstrap and recovery stay local, exclusive, and outside P01.
 
-Runtime documentation transports `GET /docs`, `GET /redoc`, and `GET /openapi.json` are protected by cookie or bearer authentication after initialization. They are framework transports, not CTR-API-001 resource operations, do not receive OpenAPI operation IDs, and are excluded from the generated resource client.
+Runtime documentation transports `GET /docs`, `GET /redoc`, `GET /openapi.json`, and `GET /problems/{closed_safe_code}` are protected by cookie or bearer authentication after initialization. They are framework transports, not CTR-API-001 resource operations, do not receive OpenAPI operation IDs, and are excluded from the generated resource client. The problem page renders only allowlisted local code/title text with a restrictive CSP; unknown codes return a safe 404 without reflecting the path segment.
 
 ### 12.2 Organization, account, discovery, profile, and resource registry
 

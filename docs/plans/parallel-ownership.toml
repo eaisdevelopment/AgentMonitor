@@ -43,7 +43,7 @@ live_boundary = "real toolchain, checkout, loopback service, browser, and hosted
 [[units]]
 id = "PLAN-M01"
 plan = "docs/plans/modules/m01-identity-access/plan-v1.md"
-plan_sha256 = "5fc6bc0e0a3dc1ea36490ee0b33540ba9a69f175720b6f9e46268db220fa00b1"
+plan_sha256 = "97ff3e249567ae4ff72e5605a87ac63001b5e05112fc25ffef6007d96fa2bce1"
 write_paths = ["backend/src/agentmonitor/modules/identity_access/**", "backend/src/agentmonitor/adapters/identity_access/**", "backend/src/agentmonitor/adapters/persistence/identity_access/sqlite/**", "backend/tests/identity_access/**", "backend/tests/integration/identity_access/**", "docs/modules/identity-access.md", "docs/test-evidence/identity-access/**"]
 contract_families = ["CTR-IAM"]
 table_prefixes = ["iam_"]
@@ -215,7 +215,7 @@ live_boundary = "real macOS only; currently Blocked and never substituted by Lin
 [[units]]
 id = "PLAN-P01"
 plan = "docs/plans/api/fastapi-boundary/plan-v1.md"
-plan_sha256 = "8a8960ce5e37197ecbe4edb6fae701db27ed7291815256247312144d36d898d0"
+plan_sha256 = "8cf5938dcd6e8a084080c624262588f776b12a2c62f51c83a28f0e5798fad52c"
 write_paths = ["backend/src/agentmonitor/api/**", "backend/tests/api/**", "backend/tests/contract/api/**", "backend/tests/integration/api/**", "docs/api/http-boundary.md", "docs/api/resources/**", "docs/test-evidence/api/**"]
 contract_families = ["CTR-API", "CTR-COMMON-005 API semantics"]
 table_prefixes = []

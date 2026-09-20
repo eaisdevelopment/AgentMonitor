@@ -28,8 +28,8 @@ bytes = 97594
 id = "PLAN-M01"
 path = "docs/plans/modules/m01-identity-access/plan-v1.md"
 plan_version = "0.2.0-draft"
-sha256 = "5fc6bc0e0a3dc1ea36490ee0b33540ba9a69f175720b6f9e46268db220fa00b1"
-bytes = 105921
+sha256 = "97ff3e249567ae4ff72e5605a87ac63001b5e05112fc25ffef6007d96fa2bce1"
+bytes = 106740
 
 [[plans]]
 id = "PLAN-M02"
@@ -119,8 +119,8 @@ bytes = 87039
 id = "PLAN-P01"
 path = "docs/plans/api/fastapi-boundary/plan-v1.md"
 plan_version = "0.2.0-draft"
-sha256 = "8a8960ce5e37197ecbe4edb6fae701db27ed7291815256247312144d36d898d0"
-bytes = 141442
+sha256 = "8cf5938dcd6e8a084080c624262588f776b12a2c62f51c83a28f0e5798fad52c"
+bytes = 141945
 
 [[plans]]
 id = "PLAN-P02"
@@ -165,7 +165,7 @@ bytes = 58197
 [[controls]]
 id = "contract-adoption"
 path = "docs/plans/contract-adoption.toml"
-sha256 = "dd2e4df13f4433abb9ef12c17e863708cd1cc914fc4ccd847db4d95442979a18"
+sha256 = "6997a603223888a5acf842fe80a69f53f97c4e8a4bcb4a70bab4d212e0e98e32"
 bytes = 15937
 
 [[controls]]
@@ -183,7 +183,7 @@ bytes = 73372
 [[controls]]
 id = "parallel-ownership"
 path = "docs/plans/parallel-ownership.toml"
-sha256 = "4ad3a77ce0ba76f670d266b0061916a4c3b61d8d8aa92efe610d8b8684a8ffe2"
+sha256 = "30211f359eb22b335cb9b7fd9750cd3d9980366c37bf892ff7ac058df28277ec"
 bytes = 22708
 
 [[controls]]

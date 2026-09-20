@@ -69,6 +69,20 @@ boundary; it did not certify Story 4 or live milestone completion.
 
 Plan snapshot SHA-256: `a3f306a540b7aa39d7af1c990de849d77878b9fc6e06ee706fb5463acd615ea8`
 
+## 2026-09-20 M2 receipt-order and problem-type rebind
+
+The current M2-only snapshot rebinds M01's optional typed rotation ETag
+subject and P01's completed-receipt-before-stale-conditional rule, plus the
+same-origin relative, authenticated, allowlisted local problem-document type.
+Only M01/P01 plan bodies and their dependent adoption/ownership/baseline
+digests changed. This is a scoped semantic reconciliation found by real HTTP
+Red tests and independent review, not a new all-V1 approval or Story 4/M2
+acceptance claim. Earlier CS-1 review bytes and dispositions remain intact.
+An independent bounded specification review confirmed the final target-state
+precision, M01/P01 contracts, and exact synchronized snapshot only.
+
+Plan snapshot SHA-256: `b61ece314353d314e145a8bc384ec58e0949ec220fe172e8c73a6cf99437bbdb`
+
 ## 1. Decision
 
 The corrected corpus closes the eighteen findings recorded in the

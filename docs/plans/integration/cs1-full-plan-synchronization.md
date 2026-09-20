@@ -91,6 +91,26 @@ review or accept Story 4 or the M2 exit gate.
 
 Plan snapshot SHA-256: `a3f306a540b7aa39d7af1c990de849d77878b9fc6e06ee706fb5463acd615ea8`
 
+## 2026-09-20 M2 receipt-order and local problem-type reconciliation
+
+Independent Story 4 specification review found that a syntactically valid
+wrong-subject ETag was rejected before an authorized completed one-time
+receipt. The M01/P01 M2 slices now state the narrow rule: current caller and
+target authority precede receipt lookup; an exact committed rotation or
+password-change replay returns safe `409` before stale subject/version checks,
+while a new wrong-subject request returns `412` with no target mutation. P01's
+`SafeProblemV1.type` is now the same-origin relative
+`/problems/{closed_safe_code}`, backed by a protected local allowlisted page
+outside the 13 resource operations, rather than a placeholder domain. The
+M2 overlay, adoption/ownership bindings, and exact snapshot were rebound.
+This addendum does not approve Story 4, external documentation assets, M3, or
+the all-V1 Draft corpus; prior CS-1 attestations remain historical.
+An independent bounded specification review accepted the precise target-versus-caller
+transition wording and verified the synchronized snapshot; it did not accept
+the incomplete Story 4 documentation/browser gate.
+
+Plan snapshot SHA-256: `b61ece314353d314e145a8bc384ec58e0949ec220fe172e8c73a6cf99437bbdb`
+
 ## 2. Frozen planning inventory
 
 The synchronized baseline records 20 plans and nine governing controls. The
