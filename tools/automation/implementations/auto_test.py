@@ -155,6 +155,7 @@ def main() -> int:
             "tools.automation.test_run.AutomationRoutineTests.test_real_catalog_defines_every_mandatory_routine",
             "tools.automation.test_run.AutomationRoutineTests.test_blocked_routine_fails_closed_in_the_real_checkout",
             "tools.automation.test_run.AutomationRoutineTests.test_m1_quality_and_build_report_required_local_controls",
+            "tools.automation.test_run.AutomationRoutineTests.test_frontend_input_validation_rejects_disallowed_direct_license",
             "tools.docs.test_check",
             "tools.planning.test_implementation_backlog",
             "tools.planning.test_validate_plans",

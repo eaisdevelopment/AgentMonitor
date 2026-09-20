@@ -11,6 +11,17 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[3]
 BACKEND_PYTHON = ROOT / "backend/.venv/bin/python"
 FRONTEND = ROOT / "frontend"
+APPROVED_FRONTEND_DIRECT = {
+    "react": ("19.3.0", "MIT"),
+    "react-dom": ("19.3.0", "MIT"),
+    "@playwright/test": ("1.63.0", "Apache-2.0"),
+    "@vitejs/plugin-react": ("6.1.1", "MIT"),
+    "typescript": ("7.0.2", "Apache-2.0"),
+    "vite": ("8.3.0", "MIT"),
+}
+APPROVED_NPM_LICENSES = frozenset(
+    {"Apache-2.0", "BSD-3-Clause", "ISC", "MIT", "MPL-2.0"}
+)
 
 
 def verify_frontend_inputs() -> bool:
@@ -24,6 +35,8 @@ def verify_frontend_inputs() -> bool:
             **manifest["dependencies"],
             **manifest["devDependencies"],
         }
+        if set(declared) != set(APPROVED_FRONTEND_DIRECT):
+            return False
         if (
             lock["lockfileVersion"] != 3
             or root["dependencies"] != manifest["dependencies"]
@@ -35,11 +48,18 @@ def verify_frontend_inputs() -> bool:
             return False
         for name, version in declared.items():
             locked = packages[f"node_modules/{name}"]
-            if version != locked["version"] or not locked.get("license"):
+            expected_version, expected_license = APPROVED_FRONTEND_DIRECT[name]
+            if (
+                version != expected_version
+                or locked["version"] != expected_version
+                or locked.get("license") != expected_license
+            ):
                 return False
         for relative, record in packages.items():
             if not relative or record.get("optional"):
                 continue
+            if record.get("license") not in APPROVED_NPM_LICENSES:
+                return False
             package_json = FRONTEND / relative / "package.json"
             if not package_json.is_file():
                 return False

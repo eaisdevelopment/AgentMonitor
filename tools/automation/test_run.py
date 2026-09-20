@@ -4,9 +4,11 @@ from __future__ import annotations
 
 import subprocess
 import sys
+import tempfile
 import unittest
+from importlib.util import module_from_spec, spec_from_file_location
 from pathlib import Path
-
+from shutil import copy2
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
 RUNNER = REPOSITORY_ROOT / "tools/automation/run.py"
@@ -16,6 +18,36 @@ from run import index_routines, load_catalog, validate_catalog  # noqa: E402
 
 
 class AutomationRoutineTests(unittest.TestCase):
+    def test_frontend_input_validation_rejects_disallowed_direct_license(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            replica = Path(temporary)
+            implementation = replica / "tools/automation/implementations/auto_build.py"
+            implementation.parent.mkdir(parents=True)
+            copy2(
+                REPOSITORY_ROOT / "tools/automation/implementations/auto_build.py",
+                implementation,
+            )
+            frontend = replica / "frontend"
+            frontend.mkdir()
+            copy2(REPOSITORY_ROOT / "frontend/package.json", frontend / "package.json")
+            copy2(
+                REPOSITORY_ROOT / "frontend/package-lock.json",
+                frontend / "package-lock.json",
+            )
+            (frontend / "node_modules").symlink_to(
+                REPOSITORY_ROOT / "frontend/node_modules", target_is_directory=True
+            )
+            lock = (frontend / "package-lock.json").read_text()
+            (frontend / "package-lock.json").write_text(
+                lock.replace('"license": "MIT"', '"license": "GPL-3.0-only"', 1)
+            )
+            spec = spec_from_file_location("replica_auto_build", implementation)
+            assert spec is not None and spec.loader is not None
+            module = module_from_spec(spec)
+            spec.loader.exec_module(module)
+
+            self.assertFalse(module.verify_frontend_inputs())
+
     def test_m1_quality_and_build_report_required_local_controls(self) -> None:
         for script, marker in (
             ("auto_quality.py", "M1 LOCAL CONTROLS: PASSED"),
@@ -137,7 +169,9 @@ class AutomationRoutineTests(unittest.TestCase):
 
         self.assertEqual(3, result.returncode, result.stdout + result.stderr)
         self.assertIn("BLOCKED", result.stdout)
-        self.assertIn("Red-Green-refactor preflight validator implementation", result.stdout)
+        self.assertIn(
+            "Red-Green-refactor preflight validator implementation", result.stdout
+        )
         self.assertNotIn("PASSED", result.stdout)
 
     def test_m0_g1_exit_passes_for_the_approved_real_controls(self) -> None:
