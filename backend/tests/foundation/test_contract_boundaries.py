@@ -603,6 +603,18 @@ def test_composition_rejects_non_entry_point_sqlite_imports(
     assert checker().find_forbidden_imports(tmp_path) == [f"{source}:1:{target}"]
 
 
+def test_m2_fresh_init_entry_is_only_composition_migration_caller(
+    tmp_path: Path,
+) -> None:
+    copy_contract_policy(tmp_path)
+    write_source(
+        tmp_path,
+        "composition/iam_fresh_init.py",
+        f"from {SQLITE_COMPATIBILITY} import migrate_to_head\n",
+    )
+    assert checker().find_forbidden_imports(tmp_path) == []
+
+
 @pytest.mark.parametrize(
     "symbol",
     [

@@ -4,9 +4,8 @@ import argparse
 import ast
 import fnmatch
 import os
-from pathlib import Path
-
 import tomllib
+from pathlib import Path
 
 SOURCE = Path("backend/src/agentmonitor")
 # Explicitly reviewed pure standard-library dependencies. New entries need review;
@@ -112,6 +111,10 @@ COMPOSITION_SQLITE_SYMBOLS = {
 M01_SQLITE_POLICY_SYMBOLS = frozenset(
     {"DatabaseRefV1", "SqlitePolicyError", "open_sqlite_database"}
 )
+FRESH_INIT_MIGRATE_TARGET = (
+    "agentmonitor.adapters.persistence._shared.sqlite.schema.compatibility."
+    "migrate_to_head"
+)
 
 
 def _sources(root: Path) -> tuple[list[Path], list[str]]:
@@ -169,6 +172,13 @@ def _approved_composition_sqlite_symbol(source: str, target: str) -> bool:
     )
 
 
+def _approved_m2_fresh_init_migration(source: str, target: str) -> bool:
+    return (
+        source == "agentmonitor.composition.iam_fresh_init"
+        and target == FRESH_INIT_MIGRATE_TARGET
+    )
+
+
 def _m01_sqlite_policy_symbol_module(source: str, target: str) -> bool:
     prefix = "agentmonitor.adapters.persistence.identity_access.sqlite"
     return (
@@ -209,6 +219,7 @@ def _allowed(source: str, target: str, *, symbol_import: bool = False) -> bool:
         return False
     if symbol_import and (
         _approved_composition_sqlite_symbol(source, target)
+        or _approved_m2_fresh_init_migration(source, target)
         or _approved_m01_sqlite_policy_symbol(source, target)
     ):
         return True
