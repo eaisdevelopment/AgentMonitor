@@ -30,7 +30,32 @@ def actual_tool_versions(names: tuple[str, ...]) -> tuple[tuple[str, str], ...]:
                 f"{sys.version_info.micro}"
             )
         else:
-            command = which(name)
+            if name == "playwright-chromium":
+                node = which("node")
+                if node is None:
+                    raise ValueError("evidence_tool_unavailable")
+                lookup = subprocess.run(
+                    [
+                        node,
+                        "-e",
+                        "process.stdout.write(require('playwright').chromium.executablePath())",
+                    ],
+                    cwd=ROOT / "frontend",
+                    check=False,
+                    capture_output=True,
+                    text=True,
+                    timeout=10,
+                )
+                candidate = Path(lookup.stdout.strip())
+                command = (
+                    str(candidate)
+                    if lookup.returncode == 0
+                    and candidate.is_absolute()
+                    and candidate.is_file()
+                    else None
+                )
+            else:
+                command = which(name)
             if command is None:
                 raise ValueError("evidence_tool_unavailable")
             result = subprocess.run(

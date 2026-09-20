@@ -54,10 +54,20 @@ def browser_environment(origin: str) -> dict[str, str]:
     node = which("node")
     if node is None:
         fail("admitted_node_command_missing")
-    return {
+    selected_browser = os.environ.get("AGENTMONITOR_TEST_BROWSER", "chrome")
+    if selected_browser not in {"chrome", "chromium"}:
+        fail("test_browser_selection_invalid")
+    environment = {
         "PATH": str(Path(node).parent) + os.pathsep + os.defpath,
         "AGENTMONITOR_TEST_ORIGIN": origin,
+        "AGENTMONITOR_TEST_BROWSER": selected_browser,
     }
+    if selected_browser == "chromium":
+        browser_root = os.environ.get("PLAYWRIGHT_BROWSERS_PATH", "")
+        if not browser_root or not Path(browser_root).is_dir():
+            fail("playwright_browser_root_unavailable")
+        environment["PLAYWRIGHT_BROWSERS_PATH"] = browser_root
+    return environment
 
 
 def wait_for_origin(process: subprocess.Popen[str]) -> str:
@@ -222,7 +232,12 @@ def main() -> int:
     )
     run([str(ROOT / "frontend/node_modules/.bin/vite"), "build", "frontend"])
     run_browser_boundary()
-    versions = actual_tool_versions(("python", "node", "npm", "uv", "google-chrome"))
+    browser_tool = (
+        "playwright-chromium"
+        if os.environ.get("AGENTMONITOR_TEST_BROWSER", "chrome") == "chromium"
+        else "google-chrome"
+    )
+    versions = actual_tool_versions(("python", "node", "npm", "uv", browser_tool))
     for row in (
         evidence_row(
             test_id="FND-TEST-001",

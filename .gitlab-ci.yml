@@ -4,6 +4,23 @@ stages:
   - build
   - documentation
 
+default:
+  image:
+    name: mcr.microsoft.com/playwright@sha256:eff16c30e6f3f4af0a03fa4b706120d5e9b0891c344a27d64559aff5900a4a27
+    docker:
+      user: "1001:1001"
+  before_script:
+    - python3 tools/ci/bootstrap.py
+    - export PATH="$CI_PROJECT_DIR/.ci-tools/node-v22.23.2-linux-x64/bin:$CI_PROJECT_DIR/.ci-tools/uv-x86_64-unknown-linux-gnu:$PATH"
+
+variables:
+  GIT_STRATEGY: clone
+  AGENTMONITOR_TEST_BROWSER: chromium
+  PLAYWRIGHT_BROWSERS_PATH: /ms-playwright
+  UV_CACHE_DIR: "$CI_PROJECT_DIR/.ci-tools/uv-cache"
+  NPM_CONFIG_CACHE: "$CI_PROJECT_DIR/.ci-tools/npm-cache"
+  NPM_CONFIG_UPDATE_NOTIFIER: "false"
+
 foundation_test:
   stage: test
   script:
@@ -21,5 +38,6 @@ foundation_build:
 
 foundation_docs:
   stage: documentation
+  before_script: []
   script:
     - python3 tools/automation/run.py AUTO-DOCS-CHECK
