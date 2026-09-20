@@ -24,6 +24,7 @@ node_modules/
 coverage/
 playwright-report/
 test-results/
+.ci-tools/
 
 # AgentMonitor runtime data
 *.db
