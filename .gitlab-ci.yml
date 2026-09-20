@@ -10,6 +10,8 @@ default:
     docker:
       user: "1001:1001"
   before_script:
+    - git config --global --add safe.directory "$CI_PROJECT_DIR"
+    - git config --global --add safe.directory "$CI_PROJECT_DIR/.git"
     - python3 tools/ci/bootstrap.py
     - export PATH="$CI_PROJECT_DIR/.ci-tools/node-v22.23.2-linux-x64/bin:$CI_PROJECT_DIR/.ci-tools/uv-x86_64-unknown-linux-gnu:$PATH"
 
@@ -38,6 +40,8 @@ foundation_build:
 
 foundation_docs:
   stage: documentation
-  before_script: []
+  before_script:
+    - git config --global --add safe.directory "$CI_PROJECT_DIR"
+    - git config --global --add safe.directory "$CI_PROJECT_DIR/.git"
   script:
     - python3 tools/automation/run.py AUTO-DOCS-CHECK

@@ -4,7 +4,7 @@ const browser = process.env.AGENTMONITOR_TEST_BROWSER ?? "chrome";
 if (browser !== "chrome" && browser !== "chromium") {
   throw new Error("unsupported foundation test browser");
 }
-test.use(browser === "chrome" ? { channel: "chrome" } : { browserName: "chromium" });
+test.use({ channel: browser });
 
 for (const viewport of [
   { width: 1920, height: 1080 },

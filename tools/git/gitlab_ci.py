@@ -127,6 +127,33 @@ def project(url: str, token: str) -> int:
     return result["id"]
 
 
+def lint(project_id: int, token: str) -> None:
+    """Validate the checked-out CI file in the real GitLab project context."""
+    try:
+        content = (ROOT / ".gitlab-ci.yml").read_text(encoding="utf-8")
+    except (OSError, UnicodeError):
+        blocked("ci_configuration_unavailable")
+    request = urllib.request.Request(
+        f"https://gitlab.com/api/v4/projects/{project_id}/ci/lint",
+        data=json.dumps({"content": content, "include_jobs": True}).encode(),
+        headers={"PRIVATE-TOKEN": token, "Content-Type": "application/json"},
+        method="POST",
+    )
+    try:
+        with urllib.request.urlopen(request, timeout=30) as response:
+            result = json.load(response)
+    except urllib.error.HTTPError as error:
+        blocked(f"ci_lint_http_{error.code}")
+    except (urllib.error.URLError, TimeoutError, OSError, ValueError):
+        blocked("ci_lint_unavailable")
+    if not isinstance(result, dict) or not isinstance(result.get("jobs"), list):
+        blocked("ci_lint_response_invalid")
+    names = {str(job.get("name")) for job in result["jobs"] if isinstance(job, dict)}
+    if result.get("valid") is not True or not REQUIRED_JOBS <= names:
+        failed("ci_lint_invalid_or_required_job_missing")
+    print("GITLAB-M1: CI_LINT_PASSED required_jobs=4")
+
+
 def git_environment() -> dict[str, str]:
     environment = {
         "PATH": os.environ.get("PATH", os.defpath),
@@ -269,7 +296,9 @@ def main() -> int:
     if os.environ.get("AGENTMONITOR_GITLAB_ASKPASS") == "1":
         return askpass(sys.argv[1] if len(sys.argv) == 2 else "")
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("action", choices=("probe", "configure", "push", "pipeline"))
+    parser.add_argument(
+        "action", choices=("probe", "configure", "lint", "push", "pipeline")
+    )
     parser.add_argument("--sha")
     parser.add_argument("--wait-seconds", type=int, default=1200)
     args = parser.parse_args()
@@ -278,6 +307,8 @@ def main() -> int:
         probe(url, token)
     elif args.action == "configure":
         configure(url, token)
+    elif args.action == "lint":
+        lint(project(url, token), token)
     elif args.action == "push":
         push(url, token)
     else:
