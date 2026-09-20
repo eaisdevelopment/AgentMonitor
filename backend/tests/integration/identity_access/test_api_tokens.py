@@ -344,6 +344,111 @@ def test_rotation_revoke_and_safe_replay_are_durable(
     assert sum(event.event_type == "api_token_revoked" for event in events) == 1
 
 
+def test_rotation_replay_precedes_wrong_subject_but_new_key_cannot_mutate(
+    real_iam_installation: tuple[DatabaseRefV1, str],
+) -> None:
+    reference, owner_password = real_iam_installation
+    actor = _owner_actor(reference, owner_password)
+    repository = SqliteIdentityAccessApiTokenRepositoryV1(reference)
+    create = CreateApiTokenV1(repository)
+    target = create(
+        actor,
+        name="target",
+        scopes=("read:diagnostics",),
+        lifetime_seconds=None,
+        idempotency_key="wrong_subject_target_0001",
+        correlation_id="wrong-subject-target",
+    )
+    other = create(
+        actor,
+        name="other subject",
+        scopes=("read:diagnostics",),
+        lifetime_seconds=None,
+        idempotency_key="wrong_subject_other_0001",
+        correlation_id="wrong-subject-other",
+    )
+    assert isinstance(target, ApiTokenCredentialIssueV1)
+    assert isinstance(other, ApiTokenCredentialIssueV1)
+
+    def persisted_safe_state() -> tuple[object, ...]:
+        with open_sqlite_database(reference, "runtime_read_write") as handle:
+            with handle.connect() as connection:
+                return (
+                    connection.exec_driver_sql(
+                        "SELECT count(*) FROM iam_api_token"
+                    ).scalar_one(),
+                    connection.exec_driver_sql(
+                        "SELECT count(*) FROM iam_security_audit_event"
+                    ).scalar_one(),
+                    tuple(
+                        tuple(row)
+                        for row in connection.exec_driver_sql(
+                            "SELECT api_token_id, record_version, revoked_at, "
+                            "revocation_reason, replacement_token_id "
+                            "FROM iam_api_token ORDER BY api_token_id"
+                        ).all()
+                    ),
+                )
+
+    rotate = RotateApiTokenV1(repository)
+    active_before = persisted_safe_state()
+    active_wrong_subject = rotate(
+        actor,
+        target.token.api_token_id,
+        target.token.record_version,
+        idempotency_key="wrong_subject_active_0001",
+        correlation_id="wrong-subject-active-denied",
+        presented_target_id=other.token.api_token_id,
+    )
+    assert isinstance(active_wrong_subject, ApiTokenMutationOutcomeV1)
+    assert active_wrong_subject.code == "precondition_failed"
+    assert persisted_safe_state() == active_before
+    successor = rotate(
+        actor,
+        target.token.api_token_id,
+        target.token.record_version,
+        idempotency_key="wrong_subject_rotate_0001",
+        correlation_id="wrong-subject-first-rotation",
+        presented_target_id=target.token.api_token_id,
+    )
+    assert isinstance(successor, ApiTokenCredentialIssueV1)
+    before = persisted_safe_state()
+    replay = rotate(
+        actor,
+        target.token.api_token_id,
+        target.token.record_version,
+        idempotency_key="wrong_subject_rotate_0001",
+        correlation_id="wrong-subject-committed-replay",
+        presented_target_id=other.token.api_token_id,
+    )
+    assert isinstance(replay, ApiTokenMutationOutcomeV1)
+    assert replay.code == "one_time_secret_not_replayable"
+    assert replay.api_token_id == successor.token.api_token_id
+    assert not hasattr(replay, "bearer_credential")
+    reused = rotate(
+        actor,
+        target.token.api_token_id,
+        target.token.record_version,
+        name="different metadata",
+        idempotency_key="wrong_subject_rotate_0001",
+        correlation_id="wrong-subject-key-reused",
+        presented_target_id=other.token.api_token_id,
+    )
+    assert isinstance(reused, ApiTokenMutationOutcomeV1)
+    assert reused.code == "idempotency_key_reused"
+    fresh = rotate(
+        actor,
+        target.token.api_token_id,
+        target.token.record_version,
+        idempotency_key="wrong_subject_fresh_0001",
+        correlation_id="wrong-subject-fresh-denied",
+        presented_target_id=other.token.api_token_id,
+    )
+    assert isinstance(fresh, ApiTokenMutationOutcomeV1)
+    assert fresh.code == "precondition_failed"
+    assert persisted_safe_state() == before
+
+
 def test_mutations_recheck_csrf_and_bearer_attenuation_in_same_database(
     real_iam_installation: tuple[DatabaseRefV1, str],
 ) -> None:

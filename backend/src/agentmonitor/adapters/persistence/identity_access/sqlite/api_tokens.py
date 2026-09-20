@@ -881,6 +881,8 @@ class SqliteIdentityAccessApiTokenRepositoryV1:
         idempotency_key: str,
         correlation_id: str,
         instant: datetime,
+        *,
+        presented_target_id: str | None = None,
     ) -> ApiTokenCredentialIssueV1 | ApiTokenMutationOutcomeV1:
         _validate_correlation(correlation_id)
         key_digest = _receipt_digest(idempotency_key)
@@ -987,6 +989,13 @@ class SqliteIdentityAccessApiTokenRepositoryV1:
                             summary.record_version,
                             summary.state,
                         )
+                    if presented_target_id is not None and (
+                        type(presented_target_id) is not str
+                        or _SAFE_ID.fullmatch(presented_target_id) is None
+                        or presented_target_id != target_id
+                    ):
+                        connection.rollback()
+                        return ApiTokenMutationOutcomeV1("precondition_failed")
                     if _expire_token(connection, target, instant, correlation_id):
                         connection.commit()
                         return ApiTokenMutationOutcomeV1("credential_state_conflict")

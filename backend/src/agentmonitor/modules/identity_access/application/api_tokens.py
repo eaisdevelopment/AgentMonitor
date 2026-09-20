@@ -59,6 +59,8 @@ class IdentityAccessApiTokenRepositoryPortV1(Protocol):
         idempotency_key: str,
         correlation_id: str,
         instant: datetime,
+        *,
+        presented_target_id: str | None = None,
     ) -> ApiTokenCredentialIssueV1 | ApiTokenMutationOutcomeV1: ...
 
     def revoke_token(
@@ -153,6 +155,7 @@ class RotateApiTokenV1:
         lifetime_seconds: int | None = None,
         idempotency_key: str,
         correlation_id: str,
+        presented_target_id: OpaqueIdV1 | None = None,
     ) -> ApiTokenCredentialIssueV1 | ApiTokenMutationOutcomeV1:
         return self._repository.rotate_token(
             caller,
@@ -164,6 +167,9 @@ class RotateApiTokenV1:
             idempotency_key,
             correlation_id,
             datetime.now(UTC),
+            presented_target_id=(
+                presented_target_id.value if presented_target_id is not None else None
+            ),
         )
 
 
