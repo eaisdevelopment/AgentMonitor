@@ -115,6 +115,9 @@ M01_SQLITE_LAYER_SYMBOLS = {
     "agentmonitor.modules.identity_access.application.authorization": frozenset(
         {"BROWSER_PERMISSIONS_V1"}
     ),
+    "agentmonitor.modules.identity_access.application.api_tokens": frozenset(
+        {"TokenQueryErrorV1"}
+    ),
     "agentmonitor.modules.identity_access.application.sessions": frozenset(
         {"SessionPasswordHasherPortV1", "SessionQueryErrorV1"}
     ),
@@ -131,12 +134,19 @@ M01_SQLITE_LAYER_SYMBOLS = {
     ),
     "agentmonitor.modules.identity_access.domain.policy": frozenset(
         {
+            "M2_ISSUABLE_SCOPES",
+            "canonical_token_name",
             "password_creation_error",
             "idempotency_receipt_expired",
+            "may_issue_scopes",
+            "may_manage_token",
             "session_deadlines",
             "session_expired",
             "session_state",
             "should_touch_session",
+            "token_deadline",
+            "token_should_touch",
+            "token_state",
         }
     ),
 }

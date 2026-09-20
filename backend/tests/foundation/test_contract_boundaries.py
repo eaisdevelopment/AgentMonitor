@@ -653,6 +653,7 @@ def test_m01_sqlite_adapter_cannot_import_shared_inspection_or_migration(
     ("module", "symbol"),
     [
         ("application.authorization", "BROWSER_PERMISSIONS_V1"),
+        ("application.api_tokens", "TokenQueryErrorV1"),
         ("application.sessions", "SessionPasswordHasherPortV1"),
         ("application.sessions", "SessionQueryErrorV1"),
         ("application.throttle", "LoginThrottleStateV1"),
@@ -661,11 +662,18 @@ def test_m01_sqlite_adapter_cannot_import_shared_inspection_or_migration(
         ("application.throttle", "retry_after_seconds"),
         ("application.errors", "PasswordHasherUnavailableV1"),
         ("domain.policy", "password_creation_error"),
+        ("domain.policy", "M2_ISSUABLE_SCOPES"),
+        ("domain.policy", "canonical_token_name"),
         ("domain.policy", "idempotency_receipt_expired"),
+        ("domain.policy", "may_issue_scopes"),
+        ("domain.policy", "may_manage_token"),
         ("domain.policy", "session_deadlines"),
         ("domain.policy", "session_expired"),
         ("domain.policy", "session_state"),
         ("domain.policy", "should_touch_session"),
+        ("domain.policy", "token_deadline"),
+        ("domain.policy", "token_should_touch"),
+        ("domain.policy", "token_state"),
     ],
 )
 def test_m01_sqlite_adapter_can_import_only_reviewed_same_owner_symbols(
