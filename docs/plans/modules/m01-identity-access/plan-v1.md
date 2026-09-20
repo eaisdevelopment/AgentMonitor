@@ -411,7 +411,8 @@ Proposed cookie policy for synchronization:
 | `password_policy_violation` | 422 | Safe rule codes only; never echo submitted value |
 | `scope_escalation_denied` | 403 | Bearer caller cannot mint/manage broader token |
 | `api_token_not_found` | 404 | Only after an authorized token-management principal is established |
-| `credential_state_conflict` | 409 | Rotate/change target is terminal or current version conflicts |
+| `credential_state_conflict` | 409 | Rotate/change target is terminal; an authorized repeated explicit token revoke remains idempotent |
+| `precondition_failed` | 412 | An otherwise authorized conditional mutation targets an active session or token with a stale `If-Match` version; no state or audit transition occurs |
 | `one_time_secret_not_replayable` | 409 | Prior resource ID/summary may be returned; secret never replayed |
 | `idempotency_key_reused` | 409 | Same key was used for a different canonical request |
 | `iam_repository_unavailable` | 503 | Correlation ID only; no SQL/path detail |

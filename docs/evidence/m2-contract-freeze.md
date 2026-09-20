@@ -61,7 +61,7 @@ Password change verifies current password, updates PHC and administrator version
 
 ## 5. Safe HTTP outcome and retention/bounds freeze
 
-Every non-success response is `SafeProblemV1` with stable `code`, safe title/status/correlation ID, no submitted credential/body/PHC/digest/SQL/path. Proposed M2 mappings reconcile [M01 §4](../plans/modules/m01-identity-access/plan-v1.md) and [P01 §11](../plans/api/fastapi-boundary/plan-v1.md):
+Every app/framework non-success response is `SafeProblemV1` with stable `code`, safe title/status/correlation ID, no submitted credential/body/PHC/digest/SQL/path. Uvicorn/h11 may reject malformed framing or duplicate `Host` before ASGI; those pre-app denials cannot carry an app-generated problem/correlation header and are the sole parser-level exception. Proposed M2 mappings reconcile [M01 §4](../plans/modules/m01-identity-access/plan-v1.md) and [P01 §11](../plans/api/fastapi-boundary/plan-v1.md):
 
 | HTTP | Public code | Exact M2 meaning |
 |---:|---|---|
@@ -70,8 +70,8 @@ Every non-success response is `SafeProblemV1` with stable `code`, safe title/sta
 | 401 | `dashboard_authentication_required` | protected route has missing/malformed/unknown/expired/revoked session or bearer; never provider reauth |
 | 403 | `origin_not_allowed` / `csrf_validation_failed` / `permission_denied` / `scope_escalation_denied` | distinct safe perimeter/proof/permission denials, with no credential-existence disclosure |
 | 404 | `api_token_not_found` | only after management authorization; no anonymous existence oracle |
-| 409 | `one_time_secret_not_replayable` / `idempotency_key_reused` / `credential_state_conflict` | distinct one-time replay, key reuse, terminal/version conflicts |
-| 412 / 428 | `precondition_failed` / `precondition_required` | `If-Match` stale or absent on conditional mutation |
+| 409 | `one_time_secret_not_replayable` / `idempotency_key_reused` / `credential_state_conflict` | distinct one-time replay, key reuse, or terminal-state conflict; not an active target's stale version |
+| 412 / 428 | `precondition_failed` / `precondition_required` | `If-Match` stale on an otherwise authorized active conditional mutation, or absent on a required conditional mutation |
 | 413 / 415 / 422 | `request_too_large` / `unsupported_media_type` / `password_policy_violation` | bounded transport/schema/policy errors, never submitted value |
 | 429 | `login_throttled` | durable IAM throttle; bounded `Retry-After` and no attempt count |
 | 503 | `iam_setup_required` / `iam_repository_unavailable` | uninitialized local installation or unavailable IAM store; no hash/schema/path details |

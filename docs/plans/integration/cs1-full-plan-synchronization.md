@@ -73,6 +73,24 @@ implementation claim. M2 tests and owner bootstrap remain Not Run here.
 
 Plan snapshot SHA-256: `331a81a84c4362e079628bdb2c173bfdce0b76f9b664f59a9cb8b91de2c86423`
 
+## 2026-09-20 M2 conditional-response reconciliation
+
+The M2 token-precondition real SQLite tests exposed a Draft-plan conflict: an
+active target's stale conditional version must be `412 precondition_failed`,
+while terminal state remains `409 credential_state_conflict`. The M01/P01 plan
+text is now explicit. P01 also records the M2 no-`Location` exception for the
+two one-time token issue routes because the approved 13-route shell has no
+token-by-ID retrieval route, and the pre-ASGI Uvicorn/h11 malformed-frame
+denial exception to app-generated `SafeProblemV1`. The M2 decision overlay's
+409/412 shorthand is reconciled. The adoption/ownership bindings and exact
+snapshot were rebound; no M3 scope, new route, or live-verification claim was
+introduced. The historical CS-1 attestations above remain unchanged.
+An independent bounded specification review accepted this reconciliation after
+the distinct M01 session outcome passed its real elapsed-time test; it did not
+review or accept Story 4 or the M2 exit gate.
+
+Plan snapshot SHA-256: `a3f306a540b7aa39d7af1c990de849d77878b9fc6e06ee706fb5463acd615ea8`
+
 ## 2. Frozen planning inventory
 
 The synchronized baseline records 20 plans and nine governing controls. The

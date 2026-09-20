@@ -53,6 +53,22 @@ approved. M2 production and live-boundary tests remain Not Run at this rebind.
 
 Plan snapshot SHA-256: `331a81a84c4362e079628bdb2c173bfdce0b76f9b664f59a9cb8b91de2c86423`
 
+## 2026-09-20 M2 conditional-response rebind
+
+The M2 scoped M01/P01 text now distinguishes stale active conditional targets
+(`412 precondition_failed`) from terminal-state conflicts (`409`), records the
+two one-time token issue responses' temporary no-`Location` exception within
+the approved 13-route shell, and bounds the malformed-wire SafeProblem
+exception to requests Uvicorn/h11 rejects before ASGI. Contract adoption,
+parallel ownership, and the exact rendered snapshot agree with those plan
+bytes. This is a bounded M2 reconciliation, not a renewed independent review
+of the historical all-V1 Draft corpus or a claim that Story 4/M2 passed.
+An independent bounded specification review confirmed the frozen semantics,
+current session/token contracts, exact snapshot, and historical-attestation
+boundary; it did not certify Story 4 or live milestone completion.
+
+Plan snapshot SHA-256: `a3f306a540b7aa39d7af1c990de849d77878b9fc6e06ee706fb5463acd615ea8`
+
 ## 1. Decision
 
 The corrected corpus closes the eighteen findings recorded in the

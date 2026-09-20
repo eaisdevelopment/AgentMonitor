@@ -324,6 +324,7 @@ state belongs to the named application port.
 - Unknown request properties are rejected. Response models exclude no documented property silently.
 - Empty success uses 204 with no response body.
 - Creation uses 201 and a `Location` header when the resource is immediately materialized.
+- M2 exception for `iam_create_api_token_v1` and `iam_rotate_api_token_v1`: the approved 13-route shell has no token-by-ID retrieval route. Their 201 responses carry the one-time issue representation and safe token ID but omit `Location` rather than advertise an unavailable URI. Revisit when a token-detail route is separately approved.
 - Accepted long work uses 202 and a `Location` header to the durable request/job resource.
 
 ### 8.2 Common response schemas
@@ -513,7 +514,7 @@ Replay policy is assigned exhaustively by the following top-to-bottom rules:
 - A remaining PUT/PATCH or reversible DELETE with `If-Match` uses `conditional_set_transition`.
 - Logout plus session/API-token revocation use `terminal_idempotent_transition` where the owner contract declares replay-safe terminal behavior. Archive restoration, policy-override deletion, and unsnooze are reversible conditional transitions and therefore use `conditional_set_transition` unless their matrix row explicitly requires an idempotency receipt.
 
-Every operation's error schema is exactly `SafeProblemV1` for every non-success response, including framework errors. The generated OpenAPI record carries `x-agentmonitor-auth-profile`, `x-agentmonitor-required-permission`, `x-agentmonitor-application-port`, `x-agentmonitor-replay-policy`, and `x-agentmonitor-error-schema`. AUTO-QUALITY fails if any operation lacks one value, has more than one resource port or permission, names a provider invocation/orchestration port, or disagrees with the matrix/schema catalog. Every row maps to one 0.2.0 Draft-aligned application contract; no runtime route is registered before that contract and permission are approved.
+Every operation's error schema is exactly `SafeProblemV1` for every app/framework non-success response. Malformed HTTP framing that Uvicorn/h11 rejects before ASGI—including duplicate `Host` headers—must be denied but cannot carry an app-generated problem or correlation header; this is a narrowly scoped parser-level exception, not an exception for any routed request. The generated OpenAPI record carries `x-agentmonitor-auth-profile`, `x-agentmonitor-required-permission`, `x-agentmonitor-application-port`, `x-agentmonitor-replay-policy`, and `x-agentmonitor-error-schema`. AUTO-QUALITY fails if any operation lacks one value, has more than one resource port or permission, names a provider invocation/orchestration port, or disagrees with the matrix/schema catalog. Every row maps to one 0.2.0 Draft-aligned application contract; no runtime route is registered before that contract and permission are approved.
 
 ### 12.1 IAM and documentation
 
@@ -716,8 +717,8 @@ The following are the proposed exact CTR-API-001 component names. They are trans
 | `iam_revoke_session_v1` | none | 204 |
 | `iam_revoke_other_sessions_v1` | `RevokeSessionsInputV1` | 200 `SessionRevocationSummaryV1` |
 | `iam_list_api_tokens_v1` | query only | 200 `ApiTokenPageV1` |
-| `iam_create_api_token_v1` | `CreateApiTokenInputV1` | 201 `ApiTokenCredentialIssueV1` + Location + no-store |
-| `iam_rotate_api_token_v1` | `RotateApiTokenInputV1` | 201 `ApiTokenCredentialIssueV1` + Location + no-store |
+| `iam_create_api_token_v1` | `CreateApiTokenInputV1` | 201 `ApiTokenCredentialIssueV1` + no-store; M2 no-`Location` exception in §8.1 |
+| `iam_rotate_api_token_v1` | `RotateApiTokenInputV1` | 201 `ApiTokenCredentialIssueV1` + no-store; M2 no-`Location` exception in §8.1 |
 | `iam_revoke_api_token_v1` | none | 204 |
 | `iam_list_security_events_v1` | query only | 200 `IamSecurityEventPageV1` |
 | `registry_list_organizations_v1` | query only | 200 `OrganizationPageV1` |
