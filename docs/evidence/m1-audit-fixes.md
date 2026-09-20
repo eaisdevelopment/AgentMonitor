@@ -1,5 +1,7 @@
 # V1-M1 post-audit fix evidence
 
+This is the historical local reacceptance snapshot before GitLab access was supplied. The later real clean-runner and hosted-CI closure is recorded in [M1 hosted CI evidence](m1-hosted-ci.md); the `Not Run` hosted status below describes the earlier checkout, not the current acceptance result.
+
 - Evidence ID: `M1-AUDIT-FIX-2026-09-20`.
 - Scope: foundation automation, frontend typecheck, browser assertions, and evidence metadata. No V1-M2 features.
 - Requirements: `NFR-TEST-001/002`, `NFR-API-002`, `NFR-LIC-001`; acceptance `AC-TEST-001/002/004/006`.
