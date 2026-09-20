@@ -496,6 +496,52 @@ def test_composition_rejects_non_entry_point_sqlite_imports(
 
 
 @pytest.mark.parametrize(
+    "symbol",
+    [
+        "DatabaseRefV1",
+        "SqlitePolicyError",
+        "open_sqlite_database",
+    ],
+)
+def test_m01_sqlite_adapter_can_import_exact_shared_policy_symbols(
+    tmp_path: Path, symbol: str
+) -> None:
+    copy_contract_policy(tmp_path)
+    write_source(
+        tmp_path,
+        "adapters/persistence/identity_access/sqlite/repository.py",
+        f"from {SQLITE_POLICY} import {symbol}\n",
+    )
+    assert checker().find_forbidden_imports(tmp_path) == []
+
+
+def test_m01_sqlite_adapter_cannot_import_shared_inspection_or_migration(
+    tmp_path: Path,
+) -> None:
+    copy_contract_policy(tmp_path)
+    source = write_source(
+        tmp_path,
+        "adapters/persistence/identity_access/sqlite/repository.py",
+        f"from {SQLITE_POLICY} import open_sqlite_inspection\n",
+    )
+    assert checker().find_forbidden_imports(tmp_path) == [
+        f"{source}:1:{SQLITE_POLICY}.open_sqlite_inspection"
+    ]
+
+
+def test_other_module_sqlite_adapter_cannot_import_m01_shared_allowance(
+    tmp_path: Path,
+) -> None:
+    copy_contract_policy(tmp_path)
+    source = write_source(
+        tmp_path,
+        "adapters/persistence/registry/sqlite/repository.py",
+        f"from {SQLITE_POLICY} import SqlitePolicyError\n",
+    )
+    assert checker().find_forbidden_imports(tmp_path) == [f"{source}:1:{SQLITE_POLICY}"]
+
+
+@pytest.mark.parametrize(
     "source_name",
     [
         "api/app.py",

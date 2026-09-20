@@ -4,8 +4,9 @@ import argparse
 import ast
 import fnmatch
 import os
-import tomllib
 from pathlib import Path
+
+import tomllib
 
 SOURCE = Path("backend/src/agentmonitor")
 # Explicitly reviewed pure standard-library dependencies. New entries need review;
@@ -108,6 +109,9 @@ COMPOSITION_SQLITE_SYMBOLS = {
         )
     ),
 }
+M01_SQLITE_POLICY_SYMBOLS = frozenset(
+    {"DatabaseRefV1", "SqlitePolicyError", "open_sqlite_database"}
+)
 
 
 def _sources(root: Path) -> tuple[list[Path], list[str]]:
@@ -165,6 +169,22 @@ def _approved_composition_sqlite_symbol(source: str, target: str) -> bool:
     )
 
 
+def _m01_sqlite_policy_symbol_module(source: str, target: str) -> bool:
+    prefix = "agentmonitor.adapters.persistence.identity_access.sqlite"
+    return (
+        source == prefix or source.startswith(prefix + ".")
+    ) and target == "agentmonitor.adapters.persistence._shared.sqlite.core.policy"
+
+
+def _approved_m01_sqlite_policy_symbol(source: str, target: str) -> bool:
+    module, separator, symbol = target.rpartition(".")
+    return (
+        bool(separator)
+        and _m01_sqlite_policy_symbol_module(source, module)
+        and symbol in M01_SQLITE_POLICY_SYMBOLS
+    )
+
+
 def _allowed(source: str, target: str, *, symbol_import: bool = False) -> bool:
     src, dst = source.split("."), target.split(".")
     if "utils" in dst or dst[0] in {"frontend", "backend"}:
@@ -187,7 +207,10 @@ def _allowed(source: str, target: str, *, symbol_import: bool = False) -> bool:
         return True
     if len(dst) < 2:
         return False
-    if symbol_import and _approved_composition_sqlite_symbol(source, target):
+    if symbol_import and (
+        _approved_composition_sqlite_symbol(source, target)
+        or _approved_m01_sqlite_policy_symbol(source, target)
+    ):
         return True
     if any(part.startswith("_") for part in dst[1:]) and src[1:3] != dst[1:3]:
         return False
@@ -268,6 +291,7 @@ def _imports(
                         and len(base.split(".")) == 3
                     )
                     and not _composition_sqlite_symbol_module(module, base)
+                    and not _m01_sqlite_policy_symbol_module(module, base)
                     and not _allowed(module, base)
                 ):
                     edges.append((node.lineno, base, False))
