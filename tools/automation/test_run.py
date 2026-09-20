@@ -53,6 +53,20 @@ class AutomationRoutineTests(unittest.TestCase):
         finally:
             target.write_text(original)
 
+    def test_minimum_controls_rejects_a_prefixed_secret_value(self) -> None:
+        """A test-setting prefix never exempts a value assigned to a secret field."""
+        sys.path.insert(0, str(REPOSITORY_ROOT / "tools/automation/implementations"))
+        from auto_quality import minimum_local_controls
+
+        target = REPOSITORY_ROOT / "frontend/src/main.tsx"
+        original = target.read_text()
+        prohibited = "pass" + "word = 'AGENTMONITOR_TEST_SENSITIVE_VALUE'\n"
+        try:
+            target.write_text(original + prohibited)
+            self.assertFalse(minimum_local_controls())
+        finally:
+            target.write_text(original)
+
     def test_frontend_input_validation_rejects_extraneous_installed_package(
         self,
     ) -> None:

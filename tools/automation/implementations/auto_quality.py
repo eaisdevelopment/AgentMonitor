@@ -28,6 +28,7 @@ BACKEND_DIRECT = {
     "ruff": ("0.16.8", "MIT"),
     "mypy": ("2.3.1", "MIT"),
 }
+ALLOWED_TEST_SETTING_LITERAL = 'SECRET = "AGENTMONITOR_TEST_BOOTSTRAP_SECRET'
 
 
 def run(command: list[str], *, environment: dict[str, str] | None = None) -> int:
@@ -98,9 +99,8 @@ def minimum_local_controls() -> bool:
         r"(?:unittest\s*\.\s*mock|from\s+unittest\s+import\s+[^\n#]*\bmock\b|"
         r"pytest_mock|\bmagicmock\b|\bmonkeypatch\b)",
         r"\bshell\s*=\s*True\b|\bos\.system\(",
-        r"(?:api[_-]?key|secret|password)\s*[:=]\s*['\"]"
-        r"(?!AGENTMONITOR_TEST_)[^'\"]{8,}",
     )
+    secret_pattern = r"(?:api[_-]?key|secret|password)\s*[:=]\s*['\"][^'\"]{8,}"
     source_suffixes = {".py", ".ts", ".tsx", ".js", ".json", ".toml", ".yml"}
     for relative in tracked.stdout.splitlines():
         path = ROOT / relative
@@ -114,6 +114,11 @@ def minimum_local_controls() -> bool:
             return False
         if any(
             re.search(pattern, content, flags=re.IGNORECASE) for pattern in patterns
+        ):
+            return False
+        if any(
+            match.group() != ALLOWED_TEST_SETTING_LITERAL
+            for match in re.finditer(secret_pattern, content, flags=re.IGNORECASE)
         ):
             return False
     return (
@@ -210,9 +215,9 @@ def main() -> int:
                 "boundary_class": "local static quality",
                 "command_registry_id": "AUTO-QUALITY",
                 "environment_versions": [],
-                "red_reference": "task-5-report.md#fix-round-2-red-evidence",
-                "green_reference": "task-5-report.md#fix-round-2-green-evidence",
-                "refactor_reference": "task-5-report.md#fix-round-2-refactor-evidence",
+                "red_reference": "task-5-report.md#fix-round-3-red-evidence",
+                "green_reference": "task-5-report.md#fix-round-3-green-evidence",
+                "refactor_reference": "task-5-report.md#fix-round-3-refactor-evidence",
                 "status": "Passed",
                 "recorded_at": datetime.now(UTC).isoformat(),
                 "sanitization_review": "allowlist-only command status",
