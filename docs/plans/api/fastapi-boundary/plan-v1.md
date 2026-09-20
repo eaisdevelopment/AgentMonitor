@@ -422,13 +422,13 @@ History APIs must remain capable of traversing the approved one-year retained hi
 
 - Every POST that can duplicate a durable mutation requires `Idempotency-Key`.
 - PUT, PATCH, or DELETE also requires it where the matrix names idempotency because the owning command creates secondary durable work/events or accepts a command ID; HTTP method semantics alone do not replace owner-command deduplication.
-- The accepted key is 16–128 visible ASCII characters and is scoped to principal, operation ID, and canonical request fingerprint.
+- The accepted key is 16–128 visible ASCII characters and is scoped to stable principal and operation ID. A safe canonical request fingerprint is additionally compared where the operation permits one; password change retains or compares no password/body-derived fingerprint.
 - Each operation declares exactly one replay policy in the operation registry: `safe_query_repeat`, `fresh_credential_issue`, `replay_safe_representation`, `conditional_set_transition`, `terminal_idempotent_transition`, `one_time_secret_non_replayable`, or `join_durable_job`.
 - Under `replay_safe_representation`, the same key and canonical request returns the original safe status, headers, and representation without repeating the application command.
-- `iam_change_password_v1`, `iam_create_api_token_v1`, and `iam_rotate_api_token_v1` use replay policy `one_time_secret_non_replayable`. After the original success commits, a retry returns 409 problem code `one_time_secret_not_replayable` with only safe resource ID/version/committed-state metadata. It never returns, reconstructs, caches, logs, or persists the session, CSRF, or bearer plaintext.
+- `iam_change_password_v1`, `iam_create_api_token_v1`, and `iam_rotate_api_token_v1` use replay policy `one_time_secret_non_replayable`. After the original success commits, a retry that first passes current authentication and authorization returns 409 problem code `one_time_secret_not_replayable` with only safe resource ID/version/committed-state metadata. The old cookie revoked by password change instead gets 401 `dashboard_authentication_required` before receipt lookup; a fresh authorized session with the same administrator principal and key can receive 409 before stale `If-Match` or old-password checks. It never returns, reconstructs, caches, logs, or persists the session, CSRF, or bearer plaintext.
 - Long submissions use `join_durable_job`: a retry returns or links to the same durable request/job according to the owner contract, never a second job.
-- Same key and different canonical request returns 409 `idempotency_key_reused`.
-- A concurrent duplicate returns the committed result or 409 `idempotency_in_progress` with `Retry-After`; it never performs duplicate work.
+- Same key and different safe canonical metadata returns 409 `idempotency_key_reused` for operations that retain that fingerprint. An authenticated password-change repeat is always `one_time_secret_not_replayable` regardless of submitted password fields; an unauthenticated repeat is rejected before receipt lookup.
+- A concurrent duplicate returns the committed result only for replay policies that permit representation replay, or 409 `idempotency_in_progress` with `Retry-After` while work remains active; it never performs duplicate work. After a one-time-secret command commits, a still-authenticated and authorized loser receives only the safe 409 `one_time_secret_not_replayable` outcome, never the original secret-bearing result. If that commit revoked the loser's credential, authentication fails with 401 before receipt lookup.
 - Idempotency truth and retention are owned by the application module that owns the command unless synchronization establishes a common application service. An in-memory API cache is forbidden.
 - Failed authentication, authorization, Origin, CSRF, and structural validation do not reserve a key.
 - Keys and request fingerprints are never logged in full.
@@ -1145,7 +1145,7 @@ Any `API-HTTP-*`, `API-BROWSER-*`, or `API-CLIENT-*` scenario that needs provide
 - API-HTTP-038: artifact range/stream behavior, disconnect handling, and filenames remain bounded and safe.
 - API-HTTP-039: absent/expired/revoked dashboard credentials return 401 `dashboard_authentication_required` and the approved dashboard-login recovery contract.
 - API-HTTP-040: a real provider reauthentication-needed state returns 409 `provider_reauthentication_required`; the same dashboard session remains valid on the next authorized dashboard request.
-- API-HTTP-041: a committed password-change retry returns 409 `one_time_secret_not_replayable`, never a replayed session/CSRF credential or retained password.
+- API-HTTP-041: a committed password-change retry with the revoked old cookie returns 401 `dashboard_authentication_required` before receipt lookup; after fresh login, a retry with current Origin/session/CSRF/permission and the same key returns 409 `one_time_secret_not_replayable` before stale precondition/password evaluation, never a replayed session/CSRF credential or retained password.
 
 ### 20.3 OpenAPI contract tests
 

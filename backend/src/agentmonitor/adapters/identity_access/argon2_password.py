@@ -2,18 +2,14 @@
 
 from threading import BoundedSemaphore
 
+from agentmonitor.modules.identity_access.application.errors import (
+    PasswordHasherUnavailableV1,
+)
 from argon2 import PasswordHasher, Type
 from argon2.exceptions import VerificationError, VerifyMismatchError
 from argon2.low_level import ARGON2_VERSION
 
 _HASH_SLOTS = BoundedSemaphore(2)
-
-
-class PasswordHasherUnavailableV1(RuntimeError):
-    """Safe failure classification; raw library details never cross the port."""
-
-    def __init__(self) -> None:
-        super().__init__("password_hasher_unavailable")
 
 
 class Argon2PasswordV1:

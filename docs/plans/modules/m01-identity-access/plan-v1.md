@@ -19,7 +19,7 @@ This plan is governed by the [product requirements](../../../product/requirement
 This `0.2.0-draft` revision adopts contract-baseline `0.2.0` and the parallel-ownership manifest as its concrete CS-1 review position. It remains Draft: no contract is Synchronized or Approved, every scenario is `Not Run`, and implementation authority is absent.
 
 - M01 owns only AgentMonitor dashboard authentication: administrator password verification, dashboard sessions/CSRF, bearer API tokens, permissions, and IAM security events. Provider/profile authentication is outside M01. `dashboard_authentication_required` is the only normalized missing/expired/revoked dashboard-credential outcome; M01 never emits or interprets `provider_reauthentication_required`, and a provider-auth failure must not revoke a dashboard session.
-- CTR-IAM-006/007 commands that reveal a password-derived session/CSRF credential or API-token plaintext declare `replay_policy = one_time_secret_non_replayable`. After commit, the same idempotency key returns `one_time_secret_not_replayable` plus safe resource ID/version/state only. Plaintext is never cached in the receipt, reconstructed, persisted, logged, serialized to an event, or returned again. Normal safe-summary mutations retain their separately declared replay policy.
+- CTR-IAM-006/007 commands that reveal a password-derived session/CSRF credential or API-token plaintext declare `replay_policy = one_time_secret_non_replayable`. After commit, the same idempotency key returns `one_time_secret_not_replayable` plus safe resource ID/version/state only **after current authentication and authorization**. A password-change replay using the revoked old cookie returns `dashboard_authentication_required` before receipt lookup; a fresh authorized session can receive the safe non-replay conflict before stale version/current-password evaluation. Password-change receipts are scoped to stable administrator principal plus operation, never to the old session. Token-management receipts remain scoped to the authenticated issuer credential/principal context and must recheck attenuation and target authority before safe metadata disclosure; separate bearer credentials under one administrator do not share a receipt. Plaintext is never cached in the receipt, reconstructed, persisted, logged, serialized to an event, or returned again. Normal safe-summary mutations retain their separately declared replay policy.
 - M01 consumes CTR-COMMON-007 for credential/session field-state mappings. In M2, its seven-table `v1_0100` revision writes local `iam_security_audit_event` facts atomically with credential transitions; it does not publish a CTR-EVT-001 outbox or consume its delivery/receipt ports. Any later M01 event producer requires a separately synchronized contract and migration. M01 implements the M08-owned CTR-OPS-006 leaf health port and CTR-OPS-007 IAM retention/export/consistency participant; those implementations expose typed, bounded, secret-free results and never transfer IAM semantic ownership to M08.
 - CTR-DB-003 is consumed only for the restore workflow. M01 invalidates all restored browser sessions and API tokens against the prepared database before M08 can authorize normal readiness; M01 neither activates the database nor controls the service.
 - The V1 public contract file is `backend/src/agentmonitor/contracts/identity_access_v1.py`; SQLite implementation files are only under `backend/src/agentmonitor/adapters/persistence/identity_access/sqlite/**`. M01 owns `iam_` tables and migration slots `v1_0100..v1_0199`; PLAN-DB alone serializes the common migration head.
@@ -274,7 +274,7 @@ Login throttle
 - Credential selector/prefix/fingerprint is not an identity and grants no authority.
 - Correlation IDs originate at P01 and are passed unchanged into M01 audit records after validation.
 - A bootstrap singleton constraint and transaction prevent duplicate administrators.
-- Each idempotent mutation is deduplicated by principal, operation family, and caller-supplied idempotency key digest; reused keys with a different canonical request fingerprint are conflicts.
+- Each idempotent mutation is deduplicated by stable principal, operation family, and caller-supplied idempotency key digest. Reused keys with different safe canonical metadata are conflicts for operations that retain that fingerprint. Password change retains no password/body-derived fingerprint: after current authentication and authorization, any repeat key is a one-time-secret non-replay conflict.
 
 ### Concurrency and idempotency
 
@@ -284,7 +284,7 @@ Login throttle
 - Logout and token revocation are idempotent for an authenticated caller. A second revoke returns the current revoked summary or `204` according to the approved P01 schema, without a second state transition.
 - Password changes compare the administrator record version, update the hash, revoke affected sessions, and append audit facts in one transaction.
 - Token rotation creates the successor and terminally rotates the predecessor in one transaction. Plaintext is generated immediately before commit and never placed in an idempotency record.
-- One-time-secret mutations use an idempotency key to prevent duplicate token creation and declare `replay_policy = one_time_secret_non_replayable`. A replay after the original success returns `409 one_time_secret_not_replayable` with safe created-resource metadata; the owner must deliberately rotate/recreate. Plaintext is neither cached in the receipt nor replayed.
+- One-time-secret mutations use an idempotency key to prevent duplicate credential creation and declare `replay_policy = one_time_secret_non_replayable`. A replay after the original success returns `409 one_time_secret_not_replayable` with safe created-resource metadata only after current authentication and authorization; a revoked old password-change cookie returns 401 first. Password change compares no password/body-derived fingerprint, so any authenticated repeat key is the non-replay conflict. Plaintext is neither cached in the receipt nor replayed.
 - Repository adapters translate transient SQLite busy conditions into a typed retryable failure with a bounded internal retry policy approved by persistence; they never convert a failed write into authentication success.
 
 ### Degradation and recovery
@@ -476,7 +476,7 @@ Names are proposed; exact DDL is approved with the persistence review.
 
 #### `iam_idempotency_record`
 
-- principal/operation/key digest, canonical request fingerprint, state, affected resource ID, created/expiry timestamps;
+- stable principal/operation/key digest, nullable safe canonical request fingerprint (absent for password change), state, affected resource ID, created/expiry timestamps;
 - never stores request secrets or one-time response plaintext;
 - retention is short and configuration-owned by M01.
 

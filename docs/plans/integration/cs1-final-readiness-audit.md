@@ -258,3 +258,13 @@ documentation, and producer contract files. That finding is closed as
 
 No production implementation, dependency, provider access, live verification,
 or authority expansion occurred during this correction pass.
+
+## 10. 2026-09-20 M2 contract-clarification rebind
+
+Plan snapshot SHA-256: `f5daafacb7d30c27454c53b017ea89b2e44a2ed6ee940ece718df60d7c255bf1`
+
+The M2-approved auth-first password-change replay clarification changed only
+PLAN-M01 and PLAN-P01 text, their two manifest digests, and this mechanical
+snapshot binding. Independent M2 specification review accepted the 401/409
+ordering and bearer receipt isolation. This rebind preserves the historical
+CS-1 PASS-CONDITIONAL finding; it does not claim M2 implementation or live tests.

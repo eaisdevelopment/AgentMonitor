@@ -272,3 +272,14 @@ next actions are:
 
 Until step 1 occurs, production code and production tests remain prohibited by
 the repository instructions.
+
+## 9. 2026-09-20 M2-scoped synchronization rebind
+
+Plan snapshot SHA-256: `f5daafacb7d30c27454c53b017ea89b2e44a2ed6ee940ece718df60d7c255bf1`
+
+The approved M2 overlay resolves password-change replay auth ordering without
+expanding route or migration scope: a revoked credential gets 401 before receipt
+lookup; only a currently authorized retry gets safe 409, and bearer receipts
+remain issuer-isolated. PLAN-M01/P01 adoption and ownership hashes were rebound
+after independent specification acceptance. This is a planning-control rebind,
+not new all-V1 approval or evidence that M2 tests passed.

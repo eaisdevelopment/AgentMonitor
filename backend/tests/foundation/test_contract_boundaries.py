@@ -649,6 +649,87 @@ def test_m01_sqlite_adapter_cannot_import_shared_inspection_or_migration(
     ]
 
 
+@pytest.mark.parametrize(
+    ("module", "symbol"),
+    [
+        ("application.authorization", "BROWSER_PERMISSIONS_V1"),
+        ("application.sessions", "SessionPasswordHasherPortV1"),
+        ("application.sessions", "SessionQueryErrorV1"),
+        ("application.throttle", "LoginThrottleStateV1"),
+        ("application.throttle", "after_failed_login"),
+        ("application.throttle", "after_successful_login"),
+        ("application.throttle", "retry_after_seconds"),
+        ("application.errors", "PasswordHasherUnavailableV1"),
+        ("domain.policy", "password_creation_error"),
+        ("domain.policy", "idempotency_receipt_expired"),
+        ("domain.policy", "session_deadlines"),
+        ("domain.policy", "session_expired"),
+        ("domain.policy", "should_touch_session"),
+    ],
+)
+def test_m01_sqlite_adapter_can_import_only_reviewed_same_owner_symbols(
+    tmp_path: Path, module: str, symbol: str
+) -> None:
+    copy_contract_policy(tmp_path)
+    write_source(
+        tmp_path,
+        "adapters/persistence/identity_access/sqlite/sessions.py",
+        f"from agentmonitor.modules.identity_access.{module} import {symbol}\n",
+    )
+    assert checker().find_forbidden_imports(tmp_path) == []
+
+
+@pytest.mark.parametrize(
+    ("module", "symbol"),
+    [
+        ("application.sessions", "UnreviewedPortV1"),
+        ("domain.policy", "unreviewed_policy"),
+        ("application._internal", "anything"),
+    ],
+)
+def test_m01_sqlite_adapter_rejects_unreviewed_same_owner_symbols(
+    tmp_path: Path, module: str, symbol: str
+) -> None:
+    copy_contract_policy(tmp_path)
+    source = write_source(
+        tmp_path,
+        "adapters/persistence/identity_access/sqlite/sessions.py",
+        f"from agentmonitor.modules.identity_access.{module} import {symbol}\n",
+    )
+    target = f"agentmonitor.modules.identity_access.{module}"
+    if not module.endswith("._internal"):
+        target = f"{target}.{symbol}"
+    assert checker().find_forbidden_imports(tmp_path) == [f"{source}:1:{target}"]
+
+
+def test_m01_argon2_adapter_imports_only_its_safe_application_error(
+    tmp_path: Path,
+) -> None:
+    copy_contract_policy(tmp_path)
+    write_source(
+        tmp_path,
+        "adapters/identity_access/argon2_password.py",
+        "from agentmonitor.modules.identity_access.application.errors "
+        "import PasswordHasherUnavailableV1\n",
+    )
+    assert checker().find_forbidden_imports(tmp_path) == []
+
+
+def test_m01_argon2_adapter_rejects_unreviewed_application_symbol(
+    tmp_path: Path,
+) -> None:
+    copy_contract_policy(tmp_path)
+    source = write_source(
+        tmp_path,
+        "adapters/identity_access/argon2_password.py",
+        "from agentmonitor.modules.identity_access.application.errors "
+        "import UnreviewedError\n",
+    )
+    assert checker().find_forbidden_imports(tmp_path) == [
+        f"{source}:1:agentmonitor.modules.identity_access.application.errors.UnreviewedError"
+    ]
+
+
 def test_other_module_sqlite_adapter_cannot_import_m01_shared_allowance(
     tmp_path: Path,
 ) -> None:

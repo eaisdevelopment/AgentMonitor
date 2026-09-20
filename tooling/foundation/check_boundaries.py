@@ -111,6 +111,34 @@ COMPOSITION_SQLITE_SYMBOLS = {
 M01_SQLITE_POLICY_SYMBOLS = frozenset(
     {"DatabaseRefV1", "SqlitePolicyError", "open_sqlite_database"}
 )
+M01_SQLITE_LAYER_SYMBOLS = {
+    "agentmonitor.modules.identity_access.application.authorization": frozenset(
+        {"BROWSER_PERMISSIONS_V1"}
+    ),
+    "agentmonitor.modules.identity_access.application.sessions": frozenset(
+        {"SessionPasswordHasherPortV1", "SessionQueryErrorV1"}
+    ),
+    "agentmonitor.modules.identity_access.application.throttle": frozenset(
+        {
+            "LoginThrottleStateV1",
+            "after_failed_login",
+            "after_successful_login",
+            "retry_after_seconds",
+        }
+    ),
+    "agentmonitor.modules.identity_access.application.errors": frozenset(
+        {"PasswordHasherUnavailableV1"}
+    ),
+    "agentmonitor.modules.identity_access.domain.policy": frozenset(
+        {
+            "password_creation_error",
+            "idempotency_receipt_expired",
+            "session_deadlines",
+            "session_expired",
+            "should_touch_session",
+        }
+    ),
+}
 FRESH_INIT_MIGRATE_TARGET = (
     "agentmonitor.adapters.persistence._shared.sqlite.schema.compatibility."
     "migrate_to_head"
@@ -195,6 +223,27 @@ def _approved_m01_sqlite_policy_symbol(source: str, target: str) -> bool:
     )
 
 
+def _m01_adapter_port_symbol_module(source: str, target: str) -> bool:
+    prefix = "agentmonitor.adapters.persistence.identity_access.sqlite"
+    sqlite_owner = (
+        source == prefix or source.startswith(prefix + ".")
+    ) and target in M01_SQLITE_LAYER_SYMBOLS
+    hasher_error = (
+        source == "agentmonitor.adapters.identity_access.argon2_password"
+        and target == "agentmonitor.modules.identity_access.application.errors"
+    )
+    return sqlite_owner or hasher_error
+
+
+def _approved_m01_adapter_port_symbol(source: str, target: str) -> bool:
+    module, separator, symbol = target.rpartition(".")
+    return (
+        bool(separator)
+        and _m01_adapter_port_symbol_module(source, module)
+        and symbol in M01_SQLITE_LAYER_SYMBOLS[module]
+    )
+
+
 def _allowed(source: str, target: str, *, symbol_import: bool = False) -> bool:
     src, dst = source.split("."), target.split(".")
     if "utils" in dst or dst[0] in {"frontend", "backend"}:
@@ -221,6 +270,7 @@ def _allowed(source: str, target: str, *, symbol_import: bool = False) -> bool:
         _approved_composition_sqlite_symbol(source, target)
         or _approved_m2_fresh_init_migration(source, target)
         or _approved_m01_sqlite_policy_symbol(source, target)
+        or _approved_m01_adapter_port_symbol(source, target)
     ):
         return True
     if any(part.startswith("_") for part in dst[1:]) and src[1:3] != dst[1:3]:
@@ -303,6 +353,7 @@ def _imports(
                     )
                     and not _composition_sqlite_symbol_module(module, base)
                     and not _m01_sqlite_policy_symbol_module(module, base)
+                    and not _m01_adapter_port_symbol_module(module, base)
                     and not _allowed(module, base)
                 ):
                     edges.append((node.lineno, base, False))
