@@ -17,6 +17,18 @@ from evidence import actual_tool_versions, evidence_row
 
 ROOT = Path(__file__).resolve().parents[3]
 BACKEND_PYTHON = ROOT / "backend/.venv/bin/python"
+M0_OWNER_LOCAL_ASSETS = (
+    ROOT / ".venv-m0-g1/bin/python",
+    ROOT / ".venv-m0-g1/bin/gitleaks",
+    ROOT / ".agentmonitor-local/m0-g1-exit.json",
+)
+M1_TOOL_TEST_MODULES = (
+    "tools.automation.test_run",
+    "tools.docs.test_check",
+    "tools.git.test_preflight",
+    "tools.planning.test_implementation_backlog",
+    "tools.planning.test_validate_plans",
+)
 
 
 def fail(code: str) -> NoReturn:
@@ -132,18 +144,35 @@ def run_browser_boundary() -> None:
 def main() -> int:
     if not BACKEND_PYTHON.is_file():
         fail("admitted_backend_toolchain_missing")
-    run(
-        [
-            "python3",
-            "-m",
-            "unittest",
-            "discover",
-            "-s",
-            "tools",
-            "-p",
-            "test_*.py",
-        ]
-    )
+    if all(path.is_file() for path in M0_OWNER_LOCAL_ASSETS):
+        run(
+            [
+                "python3",
+                "-m",
+                "unittest",
+                "discover",
+                "-s",
+                "tools",
+                "-p",
+                "test_*.py",
+            ]
+        )
+        print("M0 OWNER-LOCAL TOOL SUITE: Passed with real local assets")
+    else:
+        print("M0 OWNER-LOCAL TOOL SUITE: Not Run — local assets unavailable")
+        print(
+            json.dumps(
+                evidence_row(
+                    test_id="M0-G1-LOCAL-TOOLS",
+                    command_id="AUTO-TEST",
+                    boundary="separate owner-local M0 G1 tool tests",
+                    status="Not Run",
+                    versions=(),
+                ),
+                sort_keys=True,
+            )
+        )
+        run(["python3", "-m", "unittest", *M1_TOOL_TEST_MODULES])
     m0_exit = subprocess.run(
         ["python3", "tools/automation/run.py", "AUTO-M0-G1-EXIT"],
         cwd=ROOT,

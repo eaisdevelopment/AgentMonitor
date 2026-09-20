@@ -8,7 +8,6 @@ import sys
 import tomllib
 from pathlib import Path
 
-
 CATALOG_PATH = Path("tools/automation/routines.toml")
 MANDATORY_ROUTINES = {
     "AUTO-PLAN-CHECK",
@@ -87,7 +86,8 @@ def validate_catalog(repository_root: Path, catalog: dict[str, dict]) -> list[st
             )
         if status == "blocked" and (command or not blockers):
             violations.append(
-                f"{routine_id}: blocked routine must have no implementation command and named blockers"
+                f"{routine_id}: blocked routine must have no implementation "
+                "command and named blockers"
             )
         if command and command[0].startswith("/"):
             violations.append(f"{routine_id}: command must be checkout-relative")
@@ -139,7 +139,13 @@ def main(argv: list[str] | None = None) -> int:
             print(f"- OUT-OF-SCOPE/BLOCKED: {blocker}")
     else:
         print(f"{arguments.routine}: RUNNING — {routine['scope']}")
-    result = subprocess.run(routine["implementation_command"], cwd=root, check=False)
+    try:
+        result = subprocess.run(
+            routine["implementation_command"], cwd=root, check=False
+        )
+    except OSError:
+        print(f"{arguments.routine}: BLOCKED by missing or unusable local executable")
+        return 3
     if result.returncode == 0:
         print(f"{arguments.routine}: PASSED ({routine['status']})")
     elif result.returncode == 3:

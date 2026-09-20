@@ -8,15 +8,13 @@ import tomllib
 from pathlib import Path
 from urllib.parse import unquote
 
-
 MARKDOWN_LINK = re.compile(r"!?\[[^\]]*\]\(([^)]+)\)")
-REQUIREMENT_ID = re.compile(
-    r"\b(?:FR|NFR|AC)-[A-Z0-9]+(?:-[A-Z0-9]+)*-\d{3}\b"
-)
+REQUIREMENT_ID = re.compile(r"\b(?:FR|NFR|AC)-[A-Z0-9]+(?:-[A-Z0-9]+)*-\d{3}\b")
 CONTRACT_ID = re.compile(r"\bCTR-[A-Z]+-\d{3}\b")
 EXTERNAL_SCHEMES = ("http://", "https://", "mailto:", "app://", "data:")
 EXCLUDED_MARKDOWN_DIRECTORY_NAMES = frozenset(
     {
+        ".ci-tools",
         ".git",
         ".superpowers",
         ".venv",
@@ -68,7 +66,9 @@ def check_repository(repository_root: Path) -> list[str]:
             if not target or target.startswith(EXTERNAL_SCHEMES):
                 continue
             if target.startswith("/"):
-                violations.append(f"{relative}: repository document uses absolute link {target}")
+                violations.append(
+                    f"{relative}: repository document uses absolute link {target}"
+                )
                 continue
             resolved = (document.parent / target).resolve()
             try:
@@ -83,7 +83,8 @@ def check_repository(repository_root: Path) -> list[str]:
         )
         if unknown_requirements:
             violations.append(
-                f"{relative}: unknown requirement IDs: {', '.join(unknown_requirements)}"
+                f"{relative}: unknown requirement IDs: "
+                f"{', '.join(unknown_requirements)}"
             )
         unknown_contracts = sorted(set(CONTRACT_ID.findall(text)) - known_contracts)
         if unknown_contracts:

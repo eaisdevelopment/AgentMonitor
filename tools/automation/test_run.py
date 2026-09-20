@@ -19,6 +19,43 @@ from run import index_routines, load_catalog, validate_catalog  # noqa: E402
 
 
 class AutomationRoutineTests(unittest.TestCase):
+    def test_clean_clone_blocks_missing_owner_local_m0_executable(self) -> None:
+        """A fresh real checkout must classify absent M0 custody tooling as Blocked."""
+        with tempfile.TemporaryDirectory(prefix="agentmonitor-clean-gate-") as raw:
+            checkout = Path(raw) / "checkout"
+            clone = subprocess.run(
+                [
+                    "git",
+                    "clone",
+                    "--quiet",
+                    "--no-hardlinks",
+                    str(REPOSITORY_ROOT),
+                    str(checkout),
+                ],
+                check=False,
+                capture_output=True,
+                text=True,
+            )
+            self.assertEqual(0, clone.returncode, "fresh local Git clone failed")
+            self.assertFalse((checkout / ".venv-m0-g1/bin/python").exists())
+            copy2(RUNNER, checkout / "tools/automation/run.py")
+            result = subprocess.run(
+                [
+                    sys.executable,
+                    str(checkout / "tools/automation/run.py"),
+                    "AUTO-M0-G1-EXIT",
+                    "--root",
+                    str(checkout),
+                ],
+                cwd=checkout,
+                check=False,
+                capture_output=True,
+                text=True,
+            )
+            self.assertEqual(3, result.returncode, "missing M0 tool was not Blocked")
+            self.assertIn("AUTO-M0-G1-EXIT: BLOCKED", result.stdout)
+            self.assertNotIn("PASSED", result.stdout)
+
     def test_evidence_rows_validate_v1_contract_and_unrun_provenance(self) -> None:
         """Pure evidence policy rejects a claimed pass without runtime context."""
         sys.path.insert(0, str(REPOSITORY_ROOT / "tools/automation/implementations"))
@@ -404,6 +441,18 @@ class AutomationRoutineTests(unittest.TestCase):
         direct_command = load_catalog(REPOSITORY_ROOT)["AUTO-M0-G1-EXIT"][
             "implementation_command"
         ]
+        if not (REPOSITORY_ROOT / direct_command[0]).is_file():
+            result = subprocess.run(
+                [sys.executable, str(RUNNER), "AUTO-M0-G1-EXIT"],
+                cwd=REPOSITORY_ROOT,
+                check=False,
+                capture_output=True,
+                text=True,
+            )
+            self.assertEqual(3, result.returncode, result.stdout + result.stderr)
+            self.assertIn("AUTO-M0-G1-EXIT: BLOCKED", result.stdout)
+            self.assertNotIn("PASSED", result.stdout)
+            return
         direct = subprocess.run(
             direct_command,
             cwd=REPOSITORY_ROOT,
