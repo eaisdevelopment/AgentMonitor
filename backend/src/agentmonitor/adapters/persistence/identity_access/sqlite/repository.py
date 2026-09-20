@@ -1,6 +1,5 @@
 """M01 bootstrap repository over the approved real file-backed SQLite policy."""
 
-import re
 import secrets
 from datetime import UTC, datetime
 
@@ -18,6 +17,7 @@ from agentmonitor.contracts.identity_access_v1 import (
 from agentmonitor.modules.identity_access.application.errors import (
     IamRepositoryUnavailableV1,
 )
+from agentmonitor.modules.identity_access.domain.policy import valid_correlation_id
 from sqlalchemy.exc import SQLAlchemyError
 
 
@@ -68,7 +68,7 @@ class SqliteIdentityAccessRepositoryV1:
         if (
             hash_policy_version != "argon2id-rfc9106-low-memory-v1"
             or not password_phc.startswith("$argon2id$v=19$m=65536,t=3,p=4$")
-            or re.fullmatch(r"[A-Za-z0-9_-]{1,64}", correlation_id) is None
+            or not valid_correlation_id(correlation_id)
         ):
             raise IdentityAccessRepositoryErrorV1() from None
         admin_id = secrets.token_urlsafe(24)
@@ -139,7 +139,7 @@ class SqliteIdentityAccessRepositoryV1:
         if (
             hash_policy_version != "argon2id-rfc9106-low-memory-v1"
             or not password_phc.startswith("$argon2id$v=19$m=65536,t=3,p=4$")
-            or re.fullmatch(r"[A-Za-z0-9_-]{1,64}", correlation_id) is None
+            or not valid_correlation_id(correlation_id)
         ):
             raise IdentityAccessRepositoryErrorV1() from None
         instant = _utc_now()

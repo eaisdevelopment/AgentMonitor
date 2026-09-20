@@ -147,6 +147,7 @@ M01_SQLITE_LAYER_SYMBOLS = {
             "token_deadline",
             "token_should_touch",
             "token_state",
+            "valid_correlation_id",
         }
     ),
 }

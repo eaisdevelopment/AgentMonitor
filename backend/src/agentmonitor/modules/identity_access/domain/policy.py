@@ -1,5 +1,6 @@
 """M01 V1 identity policy; deterministic decisions without I/O or framework types."""
 
+import re
 from datetime import datetime, timedelta
 from typing import Literal
 
@@ -14,6 +15,12 @@ TOKEN_MIN_SECONDS = 3600
 TOKEN_MAX_SECONDS = 31_536_000
 TOKEN_DEFAULT_SECONDS = 7_776_000
 TOKEN_TOUCH_SECONDS = 60
+_CORRELATION_ID = re.compile(r"[A-Za-z0-9._:-]{1,64}\Z")
+
+
+def valid_correlation_id(value: object) -> bool:
+    """Accept exactly the frozen P01 request-ID grammar, not resource-ID grammar."""
+    return type(value) is str and _CORRELATION_ID.fullmatch(value) is not None
 
 
 def password_creation_error(candidate: str) -> str | None:

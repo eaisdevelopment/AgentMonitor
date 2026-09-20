@@ -48,6 +48,7 @@ from agentmonitor.modules.identity_access.domain.policy import (
     session_expired,
     session_state,
     should_touch_session,
+    valid_correlation_id,
 )
 from sqlalchemy.engine import Connection, RowMapping
 from sqlalchemy.exc import SQLAlchemyError
@@ -403,7 +404,7 @@ class SqliteIdentityAccessSessionRepositoryV1:
         correlation_id: str,
         instant: datetime,
     ) -> SessionCredentialIssueV1 | AuthenticationFailureV1:
-        if _SAFE_ID.fullmatch(correlation_id) is None:
+        if not valid_correlation_id(correlation_id):
             raise IdentityAccessRepositoryErrorV1() from None
         try:
             with open_sqlite_database(
@@ -484,7 +485,7 @@ class SqliteIdentityAccessSessionRepositoryV1:
         denial = BrowserSessionResolutionV1(
             "dashboard_authentication_required", None, None
         )
-        if _SAFE_ID.fullmatch(correlation_id) is None:
+        if not valid_correlation_id(correlation_id):
             raise IdentityAccessRepositoryErrorV1() from None
         if len(credential) > 512 or _SESSION_WIRE.fullmatch(credential) is None:
             return denial
@@ -563,7 +564,7 @@ class SqliteIdentityAccessSessionRepositoryV1:
         correlation_id: str,
         instant: datetime,
     ) -> CsrfDecisionV1:
-        if _SAFE_ID.fullmatch(correlation_id) is None:
+        if not valid_correlation_id(correlation_id):
             raise IdentityAccessRepositoryErrorV1() from None
         if _SAFE_ID.fullmatch(session_id) is None:
             return CsrfDecisionV1("csrf_validation_failed")
@@ -605,7 +606,7 @@ class SqliteIdentityAccessSessionRepositoryV1:
         correlation_id: str,
         instant: datetime,
     ) -> SessionMutationOutcomeV1:
-        if _SAFE_ID.fullmatch(correlation_id) is None:
+        if not valid_correlation_id(correlation_id):
             raise IdentityAccessRepositoryErrorV1() from None
         try:
             with open_sqlite_database(
@@ -669,7 +670,7 @@ class SqliteIdentityAccessSessionRepositoryV1:
         correlation_id: str,
     ) -> tuple[SessionSummaryV1, ...]:
         """Bounded keyset page; caller supplies an authenticated browser principal."""
-        if _SAFE_ID.fullmatch(correlation_id) is None:
+        if not valid_correlation_id(correlation_id):
             raise IdentityAccessRepositoryErrorV1() from None
         if not 1 <= limit <= 200:
             raise ValueError("session_list_limit_invalid")
@@ -765,7 +766,7 @@ class SqliteIdentityAccessSessionRepositoryV1:
         correlation_id: str,
         instant: datetime,
     ) -> SessionMutationOutcomeV1:
-        if _SAFE_ID.fullmatch(correlation_id) is None:
+        if not valid_correlation_id(correlation_id):
             raise IdentityAccessRepositoryErrorV1() from None
         try:
             with open_sqlite_database(
@@ -838,7 +839,7 @@ class SqliteIdentityAccessSessionRepositoryV1:
         instant: datetime,
     ) -> SessionMutationOutcomeV1:
         key_digest = _receipt_key(idempotency_key)
-        if _SAFE_ID.fullmatch(correlation_id) is None:
+        if not valid_correlation_id(correlation_id):
             raise IdentityAccessRepositoryErrorV1() from None
         try:
             with open_sqlite_database(
@@ -929,7 +930,7 @@ class SqliteIdentityAccessSessionRepositoryV1:
         instant: datetime,
     ) -> SessionCredentialIssueV1 | SessionMutationOutcomeV1:
         key_digest = _receipt_key(idempotency_key)
-        if _SAFE_ID.fullmatch(correlation_id) is None:
+        if not valid_correlation_id(correlation_id):
             raise IdentityAccessRepositoryErrorV1() from None
         try:
             with open_sqlite_database(

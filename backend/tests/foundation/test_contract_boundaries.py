@@ -686,6 +686,7 @@ def test_m01_sqlite_adapter_cannot_import_shared_inspection_or_migration(
         ("domain.policy", "idempotency_receipt_expired"),
         ("domain.policy", "may_issue_scopes"),
         ("domain.policy", "may_manage_token"),
+        ("domain.policy", "valid_correlation_id"),
         ("domain.policy", "session_deadlines"),
         ("domain.policy", "session_expired"),
         ("domain.policy", "session_state"),

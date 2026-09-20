@@ -41,6 +41,7 @@ from agentmonitor.modules.identity_access.domain.policy import (
     token_deadline,
     token_should_touch,
     token_state,
+    valid_correlation_id,
 )
 from sqlalchemy.engine import Connection, RowMapping
 from sqlalchemy.exc import SQLAlchemyError
@@ -107,7 +108,7 @@ def _wire_parts(value: str, pattern: re.Pattern[str]) -> tuple[str, str] | None:
 
 
 def _validate_correlation(correlation_id: str) -> None:
-    if _SAFE_ID.fullmatch(correlation_id) is None:
+    if not valid_correlation_id(correlation_id):
         raise IdentityAccessRepositoryErrorV1() from None
 
 

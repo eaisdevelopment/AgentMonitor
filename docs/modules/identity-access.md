@@ -12,6 +12,8 @@ The immutable Alembic chain has `v1_0000 → v1_0100`. The latter creates exactl
 
 The M01 V1 application error `IamRepositoryUnavailableV1` is the published safe unavailability boundary for P01 and other consumers. Concrete SQLite adapters retain their private `IdentityAccessRepositoryErrorV1` subtype, but consumers catch only the application type and map its fixed `iam_repository_unavailable` code to 503. Neither type includes SQL, database path, credential, or cause text. This additive compatible error seam changes no database, token/session value, or provider behavior; [real-file Red/Green evidence](../evidence/m2-m01-public-unavailable-error.md) covers an owner-mode denial without importing the adapter at P01.
 
+P01-origin correlation IDs use the frozen ASCII grammar `[A-Za-z0-9._:-]{1,64}`. M01 validates this **separately** from session/token resource IDs, pagination cursors, and receipt keys, whose narrower grammars are unchanged. Every accepted ID is written unchanged to the corresponding safe audit fact; a non-ASCII or otherwise invalid ID is rejected before a credential transition. [The real-SQLite correlation record](../evidence/m2-m01-correlation-contract.md) covers bootstrap, recovery, login, session/CSRF, token operations, and audit projection. This is a compatible correction to the existing V1 port behavior, not a new DTO or migration.
+
 ## Local operator sequence
 
 Run from the repository root as the normal owner user, never root. Use an absolute owner-only (`0700`) data root; never pass a password in argv, `.env`, stdin redirection, or shell history. This is the current M2 development/local flow; `backend/pyproject.toml` has `package=false`, so a plain system `python -m` invocation is not installed or supported.
