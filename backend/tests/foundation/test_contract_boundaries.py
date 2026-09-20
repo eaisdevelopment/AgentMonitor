@@ -116,6 +116,24 @@ def test_declared_contract_consumption_remains_allowed(tmp_path: Path) -> None:
     assert checker().find_forbidden_imports(tmp_path) == []
 
 
+def test_p01_adopts_m2_iam_security_event_projection(tmp_path: Path) -> None:
+    copy_contract_policy(tmp_path)
+    write_source(
+        tmp_path,
+        "contracts/identity_access_v1.py",
+        "class IamSecurityEventViewV1:\n"
+        '    CONTRACT_ID = "CTR-IAM-008"\n'
+        '    OWNER = "PLAN-M01"\n',
+    )
+    write_source(
+        tmp_path,
+        "api/v1/routers/iam.py",
+        "from agentmonitor.contracts.identity_access_v1 "
+        "import IamSecurityEventViewV1\n",
+    )
+    assert checker().find_forbidden_imports(tmp_path) == []
+
+
 def test_m01_concrete_contract_classes_and_transient_secret_are_resolved(
     tmp_path: Path,
 ) -> None:
@@ -661,6 +679,7 @@ def test_m01_sqlite_adapter_cannot_import_shared_inspection_or_migration(
         ("application.throttle", "after_successful_login"),
         ("application.throttle", "retry_after_seconds"),
         ("application.errors", "PasswordHasherUnavailableV1"),
+        ("application.errors", "IamRepositoryUnavailableV1"),
         ("domain.policy", "password_creation_error"),
         ("domain.policy", "M2_ISSUABLE_SCOPES"),
         ("domain.policy", "canonical_token_name"),

@@ -6,3 +6,10 @@ class PasswordHasherUnavailableV1(RuntimeError):
 
     def __init__(self) -> None:
         super().__init__("password_hasher_unavailable")
+
+
+class IamRepositoryUnavailableV1(RuntimeError):
+    """Published M01 V1 unavailable outcome; never contains DB/SQL/path detail."""
+
+    def __init__(self) -> None:
+        super().__init__("iam_repository_unavailable")

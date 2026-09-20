@@ -15,14 +15,17 @@ from agentmonitor.contracts.identity_access_v1 import (
     IamInitializationStateV1,
     RecoverAdministratorOutcomeV1,
 )
+from agentmonitor.modules.identity_access.application.errors import (
+    IamRepositoryUnavailableV1,
+)
 from sqlalchemy.exc import SQLAlchemyError
 
 
-class IdentityAccessRepositoryErrorV1(RuntimeError):
+class IdentityAccessRepositoryErrorV1(IamRepositoryUnavailableV1):
     """Safe typed failure; no SQL, path or credential appears in its text."""
 
     def __init__(self) -> None:
-        super().__init__("iam_repository_unavailable")
+        super().__init__()
 
 
 def _utc_now() -> str:

@@ -256,7 +256,8 @@ and generated client agree. No implementer may silently promote their status.
   `CTR-FND-001`, `CTR-FND-002`, `CTR-FND-003`, `CTR-FND-004`, `CTR-FND-005`,
   `CTR-FND-007`, and `CTR-FND-008`.
 - IAM: `CTR-IAM-001`, `CTR-IAM-002`, `CTR-IAM-003`, `CTR-IAM-004`,
-  `CTR-IAM-005`, `CTR-IAM-006`, and `CTR-IAM-007`.
+  `CTR-IAM-005`, `CTR-IAM-006`, `CTR-IAM-007`, and the M2 safe security-event
+  projection `CTR-IAM-008`.
 - Registry: `CTR-REG-001`, `CTR-REG-002`, `CTR-REG-003`, `CTR-REG-004`,
   `CTR-REG-005`, `CTR-REG-006`, `CTR-REG-008`, `CTR-REG-009`, and
   `CTR-REG-010`. P01 starts/gets/cancels only the M02-owned CTR-REG-008 durable

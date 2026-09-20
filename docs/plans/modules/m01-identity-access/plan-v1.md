@@ -309,7 +309,7 @@ The exact public-contract projection is:
 | CTR-IAM-005 | `SessionQueryAndRevocationV1` | session list and revocation ports | 1.0.0 / `proposed_aligned` | P01, P02, M08 |
 | CTR-IAM-006 | `ApiTokenLifecycleV1` | API-token list/create/rotate/revoke and bearer resolution | 1.0.0 / `proposed_aligned` | P01, P02 |
 | CTR-IAM-007 | `CredentialIssueAndSafeSummaryV1` | one-time credential issue plus safe summaries | 1.0.0 / `proposed_aligned` | P01, P02 |
-| CTR-IAM-008 | `IamSecurityEventRetentionAndRestoreV1` | audit query, purge, health and post-restore invalidation | 1.0.0 / `proposed_aligned` | M08, DB, DEP, INT |
+| CTR-IAM-008 | `IamSecurityEventRetentionAndRestoreV1` | audit query, purge, health and post-restore invalidation | 1.0.0 / `proposed_aligned` | M08, P01, DB, DEP, INT |
 
 The machine-exact producer and consumer sets are bound in
 `contract-adoption.toml`. Approval remains a Definition-of-Ready condition.

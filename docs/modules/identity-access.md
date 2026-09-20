@@ -10,6 +10,8 @@
 
 The immutable Alembic chain has `v1_0000 → v1_0100`. The latter creates exactly seven IAM tables, no credential row, and one nullable safe `reason_code` audit column. The catalog pins revision bytes; the runtime separately checks exact admitted IAM table/index DDL, including columns, foreign keys, checks, and index definitions. Fresh initialization accepts only a previously absent database file. Existing empty or `v1_0000` files are preserved and refused until a separately approved offline backup/quiescence upgrade workflow exists. No startup DDL or downgrade is available.
 
+The M01 V1 application error `IamRepositoryUnavailableV1` is the published safe unavailability boundary for P01 and other consumers. Concrete SQLite adapters retain their private `IdentityAccessRepositoryErrorV1` subtype, but consumers catch only the application type and map its fixed `iam_repository_unavailable` code to 503. Neither type includes SQL, database path, credential, or cause text. This additive compatible error seam changes no database, token/session value, or provider behavior; [real-file Red/Green evidence](../evidence/m2-m01-public-unavailable-error.md) covers an owner-mode denial without importing the adapter at P01.
+
 ## Local operator sequence
 
 Run from the repository root as the normal owner user, never root. Use an absolute owner-only (`0700`) data root; never pass a password in argv, `.env`, stdin redirection, or shell history. This is the current M2 development/local flow; `backend/pyproject.toml` has `package=false`, so a plain system `python -m` invocation is not installed or supported.

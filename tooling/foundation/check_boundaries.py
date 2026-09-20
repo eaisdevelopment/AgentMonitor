@@ -130,7 +130,7 @@ M01_SQLITE_LAYER_SYMBOLS = {
         }
     ),
     "agentmonitor.modules.identity_access.application.errors": frozenset(
-        {"PasswordHasherUnavailableV1"}
+        {"PasswordHasherUnavailableV1", "IamRepositoryUnavailableV1"}
     ),
     "agentmonitor.modules.identity_access.domain.policy": frozenset(
         {

@@ -283,3 +283,18 @@ lookup; only a currently authorized retry gets safe 409, and bearer receipts
 remain issuer-isolated. PLAN-M01/P01 adoption and ownership hashes were rebound
 after independent specification acceptance. This is a planning-control rebind,
 not new all-V1 approval or evidence that M2 tests passed.
+
+## 10. 2026-09-20 M2 security-event consumer rebind
+
+Plan snapshot SHA-256: `06bf3617a1b08f8e3949e839bd686e7bc332751ecfe331f7b1ec3d5490e55729`
+
+The frozen M2 13-route matrix includes P01's bounded IAM security-event query.
+Its published projection is `CTR-IAM-008`, so PLAN-P01 now consumes that exact
+M01 contract; no new route, table, or M3 operation was approved. The M01/P01
+plan text, contract adoption/baseline, ownership digests, and rendered snapshot
+were rebound together. The boundary test was observed Red on undeclared
+`CTR-IAM-008` and Green after the exact adoption; 174 boundary tests passed.
+Independent M2 QA reviewed the narrow consumption and checksum scope. The
+same review accepted the exact same-owner M01 public-error import allowance.
+This is an additive M2 contract-consumer correction, not all-V1 approval or
+evidence that the authenticated HTTP/browser exit gate passed.

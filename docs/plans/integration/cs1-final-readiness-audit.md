@@ -268,3 +268,15 @@ PLAN-M01 and PLAN-P01 text, their two manifest digests, and this mechanical
 snapshot binding. Independent M2 specification review accepted the 401/409
 ordering and bearer receipt isolation. This rebind preserves the historical
 CS-1 PASS-CONDITIONAL finding; it does not claim M2 implementation or live tests.
+
+## 11. 2026-09-20 M2 security-event consumer addendum
+
+Plan snapshot SHA-256: `06bf3617a1b08f8e3949e839bd686e7bc332751ecfe331f7b1ec3d5490e55729`
+
+Independent M2 QA reviewed the exact PLAN-P01 adoption of `CTR-IAM-008`, the
+M01/P01 plan wording, 20-plan snapshot/ownership hashes, and the closed
+same-owner M01 import allowance. The bounded review found no route, schema,
+provider, or M3 scope expansion; the 174-test import-boundary suite passed.
+The historical CS-1 PASS-CONDITIONAL result remains a Draft planning finding,
+not a claim that M2 HTTP, generated-client, browser, live-owner, or elapsed-time
+tests have passed. This addendum rebinds the reviewed M2 slice only.
