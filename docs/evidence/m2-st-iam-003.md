@@ -1,0 +1,64 @@
+# ST-IAM-003 M01 API-token lifecycle and safe audit query — evidence
+
+- Status: **Accepted for M2 integration** after the audit-projection fail-closed repair, final gates, and independent re-review. **Not** M2 completion.
+- Owner/date: M01 Story 3 worker, 2026-09-20.
+- Requirements/acceptance: `FR-IAM-004/005/006` M01 portions, `NFR-SEC-001`, `M01-PURE-002/004`, `M01-DB-007..011`, bounded-query portion of `M01-DB-013`, `M01-SEC-001`. P01 HTTP/browser criteria remain outside this Story.
+- Contracts: compatible additive producer changes to `CTR-IAM-006/007/008` V1; consumed `CTR-IAM-001/002`, `CTR-DB-002` V1. Frozen `v1_0100` schema, catalog, OpenAPI/client, P01, UI, dependencies, and provider state are unchanged.
+
+## Delivered boundary and test inventory
+
+M01 application ports are `ResolveBearerTokenV1`, `ListApiTokensV1`, `CreateApiTokenV1`, `RotateApiTokenV1`, `RevokeApiTokenV1`, and `ListIamSecurityEventsV1`. The SQLite repository requires transient raw caller proof and the P01-origin correlation ID, then revalidates active browser session plus same-session CSRF or current bearer digest/scopes **inside each transaction**. It issues the frozen CSPRNG bearer format once; stores only the selector, safe selector-derived prefix, full-token SHA-256 digest, bounded metadata, and digest-only issuer-scoped 24-hour receipt. The one-time issue/proof classes redact string/repr and reject serialization. Token names, bearer values, raw idempotency keys, CSRF, owner password, and arbitrary request text are excluded from audit events. The local audit query projects only closed `IamSecurityEventViewV1` shapes.
+
+| Scenario | Boundary | Status | Evidence |
+|---|---|---|---|
+| Create, resolve, reopen, terminal rotate/revoke, repeat revoke, safe replay, and receipt isolation across both separate browser sessions and separate active bearer issuers under one administrator | Real Alembic-migrated file SQLite + production bootstrap/login/Argon2 | Passed in focused suite | `test_api_tokens.py`; distinct-bearer test 1 passed in 0.37 s |
+| Browser same-transaction CSRF and stale bearer denial; bearer scope/target/expiry attenuation | Same real DB and credentials | Passed in focused suite | `test_api_tokens.py` |
+| 64 active cap and two competing real-thread creates/rotations; cap-preserving rotation | Serialized real SQLite writes | Passed in focused suite | `test_api_tokens.py` |
+| Two concurrent bearer resolves after an actual ≥60-second wait advance persisted last-used/version once and remain before expiry | Real SQLite + wall clock + threads | Passed: 1 test in 60.42 s | `test_api_tokens.py::test_two_real_resolves_after_sixty_seconds_coalesce_one_persisted_touch` |
+| Main DB plus present live WAL/sidecars and captured Python logs exclude owner/session/CSRF/bearer/key plaintext; stored digest equals SHA-256 of full bearer and prefix equals public selector slice | Actual SQLite file artifacts | Passed in focused suite | `test_api_tokens.py` |
+| Create, rotate, revoke rollback if the exact audit INSERT fails | Isolated real SQLite `BEFORE INSERT` trigger fault; no fake repository | Passed for explicitly altered-schema fault case | `test_api_tokens.py` |
+| Bounded/filtered audit keyset, closed projection, current bearer proof recheck | Real SQLite | Passed in focused suite | `test_api_tokens.py`, `test_token_contract.py` |
+| Exact token policy, terminal state, public contract invariants | Pure UTC/domain values | Passed in focused suite | `test_token_policy.py`, `test_token_contract.py` |
+| Authenticated replay after actual elapsed 9 s, when a fresh one-hour child would outlive its still-valid issuer | Real wall clock and file SQLite | Passed in focused suite | `test_api_tokens.py` |
+| Corrupted persisted name/null active digest fail closed rather than exposing an unsafe summary | Isolated real SQLite altered-row fault | Passed in focused suite; **not** normal live data | `test_api_tokens.py` |
+| Corrupted persisted audit outcome cannot escape as a raw projection exception | Isolated real SQLite altered-row fault | Passed in focused suite; **not** normal live data | `test_altered_persisted_audit_row_fails_closed_at_event_projection` |
+| Well-formed OS-random unknown, malformed/wrong-version, and explicitly revoked bearers have one generic denial code | Real SQLite + OS randomness | Passed in focused suite | `test_api_tokens.py` |
+| Actual ≥3,600-second token expiry, digest nulling, one unchanged-correlation audit | Real wall clock, separate opt-in test | **Not Run** | `real_elapsed_token_expiry.py`; explicit command below |
+| Actual 24-hour receipt reclaim, 365-day retention purge, prior-file upgrade/restore, local recovery, owner-live installation, API/Swagger/browser/provider/platform | Respective real boundaries | **Not Run** | M2 overlay defers bulk purge/upgrade; later owners/gates handle other layers |
+
+## Red → Green record
+
+All commands run at repository root with the installed backend toolchain. Failure summaries are sanitized; no credential or PHC is printed. Later acceptance/regression tests are not misrepresented as pre-implementation Reds.
+
+| Increment | Red command and expected observed failure | Green command/result |
+|---|---|---|
+| Pure token policy | `backend/.venv/bin/python -m pytest backend/tests/identity_access/test_token_policy.py -q --tb=short` → exit 2, missing `canonical_token_name` import. | Same file → 4 passed after fixed 1h/365d/90d, name, touch, attenuation/terminal policy. |
+| Public one-time/bearer contract | `backend/.venv/bin/python -m pytest backend/tests/identity_access/test_token_contract.py -q --tb=short` → exit 2, missing `ApiTokenMutationOutcomeV1` import. | Same file initially 2 passed after closed outcome/pair contracts. |
+| Real token adapter | `backend/.venv/bin/python -m pytest backend/tests/integration/identity_access/test_api_tokens.py -q --tb=short` → exit 2, missing M01 SQLite `api_tokens` adapter. | First real create/resolve/reopen test: 1 passed in 0.23 s. |
+| Atomic rotation/revoke and audit query | Same real test file after adding lifecycle test → exit 1, missing repository `rotate_token`; after rotation/revoke implementation → exit 1, missing `list_security_events`. | Same file then 2 passed in 0.44 s. |
+| Token audit allowlist | `backend/.venv/bin/python -m pytest backend/tests/identity_access/test_token_contract.py -q --tb=short` → exit 1, `api_token_created` rejected with `iam_audit_code_invalid`. | Same file then 3 passed after exact event/outcome/actor/method/target shape additions. |
+| Terminal-idempotent revoke | Real lifecycle test → exit 1, authorized repeated revoke returned `credential_state_conflict`, expected `revoked`. | Same real test file: 2 passed after same safe metadata/no second audit behavior. |
+| Real replay order against issuer remaining life | `backend/.venv/bin/python -m pytest backend/tests/integration/identity_access/test_api_tokens.py::test_authenticated_replay_precedes_new_child_lifetime_check_after_real_elapsed_time -q --tb=short` → exit 1 in 9.34 s, returned `scope_escalation_denied` instead of safe non-replay after 9 actual seconds. | Same test → 1 passed in 9.28 s after prospective new-issue expiry moved after current-auth/attenuation receipt check in create and rotate. |
+| Unsafe public token summary | Focused `test_public_token_summary_rejects_unsafe_or_incoherent_fields` → exit 1, `DID NOT RAISE ValueError`. | `test_token_contract.py`: 4 passed after closed name/prefix/scope/lifecycle/version validation. |
+| Corrupt persisted token fails closed | Focused `test_altered_persisted_token_row_fails_closed_at_public_summary` → exit 1, unsafe name leaked raw `ValueError`, null active digest returned a summary (2 failures). | Same isolated altered-row tests: 2 passed after typed repository denial. |
+| Corrupt persisted audit row fails closed | Focused `backend/.venv/bin/python -m pytest backend/tests/integration/identity_access/test_api_tokens.py::test_altered_persisted_audit_row_fails_closed_at_event_projection -q --tb=short` → exit 1, raw `ValueError: iam_audit_code_invalid` escaped the new query. | Same isolated real SQLite altered-row test → 1 passed in 0.26 s after narrow projection `TypeError`/`ValueError` sanitization to typed repository denial. This is corruption resilience, not normal live audit evidence. |
+
+The concurrent cap, both browser-session and active-bearer issuer isolation, WAL/log/digest scan, exact audit rollback, bounded event filter/page, wrong-CSRF and stale-bearer denials, generic unknown/malformed denial, actual 60-second touch, and terminal-transition regression tests were added as acceptance/regression tests where production behavior was already green. They are not claimed as prior Red. Root separately TDD-closed the shared exact same-M01 import boundary in commit `dbf9e20`: checker tests 10 failed/162 passed Red → 172 passed Green, checker CLI PASS 0; no broad import exemption.
+
+## Refactor, real boundary, and integrity
+
+The fast suite intentionally excludes `real_elapsed_token_expiry.py` because the policy minimum is genuinely one hour; there is no test-only clock or shortened production lifetime. To run the pending live gate explicitly:
+
+```bash
+backend/.venv/bin/python -m pytest backend/tests/integration/identity_access/real_elapsed_token_expiry.py -q --tb=short
+```
+
+Do **not** mark it Passed until that command actually completes after ≥3,600 real seconds. The pure equality/terminal policy and on-access expiry transaction are implemented, but are not substitutes for the live elapsed result. The same applies to actual 24-hour receipt expiry/reclamation and 365-day retention. The trigger and altered-row cases use an isolated **real** SQLite file only to verify fail-closed/rollback behavior, not to claim ordinary production-schema success or elapsed expiry. No mock, fake, stub, emulator, response recording, in-memory SQLite, seeded administrator/telemetry, fake clock, test-only production branch, disabled assertion, or swallowed test was used.
+
+Production setup in every fast integration test uses `migrate_to_head` and `BootstrapAdministratorV1` with an OS-random owner password and real Argon2. Held-WAL inspection checks that the WAL exists before scanning exact existing main/sidecar files; assertions and evidence report only boolean absence, not secret bytes. No provider profile, running agent, `.env`, GitLab credential, provider-session source content, or external account was read. No new package/license or DDL change was introduced.
+
+## Review and residual gates
+
+After the audit-projection fail-closed repair, `backend/.venv/bin/python -m pytest backend/tests -q --tb=short` passed **438 tests in 173.77 s** (exit 0), including both real 60-second token and browser touches. `AUTO-QUALITY` passed on the same frozen source/test checkout: Ruff lint/format (64 files), mypy (60 source files), exact import boundary (zero violations), OpenAPI compatibility, locked dependency metadata, frontend typecheck, and production build. `AUTO-DOCS-CHECK` passed 195 Markdown files; `AUTO-PLAN-CHECK` passed synchronized plans; `git diff --check` passed. The opt-in real ≥1-hour file was checked with `pytest --collect-only` (one test collected), **not executed**. A transient earlier `AUTO-QUALITY` run failed only Ruff formatting of a token-summary validation expression; the expression was corrected and the canonical gate reran green. No failed test remains hidden or reported as passed.
+
+Independent specification review and independent QA each accepted the repaired frozen checkout after rerunning 23 focused pure/real-SQLite tests. Both reviewed the added two-bearer isolation case; both separately verified the corrupted-audit-row repair and reaffirmed acceptance. QA also checked Ruff, mypy, boundaries, docs, plans, and diff integrity. Root independently ran the pre-repair full backend suite (436 passed in 174.15 s), then separately reran the added bearer-isolation and corrupted-audit tests (one passed each). The final frozen checkout passed 438 backend tests as recorded above. M01-only tests do not prove P01 Host/Origin/CSRF transport, generated OpenAPI/client, Swagger bearer-cookie isolation, production frontend/browser, local recovery command, owner-live setup, or M2 completion. `M01-DB-012/014/015` bulk retention, lock/permission outage, and prior-file upgrade scenarios remain Not Run under the approved M2 overlay or separate integration ownership. The exact token event query is a producer for Story 4; P01 must not query M01 tables directly.

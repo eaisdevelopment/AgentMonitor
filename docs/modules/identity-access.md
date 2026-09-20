@@ -1,8 +1,8 @@
-# M01 identity/access — V1-M2 Stories 1–2
+# M01 identity/access — V1-M2 Stories 1–3
 
-- Owner: `PLAN-M01`; implementation slices `ST-IAM-001/002`.
-- Published contracts: `CTR-IAM-001..005/007/008` V1; shared database contract `CTR-DB-002` V1.
-- Status: Stories 1–2 have real SQLite tests; Story 2 independent review and the M2 HTTP/browser gate remain pending. Live owner bootstrap and installed recovery are separate gates.
+- Owner: `PLAN-M01`; implementation slices `ST-IAM-001/002/003`.
+- Published contracts: `CTR-IAM-001..008` V1; shared database contract `CTR-DB-002` V1.
+- Status: Stories 1–2 accepted for M2 integration. Story 3 token/event ports have real SQLite tests; independent review and the M2 HTTP/browser gate remain pending. Live owner bootstrap and installed recovery are separate gates.
 
 ## Boundaries and state
 
@@ -41,6 +41,16 @@ The installation-global durable throttle permits four invalid attempts and locks
 
 The Story 2 real-boundary matrix and Red/Green evidence are in [the Story 2 record](../evidence/m2-st-iam-002.md). HTTP cookie flags, Origin/Host denial, generated OpenAPI/client, built-browser behavior, actual 30-minute expiry, 24-hour receipt expiry, and provider/account authentication remain separate Not Run gates. No provider profile, running agent, `.env`, or external account is accessed by these M01 tests.
 
+## API-token and safe-audit ports (Story 3)
+
+`application/api_tokens.py` publishes bearer resolution, bounded token listing, create, rotate, terminal-idempotent revoke, and bounded IAM security-event listing. P01 supplies a bounded request correlation ID and transient `TokenCallerProofV1`; the SQLite adapter re-resolves the actual browser session or bearer token inside every read/write transaction. Browser mutations additionally compare the same-session CSRF cookie/header/digest there. A stale resolved principal cannot authorize a token write or reveal audit events. `read:diagnostics` is needed for event listing; `write:tokens` is needed for token management. Bearer management is limited to targets and successors whose scopes are subsets of the current issuer's scopes, and successor expiry cannot outlive the issuer. These are AgentMonitor dashboard credentials, not provider logins.
+
+Creation uses the frozen `am1.<22-character selector>.<43-character secret>` format with 16+32 CSPRNG bytes. SQLite stores the public selector, its first eight characters for safe display, and SHA-256 of the entire high-entropy bearer; plaintext appears only once in a redacted, nonserializable issue object. Names are trimmed, 1–80 Unicode code points and at most 256 UTF-8 bytes. The only issuable M2 scopes are `read:diagnostics` and `write:tokens`. Expiry is mandatory, default 90 days, with 1 hour–365 days allowed; at most 64 nonterminal, unexpired tokens may coexist. At cap 64, an atomic rotation can replace one active token; a distinct 65th create is refused. Last-used writes coalesce to 60 seconds. An explicitly revoked token remains safely revocable by a currently authorized caller without a second audit event; a self-revoked bearer fails authentication on its later attempt.
+
+Create/rotate use issuer credential *and* administrator context, operation, and a digest-only 16–128-character idempotency key. The 24-hour receipt stores a fingerprint of safe canonical request metadata, not token secret/name/key plaintext. Authenticated exact replay returns only ID/version/state with `one_time_secret_not_replayable`; different safe metadata returns `idempotency_key_reused`. Rotation revokes the predecessor, nulls its verification digest, links the successor, saves the receipt, and appends one safe audit fact in one SQLite transaction. Explicit revoke is terminal and nulls the digest. At the first observed token expiry, M01 likewise nulls the digest, records `expired`, and writes one safe event using the caller's unchanged correlation ID. This on-access security transition is **not** a periodic retention purge; automatic bulk cleanup remains deferred. Actual elapsed ≥1-hour expiry, 24-hour receipt reclaim, and backward-clock rollback are Not Run. The separate opt-in real-wall-clock expiry test is documented in [Story 3 evidence](../evidence/m2-st-iam-003.md).
+
+`ListIamSecurityEventsV1` requires a currently valid browser/bearer credential with `read:diagnostics`, enforces a 1–200 row keyset page and bounded filters, and returns only the closed `IamSecurityEventViewV1` projection. It never exports raw audit rows or names/credentials. Token create/rotate/revoke/expiry event shapes are individually allowlisted. M2 does not yet provide bounded aggregation for every CSRF/authorization denial; do not claim those events are present.
+
 ## Verification and limitations
 
-Use the [Story 1 evidence record](../evidence/m2-st-iam-001.md) and [Story 2 evidence record](../evidence/m2-st-iam-002.md) for exact commands and Not Run items. Canonical backend test discovery includes `backend/tests/identity_access` and `backend/tests/integration/identity_access`; neither Story uses an in-memory database, fake hasher, or seeded credential state. M2 end-to-end HTTP/browser, owner-live bootstrap, API-token lifecycle, and macOS remain later gates.
+Use the [Story 1 evidence record](../evidence/m2-st-iam-001.md), [Story 2 evidence record](../evidence/m2-st-iam-002.md), and [Story 3 evidence record](../evidence/m2-st-iam-003.md) for exact commands and Not Run items. Canonical backend test discovery includes `backend/tests/identity_access` and `backend/tests/integration/identity_access`; no Story uses an in-memory database, fake hasher, or seeded credential state. M2 end-to-end HTTP/browser, owner-live bootstrap, and macOS remain later gates.

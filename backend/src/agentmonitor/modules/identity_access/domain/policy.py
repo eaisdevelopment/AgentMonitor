@@ -10,6 +10,10 @@ TERMINAL_RETENTION_DAYS = 365
 SESSION_IDLE_SECONDS = 1800
 SESSION_ABSOLUTE_SECONDS = 43200
 SESSION_TOUCH_SECONDS = 60
+TOKEN_MIN_SECONDS = 3600
+TOKEN_MAX_SECONDS = 31_536_000
+TOKEN_DEFAULT_SECONDS = 7_776_000
+TOKEN_TOUCH_SECONDS = 60
 
 
 def password_creation_error(candidate: str) -> str | None:
@@ -89,6 +93,62 @@ def may_issue_scopes(
         and bool(requested_scopes)
         and requested_scopes <= held_scopes
         and requested_scopes <= M2_ISSUABLE_SCOPES
+    )
+
+
+def canonical_token_name(candidate: str) -> str | None:
+    """Trim a safe display label; never use it as token identity or audit text."""
+    name = candidate.strip()
+    try:
+        size = len(name.encode("utf-8"))
+    except UnicodeEncodeError:
+        return None
+    if not 1 <= len(name) <= 80 or size > 256 or not name.isprintable():
+        return None
+    return name
+
+
+def token_deadline(as_of: datetime, lifetime_seconds: int | None) -> datetime:
+    """Enforce the fixed M2 issuance interval without a test/config override."""
+    if lifetime_seconds is None:
+        lifetime_seconds = TOKEN_DEFAULT_SECONDS
+    if type(lifetime_seconds) is not int or not (
+        TOKEN_MIN_SECONDS <= lifetime_seconds <= TOKEN_MAX_SECONDS
+    ):
+        raise ValueError("token_expiry_invalid")
+    return as_of + timedelta(seconds=lifetime_seconds)
+
+
+def token_state(
+    as_of: datetime,
+    expires_at: datetime,
+    revoked_at: datetime | None,
+    revocation_reason: str | None,
+) -> Literal["active", "expired", "revoked", "rotated"]:
+    """A recorded terminal transition wins even if the clock later retreats."""
+    if revoked_at is not None:
+        if revocation_reason == "expired":
+            return "expired"
+        if revocation_reason == "rotation":
+            return "rotated"
+        return "revoked"
+    return "expired" if as_of >= expires_at else "active"
+
+
+def token_should_touch(as_of: datetime, last_used_at: datetime | None) -> bool:
+    return last_used_at is None or as_of >= last_used_at + timedelta(
+        seconds=TOKEN_TOUCH_SECONDS
+    )
+
+
+def may_manage_token(
+    held_scopes: frozenset[str], target_scopes: frozenset[str]
+) -> bool:
+    """A bearer may manage only targets no broader than itself."""
+    return (
+        "write:tokens" in held_scopes
+        and target_scopes <= held_scopes
+        and target_scopes <= M2_ISSUABLE_SCOPES
     )
 
 

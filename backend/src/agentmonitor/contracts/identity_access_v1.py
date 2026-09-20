@@ -37,6 +37,46 @@ class SecretInputV1:
         return self._value
 
 
+class TokenCallerProofV1:
+    """Transient M01 caller proof, reverified in each token DB transaction."""
+
+    CONTRACT_ID: ClassVar[str] = "CTR-IAM-006"
+    OWNER: ClassVar[str] = "PLAN-M01"
+    __slots__ = ("method", "credential", "csrf_cookie", "csrf_header")
+
+    def __init__(
+        self,
+        method: AuthenticationMethodV1,
+        credential: SecretInputV1,
+        csrf_cookie: SecretInputV1 | None = None,
+        csrf_header: SecretInputV1 | None = None,
+    ) -> None:
+        if method not in ("browser_session", "api_bearer") or not isinstance(
+            credential, SecretInputV1
+        ):
+            raise ValueError("token_caller_proof_invalid")
+        if method == "api_bearer" and (
+            csrf_cookie is not None or csrf_header is not None
+        ):
+            raise ValueError("token_caller_proof_ambiguous")
+        self.method = method
+        self.credential = credential
+        self.csrf_cookie = csrf_cookie
+        self.csrf_header = csrf_header
+
+    def __repr__(self) -> str:
+        return "<TokenCallerProofV1 redacted>"
+
+    def __str__(self) -> str:
+        return "<TokenCallerProofV1 redacted>"
+
+    def __getstate__(self) -> NoReturn:
+        raise TypeError("token_caller_proof_not_serializable")
+
+    def __reduce_ex__(self, protocol: SupportsIndex) -> NoReturn:
+        raise TypeError("token_caller_proof_not_serializable")
+
+
 @dataclass(frozen=True, slots=True)
 class PrincipalV1(TechnicalValueV1):
     CONTRACT_ID: ClassVar[str] = "CTR-IAM-001"
@@ -296,6 +336,159 @@ class ApiTokenSummaryV1(TechnicalValueV1):
     state: Literal["active", "expired", "revoked", "rotated"]
     record_version: int
 
+    def __post_init__(self) -> None:
+        TechnicalValueV1.__post_init__(self)
+        try:
+            name_size = len(self.name.encode("utf-8"))
+        except (AttributeError, UnicodeEncodeError):
+            raise ValueError("token_summary_invalid") from None
+        if (
+            type(self.name) is not str
+            or self.name.strip() != self.name
+            or not 1 <= len(self.name) <= 80
+            or name_size > 256
+            or not self.name.isprintable()
+            or type(self.safe_prefix) is not str
+            or len(self.safe_prefix) != 8
+            or not self.safe_prefix.isascii()
+            or not all(char.isalnum() or char in "_-" for char in self.safe_prefix)
+            or type(self.scopes) is not tuple
+            or not self.scopes
+            or self.scopes != tuple(sorted(set(self.scopes)))
+            or not set(self.scopes) <= {"read:diagnostics", "write:tokens"}
+            or type(self.record_version) is not int
+            or self.record_version < 1
+            or not isinstance(self.issued_at, datetime)
+            or not isinstance(self.expires_at, datetime)
+            or not 3600
+            <= (self.expires_at - self.issued_at).total_seconds()
+            <= 31_536_000
+        ):
+            raise ValueError("token_summary_invalid")
+        if self.revoked_at is None:
+            if self.revocation_reason is not None or self.state in {
+                "revoked",
+                "rotated",
+            }:
+                raise ValueError("token_summary_invalid")
+        elif (
+            (self.revocation_reason == "expired" and self.state != "expired")
+            or (self.revocation_reason == "rotation" and self.state != "rotated")
+            or (
+                self.revocation_reason in {"administrator", "local_recovery"}
+                and self.state != "revoked"
+            )
+            or self.revocation_reason
+            not in {"expired", "rotation", "administrator", "local_recovery"}
+        ):
+            raise ValueError("token_summary_invalid")
+
+
+class ApiTokenCredentialIssueV1:
+    """One-time bearer secret; never a serializable technical value."""
+
+    CONTRACT_ID: ClassVar[str] = "CTR-IAM-007"
+    OWNER: ClassVar[str] = "PLAN-M01"
+    __slots__ = ("code", "token", "_bearer_credential")
+
+    def __init__(
+        self,
+        code: Literal["created", "rotated"],
+        token: ApiTokenSummaryV1,
+        bearer_credential: str,
+    ) -> None:
+        if token.state != "active":
+            raise ValueError("token_issue_state_invalid")
+        self.code = code
+        self.token = token
+        self._bearer_credential = bearer_credential
+
+    @property
+    def bearer_credential(self) -> str:
+        return self._bearer_credential
+
+    def __repr__(self) -> str:
+        return "<ApiTokenCredentialIssueV1 redacted>"
+
+    def __str__(self) -> str:
+        return "<ApiTokenCredentialIssueV1 redacted>"
+
+    def __getstate__(self) -> NoReturn:
+        raise TypeError("token_issue_not_serializable")
+
+    def __reduce_ex__(self, protocol: SupportsIndex) -> NoReturn:
+        raise TypeError("token_issue_not_serializable")
+
+
+@dataclass(frozen=True, slots=True)
+class BearerTokenResolutionV1(TechnicalValueV1):
+    CONTRACT_ID: ClassVar[str] = "CTR-IAM-006"
+    OWNER: ClassVar[str] = "PLAN-M01"
+    code: Literal["authenticated", "dashboard_authentication_required"]
+    principal: PrincipalV1 | None
+    token: ApiTokenSummaryV1 | None
+
+    def __post_init__(self) -> None:
+        TechnicalValueV1.__post_init__(self)
+        if self.code == "authenticated":
+            valid = (
+                self.principal is not None
+                and self.token is not None
+                and self.principal.authentication_method == "api_bearer"
+                and self.principal.credential_id == self.token.api_token_id
+                and self.principal.effective_permissions == self.token.scopes
+                and self.principal.expires_at == self.token.expires_at
+                and self.token.state == "active"
+            )
+        else:
+            valid = self.principal is None and self.token is None
+        if not valid:
+            raise ValueError("bearer_resolution_pair_invalid")
+
+
+@dataclass(frozen=True, slots=True)
+class ApiTokenMutationOutcomeV1(TechnicalValueV1):
+    CONTRACT_ID: ClassVar[str] = "CTR-IAM-006"
+    OWNER: ClassVar[str] = "PLAN-M01"
+    code: Literal[
+        "revoked",
+        "dashboard_authentication_required",
+        "csrf_validation_failed",
+        "permission_denied",
+        "scope_escalation_denied",
+        "token_policy_violation",
+        "api_token_not_found",
+        "credential_state_conflict",
+        "one_time_secret_not_replayable",
+        "idempotency_key_reused",
+        "active_token_limit_reached",
+    ]
+    api_token_id: OpaqueIdV1 | None = None
+    record_version: int | None = None
+    state: Literal["active", "expired", "revoked", "rotated"] | None = None
+
+    def __post_init__(self) -> None:
+        TechnicalValueV1.__post_init__(self)
+        has_all = (
+            self.api_token_id is not None
+            and type(self.record_version) is int
+            and self.record_version > 0
+            and self.state is not None
+        )
+        has_none = (
+            self.api_token_id is None
+            and self.record_version is None
+            and self.state is None
+        )
+        if not (
+            (self.code in {"revoked", "one_time_secret_not_replayable"} and has_all)
+            or (
+                self.code not in {"revoked", "one_time_secret_not_replayable"}
+                and has_none
+            )
+        ):
+            raise ValueError("token_mutation_metadata_pair_invalid")
+
 
 @dataclass(frozen=True, slots=True)
 class IamSecurityEventViewV1(TechnicalValueV1):
@@ -366,8 +559,18 @@ class IamSecurityEventViewV1(TechnicalValueV1):
                 True,
                 True,
             ),
+            "api_token_created": ("created", "api_token", True, True, False),
+            "api_token_rotated": ("rotated", "api_token", True, True, False),
+            "api_token_revoked": ("revoked", "api_token", True, True, False),
+            "api_token_expired": ("expired", "api_token", False, True, False),
         }
         expected = current_events.get(self.event_type)
+        bearer_actor_events = {
+            "api_token_created",
+            "api_token_rotated",
+            "api_token_revoked",
+            "idempotency_receipt_reclaimed",
+        }
         if (
             expected is None
             or self.outcome_code != expected[0]
@@ -376,8 +579,16 @@ class IamSecurityEventViewV1(TechnicalValueV1):
             or (self.target_id is not None) != expected[3]
             or (self.aggregate_count is not None) != expected[4]
             or self.reason_code is not None
-            or self.authentication_method
-            != ("browser_session" if expected[2] else None)
+            or (
+                self.authentication_method
+                not in (
+                    ("browser_session", "api_bearer")
+                    if self.event_type in bearer_actor_events
+                    else ("browser_session",)
+                )
+                if expected[2]
+                else self.authentication_method is not None
+            )
             or (
                 self.event_type
                 in {
