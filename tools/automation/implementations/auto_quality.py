@@ -24,9 +24,15 @@ BACKEND_DIRECT = {
     "pydantic": ("2.13.5", "MIT"),
     "SQLAlchemy": ("2.0.54", "MIT"),
     "alembic": ("1.20.0", "MIT"),
+    "argon2-cffi": ("25.1.0", "MIT"),
     "pytest": ("9.1.1", "MIT"),
     "ruff": ("0.16.8", "MIT"),
     "mypy": ("2.3.1", "MIT"),
+}
+M2_ARGON2_TRANSITIVE = {
+    "argon2-cffi-bindings": ("26.1.0", "MIT"),
+    "cffi": ("2.1.1", "MIT-0"),
+    "pycparser": ("3.0", "BSD-3-Clause"),
 }
 ALLOWED_TEST_SETTING_LITERAL = 'SECRET = "AGENTMONITOR_TEST_BOOTSTRAP_SECRET'
 PROHIBITED_SOURCE_PATTERNS = (
@@ -34,7 +40,15 @@ PROHIBITED_SOURCE_PATTERNS = (
     r"pytest_mock|\bmagicmock\b|\bmonkeypatch\b)",
     r"\bshell\s*=\s*True\b|\bos\.system\(",
 )
-SECRET_ASSIGNMENT_PATTERN = r"(?:api[_-]?key|secret|password)\s*[:=]\s*['\"][^'\"]{8,}"
+SECRET_ASSIGNMENT_PATTERN = (
+    r"(?m)^[ \t]*(?:(?:const|let|var)[ \t]+)?(?:self\.|this\.)?"
+    r"(?:api[_-]?key|secret|password)(?:[ \t]*:[^=\r\n]+)?"
+    r"[ \t]*=[ \t]*['\"][^'\"\r\n]{8,}"
+    r"|^[ \t]*(?:api[_-]?key|secret|password)[ \t]*:[ \t]*"
+    r"['\"][^'\"\r\n]{8,}"
+    r"|['\"](?:api[_-]?key|secret|password)['\"][ \t]*:[ \t]*"
+    r"['\"][^'\"\r\n]{8,}"
+)
 
 
 def run(command: list[str], *, environment: dict[str, str] | None = None) -> int:
@@ -93,12 +107,13 @@ def verify_backend_inputs() -> bool:
         locked = {
             package["name"].lower(): package["version"] for package in lock["package"]
         }
+        admitted_graph = BACKEND_DIRECT | M2_ARGON2_TRANSITIVE
         if any(
             locked.get(name.lower()) != version
-            for name, (version, _) in BACKEND_DIRECT.items()
+            for name, (version, _) in admitted_graph.items()
         ):
             return False
-        expected = json.dumps(BACKEND_DIRECT, sort_keys=True)
+        expected = json.dumps(admitted_graph, sort_keys=True)
         probe = (
             "import importlib.metadata as metadata, json, sys; "
             "expected=json.loads(sys.argv[1]); "

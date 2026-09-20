@@ -237,6 +237,24 @@ class AutomationRoutineTests(unittest.TestCase):
         prohibited = "pass" + "word = 'AGENTMONITOR_TEST_SENSITIVE_VALUE'\n"
         self.assertFalse(source_is_allowed(prohibited))
 
+    def test_source_policy_allows_prompt_labels_but_rejects_secret_literals(
+        self,
+    ) -> None:
+        """TTY prompt copy is not a credential assignment or object value."""
+        sys.path.insert(0, str(REPOSITORY_ROOT / "tools/automation/implementations"))
+        from auto_quality import source_is_allowed
+
+        self.assertTrue(source_is_allowed('prompt = b"Enter dashboard password: "\n'))
+        self.assertTrue(
+            source_is_allowed(
+                'prompt_seen = read_until(terminal, b"Enter dashboard password:", '
+                "captured)\n"
+            )
+        )
+        self.assertFalse(source_is_allowed('password = "constructed-policy-value"\n'))
+        object_field = '"' + "password" + '": "constructed-policy-value"\n'
+        self.assertFalse(source_is_allowed(object_field))
+
     def test_frontend_inventory_policy_rejects_extraneous_installed_package(
         self,
     ) -> None:
@@ -302,6 +320,12 @@ class AutomationRoutineTests(unittest.TestCase):
         self.assertFalse(
             direct_package_approved("react", "19.3.0", "19.3.0", "GPL-3.0-only")
         )
+
+    def test_m2_admitted_argon2_graph_matches_real_locked_install(self) -> None:
+        sys.path.insert(0, str(REPOSITORY_ROOT / "tools/automation/implementations"))
+        from auto_quality import verify_backend_inputs
+
+        self.assertTrue(verify_backend_inputs())
 
     def test_m1_quality_and_build_report_required_local_controls(self) -> None:
         for script, marker in (
