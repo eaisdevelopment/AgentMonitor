@@ -7,6 +7,7 @@ import os
 import re
 import subprocess
 import sys
+import tomllib
 from datetime import UTC, datetime
 from pathlib import Path
 from shutil import which
@@ -17,10 +18,73 @@ ROOT = Path(__file__).resolve().parents[3]
 BACKEND_PYTHON = ROOT / "backend/.venv/bin/python"
 BACKEND_RUFF = ROOT / "backend/.venv/bin/ruff"
 BACKEND_MYPY = ROOT / "backend/.venv/bin/mypy"
+BACKEND_DIRECT = {
+    "fastapi": ("0.141.1", "MIT"),
+    "uvicorn": ("0.53.0", "BSD-3-Clause"),
+    "pydantic": ("2.13.5", "MIT"),
+    "SQLAlchemy": ("2.0.54", "MIT"),
+    "alembic": ("1.20.0", "MIT"),
+    "pytest": ("9.1.1", "MIT"),
+    "ruff": ("0.16.8", "MIT"),
+    "mypy": ("2.3.1", "MIT"),
+}
 
 
 def run(command: list[str], *, environment: dict[str, str] | None = None) -> int:
     return subprocess.run(command, cwd=ROOT, check=False, env=environment).returncode
+
+
+def verify_backend_inputs() -> bool:
+    """Check the admitted direct backend manifest, lock, and installed licenses."""
+    try:
+        manifest = tomllib.loads((ROOT / "backend/pyproject.toml").read_text())
+        if set(manifest["project"]) != {
+            "name",
+            "version",
+            "requires-python",
+            "dependencies",
+        } or set(manifest["dependency-groups"]) != {"dev"}:
+            return False
+        direct = {
+            item.split("==", maxsplit=1)[0]: item.split("==", maxsplit=1)[1]
+            for item in (
+                manifest["project"]["dependencies"]
+                + manifest["dependency-groups"]["dev"]
+            )
+        }
+        if direct != {name: version for name, (version, _) in BACKEND_DIRECT.items()}:
+            return False
+        lock = tomllib.loads((ROOT / "backend/uv.lock").read_text())
+        locked = {
+            package["name"].lower(): package["version"] for package in lock["package"]
+        }
+        if any(
+            locked.get(name.lower()) != version
+            for name, (version, _) in BACKEND_DIRECT.items()
+        ):
+            return False
+        expected = json.dumps(BACKEND_DIRECT, sort_keys=True)
+        probe = (
+            "import importlib.metadata as metadata, json, sys; "
+            "expected=json.loads(sys.argv[1]); "
+            "actual={name: (metadata.version(name), "
+            "metadata.metadata(name).get('License-Expression') or "
+            "metadata.metadata(name).get('License')) for name in expected}; "
+            "raise SystemExit(0 if all(actual[name] == tuple(expected[name]) "
+            "for name in expected) else 1)"
+        )
+        return (
+            subprocess.run(
+                [str(BACKEND_PYTHON), "-c", probe, expected],
+                cwd=ROOT,
+                check=False,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+            ).returncode
+            == 0
+        )
+    except (KeyError, OSError, TypeError, ValueError, tomllib.TOMLDecodeError):
+        return False
 
 
 def minimum_local_controls() -> bool:
@@ -31,9 +95,11 @@ def minimum_local_controls() -> bool:
     if tracked.returncode:
         return False
     patterns = (
-        r"unittest\.mock|pytest_mock|\bMagicMock\b|\bmonkeypatch\b",
+        r"(?:unittest\s*\.\s*mock|from\s+unittest\s+import\s+[^\n#]*\bmock\b|"
+        r"pytest_mock|\bmagicmock\b|\bmonkeypatch\b)",
         r"\bshell\s*=\s*True\b|\bos\.system\(",
-        r"(?:api[_-]?key|secret|password)\s*[:=]\s*['\"][^'\"]{8,}",
+        r"(?:api[_-]?key|secret|password)\s*[:=]\s*['\"]"
+        r"(?!AGENTMONITOR_TEST_)[^'\"]{8,}",
     )
     source_suffixes = {".py", ".ts", ".tsx", ".js", ".json", ".toml", ".yml"}
     for relative in tracked.stdout.splitlines():
@@ -46,11 +112,14 @@ def minimum_local_controls() -> bool:
             content = path.read_text(encoding="utf-8")
         except UnicodeDecodeError:
             return False
-        if any(re.search(pattern, content) for pattern in patterns):
+        if any(
+            re.search(pattern, content, flags=re.IGNORECASE) for pattern in patterns
+        ):
             return False
     return (
         (ROOT / "docs/dependencies/m1-foundation-admission.md").is_file()
         and (ROOT / "docs/dependencies/m1-foundation-lock-review.md").is_file()
+        and verify_backend_inputs()
         and verify_frontend_inputs()
     )
 
@@ -141,9 +210,9 @@ def main() -> int:
                 "boundary_class": "local static quality",
                 "command_registry_id": "AUTO-QUALITY",
                 "environment_versions": [],
-                "red_reference": "task-5-report.md#fix-round-1-red-evidence",
-                "green_reference": "task-5-report.md#fix-round-1-green-evidence",
-                "refactor_reference": "task-5-report.md#fix-round-1-refactor-evidence",
+                "red_reference": "task-5-report.md#fix-round-2-red-evidence",
+                "green_reference": "task-5-report.md#fix-round-2-green-evidence",
+                "refactor_reference": "task-5-report.md#fix-round-2-refactor-evidence",
                 "status": "Passed",
                 "recorded_at": datetime.now(UTC).isoformat(),
                 "sanitization_review": "allowlist-only command status",

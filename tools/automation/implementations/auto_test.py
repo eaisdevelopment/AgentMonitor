@@ -11,6 +11,7 @@ import tempfile
 import time
 from datetime import UTC, datetime
 from pathlib import Path
+from shutil import which
 from typing import NoReturn
 
 ROOT = Path(__file__).resolve().parents[3]
@@ -32,6 +33,17 @@ def backend_environment() -> dict[str, str]:
     return {
         "PATH": os.environ.get("PATH", os.defpath),
         "PYTHONPATH": str(ROOT / "backend/src"),
+    }
+
+
+def browser_environment(origin: str) -> dict[str, str]:
+    """Provide only the resolved Node directory needed by Playwright's shebang."""
+    node = which("node")
+    if node is None:
+        fail("admitted_node_command_missing")
+    return {
+        "PATH": str(Path(node).parent) + os.pathsep + os.defpath,
+        "AGENTMONITOR_TEST_ORIGIN": origin,
     }
 
 
@@ -104,10 +116,7 @@ def run_browser_boundary() -> None:
                     "test",
                     "frontend/tests/browser/foundation/shell.spec.ts",
                 ],
-                environment={
-                    "PATH": os.defpath,
-                    "AGENTMONITOR_TEST_ORIGIN": origin,
-                },
+                environment=browser_environment(origin),
             )
         finally:
             if server.poll() is None:
@@ -128,9 +137,9 @@ def evidence(test_id: str, boundary: str, status: str) -> dict[str, object]:
         "boundary_class": boundary,
         "command_registry_id": "AUTO-TEST",
         "environment_versions": [],
-        "red_reference": "task-5-report.md#fix-round-1-red-evidence",
-        "green_reference": "task-5-report.md#fix-round-1-green-evidence",
-        "refactor_reference": "task-5-report.md#fix-round-1-refactor-evidence",
+        "red_reference": "task-5-report.md#fix-round-2-red-evidence",
+        "green_reference": "task-5-report.md#fix-round-2-green-evidence",
+        "refactor_reference": "task-5-report.md#fix-round-2-refactor-evidence",
         "status": status,
         "recorded_at": datetime.now(UTC).isoformat(),
         "sanitization_review": (
@@ -156,6 +165,11 @@ def main() -> int:
             "tools.automation.test_run.AutomationRoutineTests.test_blocked_routine_fails_closed_in_the_real_checkout",
             "tools.automation.test_run.AutomationRoutineTests.test_m1_quality_and_build_report_required_local_controls",
             "tools.automation.test_run.AutomationRoutineTests.test_frontend_input_validation_rejects_disallowed_direct_license",
+            "tools.automation.test_run.AutomationRoutineTests.test_minimum_controls_rejects_a_real_prohibited_test_double_import",
+            "tools.automation.test_run.AutomationRoutineTests.test_minimum_controls_rejects_an_unapproved_backend_manifest_change",
+            "tools.automation.test_run.AutomationRoutineTests.test_frontend_input_validation_rejects_extraneous_installed_package",
+            "tools.automation.test_run.AutomationRoutineTests.test_frontend_input_validation_rejects_stale_installed_optional_package",
+            "tools.automation.test_run.AutomationRoutineTests.test_browser_environment_resolves_the_actual_playwright_node_shebang",
             "tools.docs.test_check",
             "tools.planning.test_implementation_backlog",
             "tools.planning.test_validate_plans",

@@ -11,7 +11,7 @@
 - Immutable reviewed bytes: [plan-baseline.toml](../plan-baseline.toml)
 - Test evidence: [planning-gate-evidence.md](planning-gate-evidence.md)
 - Post-CS1 M0 evidence: [M0 G0 gate evidence](../discovery/m0-g0-gate-evidence.md)
-- Plan snapshot SHA-256: `ce910d73165ed9db8229c79abaa03129e8ba0f16e391908cc7a142067edcff0f`
+- Plan snapshot SHA-256: `9e6dbc0aa91a0dff7eb81689ff631dfc38bea98308e1e609f73b16b2e0eccc0e`
 
 ## 1. Decision and authority boundary
 
@@ -30,6 +30,19 @@ account enrollment, authentication, T1–T7 application tests, or live verificat
 has occurred. Every such absent result remains `Blocked` or `Not Run` as stated in
 its owning plan. The next M0 authority checkpoint is owner-selected evidence
 custody under G1; implementation plans retain their own approval gates.
+
+## 2026-09-20 scoped catalog/snapshot addendum
+
+The historical synchronization record above remains bound to its 2026-09-19
+snapshot. An independent bounded review of the current snapshot
+`ce910d73165ed9db8229c79abaa03129e8ba0f16e391908cc7a142067edcff0f`
+returned **PASS-CONDITIONAL on catalog/snapshot coherence only**. It confirmed
+the changed automation catalog agrees with the current snapshot and that all
+20 plans and the other eight controls are unchanged. It does not re-date or
+replace the historical independent review, grant approval, or assert release
+or live verification.
+
+Plan snapshot SHA-256: `ce910d73165ed9db8229c79abaa03129e8ba0f16e391908cc7a142067edcff0f`
 
 ## 2. Frozen planning inventory
 
@@ -139,7 +152,7 @@ remains in the [first audit](cs1-readiness-audit.md), [initial corrected-corpus
 audit](cs1-final-readiness-audit.md), and that file's final PASS-CONDITIONAL
 revision.
 
-## 6. Automation and completion enforcement
+## 6. Automation and completion enforcement (as of 2026-09-19)
 
 The project no longer relies on an agent saying that planning is complete.
 `AUTO-PLAN-CHECK` invokes the executable synchronized validator, which verifies
@@ -165,7 +178,7 @@ real prerequisites exist:
 | AUTO-RESTORE | Blocked | Verified backup, isolated restore and credential-invalidation workflow |
 | AUTO-RELEASE | Blocked | All preceding implementation, evidence, artifact and approval gates |
 
-### Final observed commands
+### Final observed commands (as of 2026-09-19)
 
 | Command | Exit | Observed result |
 |---|---:|---|
@@ -182,6 +195,13 @@ real prerequisites exist:
 Git's nonzero Blocked result is expected truthful state, not a failed planning
 gate and not a Passed Git result. The green AUTO-TEST result covers repository
 governance only; it does not claim application or live-system verification.
+
+### Current M1 scope note (2026-09-20)
+
+The historical command table is not a current M1 execution report. Current
+M1 local T1–T4 evidence, T5–T7 Not Run status, hosted-CI Not Run status, and
+release SBOM/notices Not Run status are recorded by the owning Task 5 handoff.
+They do not change this planning synchronization authority.
 
 No manual shell sequence may be substituted for these routine IDs once their
 scope is implemented. A routine cannot move from Blocked to operational until

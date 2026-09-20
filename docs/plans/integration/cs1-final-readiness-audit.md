@@ -7,7 +7,20 @@
 - Authority: read-only finding report; no owner approval or implementation authority
 - Test/live status: repository governance checks only; no production, provider,
   platform, browser, migration, or other T1–T7 behavior was executed
-- Plan snapshot SHA-256: `ce910d73165ed9db8229c79abaa03129e8ba0f16e391908cc7a142067edcff0f`
+- Plan snapshot SHA-256: `9e6dbc0aa91a0dff7eb81689ff631dfc38bea98308e1e609f73b16b2e0eccc0e`
+
+## 2026-09-20 scoped catalog/snapshot addendum
+
+An independent bounded review compared the current synchronized snapshot
+`ce910d73165ed9db8229c79abaa03129e8ba0f16e391908cc7a142067edcff0f`
+with the 2026-09-19 reviewed snapshot above. Its result is
+**PASS-CONDITIONAL on catalog/snapshot coherence only**: the changed automation
+catalog and current snapshot agree, while all 20 plans and the other eight
+controls are unchanged. This addendum does not revise the historical audit
+date, scope, result, approval authority, release status, or live-verification
+status.
+
+Plan snapshot SHA-256: `ce910d73165ed9db8229c79abaa03129e8ba0f16e391908cc7a142067edcff0f`
 
 ## 1. Decision
 

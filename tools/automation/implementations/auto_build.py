@@ -25,7 +25,7 @@ APPROVED_NPM_LICENSES = frozenset(
 
 
 def verify_frontend_inputs() -> bool:
-    """Verify manifest, lock, and installed non-optional packages without writes."""
+    """Verify manifest, lock, and installed packages without writes."""
     try:
         manifest = json.loads((FRONTEND / "package.json").read_text())
         lock = json.loads((FRONTEND / "package-lock.json").read_text())
@@ -56,15 +56,32 @@ def verify_frontend_inputs() -> bool:
             ):
                 return False
         for relative, record in packages.items():
-            if not relative or record.get("optional"):
+            if not relative:
                 continue
-            if record.get("license") not in APPROVED_NPM_LICENSES:
-                return False
             package_json = FRONTEND / relative / "package.json"
+            if not package_json.is_file() and record.get("optional"):
+                continue
             if not package_json.is_file():
+                return False
+            if record.get("license") not in APPROVED_NPM_LICENSES:
                 return False
             installed = json.loads(package_json.read_text())
             if installed.get("version") != record.get("version"):
+                return False
+        expected_packages = {relative for relative in packages if relative}
+        for package_json in (FRONTEND / "node_modules").rglob("package.json"):
+            package_parts = package_json.parent.relative_to(FRONTEND).parts
+            node_modules_index = (
+                len(package_parts) - 1 - package_parts[::-1].index("node_modules")
+            )
+            package_name_parts = package_parts[node_modules_index + 1 :]
+            if len(package_name_parts) not in (1, 2) or (
+                len(package_name_parts) == 2
+                and not package_name_parts[0].startswith("@")
+            ):
+                continue
+            relative = str(package_json.parent.relative_to(FRONTEND))
+            if relative not in expected_packages:
                 return False
     except (KeyError, OSError, TypeError, json.JSONDecodeError):
         return False
@@ -105,9 +122,9 @@ def main() -> int:
                 "boundary_class": "local production build",
                 "command_registry_id": "AUTO-BUILD",
                 "environment_versions": [],
-                "red_reference": "task-5-report.md#fix-round-1-red-evidence",
-                "green_reference": "task-5-report.md#fix-round-1-green-evidence",
-                "refactor_reference": "task-5-report.md#fix-round-1-refactor-evidence",
+                "red_reference": "task-5-report.md#fix-round-2-red-evidence",
+                "green_reference": "task-5-report.md#fix-round-2-green-evidence",
+                "refactor_reference": "task-5-report.md#fix-round-2-refactor-evidence",
                 "status": "Passed",
                 "recorded_at": datetime.now(UTC).isoformat(),
                 "sanitization_review": "allowlist-only build metadata",

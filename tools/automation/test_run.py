@@ -8,7 +8,7 @@ import tempfile
 import unittest
 from importlib.util import module_from_spec, spec_from_file_location
 from pathlib import Path
-from shutil import copy2
+from shutil import copy2, copytree, which
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
 RUNNER = REPOSITORY_ROOT / "tools/automation/run.py"
@@ -18,6 +18,142 @@ from run import index_routines, load_catalog, validate_catalog  # noqa: E402
 
 
 class AutomationRoutineTests(unittest.TestCase):
+    def test_minimum_controls_rejects_a_real_prohibited_test_double_import(
+        self,
+    ) -> None:
+        """The scanner must reject a prohibited import in a tracked real source file."""
+        sys.path.insert(0, str(REPOSITORY_ROOT / "tools/automation/implementations"))
+        from auto_quality import minimum_local_controls
+
+        target = REPOSITORY_ROOT / "frontend/src/main.tsx"
+        original = target.read_text()
+        prohibited = "from unittest import "
+        prohibited += "mock\n"
+        try:
+            target.write_text(original + prohibited)
+            self.assertFalse(minimum_local_controls())
+        finally:
+            target.write_text(original)
+
+    def test_minimum_controls_rejects_an_unapproved_backend_manifest_change(
+        self,
+    ) -> None:
+        """The backend manifest, lock, and installed baseline are all local controls."""
+        sys.path.insert(0, str(REPOSITORY_ROOT / "tools/automation/implementations"))
+        from auto_quality import minimum_local_controls
+
+        target = REPOSITORY_ROOT / "backend/pyproject.toml"
+        original = target.read_text()
+        try:
+            target.write_text(
+                original
+                + '\n[project.optional-dependencies]\nunreviewed = ["example==1.0"]\n'
+            )
+            self.assertFalse(minimum_local_controls())
+        finally:
+            target.write_text(original)
+
+    def test_frontend_input_validation_rejects_extraneous_installed_package(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            replica = Path(temporary)
+            implementation = replica / "tools/automation/implementations/auto_build.py"
+            implementation.parent.mkdir(parents=True)
+            copy2(
+                REPOSITORY_ROOT / "tools/automation/implementations/auto_build.py",
+                implementation,
+            )
+            frontend = replica / "frontend"
+            frontend.mkdir()
+            copy2(REPOSITORY_ROOT / "frontend/package.json", frontend / "package.json")
+            copy2(
+                REPOSITORY_ROOT / "frontend/package-lock.json",
+                frontend / "package-lock.json",
+            )
+            copytree(
+                REPOSITORY_ROOT / "frontend/node_modules", frontend / "node_modules"
+            )
+            unexpected = frontend / "node_modules/unreviewed-package"
+            unexpected.mkdir()
+            (unexpected / "package.json").write_text(
+                '{"name": "unreviewed-package", "version": "1.0.0"}'
+            )
+            spec = spec_from_file_location("replica_auto_build", implementation)
+            assert spec is not None and spec.loader is not None
+            module = module_from_spec(spec)
+            spec.loader.exec_module(module)
+
+            self.assertFalse(module.verify_frontend_inputs())
+
+    def test_frontend_input_validation_rejects_stale_installed_optional_package(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            replica = Path(temporary)
+            implementation = replica / "tools/automation/implementations/auto_build.py"
+            implementation.parent.mkdir(parents=True)
+            copy2(
+                REPOSITORY_ROOT / "tools/automation/implementations/auto_build.py",
+                implementation,
+            )
+            frontend = replica / "frontend"
+            frontend.mkdir()
+            copy2(REPOSITORY_ROOT / "frontend/package.json", frontend / "package.json")
+            copy2(
+                REPOSITORY_ROOT / "frontend/package-lock.json",
+                frontend / "package-lock.json",
+            )
+            copytree(
+                REPOSITORY_ROOT / "frontend/node_modules", frontend / "node_modules"
+            )
+            lock = __import__("json").loads(
+                (frontend / "package-lock.json").read_text()
+            )
+            optional = next(
+                relative
+                for relative, record in lock["packages"].items()
+                if record.get("optional")
+                and (frontend / relative / "package.json").is_file()
+            )
+            package_json = frontend / optional / "package.json"
+            installed = __import__("json").loads(package_json.read_text())
+            installed["version"] = "0.0.0-stale"
+            package_json.write_text(__import__("json").dumps(installed))
+            spec = spec_from_file_location("replica_auto_build", implementation)
+            assert spec is not None and spec.loader is not None
+            module = module_from_spec(spec)
+            spec.loader.exec_module(module)
+
+            self.assertFalse(module.verify_frontend_inputs())
+
+    def test_browser_environment_resolves_the_actual_playwright_node_shebang(
+        self,
+    ) -> None:
+        implementation = (
+            REPOSITORY_ROOT / "tools/automation/implementations/auto_test.py"
+        )
+        spec = spec_from_file_location("real_auto_test", implementation)
+        assert spec is not None and spec.loader is not None
+        module = module_from_spec(spec)
+        spec.loader.exec_module(module)
+        node = which("node")
+        self.assertIsNotNone(node)
+        environment = module.browser_environment("http://127.0.0.1:1")
+        self.assertIn(str(Path(node).parent), environment["PATH"])
+        result = subprocess.run(
+            [
+                str(REPOSITORY_ROOT / "frontend/node_modules/.bin/playwright"),
+                "--version",
+            ],
+            cwd=REPOSITORY_ROOT,
+            check=False,
+            capture_output=True,
+            text=True,
+            env=environment,
+        )
+        self.assertEqual(0, result.returncode, result.stdout + result.stderr)
+
     def test_frontend_input_validation_rejects_disallowed_direct_license(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             replica = Path(temporary)
