@@ -1,5 +1,5 @@
-version = "1.0.0"
-head = "v1_0000"
+version = "1.1.0"
+head = "v1_0100"
 env_sha256 = "27449e3ed3984acde690510f9e4974eb6412f5f1b7e62af65bc8bb616879a7d7"
 
 [[revisions]]
@@ -23,3 +23,25 @@ backup_prerequisite = "none_empty_bootstrap"
 validation_ids = ["single_head", "metadata_only_schema", "full_integrity"]
 recovery_policy = "preserve_failed_database_no_automatic_retry_or_downgrade"
 reviewer = "PLAN-DB-migration-steward"
+
+[[revisions]]
+ordinal = 100
+filename = "v1_0100_m01_identity_access.py"
+sha256 = "9922cc30a4340659c021a1f265039507e87f85113034f8eee73e8ce4915a575d"
+status = "shared"
+reviewed_at = "2026-09-20"
+revision = "v1_0100"
+parent_revision = "v1_0000"
+owner = "M01"
+plan_id = "PLAN-M01"
+requirement_ids = ["FR-IAM-001", "FR-IAM-002", "FR-IAM-005", "NFR-DATA-001", "NFR-SEC-001"]
+schema_range = ["v1_0100", "v1_0100", "v1_0100", "v1_0100", "v1_0100"]
+tables = ["iam_administrator", "iam_browser_session", "iam_api_token", "iam_api_token_scope", "iam_login_throttle", "iam_idempotency_record", "iam_security_audit_event"]
+portability_notes = ["UTC RFC3339 text, portable constraints and within-M01 foreign keys"]
+lock_policy = "exclusive_initialization_and_begin_immediate"
+downtime_policy = "offline_absent_file_initialization_only"
+expected_data_volume = "zero_business_rows"
+backup_prerequisite = "none_empty_bootstrap"
+validation_ids = ["single_head", "seven_iam_tables", "foreign_key_check", "full_integrity"]
+recovery_policy = "preserve_failed_database_no_automatic_retry_or_downgrade"
+reviewer = "M01-PLAN-DB-security-review"

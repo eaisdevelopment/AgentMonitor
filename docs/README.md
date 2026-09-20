@@ -1,6 +1,6 @@
 # AgentMonitor documentation index
 
-Status: **V1-M1 foundation implementation and code-bearing hosted CI gate passed; V1-M2 not started.** The final handoff verifies its exact checkout separately. M0 G1's exact-digest approval remains Failed separately. Live provider/account, native lifecycle, and release gates remain Not Run; none is represented as an M1 pass.
+Status: **V1-M1 foundation accepted; V1-M2 in progress, with `ST-IAM-001` accepted for integration only.** M2's authenticated HTTP/browser exit gate has not passed. M0 G1's separate exact-digest approval remains Failed. Live provider/account, native lifecycle, and release gates remain Not Run.
 Owner: Pavlo Sidelov <pavlo@sidelov.com>  
 Last substantive review: 2026-09-20
 
@@ -38,6 +38,8 @@ This index is the entry point for product, architecture, engineering, and operat
 - [M1 React declaration admission](dependencies/m1-react-typecheck-admission.md): owner-approved exact development packages and residual release checks.
 - [M1 audit-fix evidence](evidence/m1-audit-fixes.md): Red/Green/refactor and real-boundary reacceptance status.
 - [M1 hosted CI evidence](evidence/m1-hosted-ci.md): clean-runner Red/Green, exact code commit, four hosted jobs, and residual boundaries.
+- [M2 Story 1 evidence](evidence/m2-st-iam-001.md): independent bootstrap, migration, Argon2id, and real-PTY acceptance with deferred gates.
+- [M2 Argon2 admission](dependencies/m2-argon2-admission.md): approved exact Linux dependency graph, work profile, and platform limitations.
 - [Configuration standard](engineering/configuration-standard.md): ownership, naming, precedence, secret classes, and compatibility.
 - [Documentation standard](engineering/documentation-standard.md): required documentation and traceability.
 - [Sub-agent runbook](engineering/subagent-runbook.md): module planning, ownership, synchronization, and handoff rules.
@@ -47,6 +49,7 @@ This index is the entry point for product, architecture, engineering, and operat
 ## Operations
 
 - [Operations runbook](operations/runbook.md): installation, service, backup, recovery, authentication, diagnostics, and incidents.
+- [M01 identity/access operator guide](modules/identity-access.md): current fresh-only migration and local TTY bootstrap commands; installed recovery remains unavailable.
 - [Milestone 0 discovery runbook](operations/milestone-0-discovery-runbook.md): safe, read-only provider feasibility work.
 - [Live verification runbook](operations/live-verification-runbook.md): coordinated tests against real accounts.
 
@@ -56,6 +59,7 @@ This index is the entry point for product, architecture, engineering, and operat
 - [Superpowers implementation plans](superpowers/plans/README.md): eight
   milestones, 19 Epics, 44 traceable Stories, module coverage, and the
   import-ready GitLab backlog.
+- [Approved M2 authenticated-shell plan](superpowers/plans/2026-09-19-agentmonitor-v1-m2-authenticated-shell.md): six serial Stories and the real HTTP/browser exit gate.
 - [Module planning registry](plans/README.md): direct index to all 20 detailed
   module, adapter, boundary, persistence, deployment, discovery, foundation,
   and integration plans.

@@ -1,5 +1,7 @@
 """FND-DB-001/002/004, FND-MIG-003 and DB-MIG: real Alembic only."""
 
+from __future__ import annotations
+
 import dataclasses
 import hashlib
 import importlib
@@ -7,12 +9,20 @@ import shutil
 import sys
 from pathlib import Path
 from types import ModuleType
+from typing import TYPE_CHECKING
 
 import pytest
+from alembic import command
+from alembic.config import Config
 
 ROOT = Path(__file__).resolve().parents[5]
 sys.path.insert(0, str(ROOT / "backend/src"))
 MODULE = "agentmonitor.adapters.persistence._shared.sqlite.schema.compatibility"
+
+if TYPE_CHECKING:
+    from agentmonitor.adapters.persistence._shared.sqlite.core.policy import (
+        DatabaseRefV1,
+    )
 
 
 def implementation() -> ModuleType:
@@ -20,6 +30,27 @@ def implementation() -> ModuleType:
         (ROOT / "backend/src" / Path(*MODULE.split("."))).with_suffix(".py").is_file()
     ), "FND-DB-001: production explicit migration and inspection are absent"
     return importlib.import_module(MODULE)
+
+
+def initialize_historical_anchor(ref: DatabaseRefV1, schema: ModuleType) -> None:
+    """Run the real Alembic chain to its immutable prior-release anchor."""
+    from agentmonitor.adapters.persistence._shared.sqlite.core.policy import (
+        open_sqlite_database,
+    )
+
+    catalog = schema.load_migration_catalog()
+    with open_sqlite_database(ref, "migration_initialize") as handle:
+        with handle.connect() as connection:
+            connection.exec_driver_sql("BEGIN IMMEDIATE")
+            config = Config()
+            config.set_main_option("script_location", str(schema.MIGRATIONS_PATH))
+            config.attributes.update(
+                connection=connection,
+                migrations_path=schema.MIGRATIONS_PATH,
+                catalog_digest=catalog.digest,
+            )
+            command.upgrade(config, "v1_0000")
+            connection.commit()
 
 
 def test_v1_0000_uses_real_file_and_creates_no_business_tables(tmp_path: Path) -> None:
@@ -31,7 +62,7 @@ def test_v1_0000_uses_real_file_and_creates_no_business_tables(tmp_path: Path) -
 
     path = tmp_path / "agentmonitor.db"
     ref = DatabaseRefV1(path, tmp_path)
-    schema.migrate_to_head(ref)
+    initialize_historical_anchor(ref, schema)
     assert path.is_file()
     with open_sqlite_database(ref, "runtime_read_write") as handle:
         with handle.connect() as connection:
@@ -50,11 +81,15 @@ def test_v1_0000_uses_real_file_and_creates_no_business_tables(tmp_path: Path) -
     view = schema.InspectSchemaCompatibilityV1(
         ref, schema.application_schema_range(), "runtime_read_write"
     )
-    assert view.state == "compatible"
-    assert not view.migration_required
-    assert schema.RequireWritableSchemaV1(view).revision == "v1_0000"
+    assert view.state == "upgrade_required"
+    assert view.current_revision == "v1_0000"
+    assert view.migration_required
+    with pytest.raises(schema.SchemaCompatibilityError):
+        schema.RequireWritableSchemaV1(view)
     before = path.read_bytes()
-    schema.migrate_to_head(ref)
+    with pytest.raises(schema.SchemaCompatibilityError) as caught:
+        schema.migrate_to_head(ref)
+    assert caught.value.code == "migration_preflight_refused"
     assert path.read_bytes() == before
 
 
@@ -145,7 +180,8 @@ def test_changed_catalog_or_revision_fails_before_database_creation(
 def test_catalog_and_revision_metadata_are_complete_and_immutable() -> None:
     schema = implementation()
     catalog = schema.load_migration_catalog()
-    assert len(catalog.revisions) == 1
+    assert len(catalog.revisions) == 2
+    assert catalog.head == "v1_0100"
     metadata = catalog.revisions[0]
     assert metadata.revision == "v1_0000"
     assert metadata.parent_revision is None
@@ -160,6 +196,12 @@ def test_catalog_and_revision_metadata_are_complete_and_immutable() -> None:
     assert metadata.schema_range.catalog_digest == catalog.digest
     with pytest.raises(dataclasses.FrozenInstanceError):
         metadata.owner = "another-owner"
+    iam = catalog.revisions[1]
+    assert iam.revision == "v1_0100"
+    assert iam.parent_revision == "v1_0000"
+    assert iam.owner == "M01"
+    assert len(iam.tables) == 7
+    assert iam.backup_prerequisite == "none_empty_bootstrap"
 
 
 def test_schema_marker_failures_refuse_writes_and_are_preserved(tmp_path: Path) -> None:
@@ -176,7 +218,7 @@ def test_schema_marker_failures_refuse_writes_and_are_preserved(tmp_path: Path) 
     for revisions, expected in (
         (("unrecognized",), "unknown_revision"),
         (("v1_0000", "unrecognized"), "multiple_heads"),
-        ((), "upgrade_required"),
+        ((), "migration_failed"),
     ):
         with open_sqlite_database(ref, "migration_existing") as handle:
             with handle.connect() as connection:
@@ -194,18 +236,10 @@ def test_schema_marker_failures_refuse_writes_and_are_preserved(tmp_path: Path) 
         assert view.state == expected
         with pytest.raises(schema.SchemaCompatibilityError):
             schema.RequireWritableSchemaV1(view)
-        if revisions:
-            with pytest.raises(schema.SchemaCompatibilityError) as caught:
-                schema.migrate_to_head(ref)
-            assert caught.value.code == "migration_preflight_refused"
+        with pytest.raises(schema.SchemaCompatibilityError) as caught:
+            schema.migrate_to_head(ref)
+        assert caught.value.code == "migration_preflight_refused"
         assert (tmp_path / "agentmonitor.db").read_bytes() == before
-    schema.migrate_to_head(ref)
-    assert (
-        schema.InspectSchemaCompatibilityV1(
-            ref, schema.application_schema_range(), "runtime_read_write"
-        ).state
-        == "compatible"
-    )
 
 
 def test_locked_migration_is_bounded_preserves_target_and_closes(
@@ -235,12 +269,14 @@ def test_locked_migration_is_bounded_preserves_target_and_closes(
                 == 0
             )
             connection.rollback()
-    schema.migrate_to_head(ref)
+    with pytest.raises(schema.SchemaCompatibilityError) as caught:
+        schema.migrate_to_head(ref)
+    assert caught.value.code == "migration_preflight_refused"
     assert (
         schema.InspectSchemaCompatibilityV1(
             ref, schema.application_schema_range(), "runtime_read_write"
         ).state
-        == "compatible"
+        == "empty"
     )
 
 
