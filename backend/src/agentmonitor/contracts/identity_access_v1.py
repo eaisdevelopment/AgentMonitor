@@ -290,6 +290,7 @@ class SessionMutationOutcomeV1(TechnicalValueV1):
         "dashboard_authentication_required",
         "csrf_validation_failed",
         "credential_state_conflict",
+        "precondition_failed",
         "session_not_found",
         "one_time_secret_not_replayable",
         "idempotency_key_reused",

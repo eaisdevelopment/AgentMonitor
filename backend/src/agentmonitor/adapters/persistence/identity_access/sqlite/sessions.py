@@ -638,7 +638,7 @@ class SqliteIdentityAccessSessionRepositoryV1:
                         return SessionMutationOutcomeV1("csrf_validation_failed")
                     if row["record_version"] != version:
                         connection.rollback()
-                        return SessionMutationOutcomeV1("credential_state_conflict")
+                        return SessionMutationOutcomeV1("precondition_failed")
                     connection.exec_driver_sql(
                         "UPDATE iam_browser_session SET revoked_at=?, "
                         "revocation_reason='logout', credential_digest=NULL, "
@@ -806,7 +806,7 @@ class SqliteIdentityAccessSessionRepositoryV1:
                         return SessionMutationOutcomeV1("revoked", 0)
                     if target["record_version"] != target_version:
                         connection.rollback()
-                        return SessionMutationOutcomeV1("credential_state_conflict")
+                        return SessionMutationOutcomeV1("precondition_failed")
                     connection.exec_driver_sql(
                         "UPDATE iam_browser_session SET revoked_at=?, "
                         "revocation_reason='administrator', credential_digest=NULL, "
@@ -971,7 +971,7 @@ class SqliteIdentityAccessSessionRepositoryV1:
                         return SessionMutationOutcomeV1("password_policy_violation")
                     if actor["record_version"] != actor_version:
                         connection.rollback()
-                        return SessionMutationOutcomeV1("credential_state_conflict")
+                        return SessionMutationOutcomeV1("precondition_failed")
                     admin = connection.exec_driver_sql(
                         "SELECT password_phc, record_version, hash_policy_version "
                         "FROM iam_administrator WHERE administrator_id=?",

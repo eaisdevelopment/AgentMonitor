@@ -104,6 +104,15 @@ def test_failed_session_mutation_never_claims_affected_rows() -> None:
         SessionMutationOutcomeV1("csrf_validation_failed", 1)
 
 
+def test_active_session_precondition_has_no_affected_rows_or_retry_metadata() -> None:
+    stale = SessionMutationOutcomeV1("precondition_failed")
+    assert stale.code == "precondition_failed"
+    assert stale.affected_count == 0
+    assert stale.retry_after_seconds is None
+    with pytest.raises(ValueError, match="session_mutation_count_invalid"):
+        SessionMutationOutcomeV1("precondition_failed", 1)
+
+
 @pytest.mark.parametrize("retry", [None, True, 0, -1, 901])
 def test_password_change_throttle_retry_is_bounded_exact_integer(
     retry: object,
