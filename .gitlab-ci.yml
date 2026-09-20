@@ -1,0 +1,25 @@
+stages:
+  - test
+  - quality
+  - build
+  - documentation
+
+foundation_test:
+  stage: test
+  script:
+    - python3 tools/automation/run.py AUTO-TEST
+
+foundation_quality:
+  stage: quality
+  script:
+    - python3 tools/automation/run.py AUTO-QUALITY
+
+foundation_build:
+  stage: build
+  script:
+    - python3 tools/automation/run.py AUTO-BUILD
+
+foundation_docs:
+  stage: documentation
+  script:
+    - python3 tools/automation/run.py AUTO-DOCS-CHECK

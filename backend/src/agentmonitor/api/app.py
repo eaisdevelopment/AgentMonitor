@@ -9,6 +9,7 @@ import re
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
+from pathlib import Path
 
 from agentmonitor.api.v1.router import create_router
 from agentmonitor.contracts.configuration_v1 import BootstrapConfigurationV1
@@ -20,6 +21,7 @@ from agentmonitor.foundation.application import (
     LifecycleHooksV1,
 )
 from fastapi import FastAPI
+from fastapi.staticfiles import StaticFiles
 from starlette.responses import Response
 from starlette.types import ASGIApp, Receive, Scope, Send
 
@@ -103,4 +105,14 @@ def create_application(
     app.state.loopback_schema_binding = binding
     app.include_router(create_router())
     app.add_middleware(FoundationSchemaGuard, binding=binding)
+    # The static mount is deliberately a fallback after the versioned API and
+    # framework schema routes. It serves only a locally built artifact through
+    # the same loopback authority; Vite's development server is never used as
+    # a product boundary.
+    frontend_build = Path(__file__).resolve().parents[4] / "frontend" / "dist"
+    app.mount(
+        "/",
+        StaticFiles(directory=str(frontend_build), html=True, check_dir=False),
+        name="frontend",
+    )
     return app

@@ -16,6 +16,23 @@ from run import index_routines, load_catalog, validate_catalog  # noqa: E402
 
 
 class AutomationRoutineTests(unittest.TestCase):
+    def test_m1_routines_resolve_from_canonical_catalog(self) -> None:
+        catalog = load_catalog(REPOSITORY_ROOT)
+
+        self.assertEqual(
+            ["python3", "tools/automation/implementations/auto_test.py"],
+            catalog["AUTO-TEST"]["implementation_command"],
+        )
+        self.assertEqual(
+            ["python3", "tools/automation/implementations/auto_quality.py"],
+            catalog["AUTO-QUALITY"]["implementation_command"],
+        )
+        self.assertEqual(
+            ["python3", "tools/automation/implementations/auto_build.py"],
+            catalog["AUTO-BUILD"]["implementation_command"],
+        )
+        self.assertEqual([], validate_catalog(REPOSITORY_ROOT, catalog))
+
     def test_catalog_index_rejects_duplicate_routine_ids(self) -> None:
         with self.assertRaisesRegex(ValueError, "duplicate routine ID"):
             index_routines(
@@ -29,6 +46,7 @@ class AutomationRoutineTests(unittest.TestCase):
         catalog = load_catalog(REPOSITORY_ROOT)
         catalog["AUTO-TEST"] = {
             **catalog["AUTO-TEST"],
+            "status": "operational_limited",
             "blockers": [],
         }
 

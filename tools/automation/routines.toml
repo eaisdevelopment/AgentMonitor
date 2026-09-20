@@ -79,18 +79,18 @@ blockers = []
 [[routines]]
 id = "AUTO-TEST"
 owner = "PLAN-FND"
-status = "operational_limited"
-scope = "repository governance tests only; application T1..T7 suites do not exist"
-implementation_command = ["python3", "-m", "unittest", "discover", "-s", "tools", "-p", "test_*.py"]
-blockers = ["approved module implementations and their real-boundary suites"]
+status = "operational"
+scope = "V1-M1 T1/T2/T3/T4 local real-boundary suites with explicit T5/T6/T7 and hosted-CI status"
+implementation_command = ["python3", "tools/automation/implementations/auto_test.py"]
+blockers = []
 
 [[routines]]
 id = "AUTO-QUALITY"
 owner = "PLAN-FND"
-status = "blocked"
-scope = "format, lint, type, import, security, secret, dependency, license, compatibility"
-implementation_command = []
-blockers = ["approved toolchain and dependency admission records"]
+status = "operational"
+scope = "V1-M1 static quality, boundary, generated-artifact, lockfile, and dependency-admission checks"
+implementation_command = ["python3", "tools/automation/implementations/auto_quality.py"]
+blockers = []
 
 [[routines]]
 id = "AUTO-GIT-PREFLIGHT"
@@ -103,10 +103,10 @@ blockers = []
 [[routines]]
 id = "AUTO-BUILD"
 owner = "PLAN-FND"
-status = "blocked"
-scope = "locked backend/frontend artifacts, metadata, SBOM, and notices"
-implementation_command = []
-blockers = ["approved runtime/toolchain/dependencies and application source"]
+status = "operational"
+scope = "V1-M1 locked input validation, deterministic OpenAPI/client check, and production frontend build"
+implementation_command = ["python3", "tools/automation/implementations/auto_build.py"]
+blockers = []
 
 [[routines]]
 id = "AUTO-MIGRATE"
