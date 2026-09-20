@@ -116,6 +116,114 @@ def test_declared_contract_consumption_remains_allowed(tmp_path: Path) -> None:
     assert checker().find_forbidden_imports(tmp_path) == []
 
 
+def test_m01_concrete_contract_classes_and_transient_secret_are_resolved(
+    tmp_path: Path,
+) -> None:
+    copy_contract_policy(tmp_path)
+    write_source(
+        tmp_path,
+        "contracts/identity_access_v1.py",
+        "class PrincipalV1:\n"
+        '    CONTRACT_ID = "CTR-IAM-001"\n'
+        '    OWNER = "PLAN-M01"\n'
+        "class SecretInputV1:\n"
+        "    pass\n",
+    )
+    write_source(
+        tmp_path,
+        "modules/identity_access/application/bootstrap.py",
+        "from agentmonitor.contracts.identity_access_v1 import "
+        "PrincipalV1, SecretInputV1\n",
+    )
+    assert checker().find_forbidden_imports(tmp_path) == []
+
+
+def test_m01_transient_secret_requires_its_own_contract_adoption(
+    tmp_path: Path,
+) -> None:
+    copy_contract_policy(tmp_path)
+    write_source(
+        tmp_path,
+        "contracts/identity_access_v1.py",
+        "class PrincipalV1:\n"
+        '    CONTRACT_ID = "CTR-IAM-001"\n'
+        '    OWNER = "PLAN-M01"\n'
+        "class SecretInputV1:\n"
+        "    pass\n",
+    )
+    source = write_source(
+        tmp_path,
+        "modules/registry/application/consumer.py",
+        "from agentmonitor.contracts.identity_access_v1 import SecretInputV1\n",
+    )
+    assert (
+        f"{source}:1:undeclared-contract:CTR-IAM-004"
+        in checker().find_forbidden_imports(tmp_path)
+    )
+
+
+@pytest.mark.parametrize(
+    "declaration",
+    [
+        'class PrincipalV1:\n    CONTRACT_ID = "CTR-IAM-999"\n    OWNER = "PLAN-M01"\n',
+        'class PrincipalV1:\n    CONTRACT_ID = "CTR-IAM-001"\n    OWNER = "PLAN-M02"\n',
+        "PrincipalV1 = object()\n",
+    ],
+)
+def test_m01_unpublished_or_misattributed_symbol_is_rejected(
+    tmp_path: Path, declaration: str
+) -> None:
+    copy_contract_policy(tmp_path)
+    write_source(tmp_path, "contracts/identity_access_v1.py", declaration)
+    source = write_source(
+        tmp_path,
+        "modules/identity_access/application/bootstrap.py",
+        "from agentmonitor.contracts.identity_access_v1 import PrincipalV1\n",
+    )
+    assert f"{source}:1:unresolved-contract-module" in checker().find_forbidden_imports(
+        tmp_path
+    )
+
+
+@pytest.mark.parametrize(
+    ("declaration", "symbol"),
+    [
+        (
+            'class PrincipalV1:\n    CONTRACT_ID = "CTR-IAM-001"\n'
+            '    CONTRACT_ID = "CTR-IAM-999"\n    OWNER = "PLAN-M01"\n',
+            "PrincipalV1",
+        ),
+        (
+            'class PrincipalV1:\n    CONTRACT_ID = "CTR-IAM-001"\n'
+            '    OWNER = "PLAN-M01"\n'
+            '    if True:\n        CONTRACT_ID = "CTR-IAM-999"\n',
+            "PrincipalV1",
+        ),
+        (
+            'class PrincipalV1:\n    CONTRACT_ID = "CTR-IAM-001"\n'
+            '    OWNER = "PLAN-M01"\n'
+            'class SecretInputV1:\n    CONTRACT_ID = "CTR-IAM-999"\n'
+            '    OWNER = "PLAN-M01"\n',
+            "SecretInputV1",
+        ),
+    ],
+)
+def test_m01_mutated_declaration_cannot_be_published(
+    tmp_path: Path, declaration: str, symbol: str
+) -> None:
+    copy_contract_policy(tmp_path)
+    write_source(tmp_path, "contracts/identity_access_v1.py", declaration)
+    source = write_source(
+        tmp_path,
+        "modules/identity_access/application/bootstrap.py",
+        f"from agentmonitor.contracts.identity_access_v1 import {symbol}\n",
+    )
+    assert any(
+        error.startswith(f"{source}:1:unresolved-contract-")
+        for error in checker().find_forbidden_imports(tmp_path)
+    )
+
+
 def test_public_alias_cannot_disguise_an_undeclared_contract(tmp_path: Path) -> None:
     copy_contract_policy(tmp_path)
     foundation_path = tmp_path / SOURCE / "contracts/foundation_v1.py"

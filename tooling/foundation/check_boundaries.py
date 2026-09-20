@@ -467,6 +467,44 @@ def _catalog_rebindings(
     return sorted(set(result))
 
 
+def _class_string_literal(node: ast.ClassDef, field: str) -> str | None:
+    """Read a literal contract declaration without executing contract source."""
+    bindings = 0
+    pending: list[ast.AST] = list(node.body)
+    while pending:
+        current = pending.pop()
+        if isinstance(current, (ast.ClassDef, ast.FunctionDef, ast.AsyncFunctionDef)):
+            continue
+        if (
+            isinstance(current, ast.Name)
+            and current.id == field
+            and isinstance(current.ctx, (ast.Store, ast.Del))
+        ):
+            bindings += 1
+        pending.extend(ast.iter_child_nodes(current))
+    if bindings != 1:
+        return None
+    matches: list[str] = []
+    for statement in node.body:
+        value: ast.expr | None = None
+        if isinstance(statement, ast.Assign) and any(
+            isinstance(target, ast.Name) and target.id == field
+            for target in statement.targets
+        ):
+            value = statement.value
+        elif (
+            isinstance(statement, ast.AnnAssign)
+            and isinstance(statement.target, ast.Name)
+            and statement.target.id == field
+        ):
+            value = statement.value
+        if value is not None:
+            if not isinstance(value, ast.Constant) or not isinstance(value.value, str):
+                return None
+            matches.append(value.value)
+    return matches[0] if len(matches) == 1 else None
+
+
 def _contract_consumption_errors(
     root: Path,
     modules: dict[str, Path],
@@ -488,6 +526,7 @@ def _contract_consumption_errors(
         plans = _records(documents["contract-adoption"], "plans")
         ownership = documents["parallel-ownership"]
         definitions = {str(entry["name"]): entry for entry in contracts}
+        definitions_by_id = {str(entry["id"]): entry for entry in contracts}
         permissions = {
             str(plan["id"]): set(
                 _strings(plan["consumes"]) + _strings(plan["publishes"])
@@ -514,8 +553,35 @@ def _contract_consumption_errors(
             if not module.startswith("agentmonitor.contracts."):
                 continue
             tree = ast.parse(path.read_text(encoding="utf-8"))
+            # M01 publishes several concrete classes under one catalog family.
+            # Admit only literal declarations of the catalog ID and its producer
+            # in the owning contract module, never aliases or runtime exports.
+            m01_contracts: dict[str, str] = {}
+            m01_support: dict[str, str] = {}
+            if module == "agentmonitor.contracts.identity_access_v1":
+                for node in tree.body:
+                    if not isinstance(node, ast.ClassDef):
+                        continue
+                    contract_id = _class_string_literal(node, "CONTRACT_ID")
+                    owner = _class_string_literal(node, "OWNER")
+                    record = definitions_by_id.get(contract_id or "")
+                    if (
+                        record is not None
+                        and record["producer"] == "PLAN-M01"
+                        and owner == "PLAN-M01"
+                        and contract_id.startswith("CTR-IAM-")
+                    ):
+                        m01_contracts[node.name] = contract_id
+                    elif (
+                        node.name == "SecretInputV1"
+                        and contract_id is None
+                        and owner is None
+                    ):
+                        m01_support[node.name] = "CTR-IAM-004"
             names: set[str] = set()
-            rebindings = _catalog_rebindings(tree, set(definitions))
+            rebindings = _catalog_rebindings(
+                tree, set(definitions) | set(m01_contracts) | set(m01_support)
+            )
             rebound_names = {name for _, name in rebindings}
             errors.extend(
                 f"{path.relative_to(root)}:{line}:catalog-name-rebinding:{name}"
@@ -536,9 +602,16 @@ def _contract_consumption_errors(
             # declaration, even if a class of that name appears earlier/later.
             names.difference_update(rebound_names)
             exports[module] = {
-                name: str(definitions[name]["id"]) if name in definitions else None
+                name: (
+                    str(definitions[name]["id"])
+                    if name in definitions
+                    else m01_contracts.get(name) or m01_support.get(name)
+                )
                 for name in names
-                if name in definitions or name in SUPPORT_SYMBOLS.get(module, set())
+                if name in definitions
+                or name in SUPPORT_SYMBOLS.get(module, set())
+                or name in m01_contracts
+                or name in m01_support
             }
             families[module] = {
                 value for value in exports[module].values() if value is not None
@@ -548,6 +621,8 @@ def _contract_consumption_errors(
                 for name in names
                 if name in definitions
             }
+            if (set(m01_contracts) | set(m01_support)) & names:
+                owners.add("PLAN-M01")
             if len(owners) == 1:
                 contract_owners[module] = owners.pop()
         for path, line, target in imports:
