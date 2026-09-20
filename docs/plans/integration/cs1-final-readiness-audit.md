@@ -51,7 +51,7 @@ are rebound in the current exact snapshot. Historical CS-1 findings and their
 original bytes remain historical evidence, not a claim that all V1 is newly
 approved. M2 production and live-boundary tests remain Not Run at this rebind.
 
-Plan snapshot SHA-256: `af4929c634b3c2a68dfb6436dd6013c20804fc5d86be62accce3a4d968f3cfe7`
+Plan snapshot SHA-256: `331a81a84c4362e079628bdb2c173bfdce0b76f9b664f59a9cb8b91de2c86423`
 
 ## 1. Decision
 

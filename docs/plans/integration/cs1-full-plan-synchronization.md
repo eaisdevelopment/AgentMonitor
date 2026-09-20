@@ -71,7 +71,7 @@ work. The adoption and ownership records were regenerated/rebound to the
 changed M01/P01 and contract/configuration bytes, with no additional plan
 implementation claim. M2 tests and owner bootstrap remain Not Run here.
 
-Plan snapshot SHA-256: `af4929c634b3c2a68dfb6436dd6013c20804fc5d86be62accce3a4d968f3cfe7`
+Plan snapshot SHA-256: `331a81a84c4362e079628bdb2c173bfdce0b76f9b664f59a9cb8b91de2c86423`
 
 ## 2. Frozen planning inventory
 

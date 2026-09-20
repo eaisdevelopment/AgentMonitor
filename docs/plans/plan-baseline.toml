@@ -183,8 +183,8 @@ bytes = 73372
 [[controls]]
 id = "parallel-ownership"
 path = "docs/plans/parallel-ownership.toml"
-sha256 = "b878700f8db0fe714ee4aff3c307969eee8dc2aed00a5318bddf8e30d0e9affa"
-bytes = 22652
+sha256 = "72ae11c732dc940a13f80a8cca9fc6866a705b4193c45e0dd580a136982eb56e"
+bytes = 22708
 
 [[controls]]
 id = "automation-routines"
