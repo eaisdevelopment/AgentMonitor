@@ -1,8 +1,8 @@
 # AgentMonitor documentation index
 
-Status: **V1 specification and implementation planning complete; M0 G1 complete; implementation not started**  
+Status: **V1 specification and planning complete; V1-M1 local reacceptance commands and bounded independent fix review passed; V1-M2 not started.** M0 G1's exact-digest gate currently fails against this changed checkout and is reported separately. Hosted CI, live provider/account, native lifecycle, and release gates remain Not Run; full M1 completion is not claimed.
 Owner: Pavlo Sidelov <pavlo@sidelov.com>  
-Last substantive review: 2026-09-19
+Last substantive review: 2026-09-20
 
 This index is the entry point for product, architecture, engineering, and operations documentation. Requirements marked **Approved** reflect the project interview. Items marked **Discovery** require Milestone 0 evidence. Items marked **Deferred** are intentionally outside V1.
 
@@ -35,6 +35,8 @@ This index is the entry point for product, architecture, engineering, and operat
 - [Testing strategy](engineering/testing-strategy.md): TDD and real-system verification without mocks or fakes.
 - [Coding standards](engineering/coding-standards.md): Python, TypeScript, database, error, and logging conventions.
 - [Dependency and license policy](engineering/dependency-and-license-policy.md): admission and continuous-review rules.
+- [M1 React declaration admission](dependencies/m1-react-typecheck-admission.md): owner-approved exact development packages and residual release checks.
+- [M1 audit-fix evidence](evidence/m1-audit-fixes.md): Red/Green/refactor and real-boundary reacceptance status.
 - [Configuration standard](engineering/configuration-standard.md): ownership, naming, precedence, secret classes, and compatibility.
 - [Documentation standard](engineering/documentation-standard.md): required documentation and traceability.
 - [Sub-agent runbook](engineering/subagent-runbook.md): module planning, ownership, synchronization, and handoff rules.

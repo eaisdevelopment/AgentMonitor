@@ -22,6 +22,20 @@ status.
 
 Plan snapshot SHA-256: `ce910d73165ed9db8229c79abaa03129e8ba0f16e391908cc7a142067edcff0f`
 
+## 2026-09-20 independent local-commit catalog review
+
+The independent M1 reacceptance reviewer examined only the new
+`AUTO-GIT-PREFLIGHT` catalog wording, its local-commit/push behavior, and the
+resulting synchronized snapshot. The bounded result was **PASS for
+catalog/snapshot coherence**: the snapshot renderer matches the current bytes,
+only the `automation-routines` digest/size changed, local commit preflight
+passes without claiming remote readiness, and explicit push preflight blocks
+without a remote/upstream. This is not a renewed review of the 20 plan bodies
+or the other eight controls, nor owner approval, implementation authorization,
+hosted CI evidence, or a revision of the historical audit above.
+
+Plan snapshot SHA-256: `793531850151ad12ad4210edbeadb2326c2f4bcf8844ac4a6f8b10e2f94ad875`
+
 ## 1. Decision
 
 The corrected corpus closes the eighteen findings recorded in the

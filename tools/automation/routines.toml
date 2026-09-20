@@ -95,10 +95,10 @@ blockers = []
 [[routines]]
 id = "AUTO-GIT-PREFLIGHT"
 owner = "PLAN-FND"
-status = "operational"
-scope = "repository identity, branch, upstream, declared changes, secrets, commit policy"
+status = "operational_limited"
+scope = "local commit preflight: Git worktree/root/branch, configured identity, tracked .env absence, readable status"
 implementation_command = ["python3", "tools/git/preflight.py"]
-blockers = []
+blockers = ["push/release remote and upstream readiness requires explicit --operation push or release; default local commit does not claim it"]
 
 [[routines]]
 id = "AUTO-BUILD"

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import importlib
+import json
 import os
 import subprocess
 import sys
@@ -18,6 +19,7 @@ RUNNER = REPOSITORY_ROOT / "tools/automation/run.py"
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 import m0_g1_exit  # noqa: E402
+import m0_g1_bundle  # noqa: E402
 
 APPROVAL_PATH = (
     REPOSITORY_ROOT
@@ -61,7 +63,12 @@ class M0G1ExitGateTests(unittest.TestCase):
         ):
             self.assertIs(False, approval[flag], flag)
 
-    def test_canonical_exit_gate_validates_the_approved_real_state(self) -> None:
+    def test_canonical_exit_gate_reflects_the_actual_approved_subject(self) -> None:
+        """A changed checkout must fail closed without rewriting owner approval."""
+        local_final = REPOSITORY_ROOT / m0_g1_exit.LOCAL_FINAL_APPROVAL_PATH
+        with local_final.open(encoding="utf-8") as stream:
+            approved_subject = json.load(stream)["bundle_subject"]
+        current_subject = m0_g1_bundle.bundle_subject(REPOSITORY_ROOT)
         result = subprocess.run(
             [sys.executable, str(RUNNER), "AUTO-M0-G1-EXIT"],
             cwd=REPOSITORY_ROOT,
@@ -70,23 +77,26 @@ class M0G1ExitGateTests(unittest.TestCase):
             text=True,
         )
 
-        self.assertEqual(0, result.returncode, result.stdout + result.stderr)
+        expected_status = 0 if current_subject == approved_subject else 2
+        self.assertEqual(expected_status, result.returncode, result.stdout + result.stderr)
         self.assertIn("implementation approval: VERIFIED", result.stdout)
         self.assertIn("schema validator dependency: VERIFIED", result.stdout)
         self.assertIn("schema contract: VERIFIED", result.stdout)
         self.assertIn("local scanner verification: VERIFIED", result.stdout)
         self.assertIn("custody selection metadata: VERIFIED", result.stdout)
-        self.assertIn("custody decision and approvals: VERIFIED", result.stdout)
-        self.assertIn("scanner admission approvals: VERIFIED", result.stdout)
-        self.assertIn("exact G1 bundle approvals: VERIFIED", result.stdout)
         self.assertIn(
             "provider/account/process/profile access: NOT PERFORMED",
             result.stdout,
         )
-        self.assertIn(
-            "AUTO-M0-G1-EXIT: PASSED",
-            result.stdout,
-        )
+        if expected_status == 0:
+            self.assertIn("custody decision and approvals: VERIFIED", result.stdout)
+            self.assertIn("scanner admission approvals: VERIFIED", result.stdout)
+            self.assertIn("exact G1 bundle approvals: VERIFIED", result.stdout)
+            self.assertIn("AUTO-M0-G1-EXIT: PASSED", result.stdout)
+        else:
+            self.assertIn("approved G1 bundle does not match the current checkout", result.stdout)
+            self.assertIn("AUTO-M0-G1-EXIT: FAILED (exit 2)", result.stdout)
+            self.assertNotIn("AUTO-M0-G1-EXIT: PASSED", result.stdout)
 
     def test_custody_verifier_uses_real_filesystem_and_fails_closed(self) -> None:
         self.assertTrue(

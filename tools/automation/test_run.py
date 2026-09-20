@@ -6,6 +6,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from datetime import UTC, datetime
 from importlib.util import module_from_spec, spec_from_file_location
 from pathlib import Path
 from shutil import copy2, copytree, which
@@ -18,132 +19,220 @@ from run import index_routines, load_catalog, validate_catalog  # noqa: E402
 
 
 class AutomationRoutineTests(unittest.TestCase):
-    def test_minimum_controls_rejects_a_real_prohibited_test_double_import(
-        self,
-    ) -> None:
-        """The scanner must reject a prohibited import in a tracked real source file."""
+    def test_evidence_rows_validate_v1_contract_and_unrun_provenance(self) -> None:
+        """Pure evidence policy rejects a claimed pass without runtime context."""
         sys.path.insert(0, str(REPOSITORY_ROOT / "tools/automation/implementations"))
-        from auto_quality import minimum_local_controls
+        from evidence import evidence_row
 
-        target = REPOSITORY_ROOT / "frontend/src/main.tsx"
-        original = target.read_text()
+        when = datetime(2026, 9, 20, tzinfo=UTC)
+        with self.assertRaises(ValueError):
+            evidence_row(
+                test_id="FND-QUALITY-001",
+                command_id="AUTO-QUALITY",
+                boundary="local static quality",
+                status="Passed",
+                versions=(),
+                recorded_at=when,
+            )
+        not_run = evidence_row(
+            test_id="FND-CI-001",
+            command_id="AUTO-TEST",
+            boundary="hosted GitLab pipeline",
+            status="Not Run",
+            versions=(),
+            recorded_at=when,
+        )
+        self.assertEqual("CTR-FND-008", not_run["contract_id"])
+        self.assertEqual([], not_run["environment_versions"])
+        self.assertIsNone(not_run["red_reference"])
+        self.assertIsNone(not_run["green_reference"])
+        self.assertIsNone(not_run["refactor_reference"])
+        self.assertEqual("pending_independent_review", not_run["reviewer"])
+
+    def test_evidence_versions_match_the_real_node_command(self) -> None:
+        sys.path.insert(0, str(REPOSITORY_ROOT / "tools/automation/implementations"))
+        from evidence import actual_tool_versions
+
+        result = subprocess.run(
+            ["node", "--version"],
+            cwd=REPOSITORY_ROOT,
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+        self.assertEqual(0, result.returncode)
+        self.assertEqual(
+            (("node", result.stdout.strip().removeprefix("v")),),
+            actual_tool_versions(("node",)),
+        )
+
+    def test_governance_policy_checks_leave_tracked_checkout_untouched(self) -> None:
+        """Two concurrent real test processes must not rewrite shared source."""
+        paths = (
+            REPOSITORY_ROOT / "frontend/src/main.tsx",
+            REPOSITORY_ROOT / "backend/pyproject.toml",
+        )
+        before = tuple(path.stat().st_mtime_ns for path in paths)
+        selection = (
+            "tools.automation.test_run.AutomationRoutineTests.test_source_policy_rejects_prohibited_double_import",
+            "tools.automation.test_run.AutomationRoutineTests.test_manifest_policy_rejects_unapproved_backend_section",
+            "tools.automation.test_run.AutomationRoutineTests.test_source_policy_rejects_prefixed_secret_value",
+        )
+        children = [
+            subprocess.Popen(
+                [sys.executable, "-m", "unittest", *selection],
+                cwd=REPOSITORY_ROOT,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+            )
+            for _ in range(2)
+        ]
+        for child in children:
+            output, error = child.communicate(timeout=15)
+            self.assertEqual(0, child.returncode, output + error)
+        self.assertEqual(before, tuple(path.stat().st_mtime_ns for path in paths))
+
+    def test_frontend_typecheck_covers_application_and_tooling(self) -> None:
+        """The published command must typecheck the built React source too."""
+        import json
+
+        manifest = json.loads((REPOSITORY_ROOT / "frontend/package.json").read_text())
+        command = manifest["scripts"]["typecheck"]
+        self.assertIn("tsconfig.app.json", command)
+        self.assertIn("tsconfig.node.json", command)
+        compiler = str(REPOSITORY_ROOT / "frontend/node_modules/.bin/tsc")
+        application_files = subprocess.run(
+            [compiler, "--project", "frontend/tsconfig.app.json", "--listFilesOnly"],
+            cwd=REPOSITORY_ROOT,
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+        self.assertEqual(
+            0,
+            application_files.returncode,
+            application_files.stdout + application_files.stderr,
+        )
+        self.assertIn("frontend/src/app/App.tsx", application_files.stdout)
+        self.assertIn("frontend/src/main.tsx", application_files.stdout)
+        result = subprocess.run(
+            ["npm", "--prefix", "frontend", "run", "typecheck"],
+            cwd=REPOSITORY_ROOT,
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+        self.assertEqual(0, result.returncode, result.stdout + result.stderr)
+
+    def test_real_app_type_fault_fails_the_published_command(self) -> None:
+        """Real pre-fix config and current app compile in an isolated copy."""
+        frontend = REPOSITORY_ROOT / "frontend"
+        with tempfile.TemporaryDirectory(prefix="agentmonitor-type-fault-") as root:
+            isolated = Path(root)
+            for name in (
+                "package.json",
+                "tsconfig.json",
+                "tsconfig.node.json",
+                "vite.config.ts",
+            ):
+                copy2(frontend / name, isolated / name)
+            copy2(
+                frontend / "tests/typecheck/tsconfig.app.pre-fix.json",
+                isolated / "tsconfig.app.json",
+            )
+            copytree(frontend / "src", isolated / "src")
+            (isolated / "node_modules").symlink_to(
+                frontend / "node_modules", target_is_directory=True
+            )
+            result = subprocess.run(
+                ["npm", "run", "typecheck"],
+                cwd=isolated,
+                check=False,
+                capture_output=True,
+                text=True,
+            )
+        self.assertNotEqual(0, result.returncode)
+        self.assertIn("TS2882", result.stdout + result.stderr)
+
+    def test_source_policy_rejects_prohibited_double_import(self) -> None:
+        """Pure policy regression; the real checkout is scanned by AUTO-QUALITY."""
+        sys.path.insert(0, str(REPOSITORY_ROOT / "tools/automation/implementations"))
+        from auto_quality import source_is_allowed
+
         prohibited = "from unittest import "
         prohibited += "mock\n"
-        try:
-            target.write_text(original + prohibited)
-            self.assertFalse(minimum_local_controls())
-        finally:
-            target.write_text(original)
+        self.assertFalse(source_is_allowed(prohibited))
+        self.assertTrue(source_is_allowed("export const appVersion = '1.0.0';\n"))
 
-    def test_minimum_controls_rejects_an_unapproved_backend_manifest_change(
+    def test_manifest_policy_rejects_unapproved_backend_section(
         self,
     ) -> None:
-        """The backend manifest, lock, and installed baseline are all local controls."""
+        """Pure section policy; production checks the real manifest and lock."""
         sys.path.insert(0, str(REPOSITORY_ROOT / "tools/automation/implementations"))
-        from auto_quality import minimum_local_controls
+        from auto_quality import approved_manifest_sections
 
-        target = REPOSITORY_ROOT / "backend/pyproject.toml"
-        original = target.read_text()
-        try:
-            target.write_text(
-                original
-                + '\n[project.optional-dependencies]\nunreviewed = ["example==1.0"]\n'
+        project: dict[str, object] = {
+            "name": "agentmonitor",
+            "version": "0.0.0",
+            "requires-python": ">=3.12",
+            "dependencies": [],
+        }
+        self.assertTrue(
+            approved_manifest_sections(
+                {"project": project, "dependency-groups": {"dev": []}}
             )
-            self.assertFalse(minimum_local_controls())
-        finally:
-            target.write_text(original)
+        )
+        self.assertFalse(
+            approved_manifest_sections(
+                {
+                    "project": {**project, "optional-dependencies": {}},
+                    "dependency-groups": {"dev": []},
+                }
+            )
+        )
 
-    def test_minimum_controls_rejects_a_prefixed_secret_value(self) -> None:
+    def test_source_policy_rejects_prefixed_secret_value(self) -> None:
         """A test-setting prefix never exempts a value assigned to a secret field."""
         sys.path.insert(0, str(REPOSITORY_ROOT / "tools/automation/implementations"))
-        from auto_quality import minimum_local_controls
+        from auto_quality import source_is_allowed
 
-        target = REPOSITORY_ROOT / "frontend/src/main.tsx"
-        original = target.read_text()
         prohibited = "pass" + "word = 'AGENTMONITOR_TEST_SENSITIVE_VALUE'\n"
-        try:
-            target.write_text(original + prohibited)
-            self.assertFalse(minimum_local_controls())
-        finally:
-            target.write_text(original)
+        self.assertFalse(source_is_allowed(prohibited))
 
-    def test_frontend_input_validation_rejects_extraneous_installed_package(
+    def test_frontend_inventory_policy_rejects_extraneous_installed_package(
         self,
     ) -> None:
-        with tempfile.TemporaryDirectory() as temporary:
-            replica = Path(temporary)
-            implementation = replica / "tools/automation/implementations/auto_build.py"
-            implementation.parent.mkdir(parents=True)
-            copy2(
-                REPOSITORY_ROOT / "tools/automation/implementations/auto_build.py",
-                implementation,
-            )
-            frontend = replica / "frontend"
-            frontend.mkdir()
-            copy2(REPOSITORY_ROOT / "frontend/package.json", frontend / "package.json")
-            copy2(
-                REPOSITORY_ROOT / "frontend/package-lock.json",
-                frontend / "package-lock.json",
-            )
-            copytree(
-                REPOSITORY_ROOT / "frontend/node_modules", frontend / "node_modules"
-            )
-            unexpected = frontend / "node_modules/unreviewed-package"
-            unexpected.mkdir()
-            (unexpected / "package.json").write_text(
-                '{"name": "unreviewed-package", "version": "1.0.0"}'
-            )
-            spec = spec_from_file_location("replica_auto_build", implementation)
-            assert spec is not None and spec.loader is not None
-            module = module_from_spec(spec)
-            spec.loader.exec_module(module)
+        sys.path.insert(0, str(REPOSITORY_ROOT / "tools/automation/implementations"))
+        from auto_build import installed_inventory_approved
 
-            self.assertFalse(module.verify_frontend_inputs())
+        expected = {"node_modules/react"}
+        self.assertTrue(installed_inventory_approved(expected, expected))
+        self.assertFalse(
+            installed_inventory_approved(
+                expected, expected | {"node_modules/unreviewed-package"}
+            )
+        )
 
-    def test_frontend_input_validation_rejects_stale_installed_optional_package(
+    def test_frontend_package_policy_rejects_stale_installed_optional_package(
         self,
     ) -> None:
-        with tempfile.TemporaryDirectory() as temporary:
-            replica = Path(temporary)
-            implementation = replica / "tools/automation/implementations/auto_build.py"
-            implementation.parent.mkdir(parents=True)
-            copy2(
-                REPOSITORY_ROOT / "tools/automation/implementations/auto_build.py",
-                implementation,
-            )
-            frontend = replica / "frontend"
-            frontend.mkdir()
-            copy2(REPOSITORY_ROOT / "frontend/package.json", frontend / "package.json")
-            copy2(
-                REPOSITORY_ROOT / "frontend/package-lock.json",
-                frontend / "package-lock.json",
-            )
-            copytree(
-                REPOSITORY_ROOT / "frontend/node_modules", frontend / "node_modules"
-            )
-            lock = __import__("json").loads(
-                (frontend / "package-lock.json").read_text()
-            )
-            optional = next(
-                relative
-                for relative, record in lock["packages"].items()
-                if record.get("optional")
-                and (frontend / relative / "package.json").is_file()
-            )
-            package_json = frontend / optional / "package.json"
-            installed = __import__("json").loads(package_json.read_text())
-            installed["version"] = "0.0.0-stale"
-            package_json.write_text(__import__("json").dumps(installed))
-            spec = spec_from_file_location("replica_auto_build", implementation)
-            assert spec is not None and spec.loader is not None
-            module = module_from_spec(spec)
-            spec.loader.exec_module(module)
+        sys.path.insert(0, str(REPOSITORY_ROOT / "tools/automation/implementations"))
+        from auto_build import installed_package_approved
 
-            self.assertFalse(module.verify_frontend_inputs())
+        record: dict[str, object] = {
+            "version": "1.0.0",
+            "license": "MIT",
+            "optional": True,
+        }
+        self.assertTrue(installed_package_approved(record, None))
+        self.assertTrue(installed_package_approved(record, "1.0.0"))
+        self.assertFalse(installed_package_approved(record, "0.0.0-stale"))
 
     def test_browser_environment_resolves_the_actual_playwright_node_shebang(
         self,
     ) -> None:
+        sys.path.insert(0, str(REPOSITORY_ROOT / "tools/automation/implementations"))
         implementation = (
             REPOSITORY_ROOT / "tools/automation/implementations/auto_test.py"
         )
@@ -169,34 +258,13 @@ class AutomationRoutineTests(unittest.TestCase):
         self.assertEqual(0, result.returncode, result.stdout + result.stderr)
 
     def test_frontend_input_validation_rejects_disallowed_direct_license(self) -> None:
-        with tempfile.TemporaryDirectory() as temporary:
-            replica = Path(temporary)
-            implementation = replica / "tools/automation/implementations/auto_build.py"
-            implementation.parent.mkdir(parents=True)
-            copy2(
-                REPOSITORY_ROOT / "tools/automation/implementations/auto_build.py",
-                implementation,
-            )
-            frontend = replica / "frontend"
-            frontend.mkdir()
-            copy2(REPOSITORY_ROOT / "frontend/package.json", frontend / "package.json")
-            copy2(
-                REPOSITORY_ROOT / "frontend/package-lock.json",
-                frontend / "package-lock.json",
-            )
-            (frontend / "node_modules").symlink_to(
-                REPOSITORY_ROOT / "frontend/node_modules", target_is_directory=True
-            )
-            lock = (frontend / "package-lock.json").read_text()
-            (frontend / "package-lock.json").write_text(
-                lock.replace('"license": "MIT"', '"license": "GPL-3.0-only"', 1)
-            )
-            spec = spec_from_file_location("replica_auto_build", implementation)
-            assert spec is not None and spec.loader is not None
-            module = module_from_spec(spec)
-            spec.loader.exec_module(module)
+        sys.path.insert(0, str(REPOSITORY_ROOT / "tools/automation/implementations"))
+        from auto_build import direct_package_approved
 
-            self.assertFalse(module.verify_frontend_inputs())
+        self.assertTrue(direct_package_approved("react", "19.3.0", "19.3.0", "MIT"))
+        self.assertFalse(
+            direct_package_approved("react", "19.3.0", "19.3.0", "GPL-3.0-only")
+        )
 
     def test_m1_quality_and_build_report_required_local_controls(self) -> None:
         for script, marker in (
@@ -233,6 +301,14 @@ class AutomationRoutineTests(unittest.TestCase):
             catalog["AUTO-BUILD"]["implementation_command"],
         )
         self.assertEqual([], validate_catalog(REPOSITORY_ROOT, catalog))
+
+    def test_git_preflight_catalog_does_not_claim_remote_readiness(self) -> None:
+        routine = load_catalog(REPOSITORY_ROOT)["AUTO-GIT-PREFLIGHT"]
+        self.assertEqual("operational_limited", routine["status"])
+        self.assertIn("local commit", routine["scope"])
+        self.assertTrue(
+            any("push/release" in blocker for blocker in routine["blockers"])
+        )
 
     def test_catalog_index_rejects_duplicate_routine_ids(self) -> None:
         with self.assertRaisesRegex(ValueError, "duplicate routine ID"):
@@ -324,7 +400,17 @@ class AutomationRoutineTests(unittest.TestCase):
         )
         self.assertNotIn("PASSED", result.stdout)
 
-    def test_m0_g1_exit_passes_for_the_approved_real_controls(self) -> None:
+    def test_m0_g1_dispatch_preserves_the_real_exit_status(self) -> None:
+        direct_command = load_catalog(REPOSITORY_ROOT)["AUTO-M0-G1-EXIT"][
+            "implementation_command"
+        ]
+        direct = subprocess.run(
+            direct_command,
+            cwd=REPOSITORY_ROOT,
+            check=False,
+            capture_output=True,
+            text=True,
+        )
         result = subprocess.run(
             [sys.executable, str(RUNNER), "AUTO-M0-G1-EXIT"],
             cwd=REPOSITORY_ROOT,
@@ -333,9 +419,16 @@ class AutomationRoutineTests(unittest.TestCase):
             text=True,
         )
 
-        self.assertEqual(0, result.returncode, result.stdout + result.stderr)
-        self.assertIn("M0 G1 FINISHED", result.stdout)
-        self.assertIn("AUTO-M0-G1-EXIT: PASSED", result.stdout)
+        self.assertEqual(
+            direct.returncode, result.returncode, result.stdout + result.stderr
+        )
+        self.assertIn(direct.stdout, result.stdout)
+        if direct.returncode:
+            self.assertIn("AUTO-M0-G1-EXIT: FAILED", result.stdout)
+            self.assertNotIn("AUTO-M0-G1-EXIT: PASSED", result.stdout)
+        else:
+            self.assertIn("M0 G1 FINISHED", result.stdout)
+            self.assertIn("AUTO-M0-G1-EXIT: PASSED", result.stdout)
 
     def test_m0_result_gates_fail_closed_until_g1_is_implemented(self) -> None:
         for routine_id in ("AUTO-M0-POSTFLIGHT", "AUTO-M0-LEDGER"):

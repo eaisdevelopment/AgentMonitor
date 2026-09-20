@@ -9,10 +9,11 @@ import signal
 import subprocess
 import tempfile
 import time
-from datetime import UTC, datetime
 from pathlib import Path
 from shutil import which
 from typing import NoReturn
+
+from evidence import actual_tool_versions, evidence_row
 
 ROOT = Path(__file__).resolve().parents[3]
 BACKEND_PYTHON = ROOT / "backend/.venv/bin/python"
@@ -128,28 +129,6 @@ def run_browser_boundary() -> None:
                     server.wait(timeout=5)
 
 
-def evidence(test_id: str, boundary: str, status: str) -> dict[str, object]:
-    return {
-        "contract_id": "CTR-FND-008",
-        "test_id": test_id,
-        "requirement_ids": ["NFR-TEST-001", "NFR-TEST-002"],
-        "acceptance_ids": ["AC-TEST-001", "AC-TEST-002", "AC-TEST-004"],
-        "boundary_class": boundary,
-        "command_registry_id": "AUTO-TEST",
-        "environment_versions": [],
-        "red_reference": "task-5-report.md#fix-round-3-red-evidence",
-        "green_reference": "task-5-report.md#fix-round-3-green-evidence",
-        "refactor_reference": "task-5-report.md#fix-round-3-refactor-evidence",
-        "status": status,
-        "recorded_at": datetime.now(UTC).isoformat(),
-        "sanitization_review": (
-            "allowlist-only command status; no provider or account data"
-        ),
-        "reviewer": "PLAN-FND",
-        "live_owner_countersignature": None,
-    }
-
-
 def main() -> int:
     if not BACKEND_PYTHON.is_file():
         fail("admitted_backend_toolchain_missing")
@@ -158,23 +137,42 @@ def main() -> int:
             "python3",
             "-m",
             "unittest",
-            "tools.automation.test_run.AutomationRoutineTests.test_m1_routines_resolve_from_canonical_catalog",
-            "tools.automation.test_run.AutomationRoutineTests.test_catalog_index_rejects_duplicate_routine_ids",
-            "tools.automation.test_run.AutomationRoutineTests.test_operational_limited_routine_requires_named_limitations",
-            "tools.automation.test_run.AutomationRoutineTests.test_real_catalog_defines_every_mandatory_routine",
-            "tools.automation.test_run.AutomationRoutineTests.test_blocked_routine_fails_closed_in_the_real_checkout",
-            "tools.automation.test_run.AutomationRoutineTests.test_m1_quality_and_build_report_required_local_controls",
-            "tools.automation.test_run.AutomationRoutineTests.test_frontend_input_validation_rejects_disallowed_direct_license",
-            "tools.automation.test_run.AutomationRoutineTests.test_minimum_controls_rejects_a_real_prohibited_test_double_import",
-            "tools.automation.test_run.AutomationRoutineTests.test_minimum_controls_rejects_an_unapproved_backend_manifest_change",
-            "tools.automation.test_run.AutomationRoutineTests.test_minimum_controls_rejects_a_prefixed_secret_value",
-            "tools.automation.test_run.AutomationRoutineTests.test_frontend_input_validation_rejects_extraneous_installed_package",
-            "tools.automation.test_run.AutomationRoutineTests.test_frontend_input_validation_rejects_stale_installed_optional_package",
-            "tools.automation.test_run.AutomationRoutineTests.test_browser_environment_resolves_the_actual_playwright_node_shebang",
-            "tools.docs.test_check",
-            "tools.planning.test_implementation_backlog",
-            "tools.planning.test_validate_plans",
+            "discover",
+            "-s",
+            "tools",
+            "-p",
+            "test_*.py",
         ]
+    )
+    m0_exit = subprocess.run(
+        ["python3", "tools/automation/run.py", "AUTO-M0-G1-EXIT"],
+        cwd=ROOT,
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    m0_status = {0: "Passed", 2: "Failed", 3: "Blocked"}.get(
+        m0_exit.returncode, "Failed"
+    )
+    print(
+        f"SEPARATE M0-G1 APPROVAL: {m0_status} "
+        f"(exit {m0_exit.returncode}; outside the M1 acceptance gate)"
+    )
+    print(
+        json.dumps(
+            evidence_row(
+                test_id="M0-G1-EXIT",
+                command_id="AUTO-M0-G1-EXIT",
+                boundary="separate exact-digest M0 approval gate",
+                status=m0_status,
+                versions=actual_tool_versions(("python",))
+                if m0_status == "Passed"
+                else (),
+                requirement_ids=("NFR-TEST-002",),
+                acceptance_ids=("AC-TEST-002",),
+            ),
+            sort_keys=True,
+        )
     )
     run(
         [
@@ -195,12 +193,35 @@ def main() -> int:
     )
     run([str(ROOT / "frontend/node_modules/.bin/vite"), "build", "frontend"])
     run_browser_boundary()
+    versions = actual_tool_versions(("python", "node", "npm", "uv", "google-chrome"))
     for row in (
-        evidence("FND-TEST-001", "T1/T2/T3/T4 real local stack", "Passed"),
-        evidence("FND-TEST-PLATFORM", "T5 workstation platform", "Not Run"),
-        evidence("FND-TEST-PROVIDER", "T6 live provider/account", "Not Run"),
-        evidence("FND-TEST-OPERATIONS", "T7 native lifecycle", "Not Run"),
-        evidence("FND-CI-001", "hosted GitLab pipeline", "Not Run"),
+        evidence_row(
+            test_id="FND-TEST-001",
+            command_id="AUTO-TEST",
+            boundary="T1/T2/T3/T4 real local stack",
+            status="Passed",
+            versions=versions,
+            requirement_ids=("NFR-TEST-001", "NFR-TEST-002"),
+            acceptance_ids=("AC-TEST-001", "AC-TEST-002", "AC-TEST-004"),
+            red_reference="docs/evidence/m1-audit-fixes.md#red",
+            green_reference="docs/evidence/m1-audit-fixes.md#green",
+            refactor_reference="docs/evidence/m1-audit-fixes.md#refactor",
+        ),
+        *(
+            evidence_row(
+                test_id=test_id,
+                command_id="AUTO-TEST",
+                boundary=boundary,
+                status="Not Run",
+                versions=(),
+            )
+            for test_id, boundary in (
+                ("FND-TEST-PLATFORM", "T5 workstation platform"),
+                ("FND-TEST-PROVIDER", "T6 live provider/account"),
+                ("FND-TEST-OPERATIONS", "T7 native lifecycle"),
+                ("FND-CI-001", "hosted GitLab pipeline"),
+            )
+        ),
     ):
         print(json.dumps(row, sort_keys=True))
     return 0

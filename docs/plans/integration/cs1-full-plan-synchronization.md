@@ -44,6 +44,20 @@ or live verification.
 
 Plan snapshot SHA-256: `ce910d73165ed9db8229c79abaa03129e8ba0f16e391908cc7a142067edcff0f`
 
+## 2026-09-20 local-commit preflight catalog addendum
+
+An independent bounded review of the new catalog/snapshot-only change returned
+**PASS on coherence only**. The default `AUTO-GIT-PREFLIGHT` now reports its
+actual local-commit scope and marks remote/upstream push readiness Not Run; an
+explicit push preflight remains fail-closed without a configured remote. The
+rendered snapshot matches the current file byte-for-byte. Only the
+`automation-routines` control digest and byte count changed; all 20 plan bodies
+and the other eight controls remain unchanged. This new review does not amend
+either historical CS-1 attestation, grant plan/contract approval, or claim a
+hosted GitLab run.
+
+Plan snapshot SHA-256: `793531850151ad12ad4210edbeadb2326c2f4bcf8844ac4a6f8b10e2f94ad875`
+
 ## 2. Frozen planning inventory
 
 The synchronized baseline records 20 plans and nine governing controls. The

@@ -8,11 +8,11 @@ import re
 import subprocess
 import sys
 import tomllib
-from datetime import UTC, datetime
 from pathlib import Path
 from shutil import which
 
 from auto_build import verify_frontend_inputs
+from evidence import actual_tool_versions, evidence_row
 
 ROOT = Path(__file__).resolve().parents[3]
 BACKEND_PYTHON = ROOT / "backend/.venv/bin/python"
@@ -29,22 +29,56 @@ BACKEND_DIRECT = {
     "mypy": ("2.3.1", "MIT"),
 }
 ALLOWED_TEST_SETTING_LITERAL = 'SECRET = "AGENTMONITOR_TEST_BOOTSTRAP_SECRET'
+PROHIBITED_SOURCE_PATTERNS = (
+    r"(?:unittest\s*\.\s*mock|from\s+unittest\s+import\s+[^\n#]*\bmock\b|"
+    r"pytest_mock|\bmagicmock\b|\bmonkeypatch\b)",
+    r"\bshell\s*=\s*True\b|\bos\.system\(",
+)
+SECRET_ASSIGNMENT_PATTERN = r"(?:api[_-]?key|secret|password)\s*[:=]\s*['\"][^'\"]{8,}"
 
 
 def run(command: list[str], *, environment: dict[str, str] | None = None) -> int:
     return subprocess.run(command, cwd=ROOT, check=False, env=environment).returncode
 
 
-def verify_backend_inputs() -> bool:
-    """Check the admitted direct backend manifest, lock, and installed licenses."""
-    try:
-        manifest = tomllib.loads((ROOT / "backend/pyproject.toml").read_text())
-        if set(manifest["project"]) != {
+def approved_manifest_sections(manifest: dict[str, object]) -> bool:
+    """Pure policy for the exact approved backend manifest sections."""
+    project = manifest.get("project")
+    groups = manifest.get("dependency-groups")
+    return (
+        isinstance(project, dict)
+        and isinstance(groups, dict)
+        and set(project)
+        == {
             "name",
             "version",
             "requires-python",
             "dependencies",
-        } or set(manifest["dependency-groups"]) != {"dev"}:
+        }
+        and set(groups) == {"dev"}
+    )
+
+
+def source_is_allowed(content: str) -> bool:
+    """Pure local-minimum policy; this is not a full secret or SAST scanner."""
+    if any(
+        re.search(pattern, content, flags=re.IGNORECASE)
+        for pattern in PROHIBITED_SOURCE_PATTERNS
+    ):
+        return False
+    return all(
+        match.group() == ALLOWED_TEST_SETTING_LITERAL
+        for match in re.finditer(
+            SECRET_ASSIGNMENT_PATTERN, content, flags=re.IGNORECASE
+        )
+    )
+
+
+def verify_backend_inputs() -> bool:
+    """Check the admitted direct backend manifest, lock, and installed licenses."""
+    try:
+        manifest = tomllib.loads((ROOT / "backend/pyproject.toml").read_text())
+        if not approved_manifest_sections(manifest):
             return False
         direct = {
             item.split("==", maxsplit=1)[0]: item.split("==", maxsplit=1)[1]
@@ -89,20 +123,20 @@ def verify_backend_inputs() -> bool:
 
 
 def minimum_local_controls() -> bool:
-    """Fail closed on prohibited doubles, secret literals, or unsafe shell use."""
-    tracked = subprocess.run(
-        ["git", "ls-files"], cwd=ROOT, check=False, capture_output=True, text=True
+    """Check tracked and untracked real source with the bounded local policy."""
+    sources = subprocess.run(
+        ["git", "ls-files", "--cached", "--others", "--exclude-standard", "-z"],
+        cwd=ROOT,
+        check=False,
+        capture_output=True,
+        text=True,
     )
-    if tracked.returncode:
+    if sources.returncode:
         return False
-    patterns = (
-        r"(?:unittest\s*\.\s*mock|from\s+unittest\s+import\s+[^\n#]*\bmock\b|"
-        r"pytest_mock|\bmagicmock\b|\bmonkeypatch\b)",
-        r"\bshell\s*=\s*True\b|\bos\.system\(",
-    )
-    secret_pattern = r"(?:api[_-]?key|secret|password)\s*[:=]\s*['\"][^'\"]{8,}"
     source_suffixes = {".py", ".ts", ".tsx", ".js", ".json", ".toml", ".yml"}
-    for relative in tracked.stdout.splitlines():
+    for relative in sources.stdout.split("\x00"):
+        if not relative:
+            continue
         path = ROOT / relative
         if path == Path(__file__).resolve():
             continue
@@ -112,14 +146,7 @@ def minimum_local_controls() -> bool:
             content = path.read_text(encoding="utf-8")
         except UnicodeDecodeError:
             return False
-        if any(
-            re.search(pattern, content, flags=re.IGNORECASE) for pattern in patterns
-        ):
-            return False
-        if any(
-            match.group() != ALLOWED_TEST_SETTING_LITERAL
-            for match in re.finditer(secret_pattern, content, flags=re.IGNORECASE)
-        ):
+        if not source_is_allowed(content):
             return False
     return (
         (ROOT / "docs/dependencies/m1-foundation-admission.md").is_file()
@@ -180,11 +207,7 @@ def main() -> int:
         ],
         ["python3", "tooling/foundation/check_boundaries.py", "."],
         [str(BACKEND_PYTHON), "tooling/foundation/openapi_client.py", "--check"],
-        [
-            str(ROOT / "frontend/node_modules/.bin/tsc"),
-            "--project",
-            "frontend/tsconfig.node.json",
-        ],
+        ["npm", "--prefix", "frontend", "run", "typecheck"],
         [str(tools["uv"]), "lock", "--check", "--directory", "backend"],
         [str(ROOT / "frontend/node_modules/.bin/vite"), "build", "frontend"],
     )
@@ -203,27 +226,23 @@ def main() -> int:
     print("QUALITY STATUS: Passed local static/boundary/generated/locked-input checks")
     print(
         "QUALITY STATUS: Not Run hosted GitLab, live provider, platform, "
+        "full secret/SAST/vulnerability scans, fresh frozen install, "
         "SBOM/notices release generation"
     )
     print(
         json.dumps(
-            {
-                "contract_id": "CTR-FND-008",
-                "test_id": "FND-QUALITY-001",
-                "requirement_ids": ["NFR-TEST-002", "NFR-LIC-001"],
-                "acceptance_ids": ["AC-TEST-002", "AC-TEST-006"],
-                "boundary_class": "local static quality",
-                "command_registry_id": "AUTO-QUALITY",
-                "environment_versions": [],
-                "red_reference": "task-5-report.md#fix-round-3-red-evidence",
-                "green_reference": "task-5-report.md#fix-round-3-green-evidence",
-                "refactor_reference": "task-5-report.md#fix-round-3-refactor-evidence",
-                "status": "Passed",
-                "recorded_at": datetime.now(UTC).isoformat(),
-                "sanitization_review": "allowlist-only command status",
-                "reviewer": "PLAN-FND",
-                "live_owner_countersignature": None,
-            },
+            evidence_row(
+                test_id="FND-QUALITY-001",
+                command_id="AUTO-QUALITY",
+                boundary="local minimum static and dependency-metadata checks",
+                status="Passed",
+                versions=actual_tool_versions(("python", "node", "npm", "uv")),
+                requirement_ids=("NFR-TEST-002", "NFR-LIC-001"),
+                acceptance_ids=("AC-TEST-002", "AC-TEST-006"),
+                red_reference="docs/evidence/m1-audit-fixes.md#red",
+                green_reference="docs/evidence/m1-audit-fixes.md#green",
+                refactor_reference="docs/evidence/m1-audit-fixes.md#refactor",
+            ),
             sort_keys=True,
         )
     )
