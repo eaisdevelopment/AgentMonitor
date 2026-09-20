@@ -57,7 +57,7 @@ Argon2-cffi `25.1.0` and exact reviewed Linux transitive graph (`argon2-cffi-bin
 
 ## Declaration
 
-Work stayed within assigned M01/source/test/migration and explicitly allocated shared paths. Only isolated temporary real SQLite databases and real PTY/Argon2 processes were used. No mock, fake, stub, emulator, recorded response, seeded telemetry, demo account, test-only production branch, provider write, `.env` access, secret disclosure, external resource creation, or Story commit occurred. The root steward must independently review this handoff and run the M2 milestone gate; Story 1 evidence is not a release or milestone pass.
+Work stayed within assigned M01/source/test/migration and explicitly allocated shared paths. Only isolated temporary real SQLite databases and real PTY/Argon2 processes were used. No mock, fake, stub, emulator, recorded response, seeded telemetry, demo account, test-only production branch, provider write, `.env` access, secret disclosure, or external resource creation occurred. The accepted Story 1 implementation was committed as `e05d8d8`. The root steward must still run the M2 milestone gate; Story 1 evidence is not a release or milestone pass.
 
 ## Independent integration acceptance
 
