@@ -30,7 +30,7 @@ def run(command: list[str], *, environment: dict[str, str] | None = None) -> Non
 
 def backend_environment() -> dict[str, str]:
     return {
-        "PATH": "/home/dev/.local/bin:/usr/local/bin:/usr/bin:/bin",
+        "PATH": os.environ.get("PATH", os.defpath),
         "PYTHONPATH": str(ROOT / "backend/src"),
     }
 
@@ -100,10 +100,7 @@ def run_browser_boundary() -> None:
             origin = wait_for_origin(server)
             run(
                 [
-                    "npx",
-                    "--prefix",
-                    "frontend",
-                    "playwright",
+                    str(ROOT / "frontend/node_modules/.bin/playwright"),
                     "test",
                     "frontend/tests/browser/foundation/shell.spec.ts",
                 ],
@@ -131,9 +128,9 @@ def evidence(test_id: str, boundary: str, status: str) -> dict[str, object]:
         "boundary_class": boundary,
         "command_registry_id": "AUTO-TEST",
         "environment_versions": [],
-        "red_reference": "task-5-report.md#red-evidence",
-        "green_reference": "task-5-report.md#green-evidence",
-        "refactor_reference": "task-5-report.md#refactor-evidence",
+        "red_reference": "task-5-report.md#fix-round-1-red-evidence",
+        "green_reference": "task-5-report.md#fix-round-1-green-evidence",
+        "refactor_reference": "task-5-report.md#fix-round-1-refactor-evidence",
         "status": status,
         "recorded_at": datetime.now(UTC).isoformat(),
         "sanitization_review": (
@@ -153,6 +150,14 @@ def main() -> int:
             "-m",
             "unittest",
             "tools.automation.test_run.AutomationRoutineTests.test_m1_routines_resolve_from_canonical_catalog",
+            "tools.automation.test_run.AutomationRoutineTests.test_catalog_index_rejects_duplicate_routine_ids",
+            "tools.automation.test_run.AutomationRoutineTests.test_operational_limited_routine_requires_named_limitations",
+            "tools.automation.test_run.AutomationRoutineTests.test_real_catalog_defines_every_mandatory_routine",
+            "tools.automation.test_run.AutomationRoutineTests.test_blocked_routine_fails_closed_in_the_real_checkout",
+            "tools.automation.test_run.AutomationRoutineTests.test_m1_quality_and_build_report_required_local_controls",
+            "tools.docs.test_check",
+            "tools.planning.test_implementation_backlog",
+            "tools.planning.test_validate_plans",
         ]
     )
     run(
@@ -172,7 +177,7 @@ def main() -> int:
         [str(BACKEND_PYTHON), "tooling/foundation/openapi_client.py", "--check"],
         environment=backend_environment(),
     )
-    run(["npm", "--prefix", "frontend", "run", "build"])
+    run([str(ROOT / "frontend/node_modules/.bin/vite"), "build", "frontend"])
     run_browser_boundary()
     for row in (
         evidence("FND-TEST-001", "T1/T2/T3/T4 real local stack", "Passed"),

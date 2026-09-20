@@ -16,6 +16,25 @@ from run import index_routines, load_catalog, validate_catalog  # noqa: E402
 
 
 class AutomationRoutineTests(unittest.TestCase):
+    def test_m1_quality_and_build_report_required_local_controls(self) -> None:
+        for script, marker in (
+            ("auto_quality.py", "M1 LOCAL CONTROLS: PASSED"),
+            ("auto_build.py", "FRONTEND INPUTS: PASSED"),
+        ):
+            with self.subTest(script=script):
+                result = subprocess.run(
+                    [
+                        sys.executable,
+                        "tools/automation/implementations/" + script,
+                    ],
+                    cwd=REPOSITORY_ROOT,
+                    check=False,
+                    capture_output=True,
+                    text=True,
+                )
+                self.assertEqual(0, result.returncode, result.stdout + result.stderr)
+                self.assertIn(marker, result.stdout)
+
     def test_m1_routines_resolve_from_canonical_catalog(self) -> None:
         catalog = load_catalog(REPOSITORY_ROOT)
 

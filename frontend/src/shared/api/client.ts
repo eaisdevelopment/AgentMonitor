@@ -1,7 +1,7 @@
 import { apiVersion } from "../../generated/api";
 
 export type FoundationShellState = Readonly<{
-  applicationVersion: typeof apiVersion;
+  apiContractVersion: typeof apiVersion;
   message: string;
 }>;
 
@@ -11,7 +11,7 @@ export type FoundationShellState = Readonly<{
  */
 export function getFoundationShellState(): FoundationShellState {
   return {
-    applicationVersion: apiVersion,
+    apiContractVersion: apiVersion,
     message:
       "The local foundation is ready. Monitoring data will appear only after an approved provider integration is available.",
   };

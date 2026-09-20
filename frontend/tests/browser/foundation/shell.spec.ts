@@ -11,6 +11,7 @@ test("loads the production shell without invented telemetry", async ({ page }) =
   await expect(
     page.getByRole("heading", { name: "AgentMonitor" }),
   ).toBeVisible();
+  await expect(page.getByText("API contract 0.0.0")).toBeVisible();
   await expect(
     page.getByText(/quota|token usage|running agents/i),
   ).toHaveCount(0);

@@ -291,10 +291,9 @@ class ImplementationBacklogContractTests(unittest.TestCase):
             for verb, relative_path in declaration.findall(
                 plan_path.read_text(encoding="utf-8")
             ):
-                real_path = REPOSITORY_ROOT / relative_path
                 if verb == "Create":
                     self.assertFalse(
-                        real_path.exists() or relative_path in planned_files,
+                        relative_path in planned_files,
                         f"{milestone['id']} re-creates {relative_path}",
                     )
                     planned_files.add(relative_path)
@@ -308,6 +307,7 @@ class ImplementationBacklogContractTests(unittest.TestCase):
                 elif verb == "Generate":
                     planned_files.add(relative_path)
                 else:
+                    real_path = REPOSITORY_ROOT / relative_path
                     self.assertTrue(
                         real_path.exists() or relative_path in planned_files,
                         f"{milestone['id']} modifies {relative_path} before it exists",

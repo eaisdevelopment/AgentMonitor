@@ -11,7 +11,7 @@
 - Immutable reviewed bytes: [plan-baseline.toml](../plan-baseline.toml)
 - Test evidence: [planning-gate-evidence.md](planning-gate-evidence.md)
 - Post-CS1 M0 evidence: [M0 G0 gate evidence](../discovery/m0-g0-gate-evidence.md)
-- Plan snapshot SHA-256: `9e6dbc0aa91a0dff7eb81689ff631dfc38bea98308e1e609f73b16b2e0eccc0e`
+- Plan snapshot SHA-256: `ce910d73165ed9db8229c79abaa03129e8ba0f16e391908cc7a142067edcff0f`
 
 ## 1. Decision and authority boundary
 
