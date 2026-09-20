@@ -58,6 +58,21 @@ hosted GitLab run.
 
 Plan snapshot SHA-256: `793531850151ad12ad4210edbeadb2326c2f4bcf8844ac4a6f8b10e2f94ad875`
 
+## 2026-09-20 M2-scoped contract synchronization addendum
+
+The current exact snapshot incorporates only the M2 authenticated-shell
+security/producer-consumer corrections and the reviewed local port default.
+The [M2 decision overlay](../../evidence/m2-contract-freeze.md) is the scoped
+authority for `CTR-IAM-001..008`, `CTR-API-001..003`, `CTR-COMMON-005`,
+`CTR-UI-001`, and the IAM `v1_0100` allocation while those Story surfaces are
+implemented. The owner's `/goal` approves those referenced M2 plan slices;
+the all-V1 baseline flags remain Draft and do not authorize M3 or provider
+work. The adoption and ownership records were regenerated/rebound to the
+changed M01/P01 and contract/configuration bytes, with no additional plan
+implementation claim. M2 tests and owner bootstrap remain Not Run here.
+
+Plan snapshot SHA-256: `af4929c634b3c2a68dfb6436dd6013c20804fc5d86be62accce3a4d968f3cfe7`
+
 ## 2. Frozen planning inventory
 
 The synchronized baseline records 20 plans and nine governing controls. The

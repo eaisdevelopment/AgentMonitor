@@ -866,7 +866,7 @@ The exact cookie names, session idle and absolute limits, rotation behavior, and
 - Bearer-only requests do not require CSRF.
 - Login has no pre-session CSRF token but requires exact canonical Origin and throttling.
 - Unsafe cookie requests with absent, opaque, `null`, malformed, or noncanonical Origin fail.
-- GET/HEAD with an Origin header also requires an exact allowed Origin; cross-origin probing is not tolerated.
+- Cookie-authenticated GET/HEAD with an Origin header also requires the exact canonical Origin. A pure bearer request is Origin-independent, still requires the canonical Host and a valid scoped token, and never receives a CORS grant; this is the M2 Task 6 perimeter contract.
 - State-changing requests using a simple content type are rejected; JSON content type remains required.
 - CSRF failure is audited safely and returns a generic 403 without indicating which half failed.
 
@@ -876,7 +876,7 @@ The exact cookie names, session idle and absolute limits, rotation behavior, and
 - Swagger advertises CTR-API-003 bearer authorization for API calls.
 - Swagger `persistAuthorization` is false; no token is prepopulated or written to local storage.
 - The locally pinned Swagger request transport is explicit: without an entered bearer token it includes the browser session and copies the CSRF cookie into `X-CSRF-Token` for unsafe calls; with a bearer token it sets fetch credentials to `omit` so the session cookie is not sent and the request is not rejected as ambiguous credentials.
-- This Swagger transport behavior has real-browser tests. If the selected pinned Swagger version cannot guarantee credential omission, bearer “Try it out” is disabled rather than weakening ambiguous-credential rejection.
+- This Swagger transport behavior must pass real-browser tests. If a pinned Swagger version cannot omit cookies for bearer “Try it out”, select an approved compatible version or implement a small reviewed local request transport; disabling working bearer authorization is not an M2 acceptance substitute.
 - Documentation HTML uses pinned local assets; no CDN scripts, fonts, telemetry, or external requests are permitted.
 - Content Security Policy for documentation permits only the minimum local script/style assets and must not weaken normal UI policy globally.
 - Build-time OpenAPI generation uses the production application factory in a controlled command and does not create a hidden unauthenticated runtime route.

@@ -36,6 +36,23 @@ hosted CI evidence, or a revision of the historical audit above.
 
 Plan snapshot SHA-256: `793531850151ad12ad4210edbeadb2326c2f4bcf8844ac4a6f8b10e2f94ad875`
 
+## 2026-09-20 M2-scoped contract rebind
+
+The owner approved only the authenticated-shell M2 milestone and its referenced
+module-plan slices through `/goal`; this does not approve the all-V1 Draft
+corpus. M2 entry review and a separate migration/security review identified
+and corrected four cross-plan discrepancies: IAM's unallocated outbox, bearer
+Origin/Swagger behavior, cookie-plus-bearer error naming, and conditional
+session-version exposure. Root also froze the Linux Argon2 work policy,
+password-change token effect, logout mapping, and local port default in the
+[M2 decision overlay](../../evidence/m2-contract-freeze.md). The changed M01
+and P01 plans, contract/configuration/adoption baselines, and ownership digest
+are rebound in the current exact snapshot. Historical CS-1 findings and their
+original bytes remain historical evidence, not a claim that all V1 is newly
+approved. M2 production and live-boundary tests remain Not Run at this rebind.
+
+Plan snapshot SHA-256: `af4929c634b3c2a68dfb6436dd6013c20804fc5d86be62accce3a4d968f3cfe7`
+
 ## 1. Decision
 
 The corrected corpus closes the eighteen findings recorded in the

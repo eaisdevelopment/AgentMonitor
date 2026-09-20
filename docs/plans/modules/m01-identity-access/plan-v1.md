@@ -20,7 +20,7 @@ This `0.2.0-draft` revision adopts contract-baseline `0.2.0` and the parallel-ow
 
 - M01 owns only AgentMonitor dashboard authentication: administrator password verification, dashboard sessions/CSRF, bearer API tokens, permissions, and IAM security events. Provider/profile authentication is outside M01. `dashboard_authentication_required` is the only normalized missing/expired/revoked dashboard-credential outcome; M01 never emits or interprets `provider_reauthentication_required`, and a provider-auth failure must not revoke a dashboard session.
 - CTR-IAM-006/007 commands that reveal a password-derived session/CSRF credential or API-token plaintext declare `replay_policy = one_time_secret_non_replayable`. After commit, the same idempotency key returns `one_time_secret_not_replayable` plus safe resource ID/version/state only. Plaintext is never cached in the receipt, reconstructed, persisted, logged, serialized to an event, or returned again. Normal safe-summary mutations retain their separately declared replay policy.
-- M01 consumes CTR-COMMON-007 for all credential/session field-state mappings and CTR-EVT-001 for atomic IAM event outbox plus consumer receipt/replay semantics. It implements the M08-owned CTR-OPS-006 leaf health port and CTR-OPS-007 IAM retention/export/consistency participant; those implementations expose typed, bounded, secret-free results and never transfer IAM semantic ownership to M08.
+- M01 consumes CTR-COMMON-007 for credential/session field-state mappings. In M2, its seven-table `v1_0100` revision writes local `iam_security_audit_event` facts atomically with credential transitions; it does not publish a CTR-EVT-001 outbox or consume its delivery/receipt ports. Any later M01 event producer requires a separately synchronized contract and migration. M01 implements the M08-owned CTR-OPS-006 leaf health port and CTR-OPS-007 IAM retention/export/consistency participant; those implementations expose typed, bounded, secret-free results and never transfer IAM semantic ownership to M08.
 - CTR-DB-003 is consumed only for the restore workflow. M01 invalidates all restored browser sessions and API tokens against the prepared database before M08 can authorize normal readiness; M01 neither activates the database nor controls the service.
 - The V1 public contract file is `backend/src/agentmonitor/contracts/identity_access_v1.py`; SQLite implementation files are only under `backend/src/agentmonitor/adapters/persistence/identity_access/sqlite/**`. M01 owns `iam_` tables and migration slots `v1_0100..v1_0199`; PLAN-DB alone serializes the common migration head.
 - Alignment is verified by existing scenarios M01-DB-011, M01-HTTP-006, M01-HTTP-011, M01-HTTP-014, M01-HTTP-015, M01-OPS-003, M01-ARCH-001, and M01-ARCH-002. Their required boundary and evidence status are unchanged and remain `Not Run`.
@@ -222,7 +222,7 @@ M01 domain/application code may import Python standard-library types and approve
 - Proposed bearer scopes follow the security baseline: `read:status`, `read:accounts`, `read:telemetry`, `read:diagnostics`, `write:configuration`, `write:accounts`, `write:alerts`, `write:reauth`, `write:tokens`, and `write:backup`.
 - A centrally synchronized mapping converts bearer scopes to fine-grained internal `PermissionV1` values. Routes declare permissions, not role checks or `is_admin` shortcuts.
 - Unknown requested scopes are rejected. Adding a scope is a compatible contract addition only when older consumers tolerate unknown strings and no existing scope gains broader meaning.
-- Token management obeys attenuation: a bearer principal can create/manage only credentials whose effective scopes are a subset of its own and only when it has `write:tokens`. The browser administrator can manage all V1 tokens. This proposed rule requires root approval.
+- Token management obeys attenuation: a bearer principal can create/manage only credentials whose effective scopes are a subset of its own and only when it has `write:tokens`. The browser administrator can manage all V1 tokens. The M2-scoped root/security approval is recorded in `docs/evidence/m2-contract-freeze.md`; other future scopes remain Draft.
 - `AuthorizationDecisionV1` returns allowed/denied, stable safe reason code, required permission, and correlation metadata; it never returns policy internals or credential status.
 
 #### IamSecurityAuditEvent
@@ -319,7 +319,7 @@ The machine-exact producer and consumer sets are bound in
 | Contract | Required fields and invariants | Consumers | Compatibility promise |
 |---|---|---|---|
 | `PrincipalV1` | principal ID, auth method, safe credential ID, effective permissions, authenticated/issued/expiry instants | P01 and application authorization | Additive optional fields only within V1; never credential material |
-| `SessionSummaryV1` | session ID, issued/last-activity/idle/absolute expiry, state, current-session flag | P01/P02 via API mapping | State meaning is stable; new unknown-tolerant states additive |
+| `SessionSummaryV1` | session ID, issued/last-activity/idle/absolute expiry, state, current-session flag, optimistic record version | P01/P02 via API mapping; each listed session exposes a strong version-derived ETag for conditional revocation | State meaning is stable; new unknown-tolerant states additive |
 | `ApiTokenSummaryV1` | token ID, name, safe prefix/fingerprint, scopes, issued/expiry/last-used/revoked/rotated metadata, version | P01/P02/Swagger clients | No verification digest or plaintext; nullable/unknown explicit |
 | `PermissionV1` | stable permission key and description | P01 route declarations | Existing permission meaning never broadens silently |
 | `AuthorizationDecisionV1` | allowed, stable reason code, required permission, principal ID, correlation ID | P01, application orchestrators | Denial reasons safe and versioned |
@@ -368,7 +368,7 @@ The machine-exact producer and consumer sets are bound in
 | Cryptographic random/digest primitives | Private port V1 | sessions, CSRF, bearer tokens, IDs | generation failure aborts transaction and secret issuance |
 | Configuration registry/loader | Foundation contract TBD | validated non-secret policy and secret-presence state | invalid security configuration prevents protected-service readiness |
 | CTR-COMMON-007 `FieldAvailabilityV1` | Foundation | explicit optional/unknown/unavailable state in safe summaries | invalid combinations rejected; zero/absence never conflated |
-| CTR-EVT-001 | PLAN-INT governance/PLAN-DB infrastructure | IAM outbox, delivery receipts, replay/checkpoints | producer commit is atomic; consumer failure cannot erase security fact |
+| CTR-EVT-001 | PLAN-INT governance/PLAN-DB infrastructure | Not consumed by M01 in M2; any future outbox requires a separately approved contract and migration | Local IAM audit writes remain atomic without cross-module delivery |
 | CTR-OPS-006/007 | M08 semantic protocols | publish leaf health; implement IAM retention/export/consistency participant | bounded safe failure; M08 receives no table or credential access |
 | CTR-DB-003 | PLAN-DB | prepared-restore database reference/receipt for mandatory credential invalidation | IAM remains not-ready when invalidation or typed database phase fails |
 
@@ -404,7 +404,7 @@ Proposed cookie policy for synchronization:
 | `invalid_credentials` | 401 | Same response for every bounded wrong password |
 | `login_throttled` | 429 | Safe `Retry-After`; no attempt/count detail |
 | `dashboard_authentication_required` | 401 | Same for malformed/unknown/expired/revoked dashboard session or bearer credential; never used for provider reauthentication |
-| `multiple_authentication_credentials` | 400 | P01 rejects cookie plus bearer ambiguity before M01 authorization |
+| `ambiguous_credentials` | 400 | P01 transport-only rejection of cookie plus bearer before M01 authorization; M01 publishes no competing outcome |
 | `csrf_validation_failed` | 403 | Same for absent/malformed/mismatch; no token detail |
 | `permission_denied` | 403 | Required permission may be named; held scopes need not be echoed |
 | `administrator_already_initialized` | 409 | Bootstrap only; does not alter current hash |
@@ -417,7 +417,7 @@ Proposed cookie policy for synchronization:
 | `iam_repository_unavailable` | 503 | Correlation ID only; no SQL/path detail |
 | request/schema error | 400/413/422 | Owned by P01 validation; bounded safe field reasons |
 
-For logout, the proposal is: a valid session mutation requires CSRF and returns `204`; an absent/invalid session returns `204` while P01 clears presented cookies, but no server record is changed. Host/Origin still apply. This provides idempotent local cleanup without exposing session state and requires security approval.
+For M2 logout, a valid browser session mutation requires CSRF and returns `204`; an absent, expired, or revoked session returns `401 dashboard_authentication_required` while P01 clears presented cookies and changes no server record. Host/Origin still apply. This aligns the browser-cookie-only route profile with the M2 security overlay; domain terminal revocation remains idempotent for an already authorized caller.
 
 ### Contract change assessment
 
@@ -612,7 +612,13 @@ These names allocate no secret values. Exact names/defaults/ranges require confi
 | `AGENTMONITOR_IAM_LOGIN_MAX_LOCK_SECONDS` | positive duration; proposed default 900 | No | restart | M01; not below initial lock |
 | `AGENTMONITOR_IAM_IDEMPOTENCY_RETENTION_SECONDS` | positive duration; proposed default 86,400 | No | restart | M01 |
 | `AGENTMONITOR_IAM_TERMINAL_RECORD_RETENTION_DAYS` | proposed fixed/default 365 | No | restart | M01; cannot undercut approved history without requirements change |
-| Argon2 policy keys or code policy version | exact model unresolved | No | restart | M01/security; benchmark plus hard floor; invalid policy fails readiness |
+| Argon2 policy keys or code policy version | M2 Linux fixed code policy: RFC 9106 low-memory profile and version 19 PHC; no weaker configuration key | No | restart | M01/security; reviewed Linux benchmark and work floor in `docs/dependencies/m2-argon2-admission.md`; invalid policy fails readiness |
+
+For M2, each numeric IAM value in this table is fixed to its listed default;
+the permitted range is a singleton, as recorded in the configuration baseline.
+No environment, CLI, API, or test-mode override may weaken or alter these
+values. A future configurable range requires a separate versioned security and
+contract review.
 
 Cookie name, canonical public origin, trusted hosts, bind host/port, TLS, and proxy trust are P01/deployment configuration, not M01 keys. Passwords, API-token plaintext, session/CSRF credentials, and token bootstrap material are never configuration values. A future root-approved application cryptographic key, if proven necessary, must use an `AGENTMONITOR_` secret name, live only in the protected `.env`, and have a rotation runbook; this draft does not invent one.
 
@@ -627,7 +633,7 @@ Cookie name, canonical public origin, trusted hosts, bind host/port, TLS, and pr
 
 ### Normal rotation
 
-- Authenticated password change requires current password, browser session, valid CSRF, and an explicit new value. It revokes all other sessions and replaces the current session with a fresh session/CSRF pair. API tokens remain active unless the owner selects an explicitly approved revoke-all option; this policy is unresolved.
+- Authenticated password change requires current password, browser session, valid CSRF, and an explicit new value. It revokes all existing browser sessions and replaces the current session with a fresh session/CSRF pair. API tokens remain active as independent credentials in M2; no revoke-all option is implied. The owner may revoke tokens through the approved token-management operation.
 - API-token rotation returns one successor secret, terminally marks the predecessor, and is audited. If delivery is lost, the secret is not replayed; browser admin creates another replacement.
 - Session/CSRF credentials rotate on login and password change. Logout/revocation is server-side and clears browser cookies through P01.
 
@@ -780,7 +786,7 @@ Implementation may start only after section 15 is fully satisfied and the plan s
 - I-01 may begin only after shared primitive contracts are frozen.
 - I-02 through I-06 are primarily sequential because they share M01 invariants and one migration chain. A separate test reviewer may work read-only in parallel.
 - I-07 and I-08 are separate P01/P02 owner tasks. They consume the frozen M01 contract and must not edit M01 internals.
-- Only the centrally assigned migration owner edits the Alembic revision chain. Only the P01 owner generates OpenAPI; only the P02 owner regenerates the client.
+- Only the centrally assigned migration owner edits the Alembic revision chain. P01 owns OpenAPI source semantics and P02 owns generated-client wrapper consumption; the integration steward is the sole writer of committed OpenAPI and generated-client artifacts.
 - A discovered contract gap stops affected work and returns to root synchronization. It is not solved with a deep import, shared ORM model, duplicated DTO, direct table read, or test bypass.
 
 ### Implementation-agent return packet

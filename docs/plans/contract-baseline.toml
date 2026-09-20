@@ -1123,7 +1123,7 @@ id = "CTR-EVT-001"
 name = "DurableEventDeliveryReceiptAndReplayV1"
 version = "1.0.0"
 producer = "PLAN-INT"
-consumers = ["PLAN-M01", "PLAN-M02", "PLAN-M03", "PLAN-M04", "PLAN-M05", "PLAN-M06", "PLAN-M07", "PLAN-M08", "PLAN-DB"]
+consumers = ["PLAN-M02", "PLAN-M03", "PLAN-M04", "PLAN-M05", "PLAN-M06", "PLAN-M07", "PLAN-M08", "PLAN-DB"]
 maturity = "proposed_aligned"
 decision_reference = "CAA-2026-09-18-01 sections 6, 9.6, and 10"
 checklist = { field_state_null = true, units_time = true, auth = true, side_effects = true, idempotency = true, events = true, retention = true, errors = true, compatibility = true }
