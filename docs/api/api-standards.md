@@ -67,23 +67,20 @@ These paths are architectural guidance, not authorization to implement before ea
 
 ## Error format
 
-Use RFC 9457-style problem details with safe extensions:
-
-```json
-{
-  "type": "https://agentmonitor.invalid/problems/authentication-required",
-  "title": "Provider authentication required",
-  "status": 409,
-  "detail": "The selected monitoring profile requires re-authentication.",
-  "instance": "/api/v1/collection-runs/opaque-id",
-  "code": "provider_authentication_required",
-  "correlation_id": "opaque-id",
-  "errors": []
-}
-```
+Use RFC 9457-style `SafeProblemV1` with safe, versioned extensions. For the
+approved M2 local IAM surface, `type` is the same-origin relative
+`/problems/{closed_safe_code}` and resolves to an authenticated, allowlisted
+local explanation; it is never a placeholder or external documentation URL.
+The required properties are `type`, `title`, `status`, `code`, and
+`correlation_id`. `detail` is optional in the V1 contract, though the M2 IAM
+mapping currently emits an allowlisted detail. `errors` is optional and is
+omitted on ordinary M2 failures; it is present only for safe validation-field
+errors. An omitted property is not JSON `null`.
+Future provider-reauthentication problems are outside M2 and must have their
+own approved status/code mapping before use.
 
 - `detail` is sanitized and useful to the owner.
-- Validation errors identify safe field paths and reason codes.
+- Validation errors identify only safe field paths and reason codes.
 - Stack traces, SQL, filesystem secrets, command output, tokens, and provider raw responses never appear.
 - Stable machine-readable `code` values are versioned contracts.
 
