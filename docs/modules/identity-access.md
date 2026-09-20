@@ -2,7 +2,7 @@
 
 - Owner: `PLAN-M01`; implementation slices `ST-IAM-001/002/003`.
 - Published contracts: `CTR-IAM-001..008` V1; shared database contract `CTR-DB-002` V1.
-- Status: Stories 1–2 accepted for M2 integration. Story 3 token/event ports have real SQLite tests; independent review and the M2 HTTP/browser gate remain pending. Live owner bootstrap and installed recovery are separate gates.
+- Status: Stories 1–3 accepted for M2 integration. The M2 HTTP/browser gate, live owner bootstrap, and installed recovery remain pending; Story 3's actual one-hour token-expiry test is running separately and is not yet passed.
 
 ## Boundaries and state
 
