@@ -7,6 +7,9 @@ PASSWORD_MIN_CODEPOINTS = 15
 PASSWORD_MAX_UTF8_BYTES = 1024
 M2_ISSUABLE_SCOPES = frozenset({"read:diagnostics", "write:tokens"})
 TERMINAL_RETENTION_DAYS = 365
+SESSION_IDLE_SECONDS = 1800
+SESSION_ABSOLUTE_SECONDS = 43200
+SESSION_TOUCH_SECONDS = 60
 
 
 def password_creation_error(candidate: str) -> str | None:
@@ -38,6 +41,43 @@ def session_expired(
 ) -> bool:
     """An expiry instant is exclusive; either deadline terminates the session."""
     return as_of >= idle_expires_at or as_of >= absolute_expires_at
+
+
+def session_state(
+    as_of: datetime,
+    idle_expires_at: datetime,
+    absolute_expires_at: datetime,
+    revoked_at: datetime | None,
+    revocation_reason: str | None,
+) -> Literal["active", "expired", "revoked"]:
+    """An observed terminal transition cannot resurrect on a later clock rollback."""
+    if revoked_at is not None:
+        return "expired" if revocation_reason == "expired" else "revoked"
+    return (
+        "expired"
+        if session_expired(as_of, idle_expires_at, absolute_expires_at)
+        else "active"
+    )
+
+
+def session_deadlines(
+    as_of: datetime, *, absolute_expires_at: datetime | None = None
+) -> tuple[datetime, datetime]:
+    """Return persisted idle/absolute deadlines; absolute never slides."""
+    absolute = absolute_expires_at or as_of + timedelta(
+        seconds=SESSION_ABSOLUTE_SECONDS
+    )
+    return min(as_of + timedelta(seconds=SESSION_IDLE_SECONDS), absolute), absolute
+
+
+def should_touch_session(as_of: datetime, persisted_activity_at: datetime) -> bool:
+    """Only a durable 60-second activity write may slide the idle deadline."""
+    return as_of >= persisted_activity_at + timedelta(seconds=SESSION_TOUCH_SECONDS)
+
+
+def idempotency_receipt_expired(as_of: datetime, expires_at: datetime) -> bool:
+    """Receipts become reusable at their persisted 24-hour deadline."""
+    return as_of >= expires_at
 
 
 def may_issue_scopes(

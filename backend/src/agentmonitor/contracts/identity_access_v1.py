@@ -146,6 +146,138 @@ class SessionSummaryV1(TechnicalValueV1):
     record_version: int
 
 
+class SessionCredentialIssueV1:
+    """One-time browser credentials; deliberately not a TechnicalValueV1."""
+
+    CONTRACT_ID: ClassVar[str] = "CTR-IAM-007"
+    OWNER: ClassVar[str] = "PLAN-M01"
+    __slots__ = ("session", "principal", "_session_credential", "_csrf_credential")
+    code: Literal["authenticated"] = "authenticated"
+
+    def __init__(
+        self,
+        session: SessionSummaryV1,
+        principal: PrincipalV1,
+        session_credential: str,
+        csrf_credential: str,
+    ) -> None:
+        self.session = session
+        self.principal = principal
+        self._session_credential = session_credential
+        self._csrf_credential = csrf_credential
+
+    @property
+    def session_credential(self) -> str:
+        return self._session_credential
+
+    @property
+    def csrf_credential(self) -> str:
+        return self._csrf_credential
+
+    def __repr__(self) -> str:
+        return "<SessionCredentialIssueV1 redacted>"
+
+    def __str__(self) -> str:
+        return "<SessionCredentialIssueV1 redacted>"
+
+    def __getstate__(self) -> NoReturn:
+        raise TypeError("session_issue_not_serializable")
+
+    def __reduce_ex__(self, protocol: SupportsIndex) -> NoReturn:
+        raise TypeError("session_issue_not_serializable")
+
+
+@dataclass(frozen=True, slots=True)
+class AuthenticationFailureV1(TechnicalValueV1):
+    CONTRACT_ID: ClassVar[str] = "CTR-IAM-004"
+    OWNER: ClassVar[str] = "PLAN-M01"
+    code: Literal[
+        "invalid_credentials",
+        "login_throttled",
+        "iam_setup_required",
+        "iam_repository_unavailable",
+    ]
+    retry_after_seconds: int | None = None
+
+    def __post_init__(self) -> None:
+        TechnicalValueV1.__post_init__(self)
+        if (
+            self.code == "login_throttled"
+            and (
+                type(self.retry_after_seconds) is not int
+                or not 1 <= self.retry_after_seconds <= 900
+            )
+        ) or (self.code != "login_throttled" and self.retry_after_seconds is not None):
+            raise ValueError("authentication_retry_pair_invalid")
+
+
+@dataclass(frozen=True, slots=True)
+class BrowserSessionResolutionV1(TechnicalValueV1):
+    CONTRACT_ID: ClassVar[str] = "CTR-IAM-003"
+    OWNER: ClassVar[str] = "PLAN-M01"
+    code: Literal["authenticated", "dashboard_authentication_required"]
+    principal: PrincipalV1 | None
+    session: SessionSummaryV1 | None
+
+    def __post_init__(self) -> None:
+        TechnicalValueV1.__post_init__(self)
+        if self.code == "authenticated":
+            valid = (
+                self.principal is not None
+                and self.session is not None
+                and self.principal.authentication_method == "browser_session"
+                and self.principal.credential_id == self.session.session_id
+            )
+        else:
+            valid = self.principal is None and self.session is None
+        if not valid:
+            raise ValueError("session_resolution_pair_invalid")
+
+
+@dataclass(frozen=True, slots=True)
+class CsrfDecisionV1(TechnicalValueV1):
+    CONTRACT_ID: ClassVar[str] = "CTR-IAM-003"
+    OWNER: ClassVar[str] = "PLAN-M01"
+    code: Literal["valid", "csrf_validation_failed"]
+
+
+@dataclass(frozen=True, slots=True)
+class SessionMutationOutcomeV1(TechnicalValueV1):
+    CONTRACT_ID: ClassVar[str] = "CTR-IAM-005"
+    OWNER: ClassVar[str] = "PLAN-M01"
+    code: Literal[
+        "revoked",
+        "dashboard_authentication_required",
+        "csrf_validation_failed",
+        "credential_state_conflict",
+        "session_not_found",
+        "one_time_secret_not_replayable",
+        "idempotency_key_reused",
+        "invalid_credentials",
+        "login_throttled",
+        "password_policy_violation",
+    ]
+    affected_count: int = 0
+    retry_after_seconds: int | None = None
+
+    def __post_init__(self) -> None:
+        TechnicalValueV1.__post_init__(self)
+        if (
+            type(self.affected_count) is not int
+            or self.affected_count < 0
+            or (self.code != "revoked" and self.affected_count != 0)
+        ):
+            raise ValueError("session_mutation_count_invalid")
+        if (
+            self.code == "login_throttled"
+            and (
+                type(self.retry_after_seconds) is not int
+                or not 1 <= self.retry_after_seconds <= 900
+            )
+        ) or (self.code != "login_throttled" and self.retry_after_seconds is not None):
+            raise ValueError("session_mutation_retry_invalid")
+
+
 @dataclass(frozen=True, slots=True)
 class ApiTokenSummaryV1(TechnicalValueV1):
     CONTRACT_ID: ClassVar[str] = "CTR-IAM-007"
@@ -185,24 +317,88 @@ class IamSecurityEventViewV1(TechnicalValueV1):
 
     def __post_init__(self) -> None:
         TechnicalValueV1.__post_init__(self)
-        # This first V1 producer publishes only bootstrap/recovery. Later M01
-        # Stories extend this registry deliberately with reviewed safe codes.
-        current_events = {
-            "administrator_initialized": "created",
-            "administrator_recovered": "recovered",
+        # Each event has one reviewed safe shape. No open text/payload field is
+        # accepted through this public audit projection.
+        current_events: dict[str, tuple[str, str, bool, bool, bool]] = {
+            # outcome, target type, actor present, target present, count present
+            "administrator_initialized": (
+                "created",
+                "administrator",
+                False,
+                True,
+                False,
+            ),
+            "administrator_recovered": (
+                "recovered",
+                "administrator",
+                False,
+                True,
+                True,
+            ),
+            "login_succeeded": ("authenticated", "session", True, True, False),
+            "login_throttle_activated": (
+                "login_throttled",
+                "installation",
+                False,
+                False,
+                True,
+            ),
+            "browser_session_revoked": ("revoked", "session", True, True, False),
+            "browser_session_expired": ("expired", "session", False, True, False),
+            "other_browser_sessions_revoked": (
+                "revoked",
+                "administrator",
+                True,
+                True,
+                True,
+            ),
+            "administrator_password_changed": (
+                "changed",
+                "administrator",
+                True,
+                True,
+                False,
+            ),
+            "idempotency_receipt_reclaimed": (
+                "reclaimed",
+                "administrator",
+                True,
+                True,
+                True,
+            ),
         }
+        expected = current_events.get(self.event_type)
         if (
-            current_events.get(self.event_type) != self.outcome_code
-            or self.target_type != "administrator"
-            or self.target_id is None
+            expected is None
+            or self.outcome_code != expected[0]
+            or self.target_type != expected[1]
+            or (self.actor_principal_id is not None) != expected[2]
+            or (self.target_id is not None) != expected[3]
+            or (self.aggregate_count is not None) != expected[4]
             or self.reason_code is not None
-            or self.authentication_method is not None
-            or self.actor_principal_id is not None
+            or self.authentication_method
+            != ("browser_session" if expected[2] else None)
+            or (
+                self.event_type
+                in {
+                    "other_browser_sessions_revoked",
+                    "administrator_password_changed",
+                    "idempotency_receipt_reclaimed",
+                }
+                and self.actor_principal_id != self.target_id
+            )
         ):
             raise ValueError("iam_audit_code_invalid")
-        if self.schema_version != 1 or (
-            self.aggregate_count is not None
-            and (type(self.aggregate_count) is not int or self.aggregate_count < 0)
+        if (
+            self.schema_version != 1
+            or (
+                self.aggregate_count is not None
+                and (type(self.aggregate_count) is not int or self.aggregate_count < 0)
+            )
+            or (
+                self.event_type == "login_throttle_activated"
+                and (self.aggregate_count is None or self.aggregate_count < 5)
+            )
         ):
             raise ValueError("iam_audit_metadata_invalid")
 

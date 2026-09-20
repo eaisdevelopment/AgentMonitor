@@ -1,0 +1,130 @@
+"""Pure M01 session deadlines and authorization facts, with explicit UTC time."""
+
+from datetime import UTC, datetime, timedelta
+
+from agentmonitor.contracts.common_v1 import OpaqueIdV1
+from agentmonitor.contracts.identity_access_v1 import PrincipalV1
+from agentmonitor.modules.identity_access.application.authorization import (
+    AuthorizePrincipalV1,
+)
+from agentmonitor.modules.identity_access.domain.policy import (
+    SESSION_TOUCH_SECONDS,
+    idempotency_receipt_expired,
+    session_deadlines,
+    session_state,
+    should_touch_session,
+)
+
+
+def test_idle_deadline_is_capped_by_absolute_and_touch_is_coalesced() -> None:
+    issued = datetime(2026, 1, 1, tzinfo=UTC)
+    initial_idle, absolute = session_deadlines(issued)
+    assert initial_idle == issued + timedelta(seconds=1800)
+    assert absolute == issued + timedelta(seconds=43200)
+    assert not should_touch_session(issued + timedelta(seconds=59), issued)
+    assert should_touch_session(issued + timedelta(seconds=60), issued)
+    near_absolute = absolute - timedelta(seconds=60)
+    refreshed_idle, unchanged_absolute = session_deadlines(
+        near_absolute, absolute_expires_at=absolute
+    )
+    assert refreshed_idle == unchanged_absolute == absolute
+    assert SESSION_TOUCH_SECONDS == 60
+
+
+def test_idempotency_receipt_expires_at_exact_24_hour_deadline() -> None:
+    created = datetime(2026, 1, 1, tzinfo=UTC)
+    deadline = created + timedelta(seconds=86400)
+    assert not idempotency_receipt_expired(
+        deadline - timedelta(microseconds=1), deadline
+    )
+    assert idempotency_receipt_expired(deadline, deadline)
+
+
+def test_observed_expiry_remains_terminal_even_if_clock_moves_backward() -> None:
+    issued = datetime(2026, 1, 1, tzinfo=UTC)
+    idle = issued + timedelta(seconds=1800)
+    absolute = issued + timedelta(seconds=43200)
+    observed = idle
+    assert session_state(observed, idle, absolute, None, None) == "expired"
+    assert (
+        session_state(
+            issued + timedelta(seconds=1), idle, absolute, observed, "expired"
+        )
+        == "expired"
+    )
+    assert (
+        session_state(issued + timedelta(seconds=1), idle, absolute, observed, "logout")
+        == "revoked"
+    )
+
+
+def test_authorization_never_conflates_dashboard_with_provider_auth() -> None:
+    instant = datetime(2026, 1, 1, tzinfo=UTC)
+    browser = PrincipalV1(
+        OpaqueIdV1("administrator"),
+        "browser_session",
+        OpaqueIdV1("session"),
+        ("read:self", "write:self", "write:sessions", "write:tokens"),
+        instant,
+        instant,
+        instant + timedelta(hours=12),
+    )
+    bearer = PrincipalV1(
+        OpaqueIdV1("administrator"),
+        "api_bearer",
+        OpaqueIdV1("token"),
+        ("read:diagnostics",),
+        instant,
+        instant,
+        instant + timedelta(days=1),
+    )
+    authorize = AuthorizePrincipalV1()
+    allowed = authorize(
+        browser, "write:self", correlation_id=OpaqueIdV1("auth-browser")
+    )
+    denied = authorize(bearer, "write:self", correlation_id=OpaqueIdV1("auth-bearer"))
+    diagnostics = authorize(
+        bearer, "read:diagnostics", correlation_id=OpaqueIdV1("auth-read")
+    )
+    assert allowed.allowed is True
+    assert denied.allowed is False
+    assert denied.reason_code == "permission_denied"
+    assert diagnostics.allowed is True
+
+
+def test_browser_permission_registry_does_not_grant_future_scopes() -> None:
+    instant = datetime(2026, 1, 1, tzinfo=UTC)
+    principal = PrincipalV1(
+        OpaqueIdV1("administrator"),
+        "browser_session",
+        OpaqueIdV1("session"),
+        ("write:backup",),
+        instant,
+        instant,
+        instant + timedelta(hours=12),
+    )
+    decision = AuthorizePrincipalV1()(
+        principal, "write:backup", correlation_id=OpaqueIdV1("future-denial")
+    )
+    assert decision.allowed is False
+    assert decision.reason_code == "permission_denied"
+
+
+def test_authorization_fails_closed_for_corrupt_authentication_method() -> None:
+    instant = datetime(2026, 1, 1, tzinfo=UTC)
+    principal = PrincipalV1(
+        OpaqueIdV1("administrator"),
+        "api_bearer",
+        OpaqueIdV1("token"),
+        ("read:diagnostics",),
+        instant,
+        instant,
+        instant + timedelta(hours=12),
+    )
+    # Exercise defensive authorization if an already-constructed internal
+    # value is corrupted after the contract constructor has validated it.
+    object.__setattr__(principal, "authentication_method", "unknown")
+    decision = AuthorizePrincipalV1()(
+        principal, "read:diagnostics", correlation_id=OpaqueIdV1("corrupt-method")
+    )
+    assert decision.allowed is False
