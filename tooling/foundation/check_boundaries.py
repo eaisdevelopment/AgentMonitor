@@ -135,6 +135,7 @@ M01_SQLITE_LAYER_SYMBOLS = {
             "idempotency_receipt_expired",
             "session_deadlines",
             "session_expired",
+            "session_state",
             "should_touch_session",
         }
     ),
