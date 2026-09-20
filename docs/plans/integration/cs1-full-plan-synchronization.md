@@ -111,6 +111,25 @@ the incomplete Story 4 documentation/browser gate.
 
 Plan snapshot SHA-256: `b61ece314353d314e145a8bc384ec58e0949ec220fe172e8c73a6cf99437bbdb`
 
+## 2026-09-20 M2 IAM list-query scope rebind
+
+The independent Story 4 specification check withheld acceptance because the
+approved Task 4 names `API-PURE-003/004/008` while the current M2 IAM list
+surface did not implement or test them. Root froze the smallest M2-only query
+profile in the [M2 decision overlay](../../evidence/m2-contract-freeze.md):
+three existing M01 fixed orders, one allowlisted primary sort per route,
+existing security-event filters only, and a P01-signed query/principal-bound
+cursor envelope. The M2 Task 4 and P01 Draft cross-reference that exact
+slice; the all-V1 alternative sorts and IAM filters remain unapproved here.
+Only P01 plan bytes, their adoption/ownership bindings, and the exact
+snapshot changed in the 20-plan corpus. This is a scoped contract decision,
+not Story 4 acceptance, a completed real test, M3 authority, or renewed
+approval of the all-V1 Draft. Independent specification and QA reviews accepted
+this bounded contract/snapshot rebind only; implementation and Story 4
+acceptance remain pending.
+
+Plan snapshot SHA-256: `f29c60c58ddc688235992ed2b654a0a310aab72c107c871bc70f133504475f93`
+
 ## 2. Frozen planning inventory
 
 The synchronized baseline records 20 plans and nine governing controls. The

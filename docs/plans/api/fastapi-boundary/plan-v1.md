@@ -368,6 +368,13 @@ Every list response is a named resource-specific page with `items` and `page`; a
 
 These query profiles are part of CTR-API-001 and must be reconciled with the owning application query before approval. `id` below means the resource's opaque ID field. Time ranges are half-open `[from, before)` UTC ranges. A blank filter is not equivalent to omission unless explicitly documented.
 
+For the approved **M2-only** 13-route shell, the three IAM list rows below
+remain all-V1 proposals, not additional M01 query-port authority. The exact
+M2 IAM fixed-sort/filter and signed-cursor profile is frozen in
+`docs/evidence/m2-contract-freeze.md` and the M2 Task 4 plan; `API-PURE-003..005/008`
+remain mandatory there. Later activation of these all-V1 alternatives needs
+its own M01/P01 contract synchronization and real query tests.
+
 | List operation | Allowed filters | Default sort; allowed alternatives |
 |---|---|---|
 | `iam_list_sessions_v1` | `state`, `created_from`, `created_before` | `-last_seen_at,-id`; `created_at,id` |

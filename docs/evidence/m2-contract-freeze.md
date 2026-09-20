@@ -63,6 +63,37 @@ The preceding wrong-subject rotation denial leaves the target token and its
 corresponding audit state unchanged; normal authenticated caller-credential
 activity touch may still occur before that denial.
 
+### M2 IAM list-query profile (P01 `API-PURE-003..005/008`)
+
+The three M2 IAM pages retain M01's already-published stable keyset order; the
+all-V1 P01 §9.1 filter and alternative-sort proposals are **not** activated by
+this authenticated shell. `iam_list_sessions_v1` accepts `limit`, `cursor`, and
+optional `sort=-issued_at`; its effective order is `issued_at DESC, session_id
+DESC`. `iam_list_api_tokens_v1` accepts `limit`, `cursor`, and optional
+`sort=-issued_at`; its effective order is `issued_at DESC, api_token_id DESC`.
+`iam_list_security_events_v1` accepts `limit`, `cursor`, optional
+`sort=-occurred_at`, and its already-published `event_type`, `outcome`,
+`occurred_from`, `occurred_before` filters; its effective order is
+`occurred_at DESC, event_id DESC`. Each parser accepts only its one exact
+primary sort value and appends the endpoint's fixed ID tie-breaker. Omission
+selects that same order. Unknown keys, filters, alternate sorts, malformed
+or repeated singleton parameters fail with a safe 400 rather than being
+ignored. Session/token state/date/scope filters and all alternative orders
+require separately approved M01 query-port and repository work in a later
+milestone; no unimplemented query control appears in M2 OpenAPI.
+
+P01 alone wraps M01's nonsecret raw keyset ID in an opaque, URL-safe,
+versioned, integrity-protected cursor bound to the normalized route query,
+administrator principal, credential identity, and effective scopes. A valid
+cursor reused with another binding returns `400 cursor_query_mismatch`;
+malformed, modified, or expired cursors return `400 invalid_cursor`. The
+per-service CSPRNG signing key is held only in memory; a restart deliberately
+invalidates outstanding cursors. Cursor lifetime is 15 minutes and its input
+is bounded before decoding. No cursor contents or signing key are logged.
+Response schemas preserve omitted properties versus explicit JSON `null`;
+the real HTTP/OpenAPI/client tests must prove that distinction without
+invented response values.
+
 ## 5. Safe HTTP outcome and retention/bounds freeze
 
 Every app/framework non-success response is `SafeProblemV1` with stable `code`, safe title/status/correlation ID, no submitted credential/body/PHC/digest/SQL/path. Its type is the same-origin relative `/problems/{closed_safe_code}` documentation URI, resolved by an authenticated local allowlisted page outside the 13 resource operations; no placeholder/external domain is used. Uvicorn/h11 may reject malformed framing or duplicate `Host` before ASGI; those pre-app denials cannot carry an app-generated problem/correlation header and are the sole parser-level exception. Proposed M2 mappings reconcile [M01 §4](../plans/modules/m01-identity-access/plan-v1.md) and [P01 §11](../plans/api/fastapi-boundary/plan-v1.md):

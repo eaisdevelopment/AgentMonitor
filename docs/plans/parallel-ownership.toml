@@ -215,7 +215,7 @@ live_boundary = "real macOS only; currently Blocked and never substituted by Lin
 [[units]]
 id = "PLAN-P01"
 plan = "docs/plans/api/fastapi-boundary/plan-v1.md"
-plan_sha256 = "8cf5938dcd6e8a084080c624262588f776b12a2c62f51c83a28f0e5798fad52c"
+plan_sha256 = "346f5677a64a7db5a40386bdd96be56dd858010335f008648c15bd7bced6b0fd"
 write_paths = ["backend/src/agentmonitor/api/**", "backend/tests/api/**", "backend/tests/contract/api/**", "backend/tests/integration/api/**", "docs/api/http-boundary.md", "docs/api/resources/**", "docs/test-evidence/api/**"]
 contract_families = ["CTR-API", "CTR-COMMON-005 API semantics"]
 table_prefixes = []

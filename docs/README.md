@@ -1,6 +1,6 @@
 # AgentMonitor documentation index
 
-Status: **V1-M1 foundation accepted; V1-M2 in progress, with `ST-IAM-001` accepted for integration only.** M2's authenticated HTTP/browser exit gate has not passed. M0 G1's separate exact-digest approval remains Failed. Live provider/account, native lifecycle, and release gates remain Not Run.
+Status: **V1-M1 foundation accepted; V1-M2 in progress, with `ST-IAM-001..003` accepted and `ST-API-001` still open.** M2's authenticated HTTP/browser exit gate has not passed. M0 G1's separate exact-digest approval remains Failed. Live provider/account, native lifecycle, and release gates remain Not Run.
 Owner: Pavlo Sidelov <pavlo@sidelov.com>  
 Last substantive review: 2026-09-20
 

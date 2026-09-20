@@ -119,8 +119,8 @@ bytes = 87039
 id = "PLAN-P01"
 path = "docs/plans/api/fastapi-boundary/plan-v1.md"
 plan_version = "0.2.0-draft"
-sha256 = "8cf5938dcd6e8a084080c624262588f776b12a2c62f51c83a28f0e5798fad52c"
-bytes = 141945
+sha256 = "346f5677a64a7db5a40386bdd96be56dd858010335f008648c15bd7bced6b0fd"
+bytes = 142386
 
 [[plans]]
 id = "PLAN-P02"
@@ -165,7 +165,7 @@ bytes = 58197
 [[controls]]
 id = "contract-adoption"
 path = "docs/plans/contract-adoption.toml"
-sha256 = "6997a603223888a5acf842fe80a69f53f97c4e8a4bcb4a70bab4d212e0e98e32"
+sha256 = "f04e20701fd7e92deb54a2b4258eff7b1d7b3053d176d70448e6fd14b59b29a7"
 bytes = 15937
 
 [[controls]]
@@ -183,7 +183,7 @@ bytes = 73372
 [[controls]]
 id = "parallel-ownership"
 path = "docs/plans/parallel-ownership.toml"
-sha256 = "30211f359eb22b335cb9b7fd9750cd3d9980366c37bf892ff7ac058df28277ec"
+sha256 = "290e7ef4cf7a9c6578d4c4635deb18a6d515db65335a182626b4bdb7a0e03f81"
 bytes = 22708
 
 [[controls]]

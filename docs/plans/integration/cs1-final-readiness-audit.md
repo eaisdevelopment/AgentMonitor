@@ -83,6 +83,22 @@ precision, M01/P01 contracts, and exact synchronized snapshot only.
 
 Plan snapshot SHA-256: `b61ece314353d314e145a8bc384ec58e0949ec220fe172e8c73a6cf99437bbdb`
 
+## 2026-09-20 M2 IAM list-query scope binding
+
+Root's current M2-only query decision responds to the independent Story 4
+specification finding without expanding M01: fixed existing list orders,
+per-route sort/filter allowlists, and a P01 query/principal-bound cursor
+envelope. The changed P01 plan, adoption and ownership digests are bound to
+the exact rendered snapshot. `API-PURE-003/004/008` and browser/documentation
+gates remain unaccepted until real tests and independent reviews pass; the
+all-V1 Draft baseline and historical CS-1 audit are not newly approved.
+Independent specification and QA reviewers accepted this bounded rebind; the
+specification reviewer independently confirmed the synchronized plan and
+documentation gates. No Story 4 source, browser, or dependency gate was
+accepted.
+
+Plan snapshot SHA-256: `f29c60c58ddc688235992ed2b654a0a310aab72c107c871bc70f133504475f93`
+
 ## 1. Decision
 
 The corrected corpus closes the eighteen findings recorded in the

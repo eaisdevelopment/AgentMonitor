@@ -198,6 +198,12 @@ Review attenuation and one-time disclosure semantics; commit: `git commit -m "fe
 
 **Contracts:** `CTR-API-001..003`, `CTR-COMMON-005`, and `CTR-IAM-001..007` at V1.
 
+**M2 list-query freeze:** Apply the exact three IAM profiles and 15-minute
+query/principal-bound, restart-invalidated cursor envelope in
+`docs/evidence/m2-contract-freeze.md`; this narrows P01 Draft §9.1 without
+removing `API-PURE-003..005/008` from this Story. No M01 list-port expansion
+or all-V1 alternative sort/filter implementation is authorized in M2.
+
 **Files:**
 - Create: `backend/src/agentmonitor/api/problem.py`
 - Create: `backend/src/agentmonitor/api/security_headers.py`
@@ -214,6 +220,11 @@ Review attenuation and one-time disclosure semantics; commit: `git commit -m "fe
 - Every non-success response is `SafeProblemV1`; cookie-plus-bearer ambiguity is rejected; initialized docs/OpenAPI require authentication.
 
 - [ ] **Step 1: Write the failing real-socket security test**
+
+Also write real-socket Reds for cursor mismatch/tampering, the three fixed
+sort/filter allowlists, and absent-versus-null response serialization; pair
+the parser/schema checks with their running route behavior so they cannot be
+dead pure tests.
 
 ```python
 def test_login_and_csrf_over_real_loopback(real_http: RealHttp, owner_password: str) -> None:
