@@ -15,7 +15,7 @@ REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
 RUNNER = REPOSITORY_ROOT / "tools/automation/run.py"
 sys.path.insert(0, str(RUNNER.parent))
 
-from run import index_routines, load_catalog, validate_catalog  # noqa: E402
+from run import index_routines, load_catalog, validate_catalog
 
 
 class AutomationRoutineTests(unittest.TestCase):
@@ -581,10 +581,14 @@ class AutomationRoutineTests(unittest.TestCase):
             direct.returncode, result.returncode, result.stdout + result.stderr
         )
         self.assertIn(direct.stdout, result.stdout)
-        if direct.returncode:
+        if direct.returncode == 2:
             self.assertIn("AUTO-M0-G1-EXIT: FAILED", result.stdout)
             self.assertNotIn("AUTO-M0-G1-EXIT: PASSED", result.stdout)
+        elif direct.returncode == 3:
+            self.assertIn("AUTO-M0-G1-EXIT: BLOCKED", result.stdout)
+            self.assertNotIn("AUTO-M0-G1-EXIT: PASSED", result.stdout)
         else:
+            self.assertEqual(0, direct.returncode)
             self.assertIn("M0 G1 FINISHED", result.stdout)
             self.assertIn("AUTO-M0-G1-EXIT: PASSED", result.stdout)
 

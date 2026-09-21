@@ -8,15 +8,15 @@ import os
 import stat
 import sys
 import tempfile
-import tomllib
 from datetime import datetime, timezone
 from pathlib import Path
+from typing import cast
 
 from m0_g1_bundle import bundle_subject, scanner_subject
 from m0_g1_exit import (
-    LOCAL_CUSTODY_SELECTION_PATH,
     is_utc_z_timestamp,
-    validate_local_custody_selection,
+    load_local_custody_selection,
+    verify_custody_root,
 )
 from m0_g1_records import (
     approval_record,
@@ -26,9 +26,9 @@ from m0_g1_records import (
     validate_custody_decision,
 )
 
-
 CUSTODY_FILENAME = "m0-g1-custody-decision.json"
 LOCAL_EXIT_PATH = Path(".agentmonitor-local/m0-g1-exit.json")
+REVIEW_DECISION_PATH = Path(".agentmonitor-local/m0-g1-independent-reviews.json")
 CUSTODY_ROLES = {"owner", "security_privacy", "test_integrity"}
 BUNDLE_ROLES = {
     "owner",
@@ -39,10 +39,11 @@ BUNDLE_ROLES = {
 }
 REVIEWER_REFS = {
     "owner": "REF-OWNER-PAVLO",
-    "security_privacy": "REF-AGENTMONITOR-SECURITY-REVIEW",
-    "test_integrity": "REF-AGENTMONITOR-TEST-REVIEW",
-    "provider_system": "REF-AGENTMONITOR-PROVIDER-REVIEW",
-    "root_integration": "REF-AGENTMONITOR-INTEGRATION-REVIEW",
+}
+REVIEW_GROUPS = {
+    "custody_approvals": ("CUST-M0-G1-001", CUSTODY_ROLES - {"owner"}),
+    "scanner_approvals": ("E1-GITLEAKS-8300", CUSTODY_ROLES - {"owner"}),
+    "bundle_approvals": ("M0-G1-BUNDLE-001", BUNDLE_ROLES - {"owner"}),
 }
 
 
@@ -61,37 +62,120 @@ def file_sha256(path: Path) -> str:
 def _utc_z(value: datetime) -> str:
     if value.tzinfo is None or value.utcoffset() is None:
         raise ValueError("decision time must be timezone-aware")
-    return value.astimezone(timezone.utc).replace(microsecond=0).isoformat().replace(
-        "+00:00", "Z"
+    return (
+        value.astimezone(timezone.utc)
+        .replace(microsecond=0)
+        .isoformat()
+        .replace("+00:00", "Z")
     )
 
 
-def _approved_subject(
+def validate_reviewer_decisions(
+    reviews: object,
+    *,
+    custody_subject: dict[str, object],
+    scanner_subject: dict[str, object],
+    bundle_subject: dict[str, object],
+    as_of: datetime,
+) -> list[str]:
+    """Require separate, exact-subject decisions from the non-owner reviewers."""
+
+    if not isinstance(reviews, dict):
+        return ["independent reviewer decisions are missing"]
+    if set(reviews) != {"record_version", *REVIEW_GROUPS}:
+        return ["independent reviewer decision fields are not closed"]
+    if reviews.get("record_version") != "1.0":
+        return ["independent reviewer decision version is invalid"]
+    subjects = {
+        "custody_approvals": custody_subject,
+        "scanner_approvals": scanner_subject,
+        "bundle_approvals": bundle_subject,
+    }
+    violations: list[str] = []
+    roles_by_ref: dict[str, set[str]] = {}
+    refs_by_role: dict[str, set[str]] = {}
+    for group, (subject_id, roles) in REVIEW_GROUPS.items():
+        violations.extend(
+            f"{group}: {violation}"
+            for violation in validate_approval_set(
+                subject=subjects[group],
+                subject_id=subject_id,
+                approvals=reviews[group],
+                required_roles=roles,
+                as_of=as_of,
+            )
+        )
+        group_approvals = reviews[group]
+        if isinstance(group_approvals, list):
+            for approval in group_approvals:
+                if not isinstance(approval, dict):
+                    continue
+                role = approval.get("role")
+                reviewer_ref = approval.get("reviewer_ref")
+                if isinstance(role, str) and isinstance(reviewer_ref, str):
+                    if reviewer_ref == REVIEWER_REFS["owner"]:
+                        violations.append(
+                            "owner reference cannot attest a non-owner review"
+                        )
+                    roles_by_ref.setdefault(reviewer_ref, set()).add(role)
+                    refs_by_role.setdefault(role, set()).add(reviewer_ref)
+    if any(len(roles) != 1 for roles in roles_by_ref.values()):
+        violations.append("independent reviewer references are not role-distinct")
+    if any(len(refs) != 1 for refs in refs_by_role.values()):
+        violations.append("reviewer reference changes across review subjects")
+    return violations
+
+
+def _owner_approval(
     subject: dict[str, object],
     *,
     subject_id: str,
     approval_prefix: str,
-    roles: set[str],
     decided_at_utc: str,
-) -> tuple[dict[str, object], list[dict[str, object]]]:
-    digest = subject_sha256(subject)
-    approvals = [
-        approval_record(
-            approval_id=(
-                f"APR-{approval_prefix}-{role.upper().replace('_', '-')}"
-            ),
+) -> dict[str, object]:
+    return approval_record(
+        approval_id=f"APR-{approval_prefix}-OWNER",
+        subject_id=subject_id,
+        subject_digest=subject_sha256(subject),
+        role="owner",
+        reviewer_ref=REVIEWER_REFS["owner"],
+        decided_at_utc=decided_at_utc,
+    )
+
+
+def owner_completed_approvals(
+    subject: dict[str, object],
+    reviewer_approvals: list[dict[str, object]],
+    *,
+    subject_id: str,
+    approval_prefix: str,
+    decided_at_utc: str,
+) -> list[dict[str, object]]:
+    """Return reviewer decisions plus the explicit owner's exact-subject record."""
+
+    return [
+        *reviewer_approvals,
+        _owner_approval(
+            subject,
             subject_id=subject_id,
-            subject_digest=digest,
-            role=role,
-            reviewer_ref=REVIEWER_REFS[role],
+            approval_prefix=approval_prefix,
             decided_at_utc=decided_at_utc,
-        )
-        for role in sorted(roles)
+        ),
     ]
-    completed = dict(subject)
-    if "approvals" in completed:
-        completed["approvals"] = approvals
-    return completed, approvals
+
+
+def review_subject_rows(
+    custody: dict[str, object],
+    scanner: dict[str, object],
+    bundle: dict[str, object],
+) -> list[tuple[str, str]]:
+    """Expose only stable IDs and exact approval digests for role review."""
+
+    return [
+        ("CUST-M0-G1-001", subject_sha256(custody)),
+        ("E1-GITLEAKS-8300", subject_sha256(scanner)),
+        ("M0-G1-BUNDLE-001", subject_sha256(bundle)),
+    ]
 
 
 def _json_bytes(value: object) -> bytes:
@@ -110,6 +194,55 @@ def _verify_parent(parent: Path) -> list[str]:
     if stat.S_IMODE(metadata.st_mode) & 0o077:
         return ["control-record parent is not owner-only"]
     return []
+
+
+def _unique_json_pairs(pairs: list[tuple[str, object]]) -> dict[str, object]:
+    result: dict[str, object] = {}
+    for key, value in pairs:
+        if key in result:
+            raise ValueError("duplicate JSON key")
+        result[key] = value
+    return result
+
+
+def load_reviewer_decisions(
+    repository_root: Path,
+) -> tuple[object | None, list[str]]:
+    """Read a bounded owner-only local file without following a symlink."""
+
+    path = repository_root / REVIEW_DECISION_PATH
+    if _verify_parent(path.parent):
+        return None, ["independent reviewer decision parent is not owner-only"]
+    if not hasattr(os, "O_NOFOLLOW"):
+        return None, ["independent reviewer decision file cannot be read safely"]
+    try:
+        descriptor = os.open(path, os.O_RDONLY | os.O_NOFOLLOW | os.O_CLOEXEC)
+    except OSError:
+        return None, ["independent reviewer decisions are missing"]
+    try:
+        metadata = os.fstat(descriptor)
+        if not stat.S_ISREG(metadata.st_mode) or metadata.st_nlink != 1:
+            return None, ["independent reviewer decision file is not regular"]
+        if hasattr(os, "getuid") and metadata.st_uid != os.getuid():
+            return None, ["independent reviewer decision file has the wrong owner"]
+        if stat.S_IMODE(metadata.st_mode) & 0o077:
+            return None, ["independent reviewer decision file is not owner-only"]
+        if not 0 < metadata.st_size <= 65536:
+            return None, ["independent reviewer decision file has invalid size"]
+        with os.fdopen(descriptor, "rb", closefd=False) as stream:
+            content = stream.read(65537)
+        if len(content) > 65536:
+            return None, ["independent reviewer decision file has invalid size"]
+    except OSError:
+        return None, ["independent reviewer decision file cannot be read safely"]
+    finally:
+        os.close(descriptor)
+    try:
+        return json.loads(
+            content.decode("utf-8"), object_pairs_hook=_unique_json_pairs
+        ), []
+    except (UnicodeDecodeError, ValueError):
+        return None, ["independent reviewer decision file is invalid"]
 
 
 def _atomic_owner_write(path: Path, content: bytes) -> list[str]:
@@ -155,9 +288,13 @@ def write_final_records(
     selection: dict[str, object],
     local_record_path: Path,
     decided_at: datetime,
+    owner_confirmation: str,
+    reviewer_decisions: object = None,
 ) -> list[str]:
     """Write exact approved records after the CLI obtains owner confirmation."""
 
+    if not is_owner_confirmation(owner_confirmation):
+        return ["exact owner confirmation is missing"]
     timestamp = _utc_z(decided_at)
     retention = selection.get("retention_until_utc")
     if not is_utc_z_timestamp(retention):
@@ -165,12 +302,28 @@ def write_final_records(
     raw_root = selection.get("external_root")
     if not isinstance(raw_root, str) or not raw_root:
         return ["custody selection root is missing"]
+    violations = verify_custody_root(Path(raw_root), repository_root)
+    if violations:
+        return violations
 
-    custody, _ = _approved_subject(
-        custody_subject(selection),
+    custody = custody_subject(selection)
+    scanner = scanner_subject(repository_root)
+    bundle = bundle_subject(repository_root)
+    violations = validate_reviewer_decisions(
+        reviewer_decisions,
+        custody_subject=custody,
+        scanner_subject=scanner,
+        bundle_subject=bundle,
+        as_of=decided_at,
+    )
+    if violations:
+        return violations
+    reviews = cast(dict[str, list[dict[str, object]]], reviewer_decisions)
+    custody["approvals"] = owner_completed_approvals(
+        custody,
+        reviews["custody_approvals"],
         subject_id="CUST-M0-G1-001",
         approval_prefix="CUST-M0-G1",
-        roles=CUSTODY_ROLES,
         decided_at_utc=timestamp,
     )
     violations = validate_custody_decision(
@@ -181,11 +334,11 @@ def write_final_records(
     if violations:
         return violations
 
-    scanner, _ = _approved_subject(
-        scanner_subject(repository_root),
+    scanner["approvals"] = owner_completed_approvals(
+        scanner,
+        reviews["scanner_approvals"],
         subject_id="E1-GITLEAKS-8300",
         approval_prefix="E1-GITLEAKS-8300",
-        roles=CUSTODY_ROLES,
         decided_at_utc=timestamp,
     )
     scanner_violations = validate_approval_set(
@@ -198,12 +351,11 @@ def write_final_records(
     if scanner_violations:
         return scanner_violations
 
-    bundle = bundle_subject(repository_root)
-    _, bundle_approvals = _approved_subject(
+    bundle_approvals = owner_completed_approvals(
         bundle,
+        reviews["bundle_approvals"],
         subject_id="M0-G1-BUNDLE-001",
         approval_prefix="M0-G1-BUNDLE",
-        roles=BUNDLE_ROLES,
         decided_at_utc=timestamp,
     )
     bundle_violations = validate_approval_set(
@@ -237,21 +389,43 @@ def write_final_records(
     return _atomic_owner_write(local_record_path, _json_bytes(local_record))
 
 
-def _load_selection(repository_root: Path) -> tuple[dict[str, object] | None, list[str]]:
-    violations = validate_local_custody_selection(repository_root)
-    if violations:
-        return None, violations
-    try:
-        with (repository_root / LOCAL_CUSTODY_SELECTION_PATH).open("rb") as stream:
-            return tomllib.load(stream), []
-    except (OSError, tomllib.TOMLDecodeError):
-        return None, ["owner custody selection cannot be loaded"]
-
-
 def main() -> int:
+    if sys.argv[1:] not in ([], ["--review-subjects"]):
+        print("M0 G1 FINALIZATION: BLOCKED — unsupported argument")
+        return 3
     repository_root = Path(__file__).resolve().parents[2]
-    selection, violations = _load_selection(repository_root)
+    selection, violations = load_local_custody_selection(repository_root)
     if violations or selection is None:
+        print("M0 G1 FINALIZATION: BLOCKED")
+        for violation in violations:
+            print(f"- {violation}")
+        return 3
+
+    if sys.argv[1:] == ["--review-subjects"]:
+        try:
+            rows = review_subject_rows(
+                custody_subject(selection),
+                scanner_subject(repository_root),
+                bundle_subject(repository_root),
+            )
+        except OSError:
+            print("M0 G1 REVIEW SUBJECTS: BLOCKED — subject unavailable")
+            return 3
+        print("M0 G1 REVIEW SUBJECTS: DIGESTS ONLY — NOT AN APPROVAL")
+        for subject_id, digest in rows:
+            print(f"{subject_id} {digest}")
+        return 0
+
+    reviews, violations = load_reviewer_decisions(repository_root)
+    if not violations:
+        violations = validate_reviewer_decisions(
+            reviews,
+            custody_subject=custody_subject(selection),
+            scanner_subject=scanner_subject(repository_root),
+            bundle_subject=bundle_subject(repository_root),
+            as_of=datetime.now(timezone.utc),
+        )
+    if violations:
         print("M0 G1 FINALIZATION: BLOCKED")
         for violation in violations:
             print(f"- {violation}")
@@ -272,6 +446,8 @@ def main() -> int:
         selection=selection,
         local_record_path=repository_root / LOCAL_EXIT_PATH,
         decided_at=datetime.now(timezone.utc),
+        owner_confirmation=confirmation,
+        reviewer_decisions=reviews,
     )
     if violations:
         print("M0 G1 FINALIZATION: FAILED")

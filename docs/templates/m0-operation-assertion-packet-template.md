@@ -51,4 +51,10 @@ or approval is missing, expired, conflicting, or unknown.
 | Owner | | | | |
 | Security/privacy | | | | |
 | Test integrity | | | | |
+| Root/integration | | | | |
 | Provider system, when applicable | | | | |
+
+Operator sign-off is a separate preflight record, not an `OperationPacketV1`
+field. Record the operator's decision, reference, and UTC time in the external
+evidence root before execution; the packet's detached approvals do not replace
+that checkpoint.

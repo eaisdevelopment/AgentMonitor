@@ -171,6 +171,14 @@ class MinimalM0G1ContractTests(unittest.TestCase):
             self.assertIn("Never include secrets or prohibited content", text)
             self.assertNotIn("m0-g1-record-contract.toml", text)
 
+    def test_operation_template_requires_root_review_and_operator_checkpoint(self) -> None:
+        text = (
+            TEMPLATE_ROOT / "m0-operation-assertion-packet-template.md"
+        ).read_text(encoding="utf-8")
+        self.assertIn("| Root/integration |", text)
+        self.assertIn("Operator sign-off is a separate preflight record", text)
+        self.assertIn("not an `OperationPacketV1` field", " ".join(text.split()))
+
     def test_indexes_reference_only_the_minimal_bundle(self) -> None:
         docs_index = (REPOSITORY_ROOT / "docs/README.md").read_text(encoding="utf-8")
         template_index = (TEMPLATE_ROOT / "README.md").read_text(encoding="utf-8")

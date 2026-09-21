@@ -1,8 +1,9 @@
 """Fail-closed Milestone 0 G1 exit gate.
 
 The no-argument repository routine validates implementation authority, the
-isolated schema environment, and one bounded local scanner operation. It never
-accesses provider, account, process, profile, or external-custody state.
+isolated schema environment, and one bounded local scanner operation. After
+checking the local owner approval, it reads only the fixed external custody
+control record. It never accesses provider, account, process, or profile state.
 """
 
 from __future__ import annotations
@@ -13,11 +14,11 @@ import os
 import re
 import stat
 import sys
-import tomllib
 from datetime import datetime, timezone
 from importlib.metadata import PackageNotFoundError, version
 from pathlib import Path
 
+import tomllib
 from m0_g1_bundle import bundle_subject, scanner_subject
 from m0_g1_records import (
     validate_approval_set,
@@ -25,14 +26,9 @@ from m0_g1_records import (
 )
 from m0_g1_scanner import verify_e1_scanner
 
-
-APPROVAL_PATH = Path(
-    "docs/plans/discovery/m0-g1-implementation-approval.toml"
-)
+APPROVAL_PATH = Path("docs/plans/discovery/m0-g1-implementation-approval.toml")
 SCHEMA_PATH = Path("docs/plans/discovery/m0-g1-record.schema.json")
-LOCAL_CUSTODY_SELECTION_PATH = Path(
-    ".agentmonitor-local/m0-g1-custody.toml"
-)
+LOCAL_CUSTODY_SELECTION_PATH = Path(".agentmonitor-local/m0-g1-custody.toml")
 LOCAL_FINAL_APPROVAL_PATH = Path(".agentmonitor-local/m0-g1-exit.json")
 CUSTODY_DECISION_FILENAME = "m0-g1-custody-decision.json"
 EXPECTED_CONTRACT_ID = "M0-G1-CONTROLS"
@@ -50,9 +46,7 @@ REQUIRED_AUTHORITY_FLAGS = (
     "dependency_installation_authorized",
     "scanner_execution_authorized",
 )
-UTC_Z_TIMESTAMP = re.compile(
-    r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z"
-)
+UTC_Z_TIMESTAMP = re.compile(r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z")
 FINAL_APPROVAL_KEYS = {
     "record_version",
     "external_custody_record_access_authorized",
@@ -75,6 +69,16 @@ MAX_CONTROL_RECORD_BYTES = 262_144
 
 def _sha256(content: bytes) -> str:
     return hashlib.sha256(content).hexdigest()
+
+
+def is_expected_contract_artifact_path(prefix: str, value: object) -> bool:
+    """Reject caller-supplied paths before any implementation-approval read."""
+
+    expected = {
+        "specification": "docs/plans/discovery/m0-g1-control-specification.md",
+        "schema": str(SCHEMA_PATH),
+    }
+    return prefix in expected and value == expected[prefix]
 
 
 def validate_implementation_approval(repository_root: Path) -> list[str]:
@@ -105,9 +109,10 @@ def validate_implementation_approval(repository_root: Path) -> list[str]:
 
     for prefix in ("specification", "schema"):
         relative_path = approval.get(f"{prefix}_path")
-        if not isinstance(relative_path, str) or not relative_path:
-            violations.append(f"{prefix} path is missing")
+        if not is_expected_contract_artifact_path(prefix, relative_path):
+            violations.append(f"{prefix} path is not the exact approved artifact")
             continue
+        assert isinstance(relative_path, str)
         path = repository_root / relative_path
         try:
             content = path.read_bytes()
@@ -224,82 +229,150 @@ def verify_custody_root(path: Path, repository_root: Path) -> list[str]:
     return violations
 
 
-def validate_local_custody_selection(repository_root: Path) -> list[str]:
-    """Validate owner-supplied local custody metadata without listing contents."""
+def review_selection_violations(selection: object, *, as_of: datetime) -> list[str]:
+    """Check local selection fields without touching the external root."""
 
-    selection_path = repository_root / LOCAL_CUSTODY_SELECTION_PATH
-    try:
-        metadata = selection_path.lstat()
-    except FileNotFoundError:
-        return ["owner custody selection is not configured"]
-    except OSError:
-        return ["owner custody selection is unavailable"]
-    if not stat.S_ISREG(metadata.st_mode) or selection_path.is_symlink():
-        return ["owner custody selection must be a regular non-symlink file"]
-    if hasattr(os, "getuid") and metadata.st_uid != os.getuid():
-        return ["owner custody selection must belong to the current user"]
-    if stat.S_IMODE(metadata.st_mode) & 0o077:
-        return ["owner custody selection permissions are not owner-only"]
-    try:
-        with selection_path.open("rb") as stream:
-            selection = tomllib.load(stream)
-    except (OSError, tomllib.TOMLDecodeError):
-        return ["owner custody selection cannot be parsed"]
-
+    if not isinstance(selection, dict):
+        return ["owner custody selection is invalid"]
     violations: list[str] = []
-    if selection.get("schema_version") != "1.0":
-        violations.append("custody selection schema must be 1.0")
-    if selection.get("owner_selected") is not True:
-        violations.append("custody selection is not owner-confirmed")
-    external_root_ref = selection.get("external_root_ref")
-    if not isinstance(external_root_ref, str) or re.fullmatch(
-        r"REF-[A-Z0-9-]+", external_root_ref
-    ) is None:
-        violations.append("custody selection reference is invalid")
-    if selection.get("sync_backup_disposition") not in {
-        "excluded",
-        "owner_accepted_encrypted",
-    }:
-        violations.append("custody sync/backup disposition is not accepted")
-    retention = selection.get("retention_until_utc")
-    if not is_utc_z_timestamp(retention):
-        violations.append("custody retention deadline is not a UTC-Z timestamp")
-    elif datetime.fromisoformat(f"{retention[:-1]}+00:00") <= datetime.now(
-        timezone.utc
+    if selection.get("schema_version") != "1.1":
+        violations.append("owner custody selection version is invalid")
+    reference = selection.get("external_root_ref")
+    if (
+        not isinstance(reference, str)
+        or re.fullmatch(r"REF-[A-Z0-9-]+", reference) is None
     ):
-        violations.append("custody retention deadline has expired")
-
-    raw_root = selection.get("external_root")
-    if not isinstance(raw_root, str) or not raw_root:
-        violations.append("custody root is not configured")
-    else:
-        violations.extend(verify_custody_root(Path(raw_root), repository_root))
+        violations.append("owner custody selection reference is invalid")
+    if selection.get("owner_selected") is not True:
+        violations.append("owner custody selection is not confirmed")
+    if selection.get("sync_backup_disposition") != "excluded":
+        violations.append("owner custody sync/backup disposition is invalid")
+    if selection.get("sync_backup_owner_attested") is not True:
+        violations.append("sync/backup exclusion lacks owner attestation")
+    attested = selection.get("sync_backup_attested_at_utc")
+    if not isinstance(attested, str) or not is_utc_z_timestamp(attested):
+        violations.append("sync/backup attestation timestamp is invalid")
+    elif datetime.fromisoformat(f"{attested[:-1]}+00:00") > as_of:
+        violations.append("sync/backup attestation is in the future")
+    retention = selection.get("retention_until_utc")
+    if not isinstance(retention, str) or not is_utc_z_timestamp(retention):
+        violations.append("owner custody retention is invalid")
+    elif datetime.fromisoformat(f"{retention[:-1]}+00:00") <= as_of:
+        violations.append("owner custody retention has expired")
+    root = selection.get("external_root")
+    if not isinstance(root, str) or not Path(root).is_absolute():
+        violations.append("owner custody root is not an absolute local selection")
     return violations
 
 
-def _read_owner_json(path: Path, label: str) -> tuple[object | None, list[str]]:
+def load_local_custody_selection(
+    repository_root: Path,
+) -> tuple[dict[str, object] | None, list[str]]:
+    """Load local owner-only TOML without statting or opening the external root."""
+
+    path = repository_root / LOCAL_CUSTODY_SELECTION_PATH
     try:
-        metadata = path.lstat()
-    except FileNotFoundError:
-        return None, [f"{label} is missing"]
+        parent_metadata = path.parent.lstat()
     except OSError:
-        return None, [f"{label} is unavailable"]
-    if not stat.S_ISREG(metadata.st_mode) or path.is_symlink():
-        return None, [f"{label} must be a regular non-symlink file"]
-    if hasattr(os, "getuid") and metadata.st_uid != os.getuid():
-        return None, [f"{label} must belong to the current user"]
-    if stat.S_IMODE(metadata.st_mode) & 0o077:
-        return None, [f"{label} permissions are not owner-only"]
-    if metadata.st_size > MAX_CONTROL_RECORD_BYTES:
-        return None, [f"{label} exceeds the size limit"]
+        return None, ["owner custody selection parent is unavailable"]
+    if (
+        not stat.S_ISDIR(parent_metadata.st_mode)
+        or stat.S_ISLNK(parent_metadata.st_mode)
+        or (hasattr(os, "getuid") and parent_metadata.st_uid != os.getuid())
+        or stat.S_IMODE(parent_metadata.st_mode) & 0o077
+    ):
+        return None, ["owner custody selection parent is not owner-only"]
+    if not hasattr(os, "O_NOFOLLOW"):
+        return None, ["owner custody selection cannot be read safely"]
+    try:
+        descriptor = os.open(path, os.O_RDONLY | os.O_NOFOLLOW | os.O_CLOEXEC)
+    except OSError:
+        return None, ["owner custody selection cannot be loaded"]
+    try:
+        metadata = os.fstat(descriptor)
+        if not stat.S_ISREG(metadata.st_mode) or metadata.st_nlink != 1:
+            return None, ["owner custody selection is not a regular local file"]
+        if hasattr(os, "getuid") and metadata.st_uid != os.getuid():
+            return None, ["owner custody selection has the wrong owner"]
+        if stat.S_IMODE(metadata.st_mode) & 0o077:
+            return None, ["owner custody selection is not owner-only"]
+        if not 0 < metadata.st_size <= 65536:
+            return None, ["owner custody selection has invalid size"]
+        with os.fdopen(descriptor, "rb", closefd=False) as stream:
+            content = stream.read(65537)
+        if len(content) > 65536:
+            return None, ["owner custody selection has invalid size"]
+    except OSError:
+        return None, ["owner custody selection cannot be read safely"]
+    finally:
+        os.close(descriptor)
+    try:
+        selection = tomllib.loads(content.decode("utf-8"))
+    except (UnicodeError, tomllib.TOMLDecodeError):
+        return None, ["owner custody selection cannot be parsed safely"]
+    violations = review_selection_violations(
+        selection, as_of=datetime.now(timezone.utc)
+    )
+    return (None, violations) if violations else (selection, [])
+
+
+def parse_control_record(
+    content: bytes, label: str
+) -> tuple[object | None, str | None, list[str]]:
+    """Parse and digest the exact same bounded control-record bytes."""
+
+    if len(content) > MAX_CONTROL_RECORD_BYTES:
+        return None, None, [f"{label} exceeds the size limit"]
     try:
         value = json.loads(
-            path.read_text(encoding="utf-8"),
-            object_pairs_hook=_reject_duplicate_keys,
+            content.decode("utf-8"), object_pairs_hook=_reject_duplicate_keys
         )
-    except (OSError, UnicodeError, json.JSONDecodeError, ValueError):
-        return None, [f"{label} cannot be parsed safely"]
-    return value, []
+    except (UnicodeError, json.JSONDecodeError, ValueError):
+        return None, None, [f"{label} cannot be parsed safely"]
+    return value, _sha256(content), []
+
+
+def _read_owner_json(
+    path: Path, label: str
+) -> tuple[object | None, str | None, list[str]]:
+    """Read one owner-only regular file through a no-follow bounded descriptor."""
+
+    try:
+        parent_metadata = path.parent.lstat()
+    except OSError:
+        return None, None, [f"{label} parent is unavailable"]
+    if (
+        not stat.S_ISDIR(parent_metadata.st_mode)
+        or stat.S_ISLNK(parent_metadata.st_mode)
+        or (hasattr(os, "getuid") and parent_metadata.st_uid != os.getuid())
+        or stat.S_IMODE(parent_metadata.st_mode) & 0o077
+    ):
+        return None, None, [f"{label} parent is not an owner-only directory"]
+    if not hasattr(os, "O_NOFOLLOW"):
+        return None, None, [f"{label} cannot be read safely"]
+    try:
+        descriptor = os.open(path, os.O_RDONLY | os.O_NOFOLLOW | os.O_CLOEXEC)
+    except FileNotFoundError:
+        return None, None, [f"{label} is missing"]
+    except OSError:
+        return None, None, [f"{label} is unavailable"]
+    try:
+        metadata = os.fstat(descriptor)
+        if not stat.S_ISREG(metadata.st_mode) or metadata.st_nlink != 1:
+            return None, None, [f"{label} must be a regular non-symlink file"]
+        if hasattr(os, "getuid") and metadata.st_uid != os.getuid():
+            return None, None, [f"{label} must belong to the current user"]
+        if stat.S_IMODE(metadata.st_mode) & 0o077:
+            return None, None, [f"{label} permissions are not owner-only"]
+        if metadata.st_size > MAX_CONTROL_RECORD_BYTES:
+            return None, None, [f"{label} exceeds the size limit"]
+        with os.fdopen(descriptor, "rb", closefd=False) as stream:
+            content = stream.read(MAX_CONTROL_RECORD_BYTES + 1)
+    except OSError:
+        return None, None, [f"{label} cannot be read safely"]
+    finally:
+        os.close(descriptor)
+    return parse_control_record(content, label)
 
 
 def _record_schema_violations(
@@ -338,7 +411,7 @@ def validate_final_approval_state(
 ) -> list[str]:
     """Validate signed local state before reading one fixed custody record."""
 
-    local_value, violations = _read_owner_json(
+    local_value, _, violations = _read_owner_json(
         local_record_path,
         "final G1 approval state",
     )
@@ -403,16 +476,12 @@ def validate_final_approval_state(
     if root_violations:
         return root_violations
     custody_path = Path(raw_root) / CUSTODY_DECISION_FILENAME
-    custody_value, custody_violations = _read_owner_json(
+    custody_value, custody_digest, custody_violations = _read_owner_json(
         custody_path,
         "custody decision",
     )
     if custody_violations:
         return custody_violations
-    try:
-        custody_digest = _sha256(custody_path.read_bytes())
-    except OSError:
-        return ["custody decision cannot be digested"]
     if custody_digest != local_value.get("custody_decision_sha256"):
         return ["custody decision digest does not match approval state"]
     violations.extend(
@@ -445,7 +514,9 @@ def main() -> int:
     print("M0 G1 EXIT: implementation approval: VERIFIED")
     installed_version = installed_jsonschema_version()
     if installed_version != EXPECTED_JSONSCHEMA_VERSION:
-        observed = installed_version if installed_version is not None else "not installed"
+        observed = (
+            installed_version if installed_version is not None else "not installed"
+        )
         print("M0 G1 EXIT: schema validator dependency: BLOCKED")
         print(f"- required jsonschema: {EXPECTED_JSONSCHEMA_VERSION}")
         print(f"- observed jsonschema: {observed}")
@@ -472,22 +543,17 @@ def main() -> int:
         return 2
 
     print("M0 G1 EXIT: local scanner verification: VERIFIED")
-    custody_violations = validate_local_custody_selection(repository_root)
-    if custody_violations:
+    custody_selection, custody_violations = load_local_custody_selection(
+        repository_root
+    )
+    if custody_violations or custody_selection is None:
         print("M0 G1 EXIT: custody selection: BLOCKED")
         for violation in custody_violations:
             print(f"- {violation}")
         print("M0 G1 EXIT: external custody evidence: NOT ACCESSED")
         return 3
 
-    print("M0 G1 EXIT: custody selection metadata: VERIFIED")
-    try:
-        with (repository_root / LOCAL_CUSTODY_SELECTION_PATH).open("rb") as stream:
-            custody_selection = tomllib.load(stream)
-    except (OSError, tomllib.TOMLDecodeError):
-        print("M0 G1 EXIT: FAILED — custody selection cannot be reloaded")
-        print("M0 G1 EXIT: external custody contents: NOT ACCESSED")
-        return 2
+    print("M0 G1 EXIT: local custody selection: VERIFIED")
 
     local_final_path = repository_root / LOCAL_FINAL_APPROVAL_PATH
     final_violations = validate_final_approval_state(

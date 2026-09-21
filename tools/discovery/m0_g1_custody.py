@@ -13,6 +13,8 @@ from pathlib import Path
 
 from m0_g1_exit import is_utc_z_timestamp, verify_custody_root
 
+SYNC_EXCLUSION_CONFIRMATION = "I CONFIRM THIS ROOT IS EXCLUDED FROM SYNC AND BACKUP"
+
 
 def write_selection(
     *,
@@ -20,9 +22,12 @@ def write_selection(
     external_root: Path,
     repository_root: Path,
     retention_until_utc: str,
+    sync_backup_confirmation: str,
 ) -> list[str]:
-    """Atomically write an owner-only local locator after real OS validation."""
+    """Write local custody selection only after explicit owner attestation."""
 
+    if sync_backup_confirmation != SYNC_EXCLUSION_CONFIRMATION:
+        return ["exact sync/backup exclusion confirmation is missing"]
     violations = verify_custody_root(external_root, repository_root)
     if not is_utc_z_timestamp(retention_until_utc):
         violations.append("retention deadline must be a UTC-Z timestamp")
@@ -42,12 +47,20 @@ def write_selection(
     if stat.S_IMODE(parent_metadata.st_mode) & 0o077:
         return ["local custody configuration parent is not owner-only"]
 
+    attested_at_utc = (
+        datetime.now(timezone.utc)
+        .replace(microsecond=0)
+        .isoformat()
+        .replace("+00:00", "Z")
+    )
     content = (
-        'schema_version = "1.0"\n'
+        'schema_version = "1.1"\n'
         'external_root_ref = "REF-M0-CUSTODY-001"\n'
         f"external_root = {json.dumps(str(external_root))}\n"
         "owner_selected = true\n"
         'sync_backup_disposition = "excluded"\n'
+        "sync_backup_owner_attested = true\n"
+        f"sync_backup_attested_at_utc = {json.dumps(attested_at_utc)}\n"
         f"retention_until_utc = {json.dumps(retention_until_utc)}\n"
     )
     temporary_path: Path | None = None
@@ -85,13 +98,16 @@ def _one_year_from_now_utc() -> str:
 def main() -> int:
     repository_root = Path(__file__).resolve().parents[2]
     raw_root = getpass.getpass("External evidence directory (input hidden): ")
+    confirmation = input(
+        f'Type exactly "{SYNC_EXCLUSION_CONFIRMATION}" after verifying this '
+        "directory is excluded from sync and backup: "
+    )
     violations = write_selection(
-        selection_path=(
-            repository_root / ".agentmonitor-local/m0-g1-custody.toml"
-        ),
+        selection_path=(repository_root / ".agentmonitor-local/m0-g1-custody.toml"),
         external_root=Path(raw_root),
         repository_root=repository_root,
         retention_until_utc=_one_year_from_now_utc(),
+        sync_backup_confirmation=confirmation,
     )
     if violations:
         print("M0 G1 CUSTODY: BLOCKED")
