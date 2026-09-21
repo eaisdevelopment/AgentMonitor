@@ -27,7 +27,7 @@ import pytest
 ROOT = Path(__file__).resolve().parents[4]
 sys.path.insert(0, str(ROOT / "backend/src"))
 sys.path.insert(0, str(ROOT))
-FACTORY = "agentmonitor.composition.bootstrap:create_schema_application"
+FACTORY = "agentmonitor.composition.bootstrap:create_iam_schema_application"
 
 
 def implementation() -> ModuleType:
@@ -123,13 +123,13 @@ def test_real_loopback_openapi_has_unique_versioned_operations(
             assert all(path.startswith("/api/v1") for path in document["paths"])
             assert len(ids) == len(set(ids))
             assert document["paths"] == {}
-            committed = json.loads(
-                (ROOT / "contracts/openapi/agentmonitor-v1.json").read_bytes()
-            )
-            provenance = committed.pop("x-agentmonitor-generation")
-            assert document == committed
-            canonical = (json.dumps(document, sort_keys=True, indent=2) + "\n").encode()
-            assert hashlib.sha256(canonical).hexdigest() == provenance["schema_sha256"]
+            # M1 contract mode intentionally remains empty. The canonical
+            # artifact now represents the separately composed M2 IAM surface.
+            assert document == {
+                "openapi": "3.1.0",
+                "info": {"title": "AgentMonitor", "version": "0.0.0"},
+                "paths": {},
+            }
             assert app.state.lifecycle.phase == "running"
             assert getattr(app.state.lifecycle, "startup_context", None) is not None, (
                 "FND-LIFE-001: the root startup correlation context is absent"
@@ -632,7 +632,149 @@ def isolated_generator(tmp_path: Path) -> Iterator[tuple[Path, dict[str, str]]]:
     shutil.copyfile(
         ROOT / "backend/pyproject.toml", tmp_path / "backend/pyproject.toml"
     )
+    # The compatibility oracle is the real approved artifact committed at
+    # HEAD, not a synthetic in-memory schema or an uncommitted M2 draft.
+    for relative in (
+        "contracts/openapi/agentmonitor-v1.json",
+        "frontend/src/generated/api/index.ts",
+    ):
+        baseline = subprocess.run(
+            ["git", "show", f"HEAD:{relative}"],
+            cwd=ROOT,
+            capture_output=True,
+            check=False,
+            timeout=5,
+        )
+        assert baseline.returncode == 0, "committed generator baseline missing"
+        destination = tmp_path / relative
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        destination.write_bytes(baseline.stdout)
+    subprocess.run(["git", "init", "--quiet", str(tmp_path)], check=True, timeout=5)
+    subprocess.run(
+        [
+            "git",
+            "add",
+            "contracts/openapi/agentmonitor-v1.json",
+            "frontend/src/generated/api/index.ts",
+        ],
+        cwd=tmp_path,
+        check=True,
+        timeout=5,
+    )
+    subprocess.run(
+        [
+            "git",
+            "-c",
+            "user.name=AgentMonitor Test",
+            "-c",
+            "user.email=agentmonitor-test@invalid.example",
+            "commit",
+            "--quiet",
+            "-m",
+            "approved artifact baseline",
+        ],
+        cwd=tmp_path,
+        check=True,
+        timeout=5,
+    )
+    (tmp_path / "contracts/openapi/agentmonitor-v1.json").unlink()
+    (tmp_path / "frontend/src/generated/api/index.ts").unlink()
     yield tmp_path, {"PYTHONPATH": str(tmp_path / "backend/src"), "PATH": os.defpath}
+
+
+def test_generation_replaces_only_uncommitted_generated_draft_against_head(
+    isolated_generator: tuple[Path, dict[str, str]],
+) -> None:
+    root, environment = isolated_generator
+    command = [sys.executable, str(root / "tooling/foundation/openapi_client.py")]
+    first = subprocess.run(
+        command + ["--write"],
+        env=environment,
+        capture_output=True,
+        text=True,
+        timeout=15,
+    )
+    assert first.returncode == 0, first.stdout + first.stderr
+    artifact = root / "contracts/openapi/agentmonitor-v1.json"
+    before = artifact.read_bytes()
+    route_source = root / "backend/src/agentmonitor/api/v1/routers/iam.py"
+    original = route_source.read_text()
+    assert '"description": "SafeProblemV1"' in original
+    route_source.write_text(
+        original.replace(
+            '"description": "SafeProblemV1"',
+            '"description": "SafeProblemV1 adjusted"',
+            1,
+        )
+    )
+    rewritten = subprocess.run(
+        command + ["--write"],
+        env=environment,
+        capture_output=True,
+        text=True,
+        timeout=15,
+    )
+    assert rewritten.returncode == 0, rewritten.stdout + rewritten.stderr
+    assert artifact.read_bytes() != before
+    checked = subprocess.run(
+        command + ["--check"],
+        env=environment,
+        capture_output=True,
+        text=True,
+        timeout=15,
+    )
+    assert checked.returncode == 0, checked.stdout + checked.stderr
+
+
+@pytest.mark.parametrize("baseline_loss", ["not_a_repository", "missing_head_blob"])
+def test_generation_refuses_absent_committed_baseline(
+    isolated_generator: tuple[Path, dict[str, str]], baseline_loss: str
+) -> None:
+    root, environment = isolated_generator
+    if baseline_loss == "not_a_repository":
+        (root / ".git").rename(root / ".git-hidden")
+    else:
+        subprocess.run(
+            [
+                "git",
+                "rm",
+                "--cached",
+                "--quiet",
+                "contracts/openapi/agentmonitor-v1.json",
+            ],
+            cwd=root,
+            check=True,
+            timeout=5,
+        )
+        subprocess.run(
+            [
+                "git",
+                "-c",
+                "user.name=AgentMonitor Test",
+                "-c",
+                "user.email=agentmonitor-test@invalid.example",
+                "commit",
+                "--quiet",
+                "-m",
+                "remove approved artifact baseline",
+            ],
+            cwd=root,
+            check=True,
+            timeout=5,
+        )
+    command = [sys.executable, str(root / "tooling/foundation/openapi_client.py")]
+    refused = subprocess.run(
+        command + ["--write"],
+        env=environment,
+        capture_output=True,
+        text=True,
+        timeout=15,
+    )
+    assert refused.returncode == 1
+    assert "approved_baseline_unavailable" in refused.stdout
+    assert not refused.stderr
+    assert not (root / "contracts/openapi/agentmonitor-v1.json").exists()
+    assert not (root / "frontend/src/generated/api/index.ts").exists()
 
 
 def test_generation_is_reproducible_check_detects_drift_and_types_compile(
@@ -661,7 +803,12 @@ def test_generation_is_reproducible_check_detects_drift_and_types_compile(
     assert invoke("--check").returncode == 0
     digest = hashlib.sha256(before[0]).hexdigest()
     assert digest in before[1].decode()
-    assert json.loads(before[0])["paths"] == {}
+    operations = [
+        operation["operationId"]
+        for methods in json.loads(before[0])["paths"].values()
+        for operation in methods.values()
+    ]
+    assert len(operations) == len(set(operations)) == 13
     assert str(root).encode() not in b"".join(before)
     compiled = subprocess.run(
         [
@@ -713,7 +860,7 @@ def test_generator_cli_preserves_outputs_on_refusal(
             timeout=15,
         )
         assert failed.returncode == 1 and "generated_drift" in failed.stdout
-        assert not schema.parent.exists() and not client.parent.exists()
+        assert not schema.exists() and not client.exists()
         return
     generated = subprocess.run(
         command, env=environment, capture_output=True, text=True, timeout=15
@@ -721,14 +868,43 @@ def test_generator_cli_preserves_outputs_on_refusal(
     assert generated.returncode == 0
     arguments: list[str] = []
     if mutation == "breaking":
-        previous = json.loads(schema.read_bytes())
-        previous["paths"]["/api/v1/previous"] = {
-            "get": {
-                "operationId": "previous",
-                "responses": {"200": {"description": "Success"}},
-            }
-        }
-        schema.write_text(json.dumps(previous))
+        subprocess.run(
+            [
+                "git",
+                "add",
+                "contracts/openapi/agentmonitor-v1.json",
+                "frontend/src/generated/api/index.ts",
+            ],
+            cwd=root,
+            check=True,
+            timeout=5,
+        )
+        subprocess.run(
+            [
+                "git",
+                "-c",
+                "user.name=AgentMonitor Test",
+                "-c",
+                "user.email=agentmonitor-test@invalid.example",
+                "commit",
+                "--quiet",
+                "-m",
+                "accepted generated M2 contract",
+            ],
+            cwd=root,
+            check=True,
+            timeout=5,
+        )
+        route_source = root / "backend/src/agentmonitor/api/v1/routers/iam.py"
+        original = route_source.read_text()
+        assert '"description": "SafeProblemV1"' in original
+        route_source.write_text(
+            original.replace(
+                '"description": "SafeProblemV1"',
+                '"description": "SafeProblemV1 adjusted"',
+                1,
+            )
+        )
         expected = "breaking_drift"
     elif mutation == "symlink":
         preserved = root / "preserved-generated.ts"

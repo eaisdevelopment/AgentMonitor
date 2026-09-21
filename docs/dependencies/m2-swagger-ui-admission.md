@@ -1,7 +1,7 @@
 # M2 local Swagger UI asset admission
 
 - Record: `P01-ST-API-001-DEP-001`; reviewed 2026-09-20.
-- Status: **Pending owner approval**. No package has been installed or added to a manifest or lock by this record.
+- Status: **Owner approved for Story 4 on 2026-09-21; implemented locally.**
 - Scope: `ST-API-001`, `FR-IAM-006`, `CTR-API-003` V1. No public API contract change.
 
 ## Need and exact candidate
@@ -12,6 +12,6 @@ The M2 authenticated `/docs` must load without a CDN and must support bearer Try
 
 ## License, maintenance, security, and verification
 
-Both declared packages identify as Apache-2.0 in exact-version npm metadata. `swagger-ui-dist` is maintained in the [upstream Swagger UI repository](https://github.com/swagger-api/swagger-ui); its [security policy](https://github.com/swagger-api/swagger-ui/security) supports 5.x. The exact tarball was inspected with `npm pack swagger-ui-dist@5.33.0 --dry-run --json --ignore-scripts`: 32 files, including the top-level license/notice and bundled notices. This is a package inventory, not a release-artifact verification. The OSV exact-version API queries for both npm packages returned no listed advisories on 2026-09-20; this does not prove absence of vulnerabilities. The installed lock, transitive graph, copied-file hashes/notices, disabled analytics, and real browser behavior remain **Not Run**.
+Both declared packages identify as Apache-2.0 in exact-version npm metadata. `swagger-ui-dist` is maintained in the [upstream Swagger UI repository](https://github.com/swagger-api/swagger-ui); its [security policy](https://github.com/swagger-api/swagger-ui/security) supports 5.x. The exact tarball was inspected with `npm pack swagger-ui-dist@5.33.0 --dry-run --json --ignore-scripts`: 32 files, including the top-level license/notice and bundled notices. This was an admission inventory, not a release-artifact verification. The OSV exact-version API queries for both npm packages returned no listed advisories on 2026-09-20; this does not prove absence of vulnerabilities. Later locked-install, asset-hash/notice, analytics opt-out, and real-browser results are recorded below; hosted release publication remains **Not Run**.
 
-If the owner approves the exact two-package graph, the P01 writer may pin and lock it, disable Scarf analytics, build only local assets, regenerate license notices/SBOM, run the dependency/security and production-build gates, and verify `/docs` plus bearer Try-it-out in a real browser. Any extra dependency, changed version/license/advisory, install hook, or external request returns to review. No package is admitted merely by this pending record.
+The approved exact graph is pinned in `frontend/package.json` and lock. `scarfSettings.enabled=false` was set before `npm ci --ignore-scripts`; no install hook ran. `tools/automation/docs_assets.py --check` verifies the lock, all seven copied Swagger file hashes, and preserved LICENSE/NOTICE files without network access; `AUTO-BUILD` invokes it. Real Chrome Swagger render and cookie/bearer Try-it-out passed over migrated SQLite/Uvicorn with zero external request attempts. Hosted release SBOM/notices publication remains Not Run; no extra package/version is admitted by this record.

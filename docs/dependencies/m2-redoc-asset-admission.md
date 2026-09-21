@@ -1,7 +1,7 @@
 # M2 local ReDoc asset admission
 
 - Record: `P01-ST-API-001-DEP-002`; reviewed 2026-09-20.
-- Status: **Pending owner approval**. No ReDoc asset has been added to this repository or runtime.
+- Status: **Owner approved for Story 4 on 2026-09-21; implemented locally with a narrow offline footer-logo exception.**
 - Scope: authenticated local `/redoc` in `ST-API-001`, `CTR-API-003` V1; no resource-route or public DTO change.
 
 ## Necessity and exact artifact
@@ -10,6 +10,6 @@ The approved P01 M2 plan requires `/redoc` to work with local assets, not FastAP
 
 ## License, maintenance, security, and remaining gates
 
-The exact npm metadata and tarball declare MIT for ReDoc, with its license file included. The standalone bundle's notice lists bundled MIT components and DOMPurify under the Apache-2.0/MPL-2.0 choice; preserve that notice alongside the asset. The upstream [repository](https://github.com/Redocly/redoc) has maintained 2.5.x releases. An exact-version OSV query for `redoc@2.5.4` returned no listed advisory on 2026-09-20. A separately resolved temporary 114-package lock returned zero npm-audit findings, but that graph is **not proposed for installation** and neither lookup guarantees safety. The actual vendored-file hashes, complete distribution notice, CSP, authenticated real-browser rendering, and network-no-external-request test remain **Not Run**.
+The exact npm metadata and tarball declare MIT for ReDoc, with its license file included. The standalone bundle's notice lists bundled MIT components and DOMPurify under the Apache-2.0/MPL-2.0 choice; preserve that notice alongside the asset. The upstream [repository](https://github.com/Redocly/redoc) has maintained 2.5.x releases. An exact-version OSV query for `redoc@2.5.4` returned no listed advisory on 2026-09-20. A separately resolved temporary 114-package lock returned zero npm-audit findings, but that graph was **not installed** and neither lookup guarantees safety. Later asset-hash/notice, CSP, real-browser, and zero-external-attempt results are recorded below.
 
-If approved, the P01 writer may add only the pinned, hash-checked standalone asset and required notices through a codified routine, then test `/redoc` over real loopback HTTP and a real browser. No CDN, remote font/analytics request, npm install, changed artifact version, or extra license is authorized. Any such change returns to dependency review. This pending review alone does not approve an asset or pass Story 4.
+The exact tarball and original standalone bundle are verified before a single deterministic substitution: upstream's unconditional `https://cdn.redoc.ly/redoc/logo-mini.svg` footer reference (required to occur exactly once) becomes `/docs-assets/redoc/redoc-mark.svg`. The locally copied upstream SVG is pinned at SHA-256 `1dab4315f8de2177b2b2726b29e84a26314c69cd27d692228947c0058793d5a7`; the derived JS is pinned at `f6f01d44331204dfd1e0aef8c0caee9fe59d3edc7669447ec5d89bffd8f82110`. Original LICENSE and bundle notice are preserved and hash-checked. The write routine fetches only at vendoring time; `--check` and runtime are network-free. Real Chrome ReDoc rendering passed with zero attempted external requests. The root approved this narrow derived-bundle exception; no full ReDoc npm graph was installed. Hosted release publication remains Not Run.

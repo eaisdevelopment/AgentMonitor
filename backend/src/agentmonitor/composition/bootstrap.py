@@ -17,6 +17,7 @@ from functools import partial
 from pathlib import Path
 
 import uvicorn
+from agentmonitor.adapters.identity_access.argon2_password import Argon2PasswordV1
 from agentmonitor.adapters.persistence._shared.sqlite.core.policy import (
     DatabaseRefV1,
     SqliteDatabaseHandleV1,
@@ -27,7 +28,17 @@ from agentmonitor.adapters.persistence._shared.sqlite.schema.compatibility impor
     RequireWritableSchemaV1,
     application_schema_range,
 )
+from agentmonitor.adapters.persistence.identity_access.sqlite.api_tokens import (
+    SqliteIdentityAccessApiTokenRepositoryV1,
+)
+from agentmonitor.adapters.persistence.identity_access.sqlite.repository import (
+    SqliteIdentityAccessRepositoryV1,
+)
+from agentmonitor.adapters.persistence.identity_access.sqlite.sessions import (
+    SqliteIdentityAccessSessionRepositoryV1,
+)
 from agentmonitor.api.app import create_application
+from agentmonitor.api.v1.dependencies import IamApiPortsV1
 from agentmonitor.contracts.configuration_v1 import (
     BootstrapConfigurationV1,
     ConfigurationRegistryV1,
@@ -42,6 +53,30 @@ from agentmonitor.foundation.configuration import (
     BootstrapCliOptionsV1,
     BootstrapConfigurationError,
     load_bootstrap_configuration,
+)
+from agentmonitor.modules.identity_access.application.api_tokens import (
+    CreateApiTokenV1,
+    ListApiTokensV1,
+    ListIamSecurityEventsV1,
+    ResolveBearerTokenV1,
+    RevokeApiTokenV1,
+    RotateApiTokenV1,
+)
+from agentmonitor.modules.identity_access.application.authorization import (
+    AuthorizePrincipalV1,
+)
+from agentmonitor.modules.identity_access.application.bootstrap import (
+    GetIamInitializationStateV1,
+)
+from agentmonitor.modules.identity_access.application.sessions import (
+    AuthenticateAdministratorV1,
+    ChangeAdministratorPasswordV1,
+    ListSessionsV1,
+    LogoutSessionV1,
+    ResolveBrowserSessionV1,
+    RevokeAllSessionsV1,
+    RevokeSessionV1,
+    VerifyCsrfV1,
 )
 from fastapi import FastAPI
 
@@ -95,6 +130,62 @@ def create_foundation_application(
         ComponentFactorySetV1(partial(_open_database, ref, build)),
         build,
         lifecycle,
+    )
+
+
+def _iam_ports(reference: DatabaseRefV1) -> IamApiPortsV1:
+    bootstrap_repository = SqliteIdentityAccessRepositoryV1(reference)
+    sessions_repository = SqliteIdentityAccessSessionRepositoryV1(reference)
+    token_repository = SqliteIdentityAccessApiTokenRepositoryV1(reference)
+    hasher = Argon2PasswordV1()
+    return IamApiPortsV1(
+        GetIamInitializationStateV1(bootstrap_repository),
+        AuthenticateAdministratorV1(sessions_repository, hasher),
+        ResolveBrowserSessionV1(sessions_repository),
+        VerifyCsrfV1(sessions_repository),
+        AuthorizePrincipalV1(),
+        LogoutSessionV1(sessions_repository),
+        ChangeAdministratorPasswordV1(sessions_repository, hasher),
+        ListSessionsV1(sessions_repository),
+        RevokeSessionV1(sessions_repository),
+        RevokeAllSessionsV1(sessions_repository),
+        ResolveBearerTokenV1(token_repository),
+        ListApiTokensV1(token_repository),
+        CreateApiTokenV1(token_repository),
+        RotateApiTokenV1(token_repository),
+        RevokeApiTokenV1(token_repository),
+        ListIamSecurityEventsV1(token_repository),
+    )
+
+
+def create_iam_application(
+    config_path: Path, data_root: Path, *, lifecycle: LifecycleHooksV1
+) -> FastAPI:
+    """M2 production IAM mode over a pre-migrated real installation."""
+    settings = load_bootstrap_configuration(
+        config_path, {}, BootstrapCliOptionsV1(ConfigurationRegistryV1(()))
+    )
+    build = build_metadata()
+    reference = DatabaseRefV1(data_root / "agentmonitor.db", data_root)
+    return create_application(
+        settings,
+        ComponentFactorySetV1(partial(_open_database, reference, build)),
+        build,
+        lifecycle,
+        iam_mode=True,
+        iam_ports=_iam_ports(reference),
+        service_lock_path=data_root / ".agentmonitor-service.lock",
+    )
+
+
+def create_iam_schema_application() -> FastAPI:
+    """Same M2 route declarations, no runnable state or database side effects."""
+    return create_application(
+        BootstrapConfigurationV1("1.0.0", (), (), ()),
+        ComponentFactorySetV1(None),
+        build_metadata(),
+        LifecycleHooksV1(),
+        iam_mode=True,
     )
 
 

@@ -317,6 +317,16 @@ class AutomationRoutineTests(unittest.TestCase):
         from auto_build import direct_package_approved
 
         self.assertTrue(direct_package_approved("react", "19.3.0", "19.3.0", "MIT"))
+        self.assertTrue(
+            direct_package_approved(
+                "swagger-ui-dist", "5.33.0", "5.33.0", "Apache-2.0"
+            )
+        )
+        self.assertFalse(
+            direct_package_approved(
+                "swagger-ui-dist", "5.33.0", "5.34.0", "Apache-2.0"
+            )
+        )
         self.assertFalse(
             direct_package_approved("react", "19.3.0", "19.3.0", "GPL-3.0-only")
         )

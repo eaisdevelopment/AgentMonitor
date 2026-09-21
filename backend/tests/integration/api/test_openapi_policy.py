@@ -1,0 +1,193 @@
+"""Static negative-drift checks on the real M2 FastAPI schema declaration."""
+
+from copy import deepcopy
+
+import pytest
+from agentmonitor.composition.bootstrap import create_iam_schema_application
+from fastapi.openapi.models import OpenAPI
+
+from tooling.foundation.openapi_client import (
+    OpenApiGenerationError,
+    validate_iam_openapi,
+)
+
+EXPECTED_SUCCESS = {
+    "iam_get_initialization_v1": ("200", "IamInitializationStateV1"),
+    "iam_login_v1": ("204", None),
+    "iam_get_current_session_v1": ("200", "CurrentSessionViewV1"),
+    "iam_logout_v1": ("204", None),
+    "iam_change_password_v1": ("204", None),
+    "iam_list_sessions_v1": ("200", "BrowserSessionPageV1"),
+    "iam_revoke_session_v1": ("204", None),
+    "iam_revoke_other_sessions_v1": ("200", "SessionRevocationSummaryV1"),
+    "iam_list_api_tokens_v1": ("200", "ApiTokenPageV1"),
+    "iam_create_api_token_v1": ("201", "ApiTokenCredentialIssueV1"),
+    "iam_rotate_api_token_v1": ("201", "ApiTokenCredentialIssueV1"),
+    "iam_revoke_api_token_v1": ("204", None),
+    "iam_list_security_events_v1": ("200", "IamSecurityEventPageV1"),
+}
+EXPECTED_ERRORS = frozenset(
+    {
+        "400",
+        "401",
+        "403",
+        "404",
+        "405",
+        "409",
+        "412",
+        "413",
+        "415",
+        "422",
+        "428",
+        "429",
+        "500",
+        "503",
+        "504",
+    }
+)
+EXPECTED_REQUESTS = {
+    "iam_login_v1": "LoginInputV1",
+    "iam_change_password_v1": "ChangeAdministratorPasswordInputV1",
+    "iam_create_api_token_v1": "CreateApiTokenInputV1",
+    "iam_rotate_api_token_v1": "RotateApiTokenInputV1",
+}
+
+
+def test_generator_rejects_changed_policy_on_every_frozen_operation() -> None:
+    schema = create_iam_schema_application().openapi()
+    assert len(validate_iam_openapi(schema)) == 13
+    mutations: tuple[tuple[str, object], ...] = (
+        ("x-agentmonitor-auth-profile", "preauth_loopback"),
+        ("x-agentmonitor-required-permission", "read:diagnostics"),
+        ("x-agentmonitor-application-port", "UnknownPortV1"),
+        ("x-agentmonitor-replay-policy", "unknown_replay"),
+        ("x-agentmonitor-error-schema", "OtherProblemV1"),
+        ("security", [{"BearerTokenV1": []}]),
+    )
+    tested = 0
+    for path, methods in schema["paths"].items():
+        for method, operation in methods.items():
+            for field, replacement in mutations:
+                if operation[field] == replacement:
+                    continue
+                changed = deepcopy(schema)
+                changed["paths"][path][method][field] = replacement
+                with pytest.raises(OpenApiGenerationError):
+                    validate_iam_openapi(changed)
+                tested += 1
+    assert tested >= 60
+
+
+def test_generator_rejects_success_schema_drift_for_all_13_operations() -> None:
+    schema = create_iam_schema_application().openapi()
+    assert len(validate_iam_openapi(schema)) == len(EXPECTED_SUCCESS) == 13
+    seen: set[str] = set()
+    for path, methods in schema["paths"].items():
+        for method, operation in methods.items():
+            identifier = operation["operationId"]
+            seen.add(identifier)
+            expected_status, expected_model = EXPECTED_SUCCESS[identifier]
+            success = {
+                status: response
+                for status, response in operation["responses"].items()
+                if status.startswith("2")
+            }
+            assert list(success) == [expected_status]
+            if expected_model is None:
+                assert "content" not in success[expected_status]
+                changed = deepcopy(schema)
+                changed["paths"][path][method]["responses"][expected_status][
+                    "content"
+                ] = {
+                    "application/json": {
+                        "schema": {"$ref": "#/components/schemas/CurrentSessionViewV1"}
+                    }
+                }
+            else:
+                assert success[expected_status]["content"]["application/json"][
+                    "schema"
+                ] == {"$ref": f"#/components/schemas/{expected_model}"}
+                changed = deepcopy(schema)
+                changed["paths"][path][method]["responses"][expected_status]["content"][
+                    "application/json"
+                ]["schema"] = {
+                    "$ref": "#/components/schemas/CurrentSessionViewV1"
+                    if expected_model != "CurrentSessionViewV1"
+                    else "#/components/schemas/ApiTokenPageV1"
+                }
+            with pytest.raises(OpenApiGenerationError, match="success_schema_mismatch"):
+                validate_iam_openapi(changed)
+            status_changed = deepcopy(schema)
+            responses = status_changed["paths"][path][method]["responses"]
+            success_response = responses.pop(expected_status)
+            responses["201" if expected_status == "200" else "200"] = success_response
+            with pytest.raises(OpenApiGenerationError, match="success_schema_mismatch"):
+                validate_iam_openapi(status_changed)
+    assert seen == set(EXPECTED_SUCCESS)
+
+
+def test_iam_request_component_names_match_approved_catalog() -> None:
+    schema = create_iam_schema_application().openapi()
+    assert len(validate_iam_openapi(schema)) == 13
+    seen: set[str] = set()
+    for path, methods in schema["paths"].items():
+        for method, operation in methods.items():
+            identifier = operation["operationId"]
+            seen.add(identifier)
+            expected = EXPECTED_REQUESTS.get(identifier)
+            if expected is None:
+                assert "requestBody" not in operation
+            else:
+                assert operation["requestBody"]["content"]["application/json"][
+                    "schema"
+                ] == {"$ref": f"#/components/schemas/{expected}"}
+            changed = deepcopy(schema)
+            wrong = (
+                "CreateApiTokenInputV1"
+                if expected == "LoginInputV1"
+                else "LoginInputV1"
+            )
+            changed["paths"][path][method]["requestBody"] = {
+                "content": {
+                    "application/json": {
+                        "schema": {"$ref": f"#/components/schemas/{wrong}"}
+                    }
+                },
+                "required": True,
+            }
+            with pytest.raises(OpenApiGenerationError, match="request_schema_mismatch"):
+                validate_iam_openapi(changed)
+    assert seen == set(EXPECTED_SUCCESS)
+
+
+def test_generator_validates_openapi_structure_with_fastapi_model() -> None:
+    schema = create_iam_schema_application().openapi()
+    OpenAPI.model_validate(schema)
+    changed = deepcopy(schema)
+    changed["info"]["termsOfService"] = 42
+    with pytest.raises(OpenApiGenerationError, match="openapi_schema_invalid"):
+        validate_iam_openapi(changed)
+
+
+def test_generator_rejects_missing_safe_error_statuses_on_every_operation() -> None:
+    schema = create_iam_schema_application().openapi()
+    assert len(validate_iam_openapi(schema)) == 13
+    deleted_all = deepcopy(schema)
+    responses = deleted_all["paths"]["/api/v1/session"]["get"]["responses"]
+    for status in EXPECTED_ERRORS:
+        responses.pop(status)
+    with pytest.raises(OpenApiGenerationError, match="error_status_missing"):
+        validate_iam_openapi(deleted_all)
+    checked = 0
+    for path, methods in schema["paths"].items():
+        for method, operation in methods.items():
+            assert EXPECTED_ERRORS <= set(operation["responses"])
+            for status in EXPECTED_ERRORS:
+                changed = deepcopy(schema)
+                changed["paths"][path][method]["responses"].pop(status)
+                with pytest.raises(
+                    OpenApiGenerationError, match="error_status_missing"
+                ):
+                    validate_iam_openapi(changed)
+                checked += 1
+    assert checked == 13 * len(EXPECTED_ERRORS)

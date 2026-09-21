@@ -17,9 +17,11 @@ APPROVED_FRONTEND_DIRECT = {
     "react": ("19.3.0", "MIT"),
     "react-dom": ("19.3.0", "MIT"),
     "@playwright/test": ("1.63.0", "Apache-2.0"),
+    "@scarf/scarf": ("1.4.0", "Apache-2.0"),
     "@types/react": ("19.3.0", "MIT"),
     "@types/react-dom": ("19.3.0", "MIT"),
     "@vitejs/plugin-react": ("6.1.1", "MIT"),
+    "swagger-ui-dist": ("5.33.0", "Apache-2.0"),
     "typescript": ("7.0.2", "Apache-2.0"),
     "vite": ("8.3.0", "MIT"),
 }
@@ -67,6 +69,8 @@ def verify_frontend_inputs() -> bool:
             **manifest["dependencies"],
             **manifest["devDependencies"],
         }
+        if manifest.get("scarfSettings") != {"enabled": False}:
+            return False
         if set(declared) != set(APPROVED_FRONTEND_DIRECT):
             return False
         if (
@@ -125,6 +129,7 @@ def main() -> int:
     commands = (
         ["uv", "lock", "--check", "--directory", "backend"],
         [str(BACKEND_PYTHON), "tooling/foundation/openapi_client.py", "--check"],
+        ["python3", "tools/automation/docs_assets.py", "--check"],
         ["npm", "--prefix", "frontend", "run", "typecheck"],
         [str(FRONTEND / "node_modules/.bin/vite"), "build", "frontend"],
     )
