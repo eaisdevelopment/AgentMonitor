@@ -87,6 +87,16 @@ Its `type` is the same-origin, root-relative `/problems/{closed_safe_code}`.
 excluded from the 13-resource OpenAPI operation set; unknown codes receive a
 safe 404 without reflecting the requested segment. Unrecognized application
 port outcomes are collapsed to `500 internal_error`, whose type also resolves.
+In IAM mode, the unauthenticated dashboard shell is served from the production
+`dashboard.html` build at only `/`, `/login`, and `/settings/api-tokens`.
+Authentication is enforced on versioned data operations, so a browser can load
+the login shell without a session; unknown deep links do not silently become
+the dashboard. Direct `/dashboard.html` and `/index.html` requests are denied;
+only the built `/assets/*` files and `/favicon.svg` are static fallbacks in IAM
+mode. Foundation mode continues to serve its original M1 entrypoint.
+The shell routes do not appear in the versioned OpenAPI operation set and use
+the same loopback Host/Origin guard, private no-store caching, and CSP as the
+other IAM HTML transports.
 The accepted correlation grammar is `[A-Za-z0-9._:-]{1,64}`. An absent ID is
 OS-random. HTTP parser rejection before an ASGI scope exists (for example a
 duplicate Host or malformed request line) is a narrow Uvicorn/h11 exception:

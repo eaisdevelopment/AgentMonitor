@@ -181,6 +181,7 @@ def create_application(
     app.state.loopback_schema_binding = binding
     app.state.iam_ports = iam_ports
     app.include_router(create_router(iam_mode=iam_mode))
+    frontend_build = Path(__file__).resolve().parents[4] / "frontend" / "dist"
     if iam_mode:
         original_openapi = app.openapi
 
@@ -299,6 +300,16 @@ def create_application(
                 f"<h1>{code}</h1><p>{description}</p></body></html>"
             )
 
+        @app.get("/", include_in_schema=False)
+        @app.get("/login", include_in_schema=False)
+        @app.get("/settings/api-tokens", include_in_schema=False)
+        def dashboard_html() -> FileResponse:
+            """Serve only approved SPA entries; API/docs routes remain distinct."""
+            entry = frontend_build / "dashboard.html"
+            if not entry.is_file():
+                raise ProblemError(500, "internal_error")
+            return FileResponse(entry, media_type="text/html")
+
         app.add_exception_handler(ProblemError, handle_problem)
         app.add_exception_handler(RequestValidationError, handle_validation)
         app.add_exception_handler(StarletteHTTPException, handle_http)
@@ -309,14 +320,33 @@ def create_application(
         app.add_middleware(IamTransportGuard, binding=binding)
     else:
         app.add_middleware(FoundationSchemaGuard, binding=binding)
-    # The static mount is deliberately a fallback after the versioned API and
-    # framework schema routes. It serves only a locally built artifact through
-    # the same loopback authority; Vite's development server is never used as
-    # a product boundary.
-    frontend_build = Path(__file__).resolve().parents[4] / "frontend" / "dist"
-    app.mount(
-        "/",
-        StaticFiles(directory=str(frontend_build), html=True, check_dir=False),
-        name="frontend",
-    )
+    if iam_mode:
+
+        @app.get("/favicon.svg", include_in_schema=False)
+        def dashboard_favicon() -> FileResponse:
+            icon = frontend_build / "favicon.svg"
+            if not icon.is_file():
+                raise ProblemError(404, "resource_not_found")
+            return FileResponse(icon, media_type="image/svg+xml")
+
+        # In IAM mode, the exact HTML routes above are the only public shell
+        # entries. Never expose the M1 index or dashboard source HTML by file
+        # name through a catch-all static mount.
+        app.mount(
+            "/assets",
+            StaticFiles(
+                directory=str(frontend_build / "assets"),
+                html=False,
+                check_dir=False,
+            ),
+            name="dashboard_assets",
+        )
+    else:
+        # M1's foundation entrypoint remains unchanged and uses only the
+        # locally built artifact, never a Vite development server.
+        app.mount(
+            "/",
+            StaticFiles(directory=str(frontend_build), html=True, check_dir=False),
+            name="frontend",
+        )
     return app

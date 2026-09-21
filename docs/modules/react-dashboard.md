@@ -1,0 +1,42 @@
+# P02 React dashboard — M2 identity shell
+
+- Status: **M2 Story 5 accepted; not a V1 dashboard release**.
+- Owner: P02 UI. Plan: [`PLAN-P02`](../plans/ui/react-dashboard/plan-v1.md), approved M2 slice [`ST-UI-001`](../superpowers/plans/2026-09-19-agentmonitor-v1-m2-authenticated-shell.md).
+- Consumes `CTR-UI-001`, `CTR-IAM-003/006/007` V1 through the generated 13-operation IAM client. Publishes no backend contract, database table, migration, configuration key, or provider adapter.
+
+## Scope and ownership
+
+The M1 `index.html` foundation entry remains intact. Vite builds a separate `dashboard.html` entry; P01 serves it only on `/`, `/login`, and `/settings/api-tokens` in IAM mode. P02 owns the React entry, guarded route controller, browser-session flow, password-change form, token settings, and the handwritten `shared/api` wrapper. The wrapper is the only handwritten importer of `frontend/src/generated/api/**`; feature modules do not call `fetch`, read SQLite, import backend internals, or inspect provider state.
+
+M2 contains no account, quota, budget, agent, alert, or provider telemetry. The authenticated overview states that identity/access is active and provider monitoring is outside this milestone; it never renders invented values. The command dashboard and provider modules remain later V1 work.
+
+## Browser workflow
+
+1. A fresh migrated installation returns initialization state `uninitialized` and shows terminal-bootstrap guidance. `incompatible` or an unknown state fails closed as a service error, not as fresh setup.
+2. On an initialized installation, a safe current-session GET selects either protected shell or password login. Password input remains in the form only until submit. Invalid login is generic; the real throttle `Retry-After` is bounded and displayed. A successful login replaces browser history with an allowlisted GET route; URL query/hash input is discarded.
+3. A server `dashboard_authentication_required` response clears protected UI state and enters login. A separate safe “Check session” GET lets the owner detect idle expiry or revocation. No mutation is replayed automatically. Logout uses the current strong session ETag, CSRF, and server-side revocation. Password change verifies the current credential, uses a fresh current-session ETag and idempotency key, and refreshes the rotated session binding.
+4. Token settings use only `read:diagnostics` and `write:tokens`, with descriptions and approved lifetimes. List items are safe summaries. Create/rotate issue a credential into a native one-time modal only; dismiss, navigation, or reload destroys the UI reference. Clipboard writing occurs only after the explicit Copy action. Rotate confirmation includes the current scopes and expiry; revoke requires confirmation. The UI never transfers a bearer credential to Swagger; Swagger authorization persistence is disabled.
+5. `shared/api` reads only the AgentMonitor CSRF cookie, sends it as `X-CSRF-Token` for cookie-authenticated unsafe requests, and fails closed before sending when absent. Resource `If-Match` is built only there from the public opaque ID and positive record version as `"<id>.<version>"`. A rejected or missing CSRF proof prompts explicit password re-authentication; no failed mutation is automatically retried. The old browser session remains active until expiry unless the owner explicitly revokes it later.
+
+## Failure and privacy policy
+
+- Known SafeProblem codes map to fixed wording and a validated code/correlation reference; raw response detail, stack, submitted fields, and arbitrary URLs are never reflected. Server authority decides authentication, scope, concurrency, and one-time replay. A stale active ETag is surfaced as a conflict requiring refresh.
+- A token create/rotate response lost after commitment has an **unknown** outcome. The UI safely refreshes summaries and warns that the plaintext cannot be recovered; it does not suggest a blind new-key retry. Naturally lost-response behavior is not artificially manufactured for tests.
+- An uncertain logout is reconciled by one safe current-session GET: 401 enters login; 200 retains active state; another failure locks protected UI locally and does not assert server revocation. Uncertain password-change outcome similarly avoids retry and requires explicit verification.
+- No browser Web Storage, URL, screenshot, log, analytics request, or query cache contains session credentials, CSRF values, bearer plaintext, passwords, provider data, prompts, source, or tool content. The production shell requests only same-origin assets and API. Browser tests capture boolean/header classes and status, not secret values in evidence.
+- P02 makes no provider/default-profile read or write, process control, database migration, or remote-service request. All real browser tests use an isolated Alembic-migrated file SQLite, production Argon2 bootstrap, Uvicorn loopback, the production Vite build, and installed Chrome. Test credentials are OS-random and passed to Chrome only through a private stdin pipe.
+
+## Canonical commands and limitations
+
+From the repository root:
+
+```bash
+npm --prefix frontend run typecheck
+npm --prefix frontend run build
+backend/.venv/bin/python frontend/tests/browser/p02/run_browser.py quick
+backend/.venv/bin/python frontend/tests/browser/p02/run_browser.py all
+```
+
+`quick` runs nine isolated real-browser scenarios and is an intermediate development gate. `all` also waits for an actual ≥61-second session activity touch before logout and the actual 1,805-second browser idle interval; it is the P02 Story 5 browser gate. `--no-build` is available only when the caller has already built the exact source being tested. Neither command reads the operator `.env` or provider accounts. For Red/Green results and residual `Not Run`, see [`m2-st-ui-001.md`](../evidence/m2-st-ui-001.md).
+
+Current limitations: local loopback only, single administrator, no provider dashboard data, and no automatic agent routing. Actual 200% browser zoom, macOS, owner installation, natural lost-response, and later V1 provider-data workflows remain outside the M2 acceptance claim unless separately verified.

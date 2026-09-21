@@ -1,8 +1,8 @@
 # AgentMonitor documentation index
 
-Status: **V1-M1 foundation accepted; V1-M2 in progress, with `ST-IAM-001..003` accepted and `ST-API-001` still open.** M2's authenticated HTTP/browser exit gate has not passed. M0 G1's separate exact-digest approval remains Failed. Live provider/account, native lifecycle, and release gates remain Not Run.
+Status: **V1-M1 foundation accepted; V1-M2 in progress, with `ST-IAM-001..003`, `ST-API-001`, and `ST-UI-001` accepted; `ST-API-002` remains open.** M2's cross-origin integration exit gate has not passed. M0 G1's separate exact-digest approval remains Failed. Live provider/account, native lifecycle, and release gates remain Not Run.
 Owner: Pavlo Sidelov <pavlo@sidelov.com>  
-Last substantive review: 2026-09-20
+Last substantive review: 2026-09-21
 
 This index is the entry point for product, architecture, engineering, and operations documentation. Requirements marked **Approved** reflect the project interview. Items marked **Discovery** require Milestone 0 evidence. Items marked **Deferred** are intentionally outside V1.
 
@@ -39,6 +39,8 @@ This index is the entry point for product, architecture, engineering, and operat
 - [M1 audit-fix evidence](evidence/m1-audit-fixes.md): Red/Green/refactor and real-boundary reacceptance status.
 - [M1 hosted CI evidence](evidence/m1-hosted-ci.md): clean-runner Red/Green, exact code commit, four hosted jobs, and residual boundaries.
 - [M2 Story 1 evidence](evidence/m2-st-iam-001.md): independent bootstrap, migration, Argon2id, and real-PTY acceptance with deferred gates.
+- [M2 API Story 4 evidence](evidence/m2-st-api-001.md): real IAM HTTP, offline API documentation, generated client, and independent acceptance.
+- [M2 UI Story 5 evidence](evidence/m2-st-ui-001.md): accepted built-browser authentication, token settings, and real idle expiry; not the milestone exit gate.
 - [M2 Argon2 admission](dependencies/m2-argon2-admission.md): approved exact Linux dependency graph, work profile, and platform limitations.
 - [Configuration standard](engineering/configuration-standard.md): ownership, naming, precedence, secret classes, and compatibility.
 - [Documentation standard](engineering/documentation-standard.md): required documentation and traceability.
@@ -50,6 +52,7 @@ This index is the entry point for product, architecture, engineering, and operat
 
 - [Operations runbook](operations/runbook.md): installation, service, backup, recovery, authentication, diagnostics, and incidents.
 - [M01 identity/access operator guide](modules/identity-access.md): current fresh-only migration and local TTY bootstrap commands; installed recovery remains unavailable.
+- [P02 React dashboard module](modules/react-dashboard.md): authenticated shell, generated-client boundary, and current Story 5 browser coverage.
 - [Milestone 0 discovery runbook](operations/milestone-0-discovery-runbook.md): safe, read-only provider feasibility work.
 - [Live verification runbook](operations/live-verification-runbook.md): coordinated tests against real accounts.
 

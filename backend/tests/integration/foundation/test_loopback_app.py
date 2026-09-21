@@ -699,14 +699,10 @@ def test_generation_replaces_only_uncommitted_generated_draft_against_head(
     before = artifact.read_bytes()
     route_source = root / "backend/src/agentmonitor/api/v1/routers/iam.py"
     original = route_source.read_text()
-    assert '"description": "SafeProblemV1"' in original
-    route_source.write_text(
-        original.replace(
-            '"description": "SafeProblemV1"',
-            '"description": "SafeProblemV1 adjusted"',
-            1,
-        )
-    )
+    # A source-only draft changes the generated provenance hash without
+    # changing the approved HTTP contract. Breaking descriptions are checked
+    # separately below and must never be accepted as a draft replacement.
+    route_source.write_text(original + "\n# Compatible source-only draft update.\n")
     rewritten = subprocess.run(
         command + ["--write"],
         env=environment,
