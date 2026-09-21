@@ -6,6 +6,16 @@
 - Requirements/acceptance: `FR-IAM-007`, `NFR-SEC-001`, `NFR-TEST-001/002`, `API-BROWSER-006`, `M01-HTTP-019`, `M01-SEC-008`, `AC-TEST-003/006`. `AC-TEST-001` remains subject to historical-deviation disposition below.
 - Contracts: [ADR 0012](../decisions/0012-cookie-read-origin-proof.md) amends `CTR-API-002` V1 cookie-read admission. `CTR-IAM-003/005`, route/status/schema shapes, database, and configuration remain unchanged. The OpenAPI/client source-hash artifacts are regenerated, not hand-edited.
 - Recorder/date: Codex, 2026-09-21. Canonical local gate completed on the changed source; independent QA countersignature remains pending.
+- Implementation commit: `77eb9b5` on `codex/v1-m2`; local tracked worktree clean after commit. A documentation-only handoff amendment records this inventory.
+
+## Change inventory and handoff
+
+- P01 primary owner: `backend/src/agentmonitor/api/transport.py`; real HTTP/client tests in `backend/tests/integration/api/test_origin_policy.py`, `backend/tests/integration/api/test_iam_http.py`, and `frontend/tests/client/real-iam-http.mjs`.
+- P02 verification consumer: `frontend/tests/browser/p02/hostile_resource.mjs` and `frontend/tests/browser/p02/run_browser.py`.
+- Foundation quality/evidence consumer: `tools/automation/implementations/auto_quality.py`, `tools/automation/implementations/auto_test.py`, and `tools/automation/test_run.py`.
+- Regenerated metadata-only artifacts: `contracts/openapi/agentmonitor-v1.json` and `frontend/src/generated/api/index.ts`.
+- Maintained contract/status documentation: `docs/decisions/0012-cookie-read-origin-proof.md`, `docs/decisions/README.md`, `docs/evidence/m2-contract-freeze.md`, `docs/evidence/m2-st-api-002.md`, `docs/evidence/m2-st-ui-001.md`, this record, `docs/api/http-boundary.md`, `docs/architecture/security.md`, `docs/modules/react-dashboard.md`, and `docs/README.md`. The ignored owner-local `temp/M2_code_audit_report.md` has a post-fix addendum but is not a committed artifact.
+- Rollback is a normal code revert plus matching generated metadata; no database migration or secret rotation is required. Do not restore the old cookie-read allowance without a new security decision and real hostile-resource test.
 
 ## Test inventory and status
 
