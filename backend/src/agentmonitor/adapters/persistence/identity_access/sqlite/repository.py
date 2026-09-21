@@ -130,12 +130,7 @@ class SqliteIdentityAccessRepositoryV1:
     def recover_administrator(
         self, password_phc: str, hash_policy_version: str, correlation_id: str
     ) -> RecoverAdministratorOutcomeV1:
-        """Offline-only credential-wide invalidation; never expose as HTTP/CLI.
-
-        The caller must first obtain the future service-held quiescence receipt.
-        Until that seam exists, only isolated real-DB verification may call this
-        method; the installed recovery command remains unavailable.
-        """
+        """Atomic offline invalidation; composition must hold service quiescence."""
         if (
             hash_policy_version != "argon2id-rfc9106-low-memory-v1"
             or not password_phc.startswith("$argon2id$v=19$m=65536,t=3,p=4$")

@@ -5,6 +5,7 @@ from typing import Protocol
 from agentmonitor.contracts.identity_access_v1 import (
     BootstrapAdministratorOutcomeV1,
     IamInitializationStateV1,
+    RecoverAdministratorOutcomeV1,
     SecretInputV1,
 )
 from agentmonitor.modules.identity_access.domain.policy import (
@@ -25,6 +26,12 @@ class IdentityAccessBootstrapRepositoryPortV1(Protocol):
     def claim_administrator(
         self, password_phc: str, hash_policy_version: str, correlation_id: str
     ) -> BootstrapAdministratorOutcomeV1: ...
+
+
+class IdentityAccessRecoveryRepositoryPortV1(Protocol):
+    def recover_administrator(
+        self, password_phc: str, hash_policy_version: str, correlation_id: str
+    ) -> RecoverAdministratorOutcomeV1: ...
 
 
 class GetIamInitializationStateV1:
@@ -61,5 +68,34 @@ class BootstrapAdministratorV1:
             return BootstrapAdministratorOutcomeV1(state_error, None)
         encoded = self._hasher.hash(candidate)
         return self._repository.claim_administrator(
+            encoded, self._hasher.POLICY_VERSION, correlation_id
+        )
+
+
+class RecoverAdministratorPasswordV1:
+    """Replace the verifier and invalidate all credentials in one repository UoW.
+
+    Composition must first exclude the running service and validate the schema.
+    This use case has no HTTP entry point or fallback credential.
+    """
+
+    def __init__(
+        self,
+        repository: IdentityAccessRecoveryRepositoryPortV1,
+        hasher: PasswordHasherPortV1,
+    ) -> None:
+        self._repository = repository
+        self._hasher = hasher
+
+    def __call__(
+        self, password: SecretInputV1, *, correlation_id: str
+    ) -> RecoverAdministratorOutcomeV1:
+        candidate = password.reveal_for_verification()
+        if password_creation_error(candidate) is not None:
+            return RecoverAdministratorOutcomeV1(
+                "password_policy_violation", None, 0, 0
+            )
+        encoded = self._hasher.hash(candidate)
+        return self._repository.recover_administrator(
             encoded, self._hasher.POLICY_VERSION, correlation_id
         )

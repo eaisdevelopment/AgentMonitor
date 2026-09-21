@@ -26,7 +26,7 @@ from agentmonitor.contracts.identity_access_v1 import SecretInputV1  # noqa: E40
 from agentmonitor.foundation.application import LifecycleHooksV1  # noqa: E402
 from agentmonitor.modules.identity_access.application.bootstrap import BootstrapAdministratorV1  # noqa: E402
 
-SCENARIOS = {"auth", "api_tokens", "idle_expiry", "password_change", "auth_failures", "setup", "revocation", "return_route", "responsive", "logout_after_touch", "clipboard_denied"}
+SCENARIOS = {"auth", "api_tokens", "idle_expiry", "password_change", "auth_failures", "setup", "revocation", "return_route", "responsive", "logout_after_touch", "clipboard_denied", "security_boundary"}
 QUICK_SCENARIOS = (
     "setup", "auth_failures", "auth", "return_route", "revocation",
     "password_change", "api_tokens", "clipboard_denied", "responsive",

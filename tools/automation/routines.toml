@@ -80,7 +80,7 @@ blockers = []
 id = "AUTO-TEST"
 owner = "PLAN-FND"
 status = "operational"
-scope = "V1-M1 T1/T2/T3/T4 local real-boundary suites with explicit T5/T6/T7 and hosted-CI status"
+scope = "V1-M2 complete backend, generated contract/client, M1 and M2 real-browser suites; T5/T6/T7 and hosted-CI separate"
 implementation_command = ["python3", "tools/automation/implementations/auto_test.py"]
 blockers = []
 

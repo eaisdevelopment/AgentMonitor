@@ -1,7 +1,7 @@
 # AgentMonitor local IAM HTTP boundary (V1-M2)
 
-Status: **Story 4 integration in progress**. This is the V1-M2 local-only
-profile, not approval of the all-V1 Draft P01 surface. The frozen authority is
+Status: **Stories 4 and 5 accepted; Story 6 cross-origin integration in progress**.
+This is the V1-M2 local-only profile, not approval of the all-V1 Draft P01 surface. The frozen authority is
 the [M2 contract overlay](../evidence/m2-contract-freeze.md), the
 [P01 module plan](../plans/api/fastapi-boundary/plan-v1.md), and the generated
 [`agentmonitor-v1.json`](../../contracts/openapi/agentmonitor-v1.json).
@@ -161,6 +161,28 @@ footer-logo URL. The vendoring routine
 verifies the exact source hash, replaces only that URL with a pinned same-origin
 SVG, pins the derived bundle hash, and preserves upstream notices. The real
 Chrome gate rejects any external request attempt.
+
+## Story 6 cross-origin verification
+
+The real-socket regression at
+`backend/tests/integration/api/test_origin_policy.py` uses a freshly migrated
+file SQLite installation, production Argon2 bootstrap and live Uvicorn. Its
+hostile `DELETE /api/v1/session` carries an otherwise valid session cookie,
+CSRF proof and current strong ETag; the 403 `origin_not_allowed` response leaves
+the same session active. A supplied hostile Origin on cookie GET is denied;
+cross-origin preflight grants no CORS access. A valid `write:tokens` bearer is
+accepted with an absent or hostile Origin without CSRF, but remains scoped:
+`read:diagnostics` is denied and an invalid bearer returns 401. None of these
+responses grants `Access-Control-Allow-Origin`.
+
+The built-Chrome regression at
+`frontend/tests/browser/p02/security_boundary.mjs` loads a minimal attacker
+page from a second real loopback HTTP origin. Credentialed browser GET and
+DELETE attempts cannot read a cross-origin response, and navigation back to
+the production dashboard still resolves the same persisted session ID. The
+attacker page is local test input, not an AgentMonitor response substitute;
+the target app, socket, database and Chrome are real. These checks were Green
+on the existing Story 4 perimeter; they are not claimed as pre-fix Reds.
 
 ## Generated artifacts and verification
 

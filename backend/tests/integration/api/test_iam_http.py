@@ -168,13 +168,18 @@ def test_failed_logins_throttle_generically_over_real_http(tmp_path: Path) -> No
                 )
                 expected = 429 if index == 4 else 401
                 assert response[0] == expected
+                stored_credential_absent = credential.encode("ascii") not in response[2]
+                wrong_credential_absent = (
+                    wrong_password.encode("ascii") not in response[2]
+                )
+                assert stored_credential_absent is True, "credential reflected"
+                assert wrong_credential_absent is True, "credential reflected"
                 problem = json.loads(response[2])
                 assert problem["code"] == (
                     "login_throttled" if index == 4 else "invalid_dashboard_credentials"
                 )
-                assert credential.encode("ascii") not in response[2]
-                assert wrong_password.encode("ascii") not in response[2]
-                assert not response[1].get_all("Set-Cookie")
+                cookies_absent = not bool(response[1].get_all("Set-Cookie"))
+                assert cookies_absent is True, "unexpected auth cookie"
                 if index == 4:
                     retry = response[1].get("Retry-After")
                     assert retry is not None
@@ -189,7 +194,8 @@ def test_failed_logins_throttle_generically_over_real_http(tmp_path: Path) -> No
             )
             assert correct_while_locked[0] == 429
             assert json.loads(correct_while_locked[2])["code"] == "login_throttled"
-            assert not correct_while_locked[1].get_all("Set-Cookie")
+            cookies_absent = not bool(correct_while_locked[1].get_all("Set-Cookie"))
+            assert cookies_absent is True, "unexpected auth cookie"
 
     asyncio.run(exercise())
 
@@ -320,13 +326,14 @@ def test_token_issue_scope_denial_replay_and_openapi_over_real_socket(
                 cookies=jar,
             )
             assert replay[0] == 409
+            one_time_absent = one_time.encode("ascii") not in replay[2]
+            assert one_time_absent is True, "credential reflected"
             assert json.loads(replay[2])["code"] == "one_time_secret_not_replayable"
             assert json.loads(replay[2])["committed_resource"] == {
                 "api_token_id": json.loads(created[2])["token"]["api_token_id"],
                 "record_version": json.loads(created[2])["token"]["record_version"],
                 "state": json.loads(created[2])["token"]["state"],
             }
-            assert one_time.encode("ascii") not in replay[2]
             bearer = {"Authorization": "Bearer " + one_time}
             assert (
                 await asyncio.to_thread(
@@ -582,7 +589,8 @@ def test_login_requires_origin_even_with_unsupported_bearer(tmp_path: Path) -> N
             )
             assert result[0] == 403
             assert json.loads(result[2])["code"] == "origin_not_allowed"
-            assert not result[1].get_all("Set-Cookie")
+            cookies_absent = not bool(result[1].get_all("Set-Cookie"))
+            assert cookies_absent is True, "unexpected auth cookie"
 
     asyncio.run(exercise())
 
@@ -776,11 +784,13 @@ def test_validation_error_never_reflects_unknown_submitted_field(
                 headers={"Origin": origin},
             )
             assert response[0] == 422
+            credential_absent = credential.encode("utf-8") not in response[2]
+            assert credential_absent is True, "credential reflected"
+            unknown_field_absent = b"unknown_sensitive_field" not in response[2]
+            assert unknown_field_absent is True, "submitted field reflected"
             payload = json.loads(response[2])
             assert payload["code"] == "invalid_request_fields"
             assert payload["errors"] == [{"path": "/request", "code": "invalid_field"}]
-            assert b"unknown_sensitive_field" not in response[2]
-            assert credential.encode("utf-8") not in response[2]
 
     asyncio.run(exercise())
 
@@ -952,7 +962,10 @@ def test_media_and_validation_errors_never_reflect_submitted_field(
                 headers={"Origin": origin},
             )
             assert rejected[0] == 422
-            assert marker.encode("ascii") not in rejected[2]
+            credential_absent = credential.encode("utf-8") not in rejected[2]
+            assert credential_absent is True, "credential reflected"
+            marker_absent = marker.encode("ascii") not in rejected[2]
+            assert marker_absent is True, "submitted field reflected"
 
     asyncio.run(exercise())
 
@@ -1006,8 +1019,9 @@ def test_password_change_rejects_multibyte_values_over_1024_utf8_bytes(
                     cookies=jar,
                 )
                 assert rejected[0] == 422
+                over_bytes_absent = over_bytes.encode("utf-8") not in rejected[2]
+                assert over_bytes_absent is True, "credential reflected"
                 assert json.loads(rejected[2])["code"] == "invalid_request_fields"
-                assert over_bytes.encode("utf-8") not in rejected[2]
             assert (
                 await asyncio.to_thread(
                     _request, origin, "GET", "/api/v1/session", cookies=jar
@@ -1083,20 +1097,25 @@ def test_problem_type_resolves_to_authenticated_local_allowlisted_html(
                 _request, origin, "GET", problem["type"], cookies=jar
             )
             assert documented[0] == 200
+            credential_absent = credential.encode() not in documented[2]
+            assert credential_absent is True, "credential reflected"
             assert documented[1].get_content_type() == "text/html"
             assert "default-src 'none'" in documented[1]["Content-Security-Policy"]
-            assert b"dashboard_authentication_required" in documented[2]
-            assert credential.encode() not in documented[2]
-            assert b"https://" not in documented[2]
-            assert b"http://" not in documented[2]
+            has_documented_code = b"dashboard_authentication_required" in documented[2]
+            assert has_documented_code is True, "safe problem help missing"
+            has_no_external_url = (
+                b"https://" not in documented[2] and b"http://" not in documented[2]
+            )
+            assert has_no_external_url is True, "external URL in local problem help"
             marker = secrets.token_urlsafe(18)
             unknown = await asyncio.to_thread(
                 _request, origin, "GET", "/problems/" + marker, cookies=jar
             )
             assert unknown[0] == 404
+            marker_absent = marker.encode() not in unknown[2]
+            assert marker_absent is True, "requested path reflected"
             assert unknown[1].get_content_type() == "application/problem+json"
             assert json.loads(unknown[2])["type"] == "/problems/resource_not_found"
-            assert marker.encode() not in unknown[2]
 
     asyncio.run(exercise())
 
@@ -1189,7 +1208,8 @@ def test_failed_login_does_not_clear_an_existing_valid_session(tmp_path: Path) -
             )
             assert invalid[0] == 401
             assert json.loads(invalid[2])["code"] == "invalid_dashboard_credentials"
-            assert not invalid[1].get_all("Set-Cookie")
+            cookies_absent = not bool(invalid[1].get_all("Set-Cookie"))
+            assert cookies_absent is True, "unexpected auth cookie"
             assert (
                 await asyncio.to_thread(
                     _request, origin, "GET", "/api/v1/session", cookies=jar
@@ -1727,11 +1747,12 @@ def test_password_change_replay_checks_live_auth_before_receipt_and_version(
                 cookies=fresh_jar,
             )
             assert authenticated_replay[0] == 409
+            new_password_absent = new_password.encode() not in authenticated_replay[2]
+            assert new_password_absent is True, "credential reflected"
             assert (
                 json.loads(authenticated_replay[2])["code"]
                 == "one_time_secret_not_replayable"
             )
-            assert new_password.encode() not in authenticated_replay[2]
             assert "committed_resource" not in json.loads(authenticated_replay[2])
             no_receipt = await asyncio.to_thread(
                 _request,
@@ -2273,7 +2294,8 @@ def test_generated_typescript_client_calls_real_iam_server(tmp_path: Path) -> No
                 timeout=20,
                 check=False,
             )
-            assert credential.encode() not in result.stdout + result.stderr
+            credential_absent = credential.encode() not in result.stdout + result.stderr
+            assert credential_absent is True, "credential reflected"
             assert result.returncode == 0, "real generated client failed"
             assert result.stdout == b'{"status":"passed","operations":13}\n'
             assert result.stderr == b""

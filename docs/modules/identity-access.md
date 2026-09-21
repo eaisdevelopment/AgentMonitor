@@ -2,7 +2,7 @@
 
 - Owner: `PLAN-M01`; implementation slices `ST-IAM-001/002/003`.
 - Published contracts: `CTR-IAM-001..008` V1; shared database contract `CTR-DB-002` V1.
-- Status: Stories 1–3 accepted for M2 integration. The separate opt-in real one-hour token-expiry test passed, but the M2 HTTP/browser gate, live owner bootstrap, and installed recovery remain pending.
+- Status: Stories 1–3 accepted for M2 integration. Local recovery has now been exercised on an isolated real Linux SQLite installation and controlling PTY; the owner's own recovery and native installed-service procedure remain Not Run. The separate opt-in real one-hour token-expiry test passed; the M2 HTTP/browser gate is tracked separately.
 
 ## Boundaries and state
 
@@ -27,7 +27,19 @@ The first command is the M2-only fresh absent-file initializer, not an existing-
 
 If the stored policy version is incompatible, the operator command returns `iam_repository_unavailable` without a password prompt or database mutation. It must not misreport that state as an ordinary already-initialized installation.
 
-Recovery is intentionally not an installed command yet. The repository transaction can rotate the verifier and revoke every stored session/token in one transaction, but an operator entrypoint needs a service-held quiescence receipt and later credential-populated integration verification. No HTTP setup or recovery endpoint is permitted.
+### Local forgotten-password recovery
+
+This is a local development/operator entry point, not an HTTP endpoint or a native-service installation claim. Use it only for the exact existing data root of the installation that needs recovery. First stop/quiesce the AgentMonitor IAM service by its installed-service procedure and take a verified offline backup. The M2 native deploy/backup commands are not installed; those owner operations are still Not Run. The command also refuses while a running M2 IAM service holds the stable lock; never bypass the lock, unlink it, change its mode, or copy a database while the service is writing.
+
+From the repository root as the normal data-root owner, with a controlling terminal and an absolute owner-only (`0700`) root:
+
+```bash
+PYTHONPATH=backend/src backend/.venv/bin/python -m agentmonitor.composition.iam_operator recover --data-root ABSOLUTE_0700_ROOT
+```
+
+The command takes the permanent `.agentmonitor-service.lock` with the same nonblocking `flock` protocol as the M2 service **before** opening SQLite or prompting. It requires a compatible migrated schema and initialized administrator. The no-echo terminal prompt asks for a new password and confirmation; no password argument, `.env` value, pipe, or stdin redirection is accepted. A successful `administrator_recovered` status means the Argon2id verifier changed and all pre-existing browser sessions and API tokens were revoked in one transaction with a safe audit event. A nonzero exit means recovery did not complete; preserve the database and investigate the safe status, do not start a second instance or edit rows manually. After success, start the service using its installed procedure, log in with the new password, and issue replacement API tokens deliberately. Existing tokens cannot be recovered. The owner-operated sequence on a real installed service remains Not Run until the owner needs it.
+
+The lock and owner-only path checks coordinate legitimate service/operator processes. They are not a security boundary against a malicious process running as the same Unix user; that actor can still race directory replacement or access owner-owned files. Remote/multi-user deployment needs a separate threat model.
 
 ## Password and audit policy
 

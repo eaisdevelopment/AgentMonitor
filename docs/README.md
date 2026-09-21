@@ -41,6 +41,8 @@ This index is the entry point for product, architecture, engineering, and operat
 - [M2 Story 1 evidence](evidence/m2-st-iam-001.md): independent bootstrap, migration, Argon2id, and real-PTY acceptance with deferred gates.
 - [M2 API Story 4 evidence](evidence/m2-st-api-001.md): real IAM HTTP, offline API documentation, generated client, and independent acceptance.
 - [M2 UI Story 5 evidence](evidence/m2-st-ui-001.md): accepted built-browser authentication, token settings, and real idle expiry; not the milestone exit gate.
+- [M2 local recovery closure](evidence/m2-recovery-closure.md): real PTY/SQLite/service-lock verification of the approved forgotten-password command; owner-installed recovery remains Not Run.
+- [M2 API Story 6 evidence](evidence/m2-st-api-002.md): targeted hostile-origin HTTP/browser verification and the pending canonical M2 gate.
 - [M2 Argon2 admission](dependencies/m2-argon2-admission.md): approved exact Linux dependency graph, work profile, and platform limitations.
 - [Configuration standard](engineering/configuration-standard.md): ownership, naming, precedence, secret classes, and compatibility.
 - [Documentation standard](engineering/documentation-standard.md): required documentation and traceability.
@@ -51,7 +53,7 @@ This index is the entry point for product, architecture, engineering, and operat
 ## Operations
 
 - [Operations runbook](operations/runbook.md): installation, service, backup, recovery, authentication, diagnostics, and incidents.
-- [M01 identity/access operator guide](modules/identity-access.md): current fresh-only migration and local TTY bootstrap commands; installed recovery remains unavailable.
+- [M01 identity/access operator guide](modules/identity-access.md): fresh-only migration and local TTY bootstrap/recovery commands; native installed-service recovery remains Not Run.
 - [P02 React dashboard module](modules/react-dashboard.md): authenticated shell, generated-client boundary, and current Story 5 browser coverage.
 - [Milestone 0 discovery runbook](operations/milestone-0-discovery-runbook.md): safe, read-only provider feasibility work.
 - [Live verification runbook](operations/live-verification-runbook.md): coordinated tests against real accounts.

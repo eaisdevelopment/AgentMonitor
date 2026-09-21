@@ -19,6 +19,32 @@ from run import index_routines, load_catalog, validate_catalog  # noqa: E402
 
 
 class AutomationRoutineTests(unittest.TestCase):
+    def test_m2_local_suite_selection_covers_real_backend_and_browser_boundaries(
+        self,
+    ) -> None:
+        """The canonical runner must select the complete installed M2 boundary."""
+        sys.path.insert(0, str(REPOSITORY_ROOT / "tools/automation/implementations"))
+        from auto_test import m2_local_suite_commands
+
+        commands = m2_local_suite_commands()
+        self.assertEqual({"backend", "p02_all", "p02_security"}, set(commands))
+        backend = commands["backend"]
+        self.assertIn("backend/tests", backend)
+        self.assertNotIn("-k", backend)
+        self.assertFalse(any(value.startswith("--deselect") for value in backend))
+        for key, scenario in (
+            ("p02_all", "all"),
+            ("p02_security", "security_boundary"),
+        ):
+            command = commands[key]
+            self.assertEqual(scenario, command[-2])
+            self.assertEqual("--no-build", command[-1])
+            self.assertTrue((REPOSITORY_ROOT / command[1]).is_file())
+        browser_test = (
+            REPOSITORY_ROOT / "frontend/tests/browser/p02/security_boundary.mjs"
+        )
+        self.assertTrue(browser_test.is_file())
+
     def test_clean_clone_blocks_missing_owner_local_m0_executable(self) -> None:
         """A fresh real checkout must classify absent M0 custody tooling as Blocked."""
         with tempfile.TemporaryDirectory(prefix="agentmonitor-clean-gate-") as raw:
@@ -318,14 +344,10 @@ class AutomationRoutineTests(unittest.TestCase):
 
         self.assertTrue(direct_package_approved("react", "19.3.0", "19.3.0", "MIT"))
         self.assertTrue(
-            direct_package_approved(
-                "swagger-ui-dist", "5.33.0", "5.33.0", "Apache-2.0"
-            )
+            direct_package_approved("swagger-ui-dist", "5.33.0", "5.33.0", "Apache-2.0")
         )
         self.assertFalse(
-            direct_package_approved(
-                "swagger-ui-dist", "5.33.0", "5.34.0", "Apache-2.0"
-            )
+            direct_package_approved("swagger-ui-dist", "5.33.0", "5.34.0", "Apache-2.0")
         )
         self.assertFalse(
             direct_package_approved("react", "19.3.0", "19.3.0", "GPL-3.0-only")

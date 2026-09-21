@@ -1,4 +1,4 @@
-"""Run the V1-M1 real local test boundaries and print sanitized evidence rows."""
+"""Run the V1-M2 real local test boundaries and print sanitized evidence rows."""
 
 from __future__ import annotations
 
@@ -40,6 +40,33 @@ def run(command: list[str], *, environment: dict[str, str] | None = None) -> Non
     result = subprocess.run(command, cwd=ROOT, check=False, env=environment)
     if result.returncode:
         fail("required_local_boundary_failed")
+
+
+def m2_local_suite_commands() -> dict[str, list[str]]:
+    """Select complete M2 backend and production-browser suites, without exclusions."""
+    browser_runner = "frontend/tests/browser/p02/run_browser.py"
+    return {
+        "backend": [
+            str(BACKEND_PYTHON),
+            "-m",
+            "pytest",
+            "backend/tests",
+            "-q",
+            "--tb=short",
+        ],
+        "p02_all": [
+            str(BACKEND_PYTHON),
+            browser_runner,
+            "all",
+            "--no-build",
+        ],
+        "p02_security": [
+            str(BACKEND_PYTHON),
+            browser_runner,
+            "security_boundary",
+            "--no-build",
+        ],
+    }
 
 
 def backend_environment() -> dict[str, str]:
@@ -195,7 +222,7 @@ def main() -> int:
     )
     print(
         f"SEPARATE M0-G1 APPROVAL: {m0_status} "
-        f"(exit {m0_exit.returncode}; outside the M1 acceptance gate)"
+        f"(exit {m0_exit.returncode}; outside the M2 local acceptance gate)"
     )
     print(
         json.dumps(
@@ -213,25 +240,16 @@ def main() -> int:
             sort_keys=True,
         )
     )
-    run(
-        [
-            str(BACKEND_PYTHON),
-            "-m",
-            "pytest",
-            "backend/tests/foundation",
-            "backend/tests/persistence/sqlite",
-            "backend/tests/integration/foundation",
-            "-q",
-            "--tb=short",
-        ],
-        environment=backend_environment(),
-    )
+    suite_commands = m2_local_suite_commands()
+    run(suite_commands["backend"], environment=backend_environment())
     run(
         [str(BACKEND_PYTHON), "tooling/foundation/openapi_client.py", "--check"],
         environment=backend_environment(),
     )
     run([str(ROOT / "frontend/node_modules/.bin/vite"), "build", "frontend"])
     run_browser_boundary()
+    run(suite_commands["p02_all"], environment=backend_environment())
+    run(suite_commands["p02_security"], environment=backend_environment())
     browser_tool = (
         "playwright-chromium"
         if os.environ.get("AGENTMONITOR_TEST_BROWSER", "chrome") == "chromium"
@@ -251,6 +269,21 @@ def main() -> int:
             green_reference="docs/evidence/m1-audit-fixes.md#green",
             refactor_reference="docs/evidence/m1-audit-fixes.md#refactor",
         ),
+        evidence_row(
+            test_id="M2-LOCAL-001",
+            command_id="AUTO-TEST",
+            boundary=(
+                "T2/T3/T4 migrated SQLite, production Uvicorn, "
+                "generated client, and installed Chrome"
+            ),
+            status="Passed",
+            versions=versions,
+            requirement_ids=("FR-IAM-007", "NFR-TEST-001", "NFR-TEST-002"),
+            acceptance_ids=("AC-UI-001", "AC-TEST-001", "AC-TEST-003", "AC-TEST-006"),
+            red_reference="docs/evidence/m2-st-api-002.md#red-evidence",
+            green_reference="docs/evidence/m2-st-api-002.md#green-and-refactor-evidence",
+            refactor_reference="docs/evidence/m2-st-api-002.md#green-and-refactor-evidence",
+        ),
         *(
             evidence_row(
                 test_id=test_id,
@@ -260,10 +293,10 @@ def main() -> int:
                 versions=(),
             )
             for test_id, boundary in (
-                ("FND-TEST-PLATFORM", "T5 workstation platform"),
-                ("FND-TEST-PROVIDER", "T6 live provider/account"),
-                ("FND-TEST-OPERATIONS", "T7 native lifecycle"),
-                ("FND-CI-001", "hosted GitLab pipeline"),
+                ("M2-TEST-PLATFORM", "T5 workstation platform"),
+                ("M2-TEST-PROVIDER", "T6 live provider/account"),
+                ("M2-TEST-OPERATIONS", "T7 native lifecycle"),
+                ("M2-CI-001", "hosted GitLab pipeline"),
             )
         ),
     ):
