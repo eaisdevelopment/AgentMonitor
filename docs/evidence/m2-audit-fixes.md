@@ -5,7 +5,7 @@
 - Owners: P01 transport/security, P02 browser test, foundation automation; M01 is a contract consumer, not a changed implementation.
 - Requirements/acceptance: `FR-IAM-007`, `NFR-SEC-001`, `NFR-TEST-001/002`, `API-BROWSER-006`, `M01-HTTP-019`, `M01-SEC-008`, `AC-TEST-003/006`. The owner-accepted historical deviation from `AC-TEST-001` is bounded below; the criterion is not retroactively marked Passed.
 - Contracts: [ADR 0012](../decisions/0012-cookie-read-origin-proof.md) amends `CTR-API-002` V1 cookie-read admission. `CTR-IAM-003/005`, route/status/schema shapes, database, and configuration remain unchanged. The OpenAPI/client source-hash artifacts are regenerated, not hand-edited.
-- Recorder/date: Codex, 2026-09-21. Canonical local gate completed on the changed source; independent QA countersignature remains pending.
+- Recorder/date: Codex, 2026-09-21. Canonical local gate completed on the changed source; independent post-audit QA countersignature is recorded below.
 - Implementation commit: `77eb9b5` on `codex/v1-m2`; local tracked worktree clean after commit. A documentation-only handoff amendment records this inventory.
 
 ## Change inventory and handoff
@@ -58,7 +58,18 @@ The original Story 5 record already names post-implementation Green-only verific
 
 The canonical `M2-LOCAL-001` Passed row no longer cites `AC-TEST-001`; it cites only `AC-UI-001`, `AC-TEST-003`, and `AC-TEST-006` when those local gates execute. For a representative false-logout correction, a detached worktree at baseline `f2f4626` changed only `DashboardApp.tsx`'s missing-CSRF handler to expire the UI session. Its production Vite build passed, and the real `auth` Chrome scenario exited 1 at `csrf_missing_fail_closed`; the same scenario on the unmodified main checkout exited 0. The isolated worktree was removed after the check. This proves the present regression can detect that specific false-logout behavior; it does **not** manufacture a historical pre-fix Red or verify every post-implementation UI correction.
 
-**Owner disposition, 2026-09-21: Accepted as a documented M2 historical TDD deviation.** The acceptance applies only to the older Story 5 corrections and adjacent post-implementation scenarios identified above. It does not make their missing pre-fix Reds exist, convert universal `AC-TEST-001` compliance to Passed, or waive Red-first evidence for the M2 audit fix or any future behavior change. `M2-AUD-01..04` have the actual Red/Green evidence recorded above. Independent QA countersignature remains pending; this owner disposition alone is not unqualified M2 reacceptance.
+**Owner disposition, 2026-09-21: Accepted as a documented M2 historical TDD deviation.** The acceptance applies only to the older Story 5 corrections and adjacent post-implementation scenarios identified above. It does not make their missing pre-fix Reds exist, convert universal `AC-TEST-001` compliance to Passed, or waive Red-first evidence for the M2 audit fix or any future behavior change. `M2-AUD-01..04` have the actual Red/Green evidence recorded above. This owner disposition alone did not constitute M2 reacceptance; the subsequent independent QA decision is recorded below.
+
+## Independent post-audit QA and M2-local disposition
+
+An independent QA reviewer examined ADR 0012, the transport guard order, real HTTP and browser oracles, the canonical `AUTO-TEST` selector, `.mjs` interception scanning, and the bounded `AC-TEST-001` correction on clean `08dcc88` (production/test change `77eb9b5`). The reviewer found no qualifying new M2-local blocker and countersigned `M2-AUD-01..04` **Passed** on 2026-09-21. Fresh focused commands and results:
+
+- `backend/.venv/bin/python -m pytest backend/tests/integration/api/test_origin_policy.py -q --tb=short`: exit 0, 2 passed against real loopback HTTP and migrated SQLite.
+- `backend/.venv/bin/python frontend/tests/browser/p02/run_browser.py hostile_resource`: exit 0 after a real 62-second wait; Chrome reported 403 for ordinary and no-referrer cross-port images, and the runner's persisted session-field invariance assertion passed.
+- `backend/.venv/bin/python frontend/tests/browser/p02/run_browser.py auth --no-build`: exit 0 against the real built-browser/authentication stack.
+- `python3 -m unittest tools.automation.test_run.AutomationRoutineTests.test_m2_local_suite_selection_covers_real_backend_and_browser_boundaries tools.automation.test_run.AutomationRoutineTests.test_m2_local_evidence_does_not_claim_universal_historical_tdd tools.automation.test_run.AutomationRoutineTests.test_browser_scenarios_are_in_the_real_source_control_set tools.automation.test_run.AutomationRoutineTests.test_source_policy_rejects_browser_response_interception`: exit 0, 4 tests.
+
+QA reviewed the previously recorded full `AUTO-TEST` exit 0 on unchanged production/test bytes; QA did **not** rerun that approximately 30-minute gate. The owner's historical TDD acceptance and independent QA countersignature close the M2 post-audit hold for the approved **local authenticated-shell milestone**. They do not convert universal `AC-TEST-001`, M0 G1, T5/T6/T7, hosted M2 CI, or V1 release gates to Passed. Red-first remains required for future changes.
 
 ## Security, privacy, migration, and remaining boundaries
 
