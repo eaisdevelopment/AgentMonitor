@@ -245,10 +245,13 @@ def review_selection_violations(selection: object, *, as_of: datetime) -> list[s
         violations.append("owner custody selection reference is invalid")
     if selection.get("owner_selected") is not True:
         violations.append("owner custody selection is not confirmed")
-    if selection.get("sync_backup_disposition") != "excluded":
+    if selection.get("sync_backup_disposition") not in (
+        "excluded",
+        "owner_accepted_encrypted",
+    ):
         violations.append("owner custody sync/backup disposition is invalid")
     if selection.get("sync_backup_owner_attested") is not True:
-        violations.append("sync/backup exclusion lacks owner attestation")
+        violations.append("sync/backup disposition lacks owner attestation")
     attested = selection.get("sync_backup_attested_at_utc")
     if not isinstance(attested, str) or not is_utc_z_timestamp(attested):
         violations.append("sync/backup attestation timestamp is invalid")

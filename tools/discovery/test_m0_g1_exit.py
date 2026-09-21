@@ -255,7 +255,7 @@ class M0G1ExitGateTests(unittest.TestCase):
                 sync_backup_confirmation="",
             )
             self.assertIn(
-                "exact sync/backup exclusion confirmation is missing", violations
+                "exact sync/backup disposition confirmation is missing", violations
             )
             self.assertFalse(unconfirmed_path.exists())
 

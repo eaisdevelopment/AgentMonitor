@@ -14,6 +14,18 @@ from pathlib import Path
 from m0_g1_exit import is_utc_z_timestamp, verify_custody_root
 
 SYNC_EXCLUSION_CONFIRMATION = "I CONFIRM THIS ROOT IS EXCLUDED FROM SYNC AND BACKUP"
+SYNC_ENCRYPTED_CONFIRMATION = (
+    "I CONFIRM ENCRYPTED SYNC AND BACKUP FOR THIS ROOT AND ACCEPT THE RISK"
+)
+
+
+def disposition_for_confirmation(confirmation: str) -> str | None:
+    """Map only exact owner statements to approved custody dispositions."""
+
+    return {
+        SYNC_EXCLUSION_CONFIRMATION: "excluded",
+        SYNC_ENCRYPTED_CONFIRMATION: "owner_accepted_encrypted",
+    }.get(confirmation)
 
 
 def write_selection(
@@ -26,8 +38,9 @@ def write_selection(
 ) -> list[str]:
     """Write local custody selection only after explicit owner attestation."""
 
-    if sync_backup_confirmation != SYNC_EXCLUSION_CONFIRMATION:
-        return ["exact sync/backup exclusion confirmation is missing"]
+    disposition = disposition_for_confirmation(sync_backup_confirmation)
+    if disposition is None:
+        return ["exact sync/backup disposition confirmation is missing"]
     violations = verify_custody_root(external_root, repository_root)
     if not is_utc_z_timestamp(retention_until_utc):
         violations.append("retention deadline must be a UTC-Z timestamp")
@@ -58,7 +71,7 @@ def write_selection(
         'external_root_ref = "REF-M0-CUSTODY-001"\n'
         f"external_root = {json.dumps(str(external_root))}\n"
         "owner_selected = true\n"
-        'sync_backup_disposition = "excluded"\n'
+        f"sync_backup_disposition = {json.dumps(disposition)}\n"
         "sync_backup_owner_attested = true\n"
         f"sync_backup_attested_at_utc = {json.dumps(attested_at_utc)}\n"
         f"retention_until_utc = {json.dumps(retention_until_utc)}\n"
@@ -98,10 +111,10 @@ def _one_year_from_now_utc() -> str:
 def main() -> int:
     repository_root = Path(__file__).resolve().parents[2]
     raw_root = getpass.getpass("External evidence directory (input hidden): ")
-    confirmation = input(
-        f'Type exactly "{SYNC_EXCLUSION_CONFIRMATION}" after verifying this '
-        "directory is excluded from sync and backup: "
-    )
+    print("Choose one truthful sync/backup statement:")
+    print(f'- excluded: "{SYNC_EXCLUSION_CONFIRMATION}"')
+    print(f'- encrypted and owner-accepted: "{SYNC_ENCRYPTED_CONFIRMATION}"')
+    confirmation = input("Type the exact statement: ")
     violations = write_selection(
         selection_path=(repository_root / ".agentmonitor-local/m0-g1-custody.toml"),
         external_root=Path(raw_root),
@@ -117,7 +130,7 @@ def main() -> int:
     print("M0 G1 CUSTODY: OWNER SELECTION RECORDED")
     print("- path value: NOT DISPLAYED")
     print("- retention: one year")
-    print("- sync/backup disposition: excluded")
+    print(f"- sync/backup disposition: {disposition_for_confirmation(confirmation)}")
     return 0
 
 

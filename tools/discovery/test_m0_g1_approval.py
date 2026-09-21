@@ -13,11 +13,51 @@ REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 import m0_g1_approve
+import m0_g1_custody
 import m0_g1_exit
 import m0_g1_records
 
 
 class M0G1ApprovalTests(unittest.TestCase):
+    def test_sync_backup_confirmation_policy_matches_approved_dispositions(self) -> None:
+        self.assertEqual(
+            "excluded",
+            m0_g1_custody.disposition_for_confirmation(
+                "I CONFIRM THIS ROOT IS EXCLUDED FROM SYNC AND BACKUP"
+            ),
+        )
+        self.assertEqual(
+            "owner_accepted_encrypted",
+            m0_g1_custody.disposition_for_confirmation(
+                "I CONFIRM ENCRYPTED SYNC AND BACKUP FOR THIS ROOT AND ACCEPT THE RISK"
+            ),
+        )
+        for confirmation in ("", "I ACCEPT SYNC", "blocked"):
+            self.assertIsNone(
+                m0_g1_custody.disposition_for_confirmation(confirmation)
+            )
+
+    def test_owner_accepted_encrypted_selection_is_valid_but_blocked_is_not(self) -> None:
+        selection = {
+            "schema_version": "1.1",
+            "external_root_ref": "REF-M0-CUSTODY-001",
+            "external_root": "/not-a-real-root-for-pure-policy",
+            "owner_selected": True,
+            "sync_backup_disposition": "owner_accepted_encrypted",
+            "sync_backup_owner_attested": True,
+            "sync_backup_attested_at_utc": "2026-09-19T11:00:00Z",
+            "retention_until_utc": "2027-09-19T12:00:00Z",
+        }
+        as_of = datetime(2026, 9, 19, 12, 0, tzinfo=timezone.utc)
+        self.assertEqual(
+            [], m0_g1_exit.review_selection_violations(selection, as_of=as_of)
+        )
+        selection["sync_backup_disposition"] = "blocked"
+        self.assertIn(
+            "owner custody sync/backup disposition is invalid",
+            m0_g1_exit.review_selection_violations(selection, as_of=as_of),
+        )
+
     def test_local_review_selection_validation_is_pure_and_root_agnostic(self) -> None:
         selection = {
             "schema_version": "1.1",
@@ -45,7 +85,7 @@ class M0G1ApprovalTests(unittest.TestCase):
         selection["owner_selected"] = True
         selection["sync_backup_owner_attested"] = False
         self.assertIn(
-            "sync/backup exclusion lacks owner attestation",
+            "sync/backup disposition lacks owner attestation",
             m0_g1_exit.review_selection_violations(
                 selection, as_of=datetime(2026, 9, 19, 12, 0, tzinfo=timezone.utc)
             ),

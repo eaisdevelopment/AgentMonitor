@@ -74,9 +74,25 @@ loads only local selection. After requiring attested local-selection version
 The owner has since confirmed that the previously selected evidence folder is
 **not yet excluded from sync/backup**. The old local `excluded` value is not
 factual custody evidence and must not be carried forward, attested, or used for
-G1. The folder remains untouched; selection of an actually excluded location
-and an explicit owner attestation are still required. No external-root access
-or provider operation is authorized by this correction.
+G1. The folder remains untouched. The approved M0 plan requires an explicit
+owner decision, not mandatory exclusion: `CustodyDecisionV1` permits either
+`excluded` or `owner_accepted_encrypted`, with `blocked` when neither is
+truthful. The tooling now accepts either permitted choice through its own exact
+owner statement. This corrects the implementation's unjustified exclusion-only
+restriction; it does not assert that the selected folder's sync or backup is
+encrypted. No external-root access or provider operation is authorized by this
+correction.
+
+The two added pure policy tests first failed (exit 1): the confirmation mapper
+was absent, and the validator rejected `owner_accepted_encrypted`. After the
+minimal correction, the focused 19-test G1 approval/exit suite passed (exit 0).
+The full tool suite passed 100 tests; `AUTO-M0-G1-CONTRACT`,
+`AUTO-DOCS-CHECK`, and local `AUTO-QUALITY` also passed. The actual owner
+custody choice and `AUTO-M0-G1-EXIT` remain **Blocked (exit 3)**; its output
+reported `external custody evidence: NOT ACCESSED`. Local
+selection format `1.1` is unchanged; the old unverified `1.0` record still
+requires a new truthful owner attestation. No public API or G1 JSON Schema
+change was needed.
 
 No dependency, license, provider-state, or public API change. The local custody
 selection format changed from `1.0` to `1.1`; migration is an explicit owner
