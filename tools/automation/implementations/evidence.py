@@ -91,6 +91,8 @@ def evidence_row(
     """Only a checked live boundary can claim Passed and a runtime version."""
     if status == "Passed" and not versions:
         raise ValueError("passed_boundary_requires_actual_versions")
+    if status == "Passed" and "AC-TEST-004" in acceptance_ids:
+        raise ValueError("owner_live_acceptance_requires_countersign")
     if status != "Passed" and (
         versions or red_reference or green_reference or refactor_reference
     ):

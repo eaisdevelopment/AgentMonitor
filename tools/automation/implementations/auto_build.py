@@ -159,7 +159,7 @@ def main() -> int:
                 status="Passed",
                 versions=actual_tool_versions(("python", "node", "npm", "uv")),
                 requirement_ids=("NFR-API-002", "NFR-LIC-001"),
-                acceptance_ids=("AC-TEST-004", "AC-TEST-006"),
+                acceptance_ids=("AC-TEST-003", "AC-TEST-006"),
                 red_reference="docs/evidence/m1-audit-fixes.md#red",
                 green_reference="docs/evidence/m1-audit-fixes.md#green",
                 refactor_reference="docs/evidence/m1-audit-fixes.md#refactor",

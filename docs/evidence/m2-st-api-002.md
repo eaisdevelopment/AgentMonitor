@@ -69,6 +69,22 @@ expiry), and the separate hostile-origin Chrome scenario. `main()` executes
 the returned commands fail-closed. The full command has **not yet run** on a
 frozen Story 6 checkout, so selector Green does not claim the M2 gate Passed.
 
+The first fast build exposed an evidence-mapping error: its local-only Passed
+row cited `AC-TEST-004`, which requires owner-countersigned live provider
+verification. The M1 foundation test row made the same false implication.
+Before correcting those mappings, the new policy test failed as expected:
+
+```text
+python3 -m unittest tools.automation.test_run.AutomationRoutineTests.test_local_evidence_cannot_claim_owner_countersigned_live_acceptance
+exit 1: AssertionError: ValueError not raised
+```
+
+The local evidence builder now rejects a Passed `AC-TEST-004` row without a
+supported owner countersignature path. The two local rows cite `AC-TEST-003`
+instead. The same focused test passed (exit 0), followed by the complete
+automation unit suite (29 tests, exit 0, 9.25s). This is an evidence-policy
+correction, not live-provider verification; the canonical gates must be rerun.
+
 ## Security, privacy, compatibility, and residual state
 
 No production perimeter correction, dependency, migration, provider-profile

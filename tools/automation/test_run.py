@@ -112,6 +112,25 @@ class AutomationRoutineTests(unittest.TestCase):
         self.assertIsNone(not_run["refactor_reference"])
         self.assertEqual("pending_independent_review", not_run["reviewer"])
 
+    def test_local_evidence_cannot_claim_owner_countersigned_live_acceptance(
+        self,
+    ) -> None:
+        """A local-only helper has no owner signature and cannot certify AC-TEST-004."""
+        sys.path.insert(0, str(REPOSITORY_ROOT / "tools/automation/implementations"))
+        from evidence import evidence_row
+
+        with self.assertRaisesRegex(
+            ValueError, "owner_live_acceptance_requires_countersign"
+        ):
+            evidence_row(
+                test_id="M2-LOCAL-EVIDENCE",
+                command_id="AUTO-TEST",
+                boundary="local SQLite, HTTP, and browser only",
+                status="Passed",
+                versions=(("python", "3.12.3"),),
+                acceptance_ids=("AC-TEST-004",),
+            )
+
     def test_evidence_versions_match_the_real_node_command(self) -> None:
         sys.path.insert(0, str(REPOSITORY_ROOT / "tools/automation/implementations"))
         from evidence import actual_tool_versions

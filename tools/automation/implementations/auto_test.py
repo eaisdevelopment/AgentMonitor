@@ -264,7 +264,7 @@ def main() -> int:
             status="Passed",
             versions=versions,
             requirement_ids=("NFR-TEST-001", "NFR-TEST-002"),
-            acceptance_ids=("AC-TEST-001", "AC-TEST-002", "AC-TEST-004"),
+            acceptance_ids=("AC-TEST-001", "AC-TEST-002", "AC-TEST-003"),
             red_reference="docs/evidence/m1-audit-fixes.md#red",
             green_reference="docs/evidence/m1-audit-fixes.md#green",
             refactor_reference="docs/evidence/m1-audit-fixes.md#refactor",
