@@ -9,6 +9,41 @@ from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from time import perf_counter
 
+import pytest
+
+
+def _peak_rss_kib() -> int:
+    if sys.platform == "linux":
+        for line in Path("/proc/self/status").read_text(encoding="ascii").splitlines():
+            if line.startswith("VmHWM:"):
+                fields = line.split()
+                if len(fields) == 3 and fields[2] == "kB" and fields[1].isdigit():
+                    return int(fields[1])
+                break
+        raise RuntimeError("linux_peak_rss_unavailable")
+    if sys.platform == "darwin":
+        return resource.getrusage(resource.RUSAGE_SELF).ru_maxrss // 1024
+    raise RuntimeError("process_peak_rss_unsupported_platform")
+
+
+def test_linux_peak_rss_uses_current_process_vmhwm() -> None:
+    if sys.platform != "linux":
+        pytest.skip("Linux /proc peak-RSS boundary is unavailable on this platform")
+    status_before = Path("/proc/self/status").read_text(encoding="ascii")
+    before = int(
+        next(
+            line for line in status_before.splitlines() if line.startswith("VmHWM:")
+        ).split()[1]
+    )
+    observed = _peak_rss_kib()
+    status_after = Path("/proc/self/status").read_text(encoding="ascii")
+    after = int(
+        next(
+            line for line in status_after.splitlines() if line.startswith("VmHWM:")
+        ).split()[1]
+    )
+    assert before <= observed <= after
+
 
 def _measure_in_isolated_process() -> dict[str, float | bool]:
     from agentmonitor.adapters.identity_access.argon2_password import Argon2PasswordV1
@@ -26,12 +61,10 @@ def _measure_in_isolated_process() -> dict[str, float | bool]:
         measurements = list(executor.map(verify_once, range(100)))
     durations = sorted(duration for duration, _ in measurements)
     p95_seconds = durations[94]
-    peak_native = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
-    peak_kib = peak_native / 1024 if sys.platform == "darwin" else peak_native
     return {
         "all_matched": all(matched for _, matched in measurements),
         "p95_seconds": p95_seconds,
-        "peak_kib": peak_kib,
+        "peak_kib": _peak_rss_kib(),
     }
 
 
