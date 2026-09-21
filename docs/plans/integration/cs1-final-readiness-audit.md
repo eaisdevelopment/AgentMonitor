@@ -326,3 +326,13 @@ provider, or M3 scope expansion; the 174-test import-boundary suite passed.
 The historical CS-1 PASS-CONDITIONAL result remains a Draft planning finding,
 not a claim that M2 HTTP, generated-client, browser, live-owner, or elapsed-time
 tests have passed. This addendum rebinds the reviewed M2 slice only.
+
+## 12. 2026-09-21 M2 local-test catalog addendum
+
+Plan snapshot SHA-256: `9960b745704e6b80c69da1e5f99f9cedc85fa49e1d5c616c871ef1d07e22ae6e`
+
+The M2 local-test catalog and exact snapshot now agree after the first
+canonical M2 run found a stale `automation-routines` control digest and byte
+count. This bounded rebind changes no plan body, other control, historical
+CS-1 finding, owner authority, provider verification, or milestone acceptance.
+The full M2 gate must be rerun against the corrected checkout.

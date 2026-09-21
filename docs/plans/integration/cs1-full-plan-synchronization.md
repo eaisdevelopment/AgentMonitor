@@ -355,3 +355,15 @@ Independent M2 QA reviewed the narrow consumption and checksum scope. The
 same review accepted the exact same-owner M01 public-error import allowance.
 This is an additive M2 contract-consumer correction, not all-V1 approval or
 evidence that the authenticated HTTP/browser exit gate passed.
+
+## 11. 2026-09-21 M2 local-test catalog rebind
+
+Plan snapshot SHA-256: `9960b745704e6b80c69da1e5f99f9cedc85fa49e1d5c616c871ef1d07e22ae6e`
+
+The M2 `AUTO-TEST` catalog description was changed to select the complete M2
+backend, generated-client, and real-browser suites. The first canonical M2 run
+failed the planning test because only the `automation-routines` snapshot control
+was stale. Its digest and byte count are now rebound to the actual catalog;
+all 20 plan bodies and the other eight controls are unchanged. The historical
+CS-1 review remains historical Draft evidence. This rebind neither approves
+later milestones nor claims that the full M2 test gate has passed.

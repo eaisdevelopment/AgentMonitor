@@ -85,6 +85,15 @@ instead. The same focused test passed (exit 0), followed by the complete
 automation unit suite (29 tests, exit 0, 9.25s). This is an evidence-policy
 correction, not live-provider verification; the canonical gates must be rerun.
 
+The first canonical `AUTO-TEST` execution then exited 1 after 71 planning and
+automation tests: two planning assertions reported a stale
+`automation-routines` snapshot SHA-256 and byte count. It did not reach the
+backend or browser suites. The exact current catalog digest/size were rebound
+in `docs/plans/plan-baseline.toml`; the rendered snapshot compares byte-for-
+byte, the synchronized planning validator passes, both formerly failing
+planning tests pass, and `AUTO-DOCS-CHECK` passes. This correction does not
+convert that failed first gate into a pass; a full rerun remains required.
+
 ## Security, privacy, compatibility, and residual state
 
 No production perimeter correction, dependency, migration, provider-profile
