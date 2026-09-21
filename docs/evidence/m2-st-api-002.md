@@ -1,8 +1,9 @@
 # ST-API-002 — cross-origin perimeter and M2 local gate evidence
 
-- Status: **Intermediate**. Targeted T3/T4 checks pass; full canonical M2 gate
-  and independent acceptance remain pending the shared M01 recovery slice.
-- Owner/date: P01 Story 6 worker, 2026-09-21.
+- Status: **Accepted for the V1-M2 local authenticated-shell exit gate**. The
+  canonical real-stack gate and independent integration review passed; later
+  provider, platform, hosted, and release boundaries remain separate.
+- Owner/date: P01 Story 6 worker and integration steward, 2026-09-21.
 - Requirements/acceptance: `FR-IAM-007`, `AC-UI-001`, `AC-TEST-001..004/006`;
   `M01-HTTP-019/021`, `M01-SEC-008`, `API-BROWSER-006`, `API-SEC-002/003`.
   `AC-OPS-003` is a later provider-adapter isolation criterion, not proven by
@@ -83,7 +84,8 @@ The local evidence builder now rejects a Passed `AC-TEST-004` row without a
 supported owner countersignature path. The two local rows cite `AC-TEST-003`
 instead. The same focused test passed (exit 0), followed by the complete
 automation unit suite (29 tests, exit 0, 9.25s). This is an evidence-policy
-correction, not live-provider verification; the canonical gates must be rerun.
+correction, not live-provider verification; the subsequent canonical rerun is
+recorded below.
 
 The first canonical `AUTO-TEST` execution then exited 1 after 71 planning and
 automation tests: two planning assertions reported a stale
@@ -92,7 +94,7 @@ backend or browser suites. The exact current catalog digest/size were rebound
 in `docs/plans/plan-baseline.toml`; the rendered snapshot compares byte-for-
 byte, the synchronized planning validator passes, both formerly failing
 planning tests pass, and `AUTO-DOCS-CHECK` passes. This correction does not
-convert that failed first gate into a pass; a full rerun remains required.
+convert that failed first gate into a pass; its later rerun is recorded below.
 
 The next committed-tree `AUTO-TEST` execution passed all 71 tooling tests,
 then failed in the complete backend suite (`511 passed, 2 failed in 391.50s`),
@@ -106,9 +108,66 @@ The related real generator/compatibility cases passed 11/11, and independent
 QA accepted that the breaking-drift refusal and byte-preservation assertions
 remain effective. The second failure is the real two-worker Argon2 verification
 budget: observed p95 0.4578s against the approved 0.250s limit. Separate
-focused runs have both passed and failed under high workstation load; this
-remains **Failed/under investigation**, not converted into Green by a retry.
-Neither failure was a production API or browser pass.
+focused runs both passed and failed under high workstation load. That gate
+attempt remains **Failed**, not retroactively converted into Green; the
+low-contention measurement and full canonical rerun are recorded below.
+Neither initial failure was a production API or browser pass.
+
+After the Git-fixture correction, a backend run with only the known Argon2
+timing case deselected reported an additional failure marker, but the chat
+interruption terminated it before pytest produced a result or traceback. Its
+status is **Interrupted**, not Failed or Passed. A fresh, non-concurrent run of
+the same explicitly narrowed command exited 0: `513 passed, 1 deselected in
+312.08s`. That proves the remaining backend tests on this checkout, but does
+not satisfy the full `AUTO-TEST` gate or the Argon2 timing acceptance. A first
+standalone built-browser `all` run was also terminated by that interruption
+without a final status and cannot be counted. Its natural-time scenario has
+been restarted with a protected result record; its result follows.
+
+That fresh standalone built-browser `all` run completed with exit 0 on the
+same M2 production source and build. Its nine quick real-Chrome workflows
+passed; `logout_after_touch` observed at least 61 seconds, and `idle_expiry`
+asserted at least 1,800,000 ms of actual elapsed time before showing the
+expired-session login state. The protected runner printed only scenario
+statuses, not the generated one-time credential. This is valid T4 evidence;
+the separately executed canonical `AUTO-TEST` result follows.
+
+## Final committed-source local gate and independent review
+
+The workstation later became less contended without changing user processes:
+load was about 3.9 on 16 CPUs and CPU pressure `some avg10=0.42` before a
+single targeted run of the unchanged two-worker Argon2 workload (`2 passed`,
+exit 0). A separate real production-adapter probe measured p95 `0.122203s`,
+peak process RSS `160488 KiB`, and all 100 verifications matched. The Linux
+RSS harness correction and its real Red/Green are in
+[Story 1 evidence](m2-st-iam-001.md). Earlier p95 failures at `0.4578s`,
+`0.2515s`, and `0.4100s` under workstation contention remain historical
+Failed results. No hash parameters, limits, test exclusions, process priority,
+or owner workloads were changed to obtain the low-contention pass.
+
+On committed production/test source `55d0941`, the canonical command
+`python3 tools/automation/run.py AUTO-TEST` exited **0**. Its protected local
+run reported 71 tooling tests OK; **514 backend tests passed with no
+deselection** on the real migration/SQLite/IAM/HTTP stack; generated OpenAPI
+and client compatible with exactly 13 operations; production Vite build;
+two real M1 Chrome shell cases; all nine P02 quick workflows; real browser
+logout after at least 61 seconds; real idle expiry after at least 1,800
+seconds; and the separate malicious-origin Chrome denial. The structured
+`M2-LOCAL-001` Passed row cites `AC-UI-001`, `AC-TEST-001/003/006`, and
+T2/T3/T4, without claiming owner-countersigned `AC-TEST-004`. Its separate
+M0-G1 exact-digest approval is explicitly **Failed (exit 2)**, outside M2.
+
+On the same unchanged source, `AUTO-QUALITY`, `AUTO-BUILD`,
+`AUTO-DOCS-CHECK` (208 Markdown files), and `AUTO-PLAN-CHECK` each exited 0.
+The production-asset Gitleaks 8.30.0 scan after the final build exited 0 on
+`frontend/dist`; this bounded scan does not substitute for full SAST or
+vulnerability checks. An independent integration reviewer verified the
+protected canonical exit record and its sanitized scenario statuses,
+independently reran those four fast gates, confirmed the six M2 Story and
+recovery evidence records, and found no further M2-local product blocker.
+Only evidence/status documentation changed after the passing source gate;
+production, generated client, migration, frontend, and test bytes remained
+unchanged.
 
 ## Security, privacy, compatibility, and residual state
 
@@ -146,23 +205,25 @@ The final staged command was
 `.venv-m0-g1/bin/gitleaks git --staged --no-banner --redact --log-level error --report-format json --report-path /tmp/agentmonitor-m2-scan-s0hQOW/staged-report-after-refactor.json`
 (exit 0). The bounded build scan used
 `.venv-m0-g1/bin/gitleaks dir frontend/dist --no-banner --redact --log-level error --report-format json --report-path /tmp/agentmonitor-m2-scan-s0hQOW/dist-report.json`
-(exit 0). These are secret-pattern scans of the named surfaces, not a full
-SAST, vulnerability, or owner-data scan; the built assets must be rescanned
-after the final production build.
+(exit 0). The final production build's assets were rescanned with the same
+bounded command, with exit 0. These are secret-pattern scans of the named
+surfaces, not a full SAST, vulnerability, or owner-data scan.
 The attacker page is test input only, not a simulated AgentMonitor service.
 No fake, mock, stub, emulator, recording, seeded telemetry, placeholder metric,
 or hardcoded passing test was used.
 
 | Boundary | Current status | Required remaining evidence |
 |---|---|---|
-| Targeted T3 Origin/bearer and T4 hostile-page Chrome | Passed | Independent specification and QA reviews passed; full M2 gate pending |
-| Canonical `AUTO-TEST` on committed M2 checkout | Failed twice: stale planning snapshot, then 511 backend passed/2 failed | Re-run after test correction and resolve real Argon2 workload result; browser not reached by this routine |
-| `AUTO-QUALITY`, `AUTO-BUILD`, `AUTO-DOCS-CHECK` on committed M2 checkout | Passed local scopes | Re-run on final checkout after remaining corrections; broader scopes remain Not Run as below |
-| Staged-source and current built-artifact secret-pattern scans | Passed on named surfaces | Repeat built-artifact scan after final build; full SAST/vulnerability scan remains Not Run |
+| Targeted T3 Origin/bearer, T4 hostile-page Chrome, and standalone full P02 `all` | Passed | Independent specification, QA, and final integration reviews passed |
+| Canonical `AUTO-TEST` on committed M2 production/test checkout `55d0941` | Passed, exit 0: 71 tooling tests; 514 backend tests; generated client; production build; M1 and P02 real Chrome; hostile-origin Chrome | Two earlier Failed attempts and one interrupted narrower backend attempt remain documented above |
+| `AUTO-QUALITY`, `AUTO-BUILD`, `AUTO-DOCS-CHECK`, `AUTO-PLAN-CHECK` | Passed local scopes, each exit 0 | Fresh install, platform, hosted, and release scopes remain Not Run as below |
+| Staged-source and final built-artifact secret-pattern scans | Passed on named surfaces, exit 0 | Full SAST/vulnerability scan remains Not Run |
 | Full SAST/vulnerability scan, T5 workstation, T6 provider/account, T7 installed lifecycle, owner live setup, macOS, hosted CI | Not Run | Separate tools/environments/owner evidence; cannot be inferred from local T2/T3/T4 |
 | `AC-TEST-004` live provider/account aliases, versions, and owner countersignature | Not Run | Requires actual owner-controlled provider verification; local IAM test credentials do not satisfy it |
 | Separate M0-G1 exact-digest approval | Failed in prior independent gate | Outside M2 authentication, still visible and not relabeled Passed |
 
-This record is not the M2 exit decision. The integration steward must run the
-canonical routines against the committed source, inspect sanitized output and
-artifacts, and decide the milestone gate without beginning M3.
+The integration steward inspected the passing canonical committed-source gate,
+the protected sanitized result record, and the independent review: the approved
+V1-M2 **local authenticated-shell exit gate is accepted**. This does not accept
+the full V1 release, M0 G1, any owner/provider/platform/hosted Not Run boundary,
+or V1-M3. No M3 implementation has begun.

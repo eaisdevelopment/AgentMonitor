@@ -1,6 +1,6 @@
 # AgentMonitor documentation index
 
-Status: **V1-M1 foundation accepted; V1-M2 in progress, with `ST-IAM-001..003`, `ST-API-001`, and `ST-UI-001` accepted; `ST-API-002` remains open.** M2's cross-origin integration exit gate has not passed. M0 G1's separate exact-digest approval remains Failed. Live provider/account, native lifecycle, and release gates remain Not Run.
+Status: **V1-M1 foundation and V1-M2 local authenticated-shell exit gate accepted.** All six M2 Stories passed their approved local scope and independent reviews. This is not V1 release approval: M0 G1's separate exact-digest approval remains Failed, and live provider/account, installed native lifecycle, macOS, hosted, and release gates remain Not Run. V1-M3 has not begun.
 Owner: Pavlo Sidelov <pavlo@sidelov.com>  
 Last substantive review: 2026-09-21
 
@@ -42,7 +42,7 @@ This index is the entry point for product, architecture, engineering, and operat
 - [M2 API Story 4 evidence](evidence/m2-st-api-001.md): real IAM HTTP, offline API documentation, generated client, and independent acceptance.
 - [M2 UI Story 5 evidence](evidence/m2-st-ui-001.md): accepted built-browser authentication, token settings, and real idle expiry; not the milestone exit gate.
 - [M2 local recovery closure](evidence/m2-recovery-closure.md): real PTY/SQLite/service-lock verification of the approved forgotten-password command; owner-installed recovery remains Not Run.
-- [M2 API Story 6 evidence](evidence/m2-st-api-002.md): targeted hostile-origin HTTP/browser verification and the pending canonical M2 gate.
+- [M2 API Story 6 evidence](evidence/m2-st-api-002.md): hostile-origin HTTP/browser verification, historical failures, passing canonical local gate, and independent M2 acceptance.
 - [M2 Argon2 admission](dependencies/m2-argon2-admission.md): approved exact Linux dependency graph, work profile, and platform limitations.
 - [Configuration standard](engineering/configuration-standard.md): ownership, naming, precedence, secret classes, and compatibility.
 - [Documentation standard](engineering/documentation-standard.md): required documentation and traceability.

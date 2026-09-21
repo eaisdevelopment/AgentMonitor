@@ -70,4 +70,18 @@ Work stayed within assigned M01/source/test/migration and explicitly allocated s
 
 The M2 full backend run observed real two-worker Argon2id verification p95 of 0.4578 s, above the approved 0.250 s target. Focused runs also varied with heavy unrelated workstation CPU load; this performance criterion remains **Failed**, not retried into a pass. Two bounded direct probes under `/usr/bin/time -v` agreed with their own OS peak RSS readings at 151,508 and 151,288 KiB, below the approved 256 MiB limit. A separate fresh Python process with no Argon2 work exposed an `ru_maxrss` accounting anomaly: 1,824,872 KiB versus its actual `/proc/self/status` `VmHWM` of 9,436 KiB. The workload test now measures Linux peak RSS from that real process's `VmHWM`; macOS retains `getrusage` byte-to-KiB conversion. No Argon2 parameters, concurrency, threshold, production behavior, or contract changed.
 
-TDD for this test-harness correction: `backend/.venv/bin/python -m pytest backend/tests/integration/identity_access/test_argon2_workload.py::test_linux_peak_rss_uses_current_process_vmhwm -q --tb=short` first exited 1 with expected `NameError: _peak_rss_kib is not defined`; after the correction it exited 0 (`1 passed`). The complete targeted file then exited 1 (`1 passed, 1 failed`): real p95 was 0.409983694 s against 0.250 s while the host/browser workload was active. The failing timing result is preserved. Next verification requires a low-contention target-host run and independent quality review; no live provider/account test is implied.
+TDD for this test-harness correction: `backend/.venv/bin/python -m pytest backend/tests/integration/identity_access/test_argon2_workload.py::test_linux_peak_rss_uses_current_process_vmhwm -q --tb=short` first exited 1 with expected `NameError: _peak_rss_kib is not defined`; after the correction it exited 0 (`1 passed`). The complete targeted file then exited 1 (`1 passed, 1 failed`): real p95 was 0.409983694 s against 0.250 s while the host/browser workload was active. The failing timing result is preserved. At that stage, a low-contention target-host run and independent quality review remained necessary; no live provider/account test was implied.
+
+## Later M2 local workload gate result — 2026-09-21
+
+The independent quality reviewer accepted the bounded Linux RSS harness correction.
+Without pausing owner workloads, changing Argon2 parameters or thresholds, or
+deselecting a test, the workstation later reached naturally lower CPU
+contention. The targeted real two-worker workload then passed (`2 passed`, exit
+0), with a separate production-adapter 100-verification probe recording p95
+`0.122203s`, peak process RSS `160488 KiB`, and all verifications matched. The
+canonical full `AUTO-TEST` on committed source `55d0941` also passed (exit 0;
+514 backend tests with no deselections), followed by real HTTP and Chrome
+checks. Earlier CPU-contended failures above remain Failed historical attempts.
+The final integration review and remaining Not Run boundaries are recorded in
+[the M2 gate evidence](m2-st-api-002.md).

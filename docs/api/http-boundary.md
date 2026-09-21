@@ -1,6 +1,6 @@
 # AgentMonitor local IAM HTTP boundary (V1-M2)
 
-Status: **Stories 4 and 5 accepted; Story 6 cross-origin integration in progress**.
+Status: **Stories 4–6 and the V1-M2 local authenticated-shell exit gate accepted**.
 This is the V1-M2 local-only profile, not approval of the all-V1 Draft P01 surface. The frozen authority is
 the [M2 contract overlay](../evidence/m2-contract-freeze.md), the
 [P01 module plan](../plans/api/fastapi-boundary/plan-v1.md), and the generated
