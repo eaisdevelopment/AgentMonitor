@@ -71,6 +71,13 @@ documented separately as an open safety finding. The corrected review mode
 loads only local selection. After requiring attested local-selection version
 `1.1`, the old owner selection is deliberately **Blocked** until renewed.
 
+The owner has since confirmed that the previously selected evidence folder is
+**not yet excluded from sync/backup**. The old local `excluded` value is not
+factual custody evidence and must not be carried forward, attested, or used for
+G1. The folder remains untouched; selection of an actually excluded location
+and an explicit owner attestation are still required. No external-root access
+or provider operation is authorized by this correction.
+
 No dependency, license, provider-state, or public API change. The local custody
 selection format changed from `1.0` to `1.1`; migration is an explicit owner
 re-attestation, not an automatic conversion. The local reviewer-file interface
