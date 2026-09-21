@@ -64,6 +64,7 @@ Examples: session-signing secret, GitLab token used by development automation, a
 
 - Bind to `127.0.0.1`/`::1` only in local mode.
 - Validate `Host` and `Origin`; deny unexpected origins and avoid wildcard CORS.
+- For cookie-authenticated reads, require canonical Origin or approved same-origin/direct-navigation Fetch Metadata before session resolution; see [ADR 0012](../decisions/0012-cookie-read-origin-proof.md).
 - Same-origin UI and API are preferred.
 - Browser authentication uses HTTP-only, SameSite cookies; enable Secure whenever TLS is present.
 - State-changing browser requests require CSRF protection.

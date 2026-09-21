@@ -15,5 +15,6 @@ Accepted decisions are historical records. Do not edit an accepted ADR to concea
 | [0009](0009-polling-and-dashboard-notifications.md) | Accepted | Minute-scale polling and dashboard-only V1 notifications |
 | [0010](0010-no-product-telemetry.md) | Accepted | No external AgentMonitor analytics/crash reporting in V1 |
 | [0011](0011-copyright-and-dependency-licenses.md) | Accepted | All rights reserved; permissive dependency admission gate |
+| [0012](0012-cookie-read-origin-proof.md) | Accepted for M2 correction | Origin proof before cookie-authenticated reads |
 
 Use [the ADR template](../templates/adr-template.md) for new decisions.

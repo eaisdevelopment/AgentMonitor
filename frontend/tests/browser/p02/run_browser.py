@@ -9,27 +9,63 @@ from __future__ import annotations
 import argparse
 import asyncio
 import secrets
+import sqlite3
 import subprocess
 import sys
 import tempfile
+from datetime import datetime
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[4]
 sys.path.insert(0, str(ROOT / "backend" / "src"))
 
-from agentmonitor.adapters.identity_access.argon2_password import Argon2PasswordV1  # noqa: E402
-from agentmonitor.adapters.persistence._shared.sqlite.core.policy import DatabaseRefV1  # noqa: E402
-from agentmonitor.adapters.persistence._shared.sqlite.schema.compatibility import migrate_to_head  # noqa: E402
-from agentmonitor.adapters.persistence.identity_access.sqlite.repository import SqliteIdentityAccessRepositoryV1  # noqa: E402
-from agentmonitor.composition.bootstrap import create_iam_application, serve_loopback  # noqa: E402
+from agentmonitor.adapters.identity_access.argon2_password import (  # noqa: E402
+    Argon2PasswordV1,
+)
+from agentmonitor.adapters.persistence._shared.sqlite.core.policy import (  # noqa: E402
+    DatabaseRefV1,
+)
+from agentmonitor.adapters.persistence._shared.sqlite.schema.compatibility import (  # noqa: E402
+    migrate_to_head,
+)
+from agentmonitor.adapters.persistence.identity_access.sqlite.repository import (  # noqa: E402
+    SqliteIdentityAccessRepositoryV1,
+)
+from agentmonitor.composition.bootstrap import (  # noqa: E402
+    create_iam_application,
+    serve_loopback,
+)
 from agentmonitor.contracts.identity_access_v1 import SecretInputV1  # noqa: E402
 from agentmonitor.foundation.application import LifecycleHooksV1  # noqa: E402
-from agentmonitor.modules.identity_access.application.bootstrap import BootstrapAdministratorV1  # noqa: E402
+from agentmonitor.modules.identity_access.application.bootstrap import (  # noqa: E402
+    BootstrapAdministratorV1,
+)
 
-SCENARIOS = {"auth", "api_tokens", "idle_expiry", "password_change", "auth_failures", "setup", "revocation", "return_route", "responsive", "logout_after_touch", "clipboard_denied", "security_boundary"}
+SCENARIOS = {
+    "auth",
+    "api_tokens",
+    "idle_expiry",
+    "password_change",
+    "auth_failures",
+    "setup",
+    "revocation",
+    "return_route",
+    "responsive",
+    "logout_after_touch",
+    "clipboard_denied",
+    "security_boundary",
+    "hostile_resource",
+}
 QUICK_SCENARIOS = (
-    "setup", "auth_failures", "auth", "return_route", "revocation",
-    "password_change", "api_tokens", "clipboard_denied", "responsive",
+    "setup",
+    "auth_failures",
+    "auth",
+    "return_route",
+    "revocation",
+    "password_change",
+    "api_tokens",
+    "clipboard_denied",
+    "responsive",
 )
 
 
@@ -55,8 +91,11 @@ async def run_scenario(scenario: str, *, initialized: bool = True) -> None:
         ready: asyncio.Future[str] = asyncio.get_running_loop().create_future()
         server = asyncio.create_task(
             serve_loopback(
-                application, host="127.0.0.1", port=0,
-                ready=ready.set_result, stop=stop,
+                application,
+                host="127.0.0.1",
+                port=0,
+                ready=ready.set_result,
+                stop=stop,
             )
         )
         try:
@@ -75,6 +114,31 @@ async def run_scenario(scenario: str, *, initialized: bool = True) -> None:
                 raise RuntimeError(
                     "real_p02_browser_failed: " + browser.stdout + browser.stderr
                 )
+            if scenario == "hostile_resource":
+                with sqlite3.connect(data_root / "agentmonitor.db") as connection:
+                    sessions = connection.execute(
+                        "SELECT issued_at, last_activity_at, idle_expires_at, "
+                        "record_version FROM iam_browser_session"
+                    ).fetchall()
+                if len(sessions) != 1:
+                    raise RuntimeError("expected_exactly_one_real_session")
+                issued, activity, idle, version = sessions[0]
+                if (
+                    activity != issued
+                    or (
+                        datetime.fromisoformat(idle) - datetime.fromisoformat(issued)
+                    ).total_seconds()
+                    != 1800
+                    or version != 1
+                ):
+                    raise RuntimeError("hostile_resource_changed_session_state")
+                if (
+                    "image_status=403" not in browser.stdout
+                    or "no_referrer_status=403" not in browser.stdout
+                ):
+                    raise RuntimeError(
+                        "hostile_resource_not_denied: " + browser.stdout.strip()
+                    )
             print(browser.stdout.strip())
         finally:
             stop.set()
@@ -89,13 +153,18 @@ def main() -> int:
     if not options.no_build:
         build = subprocess.run(
             ["npm", "--prefix", "frontend", "run", "build"],
-            cwd=ROOT, capture_output=True, text=True, check=False, timeout=120,
+            cwd=ROOT,
+            capture_output=True,
+            text=True,
+            check=False,
+            timeout=120,
         )
         if build.returncode != 0:
             print("P02 BROWSER: FAILED — production_build", file=sys.stderr)
             return 1
     selected = (
-        QUICK_SCENARIOS + (("logout_after_touch", "idle_expiry") if options.scenario == "all" else ())
+        QUICK_SCENARIOS
+        + (("logout_after_touch", "idle_expiry") if options.scenario == "all" else ())
         if options.scenario in {"quick", "all"}
         else (options.scenario,)
     )
@@ -103,8 +172,10 @@ def main() -> int:
         try:
             asyncio.run(run_scenario(scenario, initialized=scenario != "setup"))
         except (RuntimeError, TimeoutError) as error:
-            print("P02 BROWSER: FAILED — " + scenario + ": " + str(error), file=sys.stderr)
-            for remaining in selected[position + 1:]:
+            print(
+                "P02 BROWSER: FAILED — " + scenario + ": " + str(error), file=sys.stderr
+            )
+            for remaining in selected[position + 1 :]:
                 print("P02 BROWSER: NOT RUN — " + remaining, file=sys.stderr)
             return 1
     print("P02 BROWSER: PASSED — " + options.scenario)

@@ -187,6 +187,32 @@ class IamTransportGuard:
             await deny(403, "origin_not_allowed")
             return
 
+        # An image or navigation from another loopback port can omit Origin
+        # while still carrying the host-only session cookie. Reject before
+        # M01 resolves (and potentially touches) that session. Fetch Metadata
+        # distinguishes same-origin browser traffic from an explicit user
+        # navigation; a non-browser cookie client can send canonical Origin.
+        if session_cookie_present and not unsafe:
+            fetch_site = [value for key, value in headers if key == b"sec-fetch-site"]
+            fetch_mode = [value for key, value in headers if key == b"sec-fetch-mode"]
+            fetch_dest = [value for key, value in headers if key == b"sec-fetch-dest"]
+            direct_navigation = (
+                fetch_site == [b"none"]
+                and fetch_mode == [b"navigate"]
+                and fetch_dest == [b"document"]
+            )
+            if (
+                len(fetch_site) > 1
+                or (
+                    fetch_site
+                    and fetch_site != [b"same-origin"]
+                    and not direct_navigation
+                )
+                or (not fetch_site and origin_values != [expected_origin])
+            ):
+                await deny(403, "origin_not_allowed")
+                return
+
         json_body_route = (
             scope["path"]
             in {

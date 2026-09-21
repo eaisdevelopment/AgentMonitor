@@ -1,6 +1,6 @@
 # AgentMonitor local IAM HTTP boundary (V1-M2)
 
-Status: **Stories 4–6 and the V1-M2 local authenticated-shell exit gate accepted**.
+Status: **Stories 4–6 passed their earlier local gate; M2 reacceptance is held after the post-audit security correction**.
 This is the V1-M2 local-only profile, not approval of the all-V1 Draft P01 surface. The frozen authority is
 the [M2 contract overlay](../evidence/m2-contract-freeze.md), the
 [P01 module plan](../plans/api/fastapi-boundary/plan-v1.md), and the generated
@@ -16,6 +16,14 @@ cookie-authenticated mutations require exact Origin. An Origin supplied on
 cookie GET/HEAD or pre-auth initialization must match. Pure bearer requests
 are Origin-independent but receive no CORS grant. A cookie plus bearer is
 rejected before IAM resolution as `400 ambiguous_credentials`.
+
+After the [M2 security correction](../decisions/0012-cookie-read-origin-proof.md),
+cookie GET/HEAD also requires origin proof when `Origin` is absent: exact
+`Sec-Fetch-Site: same-origin`, or `Sec-Fetch-Site: none` together with
+`Sec-Fetch-Mode: navigate` and `Sec-Fetch-Dest: document` for a direct user
+navigation. A non-browser cookie client must send the exact configured Origin.
+Foreign, duplicate, or unclassified proof is `403 origin_not_allowed` before
+IAM can refresh the session idle deadline. Pure bearer requests are unchanged.
 
 | Resource | Operation ID | Caller | Success |
 |---|---|---|---|
@@ -174,6 +182,17 @@ cross-origin preflight grants no CORS access. A valid `write:tokens` bearer is
 accepted with an absent or hostile Origin without CSRF, but remains scoped:
 `read:diagnostics` is denied and an invalid bearer returns 401. None of these
 responses grants `Access-Control-Allow-Origin`.
+
+The post-audit real HTTP regression additionally denies a same-host,
+different-port, headerless image-shaped GET and an unclassified cookie GET,
+while same-origin Fetch Metadata and deliberate direct navigation remain
+accepted. The [real Chrome persistence regression](../../frontend/tests/browser/p02/hostile_resource.mjs)
+waits 62 actual seconds, loads ordinary and `no-referrer` hostile images, and
+checks their 403 status through Chrome's network events. Its Python runner
+then reads the real migrated SQLite file to confirm `last_activity_at`,
+`idle_expires_at`, and `record_version` did not advance. These assertions are
+selected by `AUTO-TEST`; the older opaque-fetch/session-ID test remains a
+separate CORS/CORP and revocation check, not proof of zero session mutation.
 
 The built-Chrome regression at
 `frontend/tests/browser/p02/security_boundary.mjs` loads a minimal attacker

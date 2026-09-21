@@ -36,7 +36,7 @@ async function run() {
 
   const current = await apiClient.iam_get_current_session_v1({
     baseUrl: origin,
-    headers: { Cookie: cookie },
+    headers: { Cookie: cookie, Origin: origin },
   });
   requireResult(current.ok && current.data.state === 'active', 'current_session_failed');
 

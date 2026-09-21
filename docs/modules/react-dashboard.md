@@ -1,6 +1,7 @@
 # P02 React dashboard — M2 identity shell
 
 - Status: **M2 Story 5 accepted; not a V1 dashboard release**.
+- Post-audit note: Story 5's historical Red-first exceptions are documented in the [M2 correction record](../evidence/m2-audit-fixes.md); the M2 milestone reacceptance remains held. The separate `hostile_resource` Chrome scenario and SQLite assertion now cover cookie-read idle-state integrity after 62 real seconds.
 - Owner: P02 UI. Plan: [`PLAN-P02`](../plans/ui/react-dashboard/plan-v1.md), approved M2 slice [`ST-UI-001`](../superpowers/plans/2026-09-19-agentmonitor-v1-m2-authenticated-shell.md).
 - Consumes `CTR-UI-001`, `CTR-IAM-003/006/007` V1 through the generated 13-operation IAM client. Publishes no backend contract, database table, migration, configuration key, or provider adapter.
 

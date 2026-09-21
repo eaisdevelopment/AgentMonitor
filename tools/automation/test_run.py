@@ -27,7 +27,10 @@ class AutomationRoutineTests(unittest.TestCase):
         from auto_test import m2_local_suite_commands
 
         commands = m2_local_suite_commands()
-        self.assertEqual({"backend", "p02_all", "p02_security"}, set(commands))
+        self.assertEqual(
+            {"backend", "p02_all", "p02_security", "p02_hostile_resource"},
+            set(commands),
+        )
         backend = commands["backend"]
         self.assertIn("backend/tests", backend)
         self.assertNotIn("-k", backend)
@@ -35,6 +38,7 @@ class AutomationRoutineTests(unittest.TestCase):
         for key, scenario in (
             ("p02_all", "all"),
             ("p02_security", "security_boundary"),
+            ("p02_hostile_resource", "hostile_resource"),
         ):
             command = commands[key]
             self.assertEqual(scenario, command[-2])
@@ -44,6 +48,15 @@ class AutomationRoutineTests(unittest.TestCase):
             REPOSITORY_ROOT / "frontend/tests/browser/p02/security_boundary.mjs"
         )
         self.assertTrue(browser_test.is_file())
+
+    def test_m2_local_evidence_does_not_claim_universal_historical_tdd(self) -> None:
+        """A passing current gate cannot invent Reds for prior UI corrections."""
+        sys.path.insert(0, str(REPOSITORY_ROOT / "tools/automation/implementations"))
+        from auto_test import m2_local_acceptance_ids
+
+        accepted = m2_local_acceptance_ids()
+        self.assertNotIn("AC-TEST-001", accepted)
+        self.assertIn("AC-TEST-003", accepted)
 
     def test_clean_clone_blocks_missing_owner_local_m0_executable(self) -> None:
         """A fresh real checkout must classify absent M0 custody tooling as Blocked."""
@@ -246,6 +259,27 @@ class AutomationRoutineTests(unittest.TestCase):
         prohibited += "mock\n"
         self.assertFalse(source_is_allowed(prohibited))
         self.assertTrue(source_is_allowed("export const appVersion = '1.0.0';\n"))
+
+    def test_browser_scenarios_are_in_the_real_source_control_set(self) -> None:
+        """The canonical local scan must include the installed browser scenarios."""
+        sys.path.insert(0, str(REPOSITORY_ROOT / "tools/automation/implementations"))
+        from auto_quality import checked_source_paths
+
+        browser = REPOSITORY_ROOT / "frontend/tests/browser/p02/security_boundary.mjs"
+        self.assertTrue(browser.is_file())
+        self.assertIn(browser, checked_source_paths())
+
+    def test_source_policy_rejects_browser_response_interception(self) -> None:
+        """A browser test must not substitute a response for real HTTP."""
+        sys.path.insert(0, str(REPOSITORY_ROOT / "tools/automation/implementations"))
+        from auto_quality import source_is_allowed
+
+        intercepted = "await page." + "route('**/api/v1/**', handler);"
+        context_intercepted = "await context." + "route('**/api/v1/**', handler);"
+        fabricated = "route." + "fulfill({status: 200});"
+        self.assertFalse(source_is_allowed(intercepted))
+        self.assertFalse(source_is_allowed(context_intercepted))
+        self.assertFalse(source_is_allowed(fabricated))
 
     def test_manifest_policy_rejects_unapproved_backend_section(
         self,

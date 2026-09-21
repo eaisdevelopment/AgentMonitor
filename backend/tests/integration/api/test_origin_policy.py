@@ -69,12 +69,20 @@ def _request(
     headers: dict[str, str] | None = None,
     body: dict[str, object] | None = None,
     cookies: http.cookiejar.CookieJar | None = None,
+    unclassified: bool = False,
 ) -> tuple[int, Message[str, str], bytes]:
     handlers: list[urllib.request.BaseHandler] = [urllib.request.ProxyHandler({})]
     if cookies is not None:
         handlers.append(urllib.request.HTTPCookieProcessor(cookies))
     opener = urllib.request.build_opener(*handlers)
     outgoing = {} if headers is None else headers.copy()
+    if (
+        cookies is not None
+        and method in {"GET", "HEAD"}
+        and not unclassified
+        and not any(key.lower() in {"origin", "sec-fetch-site"} for key in outgoing)
+    ):
+        outgoing["Origin"] = origin
     if body is not None:
         outgoing["Content-Type"] = "application/json"
     request = urllib.request.Request(
@@ -153,6 +161,58 @@ def test_hostile_origin_cannot_revoke_a_real_cookie_session(tmp_path: Path) -> N
             )
             assert denied_read[0] == 403
             assert json.loads(denied_read[2])["code"] == "origin_not_allowed"
+            headerless_resource = await asyncio.to_thread(
+                _request,
+                origin,
+                "GET",
+                "/api/v1/session",
+                headers={
+                    "Sec-Fetch-Site": "same-site",
+                    "Sec-Fetch-Mode": "no-cors",
+                    "Sec-Fetch-Dest": "image",
+                },
+                cookies=jar,
+            )
+            assert headerless_resource[0] == 403
+            assert json.loads(headerless_resource[2])["code"] == "origin_not_allowed"
+            unclassified_cookie_get = await asyncio.to_thread(
+                _request,
+                origin,
+                "GET",
+                "/api/v1/session",
+                cookies=jar,
+                unclassified=True,
+            )
+            assert unclassified_cookie_get[0] == 403
+            assert (
+                json.loads(unclassified_cookie_get[2])["code"] == "origin_not_allowed"
+            )
+            same_origin_resource = await asyncio.to_thread(
+                _request,
+                origin,
+                "GET",
+                "/api/v1/session",
+                headers={
+                    "Sec-Fetch-Site": "same-origin",
+                    "Sec-Fetch-Mode": "cors",
+                    "Sec-Fetch-Dest": "empty",
+                },
+                cookies=jar,
+            )
+            assert same_origin_resource[0] == 200
+            direct_navigation = await asyncio.to_thread(
+                _request,
+                origin,
+                "GET",
+                "/api/v1/session",
+                headers={
+                    "Sec-Fetch-Site": "none",
+                    "Sec-Fetch-Mode": "navigate",
+                    "Sec-Fetch-Dest": "document",
+                },
+                cookies=jar,
+            )
+            assert direct_navigation[0] == 200
             preflight = await asyncio.to_thread(
                 _request,
                 origin,

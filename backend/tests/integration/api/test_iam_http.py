@@ -75,6 +75,14 @@ def _request(
         handlers.append(urllib.request.HTTPCookieProcessor(cookies))
     opener = urllib.request.build_opener(*handlers)
     outgoing = {} if headers is None else headers.copy()
+    if (
+        cookies is not None
+        and method in {"GET", "HEAD"}
+        and not any(key.lower() in {"origin", "sec-fetch-site"} for key in outgoing)
+    ):
+        # This real HTTP helper represents an intentional same-origin client.
+        # Hostile/headerless probes use the explicit Origin/Fetch-Metadata tests.
+        outgoing["Origin"] = origin
     if body is not None:
         outgoing["Content-Type"] = "application/json"
     request = urllib.request.Request(

@@ -39,6 +39,8 @@ PROHIBITED_SOURCE_PATTERNS = (
     r"(?:unittest\s*\.\s*mock|from\s+unittest\s+import\s+[^\n#]*\bmock\b|"
     r"pytest_mock|\bmagicmock\b|\bmonkeypatch\b)",
     r"\bshell\s*=\s*True\b|\bos\.system\(",
+    r"\b(?:page|context)\s*\.\s*route(?:FromHAR)?\s*\(",
+    r"\broute\s*\.\s*fulfill\s*\(",
 )
 SECRET_ASSIGNMENT_PATTERN = (
     r"(?m)^[ \t]*(?:(?:const|let|var)[ \t]+)?(?:self\.|this\.)?"
@@ -137,8 +139,8 @@ def verify_backend_inputs() -> bool:
         return False
 
 
-def minimum_local_controls() -> bool:
-    """Check tracked and untracked real source with the bounded local policy."""
+def checked_source_paths() -> tuple[Path, ...]:
+    """Return the real checkout source paths covered by local controls."""
     sources = subprocess.run(
         ["git", "ls-files", "--cached", "--others", "--exclude-standard", "-z"],
         cwd=ROOT,
@@ -147,16 +149,25 @@ def minimum_local_controls() -> bool:
         text=True,
     )
     if sources.returncode:
+        raise RuntimeError("local_source_inventory_unavailable")
+    source_suffixes = {".py", ".ts", ".tsx", ".js", ".mjs", ".json", ".toml", ".yml"}
+    return tuple(
+        ROOT / relative
+        for relative in sources.stdout.split("\x00")
+        if relative
+        and (ROOT / relative) != Path(__file__).resolve()
+        and (ROOT / relative).suffix in source_suffixes
+        and "node_modules" not in (ROOT / relative).parts
+    )
+
+
+def minimum_local_controls() -> bool:
+    """Check tracked and untracked real source with the bounded local policy."""
+    try:
+        checked_paths = checked_source_paths()
+    except RuntimeError:
         return False
-    source_suffixes = {".py", ".ts", ".tsx", ".js", ".json", ".toml", ".yml"}
-    for relative in sources.stdout.split("\x00"):
-        if not relative:
-            continue
-        path = ROOT / relative
-        if path == Path(__file__).resolve():
-            continue
-        if path.suffix not in source_suffixes or "node_modules" in path.parts:
-            continue
+    for path in checked_paths:
         try:
             content = path.read_text(encoding="utf-8")
         except UnicodeDecodeError:

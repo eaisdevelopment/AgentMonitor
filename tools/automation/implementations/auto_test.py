@@ -66,7 +66,18 @@ def m2_local_suite_commands() -> dict[str, list[str]]:
             "security_boundary",
             "--no-build",
         ],
+        "p02_hostile_resource": [
+            str(BACKEND_PYTHON),
+            browser_runner,
+            "hostile_resource",
+            "--no-build",
+        ],
     }
+
+
+def m2_local_acceptance_ids() -> tuple[str, ...]:
+    """Bound a local gate claim to observed behavior, not historical TDD."""
+    return ("AC-UI-001", "AC-TEST-003", "AC-TEST-006")
 
 
 def backend_environment() -> dict[str, str]:
@@ -250,6 +261,7 @@ def main() -> int:
     run_browser_boundary()
     run(suite_commands["p02_all"], environment=backend_environment())
     run(suite_commands["p02_security"], environment=backend_environment())
+    run(suite_commands["p02_hostile_resource"], environment=backend_environment())
     browser_tool = (
         "playwright-chromium"
         if os.environ.get("AGENTMONITOR_TEST_BROWSER", "chrome") == "chromium"
@@ -279,10 +291,10 @@ def main() -> int:
             status="Passed",
             versions=versions,
             requirement_ids=("FR-IAM-007", "NFR-TEST-001", "NFR-TEST-002"),
-            acceptance_ids=("AC-UI-001", "AC-TEST-001", "AC-TEST-003", "AC-TEST-006"),
-            red_reference="docs/evidence/m2-st-api-002.md#red-evidence",
-            green_reference="docs/evidence/m2-st-api-002.md#green-and-refactor-evidence",
-            refactor_reference="docs/evidence/m2-st-api-002.md#green-and-refactor-evidence",
+            acceptance_ids=m2_local_acceptance_ids(),
+            red_reference="docs/evidence/m2-audit-fixes.md#red-evidence",
+            green_reference="docs/evidence/m2-audit-fixes.md#green-evidence",
+            refactor_reference="docs/evidence/m2-audit-fixes.md#refactor-evidence",
         ),
         *(
             evidence_row(
