@@ -66,8 +66,8 @@ runner-to-browser stdin; no value is retained here.
 OpenAPI/client check, production Vite build, real M1 browser regression, P02
 `all` (including natural ≥61-second touch/logout and ≥1,800-second idle
 expiry), and the separate hostile-origin Chrome scenario. `main()` executes
-the returned commands fail-closed. The full command has **not yet run** on a
-frozen Story 6 checkout, so selector Green does not claim the M2 gate Passed.
+the returned commands fail-closed. Selector Green alone does not claim the
+M2 gate Passed; canonical execution and its failures are recorded below.
 
 The first fast build exposed an evidence-mapping error: its local-only Passed
 row cited `AC-TEST-004`, which requires owner-countersigned live provider
@@ -93,6 +93,22 @@ in `docs/plans/plan-baseline.toml`; the rendered snapshot compares byte-for-
 byte, the synchronized planning validator passes, both formerly failing
 planning tests pass, and `AUTO-DOCS-CHECK` passes. This correction does not
 convert that failed first gate into a pass; a full rerun remains required.
+
+The next committed-tree `AUTO-TEST` execution passed all 71 tooling tests,
+then failed in the complete backend suite (`511 passed, 2 failed in 391.50s`),
+before generated-client or browser stages. The first failure was a real
+temporary-Git setup defect in
+`test_generator_cli_preserves_outputs_on_refusal[breaking]`: the fixture tried
+to commit generated M2 artifacts that were already identical to its committed
+HEAD. The focused test reproduced Red (exit 1, empty Git commit), then passed
+after a test-only correction that commits only a real staged artifact change.
+The related real generator/compatibility cases passed 11/11, and independent
+QA accepted that the breaking-drift refusal and byte-preservation assertions
+remain effective. The second failure is the real two-worker Argon2 verification
+budget: observed p95 0.4578s against the approved 0.250s limit. Separate
+focused runs have both passed and failed under high workstation load; this
+remains **Failed/under investigation**, not converted into Green by a retry.
+Neither failure was a production API or browser pass.
 
 ## Security, privacy, compatibility, and residual state
 
@@ -140,7 +156,8 @@ or hardcoded passing test was used.
 | Boundary | Current status | Required remaining evidence |
 |---|---|---|
 | Targeted T3 Origin/bearer and T4 hostile-page Chrome | Passed | Independent specification and QA reviews passed; full M2 gate pending |
-| Canonical `AUTO-TEST`, `AUTO-QUALITY`, `AUTO-BUILD`, `AUTO-DOCS-CHECK` on frozen M2 checkout | Not Run | Run and record exact exits after M01 recovery integration |
+| Canonical `AUTO-TEST` on committed M2 checkout | Failed twice: stale planning snapshot, then 511 backend passed/2 failed | Re-run after test correction and resolve real Argon2 workload result; browser not reached by this routine |
+| `AUTO-QUALITY`, `AUTO-BUILD`, `AUTO-DOCS-CHECK` on committed M2 checkout | Passed local scopes | Re-run on final checkout after remaining corrections; broader scopes remain Not Run as below |
 | Staged-source and current built-artifact secret-pattern scans | Passed on named surfaces | Repeat built-artifact scan after final build; full SAST/vulnerability scan remains Not Run |
 | Full SAST/vulnerability scan, T5 workstation, T6 provider/account, T7 installed lifecycle, owner live setup, macOS, hosted CI | Not Run | Separate tools/environments/owner evidence; cannot be inferred from local T2/T3/T4 |
 | `AC-TEST-004` live provider/account aliases, versions, and owner countersignature | Not Run | Requires actual owner-controlled provider verification; local IAM test credentials do not satisfy it |

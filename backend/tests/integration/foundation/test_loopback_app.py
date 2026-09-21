@@ -875,22 +875,40 @@ def test_generator_cli_preserves_outputs_on_refusal(
             check=True,
             timeout=5,
         )
-        subprocess.run(
+        staged = subprocess.run(
             [
                 "git",
-                "-c",
-                "user.name=AgentMonitor Test",
-                "-c",
-                "user.email=agentmonitor-test@invalid.example",
-                "commit",
+                "diff",
+                "--cached",
                 "--quiet",
-                "-m",
-                "accepted generated M2 contract",
+                "--",
+                "contracts/openapi/agentmonitor-v1.json",
+                "frontend/src/generated/api/index.ts",
             ],
             cwd=root,
-            check=True,
+            check=False,
             timeout=5,
         )
+        assert staged.returncode in (0, 1), "generated artifact staging failed"
+        # Older checkout baselines need the generated M2 contract committed;
+        # current M2 baselines already contain it, so Git has nothing to commit.
+        if staged.returncode == 1:
+            subprocess.run(
+                [
+                    "git",
+                    "-c",
+                    "user.name=AgentMonitor Test",
+                    "-c",
+                    "user.email=agentmonitor-test@invalid.example",
+                    "commit",
+                    "--quiet",
+                    "-m",
+                    "accepted generated M2 contract",
+                ],
+                cwd=root,
+                check=True,
+                timeout=5,
+            )
         route_source = root / "backend/src/agentmonitor/api/v1/routers/iam.py"
         original = route_source.read_text()
         assert '"description": "SafeProblemV1"' in original
