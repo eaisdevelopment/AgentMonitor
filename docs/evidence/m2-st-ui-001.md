@@ -1,6 +1,6 @@
 # ST-UI-001 — M2 authenticated shell and token settings evidence
 
-> **Post-audit qualification:** This Story's browser tests are real, but the listed post-implementation UI corrections lack independently captured pre-fix executable Reds. The [M2 correction record](m2-audit-fixes.md) documents the historical SDLC deviation, a real isolated mutation sensitivity check for the false-logout case, and the pending owner disposition. Neither a current Green nor a sensitivity mutant is a retroactive historical Red.
+> **Post-audit qualification:** This Story's browser tests are real, but the listed post-implementation UI corrections lack independently captured pre-fix executable Reds. The owner accepted this bounded historical SDLC deviation on 2026-09-21 in the [M2 correction record](m2-audit-fixes.md), which also documents a real isolated mutation sensitivity check for the false-logout case. Neither a current Green nor a sensitivity mutant is a retroactive historical Red; Red-first evidence remains mandatory for future changes.
 
 - Status: **Accepted for M2 Story 5; M2 milestone gate remains open for Story 6**.
 - Owner/date: P02 Story 5 worker, 2026-09-21.
