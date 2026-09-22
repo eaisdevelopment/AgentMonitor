@@ -16,8 +16,28 @@
 - Epics: `EPIC-REG-01`, `EPIC-PROV-01`, `EPIC-CLA-01`, `EPIC-OBS-01`.
 - Detailed authority: [registry](../../plans/modules/m02-registry/plan-v1.md), [provider system](../../plans/modules/m03-provider-system/plan-v1.md), [Claude adapter](../../plans/adapters/claude/plan-v1.md), [collection](../../plans/modules/m04-collection-control/plan-v1.md), [capacity](../../plans/modules/m05-capacity/plan-v1.md), [runtime](../../plans/modules/m06-runtime-observation/plan-v1.md), [Linux](../../plans/platform/linux/plan-v1.md), [API](../../plans/api/fastapi-boundary/plan-v1.md), and [UI](../../plans/ui/react-dashboard/plan-v1.md).
 - Contract versions: `CTR-REG-001..010`, `CTR-PROV-001..008`, `CTR-COL-001..007`, `CTR-CAP-001/003/004/009`, `CTR-RUN-001..007`, `CTR-BOUNDARY-001..003`, and `CTR-PLAT-001`, all V1 after approval.
-- Entry gate: `V1-M2` passes; the finalized M0 G9 packet and `M0HandoffAcceptanceV1` approve the exact real Claude product/version/plan/platform tuple, read-only installation/account identity sources, one subscription-quota source, one local-session/process source, safe field/operation/path allowlists, rate/cost bounds, and M0-to-M03 mapping. If either required observation lane is not `Supported`, this milestone remains Blocked and this plan is revised; no alternative source is guessed.
+- Entry gate: `V1-M2` passes; either the finalized M0 G9 packet or the narrow
+  `M0-M3-CLAUDE-SCOPED-ENTRY-001` amendment below is accepted through a current
+  `M0HandoffAcceptanceV1`. If either required observation lane is not
+  `Supported`, this milestone remains Blocked and this plan is revised; no
+  alternative source is guessed.
 - Exit gate: one owner-confirmed account produces one real quota observation and one real runtime observation, each linked to real collection runs and rendered through authenticated generated-client browser views with complete provenance. Any naturally unavailable state remains visibly `Blocked`.
+
+`M0-M3-CLAUDE-SCOPED-ENTRY-001` is an M3-only prerequisite and does not declare
+M0 G9 complete. It binds exactly one Claude Code `2.1.278` / Linux / Claude Max
+opaque profile tuple, its mapping, sanitized evidence/status index, schema and
+CTR-PROV-002 contract bundles, and all four detached approval roles. Codex,
+Ollama, Anthropic API, OpenAI API, Ollama API, and macOS remain deferred to the
+full M0 G9 matrix. While the CTR-PROV-002 normative schema does not yet exist,
+`structural_prerequisite_authorized` permits only ST-PROV-001 pure
+provider-neutral protocol work needed to create it: no provider I/O, adapter,
+registry, persistence, migration, or later M3 task is authorized. Adapter/live
+entry additionally requires the current contract/schema digests, all four
+detached approvals, `subscription.quota` under its accepted
+host/request/rate/cost boundary, and accepted targeted-profile evidence for
+`local.process.account_correlation`; safe process observation alone cannot
+satisfy same-account runtime correlation. Any missing required item leaves the
+adapter/live handoff Blocked.
 
 ## Global Constraints
 

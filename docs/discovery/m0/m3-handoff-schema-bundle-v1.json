@@ -1,0 +1,16 @@
+{
+  "record_type": "M0SchemaBundleV1",
+  "schema_version": "1.0",
+  "bundle_id": "M0-M3-SCHEMA-BUNDLE-001",
+  "scope": "g1-controls-and-scoped-m3-handoff",
+  "artifacts": [
+    {
+      "path": "docs/plans/discovery/m0-g1-record.schema.json",
+      "sha256": "08d30c3054712940320d3da05a36c9487294fcf8f49fdc6789f70190c955db4e"
+    },
+    {
+      "path": "docs/discovery/m0/m3-handoff-record.schema.json",
+      "sha256": "98f68fa087579325a16c6c18a508df458365a9a88e7e13c18b7b4cd28fe5723b"
+    }
+  ]
+}

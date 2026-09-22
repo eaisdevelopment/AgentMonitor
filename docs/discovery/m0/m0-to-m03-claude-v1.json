@@ -3,19 +3,48 @@
   "schema_version": "1.0",
   "mapping_id": "M0-M03-CLAUDE-001",
   "mapping_version": "1.0.0",
+  "status": "structural_review_pending",
   "scope": {
     "provider_key": "claude",
-    "product": "claude-code",
-    "provider_versions": ["2.1.278"],
-    "platforms": ["linux-x86_64"],
-    "account_scope": "one-owner-controlled-opaque-local-profile"
+    "product": "Claude Code",
+    "provider_version": "2.1.278",
+    "platform": {
+      "operating_system": "Linux",
+      "architecture": "x86_64"
+    },
+    "plan_class": "Claude Max",
+    "profile_ref": "REF-M0-CLAUDE-PROFILE-001"
+  },
+  "schema_binding": {
+    "bundle_path": "docs/discovery/m0/m3-handoff-schema-bundle-v1.json",
+    "bundle_sha256": "c2f3fca9848c642f248b4db8a66e19888e01ea4ba4003d80035cbaf135a7ee3e"
+  },
+  "contract_binding": {
+    "contract_id": "CTR-PROV-002",
+    "contract_version": "1.0.0",
+    "bundle_path": "docs/discovery/m0/m3-ctr-prov-002-contract-bundle-v1.json",
+    "bundle_sha256": "801e8160987fa18eba243693c6976a76fc16a65ccfd8075c5009813b22dcad49",
+    "schema_artifact_status": "missing",
+    "schema_sha256": null
   },
   "capabilities": [
     {
       "capability_id": "subscription.quota",
       "decision": "supported",
+      "availability": "available",
       "source_id": "claude.usage.ax-screen-reader.v1",
       "operation_id": "claude.usage.tui.v1",
+      "scenario_ids": [
+        "M0-CLA-003",
+        "M0-CLA-004",
+        "M0-CLA-010",
+        "M0-COM-007"
+      ],
+      "evidence_refs": [
+        "REF-M0-CLA-USAGE-STRUCTURE-001",
+        "REF-M0-CLA-NETWORK-BOUNDS-001",
+        "REF-M0-CLA-USAGE-SIDE-EFFECTS-001"
+      ],
       "allowed_fields": [
         "window_label",
         "percent_used",
@@ -27,20 +56,51 @@
         "collected_at",
         "availability"
       ],
-      "limits": {
+      "network_bounds": {
+        "status": "verified",
+        "allowed_hosts": ["api.anthropic.com:443"],
+        "redirect_policy": "deny",
+        "max_cli_invocations": 1,
+        "max_tls_connections": 32,
+        "max_total_upstream_bytes": 4194304,
+        "max_total_downstream_bytes": 4194304,
+        "http_request_count_observable": false,
         "deadline_seconds": 30,
-        "max_concurrency_per_account": 1,
         "minimum_interval_seconds": 300,
         "automatic_retry_count": 0,
-        "model_token_cost": 0,
-        "provider_request_count": "unknown"
-      }
+        "cost_policy": "no_model_prompt_or_inference_authorized",
+        "evidence_ref": "REF-M0-CLA-NETWORK-BOUNDS-001"
+      },
+      "render_policy": {
+        "refresh_mode": "incremental",
+        "terminal_marker": "Usage credits",
+        "accepted_render": "latest_complete_set_immediately_preceding_terminal_marker",
+        "window_cardinality": "one_value_per_normalized_window",
+        "duplicates_across_refreshes": "allowed",
+        "conflicting_duplicates_within_final_render": "fail_closed",
+        "missing_terminal_marker_or_deadline": "fail_closed"
+      },
+      "implementation_boundary": "M3 must implement and live-verify an admitted equivalent exact-host bounded transport before adapter Green"
     },
     {
-      "capability_id": "local.process.correlation",
+      "capability_id": "local.process.observation",
       "decision": "supported",
+      "availability": "available",
       "source_id": "linux.proc.process.v1",
       "operation_id": "linux.proc.claude-process.v1",
+      "scenario_ids": [
+        "M0-LNX-001",
+        "M0-LNX-002",
+        "M0-LNX-004",
+        "M0-LNX-006",
+        "M0-LNX-011",
+        "M0-LNX-012",
+        "M0-LNX-013"
+      ],
+      "evidence_refs": [
+        "REF-M0-LNX-PROCESS-STRUCTURE-001",
+        "REF-M0-LNX-PROCESS-SIDE-EFFECTS-001"
+      ],
       "allowed_fields": [
         "executable_identity",
         "pid",
@@ -54,9 +114,35 @@
         "thread_count",
         "observed_at"
       ],
-      "correlation_policy": "targeted-profile-probe-or-owner-confirmed-only"
+      "process_identity": ["pid", "start_time_ticks"]
+    },
+    {
+      "capability_id": "local.process.account_correlation",
+      "decision": "deferred",
+      "availability": "unavailable",
+      "source_id": null,
+      "operation_id": null,
+      "scenario_ids": ["M0-CLA-008", "M0-LNX-007", "M0-LNX-012"],
+      "evidence_refs": [],
+      "correlation_outcome": "unresolved",
+      "targeted_profile_probe_status": "Not Run",
+      "required_evidence": "owner-reviewed targeted-profile probe proving the process/profile/account join without environment, command-line, memory, terminal, content, or provider-state mutation"
     }
   ],
+  "normalized_outcomes": {
+    "compatibility": {
+      "unknown_or_out_of_range_version": "provider_version_unverified"
+    },
+    "operation": {
+      "version_drift": "unverified_provider_version",
+      "provider_authentication_signal": "reauthentication_required",
+      "provider_authorization_signal": "authorization_insufficient"
+    },
+    "identity_mismatch": {
+      "outer_outcome": "success",
+      "typed_identity_result": "wrong_account_detected"
+    }
+  },
   "required_provenance": [
     "source_id",
     "provider_version",
@@ -82,11 +168,16 @@
     "raw_provider_output"
   ],
   "fail_closed_on": [
+    "artifact_digest_mismatch",
     "unverified_provider_version",
     "login_or_consent_prompt",
     "profile_write_possible",
+    "unexpected_host_or_redirect",
+    "network_budget_exceeded",
     "unknown_output_field",
-    "malformed_or_duplicate_window",
+    "missing_terminal_marker",
+    "incomplete_final_render",
+    "conflicting_duplicate_window_in_final_render",
     "missing_provenance",
     "deadline",
     "weak_account_correlation"

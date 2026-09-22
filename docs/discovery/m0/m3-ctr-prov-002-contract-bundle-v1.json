@@ -1,0 +1,21 @@
+{
+  "record_type": "M03ContractBundleV1",
+  "schema_version": "1.0",
+  "bundle_id": "M3-CTR-PROV-002-BUNDLE-001",
+  "contract_id": "CTR-PROV-002",
+  "contract_version": "1.0.0",
+  "status": "blocked",
+  "normative_artifacts": [
+    {
+      "path": "docs/plans/contract-baseline.toml",
+      "sha256": "b12a6a5c4842e27ebecb390c6b118667fbc8ab5b7d21b9b519a44ec3acf352ef"
+    },
+    {
+      "path": "docs/plans/modules/m03-provider-system/plan-v1.md",
+      "sha256": "c3bdb5226f38df96447f571bea592b04915997193ad5a594221a99268afd24a0"
+    }
+  ],
+  "schema_artifact_status": "missing",
+  "schema_artifact": null,
+  "blocking_reason": "CTR-PROV-002 CapabilityManifestV1 has no current machine-readable normative schema artifact"
+}

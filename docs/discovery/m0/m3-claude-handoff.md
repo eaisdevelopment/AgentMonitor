@@ -1,71 +1,59 @@
 # M3 Claude discovery handoff
 
-Status: Accepted for the single-account V1-M3 slice only  
+Status: **Structural prerequisite authorized; adapter/live handoff Blocked**
 Mapping: `M0-M03-CLAUDE-001` V1  
-Observed: 2026-09-22 on Linux x86_64 with Claude Code `2.1.278`
+Scope: one `REF-M0-CLAUDE-PROFILE-001` tuple for Claude Code `2.1.278`,
+Claude Max, Linux x86_64
 
-This handoff authorizes no login, logout, profile mutation, running-agent
-control, or generalization to another Claude Code version. Account identity is
-an opaque local reference; no email, credential, token, or profile path enters
-the API, database, evidence, or logs.
+This is a narrow input to `M0-M3-CLAUDE-SCOPED-ENTRY-001`; it is not M0 G9
+completion. The authoritative sanitized scenario statuses and side-effect
+reconciliation are in `m3-claude-evidence-v1.json`. Changing quota values,
+process counts, PIDs, timestamps, byte totals, request totals, or session cost
+are not repository evidence.
 
-## Subscription usage lane
+## Capability decisions
 
-- Decision: **Supported for the exact observed tuple**.
-- Official source: Claude Code `/usage`, documented by Anthropic as showing the
-  plan's usage limits and current rate-limit status.
-- Safe invocation: the installed executable, `--safe-mode`, `--no-chrome`, and
-  `--ax-screen-reader`, inside a read-only Linux filesystem boundary. The
-  provider-owned profile is mounted read-only; only private temporary storage
-  is writable.
-- Allowed input: the literal slash command `/usage` followed by explicit exit.
-- Allowed output fields: window label, integer percent used, provider-rendered
-  reset text/time, model scope, usage-credit enabled state, provider/tool
-  version, observed time, collected time, and field availability.
-- Forbidden output: identity, email, credentials, raw terminal transcript,
-  prompts, responses, tool/source content, detailed local-session attribution,
-  or unknown fields.
-- Proven behavior: one real invocation returned rolling-window, weekly, and
-  model-specific usage plus reset information. It reported zero input/output
-  tokens and zero session cost. A network-disabled repeat failed closed instead
-  of inventing values. Attempted transcript persistence failed with `EROFS`.
-- Initial budget: one invocation at a time, 30-second deadline, no automatic
-  retry, and no more than one invocation per account per five minutes. Provider
-  request count is not exposed and remains Unknown; therefore tighter polling
-  is not authorized.
-- Drift rule: any executable version other than `2.1.278`, missing label,
-  duplicate window, malformed percentage/reset, login prompt, or new output
-  shape returns `unsupported` or `unavailable` before persistence.
+- `subscription.quota` is **Supported** only through
+  `claude.usage.ax-screen-reader.v1` under the accepted exact-host boundary:
+  `api.anthropic.com:443`, redirects denied, one CLI invocation, at most 32 TLS
+  connections, 4 MiB total upstream and 4 MiB total downstream, a 30-second
+  deadline, no retry, a 300-second minimum interval, and no model prompt or
+  inference authorized. HTTP requests inside TLS are not observable and are not
+  claimed as bounded. M3 must implement and live-verify an admitted equivalent
+  boundary; this handoff does not approve a production proxy implementation.
+- The screen-reader output refreshes incrementally. Parsing accepts only the
+  latest complete window set immediately before the terminal `Usage credits`
+  marker. Repeated windows across refreshes are valid; conflicting duplicates
+  within that final render, an incomplete final render, a missing marker, or a
+  deadline fail closed.
+- `local.process.observation` is **Supported** for the allowlisted Linux process
+  facts in the mapping. It excludes environment, command line, memory, file
+  descriptors, terminal data, prompts, responses, tools, and source content.
+- `local.process.account_correlation` is **Deferred** and its outcome is
+  `unresolved`. No targeted-profile probe evidence exists. Safe process facts,
+  OS ancestry, or owner recollection do not establish same-account correlation.
 
-## Linux runtime lane
+Version drift and authentication use the normalized outcomes in the mapping:
+compatibility resolution returns `provider_version_unverified`; an invoked
+operation encountering drift returns `unverified_provider_version`; provider
+authentication and authorization signals return `reauthentication_required`
+and `authorization_insufficient`. Identity mismatch is outer `success` with
+typed result `wrong_account_detected`.
 
-- Decision: **Supported for safe process facts; account correlation is limited
-  to an explicitly targeted profile probe or owner-confirmed association**.
-- Real observation: twelve naturally running `claude` processes were visible
-  without signaling, attaching to, or reading content from them.
-- Allowed `/proc` facts: executable identity, PID, parent PID, UID equality,
-  kernel state, start-time ticks, user/system CPU ticks, resident pages,
-  thread count, and observation time. PID plus start time is the identity tuple.
-- Forbidden sources: process environment, command line, memory, file
-  descriptors, terminal data, prompts, responses, tool activity, and source
-  content.
-- Existing processes without strong profile evidence remain `unresolved`; OS
-  ancestry alone never proves provider session hierarchy or account identity.
+## Gate state
 
-## M3 mapping and residual limits
+`M0HandoffAcceptanceV1` binds the exact mapping, this handoff, the sanitized
+evidence index, the M0 schema bundle, the current CTR-PROV-002 contract bundle,
+and the scoped M3 entry amendment. `structural_prerequisite_authorized` permits
+only ST-PROV-001 pure provider-neutral work required to create the missing
+CTR-PROV-002 normative schema. No provider I/O or later M3 task is authorized.
 
-The quota source maps to `subscription.quota`; Linux facts map to
-`local.process.correlation` and safe runtime observation. Every persisted field
-must include source ID, exact tool version, collection time, availability,
-freshness, precision, confidence, and opaque account/profile references.
+Adapter/live handoff remains fail-closed because the CTR-PROV-002
+machine-readable normative schema does not exist, same-account targeted-profile
+evidence is Not Run, and security/privacy, test-integrity, and root-integration
+detached approvals are pending independent re-review.
 
-This handoff is sufficient for one real M3 vertical slice. Multi-account
-discovery, other Claude versions/plans, Codex, Ollama, macOS, native isolation
-without the current Linux boundary, automatic existing-process account
-correlation, and rare exhaustion/authentication states remain outside this
-acceptance and must stay visibly unavailable or unresolved.
-
-Official references:
-
-- https://support.claude.com/en/articles/14553413-claude-code-cheatsheet
-- https://support.claude.com/en/articles/14552983-models-usage-and-limits-in-claude-code
+The active owner goal authorizes this correction and structural prerequisite
+scope only. It does not replace independent approvals or authorize provider
+access, production adapter behavior, login/logout, profile mutation, or
+running-agent control.

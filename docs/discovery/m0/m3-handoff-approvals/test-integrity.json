@@ -1,0 +1,12 @@
+{
+  "record_type": "M0HandoffApprovalV1",
+  "schema_version": "1.0",
+  "approval_id": "APR-M0-M3-TEST-INTEGRITY-001",
+  "subject_id": "M0-M3-CLAUDE-HANDOFF-SUBJECT-001",
+  "subject_sha256": "6fdbc391d2b943d67a3f7ab9054d5eb084e9ded938c121f94f19f688304c1857",
+  "role": "test_integrity",
+  "decision": "pending",
+  "reviewer_ref": null,
+  "decision_date": null,
+  "authority_ref": null
+}

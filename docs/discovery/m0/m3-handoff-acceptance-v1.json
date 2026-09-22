@@ -1,0 +1,65 @@
+{
+  "record_type": "M0HandoffAcceptanceV1",
+  "schema_version": "1.0",
+  "acceptance_id": "M0-M3-CLAUDE-ACCEPTANCE-001",
+  "status": "structural_prerequisite_authorized",
+  "structural_prerequisite_authorized": true,
+  "adapter_live_handoff_authorized": false,
+  "subject": {
+    "subject_id": "M0-M3-CLAUDE-HANDOFF-SUBJECT-001",
+    "scope": {
+      "provider_key": "claude",
+      "product": "Claude Code",
+      "provider_version": "2.1.278",
+      "platform": "Linux-x86_64",
+      "plan_class": "Claude Max",
+      "profile_ref": "REF-M0-CLAUDE-PROFILE-001"
+    },
+    "authorization_boundary": {
+      "authorized_work": "ST-PROV-001-pure-provider-neutral-protocol-only",
+      "provider_io_authorized": false,
+      "adapter_or_live_work_authorized": false,
+      "later_m3_tasks_authorized": false
+    },
+    "artifact_bindings": [
+      {
+        "path": "docs/discovery/m0/m0-to-m03-claude-v1.json",
+        "sha256": "82e2acc24dfa5b35d1778ee8e245b00fed567c4f20402293cd2ec16dcd4d8b24"
+      },
+      {
+        "path": "docs/discovery/m0/m3-claude-handoff.md",
+        "sha256": "0cc90ce81ba77ea84ffef7dc2a4f0f3fde40175c3564d509d962a5ca45a47305"
+      },
+      {
+        "path": "docs/discovery/m0/m3-claude-evidence-v1.json",
+        "sha256": "00537a778b0473b62d8c0edb9e5d48bc1f9dc3e57d9f70b2b6e9c16ebb67d845"
+      },
+      {
+        "path": "docs/discovery/m0/m3-handoff-schema-bundle-v1.json",
+        "sha256": "c2f3fca9848c642f248b4db8a66e19888e01ea4ba4003d80035cbaf135a7ee3e"
+      },
+      {
+        "path": "docs/discovery/m0/m3-ctr-prov-002-contract-bundle-v1.json",
+        "sha256": "801e8160987fa18eba243693c6976a76fc16a65ccfd8075c5009813b22dcad49"
+      },
+      {
+        "path": "docs/superpowers/plans/2026-09-19-agentmonitor-v1-m3-claude-slice.md",
+        "sha256": "27331101b6391a71af4c4fde2d0fd8faad92fcf4537df6dd1cdf5d2a401d640c"
+      }
+    ]
+  },
+  "subject_sha256": "6fdbc391d2b943d67a3f7ab9054d5eb084e9ded938c121f94f19f688304c1857",
+  "approval_paths": [
+    "docs/discovery/m0/m3-handoff-approvals/owner.json",
+    "docs/discovery/m0/m3-handoff-approvals/security-privacy.json",
+    "docs/discovery/m0/m3-handoff-approvals/test-integrity.json",
+    "docs/discovery/m0/m3-handoff-approvals/root-integration.json"
+  ],
+  "blockers": [
+    "same_account_targeted_probe_not_run",
+    "ctr_prov_002_schema_missing",
+    "security_privacy_approval_pending",
+    "test_integrity_approval_pending",
+    "root_integration_approval_pending"
+  ]
+}
