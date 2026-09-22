@@ -97,9 +97,28 @@ change was needed.
 No dependency, license, provider-state, or public API change. The local custody
 selection format changed from `1.0` to `1.1`; migration is an explicit owner
 re-attestation, not an automatic conversion. The local reviewer-file interface
-is G1 tooling only. Follow-up: independent role handoffs, owner custody
+is G1 tooling only. Follow-up: independent custody role handoffs, owner custody
 confirmation and incident acknowledgement, exact G1 approval, real exit, and
 post-approval full-suite run.
+
+## Current exact-subject role reviews
+
+Repository-only bundle digest `8e4e1e1791248de45b61e104526f7f555dfb5591075946fcfb0bcdcd7129a92c`
+and scanner digest `f0903eb396258020333005b21d7e20836b03525ee58292836f53128cbc65a66e`
+were independently checked on 2026-09-22. These are scoped reviewer handoffs,
+not a completed owner approval record or a passing G1 exit.
+
+| Role/ref | Bundle | Scanner | Boundary |
+|---|---|---|---|
+| `REF-AGENTMONITOR-INTEGRATION-REVIEW` | Approved, 12:09:08 UTC | Not reviewed | Controls only; `M0-COM-001` still Not Run |
+| `REF-AGENTMONITOR-TEST-REVIEW` | Approved, 12:11:43 UTC | Approved | Repository tests and local clean-scan admission only |
+| `REF-AGENTMONITOR-PROVIDER-REVIEW` | Approved, 12:12:10 UTC | Not reviewed | No provider/account/G2 authority |
+| `REF-AGENTMONITOR-SECURITY-REVIEW` | Approved, 13:02:31 UTC | Approved | Static safety review; custody Blocked |
+
+Custody decisions by security/privacy and test integrity, the owner's exact
+custody/scanner/bundle approvals, the real finalization, and
+`AUTO-M0-G1-EXIT` are still **Blocked or Not Run**. No reviewer accessed the
+external evidence root or provider state for these exact-subject reviews.
 
 Integration review found two separate post-G1 conditions. The G0-approved M0
 plan says G1 executes `M0-COM-001`, while the narrower G1 specification and
