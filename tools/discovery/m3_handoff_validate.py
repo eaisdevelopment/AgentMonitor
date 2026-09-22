@@ -150,6 +150,13 @@ def _validate_structural_records() -> tuple[dict[str, Any], dict[str, Any], dict
     if contract_bundle.get("contract_id") != "CTR-PROV-002":
         raise ValidationError("unexpected provider contract identifier")
     _validate_bindings(contract_bundle.get("normative_artifacts"))
+    schema_artifact = contract_bundle.get("schema_artifact")
+    if contract_bundle.get("schema_artifact_status") == "current":
+        _validate_bindings([schema_artifact])
+        if not isinstance(schema_artifact, dict) or (
+            mapping_binding.get("schema_sha256") != schema_artifact.get("sha256")
+        ):
+            raise ValidationError("mapping schema-artifact digest mismatch")
 
     return acceptance, contract_bundle, decisions
 

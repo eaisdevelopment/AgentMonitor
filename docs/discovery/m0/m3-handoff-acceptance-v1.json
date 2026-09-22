@@ -24,7 +24,7 @@
     "artifact_bindings": [
       {
         "path": "docs/discovery/m0/m0-to-m03-claude-v1.json",
-        "sha256": "82e2acc24dfa5b35d1778ee8e245b00fed567c4f20402293cd2ec16dcd4d8b24"
+        "sha256": "5a179f872951ce7052160d8e1b568ab1ad4c6f021d60e742e9e096f2c31fd413"
       },
       {
         "path": "docs/discovery/m0/m3-claude-handoff.md",
@@ -40,7 +40,7 @@
       },
       {
         "path": "docs/discovery/m0/m3-ctr-prov-002-contract-bundle-v1.json",
-        "sha256": "801e8160987fa18eba243693c6976a76fc16a65ccfd8075c5009813b22dcad49"
+        "sha256": "c43786253bb124a027f716e657722e37e7382f6b62ef44358dfb26eaf7a0b6b8"
       },
       {
         "path": "docs/superpowers/plans/2026-09-19-agentmonitor-v1-m3-claude-slice.md",
@@ -48,7 +48,7 @@
       }
     ]
   },
-  "subject_sha256": "6fdbc391d2b943d67a3f7ab9054d5eb084e9ded938c121f94f19f688304c1857",
+  "subject_sha256": "580e36cfa2fcf7201cb8a7eff703c9cf9002a5de4eca97ab1d516bec966677f2",
   "approval_paths": [
     "docs/discovery/m0/m3-handoff-approvals/owner.json",
     "docs/discovery/m0/m3-handoff-approvals/security-privacy.json",
@@ -57,7 +57,6 @@
   ],
   "blockers": [
     "same_account_targeted_probe_not_run",
-    "ctr_prov_002_schema_missing",
     "security_privacy_approval_pending",
     "test_integrity_approval_pending",
     "root_integration_approval_pending"

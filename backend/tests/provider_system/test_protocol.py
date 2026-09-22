@@ -46,7 +46,7 @@ from agentmonitor.modules.provider_system.domain.protocol import (
 )
 
 NOW = datetime(2026, 9, 22, 12, 0, tzinfo=UTC)
-MAPPING_DIGEST = "82e2acc24dfa5b35d1778ee8e245b00fed567c4f20402293cd2ec16dcd4d8b24"
+MAPPING_DIGEST = "5a179f872951ce7052160d8e1b568ab1ad4c6f021d60e742e9e096f2c31fd413"
 
 
 @dataclass(frozen=True, slots=True)

@@ -205,9 +205,20 @@ class M3HandoffContractTests(unittest.TestCase):
             self.assertEqual(sha256(path), artifact["sha256"])
         self.assertEqual("CTR-PROV-002", contract_bundle["contract_id"])
         self.assertEqual("1.0.0", contract_bundle["contract_version"])
-        self.assertEqual("missing", contract_bundle["schema_artifact_status"])
-        self.assertIsNone(contract_bundle["schema_artifact"])
-        self.assertEqual("blocked", contract_bundle["status"])
+        self.assertEqual("current", contract_bundle["schema_artifact_status"])
+        schema_artifact = contract_bundle["schema_artifact"]
+        self.assertIsInstance(schema_artifact, dict)
+        assert isinstance(schema_artifact, dict)
+        self.assertEqual(
+            "contracts/provider-system/capability-manifest-v1.schema.json",
+            schema_artifact["path"],
+        )
+        self.assertEqual(
+            sha256(REPOSITORY_ROOT / schema_artifact["path"]),
+            schema_artifact["sha256"],
+        )
+        self.assertEqual("current", contract_bundle["status"])
+        self.assertIsNone(contract_bundle["blocking_reason"])
 
     def test_acceptance_binds_every_exact_subject_and_four_detached_roles(self) -> None:
         self.assertTrue(ACCEPTANCE_PATH.is_file(), "handoff acceptance is missing")
@@ -279,7 +290,6 @@ class M3HandoffContractTests(unittest.TestCase):
         self.assertIn("M3 adapter/live handoff: BLOCKED", result.stdout)
         for blocker in (
             "same_account_targeted_probe_not_run",
-            "ctr_prov_002_schema_missing",
             "security_privacy_approval_pending",
             "test_integrity_approval_pending",
             "root_integration_approval_pending",

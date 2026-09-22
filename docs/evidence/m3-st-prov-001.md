@@ -8,7 +8,8 @@
   `CTR-PROV-001..008` V1. Persistence and provider conformance are excluded.
 - Implementation commit: `37883ed`, based on `1cb57b6`; mapping
   `M0-M03-CLAUDE-001` V1 digest
-  `82e2acc24dfa5b35d1778ee8e245b00fed567c4f20402293cd2ec16dcd4d8b24`.
+  `5a179f872951ce7052160d8e1b568ab1ad4c6f021d60e742e9e096f2c31fd413`
+  after the machine-readable schema binding was published.
 - Recorder/date: root integrator, 2026-09-22.
 
 ## Delivered behavior
@@ -31,6 +32,7 @@ this Story.
 | Test/scenario | Boundary | Status | Result |
 |---|---|---|---|
 | `M03-PURE-001..024/031..034` | Pure deterministic domain/contracts | Passed | 74 collected and passed |
+| `CTR-PROV-002` manifest schema | Real committed artifact + deterministic checker | Passed | 6 schema tests; provider total 80 |
 | Module boundary and static quality | Real checkout/toolchain | Passed | Ruff, format, strict mypy, zero boundary violations |
 | Canonical `AUTO-QUALITY` | Real backend/frontend toolchain and production build | Passed | Exit 0 |
 | `M03-CONF-001..006`, `AC-LIVE-004` | Real adapter/provider conformance | **Not Run** | Deferred to `ST-CLA-001`; current authorization is pure-only |
@@ -93,6 +95,16 @@ frontend build. Hosted GitLab, live provider/platform checks, full secret/SAST/
 vulnerability scans, fresh frozen install, and release SBOM/notices remained
 Not Run as the canonical command reports.
 
+The machine-readable schema closure is commit `57ee900`. Its initial missing
+generator import was not claimed as behavioral Red. After generator plumbing,
+the focused suite produced a real `FileNotFoundError` for the absent required
+committed schema artifact; generation made the same six tests pass. The
+artifact at `contracts/provider-system/capability-manifest-v1.schema.json` has
+SHA-256 `d86958cb4f2c3805fee5bed51a6c590810ccf33e270c50371274308d07603466`.
+Independent review accepted exact reproduction, closed required fields and
+properties, enums/bounds/patterns, Python semantic-authority binding, and its
+canonical `AUTO-QUALITY` check.
+
 ## Integrity, security, and compatibility
 
 The tests use constructed immutable values only in pure deterministic code.
@@ -109,8 +121,6 @@ external state changed. Unknown/incompatible inputs fail closed.
 
 ## Residual work
 
-- Publish and bind the machine-readable `CTR-PROV-002` schema/bundle before
-  adapter/live authorization.
 - Complete detached security/privacy, test-integrity, and root-integration
   approval against the final bound artifacts.
 - Keep real adapter/provider conformance visibly Not Run until `ST-CLA-001`.

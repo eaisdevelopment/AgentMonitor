@@ -23,9 +23,9 @@
     "contract_id": "CTR-PROV-002",
     "contract_version": "1.0.0",
     "bundle_path": "docs/discovery/m0/m3-ctr-prov-002-contract-bundle-v1.json",
-    "bundle_sha256": "801e8160987fa18eba243693c6976a76fc16a65ccfd8075c5009813b22dcad49",
-    "schema_artifact_status": "missing",
-    "schema_sha256": null
+    "bundle_sha256": "c43786253bb124a027f716e657722e37e7382f6b62ef44358dfb26eaf7a0b6b8",
+    "schema_artifact_status": "current",
+    "schema_sha256": "d86958cb4f2c3805fee5bed51a6c590810ccf33e270c50371274308d07603466"
   },
   "capabilities": [
     {

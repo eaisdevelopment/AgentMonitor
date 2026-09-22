@@ -4,7 +4,7 @@
   "bundle_id": "M3-CTR-PROV-002-BUNDLE-001",
   "contract_id": "CTR-PROV-002",
   "contract_version": "1.0.0",
-  "status": "blocked",
+  "status": "current",
   "normative_artifacts": [
     {
       "path": "docs/plans/contract-baseline.toml",
@@ -13,9 +13,20 @@
     {
       "path": "docs/plans/modules/m03-provider-system/plan-v1.md",
       "sha256": "c3bdb5226f38df96447f571bea592b04915997193ad5a594221a99268afd24a0"
+    },
+    {
+      "path": "backend/src/agentmonitor/contracts/common_provenance_v1.py",
+      "sha256": "b25530b1c0a671350717486ef4c03cd813778e0dc7948103da48792cb8e7d271"
+    },
+    {
+      "path": "backend/src/agentmonitor/contracts/provider_system_v1.py",
+      "sha256": "b0b6e7dcf2c0a4f2f815aebaa349efe4a7fa63e127c38b5f9e6f4b74b407ec36"
     }
   ],
-  "schema_artifact_status": "missing",
-  "schema_artifact": null,
-  "blocking_reason": "CTR-PROV-002 CapabilityManifestV1 has no current machine-readable normative schema artifact"
+  "schema_artifact_status": "current",
+  "schema_artifact": {
+    "path": "contracts/provider-system/capability-manifest-v1.schema.json",
+    "sha256": "d86958cb4f2c3805fee5bed51a6c590810ccf33e270c50371274308d07603466"
+  },
+  "blocking_reason": null
 }
