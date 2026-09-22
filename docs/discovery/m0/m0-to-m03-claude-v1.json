@@ -1,0 +1,94 @@
+{
+  "record_type": "M0ToM03CapabilityMappingV1",
+  "schema_version": "1.0",
+  "mapping_id": "M0-M03-CLAUDE-001",
+  "mapping_version": "1.0.0",
+  "scope": {
+    "provider_key": "claude",
+    "product": "claude-code",
+    "provider_versions": ["2.1.278"],
+    "platforms": ["linux-x86_64"],
+    "account_scope": "one-owner-controlled-opaque-local-profile"
+  },
+  "capabilities": [
+    {
+      "capability_id": "subscription.quota",
+      "decision": "supported",
+      "source_id": "claude.usage.ax-screen-reader.v1",
+      "operation_id": "claude.usage.tui.v1",
+      "allowed_fields": [
+        "window_label",
+        "percent_used",
+        "reset_display",
+        "model_scope",
+        "usage_credits_enabled",
+        "provider_version",
+        "observed_at",
+        "collected_at",
+        "availability"
+      ],
+      "limits": {
+        "deadline_seconds": 30,
+        "max_concurrency_per_account": 1,
+        "minimum_interval_seconds": 300,
+        "automatic_retry_count": 0,
+        "model_token_cost": 0,
+        "provider_request_count": "unknown"
+      }
+    },
+    {
+      "capability_id": "local.process.correlation",
+      "decision": "supported",
+      "source_id": "linux.proc.process.v1",
+      "operation_id": "linux.proc.claude-process.v1",
+      "allowed_fields": [
+        "executable_identity",
+        "pid",
+        "parent_pid",
+        "same_uid",
+        "kernel_state",
+        "start_time_ticks",
+        "user_cpu_ticks",
+        "system_cpu_ticks",
+        "resident_pages",
+        "thread_count",
+        "observed_at"
+      ],
+      "correlation_policy": "targeted-profile-probe-or-owner-confirmed-only"
+    }
+  ],
+  "required_provenance": [
+    "source_id",
+    "provider_version",
+    "observed_at",
+    "collected_at",
+    "availability",
+    "freshness",
+    "precision",
+    "confidence"
+  ],
+  "prohibited_inputs_and_outputs": [
+    "credential",
+    "email",
+    "profile_path",
+    "process_environment",
+    "command_line",
+    "process_memory",
+    "terminal_content",
+    "prompt",
+    "response",
+    "tool_activity",
+    "source_content",
+    "raw_provider_output"
+  ],
+  "fail_closed_on": [
+    "unverified_provider_version",
+    "login_or_consent_prompt",
+    "profile_write_possible",
+    "unknown_output_field",
+    "malformed_or_duplicate_window",
+    "missing_provenance",
+    "deadline",
+    "weak_account_correlation"
+  ]
+}
