@@ -13,9 +13,11 @@
   digest command therefore exceeded that narrow assignment. Previous
   provisional custody approval was withdrawn.
 - Immediate stop: reviewers were told not to rerun the mode or touch the root.
-  The finalizer is being changed to load only the owner-only local selection
-  file before the explicit owner confirmation; external-root checks move to
-  the owner-confirmed finalization path.
+  The finalizer now loads only the owner-only local selection file before the
+  explicit owner confirmation; external-root checks are confined to the
+  owner-confirmed finalization path. Independent source review found the
+  pre-owner mode local-only. A syscall-level negative check has **Not Run**;
+  the pure policy test does not prove absence of external-root metadata access.
 - Status: **open**. Owner acknowledgement/decision, reviewer recheck, and
   evidence of no further unexpected access remain required. This happened
   during G1 control review, not an authorized scenario/operation; the current
