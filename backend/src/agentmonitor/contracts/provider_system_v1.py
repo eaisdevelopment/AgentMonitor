@@ -2,7 +2,7 @@
 
 import re
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timedelta
 from decimal import Decimal
 from typing import (
     ClassVar,
@@ -81,6 +81,11 @@ ReauthStateV1 = Literal[
     "cancelled",
     "expired",
 ]
+ProviderVersionStateV1 = Literal["available", "unknown", "unavailable"]
+CompatibilityStateV1 = Literal[
+    "compatible", "incompatible", "unverified", "unsupported", "disabled"
+]
+OutboxDeliveryStateV1 = Literal["pending", "claimed", "delivered"]
 
 _CAPABILITY_ID = re.compile(r"[a-z][a-z0-9]*(?:\.[a-z][a-z0-9]*){1,5}\Z")
 _SEMVER = re.compile(r"(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\Z")
@@ -762,6 +767,206 @@ class DiscoveryOutcomeV1(CollectionOutcomeV1[DiscoveryCandidatesV1]):
 
 class AuthHealthOutcomeV1(CollectionOutcomeV1[AuthHealthObservationV1]):
     CONTRACT_ID: ClassVar[str] = "CTR-PROV-006"
+
+
+@dataclass(frozen=True, slots=True)
+class CompatibilityAssessmentInputV1(TechnicalValueV1):
+    """Canonical safe input for one immutable compatibility assessment."""
+
+    CONTRACT_ID: ClassVar[str] = "CTR-PROV-002"
+    OWNER: ClassVar[str] = "PLAN-M03"
+
+    registration_id: OpaqueIdV1
+    provider_key: str
+    adapter_id: str
+    adapter_version: str
+    protocol_version: str
+    installation_id: OpaqueIdV1 | None
+    capability_id: str
+    capability_schema_version: str
+    source_id: str | None
+    provider_version_value: str | None
+    provider_version_state: ProviderVersionStateV1
+    version_scheme: str | None
+    version_rule_id: str | None
+    compatibility_state: CompatibilityStateV1
+    reason_code: str
+    manifest_schema_version: str
+    manifest_fingerprint: str
+    assessed_at: datetime
+    valid_until: datetime | None
+    correlation_id: OpaqueIdV1
+
+    def __post_init__(self) -> None:
+        if (
+            not isinstance(self.assessed_at, datetime)
+            or self.assessed_at.utcoffset() != timedelta(0)
+            or (
+                self.valid_until is not None
+                and (
+                    not isinstance(self.valid_until, datetime)
+                    or self.valid_until.utcoffset() != timedelta(0)
+                )
+            )
+        ):
+            raise InvalidProviderContract("compatibility_timestamp_invalid")
+        TechnicalValueV1.__post_init__(self)
+        _validate_capability_id(self.capability_id)
+        bounded_values = (
+            (self.registration_id.value, 64),
+            (self.provider_key, 64),
+            (self.adapter_id, 128),
+            (self.adapter_version, 32),
+            (self.protocol_version, 32),
+            (self.capability_schema_version, 32),
+            (self.reason_code, 128),
+            (self.manifest_schema_version, 32),
+            (self.correlation_id.value, 64),
+        )
+        if any(
+            not _bounded_token(value, maximum=maximum)
+            for value, maximum in bounded_values
+        ):
+            raise InvalidProviderContract("compatibility_assessment_invalid")
+        if self.installation_id is not None and not _bounded_token(
+            self.installation_id.value, maximum=64
+        ):
+            raise InvalidProviderContract("compatibility_assessment_invalid")
+        if self.source_id is not None and not _bounded_token(
+            self.source_id, maximum=128
+        ):
+            raise InvalidProviderContract("compatibility_assessment_invalid")
+        if _SHA256.fullmatch(self.manifest_fingerprint) is None:
+            raise InvalidProviderContract("compatibility_manifest_fingerprint_invalid")
+        available = self.provider_version_state == "available"
+        version_values = (
+            self.provider_version_value,
+            self.version_scheme,
+            self.version_rule_id,
+        )
+        if available != all(value is not None for value in version_values):
+            raise InvalidProviderContract("compatibility_version_pair_invalid")
+        if not available and any(value is not None for value in version_values):
+            raise InvalidProviderContract("compatibility_version_pair_invalid")
+        if available and (
+            not _bounded_token(self.provider_version_value, maximum=64)
+            or not _bounded_token(self.version_scheme, maximum=32)
+            or not _bounded_token(self.version_rule_id, maximum=128)
+        ):
+            raise InvalidProviderContract("compatibility_version_pair_invalid")
+        if self.valid_until is not None and self.valid_until < self.assessed_at:
+            raise InvalidProviderContract("compatibility_validity_invalid")
+
+
+@dataclass(frozen=True, slots=True)
+class CompatibilityAssessmentViewV1(TechnicalValueV1):
+    """Persisted immutable assessment plus current/supersession metadata."""
+
+    CONTRACT_ID: ClassVar[str] = "CTR-PROV-002"
+    OWNER: ClassVar[str] = "PLAN-M03"
+
+    assessment_id: OpaqueIdV1
+    registration_id: OpaqueIdV1
+    provider_key: str
+    adapter_id: str
+    adapter_version: str
+    protocol_version: str
+    installation_id: OpaqueIdV1 | None
+    capability_id: str
+    capability_schema_version: str
+    source_id: str | None
+    provider_version_value: str | None
+    provider_version_state: ProviderVersionStateV1
+    version_scheme: str | None
+    version_rule_id: str | None
+    compatibility_state: CompatibilityStateV1
+    reason_code: str
+    manifest_schema_version: str
+    manifest_fingerprint: str
+    input_fingerprint: str
+    assessed_at: datetime
+    valid_until: datetime | None
+    supersedes_assessment_id: OpaqueIdV1 | None
+    correlation_id: OpaqueIdV1
+    is_current: bool
+    record_version: int
+
+    def __post_init__(self) -> None:
+        TechnicalValueV1.__post_init__(self)
+        if (
+            not _bounded_token(self.assessment_id.value, maximum=64)
+            or _SHA256.fullmatch(self.input_fingerprint) is None
+            or type(self.is_current) is not bool
+            or type(self.record_version) is not int
+            or self.record_version < 1
+        ):
+            raise InvalidProviderContract("compatibility_assessment_view_invalid")
+        CompatibilityAssessmentInputV1(
+            registration_id=self.registration_id,
+            provider_key=self.provider_key,
+            adapter_id=self.adapter_id,
+            adapter_version=self.adapter_version,
+            protocol_version=self.protocol_version,
+            installation_id=self.installation_id,
+            capability_id=self.capability_id,
+            capability_schema_version=self.capability_schema_version,
+            source_id=self.source_id,
+            provider_version_value=self.provider_version_value,
+            provider_version_state=self.provider_version_state,
+            version_scheme=self.version_scheme,
+            version_rule_id=self.version_rule_id,
+            compatibility_state=self.compatibility_state,
+            reason_code=self.reason_code,
+            manifest_schema_version=self.manifest_schema_version,
+            manifest_fingerprint=self.manifest_fingerprint,
+            assessed_at=self.assessed_at,
+            valid_until=self.valid_until,
+            correlation_id=self.correlation_id,
+        )
+
+
+@dataclass(frozen=True, slots=True)
+class ProviderSystemOutboxEventV1(TechnicalValueV1):
+    """Safe bounded event metadata owned by the M03 transactional outbox."""
+
+    CONTRACT_ID: ClassVar[str] = "CTR-PROV-002"
+    OWNER: ClassVar[str] = "PLAN-M03"
+
+    event_id: OpaqueIdV1
+    event_type: str
+    assessment_id: OpaqueIdV1
+    registration_id: OpaqueIdV1
+    provider_key: str
+    capability_id: str
+    compatibility_state: CompatibilityStateV1
+    reason_code: str
+    correlation_id: OpaqueIdV1
+    producer_sequence: int
+    occurred_at: datetime
+    recorded_at: datetime
+    delivery_state: OutboxDeliveryStateV1
+    available_at: datetime
+    claimed_at: datetime | None
+    delivered_at: datetime | None
+    attempt_count: int
+
+    def __post_init__(self) -> None:
+        TechnicalValueV1.__post_init__(self)
+        _validate_capability_id(self.capability_id)
+        if (
+            not _bounded_token(self.event_id.value, maximum=64)
+            or not _bounded_token(self.event_type, maximum=64)
+            or not _bounded_token(self.assessment_id.value, maximum=64)
+            or not _bounded_token(self.registration_id.value, maximum=64)
+            or not _bounded_token(self.provider_key, maximum=64)
+            or not _bounded_token(self.reason_code, maximum=128)
+            or not _bounded_token(self.correlation_id.value, maximum=64)
+            or type(self.producer_sequence) is not int
+            or self.producer_sequence < 1
+            or type(self.attempt_count) is not int
+            or self.attempt_count < 0
+        ):
+            raise InvalidProviderContract("provider_system_outbox_event_invalid")
 
 
 ExtensionScalarV1 = str | int | bool | Decimal | datetime | None
