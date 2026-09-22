@@ -222,12 +222,58 @@ export function DashboardApp() {
           {route === "/settings/api-tokens" ? (
             <ApiTokensPage onExpired={expire} onProofUnavailable={proofUnavailable} />
           ) : (
-            <section aria-labelledby="page-title">
-              <p className="eyebrow">Authenticated dashboard</p>
-              <h1 id="page-title" tabIndex={-1}>AgentMonitor</h1>
-              <p>Identity and access are active. Provider monitoring is not part of this milestone.</p>
-              <button type="button" className="quiet-button" onClick={() => setShowPasswordForm((visible) => !visible)}>Change password</button>
-            </section>
+            <div className="operations-console" data-monitoring-state="unavailable">
+              <section className="command-deck" aria-labelledby="page-title">
+                <div>
+                  <p className="eyebrow">Mission control · local node</p>
+                  <h1 id="page-title" tabIndex={-1}>AgentMonitor</h1>
+                  <p className="console-summary">Provider telemetry is not connected yet. The dashboard shows unavailable states instead of invented usage.</p>
+                </div>
+                <div className="link-state" aria-label="Dashboard service link">
+                  <span className="status-light" aria-hidden="true" />
+                  <span><strong>Service link</strong><small>Authenticated · local</small></span>
+                </div>
+              </section>
+
+              <div className="telemetry-grid">
+                <section className="telemetry-panel fleet-panel" role="region" aria-labelledby="fleet-title">
+                  <div className="panel-heading"><div><p className="panel-code">FLEET / 01</p><h2 id="fleet-title">Fleet status</h2></div><span className="state-chip state-unavailable">Unavailable</span></div>
+                  <div className="empty-telemetry">
+                    <span className="radar-mark" aria-hidden="true" />
+                    <div><strong>No monitored accounts</strong><p>Accounts will appear here only after the versioned monitoring API returns real registry data.</p></div>
+                  </div>
+                </section>
+
+                <section className="telemetry-panel capacity-panel" role="region" aria-labelledby="capacity-title">
+                  <div className="panel-heading"><div><p className="panel-code">CAPACITY / 02</p><h2 id="capacity-title">Capacity</h2></div><span className="state-chip state-unavailable">No signal</span></div>
+                  <dl className="telemetry-readouts">
+                    <div><dt>Subscription quota</dt><dd>Unavailable</dd></div>
+                    <div><dt>API budget</dt><dd>Unavailable</dd></div>
+                    <div><dt>Next reset</dt><dd>Unknown</dd></div>
+                  </dl>
+                </section>
+
+                <section className="telemetry-panel runtime-panel" role="region" aria-labelledby="runtime-title">
+                  <div className="panel-heading"><div><p className="panel-code">RUNTIME / 03</p><h2 id="runtime-title">Agent runtime</h2></div><span className="state-chip state-unavailable">Unobserved</span></div>
+                  <p className="empty-copy">No process or session observation has been returned by the service.</p>
+                </section>
+
+                <section className="telemetry-panel alerts-panel" role="region" aria-labelledby="alerts-title">
+                  <div className="panel-heading"><div><p className="panel-code">ALERTS / 04</p><h2 id="alerts-title">Alerts</h2></div><span className="state-chip state-warning">1 notice</span></div>
+                  <div className="notice-row"><span aria-hidden="true">!</span><div><strong>Monitoring data unavailable</strong><p>Authentication is working; provider collection is not connected to this view yet.</p></div></div>
+                </section>
+
+                <section className="telemetry-panel activity-panel" role="region" aria-labelledby="activity-title">
+                  <div className="panel-heading"><div><p className="panel-code">EVENTS / 05</p><h2 id="activity-title">Recent activity</h2></div><span className="state-chip state-unavailable">No data</span></div>
+                  <p className="empty-copy">No provider collection activity has been recorded.</p>
+                </section>
+              </div>
+
+              <section className="account-security" aria-labelledby="security-title">
+                <div><p className="panel-code">LOCAL CONTROL</p><h2 id="security-title">Dashboard security</h2></div>
+                <button type="button" className="quiet-button" onClick={() => setShowPasswordForm((visible) => !visible)}>Change password</button>
+              </section>
+            </div>
           )}
           {route === "/" && showPasswordForm && (
             <PasswordChangePanel

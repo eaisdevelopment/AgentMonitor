@@ -32,6 +32,18 @@ try {
   await page.getByRole("button", { name: "Sign in" }).click();
   stage = "authenticated_shell";
   await page.getByRole("heading", { name: "AgentMonitor" }).waitFor();
+  stage = "monitoring_dashboard";
+  for (const region of ["Fleet status", "Capacity", "Agent runtime", "Alerts", "Recent activity"]) {
+    await page.getByRole("region", { name: region }).waitFor();
+  }
+  requireTruth(
+    await page.locator('[data-monitoring-state="unavailable"]').count() >= 1,
+    "monitoring_unavailable_state_missing",
+  );
+  requireTruth(
+    await page.getByText("Provider telemetry is not connected yet.").count() === 1,
+    "monitoring_state_not_truthful",
+  );
   const sessionCookie = (await context.cookies(origin)).find((item) => item.name === "agentmonitor_session");
   requireTruth(sessionCookie?.httpOnly === true, "session_cookie_not_httponly");
   const storageEmpty = await page.evaluate(() => localStorage.length === 0 && sessionStorage.length === 0);
