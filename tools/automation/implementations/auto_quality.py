@@ -211,6 +211,7 @@ def main() -> int:
             "backend/pyproject.toml",
             "backend/src",
             "backend/tests",
+            "tooling/provider_system",
             "tools/automation/implementations",
         ],
         [
@@ -221,6 +222,7 @@ def main() -> int:
             "backend/pyproject.toml",
             "backend/src",
             "backend/tests",
+            "tooling/provider_system",
             "tools/automation/implementations",
         ],
         [
@@ -230,8 +232,14 @@ def main() -> int:
             "--explicit-package-bases",
             "backend/src/agentmonitor",
             "backend/tests",
+            "tooling/provider_system/manifest_schema.py",
         ],
         ["python3", "tooling/foundation/check_boundaries.py", "."],
+        [
+            str(BACKEND_PYTHON),
+            "tooling/provider_system/manifest_schema.py",
+            "--check",
+        ],
         [str(BACKEND_PYTHON), "tooling/foundation/openapi_client.py", "--check"],
         ["npm", "--prefix", "frontend", "run", "typecheck"],
         [str(tools["uv"]), "lock", "--check", "--directory", "backend"],
