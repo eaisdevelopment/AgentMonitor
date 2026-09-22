@@ -19,6 +19,32 @@ import m0_g1_records
 
 
 class M0G1ApprovalTests(unittest.TestCase):
+    def test_owner_accepted_synced_selection_is_truthful_and_valid(self) -> None:
+        confirmation = (
+            "I CONFIRM THIS ROOT REMAINS SYNCED AND I ACCEPT THE CUSTODY RISK"
+        )
+        self.assertEqual(
+            "owner_accepted_synced",
+            m0_g1_custody.disposition_for_confirmation(confirmation),
+        )
+        selection = {
+            "schema_version": "1.1",
+            "external_root_ref": "REF-M0-CUSTODY-001",
+            "external_root": "/not-a-real-root-for-pure-policy",
+            "owner_selected": True,
+            "sync_backup_disposition": "owner_accepted_synced",
+            "sync_backup_owner_attested": True,
+            "sync_backup_attested_at_utc": "2026-09-22T12:00:00Z",
+            "retention_until_utc": "2027-09-22T12:00:00Z",
+        }
+        self.assertEqual(
+            [],
+            m0_g1_exit.review_selection_violations(
+                selection,
+                as_of=datetime(2026, 9, 22, 12, 1, tzinfo=timezone.utc),
+            ),
+        )
+
     def test_sync_backup_confirmation_policy_matches_approved_dispositions(self) -> None:
         self.assertEqual(
             "excluded",

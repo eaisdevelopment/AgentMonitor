@@ -17,6 +17,9 @@ SYNC_EXCLUSION_CONFIRMATION = "I CONFIRM THIS ROOT IS EXCLUDED FROM SYNC AND BAC
 SYNC_ENCRYPTED_CONFIRMATION = (
     "I CONFIRM ENCRYPTED SYNC AND BACKUP FOR THIS ROOT AND ACCEPT THE RISK"
 )
+SYNC_ACCEPTED_CONFIRMATION = (
+    "I CONFIRM THIS ROOT REMAINS SYNCED AND I ACCEPT THE CUSTODY RISK"
+)
 
 
 def disposition_for_confirmation(confirmation: str) -> str | None:
@@ -25,6 +28,7 @@ def disposition_for_confirmation(confirmation: str) -> str | None:
     return {
         SYNC_EXCLUSION_CONFIRMATION: "excluded",
         SYNC_ENCRYPTED_CONFIRMATION: "owner_accepted_encrypted",
+        SYNC_ACCEPTED_CONFIRMATION: "owner_accepted_synced",
     }.get(confirmation)
 
 
@@ -114,6 +118,7 @@ def main() -> int:
     print("Choose one truthful sync/backup statement:")
     print(f'- excluded: "{SYNC_EXCLUSION_CONFIRMATION}"')
     print(f'- encrypted and owner-accepted: "{SYNC_ENCRYPTED_CONFIRMATION}"')
+    print(f'- synced and owner-accepted: "{SYNC_ACCEPTED_CONFIRMATION}"')
     confirmation = input("Type the exact statement: ")
     violations = write_selection(
         selection_path=(repository_root / ".agentmonitor-local/m0-g1-custody.toml"),

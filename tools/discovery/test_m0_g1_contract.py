@@ -114,6 +114,11 @@ class MinimalM0G1ContractTests(unittest.TestCase):
             }
             <= set(definitions["CustodyDecisionV1"]["properties"])
         )
+        self.assertIn(
+            "owner_accepted_synced",
+            definitions["CustodyDecisionV1"]["properties"]
+            ["sync_backup_disposition"]["enum"],
+        )
         operation = definitions["OperationPacketV1"]["properties"]
         self.assertTrue(
             {

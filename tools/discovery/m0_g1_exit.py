@@ -248,6 +248,7 @@ def review_selection_violations(selection: object, *, as_of: datetime) -> list[s
     if selection.get("sync_backup_disposition") not in (
         "excluded",
         "owner_accepted_encrypted",
+        "owner_accepted_synced",
     ):
         violations.append("owner custody sync/backup disposition is invalid")
     if selection.get("sync_backup_owner_attested") is not True:

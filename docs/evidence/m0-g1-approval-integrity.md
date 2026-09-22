@@ -71,42 +71,42 @@ documented separately as an open safety finding. The corrected review mode
 loads only local selection. After requiring attested local-selection version
 `1.1`, the old owner selection is deliberately **Blocked** until renewed.
 
-The owner has since confirmed that the previously selected evidence folder is
-**not yet excluded from sync/backup**. The old local `excluded` value is not
-factual custody evidence and must not be carried forward, attested, or used for
-G1. The folder remains untouched. The approved M0 plan requires an explicit
-owner decision, not mandatory exclusion: `CustodyDecisionV1` permits either
-`excluded` or `owner_accepted_encrypted`, with `blocked` when neither is
-truthful. The tooling now accepts either permitted choice through its own exact
-owner statement. This corrects the implementation's unjustified exclusion-only
-restriction; it does not assert that the selected folder's sync or backup is
-encrypted. No external-root access or provider operation is authorized by this
-correction.
+The owner confirmed that the selected evidence folder remains Nextcloud-synced
+and explicitly accepted that custody choice. `CustodyDecisionV1` and the local
+selection policy now permit `owner_accepted_synced` without asserting
+encryption. The renewed `1.1` selection retains the one-year deadline,
+owner-only local file, and real owner/0700 root checks. No provider operation is
+authorized by this correction.
 
-The two added pure policy tests first failed (exit 1): the confirmation mapper
+The earlier encrypted-option policy tests first failed (exit 1): the confirmation mapper
 was absent, and the validator rejected `owner_accepted_encrypted`. After the
 minimal correction, the focused 19-test G1 approval/exit suite passed (exit 0).
 The full tool suite passed 100 tests; `AUTO-M0-G1-CONTRACT`,
-`AUTO-DOCS-CHECK`, and local `AUTO-QUALITY` also passed. The actual owner
-custody choice and `AUTO-M0-G1-EXIT` remain **Blocked (exit 3)**; its output
+`AUTO-DOCS-CHECK`, and local `AUTO-QUALITY` also passed. At that stage, the
+actual owner custody choice and `AUTO-M0-G1-EXIT` remained **Blocked (exit 3)**; its output
 reported `external custody evidence: NOT ACCESSED`. Local
-selection format `1.1` is unchanged; the old unverified `1.0` record still
-requires a new truthful owner attestation. No public API or G1 JSON Schema
-change was needed.
+selection format `1.1` was unchanged; the old unverified `1.0` record still
+required a new truthful owner attestation.
 
-No dependency, license, provider-state, or public API change. The local custody
-selection format changed from `1.0` to `1.1`; migration is an explicit owner
-re-attestation, not an automatic conversion. The local reviewer-file interface
-is G1 tooling only. Follow-up: independent custody role handoffs, owner custody
-confirmation and incident acknowledgement, exact G1 approval, real exit, and
-post-approval full-suite run.
+On 2026-09-22, the synced-disposition policy test first failed with
+`'owner_accepted_synced' != None`; the schema control test first failed because
+the enum omitted that value. The focused two-test Green and the 27-test G1
+approval/contract/exit suite passed. `AUTO-M0-G1-EXIT` now verifies the local
+selection and fails with exit 2 only because the prior exact-bundle approvals
+do not cover the changed bundle. Current bundle digest:
+`de59c340dcfe4ca603799af7cab09d1b096b3b4f934f3d04a67c69ca2f322bf9`.
 
-## Current exact-subject role reviews
+No dependency, license, provider-state, or public API change. Follow-up:
+refresh detached exact-bundle approvals, resolve the incident disposition, run
+the real G1 finalization, and rerun the canonical gate.
+
+## Prior exact-subject role reviews
 
 Repository-only bundle digest `8e4e1e1791248de45b61e104526f7f555dfb5591075946fcfb0bcdcd7129a92c`
 and scanner digest `f0903eb396258020333005b21d7e20836b03525ee58292836f53128cbc65a66e`
-were independently checked on 2026-09-22. These are scoped reviewer handoffs,
-not a completed owner approval record or a passing G1 exit.
+were independently checked on 2026-09-22. The bundle digest is superseded by
+the synced-disposition correction; these records cannot approve the current
+bundle. The scanner digest remains current.
 
 | Role/ref | Bundle | Scanner | Boundary |
 |---|---|---|---|

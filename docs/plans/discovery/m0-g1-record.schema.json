@@ -78,6 +78,7 @@
           "enum": [
             "excluded",
             "owner_accepted_encrypted",
+            "owner_accepted_synced",
             "blocked"
           ]
         },

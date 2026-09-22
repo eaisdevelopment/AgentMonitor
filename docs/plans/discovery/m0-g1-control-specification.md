@@ -66,6 +66,11 @@ The completed custody decision remains outside Git and must state:
 - retention deadline;
 - approval over the exact decision.
 
+The disposition records the owner's factual custody choice. It may be
+`excluded`, `owner_accepted_encrypted`, or `owner_accepted_synced`; it is
+`blocked` when none is truthfully owner-attested. Encryption is not inferred
+from a synced location.
+
 Real identities, paths, aliases, provider values, and unsanitized evidence stay
 in the external root. Credentials, prompts, responses, source/tool content,
 arbitrary environment values, OTP/MFA values, and raw secret-bearing files are
