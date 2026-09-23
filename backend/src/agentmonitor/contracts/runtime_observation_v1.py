@@ -7,6 +7,8 @@ deliberately absent.
 
 from __future__ import annotations
 
+import hashlib
+import json
 import re
 from dataclasses import dataclass
 from datetime import datetime, timedelta
@@ -283,6 +285,7 @@ class ProcessSnapshotInputV1(TechnicalValueV1):
     adapter_version: str
     clock_ticks_per_second: int
     page_size_bytes: int
+    executable_identity: str | None = None
     presence: PresenceStateV1 = "running"
 
     def __post_init__(self) -> None:
@@ -301,7 +304,15 @@ class ProcessSnapshotInputV1(TechnicalValueV1):
             raise InvalidRuntimeObservationV1("runtime_process_snapshot_invalid")
         if self.installation_id is not None and not _token(self.installation_id):
             raise InvalidRuntimeObservationV1("runtime_process_snapshot_invalid")
-        if self.provider_key is None and self.installation_id is not None:
+        if (
+            self.executable_identity is not None
+            and _SHA256.fullmatch(self.executable_identity) is None
+        ):
+            raise InvalidRuntimeObservationV1("runtime_executable_identity_invalid")
+        if (self.provider_key is None and self.installation_id is not None) or (
+            (self.provider_key is not None or self.installation_id is not None)
+            and self.executable_identity is None
+        ):
             raise InvalidRuntimeObservationV1("runtime_process_attribution_invalid")
         if not _utc(self.observed_at):
             raise InvalidRuntimeObservationV1("runtime_process_timestamp_invalid")
@@ -826,6 +837,158 @@ class RuntimeObservationBatchV1(TechnicalValueV1):
                 "runtime_observation_identifier_duplicate"
             )
 
+    def canonical_digest(self) -> str:
+        """Hash every closed batch field with stable V1 canonicalization."""
+        document = {
+            "completeness": self.completeness,
+            "omission_codes": list(self.omission_codes),
+            "process_snapshots": [
+                {
+                    "observation_id": item.observation_id,
+                    "identity": {
+                        "platform_source": item.identity.platform_source,
+                        "platform_scope_id": item.identity.platform_scope_id,
+                        "pid": item.identity.pid,
+                        "start_time_ticks": item.identity.start_time_ticks,
+                    },
+                    "provider_key": item.provider_key,
+                    "installation_id": item.installation_id,
+                    "executable_identity": item.executable_identity,
+                    "executable_label": [
+                        item.executable_label.state,
+                        item.executable_label.value,
+                        item.executable_label.reason_code,
+                    ],
+                    "parent_pid": [
+                        item.parent_pid.state,
+                        item.parent_pid.value,
+                        item.parent_pid.unit,
+                        item.parent_pid.reason_code,
+                    ],
+                    "user_cpu_ticks": [
+                        item.user_cpu_ticks.state,
+                        item.user_cpu_ticks.value,
+                        item.user_cpu_ticks.unit,
+                        item.user_cpu_ticks.reason_code,
+                    ],
+                    "system_cpu_ticks": [
+                        item.system_cpu_ticks.state,
+                        item.system_cpu_ticks.value,
+                        item.system_cpu_ticks.unit,
+                        item.system_cpu_ticks.reason_code,
+                    ],
+                    "resident_pages": [
+                        item.resident_pages.state,
+                        item.resident_pages.value,
+                        item.resident_pages.unit,
+                        item.resident_pages.reason_code,
+                    ],
+                    "thread_count": [
+                        item.thread_count.state,
+                        item.thread_count.value,
+                        item.thread_count.unit,
+                        item.thread_count.reason_code,
+                    ],
+                    "kernel_state": [
+                        item.kernel_state.state,
+                        item.kernel_state.value,
+                        item.kernel_state.reason_code,
+                    ],
+                    "observed_at": item.observed_at.isoformat(),
+                    "source_id": item.source_id,
+                    "source_version": item.source_version,
+                    "adapter_version": item.adapter_version,
+                    "clock_ticks_per_second": item.clock_ticks_per_second,
+                    "page_size_bytes": item.page_size_bytes,
+                    "presence": item.presence,
+                }
+                for item in self.process_snapshots
+            ],
+            "session_observations": [
+                {
+                    "observation_id": item.observation_id,
+                    "identity": [
+                        item.session_identity.provider_key,
+                        item.session_identity.installation_id,
+                        item.session_identity.identity_kind,
+                        item.session_identity.identity_value,
+                    ],
+                    "observed_at": item.observed_at.isoformat(),
+                    "source_id": item.source_id,
+                    "source_version": item.source_version,
+                    "parser_version": item.parser_version,
+                    "provider_version": item.provider_version,
+                    "activity_state": item.activity_state,
+                    "activity_code": item.activity_code,
+                    "activity_reason_code": item.activity_reason_code,
+                }
+                for item in self.session_observations
+            ],
+            "metric_observations": [
+                {
+                    "metric_id": item.metric_id,
+                    "session_identity": [
+                        item.session_identity.provider_key,
+                        item.session_identity.installation_id,
+                        item.session_identity.identity_kind,
+                        item.session_identity.identity_value,
+                    ],
+                    "process_identity": (
+                        [
+                            item.process_identity.platform_source,
+                            item.process_identity.platform_scope_id,
+                            item.process_identity.pid,
+                            item.process_identity.start_time_ticks,
+                        ]
+                        if item.process_identity is not None
+                        else None
+                    ),
+                    "metric_kind": item.metric_kind,
+                    "coefficient": item.coefficient,
+                    "scale": item.scale,
+                    "unit": item.unit,
+                    "scope": item.scope,
+                    "semantics": item.semantics,
+                    "overlap_class": item.overlap_class,
+                    "interval_start": item.interval_start.isoformat()
+                    if item.interval_start is not None
+                    else None,
+                    "interval_end": item.interval_end.isoformat()
+                    if item.interval_end is not None
+                    else None,
+                    "observed_at": item.observed_at.isoformat(),
+                    "source_id": item.source_id,
+                    "source_version": item.source_version,
+                    "parser_version": item.parser_version,
+                    "provider_version": item.provider_version,
+                }
+                for item in self.metric_observations
+            ],
+            "correlation_evidence": [
+                {
+                    "evidence_id": item.evidence_id,
+                    "identity": [
+                        item.session_identity.provider_key,
+                        item.session_identity.installation_id,
+                        item.session_identity.identity_kind,
+                        item.session_identity.identity_value,
+                    ],
+                    "evidence_class": item.evidence_class,
+                    "rule_id": item.rule_id,
+                    "account_id": item.account_id,
+                    "observed_at": item.observed_at.isoformat(),
+                    "source_id": item.source_id,
+                    "source_version": item.source_version,
+                    "reason_code": item.reason_code,
+                }
+                for item in self.correlation_evidence
+            ],
+        }
+        canonical = json.dumps(
+            document, ensure_ascii=True, separators=(",", ":"), sort_keys=True
+        )
+        return hashlib.sha256(canonical.encode()).hexdigest()
+
 
 class RuntimeCommitRequestV1(CollectionOutcomeCommitV1[RuntimeObservationBatchV1]):
     CONTRACT_ID: ClassVar[str] = "CTR-RUN-002"
@@ -852,6 +1015,14 @@ class AgentProcessRecordV1(TechnicalValueV1):
     provider_key: str | None
     installation_id: str | None
     executable_label: ProcessLabelFieldV1
+    parent_pid: ProcessMetricFieldV1
+    user_cpu_ticks: ProcessMetricFieldV1
+    system_cpu_ticks: ProcessMetricFieldV1
+    resident_pages: ProcessMetricFieldV1
+    thread_count: ProcessMetricFieldV1
+    kernel_state: ProcessCodeFieldV1
+    clock_ticks_per_second: int
+    page_size_bytes: int
     provenance: ObservationProvenanceV1
     first_observed_at: datetime
     last_observed_at: datetime
@@ -865,6 +1036,16 @@ class AgentProcessRecordV1(TechnicalValueV1):
             (self.provider_key is not None and not _token(self.provider_key))
             or (self.installation_id is not None and not _token(self.installation_id))
             or (self.provider_key is None and self.installation_id is not None)
+            or not isinstance(self.parent_pid, ProcessMetricFieldV1)
+            or not isinstance(self.user_cpu_ticks, ProcessMetricFieldV1)
+            or not isinstance(self.system_cpu_ticks, ProcessMetricFieldV1)
+            or not isinstance(self.resident_pages, ProcessMetricFieldV1)
+            or not isinstance(self.thread_count, ProcessMetricFieldV1)
+            or not isinstance(self.kernel_state, ProcessCodeFieldV1)
+            or type(self.clock_ticks_per_second) is not int
+            or self.clock_ticks_per_second <= 0
+            or type(self.page_size_bytes) is not int
+            or self.page_size_bytes <= 0
             or not isinstance(self.provenance, ObservationProvenanceV1)
             or not _utc(self.first_observed_at)
             or not _utc(self.last_observed_at)

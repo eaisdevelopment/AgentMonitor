@@ -110,6 +110,7 @@ IAM_OPERATIONS = {
     ("/api/v1/accounts/{account_id}/capacity", "get"): "capacity_get_account_v1",
     ("/api/v1/accounts/{account_id}/quotas", "get"): "capacity_list_quota_windows_v1",
     ("/api/v1/processes", "get"): "runtime_list_processes_v1",
+    ("/api/v1/process-metrics", "get"): "runtime_list_process_metrics_v1",
     ("/api/v1/sessions", "get"): "runtime_list_sessions_v1",
     ("/api/v1/sessions/{session_id}", "get"): "runtime_get_session_v1",
 }
@@ -334,6 +335,11 @@ IAM_POLICY: dict[str, IamPolicyRow] = {
         _COOKIE_BEARER, "200", "AgentProcessPageV1", "SafeProblemV1",
         _M2_REQUIRED_ERROR_STATUSES, None,
     ),
+    "runtime_list_process_metrics_v1": (
+        "cookie_or_bearer", "read:telemetry", "ListAgentProcessesV1", "safe_query_repeat",
+        _COOKIE_BEARER, "200", "AgentProcessMetricPageV1", "SafeProblemV1",
+        _M2_REQUIRED_ERROR_STATUSES, None,
+    ),
     "runtime_list_sessions_v1": (
         "cookie_or_bearer", "read:telemetry", "ListAgentSessionsV1", "safe_query_repeat",
         _COOKIE_BEARER, "200", "AgentSessionPageV1", "SafeProblemV1",
@@ -532,7 +538,7 @@ def validate_iam_openapi(document: object) -> tuple[str, ...]:
     if (
         actual != IAM_OPERATIONS
         or set(IAM_POLICY) != set(IAM_OPERATIONS.values())
-        or len(identifiers) != 22
+        or len(identifiers) != 23
     ):
         raise OpenApiGenerationError("operation_surface_invalid")
 

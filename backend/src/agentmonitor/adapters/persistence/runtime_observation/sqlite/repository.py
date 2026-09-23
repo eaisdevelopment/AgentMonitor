@@ -23,9 +23,12 @@ from agentmonitor.contracts.runtime_observation_v1 import (
     AgentProcessRecordV1,
     AgentSessionRecordV1,
     CorrelationEvidenceInputV1,
+    PresenceStateV1,
+    ProcessCodeFieldV1,
     ProcessHistoryEntryV1,
     ProcessIdentityV1,
     ProcessLabelFieldV1,
+    ProcessMetricFieldV1,
     RuntimeCommitReceiptV1,
     RuntimeCommitRequestV1,
     RuntimeCommitStatusV1,
@@ -144,6 +147,59 @@ def _session_identifier(identity: SessionIdentityV1) -> str:
     )
 
 
+def _reconcile_process_attribution(
+    *,
+    existing_executable_identity: str | None,
+    existing_provider_key: str | None,
+    existing_installation_id: str | None,
+    observed_executable_identity: str | None,
+    observed_provider_key: str | None,
+    observed_installation_id: str | None,
+) -> tuple[str | None, str | None, str | None]:
+    """Enrich an identity monotonically and reject contradictory evidence."""
+
+    def valid_fingerprint(value: str | None) -> bool:
+        return value is None or (
+            len(value) == 64
+            and all(character in "0123456789abcdef" for character in value)
+        )
+
+    if not valid_fingerprint(existing_executable_identity) or not valid_fingerprint(
+        observed_executable_identity
+    ):
+        raise RuntimeRepositoryErrorV1("runtime_process_identity_conflict")
+    for existing, observed in (
+        (existing_executable_identity, observed_executable_identity),
+        (existing_provider_key, observed_provider_key),
+        (existing_installation_id, observed_installation_id),
+    ):
+        if existing is not None and observed is not None and existing != observed:
+            raise RuntimeRepositoryErrorV1("runtime_process_identity_conflict")
+
+    executable_identity = existing_executable_identity or observed_executable_identity
+    provider_key = existing_provider_key or observed_provider_key
+    installation_id = existing_installation_id or observed_installation_id
+    if (installation_id is not None and provider_key is None) or (
+        (provider_key is not None or installation_id is not None)
+        and executable_identity is None
+    ):
+        raise RuntimeRepositoryErrorV1("runtime_process_identity_conflict")
+    return executable_identity, provider_key, installation_id
+
+
+def _may_promote_process_snapshot(
+    *,
+    current_observed_at: str,
+    current_provider_key: str | None,
+    observed_at: str,
+    observed_provider_key: str | None,
+) -> bool:
+    """Keep the current projection chronological without losing stronger identity."""
+    if observed_at < current_observed_at:
+        return False
+    return not (current_provider_key is not None and observed_provider_key is None)
+
+
 def _utc_text(value: datetime) -> str:
     if value.utcoffset() != timedelta(0):
         raise RuntimeRepositoryErrorV1("runtime_timestamp_invalid")
@@ -216,6 +272,30 @@ def _optional_utc(value: object) -> datetime | None:
     return None if value is None else _utc_value(str(value))
 
 
+def _presence(value: object) -> PresenceStateV1:
+    if value == "running":
+        return "running"
+    if value == "exited":
+        return "exited"
+    if value == "unknown":
+        return "unknown"
+    raise RuntimeRepositoryErrorV1("runtime_process_presence_invalid")
+
+
+def _process_metric(
+    row: RowMapping, prefix: str, value_column: str
+) -> ProcessMetricFieldV1:
+    value = row[value_column]
+    unit = row[f"{prefix}_unit"]
+    reason_code = row[f"{prefix}_reason_code"]
+    return ProcessMetricFieldV1(
+        state=row[f"{prefix}_state"],
+        value=int(value) if value is not None else None,
+        unit=str(unit) if unit is not None else None,
+        reason_code=str(reason_code) if reason_code is not None else None,
+    )
+
+
 def _provenance(row: RowMapping) -> ObservationProvenanceV1:
     fallback_lineage = _safe_fallbacks(row["provenance_fallback_lineage_json"])
     raw_fallbacks = json.loads(str(row["provenance_fallback_lineage_json"]))
@@ -276,6 +356,62 @@ def _provenance(row: RowMapping) -> ObservationProvenanceV1:
     )
 
 
+def _receipt_provenance_matches(
+    row: RowMapping, provenance: ObservationProvenanceV1
+) -> bool:
+    """Compare replay lineage using the exact canonical SQLite representation."""
+    expected: dict[str, object] = {
+        "provider_key": provenance.provider_key,
+        "capability_id": provenance.capability_id,
+        "capability_schema_version": provenance.capability_schema_version,
+        "adapter_id": provenance.adapter_id,
+        "adapter_version": provenance.adapter_version,
+        "provider_protocol_version": provenance.provider_protocol_version,
+        "source_id": provenance.source_id,
+        "source_class": provenance.source_class,
+        "mechanism_version": provenance.mechanism_version,
+        "parser_version": provenance.parser_version,
+        "provider_version": provenance.provider_version,
+        "provider_version_availability": provenance.provider_version_availability.state,
+        "observed_at": (
+            _utc_text(provenance.observed_at)
+            if provenance.observed_at is not None
+            else None
+        ),
+        "observed_at_availability": provenance.observed_at_availability.state,
+        "collected_at": _utc_text(provenance.collected_at),
+        "freshness_deadline": (
+            _utc_text(provenance.freshness_deadline)
+            if provenance.freshness_deadline is not None
+            else None
+        ),
+        "freshness_availability": provenance.freshness_availability.state,
+        "freshness_policy_id": provenance.freshness_policy_id,
+        "precision": provenance.precision,
+        "confidence": provenance.confidence,
+        "confidence_reason_code": provenance.confidence_reason_code,
+        "value_kind": provenance.value_kind,
+        "is_experimental": int(provenance.is_experimental),
+        "operation_id": provenance.operation_id.value,
+        "correlation_id": provenance.correlation_id.value,
+        "decision_reference": provenance.decision_reference,
+        "derivation_method": provenance.derivation_method,
+        "fallback_lineage_json": json.dumps(
+            [
+                [item.source_id, item.failure_code]
+                for item in provenance.fallback_lineage
+            ],
+            separators=(",", ":"),
+        ),
+        "warnings_json": json.dumps(provenance.warnings, separators=(",", ":")),
+        "input_observation_ids_json": json.dumps(
+            [item.value for item in provenance.input_observation_ids],
+            separators=(",", ":"),
+        ),
+    }
+    return all(row[name] == value for name, value in expected.items())
+
+
 def _receipt(row: RowMapping) -> RuntimeCommitReceiptV1:
     return RuntimeCommitReceiptV1(
         run_id=OpaqueIdV1(str(row["collection_run_id"])),
@@ -311,6 +447,7 @@ class SqliteRuntimeObservationRepositoryV1:
 
     CONSUMER_KEY = "runtime_observation"
     CONSUMER_VERSION = "1.0.0"
+    PAYLOAD_SCHEMA = "runtime-observation-batch.v1"
 
     def __init__(
         self,
@@ -360,6 +497,17 @@ class SqliteRuntimeObservationRepositoryV1:
 
     def commit(self, request: RuntimeCommitRequestV1) -> RuntimeCommitReceiptV1:
         """Persist one typed batch without invoking a provider or platform."""
+        if request.payload_schema != self.PAYLOAD_SCHEMA:
+            raise RuntimeRepositoryErrorV1("runtime_input_schema_incompatible")
+        if request.payload.canonical_digest() != request.payload_digest:
+            raise RuntimeRepositoryErrorV1("runtime_payload_digest_mismatch")
+        expected_terminal_state = (
+            "partial"
+            if request.payload.completeness == "partial_scope"
+            else "succeeded"
+        )
+        if request.terminal_state != expected_terminal_state:
+            raise RuntimeRepositoryErrorV1("runtime_terminal_state_mismatch")
         try:
             with open_sqlite_database(
                 self._database_ref, "runtime_read_write"
@@ -380,6 +528,9 @@ class SqliteRuntimeObservationRepositoryV1:
                             != request.target_generation
                             or str(existing["payload_schema"]) != request.payload_schema
                             or str(existing["payload_digest"]) != request.payload_digest
+                            or not _receipt_provenance_matches(
+                                existing, request.provenance
+                            )
                         ):
                             connection.rollback()
                             raise RuntimeRepositoryErrorV1("runtime_commit_conflict")
@@ -454,7 +605,9 @@ class SqliteRuntimeObservationRepositoryV1:
             observed_text = _utc_text(item.observed_at)
             current = (
                 connection.exec_driver_sql(
-                    "SELECT last_observed_at, record_version FROM runtime_process_instance WHERE process_id=?",
+                    "SELECT last_observed_at, presence_state, current_snapshot_id, "
+                    "record_version, executable_identity, provider_key, installation_id "
+                    "FROM runtime_process_instance WHERE process_id=?",
                     (process_id,),
                 )
                 .mappings()
@@ -463,13 +616,14 @@ class SqliteRuntimeObservationRepositoryV1:
             snapshot_id = item.observation_id
             if current is None:
                 connection.exec_driver_sql(
-                    "INSERT INTO runtime_process_instance (process_id, platform_source, platform_scope_id, pid, start_time_ticks, executable_identity, executable_label, provider_key, installation_id, first_observed_at, last_observed_at, presence_state, current_snapshot_id, record_version) VALUES (?, ?, ?, ?, ?, NULL, ?, ?, ?, ?, ?, ?, ?, 1)",
+                    "INSERT INTO runtime_process_instance (process_id, platform_source, platform_scope_id, pid, start_time_ticks, executable_identity, executable_label, provider_key, installation_id, first_observed_at, last_observed_at, presence_state, current_snapshot_id, record_version) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)",
                     (
                         process_id,
                         item.identity.platform_source,
                         item.identity.platform_scope_id,
                         item.identity.pid,
                         item.identity.start_time_ticks,
+                        item.executable_identity,
                         item.executable_label.value,
                         item.provider_key,
                         item.installation_id,
@@ -482,11 +636,52 @@ class SqliteRuntimeObservationRepositoryV1:
                 version = 1
             else:
                 version = int(current["record_version"])
-                if observed_text >= str(current["last_observed_at"]):
+                existing_executable_identity = (
+                    str(current["executable_identity"])
+                    if current["executable_identity"] is not None
+                    else None
+                )
+                existing_provider_key = (
+                    str(current["provider_key"])
+                    if current["provider_key"] is not None
+                    else None
+                )
+                existing_installation_id = (
+                    str(current["installation_id"])
+                    if current["installation_id"] is not None
+                    else None
+                )
+                (
+                    executable_identity,
+                    provider_key,
+                    installation_id,
+                ) = _reconcile_process_attribution(
+                    existing_executable_identity=existing_executable_identity,
+                    existing_provider_key=existing_provider_key,
+                    existing_installation_id=existing_installation_id,
+                    observed_executable_identity=item.executable_identity,
+                    observed_provider_key=item.provider_key,
+                    observed_installation_id=item.installation_id,
+                )
+                promotes_snapshot = current["current_snapshot_id"] is None or (
+                    _may_promote_process_snapshot(
+                        current_observed_at=str(current["last_observed_at"]),
+                        current_provider_key=existing_provider_key,
+                        observed_at=observed_text,
+                        observed_provider_key=item.provider_key,
+                    )
+                )
+                if promotes_snapshot:
                     version += 1
                     connection.exec_driver_sql(
-                        "UPDATE runtime_process_instance SET last_observed_at=?, presence_state=?, current_snapshot_id=?, record_version=? WHERE process_id=?",
+                        "UPDATE runtime_process_instance SET executable_identity=?, "
+                        "provider_key=?, installation_id=?, last_observed_at=?, "
+                        "presence_state=?, current_snapshot_id=?, record_version=? "
+                        "WHERE process_id=?",
                         (
+                            executable_identity,
+                            provider_key,
+                            installation_id,
                             observed_text,
                             item.presence,
                             snapshot_id,
@@ -849,7 +1044,18 @@ class SqliteRuntimeObservationRepositoryV1:
                 with handle.connect() as connection:
                     rows = (
                         connection.exec_driver_sql(
-                            "SELECT p.*, "
+                            "SELECT p.*, s.parent_pid_state, s.parent_pid, "
+                            "s.parent_pid_unit, s.parent_pid_reason_code, "
+                            "s.user_cpu_state, s.user_cpu_ticks, s.user_cpu_unit, "
+                            "s.user_cpu_reason_code, s.system_cpu_state, "
+                            "s.system_cpu_ticks, s.system_cpu_unit, "
+                            "s.system_cpu_reason_code, s.resident_state, "
+                            "s.resident_pages, s.resident_unit, "
+                            "s.resident_reason_code, s.thread_state, "
+                            "s.thread_count, s.thread_unit, s.thread_reason_code, "
+                            "s.kernel_state_state, s.kernel_state, "
+                            "s.kernel_state_reason_code, s.clock_ticks_per_second, "
+                            "s.page_size_bytes, "
                             + _PROVENANCE_SELECT
                             + " FROM runtime_process_instance AS p "
                             "JOIN runtime_process_snapshot AS s "
@@ -875,14 +1081,24 @@ class SqliteRuntimeObservationRepositoryV1:
                         .mappings()
                         .all()
                     )
-            return tuple(self._process_record(row) for row in rows)
+            return tuple(self._process_record(row, as_of) for row in rows)
         except RuntimeRepositoryErrorV1:
             raise
         except (SqlitePolicyError, SQLAlchemyError, ValueError, TypeError):
             raise RuntimeRepositoryErrorV1() from None
 
     @staticmethod
-    def _process_record(row: RowMapping) -> AgentProcessRecordV1:
+    def _process_record(row: RowMapping, as_of: datetime) -> AgentProcessRecordV1:
+        provenance = _provenance(row)
+        stored_presence = _presence(row["presence_state"])
+        freshness_deadline = provenance.freshness_deadline
+        presence = stored_presence
+        if stored_presence == "running" and (
+            provenance.freshness_availability.state != "available"
+            or freshness_deadline is None
+            or freshness_deadline < as_of
+        ):
+            presence = "unknown"
         return AgentProcessRecordV1(
             process_id=OpaqueIdV1(str(row["process_id"])),
             identity=ProcessIdentityV1(
@@ -912,10 +1128,30 @@ class SqliteRuntimeObservationRepositoryV1:
                     reason_code="executable_label_not_found",
                 )
             ),
-            provenance=_provenance(row),
+            parent_pid=_process_metric(row, "parent_pid", "parent_pid"),
+            user_cpu_ticks=_process_metric(row, "user_cpu", "user_cpu_ticks"),
+            system_cpu_ticks=_process_metric(row, "system_cpu", "system_cpu_ticks"),
+            resident_pages=_process_metric(row, "resident", "resident_pages"),
+            thread_count=_process_metric(row, "thread", "thread_count"),
+            kernel_state=ProcessCodeFieldV1(
+                state=row["kernel_state_state"],
+                value=(
+                    str(row["kernel_state"])
+                    if row["kernel_state"] is not None
+                    else None
+                ),
+                reason_code=(
+                    str(row["kernel_state_reason_code"])
+                    if row["kernel_state_reason_code"] is not None
+                    else None
+                ),
+            ),
+            clock_ticks_per_second=int(row["clock_ticks_per_second"]),
+            page_size_bytes=int(row["page_size_bytes"]),
+            provenance=provenance,
             first_observed_at=_utc_value(str(row["first_observed_at"])),
             last_observed_at=_utc_value(str(row["last_observed_at"])),
-            presence=row["presence_state"],
+            presence=presence,
             current_snapshot_id=OpaqueIdV1(str(row["current_snapshot_id"])),
             revision=int(row["record_version"]),
         )

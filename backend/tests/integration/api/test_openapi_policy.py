@@ -19,6 +19,7 @@ EXPECTED_SUCCESS = {
     "capacity_get_account_v1": ("200", "AccountCapacityViewV1"),
     "capacity_list_quota_windows_v1": ("200", "QuotaWindowPageV1"),
     "runtime_list_processes_v1": ("200", "AgentProcessPageV1"),
+    "runtime_list_process_metrics_v1": ("200", "AgentProcessMetricPageV1"),
     "runtime_list_sessions_v1": ("200", "AgentSessionPageV1"),
     "runtime_get_session_v1": ("200", "AgentSessionViewV1"),
     "iam_get_initialization_v1": ("200", "IamInitializationStateV1"),
@@ -64,7 +65,7 @@ EXPECTED_REQUESTS = {
 
 def test_generator_rejects_changed_policy_on_every_frozen_operation() -> None:
     schema = create_iam_schema_application().openapi()
-    assert len(validate_iam_openapi(schema)) == 22
+    assert len(validate_iam_openapi(schema)) == 23
     mutations: tuple[tuple[str, object], ...] = (
         ("x-agentmonitor-auth-profile", "preauth_loopback"),
         ("x-agentmonitor-required-permission", "read:diagnostics"),
@@ -89,7 +90,7 @@ def test_generator_rejects_changed_policy_on_every_frozen_operation() -> None:
 
 def test_generator_rejects_success_schema_drift_for_all_operations() -> None:
     schema = create_iam_schema_application().openapi()
-    assert len(validate_iam_openapi(schema)) == len(EXPECTED_SUCCESS) == 22
+    assert len(validate_iam_openapi(schema)) == len(EXPECTED_SUCCESS) == 23
     seen: set[str] = set()
     for path, methods in schema["paths"].items():
         for method, operation in methods.items():
@@ -137,7 +138,7 @@ def test_generator_rejects_success_schema_drift_for_all_operations() -> None:
 
 def test_iam_request_component_names_match_approved_catalog() -> None:
     schema = create_iam_schema_application().openapi()
-    assert len(validate_iam_openapi(schema)) == 22
+    assert len(validate_iam_openapi(schema)) == 23
     seen: set[str] = set()
     for path, methods in schema["paths"].items():
         for method, operation in methods.items():
@@ -180,7 +181,7 @@ def test_generator_validates_openapi_structure_with_fastapi_model() -> None:
 
 def test_generator_rejects_missing_safe_error_statuses_on_every_operation() -> None:
     schema = create_iam_schema_application().openapi()
-    assert len(validate_iam_openapi(schema)) == 22
+    assert len(validate_iam_openapi(schema)) == 23
     deleted_all = deepcopy(schema)
     responses = deleted_all["paths"]["/api/v1/session"]["get"]["responses"]
     for status in EXPECTED_ERRORS:
@@ -199,4 +200,4 @@ def test_generator_rejects_missing_safe_error_statuses_on_every_operation() -> N
                 ):
                     validate_iam_openapi(changed)
                 checked += 1
-    assert checked == 22 * len(EXPECTED_ERRORS)
+    assert checked == 23 * len(EXPECTED_ERRORS)

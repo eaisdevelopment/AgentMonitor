@@ -97,6 +97,45 @@ class ProcessLabelFieldWireV1(_ClosedV1):
     reason_code: str | None
 
 
+class ProcessMetricFieldWireV1(_ClosedV1):
+    state: Literal[
+        "present",
+        "not_requested",
+        "not_found",
+        "unsupported",
+        "permission_denied",
+        "process_exited",
+        "identity_conflict",
+        "unverified_source",
+        "deadline_exceeded",
+        "changed_during_read",
+        "unsafe_layout",
+        "redacted_by_policy",
+    ]
+    value: int | None
+    unit: str | None
+    reason_code: str | None
+
+
+class ProcessCodeFieldWireV1(_ClosedV1):
+    state: Literal[
+        "present",
+        "not_requested",
+        "not_found",
+        "unsupported",
+        "permission_denied",
+        "process_exited",
+        "identity_conflict",
+        "unverified_source",
+        "deadline_exceeded",
+        "changed_during_read",
+        "unsafe_layout",
+        "redacted_by_policy",
+    ]
+    value: str | None
+    reason_code: str | None
+
+
 class AgentProcessViewV1(_ClosedV1):
     process_id: str
     identity: ProcessIdentityWireV1
@@ -113,6 +152,23 @@ class AgentProcessViewV1(_ClosedV1):
 
 class AgentProcessPageV1(_ClosedV1):
     items: tuple[AgentProcessViewV1, ...]
+    page: PageMetaV1
+    availability: AvailabilityV1
+
+
+class AgentProcessMetricViewV1(AgentProcessViewV1):
+    parent_pid: ProcessMetricFieldWireV1
+    user_cpu_ticks: ProcessMetricFieldWireV1
+    system_cpu_ticks: ProcessMetricFieldWireV1
+    resident_pages: ProcessMetricFieldWireV1
+    thread_count: ProcessMetricFieldWireV1
+    kernel_state: ProcessCodeFieldWireV1
+    clock_ticks_per_second: int
+    page_size_bytes: int
+
+
+class AgentProcessMetricPageV1(_ClosedV1):
+    items: tuple[AgentProcessMetricViewV1, ...]
     page: PageMetaV1
     availability: AvailabilityV1
 

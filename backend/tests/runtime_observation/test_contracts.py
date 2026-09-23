@@ -5,6 +5,52 @@ from datetime import UTC, datetime
 
 import pytest
 from agentmonitor.contracts import runtime_observation_v1 as runtime_contracts
+from agentmonitor.modules.runtime_observation.application.payload_digest import (
+    runtime_payload_digest,
+)
+
+
+def _process_snapshot(
+    *,
+    executable_identity: str | None,
+    provider_key: str | None = None,
+    installation_id: str | None = None,
+) -> runtime_contracts.ProcessSnapshotInputV1:
+    missing = runtime_contracts.ProcessMetricFieldV1(
+        state="not_requested",
+        value=None,
+        unit=None,
+        reason_code="field_not_requested",
+    )
+    return runtime_contracts.ProcessSnapshotInputV1(
+        observation_id="observation-opaque",
+        identity=runtime_contracts.ProcessIdentityV1(
+            platform_source="linux.proc.process.v1",
+            platform_scope_id="boot-scope-opaque",
+            pid=412,
+            start_time_ticks=9001,
+        ),
+        provider_key=provider_key,
+        installation_id=installation_id,
+        executable_label=runtime_contracts.ProcessLabelFieldV1(
+            state="present", value="claude", reason_code=None
+        ),
+        parent_pid=missing,
+        user_cpu_ticks=missing,
+        system_cpu_ticks=missing,
+        resident_pages=missing,
+        thread_count=missing,
+        kernel_state=runtime_contracts.ProcessCodeFieldV1(
+            state="not_requested", value=None, reason_code="field_not_requested"
+        ),
+        observed_at=datetime(2026, 9, 23, 9, tzinfo=UTC),
+        source_id="linux.proc.process.v1",
+        source_version="linux-procfs-stat-exe-v1",
+        adapter_version="1.1.0",
+        clock_ticks_per_second=100,
+        page_size_bytes=4096,
+        executable_identity=executable_identity,
+    )
 
 
 def test_pid_is_not_a_process_identity_without_start_ticks() -> None:
@@ -252,3 +298,60 @@ def test_kernel_state_code_and_executable_label_have_distinct_bounds() -> None:
         state="present", value="claude", reason_code=None
     )
     assert label.value == "claude"
+
+
+def test_attributed_process_requires_safe_executable_identity_fingerprint() -> None:
+    """CTR-RUN-001/006: attribution cannot rely on a label or raw identity."""
+    with pytest.raises(
+        runtime_contracts.InvalidRuntimeObservationV1,
+        match="runtime_process_attribution_invalid",
+    ):
+        _process_snapshot(
+            executable_identity=None,
+            provider_key="claude",
+            installation_id="installation-opaque",
+        )
+
+    attributed = _process_snapshot(
+        executable_identity="a" * 64,
+        provider_key="claude",
+        installation_id="installation-opaque",
+    )
+    assert attributed.executable_identity == "a" * 64
+
+
+@pytest.mark.parametrize("value", ("a" * 63, "A" * 64, "g" * 64, "sha256:a"))
+def test_executable_identity_rejects_noncanonical_or_raw_values(value: str) -> None:
+    """CTR-RUN-001/006: only lowercase SHA-256 is a safe executable identity."""
+    with pytest.raises(
+        runtime_contracts.InvalidRuntimeObservationV1,
+        match="runtime_executable_identity_invalid",
+    ):
+        _process_snapshot(executable_identity=value)
+
+
+def test_generic_process_may_omit_executable_identity() -> None:
+    """FR-DISC-001/002: unresolved generic process facts remain representable."""
+    generic = _process_snapshot(executable_identity=None)
+
+    assert generic.provider_key is None
+    assert generic.installation_id is None
+    assert generic.executable_identity is None
+
+
+def test_executable_identity_participates_in_canonical_payload_digest() -> None:
+    """CTR-COL-006: executable evidence changes the idempotency fingerprint."""
+    generic = runtime_contracts.RuntimeObservationBatchV1(
+        process_snapshots=(_process_snapshot(executable_identity=None),),
+        session_observations=(),
+        correlation_evidence=(),
+        completeness="complete_scope",
+    )
+    identified = runtime_contracts.RuntimeObservationBatchV1(
+        process_snapshots=(_process_snapshot(executable_identity="a" * 64),),
+        session_observations=(),
+        correlation_evidence=(),
+        completeness="complete_scope",
+    )
+
+    assert runtime_payload_digest(generic) != runtime_payload_digest(identified)

@@ -4,7 +4,9 @@ from __future__ import annotations
 
 import hashlib
 import os
+import stat
 import time
+from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -20,10 +22,91 @@ from agentmonitor.contracts.runtime_observation_v1 import (
     RuntimeFieldStateV1,
 )
 
-_ADAPTER_VERSION = "1.0.0"
-_SOURCE_VERSION = "linux-procfs-stat-v1"
+LINUX_PROCESS_ADAPTER_VERSION = "1.1.0"
+LINUX_PROCESS_SOURCE_VERSION = "linux-procfs-stat-exe-v1"
 _MAX_STAT_BYTES = 16 * 1024
 _MAX_BOOT_SCOPE_BYTES = 128
+
+
+@dataclass(frozen=True, slots=True)
+class _ExecutableFileIdentity:
+    device: int
+    inode: int
+    mode: int
+    size_bytes: int
+    modified_ns: int
+    changed_ns: int
+
+    def safe_fingerprint(self) -> str:
+        canonical_identity = "\x1f".join(
+            (
+                "linux.proc.executable-identity.v1",
+                str(self.device),
+                str(self.inode),
+                str(stat.S_IFMT(self.mode)),
+                str(self.size_bytes),
+                str(self.modified_ns),
+                str(self.changed_ns),
+            )
+        ).encode("ascii")
+        return hashlib.sha256(canonical_identity).hexdigest()
+
+
+def _executable_file_identity(path: Path) -> _ExecutableFileIdentity:
+    metadata = path.stat()
+    if not stat.S_ISREG(metadata.st_mode):
+        raise ValueError("linux_executable_identity_invalid")
+    return _ExecutableFileIdentity(
+        device=metadata.st_dev,
+        inode=metadata.st_ino,
+        mode=metadata.st_mode,
+        size_bytes=metadata.st_size,
+        modified_ns=metadata.st_mtime_ns,
+        changed_ns=metadata.st_ctime_ns,
+    )
+
+
+@dataclass(frozen=True, slots=True)
+class ApprovedLinuxExecutableSelectorV1:
+    """Composition-approved executable identity; its path never leaves A04."""
+
+    selector_id: str
+    executable_identity: str
+    provider_key: str
+    installation_id: str
+    provider_version: str
+    _executable: Path = field(repr=False, compare=False)
+    _file_identity: _ExecutableFileIdentity = field(repr=False)
+
+    @classmethod
+    def from_executable(
+        cls,
+        *,
+        selector_id: str,
+        executable_identity: str,
+        provider_key: str,
+        installation_id: str,
+        provider_version: str,
+        executable: Path,
+    ) -> ApprovedLinuxExecutableSelectorV1:
+        resolved = executable.resolve(strict=True)
+        if not os.access(resolved, os.X_OK):
+            raise ValueError("linux_executable_identity_invalid")
+        return cls(
+            selector_id=selector_id,
+            executable_identity=executable_identity,
+            provider_key=provider_key,
+            installation_id=installation_id,
+            provider_version=provider_version,
+            _executable=resolved,
+            _file_identity=_executable_file_identity(resolved),
+        )
+
+    def is_current(self) -> bool:
+        try:
+            return _executable_file_identity(self._executable) == self._file_identity
+        except (OSError, ValueError):
+            return False
 
 
 def _read_bounded(path: Path, maximum_bytes: int) -> bytes:
@@ -127,8 +210,28 @@ def _same_owner(expected_uid: int, observed_uid: int) -> bool:
 class InspectLinuxProcessesV1:
     """Inspect selected same-user processes without argv/environment/content."""
 
-    def __init__(self, proc_root: Path = Path("/proc")) -> None:
+    def __init__(
+        self,
+        proc_root: Path = Path("/proc"),
+        *,
+        approved_executable_selectors: tuple[
+            ApprovedLinuxExecutableSelectorV1, ...
+        ] = (),
+    ) -> None:
         self._proc_root = proc_root
+        selector_keys = tuple(
+            (
+                item.selector_id,
+                item.executable_identity,
+                item.provider_key,
+                item.installation_id,
+                item.provider_version,
+            )
+            for item in approved_executable_selectors
+        )
+        if len(selector_keys) != len(set(selector_keys)):
+            raise ValueError("linux_executable_selector_duplicate")
+        self._approved_executable_selectors = approved_executable_selectors
 
     def __call__(
         self, request: PlatformInspectionRequestV1
@@ -138,19 +241,20 @@ class InspectLinuxProcessesV1:
             return self._failure(
                 request, observed_at, "deadline_exceeded", "linux_deadline_exceeded"
             )
-        if any(
-            value is not None
-            for value in (
-                request.provider_key,
-                request.installation_id,
-                request.provider_version,
-            )
-        ):
+        approved_selector = self._approved_selector(request)
+        if request.provider_key is not None and approved_selector is None:
             return self._failure(
                 request,
                 observed_at,
                 "unverified_platform_version",
                 "linux_provider_attribution_unverified",
+            )
+        if approved_selector is not None and not approved_selector.is_current():
+            return self._failure(
+                request,
+                observed_at,
+                "unverified_platform_version",
+                "linux_executable_identity_unverified",
             )
         if request.source_id != "linux.proc.process.v1":
             return self._failure(
@@ -251,6 +355,24 @@ class InspectLinuxProcessesV1:
                 continue
             if parsed[0] != request.executable_identity:
                 continue
+            executable_file_identity: _ExecutableFileIdentity | None = None
+            if approved_selector is not None:
+                try:
+                    executable_file_identity = _executable_file_identity(entry / "exe")
+                except (FileNotFoundError, ProcessLookupError):
+                    omissions.add("candidate_exited_before_executable_identity")
+                    continue
+                except PermissionError:
+                    omissions.add("candidate_executable_identity_permission_denied")
+                    continue
+                except OSError:
+                    omissions.add("candidate_executable_identity_unavailable")
+                    continue
+                except ValueError:
+                    omissions.add("candidate_executable_identity_invalid")
+                    continue
+                if executable_file_identity != approved_selector._file_identity:
+                    continue
             matched_candidates += 1
             try:
                 after = _read_bounded(entry / "stat", _MAX_STAT_BYTES)
@@ -274,6 +396,27 @@ class InspectLinuxProcessesV1:
             if (parsed[0], parsed[6]) != (after_parsed[0], after_parsed[6]):
                 omissions.add("process_changed_during_inspection")
                 continue
+            if approved_selector is not None:
+                try:
+                    final_executable_identity = _executable_file_identity(entry / "exe")
+                except (FileNotFoundError, ProcessLookupError):
+                    omissions.add("matched_process_exited")
+                    continue
+                except PermissionError:
+                    omissions.add("matched_process_executable_permission_denied")
+                    continue
+                except OSError:
+                    omissions.add("matched_process_executable_unavailable")
+                    continue
+                except ValueError:
+                    omissions.add("matched_process_executable_invalid")
+                    continue
+                if (
+                    executable_file_identity != final_executable_identity
+                    or final_executable_identity != approved_selector._file_identity
+                ):
+                    omissions.add("process_executable_changed_during_inspection")
+                    continue
             (
                 comm,
                 state,
@@ -302,8 +445,16 @@ class InspectLinuxProcessesV1:
                 ProcessSnapshotInputV1(
                     observation_id=observation_id,
                     identity=identity,
-                    provider_key=None,
-                    installation_id=None,
+                    provider_key=(
+                        approved_selector.provider_key
+                        if approved_selector is not None
+                        else None
+                    ),
+                    installation_id=(
+                        approved_selector.installation_id
+                        if approved_selector is not None
+                        else None
+                    ),
                     executable_label=_present_label(comm),
                     parent_pid=_present(ppid, "pid")
                     if "parent_pid" in requested
@@ -325,10 +476,15 @@ class InspectLinuxProcessesV1:
                     else _missing_code("not_requested", "field_not_requested"),
                     observed_at=observed_at,
                     source_id=request.source_id,
-                    source_version=_SOURCE_VERSION,
-                    adapter_version=_ADAPTER_VERSION,
+                    source_version=LINUX_PROCESS_SOURCE_VERSION,
+                    adapter_version=LINUX_PROCESS_ADAPTER_VERSION,
                     clock_ticks_per_second=clock_ticks,
                     page_size_bytes=page_size,
+                    executable_identity=(
+                        executable_file_identity.safe_fingerprint()
+                        if executable_file_identity is not None
+                        else None
+                    ),
                 )
             )
         truncated = (
@@ -337,16 +493,51 @@ class InspectLinuxProcessesV1:
         )
         if len(entries) > request.maximum_candidates:
             omissions.add("candidate_limit_reached")
+        if approved_selector is not None and not approved_selector.is_current():
+            return self._failure(
+                request,
+                observed_at,
+                "unverified_platform_version",
+                "linux_executable_identity_changed",
+            )
         return PlatformInspectionOutcomeV1(
             state="partial" if omissions or truncated else "success",
             processes=tuple(processes),
             observed_at=observed_at,
             source_id=request.source_id,
-            source_version=_SOURCE_VERSION,
+            source_version=LINUX_PROCESS_SOURCE_VERSION,
             candidate_count=matched_candidates,
             truncated=truncated,
             omission_codes=tuple(sorted(omissions)),
             error_code=None,
+        )
+
+    def _approved_selector(
+        self, request: PlatformInspectionRequestV1
+    ) -> ApprovedLinuxExecutableSelectorV1 | None:
+        if request.provider_key is None:
+            return None
+        expected = (
+            request.selector_id,
+            request.executable_identity,
+            request.provider_key,
+            request.installation_id,
+            request.provider_version,
+        )
+        return next(
+            (
+                item
+                for item in self._approved_executable_selectors
+                if (
+                    item.selector_id,
+                    item.executable_identity,
+                    item.provider_key,
+                    item.installation_id,
+                    item.provider_version,
+                )
+                == expected
+            ),
+            None,
         )
 
     @staticmethod
@@ -361,7 +552,7 @@ class InspectLinuxProcessesV1:
             processes=(),
             observed_at=observed_at,
             source_id=request.source_id,
-            source_version=_SOURCE_VERSION,
+            source_version=LINUX_PROCESS_SOURCE_VERSION,
             candidate_count=0,
             truncated=False,
             error_code=code,

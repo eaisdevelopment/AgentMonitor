@@ -60,6 +60,12 @@ OPERATION_MATRIX = {
         "ListAgentProcessesV1",
         "AgentProcessPageV1",
     ),
+    ("/api/v1/process-metrics", "get"): (
+        "runtime_list_process_metrics_v1",
+        "read:telemetry",
+        "ListAgentProcessesV1",
+        "AgentProcessMetricPageV1",
+    ),
     ("/api/v1/sessions", "get"): (
         "runtime_list_sessions_v1",
         "read:telemetry",
@@ -126,6 +132,21 @@ def test_observation_openapi_publishes_exact_approved_m3_policy() -> None:
         if item.get("type") == "string"
     )
     assert account_selector_schema["maxLength"] == 256
+    process_metrics = {
+        "parent_pid",
+        "user_cpu_ticks",
+        "system_cpu_ticks",
+        "resident_pages",
+        "thread_count",
+        "kernel_state",
+        "clock_ticks_per_second",
+        "page_size_bytes",
+    }
+    process_schema = schema["components"]["schemas"]["AgentProcessViewV1"]
+    assert process_metrics.isdisjoint(process_schema["properties"])
+    metric_schema = schema["components"]["schemas"]["AgentProcessMetricViewV1"]
+    assert process_metrics <= metric_schema["properties"].keys()
+    assert process_metrics <= set(metric_schema["required"])
 
 
 @pytest.mark.parametrize("path", RUNTIME_PATHS)
@@ -166,6 +187,7 @@ def test_observation_resources_preserve_fresh_database_truth(tmp_path: Path) -> 
                 "/api/v1/provider-installations": "available",
                 "/api/v1/collection-runs": "available",
                 "/api/v1/processes": "available",
+                "/api/v1/process-metrics": "available",
                 "/api/v1/sessions": "available",
                 "/api/v1/accounts/not-enrolled/capacity": "unavailable",
                 "/api/v1/accounts/not-enrolled/quotas": "unavailable",
@@ -178,6 +200,93 @@ def test_observation_resources_preserve_fresh_database_truth(tmp_path: Path) -> 
                 payload = json.loads(response[2])
                 assert payload["availability"]["state"] == availability
                 assert payload.get("items", ()) == []
+
+    asyncio.run(exercise())
+
+
+def test_real_process_metrics_reach_authenticated_http_without_losing_semantics(
+    tmp_path: Path,
+) -> None:
+    """FR-DISC-002/API-HTTP: current real procfs facts survive T2 and T3."""
+    from agentmonitor.adapters.persistence._shared.sqlite.core.policy import (
+        DatabaseRefV1,
+    )
+    from agentmonitor.adapters.persistence.runtime_observation.sqlite import (
+        repository as runtime_repository,
+    )
+    from agentmonitor.modules.runtime_observation.application.commit import (
+        CommitRuntimeCollectionOutcomeV1,
+    )
+
+    from backend.tests.runtime_observation.integration.test_real_linux_commit import (
+        _request as real_runtime_request,
+    )
+
+    app, credential = _installation(tmp_path)
+    runtime_request = real_runtime_request("api-real-runtime-metrics")
+    CommitRuntimeCollectionOutcomeV1(
+        runtime_repository.SqliteRuntimeObservationRepositoryV1(
+            DatabaseRefV1(tmp_path / "agentmonitor.db", tmp_path)
+        )
+    )(runtime_request)
+    snapshots = {
+        (item.identity.pid, item.identity.start_time_ticks): item
+        for item in runtime_request.payload.process_snapshots
+    }
+
+    async def exercise() -> None:
+        async with _running(app) as origin:
+            jar = http.cookiejar.CookieJar()
+            assert (
+                await asyncio.to_thread(
+                    _request,
+                    origin,
+                    "POST",
+                    "/api/v1/session",
+                    body={"password": credential},
+                    headers={"Origin": origin},
+                    cookies=jar,
+                )
+            )[0] == 204
+            response = await asyncio.to_thread(
+                _request,
+                origin,
+                "GET",
+                "/api/v1/process-metrics?limit=200",
+                cookies=jar,
+            )
+            assert response[0] == 200, response[2]
+            payload = json.loads(response[2])
+            assert payload["items"]
+            for item in payload["items"]:
+                snapshot = snapshots[
+                    (item["identity"]["pid"], item["identity"]["start_time_ticks"])
+                ]
+                for field in (
+                    "parent_pid",
+                    "user_cpu_ticks",
+                    "system_cpu_ticks",
+                    "resident_pages",
+                    "thread_count",
+                ):
+                    expected = getattr(snapshot, field)
+                    assert item[field] == {
+                        "state": expected.state,
+                        "value": expected.value,
+                        "unit": expected.unit,
+                        "reason_code": expected.reason_code,
+                    }
+                assert item["kernel_state"] == {
+                    "state": snapshot.kernel_state.state,
+                    "value": snapshot.kernel_state.value,
+                    "reason_code": snapshot.kernel_state.reason_code,
+                }
+                assert item["clock_ticks_per_second"] == snapshot.clock_ticks_per_second
+                assert item["page_size_bytes"] == snapshot.page_size_bytes
+                expected_observed_at = snapshot.observed_at.isoformat().replace(
+                    "+00:00", "Z"
+                )
+                assert item["last_observed_at"] == expected_observed_at
 
     asyncio.run(exercise())
 
@@ -380,6 +489,7 @@ def test_observation_permissions_and_bounded_lists(tmp_path: Path) -> None:
             for path in (
                 "/api/v1/accounts",
                 "/api/v1/collection-runs",
+                "/api/v1/process-metrics",
                 "/api/v1/processes",
                 "/api/v1/sessions",
             ):
@@ -392,6 +502,7 @@ def test_observation_permissions_and_bounded_lists(tmp_path: Path) -> None:
             for path in (
                 "/api/v1/accounts",
                 "/api/v1/collection-runs",
+                "/api/v1/process-metrics",
                 "/api/v1/processes",
                 "/api/v1/sessions",
             ):

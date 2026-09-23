@@ -205,6 +205,147 @@
         "title": "AccountViewV1",
         "type": "object"
       },
+      "AgentProcessMetricPageV1": {
+        "additionalProperties": false,
+        "properties": {
+          "availability": {
+            "$ref": "#/components/schemas/AvailabilityV1"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/AgentProcessMetricViewV1"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "page": {
+            "$ref": "#/components/schemas/PageMetaV1"
+          }
+        },
+        "required": [
+          "items",
+          "page",
+          "availability"
+        ],
+        "title": "AgentProcessMetricPageV1",
+        "type": "object"
+      },
+      "AgentProcessMetricViewV1": {
+        "additionalProperties": false,
+        "properties": {
+          "clock_ticks_per_second": {
+            "title": "Clock Ticks Per Second",
+            "type": "integer"
+          },
+          "current_snapshot_id": {
+            "title": "Current Snapshot Id",
+            "type": "string"
+          },
+          "executable_label": {
+            "$ref": "#/components/schemas/ProcessLabelFieldWireV1"
+          },
+          "first_observed_at": {
+            "format": "date-time",
+            "title": "First Observed At",
+            "type": "string"
+          },
+          "identity": {
+            "$ref": "#/components/schemas/ProcessIdentityWireV1"
+          },
+          "installation_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Installation Id"
+          },
+          "kernel_state": {
+            "$ref": "#/components/schemas/ProcessCodeFieldWireV1"
+          },
+          "last_observed_at": {
+            "format": "date-time",
+            "title": "Last Observed At",
+            "type": "string"
+          },
+          "page_size_bytes": {
+            "title": "Page Size Bytes",
+            "type": "integer"
+          },
+          "parent_pid": {
+            "$ref": "#/components/schemas/ProcessMetricFieldWireV1"
+          },
+          "presence": {
+            "enum": [
+              "running",
+              "exited",
+              "unknown"
+            ],
+            "title": "Presence",
+            "type": "string"
+          },
+          "process_id": {
+            "title": "Process Id",
+            "type": "string"
+          },
+          "provenance": {
+            "$ref": "#/components/schemas/ObservationProvenanceWireV1"
+          },
+          "provider_key": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Provider Key"
+          },
+          "resident_pages": {
+            "$ref": "#/components/schemas/ProcessMetricFieldWireV1"
+          },
+          "revision": {
+            "title": "Revision",
+            "type": "integer"
+          },
+          "system_cpu_ticks": {
+            "$ref": "#/components/schemas/ProcessMetricFieldWireV1"
+          },
+          "thread_count": {
+            "$ref": "#/components/schemas/ProcessMetricFieldWireV1"
+          },
+          "user_cpu_ticks": {
+            "$ref": "#/components/schemas/ProcessMetricFieldWireV1"
+          }
+        },
+        "required": [
+          "process_id",
+          "identity",
+          "provider_key",
+          "installation_id",
+          "executable_label",
+          "provenance",
+          "first_observed_at",
+          "last_observed_at",
+          "presence",
+          "current_snapshot_id",
+          "revision",
+          "parent_pid",
+          "user_cpu_ticks",
+          "system_cpu_ticks",
+          "resident_pages",
+          "thread_count",
+          "kernel_state",
+          "clock_ticks_per_second",
+          "page_size_bytes"
+        ],
+        "title": "AgentProcessMetricViewV1",
+        "type": "object"
+      },
       "AgentProcessPageV1": {
         "additionalProperties": false,
         "properties": {
@@ -1742,6 +1883,58 @@
         "title": "PageMetaV1",
         "type": "object"
       },
+      "ProcessCodeFieldWireV1": {
+        "additionalProperties": false,
+        "properties": {
+          "reason_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason Code"
+          },
+          "state": {
+            "enum": [
+              "present",
+              "not_requested",
+              "not_found",
+              "unsupported",
+              "permission_denied",
+              "process_exited",
+              "identity_conflict",
+              "unverified_source",
+              "deadline_exceeded",
+              "changed_during_read",
+              "unsafe_layout",
+              "redacted_by_policy"
+            ],
+            "title": "State",
+            "type": "string"
+          },
+          "value": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Value"
+          }
+        },
+        "required": [
+          "state",
+          "value",
+          "reason_code"
+        ],
+        "title": "ProcessCodeFieldWireV1",
+        "type": "object"
+      },
       "ProcessIdentityWireV1": {
         "additionalProperties": false,
         "properties": {
@@ -1821,6 +2014,70 @@
           "reason_code"
         ],
         "title": "ProcessLabelFieldWireV1",
+        "type": "object"
+      },
+      "ProcessMetricFieldWireV1": {
+        "additionalProperties": false,
+        "properties": {
+          "reason_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason Code"
+          },
+          "state": {
+            "enum": [
+              "present",
+              "not_requested",
+              "not_found",
+              "unsupported",
+              "permission_denied",
+              "process_exited",
+              "identity_conflict",
+              "unverified_source",
+              "deadline_exceeded",
+              "changed_during_read",
+              "unsafe_layout",
+              "redacted_by_policy"
+            ],
+            "title": "State",
+            "type": "string"
+          },
+          "unit": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unit"
+          },
+          "value": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Value"
+          }
+        },
+        "required": [
+          "state",
+          "value",
+          "unit",
+          "reason_code"
+        ],
+        "title": "ProcessMetricFieldWireV1",
         "type": "object"
       },
       "ProviderCapabilityDeclarationPageV1": {
@@ -5224,6 +5481,239 @@
         "x-agentmonitor-required-permission": "write:sessions"
       }
     },
+    "/api/v1/process-metrics": {
+      "get": {
+        "operationId": "runtime_list_process_metrics_v1",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "maximum": 200,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "cursor",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 1024,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Cursor"
+            }
+          },
+          {
+            "in": "query",
+            "name": "provider_key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 64,
+                  "minLength": 1,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Provider Key"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentProcessMetricPageV1"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          },
+          "405": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          },
+          "412": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          },
+          "413": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          },
+          "415": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          },
+          "428": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          },
+          "429": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          },
+          "500": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          },
+          "504": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          }
+        },
+        "security": [
+          {
+            "BrowserSessionCookieV1": []
+          },
+          {
+            "BearerTokenV1": []
+          }
+        ],
+        "summary": "List Process Metrics",
+        "tags": [
+          "runtime"
+        ],
+        "x-agentmonitor-application-port": "ListAgentProcessesV1",
+        "x-agentmonitor-auth-profile": "cookie_or_bearer",
+        "x-agentmonitor-error-schema": "SafeProblemV1",
+        "x-agentmonitor-replay-policy": "safe_query_repeat",
+        "x-agentmonitor-required-permission": "read:telemetry"
+      }
+    },
     "/api/v1/processes": {
       "get": {
         "operationId": "runtime_list_processes_v1",
@@ -7094,10 +7584,10 @@
       "starlette": "1.6.0"
     },
     "generator": "agentmonitor-openapi-client",
-    "generator_sha256": "2f03245b06b7f1ee7228a29caf1412965b1072b98eaa858e6e41c4982d5b55c7",
+    "generator_sha256": "2d4dc89dc5e60034d25ec6d5ada1ac78c6197dd452820e974e33b6778a0f329b",
     "generator_version": "2.0.3",
     "openapi_version": "3.1.0",
-    "schema_sha256": "472f69121a6c37f099fd1f74d1fb6d870fdd4f3b0ec936c4074fe0d4607ab1bc",
-    "source_sha256": "a82b2e60fbd88b8a3b1e4f96854fe4b28952cc6c731db98fbcc1b103f3ca40ca"
+    "schema_sha256": "b6712b19819a38ca7c513706066d2bcc252da19c79eb32e1ccd893f78d3e4149",
+    "source_sha256": "fb99f9b25c5b1f7636a3d1509eaaeed8ee83674a430eb43a87dd4feafe21ae30"
   }
 }

@@ -14,6 +14,8 @@ from agentmonitor.api.v1.routers._observation import (
     require_opaque_selector,
 )
 from agentmonitor.api.v1.schemas.runtime import (
+    AgentProcessMetricPageV1,
+    AgentProcessMetricViewV1,
     AgentProcessPageV1,
     AgentProcessViewV1,
     AgentSessionPageV1,
@@ -21,8 +23,10 @@ from agentmonitor.api.v1.schemas.runtime import (
     FallbackAttemptWireV1,
     FieldAvailabilityWireV1,
     ObservationProvenanceWireV1,
+    ProcessCodeFieldWireV1,
     ProcessIdentityWireV1,
     ProcessLabelFieldWireV1,
+    ProcessMetricFieldWireV1,
     SessionIdentityWireV1,
 )
 from agentmonitor.contracts.common_provenance_v1 import ObservationProvenanceV1
@@ -30,6 +34,7 @@ from agentmonitor.contracts.common_v1 import OpaqueIdV1
 from agentmonitor.contracts.runtime_observation_v1 import (
     AgentProcessRecordV1,
     AgentSessionRecordV1,
+    ProcessMetricFieldV1,
 )
 from agentmonitor.modules.runtime_observation.application.queries import (
     AgentSessionNotFoundV1,
@@ -113,6 +118,33 @@ def _process(item: AgentProcessRecordV1) -> AgentProcessViewV1:
     )
 
 
+def _process_metric(item: AgentProcessRecordV1) -> AgentProcessMetricViewV1:
+    def metric(field: ProcessMetricFieldV1) -> ProcessMetricFieldWireV1:
+        return ProcessMetricFieldWireV1(
+            state=field.state,
+            value=field.value,
+            unit=field.unit,
+            reason_code=field.reason_code,
+        )
+
+    base = _process(item)
+    return AgentProcessMetricViewV1(
+        **base.model_dump(),
+        parent_pid=metric(item.parent_pid),
+        user_cpu_ticks=metric(item.user_cpu_ticks),
+        system_cpu_ticks=metric(item.system_cpu_ticks),
+        resident_pages=metric(item.resident_pages),
+        thread_count=metric(item.thread_count),
+        kernel_state=ProcessCodeFieldWireV1(
+            state=item.kernel_state.state,
+            value=item.kernel_state.value,
+            reason_code=item.kernel_state.reason_code,
+        ),
+        clock_ticks_per_second=item.clock_ticks_per_second,
+        page_size_bytes=item.page_size_bytes,
+    )
+
+
 def _session(item: AgentSessionRecordV1) -> AgentSessionViewV1:
     return AgentSessionViewV1(
         session_id=item.session_id.value,
@@ -168,6 +200,52 @@ def list_processes(
             request,
             caller,
             operation_id="runtime_list_processes_v1",
+            limit=result.limit,
+            has_more=result.has_more,
+            next_key=result.next_key,
+            filters=filters,
+        ),
+        availability=availability(result.availability),
+    )
+
+
+@router.get(
+    "/process-metrics",
+    operation_id="runtime_list_process_metrics_v1",
+    response_model=AgentProcessMetricPageV1,
+    responses=ERROR_RESPONSES,
+    openapi_extra=policy("read:telemetry", "ListAgentProcessesV1"),
+)
+def list_process_metrics(
+    request: Request,
+    limit: int = Query(50, ge=1, le=200),
+    cursor: str | None = Query(None, max_length=1024),
+    provider_key: str | None = Query(None, min_length=1, max_length=64),
+) -> AgentProcessMetricPageV1:
+    caller = authorize_request(request, "read:telemetry")
+    reject_unknown_query(request, frozenset({"limit", "cursor", "provider_key"}))
+    as_of = datetime.now(UTC)
+    filters = {"provider_key": provider_key}
+    after_key = decode_cursor(
+        request,
+        caller,
+        cursor,
+        operation_id="runtime_list_process_metrics_v1",
+        limit=limit,
+        filters=filters,
+    )
+    try:
+        result = observation_ports(request).list_processes.page(
+            provider_key=provider_key, as_of=as_of, limit=limit, after_key=after_key
+        )
+    except RuntimeQueryUnavailableV1:
+        raise ProblemError(503, "observation_repository_unavailable") from None
+    return AgentProcessMetricPageV1(
+        items=tuple(_process_metric(item) for item in result.items),
+        page=page_meta(
+            request,
+            caller,
+            operation_id="runtime_list_process_metrics_v1",
             limit=result.limit,
             has_more=result.has_more,
             next_key=result.next_key,

@@ -36,12 +36,23 @@ class RuntimeCommitRepositoryV1(Protocol):
 class CommitRuntimeCollectionOutcomeV1:
     """Validate the canonical digest and delegate one atomic durable commit."""
 
+    PAYLOAD_SCHEMA = "runtime-observation-batch.v1"
+
     def __init__(self, repository: RuntimeCommitRepositoryV1) -> None:
         self._repository = repository
 
     def __call__(self, request: RuntimeCommitRequestV1) -> RuntimeCommitReceiptV1:
+        if request.payload_schema != self.PAYLOAD_SCHEMA:
+            raise RuntimeCommitValidationErrorV1("runtime_input_schema_incompatible")
         if runtime_payload_digest(request.payload) != request.payload_digest:
             raise RuntimeCommitValidationErrorV1("runtime_payload_digest_mismatch")
+        expected_terminal_state = (
+            "partial"
+            if request.payload.completeness == "partial_scope"
+            else "succeeded"
+        )
+        if request.terminal_state != expected_terminal_state:
+            raise RuntimeCommitValidationErrorV1("runtime_terminal_state_mismatch")
         return self._repository.commit(request)
 
     def commit(

@@ -19,6 +19,19 @@ from agentmonitor.contracts.provider_system_v1 import CollectionOutcomeV1
 class CollectionRunRepositoryV1(Protocol):
     def admit_run(self, admission: CollectionRunAdmissionV1) -> CollectionRunViewV1: ...
 
+    def claim_expired_committing_runs(
+        self,
+        *,
+        provider_key: str,
+        capability_id: str,
+        source_id: str,
+        as_of: datetime,
+        owner_stale_before: datetime,
+        recovery_instance_id: OpaqueIdV1,
+        recovery_lease_expires_at: datetime,
+        limit: int,
+    ) -> tuple[CollectionRunViewV1, ...]: ...
+
     def mark_running(
         self, run_id: OpaqueIdV1, started_at: datetime, *, fencing_token: int
     ) -> None: ...
@@ -141,6 +154,42 @@ class ExecuteCollectionRunV1[SourceT: TechnicalValueV1, PayloadT: TechnicalValue
         if admitted.state != "committing":
             raise CollectionExecutionErrorV1("collection_run_not_recoverable")
         return self._recover_committing(admitted, completed_at)
+
+    def recover_pending_commits(
+        self,
+        *,
+        provider_key: str,
+        capability_id: str,
+        source_id: str,
+        as_of: datetime,
+        owner_stale_before: datetime,
+        recovery_instance_id: OpaqueIdV1,
+        recovery_lease_expires_at: datetime,
+        maximum_runs: int,
+    ) -> tuple[CollectionCommitReceiptV1 | CollectionFailedV1, ...]:
+        """Reconcile a bounded durable batch without invoking a collector.
+
+        The repository atomically re-fences only expired leases whose owner is
+        stale. Active or concurrently reclaimed runs are not returned.
+        """
+        if type(maximum_runs) is not int or not 1 <= maximum_runs <= 64:
+            raise CollectionExecutionErrorV1("collection_commit_recovery_limit_invalid")
+        pending = self._repository.claim_expired_committing_runs(
+            provider_key=provider_key,
+            capability_id=capability_id,
+            source_id=source_id,
+            as_of=as_of,
+            owner_stale_before=owner_stale_before,
+            recovery_instance_id=recovery_instance_id,
+            recovery_lease_expires_at=recovery_lease_expires_at,
+            limit=maximum_runs,
+        )
+        recovered = tuple(self._recover_committing(run, as_of) for run in pending)
+        if len(pending) == maximum_runs:
+            raise CollectionExecutionErrorV1(
+                "collection_commit_recovery_batch_incomplete"
+            )
+        return recovered
 
     def _recover_committing(
         self, admitted: CollectionRunViewV1, completed_at: datetime

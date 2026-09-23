@@ -66,7 +66,7 @@ try {
     "/api/v1/accounts?limit=200",
     "/api/v1/provider-installations?limit=200",
     "/api/v1/collection-runs?limit=50",
-    "/api/v1/processes?limit=200",
+    "/api/v1/process-metrics?limit=200",
     "/api/v1/sessions?limit=200",
   ];
   for (const requiredRoute of requiredObservationGets) {

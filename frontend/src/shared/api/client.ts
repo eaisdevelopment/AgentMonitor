@@ -13,6 +13,8 @@ import {
   type ApiTokenPageV1,
   type ApiTokenSummaryV1,
   type AvailabilityV1,
+  type AgentProcessMetricPageV1,
+  type AgentProcessMetricViewV1,
   type CollectionRunPageV1,
   type CollectionRunViewV1,
   type CurrentSessionViewV1,
@@ -35,6 +37,8 @@ export type {
   AccountViewV1,
   AgentProcessPageV1,
   AgentProcessViewV1,
+  AgentProcessMetricPageV1,
+  AgentProcessMetricViewV1,
   AgentSessionPageV1,
   AgentSessionViewV1,
   AvailabilityV1,
@@ -187,6 +191,10 @@ export const capacity = Object.freeze({
 export const runtime = Object.freeze({
   processes: (signal?: AbortSignal): Promise<ClientResult<AgentProcessPageV1>> =>
     apiClient.runtime_list_processes_v1({ query: { limit: 200 }, signal }),
+  processMetrics: (
+    signal?: AbortSignal,
+  ): Promise<ClientResult<AgentProcessMetricPageV1>> =>
+    apiClient.runtime_list_process_metrics_v1({ query: { limit: 200 }, signal }),
   sessions: (
     options: Readonly<{ accountId?: string; signal?: AbortSignal }> = {},
   ): Promise<ClientResult<AgentSessionPageV1>> =>

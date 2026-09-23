@@ -2,7 +2,8 @@ import { useCallback, useEffect, useState } from "react";
 
 import {
   runtime,
-  type AgentProcessPageV1,
+  type AgentProcessMetricPageV1,
+  type AgentProcessMetricViewV1,
   type AgentSessionPageV1,
   type AgentSessionViewV1,
 } from "../../shared/api/client";
@@ -12,7 +13,7 @@ type RuntimeState =
   | Readonly<{ kind: "error"; message: string }>
   | Readonly<{
       kind: "ready";
-      processes: AgentProcessPageV1 | null;
+      processes: AgentProcessMetricPageV1 | null;
       sessions: AgentSessionPageV1;
       selected: AgentSessionViewV1 | null;
       detailMessage: string | null;
@@ -29,6 +30,93 @@ function Provenance({ item }: Readonly<{ item: AgentSessionViewV1["provenance"] 
       <div><dt>Value kind</dt><dd>{item.value_kind.replaceAll("_", " ")}</dd></div>
     </dl>
   );
+}
+
+function words(value: string): string {
+  return value.replaceAll("_", " ");
+}
+
+function unavailableMetric(
+  field: Readonly<{ state: string; reason_code: string | null }> | null | undefined,
+): string {
+  if (field === null || field === undefined) return "unavailable — not reported by API v1";
+  return `${words(field.state)}${field.reason_code === null ? "" : ` — ${words(field.reason_code)}`}`;
+}
+
+function integerMetric(
+  field: AgentProcessMetricViewV1["parent_pid"],
+): string {
+  return field !== null && field !== undefined && field.state === "present" && field.value !== null
+    ? String(field.value)
+    : unavailableMetric(field);
+}
+
+function cpuMetric(process: AgentProcessMetricViewV1): string {
+  const user = process.user_cpu_ticks;
+  const system = process.system_cpu_ticks;
+  if (user === null || user === undefined || user.state !== "present" || user.value === null) {
+    return `user ${unavailableMetric(user)} · system ${system !== null && system !== undefined && system.state === "present" && system.value !== null ? `${system.value} ${system.unit ?? "ticks"}` : unavailableMetric(system)}`;
+  }
+  if (system === null || system === undefined || system.state !== "present" || system.value === null) {
+    return `user ${user.value} ${user.unit ?? "ticks"} · system ${unavailableMetric(system)}`;
+  }
+  const totalTicks = user.value + system.value;
+  const clockTicksPerSecond = process.clock_ticks_per_second;
+  if (clockTicksPerSecond === null || clockTicksPerSecond === undefined) {
+    return `${user.value} user + ${system.value} system ticks · ${totalTicks} total · rate unavailable`;
+  }
+  const cpuSeconds = totalTicks / clockTicksPerSecond;
+  return `${user.value} user + ${system.value} system ticks · ${totalTicks} total · ${cpuSeconds.toFixed(2)} CPU s`;
+}
+
+function memoryMetric(process: AgentProcessMetricViewV1): string {
+  const resident = process.resident_pages;
+  const pageSizeBytes = process.page_size_bytes;
+  if (resident === null || resident === undefined || resident.state !== "present" || resident.value === null) {
+    return unavailableMetric(resident);
+  }
+  if (pageSizeBytes === null || pageSizeBytes === undefined) {
+    return `${resident.value} pages · page size unavailable`;
+  }
+  const bytes = resident.value * pageSizeBytes;
+  const units = ["B", "KiB", "MiB", "GiB"] as const;
+  let displayed = bytes;
+  let unitIndex = 0;
+  while (displayed >= 1024 && unitIndex < units.length - 1) {
+    displayed /= 1024;
+    unitIndex += 1;
+  }
+  return `${resident.value} pages · ${displayed.toFixed(unitIndex === 0 ? 0 : 1)} ${units[unitIndex]}`;
+}
+
+function elapsedLabel(milliseconds: number): string {
+  const seconds = Math.max(0, Math.floor(milliseconds / 1000));
+  if (seconds < 60) return `${seconds}s`;
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) return `${minutes}m`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours}h`;
+  return `${Math.floor(hours / 24)}d`;
+}
+
+function processFreshness(process: AgentProcessMetricViewV1): string {
+  const now = Date.now();
+  const observedAt = Date.parse(process.last_observed_at);
+  const observationAge = Number.isFinite(observedAt)
+    ? elapsedLabel(now - observedAt)
+    : "unknown";
+  const deadlineValue = process.provenance.freshness_deadline;
+  if (deadlineValue === null) {
+    return `Observed ${observationAge} ago · Freshness ${words(process.provenance.freshness_availability.state)}`;
+  }
+  const deadline = Date.parse(deadlineValue);
+  if (!Number.isFinite(deadline)) {
+    return `Observed ${observationAge} ago · Freshness unknown`;
+  }
+  const deadlineRelation = deadline <= now
+    ? `passed ${elapsedLabel(now - deadline)} ago`
+    : `in ${elapsedLabel(deadline - now)}`;
+  return `Observed ${observationAge} ago · Freshness deadline ${deadlineRelation}`;
 }
 
 export function SessionPanel({
@@ -49,7 +137,7 @@ export function SessionPanel({
   const load = useCallback(async (signal?: AbortSignal) => {
     setState({ kind: "loading" });
     try {
-      const processes = accountId === undefined ? await runtime.processes(signal) : null;
+      const processes = accountId === undefined ? await runtime.processMetrics(signal) : null;
       const sessions = await runtime.sessions({ accountId, signal });
       if (processes !== null && !processes.ok) {
         if (processes.problem.code === "dashboard_authentication_required") onExpired();
@@ -127,8 +215,8 @@ export function SessionPanel({
       )}
       {state.processes !== null && state.processes.items.length > 0 && (
         <div className="table-scroll runtime-processes" tabIndex={0} role="region" aria-label="Process observations table">
-          <table><caption>Safe local process metadata</caption><thead><tr><th scope="col">Provider</th><th scope="col">PID</th><th scope="col">Presence</th><th scope="col">Label</th><th scope="col">Source</th><th scope="col">Observed</th></tr></thead><tbody>{state.processes.items.map((process) => (
-            <tr key={process.process_id}><th scope="row">{process.provider_key ?? "Unresolved"}</th><td>{process.identity.pid}</td><td>{process.presence}</td><td>{process.executable_label.value ?? process.executable_label.state.replaceAll("_", " ")}</td><td>{process.provenance.source_id}</td><td>{new Date(process.last_observed_at).toLocaleString()}</td></tr>
+          <table><caption>Safe local process metadata with source freshness</caption><thead><tr><th scope="col">Provider</th><th scope="col">PID</th><th scope="col">Parent PID</th><th scope="col">Start marker</th><th scope="col">CPU</th><th scope="col">RSS memory</th><th scope="col">Threads</th><th scope="col">Kernel state</th><th scope="col">Presence</th><th scope="col">Label</th><th scope="col">Observed / freshness</th></tr></thead><tbody>{state.processes.items.map((process) => (
+            <tr key={process.process_id} data-process-row="true"><th scope="row">{process.provider_key ?? "Unresolved"}</th><td>{process.identity.pid}</td><td className="process-parent-pid">{integerMetric(process.parent_pid)}</td><td className="process-start">{process.identity.start_time_ticks} ticks after boot · {process.clock_ticks_per_second === null || process.clock_ticks_per_second === undefined ? "clock rate unavailable" : `${process.clock_ticks_per_second} ticks/s`}</td><td className="process-cpu">{cpuMetric(process)}</td><td className="process-memory">{memoryMetric(process)}</td><td className="process-threads">{integerMetric(process.thread_count)}</td><td className="process-kernel-state">{process.kernel_state !== null && process.kernel_state !== undefined && process.kernel_state.state === "present" && process.kernel_state.value !== null ? process.kernel_state.value : unavailableMetric(process.kernel_state)}</td><td className="process-presence">{process.presence}</td><td>{process.executable_label.value ?? unavailableMetric(process.executable_label)}</td><td className="process-freshness"><span>{processFreshness(process)}</span><br /><span>{process.provenance.source_id}</span></td></tr>
           ))}</tbody></table>
         </div>
       )}

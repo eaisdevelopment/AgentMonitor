@@ -129,6 +129,112 @@ backend/.venv/bin/pytest \
 # exit 1: 1 failed before provider capability-lineage provenance correction
 ```
 
+### 2026-09-23 M06 commit-boundary hardening
+
+The current real Linux process population made the previously skipped process
+commit path execute and exposed that its evidence helper hardcoded the obsolete
+Linux adapter version `1.0.0`; production emitted `1.1.0`, so the real test
+failed closed with `runtime_provenance_mismatch`. The helper now takes the exact
+adapter version from the freshly collected typed process observations and
+requires one consistent version. It does not substitute a configured or test
+value.
+
+At `2026-09-23T09:12:31Z`, real procfs observations and a freshly migrated
+file-backed SQLite database produced two intended Reds:
+
+```text
+backend/.venv/bin/pytest \
+  backend/tests/runtime_observation/integration/test_real_linux_commit.py::test_real_batch_terminal_state_must_match_completeness \
+  backend/tests/runtime_observation/integration/test_real_linux_commit.py::test_same_run_and_real_payload_with_changed_provenance_is_a_conflict \
+  -q --tb=short
+# exit 1: 2 failed; contradictory terminal metadata committed and changed
+# safe provenance replayed as though it were the original request
+```
+
+At `2026-09-23T09:13:59Z`, the same command passed `2 passed`. M06 now rejects
+terminal/completeness contradictions before persistence, and exact replay
+compares the complete safe provenance stored in the durable receipt. The
+original receipt remains authoritative after a conflicting replay.
+
+At `2026-09-23T09:21:44Z` and `2026-09-23T09:22:31Z`, direct production
+repository tests each failed because incompatible payload schema and
+contradictory terminal metadata were accepted behind the application port.
+After fail-closed repository validation, the corresponding Green commands at
+`2026-09-23T09:22:03Z` and `2026-09-23T09:22:48Z` each passed `2 passed`.
+The application and persistence boundaries now both enforce
+`runtime-observation-batch.v1` and terminal/completeness consistency.
+
+The broader post-refactor results were:
+
+```text
+backend/.venv/bin/pytest backend/tests/runtime_observation -q --tb=short
+# 58 passed in 9.16s
+
+backend/.venv/bin/pytest \
+  backend/tests/runtime_observation \
+  backend/tests/persistence/sqlite/migrations/test_v1_0000.py \
+  backend/tests/integration/provider_system/test_compatibility.py \
+  backend/tests/integration/provider_system/test_compatibility_repository.py \
+  -q --tb=short
+# 119 passed in 25.17s
+```
+
+Changed-file Ruff, formatting, and strict mypy passed; the repository boundary
+checker reported `boundaries: PASS (0 violations)`, and `git diff --check`
+passed. No contract, DDL, migration digest, dependency, provider, account, or
+process state changed. Exact provider-session persistence and live
+session/account conflict handling remain Blocked / Not Run because the approved
+M0 handoff still provides no real session source or correlation rule.
+
+### 2026-09-23 production M04-to-A04-to-M06 composition
+
+The production composition now resolves the one present Claude installation
+through the published M02 query port, verifies the exact installed executable,
+durably admits an M04 run, and only then invokes the bounded A04 procfs
+inspection. It commits the typed batch to the production M06 repository,
+finalizes M04 from the durable receipt, and queries the resulting process
+projection. Executable evidence supplies installation attribution only;
+`account_id`, profile, and resource remain null because account correlation is
+not proven.
+
+The original real-boundary Red at `2026-09-23T10:21:41+01:00` was:
+
+```text
+AGENTMONITOR_RUN_LINUX_RUNTIME_DATA_ROOT=/home/dev/.local/share/agentmonitor \
+  PYTHONPATH=backend/src backend/.venv/bin/python -m pytest \
+  backend/tests/integration/collection_control/test_linux_runtime_run.py -q
+# 1 failed: ModuleNotFoundError for the absent production composition
+```
+
+After the first implementation, the same real test reached M06 and failed with
+`runtime_repository_unavailable`. This exposed a genuine contract defect: the
+frozen schema required an executable identity for attributed processes, while
+the published snapshot DTO could not carry it and the repository wrote SQL
+NULL. The corrected CTR-RUN-001/002/006 path carries a lowercase SHA-256 safe
+fingerprint derived from approved non-content executable metadata. No raw path,
+command line, environment, executable content, prompt, response, or provider
+credential is read or retained.
+
+The first post-correction attempt at `2026-09-23T10:37:06+01:00` stopped before
+procfs because the earlier failed commit still held its M04 lease. That known
+no-receipt run was finalized as `failed` with safe code
+`collection_commit_interrupted`; its lease is released and its conservative
+budget reservation remains visible. The non-concurrent real Green at
+`2026-09-23T10:37:52+01:00` was:
+
+```text
+AGENTMONITOR_RUN_LINUX_RUNTIME_DATA_ROOT=/home/dev/.local/share/agentmonitor \
+  PYTHONPATH=backend/src backend/.venv/bin/python -m pytest \
+  backend/tests/integration/collection_control/test_linux_runtime_run.py -q
+# 1 passed in 0.16s
+```
+
+The public M04 query subsequently reported two runtime runs and zero in
+`committing`: the new run is `succeeded` with two real observation IDs and null
+account, while the earlier run is `failed` with zero observations and null
+account. Focused Ruff, format, strict mypy, and the contract/import boundary
+gate passed; the boundary result was `boundaries: PASS (0 violations)`.
+
 ### TDD evidence custody deviation
 
 Exact commands and sanitized summaries for the later review fixes are retained
@@ -206,9 +312,11 @@ process. The oracle independently re-read every returned row: every still-live
 row with the same start identity had to match UID, comm, and start ticks; only a
 demonstrable exit or PID reuse could be omitted.
 
-This evidence proves generic same-UID process facts only. It is not evidence
-that the process belongs to Claude 2.1.278, a registered installation, a local
-session, or an account. Those claims remain Blocked / Not Run.
+The earlier generic path proves same-UID process facts only. The later
+production composition additionally proves exact Claude 2.1.278 executable and
+registered-installation attribution through the approved selector. It does not
+prove a local provider session or account correlation; those claims remain
+Blocked / Not Run.
 
 ## Integrity declaration
 
@@ -216,8 +324,9 @@ No mock, fake, stub, emulator, recorded response, demo account, seeded
 telemetry, placeholder live attribution, disabled assertion, hardcoded passing
 result, or test-only production branch was used. Constructed opaque and invalid
 inputs appear only in pure contract/policy tests that perform no external I/O.
-Real boundary tests pass absent provider/version/installation attribution and
-use real procfs and real SQLite.
+The generic real boundary passes without attribution; the production
+composition boundary separately passes with exact provider/version/installation
+attribution. Both use real procfs and real SQLite.
 
 ## Data, secret, security, license, and migration review
 
@@ -226,11 +335,9 @@ use real procfs and real SQLite.
   or raw provider payload fields.
 - Only numeric process metadata, a bounded executable label, hashed boot/PID
   namespace scope, safe IDs/codes, and closed provenance are retained.
-- Process-subject provider, provider version, installation, session, and account
-  remain null/unresolved without evidence. Receipt provenance provider key
-  `claude` identifies only the approved M0 capability/selector lineage; the
-  explicit confidence reason says procfs fields are confirmed while provider
-  attribution is unresolved.
+- Production-composed process rows carry only exact-selector-backed provider and
+  installation attribution plus safe provider-version provenance. Session and
+  account remain null/unresolved because no approved evidence correlates them.
 - There is no process-control or credential-switching surface.
 - Migrations are additive, create no telemetry rows, enforce direct-SQL
   constraints, and reject downgrade before mutation.
@@ -241,12 +348,63 @@ use real procfs and real SQLite.
 
 ## Conclusion and residual gaps
 
-The generic Linux process contract, read-only adapter, persistence/query
-foundation, capability producer, and fail-closed A01 seams passed their tested
-boundaries. **ST-OBS-002 as worded is not fully accepted**, because its
-real Claude session/account provenance example, tree/state/stall acceptance,
-and provider-specific live rows are impossible with the current M0 evidence.
-They must remain visible as Blocked / Not Run until an owner-reviewed M0 packet
-approves an executable fingerprint and local-session/correlation source, the
-canonical handoff authorization is reconciled, and the TDD evidence-custody
-deviation is accepted or remediated where still possible.
+The generic Linux process contract, exact-selector read-only adapter,
+production M04-to-M06 composition, persistence/query foundation, capability
+producer, and fail-closed A01 seams passed their tested boundaries.
+**ST-OBS-002 as worded is not fully accepted**, because its real Claude
+session/account provenance example and same-account tree/state/stall acceptance
+remain impossible with the current M0 evidence. They remain Blocked / Not Run
+until an owner-reviewed M0 packet approves a local-session/correlation source,
+the canonical handoff authorization is reconciled, and the TDD
+evidence-custody deviation is accepted or remediated where still possible.
+
+## Executable-identity contract correction
+
+The attributed-process persistence gap was corrected without changing the
+`v1_0600` migration. `ProcessSnapshotInputV1.executable_identity` is an
+optional, safe lowercase SHA-256 fingerprint. Provider or installation
+attribution now fails closed unless that fingerprint is present and valid;
+generic unresolved observations may omit it. The fingerprint participates in
+the canonical batch digest and is persisted into the existing
+`runtime_process_instance.executable_identity` column. Reconciliation permits a
+generic row to gain verified attribution, prevents a later generic observation
+from erasing it, and rejects contradictory fingerprint/provider/installation
+values.
+
+Focused Red evidence:
+
+```text
+2026-09-23T09:32:16Z
+backend/.venv/bin/pytest backend/tests/runtime_observation/test_contracts.py \
+  -k 'executable_identity or attributed_process' -q --tb=short
+7 failed: ProcessSnapshotInputV1 rejected the new executable_identity argument.
+
+2026-09-23T09:34:09Z
+backend/.venv/bin/pytest \
+  backend/tests/runtime_observation/test_process_attribution_policy.py \
+  -q --tb=short
+Collection failed: _reconcile_process_attribution did not exist.
+```
+
+Focused Green evidence after implementation and formatting:
+
+```text
+backend/.venv/bin/pytest backend/tests/runtime_observation/test_contracts.py \
+  -k 'executable_identity or attributed_process' \
+  backend/tests/runtime_observation/test_process_attribution_policy.py \
+  backend/tests/runtime_observation/integration/test_real_linux_commit.py::test_real_attributed_process_fingerprint_persists_in_migrated_sqlite \
+  -q --tb=short
+8 passed, 15 deselected in 0.72s
+
+backend/.venv/bin/pytest \
+  backend/tests/runtime_observation/test_process_attribution_policy.py \
+  -q --tb=short
+5 passed in 0.16s
+```
+
+The integration selection used real procfs observations, the production Linux
+selector, the production migration runner, and a fresh real file-backed SQLite
+database. It first committed generic observations and then committed the
+attributed observations, proving the durable generic-to-attributed upgrade and
+stored fingerprint. No path, device, inode, raw stat data, or content entered
+the DTO or database. No dependency or migration was added.

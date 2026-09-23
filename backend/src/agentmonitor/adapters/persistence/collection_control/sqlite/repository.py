@@ -523,6 +523,133 @@ class SqliteCollectionRepositoryV1:
         except (SqlitePolicyError, SQLAlchemyError):
             raise CollectionRepositoryErrorV1() from None
 
+    def claim_expired_committing_runs(
+        self,
+        *,
+        provider_key: str,
+        capability_id: str,
+        source_id: str,
+        as_of: datetime,
+        owner_stale_before: datetime,
+        recovery_instance_id: OpaqueIdV1,
+        recovery_lease_expires_at: datetime,
+        limit: int,
+    ) -> tuple[CollectionRunViewV1, ...]:
+        """Atomically re-fence an oldest-first expired/stale recovery batch."""
+        if (
+            not provider_key
+            or not capability_id
+            or not source_id
+            or as_of.utcoffset() != timedelta(0)
+            or owner_stale_before.utcoffset() != timedelta(0)
+            or recovery_lease_expires_at.utcoffset() != timedelta(0)
+            or owner_stale_before > as_of
+            or recovery_lease_expires_at <= as_of
+            or recovery_lease_expires_at > as_of + timedelta(minutes=1)
+            or type(limit) is not int
+            or not 1 <= limit <= 64
+        ):
+            raise CollectionRepositoryErrorV1("collection_query_invalid")
+        try:
+            with open_sqlite_database(
+                self._database_ref, "runtime_read_write"
+            ) as handle:
+                with handle.connect() as connection:
+                    connection.exec_driver_sql("BEGIN IMMEDIATE")
+                    instant = _utc_text(as_of)
+                    rows = (
+                        connection.exec_driver_sql(
+                            "SELECT r.* FROM collection_run AS r "
+                            "JOIN collection_lease AS l ON l.run_id=r.run_id "
+                            "JOIN collection_scheduler_instance AS owner "
+                            "ON owner.instance_id=l.owner_instance_id "
+                            "WHERE r.state='committing' AND r.provider_key=? "
+                            "AND r.capability_id=? AND r.source_id=? "
+                            "AND l.expires_at<=? AND owner.heartbeat_at<=? "
+                            "AND l.owner_instance_id<>? "
+                            "ORDER BY r.requested_at, r.run_id LIMIT ?",
+                            (
+                                provider_key,
+                                capability_id,
+                                source_id,
+                                _utc_text(as_of),
+                                _utc_text(owner_stale_before),
+                                recovery_instance_id.value,
+                                limit,
+                            ),
+                        )
+                        .mappings()
+                        .all()
+                    )
+                    if rows:
+                        connection.exec_driver_sql(
+                            "INSERT INTO collection_scheduler_instance "
+                            "(instance_id, service_version, started_at, heartbeat_at, "
+                            "stopping_at, completed_at, lifecycle_state, "
+                            "last_health_code) VALUES (?, '1.0.0', ?, ?, NULL, NULL, "
+                            "'reconciling', NULL) ON CONFLICT(instance_id) DO UPDATE SET "
+                            "heartbeat_at=excluded.heartbeat_at, stopping_at=NULL, "
+                            "completed_at=NULL, lifecycle_state='reconciling', "
+                            "last_health_code=NULL",
+                            (recovery_instance_id.value, instant, instant),
+                        )
+                    claimed: list[CollectionRunViewV1] = []
+                    for row in rows:
+                        prior_fence = int(row["fencing_token"])
+                        next_fence = int(
+                            connection.exec_driver_sql(
+                                "SELECT coalesce(max(fencing_token), 0) + 1 FROM "
+                                "collection_run WHERE schedule_id=?",
+                                (row["schedule_id"],),
+                            ).scalar_one()
+                        )
+                        if next_fence <= prior_fence:
+                            raise CollectionRepositoryErrorV1(
+                                "collection_fencing_conflict"
+                            )
+                        lease_result = connection.exec_driver_sql(
+                            "UPDATE collection_lease SET owner_instance_id=?, "
+                            "fencing_token=?, acquired_at=?, heartbeat_at=?, "
+                            "expires_at=? WHERE run_id=? AND fencing_token=? "
+                            "AND expires_at<=?",
+                            (
+                                recovery_instance_id.value,
+                                next_fence,
+                                instant,
+                                instant,
+                                _utc_text(recovery_lease_expires_at),
+                                row["run_id"],
+                                prior_fence,
+                                instant,
+                            ),
+                        )
+                        if lease_result.rowcount != 1:
+                            raise CollectionRepositoryErrorV1(
+                                "collection_fencing_conflict"
+                            )
+                        run_result = connection.exec_driver_sql(
+                            "UPDATE collection_run SET fencing_token=?, "
+                            "record_version=record_version+1 WHERE run_id=? "
+                            "AND state='committing' AND fencing_token=?",
+                            (next_fence, row["run_id"], prior_fence),
+                        )
+                        if run_result.rowcount != 1:
+                            raise CollectionRepositoryErrorV1(
+                                "collection_fencing_conflict"
+                            )
+                        claimed_row = _select_run(connection, str(row["run_id"]))
+                        if claimed_row is None:
+                            raise CollectionRepositoryErrorV1(
+                                "collection_repository_unavailable"
+                            )
+                        claimed.append(_run_view(connection, claimed_row))
+                    connection.commit()
+                    return tuple(claimed)
+        except CollectionRepositoryErrorV1:
+            raise
+        except (SqlitePolicyError, SQLAlchemyError, ValueError, TypeError):
+            raise CollectionRepositoryErrorV1() from None
+
     def list_runs(
         self,
         provider_key: str | None,

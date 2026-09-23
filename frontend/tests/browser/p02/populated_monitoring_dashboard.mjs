@@ -36,7 +36,7 @@ try {
     const request = response.request();
     const url = new URL(response.url());
     if (url.origin !== origin || request.method() !== "GET") return;
-    if (/^\/api\/v1\/(accounts|sessions|collection-runs)/.test(url.pathname)) {
+    if (/^\/api\/v1\/(accounts|process-metrics|processes|sessions|collection-runs)/.test(url.pathname)) {
       safeGetResults.push({ pathname: url.pathname, hasAccountFilter: url.searchParams.has("account_id"), status: response.status() });
     }
   });
@@ -116,12 +116,47 @@ try {
     await page.getByText(/No observed sessions|Session observation (unavailable|unsupported|unknown)/).waitFor();
   }
 
+  stage = "real_process_runtime";
+  const processResponse = page.waitForResponse((response) => {
+    const url = new URL(response.url());
+    return url.origin === origin && url.pathname === "/api/v1/process-metrics" && response.request().method() === "GET";
+  });
+  await page.getByRole("button", { name: "Sessions", exact: true }).click();
+  requireTruth((await processResponse).status() === 200, "process_observation_get_failed");
+  await page.getByRole("heading", { name: "Sessions", exact: true }).waitFor();
+  await page.getByText("Reading runtime observations…", { exact: true }).waitFor({ state: "detached" });
+  const processTable = page.getByRole("region", { name: "Process observations table" });
+  requireTruth(await processTable.count() === 1, "real_process_observation_missing");
+  const processRows = processTable.locator("tbody tr");
+  requireTruth(await processRows.count() > 0, "real_process_observation_missing");
+  for (const heading of ["Parent PID", "Start marker", "CPU", "RSS memory", "Threads", "Kernel state", "Observed / freshness"]) {
+    await processTable.getByRole("columnheader", { name: heading, exact: true }).waitFor();
+  }
+  for (let index = 0; index < await processRows.count(); index += 1) {
+    const processRow = processRows.nth(index);
+    const rowText = await processRow.innerText();
+    requireTruth(/^claude\b/im.test(rowText), "process_provider_not_attributed");
+    requireTruth(/\blinux\.proc\.process\.v1\b/i.test(rowText), "process_source_missing");
+    requireTruth(/^\d+$/u.test((await processRow.locator(".process-parent-pid").innerText()).trim()), "process_parent_pid_missing");
+    requireTruth(/\bticks\b/u.test(await processRow.locator(".process-cpu").innerText()), "process_cpu_ticks_missing");
+    requireTruth(/\bpages\b/u.test(await processRow.locator(".process-memory").innerText()), "process_rss_memory_missing");
+    requireTruth(/^\d+$/u.test((await processRow.locator(".process-threads").innerText()).trim()), "process_thread_count_missing");
+    requireTruth(/^[A-Za-z]$/u.test((await processRow.locator(".process-kernel-state").innerText()).trim()), "process_kernel_state_missing");
+    requireTruth(/ticks after boot/u.test(await processRow.locator(".process-start").innerText()), "process_safe_start_missing");
+    const freshnessText = await processRow.locator(".process-freshness").innerText();
+    const presenceText = (await processRow.locator(".process-presence").innerText()).trim();
+    requireTruth(/Observed .* ago/u.test(freshnessText), "process_observation_age_missing");
+    requireTruth(/Freshness (deadline|unavailable|unknown|unsupported|withheld|stale)/iu.test(freshnessText), "process_freshness_missing");
+    requireTruth(/deadline passed/iu.test(freshnessText) ? presenceText === "unknown" : presenceText === "running", "process_presence_freshness_mismatch");
+  }
+
   stage = "http_proof";
   const capacityPath = `/api/v1/accounts/${encodeURIComponent(accountId)}/capacity`;
   const quotaPath = `/api/v1/accounts/${encodeURIComponent(accountId)}/quotas`;
   requireTruth(safeGetResults.some((entry) => entry.pathname === capacityPath && entry.status === 200), "account_capacity_get_missing_or_failed");
   requireTruth(safeGetResults.some((entry) => entry.pathname === quotaPath && entry.status === 200), "account_quota_get_missing_or_failed");
   requireTruth(safeGetResults.some((entry) => entry.pathname === "/api/v1/sessions" && entry.hasAccountFilter && entry.status === 200), "account_session_get_missing_or_failed");
+  requireTruth(safeGetResults.some((entry) => entry.pathname === "/api/v1/process-metrics" && entry.status === 200), "process_observation_get_missing_or_failed");
   requireTruth(safeGetResults.some((entry) => entry.pathname === "/api/v1/collection-runs" && entry.status === 200), "collection_run_get_missing_or_failed");
 
   stage = "privacy";
@@ -132,7 +167,7 @@ try {
   requireTruth(!(await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth + 1)), "document_horizontal_overflow");
 
   await browser.close();
-  console.log(`P02 POPULATED MONITORING: PASSED — real Claude account/quota/collection reconciliation; quota source/version BLOCKED — absent from API v1; runtime ${runtimeOutcome}`);
+  console.log(`P02 POPULATED MONITORING: PASSED — real Claude account/quota/collection reconciliation and process runtime; quota source/version BLOCKED — absent from API v1; same-account sessions ${runtimeOutcome}`);
 } catch (error) {
   if (browser) await browser.close();
   console.error(`P02 POPULATED MONITORING: FAILED — ${stage}: ${error instanceof Error ? error.message : "unknown"}`);

@@ -65,8 +65,8 @@ async function run() {
   requireResult(!denied.ok && denied.status === 403, 'scope_denial_failed');
   requireResult(denied.problem.code === 'permission_denied', 'problem_decode_failed');
   requireResult(typeof denied.problem.correlation_id === 'string', 'correlation_missing');
-  requireResult(operationIds.length === 22, 'operation_count_mismatch');
-  process.stdout.write('{"status":"passed","operations":22}\n');
+  requireResult(operationIds.length === 23, 'operation_count_mismatch');
+  process.stdout.write('{"status":"passed","operations":23}\n');
 }
 
 run().catch((error) => {
