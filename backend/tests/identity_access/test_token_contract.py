@@ -133,7 +133,7 @@ def test_public_token_summary_rejects_unsafe_or_incoherent_fields() -> None:
     for changed in (
         {"name": "line\nsecret"},
         {"safe_prefix": "secret!"},
-        {"scopes": ("read:status",)},
+        {"scopes": ("read:unknown",)},
         {"record_version": 0},
         {"expires_at": summary.issued_at},
         {"state": "revoked"},

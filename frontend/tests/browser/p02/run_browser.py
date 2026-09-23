@@ -55,6 +55,7 @@ SCENARIOS = {
     "clipboard_denied",
     "security_boundary",
     "hostile_resource",
+    "monitoring_dashboard",
 }
 QUICK_SCENARIOS = (
     "setup",
@@ -66,6 +67,7 @@ QUICK_SCENARIOS = (
     "api_tokens",
     "clipboard_denied",
     "responsive",
+    "monitoring_dashboard",
 )
 
 

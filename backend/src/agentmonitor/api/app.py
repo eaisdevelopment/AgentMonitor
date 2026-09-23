@@ -27,6 +27,7 @@ from agentmonitor.api.problem import (
 from agentmonitor.api.transport import IamTransportGuard
 from agentmonitor.api.v1.dependencies import (
     IamApiPortsV1,
+    ObservationApiPortsV1,
     authenticate_documentation_request,
 )
 from agentmonitor.api.v1.pagination import CursorCodecV1
@@ -137,6 +138,7 @@ def create_application(
     *,
     iam_mode: bool = False,
     iam_ports: IamApiPortsV1 | None = None,
+    observation_ports: ObservationApiPortsV1 | None = None,
     service_lock_path: Path | None = None,
 ) -> FastAPI:
     """CTR-FND-002: explicit dependencies, no I/O until real ASGI lifespan."""
@@ -180,6 +182,7 @@ def create_application(
     app.state.build = build
     app.state.loopback_schema_binding = binding
     app.state.iam_ports = iam_ports
+    app.state.observation_ports = observation_ports
     app.include_router(create_router(iam_mode=iam_mode))
     frontend_build = Path(__file__).resolve().parents[4] / "frontend" / "dist"
     if iam_mode:
@@ -303,6 +306,11 @@ def create_application(
         @app.get("/", include_in_schema=False)
         @app.get("/login", include_in_schema=False)
         @app.get("/settings/api-tokens", include_in_schema=False)
+        @app.get("/accounts", include_in_schema=False)
+        @app.get("/accounts/{account_id}", include_in_schema=False)
+        @app.get("/providers", include_in_schema=False)
+        @app.get("/collectors", include_in_schema=False)
+        @app.get("/sessions", include_in_schema=False)
         def dashboard_html() -> FileResponse:
             """Serve only approved SPA entries; API/docs routes remain distinct."""
             entry = frontend_build / "dashboard.html"

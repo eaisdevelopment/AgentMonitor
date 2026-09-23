@@ -2,6 +2,7 @@
 
 import os
 import platform
+import pwd
 import re
 import shutil
 import subprocess
@@ -33,16 +34,54 @@ class ClaudeInstallationV1:
 
 
 def discover_default_installation() -> ClaudeInstallationV1:
-    """Resolve `claude` and verify only the accepted version/platform tuple."""
+    """Resolve the accepted installed Claude version without changing defaults.
+
+    Claude's native installer retains earlier versioned executables when it
+    advances the ``claude`` symlink.  Prefer the current command only when it
+    still matches the reviewed tuple; otherwise inspect the one exact native
+    version path.  This never rewrites the symlink or provider-owned profile.
+    """
     found = shutil.which("claude")
     if found is None:
         raise ClaudeInstallationUnavailable("claude_executable_unavailable")
-    executable = Path(found).resolve(strict=True)
-    if not executable.is_file() or not os.access(executable, os.X_OK):
-        raise ClaudeInstallationUnavailable("claude_executable_invalid")
     platform_id = f"{platform.system().lower()}-{platform.machine().lower()}"
     if platform_id != "linux-x86_64":
         raise ClaudeInstallationUnavailable("claude_platform_unverified")
+
+    native_version = (
+        Path(pwd.getpwuid(os.getuid()).pw_dir)
+        / ".local"
+        / "share"
+        / "claude"
+        / "versions"
+        / CLAUDE_PROVIDER_VERSION
+    )
+    candidates = (Path(found), native_version)
+    saw_executable = False
+    for candidate in candidates:
+        try:
+            executable = candidate.resolve(strict=True)
+        except OSError:
+            continue
+        if not executable.is_file() or not os.access(executable, os.X_OK):
+            continue
+        saw_executable = True
+        provider_version = _read_version(executable)
+        if provider_version != CLAUDE_PROVIDER_VERSION:
+            continue
+        return ClaudeInstallationV1(
+            installation_ref=OpaqueIdV1("claude-installation-default"),
+            provider_version=provider_version,
+            platform_id=platform_id,
+            _executable=executable,
+        )
+    if saw_executable:
+        raise ClaudeInstallationUnavailable("claude_version_unverified")
+    raise ClaudeInstallationUnavailable("claude_executable_invalid")
+
+
+def _read_version(executable: Path) -> str:
+    """Read one bounded version banner from an already validated executable."""
     try:
         completed = subprocess.run(
             [str(executable), "--version"],
@@ -67,12 +106,4 @@ def discover_default_installation() -> ClaudeInstallationV1:
     raw_version = b""
     if completed.returncode != 0 or match is None:
         raise ClaudeInstallationUnavailable("claude_version_invalid")
-    provider_version = match.group(1).decode("ascii")
-    if provider_version != CLAUDE_PROVIDER_VERSION:
-        raise ClaudeInstallationUnavailable("claude_version_unverified")
-    return ClaudeInstallationV1(
-        installation_ref=OpaqueIdV1("claude-installation-default"),
-        provider_version=provider_version,
-        platform_id=platform_id,
-        _executable=executable,
-    )
+    return match.group(1).decode("ascii")

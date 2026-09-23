@@ -21,7 +21,9 @@ PURE_IMPORTS = frozenset(
         "enum",
         "fractions",
         "functools",
+        "hashlib",
         "itertools",
+        "json",
         "math",
         "operator",
         "re",
@@ -29,6 +31,7 @@ PURE_IMPORTS = frozenset(
         "string",
         "types",
         "typing",
+        "unicodedata",
         "uuid",
     }
 )
@@ -62,6 +65,43 @@ CONTRACT_MODULES = frozenset(
 SUPPORT_SYMBOLS = {
     "agentmonitor.contracts.common_v1": {"TechnicalValueV1", "AvailabilityStateV1"},
     "agentmonitor.contracts.configuration_v1": {"ConfigurationDescriptorV1"},
+    "agentmonitor.contracts.registry_v1": {
+        "ConfirmIdentityAssociationCommandV1",
+        "IdentityDecisionStateV1",
+        "IdentityEvidenceClassV1",
+        "PrivateProfileLocatorRefV1",
+        "ProfileCompatibilityStateV1",
+        "ProfileManagementStateV1",
+        "ProfilePurposeV1",
+        "ReconcileProviderDiscoveryV1",
+        "RegisterAccountV1",
+        "RegistryScopeKindV1",
+        "RegistryScopeSnapshotV1",
+        "ResourceKindV1",
+        "ConfirmIdentityAssociationV1",
+    },
+    "agentmonitor.contracts.runtime_observation_v1": {
+        "AgentProcessViewV1",
+        "CorrelationDecisionStateV1",
+        "CorrelationEvidenceClassV1",
+        "InspectedAgentProcessCountV1",
+        "InvalidRuntimeObservationV1",
+        "MetricOverlapV1",
+        "MetricSemanticsV1",
+        "NormalizedRuntimeStateV1",
+        "PlatformInspectionStateV1",
+        "PresenceStateV1",
+        "ProcessInspectionSnapshotV1",
+        "ProviderKeyV1",
+        "RuntimeFieldStateV1",
+        "RuntimeOverviewViewV1",
+        "RuntimeStateCertaintyV1",
+        "StallEvaluationStateV1",
+    },
+    "agentmonitor.contracts.capacity_v1": {
+        "CapacityHealthStateV1",
+        "InvalidCapacityContractV1",
+    },
 }
 TASK_CONTRACT_IDS = frozenset(
     {
@@ -150,6 +190,42 @@ M01_SQLITE_LAYER_SYMBOLS = {
             "valid_correlation_id",
         }
     ),
+}
+M02_SQLITE_POLICY_SYMBOLS = frozenset(
+    {"DatabaseRefV1", "SqlitePolicyError", "open_sqlite_database"}
+)
+M03_M06_SQLITE_POLICY_PREFIXES = frozenset(
+    {
+        "agentmonitor.adapters.persistence.provider_system.sqlite",
+        "agentmonitor.adapters.persistence.collection_control.sqlite",
+        "agentmonitor.adapters.persistence.capacity.sqlite",
+        "agentmonitor.adapters.persistence.runtime_observation.sqlite",
+    }
+)
+M03_M06_SQLITE_POLICY_SYMBOLS = frozenset(
+    {"DatabaseRefV1", "SqlitePolicyError", "open_sqlite_database"}
+)
+M02_SQLITE_LAYER_SYMBOLS = {
+    "agentmonitor.modules.registry.application.accounts": frozenset(
+        {
+            "ConfirmIdentityAssociationCommandV1",
+            "EnrollMonitoringGraphCommandV1",
+            "RegistryPolicyErrorV1",
+            "decide_account_monitoring",
+            "decide_candidate_evidence_transition",
+            "decide_command_replay",
+            "ensure_candidate_confirmation_is_current",
+            "safe_registry_event_projection",
+        }
+    ),
+    "agentmonitor.modules.registry.application.organizations": frozenset(
+        {"CreateOrganizationCommandV1", "RegistryCommandConflictV1"}
+    ),
+}
+A01_PROVIDER_SYSTEM_SYMBOLS = {
+    "agentmonitor.modules.provider_system.application.gateway": frozenset(
+        {"ResolveAndInvokeProviderCapabilityV1"}
+    )
 }
 FRESH_INIT_MIGRATE_TARGET = (
     "agentmonitor.adapters.persistence._shared.sqlite.schema.compatibility."
@@ -256,6 +332,73 @@ def _approved_m01_adapter_port_symbol(source: str, target: str) -> bool:
     )
 
 
+def _m02_sqlite_policy_symbol_module(source: str, target: str) -> bool:
+    prefix = "agentmonitor.adapters.persistence.registry.sqlite"
+    return (
+        source == prefix or source.startswith(prefix + ".")
+    ) and target == "agentmonitor.adapters.persistence._shared.sqlite.core.policy"
+
+
+def _approved_m02_sqlite_policy_symbol(source: str, target: str) -> bool:
+    module, separator, symbol = target.rpartition(".")
+    return (
+        bool(separator)
+        and _m02_sqlite_policy_symbol_module(source, module)
+        and symbol in M02_SQLITE_POLICY_SYMBOLS
+    )
+
+
+def _m03_m06_sqlite_policy_symbol_module(source: str, target: str) -> bool:
+    return (
+        any(
+            source == prefix or source.startswith(prefix + ".")
+            for prefix in M03_M06_SQLITE_POLICY_PREFIXES
+        )
+        and target == "agentmonitor.adapters.persistence._shared.sqlite.core.policy"
+    )
+
+
+def _approved_m03_m06_sqlite_policy_symbol(source: str, target: str) -> bool:
+    module, separator, symbol = target.rpartition(".")
+    return (
+        bool(separator)
+        and _m03_m06_sqlite_policy_symbol_module(source, module)
+        and symbol in M03_M06_SQLITE_POLICY_SYMBOLS
+    )
+
+
+def _m02_adapter_port_symbol_module(source: str, target: str) -> bool:
+    prefix = "agentmonitor.adapters.persistence.registry.sqlite"
+    return (
+        source == prefix or source.startswith(prefix + ".")
+    ) and target in M02_SQLITE_LAYER_SYMBOLS
+
+
+def _approved_m02_adapter_port_symbol(source: str, target: str) -> bool:
+    module, separator, symbol = target.rpartition(".")
+    return (
+        bool(separator)
+        and _m02_adapter_port_symbol_module(source, module)
+        and symbol in M02_SQLITE_LAYER_SYMBOLS[module]
+    )
+
+
+def _a01_provider_system_symbol_module(source: str, target: str) -> bool:
+    prefix = "agentmonitor.adapters.providers.claude"
+    return (
+        source == prefix or source.startswith(prefix + ".")
+    ) and target in A01_PROVIDER_SYSTEM_SYMBOLS
+
+
+def _approved_a01_provider_system_symbol(source: str, target: str) -> bool:
+    module, separator, symbol = target.rpartition(".")
+    return (
+        bool(separator)
+        and _a01_provider_system_symbol_module(source, module)
+        and symbol in A01_PROVIDER_SYSTEM_SYMBOLS[module]
+    )
+
+
 def _allowed(source: str, target: str, *, symbol_import: bool = False) -> bool:
     src, dst = source.split("."), target.split(".")
     if "utils" in dst or dst[0] in {"frontend", "backend"}:
@@ -283,11 +426,17 @@ def _allowed(source: str, target: str, *, symbol_import: bool = False) -> bool:
         or _approved_m2_fresh_init_migration(source, target)
         or _approved_m01_sqlite_policy_symbol(source, target)
         or _approved_m01_adapter_port_symbol(source, target)
+        or _approved_m02_sqlite_policy_symbol(source, target)
+        or _approved_m03_m06_sqlite_policy_symbol(source, target)
+        or _approved_m02_adapter_port_symbol(source, target)
+        or _approved_a01_provider_system_symbol(source, target)
     ):
         return True
     if any(part.startswith("_") for part in dst[1:]) and src[1:3] != dst[1:3]:
         return False
     if dst[1] == "contracts":
+        if len(dst) >= 4 and dst[2] == "providers":
+            return not any(part.startswith("_") for part in dst[3:])
         return (
             len(dst) in {3, 4}
             and dst[2] in CONTRACT_MODULES
@@ -366,6 +515,10 @@ def _imports(
                     and not _composition_sqlite_symbol_module(module, base)
                     and not _m01_sqlite_policy_symbol_module(module, base)
                     and not _m01_adapter_port_symbol_module(module, base)
+                    and not _m02_sqlite_policy_symbol_module(module, base)
+                    and not _m03_m06_sqlite_policy_symbol_module(module, base)
+                    and not _m02_adapter_port_symbol_module(module, base)
+                    and not _a01_provider_system_symbol_module(module, base)
                     and not _allowed(module, base)
                 ):
                     edges.append((node.lineno, base, False))
@@ -627,34 +780,44 @@ def _contract_consumption_errors(
             if not module.startswith("agentmonitor.contracts."):
                 continue
             tree = ast.parse(path.read_text(encoding="utf-8"))
-            # M01 publishes several concrete classes under one catalog family.
-            # Admit only literal declarations of the catalog ID and its producer
-            # in the owning contract module, never aliases or runtime exports.
-            m01_contracts: dict[str, str] = {}
-            m01_support: dict[str, str] = {}
-            if module == "agentmonitor.contracts.identity_access_v1":
-                for node in tree.body:
-                    if not isinstance(node, ast.ClassDef):
-                        continue
-                    contract_id = _class_string_literal(node, "CONTRACT_ID")
-                    owner = _class_string_literal(node, "OWNER")
-                    record = definitions_by_id.get(contract_id or "")
-                    if (
-                        record is not None
-                        and record["producer"] == "PLAN-M01"
-                        and owner == "PLAN-M01"
-                        and contract_id.startswith("CTR-IAM-")
-                    ):
-                        m01_contracts[node.name] = contract_id
-                    elif (
-                        node.name == "SecretInputV1"
-                        and contract_id is None
-                        and owner is None
-                    ):
-                        m01_support[node.name] = "CTR-IAM-004"
+            # A contract family may publish multiple concrete values. Admit only
+            # literal declarations whose ID and owner match the policy catalog;
+            # aliases and runtime-computed metadata cannot establish ownership.
+            declared_contracts: dict[str, str] = {}
+            declared_owners: set[str] = set()
+            declared_support: dict[str, str] = {}
+            for node in tree.body:
+                if not isinstance(node, ast.ClassDef):
+                    continue
+                contract_id = _class_string_literal(node, "CONTRACT_ID")
+                owner = _class_string_literal(node, "OWNER")
+                record = definitions_by_id.get(contract_id or "")
+                if (
+                    record is not None
+                    and owner == str(record["producer"])
+                    and owner in permissions
+                ):
+                    declared_contracts[node.name] = str(record["id"])
+                    declared_owners.add(owner)
+                elif (
+                    module.startswith("agentmonitor.contracts.providers.")
+                    and contract_id is not None
+                    and owner in permissions
+                    and "CTR-PROV-008" in permissions[owner]
+                ):
+                    declared_contracts[node.name] = "CTR-PROV-008"
+                    declared_owners.add(owner)
+                elif (
+                    module == "agentmonitor.contracts.identity_access_v1"
+                    and node.name == "SecretInputV1"
+                    and contract_id is None
+                    and owner is None
+                ):
+                    declared_support[node.name] = "CTR-IAM-004"
             names: set[str] = set()
             rebindings = _catalog_rebindings(
-                tree, set(definitions) | set(m01_contracts) | set(m01_support)
+                tree,
+                set(definitions) | set(declared_contracts) | set(declared_support),
             )
             rebound_names = {name for _, name in rebindings}
             errors.extend(
@@ -679,13 +842,13 @@ def _contract_consumption_errors(
                 name: (
                     str(definitions[name]["id"])
                     if name in definitions
-                    else m01_contracts.get(name) or m01_support.get(name)
+                    else declared_contracts.get(name) or declared_support.get(name)
                 )
                 for name in names
                 if name in definitions
                 or name in SUPPORT_SYMBOLS.get(module, set())
-                or name in m01_contracts
-                or name in m01_support
+                or name in declared_contracts
+                or name in declared_support
             }
             families[module] = {
                 value for value in exports[module].values() if value is not None
@@ -695,8 +858,10 @@ def _contract_consumption_errors(
                 for name in names
                 if name in definitions
             }
-            if (set(m01_contracts) | set(m01_support)) & names:
-                owners.add("PLAN-M01")
+            if (set(declared_contracts) | set(declared_support)) & names:
+                owners.update(declared_owners)
+                if set(declared_support) & names:
+                    owners.add("PLAN-M01")
             if len(owners) == 1:
                 contract_owners[module] = owners.pop()
         for path, line, target in imports:
@@ -717,13 +882,13 @@ def _contract_consumption_errors(
                 continue
             allowed = permissions[source_owners[0]]
             parts = target.split(".")
-            module = ".".join(parts[:3])
+            module = target if target in exports else target.rpartition(".")[0]
             if module not in exports or not families[module]:
                 errors.append(f"{prefix}:unresolved-contract-module")
                 continue
             required = families[module]
-            if len(parts) == 4:
-                symbol = parts[3]
+            if target != module:
+                symbol = parts[-1]
                 if symbol not in exports[module]:
                     errors.append(f"{prefix}:unresolved-contract-symbol")
                     continue

@@ -22,13 +22,32 @@ IAM_TABLES = {
     "iam_idempotency_record",
     "iam_security_audit_event",
 }
+REGISTRY_TABLES = {
+    "reg_registry_state",
+    "reg_organization",
+    "reg_provider_definition",
+    "reg_account",
+    "reg_registry_change",
+    "reg_provider_installation",
+    "reg_discovery_candidate",
+    "reg_provider_identity_claim",
+    "reg_identity_decision",
+    "reg_monitoring_profile",
+    "reg_account_resource",
+    "reg_profile_resource_link",
+    "reg_account_configuration_reference",
+    "reg_command_receipt",
+    "reg_event_outbox",
+}
 
 
 def database_ref(root: Path) -> DatabaseRefV1:
     return DatabaseRefV1(root / "agentmonitor.db", root)
 
 
-def test_fresh_migration_creates_exact_uninitialized_m01_schema(tmp_path: Path) -> None:
+def test_fresh_migration_preserves_empty_m01_schema_at_current_head(
+    tmp_path: Path,
+) -> None:
     ref = database_ref(tmp_path)
     compatibility.migrate_to_head(ref)
     assert stat.S_IMODE(ref._path.stat().st_mode) == 0o600
@@ -39,12 +58,12 @@ def test_fresh_migration_creates_exact_uninitialized_m01_schema(tmp_path: Path) 
                     "SELECT name FROM sqlite_schema WHERE type='table'"
                 ).scalars()
             )
-            assert tables == IAM_TABLES | {"alembic_version"}
+            assert IAM_TABLES | REGISTRY_TABLES | {"alembic_version"} <= tables
             assert (
                 connection.exec_driver_sql(
                     "SELECT version_num FROM alembic_version"
                 ).scalar_one()
-                == "v1_0100"
+                == "v1_0603"
             )
             assert (
                 connection.exec_driver_sql(
@@ -59,7 +78,7 @@ def test_fresh_migration_creates_exact_uninitialized_m01_schema(tmp_path: Path) 
         ref, compatibility.application_schema_range(), "runtime_read_write"
     )
     assert view.state == "compatible"
-    assert compatibility.RequireWritableSchemaV1(view).revision == "v1_0100"
+    assert compatibility.RequireWritableSchemaV1(view).revision == "v1_0603"
 
 
 def test_existing_empty_file_is_not_silently_initialized(tmp_path: Path) -> None:

@@ -98,6 +98,8 @@ PROBLEM_DESCRIPTIONS: dict[str, str] = {
     "invalid_sort": "The requested ordering is unavailable.",
     "login_throttled": "Too many login attempts were made; retry later.",
     "method_not_allowed": "This HTTP method is not available here.",
+    "observation_data_unavailable": "The observation query service is unavailable.",
+    "observation_repository_unavailable": "The local observation store is unavailable.",
     "one_time_secret_not_replayable": (
         "A one-time issued secret cannot be retrieved again."
     ),
@@ -106,6 +108,9 @@ PROBLEM_DESCRIPTIONS: dict[str, str] = {
     "permission_denied": "The caller lacks the required permission.",
     "precondition_failed": "The resource version no longer matches.",
     "precondition_required": "A current resource version is required.",
+    "provider_capabilities_not_found": (
+        "The provider capability declaration is unavailable."
+    ),
     "request_capacity_exceeded": "The local request-capacity limit was reached.",
     "request_timeout": "The request exceeded its execution deadline.",
     "request_too_large": "The request exceeded a transport size limit.",

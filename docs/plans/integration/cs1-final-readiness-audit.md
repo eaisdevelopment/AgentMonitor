@@ -336,3 +336,23 @@ canonical M2 run found a stale `automation-routines` control digest and byte
 count. This bounded rebind changes no plan body, other control, historical
 CS-1 finding, owner authority, provider verification, or milestone acceptance.
 The full M2 gate must be rerun against the corrected checkout.
+
+## 13. 2026-09-22 M3 additive consumer binding
+
+Plan snapshot SHA-256: `bba633ea238b9fbaa874b529de68c3c65d4d7769cb6c17dc3d52e2ffe199b59d`
+
+The current M3 snapshot records only additive, non-breaking consumer adoption
+for the Claude capacity path: PLAN-A01 consumes `CTR-COL-002` and
+`CTR-COMMON-003`, and PLAN-M05 consumes `CTR-COL-004`. The contract schemas and
+versions are unchanged. This root integration binding preserves the historical
+independent `PASS-CONDITIONAL`; it is not a renewed all-V1 audit, owner
+approval, M3 acceptance, or live-provider result.
+
+## 14. 2026-09-22 M3 runtime consumer binding
+
+Plan snapshot SHA-256: `0ce75e14b6618fd5c2b2a77cd328772481173256e1d9be707d3768272c870704`
+
+The M3 runtime slice adds only the implemented PLAN-M06 use of `CTR-DB-001`,
+the PLAN-A04-LINUX use of `CTR-RUN-001`, and existing Foundation composition
+consumers. Contract versions are unchanged. This preserves the historical
+`PASS-CONDITIONAL` result and does not claim live same-account acceptance.

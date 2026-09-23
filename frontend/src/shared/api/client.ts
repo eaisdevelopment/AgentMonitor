@@ -1,12 +1,28 @@
 import {
   apiClient,
   apiVersion,
+  type AccountCapacityViewV1,
+  type AccountPageV1,
+  type AccountViewV1,
+  type AgentProcessPageV1,
+  type AgentProcessViewV1,
+  type AgentSessionPageV1,
+  type AgentSessionViewV1,
   type ApiResultV1,
   type ApiTokenCredentialIssueV1,
   type ApiTokenPageV1,
   type ApiTokenSummaryV1,
+  type AvailabilityV1,
+  type CollectionRunPageV1,
+  type CollectionRunViewV1,
   type CurrentSessionViewV1,
+  type ExactMetricFieldWireV1,
   type IamInitializationStateV1,
+  type ProviderCapabilityDeclarationPageV1,
+  type ProviderInstallationPageV1,
+  type ProviderInstallationViewV1,
+  type QuotaWindowPageV1,
+  type QuotaWindowViewV1,
   type SafeProblemV1,
 } from "../../generated/api";
 
@@ -14,8 +30,24 @@ export type {
   ApiTokenCredentialIssueV1,
   ApiTokenPageV1,
   ApiTokenSummaryV1,
+  AccountCapacityViewV1,
+  AccountPageV1,
+  AccountViewV1,
+  AgentProcessPageV1,
+  AgentProcessViewV1,
+  AgentSessionPageV1,
+  AgentSessionViewV1,
+  AvailabilityV1,
+  CollectionRunPageV1,
+  CollectionRunViewV1,
   CurrentSessionViewV1,
+  ExactMetricFieldWireV1,
   IamInitializationStateV1,
+  ProviderCapabilityDeclarationPageV1,
+  ProviderInstallationPageV1,
+  ProviderInstallationViewV1,
+  QuotaWindowPageV1,
+  QuotaWindowViewV1,
   SafeProblemV1,
 };
 
@@ -113,6 +145,60 @@ export const iam = Object.freeze({
         { id: existing.api_token_id, recordVersion: existing.record_version },
       ),
     }),
+});
+
+export const registry = Object.freeze({
+  accounts: (signal?: AbortSignal): Promise<ClientResult<AccountPageV1>> =>
+    apiClient.registry_list_accounts_v1({ query: { limit: 200 }, signal }),
+  providerInstallations: (
+    signal?: AbortSignal,
+  ): Promise<ClientResult<ProviderInstallationPageV1>> =>
+    apiClient.registry_list_provider_installations_v1({ query: { limit: 200 }, signal }),
+});
+
+export const providers = Object.freeze({
+  capabilities: (
+    providerKey: string,
+    signal?: AbortSignal,
+  ): Promise<ClientResult<ProviderCapabilityDeclarationPageV1>> =>
+    apiClient.provider_get_capabilities_v1({ path: { provider_key: providerKey }, signal }),
+});
+
+export const collections = Object.freeze({
+  runs: (signal?: AbortSignal): Promise<ClientResult<CollectionRunPageV1>> =>
+    apiClient.collection_list_runs_v1({ query: { limit: 50 }, signal }),
+});
+
+export const capacity = Object.freeze({
+  account: (
+    accountId: string,
+    signal?: AbortSignal,
+  ): Promise<ClientResult<AccountCapacityViewV1>> =>
+    apiClient.capacity_get_account_v1({ path: { account_id: accountId }, signal }),
+  quotaWindows: (
+    accountId: string,
+    signal?: AbortSignal,
+  ): Promise<ClientResult<QuotaWindowPageV1>> =>
+    apiClient.capacity_list_quota_windows_v1({
+      path: { account_id: accountId }, query: { limit: 200 }, signal,
+    }),
+});
+
+export const runtime = Object.freeze({
+  processes: (signal?: AbortSignal): Promise<ClientResult<AgentProcessPageV1>> =>
+    apiClient.runtime_list_processes_v1({ query: { limit: 200 }, signal }),
+  sessions: (
+    options: Readonly<{ accountId?: string; signal?: AbortSignal }> = {},
+  ): Promise<ClientResult<AgentSessionPageV1>> =>
+    apiClient.runtime_list_sessions_v1({
+      query: { limit: 200, ...(options.accountId === undefined ? {} : { account_id: options.accountId }) },
+      signal: options.signal,
+    }),
+  session: (
+    sessionId: string,
+    signal?: AbortSignal,
+  ): Promise<ClientResult<AgentSessionViewV1>> =>
+    apiClient.runtime_get_session_v1({ path: { session_id: sessionId }, signal }),
 });
 
 /** Only the versioned safe code/correlation is rendered, never rejected input. */

@@ -367,3 +367,21 @@ was stale. Its digest and byte count are now rebound to the actual catalog;
 all 20 plan bodies and the other eight controls are unchanged. The historical
 CS-1 review remains historical Draft evidence. This rebind neither approves
 later milestones nor claims that the full M2 test gate has passed.
+
+## 12. 2026-09-22 M3 additive consumer rebind
+
+Plan snapshot SHA-256: `bba633ea238b9fbaa874b529de68c3c65d4d7769cb6c17dc3d52e2ffe199b59d`
+
+The synchronized controls now register the existing M3 Claude-capacity
+consumers for `CTR-COL-002`, `CTR-COL-004`, and `CTR-COMMON-003`. This is an
+additive consumer-only rebind: no contract schema, version, plan body, owner
+approval, M3 completion, or live-provider claim changed. The historical CS-1
+attestations remain unchanged.
+
+## 13. 2026-09-22 M3 runtime consumer rebind
+
+Plan snapshot SHA-256: `0ce75e14b6618fd5c2b2a77cd328772481173256e1d9be707d3768272c870704`
+
+The synchronized controls now register the actual M3 runtime persistence and
+Linux process-view consumers. No contract schema, version, plan body, owner
+approval, same-account claim, or later milestone scope changed.

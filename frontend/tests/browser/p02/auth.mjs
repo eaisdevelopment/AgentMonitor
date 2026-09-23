@@ -17,10 +17,18 @@ try {
   const page = await context.newPage();
   const externalRequests = [];
   const pageErrors = [];
+  const observationGets = [];
   page.on("request", (request) => {
     if (new URL(request.url()).origin !== origin) externalRequests.push(new URL(request.url()).hostname);
   });
   page.on("pageerror", (error) => pageErrors.push(error.name));
+  page.on("response", (response) => {
+    const request = response.request();
+    const url = new URL(response.url());
+    if (url.origin === origin && request.method() === "GET" && url.pathname.startsWith("/api/v1/")) {
+      observationGets.push({ route: `${url.pathname}${url.search}`, status: response.status() });
+    }
+  });
 
   stage = "entry_document";
   const document = await page.goto(`${origin}/login`);
@@ -33,17 +41,27 @@ try {
   stage = "authenticated_shell";
   await page.getByRole("heading", { name: "AgentMonitor" }).waitFor();
   stage = "monitoring_dashboard";
-  for (const region of ["Fleet status", "Capacity", "Agent runtime", "Alerts", "Recent activity"]) {
+  for (const region of ["Accounts", "Providers", "Collection runs", "Sessions"]) {
     await page.getByRole("region", { name: region }).waitFor();
   }
-  requireTruth(
-    await page.locator('[data-monitoring-state="unavailable"]').count() >= 1,
-    "monitoring_unavailable_state_missing",
-  );
-  requireTruth(
-    await page.getByText("Provider telemetry is not connected yet.").count() === 1,
-    "monitoring_state_not_truthful",
-  );
+  await page.locator('[data-monitoring-state="api"]').waitFor();
+  for (const emptyState of [
+    "No monitored accounts are registered.",
+    "No provider installations were discovered.",
+    "No collection runs have been recorded.",
+    "No observed sessions are available.",
+  ]) await page.getByText(emptyState, { exact: true }).waitFor();
+  for (const requiredRoute of [
+    "/api/v1/accounts?limit=200",
+    "/api/v1/provider-installations?limit=200",
+    "/api/v1/collection-runs?limit=50",
+    "/api/v1/processes?limit=200",
+    "/api/v1/sessions?limit=200",
+  ]) {
+    const calls = observationGets.filter((entry) => entry.route === requiredRoute);
+    requireTruth(calls.length > 0, `observation_get_missing_${requiredRoute}`);
+    requireTruth(calls.every((entry) => entry.status === 200), `observation_get_not_200_${requiredRoute}`);
+  }
   const sessionCookie = (await context.cookies(origin)).find((item) => item.name === "agentmonitor_session");
   requireTruth(sessionCookie?.httpOnly === true, "session_cookie_not_httponly");
   const storageEmpty = await page.evaluate(() => localStorage.length === 0 && sessionStorage.length === 0);

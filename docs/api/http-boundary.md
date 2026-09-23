@@ -1,7 +1,10 @@
-# AgentMonitor local IAM HTTP boundary (V1-M2)
+# AgentMonitor local authenticated HTTP boundary (V1-M2 through V1-M3)
 
-Status: **Stories 4–6 passed their earlier local gate; M2 reacceptance is held after the post-audit security correction**.
-This is the V1-M2 local-only profile, not approval of the all-V1 Draft P01 surface. The frozen authority is
+Status: **The V1-M2 IAM boundary is accepted locally; the additive V1-M3
+observation-query foundation is implemented and under final review, while the
+populated live Claude vertical remains Blocked.**
+This is the implemented local-only profile, not approval of the complete V1
+Draft P01 surface. The frozen M2 authority and approved M3 slice are
 the [M2 contract overlay](../evidence/m2-contract-freeze.md), the
 [P01 module plan](../plans/api/fastapi-boundary/plan-v1.md), and the generated
 [`agentmonitor-v1.json`](../../contracts/openapi/agentmonitor-v1.json).
@@ -40,6 +43,30 @@ IAM can refresh the session idle deadline. Pure bearer requests are unchanged.
 | POST `/api/v1/api-tokens/{token_id}/rotations` | `iam_rotate_api_token_v1` | Cookie+CSRF or bearer, `write:tokens`, If-Match, idempotency key | 201 one-time issue |
 | DELETE `/api/v1/api-tokens/{token_id}` | `iam_revoke_api_token_v1` | Cookie+CSRF or bearer, `write:tokens`, If-Match | 204 |
 | GET `/api/v1/iam/security-events` | `iam_list_security_events_v1` | Cookie or bearer, `read:diagnostics` | 200 bounded safe page |
+
+V1-M3 adds these nine read-only operations. They transport producer-owned V1
+views and explicit unavailable/partial states; request handlers do not invoke
+providers or manufacture observations.
+
+| Resource | Operation ID | Caller | Success |
+|---|---|---|---|
+| GET `/api/v1/accounts` | `registry_list_accounts_v1` | Cookie or bearer, `read:accounts` | 200 bounded page |
+| GET `/api/v1/provider-installations` | `registry_list_provider_installations_v1` | Cookie or bearer, `read:accounts` | 200 bounded page |
+| GET `/api/v1/providers/{provider_key}/capabilities` | `provider_get_capabilities_v1` | Cookie or bearer, `read:status` | 200 declaration page |
+| GET `/api/v1/collection-runs` | `collection_list_runs_v1` | Cookie or bearer, `read:telemetry` | 200 bounded page |
+| GET `/api/v1/accounts/{account_id}/capacity` | `capacity_get_account_v1` | Cookie or bearer, `read:telemetry` | 200 account projection |
+| GET `/api/v1/accounts/{account_id}/quotas` | `capacity_list_quota_windows_v1` | Cookie or bearer, `read:telemetry` | 200 bounded page |
+| GET `/api/v1/processes` | `runtime_list_processes_v1` | Cookie or bearer, `read:telemetry` | 200 bounded page |
+| GET `/api/v1/sessions` | `runtime_list_sessions_v1` | Cookie or bearer, `read:telemetry` | 200 bounded page |
+| GET `/api/v1/sessions/{session_id}` | `runtime_get_session_v1` | Cookie or bearer, `read:telemetry` | 200 session view |
+
+M3 list operations accept bounded `limit`/opaque `cursor` parameters and only
+their documented selectors. Repeated or unknown query parameters fail closed.
+`/api/v1/sessions` supports bounded `provider_key` and `account_id` selectors
+so the account view can display only sessions correlated to that account.
+Opaque path selectors use the shared bounded safe grammar. Populated quota and
+session evidence remains a live-gate requirement; an empty real database is
+not proof of the live Claude vertical.
 
 The initialization projection contains the three safe `CTR-IAM-004` fields:
 `state`, nullable `policy_version`, and `schema_revision`; no credential or
@@ -92,11 +119,12 @@ and state—never the bearer credential or scopes. Password replay and ordinary
 problems omit it. This is an additive pre-release M2 schema/client correction.
 Its `type` is the same-origin, root-relative `/problems/{closed_safe_code}`.
 `GET /problems/{code}` is an authenticated local HTML documentation transport,
-excluded from the 13-resource OpenAPI operation set; unknown codes receive a
+excluded from the 22-operation OpenAPI resource set; unknown codes receive a
 safe 404 without reflecting the requested segment. Unrecognized application
 port outcomes are collapsed to `500 internal_error`, whose type also resolves.
 In IAM mode, the unauthenticated dashboard shell is served from the production
-`dashboard.html` build at only `/`, `/login`, and `/settings/api-tokens`.
+`dashboard.html` build at `/`, `/login`, `/settings/api-tokens`, `/accounts`,
+`/accounts/{account_id}`, `/providers`, `/collectors`, and `/sessions`.
 Authentication is enforced on versioned data operations, so a browser can load
 the login shell without a session; unknown deep links do not silently become
 the dashboard. Direct `/dashboard.html` and `/index.html` requests are denied;
@@ -114,7 +142,7 @@ The same pure correlation validator is used by the live transport. Conditional
 IAM mutations decode only positive-version strong ETags; weak, malformed,
 multi-valued, or oversized tags fail with `412 precondition_failed` before an
 M01 mutation. The generated OpenAPI gate validates the FastAPI OpenAPI 3.1
-model and checks each of the 13 exact success status/body-schema pairs as well
+model and checks each of the 22 exact success status/body-schema pairs as well
 as the published auth, port, replay, request-body schema, required SafeProblem
 statuses, and other safe-problem policies.
 
@@ -206,7 +234,7 @@ on the existing Story 4 perimeter; they are not claimed as pre-fix Reds.
 ## Generated artifacts and verification
 
 `tooling/foundation/openapi_client.py` generates the canonical OpenAPI JSON
-and `frontend/src/generated/api/index.ts` from the same M2 route factory. The
+and `frontend/src/generated/api/index.ts` from the production route factory. The
 generator checks the exact path/method/operation-ID matrix, local `$ref`s,
 security schemes, problem media, source hashes, deterministic output, and
 compatibility. Do not hand-edit either artifact. The real-client integration

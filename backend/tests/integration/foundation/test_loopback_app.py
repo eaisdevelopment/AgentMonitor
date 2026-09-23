@@ -804,7 +804,7 @@ def test_generation_is_reproducible_check_detects_drift_and_types_compile(
         for methods in json.loads(before[0])["paths"].values()
         for operation in methods.values()
     ]
-    assert len(operations) == len(set(operations)) == 13
+    assert len(operations) == len(set(operations)) == 22
     assert str(root).encode() not in b"".join(before)
     compiled = subprocess.run(
         [
@@ -978,6 +978,26 @@ def test_schema_validation_and_breaking_diff_are_fail_closed() -> None:
     }
     assert tool.classify_compatibility(previous, source) == "breaking"
     assert tool.classify_compatibility(source, previous) == "compatible"
+    component_baseline = previous | {
+        "components": {"schemas": {"ExistingV1": {"type": "string"}}}
+    }
+    component_addition = previous | {
+        "components": {
+            "schemas": {
+                "ExistingV1": {"type": "string"},
+                "AddedV1": {"type": "integer"},
+            }
+        }
+    }
+    assert tool.classify_compatibility(component_baseline, component_addition) == (
+        "compatible"
+    )
+    changed_existing = previous | {
+        "components": {"schemas": {"ExistingV1": {"type": "integer"}}}
+    }
+    assert tool.classify_compatibility(component_baseline, changed_existing) == (
+        "breaking"
+    )
 
 
 def test_generator_public_failure_is_typed_and_sanitized(

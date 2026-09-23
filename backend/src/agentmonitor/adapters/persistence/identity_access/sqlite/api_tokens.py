@@ -367,7 +367,13 @@ def _authorize_caller(
             ),
         ):
             return None, "csrf_validation_failed"
-        if required_permission not in {"write:tokens", "read:diagnostics"}:
+        if required_permission not in {
+            "write:tokens",
+            "read:accounts",
+            "read:diagnostics",
+            "read:status",
+            "read:telemetry",
+        }:
             return None, "permission_denied"
         return (
             _Authority(

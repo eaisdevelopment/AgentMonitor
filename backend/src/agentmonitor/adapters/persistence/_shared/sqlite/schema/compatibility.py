@@ -1,4 +1,4 @@
-"""CTR-DB-001 inspection and explicit fresh-only M2 Alembic initialization.
+"""CTR-DB-001 inspection and explicit fresh-only Alembic initialization.
 
 The bounded runner admits an absent file through the reviewed linear chain or
 the current-head no-op. Existing older/empty files require the separately
@@ -29,7 +29,7 @@ from alembic.config import Config
 from sqlalchemy.engine import Connection
 
 MIGRATIONS_PATH = Path(__file__).resolve().parents[7] / "migrations"
-CATALOG_SHA256 = "2f57e0d21ed96629b1f641fbb19f1d4e4cef3dd09a2469c84214fa0fdcafac41"
+CATALOG_SHA256 = "e988eeb989d194ada46480c2a134c9fcdc7eb59e73e41b9dffebc06f99cfbafc"
 IAM_TABLES = frozenset(
     {
         "iam_administrator",
@@ -61,6 +61,217 @@ IAM_INDEXES = frozenset(
 # This catches changed columns, CHECK/FK constraints and index definitions that
 # name-only inspection cannot detect. No business rows or values are inspected.
 IAM_SCHEMA_SHA256 = "e534a0410662add7c0aa817b69b404f0017c158974c3692e867f919b81562b2f"
+REGISTRY_TABLES = frozenset(
+    {
+        "reg_registry_state",
+        "reg_organization",
+        "reg_provider_definition",
+        "reg_account",
+        "reg_registry_change",
+        "reg_provider_installation",
+        "reg_discovery_candidate",
+        "reg_provider_identity_claim",
+        "reg_identity_decision",
+        "reg_monitoring_profile",
+        "reg_account_resource",
+        "reg_profile_resource_link",
+        "reg_account_configuration_reference",
+        "reg_command_receipt",
+        "reg_event_outbox",
+    }
+)
+REGISTRY_INDEXES = frozenset(
+    {
+        "ix_reg_org_lifecycle_order",
+        "ix_reg_org_normalized_name",
+        "ix_reg_account_org_lifecycle_name",
+        "ix_reg_account_provider_lifecycle",
+        "ix_reg_change_subject_time",
+        "ix_reg_change_expiry",
+        "ix_reg_installation_presence",
+        "ix_reg_candidate_state_seen",
+        "ix_reg_decision_account_valid",
+        "ix_reg_profile_account_lifecycle",
+        "ix_reg_profile_installation_lifecycle",
+        "ix_reg_resource_account_kind",
+        "ix_reg_resource_parent",
+        "ix_reg_link_resource",
+        "ix_reg_config_account_owner",
+        "ix_reg_receipt_expiry",
+        "ix_reg_outbox_delivery",
+    }
+)
+PROVIDER_SYSTEM_TABLES = frozenset(
+    {
+        "provider_system_compatibility_assessment",
+        "provider_system_event_outbox",
+    }
+)
+PROVIDER_SYSTEM_INDEXES = frozenset(
+    {
+        "ix_provider_system_current_assessment",
+        "ix_provider_system_provider_latest",
+        "ix_provider_system_state_latest",
+        "ix_provider_system_retention",
+        "ix_provider_system_outbox_delivery",
+    }
+)
+COLLECTION_TABLES = frozenset(
+    {
+        "collection_schedule",
+        "collection_request",
+        "collection_lease",
+        "collection_run",
+        "collection_run_warning",
+        "collection_run_observation_ref",
+        "collection_budget_reservation",
+        "collection_scheduler_instance",
+        "collection_event_outbox",
+        "collection_event_delivery",
+    }
+)
+COLLECTION_INDEXES = frozenset(
+    {
+        "ix_collection_schedule_due",
+        "ix_collection_schedule_target",
+        "ix_collection_request_state_time",
+        "ix_collection_lease_expiry",
+        "ix_collection_run_schedule_time",
+        "ix_collection_run_state_time",
+        "uq_collection_run_active_schedule",
+        "ix_collection_budget_scope_window",
+        "ix_collection_outbox_available",
+        "ix_collection_delivery_due",
+    }
+)
+CAPACITY_TABLES = frozenset(
+    {
+        "capacity_resource_policy",
+        "capacity_quota_window_definition",
+        "capacity_budget_definition",
+        "capacity_observation_provenance",
+        "capacity_quota_observation",
+        "capacity_quota_measure",
+        "capacity_budget_observation",
+        "capacity_budget_measure",
+        "capacity_usage_bucket",
+        "capacity_usage_dimension",
+        "capacity_usage_measure",
+        "capacity_commit_receipt",
+        "capacity_commit_receipt_observation",
+        "capacity_current_projection",
+        "capacity_health_projection",
+        "capacity_aggregate_projection",
+        "capacity_aggregate_value",
+        "capacity_availability_signal",
+        "capacity_event_outbox",
+        "capacity_event_delivery",
+        "capacity_derivation",
+        "capacity_derivation_input",
+        "capacity_forecast_projection",
+        "capacity_retention_run",
+    }
+)
+CAPACITY_INDEXES = frozenset(
+    {
+        "ix_capacity_window_account_lifecycle",
+        "ix_capacity_quota_window_time",
+        "ix_capacity_quota_resource_stored",
+        "ix_capacity_quota_run",
+        "ix_capacity_budget_definition_time",
+        "ix_capacity_budget_run",
+        "ix_capacity_usage_resource_time",
+        "ix_capacity_usage_run",
+        "ix_capacity_receipt_run",
+        "ix_capacity_current_freshness",
+        "ix_capacity_health_account",
+        "ix_capacity_signal_current",
+        "uq_capacity_signal_one_current",
+        "ix_capacity_event_available",
+        "ix_capacity_delivery_due",
+        "ix_capacity_forecast_account",
+        "ix_capacity_quota_history_measured",
+        "ix_capacity_usage_history_measured",
+        "ix_capacity_retention_started",
+        "ix_capacity_quota_export_cursor",
+        "ix_capacity_budget_export_cursor",
+        "ix_capacity_usage_export_cursor",
+    }
+)
+RUNTIME_TABLES = frozenset(
+    {
+        "runtime_session",
+        "runtime_process_instance",
+        "runtime_process_snapshot",
+        "runtime_session_observation",
+        "runtime_metric_observation",
+        "runtime_session_process_link",
+        "runtime_session_relationship",
+        "runtime_correlation_evidence",
+        "runtime_session_correlation_decision",
+        "runtime_stall_policy",
+        "runtime_state_transition",
+        "runtime_ingest_receipt",
+        "runtime_event_outbox",
+    }
+)
+RUNTIME_INDEXES = frozenset(
+    {
+        "ix_runtime_process_current",
+        "ix_runtime_process_provider",
+        "ix_runtime_process_history",
+        "ix_runtime_session_current",
+        "ix_runtime_session_account",
+        "ix_runtime_session_history",
+        "ix_runtime_metric_history",
+        "ix_runtime_metric_process_history",
+        "ix_runtime_link_session_current",
+        "uq_runtime_link_one_current_pair",
+        "ix_runtime_relationship_child_current",
+        "uq_runtime_relationship_one_current_parent",
+        "ix_runtime_evidence_session_time",
+        "ix_runtime_decision_session_current",
+        "uq_runtime_decision_one_current",
+        "ix_runtime_policy_scope_current",
+        "uq_runtime_policy_one_current",
+        "ix_runtime_transition_session",
+        "ix_runtime_receipt_run",
+        "ix_runtime_outbox_available",
+    }
+)
+# Filled from the normalized statements emitted by the reviewed v1_0100 and
+# v1_0200..0204 migrations. Revision/catalog digests independently pin bytes.
+OWNED_SCHEMA_SHA256 = "d95878f11f1ebbe6cafadd418fd1fbd0f7b65dac024a66e50471107557d40384"
+M3_OWNED_SCHEMA_SHA256 = (
+    "aa65cda689f337c8fe7189d723812b10a2a4ecac53d63e68a9e56ff51a4b48e7"
+)
+M5_OWNED_SCHEMA_SHA256 = (
+    "8a975e08cf454d1c1189791d5e53c248786d42857d66df4d0bcf745deaa28111"
+)
+M6_OWNED_SCHEMA_SHA256 = (
+    "4e90274e1aa5e867e044d168a51ebb4d2864f77f64acb89ada64dacf046250f7"
+)
+REVISION_ORDER = {
+    "base": -1,
+    "v1_0000": 0,
+    "v1_0100": 100,
+    "v1_0200": 200,
+    "v1_0201": 201,
+    "v1_0202": 202,
+    "v1_0203": 203,
+    "v1_0204": 204,
+    "v1_0300": 300,
+    "v1_0400": 400,
+    "v1_0500": 500,
+    "v1_0501": 501,
+    "v1_0502": 502,
+    "v1_0503": 503,
+    "v1_0504": 504,
+    "v1_0600": 600,
+    "v1_0601": 601,
+    "v1_0602": 602,
+    "v1_0603": 603,
+}
 ApplicationSchemaRangeV1 = SchemaCompatibilityV1
 SchemaState = Literal[
     "missing",
@@ -222,10 +433,10 @@ def load_migration_catalog(
             raise SchemaCompatibilityError("migration_catalog_invalid")
         records = document["revisions"]
         if (
-            document["version"] != "1.1.0"
-            or document["head"] != "v1_0100"
+            document["version"] != "1.6.3"
+            or document["head"] != "v1_0603"
             or not isinstance(records, list)
-            or len(records) != 2
+            or len(records) != 18
             or not all(isinstance(record, dict) for record in records)
         ):
             raise SchemaCompatibilityError("migration_catalog_invalid")
@@ -233,7 +444,42 @@ def load_migration_catalog(
         if filenames != (
             "v1_0000_fnd_anchor.py",
             "v1_0100_m01_identity_access.py",
-        ) or tuple(record.get("ordinal") for record in records) != (0, 100):
+            "v1_0200_m02_registry_core.py",
+            "v1_0201_m02_provider_identity.py",
+            "v1_0202_m02_profiles_resources.py",
+            "v1_0203_m02_account_configuration.py",
+            "v1_0204_m02_receipts_outbox.py",
+            "v1_0300_m03_compatibility.py",
+            "v1_0400_m04_collection.py",
+            "v1_0500_m05_capacity_observations.py",
+            "v1_0501_m05_capacity_receipts.py",
+            "v1_0502_m05_capacity_health.py",
+            "v1_0503_m05_capacity_forecasts.py",
+            "v1_0504_m05_capacity_retention.py",
+            "v1_0600_m06_runtime_core.py",
+            "v1_0601_m06_runtime_correlation.py",
+            "v1_0602_m06_runtime_state_outbox.py",
+            "v1_0603_m06_runtime_indexes.py",
+        ) or tuple(record.get("ordinal") for record in records) != (
+            0,
+            100,
+            200,
+            201,
+            202,
+            203,
+            204,
+            300,
+            400,
+            500,
+            501,
+            502,
+            503,
+            504,
+            600,
+            601,
+            602,
+            603,
+        ):
             raise SchemaCompatibilityError("migration_catalog_invalid")
         inventory = {path.name for path in (migrations_path / "versions").glob("*.py")}
         if inventory != set(filenames):
@@ -268,12 +514,53 @@ def load_migration_catalog(
             or metadata[1].plan_id != "PLAN-M01"
             or set(metadata[1].tables) != IAM_TABLES
             or records[1].get("status") not in {"implemented", "shared"}
+            or tuple(item.revision for item in metadata[2:7])
+            != ("v1_0200", "v1_0201", "v1_0202", "v1_0203", "v1_0204")
             or any(
-                item.backup_prerequisite != "none_empty_bootstrap" for item in metadata
+                item.owner != "M02" or item.plan_id != "PLAN-M02"
+                for item in metadata[2:7]
+            )
+            or set(table for item in metadata[2:7] for table in item.tables)
+            != REGISTRY_TABLES
+            or any(record.get("status") != "shared" for record in records[2:7])
+            or metadata[7].revision != "v1_0300"
+            or metadata[7].parent_revision != "v1_0204"
+            or metadata[7].owner != "M03"
+            or metadata[7].plan_id != "PLAN-M03"
+            or set(metadata[7].tables) != PROVIDER_SYSTEM_TABLES
+            or records[7].get("status") != "shared"
+            or metadata[8].revision != "v1_0400"
+            or metadata[8].parent_revision != "v1_0300"
+            or metadata[8].owner != "M04"
+            or metadata[8].plan_id != "PLAN-M04"
+            or set(metadata[8].tables) != COLLECTION_TABLES
+            or records[8].get("status") != "shared"
+            or tuple(item.revision for item in metadata[9:14])
+            != ("v1_0500", "v1_0501", "v1_0502", "v1_0503", "v1_0504")
+            or any(
+                item.owner != "M05" or item.plan_id != "PLAN-M05"
+                for item in metadata[9:14]
+            )
+            or set(table for item in metadata[9:14] for table in item.tables)
+            != CAPACITY_TABLES
+            or any(record.get("status") != "shared" for record in records[9:14])
+            or tuple(item.revision for item in metadata[14:18])
+            != ("v1_0600", "v1_0601", "v1_0602", "v1_0603")
+            or any(
+                item.owner != "M06" or item.plan_id != "PLAN-M06"
+                for item in metadata[14:18]
+            )
+            or set(table for item in metadata[14:18] for table in item.tables)
+            != RUNTIME_TABLES
+            or any(record.get("status") != "shared" for record in records[14:18])
+            or any(
+                item.backup_prerequisite
+                not in {"none_empty_bootstrap", "required_existing_database"}
+                for item in metadata
             )
         ):
             raise SchemaCompatibilityError("migration_catalog_invalid")
-        result = MigrationCatalogV1("1.1.0", digest, "v1_0100", metadata)
+        result = MigrationCatalogV1("1.6.3", digest, "v1_0603", metadata)
     except SchemaCompatibilityError as error:
         failure = error.code
     except (OSError, ValueError, KeyError, TypeError, SyntaxError, UnicodeError):
@@ -292,10 +579,10 @@ def _objects(connection: Connection) -> set[tuple[str, str]]:
     objects = {
         (row[0], row[1])
         for row in connection.exec_driver_sql(
-            "SELECT type, name FROM sqlite_schema ORDER BY type, name LIMIT 129"
+            "SELECT type, name FROM sqlite_schema ORDER BY type, name LIMIT 513"
         )
     }
-    if len(objects) > 128:
+    if len(objects) > 512:
         raise SchemaCompatibilityError("migration_catalog_invalid")
     return objects
 
@@ -332,7 +619,7 @@ def _inspect(
     if len(heads) != 1:
         return "multiple_heads", None
     current = heads[0]
-    if current not in {"v1_0000", "v1_0100"}:
+    if current not in REVISION_ORDER or current == "base":
         return "unknown_revision", None
     if current == "v1_0000" and objects != anchor_objects:
         return "migration_failed", current
@@ -352,7 +639,103 @@ def _inspect(
             return "migration_failed", current
         if not _iam_structure_is_valid(connection):
             return "migration_failed", current
-    order = {"base": -1, "v1_0000": 0, "v1_0100": 100}
+    if current in {"v1_0200", "v1_0201", "v1_0202", "v1_0203"}:
+        # Intermediate revisions exist only inside the explicit runner. Normal
+        # service never accepts a partially applied module chain.
+        return "upgrade_required", current
+    if current == "v1_0204":
+        table_names = {name for kind, name in objects if kind == "table"}
+        indexes = {name for kind, name in objects if kind == "index"}
+        explicit_indexes = {
+            name for name in indexes if not name.startswith("sqlite_autoindex_")
+        }
+        if (
+            table_names != IAM_TABLES | REGISTRY_TABLES | {"alembic_version"}
+            or explicit_indexes != IAM_INDEXES | REGISTRY_INDEXES
+            or any(kind not in {"table", "index"} for kind, _ in objects)
+        ):
+            return "migration_failed", current
+        if not _owned_structure_is_valid(connection):
+            return "migration_failed", current
+    if current == "v1_0300":
+        table_names = {name for kind, name in objects if kind == "table"}
+        indexes = {name for kind, name in objects if kind == "index"}
+        explicit_indexes = {
+            name for name in indexes if not name.startswith("sqlite_autoindex_")
+        }
+        if (
+            table_names
+            != IAM_TABLES
+            | REGISTRY_TABLES
+            | PROVIDER_SYSTEM_TABLES
+            | {"alembic_version"}
+            or explicit_indexes
+            != IAM_INDEXES | REGISTRY_INDEXES | PROVIDER_SYSTEM_INDEXES
+            or any(kind not in {"table", "index"} for kind, _ in objects)
+        ):
+            return "migration_failed", current
+        if not _m3_owned_structure_is_valid(connection):
+            return "migration_failed", current
+    if current in {"v1_0400", "v1_0500", "v1_0501", "v1_0502", "v1_0503"}:
+        # The M04/M05 chain is an atomic shared allocation from the service's
+        # perspective. Partially applied revisions are never writable.
+        return "upgrade_required", current
+    if current == "v1_0504":
+        table_names = {name for kind, name in objects if kind == "table"}
+        indexes = {name for kind, name in objects if kind == "index"}
+        explicit_indexes = {
+            name for name in indexes if not name.startswith("sqlite_autoindex_")
+        }
+        if (
+            table_names
+            != IAM_TABLES
+            | REGISTRY_TABLES
+            | PROVIDER_SYSTEM_TABLES
+            | COLLECTION_TABLES
+            | CAPACITY_TABLES
+            | {"alembic_version"}
+            or explicit_indexes
+            != IAM_INDEXES
+            | REGISTRY_INDEXES
+            | PROVIDER_SYSTEM_INDEXES
+            | COLLECTION_INDEXES
+            | CAPACITY_INDEXES
+            or any(kind not in {"table", "index"} for kind, _ in objects)
+        ):
+            return "migration_failed", current
+        if not _m5_owned_structure_is_valid(connection):
+            return "migration_failed", current
+    if current in {"v1_0600", "v1_0601", "v1_0602"}:
+        # The frozen M06 allocation is admitted only as one complete chain.
+        return "upgrade_required", current
+    if current == "v1_0603":
+        table_names = {name for kind, name in objects if kind == "table"}
+        indexes = {name for kind, name in objects if kind == "index"}
+        explicit_indexes = {
+            name for name in indexes if not name.startswith("sqlite_autoindex_")
+        }
+        if (
+            table_names
+            != IAM_TABLES
+            | REGISTRY_TABLES
+            | PROVIDER_SYSTEM_TABLES
+            | COLLECTION_TABLES
+            | CAPACITY_TABLES
+            | RUNTIME_TABLES
+            | {"alembic_version"}
+            or explicit_indexes
+            != IAM_INDEXES
+            | REGISTRY_INDEXES
+            | PROVIDER_SYSTEM_INDEXES
+            | COLLECTION_INDEXES
+            | CAPACITY_INDEXES
+            | RUNTIME_INDEXES
+            or any(kind not in {"table", "index"} for kind, _ in objects)
+        ):
+            return "migration_failed", current
+        if not _m6_owned_structure_is_valid(connection):
+            return "migration_failed", current
+    order = REVISION_ORDER
     bounds = (
         app.minimum_readable_revision,
         app.minimum_writable_revision,
@@ -401,6 +784,125 @@ def _iam_structure_is_valid(connection: Connection) -> bool:
         return False
     digest = hashlib.sha256("\n".join(definitions).encode("utf-8")).hexdigest()
     return digest == IAM_SCHEMA_SHA256
+
+
+def _owned_structure_is_valid(connection: Connection) -> bool:
+    """Verify the exact M01+M02 schema without reading any business row."""
+    rows = connection.exec_driver_sql(
+        "SELECT type, name, sql FROM sqlite_schema "
+        "WHERE type IN ('table', 'index') ORDER BY type, name LIMIT 257"
+    ).fetchall()
+    definitions: list[str] = []
+    expected = IAM_TABLES | REGISTRY_TABLES | IAM_INDEXES | REGISTRY_INDEXES
+    names: set[str] = set()
+    for kind, name, sql in rows:
+        if name not in expected:
+            continue
+        if not isinstance(sql, str) or kind not in {"table", "index"}:
+            return False
+        names.add(name)
+        definitions.append(f"{kind}|{name}|{' '.join(sql.split())}")
+    if names != expected:
+        return False
+    digest = hashlib.sha256("\n".join(definitions).encode("utf-8")).hexdigest()
+    return digest == OWNED_SCHEMA_SHA256
+
+
+def _m3_owned_structure_is_valid(connection: Connection) -> bool:
+    """Verify the exact M01+M02+M03 schema without reading business rows."""
+    rows = connection.exec_driver_sql(
+        "SELECT type, name, sql FROM sqlite_schema "
+        "WHERE type IN ('table', 'index') ORDER BY type, name LIMIT 257"
+    ).fetchall()
+    expected = (
+        IAM_TABLES
+        | REGISTRY_TABLES
+        | PROVIDER_SYSTEM_TABLES
+        | IAM_INDEXES
+        | REGISTRY_INDEXES
+        | PROVIDER_SYSTEM_INDEXES
+    )
+    names: set[str] = set()
+    definitions: list[str] = []
+    for kind, name, sql in rows:
+        if name not in expected:
+            continue
+        if not isinstance(sql, str) or kind not in {"table", "index"}:
+            return False
+        names.add(name)
+        definitions.append(f"{kind}|{name}|{' '.join(sql.split())}")
+    if names != expected:
+        return False
+    digest = hashlib.sha256("\n".join(definitions).encode("utf-8")).hexdigest()
+    return digest == M3_OWNED_SCHEMA_SHA256
+
+
+def _m5_owned_structure_is_valid(connection: Connection) -> bool:
+    """Verify the exact admitted schema through M05 without business rows."""
+    rows = connection.exec_driver_sql(
+        "SELECT type, name, sql FROM sqlite_schema "
+        "WHERE type IN ('table', 'index') ORDER BY type, name LIMIT 513"
+    ).fetchall()
+    expected = (
+        IAM_TABLES
+        | REGISTRY_TABLES
+        | PROVIDER_SYSTEM_TABLES
+        | COLLECTION_TABLES
+        | CAPACITY_TABLES
+        | IAM_INDEXES
+        | REGISTRY_INDEXES
+        | PROVIDER_SYSTEM_INDEXES
+        | COLLECTION_INDEXES
+        | CAPACITY_INDEXES
+    )
+    names: set[str] = set()
+    definitions: list[str] = []
+    for kind, name, sql in rows:
+        if name not in expected:
+            continue
+        if not isinstance(sql, str) or kind not in {"table", "index"}:
+            return False
+        names.add(name)
+        definitions.append(f"{kind}|{name}|{' '.join(sql.split())}")
+    if names != expected:
+        return False
+    digest = hashlib.sha256("\n".join(definitions).encode("utf-8")).hexdigest()
+    return digest == M5_OWNED_SCHEMA_SHA256
+
+
+def _m6_owned_structure_is_valid(connection: Connection) -> bool:
+    """Verify the exact admitted schema through M06 without business rows."""
+    rows = connection.exec_driver_sql(
+        "SELECT type, name, sql FROM sqlite_schema "
+        "WHERE type IN ('table', 'index') ORDER BY type, name LIMIT 513"
+    ).fetchall()
+    expected = (
+        IAM_TABLES
+        | REGISTRY_TABLES
+        | PROVIDER_SYSTEM_TABLES
+        | COLLECTION_TABLES
+        | CAPACITY_TABLES
+        | RUNTIME_TABLES
+        | IAM_INDEXES
+        | REGISTRY_INDEXES
+        | PROVIDER_SYSTEM_INDEXES
+        | COLLECTION_INDEXES
+        | CAPACITY_INDEXES
+        | RUNTIME_INDEXES
+    )
+    names: set[str] = set()
+    definitions: list[str] = []
+    for kind, name, sql in rows:
+        if name not in expected:
+            continue
+        if not isinstance(sql, str) or kind not in {"table", "index"}:
+            return False
+        names.add(name)
+        definitions.append(f"{kind}|{name}|{' '.join(sql.split())}")
+    if names != expected:
+        return False
+    digest = hashlib.sha256("\n".join(definitions).encode("utf-8")).hexdigest()
+    return digest == M6_OWNED_SCHEMA_SHA256
 
 
 def _marker_structure_is_valid(connection: Connection) -> bool:
@@ -504,7 +1006,7 @@ def RequireWritableSchemaV1(view: SchemaCompatibilityViewV1) -> WritableSchemaRe
     """A readiness receipt, not a connection or authorization for migration."""
     if (
         view.state != "compatible"
-        or view.current_revision != "v1_0100"
+        or view.current_revision != view.application_range.migration_target_revision
         or view.integrity_state != "passed"
         or view.policy_state != "passed"
         or view.mode != "runtime_read_write"

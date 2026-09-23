@@ -82,6 +82,7 @@ ReauthStateV1 = Literal[
     "expired",
 ]
 ProviderVersionStateV1 = Literal["available", "unknown", "unavailable"]
+ProviderVersionSchemeV1 = Literal["opaque_exact", "semantic_exact", "date_exact"]
 CompatibilityStateV1 = Literal[
     "compatible", "incompatible", "unverified", "unsupported", "disabled"
 ]
@@ -110,7 +111,11 @@ def _bounded_token(value: object, *, maximum: int = 128) -> bool:
 
 
 def _validate_capability_id(value: object) -> None:
-    if type(value) is not str or _CAPABILITY_ID.fullmatch(value) is None:
+    if (
+        type(value) is not str
+        or len(value) > 128
+        or _CAPABILITY_ID.fullmatch(value) is None
+    ):
         raise InvalidProviderContract("capability_id_invalid")
 
 
@@ -763,10 +768,12 @@ class DiscoveryCandidatesV1(TechnicalValueV1):
 
 class DiscoveryOutcomeV1(CollectionOutcomeV1[DiscoveryCandidatesV1]):
     CONTRACT_ID: ClassVar[str] = "CTR-PROV-005"
+    OWNER: ClassVar[str] = "PLAN-M03"
 
 
 class AuthHealthOutcomeV1(CollectionOutcomeV1[AuthHealthObservationV1]):
     CONTRACT_ID: ClassVar[str] = "CTR-PROV-006"
+    OWNER: ClassVar[str] = "PLAN-M03"
 
 
 @dataclass(frozen=True, slots=True)
@@ -787,7 +794,7 @@ class CompatibilityAssessmentInputV1(TechnicalValueV1):
     source_id: str | None
     provider_version_value: str | None
     provider_version_state: ProviderVersionStateV1
-    version_scheme: str | None
+    version_scheme: ProviderVersionSchemeV1 | None
     version_rule_id: str | None
     compatibility_state: CompatibilityStateV1
     reason_code: str
@@ -877,7 +884,7 @@ class CompatibilityAssessmentViewV1(TechnicalValueV1):
     source_id: str | None
     provider_version_value: str | None
     provider_version_state: ProviderVersionStateV1
-    version_scheme: str | None
+    version_scheme: ProviderVersionSchemeV1 | None
     version_rule_id: str | None
     compatibility_state: CompatibilityStateV1
     reason_code: str
@@ -951,6 +958,19 @@ class ProviderSystemOutboxEventV1(TechnicalValueV1):
     attempt_count: int
 
     def __post_init__(self) -> None:
+        timestamps = (
+            self.occurred_at,
+            self.recorded_at,
+            self.available_at,
+            self.claimed_at,
+            self.delivered_at,
+        )
+        if any(
+            value is not None
+            and (not isinstance(value, datetime) or value.utcoffset() != timedelta(0))
+            for value in timestamps
+        ):
+            raise InvalidProviderContract("provider_system_outbox_timestamp_invalid")
         TechnicalValueV1.__post_init__(self)
         _validate_capability_id(self.capability_id)
         if (
@@ -967,6 +987,37 @@ class ProviderSystemOutboxEventV1(TechnicalValueV1):
             or self.attempt_count < 0
         ):
             raise InvalidProviderContract("provider_system_outbox_event_invalid")
+        if (
+            self.recorded_at < self.occurred_at
+            or self.available_at < self.recorded_at
+            or (self.claimed_at is not None and self.claimed_at < self.available_at)
+            or (
+                self.delivered_at is not None
+                and (self.claimed_at is None or self.delivered_at < self.claimed_at)
+            )
+        ):
+            raise InvalidProviderContract("provider_system_outbox_timeline_invalid")
+        state_is_valid = (
+            (
+                self.delivery_state == "pending"
+                and self.claimed_at is None
+                and self.delivered_at is None
+            )
+            or (
+                self.delivery_state == "claimed"
+                and self.claimed_at is not None
+                and self.delivered_at is None
+                and self.attempt_count > 0
+            )
+            or (
+                self.delivery_state == "delivered"
+                and self.claimed_at is not None
+                and self.delivered_at is not None
+                and self.attempt_count > 0
+            )
+        )
+        if not state_is_valid:
+            raise InvalidProviderContract("provider_system_outbox_state_invalid")
 
 
 ExtensionScalarV1 = str | int | bool | Decimal | datetime | None

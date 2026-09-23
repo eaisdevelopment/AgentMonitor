@@ -180,8 +180,8 @@ def test_changed_catalog_or_revision_fails_before_database_creation(
 def test_catalog_and_revision_metadata_are_complete_and_immutable() -> None:
     schema = implementation()
     catalog = schema.load_migration_catalog()
-    assert len(catalog.revisions) == 2
-    assert catalog.head == "v1_0100"
+    assert len(catalog.revisions) == 18
+    assert catalog.head == "v1_0603"
     metadata = catalog.revisions[0]
     assert metadata.revision == "v1_0000"
     assert metadata.parent_revision is None
@@ -202,6 +202,40 @@ def test_catalog_and_revision_metadata_are_complete_and_immutable() -> None:
     assert iam.owner == "M01"
     assert len(iam.tables) == 7
     assert iam.backup_prerequisite == "none_empty_bootstrap"
+    registry = catalog.revisions[2:7]
+    assert tuple(item.revision for item in registry) == (
+        "v1_0200",
+        "v1_0201",
+        "v1_0202",
+        "v1_0203",
+        "v1_0204",
+    )
+    assert all(item.owner == "M02" for item in registry)
+    assert sum(len(item.tables) for item in registry) == 15
+    assert all(
+        item.backup_prerequisite == "required_existing_database" for item in registry
+    )
+    assert catalog.revisions[7].revision == "v1_0300"
+    assert catalog.revisions[7].owner == "M03"
+    assert catalog.revisions[8].revision == "v1_0400"
+    assert catalog.revisions[8].owner == "M04"
+    capacity = catalog.revisions[9:14]
+    assert tuple(item.revision for item in capacity) == (
+        "v1_0500",
+        "v1_0501",
+        "v1_0502",
+        "v1_0503",
+        "v1_0504",
+    )
+    assert all(item.owner == "M05" for item in capacity)
+    runtime = catalog.revisions[14:]
+    assert tuple(item.revision for item in runtime) == (
+        "v1_0600",
+        "v1_0601",
+        "v1_0602",
+        "v1_0603",
+    )
+    assert all(item.owner == "M06" for item in runtime)
 
 
 def test_schema_marker_failures_refuse_writes_and_are_preserved(tmp_path: Path) -> None:

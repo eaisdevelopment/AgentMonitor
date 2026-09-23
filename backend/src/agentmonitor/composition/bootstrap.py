@@ -28,6 +28,12 @@ from agentmonitor.adapters.persistence._shared.sqlite.schema.compatibility impor
     RequireWritableSchemaV1,
     application_schema_range,
 )
+from agentmonitor.adapters.persistence.capacity.sqlite.repository import (
+    SqliteCapacityRepositoryV1,
+)
+from agentmonitor.adapters.persistence.collection_control.sqlite.repository import (
+    SqliteCollectionRepositoryV1,
+)
 from agentmonitor.adapters.persistence.identity_access.sqlite.api_tokens import (
     SqliteIdentityAccessApiTokenRepositoryV1,
 )
@@ -37,8 +43,15 @@ from agentmonitor.adapters.persistence.identity_access.sqlite.repository import 
 from agentmonitor.adapters.persistence.identity_access.sqlite.sessions import (
     SqliteIdentityAccessSessionRepositoryV1,
 )
+from agentmonitor.adapters.persistence.registry.sqlite.repository import (
+    SqliteRegistryRepositoryV1,
+)
+from agentmonitor.adapters.persistence.runtime_observation.sqlite.repository import (
+    SqliteRuntimeObservationRepositoryV1,
+)
+from agentmonitor.adapters.providers.claude.manifest import build_claude_manifest
 from agentmonitor.api.app import create_application
-from agentmonitor.api.v1.dependencies import IamApiPortsV1
+from agentmonitor.api.v1.dependencies import IamApiPortsV1, ObservationApiPortsV1
 from agentmonitor.contracts.configuration_v1 import (
     BootstrapConfigurationV1,
     ConfigurationRegistryV1,
@@ -53,6 +66,13 @@ from agentmonitor.foundation.configuration import (
     BootstrapCliOptionsV1,
     BootstrapConfigurationError,
     load_bootstrap_configuration,
+)
+from agentmonitor.modules.capacity.application.queries import (
+    GetAccountCapacityV1,
+    ListQuotaWindowsV1,
+)
+from agentmonitor.modules.collection_control.application.queries import (
+    ListCollectionRunsV1,
 )
 from agentmonitor.modules.identity_access.application.api_tokens import (
     CreateApiTokenV1,
@@ -77,6 +97,18 @@ from agentmonitor.modules.identity_access.application.sessions import (
     RevokeAllSessionsV1,
     RevokeSessionV1,
     VerifyCsrfV1,
+)
+from agentmonitor.modules.provider_system.application.queries import (
+    GetProviderCapabilitiesV1,
+)
+from agentmonitor.modules.registry.application.accounts import ListAccountsV1
+from agentmonitor.modules.registry.application.discovery import (
+    ListProviderInstallationsV1,
+)
+from agentmonitor.modules.runtime_observation.application.queries import (
+    GetAgentSessionV1,
+    ListAgentProcessesV1,
+    ListAgentSessionsV1,
 )
 from fastapi import FastAPI
 
@@ -158,6 +190,24 @@ def _iam_ports(reference: DatabaseRefV1) -> IamApiPortsV1:
     )
 
 
+def _observation_ports(reference: DatabaseRefV1) -> ObservationApiPortsV1:
+    registry = SqliteRegistryRepositoryV1(reference)
+    collection = SqliteCollectionRepositoryV1(reference)
+    capacity = SqliteCapacityRepositoryV1(reference)
+    runtime = SqliteRuntimeObservationRepositoryV1(reference)
+    return ObservationApiPortsV1(
+        ListAccountsV1(registry),
+        ListProviderInstallationsV1(registry),
+        GetProviderCapabilitiesV1((build_claude_manifest(),)),
+        ListCollectionRunsV1(collection),
+        GetAccountCapacityV1(capacity),
+        ListQuotaWindowsV1(capacity),
+        ListAgentProcessesV1(runtime),
+        ListAgentSessionsV1(runtime),
+        GetAgentSessionV1(runtime),
+    )
+
+
 def create_iam_application(
     config_path: Path, data_root: Path, *, lifecycle: LifecycleHooksV1
 ) -> FastAPI:
@@ -174,6 +224,7 @@ def create_iam_application(
         lifecycle,
         iam_mode=True,
         iam_ports=_iam_ports(reference),
+        observation_ports=_observation_ports(reference),
         service_lock_path=data_root / ".agentmonitor-service.lock",
     )
 

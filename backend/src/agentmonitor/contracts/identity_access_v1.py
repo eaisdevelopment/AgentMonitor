@@ -356,7 +356,14 @@ class ApiTokenSummaryV1(TechnicalValueV1):
             or type(self.scopes) is not tuple
             or not self.scopes
             or self.scopes != tuple(sorted(set(self.scopes)))
-            or not set(self.scopes) <= {"read:diagnostics", "write:tokens"}
+            or not set(self.scopes)
+            <= {
+                "read:accounts",
+                "read:diagnostics",
+                "read:status",
+                "read:telemetry",
+                "write:tokens",
+            }
             or type(self.record_version) is not int
             or self.record_version < 1
             or not isinstance(self.issued_at, datetime)

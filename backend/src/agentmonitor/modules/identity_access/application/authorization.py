@@ -12,8 +12,19 @@ BROWSER_PERMISSIONS_V1: tuple[str, ...] = (
     "write:sessions",
     "write:tokens",
     "read:diagnostics",
+    "read:telemetry",
+    "read:accounts",
+    "read:status",
 )
-BEARER_PERMISSIONS_V1 = frozenset({"read:diagnostics", "write:tokens"})
+BEARER_PERMISSIONS_V1 = frozenset(
+    {
+        "read:accounts",
+        "read:diagnostics",
+        "read:status",
+        "read:telemetry",
+        "write:tokens",
+    }
+)
 
 
 class AuthorizePrincipalV1:

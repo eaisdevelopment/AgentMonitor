@@ -4,11 +4,10 @@ from __future__ import annotations
 
 import hashlib
 import json
+import re
 import secrets
 from datetime import UTC, datetime, timedelta
-
-from sqlalchemy.engine import Connection, RowMapping
-from sqlalchemy.exc import SQLAlchemyError
+from typing import Literal
 
 from agentmonitor.adapters.persistence._shared.sqlite.core.policy import (
     DatabaseRefV1,
@@ -21,6 +20,8 @@ from agentmonitor.contracts.provider_system_v1 import (
     CompatibilityAssessmentViewV1,
     ProviderSystemOutboxEventV1,
 )
+from sqlalchemy.engine import Connection, RowMapping
+from sqlalchemy.exc import SQLAlchemyError
 
 _ASSESSMENT_COLUMNS = (
     "assessment_id, registration_id, provider_key, adapter_id, adapter_version, "
@@ -38,6 +39,7 @@ _OUTBOX_COLUMNS = (
     "claimed_at, delivered_at, attempt_count"
 )
 _MAX_QUERY_LIMIT = 100
+_CAPABILITY_ID = re.compile(r"[a-z][a-z0-9]*(?:\.[a-z][a-z0-9]*){1,5}\Z")
 
 
 class ProviderSystemRepositoryErrorV1(ValueError):
@@ -129,9 +131,7 @@ def _assessment(row: RowMapping) -> CompatibilityAssessmentViewV1:
             else None
         ),
         provider_version_state=row["provider_version_state"],
-        version_scheme=(
-            str(row["version_scheme"]) if row["version_scheme"] is not None else None
-        ),
+        version_scheme=_version_scheme(row["version_scheme"]),
         version_rule_id=(
             str(row["version_rule_id"]) if row["version_rule_id"] is not None else None
         ),
@@ -184,8 +184,48 @@ def _required_utc(value: object) -> datetime:
     return result
 
 
+def _version_scheme(
+    value: object,
+) -> Literal["opaque_exact", "semantic_exact", "date_exact"] | None:
+    if value is None:
+        return None
+    if value not in {"opaque_exact", "semantic_exact", "date_exact"}:
+        raise ProviderSystemRepositoryErrorV1("provider_system_record_invalid")
+    return value
+
+
 def _validate_limit(limit: int) -> None:
     if type(limit) is not int or not 1 <= limit <= _MAX_QUERY_LIMIT:
+        raise ProviderSystemRepositoryErrorV1("provider_system_query_invalid")
+
+
+def _validate_opaque_id(value: object) -> None:
+    if (
+        not isinstance(value, OpaqueIdV1)
+        or type(value.value) is not str
+        or value.value != value.value.strip()
+        or not 1 <= len(value.value) <= 64
+        or not value.value.isprintable()
+    ):
+        raise ProviderSystemRepositoryErrorV1("provider_system_query_invalid")
+
+
+def _validate_capability_id(value: object) -> None:
+    if (
+        type(value) is not str
+        or len(value) > 128
+        or _CAPABILITY_ID.fullmatch(value) is None
+    ):
+        raise ProviderSystemRepositoryErrorV1("provider_system_query_invalid")
+
+
+def _validate_source_id(value: object) -> None:
+    if value is not None and (
+        type(value) is not str
+        or value != value.strip()
+        or not 1 <= len(value) <= 128
+        or not value.isprintable()
+    ):
         raise ProviderSystemRepositoryErrorV1("provider_system_query_invalid")
 
 
@@ -375,8 +415,7 @@ class SqliteProviderSystemCompatibilityRepositoryV1:
             raise ProviderSystemRepositoryErrorV1() from None
 
     def get(self, assessment_id: OpaqueIdV1) -> CompatibilityAssessmentViewV1 | None:
-        if not isinstance(assessment_id, OpaqueIdV1):
-            raise ProviderSystemRepositoryErrorV1("provider_system_query_invalid")
+        _validate_opaque_id(assessment_id)
         try:
             with open_sqlite_database(
                 self._database_ref, "runtime_read_write"
@@ -406,8 +445,11 @@ class SqliteProviderSystemCompatibilityRepositoryV1:
         capability_id: str,
         source_id: str | None,
     ) -> CompatibilityAssessmentViewV1 | None:
-        if not isinstance(registration_id, OpaqueIdV1):
-            raise ProviderSystemRepositoryErrorV1("provider_system_query_invalid")
+        _validate_opaque_id(registration_id)
+        if installation_id is not None:
+            _validate_opaque_id(installation_id)
+        _validate_capability_id(capability_id)
+        _validate_source_id(source_id)
         try:
             with open_sqlite_database(
                 self._database_ref, "runtime_read_write"
@@ -438,8 +480,8 @@ class SqliteProviderSystemCompatibilityRepositoryV1:
         limit: int,
     ) -> tuple[CompatibilityAssessmentViewV1, ...]:
         _validate_limit(limit)
-        if not isinstance(registration_id, OpaqueIdV1):
-            raise ProviderSystemRepositoryErrorV1("provider_system_query_invalid")
+        _validate_opaque_id(registration_id)
+        _validate_capability_id(capability_id)
         try:
             with open_sqlite_database(
                 self._database_ref, "runtime_read_write"

@@ -24,15 +24,39 @@ export async function sessionBootstrap(): Promise<BootstrapState> {
   }
 }
 
-export const ALLOWED_ROUTES = ["/", "/login", "/settings/api-tokens"] as const;
-export type AllowedRoute = (typeof ALLOWED_ROUTES)[number];
+export const ALLOWED_ROUTES = [
+  "/", "/login", "/accounts", "/providers", "/collectors", "/sessions",
+  "/settings/api-tokens",
+] as const;
+export type FixedRoute = (typeof ALLOWED_ROUTES)[number];
+export type AllowedRoute = FixedRoute | `/accounts/${string}`;
+
+export function accountRoute(accountId: string): `/accounts/${string}` {
+  return `/accounts/${encodeURIComponent(accountId)}`;
+}
+
+export function accountIdFromRoute(path: AllowedRoute): string | null {
+  if (!path.startsWith("/accounts/")) return null;
+  try {
+    const accountId = decodeURIComponent(path.slice("/accounts/".length));
+    return accountId.length > 0 && accountId.length <= 256 && !/[\u0000-\u001f\u007f]/.test(accountId)
+      ? accountId : null;
+  } catch {
+    return null;
+  }
+}
 
 export function safeRoute(path: string | null): AllowedRoute | null {
-  if (path === "/" || path === "/login" || path === "/settings/api-tokens") return path;
+  if (path !== null && ALLOWED_ROUTES.some((route) => route === path)) return path as FixedRoute;
+  if (path !== null && /^\/accounts\/[^/]{1,512}$/.test(path)) {
+    const candidate = path as `/accounts/${string}`;
+    return accountIdFromRoute(candidate) === null ? null : candidate;
+  }
   return null;
 }
 
 /** A login intent can resume only an idempotent authenticated page. */
-export function safeReturnRoute(path: string | null): "/" | "/settings/api-tokens" {
-  return path === "/settings/api-tokens" ? path : "/";
+export function safeReturnRoute(path: string | null): AllowedRoute {
+  const route = safeRoute(path);
+  return route === "/login" || route === null ? "/" : route;
 }

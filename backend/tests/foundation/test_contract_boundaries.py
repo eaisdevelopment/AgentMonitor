@@ -759,16 +759,65 @@ def test_m01_argon2_adapter_rejects_unreviewed_application_symbol(
     ]
 
 
-def test_other_module_sqlite_adapter_cannot_import_m01_shared_allowance(
+def test_m02_sqlite_adapter_can_import_exact_shared_policy_symbols(
+    tmp_path: Path,
+) -> None:
+    copy_contract_policy(tmp_path)
+    write_source(
+        tmp_path,
+        "adapters/persistence/registry/sqlite/repository.py",
+        f"from {SQLITE_POLICY} import SqlitePolicyError\n",
+    )
+    assert checker().find_forbidden_imports(tmp_path) == []
+
+
+def test_m02_sqlite_adapter_rejects_unreviewed_shared_policy_symbol(
     tmp_path: Path,
 ) -> None:
     copy_contract_policy(tmp_path)
     source = write_source(
         tmp_path,
         "adapters/persistence/registry/sqlite/repository.py",
-        f"from {SQLITE_POLICY} import SqlitePolicyError\n",
+        f"from {SQLITE_POLICY} import open_sqlite_inspection\n",
     )
-    assert checker().find_forbidden_imports(tmp_path) == [f"{source}:1:{SQLITE_POLICY}"]
+    assert checker().find_forbidden_imports(tmp_path) == [
+        f"{source}:1:{SQLITE_POLICY}.open_sqlite_inspection"
+    ]
+
+
+@pytest.mark.parametrize(
+    "symbol",
+    [
+        "decide_account_monitoring",
+        "decide_candidate_evidence_transition",
+        "safe_registry_event_projection",
+    ],
+)
+def test_m02_sqlite_adapter_can_import_exact_registry_application_policies(
+    tmp_path: Path, symbol: str
+) -> None:
+    copy_contract_policy(tmp_path)
+    write_source(
+        tmp_path,
+        "adapters/persistence/registry/sqlite/repository.py",
+        f"from agentmonitor.modules.registry.application.accounts import {symbol}\n",
+    )
+    assert checker().find_forbidden_imports(tmp_path) == []
+
+
+def test_m02_sqlite_adapter_rejects_direct_registry_domain_policy_import(
+    tmp_path: Path,
+) -> None:
+    copy_contract_policy(tmp_path)
+    source = write_source(
+        tmp_path,
+        "adapters/persistence/registry/sqlite/repository.py",
+        "from agentmonitor.modules.registry.domain.account "
+        "import decide_account_monitoring\n",
+    )
+    assert checker().find_forbidden_imports(tmp_path) == [
+        f"{source}:1:agentmonitor.modules.registry.domain.account"
+    ]
 
 
 @pytest.mark.parametrize(

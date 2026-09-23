@@ -2,13 +2,14 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import replace
 from datetime import UTC, datetime, timedelta, timezone
 from pathlib import Path
+from typing import cast
 
 import pytest
-
 from agentmonitor.adapters.persistence._shared.sqlite.core.policy import (
     DatabaseRefV1,
     open_sqlite_database,
@@ -24,6 +25,7 @@ from agentmonitor.contracts.common_v1 import OpaqueIdV1
 from agentmonitor.contracts.provider_system_v1 import (
     CompatibilityAssessmentInputV1,
     InvalidProviderContract,
+    ProviderSystemOutboxEventV1,
 )
 
 
@@ -201,6 +203,140 @@ def test_queries_are_bounded_and_fail_with_safe_codes(tmp_path: Path) -> None:
         assert "agentmonitor.db" not in str(caught.value)
 
 
+def test_every_public_query_argument_fails_closed_with_safe_code(
+    tmp_path: Path,
+) -> None:
+    repository = _repository(tmp_path)
+    repository.record(_assessment())
+    invalid_opaque = cast(OpaqueIdV1, object())
+    invalid_optional_opaque = cast(OpaqueIdV1 | None, "not-an-opaque-id")
+    queries: tuple[Callable[[], object], ...] = (
+        lambda: repository.get(invalid_opaque),
+        lambda: repository.get(OpaqueIdV1("x" * 65)),
+        lambda: repository.current(
+            registration_id=invalid_opaque,
+            installation_id=None,
+            capability_id="subscription.quota",
+            source_id=None,
+        ),
+        lambda: repository.current(
+            registration_id=OpaqueIdV1("registration-001"),
+            installation_id=invalid_optional_opaque,
+            capability_id="subscription.quota",
+            source_id=None,
+        ),
+        lambda: repository.current(
+            registration_id=OpaqueIdV1("registration-001"),
+            installation_id=None,
+            capability_id="Subscription.Quota",
+            source_id=None,
+        ),
+        lambda: repository.current(
+            registration_id=OpaqueIdV1("registration-001"),
+            installation_id=None,
+            capability_id=cast(str, object()),
+            source_id=None,
+        ),
+        lambda: repository.current(
+            registration_id=OpaqueIdV1("registration-001"),
+            installation_id=None,
+            capability_id="subscription.quota",
+            source_id=" leading-space",
+        ),
+        lambda: repository.current(
+            registration_id=OpaqueIdV1("registration-001"),
+            installation_id=None,
+            capability_id="subscription.quota",
+            source_id=cast(str | None, object()),
+        ),
+        lambda: repository.history(invalid_opaque, "subscription.quota", limit=10),
+        lambda: repository.history(
+            OpaqueIdV1("registration-001"), "not_a_capability", limit=10
+        ),
+        lambda: repository.history(
+            OpaqueIdV1("registration-001"),
+            "subscription.quota",
+            limit=cast(int, True),
+        ),
+        lambda: repository.pending_outbox(limit=cast(int, True)),
+    )
+
+    for query in queries:
+        with pytest.raises(ProviderSystemRepositoryErrorV1) as caught:
+            query()
+        assert caught.value.code == "provider_system_query_invalid"
+        assert str(caught.value) == "provider_system_query_invalid"
+
+
+def test_outbox_contract_rejects_invalid_state_and_timestamp_relationships() -> None:
+    instant = datetime(2026, 9, 22, 12, 0, tzinfo=UTC)
+    event = ProviderSystemOutboxEventV1(
+        event_id=OpaqueIdV1("event-001"),
+        event_type="provider.compatibility.assessed.v1",
+        assessment_id=OpaqueIdV1("assessment-001"),
+        registration_id=OpaqueIdV1("registration-001"),
+        provider_key="claude",
+        capability_id="subscription.quota",
+        compatibility_state="compatible",
+        reason_code="exact_evidenced_tuple",
+        correlation_id=OpaqueIdV1("correlation-001"),
+        producer_sequence=1,
+        occurred_at=instant,
+        recorded_at=instant,
+        delivery_state="pending",
+        available_at=instant,
+        claimed_at=None,
+        delivered_at=None,
+        attempt_count=0,
+    )
+
+    invalid_events = (
+        {"recorded_at": instant - timedelta(microseconds=1)},
+        {"available_at": instant - timedelta(microseconds=1)},
+        {"claimed_at": instant},
+        {"delivery_state": "claimed", "attempt_count": 1},
+        {
+            "delivery_state": "delivered",
+            "claimed_at": instant,
+            "attempt_count": 1,
+        },
+        {
+            "delivery_state": "claimed",
+            "claimed_at": instant,
+            "attempt_count": 0,
+        },
+        {
+            "delivery_state": "delivered",
+            "claimed_at": instant + timedelta(seconds=2),
+            "delivered_at": instant + timedelta(seconds=1),
+            "attempt_count": 1,
+        },
+    )
+
+    for changes in invalid_events:
+        with pytest.raises(InvalidProviderContract):
+            replace(event, **changes)
+
+    claimed = replace(
+        event,
+        delivery_state="claimed",
+        claimed_at=instant + timedelta(seconds=1),
+        attempt_count=1,
+    )
+    delivered = replace(
+        claimed,
+        delivery_state="delivered",
+        delivered_at=instant + timedelta(seconds=2),
+    )
+    assert claimed.delivery_state == "claimed"
+    assert delivered.delivery_state == "delivered"
+
+    with pytest.raises(
+        InvalidProviderContract, match="provider_system_outbox_timestamp_invalid"
+    ):
+        replace(event, occurred_at=datetime(2026, 9, 22, 12, 0))
+
+
 def test_changed_assessments_in_nullable_scope_leave_one_current_row(
     tmp_path: Path,
 ) -> None:
@@ -307,8 +443,10 @@ def test_non_utc_persisted_timestamp_fails_closed(
     reference = DatabaseRefV1(tmp_path / "agentmonitor.db", tmp_path)
     with open_sqlite_database(reference, "runtime_read_write") as handle:
         with handle.connect() as connection:
+            connection.exec_driver_sql("PRAGMA ignore_check_constraints = ON")
             connection.exec_driver_sql(mutation, (recorded.assessment_id.value,))
             connection.commit()
+            connection.exec_driver_sql("PRAGMA ignore_check_constraints = OFF")
 
     with pytest.raises(ProviderSystemRepositoryErrorV1) as caught:
         repository.get(recorded.assessment_id)

@@ -3,7 +3,13 @@
 from dataclasses import dataclass, fields
 from datetime import datetime, timedelta
 from decimal import Decimal
-from typing import ClassVar, Literal, get_args, get_origin, get_type_hints
+from typing import (
+    ClassVar,
+    Literal,
+    get_args,
+    get_origin,
+    get_type_hints,
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -146,3 +152,64 @@ class FieldAvailabilityV1(TechnicalValueV1):
             "unresolved",
         ):
             raise ValueError("unsupported-availability-state")
+
+
+QueryAvailabilityStateV1 = Literal[
+    "available", "partial", "unavailable", "unsupported", "unknown"
+]
+
+
+@dataclass(frozen=True, slots=True)
+class QueryAvailabilityV1(TechnicalValueV1):
+    """Truthful status of one side-effect-free query at its producer boundary."""
+
+    CONTRACT_ID: ClassVar[str] = "CTR-COMMON-007"
+    OWNER: ClassVar[str] = "PLAN-FND"
+
+    state: QueryAvailabilityStateV1
+    reason_code: str
+    as_of: datetime
+
+    def __post_init__(self) -> None:
+        TechnicalValueV1.__post_init__(self)
+        if (
+            not self.reason_code
+            or not self.reason_code.isascii()
+            or not self.reason_code.replace("_", "a").isalnum()
+        ):
+            raise ValueError("query_availability_invalid")
+
+
+@dataclass(frozen=True, slots=True)
+class QueryPageV1[TQueryV1]:
+    """Producer-owned bounded page truth; the API only signs ``next_key``."""
+
+    CONTRACT_ID: ClassVar[str] = "CTR-COMMON-007"
+    OWNER: ClassVar[str] = "PLAN-FND"
+
+    items: tuple[TQueryV1, ...]
+    limit: int
+    has_more: bool
+    next_key: str | None
+    availability: QueryAvailabilityV1
+
+    def __post_init__(self) -> None:
+        if (
+            type(self.limit) is not int
+            or not 1 <= self.limit <= 200
+            or len(self.items) > self.limit
+            or type(self.has_more) is not bool
+            or self.has_more != (self.next_key is not None)
+        ):
+            raise ValueError("query_page_invalid")
+
+
+@dataclass(frozen=True, slots=True)
+class QueryCollectionV1[TQueryV1]:
+    """Producer-owned singular-query collection and explicit status."""
+
+    CONTRACT_ID: ClassVar[str] = "CTR-COMMON-007"
+    OWNER: ClassVar[str] = "PLAN-FND"
+
+    items: tuple[TQueryV1, ...]
+    availability: QueryAvailabilityV1

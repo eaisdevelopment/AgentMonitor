@@ -59,3 +59,20 @@ def test_unexpected_problem_mapper_never_serializes_exception_content() -> None:
         "code": "internal_error",
         "correlation_id": "a.b:c",
     }
+
+
+@pytest.mark.parametrize(
+    ("status", "code"),
+    (
+        (404, "provider_capabilities_not_found"),
+        (503, "observation_data_unavailable"),
+        (503, "observation_repository_unavailable"),
+    ),
+)
+def test_observation_problem_codes_preserve_safe_status(status: int, code: str) -> None:
+    """API-HTTP-018: recognized observation failures never collapse to 500."""
+    response = problem_response(status, code, "observation.problem")
+    payload = json.loads(bytes(response.body))
+
+    assert response.status_code == status
+    assert payload["code"] == code

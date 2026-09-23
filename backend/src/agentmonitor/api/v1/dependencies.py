@@ -1,4 +1,4 @@
-"""P01's explicit M01 application-port bundle and per-request auth chain."""
+"""P01's explicit application-port bundles and per-request auth chain."""
 
 from dataclasses import dataclass
 
@@ -9,6 +9,13 @@ from agentmonitor.contracts.identity_access_v1 import (
     SecretInputV1,
     SessionSummaryV1,
     TokenCallerProofV1,
+)
+from agentmonitor.modules.capacity.application.queries import (
+    GetAccountCapacityV1,
+    ListQuotaWindowsV1,
+)
+from agentmonitor.modules.collection_control.application.queries import (
+    ListCollectionRunsV1,
 )
 from agentmonitor.modules.identity_access.application.api_tokens import (
     CreateApiTokenV1,
@@ -33,6 +40,18 @@ from agentmonitor.modules.identity_access.application.sessions import (
     RevokeAllSessionsV1,
     RevokeSessionV1,
     VerifyCsrfV1,
+)
+from agentmonitor.modules.provider_system.application.queries import (
+    GetProviderCapabilitiesV1,
+)
+from agentmonitor.modules.registry.application.accounts import ListAccountsV1
+from agentmonitor.modules.registry.application.discovery import (
+    ListProviderInstallationsV1,
+)
+from agentmonitor.modules.runtime_observation.application.queries import (
+    GetAgentSessionV1,
+    ListAgentProcessesV1,
+    ListAgentSessionsV1,
 )
 from fastapi import Request
 
@@ -61,6 +80,19 @@ class IamApiPortsV1:
 
 
 @dataclass(frozen=True, slots=True)
+class ObservationApiPortsV1:
+    list_accounts: ListAccountsV1
+    list_provider_installations: ListProviderInstallationsV1
+    get_provider_capabilities: GetProviderCapabilitiesV1
+    list_collection_runs: ListCollectionRunsV1
+    get_account_capacity: GetAccountCapacityV1
+    list_quota_windows: ListQuotaWindowsV1
+    list_processes: ListAgentProcessesV1
+    list_sessions: ListAgentSessionsV1
+    get_session: GetAgentSessionV1
+
+
+@dataclass(frozen=True, slots=True)
 class AuthorizedCallerV1:
     principal: PrincipalV1
     proof: TokenCallerProofV1
@@ -71,6 +103,13 @@ def ports(request: Request) -> IamApiPortsV1:
     available: IamApiPortsV1 | None = request.app.state.iam_ports
     if available is None:
         raise ProblemError(503, "iam_repository_unavailable")
+    return available
+
+
+def observation_ports(request: Request) -> ObservationApiPortsV1:
+    available: ObservationApiPortsV1 | None = request.app.state.observation_ports
+    if available is None:
+        raise ProblemError(503, "observation_data_unavailable")
     return available
 
 

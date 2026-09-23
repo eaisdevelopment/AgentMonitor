@@ -6,7 +6,15 @@ from typing import Literal
 
 PASSWORD_MIN_CODEPOINTS = 15
 PASSWORD_MAX_UTF8_BYTES = 1024
-M2_ISSUABLE_SCOPES = frozenset({"read:diagnostics", "write:tokens"})
+M2_ISSUABLE_SCOPES = frozenset(
+    {
+        "read:accounts",
+        "read:diagnostics",
+        "read:status",
+        "read:telemetry",
+        "write:tokens",
+    }
+)
 TERMINAL_RETENTION_DAYS = 365
 SESSION_IDLE_SECONDS = 1800
 SESSION_ABSOLUTE_SECONDS = 43200

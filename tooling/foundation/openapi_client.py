@@ -5,9 +5,9 @@ Use --check for read-only drift verification. Only the fixed production schema
 factory and the two allocated outputs are permitted. No third-party generator,
 provider startup, dynamic plugin import, timestamps or host paths are emitted.
 
-The M2 compiler admits only the frozen 13-operation IAM HTTP surface. It never
+The compiler admits only the frozen IAM and dashboard HTTP surface. It never
 invents an operation or response schema to fill the client.
-Validation combines FastAPI's OpenAPI 3.1 model with the exact frozen M2 policy.
+Validation combines FastAPI's OpenAPI 3.1 model with the exact policy catalog.
 Replacements are atomic per file, staged together, with rollback on write errors;
 cross-directory crash atomicity is not claimed. --check detects interrupted pairs.
 """
@@ -44,7 +44,18 @@ SOURCE_FILES = (
     "backend/src/agentmonitor/api/v1/dependencies.py",
     "backend/src/agentmonitor/api/v1/pagination.py",
     "backend/src/agentmonitor/api/v1/routers/iam.py",
+    "backend/src/agentmonitor/api/v1/routers/_observation.py",
+    "backend/src/agentmonitor/api/v1/routers/registry.py",
+    "backend/src/agentmonitor/api/v1/routers/providers.py",
+    "backend/src/agentmonitor/api/v1/routers/collection.py",
+    "backend/src/agentmonitor/api/v1/routers/capacity.py",
+    "backend/src/agentmonitor/api/v1/routers/runtime.py",
     "backend/src/agentmonitor/api/v1/schemas/iam.py",
+    "backend/src/agentmonitor/api/v1/schemas/registry.py",
+    "backend/src/agentmonitor/api/v1/schemas/providers.py",
+    "backend/src/agentmonitor/api/v1/schemas/collection.py",
+    "backend/src/agentmonitor/api/v1/schemas/capacity.py",
+    "backend/src/agentmonitor/api/v1/schemas/runtime.py",
     "backend/src/agentmonitor/foundation/application.py",
     "backend/src/agentmonitor/foundation/configuration.py",
     "backend/src/agentmonitor/foundation/observability.py",
@@ -54,6 +65,22 @@ SOURCE_FILES = (
     "backend/src/agentmonitor/contracts/foundation_v1.py",
     "backend/src/agentmonitor/contracts/database_v1.py",
     "backend/src/agentmonitor/contracts/identity_access_v1.py",
+    "backend/src/agentmonitor/contracts/registry_v1.py",
+    "backend/src/agentmonitor/contracts/provider_system_v1.py",
+    "backend/src/agentmonitor/contracts/collection_control_v1.py",
+    "backend/src/agentmonitor/contracts/capacity_v1.py",
+    "backend/src/agentmonitor/contracts/runtime_observation_v1.py",
+    "backend/src/agentmonitor/modules/registry/application/accounts.py",
+    "backend/src/agentmonitor/modules/registry/application/discovery.py",
+    "backend/src/agentmonitor/modules/provider_system/application/queries.py",
+    "backend/src/agentmonitor/modules/collection_control/application/queries.py",
+    "backend/src/agentmonitor/modules/capacity/application/queries.py",
+    "backend/src/agentmonitor/modules/runtime_observation/application/queries.py",
+    "backend/src/agentmonitor/adapters/providers/claude/manifest.py",
+    "backend/src/agentmonitor/adapters/persistence/registry/sqlite/repository.py",
+    "backend/src/agentmonitor/adapters/persistence/collection_control/sqlite/repository.py",
+    "backend/src/agentmonitor/adapters/persistence/capacity/sqlite/repository.py",
+    "backend/src/agentmonitor/adapters/persistence/runtime_observation/sqlite/repository.py",
     "backend/src/agentmonitor/adapters/persistence/_shared/sqlite/core/policy.py",
     "backend/src/agentmonitor/adapters/persistence/_shared/sqlite/schema/compatibility.py",
     "backend/migrations/catalog.toml",
@@ -76,6 +103,15 @@ IAM_OPERATIONS = {
     ("/api/v1/api-tokens/{token_id}/rotations", "post"): "iam_rotate_api_token_v1",
     ("/api/v1/api-tokens/{token_id}", "delete"): "iam_revoke_api_token_v1",
     ("/api/v1/iam/security-events", "get"): "iam_list_security_events_v1",
+    ("/api/v1/accounts", "get"): "registry_list_accounts_v1",
+    ("/api/v1/provider-installations", "get"): "registry_list_provider_installations_v1",
+    ("/api/v1/providers/{provider_key}/capabilities", "get"): "provider_get_capabilities_v1",
+    ("/api/v1/collection-runs", "get"): "collection_list_runs_v1",
+    ("/api/v1/accounts/{account_id}/capacity", "get"): "capacity_get_account_v1",
+    ("/api/v1/accounts/{account_id}/quotas", "get"): "capacity_list_quota_windows_v1",
+    ("/api/v1/processes", "get"): "runtime_list_processes_v1",
+    ("/api/v1/sessions", "get"): "runtime_list_sessions_v1",
+    ("/api/v1/sessions/{session_id}", "get"): "runtime_get_session_v1",
 }
 
 _PREAUTH: tuple[tuple[str, ...], ...] = ()
@@ -262,6 +298,51 @@ IAM_POLICY: dict[str, IamPolicyRow] = {
         "SafeProblemV1",
         _M2_REQUIRED_ERROR_STATUSES,
         None,
+    ),
+    "registry_list_accounts_v1": (
+        "cookie_or_bearer", "read:accounts", "ListAccountsV1", "safe_query_repeat",
+        _COOKIE_BEARER, "200", "AccountPageV1", "SafeProblemV1",
+        _M2_REQUIRED_ERROR_STATUSES, None,
+    ),
+    "registry_list_provider_installations_v1": (
+        "cookie_or_bearer", "read:accounts", "ListProviderInstallationsV1", "safe_query_repeat",
+        _COOKIE_BEARER, "200", "ProviderInstallationPageV1", "SafeProblemV1",
+        _M2_REQUIRED_ERROR_STATUSES, None,
+    ),
+    "provider_get_capabilities_v1": (
+        "cookie_or_bearer", "read:status", "GetProviderCapabilitiesV1", "safe_query_repeat",
+        _COOKIE_BEARER, "200", "ProviderCapabilityDeclarationPageV1", "SafeProblemV1",
+        _M2_REQUIRED_ERROR_STATUSES, None,
+    ),
+    "collection_list_runs_v1": (
+        "cookie_or_bearer", "read:telemetry", "ListCollectionRunsV1", "safe_query_repeat",
+        _COOKIE_BEARER, "200", "CollectionRunPageV1", "SafeProblemV1",
+        _M2_REQUIRED_ERROR_STATUSES, None,
+    ),
+    "capacity_get_account_v1": (
+        "cookie_or_bearer", "read:telemetry", "GetAccountCapacityV1", "safe_query_repeat",
+        _COOKIE_BEARER, "200", "AccountCapacityViewV1", "SafeProblemV1",
+        _M2_REQUIRED_ERROR_STATUSES, None,
+    ),
+    "capacity_list_quota_windows_v1": (
+        "cookie_or_bearer", "read:telemetry", "ListQuotaWindowsV1", "safe_query_repeat",
+        _COOKIE_BEARER, "200", "QuotaWindowPageV1", "SafeProblemV1",
+        _M2_REQUIRED_ERROR_STATUSES, None,
+    ),
+    "runtime_list_processes_v1": (
+        "cookie_or_bearer", "read:telemetry", "ListAgentProcessesV1", "safe_query_repeat",
+        _COOKIE_BEARER, "200", "AgentProcessPageV1", "SafeProblemV1",
+        _M2_REQUIRED_ERROR_STATUSES, None,
+    ),
+    "runtime_list_sessions_v1": (
+        "cookie_or_bearer", "read:telemetry", "ListAgentSessionsV1", "safe_query_repeat",
+        _COOKIE_BEARER, "200", "AgentSessionPageV1", "SafeProblemV1",
+        _M2_REQUIRED_ERROR_STATUSES, None,
+    ),
+    "runtime_get_session_v1": (
+        "cookie_or_bearer", "read:telemetry", "GetAgentSessionV1", "safe_query_repeat",
+        _COOKIE_BEARER, "200", "AgentSessionViewV1", "SafeProblemV1",
+        _M2_REQUIRED_ERROR_STATUSES, None,
     ),
 }
 
@@ -451,7 +532,7 @@ def validate_iam_openapi(document: object) -> tuple[str, ...]:
     if (
         actual != IAM_OPERATIONS
         or set(IAM_POLICY) != set(IAM_OPERATIONS.values())
-        or len(identifiers) != 13
+        or len(identifiers) != 22
     ):
         raise OpenApiGenerationError("operation_surface_invalid")
 
@@ -493,11 +574,24 @@ def classify_compatibility(
             if _object(new_paths[path]).get(method) != operation:
                 return "breaking"
     first_public_version = not old_paths and "components" not in old
-    if not first_public_version and (
-        old.get("components") != new.get("components")
-        or old.get("security") != new.get("security")
-    ):
-        return "breaking"
+    if not first_public_version:
+        old_components = _object(old.get("components", {}))
+        new_components = _object(new.get("components", {}))
+        for category, old_entries_value in old_components.items():
+            new_entries_value = new_components.get(category)
+            if isinstance(old_entries_value, dict) and isinstance(
+                new_entries_value, dict
+            ):
+                if any(
+                    name not in new_entries_value
+                    or new_entries_value[name] != definition
+                    for name, definition in old_entries_value.items()
+                ):
+                    return "breaking"
+            elif new_entries_value != old_entries_value:
+                return "breaking"
+        if old.get("security") != new.get("security"):
+            return "breaking"
     if (
         str(_object(old["info"])["version"]).split(".")[0]
         != str(_object(new["info"])["version"]).split(".")[0]

@@ -408,8 +408,29 @@ def test_token_issue_scope_denial_replay_and_openapi_over_real_socket(
                 ): "iam_rotate_api_token_v1",
                 ("/api/v1/api-tokens/{token_id}", "delete"): "iam_revoke_api_token_v1",
                 ("/api/v1/iam/security-events", "get"): "iam_list_security_events_v1",
+                ("/api/v1/accounts", "get"): "registry_list_accounts_v1",
+                (
+                    "/api/v1/provider-installations",
+                    "get",
+                ): "registry_list_provider_installations_v1",
+                (
+                    "/api/v1/providers/{provider_key}/capabilities",
+                    "get",
+                ): "provider_get_capabilities_v1",
+                ("/api/v1/collection-runs", "get"): "collection_list_runs_v1",
+                (
+                    "/api/v1/accounts/{account_id}/capacity",
+                    "get",
+                ): "capacity_get_account_v1",
+                (
+                    "/api/v1/accounts/{account_id}/quotas",
+                    "get",
+                ): "capacity_list_quota_windows_v1",
+                ("/api/v1/processes", "get"): "runtime_list_processes_v1",
+                ("/api/v1/sessions", "get"): "runtime_list_sessions_v1",
+                ("/api/v1/sessions/{session_id}", "get"): "runtime_get_session_v1",
             }
-            assert len(set(operations.values())) == 13
+            assert len(set(operations.values())) == 22
             components = document["components"]
             assert "SafeProblemV1" in components["schemas"]
             replay_schema = components["schemas"]["SafeCommittedApiTokenV1"]
@@ -2277,7 +2298,7 @@ def test_canonical_generated_artifacts_publish_m2_iam_operations() -> None:
         for methods in document["paths"].values()
         for operation in methods.values()
     ]
-    assert len(identifiers) == len(set(identifiers)) == 13
+    assert len(identifiers) == len(set(identifiers)) == 22
     client = (root / "frontend/src/generated/api/index.ts").read_text()
     assert "iam_login_v1:" in client
     assert "iam_create_api_token_v1:" in client
@@ -2305,7 +2326,7 @@ def test_generated_typescript_client_calls_real_iam_server(tmp_path: Path) -> No
             credential_absent = credential.encode() not in result.stdout + result.stderr
             assert credential_absent is True, "credential reflected"
             assert result.returncode == 0, "real generated client failed"
-            assert result.stdout == b'{"status":"passed","operations":13}\n'
+            assert result.stdout == b'{"status":"passed","operations":22}\n'
             assert result.stderr == b""
 
     asyncio.run(exercise())

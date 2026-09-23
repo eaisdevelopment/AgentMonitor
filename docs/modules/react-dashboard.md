@@ -1,4 +1,4 @@
-# P02 React dashboard — M2 identity shell
+# P02 React dashboard — M2 identity shell and M3 observation views
 
 - Status: **M2 Story 5 accepted; not a V1 dashboard release**.
 - Post-audit note: Story 5's historical Red-first exceptions are documented in the [M2 correction record](../evidence/m2-audit-fixes.md); the M2 milestone reacceptance remains held. The separate `hostile_resource` Chrome scenario and SQLite assertion now cover cookie-read idle-state integrity after 62 real seconds.
@@ -41,3 +41,53 @@ backend/.venv/bin/python frontend/tests/browser/p02/run_browser.py all
 `quick` runs nine isolated real-browser scenarios and is an intermediate development gate. `all` also waits for an actual ≥61-second session activity touch before logout and the actual 1,805-second browser idle interval; it is the P02 Story 5 browser gate. `--no-build` is available only when the caller has already built the exact source being tested. Neither command reads the operator `.env` or provider accounts. For Red/Green results and residual `Not Run`, see [`m2-st-ui-001.md`](../evidence/m2-st-ui-001.md).
 
 Current limitations: local loopback only, single administrator, no provider dashboard data, and no automatic agent routing. Actual 200% browser zoom, macOS, owner installation, natural lost-response, and later V1 provider-data workflows remain outside the M2 acceptance claim unless separately verified.
+
+## M3 authenticated observation foundation
+
+The M3 P02 increment adds API-only command, account, provider, collection-run,
+capacity, process, and session views. Feature modules import typed DTOs and
+operations only from `frontend/src/shared/api/client.ts`; that wrapper is the
+sole handwritten importer of the generated 22-operation client. The routes
+`/accounts`, `/accounts/{opaque-id}`, `/providers`, `/collectors`, and
+`/sessions` are safe authenticated GET views served by the same production
+SPA document.
+
+The command view composes producer-owned availability, freshness, capability,
+collection, capacity, and runtime results. It does not infer account identity,
+quota health, provider presence, or process ownership. Fresh installations
+render explicit empty states from real API responses. Unknown, partial,
+unsupported, unavailable, stale, and unresolved states are never converted to
+zero. Capacity values retain their exact coefficient, scale, unit, precision,
+confidence, and value-kind fields. Runtime detail exposes only approved safe
+metadata and provenance; it does not display prompts, responses, command
+lines, source content, environment values, or credentials.
+
+An account detail places its provider-native quota windows beside a `Running
+sessions` panel queried with that exact opaque `account_id`. The account panel
+does not reuse the unfiltered global process list. Capacity health shows the
+producer policy ID/version, constraining-window ID, and explanation codes;
+quota rows show exact remaining ratio, observation/run IDs, and collected and
+stored times. The current capacity DTO does not publish observation source or
+provider/adapter version, so the UI says that source/version is unavailable in
+API v1 instead of inventing it. Collection runs expose their actual source,
+adapter/provider version availability, request/start/completion times,
+duration/outcome, and observation IDs; they do not claim freshness because the
+run DTO publishes no freshness field.
+
+The production browser scenario `monitoring_dashboard` uses a fresh real
+file-backed SQLite database, real migrations, production Argon2 bootstrap,
+Uvicorn loopback service, the Vite production build, and installed Chrome. It
+verifies the truthful empty API path, direct SPA routes, no invented provider
+presence, six responsive viewport widths, no horizontal document overflow,
+no external request, no browser storage, and no browser exception. It passively
+records same-origin responses without request interception and requires every
+empty-dashboard observation GET to return `200`; removing generated-client
+calls therefore fails the browser scenario. Populated
+Claude account/quota/session reconciliation remains **Blocked** until the
+approved live provider/account-correlation lane supplies those records; no
+test substitutes them. Evidence: [M3 P02 browser increment](../evidence/m3-st-obs-003-p02.md).
+
+M3 renders the bounded first page supplied by each observation endpoint. Counts
+are labeled as records shown, not fleet totals, and `has_more` is disclosed as
+“more available.” Cursor navigation is deferred to a later approved P02
+increment; the UI never implies that the first page is the complete fleet.

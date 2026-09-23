@@ -1,0 +1,561 @@
+"""M02-owned provider-neutral V1 registry contracts.
+
+Public values contain only AgentMonitor IDs, safe classifications, masked fields,
+and bounded owner metadata. Provider locators and raw identity values have no
+public serialization field.
+"""
+
+from dataclasses import dataclass
+from datetime import datetime
+from typing import ClassVar, Literal, NoReturn, Protocol, SupportsIndex
+
+from agentmonitor.contracts.common_v1 import (
+    EventEnvelopeV1,
+    OpaqueIdV1,
+    TechnicalValueV1,
+)
+from agentmonitor.contracts.provider_system_v1 import DiscoveryOutcomeV1
+
+RegistryLifecycleV1 = Literal["pending", "active", "disabled", "archived"]
+OrganizationLifecycleV1 = Literal["active", "archived"]
+IdentityDecisionStateV1 = Literal[
+    "matched",
+    "owner_confirmation_required",
+    "owner_confirmed",
+    "unresolved",
+    "conflict",
+    "wrong_account",
+    "invalidated",
+    "unsupported",
+    "unknown",
+]
+IdentityEvidenceClassV1 = Literal[
+    "provider_verified",
+    "owner_confirmed",
+    "corroborated",
+    "weak",
+    "conflicting",
+    "unknown",
+    "unavailable",
+    "unsupported",
+]
+RegistryFieldStateV1 = Literal[
+    "known_masked", "withheld", "unknown", "unsupported", "unavailable"
+]
+ResourceKindV1 = Literal[
+    "subscription_pool",
+    "api_organization",
+    "api_project",
+    "workspace",
+    "prepaid_credit_pool",
+    "local_runtime_pool",
+    "provider_specific",
+    "unknown",
+]
+ProfilePurposeV1 = Literal["subscription", "api", "local_session", "combined"]
+ProfileManagementStateV1 = Literal[
+    "managed", "provider_default", "unmanaged", "unknown"
+]
+ProfileCompatibilityStateV1 = Literal[
+    "compatible", "incompatible", "unknown", "unavailable"
+]
+RegistryScopeKindV1 = Literal["global", "organization", "provider", "account"]
+
+
+def _bounded(value: object, *, maximum: int = 256) -> bool:
+    return (
+        type(value) is str
+        and value == value.strip()
+        and 1 <= len(value) <= maximum
+        and value.isprintable()
+    )
+
+
+def _positive_version(record_version: int, registry_revision: int) -> None:
+    if (
+        type(record_version) is not int
+        or record_version < 1
+        or type(registry_revision) is not int
+        or registry_revision < 1
+    ):
+        raise ValueError("registry_version_invalid")
+
+
+@dataclass(frozen=True, slots=True)
+class MaskedRegistryFieldV1(TechnicalValueV1):
+    """Safe public field state; a full provider value is never representable."""
+
+    CONTRACT_ID: ClassVar[str] = "CTR-REG-002"
+    OWNER: ClassVar[str] = "PLAN-M02"
+
+    state: RegistryFieldStateV1
+    masked_value: str | None
+    reason_code: str
+
+    def __post_init__(self) -> None:
+        TechnicalValueV1.__post_init__(self)
+        if (self.state == "known_masked") != (self.masked_value is not None):
+            raise ValueError("registry_masked_field_pair_invalid")
+        if self.masked_value is not None and not _bounded(
+            self.masked_value, maximum=64
+        ):
+            raise ValueError("registry_masked_field_invalid")
+        if not _bounded(self.reason_code, maximum=128):
+            raise ValueError("registry_masked_field_reason_invalid")
+
+
+@dataclass(frozen=True, slots=True)
+class OrganizationViewV1(TechnicalValueV1):
+    CONTRACT_ID: ClassVar[str] = "CTR-REG-001"
+    OWNER: ClassVar[str] = "PLAN-M02"
+
+    organization_id: OpaqueIdV1
+    name: str
+    description: str | None
+    display_order: int
+    lifecycle: OrganizationLifecycleV1
+    active_account_count: int
+    archived_account_count: int
+    record_version: int
+    registry_revision: int
+    created_at: datetime
+    updated_at: datetime
+    archived_at: datetime | None
+
+    def __post_init__(self) -> None:
+        TechnicalValueV1.__post_init__(self)
+        _positive_version(self.record_version, self.registry_revision)
+        if (
+            not _bounded(self.name)
+            or (
+                self.description is not None
+                and not _bounded(self.description, maximum=1024)
+            )
+            or type(self.display_order) is not int
+            or self.display_order < 0
+            or type(self.active_account_count) is not int
+            or type(self.archived_account_count) is not int
+            or min(self.active_account_count, self.archived_account_count) < 0
+            or (self.lifecycle == "active") != (self.archived_at is None)
+        ):
+            raise ValueError("registry_organization_invalid")
+
+
+@dataclass(frozen=True, slots=True)
+class ProviderDefinitionViewV1(TechnicalValueV1):
+    CONTRACT_ID: ClassVar[str] = "CTR-REG-004"
+    OWNER: ClassVar[str] = "PLAN-M02"
+
+    provider_key: str
+    lifecycle: Literal["active", "disabled"]
+    manifest_reference: str
+    record_version: int
+    registry_revision: int
+
+
+@dataclass(frozen=True, slots=True)
+class ProviderInstallationViewV1(TechnicalValueV1):
+    CONTRACT_ID: ClassVar[str] = "CTR-REG-004"
+    OWNER: ClassVar[str] = "PLAN-M02"
+
+    provider_installation_id: OpaqueIdV1
+    provider_key: str
+    platform_key: str
+    version: MaskedRegistryFieldV1
+    presence_state: Literal["present", "missing", "unverified"]
+    first_seen_at: datetime
+    last_seen_at: datetime
+    record_version: int
+    registry_revision: int
+
+
+@dataclass(frozen=True, slots=True)
+class IdentityCorrelationDecisionV1(TechnicalValueV1):
+    CONTRACT_ID: ClassVar[str] = "CTR-REG-006"
+    OWNER: ClassVar[str] = "PLAN-M02"
+
+    decision_id: OpaqueIdV1
+    state: IdentityDecisionStateV1
+    evidence_classes: tuple[IdentityEvidenceClassV1, ...]
+    evidence_references: tuple[str, ...]
+    candidate_id: OpaqueIdV1 | None
+    account_id: OpaqueIdV1 | None
+    profile_id: OpaqueIdV1 | None
+    is_owner_confirmed: bool
+    owner_principal_id: OpaqueIdV1 | None
+    owner_confirmed_at: datetime | None
+    reason_code: str
+    record_version: int
+    registry_revision: int
+
+    def __post_init__(self) -> None:
+        TechnicalValueV1.__post_init__(self)
+        _positive_version(self.record_version, self.registry_revision)
+        owner_fields = (
+            self.owner_principal_id is not None and self.owner_confirmed_at is not None
+        )
+        owner_confirmation_preserves_source = (
+            "owner_confirmed" in self.evidence_classes
+            and any(
+                evidence_class != "owner_confirmed"
+                for evidence_class in self.evidence_classes
+            )
+        )
+        if (
+            type(self.is_owner_confirmed) is not bool
+            or self.is_owner_confirmed != owner_fields
+            or (self.state == "owner_confirmed") != self.is_owner_confirmed
+            or self.is_owner_confirmed != owner_confirmation_preserves_source
+            or not self.evidence_classes
+            or len(set(self.evidence_classes)) != len(self.evidence_classes)
+            or not all(_bounded(item, maximum=128) for item in self.evidence_references)
+            or not _bounded(self.reason_code, maximum=128)
+        ):
+            raise ValueError("registry_identity_decision_invalid")
+
+
+@dataclass(frozen=True, slots=True)
+class AccountViewV1(TechnicalValueV1):
+    CONTRACT_ID: ClassVar[str] = "CTR-REG-002"
+    OWNER: ClassVar[str] = "PLAN-M02"
+
+    account_id: OpaqueIdV1
+    provider_key: str
+    friendly_name: str
+    organization_id: OpaqueIdV1 | None
+    lifecycle: RegistryLifecycleV1
+    monitoring_preference: Literal["enabled", "disabled"]
+    is_effective_monitoring_enabled: bool
+    effective_monitoring_reason: str
+    identity_state: IdentityDecisionStateV1
+    masked_identity: MaskedRegistryFieldV1
+    record_version: int
+    registry_revision: int
+    created_at: datetime
+    updated_at: datetime
+    archived_at: datetime | None
+
+    def __post_init__(self) -> None:
+        TechnicalValueV1.__post_init__(self)
+        _positive_version(self.record_version, self.registry_revision)
+        if (
+            not _bounded(self.provider_key, maximum=64)
+            or not _bounded(self.friendly_name)
+            or type(self.is_effective_monitoring_enabled) is not bool
+            or not _bounded(self.effective_monitoring_reason, maximum=128)
+            or (self.lifecycle == "archived") != (self.archived_at is not None)
+            or self.is_effective_monitoring_enabled
+            and (
+                self.lifecycle != "active"
+                or self.monitoring_preference != "enabled"
+                or self.identity_state not in {"matched", "owner_confirmed"}
+            )
+        ):
+            raise ValueError("registry_account_invalid")
+
+
+@dataclass(frozen=True, slots=True)
+class MonitoringProfileViewV1(TechnicalValueV1):
+    CONTRACT_ID: ClassVar[str] = "CTR-REG-003"
+    OWNER: ClassVar[str] = "PLAN-M02"
+
+    profile_id: OpaqueIdV1
+    account_id: OpaqueIdV1
+    provider_installation_id: OpaqueIdV1
+    purpose: ProfilePurposeV1
+    lifecycle: RegistryLifecycleV1
+    management_state: ProfileManagementStateV1
+    compatibility_state: ProfileCompatibilityStateV1
+    is_protected_default: bool
+    locator_state: Literal["configured", "withheld", "unavailable"]
+    identity_state: Literal[
+        "unknown",
+        "owner_confirmed",
+        "provider_verified",
+        "conflict",
+        "wrong_account",
+        "invalidated",
+        "unavailable",
+    ]
+    last_verified_at: datetime | None
+    resource_ids: tuple[OpaqueIdV1, ...]
+    record_version: int
+    registry_revision: int
+
+    def __post_init__(self) -> None:
+        TechnicalValueV1.__post_init__(self)
+        _positive_version(self.record_version, self.registry_revision)
+        if (
+            type(self.is_protected_default) is not bool
+            or self.is_protected_default
+            != (self.management_state == "provider_default")
+            or len(set(self.resource_ids)) != len(self.resource_ids)
+        ):
+            raise ValueError("registry_profile_invalid")
+
+
+@dataclass(frozen=True, slots=True)
+class AccountResourceViewV1(TechnicalValueV1):
+    CONTRACT_ID: ClassVar[str] = "CTR-REG-005"
+    OWNER: ClassVar[str] = "PLAN-M02"
+
+    resource_id: OpaqueIdV1
+    account_id: OpaqueIdV1
+    kind: ResourceKindV1
+    parent_resource_id: OpaqueIdV1 | None
+    label: MaskedRegistryFieldV1
+    lifecycle: Literal["active", "retired", "archived"]
+    linked_profile_ids: tuple[OpaqueIdV1, ...]
+    record_version: int
+    registry_revision: int
+    created_at: datetime
+    updated_at: datetime
+
+    def __post_init__(self) -> None:
+        TechnicalValueV1.__post_init__(self)
+        _positive_version(self.record_version, self.registry_revision)
+        if self.parent_resource_id == self.resource_id or len(
+            set(self.linked_profile_ids)
+        ) != len(self.linked_profile_ids):
+            raise ValueError("registry_resource_invalid")
+
+
+@dataclass(frozen=True, slots=True)
+class DiscoveryCandidateViewV1(TechnicalValueV1):
+    CONTRACT_ID: ClassVar[str] = "CTR-REG-006"
+    OWNER: ClassVar[str] = "PLAN-M02"
+
+    candidate_id: OpaqueIdV1
+    provider_key: str
+    provider_installation_id: OpaqueIdV1
+    candidate_kind: Literal["account"]
+    association_state: IdentityDecisionStateV1
+    evidence_classes: tuple[IdentityEvidenceClassV1, ...]
+    evidence_set_digest: str
+    masked_label: MaskedRegistryFieldV1
+    owner_action_required: bool
+    first_seen_at: datetime
+    last_seen_at: datetime
+    record_version: int
+    registry_revision: int
+
+    def __post_init__(self) -> None:
+        TechnicalValueV1.__post_init__(self)
+        _positive_version(self.record_version, self.registry_revision)
+        if (
+            len(self.evidence_set_digest) != 64
+            or any(
+                value not in "0123456789abcdef" for value in self.evidence_set_digest
+            )
+            or not self.evidence_classes
+            or type(self.owner_action_required) is not bool
+            or (self.association_state == "owner_confirmation_required")
+            != self.owner_action_required
+        ):
+            raise ValueError("registry_discovery_candidate_invalid")
+
+
+@dataclass(frozen=True, slots=True)
+class RegistryChangedV1(TechnicalValueV1):
+    CONTRACT_ID: ClassVar[str] = "CTR-REG-007"
+    OWNER: ClassVar[str] = "PLAN-M02"
+
+    envelope: EventEnvelopeV1
+    change_kind: str
+    subject_type: str
+    aggregate_version: int
+    registry_revision: int
+    reason_code: str
+
+
+@dataclass(frozen=True, slots=True)
+class ReauthenticationRequestWorkflowV1(TechnicalValueV1):
+    CONTRACT_ID: ClassVar[str] = "CTR-REG-008"
+    OWNER: ClassVar[str] = "PLAN-M02"
+
+    workflow_id: OpaqueIdV1
+    account_id: OpaqueIdV1
+    profile_id: OpaqueIdV1
+    state: Literal[
+        "requested",
+        "awaiting_owner_action",
+        "verifying",
+        "succeeded",
+        "wrong_account_detected",
+        "failed",
+        "cancelled",
+        "expired",
+    ]
+    generation: int
+    is_eligible: bool
+    reason_code: str
+    started_at: datetime
+    updated_at: datetime
+    completed_at: datetime | None
+
+
+@dataclass(frozen=True, slots=True)
+class AuthenticationHealthChangedV1(TechnicalValueV1):
+    CONTRACT_ID: ClassVar[str] = "CTR-REG-010"
+    OWNER: ClassVar[str] = "PLAN-M02"
+
+    account_id: OpaqueIdV1
+    profile_id: OpaqueIdV1
+    provider_key: str
+    previous_state: str
+    current_state: str
+    source_generation: int
+    identity_state: Literal["matched", "mismatched", "unresolved"]
+    observed_at: datetime
+    recorded_at: datetime
+    evidence_references: tuple[str, ...]
+
+
+class PrivateProfileLocatorRefV1:
+    """Private persistence handle; never serialize, log, or expose in a view."""
+
+    __slots__ = ("_value",)
+
+    def __init__(self, value: str) -> None:
+        if not _bounded(value, maximum=512):
+            raise ValueError("registry_profile_locator_invalid")
+        self._value = value
+
+    def __repr__(self) -> str:
+        return "<PrivateProfileLocatorRefV1 redacted>"
+
+    __str__ = __repr__
+
+    def __getstate__(self) -> NoReturn:
+        raise TypeError("registry_profile_locator_not_serializable")
+
+    def __reduce_ex__(self, protocol: SupportsIndex) -> NoReturn:
+        raise TypeError("registry_profile_locator_not_serializable")
+
+    def reveal_for_persistence(self) -> str:
+        return self._value
+
+
+@dataclass(frozen=True, slots=True)
+class DiscoveryReconciliationViewV1(TechnicalValueV1):
+    CONTRACT_ID: ClassVar[str] = "CTR-REG-006"
+    OWNER: ClassVar[str] = "PLAN-M02"
+
+    installations: tuple[ProviderInstallationViewV1, ...]
+    candidates: tuple[DiscoveryCandidateViewV1, ...]
+    registry_revision: int
+
+
+@dataclass(frozen=True, slots=True)
+class ConfirmIdentityAssociationCommandV1(TechnicalValueV1):
+    """Auditable owner command bound to one exact candidate evidence version."""
+
+    command_id: OpaqueIdV1
+    principal_id: OpaqueIdV1
+    candidate_id: OpaqueIdV1
+    expected_candidate_record_version: int
+    friendly_name: str
+    organization_id: OpaqueIdV1 | None
+    evidence_set_digest: str
+    requested_at: datetime
+
+    def __post_init__(self) -> None:
+        TechnicalValueV1.__post_init__(self)
+        if (
+            not _bounded(self.friendly_name)
+            or self.friendly_name != self.friendly_name.strip()
+            or type(self.expected_candidate_record_version) is not int
+            or self.expected_candidate_record_version < 1
+            or len(self.evidence_set_digest) != 64
+            or any(
+                value not in "0123456789abcdef" for value in self.evidence_set_digest
+            )
+        ):
+            raise ValueError("registry_identity_confirmation_invalid")
+
+
+@dataclass(frozen=True, slots=True)
+class RegistryScopeSnapshotV1(TechnicalValueV1):
+    """Deterministic registry-only membership at one committed revision."""
+
+    CONTRACT_ID: ClassVar[str] = "CTR-REG-009"
+    OWNER: ClassVar[str] = "PLAN-M02"
+
+    scope_kind: RegistryScopeKindV1
+    scope_id: OpaqueIdV1 | None
+    organization_ids: tuple[OpaqueIdV1, ...]
+    account_ids: tuple[OpaqueIdV1, ...]
+    resource_ids: tuple[OpaqueIdV1, ...]
+    completeness_state: Literal["complete", "unavailable"]
+    registry_revision: int
+
+    def __post_init__(self) -> None:
+        TechnicalValueV1.__post_init__(self)
+        values = (
+            self.organization_ids,
+            self.account_ids,
+            self.resource_ids,
+        )
+        if (
+            (self.scope_kind == "global") != (self.scope_id is None)
+            or type(self.registry_revision) is not int
+            or self.registry_revision < 0
+            or any(len(set(items)) != len(items) for items in values)
+        ):
+            raise ValueError("registry_scope_snapshot_invalid")
+
+
+class ReconcileProviderDiscoveryV1(Protocol):
+    def __call__(
+        self, outcome: DiscoveryOutcomeV1, *, reconciled_at: datetime
+    ) -> DiscoveryReconciliationViewV1: ...
+
+
+class ListDiscoveryCandidatesV1(Protocol):
+    def __call__(
+        self, provider_key: str | None = None
+    ) -> tuple[DiscoveryCandidateViewV1, ...]: ...
+
+
+class ConfirmIdentityAssociationV1(Protocol):
+    def __call__(
+        self, command: ConfirmIdentityAssociationCommandV1
+    ) -> AccountViewV1: ...
+
+
+class RegisterAccountV1(Protocol):
+    def __call__(
+        self, command: ConfirmIdentityAssociationCommandV1
+    ) -> AccountViewV1: ...
+
+
+class ListAccountsV1(Protocol):
+    def __call__(
+        self, provider_key: str | None = None
+    ) -> tuple[AccountViewV1, ...]: ...
+
+
+class ListProviderInstallationsV1(Protocol):
+    """Read-only safe installation projection; locators are not representable."""
+
+    def __call__(
+        self, provider_key: str | None = None
+    ) -> tuple[ProviderInstallationViewV1, ...]: ...
+
+
+class ListMonitoringProfilesV1(Protocol):
+    def __call__(
+        self, account_id: OpaqueIdV1
+    ) -> tuple[MonitoringProfileViewV1, ...]: ...
+
+
+class ListAccountResourcesV1(Protocol):
+    def __call__(self, account_id: OpaqueIdV1) -> tuple[AccountResourceViewV1, ...]: ...
+
+
+class AlertScopeAndSubjectQueryV1(Protocol):
+    """CTR-REG-009 read-only registry membership query."""
+
+    def __call__(
+        self, scope_kind: RegistryScopeKindV1, scope_id: OpaqueIdV1 | None = None
+    ) -> RegistryScopeSnapshotV1: ...
