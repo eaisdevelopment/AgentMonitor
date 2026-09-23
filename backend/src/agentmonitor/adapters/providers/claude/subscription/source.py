@@ -29,7 +29,10 @@ _MAX_OUTPUT_BYTES = 4 * 1024 * 1024
 _ANSI_OSC = re.compile(r"\x1b\][^\x07]*(?:\x07|\x1b\\)")
 _ANSI_CSI = re.compile(r"\x1b\[[0-?]*[ -/]*[@-~]")
 _ANSI_SINGLE = re.compile(r"\x1b[@-_]")
-_PERCENT_USED = re.compile(r"(?<![0-9.])([0-9]{1,3}(?:\.[0-9]+)?)% used\Z")
+_PERCENT_USED = re.compile(
+    r"(?:Esc to cancel)?(?:[0-9]{1,3}% )?"
+    r"([0-9]{1,3}(?:\.[0-9]+)?)% used\Z"
+)
 _SAFE_RESET = re.compile(r"Resets [A-Za-z0-9 (),:+/.-]{1,88}\Z")
 _LABELS = {
     "Current session": "current_session",
@@ -78,18 +81,38 @@ def _parse_latest_complete_render(raw: bytes) -> SanitizedClaudeUsageSnapshot:
     )
     if not markers:
         raise _IncompleteRender("usage_terminal_marker_missing")
-    marker = markers[-1]
-    start = markers[-2] + 1 if len(markers) > 1 else 0
-    final = lines[start:marker]
+
+    failure = _IncompleteRender("usage_window_set_invalid")
+    for position in range(len(markers) - 1, -1, -1):
+        marker = markers[position]
+        start = markers[position - 1] + 1 if position > 0 else 0
+        try:
+            return _parse_complete_usage_segment(lines[start:marker])
+        except _IncompleteRender as error:
+            failure = error
+    raise failure
+
+
+def _parse_complete_usage_segment(
+    final: tuple[str, ...],
+) -> SanitizedClaudeUsageSnapshot:
     parsed: list[SanitizedClaudeUsageWindow] = []
-    percent_line_count = 0
-    for index, line in enumerate(final):
-        if _PERCENT_USED.fullmatch(line):
-            percent_line_count += 1
-        key = _LABELS.get(line)
-        if key is None:
+    for label, key in _LABELS.items():
+        occurrences = tuple(
+            index for index, candidate in enumerate(final) if candidate == label
+        )
+        if not occurrences:
             continue
-        following = final[index + 1 : index + 7]
+        index = occurrences[-1]
+        next_label = next(
+            (
+                position
+                for position in range(index + 1, len(final))
+                if final[position] in _LABELS
+            ),
+            len(final),
+        )
+        following = final[index + 1 : min(index + 7, next_label)]
         percent_matches = tuple(
             match
             for candidate in following
@@ -119,7 +142,6 @@ def _parse_latest_complete_render(raw: bytes) -> SanitizedClaudeUsageSnapshot:
     if (
         not 2 <= len(parsed) <= 3
         or len(keys) != len(set(keys))
-        or percent_line_count != len(parsed)
         or "current_session" not in keys
         or "current_week_all_models" not in keys
     ):
@@ -233,8 +255,10 @@ def collect_usage_once(
                             "invalid_provider_data", "usage_output_limit_exceeded"
                         )
             elapsed = time.monotonic() - started
+            application_ready = b"claude code v" in bytes(raw).lower()
             if not command_sent and (
-                (raw and time.monotonic() - last_output >= 0.35) or elapsed >= 3
+                (application_ready and time.monotonic() - last_output >= 0.35)
+                or elapsed >= 8
             ):
                 os.write(master_fd, b"/usage\r")
                 command_sent = True
