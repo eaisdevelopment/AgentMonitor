@@ -5,8 +5,9 @@
 - Requirements: `FR-ACC-005/006`, `FR-COL-004..008`, `FR-QUOTA-001..006`
 - Contracts: `CTR-PROV-004/005`, `CTR-REG-002..006`, `CTR-COL-002/004/006`, `CTR-CAP-001/003/004` V1
 - Environment: real Claude Code `2.1.278`, Linux x86_64, protected default profile, real migrated file SQLite
-- Result: **Passed** for the narrow owner-assisted production persistence flow;
-  independent identity discovery and exact opt-in pytest acceptance remain open
+- Result: **Passed** for the narrow owner-assisted production persistence flow
+  and its exact opt-in pytest acceptance; independent identity discovery remains
+  open
 
 ## Implemented production path
 
@@ -153,6 +154,24 @@ AGENTMONITOR_RUN_CLAUDE_OWNER_VERTICAL=yes \
 # 3 errors in 0.04s; claude_owner_vertical_opt_in_invalid
 ```
 
+The first post-`1.0.2` opt-in batch exposed a real assertion defect: the test
+supplied the candidate's post-confirmation version while claiming to exercise a
+stale pre-confirmation decision. Production correctly accepted that current
+version, so the assertion failed (`1 failed, 4 passed in 308.59s`). The test was
+corrected to submit the exact pre-confirmation record version retained by the
+real result. The same exact live batch then passed against a new real source
+run and file-backed SQLite database:
+
+```text
+AGENTMONITOR_RUN_CLAUDE_OWNER_VERTICAL=1 \
+  PYTHONPATH=backend/src backend/.venv/bin/python -m pytest \
+  backend/tests/integration/registry/test_claude_reconciliation.py \
+  backend/tests/integration/collection_control/test_claude_quota_run.py \
+  backend/tests/integration/capacity/test_claude_quota_commit.py \
+  -q --tb=short -s
+# 5 passed in 308.35s
+```
+
 ## Authenticated populated browser
 
 The production frontend was rebuilt and served by the authenticated loopback
@@ -206,9 +225,6 @@ required for later changes.
 - Independent provider-derived account identity discovery remains Blocked; the
   current lane is explicitly owner-assisted and the manifest declares quota,
   not an independent account-identity source.
-- The five-test opt-in pytest batch has not rerun after the final production
-  success and remains Not Run on `1.0.2`; the CLI success does not retroactively
-  turn its two earlier Red executions into passing tests.
 - Same-account runtime correlation remains separately Blocked by Task 5.
 - The populated verifier passed when invoked directly, but it is not selected by
   a cataloged M3 live-browser routine. M3 completion automation therefore remains

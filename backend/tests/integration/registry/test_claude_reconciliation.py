@@ -5,6 +5,7 @@ from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
 import pytest
+
 from agentmonitor.adapters.persistence.registry.sqlite.repository import (
     SqliteRegistryRepositoryV1,
 )
@@ -67,7 +68,10 @@ def test_real_candidate_rejects_stale_version_or_changed_evidence(
                 command_id=OpaqueIdV1("claude-owner-stale-confirmation"),
                 principal_id=OpaqueIdV1(OWNER_PRINCIPAL_ID),
                 candidate_id=candidate.candidate_id,
-                expected_candidate_record_version=candidate.record_version + 1,
+                # This view was captured before the original confirmation. The
+                # persisted candidate has advanced, so replaying this reviewed
+                # version must fail closed as stale.
+                expected_candidate_record_version=candidate.record_version,
                 friendly_name="Claude owner account",
                 organization_id=None,
                 evidence_set_digest=candidate.evidence_set_digest,
