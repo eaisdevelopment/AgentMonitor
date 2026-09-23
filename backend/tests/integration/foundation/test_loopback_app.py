@@ -998,6 +998,49 @@ def test_schema_validation_and_breaking_diff_are_fail_closed() -> None:
     assert tool.classify_compatibility(component_baseline, changed_existing) == (
         "breaking"
     )
+    object_baseline = previous | {
+        "components": {
+            "schemas": {
+                "ExistingV1": {
+                    "type": "object",
+                    "properties": {"existing": {"type": "string"}},
+                    "required": ["existing"],
+                }
+            }
+        }
+    }
+    optional_addition = previous | {
+        "components": {
+            "schemas": {
+                "ExistingV1": {
+                    "type": "object",
+                    "properties": {
+                        "existing": {"type": "string"},
+                        "added": {"type": "integer"},
+                    },
+                    "required": ["existing"],
+                }
+            }
+        }
+    }
+    assert tool.classify_compatibility(object_baseline, optional_addition) == (
+        "compatible"
+    )
+    required_addition = previous | {
+        "components": {
+            "schemas": {
+                "ExistingV1": {
+                    "type": "object",
+                    "properties": {
+                        "existing": {"type": "string"},
+                        "added": {"type": "integer"},
+                    },
+                    "required": ["existing", "added"],
+                }
+            }
+        }
+    }
+    assert tool.classify_compatibility(object_baseline, required_addition) == "breaking"
 
 
 def test_generator_public_failure_is_typed_and_sanitized(

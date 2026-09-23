@@ -572,6 +572,31 @@ def classify_compatibility(
     validate_openapi(previous)
     validate_openapi(current)
     old, new = _object(previous), _object(current)
+
+    def compatible_component(old_value: object, new_value: object) -> bool:
+        """Permit only additive optional fields on an existing object schema."""
+        if old_value == new_value:
+            return True
+        if not isinstance(old_value, dict) or not isinstance(new_value, dict):
+            return False
+        old_schema, new_schema = _object(old_value), _object(new_value)
+        old_properties = old_schema.get("properties")
+        new_properties = new_schema.get("properties")
+        if not isinstance(old_properties, dict) or not isinstance(new_properties, dict):
+            return False
+        if any(
+            name not in new_properties or new_properties[name] != definition
+            for name, definition in old_properties.items()
+        ):
+            return False
+        if old_schema.get("required", []) != new_schema.get("required", []):
+            return False
+        return all(
+            new_schema.get(key) == value
+            for key, value in old_schema.items()
+            if key not in {"properties", "required"}
+        )
+
     old_paths, new_paths = _object(old["paths"]), _object(new["paths"])
     for path, item in old_paths.items():
         if path not in new_paths:
@@ -590,7 +615,16 @@ def classify_compatibility(
             ):
                 if any(
                     name not in new_entries_value
-                    or new_entries_value[name] != definition
+                    or (
+                        category != "schemas"
+                        and new_entries_value[name] != definition
+                    )
+                    or (
+                        category == "schemas"
+                        and not compatible_component(
+                            definition, new_entries_value[name]
+                        )
+                    )
                     for name, definition in old_entries_value.items()
                 ):
                     return "breaking"

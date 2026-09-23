@@ -62,7 +62,22 @@ try {
   const quotaRowCount = await quotaRows.count();
   requireTruth(quotaRowCount > 0, "real_quota_window_missing");
   await page.locator(".quota-provenance").first().waitFor();
-  for (const field of ["Observation", "Collection run", "Collected", "Stored", "Source/version"]) {
+  for (const field of [
+    "Observation",
+    "Collection run",
+    "Observed",
+    "Collected",
+    "Stored",
+    "Source",
+    "Source class",
+    "Adapter",
+    "Mechanism version",
+    "Provider version",
+    "Freshness deadline",
+    "Freshness policy",
+    "Precision",
+    "Confidence",
+  ]) {
     await page.getByText(field, { exact: true }).first().waitFor();
   }
   requireTruth(await page.locator(".health-strip").count() > 0, "capacity_health_explanation_missing");
@@ -73,9 +88,17 @@ try {
     const observationId = (await quotaRow.locator(".quota-observation-id").textContent())?.trim();
     requireTruth(collectionRunId !== undefined && collectionRunId.length > 0, "quota_collection_run_id_missing");
     requireTruth(observationId !== undefined && observationId.length > 0, "quota_observation_id_missing");
-    const sourceVersion = quotaRow.getByText("Unavailable in API v1", { exact: true });
-    await sourceVersion.scrollIntoViewIfNeeded();
-    requireTruth(await sourceVersion.isVisible(), "quota_source_version_state_not_visible");
+    const provenance = quotaRow.locator(".quota-provenance");
+    const provenanceText = await provenance.innerText();
+    requireTruth(!/Unavailable in API v1/u.test(provenanceText), "quota_provenance_missing_from_api");
+    requireTruth(/claude\.usage\.ax-screen-reader\.v1/u.test(provenanceText), "quota_source_id_missing");
+    requireTruth(/supported cli/iu.test(provenanceText), "quota_source_class_missing");
+    requireTruth(/agentmonitor\.claude\s*·\s*1\.0\.2/u.test(provenanceText), "quota_adapter_version_missing");
+    requireTruth(/Mechanism version\s*1/u.test(provenanceText), "quota_mechanism_version_missing");
+    requireTruth(/Provider version\s*2\.1\.278/u.test(provenanceText), "quota_provider_version_missing");
+    requireTruth(/claude-usage-five-minute-v1/u.test(provenanceText), "quota_freshness_policy_missing");
+    requireTruth(/Precision\s*rounded/iu.test(provenanceText), "quota_precision_missing");
+    requireTruth(/confirmed/iu.test(provenanceText), "quota_confidence_missing");
     quotaLineage.push({ collectionRunId, observationId });
   }
 
@@ -167,7 +190,7 @@ try {
   requireTruth(!(await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth + 1)), "document_horizontal_overflow");
 
   await browser.close();
-  console.log(`P02 POPULATED MONITORING: PASSED — real Claude account/quota/collection reconciliation and process runtime; quota source/version BLOCKED — absent from API v1; same-account sessions ${runtimeOutcome}`);
+  console.log(`P02 POPULATED MONITORING: PASSED — real Claude account/quota provenance, collection reconciliation, and process runtime; same-account sessions ${runtimeOutcome}`);
 } catch (error) {
   if (browser) await browser.close();
   console.error(`P02 POPULATED MONITORING: FAILED — ${stage}: ${error instanceof Error ? error.message : "unknown"}`);

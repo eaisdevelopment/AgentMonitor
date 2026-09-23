@@ -124,9 +124,22 @@ export function CapacityPanel({
                   <div><dt>Provider</dt><dd>{window.subject.provider_key}</dd></div>
                   <div><dt>Observation</dt><dd className="quota-observation-id">{window.current_observation_id}</dd></div>
                   <div><dt>Collection run</dt><dd className="quota-collection-run-id">{window.collection_run_id}</dd></div>
+                  <div><dt>Observed</dt><dd>{window.observed_at === null ? "Unknown" : new Date(window.observed_at).toLocaleString()}</dd></div>
                   <div><dt>Collected</dt><dd>{new Date(window.collected_at).toLocaleString()}</dd></div>
                   <div><dt>Stored</dt><dd>{new Date(window.stored_at).toLocaleString()}</dd></div>
-                  <div><dt>Source/version</dt><dd>Unavailable in API v1</dd></div>
+                  {window.provenance === null || window.provenance === undefined ? (
+                    <div><dt>Source</dt><dd>Provenance unavailable</dd></div>
+                  ) : <>
+                    <div><dt>Source</dt><dd>{window.provenance.source_id}</dd></div>
+                    <div><dt>Source class</dt><dd>{window.provenance.source_class.replaceAll("_", " ")}</dd></div>
+                    <div><dt>Adapter</dt><dd>{window.provenance.adapter_id} · {window.provenance.adapter_version}</dd></div>
+                    <div><dt>Mechanism version</dt><dd>{window.provenance.mechanism_version}</dd></div>
+                    <div><dt>Provider version</dt><dd>{window.provenance.provider_version ?? "Not reported"}</dd></div>
+                    <div><dt>Freshness deadline</dt><dd>{window.provenance.freshness_deadline === null ? "Unknown" : new Date(window.provenance.freshness_deadline).toLocaleString()}</dd></div>
+                    <div><dt>Freshness policy</dt><dd>{window.provenance.freshness_policy_id}</dd></div>
+                    <div><dt>Precision</dt><dd>{window.provenance.precision}</dd></div>
+                    <div><dt>Confidence</dt><dd>{window.provenance.confidence} · {window.provenance.confidence_reason_code.replaceAll("_", " ")}</dd></div>
+                  </>}
                 </dl></td>
               </tr>
             ))}</tbody>

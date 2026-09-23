@@ -46,6 +46,31 @@ class CapacitySubjectWireV1(_ClosedV1):
     resource_id: str
 
 
+class CapacityObservationProvenanceWireV1(_ClosedV1):
+    capability_id: str
+    capability_schema_version: str
+    adapter_id: str
+    adapter_version: str
+    provider_protocol_version: str
+    source_id: str
+    source_class: Literal[
+        "documented_api",
+        "supported_cli",
+        "approved_local_metadata",
+        "experimental_private_or_browser",
+    ]
+    mechanism_version: str
+    parser_version: str | None
+    provider_version: str | None
+    freshness_deadline: datetime | None
+    freshness_policy_id: str
+    precision: Literal["exact", "rounded", "range", "estimated", "unknown"]
+    confidence: Literal["confirmed", "high", "medium", "low", "unknown"]
+    confidence_reason_code: str
+    is_experimental: bool
+    decision_reference: str
+
+
 class QuotaWindowViewV1(_ClosedV1):
     window_id: str
     subject: CapacitySubjectWireV1
@@ -55,6 +80,7 @@ class QuotaWindowViewV1(_ClosedV1):
     remaining: ExactMetricFieldWireV1
     limit: ExactMetricFieldWireV1
     remaining_ratio: ExactMetricFieldWireV1
+    provenance: CapacityObservationProvenanceWireV1 | None = None
     freshness: Literal[
         "fresh", "stale", "freshness_unknown", "conflicted", "no_observation"
     ]

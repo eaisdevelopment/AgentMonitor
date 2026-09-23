@@ -18,6 +18,7 @@ from agentmonitor.contracts.capacity_v1 import (
     CapacityCommitRequestV1,
     CapacityCommitStatusV1,
     CapacityHealthViewV1,
+    CapacityObservationProvenanceViewV1,
     CapacitySubjectV1,
     ExactMetricFieldV1,
     QuotaWindowViewV1,
@@ -163,6 +164,37 @@ def _quota_window(
         remaining=measures["remaining"],
         limit=measures["limit"],
         remaining_ratio=measures["remaining_ratio"],
+        provenance=CapacityObservationProvenanceViewV1(
+            capability_id=str(row["capability_id"]),
+            capability_schema_version=str(row["capability_schema_version"]),
+            adapter_id=str(row["adapter_id"]),
+            adapter_version=str(row["adapter_version"]),
+            provider_protocol_version=str(row["provider_protocol_version"]),
+            source_id=str(row["source_id"]),
+            source_class=row["source_class"],
+            mechanism_version=str(row["mechanism_version"]),
+            parser_version=(
+                str(row["parser_version"])
+                if row["parser_version"] is not None
+                else None
+            ),
+            provider_version=(
+                str(row["provider_version"])
+                if row["provider_version"] is not None
+                else None
+            ),
+            freshness_deadline=(
+                _utc_value(str(row["freshness_deadline"]))
+                if row["freshness_deadline"] is not None
+                else None
+            ),
+            freshness_policy_id=str(row["freshness_policy_id"]),
+            precision=row["precision"],
+            confidence=row["confidence"],
+            confidence_reason_code=str(row["confidence_reason_code"]),
+            is_experimental=bool(row["experimental"]),
+            decision_reference=str(row["decision_reference"]),
+        ),
         freshness=(
             "conflicted"
             if row["conflict_state"] == "conflicted"
@@ -241,12 +273,19 @@ class SqliteCapacityRepositoryV1:
                             "d.installation_id, d.native_window_key, d.safe_label, "
                             "o.observation_id, o.collection_run_id, o.observed_at, "
                             "o.collected_at, o.stored_at, p.freshness_deadline, "
-                            "p.conflict_state FROM "
+                            "p.capability_id, o.capability_schema_version, "
+                            "v.adapter_id, v.adapter_version, v.provider_protocol_version, "
+                            "v.source_id, v.source_class, v.mechanism_version, "
+                            "v.parser_version, v.provider_version, v.freshness_policy_id, "
+                            "v.precision, v.confidence, v.confidence_reason_code, "
+                            "v.experimental, v.decision_reference, p.conflict_state FROM "
                             "capacity_current_projection AS p JOIN "
                             "capacity_quota_window_definition AS d ON "
                             "d.window_definition_id=p.window_definition_id JOIN "
                             "capacity_quota_observation AS o ON "
-                            "o.observation_id=p.current_observation_id WHERE "
+                            "o.observation_id=p.current_observation_id JOIN "
+                            "capacity_observation_provenance AS v ON "
+                            "v.provenance_id=o.provenance_id WHERE "
                             "p.projection_kind='quota' AND p.account_id=? AND "
                             "p.resource_id=? AND p.capability_id=? AND "
                             "o.collected_at<=? ORDER BY d.native_window_key",
@@ -325,10 +364,18 @@ class SqliteCapacityRepositoryV1:
                             "SELECT p.projection_id, p.account_id, p.resource_id, p.freshness_state, "
                             "d.provider_key, d.installation_id, d.native_window_key, d.safe_label, "
                             "o.observation_id, o.collection_run_id, o.observed_at, o.collected_at, "
-                            "o.stored_at, p.freshness_deadline, p.conflict_state FROM "
+                            "o.stored_at, p.freshness_deadline, p.capability_id, "
+                            "o.capability_schema_version, v.adapter_id, v.adapter_version, "
+                            "v.provider_protocol_version, v.source_id, v.source_class, "
+                            "v.mechanism_version, v.parser_version, v.provider_version, "
+                            "v.freshness_policy_id, v.precision, v.confidence, "
+                            "v.confidence_reason_code, v.experimental, v.decision_reference, "
+                            "p.conflict_state FROM "
                             "capacity_current_projection AS p JOIN capacity_quota_window_definition AS d "
                             "ON d.window_definition_id=p.window_definition_id JOIN capacity_quota_observation AS o "
-                            "ON o.observation_id=p.current_observation_id WHERE p.projection_kind='quota' "
+                            "ON o.observation_id=p.current_observation_id JOIN "
+                            "capacity_observation_provenance AS v ON "
+                            "v.provenance_id=o.provenance_id WHERE p.projection_kind='quota' "
                             "AND p.account_id=? AND o.collected_at<=? AND (? IS NULL OR "
                             "(p.resource_id, d.native_window_key, p.projection_id) > ("
                             "SELECT p2.resource_id, d2.native_window_key, p2.projection_id FROM "

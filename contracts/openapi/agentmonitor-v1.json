@@ -891,6 +891,142 @@
         "title": "CapacityHealthViewV1",
         "type": "object"
       },
+      "CapacityObservationProvenanceWireV1": {
+        "additionalProperties": false,
+        "properties": {
+          "adapter_id": {
+            "title": "Adapter Id",
+            "type": "string"
+          },
+          "adapter_version": {
+            "title": "Adapter Version",
+            "type": "string"
+          },
+          "capability_id": {
+            "title": "Capability Id",
+            "type": "string"
+          },
+          "capability_schema_version": {
+            "title": "Capability Schema Version",
+            "type": "string"
+          },
+          "confidence": {
+            "enum": [
+              "confirmed",
+              "high",
+              "medium",
+              "low",
+              "unknown"
+            ],
+            "title": "Confidence",
+            "type": "string"
+          },
+          "confidence_reason_code": {
+            "title": "Confidence Reason Code",
+            "type": "string"
+          },
+          "decision_reference": {
+            "title": "Decision Reference",
+            "type": "string"
+          },
+          "freshness_deadline": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Freshness Deadline"
+          },
+          "freshness_policy_id": {
+            "title": "Freshness Policy Id",
+            "type": "string"
+          },
+          "is_experimental": {
+            "title": "Is Experimental",
+            "type": "boolean"
+          },
+          "mechanism_version": {
+            "title": "Mechanism Version",
+            "type": "string"
+          },
+          "parser_version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parser Version"
+          },
+          "precision": {
+            "enum": [
+              "exact",
+              "rounded",
+              "range",
+              "estimated",
+              "unknown"
+            ],
+            "title": "Precision",
+            "type": "string"
+          },
+          "provider_protocol_version": {
+            "title": "Provider Protocol Version",
+            "type": "string"
+          },
+          "provider_version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Provider Version"
+          },
+          "source_class": {
+            "enum": [
+              "documented_api",
+              "supported_cli",
+              "approved_local_metadata",
+              "experimental_private_or_browser"
+            ],
+            "title": "Source Class",
+            "type": "string"
+          },
+          "source_id": {
+            "title": "Source Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "capability_id",
+          "capability_schema_version",
+          "adapter_id",
+          "adapter_version",
+          "provider_protocol_version",
+          "source_id",
+          "source_class",
+          "mechanism_version",
+          "parser_version",
+          "provider_version",
+          "freshness_deadline",
+          "freshness_policy_id",
+          "precision",
+          "confidence",
+          "confidence_reason_code",
+          "is_experimental",
+          "decision_reference"
+        ],
+        "title": "CapacityObservationProvenanceWireV1",
+        "type": "object"
+      },
       "CapacitySubjectWireV1": {
         "additionalProperties": false,
         "properties": {
@@ -2405,6 +2541,16 @@
               }
             ],
             "title": "Observed At"
+          },
+          "provenance": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CapacityObservationProvenanceWireV1"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "remaining": {
             "$ref": "#/components/schemas/ExactMetricFieldWireV1"
@@ -7584,10 +7730,10 @@
       "starlette": "1.6.0"
     },
     "generator": "agentmonitor-openapi-client",
-    "generator_sha256": "2d4dc89dc5e60034d25ec6d5ada1ac78c6197dd452820e974e33b6778a0f329b",
+    "generator_sha256": "b88b86f11c3dcf15e71e93866647fe656a3bdda7d3e3971b7f534f9431a08204",
     "generator_version": "2.0.3",
     "openapi_version": "3.1.0",
-    "schema_sha256": "b6712b19819a38ca7c513706066d2bcc252da19c79eb32e1ccd893f78d3e4149",
-    "source_sha256": "fb99f9b25c5b1f7636a3d1509eaaeed8ee83674a430eb43a87dd4feafe21ae30"
+    "schema_sha256": "23a19a0d6dc70dcd3038f841902c42b6c8770f4b28d7cecb6722a6ca63c7acf3",
+    "source_sha256": "cb0a11348a7f35821e88ac240cc36df87ee42a0bf579bab4a6e6097c9d421166"
   }
 }

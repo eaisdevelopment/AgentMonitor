@@ -10,6 +10,7 @@ from agentmonitor.contracts.collection_control_v1 import (
     CollectionCommitStatusV1,
     CollectionOutcomeCommitV1,
 )
+from agentmonitor.contracts.common_provenance_v1 import SourceClassV1
 from agentmonitor.contracts.common_quantity_v1 import (
     CanonicalDecimalV1,
     ExactQuantityV1,
@@ -197,6 +198,55 @@ class CapacityCommitStatusV1(CollectionCommitStatusV1):
 
 
 @dataclass(frozen=True, slots=True)
+class CapacityObservationProvenanceViewV1(TechnicalValueV1):
+    """Persisted, safe source lineage for a capacity observation query."""
+
+    CONTRACT_ID: ClassVar[str] = "CTR-CAP-001"
+    OWNER: ClassVar[str] = "PLAN-M05"
+
+    capability_id: str
+    capability_schema_version: str
+    adapter_id: str
+    adapter_version: str
+    provider_protocol_version: str
+    source_id: str
+    source_class: SourceClassV1
+    mechanism_version: str
+    parser_version: str | None
+    provider_version: str | None
+    freshness_deadline: datetime | None
+    freshness_policy_id: str
+    precision: PrecisionV1
+    confidence: ConfidenceV1
+    confidence_reason_code: str
+    is_experimental: bool
+    decision_reference: str
+
+    def __post_init__(self) -> None:
+        TechnicalValueV1.__post_init__(self)
+        required = (
+            self.capability_id,
+            self.capability_schema_version,
+            self.adapter_id,
+            self.adapter_version,
+            self.provider_protocol_version,
+            self.source_id,
+            self.mechanism_version,
+            self.freshness_policy_id,
+            self.confidence_reason_code,
+            self.decision_reference,
+        )
+        if not all(_token(value) for value in required):
+            raise InvalidCapacityContractV1("capacity_provenance_invalid")
+        if self.parser_version is not None and not _token(self.parser_version):
+            raise InvalidCapacityContractV1("capacity_provenance_parser_invalid")
+        if self.provider_version is not None and not _token(self.provider_version):
+            raise InvalidCapacityContractV1("capacity_provenance_provider_invalid")
+        if type(self.is_experimental) is not bool:
+            raise InvalidCapacityContractV1("capacity_provenance_experimental_invalid")
+
+
+@dataclass(frozen=True, slots=True)
 class QuotaWindowViewV1(TechnicalValueV1):
     CONTRACT_ID: ClassVar[str] = "CTR-CAP-001"
     OWNER: ClassVar[str] = "PLAN-M05"
@@ -209,6 +259,7 @@ class QuotaWindowViewV1(TechnicalValueV1):
     remaining: ExactMetricFieldV1
     limit: ExactMetricFieldV1
     remaining_ratio: ExactMetricFieldV1
+    provenance: CapacityObservationProvenanceViewV1
     freshness: Literal[
         "fresh", "stale", "freshness_unknown", "conflicted", "no_observation"
     ]
