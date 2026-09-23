@@ -78,7 +78,7 @@ class ExecuteCollectionRunV1[SourceT: TechnicalValueV1, PayloadT: TechnicalValue
         ],
         *,
         started_at: datetime,
-        completed_at: datetime,
+        completed_at: datetime | Callable[[], datetime],
     ) -> CollectionCommitReceiptV1 | CollectionFailedV1:
         """Run the injected real collector after durable admission.
 
@@ -88,7 +88,8 @@ class ExecuteCollectionRunV1[SourceT: TechnicalValueV1, PayloadT: TechnicalValue
         """
         admitted = self._repository.admit_run(admission)
         if admitted.state == "committing":
-            return self._recover_committing(admitted, completed_at)
+            completion = completed_at() if callable(completed_at) else completed_at
+            return self._recover_committing(admitted, completion)
         if admitted.state != "queued":
             raise CollectionExecutionErrorV1("collection_run_not_dispatchable")
         self._repository.mark_running(
@@ -96,7 +97,9 @@ class ExecuteCollectionRunV1[SourceT: TechnicalValueV1, PayloadT: TechnicalValue
             started_at,
             fencing_token=admitted.fencing_token,
         )
-        outcome = normalize(admission, collect(), completed_at)
+        collected = collect()
+        completion = completed_at() if callable(completed_at) else completed_at
+        outcome = normalize(admission, collected, completion)
         if isinstance(outcome, CollectionFailedV1):
             if outcome.run_id != admission.run_id:
                 raise CollectionExecutionErrorV1("collection_outcome_run_mismatch")
@@ -115,14 +118,14 @@ class ExecuteCollectionRunV1[SourceT: TechnicalValueV1, PayloadT: TechnicalValue
             admission.run_id,
             fencing_token=admitted.fencing_token,
             payload_digest=outcome.payload_digest,
-            committing_at=completed_at,
+            committing_at=completion,
             terminal_state=outcome.terminal_state,
         )
         receipt = self._sink.commit(outcome)
         self._repository.finalize_committed(
             receipt,
             terminal_state=outcome.terminal_state,
-            completed_at=completed_at,
+            completed_at=completion,
             fencing_token=admitted.fencing_token,
         )
         return receipt

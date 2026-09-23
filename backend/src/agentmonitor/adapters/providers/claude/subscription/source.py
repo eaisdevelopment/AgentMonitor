@@ -39,6 +39,18 @@ _LABELS = {
     "Current week (all models)": "current_week_all_models",
     "Current week (Sonnet only)": "current_week_sonnet_only",
 }
+_SAFE_PARSE_FAILURE_CODES = frozenset(
+    {
+        "usage_output_encoding_invalid",
+        "usage_terminal_marker_missing",
+        "usage_window_set_invalid",
+        "usage_window_incomplete",
+        "usage_reset_display_invalid",
+        "usage_percent_invalid",
+        "usage_percent_out_of_range",
+        "usage_window_conflicting_duplicate",
+    }
+)
 
 SourceFailureState = Literal[
     "reauthentication_required",
@@ -82,15 +94,13 @@ def _parse_latest_complete_render(raw: bytes) -> SanitizedClaudeUsageSnapshot:
     if not markers:
         raise _IncompleteRender("usage_terminal_marker_missing")
 
-    failure = _IncompleteRender("usage_window_set_invalid")
     for position in range(len(markers) - 1, -1, -1):
         marker = markers[position]
         start = markers[position - 1] + 1 if position > 0 else 0
-        try:
-            return _parse_complete_usage_segment(lines[start:marker])
-        except _IncompleteRender as error:
-            failure = error
-    raise failure
+        segment = lines[start:marker]
+        if any(line in _LABELS for line in segment):
+            return _parse_complete_usage_segment(segment)
+    raise _IncompleteRender("usage_window_set_invalid")
 
 
 def _parse_complete_usage_segment(
@@ -103,6 +113,10 @@ def _parse_complete_usage_segment(
         )
         if not occurrences:
             continue
+        # Ink appends terminal refresh history to the PTY byte stream. Earlier
+        # occurrences of the same label are superseded screen redraws, not
+        # simultaneous values. Only the newest occurrence is authoritative;
+        # conflicts inside that current block remain invalid.
         index = occurrences[-1]
         next_label = next(
             (
@@ -118,24 +132,27 @@ def _parse_complete_usage_segment(
             for candidate in following
             if (match := _PERCENT_USED.fullmatch(candidate)) is not None
         )
-        resets = tuple(
+        reset_lines = tuple(
             candidate for candidate in following if candidate.startswith("Resets ")
         )
-        if len(percent_matches) != 1 or len(resets) != 1:
+        if not percent_matches or not reset_lines:
             raise _IncompleteRender("usage_window_incomplete")
-        if _SAFE_RESET.fullmatch(resets[0]) is None:
+        if any(_SAFE_RESET.fullmatch(value) is None for value in reset_lines):
             raise _IncompleteRender("usage_reset_display_invalid")
         try:
-            percent = Decimal(percent_matches[0].group(1))
+            percents = tuple(Decimal(match.group(1)) for match in percent_matches)
         except InvalidOperation as error:
             raise _IncompleteRender("usage_percent_invalid") from error
-        if not Decimal("0") <= percent <= Decimal("100"):
+        if any(not Decimal("0") <= percent <= Decimal("100") for percent in percents):
             raise _IncompleteRender("usage_percent_out_of_range")
+        if len(set(percents)) != 1 or len(set(reset_lines)) != 1:
+            raise _IncompleteRender("usage_window_conflicting_duplicate")
+        percent, reset_display = percents[-1], reset_lines[-1]
         parsed.append(
             SanitizedClaudeUsageWindow(
                 window_key=key,  # type: ignore[arg-type]
                 percent_used=percent,
-                reset_display=resets[0],
+                reset_display=reset_display,
             )
         )
     keys = tuple(item.window_key for item in parsed)
@@ -165,9 +182,16 @@ def _terminate_owned_process(process: subprocess.Popen[bytes]) -> None:
             process.wait(timeout=2)
 
 
-def _safe_deadline_code(raw_lower: bytes) -> str:
+def _safe_deadline_code(raw: bytes) -> str:
     """Return only a closed progress category, never provider terminal text."""
+    raw_lower = raw.lower()
     if b"usage credits" in raw_lower:
+        try:
+            _parse_latest_complete_render(raw)
+        except _IncompleteRender as error:
+            reason = str(error)
+            if reason in _SAFE_PARSE_FAILURE_CODES:
+                return "usage_deadline_" + reason.removeprefix("usage_")
         return "usage_deadline_incomplete_render"
     if any(label.encode("ascii").lower() in raw_lower for label in _LABELS):
         return "usage_deadline_partial_render"
@@ -275,15 +299,14 @@ def collect_usage_once(
                 break
         raw_lower = bytes(raw).lower()
         auth = classify_auth_failure(raw_lower)
+        deadline_code = _safe_deadline_code(bytes(raw))
         raw[:] = b""
         if auth == "reauthentication_required":
             return ClaudeUsageSourceFailure(auth, "claude_reauthentication_required")
         if auth == "authorization_insufficient":
             return ClaudeUsageSourceFailure(auth, "claude_authorization_insufficient")
         if process.poll() is None:
-            return ClaudeUsageSourceFailure(
-                "deadline_exceeded", _safe_deadline_code(raw_lower)
-            )
+            return ClaudeUsageSourceFailure("deadline_exceeded", deadline_code)
         return ClaudeUsageSourceFailure(
             "provider_unavailable", "usage_process_exited_before_complete_render"
         )

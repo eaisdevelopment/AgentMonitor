@@ -60,7 +60,7 @@ class RunOneCollectionV1[SourceT: TechnicalValueV1, PayloadT: TechnicalValueV1]:
         ],
         *,
         started_at: datetime,
-        completed_at: datetime,
+        completed_at: datetime | Callable[[], datetime],
     ) -> CollectionCommitReceiptV1 | CollectionFailedV1:
         return self._executor.execute(
             admission,

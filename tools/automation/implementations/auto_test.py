@@ -43,7 +43,7 @@ def run(command: list[str], *, environment: dict[str, str] | None = None) -> Non
 
 
 def m2_local_suite_commands() -> dict[str, list[str]]:
-    """Select complete M2 backend and production-browser suites, without exclusions."""
+    """Select M2 local suites while leaving explicit M3 live lanes Not Run."""
     browser_runner = "frontend/tests/browser/p02/run_browser.py"
     return {
         "backend": [
@@ -51,6 +51,8 @@ def m2_local_suite_commands() -> dict[str, list[str]]:
             "-m",
             "pytest",
             "backend/tests",
+            "--ignore=backend/tests/live",
+            "--ignore=backend/tests/runtime_observation/integration/test_real_linux_commit.py",
             "-q",
             "--tb=short",
         ],

@@ -1,25 +1,28 @@
-"""ST-OBS-001 executable live-run availability declaration.
+"""Real Claude quota execution through the production M04 route."""
 
-M04-LIVE-004/009..011 are Blocked/Not Run: the accepted Claude collector tuple
-is unavailable for the current provider version/workspace.  This module
-collects one explicit Not Run result and no synthetic substitute.
-"""
+from datetime import timedelta
+from typing import TYPE_CHECKING
 
-import pytest
-
-BLOCKED_SCENARIOS = (
-    "M04-LIVE-004",
-    "M04-LIVE-009",
-    "M04-LIVE-010",
-    "M04-LIVE-011",
-)
+if TYPE_CHECKING:
+    from backend.tests.integration.conftest import RealClaudeMonitoringContextV1
 
 
-@pytest.mark.skip(
-    reason=(
-        "BLOCKED / NOT RUN: accepted Claude tuple requires an owner-approved "
-        "workspace trust interaction before the real collection can execute"
+def test_real_claude_quota_collection_commits_owner_confirmed_target(
+    real_claude_monitoring_context: "RealClaudeMonitoringContextV1",
+) -> None:
+    """M04-LIVE-004/009..011: durable admission precedes one real collection."""
+    result = real_claude_monitoring_context.result
+
+    assert result.queued_run.state == "queued"
+    assert result.completed_run.state in {"succeeded", "partial"}
+    assert result.completed_run.account_id == result.graph.account.account_id
+    assert result.completed_run.resource_id == result.graph.resource.resource_id
+    assert result.completed_run.observation_ids
+    assert result.completed_run.started_at == result.collection_started_at
+    assert result.completed_run.completed_at is not None
+    assert result.completed_run.completed_at > result.collection_started_at
+    assert result.completed_run.duration_ms is not None
+    assert result.completed_run.duration_ms > 0
+    assert result.collection_started_at - result.discovery_collected_at >= (
+        timedelta(seconds=300)
     )
-)
-def test_real_claude_quota_collection_requires_available_workspace() -> None:
-    """M04-LIVE-004/009..011: never substitute constructed provider output."""

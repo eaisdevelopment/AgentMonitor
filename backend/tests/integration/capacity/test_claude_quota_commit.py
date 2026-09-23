@@ -1,25 +1,30 @@
-"""ST-OBS-001 executable live capacity-commit availability declaration.
+"""Real Claude quota persistence through the production M05 sink."""
 
-M05-DB-002..010/016..021 and M05-LIVE-001..006 require a fresh real provider
-observation.  They are Blocked/Not Run for the current Claude tuple.  No
-provider observation is fabricated, copied, replayed, or inserted here; the
-module collects one explicit Not Run result.
-"""
+from typing import TYPE_CHECKING
 
-import pytest
-
-BLOCKED_SCENARIOS = (
-    "M05-DB-002..010",
-    "M05-DB-016..021",
-    "M05-LIVE-001..006",
-)
+if TYPE_CHECKING:
+    from backend.tests.integration.conftest import RealClaudeMonitoringContextV1
 
 
-@pytest.mark.skip(
-    reason=(
-        "BLOCKED / NOT RUN: no fresh real Claude quota observation is available "
-        "until owner-approved workspace trust permits the live collector"
+def test_real_claude_quota_commit_projects_current_windows_and_health(
+    real_claude_monitoring_context: "RealClaudeMonitoringContextV1",
+) -> None:
+    """M05 live commit keeps real run/account/observation lineage intact."""
+    result = real_claude_monitoring_context.result
+    receipt = result.capacity_receipt
+
+    assert receipt.run_id == result.completed_run.run_id
+    assert set(receipt.observation_ids) == set(result.completed_run.observation_ids)
+    assert result.capacities
+    assert all(
+        item.subject.account_id == result.graph.account.account_id
+        for item in result.capacities
     )
-)
-def test_real_claude_quota_commit_requires_fresh_provider_observation() -> None:
-    """M05-DB-002..010/016..021 and M05-LIVE-001..006 remain Not Run."""
+    assert all(item.health is not None for item in result.capacities)
+    assert result.quota_windows
+    assert all(
+        item.subject.account_id == result.graph.account.account_id
+        and item.collection_run_id == result.completed_run.run_id
+        and item.current_observation_id in receipt.observation_ids
+        for item in result.quota_windows
+    )

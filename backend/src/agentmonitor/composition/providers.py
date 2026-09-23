@@ -1,5 +1,6 @@
 """Production provider collection composition; construction performs no I/O."""
 
+from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import datetime
 
@@ -95,7 +96,7 @@ class ClaudeQuotaCollectionRouteV1:
         provider_request: ProviderOperationRequestHeaderV1,
         *,
         started_at: datetime,
-        completed_at: datetime,
+        completed_at: datetime | Callable[[], datetime],
     ) -> CapacityCommitReceiptV1 | CollectionFailedV1:
         """Execute the real adapter only after M04 durably admits the run."""
         if (

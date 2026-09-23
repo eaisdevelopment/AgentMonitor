@@ -21,9 +21,10 @@ Run from the repository root as the normal owner user, never root. Use an absolu
 ```bash
 PYTHONPATH=backend/src backend/.venv/bin/python -m agentmonitor.composition.iam_fresh_init --data-root ABSOLUTE_0700_ROOT
 PYTHONPATH=backend/src backend/.venv/bin/python -m agentmonitor.composition.iam_operator bootstrap --data-root ABSOLUTE_0700_ROOT
+PYTHONPATH=backend/src backend/.venv/bin/python -m agentmonitor.composition.bootstrap --config ABSOLUTE_0600_ENV_FILE --data-root ABSOLUTE_0700_ROOT --host 127.0.0.1 --port 43110 --authenticated-dashboard
 ```
 
-The first command is the M2-only fresh absent-file initializer, not an existing-file migration/backup routine. The second command requires a controlling TTY and asks for password plus confirmation with echo disabled. It creates one implicit administrator and one safe audit event atomically. A second bootstrap refuses without prompting for another password. The commands are installed/composed by the integration steward; live owner password entry is still Not Run. Do not use a test database as a replacement for the owner's real setup.
+The first command is the M2-only fresh absent-file initializer, not an existing-file migration/backup routine. The second command requires a controlling TTY and asks for password plus confirmation with echo disabled. It creates one implicit administrator and one safe audit event atomically. A second bootstrap refuses without prompting for another password. The third command starts the production authenticated dashboard composition on IPv4 loopback and prints one sanitized readiness record containing its origin. It never creates or migrates the database. Stop it with `SIGINT` or `SIGTERM`; bounded shutdown closes SQLite and releases the stable service lock. Do not use a test database as a replacement for the owner's real setup.
 
 If the stored policy version is incompatible, the operator command returns `iam_repository_unavailable` without a password prompt or database mutation. It must not misreport that state as an ordinary already-initialized installation.
 

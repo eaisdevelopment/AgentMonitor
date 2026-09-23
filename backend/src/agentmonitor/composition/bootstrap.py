@@ -1,8 +1,9 @@
-"""Explicit M1 composition and IPv4 loopback runner, never an installed service.
+"""Explicit local compositions and IPv4 loopback runner, never an installed service.
 
 Startup consumes an already migrated, quiescent Task 3 SQLite file; there is no
 implicit DDL, provider discovery, global environment read or profile access.
-The CLI is a foundation lifecycle seam. DEP/M01/P01 installed policy is pending.
+The CLI selects either the M1 schema seam or the authenticated dashboard.
+Native DEP installation policy remains pending.
 """
 
 import argparse
@@ -399,7 +400,9 @@ def main() -> int:
     parser.add_argument("--data-root", type=Path, required=True)
     parser.add_argument("--host", required=True)
     parser.add_argument("--port", type=int, required=True)
-    parser.add_argument("--foundation-contract", action="store_true", required=True)
+    mode = parser.add_mutually_exclusive_group(required=True)
+    mode.add_argument("--foundation-contract", action="store_true")
+    mode.add_argument("--authenticated-dashboard", action="store_true")
     args = parser.parse_args()
 
     async def run() -> None:
@@ -408,11 +411,18 @@ def main() -> int:
         for signum in (signal.SIGTERM, signal.SIGINT):
             loop.add_signal_handler(signum, stop.set)
         try:
-            app = create_foundation_application(
-                args.config,
-                args.data_root,
-                lifecycle=LifecycleHooksV1(foundation_contract_mode=True),
-            )
+            if args.authenticated_dashboard:
+                app = create_iam_application(
+                    args.config,
+                    args.data_root,
+                    lifecycle=LifecycleHooksV1(),
+                )
+            else:
+                app = create_foundation_application(
+                    args.config,
+                    args.data_root,
+                    lifecycle=LifecycleHooksV1(foundation_contract_mode=True),
+                )
 
             def ready(origin: str) -> None:
                 print(json.dumps({"event": "ready", "origin": origin}), flush=True)

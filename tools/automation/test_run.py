@@ -33,6 +33,11 @@ class AutomationRoutineTests(unittest.TestCase):
         )
         backend = commands["backend"]
         self.assertIn("backend/tests", backend)
+        self.assertIn("--ignore=backend/tests/live", backend)
+        self.assertIn(
+            "--ignore=backend/tests/runtime_observation/integration/test_real_linux_commit.py",
+            backend,
+        )
         self.assertNotIn("-k", backend)
         self.assertFalse(any(value.startswith("--deselect") for value in backend))
         for key, scenario in (

@@ -6,8 +6,16 @@ from agentmonitor.contracts import provider_system_v1 as provider_contracts
 from agentmonitor.contracts.common_v1 import TechnicalValueV1
 from agentmonitor.modules.provider_system.domain.protocol import (
     CapabilityResolutionV1,
+    manifest_fingerprint,
     resolve_capability,
 )
+
+
+def get_manifest_fingerprint_v1(
+    manifest: provider_contracts.CapabilityManifestV1,
+) -> str:
+    """Publish the canonical M03 manifest digest through application scope."""
+    return manifest_fingerprint(manifest)
 
 
 def _invalid_outcome[ResultT: TechnicalValueV1](

@@ -133,6 +133,7 @@ td { font-variant-numeric: tabular-nums; }
 .health-strip > div { display: grid; gap: .2rem; min-width: 11rem; padding: .75rem; border: 1px solid #31556a; border-radius: .45rem; background: #0a1925; text-transform: capitalize; }
 .health-strip span { color: #95adbb; font-size: .78rem; }
 .quota-provenance, .run-provenance { display: grid; gap: .28rem; margin: .45rem 0 0; font: .7rem/1.35 ui-monospace, SFMono-Regular, monospace; }
+.quota-provenance { min-width: 20rem; }
 .quota-provenance div, .run-provenance div { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: .45rem; }
 .quota-provenance dt, .run-provenance dt { color: #7895a6; }
 .quota-provenance dd, .run-provenance dd { margin: 0; overflow-wrap: anywhere; color: #c5d5df; }

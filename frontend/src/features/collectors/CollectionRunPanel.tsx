@@ -54,17 +54,18 @@ export function CollectionRunPanel({
         <div className="empty-telemetry"><div><strong>Collection history {state.data.availability.state}.</strong><p>{state.data.availability.reason_code.replaceAll("_", " ")}.</p></div></div>
       ) : (
         <div className="timeline-list">{state.data.items.map((run) => (
-          <article className="timeline-row" key={run.run_id}>
+          <article className="timeline-row" data-collection-run="true" key={run.run_id}>
             <span className={`state-chip state-${run.state}`}>{run.state}</span>
             <div><strong>{run.provider_key} · {run.capability_id}</strong>
               <dl className="run-provenance">
+                <div><dt>Run</dt><dd className="collection-run-id">{run.run_id}</dd></div>
                 <div><dt>Source</dt><dd>{run.source_id}</dd></div>
                 <div><dt>Adapter version</dt><dd>{run.adapter_version}</dd></div>
                 <div><dt>Provider version</dt><dd>{run.provider_version ?? "Unavailable"}</dd></div>
                 <div><dt>Requested</dt><dd>{new Date(run.requested_at).toLocaleString()}</dd></div>
                 <div><dt>Started</dt><dd>{run.started_at === null ? "Not reported" : new Date(run.started_at).toLocaleString()}</dd></div>
                 <div><dt>Completed</dt><dd>{run.completed_at === null ? "Not reported" : new Date(run.completed_at).toLocaleString()}</dd></div>
-                <div><dt>Observations</dt><dd>{run.observation_ids.length === 0 ? "None reported" : run.observation_ids.join(", ")}</dd></div>
+                <div><dt>Observations</dt><dd className="collection-observation-ids">{run.observation_ids.length === 0 ? "None reported" : run.observation_ids.join(", ")}</dd></div>
               </dl>
             </div>
             <div className="timeline-result"><span>{run.duration_ms === null ? "Duration unavailable" : `${run.duration_ms} ms`}</span><small>{run.error_code ?? run.outcome_code ?? "Outcome pending"}</small></div>

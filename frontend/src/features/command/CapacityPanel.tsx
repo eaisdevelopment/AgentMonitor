@@ -122,8 +122,8 @@ export function CapacityPanel({
                 <td>{window.observed_at === null ? "Unknown" : new Date(window.observed_at).toLocaleString()}</td>
                 <td><dl className="quota-provenance">
                   <div><dt>Provider</dt><dd>{window.subject.provider_key}</dd></div>
-                  <div><dt>Observation</dt><dd>{window.current_observation_id}</dd></div>
-                  <div><dt>Collection run</dt><dd>{window.collection_run_id}</dd></div>
+                  <div><dt>Observation</dt><dd className="quota-observation-id">{window.current_observation_id}</dd></div>
+                  <div><dt>Collection run</dt><dd className="quota-collection-run-id">{window.collection_run_id}</dd></div>
                   <div><dt>Collected</dt><dd>{new Date(window.collected_at).toLocaleString()}</dd></div>
                   <div><dt>Stored</dt><dd>{new Date(window.stored_at).toLocaleString()}</dd></div>
                   <div><dt>Source/version</dt><dd>Unavailable in API v1</dd></div>

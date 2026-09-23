@@ -14,7 +14,8 @@ from agentmonitor.contracts.provider_system_v1 import (
 )
 
 CLAUDE_ADAPTER_ID = "agentmonitor.claude"
-CLAUDE_ADAPTER_VERSION = "1.0.0"
+CLAUDE_ADAPTER_VERSION = "1.0.2"
+CLAUDE_PARSER_VERSION = "1.0.2"
 CLAUDE_PROVIDER_VERSION = "2.1.278"
 CLAUDE_USAGE_SOURCE_ID = "claude.usage.ax-screen-reader.v1"
 M0_MAPPING_ID = "M0-M03-CLAUDE-001"

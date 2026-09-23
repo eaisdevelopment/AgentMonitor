@@ -1,8 +1,13 @@
 """M04 pure policy evidence; constructed values never represent provider facts."""
 
+import hashlib
 from dataclasses import fields
 from datetime import UTC, datetime
 
+from agentmonitor.composition.claude_live_monitoring import (
+    build_owner_operator_quota_admission_v1,
+    collection_manifest_digest_v1,
+)
 from agentmonitor.contracts.collection_control_v1 import (
     CollectionCommitReceiptV1,
     CollectionFailedV1,
@@ -29,6 +34,24 @@ def test_active_idle_and_unknown_cadence_respect_source_minimum() -> None:
     assert effective_interval_seconds("idle", 0, policy) == 300
     assert effective_interval_seconds("unknown", 0, policy) == 300
     assert effective_interval_seconds("active", 120, policy) == 120
+
+
+def test_provider_manifest_fingerprint_is_bound_to_collection_sha256() -> None:
+    """M04-PURE-019: M03 fingerprints cross into M04 as a SHA-256 digest."""
+    source = "0123456789abcdef" * 2
+    digest = collection_manifest_digest_v1(source)
+
+    assert len(digest) == 64
+    assert digest.isascii()
+    assert digest.islower()
+    assert all(character in "0123456789abcdef" for character in digest)
+    assert (
+        digest
+        == hashlib.sha256(
+            f"provider-manifest-fingerprint-v1\x00{source}".encode()
+        ).hexdigest()
+    )
+    assert digest != collection_manifest_digest_v1("fedcba9876543210" * 2)
 
 
 def test_cadence_rejects_invalid_policy_instead_of_polling_unsafely() -> None:
@@ -123,3 +146,31 @@ def test_commit_receipt_contract_carries_complete_recovery_evidence() -> None:
         "projection_versions",
         "event_ids",
     } <= names
+
+
+def test_manual_operator_admission_records_its_actual_authorization_boundary() -> None:
+    """M04-PURE-019: a local operator is never labeled as an M01 session."""
+    admission = build_owner_operator_quota_admission_v1(
+        run_id="run-one",
+        request_id="request-one",
+        correlation_id="correlation-one",
+        causation_id="causation-one",
+        retry_chain_id="retry-one",
+        installation_id=OpaqueIdV1("installation-one"),
+        account_id=OpaqueIdV1("account-one"),
+        profile_id=OpaqueIdV1("profile-one"),
+        resource_id=OpaqueIdV1("resource-one"),
+        registry_revision=4,
+        source_id="source-one",
+        adapter_version="1.0.2",
+        provider_version="2.1.278",
+        manifest_fingerprint="a" * 64,
+        target_key_digest="b" * 64,
+        budget_scope_digest="c" * 64,
+        idempotency_key_digest="d" * 64,
+        request_digest="e" * 64,
+        requested_at=datetime(2026, 9, 23, tzinfo=UTC),
+    )
+
+    assert admission.request_auth_method == "owner_local_operator"
+    assert admission.request_principal_id == OpaqueIdV1("agentmonitor-owner")
