@@ -1,10 +1,10 @@
 # Runtime observation (M06)
 
-Status: M3 Task 5 partial implementation. Generic Linux process observation and
-the M06 persistence/query foundation are implemented. Exact Claude executable,
-version, installation, session, and account correlation remain **Blocked / Not
-Run** because the approved M0 handoff contains no executable-fingerprint join or
-targeted-profile/session source.
+Status: M3 Task 5 implementation Green; final owner-live acceptance remains
+**Not Run**. Generic Linux process observation, M06 persistence/query, and the
+separately versioned owner-selected Claude OTLP session-start lane are
+implemented. The latter still requires the real owner-terminal run and
+populated authenticated-browser verification before M3 completion.
 
 ## Ownership and contracts
 
@@ -18,9 +18,10 @@ mutation/persistence, and real session/stall evaluation remain unimplemented or
 Blocked and are not accepted by this slice. Pure effective-policy precedence is
 account, provider, organization, then global. A04-LINUX owns the read-only procfs
 implementation and the narrow Linux `CTR-PLAT-001` capability producer. A01
-owns the three Claude local runtime capability adapters. Those A01 ports
-intentionally return `unsupported` with `never` retry until M0 approves a real
-source.
+owns the three provider-neutral Claude local runtime capability ports. Their
+generic unresolved methods remain fail-closed; the exact M3 lane is a separate
+official-OTLP composition bound to Claude Code `2.1.278`, Linux, the protected
+default profile, and one explicitly selected owner-confirmed account.
 
 M04 calls M06 only through the collection commit seam. P01/P02 are not part of
 Task 5 and must use the later versioned API; no UI or API code reads these tables
@@ -50,9 +51,10 @@ typed outcomes. Each procfs metadata read uses a fixed upper bound and reads at
 most one byte beyond that bound before failing closed.
 
 Correlation is fail-closed. `strong` is only an evidence class; automatic
-selection also requires an explicit typed owner-approved rule tuple. The
-production rule catalog is empty for current Claude, so current evidence stays
-unresolved.
+selection also requires an explicit typed owner-approved rule tuple. Generic
+procfs evidence remains unresolved. The M3 OTLP composition admits exactly its
+authenticated account-fingerprint rule after exact owner account selection and
+process/install/version verification; it never uses sole-account inference.
 
 ## Persistence and queries
 
@@ -70,8 +72,10 @@ correlation decisions, receipt, and outbox event. Exact replay returns the
 stored receipt; conflicting reuse fails closed. Process current/history queries
 reconstruct provenance after restart. Session list/tree DTOs require provenance
 and the repository reconstructs it from the current session observation and
-durable receipt. The empty query runs against the real schema; non-empty
-real-provider acceptance remains blocked by the missing approved A01 source.
+durable receipt. Empty and process-populated queries run against the real
+schema. The final same-account OTLP session query remains Not Run until the
+owner performs the terminal launch documented in
+`docs/operations/runtime-observation.md`.
 
 The pure state/stall evaluator accepts only the approved normalized state
 vocabulary. Missing, stale, unknown, or invalid progress evidence is not
@@ -97,5 +101,7 @@ provider-specific raw state is mapped in M06.
 ## Verification
 
 Canonical focused evidence is recorded in
-`docs/evidence/m3-st-obs-002.md`. The real-provider session/account rows are
-listed there as Blocked / Not Run and must not be counted as passed.
+`docs/evidence/m3-st-obs-002.md` and
+`docs/evidence/m3-registry-provider-identity-binding.md`. The final transparent
+owner-terminal and populated-browser rows remain Not Run and must not be counted
+as passed until their real commands succeed.
