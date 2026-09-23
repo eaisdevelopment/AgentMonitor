@@ -34,6 +34,7 @@ from agentmonitor.contracts.runtime_observation_v1 import (
     RuntimeCommitStatusV1,
     SessionCorrelationDecisionV1,
     SessionIdentityV1,
+    SessionProcessLinkInputV1,
     SessionTreeNodeV1,
     SessionTreeViewV1,
 )
@@ -595,6 +596,11 @@ class SqliteRuntimeObservationRepositoryV1:
             for item in payload.metric_observations
         ):
             raise RuntimeRepositoryErrorV1("runtime_provenance_mismatch")
+        if any(
+            item.source_id != provenance.source_id
+            for item in payload.session_process_links
+        ):
+            raise RuntimeRepositoryErrorV1("runtime_provenance_mismatch")
         stored_at = datetime.now(UTC)
         stored_text = _utc_text(stored_at)
         observation_ids: list[str] = []
@@ -800,6 +806,92 @@ class SqliteRuntimeObservationRepositoryV1:
             )
             observation_ids.append(session_item.observation_id)
             projection_versions[session_id] = version
+
+        for link_item in payload.session_process_links:
+            session_id = _session_identifier(link_item.session_identity)
+            process_id = _process_identifier(link_item.process_identity)
+            if link_item.session_identity not in sessions:
+                raise RuntimeRepositoryErrorV1("runtime_link_session_missing")
+            current_process = (
+                connection.exec_driver_sql(
+                    "SELECT provider_key, installation_id "
+                    "FROM runtime_process_instance WHERE process_id=?",
+                    (process_id,),
+                )
+                .mappings()
+                .one_or_none()
+            )
+            if current_process is None:
+                raise RuntimeRepositoryErrorV1("runtime_link_process_missing")
+            if (
+                current_process["provider_key"]
+                != link_item.session_identity.provider_key
+                or current_process["installation_id"]
+                != link_item.session_identity.installation_id
+            ):
+                raise RuntimeRepositoryErrorV1("runtime_link_scope_mismatch")
+            existing_link = (
+                connection.exec_driver_sql(
+                    "SELECT session_id, process_id, relationship_kind, "
+                    "evidence_class, certainty, source_id, source_version, "
+                    "valid_from FROM runtime_session_process_link WHERE link_id=?",
+                    (link_item.link_id,),
+                )
+                .mappings()
+                .one_or_none()
+            )
+            if existing_link is not None:
+                expected = (
+                    session_id,
+                    process_id,
+                    link_item.relationship_kind,
+                    link_item.evidence_class,
+                    link_item.certainty,
+                    link_item.source_id,
+                    link_item.source_version,
+                    _utc_text(link_item.observed_at),
+                )
+                actual = (
+                    str(existing_link["session_id"]),
+                    str(existing_link["process_id"]),
+                    str(existing_link["relationship_kind"]),
+                    str(existing_link["evidence_class"]),
+                    str(existing_link["certainty"]),
+                    str(existing_link["source_id"]),
+                    str(existing_link["source_version"]),
+                    str(existing_link["valid_from"]),
+                )
+                if actual != expected:
+                    raise RuntimeRepositoryErrorV1("runtime_link_conflict")
+                observation_ids.append(link_item.link_id)
+                continue
+            current_primary = connection.exec_driver_sql(
+                "SELECT process_id FROM runtime_session_process_link "
+                "WHERE session_id=? AND relationship_kind='primary' "
+                "AND is_current=1 AND conflict_state='clear' LIMIT 1",
+                (session_id,),
+            ).scalar_one_or_none()
+            if current_primary is not None and str(current_primary) != process_id:
+                raise RuntimeRepositoryErrorV1("runtime_link_primary_conflict")
+            connection.exec_driver_sql(
+                "INSERT INTO runtime_session_process_link "
+                "(link_id, session_id, process_id, relationship_kind, "
+                "evidence_class, certainty, source_id, source_version, "
+                "valid_from, valid_until, is_current, conflict_state) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, 1, 'clear')",
+                (
+                    link_item.link_id,
+                    session_id,
+                    process_id,
+                    link_item.relationship_kind,
+                    link_item.evidence_class,
+                    link_item.certainty,
+                    link_item.source_id,
+                    link_item.source_version,
+                    _utc_text(link_item.observed_at),
+                ),
+            )
+            observation_ids.append(link_item.link_id)
 
         for metric_item in payload.metric_observations:
             session_id = _session_identifier(metric_item.session_identity)
@@ -1268,6 +1360,65 @@ class SqliteRuntimeObservationRepositoryV1:
             if row is None:
                 raise RuntimeRepositoryErrorV1("runtime_subject_not_found")
             return self._session_record(row)
+        except RuntimeRepositoryErrorV1:
+            raise
+        except (SqlitePolicyError, SQLAlchemyError, ValueError, TypeError):
+            raise RuntimeRepositoryErrorV1() from None
+
+    def get_session_process_links(
+        self, observation_ids: tuple[OpaqueIdV1, ...]
+    ) -> tuple[SessionProcessLinkInputV1, ...]:
+        """Resolve only exact link IDs already named by an M06 commit receipt."""
+        if not observation_ids or len(observation_ids) > 64:
+            raise RuntimeRepositoryErrorV1("runtime_query_invalid")
+        try:
+            with open_sqlite_database(
+                self._database_ref, "runtime_read_only"
+            ) as handle:
+                with handle.connect() as connection:
+                    rows = []
+                    for observation_id in observation_ids:
+                        row = (
+                            connection.exec_driver_sql(
+                                "SELECT l.*, s.provider_key, s.installation_id, "
+                                "s.identity_kind, s.identity_value, "
+                                "p.platform_source, p.platform_scope_id, p.pid, "
+                                "p.start_time_ticks "
+                                "FROM runtime_session_process_link AS l "
+                                "JOIN runtime_session AS s ON s.session_id=l.session_id "
+                                "JOIN runtime_process_instance AS p "
+                                "ON p.process_id=l.process_id WHERE l.link_id=?",
+                                (observation_id.value,),
+                            )
+                            .mappings()
+                            .one_or_none()
+                        )
+                        if row is not None:
+                            rows.append(row)
+            return tuple(
+                SessionProcessLinkInputV1(
+                    link_id=str(row["link_id"]),
+                    session_identity=SessionIdentityV1(
+                        provider_key=str(row["provider_key"]),
+                        installation_id=str(row["installation_id"]),
+                        identity_kind=str(row["identity_kind"]),
+                        identity_value=str(row["identity_value"]),
+                    ),
+                    process_identity=ProcessIdentityV1(
+                        platform_source=str(row["platform_source"]),
+                        platform_scope_id=str(row["platform_scope_id"]),
+                        pid=int(row["pid"]),
+                        start_time_ticks=int(row["start_time_ticks"]),
+                    ),
+                    relationship_kind=row["relationship_kind"],
+                    evidence_class=row["evidence_class"],
+                    certainty=row["certainty"],
+                    source_id=str(row["source_id"]),
+                    source_version=str(row["source_version"]),
+                    observed_at=_utc_value(str(row["valid_from"])),
+                )
+                for row in rows
+            )
         except RuntimeRepositoryErrorV1:
             raise
         except (SqlitePolicyError, SQLAlchemyError, ValueError, TypeError):

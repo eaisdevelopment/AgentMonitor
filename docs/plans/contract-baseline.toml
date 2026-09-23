@@ -209,7 +209,7 @@ id = "CTR-COMMON-004"
 name = "ObservationProvenanceV1"
 version = "1.0.0"
 producer = "PLAN-M03"
-consumers = ["PLAN-M04", "PLAN-M05", "PLAN-M06", "PLAN-M07", "PLAN-M08", "PLAN-A01", "PLAN-A02", "PLAN-A03", "PLAN-A04-LINUX", "PLAN-A04-MAC", "PLAN-P01", "PLAN-P02"]
+consumers = ["PLAN-FND", "PLAN-M04", "PLAN-M05", "PLAN-M06", "PLAN-M07", "PLAN-M08", "PLAN-A01", "PLAN-A02", "PLAN-A03", "PLAN-A04-LINUX", "PLAN-A04-MAC", "PLAN-P01", "PLAN-P02"]
 maturity = "evidence_blocked"
 decision_reference = "CAA-2026-09-18-01 sections 5.1, 8, and 11.1"
 checklist = { field_state_null = true, units_time = true, auth = true, side_effects = true, idempotency = true, events = true, retention = true, errors = true, compatibility = true }
@@ -445,7 +445,7 @@ id = "CTR-REG-002"
 name = "AccountViewV1"
 version = "1.0.0"
 producer = "PLAN-M02"
-consumers = ["PLAN-M04", "PLAN-M05", "PLAN-M06", "PLAN-M07", "PLAN-M08", "PLAN-P01", "PLAN-P02"]
+consumers = ["PLAN-FND", "PLAN-M04", "PLAN-M05", "PLAN-M06", "PLAN-M07", "PLAN-M08", "PLAN-P01", "PLAN-P02"]
 maturity = "evidence_blocked"
 decision_reference = "CAA-2026-09-18-01 sections 5.4 and 8"
 checklist = { field_state_null = true, units_time = true, auth = true, side_effects = true, idempotency = true, events = true, retention = true, errors = true, compatibility = true }
@@ -485,7 +485,7 @@ id = "CTR-REG-006"
 name = "IdentityCorrelationDecisionV1"
 version = "1.0.0"
 producer = "PLAN-M02"
-consumers = ["PLAN-M06", "PLAN-A01", "PLAN-A02", "PLAN-A03", "PLAN-P01", "PLAN-P02"]
+consumers = ["PLAN-FND", "PLAN-M06", "PLAN-A01", "PLAN-A02", "PLAN-A03", "PLAN-P01", "PLAN-P02"]
 maturity = "evidence_blocked"
 decision_reference = "CAA-2026-09-18-01 sections 5.4, 8, and 10"
 checklist = { field_state_null = true, units_time = true, auth = true, side_effects = true, idempotency = true, events = true, retention = true, errors = true, compatibility = true }
@@ -783,7 +783,7 @@ id = "CTR-RUN-001"
 name = "AgentProcessViewV1"
 version = "1.0.0"
 producer = "PLAN-M06"
-consumers = ["PLAN-M07", "PLAN-M08", "PLAN-A04-LINUX", "PLAN-A04-MAC", "PLAN-P01", "PLAN-P02"]
+consumers = ["PLAN-FND", "PLAN-M07", "PLAN-M08", "PLAN-A01", "PLAN-A04-LINUX", "PLAN-A04-MAC", "PLAN-P01", "PLAN-P02"]
 maturity = "evidence_blocked"
 decision_reference = "CAA-2026-09-18-01 sections 5.8 and 8"
 checklist = { field_state_null = true, units_time = true, auth = true, side_effects = true, idempotency = true, events = true, retention = true, errors = true, compatibility = true }
@@ -793,7 +793,7 @@ id = "CTR-RUN-002"
 name = "AgentSessionViewV1"
 version = "1.0.0"
 producer = "PLAN-M06"
-consumers = ["PLAN-M07", "PLAN-M08", "PLAN-A01", "PLAN-A02", "PLAN-A03", "PLAN-P01", "PLAN-P02"]
+consumers = ["PLAN-FND", "PLAN-M07", "PLAN-M08", "PLAN-A01", "PLAN-A02", "PLAN-A03", "PLAN-P01", "PLAN-P02"]
 maturity = "evidence_blocked"
 decision_reference = "CAA-2026-09-18-01 sections 5.8 and 8"
 checklist = { field_state_null = true, units_time = true, auth = true, side_effects = true, idempotency = true, events = true, retention = true, errors = true, compatibility = true }
@@ -833,7 +833,7 @@ id = "CTR-RUN-006"
 name = "ProcessInspectionPortV1"
 version = "1.0.0"
 producer = "PLAN-M06"
-consumers = ["PLAN-A04-LINUX", "PLAN-A04-MAC", "PLAN-INT"]
+consumers = ["PLAN-FND", "PLAN-A04-LINUX", "PLAN-A04-MAC", "PLAN-P01", "PLAN-INT"]
 maturity = "evidence_blocked"
 decision_reference = "CAA-2026-09-18-01 sections 5.8 and 7 CAA-C05"
 checklist = { field_state_null = true, units_time = true, auth = true, side_effects = true, idempotency = true, events = true, retention = true, errors = true, compatibility = true }
@@ -843,7 +843,7 @@ id = "CTR-RUN-007"
 name = "SessionCorrelationDecisionV1"
 version = "1.0.0"
 producer = "PLAN-M06"
-consumers = ["PLAN-M02", "PLAN-A01", "PLAN-A02", "PLAN-A03", "PLAN-P01", "PLAN-P02"]
+consumers = ["PLAN-FND", "PLAN-M02", "PLAN-A01", "PLAN-A02", "PLAN-A03", "PLAN-P01", "PLAN-P02"]
 maturity = "evidence_blocked"
 decision_reference = "CAA-2026-09-18-01 sections 5.8, 8, and 10"
 checklist = { field_state_null = true, units_time = true, auth = true, side_effects = true, idempotency = true, events = true, retention = true, errors = true, compatibility = true }

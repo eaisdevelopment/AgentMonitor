@@ -92,6 +92,21 @@ record version, and the evidence-set digest required for confirmation. It does
 not expose the source identity fingerprint, evidence payload, full identity,
 email, provider output, path, or locator.
 
+`ConfirmProviderIdentityFingerprintV1` is the only additive V1 seam for attaching
+an adapter-approved, domain-separated SHA-256 provider fingerprint to an existing
+owner-confirmed account. The owner command must name the exact account and its
+current record version, provider/scheme/scope/version, authenticated principal,
+UTC request time, idempotency key, immutable source/parser tuple, exact M06
+observation reference, and expected evidence digest. It never selects the sole
+account. The claim stores the M06 observation ID and the decision stores the
+expected digest; the provider composition validates its own approved source tuple
+before issuing the generic M02 command.
+`ResolveProviderIdentityFingerprintV1` is read-only and returns only an exact
+active owner-confirmed account, `unresolved`, or `conflict`; it never returns the
+fingerprint. Both ports use the existing `reg_provider_identity_claim`,
+`reg_identity_decision`, and `reg_command_receipt` records, so no migration is
+introduced.
+
 `PrivateProfileLocatorRefV1` is deliberately non-serializable and redacts its
 string representation. Only the M02 persistence adapter may resolve it for its
 owned `private_locator_ref` column. Provider credentials remain provider-owned

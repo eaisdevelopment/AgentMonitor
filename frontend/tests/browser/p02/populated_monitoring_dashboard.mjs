@@ -8,7 +8,6 @@ const accountId = process.argv[3];
 const credential = readFileSync(0, "utf8");
 let browser;
 let stage = "input_validation";
-let runtimeOutcome = "BLOCKED — no same-account session observation";
 
 function requireTruth(condition, reason) {
   if (!condition) throw new Error(reason);
@@ -130,14 +129,17 @@ try {
 
   stage = "same_account_runtime";
   const sessionRows = page.locator(".session-row");
-  if (await sessionRows.count() > 0) {
-    await sessionRows.first().getByRole("button", { name: "Inspect provenance" }).click();
-    await page.getByRole("heading", { name: "Observation provenance", exact: true }).waitFor();
-    await page.getByText("Source", { exact: true }).first().waitFor();
-    runtimeOutcome = "PASSED — real same-account session provenance";
-  } else {
-    await page.getByText(/No observed sessions|Session observation (unavailable|unsupported|unknown)/).waitFor();
-  }
+  requireTruth(await sessionRows.count() > 0, "real_same_account_session_missing");
+  const sessionText = await sessionRows.first().innerText();
+  requireTruth(/automatic matched/iu.test(sessionText), "session_not_automatically_correlated");
+  requireTruth(/account correlated/iu.test(sessionText), "session_account_correlation_missing");
+  await sessionRows.first().getByRole("button", { name: "Inspect provenance" }).click();
+  await page.getByRole("heading", { name: "Observation provenance", exact: true }).waitFor();
+  await page.getByText("Source", { exact: true }).first().waitFor();
+  requireTruth(
+    /claude\.otel\.metrics\.http-json\.v1/u.test(await page.locator(".session-detail").innerText()),
+    "session_otel_provenance_missing",
+  );
 
   stage = "real_process_runtime";
   const processResponse = page.waitForResponse((response) => {
@@ -190,7 +192,7 @@ try {
   requireTruth(!(await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth + 1)), "document_horizontal_overflow");
 
   await browser.close();
-  console.log(`P02 POPULATED MONITORING: PASSED — real Claude account/quota provenance, collection reconciliation, and process runtime; same-account sessions ${runtimeOutcome}`);
+  console.log("P02 POPULATED MONITORING: PASSED — real Claude account/quota provenance, collection reconciliation, exact process runtime, and same-account OTEL session");
 } catch (error) {
   if (browser) await browser.close();
   console.error(`P02 POPULATED MONITORING: FAILED — ${stage}: ${error instanceof Error ? error.message : "unknown"}`);

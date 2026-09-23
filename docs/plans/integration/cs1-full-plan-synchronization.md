@@ -385,3 +385,12 @@ Plan snapshot SHA-256: `0ce75e14b6618fd5c2b2a77cd328772481173256e1d9be707d376827
 The synchronized controls now register the actual M3 runtime persistence and
 Linux process-view consumers. No contract schema, version, plan body, owner
 approval, same-account claim, or later milestone scope changed.
+
+## 14. 2026-09-23 M3 Claude runtime consumer rebind
+
+Plan snapshot SHA-256: `0f01bfd52b719c4de20b76024a0aeb6531edf1acc36c0d1410a439069ed3a129`
+
+The synchronized controls now bind the existing Foundation composition and
+Claude adapter imports to their exact registry, provenance, and runtime
+contracts, plus the additive M02 provider-fingerprint operations. No contract
+version, migration, public API, owner authority, or M4 scope changed.

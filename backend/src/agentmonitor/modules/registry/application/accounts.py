@@ -12,13 +12,16 @@ from agentmonitor.contracts.common_v1 import (
 from agentmonitor.contracts.registry_v1 import (
     AccountResourceViewV1,
     AccountViewV1,
+    ConfirmProviderIdentityFingerprintCommandV1,
     MonitoringProfileViewV1,
     PrivateProfileLocatorRefV1,
     ProfileCompatibilityStateV1,
     ProfileManagementStateV1,
     ProfilePurposeV1,
+    ProviderIdentityResolutionV1,
     RegistryScopeKindV1,
     RegistryScopeSnapshotV1,
+    ResolveProviderIdentityFingerprintQueryV1,
     ResourceKindV1,
 )
 from agentmonitor.contracts.registry_v1 import (
@@ -85,6 +88,14 @@ class AccountRepositoryPortV1(Protocol):
         self, command: ConfirmIdentityAssociationCommandV1
     ) -> AccountViewV1: ...
 
+    def confirm_provider_identity_fingerprint(
+        self, command: ConfirmProviderIdentityFingerprintCommandV1
+    ) -> ProviderIdentityResolutionV1: ...
+
+    def resolve_provider_identity_fingerprint(
+        self, query: ResolveProviderIdentityFingerprintQueryV1
+    ) -> ProviderIdentityResolutionV1: ...
+
     def enroll_monitoring_graph(
         self, command: EnrollMonitoringGraphCommandV1
     ) -> tuple[MonitoringProfileViewV1, AccountResourceViewV1]: ...
@@ -115,6 +126,30 @@ class ConfirmIdentityAssociationV1(ConfirmIdentityAssociationPortV1):
 
     def __call__(self, command: ConfirmIdentityAssociationCommandV1) -> AccountViewV1:
         return self._repository.confirm_identity(command)
+
+
+class ConfirmProviderIdentityFingerprintV1:
+    """Owner-only seam; no implicit account selection is available."""
+
+    def __init__(self, repository: AccountRepositoryPortV1) -> None:
+        self._repository = repository
+
+    def __call__(
+        self, command: ConfirmProviderIdentityFingerprintCommandV1
+    ) -> ProviderIdentityResolutionV1:
+        return self._repository.confirm_provider_identity_fingerprint(command)
+
+
+class ResolveProviderIdentityFingerprintV1:
+    """Side-effect-free exact identity resolution for approved consumers."""
+
+    def __init__(self, repository: AccountRepositoryPortV1) -> None:
+        self._repository = repository
+
+    def __call__(
+        self, query: ResolveProviderIdentityFingerprintQueryV1
+    ) -> ProviderIdentityResolutionV1:
+        return self._repository.resolve_provider_identity_fingerprint(query)
 
 
 class EnrollMonitoringGraphV1:

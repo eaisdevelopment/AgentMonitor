@@ -35,8 +35,8 @@ bytes = 106740
 id = "PLAN-M02"
 path = "docs/plans/modules/m02-registry/plan-v1.md"
 plan_version = "0.2.0-draft"
-sha256 = "8712d0faa7419e90bd39c249030b4a3d3023c2f7be8a7adc476e0b027af8bb36"
-bytes = 135328
+sha256 = "3e429a88f829d7f5e747debd08f395ef8565c79f58534d235396cff742496434"
+bytes = 136150
 
 [[plans]]
 id = "PLAN-M03"
@@ -159,14 +159,14 @@ bytes = 4124
 [[controls]]
 id = "contract-baseline"
 path = "docs/plans/contract-baseline.toml"
-sha256 = "95ea7ce363f99662c7fc584ee27f8faa2b6467b344a99bc7ebd9ca3746bca69b"
-bytes = 58359
+sha256 = "38766851fdc968001d408c3968a3a7bc1677fca7ba96fa81e8ce162a852e0a7e"
+bytes = 58467
 
 [[controls]]
 id = "contract-adoption"
 path = "docs/plans/contract-adoption.toml"
-sha256 = "9ef41089676d258cb31462bc609df3b287012b4997dd6d2ead99266d5e43d8a2"
-bytes = 16136
+sha256 = "0387c45f4a411fcfc6ee51a2ea5891a037ba966ff84080d7fd0d00939e1d57b5"
+bytes = 16274
 
 [[controls]]
 id = "configuration-baseline"
@@ -183,7 +183,7 @@ bytes = 73372
 [[controls]]
 id = "parallel-ownership"
 path = "docs/plans/parallel-ownership.toml"
-sha256 = "290e7ef4cf7a9c6578d4c4635deb18a6d515db65335a182626b4bdb7a0e03f81"
+sha256 = "6bb2923c662041255cea4a5d9bfceb86a5085bc8390be7964b39b3df4ccc0970"
 bytes = 22708
 
 [[controls]]

@@ -60,6 +60,7 @@ ProfileCompatibilityStateV1 = Literal[
     "compatible", "incompatible", "unknown", "unavailable"
 ]
 RegistryScopeKindV1 = Literal["global", "organization", "provider", "account"]
+ProviderIdentityResolutionStateV1 = Literal["resolved", "unresolved", "conflict"]
 
 
 def _bounded(value: object, *, maximum: int = 256) -> bool:
@@ -475,6 +476,136 @@ class ConfirmIdentityAssociationCommandV1(TechnicalValueV1):
 
 
 @dataclass(frozen=True, slots=True)
+class ConfirmProviderIdentityFingerprintCommandV1(TechnicalValueV1):
+    """Explicit owner command binding one exact approved identity observation."""
+
+    CONTRACT_ID: ClassVar[str] = "CTR-REG-006"
+    OWNER: ClassVar[str] = "PLAN-M02"
+
+    idempotency_key: OpaqueIdV1
+    principal_id: OpaqueIdV1
+    account_id: OpaqueIdV1
+    expected_account_record_version: int
+    provider_key: str
+    identity_scheme: str
+    identity_scope: str
+    identity_scheme_version: int
+    subject_fingerprint: str
+    source_id: str
+    source_version: str
+    parser_version: str
+    evidence_reference: OpaqueIdV1
+    expected_evidence_digest: str
+    requested_at: datetime
+
+    def __post_init__(self) -> None:
+        TechnicalValueV1.__post_init__(self)
+        safe_tokens = (
+            self.provider_key,
+            self.identity_scheme,
+            self.identity_scope,
+            self.source_id,
+            self.source_version,
+            self.parser_version,
+        )
+        if (
+            any(
+                not _bounded(value, maximum=64)
+                or not value.isascii()
+                or any(
+                    character not in "abcdefghijklmnopqrstuvwxyz0123456789._-"
+                    for character in value
+                )
+                for value in safe_tokens
+            )
+            or type(self.expected_account_record_version) is not int
+            or self.expected_account_record_version < 1
+            or type(self.identity_scheme_version) is not int
+            or self.identity_scheme_version < 1
+            or len(self.subject_fingerprint) != 64
+            or any(
+                value not in "0123456789abcdef" for value in self.subject_fingerprint
+            )
+            or not _bounded(self.evidence_reference.value, maximum=128)
+            or not self.evidence_reference.value.isascii()
+            or any(
+                character not in "abcdefghijklmnopqrstuvwxyz0123456789._-"
+                for character in self.evidence_reference.value
+            )
+            or len(self.expected_evidence_digest) != 64
+            or any(
+                value not in "0123456789abcdef"
+                for value in self.expected_evidence_digest
+            )
+        ):
+            raise ValueError("registry_provider_identity_confirmation_invalid")
+
+
+@dataclass(frozen=True, slots=True)
+class ResolveProviderIdentityFingerprintQueryV1(TechnicalValueV1):
+    """Read-only lookup key; the fingerprint is never returned or logged."""
+
+    CONTRACT_ID: ClassVar[str] = "CTR-REG-006"
+    OWNER: ClassVar[str] = "PLAN-M02"
+
+    provider_key: str
+    identity_scheme: str
+    identity_scope: str
+    identity_scheme_version: int
+    subject_fingerprint: str
+
+    def __post_init__(self) -> None:
+        TechnicalValueV1.__post_init__(self)
+        safe_keys = (self.provider_key, self.identity_scheme, self.identity_scope)
+        if (
+            any(
+                not _bounded(value, maximum=64)
+                or not value.isascii()
+                or any(
+                    character not in "abcdefghijklmnopqrstuvwxyz0123456789._-"
+                    for character in value
+                )
+                for value in safe_keys
+            )
+            or type(self.identity_scheme_version) is not int
+            or self.identity_scheme_version < 1
+            or len(self.subject_fingerprint) != 64
+            or any(
+                value not in "0123456789abcdef" for value in self.subject_fingerprint
+            )
+        ):
+            raise ValueError("registry_provider_identity_query_invalid")
+
+
+@dataclass(frozen=True, slots=True)
+class ProviderIdentityResolutionV1(TechnicalValueV1):
+    """Exact active account resolution without echoing provider identity."""
+
+    CONTRACT_ID: ClassVar[str] = "CTR-REG-006"
+    OWNER: ClassVar[str] = "PLAN-M02"
+
+    state: ProviderIdentityResolutionStateV1
+    account_id: OpaqueIdV1 | None
+    account_record_version: int | None
+    reason_code: str
+    registry_revision: int
+
+    def __post_init__(self) -> None:
+        TechnicalValueV1.__post_init__(self)
+        resolved = self.state == "resolved"
+        if (
+            resolved != (self.account_id is not None)
+            or resolved != (self.account_record_version is not None)
+            or self.account_record_version is not None
+            and self.account_record_version < 1
+            or not _bounded(self.reason_code, maximum=128)
+            or type(self.registry_revision) is not int
+            or self.registry_revision < 0
+        ):
+            raise ValueError("registry_provider_identity_resolution_invalid")
+
+
+@dataclass(frozen=True, slots=True)
 class RegistryScopeSnapshotV1(TechnicalValueV1):
     """Deterministic registry-only membership at one committed revision."""
 
@@ -521,6 +652,18 @@ class ConfirmIdentityAssociationV1(Protocol):
     def __call__(
         self, command: ConfirmIdentityAssociationCommandV1
     ) -> AccountViewV1: ...
+
+
+class ConfirmProviderIdentityFingerprintV1(Protocol):
+    def __call__(
+        self, command: ConfirmProviderIdentityFingerprintCommandV1
+    ) -> ProviderIdentityResolutionV1: ...
+
+
+class ResolveProviderIdentityFingerprintV1(Protocol):
+    def __call__(
+        self, query: ResolveProviderIdentityFingerprintQueryV1
+    ) -> ProviderIdentityResolutionV1: ...
 
 
 class RegisterAccountV1(Protocol):

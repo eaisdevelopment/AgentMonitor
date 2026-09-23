@@ -18,14 +18,17 @@ from agentmonitor.contracts.registry_v1 import (
     AccountResourceViewV1,
     AccountViewV1,
     ConfirmIdentityAssociationCommandV1,
+    ConfirmProviderIdentityFingerprintCommandV1,
     DiscoveryCandidateViewV1,
     DiscoveryReconciliationViewV1,
     MaskedRegistryFieldV1,
     MonitoringProfileViewV1,
     OrganizationViewV1,
+    ProviderIdentityResolutionV1,
     ProviderInstallationViewV1,
     RegistryScopeKindV1,
     RegistryScopeSnapshotV1,
+    ResolveProviderIdentityFingerprintQueryV1,
 )
 from agentmonitor.modules.registry.application.accounts import (
     EnrollMonitoringGraphCommandV1,
@@ -147,6 +150,82 @@ def _current_revision(connection: Connection) -> int:
         "SELECT registry_revision FROM reg_registry_state WHERE singleton_key=1"
     ).scalar_one_or_none()
     return int(value) if value is not None else 0
+
+
+def _provider_identity_resolution(
+    connection: Connection, query: ResolveProviderIdentityFingerprintQueryV1
+) -> ProviderIdentityResolutionV1:
+    revision = _current_revision(connection)
+    rows = (
+        connection.exec_driver_sql(
+            "SELECT c.identity_scheme_version, "
+            "c.decision_state AS claim_decision_state, "
+            "c.evidence_class AS claim_evidence_class, "
+            "c.owner_principal_id, c.owner_confirmed_at, "
+            "c.account_id, a.provider_key AS account_provider_key, "
+            "a.lifecycle AS account_lifecycle, "
+            "a.identity_state AS account_identity_state, "
+            "a.record_version AS account_record_version, "
+            "d.decision_state AS identity_decision_state, "
+            "d.evidence_class AS identity_decision_evidence_class, "
+            "d.account_id AS identity_decision_account_id, "
+            "d.source_contract_version, d.evidence_set_digest "
+            "FROM reg_provider_identity_claim c "
+            "LEFT JOIN reg_account a ON a.account_id=c.account_id "
+            "LEFT JOIN reg_identity_decision d ON d.claim_id=c.claim_id "
+            "AND d.invalidated_at IS NULL "
+            "WHERE c.provider_key=? AND c.identity_scheme=? "
+            "AND c.identity_scope=? AND c.subject_fingerprint=? "
+            "AND c.invalidated_at IS NULL",
+            (
+                query.provider_key,
+                query.identity_scheme,
+                query.identity_scope,
+                query.subject_fingerprint,
+            ),
+        )
+        .mappings()
+        .all()
+    )
+    if not rows:
+        return ProviderIdentityResolutionV1(
+            "unresolved", None, None, "provider_identity_unresolved", revision
+        )
+    if len(rows) != 1:
+        return ProviderIdentityResolutionV1(
+            "conflict", None, None, "provider_identity_conflict", revision
+        )
+    row = rows[0]
+    is_exact_active_owner_claim = (
+        int(row["identity_scheme_version"]) == query.identity_scheme_version
+        and row["claim_decision_state"] == "owner_confirmed"
+        and row["claim_evidence_class"] == "owner_confirmed"
+        and row["owner_principal_id"] is not None
+        and row["owner_confirmed_at"] is not None
+        and row["account_id"] is not None
+        and row["account_provider_key"] == query.provider_key
+        and row["account_lifecycle"] == "active"
+        and row["account_identity_state"] == "owner_confirmed"
+        and row["account_record_version"] is not None
+        and row["identity_decision_state"] == "owner_confirmed"
+        and row["identity_decision_evidence_class"] == "owner_confirmed"
+        and row["identity_decision_account_id"] == row["account_id"]
+        and row["source_contract_version"] == "registry.v1"
+        and isinstance(row["evidence_set_digest"], str)
+        and len(row["evidence_set_digest"]) == 64
+        and all(value in "0123456789abcdef" for value in row["evidence_set_digest"])
+    )
+    if not is_exact_active_owner_claim:
+        return ProviderIdentityResolutionV1(
+            "conflict", None, None, "provider_identity_conflict", revision
+        )
+    return ProviderIdentityResolutionV1(
+        "resolved",
+        OpaqueIdV1(str(row["account_id"])),
+        int(row["account_record_version"]),
+        "provider_identity_owner_confirmed",
+        revision,
+    )
 
 
 def _append_change(
@@ -1025,6 +1104,251 @@ class SqliteRegistryRepositoryV1:
                 )
                 for row in rows
             )
+        except (SqlitePolicyError, SQLAlchemyError, ValueError, TypeError):
+            raise RegistryRepositoryErrorV1() from None
+
+    def resolve_provider_identity_fingerprint(
+        self, query: ResolveProviderIdentityFingerprintQueryV1
+    ) -> ProviderIdentityResolutionV1:
+        try:
+            with open_sqlite_database(
+                self._database_ref, "runtime_read_only"
+            ) as handle:
+                with handle.connect() as connection:
+                    return _provider_identity_resolution(connection, query)
+        except (SqlitePolicyError, SQLAlchemyError, ValueError, TypeError):
+            raise RegistryRepositoryErrorV1() from None
+
+    def confirm_provider_identity_fingerprint(
+        self, command: ConfirmProviderIdentityFingerprintCommandV1
+    ) -> ProviderIdentityResolutionV1:
+        operation = "confirm_provider_identity_fingerprint"
+        command_digest = _digest(command.idempotency_key.value)
+        query = ResolveProviderIdentityFingerprintQueryV1(
+            provider_key=command.provider_key,
+            identity_scheme=command.identity_scheme,
+            identity_scope=command.identity_scope,
+            identity_scheme_version=command.identity_scheme_version,
+            subject_fingerprint=command.subject_fingerprint,
+        )
+        request_fingerprint = _fingerprint(
+            {
+                "account_id": command.account_id.value,
+                "expected_account_record_version": (
+                    command.expected_account_record_version
+                ),
+                "identity_scheme": command.identity_scheme,
+                "identity_scheme_version": command.identity_scheme_version,
+                "identity_scope": command.identity_scope,
+                "operation": operation,
+                "parser_version": command.parser_version,
+                "provider_key": command.provider_key,
+                "source_id": command.source_id,
+                "source_version": command.source_version,
+                "subject_fingerprint": command.subject_fingerprint,
+                "evidence_reference": command.evidence_reference.value,
+                "expected_evidence_digest": command.expected_evidence_digest,
+            }
+        )
+        instant = _utc_text(command.requested_at)
+        try:
+            with open_sqlite_database(
+                self._database_ref, "runtime_read_write"
+            ) as handle:
+                with handle.connect() as connection:
+                    connection.exec_driver_sql("BEGIN IMMEDIATE")
+                    receipt = (
+                        connection.exec_driver_sql(
+                            "SELECT request_fingerprint FROM reg_command_receipt "
+                            "WHERE principal_id=? AND operation_key=? "
+                            "AND idempotency_key_digest=?",
+                            (
+                                command.principal_id.value,
+                                operation,
+                                command_digest,
+                            ),
+                        )
+                        .mappings()
+                        .one_or_none()
+                    )
+                    if receipt is not None:
+                        if receipt["request_fingerprint"] != request_fingerprint:
+                            connection.rollback()
+                            raise RegistryCommandConflictV1(
+                                "registry_idempotency_conflict"
+                            )
+                        result = _provider_identity_resolution(connection, query)
+                        connection.rollback()
+                        return result
+                    account = (
+                        connection.exec_driver_sql(
+                            "SELECT provider_key, lifecycle, identity_state, "
+                            "record_version FROM reg_account WHERE account_id=?",
+                            (command.account_id.value,),
+                        )
+                        .mappings()
+                        .one_or_none()
+                    )
+                    if account is None:
+                        connection.rollback()
+                        raise RegistryCommandConflictV1("registry_subject_not_found")
+                    if int(account["record_version"]) != (
+                        command.expected_account_record_version
+                    ):
+                        connection.rollback()
+                        raise RegistryCommandConflictV1(
+                            "registry_account_version_conflict"
+                        )
+                    if (
+                        account["provider_key"] != command.provider_key
+                        or account["lifecycle"] != "active"
+                        or account["identity_state"] != "owner_confirmed"
+                    ):
+                        connection.rollback()
+                        raise RegistryCommandConflictV1("registry_identity_conflict")
+                    existing_claim = (
+                        connection.exec_driver_sql(
+                            "SELECT claim_id, invalidated_at "
+                            "FROM reg_provider_identity_claim "
+                            "WHERE provider_key=? AND identity_scheme=? "
+                            "AND identity_scope=? AND subject_fingerprint=?",
+                            (
+                                command.provider_key,
+                                command.identity_scheme,
+                                command.identity_scope,
+                                command.subject_fingerprint,
+                            ),
+                        )
+                        .mappings()
+                        .one_or_none()
+                    )
+                    current = _provider_identity_resolution(connection, query)
+                    if (
+                        current.state == "conflict"
+                        or (
+                            current.state == "resolved"
+                            and current.account_id != command.account_id
+                        )
+                        or (
+                            current.state == "unresolved" and existing_claim is not None
+                        )
+                    ):
+                        connection.rollback()
+                        raise RegistryCommandConflictV1("registry_identity_conflict")
+                    if current.state == "resolved":
+                        if existing_claim is None:
+                            connection.rollback()
+                            raise RegistryCommandConflictV1(
+                                "registry_identity_conflict"
+                            )
+                        revision = current.registry_revision
+                        connection.exec_driver_sql(
+                            "INSERT INTO reg_command_receipt "
+                            "(receipt_id, principal_id, operation_key, "
+                            "idempotency_key_digest, request_fingerprint, "
+                            "outcome_subject_type, outcome_subject_id, "
+                            "outcome_record_version, registry_revision, created_at, "
+                            "expires_at) VALUES "
+                            "(?, ?, ?, ?, ?, 'identity_claim', ?, 1, ?, ?, ?)",
+                            (
+                                _identifier(),
+                                command.principal_id.value,
+                                operation,
+                                command_digest,
+                                request_fingerprint,
+                                existing_claim["claim_id"],
+                                revision,
+                                instant,
+                                _utc_text(command.requested_at + timedelta(days=365)),
+                            ),
+                        )
+                        connection.commit()
+                        return current
+                    claim_id = _identifier()
+                    decision_id = _identifier()
+                    revision = _next_revision(connection, instant)
+                    connection.exec_driver_sql(
+                        "INSERT INTO reg_provider_identity_claim "
+                        "(claim_id, provider_key, identity_scheme, identity_scope, "
+                        "identity_scheme_version, subject_fingerprint, account_id, "
+                        "evidence_class, decision_state, evidence_reference, "
+                        "valid_from, invalidated_at, last_verified_at, "
+                        "owner_principal_id, owner_confirmed_at, record_version) "
+                        "VALUES (?, ?, ?, ?, ?, ?, ?, 'owner_confirmed', "
+                        "'owner_confirmed', ?, ?, "
+                        "NULL, ?, ?, ?, 1)",
+                        (
+                            claim_id,
+                            command.provider_key,
+                            command.identity_scheme,
+                            command.identity_scope,
+                            command.identity_scheme_version,
+                            command.subject_fingerprint,
+                            command.account_id.value,
+                            command.evidence_reference.value,
+                            instant,
+                            instant,
+                            command.principal_id.value,
+                            instant,
+                        ),
+                    )
+                    connection.exec_driver_sql(
+                        "INSERT INTO reg_identity_decision "
+                        "(decision_id, candidate_id, claim_id, profile_id, account_id, "
+                        "decision_state, evidence_class, reason_code, "
+                        "evidence_set_digest, source_contract_version, "
+                        "owner_principal_id, owner_confirmed_at, valid_from, "
+                        "invalidated_at, record_version, registry_revision) "
+                        "VALUES (?, NULL, ?, NULL, ?, 'owner_confirmed', "
+                        "'owner_confirmed', 'provider_identity_owner_confirmed', ?, "
+                        "'registry.v1', ?, ?, ?, NULL, 1, ?)",
+                        (
+                            decision_id,
+                            claim_id,
+                            command.account_id.value,
+                            command.expected_evidence_digest,
+                            command.principal_id.value,
+                            instant,
+                            instant,
+                            revision,
+                        ),
+                    )
+                    _append_outbox(
+                        connection,
+                        subject_type="identity",
+                        subject_id=claim_id,
+                        aggregate_version=1,
+                        revision=revision,
+                        change_kind="owner_confirmed",
+                        correlation_id=command.idempotency_key.value,
+                        causation_id=command.evidence_reference.value,
+                        instant=instant,
+                    )
+                    connection.exec_driver_sql(
+                        "INSERT INTO reg_command_receipt "
+                        "(receipt_id, principal_id, operation_key, "
+                        "idempotency_key_digest, request_fingerprint, "
+                        "outcome_subject_type, outcome_subject_id, "
+                        "outcome_record_version, registry_revision, created_at, "
+                        "expires_at) VALUES "
+                        "(?, ?, ?, ?, ?, 'identity_claim', ?, 1, ?, ?, ?)",
+                        (
+                            _identifier(),
+                            command.principal_id.value,
+                            operation,
+                            command_digest,
+                            request_fingerprint,
+                            claim_id,
+                            revision,
+                            instant,
+                            _utc_text(command.requested_at + timedelta(days=365)),
+                        ),
+                    )
+                    result = _provider_identity_resolution(connection, query)
+                    connection.commit()
+                    return result
+        except RegistryCommandConflictV1:
+            raise
         except (SqlitePolicyError, SQLAlchemyError, ValueError, TypeError):
             raise RegistryRepositoryErrorV1() from None
 

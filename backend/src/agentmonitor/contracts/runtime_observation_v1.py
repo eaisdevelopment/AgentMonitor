@@ -50,6 +50,10 @@ PlatformInspectionStateV1 = Literal[
     "internal_adapter_error",
 ]
 CorrelationEvidenceClassV1 = Literal["strong", "corroborated", "weak"]
+SessionProcessRelationshipKindV1 = Literal[
+    "primary", "worker", "wrapper", "observer", "unknown"
+]
+RuntimeCertaintyV1 = Literal["definitive", "inferred", "unknown"]
 CorrelationDecisionStateV1 = Literal[
     "unresolved",
     "automatic_matched",
@@ -470,6 +474,36 @@ class LocalSessionObservationInputV1(TechnicalValueV1):
 
 
 @dataclass(frozen=True, slots=True)
+class SessionProcessLinkInputV1(TechnicalValueV1):
+    """Exact session/process join supplied by an approved provider source."""
+
+    CONTRACT_ID: ClassVar[str] = "CTR-RUN-002"
+    OWNER: ClassVar[str] = "PLAN-M06"
+
+    link_id: str
+    session_identity: SessionIdentityV1
+    process_identity: ProcessIdentityV1
+    relationship_kind: SessionProcessRelationshipKindV1
+    evidence_class: CorrelationEvidenceClassV1
+    certainty: RuntimeCertaintyV1
+    source_id: str
+    source_version: str
+    observed_at: datetime
+
+    def __post_init__(self) -> None:
+        TechnicalValueV1.__post_init__(self)
+        if (
+            not all(
+                _token(value)
+                for value in (self.link_id, self.source_id, self.source_version)
+            )
+            or not _utc(self.observed_at)
+            or (self.evidence_class == "strong") != (self.certainty == "definitive")
+        ):
+            raise InvalidRuntimeObservationV1("runtime_session_process_link_invalid")
+
+
+@dataclass(frozen=True, slots=True)
 class RuntimeMetricObservationInputV1(TechnicalValueV1):
     """Exact decimal runtime metric with explicit temporal/overlap semantics."""
 
@@ -793,6 +827,7 @@ class RuntimeObservationBatchV1(TechnicalValueV1):
     correlation_evidence: tuple[CorrelationEvidenceInputV1, ...]
     completeness: Literal["complete_scope", "partial_scope"]
     metric_observations: tuple[RuntimeMetricObservationInputV1, ...] = ()
+    session_process_links: tuple[SessionProcessLinkInputV1, ...] = ()
     omission_codes: tuple[str, ...] = ()
 
     def __post_init__(self) -> None:
@@ -822,7 +857,11 @@ class RuntimeObservationBatchV1(TechnicalValueV1):
             item.session_identity not in session_identities
             for item in self.metric_observations
         )
-        if invalid_evidence or invalid_metrics:
+        invalid_links = any(
+            item.session_identity not in session_identities
+            for item in self.session_process_links
+        )
+        if invalid_evidence or invalid_metrics or invalid_links:
             raise InvalidRuntimeObservationV1(
                 "runtime_observation_session_reference_invalid"
             )
@@ -830,6 +869,7 @@ class RuntimeObservationBatchV1(TechnicalValueV1):
             tuple(item.observation_id for item in self.process_snapshots)
             + tuple(item.observation_id for item in self.session_observations)
             + tuple(item.metric_id for item in self.metric_observations)
+            + tuple(item.link_id for item in self.session_process_links)
             + tuple(item.evidence_id for item in self.correlation_evidence)
         )
         if len(observation_ids) != len(set(observation_ids)):
@@ -963,6 +1003,30 @@ class RuntimeObservationBatchV1(TechnicalValueV1):
                     "provider_version": item.provider_version,
                 }
                 for item in self.metric_observations
+            ],
+            "session_process_links": [
+                {
+                    "link_id": item.link_id,
+                    "session_identity": [
+                        item.session_identity.provider_key,
+                        item.session_identity.installation_id,
+                        item.session_identity.identity_kind,
+                        item.session_identity.identity_value,
+                    ],
+                    "process_identity": [
+                        item.process_identity.platform_source,
+                        item.process_identity.platform_scope_id,
+                        item.process_identity.pid,
+                        item.process_identity.start_time_ticks,
+                    ],
+                    "relationship_kind": item.relationship_kind,
+                    "evidence_class": item.evidence_class,
+                    "certainty": item.certainty,
+                    "source_id": item.source_id,
+                    "source_version": item.source_version,
+                    "observed_at": item.observed_at.isoformat(),
+                }
+                for item in self.session_process_links
             ],
             "correlation_evidence": [
                 {

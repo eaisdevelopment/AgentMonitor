@@ -10,7 +10,6 @@ from agentmonitor.contracts.collection_control_v1 import (
     CollectionCommitStatusV1,
     CollectionOutcomeCommitV1,
 )
-from agentmonitor.contracts.common_provenance_v1 import SourceClassV1
 from agentmonitor.contracts.common_quantity_v1 import (
     CanonicalDecimalV1,
     ExactQuantityV1,
@@ -27,6 +26,12 @@ ValueKindV1 = Literal[
     "authoritative", "provider_reported", "derived", "heuristic", "unknown"
 ]
 CompletenessV1 = Literal["complete", "partial", "unknown"]
+SourceClassV1 = Literal[
+    "documented_api",
+    "supported_cli",
+    "approved_local_metadata",
+    "experimental_private_or_browser",
+]
 CapacityHealthStateV1 = Literal[
     "available",
     "constrained",

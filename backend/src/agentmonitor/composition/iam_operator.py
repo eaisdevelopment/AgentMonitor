@@ -39,7 +39,7 @@ class OperatorQuiescenceError(RuntimeError):
 
 
 @contextmanager
-def _exclusive_service_quiescence(
+def exclusive_service_quiescence(
     root: Path, database_ref: DatabaseRefV1
 ) -> Iterator[None]:
     """Hold the same nonblocking flock as P01 before any SQLite connection.
@@ -112,7 +112,7 @@ def main(argv: list[str] | None = None) -> int:
     try:
         database_ref = DatabaseRefV1(root / "agentmonitor.db", root)
         if arguments[0] == "recover":
-            with _exclusive_service_quiescence(root, database_ref):
+            with exclusive_service_quiescence(root, database_ref):
                 status = _run_recovery(database_ref)
         else:
             RequireWritableSchemaV1(

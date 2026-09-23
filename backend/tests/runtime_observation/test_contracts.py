@@ -92,6 +92,55 @@ def test_same_pid_and_start_on_another_boot_is_a_distinct_process() -> None:
     assert first != after_reboot
 
 
+def test_exact_session_link_can_reference_prior_persisted_process_identity() -> None:
+    """CTR-RUN-002: A01 can link to the separately committed A04 process."""
+    process = _process_snapshot(
+        executable_identity="a" * 64,
+        provider_key="claude",
+        installation_id="installation-opaque",
+    )
+    session = runtime_contracts.SessionIdentityV1(
+        provider_key="claude",
+        installation_id="installation-opaque",
+        identity_kind="otel.session.id",
+        identity_value="session-opaque",
+    )
+    session_observation = runtime_contracts.LocalSessionObservationInputV1(
+        observation_id="session-observation-opaque",
+        session_identity=session,
+        observed_at=datetime(2026, 9, 23, 9, tzinfo=UTC),
+        source_id="claude.otel.metrics.http-json.v1",
+        source_version="1.0.0",
+        parser_version="1.0.0",
+        provider_version="2.1.280",
+        activity_state="present",
+        activity_code="session_started",
+        activity_reason_code=None,
+    )
+    link = runtime_contracts.SessionProcessLinkInputV1(
+        link_id="session-process-link-opaque",
+        session_identity=session,
+        process_identity=process.identity,
+        relationship_kind="primary",
+        evidence_class="strong",
+        certainty="definitive",
+        source_id="claude.otel.metrics.http-json.v1",
+        source_version="1.0.0",
+        observed_at=datetime(2026, 9, 23, 9, tzinfo=UTC),
+    )
+
+    batch = runtime_contracts.RuntimeObservationBatchV1(
+        process_snapshots=(),
+        session_observations=(session_observation,),
+        correlation_evidence=(),
+        session_process_links=(link,),
+        completeness="complete_scope",
+    )
+
+    assert batch.session_process_links == (link,)
+    assert runtime_payload_digest(batch) == batch.canonical_digest()
+
+
 def test_weak_process_evidence_cannot_select_an_account() -> None:
     """M06-PURE-019: process/provider coincidence remains unresolved."""
     assert hasattr(runtime_contracts, "CorrelationEvidenceInputV1")

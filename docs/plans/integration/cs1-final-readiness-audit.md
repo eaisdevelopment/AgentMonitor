@@ -356,3 +356,13 @@ The M3 runtime slice adds only the implemented PLAN-M06 use of `CTR-DB-001`,
 the PLAN-A04-LINUX use of `CTR-RUN-001`, and existing Foundation composition
 consumers. Contract versions are unchanged. This preserves the historical
 `PASS-CONDITIONAL` result and does not claim live same-account acceptance.
+
+## 15. 2026-09-23 M3 Claude runtime binding
+
+Plan snapshot SHA-256: `0f01bfd52b719c4de20b76024a0aeb6531edf1acc36c0d1410a439069ed3a129`
+
+The synchronized snapshot records the already implemented Foundation and
+Claude adapter consumption of registry, provenance, and runtime contracts used
+by the transparent Claude telemetry composition. It also binds the additive
+M02 provider-fingerprint operations. Contract versions are unchanged. This is
+a mechanical M3 consumer/snapshot rebind, not owner approval or live acceptance.
