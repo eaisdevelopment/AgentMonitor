@@ -54,8 +54,11 @@ class RuntimeQueryRepositoryV1(Protocol):
         self, session_id: OpaqueIdV1, as_of: datetime
     ) -> AgentSessionRecordV1: ...
     def get_session_topology(
-        self, as_of: datetime, source_limit: int
-    ) -> SessionTopologySnapshotV1: ...
+        self,
+        root_session_id: OpaqueIdV1,
+        as_of: datetime,
+        source_limit: int,
+    ) -> tuple[SessionTopologySnapshotV1, bool]: ...
 
 
 class GetRuntimeCommitStatusV1:
@@ -174,6 +177,7 @@ def build_session_tree_v1(
     as_of: datetime,
     depth_limit: int,
     node_limit: int,
+    source_truncated: bool = False,
 ) -> SessionTreeViewV1:
     """Build one bounded tree solely from current, unambiguous strong evidence."""
 
@@ -183,6 +187,7 @@ def build_session_tree_v1(
         or not 1 <= depth_limit <= 32
         or type(node_limit) is not int
         or not 1 <= node_limit <= 200
+        or type(source_truncated) is not bool
     ):
         raise ValueError("runtime_query_invalid")
 
@@ -299,16 +304,28 @@ def build_session_tree_v1(
         (session_id, depth) for session_id, depth in reachable if depth <= depth_limit
     ][:node_limit]
     excluded_count = len(reachable) - len(included)
+    included_ids = {session_id for session_id, _depth in included}
     nodes = tuple(
         SessionTreeNodeV1(
             session=facts[session_id].session,
             parent_session_id=parents.get(session_id),
-            child_session_ids=tuple(children.get(session_id, ())),
+            child_session_ids=tuple(
+                child_id
+                for child_id in children.get(session_id, ())
+                if child_id in included_ids
+            ),
             orphan_reason=orphan_reasons.get(session_id),
         )
         for session_id, _depth in included
     )
-    reason_codes = ("tree_bound_reached",) if excluded_count else ()
+    reason_codes = tuple(
+        sorted(
+            {
+                *({"tree_bound_reached"} if excluded_count else set()),
+                *({"topology_source_bound_reached"} if source_truncated else set()),
+            }
+        )
+    )
     return SessionTreeViewV1(
         root_session_id=root_session_id,
         as_of=as_of,
@@ -316,7 +333,7 @@ def build_session_tree_v1(
         included_count=len(nodes),
         excluded_count=excluded_count,
         unknown_count=sum(node.orphan_reason is not None for node in nodes),
-        partial=bool(excluded_count),
+        partial=bool(reason_codes),
         reason_codes=reason_codes,
     )
 
@@ -334,15 +351,20 @@ class GetSessionTreeV1:
         node_limit: int = 200,
     ) -> SessionTreeViewV1:
         try:
-            snapshot = self._repository.get_session_topology(as_of, 200)
+            snapshot, source_truncated = self._repository.get_session_topology(
+                root_session_id, as_of, node_limit
+            )
             return build_session_tree_v1(
                 snapshot,
                 root_session_id,
                 as_of=as_of,
                 depth_limit=depth_limit,
                 node_limit=node_limit,
+                source_truncated=source_truncated,
             )
         except AgentSessionNotFoundV1:
             raise
-        except ValueError:
+        except ValueError as error:
+            if str(error) == "runtime_subject_not_found":
+                raise AgentSessionNotFoundV1() from None
             raise RuntimeQueryUnavailableV1("runtime_query_unavailable") from None

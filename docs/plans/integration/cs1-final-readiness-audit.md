@@ -375,3 +375,11 @@ The automation catalog and standard now define the canonical M3 real-owner
 browser gate. The synchronized snapshot changes no module plan, public contract,
 owner authority, provider state, or M4 scope. This is a mechanical control
 binding, not a renewed all-V1 approval or an M3 acceptance claim.
+
+## 17. 2026-09-24 M3 exit and mutation gate binding
+
+Plan snapshot SHA-256: `6c0687cc5dbcf9c0f6a8319415e4bcfc928a186273a2510dc91758c291158aab`
+
+The automation catalog and completion standard now register the fail-closed
+`AUTO-M3-EXIT` and real critical-policy `AUTO-MUTATION` routines. No module
+plan, public contract, owner authority, provider state, or M4 scope changed.

@@ -2,12 +2,15 @@
 
 from __future__ import annotations
 
+import os
 import subprocess
 import sys
 import tempfile
+import tomllib
 import unittest
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta, timezone
 from importlib.util import module_from_spec, spec_from_file_location
+from inspect import getsource
 from pathlib import Path
 from shutil import copy2, copytree, which
 
@@ -16,7 +19,7 @@ RUNNER = REPOSITORY_ROOT / "tools/automation/run.py"
 CATALOG = REPOSITORY_ROOT / "tools/automation/routines.toml"
 sys.path.insert(0, str(RUNNER.parent))
 
-from run import index_routines, load_catalog, validate_catalog
+from run import index_routines, load_catalog, validate_catalog  # noqa: E402
 
 
 class AutomationRoutineTests(unittest.TestCase):
@@ -486,6 +489,272 @@ class AutomationRoutineTests(unittest.TestCase):
         self.assertIn("real owner", routine["scope"])
         self.assertEqual([], routine["blockers"])
 
+    def test_m3_mutation_gate_is_cataloged_fail_closed(self) -> None:
+        """Critical M3 pure policies have one executable mutation gate."""
+        catalog = load_catalog(REPOSITORY_ROOT)
+        routine = catalog["AUTO-MUTATION"]
+
+        self.assertEqual("operational", routine["status"])
+        self.assertEqual(
+            [
+                "backend/.venv/bin/python",
+                "tools/automation/implementations/auto_mutation.py",
+            ],
+            routine["implementation_command"],
+        )
+        self.assertIn("M3", routine["scope"])
+        self.assertIn("critical pure", routine["scope"])
+        self.assertEqual([], routine["blockers"])
+
+    def test_mutation_summary_policy_rejects_every_non_killed_result(self) -> None:
+        """A score alone cannot conceal a survivor or unavailable mutant."""
+        sys.path.insert(0, str(REPOSITORY_ROOT / "tools/automation/implementations"))
+        from auto_mutation import mutation_summary_passes
+
+        killed = {
+            "total": 4,
+            "killed": 4,
+            "survived": 0,
+            "no_tests": 0,
+            "skipped": 0,
+            "suspicious": 0,
+            "timeout": 0,
+            "check_was_interrupted_by_user": 0,
+            "segfault": 0,
+        }
+        self.assertTrue(mutation_summary_passes(killed))
+        for status in (
+            "survived",
+            "no_tests",
+            "skipped",
+            "suspicious",
+            "timeout",
+            "check_was_interrupted_by_user",
+            "segfault",
+        ):
+            with self.subTest(status=status):
+                result = {**killed, "killed": 3, status: 1}
+                self.assertFalse(mutation_summary_passes(result))
+        equivalent = {**killed, "killed": 3, "survived": 1}
+        self.assertTrue(
+            mutation_summary_passes(equivalent, accepted_equivalent_count=1)
+        )
+        self.assertFalse(
+            mutation_summary_passes(equivalent, accepted_equivalent_count=0)
+        )
+        self.assertFalse(mutation_summary_passes({**killed, "total": 0, "killed": 0}))
+
+    def test_mutation_equivalence_is_bound_to_contract_invariants(self) -> None:
+        """Equivalent survivors cannot outlive the invariants proving equivalence."""
+        sys.path.insert(0, str(REPOSITORY_ROOT / "tools/automation/implementations"))
+        from auto_mutation import equivalence_invariants_match
+
+        contract = (
+            REPOSITORY_ROOT
+            / "backend/src/agentmonitor/contracts/runtime_observation_v1.py"
+        ).read_bytes()
+        self.assertTrue(equivalence_invariants_match(contract))
+        self.assertFalse(
+            equivalence_invariants_match(contract + b"\n# invariant drift\n")
+        )
+
+    def test_mutation_config_exactly_matches_runner_targets_and_tests(self) -> None:
+        """The executed mutation surface cannot drift from its declared surface."""
+        sys.path.insert(0, str(REPOSITORY_ROOT / "tools/automation/implementations"))
+        from auto_mutation import mutation_config_matches
+
+        manifest = tomllib.loads(
+            (REPOSITORY_ROOT / "backend/pyproject.toml").read_text(encoding="utf-8")
+        )
+        config = manifest["tool"]["mutmut"]
+        self.assertTrue(mutation_config_matches(config))
+
+        extra_target = {**config, "only_mutate": [*config["only_mutate"], "extra.py"]}
+        self.assertFalse(mutation_config_matches(extra_target))
+        missing_test = {
+            **config,
+            "pytest_add_cli_args_test_selection": config[
+                "pytest_add_cli_args_test_selection"
+            ][:-1],
+        }
+        self.assertFalse(mutation_config_matches(missing_test))
+
+    def test_m3_exit_actively_runs_the_mutation_gate(self) -> None:
+        """M3 completion cannot bypass the admitted critical-policy gate."""
+        sys.path.insert(0, str(REPOSITORY_ROOT / "tools/automation/implementations"))
+        from auto_m3_exit import M3_LOCAL_EXIT_ROUTINES, main
+
+        self.assertEqual(
+            (
+                "AUTO-TEST",
+                "AUTO-QUALITY",
+                "AUTO-BUILD",
+                "AUTO-MUTATION",
+                "AUTO-DOCS-CHECK",
+                "AUTO-GIT-PREFLIGHT",
+            ),
+            M3_LOCAL_EXIT_ROUTINES,
+        )
+        self.assertIn("for routine in M3_LOCAL_EXIT_ROUTINES", getsource(main))
+
+    def test_m3_mutmut_dependency_graph_names_the_full_locked_closure(self) -> None:
+        """Dependency verification includes every package in the selected closure."""
+        sys.path.insert(0, str(REPOSITORY_ROOT / "tools/automation/implementations"))
+        from auto_quality import M3_MUTMUT_GRAPH
+
+        self.assertEqual(
+            {
+                "click": "8.5.0",
+                "coverage": "7.16.1",
+                "iniconfig": "2.3.0",
+                "libcst": "1.9.0",
+                "linkify-it-py": "2.2.0",
+                "markdown-it-py": "4.2.0",
+                "mdit-py-plugins": "0.6.1",
+                "mdurl": "0.1.2",
+                "mutmut": "3.8.0",
+                "packaging": "26.3",
+                "platformdirs": "4.11.12",
+                "pluggy": "1.6.0",
+                "pygments": "2.21.0",
+                "pytest": "9.1.1",
+                "pyyaml": "6.0.3",
+                "rich": "15.0.0",
+                "setproctitle": "1.3.7",
+                "textual": "8.2.8",
+                "typing-extensions": "4.16.0",
+            },
+            M3_MUTMUT_GRAPH,
+        )
+
+    def test_m3_exit_gate_is_distinct_and_cataloged_fail_closed(self) -> None:
+        """M3 completion creates fresh provider/runtime rows before browser proof."""
+        catalog = load_catalog(REPOSITORY_ROOT)
+        routine = catalog["AUTO-M3-EXIT"]
+
+        self.assertEqual("operational", routine["status"])
+        self.assertEqual(
+            [
+                "backend/.venv/bin/python",
+                "tools/automation/implementations/auto_m3_exit.py",
+            ],
+            routine["implementation_command"],
+        )
+        self.assertIn("fresh", routine["scope"])
+        self.assertIn("same-account", routine["scope"])
+        self.assertEqual([], routine["blockers"])
+
+    def test_m3_exit_lineage_rejects_non_utc_gate_time(self) -> None:
+        """Freshness comparisons use one exact UTC timeline."""
+        sys.path.insert(0, str(REPOSITORY_ROOT / "tools/automation/implementations"))
+        from auto_m3_exit import (
+            M3ExitErrorV1,
+            M3FreshLineageV1,
+            verify_fresh_same_account_v1,
+        )
+
+        non_utc = datetime(2026, 9, 24, 13, tzinfo=timezone(timedelta(hours=1)))
+        later = datetime(2026, 9, 24, 13, 1, tzinfo=timezone(timedelta(hours=1)))
+        lineage = M3FreshLineageV1(
+            gate_started_at=non_utc,
+            quota_account_id="account-one",
+            quota_run_id="quota-run",
+            quota_requested_at=later,
+            quota_completed_at=later,
+            quota_observation_ids=("quota-observation",),
+            runtime_account_id="account-one",
+            runtime_run_id="runtime-run",
+            runtime_requested_at=later,
+            runtime_completed_at=later,
+            runtime_observed_at=later,
+            runtime_source_id="claude.otel.metrics.http-json.v1",
+            runtime_state="succeeded",
+            runtime_observation_ids=("runtime-observation",),
+        )
+
+        with self.assertRaisesRegex(M3ExitErrorV1, "m3_exit_fresh_observation_missing"):
+            verify_fresh_same_account_v1(lineage)
+
+    def test_m3_exit_child_commands_preserve_the_owner_terminal_environment(
+        self,
+    ) -> None:
+        """The real Claude and Git tools retain their normal inherited environment."""
+        sys.path.insert(0, str(REPOSITORY_ROOT / "tools/automation/implementations"))
+        from auto_m3_exit import _run_checkout_command
+
+        variable = "AGENTMONITOR_M3_INHERITED_ENVIRONMENT_TEST"
+        previous = os.environ.get(variable)
+        os.environ[variable] = "present"
+        try:
+            _run_checkout_command(
+                [
+                    sys.executable,
+                    "-c",
+                    (
+                        "import os,sys; "
+                        "sys.exit(0 if os.environ.get("
+                        f"'{variable}') == 'present' else 7)"
+                    ),
+                ],
+                timeout=5,
+            )
+        finally:
+            if previous is None:
+                os.environ.pop(variable, None)
+            else:
+                os.environ[variable] = previous
+
+    def test_m3_exit_uses_the_approved_schema_validation_runtime(self) -> None:
+        """M0 authorization cannot silently use an unreviewed jsonschema build."""
+        sys.path.insert(0, str(REPOSITORY_ROOT / "tools/automation/implementations"))
+        from auto_m3_exit import M0_SCHEMA_PYTHON
+
+        self.assertEqual(REPOSITORY_ROOT / ".venv-m0-g1/bin/python", M0_SCHEMA_PYTHON)
+        result = subprocess.run(
+            [
+                str(M0_SCHEMA_PYTHON),
+                "-c",
+                "from importlib.metadata import version; print(version('jsonschema'))",
+            ],
+            cwd=REPOSITORY_ROOT,
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+        self.assertEqual(0, result.returncode, result.stdout + result.stderr)
+        self.assertEqual("4.26.0", result.stdout.strip())
+
+    def test_m3_exit_runs_the_real_identity_evidence_check_after_runtime(self) -> None:
+        """The live exit cannot accept a stale or detached provider binding."""
+        sys.path.insert(0, str(REPOSITORY_ROOT / "tools/automation/implementations"))
+        from auto_m3_exit import identity_evidence_check
+
+        data_root = Path("/owner-selected/agentmonitor-data")
+        command, environment = identity_evidence_check(data_root, "account-one")
+
+        self.assertEqual(
+            [
+                str(REPOSITORY_ROOT / "backend/.venv/bin/python"),
+                "-m",
+                "pytest",
+                "backend/tests/live/claude/test_provider_identity_evidence.py",
+                "-q",
+                "--tb=short",
+            ],
+            command,
+        )
+        self.assertEqual(str(data_root), environment["AGENTMONITOR_TEST_DATA_ROOT"])
+        self.assertEqual("account-one", environment["AGENTMONITOR_TEST_ACCOUNT_ID"])
+        self.assertEqual(
+            str(REPOSITORY_ROOT / "backend/src"), environment["PYTHONPATH"]
+        )
+        self.assertNotIn("CLAUDE", " ".join(environment))
+        from auto_m3_exit import main
+
+        main_source = getsource(main)
+        self.assertIn("identity_evidence_check(", main_source)
+        self.assertIn("data_root, account_id.value", main_source)
+
     def test_git_preflight_catalog_does_not_claim_remote_readiness(self) -> None:
         routine = load_catalog(REPOSITORY_ROOT)["AUTO-GIT-PREFLIGHT"]
         self.assertEqual("operational_limited", routine["status"])
@@ -531,6 +800,8 @@ class AutomationRoutineTests(unittest.TestCase):
                 "AUTO-M0-LEDGER",
                 "AUTO-DOCS-CHECK",
                 "AUTO-M3-LIVE",
+                "AUTO-M3-EXIT",
+                "AUTO-MUTATION",
                 "AUTO-TEST",
                 "AUTO-QUALITY",
                 "AUTO-GIT-PREFLIGHT",

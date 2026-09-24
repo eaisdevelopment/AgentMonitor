@@ -8,6 +8,7 @@ const accountId = process.argv[3];
 const credential = readFileSync(0, "utf8");
 let browser;
 let stage = "input_validation";
+let historyPaginationOutcome = "NOT RUN — the real first history page did not expose a continuation cursor";
 
 function requireTruth(condition, reason) {
   if (!condition) throw new Error(reason);
@@ -114,6 +115,40 @@ try {
   requireTruth(JSON.stringify(chartObservationIds) === JSON.stringify(historyObservationIds), "history_chart_table_lineage_mismatch");
   requireTruth(historyObservationIds.every((value) => quotaLineage.some((lineage) => lineage.observationId === value)), "history_current_observation_lineage_mismatch");
   requireTruth((await historyRows.locator(".history-exact-value").allTextContents()).every((value) => value.trim().length > 0), "history_exact_value_missing");
+  const historyPanel = page.locator(".history-panel");
+  requireTruth(
+    /Showing \d+ retained observations? from 1 bounded page\./u.test(await historyPanel.getByRole("status").innerText()),
+    "history_page_state_missing",
+  );
+  const loadNextHistoryPage = historyPanel.getByRole("button", { name: "Load next history page", exact: true });
+  if (await loadNextHistoryPage.count() === 1) {
+    stage = "capacity_history_pagination";
+    const nextHistoryResponse = page.waitForResponse((response) => {
+      const url = new URL(response.url());
+      return url.origin === origin && url.pathname === "/api/v1/capacity/history" &&
+        url.searchParams.has("cursor") && response.request().method() === "GET";
+    });
+    await loadNextHistoryPage.click();
+    const response = await nextHistoryResponse;
+    requireTruth(response.status() === 200, "history_next_page_get_failed");
+    const cursorUrl = new URL(response.url());
+    requireTruth((cursorUrl.searchParams.get("cursor") ?? "").length > 0, "history_next_page_cursor_missing");
+    await page.waitForFunction(
+      (previousCount) => document.querySelectorAll('[aria-label="Capacity history exact values"] tbody tr').length > previousCount,
+      historyObservationIds.length,
+    );
+    const pagedObservationIds = (await historyRows.locator(".history-observation-id").allTextContents()).map((value) => value.trim());
+    requireTruth(pagedObservationIds.length <= historyObservationIds.length + 200, "history_next_page_exceeded_bound");
+    requireTruth(new Set(pagedObservationIds).size === pagedObservationIds.length, "history_next_page_duplicate_observation");
+    requireTruth(
+      JSON.stringify(pagedObservationIds.slice(0, historyObservationIds.length)) === JSON.stringify(historyObservationIds),
+      "history_first_page_not_preserved",
+    );
+    const pagedChartObservationIds = (await chart.getAttribute("data-observation-ids"))?.split(" ").filter(Boolean) ?? [];
+    requireTruth(JSON.stringify(pagedChartObservationIds) === JSON.stringify(pagedObservationIds), "history_paged_chart_table_lineage_mismatch");
+    requireTruth(/from 2 bounded pages\./u.test(await historyPanel.getByRole("status").innerText()), "history_loaded_page_count_missing");
+    historyPaginationOutcome = "PASSED — real second cursor page retained exact chart/table lineage";
+  }
 
   stage = "collection_run_reconciliation";
   const collectionResponse = page.waitForResponse((response) => {
@@ -244,7 +279,7 @@ try {
   }
 
   await browser.close();
-  console.log("P02 POPULATED MONITORING: PASSED — real Claude quota history/chart, collection reconciliation, exact process runtime, and same-account session hierarchy/provenance");
+  console.log(`P02 POPULATED MONITORING: PASSED — real Claude quota history/chart, collection reconciliation, exact process runtime, and same-account session hierarchy/provenance; capacity pagination ${historyPaginationOutcome}`);
 } catch (error) {
   if (browser) await browser.close();
   console.error(`P02 POPULATED MONITORING: FAILED — ${stage}: ${error instanceof Error ? error.message : "unknown"}`);

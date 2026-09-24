@@ -1,13 +1,23 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import {
+  appendCapacityHistoryPage,
   capacity,
+  capacityHistoryContinuation,
   type AccountCapacityViewV1,
   type CapacityHistoryPageV1,
   type CapacityHistoryPointV1,
   type ExactMetricFieldWireV1,
   type QuotaWindowPageV1,
 } from "../../shared/api/client";
+
+type CapacityHistoryQuery = Readonly<{
+  accountId: string;
+  rangeFrom: string;
+  before: string;
+  metric: "remaining_ratio";
+  seriesKind: "poll_snapshot";
+}>;
 
 type CapacityState =
   | Readonly<{ kind: "loading" }>
@@ -16,8 +26,11 @@ type CapacityState =
       kind: "ready";
       account: AccountCapacityViewV1;
       quotas: QuotaWindowPageV1;
-      history: CapacityHistoryPageV1 | null;
+      historyPages: readonly CapacityHistoryPageV1[] | null;
+      historyQuery: CapacityHistoryQuery;
       historyMessage: string | null;
+      historyPageMessage: string | null;
+      historyLoadingMore: boolean;
     }>;
 
 function exactMetricValue(field: ExactMetricFieldWireV1): string {
@@ -44,20 +57,30 @@ function chartNumber(point: CapacityHistoryPointV1): number | null {
 }
 
 function CapacityHistory({
-  history,
+  pages,
   message,
+  pageMessage,
+  loadingMore,
+  onLoadMore,
 }: Readonly<{
-  history: CapacityHistoryPageV1 | null;
+  pages: readonly CapacityHistoryPageV1[] | null;
   message: string | null;
+  pageMessage: string | null;
+  loadingMore: boolean;
+  onLoadMore: () => void;
 }>) {
-  if (history === null) return (
+  if (pages === null || pages.length === 0) return (
     <section className="history-panel" aria-labelledby="capacity-history-title">
       <h3 id="capacity-history-title">Capacity history</h3>
       <p role="status">{message ?? "Capacity history is unavailable."}</p>
     </section>
   );
 
-  const plotted = history.items.flatMap((point, index) => {
+  const history = pages[0]!;
+  const lastPage = pages[pages.length - 1]!;
+  const items = pages.flatMap((page) => page.items);
+  const continuation = capacityHistoryContinuation(lastPage.page);
+  const plotted = items.flatMap((point, index) => {
     const value = chartNumber(point);
     const observed = Date.parse(point.observed_at);
     return value === null || !Number.isFinite(observed) ? [] : [{ point, index, value, observed }];
@@ -81,7 +104,7 @@ function CapacityHistory({
         <div><p className="panel-code">365-DAY BOUNDED RANGE</p><h3 id="capacity-history-title">Capacity history</h3></div>
         <span className={`state-chip state-${history.availability.state}`}>{history.availability.state}</span>
       </div>
-      {history.items.length === 0 ? (
+      {items.length === 0 ? (
         <div className="empty-telemetry"><div><strong>No retained observations in this range.</strong><p>{history.availability.reason_code.replaceAll("_", " ")}.</p></div></div>
       ) : <>
         <svg
@@ -89,7 +112,7 @@ function CapacityHistory({
           viewBox="0 0 600 140"
           role="img"
           aria-label="Capacity history trend"
-          data-observation-ids={history.items.map((point) => point.observation_id).join(" ")}
+          data-observation-ids={items.map((point) => point.observation_id).join(" ")}
         >
           <title>Provider-reported capacity points over time; exact values follow in the table.</title>
           <line x1="24" y1="112" x2="576" y2="112" />
@@ -106,7 +129,7 @@ function CapacityHistory({
           <table aria-label="Capacity history exact values">
             <caption>Real retained capacity observations matching the visible trend points</caption>
             <thead><tr><th scope="col">Window</th><th scope="col">Exact value</th><th scope="col">Observed</th><th scope="col">State</th><th scope="col">Source</th><th scope="col">Trace</th></tr></thead>
-            <tbody>{history.items.map((point) => (
+            <tbody>{items.map((point) => (
               <tr key={point.observation_id}>
                 <th scope="row">{point.safe_label ?? point.window_key}<small>{point.semantic_role} · definition {point.definition_version}</small></th>
                 <td className="history-exact-value"><ExactMetric field={point.value} /></td>
@@ -119,7 +142,20 @@ function CapacityHistory({
           </table>
         </div>
       </>}
-      {history.page.has_more && <p className="pagination-note" role="status">More retained observations exist beyond this bounded page.</p>}
+      <p className="pagination-note" role="status">
+        Showing {items.length} retained {items.length === 1 ? "observation" : "observations"} from {pages.length} bounded {pages.length === 1 ? "page" : "pages"}.{" "}
+        {continuation.kind === "available"
+          ? "Additional pages remain for this 365-day range."
+          : continuation.kind === "complete"
+            ? "No additional pages remain for this 365-day range."
+            : "The service reported additional history without a usable continuation cursor."}
+      </p>
+      {continuation.kind === "available" && (
+        <button type="button" className="quiet-button" disabled={loadingMore} onClick={onLoadMore}>
+          {loadingMore ? "Loading next history page…" : "Load next history page"}
+        </button>
+      )}
+      {pageMessage !== null && <p role="alert">{pageMessage}</p>}
     </section>
   );
 }
@@ -129,18 +165,26 @@ export function CapacityPanel({
   onExpired,
 }: Readonly<{ accountId: string; onExpired: () => void }>) {
   const [state, setState] = useState<CapacityState>({ kind: "loading" });
+  const historyPageController = useRef<AbortController | null>(null);
 
   const load = useCallback(async (signal?: AbortSignal) => {
+    historyPageController.current?.abort();
+    historyPageController.current = null;
     setState({ kind: "loading" });
     try {
       const now = Date.now();
+      const historyQuery: CapacityHistoryQuery = {
+        accountId,
+        rangeFrom: new Date(now - (365 * 24 * 60 * 60 * 1000)).toISOString(),
+        before: new Date(now).toISOString(),
+        metric: "remaining_ratio",
+        seriesKind: "poll_snapshot",
+      };
       const [account, quotas, history] = await Promise.all([
         capacity.account(accountId, signal),
         capacity.quotaWindows(accountId, signal),
         capacity.history({
-          accountId,
-          rangeFrom: new Date(now - (365 * 24 * 60 * 60 * 1000)).toISOString(),
-          before: new Date(now).toISOString(),
+          ...historyQuery,
           signal,
         }),
       ]);
@@ -162,8 +206,11 @@ export function CapacityPanel({
         kind: "ready",
         account: account.data,
         quotas: quotas.data,
-        history: history.ok ? history.data : null,
+        historyPages: history.ok ? [history.data] : null,
+        historyQuery,
         historyMessage: history.ok ? null : "Capacity history is unavailable from the local service.",
+        historyPageMessage: null,
+        historyLoadingMore: false,
       });
     } catch (error) {
       if (error instanceof DOMException && error.name === "AbortError") return;
@@ -174,8 +221,89 @@ export function CapacityPanel({
   useEffect(() => {
     const controller = new AbortController();
     void load(controller.signal);
-    return () => controller.abort();
+    return () => {
+      controller.abort();
+      historyPageController.current?.abort();
+    };
   }, [load]);
+
+  const loadMoreHistory = async () => {
+    if (
+      state.kind !== "ready" ||
+      state.historyPages === null ||
+      state.historyPages.length === 0 ||
+      state.historyLoadingMore
+    ) return;
+    const lastPage = state.historyPages[state.historyPages.length - 1]!;
+    const continuation = capacityHistoryContinuation(lastPage.page);
+    if (continuation.kind !== "available") return;
+
+    const query = state.historyQuery;
+    const requestedCursor = continuation.cursor;
+    const controller = new AbortController();
+    historyPageController.current?.abort();
+    historyPageController.current = controller;
+    setState({ ...state, historyLoadingMore: true, historyPageMessage: null });
+
+    try {
+      const result = await capacity.history({
+        ...query,
+        cursor: requestedCursor,
+        signal: controller.signal,
+      });
+      if (!result.ok) {
+        if (result.problem.code === "dashboard_authentication_required") {
+          onExpired();
+          return;
+        }
+        setState((current) => current.kind === "ready" && current.historyQuery === query
+          ? {
+              ...current,
+              historyLoadingMore: false,
+              historyPageMessage: "The next history page is unavailable. Existing observations remain visible.",
+            }
+          : current);
+        return;
+      }
+      setState((current) => {
+        if (
+          current.kind !== "ready" ||
+          current.historyQuery !== query ||
+          current.historyPages === null ||
+          current.historyPages.length === 0
+        ) return current;
+        const currentLastPage = current.historyPages[current.historyPages.length - 1]!;
+        const currentContinuation = capacityHistoryContinuation(currentLastPage.page);
+        if (
+          currentContinuation.kind !== "available" ||
+          currentContinuation.cursor !== requestedCursor
+        ) return current;
+        const appended = appendCapacityHistoryPage(current.historyPages, result.data);
+        if (!appended.ok) return {
+          ...current,
+          historyLoadingMore: false,
+          historyPageMessage: "The next history page was incompatible and was not displayed.",
+        };
+        return {
+          ...current,
+          historyPages: appended.pages,
+          historyLoadingMore: false,
+          historyPageMessage: null,
+        };
+      });
+    } catch (error) {
+      if (error instanceof DOMException && error.name === "AbortError") return;
+      setState((current) => current.kind === "ready" && current.historyQuery === query
+        ? {
+            ...current,
+            historyLoadingMore: false,
+            historyPageMessage: "The next history page could not be read. Existing observations remain visible.",
+          }
+        : current);
+    } finally {
+      if (historyPageController.current === controller) historyPageController.current = null;
+    }
+  };
 
   if (state.kind === "loading") return (
     <section className="telemetry-panel" aria-labelledby="quota-title" aria-busy="true">
@@ -261,7 +389,13 @@ export function CapacityPanel({
         </div>
       )}
       {state.quotas.page.has_more && <p className="pagination-note" role="status">More quota windows are available beyond this page.</p>}
-      <CapacityHistory history={state.history} message={state.historyMessage} />
+      <CapacityHistory
+        pages={state.historyPages}
+        message={state.historyMessage}
+        pageMessage={state.historyPageMessage}
+        loadingMore={state.historyLoadingMore}
+        onLoadMore={() => { void loadMoreHistory(); }}
+      />
     </section>
   );
 }

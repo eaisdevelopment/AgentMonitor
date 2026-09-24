@@ -93,6 +93,22 @@ implementation_command = ["backend/.venv/bin/python", "tools/automation/implemen
 blockers = []
 
 [[routines]]
+id = "AUTO-M3-EXIT"
+owner = "PLAN-INT"
+status = "operational"
+scope = "V1-M3 fresh Claude quota and owner-terminal OTLP observations, exact same-account reconciliation, authenticated production browser, and complete local gates"
+implementation_command = ["backend/.venv/bin/python", "tools/automation/implementations/auto_m3_exit.py"]
+blockers = []
+
+[[routines]]
+id = "AUTO-MUTATION"
+owner = "PLAN-FND"
+status = "operational"
+scope = "V1-M3 M05/M06 critical pure-policy mutation gate with zero non-equivalent survivors"
+implementation_command = ["backend/.venv/bin/python", "tools/automation/implementations/auto_mutation.py"]
+blockers = []
+
+[[routines]]
 id = "AUTO-QUALITY"
 owner = "PLAN-FND"
 status = "operational"

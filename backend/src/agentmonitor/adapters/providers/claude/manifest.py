@@ -23,10 +23,10 @@ CLAUDE_OTEL_ADAPTER_ID = "agentmonitor.claude.otel"
 CLAUDE_OTEL_ADAPTER_VERSION = "1.0.0"
 CLAUDE_OTEL_MAPPING_ID = "M0-M03-CLAUDE-OTEL-001"
 CLAUDE_OTEL_MAPPING_DIGEST = (
-    "6104070ee2476dace26b0e46080d9399e7a115b31ab035a605555d6f1cae79aa"
+    "88f558e169fb1a5f278e760ae501b79dc7455cd1d4e6ac488bc3b2bd019d0cb2"
 )
 M0_MAPPING_ID = "M0-M03-CLAUDE-001"
-M0_MAPPING_DIGEST = "5a179f872951ce7052160d8e1b568ab1ad4c6f021d60e742e9e096f2c31fd413"
+M0_MAPPING_DIGEST = "8ad7dfb49415f7ebc0460511625d6c4766836ddbdc55c38f5b9af89bd8de4c8b"
 
 
 def build_claude_manifest() -> CapabilityManifestV1:
@@ -98,7 +98,7 @@ def build_claude_otel_manifest() -> CapabilityManifestV1:
         mechanism_version="1.0.0",
         credential_role="provider_managed_default_profile",
         side_effect_class="read_only",
-        evidence_reference="claude-official-otel-monitoring-v1",
+        evidence_reference="M0-M03-CLAUDE-OTEL-001",
         is_experimental=False,
     )
     local_session = CapabilityDeclarationV1(
@@ -109,7 +109,7 @@ def build_claude_otel_manifest() -> CapabilityManifestV1:
         decision="supported",
         stability="supported",
         reason_code="official_authenticated_otel_exact_tuple",
-        evidence_reference="claude-official-otel-monitoring-v1",
+        evidence_reference="M0-M03-CLAUDE-OTEL-001",
         port_type="ClaudeLocalSessionDiscoveryV1",
         output_schema="RuntimeObservationBatchV1",
         sources=(otel_source,),

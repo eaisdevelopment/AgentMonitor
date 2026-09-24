@@ -402,3 +402,11 @@ Plan snapshot SHA-256: `4e34a1bff2d81307e422ac105aae1927358e6176ccc23e490af9637e
 The current controls register `AUTO-M3-LIVE` in both the machine-readable
 catalog and completion standard. This bounded synchronization changes no plan
 body, contract version, owner authority, provider state, or M4 scope.
+
+## 16. 2026-09-24 M3 exit and mutation gate rebind
+
+Plan snapshot SHA-256: `6c0687cc5dbcf9c0f6a8319415e4bcfc928a186273a2510dc91758c291158aab`
+
+The synchronized controls register `AUTO-M3-EXIT` and `AUTO-MUTATION` in the
+catalog, validator, and completion standard. This changes no module plan,
+public contract, provider state, owner authority, or M4 scope.

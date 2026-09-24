@@ -1445,9 +1445,12 @@ class SqliteRuntimeObservationRepositoryV1:
         )
 
     def get_session_topology(
-        self, as_of: datetime, source_limit: int
-    ) -> SessionTopologySnapshotV1:
-        """Read one bounded topology snapshot without inventing hierarchy edges."""
+        self,
+        root_session_id: OpaqueIdV1,
+        as_of: datetime,
+        source_limit: int,
+    ) -> tuple[SessionTopologySnapshotV1, bool]:
+        """Read a bounded topology snapshot that always preserves its root."""
 
         _validate_query(as_of, source_limit)
         try:
@@ -1455,67 +1458,100 @@ class SqliteRuntimeObservationRepositoryV1:
                 self._database_ref, "runtime_read_only"
             ) as handle:
                 with handle.connect() as connection:
-                    session_rows = (
+                    root_row = (
                         connection.exec_driver_sql(
-                            _CURRENT_SESSION_SELECT + "WHERE s.first_observed_at<=? "
+                            _CURRENT_SESSION_SELECT
+                            + "WHERE s.session_id=? AND s.first_observed_at<=? LIMIT 1",
+                            (root_session_id.value, _utc_text(as_of)),
+                        )
+                        .mappings()
+                        .one_or_none()
+                    )
+                    if root_row is None:
+                        raise RuntimeRepositoryErrorV1("runtime_subject_not_found")
+                    companion_rows = (
+                        connection.exec_driver_sql(
+                            _CURRENT_SESSION_SELECT
+                            + "WHERE s.session_id<>? AND s.first_observed_at<=? "
                             "ORDER BY s.session_id LIMIT ?",
-                            (_utc_text(as_of), source_limit + 1),
+                            (
+                                root_session_id.value,
+                                _utc_text(as_of),
+                                source_limit,
+                            ),
                         )
                         .mappings()
                         .all()
                     )
-                    process_rows = (
-                        connection.exec_driver_sql(
-                            "SELECT p.*, s.parent_pid_state, s.parent_pid, "
-                            "s.parent_pid_unit, s.parent_pid_reason_code, "
-                            "s.user_cpu_state, s.user_cpu_ticks, s.user_cpu_unit, "
-                            "s.user_cpu_reason_code, s.system_cpu_state, "
-                            "s.system_cpu_ticks, s.system_cpu_unit, "
-                            "s.system_cpu_reason_code, s.resident_state, "
-                            "s.resident_pages, s.resident_unit, "
-                            "s.resident_reason_code, s.thread_state, "
-                            "s.thread_count, s.thread_unit, s.thread_reason_code, "
-                            "s.kernel_state_state, s.kernel_state, "
-                            "s.kernel_state_reason_code, s.clock_ticks_per_second, "
-                            "s.page_size_bytes, "
-                            + _PROVENANCE_SELECT
-                            + " FROM runtime_process_instance AS p "
-                            "JOIN runtime_process_snapshot AS s "
-                            "ON s.snapshot_id=p.current_snapshot_id "
-                            "JOIN runtime_ingest_receipt AS r "
-                            "ON r.collection_run_id=s.collection_run_id "
-                            "AND r.capability_id='local.process.observation' "
-                            "WHERE p.first_observed_at<=? "
-                            "ORDER BY p.process_id LIMIT ?",
-                            (_utc_text(as_of), source_limit + 1),
-                        )
-                        .mappings()
-                        .all()
-                    )
-                    if (
-                        len(session_rows) > source_limit
-                        or len(process_rows) > source_limit
-                    ):
-                        raise RuntimeRepositoryErrorV1(
-                            "runtime_topology_source_bound_reached"
-                        )
+                    source_truncated = len(companion_rows) >= source_limit
+                    session_rows = [root_row, *companion_rows[: source_limit - 1]]
+                    session_ids = tuple(str(row["session_id"]) for row in session_rows)
+                    placeholders = ",".join("?" for _ in session_ids)
                     link_rows = (
                         connection.exec_driver_sql(
                             "SELECT session_id, process_id, relationship_kind, "
-                            "evidence_class, certainty, conflict_state "
+                            "evidence_class, certainty, conflict_state FROM ("
+                            "SELECT session_id, process_id, relationship_kind, "
+                            "evidence_class, certainty, conflict_state, link_id, "
+                            "ROW_NUMBER() OVER (PARTITION BY session_id "
+                            "ORDER BY link_id) AS link_rank "
                             "FROM runtime_session_process_link "
                             "WHERE is_current=1 AND valid_from<=? "
-                            "ORDER BY session_id, link_id",
-                            (_utc_text(as_of),),
+                            "AND relationship_kind='primary' "
+                            f"AND session_id IN ({placeholders})"
+                            ") WHERE link_rank<=2 ORDER BY session_id, link_id",
+                            (_utc_text(as_of), *session_ids),
                         )
                         .mappings()
                         .all()
                     )
-
-            links_by_session: dict[str, list[RowMapping]] = {}
-            for row in link_rows:
-                if row["relationship_kind"] == "primary":
-                    links_by_session.setdefault(str(row["session_id"]), []).append(row)
+                    links_by_session: dict[str, list[RowMapping]] = {}
+                    for row in link_rows:
+                        links_by_session.setdefault(str(row["session_id"]), []).append(
+                            row
+                        )
+                    process_ids = sorted(
+                        {
+                            str(links[0]["process_id"])
+                            for links in links_by_session.values()
+                            if len(links) == 1
+                            and links[0]["evidence_class"] == "strong"
+                            and links[0]["certainty"] == "definitive"
+                            and links[0]["conflict_state"] == "clear"
+                        }
+                    )
+                    process_rows: list[RowMapping] = []
+                    if process_ids:
+                        process_placeholders = ",".join("?" for _ in process_ids)
+                        process_rows = list(
+                            connection.exec_driver_sql(
+                                "SELECT p.*, s.parent_pid_state, s.parent_pid, "
+                                "s.parent_pid_unit, s.parent_pid_reason_code, "
+                                "s.user_cpu_state, s.user_cpu_ticks, "
+                                "s.user_cpu_unit, s.user_cpu_reason_code, "
+                                "s.system_cpu_state, s.system_cpu_ticks, "
+                                "s.system_cpu_unit, s.system_cpu_reason_code, "
+                                "s.resident_state, s.resident_pages, "
+                                "s.resident_unit, s.resident_reason_code, "
+                                "s.thread_state, s.thread_count, s.thread_unit, "
+                                "s.thread_reason_code, s.kernel_state_state, "
+                                "s.kernel_state, s.kernel_state_reason_code, "
+                                "s.clock_ticks_per_second, s.page_size_bytes, "
+                                + _PROVENANCE_SELECT
+                                + " FROM runtime_process_instance AS p "
+                                "JOIN runtime_process_snapshot AS s "
+                                "ON s.snapshot_id=p.current_snapshot_id "
+                                "JOIN runtime_ingest_receipt AS r "
+                                "ON r.collection_run_id=s.collection_run_id "
+                                "AND r.capability_id='local.process.observation' "
+                                f"WHERE p.process_id IN ({process_placeholders}) "
+                                "AND p.first_observed_at<=? "
+                                "ORDER BY p.process_id LIMIT ?",
+                                (*process_ids, _utc_text(as_of), source_limit),
+                            )
+                            .mappings()
+                            .all()
+                        )
 
             facts: list[SessionTopologyFactV1] = []
             for row in session_rows:
@@ -1569,7 +1605,7 @@ class SqliteRuntimeObservationRepositoryV1:
                 processes=tuple(
                     self._process_record(row, as_of) for row in process_rows
                 ),
-            )
+            ), source_truncated
         except RuntimeRepositoryErrorV1:
             raise
         except (SqlitePolicyError, SQLAlchemyError, ValueError, TypeError):

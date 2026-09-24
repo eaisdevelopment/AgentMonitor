@@ -1,13 +1,22 @@
 """Claude adapter declarations for the exact accepted live tuple."""
 
+import hashlib
+from pathlib import Path
+
 from agentmonitor.adapters.providers.claude.manifest import (
     CLAUDE_ADAPTER_VERSION,
+    CLAUDE_OTEL_MAPPING_DIGEST,
     CLAUDE_OTEL_SOURCE_ID,
     CLAUDE_PARSER_VERSION,
     CLAUDE_PROVIDER_VERSION,
     CLAUDE_USAGE_SOURCE_ID,
     build_claude_manifest,
     build_claude_otel_manifest,
+)
+
+REPOSITORY_ROOT = Path(__file__).resolve().parents[5]
+CLAUDE_OTEL_MAPPING_PATH = (
+    REPOSITORY_ROOT / "docs/discovery/m0/m0-to-m03-claude-otel-v1.json"
 )
 
 
@@ -55,4 +64,10 @@ def test_manifest_declares_official_otel_session_lane_separately() -> None:
     )
     assert session.sources[0].source_class == "documented_api"
     assert quota_manifest.m0_mapping_digest != otel_manifest.m0_mapping_digest
+    assert otel_manifest.m0_mapping_digest == CLAUDE_OTEL_MAPPING_DIGEST
+    assert CLAUDE_OTEL_MAPPING_PATH.is_file()
+    assert (
+        hashlib.sha256(CLAUDE_OTEL_MAPPING_PATH.read_bytes()).hexdigest()
+        == CLAUDE_OTEL_MAPPING_DIGEST
+    )
     assert quota_manifest.descriptor.adapter_id != otel_manifest.descriptor.adapter_id

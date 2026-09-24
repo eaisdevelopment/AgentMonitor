@@ -41,6 +41,9 @@ decide_candidate_evidence_transition = (
     account_policy.decide_candidate_evidence_transition
 )
 decide_command_replay = account_policy.decide_command_replay
+decide_provider_identity_confirmation = (
+    account_policy.decide_provider_identity_confirmation
+)
 ensure_candidate_confirmation_is_current = (
     account_policy.ensure_candidate_confirmation_is_current
 )

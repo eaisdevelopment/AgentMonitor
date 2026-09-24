@@ -70,6 +70,7 @@ from agentmonitor.contracts.provider_system_v1 import (
 )
 from agentmonitor.contracts.registry_v1 import (
     AccountViewV1,
+    ConfirmProviderIdentityFingerprintCommandV1,
     ProviderIdentityResolutionV1,
     ResolveProviderIdentityFingerprintQueryV1,
 )
@@ -92,6 +93,8 @@ from agentmonitor.modules.collection_control.application.runner import (
     RunOneCollectionV1,
 )
 from agentmonitor.modules.registry.application.accounts import (
+    AlertScopeAndSubjectQueryV1,
+    ConfirmProviderIdentityFingerprintV1,
     ListAccountsV1,
     ListMonitoringProfilesV1,
     ResolveProviderIdentityFingerprintV1,
@@ -117,6 +120,11 @@ _IDENTITY_SCOPE = "provider_account"
 _SAFE_FAILURE_CODE = re.compile(r"[a-z][a-z0-9_]{0,127}\Z")
 _LAUNCH_PROCESS_WAIT_SECONDS = 5.0
 _START_SIGNAL_MAX_BYTES = 130
+# M04 target generations must advance when this collection policy/manifest
+# changes even if M02's installation registry revision is unchanged.  The
+# first reviewed OTLP policy follows the legacy ``registry_revision``
+# generation used before this independent policy counter existed.
+_COLLECTION_POLICY_GENERATION = 1
 _APPROVED_ACCOUNT_RULE = ApprovedStrongCorrelationRuleV1(
     rule_id=CLAUDE_OTLP_ACCOUNT_RULE_ID,
     source_id=CLAUDE_OTLP_SOURCE_ID,
@@ -183,6 +191,9 @@ def prepare_monitored_claude_launch(
         selected_account_id=selected_account_id,
         installation_id=installation.provider_installation_id.value,
     )
+    registry_revision = AlertScopeAndSubjectQueryV1(registry)(
+        "account", selected_account_id
+    ).registry_revision
     return ClaudeOtlpLaunchPlanV1(
         executable=discovered.executable_for_adapter,
         configuration=ClaudeMonitoredExecV1(
@@ -193,7 +204,7 @@ def prepare_monitored_claude_launch(
             process_identity=process_identity,
         ),
         provider_version=discovered.provider_version,
-        registry_revision=installation.registry_revision,
+        registry_revision=registry_revision,
         selected_account_id=account.account_id,
         selected_account_record_version=account.record_version,
         selected_profile_id=profile_id,
@@ -363,7 +374,7 @@ def _admission(
         registry_revision=plan.registry_revision,
         retry_chain_id=OpaqueIdV1(f"claude-otel-retry-{uuid.uuid4().hex}"),
         attempt_ordinal=1,
-        target_generation=plan.registry_revision,
+        target_generation=plan.registry_revision + _COLLECTION_POLICY_GENERATION,
         scheduler_instance_id=OpaqueIdV1("agentmonitor-local-manual"),
         lease_policy_version="1.0.0",
         budget_policy_id="claude-local-session-start-v1",
@@ -465,6 +476,40 @@ def _identity_resolution_matches_admission(
     )
 
 
+def _owner_binding_command(
+    *,
+    plan: ClaudeOtlpLaunchPlanV1,
+    metric: ClaudeOtlpSessionCountV1,
+    session_observation_id: OpaqueIdV1,
+    payload_digest: str,
+    requested_at: datetime,
+) -> ConfirmProviderIdentityFingerprintCommandV1:
+    """Build the exact M02 command without exposing the fingerprint to the CLI."""
+    if (
+        metric.installation_id != plan.configuration.installation_id
+        or metric.provider_version != plan.provider_version
+        or metric.process_identity != plan.configuration.process_identity
+    ):
+        raise ValueError("claude_otel_launch_scope_mismatch")
+    return ConfirmProviderIdentityFingerprintCommandV1(
+        idempotency_key=session_observation_id,
+        principal_id=OpaqueIdV1("agentmonitor-owner"),
+        account_id=plan.selected_account_id,
+        expected_account_record_version=plan.selected_account_record_version,
+        provider_key="claude",
+        identity_scheme=_IDENTITY_SCHEME,
+        identity_scope=_IDENTITY_SCOPE,
+        identity_scheme_version=1,
+        subject_fingerprint=metric.observed_account_fingerprint,
+        source_id=CLAUDE_OTLP_SOURCE_ID,
+        source_version=CLAUDE_OTLP_SOURCE_VERSION,
+        parser_version=CLAUDE_OTLP_PARSER_VERSION,
+        evidence_reference=session_observation_id,
+        expected_evidence_digest=payload_digest,
+        requested_at=requested_at,
+    )
+
+
 def _checkpoint_and_acknowledge(
     reference: DatabaseRefV1,
     receiver: ClaudeOtlpHttpJsonReceiverV1,
@@ -481,6 +526,8 @@ class _CollectedSessionV1:
     process: AgentProcessRecordV1
     batch: RuntimeObservationBatchV1
     selected_account_id: OpaqueIdV1
+    requires_owner_binding: bool
+    owner_confirmation_requested: bool
 
 
 def _collect_session_outcome(
@@ -492,6 +539,7 @@ def _collect_session_outcome(
     admission: CollectionRunAdmissionV1,
     runtime_repository: SqliteRuntimeObservationRepositoryV1,
     collected: list[_CollectedSessionV1],
+    allow_initial_owner_binding: bool = False,
 ) -> CollectionOutcomeV1[RuntimeObservationBatchV1]:
     try:
         _wait_for_launched_process(plan)
@@ -532,22 +580,38 @@ def _collect_session_outcome(
                 subject_fingerprint=metric.observed_account_fingerprint,
             )
         )
-        if not _identity_resolution_matches_admission(
+        already_bound = _identity_resolution_matches_admission(
             resolution,
             account_id=account.account_id,
             account_record_version=account.record_version,
             registry_revision=admission.registry_revision,
+        )
+        requires_owner_binding = (
+            resolution.state == "unresolved"
+            and resolution.registry_revision == admission.registry_revision
+        )
+        if not already_bound and not (
+            allow_initial_owner_binding and requires_owner_binding
         ):
             raise ValueError("claude_otel_account_owner_confirmation_failed")
         batch = map_otel_session_count(
             metric,
             process,
             provider_version=plan.provider_version,
-            bound_account_id=account.account_id.value,
-            bound_account_fingerprint=metric.observed_account_fingerprint,
+            bound_account_id=account.account_id.value if already_bound else None,
+            bound_account_fingerprint=(
+                metric.observed_account_fingerprint if already_bound else None
+            ),
         )
         collected.append(
-            _CollectedSessionV1(metric, process, batch, account.account_id)
+            _CollectedSessionV1(
+                metric,
+                process,
+                batch,
+                account.account_id,
+                requires_owner_binding,
+                allow_initial_owner_binding,
+            )
         )
         return CollectionOutcomeV1.success(
             batch,
@@ -572,6 +636,8 @@ def _run_receiver_collection(
     receiver: ClaudeOtlpHttpJsonReceiverV1,
     launch_plan: ClaudeOtlpLaunchPlanV1,
     readiness_fd: int,
+    *,
+    allow_initial_owner_binding: bool = False,
 ) -> ClaudeOtlpRuntimeCommitResultV1:
     """Run the locked receiver child; this function never controls Claude."""
     if not data_root.is_absolute() or data_root in {Path("/"), Path.home()}:
@@ -620,6 +686,7 @@ def _run_receiver_collection(
                     admission=admission,
                     runtime_repository=runtime_repository,
                     collected=collected,
+                    allow_initial_owner_binding=allow_initial_owner_binding,
                 ),
                 _prepare_commit,
                 started_at=datetime.now(UTC),
@@ -668,17 +735,72 @@ def _run_receiver_collection(
                 if reopened.receipt is not None
                 else ()
             )
+            expected_correlation_state = (
+                "unresolved" if facts.requires_owner_binding else "automatic_matched"
+            )
+            expected_account_id = (
+                None
+                if facts.requires_owner_binding
+                else result.selected_account_id.value
+            )
             if (
                 result.completed_run.state != "succeeded"
-                or result.session.correlation_state != "automatic_matched"
-                or result.session.account_id != result.selected_account_id.value
+                or result.session.correlation_state != expected_correlation_state
+                or result.session.account_id != expected_account_id
                 or reopened.state != "committed"
                 or reopened.receipt is None
+                or reopened.receipt != receipt
+                or result.session_observation_id not in reopened.receipt.observation_ids
                 or OpaqueIdV1(result.link.link_id)
                 not in reopened.receipt.observation_ids
                 or reopened_links != (result.link,)
             ):
                 raise ValueError("claude_otel_runtime_reopened_verification_failed")
+            if facts.owner_confirmation_requested:
+                if not allow_initial_owner_binding:
+                    raise ValueError("claude_otel_account_owner_confirmation_failed")
+                session_observation = facts.batch.session_observations[0]
+                if (
+                    session_observation.source_id != CLAUDE_OTLP_SOURCE_ID
+                    or session_observation.source_version != CLAUDE_OTLP_SOURCE_VERSION
+                    or session_observation.parser_version != CLAUDE_OTLP_PARSER_VERSION
+                    or session_observation.provider_version
+                    != launch_plan.provider_version
+                    or reopened.receipt.payload_digest
+                    != runtime_payload_digest(facts.batch)
+                ):
+                    raise ValueError("claude_otel_owner_binding_evidence_invalid")
+                binding = ConfirmProviderIdentityFingerprintV1(
+                    SqliteRegistryRepositoryV1(reference)
+                )(
+                    _owner_binding_command(
+                        plan=launch_plan,
+                        metric=facts.metric,
+                        session_observation_id=result.session_observation_id,
+                        payload_digest=reopened.receipt.payload_digest,
+                        requested_at=datetime.now(UTC),
+                    )
+                )
+                reopened_binding = ResolveProviderIdentityFingerprintV1(
+                    SqliteRegistryRepositoryV1(reference)
+                )(
+                    ResolveProviderIdentityFingerprintQueryV1(
+                        provider_key="claude",
+                        identity_scheme=_IDENTITY_SCHEME,
+                        identity_scope=_IDENTITY_SCOPE,
+                        identity_scheme_version=1,
+                        subject_fingerprint=facts.metric.observed_account_fingerprint,
+                    )
+                )
+                if (
+                    binding != reopened_binding
+                    or binding.state != "resolved"
+                    or binding.account_id != result.selected_account_id
+                    or binding.account_record_version
+                    != launch_plan.selected_account_record_version
+                    or binding.registry_revision <= admission.registry_revision
+                ):
+                    raise ValueError("claude_otel_owner_binding_verification_failed")
             _checkpoint_and_acknowledge(reference, receiver, facts.metric)
             return result
         except (OSError, RuntimeError, TypeError, ValueError):
@@ -686,8 +808,13 @@ def _run_receiver_collection(
             raise
 
 
-def main(argv: list[str] | None = None) -> int:
-    """Launch reviewed Claude in the owner's terminal with private OTEL metrics."""
+def launch_owner_terminal(
+    argv: list[str] | None = None,
+    *,
+    allow_initial_owner_binding: bool = False,
+    expected_selected_account_record_version: int | None = None,
+) -> int:
+    """Launch reviewed Claude with either matched or explicitly approved binding."""
     arguments = sys.argv[1:] if argv is None else argv
     if (
         len(arguments) != 4
@@ -720,6 +847,12 @@ def main(argv: list[str] | None = None) -> int:
             authorization_secret=receiver.authorization_secret,
             launch_id=receiver.launch_id,
         )
+        if (
+            expected_selected_account_record_version is not None
+            and plan.selected_account_record_version
+            != expected_selected_account_record_version
+        ):
+            raise ValueError("claude_otel_account_version_changed")
         ready_read, ready_write = os.pipe2(os.O_CLOEXEC)
         receiver_pid = os.fork()
     except (OSError, RuntimeError, ValueError):
@@ -729,7 +862,13 @@ def main(argv: list[str] | None = None) -> int:
         os.close(ready_read)
         try:
             with exclusive_service_quiescence(data_root, reference):
-                _run_receiver_collection(data_root, receiver, plan, ready_write)
+                _run_receiver_collection(
+                    data_root,
+                    receiver,
+                    plan,
+                    ready_write,
+                    allow_initial_owner_binding=allow_initial_owner_binding,
+                )
         except (OSError, RuntimeError, ValueError) as error:
             try:
                 os.write(ready_write, _start_failure_signal(error))
@@ -758,6 +897,11 @@ def main(argv: list[str] | None = None) -> int:
         print("claude_otel_launch_failed")
         return 1
     return 1
+
+
+def main(argv: list[str] | None = None) -> int:
+    """Launch reviewed Claude in the owner's terminal with private OTEL metrics."""
+    return launch_owner_terminal(argv)
 
 
 if __name__ == "__main__":

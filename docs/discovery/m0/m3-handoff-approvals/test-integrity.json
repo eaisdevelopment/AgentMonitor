@@ -3,7 +3,7 @@
   "schema_version": "1.0",
   "approval_id": "APR-M0-M3-TEST-INTEGRITY-001",
   "subject_id": "M0-M3-CLAUDE-HANDOFF-SUBJECT-001",
-  "subject_sha256": "580e36cfa2fcf7201cb8a7eff703c9cf9002a5de4eca97ab1d516bec966677f2",
+  "subject_sha256": "b34228357e2d4f2929f95d4a16b462e5c83046e54d32e0c8df62c2c4d0668c0b",
   "role": "test_integrity",
   "decision": "pending",
   "reviewer_ref": null,

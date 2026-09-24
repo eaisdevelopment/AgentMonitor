@@ -16,6 +16,9 @@ from typing import ClassVar, cast
 
 from agentmonitor.adapters.providers.claude.manifest import CLAUDE_OTEL_SOURCE_ID
 from agentmonitor.contracts.runtime_observation_v1 import ProcessIdentityV1
+from agentmonitor.modules.provider_system.application.gateway import (
+    resolve_one_exact_observation,
+)
 
 CLAUDE_OTLP_SOURCE_ID = CLAUDE_OTEL_SOURCE_ID
 CLAUDE_OTLP_SOURCE_VERSION = "1.0.0"
@@ -245,17 +248,10 @@ def parse_claude_session_count(
                             observed_at=_time_unix_nano(point),
                         )
                     )
-    unique = {
-        (
-            item.session_fingerprint,
-            item.process_identity,
-            item.observed_account_fingerprint,
-        ): item
-        for item in matches
-    }
-    if len(unique) != 1:
+    resolved = resolve_one_exact_observation(tuple(matches))
+    if resolved is None:
         raise ClaudeOtlpErrorV1("claude_otel_session_count_ambiguous")
-    return next(iter(unique.values()))
+    return resolved
 
 
 class _PrivateServer(ThreadingHTTPServer):

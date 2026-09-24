@@ -145,6 +145,26 @@ def decide_command_replay(
     raise RegistryPolicyErrorV1("registry_idempotency_conflict")
 
 
+def decide_provider_identity_confirmation(
+    *,
+    resolution_state: Literal["unresolved", "resolved", "conflict"],
+    current_account_matches: bool,
+    existing_claim: bool,
+) -> Literal["create", "refresh"]:
+    """Permit only a new binding or fresh evidence for the same exact binding."""
+    if type(current_account_matches) is not bool or type(existing_claim) is not bool:
+        raise RegistryPolicyErrorV1("registry_identity_conflict")
+    if (
+        resolution_state == "unresolved"
+        and not current_account_matches
+        and not existing_claim
+    ):
+        return "create"
+    if resolution_state == "resolved" and current_account_matches and existing_claim:
+        return "refresh"
+    raise RegistryPolicyErrorV1("registry_identity_conflict")
+
+
 def decide_identity_correlation(
     evidence: IdentityEvidenceV1,
 ) -> IdentityPolicyDecisionV1:

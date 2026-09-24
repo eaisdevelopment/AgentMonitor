@@ -28,6 +28,7 @@ from agentmonitor.composition.claude_otel_runtime import (
     _admission,
     _checkpoint_and_acknowledge,
     _identity_resolution_matches_admission,
+    _owner_binding_command,
     _prepare_commit,
     _start_failure_from_signal,
     _start_failure_signal,
@@ -142,7 +143,10 @@ def test_otlp_collection_schedule_is_bound_to_selected_account_and_profile() -> 
     assert first.schedule_id.value != "claude-otel-session-manual-schedule"
     assert first.account_id == OpaqueIdV1("account-one")
     assert first.profile_id == OpaqueIdV1("profile-one")
-    assert first.target_generation == 5
+    # The collection-policy generation is independent from the registry
+    # revision so a reviewed manifest change cannot collide with a run
+    # admitted under the preceding manifest at the same registry revision.
+    assert first.target_generation == 6
 
 
 def test_otlp_collection_persists_the_sanitized_adapter_failure_code() -> None:
@@ -216,6 +220,45 @@ def test_collection_uses_preconfirmed_identity_without_mutation() -> None:
         account_record_version=2,
         registry_revision=5,
     )
+
+
+def test_owner_binding_command_closes_the_actual_metric_to_exact_source_tuple() -> None:
+    """M02-PURE-029: binding carries no implicit account or caller source tuple."""
+    plan = _launch_plan("account-one", "profile-one")
+    metric = replace(
+        _metric(datetime(2026, 9, 24, 12, 0, tzinfo=UTC)),
+        process_identity=plan.configuration.process_identity,
+    )
+
+    command = _owner_binding_command(
+        plan=plan,
+        metric=metric,
+        session_observation_id=OpaqueIdV1("runtime-session-observation-1"),
+        payload_digest="d" * 64,
+        requested_at=datetime(2026, 9, 24, 12, 0, 1, tzinfo=UTC),
+    )
+
+    assert command.account_id == OpaqueIdV1("account-one")
+    assert command.expected_account_record_version == 1
+    assert command.provider_key == "claude"
+    assert command.identity_scheme == "claude.otel.account.sha256"
+    assert command.identity_scope == "provider_account"
+    assert command.identity_scheme_version == 1
+    assert command.subject_fingerprint == metric.observed_account_fingerprint
+    assert command.source_id == "claude.otel.metrics.http-json.v1"
+    assert command.source_version == "1.0.0"
+    assert command.parser_version == "1.0.0"
+    assert command.evidence_reference == OpaqueIdV1("runtime-session-observation-1")
+    assert command.expected_evidence_digest == "d" * 64
+
+    with pytest.raises(ValueError, match="claude_otel_launch_scope_mismatch"):
+        _owner_binding_command(
+            plan=plan,
+            metric=replace(metric, installation_id="different-installation"),
+            session_observation_id=OpaqueIdV1("runtime-session-observation-1"),
+            payload_digest="d" * 64,
+            requested_at=datetime(2026, 9, 24, 12, 0, 1, tzinfo=UTC),
+        )
 
 
 def _metric(observed_at: datetime) -> ClaudeOtlpSessionCountV1:

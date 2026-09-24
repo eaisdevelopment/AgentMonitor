@@ -82,6 +82,62 @@ export function getFoundationShellState(): FoundationShellState {
 
 export type ClientResult<T> = ApiResultV1<T>;
 
+export type CapacityHistoryContinuation =
+  | Readonly<{ kind: "available"; cursor: string }>
+  | Readonly<{ kind: "complete" }>
+  | Readonly<{ kind: "invalid" }>;
+
+export type CapacityHistoryAppendResult =
+  | Readonly<{ ok: true; pages: readonly CapacityHistoryPageV1[] }>
+  | Readonly<{
+      ok: false;
+      reason:
+        | "history_page_sequence_missing"
+        | "history_page_query_mismatch"
+        | "history_page_duplicate_observation";
+    }>;
+
+/** Interpret the generated cursor contract without guessing a missing cursor. */
+export function capacityHistoryContinuation(
+  page: CapacityHistoryPageV1["page"],
+): CapacityHistoryContinuation {
+  if (!page.has_more) return page.next_cursor === null ? { kind: "complete" } : { kind: "invalid" };
+  if (page.next_cursor === null || page.next_cursor.trim().length === 0) return { kind: "invalid" };
+  return { kind: "available", cursor: page.next_cursor };
+}
+
+/**
+ * Append exactly one bounded API page while preserving every returned point.
+ * Query drift and repeated observations fail closed instead of corrupting the
+ * chart or making the retained-history count misleading.
+ */
+export function appendCapacityHistoryPage(
+  pages: readonly CapacityHistoryPageV1[],
+  nextPage: CapacityHistoryPageV1,
+): CapacityHistoryAppendResult {
+  const firstPage = pages[0];
+  if (firstPage === undefined) return { ok: false, reason: "history_page_sequence_missing" };
+
+  const sameQuery = (page: CapacityHistoryPageV1) =>
+    page.subject_id === firstPage.subject_id &&
+    page.metric === firstPage.metric &&
+    page.series_kind === firstPage.series_kind;
+  if (!pages.every(sameQuery) || !sameQuery(nextPage)) {
+    return { ok: false, reason: "history_page_query_mismatch" };
+  }
+
+  const observationIds = new Set<string>();
+  for (const page of [...pages, nextPage]) {
+    for (const point of page.items) {
+      if (observationIds.has(point.observation_id)) {
+        return { ok: false, reason: "history_page_duplicate_observation" };
+      }
+      observationIds.add(point.observation_id);
+    }
+  }
+  return { ok: true, pages: [...pages, nextPage] };
+}
+
 export class CsrfUnavailableError extends Error {
   constructor() { super("csrf_unavailable"); }
 }
@@ -201,6 +257,7 @@ export const capacity = Object.freeze({
       before: string;
       metric?: "used" | "remaining" | "limit" | "remaining_ratio";
       seriesKind?: "raw_provider" | "poll_snapshot" | "derived";
+      cursor?: string;
       signal?: AbortSignal;
     }>,
   ): Promise<ClientResult<CapacityHistoryPageV1>> =>
@@ -212,6 +269,7 @@ export const capacity = Object.freeze({
         metric: options.metric ?? "remaining_ratio",
         series_kind: options.seriesKind ?? "poll_snapshot",
         limit: 200,
+        ...(options.cursor === undefined ? {} : { cursor: options.cursor }),
       },
       signal: options.signal,
     }),

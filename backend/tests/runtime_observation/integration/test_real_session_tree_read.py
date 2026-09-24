@@ -41,14 +41,22 @@ def test_real_persisted_session_tree_has_truthful_topology_counts() -> None:
     if not sessions:
         pytest.skip("BLOCKED: selected real database has no current Claude session")
 
+    requested_root = sessions[-1].session_id
+    bounded_snapshot, source_truncated = repository.get_session_topology(
+        requested_root, as_of, 1
+    )
+    assert len(bounded_snapshot.sessions) <= 1
+    assert bounded_snapshot.sessions[0].session.session_id == requested_root
+    assert type(source_truncated) is bool
+
     tree = GetSessionTreeV1(repository)(
-        sessions[0].session_id,
+        requested_root,
         as_of=as_of,
         depth_limit=8,
         node_limit=200,
     )
 
-    assert tree.root_session_id == sessions[0].session_id
+    assert tree.root_session_id == requested_root
     assert tree.included_count == len(tree.nodes)
     assert tree.included_count >= 1
     assert tree.excluded_count >= 0

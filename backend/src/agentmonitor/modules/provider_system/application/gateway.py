@@ -9,6 +9,17 @@ from agentmonitor.modules.provider_system.domain.protocol import (
     manifest_fingerprint,
     resolve_capability,
 )
+from agentmonitor.modules.provider_system.domain.protocol import (
+    resolve_one_exact_observation as _resolve_one_exact_observation,
+)
+
+
+def resolve_one_exact_observation[ObservationT](
+    values: tuple[ObservationT, ...],
+) -> ObservationT | None:
+    """Expose the provider-neutral duplicate policy to provider adapters."""
+
+    return _resolve_one_exact_observation(values)
 
 
 def get_manifest_fingerprint_v1(

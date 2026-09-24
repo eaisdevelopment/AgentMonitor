@@ -107,6 +107,46 @@ fingerprint. Both ports use the existing `reg_provider_identity_claim`,
 `reg_identity_decision`, and `reg_command_receipt` records, so no migration is
 introduced.
 
+### Claude OTLP identity binding and evidence refresh
+
+`agentmonitor.composition.claude_otel_identity_binding` is the local owner-only
+entry point for the first exact Claude OTLP account binding and for replacing a
+matching binding's stale evidence with a newly committed observation. It accepts only an
+absolute AgentMonitor data root, explicit opaque account ID, and exact expected
+account record version. The command
+requires a controlling terminal and the exact interactive word `CONFIRM` before
+opening the database, starting the receiver, or launching Claude. Decline,
+redirected input, extra arguments, and any attempted fingerprint argument fail
+without provider or database work.
+
+After confirmation, the parent process transparently replaces itself with the
+reviewed Claude executable in the owner's terminal. The locked receiver child
+accepts only its authenticated loopback metric and exact launch/process/install
+tuple. It first commits and reopens an unbound M06 session observation through
+M04, then passes the in-memory domain-separated fingerprint, exact selected
+account/version (rechecked before launch), fixed official source/parser tuple, committed session
+observation ID, and reopened payload digest to
+`ConfirmProviderIdentityFingerprintV1`. It reopens M02 through the read-only
+resolver and checkpoints SQLite before acknowledging exporter success. The
+fingerprint is never accepted on argv/stdin, printed, logged, or returned.
+
+For an already resolved fingerprint on that exact account, a new explicit owner
+command atomically updates the claim's evidence reference, invalidates (but does
+not delete) the prior decision, appends a new owner-confirmed decision with the
+fresh M06 payload digest, advances the registry revision and claim version, and
+records the command receipt/outbox event. A conflicting fingerprint/account,
+missing claim, stale account version, older verification time, or changed
+idempotency request fails without partial state.
+
+An initial binding launch intentionally leaves its already-committed session
+correlation unresolved: its immutable evidence predates the new M02 decision. A
+subsequent normal `agentmonitor.composition.claude_otel_runtime` launch resolves
+the official metric to the confirmed account and commits it as
+`automatic_matched`. An evidence-refresh launch is already resolved before M06
+commit, so its fresh session is automatically matched and is the exact evidence
+referenced by the refreshed M02 decision. Neither path modifies the protected
+default Claude profile.
+
 `PrivateProfileLocatorRefV1` is deliberately non-serializable and redacts its
 string representation. Only the M02 persistence adapter may resolve it for its
 owned `private_locator_ref` column. Provider credentials remain provider-owned

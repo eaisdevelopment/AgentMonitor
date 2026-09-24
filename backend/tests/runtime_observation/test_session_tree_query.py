@@ -154,6 +154,23 @@ def test_strong_current_process_ancestry_builds_bounded_tree_without_guessing() 
     assert bounded.excluded_count == 1
     assert bounded.partial is True
     assert bounded.reason_codes == ("tree_bound_reached",)
+    returned_ids = {node.session.session_id for node in bounded.nodes}
+    assert all(
+        child_id in returned_ids
+        for node in bounded.nodes
+        for child_id in node.child_session_ids
+    )
+
+    source_bounded = build_session_tree_v1(
+        snapshot,
+        OpaqueIdV1("session-root"),
+        as_of=AS_OF,
+        depth_limit=8,
+        node_limit=200,
+        source_truncated=True,
+    )
+    assert source_bounded.partial is True
+    assert source_bounded.reason_codes == ("topology_source_bound_reached",)
 
 
 def test_ambiguous_and_cyclic_process_evidence_never_produces_an_edge() -> None:

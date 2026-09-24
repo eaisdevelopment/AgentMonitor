@@ -43,6 +43,7 @@ from agentmonitor.modules.provider_system.application.gateway import (
 from agentmonitor.modules.provider_system.domain.protocol import (
     ProviderCatalogV1,
     resolve_capability,
+    resolve_one_exact_observation,
 )
 
 NOW = datetime(2026, 9, 22, 12, 0, tzinfo=UTC)
@@ -54,6 +55,15 @@ class SafeValueV1(TechnicalValueV1):
     """A typed pure-domain payload; it is not provider telemetry."""
 
     label: str
+
+
+def test_exact_observation_resolution_rejects_any_conflicting_required_value() -> None:
+    """Audit regression: duplicates require complete immutable-value equality."""
+    first = SafeValueV1("first")
+
+    assert resolve_one_exact_observation(()) is None
+    assert resolve_one_exact_observation((first, first)) == first
+    assert resolve_one_exact_observation((first, SafeValueV1("conflict"))) is None
 
 
 def source(

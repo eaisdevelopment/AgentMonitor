@@ -1,0 +1,102 @@
+{
+  "record_type": "M0ToM03OtelCapabilityMappingV1",
+  "schema_version": "1.0",
+  "mapping_id": "M0-M03-CLAUDE-OTEL-001",
+  "mapping_version": "1.0.0",
+  "status": "approved",
+  "scope": {
+    "provider_key": "claude",
+    "product": "Claude Code",
+    "provider_version": "2.1.278",
+    "platform": "Linux-x86_64",
+    "profile_ref": "REF-M0-CLAUDE-PROFILE-001"
+  },
+  "official_source": {
+    "url": "https://code.claude.com/docs/en/monitoring-usage",
+    "reviewed_at": "2026-09-24",
+    "documented_protocol": "OTLP HTTP/JSON metrics",
+    "metric": "claude_code.session.count",
+    "documented_attributes": [
+      "app.version",
+      "session.id",
+      "user.account_id",
+      "user.account_uuid"
+    ]
+  },
+  "source_id": "claude.otel.metrics.http-json.v1",
+  "source_version": "1.0.0",
+  "parser_version": "1.0.0",
+  "capabilities": [
+    "local.session.discovery",
+    "local.process.account_correlation"
+  ],
+  "transport_boundary": {
+    "address": "IPv4 loopback ephemeral port",
+    "path": "/v1/metrics",
+    "authentication": "one-launch in-memory bearer secret",
+    "signals_enabled": ["metrics"],
+    "signals_disabled": ["logs", "traces"],
+    "maximum_body_bytes": 1048576,
+    "request_timeout_seconds": 5,
+    "commit_ack_timeout_seconds": 30,
+    "raw_payload_retained": false
+  },
+  "agentmonitor_resource_attributes": [
+    "agentmonitor.installation_id",
+    "agentmonitor.launch_id",
+    "agentmonitor.process.pid",
+    "agentmonitor.process.platform_source",
+    "agentmonitor.process.platform_scope_id",
+    "agentmonitor.process.start_time_ticks"
+  ],
+  "identity_policy": {
+    "scheme": "claude.otel.account.sha256",
+    "scheme_version": 1,
+    "scope": "provider_account",
+    "raw_provider_identity_retained": false,
+    "owner_confirmation_required_before_automatic_match": true,
+    "sole_account_fallback_prohibited": true,
+    "conflict_outcome": "conflict"
+  },
+  "targeted_profile_probe": {
+    "status": "Passed",
+    "evidence_ref": "REF-M0-CLAUDE-OTEL-TARGETED-PROBE-001",
+    "repository_evidence": "docs/evidence/m3-claude-otel-targeted-probe.md",
+    "repository_evidence_sha256": "bb72ea6f5467737465ba1af107d3b07411785970e48dfa5d2ccb164951f7dd29",
+    "verified_relationships": [
+      "selected owner-confirmed account to protected default profile",
+      "authenticated provider account fingerprint to owner-confirmed registry binding",
+      "one-launch session metric to exact Linux PID and start identity",
+      "committed runtime session to the same owner-confirmed account"
+    ],
+    "raw_payload_retained": false,
+    "provider_state_mutated": false,
+    "provider_profile_mutated": false,
+    "running_process_controlled": false
+  },
+  "prohibited_inputs_and_outputs": [
+    "credential",
+    "email",
+    "profile_path",
+    "process_environment",
+    "command_line",
+    "process_memory",
+    "terminal_content",
+    "prompt",
+    "response",
+    "tool_activity",
+    "source_content",
+    "raw_provider_output"
+  ],
+  "fail_closed_on": [
+    "unverified_provider_version",
+    "non_loopback_request",
+    "authentication_failure",
+    "unexpected_signal_or_path",
+    "body_or_attribute_bound_exceeded",
+    "missing_or_conflicting_required_attribute",
+    "launch_or_process_identity_mismatch",
+    "unconfirmed_or_conflicting_account_fingerprint",
+    "durable_commit_or_checkpoint_failure"
+  ]
+}

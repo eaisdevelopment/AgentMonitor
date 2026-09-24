@@ -22,6 +22,18 @@ ResolutionCodeV1 = Literal[
 ]
 
 
+def resolve_one_exact_observation[ObservationT](
+    values: tuple[ObservationT, ...],
+) -> ObservationT | None:
+    """Return one value only when every complete observation is identical."""
+    if not values:
+        return None
+    first = values[0]
+    if any(value != first for value in values[1:]):
+        return None
+    return first
+
+
 @dataclass(frozen=True, slots=True)
 class CapabilityResolutionV1(TechnicalValueV1):
     """One deterministic, pre-I/O capability decision."""

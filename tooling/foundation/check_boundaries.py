@@ -215,6 +215,7 @@ M02_SQLITE_LAYER_SYMBOLS = {
             "decide_account_monitoring",
             "decide_candidate_evidence_transition",
             "decide_command_replay",
+            "decide_provider_identity_confirmation",
             "ensure_candidate_confirmation_is_current",
             "safe_registry_event_projection",
         }
@@ -225,7 +226,7 @@ M02_SQLITE_LAYER_SYMBOLS = {
 }
 A01_PROVIDER_SYSTEM_SYMBOLS = {
     "agentmonitor.modules.provider_system.application.gateway": frozenset(
-        {"ResolveAndInvokeProviderCapabilityV1"}
+        {"ResolveAndInvokeProviderCapabilityV1", "resolve_one_exact_observation"}
     )
 }
 FRESH_INIT_MIGRATE_TARGET = (

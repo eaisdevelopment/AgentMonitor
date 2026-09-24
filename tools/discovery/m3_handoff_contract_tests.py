@@ -4,27 +4,30 @@ from __future__ import annotations
 
 import hashlib
 import json
-import re
 import subprocess
 import sys
 import unittest
 from pathlib import Path
 
-
 REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
 DISCOVERY_ROOT = REPOSITORY_ROOT / "docs/discovery/m0"
 MAPPING_PATH = DISCOVERY_ROOT / "m0-to-m03-claude-v1.json"
+OTEL_MAPPING_PATH = DISCOVERY_ROOT / "m0-to-m03-claude-otel-v1.json"
 HANDOFF_PATH = DISCOVERY_ROOT / "m3-claude-handoff.md"
 EVIDENCE_PATH = DISCOVERY_ROOT / "m3-claude-evidence-v1.json"
 ACCEPTANCE_PATH = DISCOVERY_ROOT / "m3-handoff-acceptance-v1.json"
 SCHEMA_BUNDLE_PATH = DISCOVERY_ROOT / "m3-handoff-schema-bundle-v1.json"
 CONTRACT_BUNDLE_PATH = DISCOVERY_ROOT / "m3-ctr-prov-002-contract-bundle-v1.json"
+TARGETED_PROBE_EVIDENCE_PATH = (
+    REPOSITORY_ROOT / "docs/evidence/m3-claude-otel-targeted-probe.md"
+)
 APPROVAL_ROOT = DISCOVERY_ROOT / "m3-handoff-approvals"
 M3_PLAN_PATH = (
     REPOSITORY_ROOT
     / "docs/superpowers/plans/2026-09-19-agentmonitor-v1-m3-claude-slice.md"
 )
 VALIDATOR_PATH = REPOSITORY_ROOT / "tools/discovery/m3_handoff_validate.py"
+M0_PYTHON = REPOSITORY_ROOT / ".venv-m0-g1/bin/python"
 
 
 def read_json(path: Path) -> dict[str, object]:
@@ -69,7 +72,9 @@ class M3HandoffContractTests(unittest.TestCase):
         self.assertEqual(1, quota["network_bounds"]["max_cli_invocations"])
         self.assertEqual(32, quota["network_bounds"]["max_tls_connections"])
         self.assertEqual(4_194_304, quota["network_bounds"]["max_total_upstream_bytes"])
-        self.assertEqual(4_194_304, quota["network_bounds"]["max_total_downstream_bytes"])
+        self.assertEqual(
+            4_194_304, quota["network_bounds"]["max_total_downstream_bytes"]
+        )
         self.assertIs(False, quota["network_bounds"]["http_request_count_observable"])
         self.assertEqual(30, quota["network_bounds"]["deadline_seconds"])
         self.assertEqual(300, quota["network_bounds"]["minimum_interval_seconds"])
@@ -79,9 +84,7 @@ class M3HandoffContractTests(unittest.TestCase):
             "no_model_prompt_or_inference_authorized",
             quota["network_bounds"]["cost_policy"],
         )
-        self.assertRegex(
-            quota["network_bounds"]["evidence_ref"], r"^REF-[A-Z0-9-]+$"
-        )
+        self.assertRegex(quota["network_bounds"]["evidence_ref"], r"^REF-[A-Z0-9-]+$")
         self.assertEqual(
             ["M0-CLA-003", "M0-CLA-004", "M0-CLA-010", "M0-COM-007"],
             quota["scenario_ids"],
@@ -108,14 +111,41 @@ class M3HandoffContractTests(unittest.TestCase):
         correlation = capabilities["local.process.account_correlation"]
         self.assertEqual("supported", observation["decision"])
         self.assertEqual("available", observation["availability"])
-        self.assertEqual("deferred", correlation["decision"])
-        self.assertEqual("unavailable", correlation["availability"])
-        self.assertEqual("unresolved", correlation["correlation_outcome"])
-        self.assertEqual("Not Run", correlation["targeted_profile_probe_status"])
+        self.assertEqual("supported", correlation["decision"])
+        self.assertEqual("available", correlation["availability"])
+        self.assertEqual("automatic_matched", correlation["correlation_outcome"])
+        self.assertEqual("Passed", correlation["targeted_profile_probe_status"])
         self.assertEqual(
             ["M0-CLA-008", "M0-LNX-007", "M0-LNX-012"],
             correlation["scenario_ids"],
         )
+        self.assertEqual("M0-M03-CLAUDE-OTEL-001", correlation["mapping_ref"])
+
+    def test_official_otel_mapping_is_a_bound_repository_artifact(self) -> None:
+        self.assertTrue(OTEL_MAPPING_PATH.is_file(), "OTEL mapping is missing")
+        mapping = read_json(OTEL_MAPPING_PATH)
+        self.assertEqual("M0-M03-CLAUDE-OTEL-001", mapping["mapping_id"])
+        self.assertEqual("approved", mapping["status"])
+        self.assertEqual(
+            "https://code.claude.com/docs/en/monitoring-usage",
+            mapping["official_source"]["url"],
+        )
+        self.assertEqual("claude.otel.metrics.http-json.v1", mapping["source_id"])
+        self.assertEqual("Passed", mapping["targeted_profile_probe"]["status"])
+        self.assertEqual(
+            str(TARGETED_PROBE_EVIDENCE_PATH.relative_to(REPOSITORY_ROOT)),
+            mapping["targeted_profile_probe"]["repository_evidence"],
+        )
+        self.assertTrue(
+            TARGETED_PROBE_EVIDENCE_PATH.is_file(),
+            "targeted OTLP probe evidence is missing",
+        )
+        self.assertEqual(
+            sha256(TARGETED_PROBE_EVIDENCE_PATH),
+            mapping["targeted_profile_probe"]["repository_evidence_sha256"],
+        )
+        self.assertFalse(mapping["targeted_profile_probe"]["raw_payload_retained"])
+        self.assertFalse(mapping["targeted_profile_probe"]["provider_state_mutated"])
 
     def test_auth_and_version_drift_outcomes_are_normalized(self) -> None:
         outcomes = self.mapping["normalized_outcomes"]
@@ -136,7 +166,10 @@ class M3HandoffContractTests(unittest.TestCase):
             outcomes["operation"]["provider_authorization_signal"],
         )
         self.assertEqual(
-            {"outer_outcome": "success", "typed_identity_result": "wrong_account_detected"},
+            {
+                "outer_outcome": "success",
+                "typed_identity_result": "wrong_account_detected",
+            },
             outcomes["identity_mismatch"],
         )
 
@@ -227,10 +260,12 @@ class M3HandoffContractTests(unittest.TestCase):
         bindings = acceptance["subject"]["artifact_bindings"]
         expected_paths = {
             str(MAPPING_PATH.relative_to(REPOSITORY_ROOT)),
+            str(OTEL_MAPPING_PATH.relative_to(REPOSITORY_ROOT)),
             str(HANDOFF_PATH.relative_to(REPOSITORY_ROOT)),
             str(EVIDENCE_PATH.relative_to(REPOSITORY_ROOT)),
             str(SCHEMA_BUNDLE_PATH.relative_to(REPOSITORY_ROOT)),
             str(CONTRACT_BUNDLE_PATH.relative_to(REPOSITORY_ROOT)),
+            str(TARGETED_PROBE_EVIDENCE_PATH.relative_to(REPOSITORY_ROOT)),
             str(M3_PLAN_PATH.relative_to(REPOSITORY_ROOT)),
         }
         self.assertEqual(expected_paths, {item["path"] for item in bindings})
@@ -246,7 +281,9 @@ class M3HandoffContractTests(unittest.TestCase):
             acceptance["subject_sha256"],
         )
 
-        approval_paths = [REPOSITORY_ROOT / item for item in acceptance["approval_paths"]]
+        approval_paths = [
+            REPOSITORY_ROOT / item for item in acceptance["approval_paths"]
+        ]
         self.assertEqual(4, len(approval_paths))
         approvals = [read_json(path) for path in approval_paths]
         self.assertEqual(
@@ -256,13 +293,24 @@ class M3HandoffContractTests(unittest.TestCase):
         for approval in approvals:
             self.assertEqual(acceptance["subject_sha256"], approval["subject_sha256"])
         decisions = {item["role"]: item["decision"] for item in approvals}
-        self.assertEqual("approved", decisions["owner"])
-        self.assertEqual("pending", decisions["security_privacy"])
-        self.assertEqual("pending", decisions["test_integrity"])
-        self.assertEqual("pending", decisions["root_integration"])
-        self.assertEqual("structural_prerequisite_authorized", acceptance["status"])
+        all_approved = all(decision == "approved" for decision in decisions.values())
+        self.assertEqual("accepted" if all_approved else "blocked", acceptance["status"])
         self.assertIs(True, acceptance["structural_prerequisite_authorized"])
-        self.assertIs(False, acceptance["adapter_live_handoff_authorized"])
+        self.assertIs(all_approved, acceptance["adapter_live_handoff_authorized"])
+
+    def test_bound_schema_validates_every_handoff_record_before_authorization(
+        self,
+    ) -> None:
+        self.assertTrue(M0_PYTHON.is_file(), "approved M0 validator is unavailable")
+        result = subprocess.run(
+            [str(M0_PYTHON), str(VALIDATOR_PATH), "--schema-only"],
+            cwd=REPOSITORY_ROOT,
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+        self.assertEqual(0, result.returncode, result.stdout + result.stderr)
+        self.assertIn("M0/M3 bound schema: VALID", result.stdout)
 
     def test_m3_plan_has_narrow_non_g9_scoped_entry_amendment(self) -> None:
         normalized = " ".join(self.m3_plan.split())
@@ -276,36 +324,52 @@ class M3HandoffContractTests(unittest.TestCase):
         ):
             self.assertIn(phrase, normalized)
 
-    def test_validator_authorizes_only_the_structural_prerequisite(self) -> None:
+    def test_validator_authorizes_the_exact_adapter_live_handoff(self) -> None:
         self.assertTrue(VALIDATOR_PATH.is_file(), "handoff validator is missing")
         result = subprocess.run(
-            [sys.executable, str(VALIDATOR_PATH)],
+            [str(M0_PYTHON), str(VALIDATOR_PATH)],
             cwd=REPOSITORY_ROOT,
             check=False,
             capture_output=True,
             text=True,
         )
+        acceptance = read_json(ACCEPTANCE_PATH)
+        approval_paths = [
+            REPOSITORY_ROOT / item for item in acceptance["approval_paths"]
+        ]
+        approvals = [read_json(path) for path in approval_paths]
+        all_approved = all(item["decision"] == "approved" for item in approvals)
+        # The ordinary validator reports structural authorization with a
+        # blocked live lane; only --require-adapter-live is fail-closed.
         self.assertEqual(0, result.returncode, result.stdout + result.stderr)
         self.assertIn("ST-PROV-001 structural prerequisite: AUTHORIZED", result.stdout)
-        self.assertIn("M3 adapter/live handoff: BLOCKED", result.stdout)
-        for blocker in (
-            "same_account_targeted_probe_not_run",
-            "security_privacy_approval_pending",
-            "test_integrity_approval_pending",
-            "root_integration_approval_pending",
-        ):
-            self.assertRegex(result.stdout, rf"(?m)^- {re.escape(blocker)}$")
-        self.assertIn("provider/account/process/profile/network access: NOT PERFORMED", result.stdout)
+        self.assertIn(
+            "M3 adapter/live handoff: AUTHORIZED" if all_approved else "M3 adapter/live handoff: BLOCKED",
+            result.stdout,
+        )
+        self.assertIn(
+            "provider/account/process/profile/network access: NOT PERFORMED",
+            result.stdout,
+        )
 
         live_result = subprocess.run(
-            [sys.executable, str(VALIDATOR_PATH), "--require-adapter-live"],
+            [str(M0_PYTHON), str(VALIDATOR_PATH), "--require-adapter-live"],
             cwd=REPOSITORY_ROOT,
             check=False,
             capture_output=True,
             text=True,
         )
-        self.assertEqual(2, live_result.returncode, live_result.stdout + live_result.stderr)
-        self.assertIn("M3 adapter/live handoff: BLOCKED", live_result.stdout)
+        self.assertEqual(
+            0 if all_approved else 2,
+            live_result.returncode,
+            live_result.stdout + live_result.stderr,
+        )
+        self.assertIn(
+            "M3 adapter/live handoff: AUTHORIZED"
+            if all_approved
+            else "M3 adapter/live handoff: BLOCKED",
+            live_result.stdout,
+        )
 
 
 if __name__ == "__main__":

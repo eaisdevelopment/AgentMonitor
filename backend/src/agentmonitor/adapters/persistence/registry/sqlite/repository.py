@@ -36,6 +36,7 @@ from agentmonitor.modules.registry.application.accounts import (
     decide_account_monitoring,
     decide_candidate_evidence_transition,
     decide_command_replay,
+    decide_provider_identity_confirmation,
     ensure_candidate_confirmation_is_current,
     safe_registry_event_projection,
 )
@@ -226,6 +227,68 @@ def _provider_identity_resolution(
         "provider_identity_owner_confirmed",
         revision,
     )
+
+
+def _invalidate_other_provider_identity_claims(
+    connection: Connection,
+    *,
+    provider_key: str,
+    identity_scheme: str,
+    identity_scope: str,
+    identity_scheme_version: int,
+    account_id: str,
+    retained_claim_id: str | None,
+    revision: int,
+    correlation_id: str,
+    causation_id: str,
+    instant: str,
+) -> None:
+    """Retire an account's replaced fingerprint in the confirmation transaction."""
+    rows = (
+        connection.exec_driver_sql(
+            "SELECT claim_id, record_version FROM reg_provider_identity_claim "
+            "WHERE provider_key=? AND identity_scheme=? AND identity_scope=? "
+            "AND identity_scheme_version=? AND account_id=? "
+            "AND invalidated_at IS NULL AND (? IS NULL OR claim_id<>?) "
+            "ORDER BY claim_id",
+            (
+                provider_key,
+                identity_scheme,
+                identity_scope,
+                identity_scheme_version,
+                account_id,
+                retained_claim_id,
+                retained_claim_id,
+            ),
+        )
+        .mappings()
+        .all()
+    )
+    for row in rows:
+        claim_id = str(row["claim_id"])
+        claim_version = int(row["record_version"]) + 1
+        connection.exec_driver_sql(
+            "UPDATE reg_identity_decision SET invalidated_at=?, "
+            "record_version=record_version+1 WHERE claim_id=? "
+            "AND invalidated_at IS NULL",
+            (instant, claim_id),
+        )
+        connection.exec_driver_sql(
+            "UPDATE reg_provider_identity_claim SET invalidated_at=?, "
+            "record_version=? WHERE claim_id=? AND invalidated_at IS NULL",
+            (instant, claim_version, claim_id),
+        )
+        _append_outbox(
+            connection,
+            subject_type="identity",
+            subject_id=claim_id,
+            aggregate_version=claim_version,
+            revision=revision,
+            change_kind="invalidated",
+            correlation_id=correlation_id,
+            causation_id=causation_id,
+            instant=instant,
+        )
 
 
 def _append_change(
@@ -1208,7 +1271,8 @@ class SqliteRegistryRepositoryV1:
                         raise RegistryCommandConflictV1("registry_identity_conflict")
                     existing_claim = (
                         connection.exec_driver_sql(
-                            "SELECT claim_id, invalidated_at "
+                            "SELECT claim_id, account_id, evidence_reference, "
+                            "last_verified_at, record_version, invalidated_at "
                             "FROM reg_provider_identity_claim "
                             "WHERE provider_key=? AND identity_scheme=? "
                             "AND identity_scope=? AND subject_fingerprint=?",
@@ -1223,25 +1287,118 @@ class SqliteRegistryRepositoryV1:
                         .one_or_none()
                     )
                     current = _provider_identity_resolution(connection, query)
-                    if (
-                        current.state == "conflict"
-                        or (
-                            current.state == "resolved"
-                            and current.account_id != command.account_id
+                    try:
+                        confirmation_action = decide_provider_identity_confirmation(
+                            resolution_state=current.state,
+                            current_account_matches=(
+                                current.account_id == command.account_id
+                            ),
+                            existing_claim=existing_claim is not None,
                         )
-                        or (
-                            current.state == "unresolved" and existing_claim is not None
-                        )
-                    ):
+                    except RegistryPolicyErrorV1:
                         connection.rollback()
-                        raise RegistryCommandConflictV1("registry_identity_conflict")
-                    if current.state == "resolved":
+                        raise RegistryCommandConflictV1(
+                            "registry_identity_conflict"
+                        ) from None
+                    if confirmation_action == "refresh":
                         if existing_claim is None:
                             connection.rollback()
                             raise RegistryCommandConflictV1(
                                 "registry_identity_conflict"
                             )
-                        revision = current.registry_revision
+                        current_decision = (
+                            connection.exec_driver_sql(
+                                "SELECT decision_id, valid_from, record_version "
+                                "FROM reg_identity_decision WHERE claim_id=? "
+                                "AND invalidated_at IS NULL",
+                                (existing_claim["claim_id"],),
+                            )
+                            .mappings()
+                            .one_or_none()
+                        )
+                        if (
+                            current_decision is None
+                            or existing_claim["account_id"] != command.account_id.value
+                            or instant < str(current_decision["valid_from"])
+                            or (
+                                existing_claim["last_verified_at"] is not None
+                                and instant < str(existing_claim["last_verified_at"])
+                            )
+                        ):
+                            connection.rollback()
+                            raise RegistryCommandConflictV1(
+                                "registry_identity_conflict"
+                            )
+                        claim_version = int(existing_claim["record_version"]) + 1
+                        revision = _next_revision(connection, instant)
+                        _invalidate_other_provider_identity_claims(
+                            connection,
+                            provider_key=command.provider_key,
+                            identity_scheme=command.identity_scheme,
+                            identity_scope=command.identity_scope,
+                            identity_scheme_version=command.identity_scheme_version,
+                            account_id=command.account_id.value,
+                            retained_claim_id=str(existing_claim["claim_id"]),
+                            revision=revision,
+                            correlation_id=command.idempotency_key.value,
+                            causation_id=command.evidence_reference.value,
+                            instant=instant,
+                        )
+                        connection.exec_driver_sql(
+                            "UPDATE reg_provider_identity_claim SET "
+                            "evidence_reference=?, last_verified_at=?, "
+                            "owner_principal_id=?, owner_confirmed_at=?, "
+                            "record_version=? WHERE claim_id=? "
+                            "AND invalidated_at IS NULL",
+                            (
+                                command.evidence_reference.value,
+                                instant,
+                                command.principal_id.value,
+                                instant,
+                                claim_version,
+                                existing_claim["claim_id"],
+                            ),
+                        )
+                        connection.exec_driver_sql(
+                            "UPDATE reg_identity_decision SET invalidated_at=?, "
+                            "record_version=record_version+1 WHERE decision_id=? "
+                            "AND invalidated_at IS NULL",
+                            (instant, current_decision["decision_id"]),
+                        )
+                        connection.exec_driver_sql(
+                            "INSERT INTO reg_identity_decision "
+                            "(decision_id, candidate_id, claim_id, profile_id, "
+                            "account_id, decision_state, evidence_class, "
+                            "reason_code, evidence_set_digest, "
+                            "source_contract_version, owner_principal_id, "
+                            "owner_confirmed_at, valid_from, invalidated_at, "
+                            "record_version, registry_revision) VALUES "
+                            "(?, NULL, ?, NULL, ?, 'owner_confirmed', "
+                            "'owner_confirmed', "
+                            "'provider_identity_owner_confirmed', ?, "
+                            "'registry.v1', ?, ?, ?, NULL, 1, ?)",
+                            (
+                                _identifier(),
+                                existing_claim["claim_id"],
+                                command.account_id.value,
+                                command.expected_evidence_digest,
+                                command.principal_id.value,
+                                instant,
+                                instant,
+                                revision,
+                            ),
+                        )
+                        _append_outbox(
+                            connection,
+                            subject_type="identity",
+                            subject_id=existing_claim["claim_id"],
+                            aggregate_version=claim_version,
+                            revision=revision,
+                            change_kind="owner_confirmed",
+                            correlation_id=command.idempotency_key.value,
+                            causation_id=command.evidence_reference.value,
+                            instant=instant,
+                        )
                         connection.exec_driver_sql(
                             "INSERT INTO reg_command_receipt "
                             "(receipt_id, principal_id, operation_key, "
@@ -1249,7 +1406,7 @@ class SqliteRegistryRepositoryV1:
                             "outcome_subject_type, outcome_subject_id, "
                             "outcome_record_version, registry_revision, created_at, "
                             "expires_at) VALUES "
-                            "(?, ?, ?, ?, ?, 'identity_claim', ?, 1, ?, ?, ?)",
+                            "(?, ?, ?, ?, ?, 'identity_claim', ?, ?, ?, ?, ?)",
                             (
                                 _identifier(),
                                 command.principal_id.value,
@@ -1257,16 +1414,31 @@ class SqliteRegistryRepositoryV1:
                                 command_digest,
                                 request_fingerprint,
                                 existing_claim["claim_id"],
+                                claim_version,
                                 revision,
                                 instant,
                                 _utc_text(command.requested_at + timedelta(days=365)),
                             ),
                         )
+                        result = _provider_identity_resolution(connection, query)
                         connection.commit()
-                        return current
+                        return result
                     claim_id = _identifier()
                     decision_id = _identifier()
                     revision = _next_revision(connection, instant)
+                    _invalidate_other_provider_identity_claims(
+                        connection,
+                        provider_key=command.provider_key,
+                        identity_scheme=command.identity_scheme,
+                        identity_scope=command.identity_scope,
+                        identity_scheme_version=command.identity_scheme_version,
+                        account_id=command.account_id.value,
+                        retained_claim_id=None,
+                        revision=revision,
+                        correlation_id=command.idempotency_key.value,
+                        causation_id=command.evidence_reference.value,
+                        instant=instant,
+                    )
                     connection.exec_driver_sql(
                         "INSERT INTO reg_provider_identity_claim "
                         "(claim_id, provider_key, identity_scheme, identity_scope, "

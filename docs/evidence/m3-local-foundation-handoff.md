@@ -1,5 +1,14 @@
 # V1-M3 local foundation handoff
 
+<!-- agentmonitor-milestone-status:v1 milestone=V1-M3 lifecycle=superseded status=passed authority=M3-ACCEPTANCE-2026-09-24-01 -->
+
+> **Historical status superseded:** This document preserves the original local
+> foundation and later live conclusions. Its milestone-level acceptance claim
+> is superseded by the active
+> [V1-M3 acceptance record](v1-m3-acceptance-status-v1.json), which remains
+> Blocked for the outstanding criteria it names. The historical commands and
+> outcomes below are not rewritten or converted to passes.
+
 - Outcome: **V1-M3 accepted on the Linux owner workstation**
 - Milestone/plan: `V1-M3`, Tasks 1–6 in
   `docs/superpowers/plans/2026-09-19-agentmonitor-v1-m3-claude-slice.md`

@@ -14,13 +14,13 @@
     {"scenario_id": "M0-CLA-002", "status": "Passed", "evidence_ref": "REF-M0-CLAUDE-VERSION-001"},
     {"scenario_id": "M0-CLA-003", "status": "Passed", "evidence_ref": "REF-M0-CLA-USAGE-STRUCTURE-001"},
     {"scenario_id": "M0-CLA-004", "status": "Passed", "evidence_ref": "REF-M0-CLA-NETWORK-BOUNDS-001"},
-    {"scenario_id": "M0-CLA-008", "status": "Blocked", "evidence_ref": "REF-M0-CLA-CORRELATION-GAP-001"},
+    {"scenario_id": "M0-CLA-008", "status": "Passed", "evidence_ref": "REF-M0-CLAUDE-OTEL-TARGETED-PROBE-001"},
     {"scenario_id": "M0-CLA-010", "status": "Passed", "evidence_ref": "REF-M0-CLA-CAPABILITY-DECISIONS-001"},
     {"scenario_id": "M0-LNX-001", "status": "Passed", "evidence_ref": "REF-M0-LNX-SOURCE-REVIEW-001"},
     {"scenario_id": "M0-LNX-002", "status": "Passed", "evidence_ref": "REF-M0-LNX-PROCESS-STRUCTURE-001"},
     {"scenario_id": "M0-LNX-004", "status": "Passed", "evidence_ref": "REF-M0-LNX-PROCESS-IDENTITY-001"},
     {"scenario_id": "M0-LNX-006", "status": "Passed", "evidence_ref": "REF-M0-LNX-PROCESS-FIELDS-001"},
-    {"scenario_id": "M0-LNX-007", "status": "Blocked", "evidence_ref": "REF-M0-CLA-CORRELATION-GAP-001"},
+    {"scenario_id": "M0-LNX-007", "status": "Passed", "evidence_ref": "REF-M0-CLAUDE-OTEL-TARGETED-PROBE-001"},
     {"scenario_id": "M0-LNX-011", "status": "Passed", "evidence_ref": "REF-M0-LNX-PROHIBITED-SOURCES-001"},
     {"scenario_id": "M0-LNX-012", "status": "Passed", "evidence_ref": "REF-M0-LNX-PROCESS-SIDE-EFFECTS-001"},
     {"scenario_id": "M0-LNX-013", "status": "Passed", "evidence_ref": "REF-M0-LNX-CAPABILITY-DECISIONS-001"}
@@ -57,9 +57,18 @@
     {
       "lane": "targeted_profile_probe",
       "scenario_id": "M0-CLA-008",
-      "status": "Not Run",
-      "evidence_ref": null,
-      "checks": []
+      "status": "Passed",
+      "evidence_ref": "REF-M0-CLAUDE-OTEL-TARGETED-PROBE-001",
+      "checks": [
+        "metrics_signal_only",
+        "authenticated_private_loopback_receiver",
+        "exact_launch_process_identity",
+        "owner_confirmed_account_binding",
+        "raw_provider_identity_discarded",
+        "raw_payload_not_retained",
+        "provider_profile_unchanged",
+        "running_process_not_controlled"
+      ]
     }
   ],
   "dynamic_values_retained": false,

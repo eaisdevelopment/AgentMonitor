@@ -131,6 +131,8 @@ the lifecycle stage that needs it remains Not Ready.
 | `AUTO-GIT-PREFLIGHT` | Verify repository identity, expected branch/upstream, clean/declared changes, no secrets, and commit policy without mutating history | Foundation/release | commit/push/release |
 | `AUTO-BUILD` | Reproducibly build locked backend/frontend artifacts and emit build metadata/SBOM/notices | Foundation/release | install/deploy |
 | `AUTO-M3-LIVE` | Verify the M3 Claude vertical slice against real owner SQLite through the authenticated loopback production build and browser; keep the native password memory-only and report unavailable prerequisites as Blocked | Integration/P02 | V1-M3 handoff |
+| `AUTO-M3-EXIT` | Perform fresh authorized Claude quota and owner-terminal runtime collection, prove same-account lineage and current identity evidence, exercise the authenticated production browser, then run every local M3 gate | Integration | V1-M3 completion claim |
+| `AUTO-MUTATION` | Mutate the exact admitted critical M05/M06 pure-policy surface and fail on every survivor or result not covered by an exact independently reviewed equivalence binding | Foundation/test steward | V1-M3 completion claim |
 | `AUTO-MIGRATE` | Preflight schema range, lock migration, take required backup, apply explicit revisions, verify integrity, and fail safely | Persistence/operations | upgrade/start on new schema |
 | `AUTO-DEPLOY` | Install or upgrade the native user service and frontend/backend artifacts using the approved paths, permissions, preflight, and rollback | Deployment | installed release |
 | `AUTO-BACKUP` | Create checksum-verified, integrity-checked, retention-classified backups without secrets | Operations | production-like local data |

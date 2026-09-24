@@ -2,7 +2,7 @@
   "record_type": "M0HandoffAcceptanceV1",
   "schema_version": "1.0",
   "acceptance_id": "M0-M3-CLAUDE-ACCEPTANCE-001",
-  "status": "structural_prerequisite_authorized",
+  "status": "blocked",
   "structural_prerequisite_authorized": true,
   "adapter_live_handoff_authorized": false,
   "subject": {
@@ -16,31 +16,39 @@
       "profile_ref": "REF-M0-CLAUDE-PROFILE-001"
     },
     "authorization_boundary": {
-      "authorized_work": "ST-PROV-001-pure-provider-neutral-protocol-only",
-      "provider_io_authorized": false,
-      "adapter_or_live_work_authorized": false,
-      "later_m3_tasks_authorized": false
+      "authorized_work": "V1-M3-exact-Claude-quota-and-OTLP-live-slice",
+      "provider_io_authorized": true,
+      "adapter_or_live_work_authorized": true,
+      "later_m3_tasks_authorized": true
     },
     "artifact_bindings": [
       {
         "path": "docs/discovery/m0/m0-to-m03-claude-v1.json",
-        "sha256": "5a179f872951ce7052160d8e1b568ab1ad4c6f021d60e742e9e096f2c31fd413"
+        "sha256": "8ad7dfb49415f7ebc0460511625d6c4766836ddbdc55c38f5b9af89bd8de4c8b"
+      },
+      {
+        "path": "docs/discovery/m0/m0-to-m03-claude-otel-v1.json",
+        "sha256": "88f558e169fb1a5f278e760ae501b79dc7455cd1d4e6ac488bc3b2bd019d0cb2"
       },
       {
         "path": "docs/discovery/m0/m3-claude-handoff.md",
-        "sha256": "0cc90ce81ba77ea84ffef7dc2a4f0f3fde40175c3564d509d962a5ca45a47305"
+        "sha256": "ee6fd505157bf9948aab55cccc389ac5d8a915a87ec2ade1c93d1782b57d619f"
       },
       {
         "path": "docs/discovery/m0/m3-claude-evidence-v1.json",
-        "sha256": "00537a778b0473b62d8c0edb9e5d48bc1f9dc3e57d9f70b2b6e9c16ebb67d845"
+        "sha256": "ef0bfef4a6d6ac815389eff866bcc067ed0008877a20244be9ed0875d5fe75da"
       },
       {
         "path": "docs/discovery/m0/m3-handoff-schema-bundle-v1.json",
-        "sha256": "c2f3fca9848c642f248b4db8a66e19888e01ea4ba4003d80035cbaf135a7ee3e"
+        "sha256": "cfe5b2f48678fd02a603381d947ad940b793c44e83507e51d765c2680c37c96b"
       },
       {
         "path": "docs/discovery/m0/m3-ctr-prov-002-contract-bundle-v1.json",
-        "sha256": "c43786253bb124a027f716e657722e37e7382f6b62ef44358dfb26eaf7a0b6b8"
+        "sha256": "06879d345ace9a367a2aaad8813f5d851a9e040bb9b2b793eed5a17a2e47f6c8"
+      },
+      {
+        "path": "docs/evidence/m3-claude-otel-targeted-probe.md",
+        "sha256": "bb72ea6f5467737465ba1af107d3b07411785970e48dfa5d2ccb164951f7dd29"
       },
       {
         "path": "docs/superpowers/plans/2026-09-19-agentmonitor-v1-m3-claude-slice.md",
@@ -48,7 +56,7 @@
       }
     ]
   },
-  "subject_sha256": "580e36cfa2fcf7201cb8a7eff703c9cf9002a5de4eca97ab1d516bec966677f2",
+  "subject_sha256": "b34228357e2d4f2929f95d4a16b462e5c83046e54d32e0c8df62c2c4d0668c0b",
   "approval_paths": [
     "docs/discovery/m0/m3-handoff-approvals/owner.json",
     "docs/discovery/m0/m3-handoff-approvals/security-privacy.json",
@@ -56,9 +64,10 @@
     "docs/discovery/m0/m3-handoff-approvals/root-integration.json"
   ],
   "blockers": [
-    "same_account_targeted_probe_not_run",
+    "owner_approval_pending",
     "security_privacy_approval_pending",
     "test_integrity_approval_pending",
-    "root_integration_approval_pending"
+    "root_integration_approval_pending",
+    "adapter_live_handoff_not_authorized"
   ]
 }

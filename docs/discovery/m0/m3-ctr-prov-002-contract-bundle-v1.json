@@ -8,7 +8,7 @@
   "normative_artifacts": [
     {
       "path": "docs/plans/contract-baseline.toml",
-      "sha256": "b12a6a5c4842e27ebecb390c6b118667fbc8ab5b7d21b9b519a44ec3acf352ef"
+      "sha256": "38766851fdc968001d408c3968a3a7bc1677fca7ba96fa81e8ce162a852e0a7e"
     },
     {
       "path": "docs/plans/modules/m03-provider-system/plan-v1.md",
@@ -20,7 +20,7 @@
     },
     {
       "path": "backend/src/agentmonitor/contracts/provider_system_v1.py",
-      "sha256": "b0b6e7dcf2c0a4f2f815aebaa349efe4a7fa63e127c38b5f9e6f4b74b407ec36"
+      "sha256": "7416d02996df4c7ea90cc1089d4d607af3915af851969cec6212475413f602dc"
     }
   ],
   "schema_artifact_status": "current",

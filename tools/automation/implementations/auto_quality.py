@@ -28,16 +28,40 @@ BACKEND_DIRECT = {
     "pytest": ("9.1.1", "MIT"),
     "ruff": ("0.16.8", "MIT"),
     "mypy": ("2.3.1", "MIT"),
+    "mutmut": ("3.8.0", "BSD-3-Clause"),
 }
 M2_ARGON2_TRANSITIVE = {
     "argon2-cffi-bindings": ("26.1.0", "MIT"),
     "cffi": ("2.1.1", "MIT-0"),
     "pycparser": ("3.0", "BSD-3-Clause"),
 }
+M3_MUTMUT_GRAPH = {
+    "click": "8.5.0",
+    "coverage": "7.16.1",
+    "iniconfig": "2.3.0",
+    "libcst": "1.9.0",
+    "linkify-it-py": "2.2.0",
+    "markdown-it-py": "4.2.0",
+    "mdit-py-plugins": "0.6.1",
+    "mdurl": "0.1.2",
+    "mutmut": "3.8.0",
+    "packaging": "26.3",
+    "platformdirs": "4.11.12",
+    "pluggy": "1.6.0",
+    "pygments": "2.21.0",
+    "pytest": "9.1.1",
+    "pyyaml": "6.0.3",
+    "rich": "15.0.0",
+    "setproctitle": "1.3.7",
+    "textual": "8.2.8",
+    "typing-extensions": "4.16.0",
+}
 ALLOWED_TEST_SETTING_LITERAL = 'SECRET = "AGENTMONITOR_TEST_BOOTSTRAP_SECRET'
 PROHIBITED_SOURCE_PATTERNS = (
-    r"(?:unittest\s*\.\s*mock|from\s+unittest\s+import\s+[^\n#]*\bmock\b|"
-    r"pytest_mock|\bmagicmock\b|\bmonkeypatch\b)",
+    (
+        r"(?:unittest\s*\.\s*mock|from\s+unittest\s+import\s+[^\n#]*\bmock\b|"
+        r"pytest_mock|\bmagicmock\b|\bmonkeypatch\b)"
+    ),
     r"\bshell\s*=\s*True\b|\bos\.system\(",
     r"\b(?:page|context)\s*\.\s*route(?:FromHAR)?\s*\(",
     r"\broute\s*\.\s*fulfill\s*\(",
@@ -115,6 +139,11 @@ def verify_backend_inputs() -> bool:
             for name, (version, _) in admitted_graph.items()
         ):
             return False
+        if any(
+            locked.get(name.lower()) != version
+            for name, version in M3_MUTMUT_GRAPH.items()
+        ):
+            return False
         expected = json.dumps(admitted_graph, sort_keys=True)
         probe = (
             "import importlib.metadata as metadata, json, sys; "
@@ -125,7 +154,7 @@ def verify_backend_inputs() -> bool:
             "raise SystemExit(0 if all(actual[name] == tuple(expected[name]) "
             "for name in expected) else 1)"
         )
-        return (
+        licenses_match = (
             subprocess.run(
                 [str(BACKEND_PYTHON), "-c", probe, expected],
                 cwd=ROOT,
@@ -135,6 +164,28 @@ def verify_backend_inputs() -> bool:
             ).returncode
             == 0
         )
+        version_probe = (
+            "import importlib.metadata as metadata, json, sys; "
+            "expected=json.loads(sys.argv[1]); "
+            "raise SystemExit(0 if all(metadata.version(name) == version "
+            "for name, version in expected.items()) else 1)"
+        )
+        versions_match = (
+            subprocess.run(
+                [
+                    str(BACKEND_PYTHON),
+                    "-c",
+                    version_probe,
+                    json.dumps(M3_MUTMUT_GRAPH, sort_keys=True),
+                ],
+                cwd=ROOT,
+                check=False,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+            ).returncode
+            == 0
+        )
+        return licenses_match and versions_match
     except (KeyError, OSError, TypeError, ValueError, tomllib.TOMLDecodeError):
         return False
 

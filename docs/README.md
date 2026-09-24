@@ -1,6 +1,13 @@
 # AgentMonitor documentation index
 
-Status: **V1-M1 foundation and V1-M2 local authenticated shell are accepted; V1-M3 local foundations are implemented and under final review, while its live Claude exit gate remains Blocked.** A hostile browser resource initially invalidated M2's security acceptance; the [M2 audit correction](evidence/m2-audit-fixes.md) then passed the full local canonical rerun and independent post-audit QA. On 2026-09-21 the owner accepted the bounded historical Red-first deviation; missing pre-fix Reds remain missing and universal `AC-TEST-001` is not retroactively Passed. This is not V1-M3 or V1 release approval: M3 has real SQLite, Linux-process, authenticated API, generated-client, and built-browser foundation evidence, but it does not yet have the required same-account live Claude quota/runtime/browser reconciliation. Installed native lifecycle, macOS, hosted, and release gates remain Not Run.
+<!-- agentmonitor-milestone-status:v1 milestone=V1-M3 lifecycle=active status=blocked authority=M3-ACCEPTANCE-2026-09-24-01 -->
+
+The authoritative V1-M3 status is **Blocked** in the machine-readable
+[V1-M3 acceptance record](evidence/v1-m3-acceptance-status-v1.json). Historical
+Story and handoff documents remain evidence, but they do not override that
+record.
+
+Status: **V1-M1 foundation and V1-M2 local authenticated shell are accepted; V1-M3 foundations and one real same-account Claude vertical are implemented, while milestone acceptance remains Blocked by the outstanding criteria in the active record.** A hostile browser resource initially invalidated M2's security acceptance; the [M2 audit correction](evidence/m2-audit-fixes.md) then passed the full local canonical rerun and independent post-audit QA. On 2026-09-21 the owner accepted the bounded historical M2 Red-first deviation; missing pre-fix Reds remain missing and universal `AC-TEST-001` is not retroactively Passed. This is not V1-M3 or V1 release approval. Installed native lifecycle, macOS, hosted, mutation, remaining live process, and release gates remain Not Run or Blocked as listed in the authoritative record.
 Owner: Pavlo Sidelov <pavlo@sidelov.com>  
 Last substantive review: 2026-09-23
 

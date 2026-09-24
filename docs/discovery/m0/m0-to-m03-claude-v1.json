@@ -3,7 +3,7 @@
   "schema_version": "1.0",
   "mapping_id": "M0-M03-CLAUDE-001",
   "mapping_version": "1.0.0",
-  "status": "structural_review_pending",
+  "status": "approved",
   "scope": {
     "provider_key": "claude",
     "product": "Claude Code",
@@ -17,13 +17,13 @@
   },
   "schema_binding": {
     "bundle_path": "docs/discovery/m0/m3-handoff-schema-bundle-v1.json",
-    "bundle_sha256": "c2f3fca9848c642f248b4db8a66e19888e01ea4ba4003d80035cbaf135a7ee3e"
+    "bundle_sha256": "cfe5b2f48678fd02a603381d947ad940b793c44e83507e51d765c2680c37c96b"
   },
   "contract_binding": {
     "contract_id": "CTR-PROV-002",
     "contract_version": "1.0.0",
     "bundle_path": "docs/discovery/m0/m3-ctr-prov-002-contract-bundle-v1.json",
-    "bundle_sha256": "c43786253bb124a027f716e657722e37e7382f6b62ef44358dfb26eaf7a0b6b8",
+    "bundle_sha256": "06879d345ace9a367a2aaad8813f5d851a9e040bb9b2b793eed5a17a2e47f6c8",
     "schema_artifact_status": "current",
     "schema_sha256": "d86958cb4f2c3805fee5bed51a6c590810ccf33e270c50371274308d07603466"
   },
@@ -118,15 +118,18 @@
     },
     {
       "capability_id": "local.process.account_correlation",
-      "decision": "deferred",
-      "availability": "unavailable",
-      "source_id": null,
-      "operation_id": null,
+      "decision": "supported",
+      "availability": "available",
+      "source_id": "claude.otel.metrics.http-json.v1",
+      "operation_id": "claude.otel.owner-terminal.v1",
       "scenario_ids": ["M0-CLA-008", "M0-LNX-007", "M0-LNX-012"],
-      "evidence_refs": [],
-      "correlation_outcome": "unresolved",
-      "targeted_profile_probe_status": "Not Run",
-      "required_evidence": "owner-reviewed targeted-profile probe proving the process/profile/account join without environment, command-line, memory, terminal, content, or provider-state mutation"
+      "evidence_refs": [
+        "REF-M0-CLAUDE-OTEL-TARGETED-PROBE-001"
+      ],
+      "correlation_outcome": "automatic_matched",
+      "targeted_profile_probe_status": "Passed",
+      "mapping_ref": "M0-M03-CLAUDE-OTEL-001",
+      "required_evidence": "satisfied by the authenticated official metrics-only OTLP lane, exact Linux launch identity, and explicit owner-confirmed fingerprint binding"
     }
   ],
   "normalized_outcomes": {

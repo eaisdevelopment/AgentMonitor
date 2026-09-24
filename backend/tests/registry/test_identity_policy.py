@@ -43,6 +43,7 @@ from agentmonitor.modules.registry.domain.account import (
     decide_candidate_evidence_transition,
     decide_command_replay,
     decide_identity_correlation,
+    decide_provider_identity_confirmation,
     decide_reauthentication_continuity,
     ensure_candidate_confirmation_is_current,
     ensure_profile_authentication_eligible,
@@ -536,6 +537,41 @@ def test_command_receipt_replays_only_the_exact_safe_request() -> None:
     assert decide_command_replay("a" * 64, "a" * 64) == "replay"
     with pytest.raises(RegistryPolicyErrorV1, match="registry_idempotency_conflict"):
         decide_command_replay("a" * 64, "b" * 64)
+
+
+def test_explicit_provider_identity_confirmation_refreshes_matching_evidence() -> None:
+    """M02-PURE-030: a fresh owner command replaces stale evidence, not identity."""
+    assert (
+        decide_provider_identity_confirmation(
+            resolution_state="unresolved",
+            current_account_matches=False,
+            existing_claim=False,
+        )
+        == "create"
+    )
+    assert (
+        decide_provider_identity_confirmation(
+            resolution_state="resolved",
+            current_account_matches=True,
+            existing_claim=True,
+        )
+        == "refresh"
+    )
+    invalid_cases: tuple[
+        tuple[Literal["unresolved", "resolved", "conflict"], bool, bool], ...
+    ] = (
+        ("conflict", False, True),
+        ("resolved", False, True),
+        ("resolved", True, False),
+        ("unresolved", False, True),
+    )
+    for state, account_matches, existing_claim in invalid_cases:
+        with pytest.raises(RegistryPolicyErrorV1, match="registry_identity_conflict"):
+            decide_provider_identity_confirmation(
+                resolution_state=state,
+                current_account_matches=account_matches,
+                existing_claim=existing_claim,
+            )
 
 
 def test_candidate_owner_action_flag_must_match_current_state() -> None:
