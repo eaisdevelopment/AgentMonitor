@@ -104,14 +104,22 @@ IAM_OPERATIONS = {
     ("/api/v1/api-tokens/{token_id}", "delete"): "iam_revoke_api_token_v1",
     ("/api/v1/iam/security-events", "get"): "iam_list_security_events_v1",
     ("/api/v1/accounts", "get"): "registry_list_accounts_v1",
-    ("/api/v1/provider-installations", "get"): "registry_list_provider_installations_v1",
-    ("/api/v1/providers/{provider_key}/capabilities", "get"): "provider_get_capabilities_v1",
+    (
+        "/api/v1/provider-installations",
+        "get",
+    ): "registry_list_provider_installations_v1",
+    (
+        "/api/v1/providers/{provider_key}/capabilities",
+        "get",
+    ): "provider_get_capabilities_v1",
     ("/api/v1/collection-runs", "get"): "collection_list_runs_v1",
     ("/api/v1/accounts/{account_id}/capacity", "get"): "capacity_get_account_v1",
     ("/api/v1/accounts/{account_id}/quotas", "get"): "capacity_list_quota_windows_v1",
+    ("/api/v1/capacity/history", "get"): "capacity_list_history_v1",
     ("/api/v1/processes", "get"): "runtime_list_processes_v1",
     ("/api/v1/process-metrics", "get"): "runtime_list_process_metrics_v1",
     ("/api/v1/sessions", "get"): "runtime_list_sessions_v1",
+    ("/api/v1/sessions/{session_id}/tree", "get"): "runtime_get_session_tree_v1",
     ("/api/v1/sessions/{session_id}", "get"): "runtime_get_session_v1",
 }
 
@@ -125,8 +133,21 @@ _COOKIE_CSRF_BEARER = (
 )
 _M2_REQUIRED_ERROR_STATUSES = frozenset(
     {
-        "400", "401", "403", "404", "405", "409", "412", "413",
-        "415", "422", "428", "429", "500", "503", "504",
+        "400",
+        "401",
+        "403",
+        "404",
+        "405",
+        "409",
+        "412",
+        "413",
+        "415",
+        "422",
+        "428",
+        "429",
+        "500",
+        "503",
+        "504",
     }
 )
 # Frozen independent P01 oracle: exactly one record per operation covers
@@ -301,54 +322,148 @@ IAM_POLICY: dict[str, IamPolicyRow] = {
         None,
     ),
     "registry_list_accounts_v1": (
-        "cookie_or_bearer", "read:accounts", "ListAccountsV1", "safe_query_repeat",
-        _COOKIE_BEARER, "200", "AccountPageV1", "SafeProblemV1",
-        _M2_REQUIRED_ERROR_STATUSES, None,
+        "cookie_or_bearer",
+        "read:accounts",
+        "ListAccountsV1",
+        "safe_query_repeat",
+        _COOKIE_BEARER,
+        "200",
+        "AccountPageV1",
+        "SafeProblemV1",
+        _M2_REQUIRED_ERROR_STATUSES,
+        None,
     ),
     "registry_list_provider_installations_v1": (
-        "cookie_or_bearer", "read:accounts", "ListProviderInstallationsV1", "safe_query_repeat",
-        _COOKIE_BEARER, "200", "ProviderInstallationPageV1", "SafeProblemV1",
-        _M2_REQUIRED_ERROR_STATUSES, None,
+        "cookie_or_bearer",
+        "read:accounts",
+        "ListProviderInstallationsV1",
+        "safe_query_repeat",
+        _COOKIE_BEARER,
+        "200",
+        "ProviderInstallationPageV1",
+        "SafeProblemV1",
+        _M2_REQUIRED_ERROR_STATUSES,
+        None,
     ),
     "provider_get_capabilities_v1": (
-        "cookie_or_bearer", "read:status", "GetProviderCapabilitiesV1", "safe_query_repeat",
-        _COOKIE_BEARER, "200", "ProviderCapabilityDeclarationPageV1", "SafeProblemV1",
-        _M2_REQUIRED_ERROR_STATUSES, None,
+        "cookie_or_bearer",
+        "read:status",
+        "GetProviderCapabilitiesV1",
+        "safe_query_repeat",
+        _COOKIE_BEARER,
+        "200",
+        "ProviderCapabilityDeclarationPageV1",
+        "SafeProblemV1",
+        _M2_REQUIRED_ERROR_STATUSES,
+        None,
     ),
     "collection_list_runs_v1": (
-        "cookie_or_bearer", "read:telemetry", "ListCollectionRunsV1", "safe_query_repeat",
-        _COOKIE_BEARER, "200", "CollectionRunPageV1", "SafeProblemV1",
-        _M2_REQUIRED_ERROR_STATUSES, None,
+        "cookie_or_bearer",
+        "read:telemetry",
+        "ListCollectionRunsV1",
+        "safe_query_repeat",
+        _COOKIE_BEARER,
+        "200",
+        "CollectionRunPageV1",
+        "SafeProblemV1",
+        _M2_REQUIRED_ERROR_STATUSES,
+        None,
     ),
     "capacity_get_account_v1": (
-        "cookie_or_bearer", "read:telemetry", "GetAccountCapacityV1", "safe_query_repeat",
-        _COOKIE_BEARER, "200", "AccountCapacityViewV1", "SafeProblemV1",
-        _M2_REQUIRED_ERROR_STATUSES, None,
+        "cookie_or_bearer",
+        "read:telemetry",
+        "GetAccountCapacityV1",
+        "safe_query_repeat",
+        _COOKIE_BEARER,
+        "200",
+        "AccountCapacityViewV1",
+        "SafeProblemV1",
+        _M2_REQUIRED_ERROR_STATUSES,
+        None,
     ),
     "capacity_list_quota_windows_v1": (
-        "cookie_or_bearer", "read:telemetry", "ListQuotaWindowsV1", "safe_query_repeat",
-        _COOKIE_BEARER, "200", "QuotaWindowPageV1", "SafeProblemV1",
-        _M2_REQUIRED_ERROR_STATUSES, None,
+        "cookie_or_bearer",
+        "read:telemetry",
+        "ListQuotaWindowsV1",
+        "safe_query_repeat",
+        _COOKIE_BEARER,
+        "200",
+        "QuotaWindowPageV1",
+        "SafeProblemV1",
+        _M2_REQUIRED_ERROR_STATUSES,
+        None,
+    ),
+    "capacity_list_history_v1": (
+        "cookie_or_bearer",
+        "read:telemetry",
+        "ListCapacityHistoryV1",
+        "safe_query_repeat",
+        _COOKIE_BEARER,
+        "200",
+        "CapacityHistoryPageV1",
+        "SafeProblemV1",
+        _M2_REQUIRED_ERROR_STATUSES,
+        None,
     ),
     "runtime_list_processes_v1": (
-        "cookie_or_bearer", "read:telemetry", "ListAgentProcessesV1", "safe_query_repeat",
-        _COOKIE_BEARER, "200", "AgentProcessPageV1", "SafeProblemV1",
-        _M2_REQUIRED_ERROR_STATUSES, None,
+        "cookie_or_bearer",
+        "read:telemetry",
+        "ListAgentProcessesV1",
+        "safe_query_repeat",
+        _COOKIE_BEARER,
+        "200",
+        "AgentProcessPageV1",
+        "SafeProblemV1",
+        _M2_REQUIRED_ERROR_STATUSES,
+        None,
     ),
     "runtime_list_process_metrics_v1": (
-        "cookie_or_bearer", "read:telemetry", "ListAgentProcessesV1", "safe_query_repeat",
-        _COOKIE_BEARER, "200", "AgentProcessMetricPageV1", "SafeProblemV1",
-        _M2_REQUIRED_ERROR_STATUSES, None,
+        "cookie_or_bearer",
+        "read:telemetry",
+        "ListAgentProcessesV1",
+        "safe_query_repeat",
+        _COOKIE_BEARER,
+        "200",
+        "AgentProcessMetricPageV1",
+        "SafeProblemV1",
+        _M2_REQUIRED_ERROR_STATUSES,
+        None,
     ),
     "runtime_list_sessions_v1": (
-        "cookie_or_bearer", "read:telemetry", "ListAgentSessionsV1", "safe_query_repeat",
-        _COOKIE_BEARER, "200", "AgentSessionPageV1", "SafeProblemV1",
-        _M2_REQUIRED_ERROR_STATUSES, None,
+        "cookie_or_bearer",
+        "read:telemetry",
+        "ListAgentSessionsV1",
+        "safe_query_repeat",
+        _COOKIE_BEARER,
+        "200",
+        "AgentSessionPageV1",
+        "SafeProblemV1",
+        _M2_REQUIRED_ERROR_STATUSES,
+        None,
     ),
     "runtime_get_session_v1": (
-        "cookie_or_bearer", "read:telemetry", "GetAgentSessionV1", "safe_query_repeat",
-        _COOKIE_BEARER, "200", "AgentSessionViewV1", "SafeProblemV1",
-        _M2_REQUIRED_ERROR_STATUSES, None,
+        "cookie_or_bearer",
+        "read:telemetry",
+        "GetAgentSessionV1",
+        "safe_query_repeat",
+        _COOKIE_BEARER,
+        "200",
+        "AgentSessionViewV1",
+        "SafeProblemV1",
+        _M2_REQUIRED_ERROR_STATUSES,
+        None,
+    ),
+    "runtime_get_session_tree_v1": (
+        "cookie_or_bearer",
+        "read:telemetry",
+        "GetSessionTreeV1",
+        "safe_query_repeat",
+        _COOKIE_BEARER,
+        "200",
+        "SessionTreeViewV1",
+        "SafeProblemV1",
+        _M2_REQUIRED_ERROR_STATUSES,
+        None,
     ),
 }
 
@@ -442,17 +557,15 @@ def validate_iam_openapi(document: object) -> tuple[str, ...]:
         for method, raw in _object(methods).items():
             operation = _object(raw)
             actual[(path, method)] = str(operation["operationId"])
-            if (
-                any(
-                    key not in operation
-                    for key in (
-                        "x-agentmonitor-auth-profile",
-                        "x-agentmonitor-required-permission",
-                        "x-agentmonitor-application-port",
-                        "x-agentmonitor-replay-policy",
-                        "x-agentmonitor-error-schema",
-                        "security",
-                    )
+            if any(
+                key not in operation
+                for key in (
+                    "x-agentmonitor-auth-profile",
+                    "x-agentmonitor-required-permission",
+                    "x-agentmonitor-application-port",
+                    "x-agentmonitor-replay-policy",
+                    "x-agentmonitor-error-schema",
+                    "security",
                 )
             ):
                 raise OpenApiGenerationError("operation_policy_missing")
@@ -507,9 +620,7 @@ def validate_iam_openapi(document: object) -> tuple[str, ...]:
             elif request_body != {
                 "content": {
                     "application/json": {
-                        "schema": {
-                            "$ref": f"#/components/schemas/{expected_request}"
-                        }
+                        "schema": {"$ref": f"#/components/schemas/{expected_request}"}
                     }
                 },
                 "required": True,
@@ -531,14 +642,12 @@ def validate_iam_openapi(document: object) -> tuple[str, ...]:
                     content = _object(_object(response).get("content"))
                     if set(content) != {"application/problem+json"} or _object(
                         content["application/problem+json"]
-                    ).get("schema") != {
-                        "$ref": f"#/components/schemas/{policy[7]}"
-                    }:
+                    ).get("schema") != {"$ref": f"#/components/schemas/{policy[7]}"}:
                         raise OpenApiGenerationError("problem_media_invalid")
     if (
         actual != IAM_OPERATIONS
         or set(IAM_POLICY) != set(IAM_OPERATIONS.values())
-        or len(identifiers) != 23
+        or len(identifiers) != 25
     ):
         raise OpenApiGenerationError("operation_surface_invalid")
 
@@ -615,10 +724,7 @@ def classify_compatibility(
             ):
                 if any(
                     name not in new_entries_value
-                    or (
-                        category != "schemas"
-                        and new_entries_value[name] != definition
-                    )
+                    or (category != "schemas" and new_entries_value[name] != definition)
                     or (
                         category == "schemas"
                         and not compatible_component(

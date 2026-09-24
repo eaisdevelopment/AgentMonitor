@@ -299,6 +299,9 @@ class _Handler(BaseHTTPRequestHandler):
         if not 1 <= length <= _MAX_BODY_BYTES:
             self.send_error(413)
             return
+        if not receiver.wait_for_observation_acceptance(_REQUEST_TIMEOUT_SECONDS):
+            self.send_error(503)
+            return
         try:
             body = self.rfile.read(length)
         except OSError:
@@ -314,7 +317,7 @@ class _Handler(BaseHTTPRequestHandler):
         except ClaudeOtlpErrorV1:
             self.send_error(400)
             return
-        if not receiver._submit(observation):
+        if not receiver.submit_after_process_capture(observation):
             self.send_error(409)
             return
         if not receiver.wait_for_commit_acknowledgement(
@@ -343,7 +346,10 @@ class ClaudeOtlpHttpJsonReceiverV1:
         self.authorization_secret = secrets.token_urlsafe(32)
         self._observations: queue.Queue[ClaudeOtlpSessionCountV1] = queue.Queue(1)
         self._accepted_observation: ClaudeOtlpSessionCountV1 | None = None
+        self._accepted_at: datetime | None = None
+        self._capture_completed_at: datetime | None = None
         self._accepted_observation_lock = threading.Lock()
+        self._observation_acceptance = threading.Event()
         self._acknowledgement = _CommitAcknowledgementV1()
         self._server = _PrivateServer(self)
         self._thread = threading.Thread(
@@ -361,10 +367,40 @@ class ClaudeOtlpHttpJsonReceiverV1:
         self._thread.start()
         return self
 
-    def _submit(self, observation: ClaudeOtlpSessionCountV1) -> bool:
+    def wait_for_observation_acceptance(self, timeout_seconds: float) -> bool:
+        """Block request parsing until the exact launched process is captured."""
+        if not isinstance(timeout_seconds, (int, float)) or not (
+            0 < timeout_seconds <= 60
+        ):
+            raise ClaudeOtlpErrorV1("claude_otel_acceptance_timeout_invalid")
+        return self._observation_acceptance.wait(timeout_seconds)
+
+    def enable_observation_acceptance(self, captured_at: datetime) -> None:
+        """Open the one-shot metric lane after safe process metadata capture."""
+        if not isinstance(
+            captured_at, datetime
+        ) or captured_at.utcoffset() != UTC.utcoffset(captured_at):
+            raise ClaudeOtlpErrorV1("claude_otel_capture_timestamp_invalid")
         with self._accepted_observation_lock:
+            if self._capture_completed_at is not None:
+                raise ClaudeOtlpErrorV1("claude_otel_acceptance_state_invalid")
+            self._capture_completed_at = captured_at
+            self._observation_acceptance.set()
+
+    def submit_after_process_capture(
+        self, observation: ClaudeOtlpSessionCountV1
+    ) -> bool:
+        """Accept one parsed metric only after the capture gate is open."""
+        with self._accepted_observation_lock:
+            accepted_at = datetime.now(UTC)
+            if (
+                self._capture_completed_at is None
+                or self._capture_completed_at > accepted_at
+            ):
+                return False
             if self._accepted_observation is None:
                 self._accepted_observation = observation
+                self._accepted_at = accepted_at
                 self._observations.put_nowait(observation)
                 return True
             return self._accepted_observation == observation

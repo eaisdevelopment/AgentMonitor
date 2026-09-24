@@ -1,9 +1,12 @@
 # P02 React dashboard — M2 identity shell and M3 observation views
 
-- Status: **M2 Story 5 accepted; not a V1 dashboard release**.
+- Status: **M2 identity shell and M3 Claude vertical slice accepted; not a V1 dashboard release**.
 - Post-audit note: Story 5's historical Red-first exceptions are documented in the [M2 correction record](../evidence/m2-audit-fixes.md); the M2 milestone reacceptance remains held. The separate `hostile_resource` Chrome scenario and SQLite assertion now cover cookie-read idle-state integrity after 62 real seconds.
 - Owner: P02 UI. Plan: [`PLAN-P02`](../plans/ui/react-dashboard/plan-v1.md), approved M2 slice [`ST-UI-001`](../superpowers/plans/2026-09-19-agentmonitor-v1-m2-authenticated-shell.md).
-- Consumes `CTR-UI-001`, `CTR-IAM-003/006/007` V1 through the generated 13-operation IAM client. Publishes no backend contract, database table, migration, configuration key, or provider adapter.
+- Consumes `CTR-UI-001`, `CTR-IAM-003/006/007`, and the M3 registry,
+  provider, collection, capacity, and runtime V1 contracts through the generated
+  25-operation client. Publishes no backend contract, database table, migration,
+  configuration key, or provider adapter.
 
 ## Scope and ownership
 
@@ -47,7 +50,7 @@ Current limitations: local loopback only, single administrator, no provider dash
 The M3 P02 increment adds API-only command, account, provider, collection-run,
 capacity, process, and session views. Feature modules import typed DTOs and
 operations only from `frontend/src/shared/api/client.ts`; that wrapper is the
-sole handwritten importer of the generated 22-operation client. The routes
+sole handwritten importer of the generated 25-operation client. The routes
 `/accounts`, `/accounts/{opaque-id}`, `/providers`, `/collectors`, and
 `/sessions` are safe authenticated GET views served by the same production
 SPA document.
@@ -66,10 +69,11 @@ An account detail places its provider-native quota windows beside a `Running
 sessions` panel queried with that exact opaque `account_id`. The account panel
 does not reuse the unfiltered global process list. Capacity health shows the
 producer policy ID/version, constraining-window ID, and explanation codes;
-quota rows show exact remaining ratio, observation/run IDs, and collected and
-stored times. The current capacity DTO does not publish observation source or
-provider/adapter version, so the UI says that source/version is unavailable in
-API v1 instead of inventing it. Collection runs expose their actual source,
+quota rows show exact remaining ratio, observation/run IDs, collected and
+stored times, source, adapter/provider versions, freshness policy, precision,
+and confidence. Capacity history renders exact retained poll observations in a
+non-interpolated chart and accessible table with shared observation IDs.
+Collection runs expose their actual source,
 adapter/provider version availability, request/start/completion times,
 duration/outcome, and observation IDs; they do not claim freshness because the
 run DTO publishes no freshness field.
@@ -82,10 +86,11 @@ presence, six responsive viewport widths, no horizontal document overflow,
 no external request, no browser storage, and no browser exception. It passively
 records same-origin responses without request interception and requires every
 empty-dashboard observation GET to return `200`; removing generated-client
-calls therefore fails the browser scenario. Populated
-Claude account/quota/session reconciliation remains **Blocked** until the
-approved live provider/account-correlation lane supplies those records; no
-test substitutes them. Evidence: [M3 P02 browser increment](../evidence/m3-st-obs-003-p02.md).
+calls therefore fails the browser scenario. The separate populated scenario
+passed against the owner database with real Claude quota history, collection
+lineage, exact process runtime, same-account session hierarchy, and complete
+provenance. It also passed at 1920×1080, 960×540 (200% equivalent), and 390×844.
+Evidence: [M3 P02 browser increment](../evidence/m3-st-obs-003-p02.md).
 
 M3 renders the bounded first page supplied by each observation endpoint. Counts
 are labeled as records shown, not fleet totals, and `has_more` is disclosed as

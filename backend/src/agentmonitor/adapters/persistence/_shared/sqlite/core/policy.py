@@ -293,6 +293,23 @@ def open_sqlite_database(
     return handle
 
 
+def checkpoint_sqlite_database(database_ref: DatabaseRefV1) -> None:
+    """Checkpoint a quiescent writable database before a forked worker exits."""
+    failure: str | None = None
+    try:
+        with open_sqlite_database(database_ref, "runtime_read_write") as handle:
+            with handle.connect() as connection:
+                result = tuple(
+                    connection.exec_driver_sql("PRAGMA wal_checkpoint(TRUNCATE)").one()
+                )
+                if result != (0, 0, 0):
+                    raise SqlitePolicyError("persistence_busy")
+    except (SqlitePolicyError, SQLAlchemyError, sqlite3.Error, OSError) as error:
+        failure = _error_code(error)
+    if failure is not None:
+        raise SqlitePolicyError(failure) from None
+
+
 def _inspection_state(database_ref: DatabaseRefV1) -> tuple[int, int, int, int, int]:
     """Read physical metadata only; reject all live or leftover journal state."""
     database_ref.validate()

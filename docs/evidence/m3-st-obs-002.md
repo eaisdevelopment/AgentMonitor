@@ -408,3 +408,13 @@ database. It first committed generic observations and then committed the
 attributed observations, proving the durable generic-to-attributed upgrade and
 stored fingerprint. No path, device, inode, raw stat data, or content entered
 the DTO or database. No dependency or migration was added.
+
+## 2026-09-24 live-session acceptance supplement
+
+The earlier conclusion predates the admitted official-OTLP source and is
+superseded for the M3 same-account lane. A real owner-terminal Claude launch
+committed an exact session/process link and strong correlation to the selected
+owner-confirmed account through M04/M06. Database reopen, a real persisted tree
+query, authenticated API transport, and the production-browser hierarchy all
+passed. Natural stall evidence and an actually ambiguous manual-correlation case
+remain Not Run; no constructed telemetry replaced them.

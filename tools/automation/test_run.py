@@ -13,6 +13,7 @@ from shutil import copy2, copytree, which
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
 RUNNER = REPOSITORY_ROOT / "tools/automation/run.py"
+CATALOG = REPOSITORY_ROOT / "tools/automation/routines.toml"
 sys.path.insert(0, str(RUNNER.parent))
 
 from run import index_routines, load_catalog, validate_catalog
@@ -28,12 +29,27 @@ class AutomationRoutineTests(unittest.TestCase):
 
         commands = m2_local_suite_commands()
         self.assertEqual(
-            {"backend", "p02_all", "p02_security", "p02_hostile_resource"},
+            {
+                "argon2_budget",
+                "backend",
+                "p02_all",
+                "p02_security",
+                "p02_hostile_resource",
+            },
             set(commands),
+        )
+        argon2_budget = commands["argon2_budget"]
+        self.assertIn(
+            "backend/tests/integration/identity_access/test_argon2_workload.py",
+            argon2_budget,
         )
         backend = commands["backend"]
         self.assertIn("backend/tests", backend)
         self.assertIn("--ignore=backend/tests/live", backend)
+        self.assertIn(
+            "--ignore=backend/tests/integration/identity_access/test_argon2_workload.py",
+            backend,
+        )
         self.assertIn(
             "--ignore=backend/tests/runtime_observation/integration/test_real_linux_commit.py",
             backend,
@@ -83,6 +99,7 @@ class AutomationRoutineTests(unittest.TestCase):
             self.assertEqual(0, clone.returncode, "fresh local Git clone failed")
             self.assertFalse((checkout / ".venv-m0-g1/bin/python").exists())
             copy2(RUNNER, checkout / "tools/automation/run.py")
+            copy2(CATALOG, checkout / "tools/automation/routines.toml")
             result = subprocess.run(
                 [
                     sys.executable,
@@ -453,6 +470,22 @@ class AutomationRoutineTests(unittest.TestCase):
         )
         self.assertEqual([], validate_catalog(REPOSITORY_ROOT, catalog))
 
+    def test_m3_live_browser_gate_is_cataloged_fail_closed(self) -> None:
+        """The owner-data browser slice has one executable canonical gate."""
+        catalog = load_catalog(REPOSITORY_ROOT)
+        routine = catalog["AUTO-M3-LIVE"]
+
+        self.assertEqual("operational", routine["status"])
+        self.assertEqual(
+            [
+                "backend/.venv/bin/python",
+                "tools/automation/implementations/auto_m3_live.py",
+            ],
+            routine["implementation_command"],
+        )
+        self.assertIn("real owner", routine["scope"])
+        self.assertEqual([], routine["blockers"])
+
     def test_git_preflight_catalog_does_not_claim_remote_readiness(self) -> None:
         routine = load_catalog(REPOSITORY_ROOT)["AUTO-GIT-PREFLIGHT"]
         self.assertEqual("operational_limited", routine["status"])
@@ -497,6 +530,7 @@ class AutomationRoutineTests(unittest.TestCase):
                 "AUTO-M0-POSTFLIGHT",
                 "AUTO-M0-LEDGER",
                 "AUTO-DOCS-CHECK",
+                "AUTO-M3-LIVE",
                 "AUTO-TEST",
                 "AUTO-QUALITY",
                 "AUTO-GIT-PREFLIGHT",

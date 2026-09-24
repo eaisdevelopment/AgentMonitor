@@ -35,7 +35,7 @@ try {
     const request = response.request();
     const url = new URL(response.url());
     if (url.origin !== origin || request.method() !== "GET") return;
-    if (/^\/api\/v1\/(accounts|process-metrics|processes|sessions|collection-runs)/.test(url.pathname)) {
+    if (/^\/api\/v1\/(accounts|capacity\/history|process-metrics|processes|sessions|collection-runs)/.test(url.pathname)) {
       safeGetResults.push({ pathname: url.pathname, hasAccountFilter: url.searchParams.has("account_id"), status: response.status() });
     }
   });
@@ -101,6 +101,20 @@ try {
     quotaLineage.push({ collectionRunId, observationId });
   }
 
+  stage = "capacity_history";
+  await page.getByRole("heading", { name: "Capacity history", exact: true }).waitFor();
+  const historyTable = page.getByRole("table", { name: "Capacity history exact values" });
+  await historyTable.waitFor();
+  const historyRows = historyTable.locator("tbody tr");
+  requireTruth(await historyRows.count() > 0, "real_capacity_history_missing");
+  const historyObservationIds = (await historyRows.locator(".history-observation-id").allTextContents()).map((value) => value.trim());
+  const chart = page.getByRole("img", { name: "Capacity history trend" });
+  await chart.waitFor();
+  const chartObservationIds = (await chart.getAttribute("data-observation-ids"))?.split(" ").filter(Boolean) ?? [];
+  requireTruth(JSON.stringify(chartObservationIds) === JSON.stringify(historyObservationIds), "history_chart_table_lineage_mismatch");
+  requireTruth(historyObservationIds.every((value) => quotaLineage.some((lineage) => lineage.observationId === value)), "history_current_observation_lineage_mismatch");
+  requireTruth((await historyRows.locator(".history-exact-value").allTextContents()).every((value) => value.trim().length > 0), "history_exact_value_missing");
+
   stage = "collection_run_reconciliation";
   const collectionResponse = page.waitForResponse((response) => {
     const url = new URL(response.url());
@@ -126,6 +140,7 @@ try {
   stage = "return_to_account";
   await page.goto(`${origin}/accounts/${encodeURIComponent(accountId)}`);
   await page.getByRole("heading", { name: "Running sessions", exact: true }).waitFor();
+  await page.getByText("Reading runtime observations…", { exact: true }).waitFor({ state: "detached" });
 
   stage = "same_account_runtime";
   const sessionRows = page.locator(".session-row");
@@ -133,6 +148,12 @@ try {
   const sessionText = await sessionRows.first().innerText();
   requireTruth(/automatic matched/iu.test(sessionText), "session_not_automatically_correlated");
   requireTruth(/account correlated/iu.test(sessionText), "session_account_correlation_missing");
+  await page.getByRole("heading", { name: "Session hierarchy", exact: true }).first().waitFor();
+  const sessionTree = page.locator('[data-session-tree="true"]').first();
+  requireTruth(await sessionTree.locator('[data-session-tree-node="true"]').count() > 0, "session_tree_node_missing");
+  requireTruth(/included\s+\d+/iu.test(await sessionTree.innerText()), "session_tree_included_count_missing");
+  requireTruth(/excluded\s+\d+/iu.test(await sessionTree.innerText()), "session_tree_excluded_count_missing");
+  requireTruth(/unknown\s+\d+/iu.test(await sessionTree.innerText()), "session_tree_unknown_count_missing");
   await sessionRows.first().getByRole("button", { name: "Inspect provenance" }).click();
   await page.getByRole("heading", { name: "Observation provenance", exact: true }).waitFor();
   await page.getByText("Source", { exact: true }).first().waitFor();
@@ -140,6 +161,25 @@ try {
     /claude\.otel\.metrics\.http-json\.v1/u.test(await page.locator(".session-detail").innerText()),
     "session_otel_provenance_missing",
   );
+  for (const field of [
+    "Observed",
+    "Collected",
+    "Freshness deadline",
+    "Freshness policy",
+    "Source class",
+    "Adapter",
+    "Mechanism version",
+    "Parser version",
+    "Provider protocol",
+    "Provider version",
+    "Precision",
+    "Confidence",
+    "Value kind",
+    "Derivation method",
+    "Input observations",
+  ]) {
+    await page.locator(".session-detail").getByText(field, { exact: true }).waitFor();
+  }
 
   stage = "real_process_runtime";
   const processResponse = page.waitForResponse((response) => {
@@ -180,7 +220,9 @@ try {
   const quotaPath = `/api/v1/accounts/${encodeURIComponent(accountId)}/quotas`;
   requireTruth(safeGetResults.some((entry) => entry.pathname === capacityPath && entry.status === 200), "account_capacity_get_missing_or_failed");
   requireTruth(safeGetResults.some((entry) => entry.pathname === quotaPath && entry.status === 200), "account_quota_get_missing_or_failed");
+  requireTruth(safeGetResults.some((entry) => entry.pathname === "/api/v1/capacity/history" && entry.status === 200), "capacity_history_get_missing_or_failed");
   requireTruth(safeGetResults.some((entry) => entry.pathname === "/api/v1/sessions" && entry.hasAccountFilter && entry.status === 200), "account_session_get_missing_or_failed");
+  requireTruth(safeGetResults.some((entry) => /^\/api\/v1\/sessions\/[^/]+\/tree$/u.test(entry.pathname) && entry.status === 200), "session_tree_get_missing_or_failed");
   requireTruth(safeGetResults.some((entry) => entry.pathname === "/api/v1/process-metrics" && entry.status === 200), "process_observation_get_missing_or_failed");
   requireTruth(safeGetResults.some((entry) => entry.pathname === "/api/v1/collection-runs" && entry.status === 200), "collection_run_get_missing_or_failed");
 
@@ -191,8 +233,18 @@ try {
   requireTruth(await page.evaluate(() => localStorage.length === 0 && sessionStorage.length === 0), "monitoring_data_in_browser_storage");
   requireTruth(!(await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth + 1)), "document_horizontal_overflow");
 
+  stage = "responsive";
+  for (const viewport of [{ width: 960, height: 540 }, { width: 390, height: 844 }]) {
+    await page.setViewportSize(viewport);
+    await page.goto(`${origin}/accounts/${encodeURIComponent(accountId)}`);
+    await page.getByRole("heading", { name: "Quota windows", exact: true }).waitFor();
+    await page.getByRole("heading", { name: "Capacity history", exact: true }).waitFor();
+    await page.getByRole("heading", { name: "Running sessions", exact: true }).waitFor();
+    requireTruth(!(await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth + 1)), `responsive_horizontal_overflow:${viewport.width}`);
+  }
+
   await browser.close();
-  console.log("P02 POPULATED MONITORING: PASSED — real Claude account/quota provenance, collection reconciliation, exact process runtime, and same-account OTEL session");
+  console.log("P02 POPULATED MONITORING: PASSED — real Claude quota history/chart, collection reconciliation, exact process runtime, and same-account session hierarchy/provenance");
 } catch (error) {
   if (browser) await browser.close();
   console.error(`P02 POPULATED MONITORING: FAILED — ${stage}: ${error instanceof Error ? error.message : "unknown"}`);

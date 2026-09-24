@@ -124,3 +124,15 @@ The local M3 API-to-built-browser empty/unavailable foundation is Passed. This
 does not prove the required populated Claude account, quota, session,
 same-account correlation, or macOS behavior; those remain Blocked/Not Run and
 prevent a full M3 live acceptance claim.
+
+## 2026-09-24 populated browser supplement
+
+The earlier populated-lane Blocked rows are superseded for Linux/Claude. The
+production browser used the owner database and generated 25-operation client to
+render real quota history/chart/table lineage, collection reconciliation, exact
+process runtime, same-account session hierarchy, and complete session
+provenance. The first expanded run failed because the history view was absent;
+later real runs exposed and corrected the exact 365-day range and asynchronous
+tree-loading race. The final `AUTO-M3-LIVE` run passed without response
+interception, seeded data, placeholder values, provider mutation, or process
+control. macOS remains outside this Linux-first milestone.

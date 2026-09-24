@@ -54,6 +54,12 @@ OPERATION_MATRIX = {
         "ListQuotaWindowsV1",
         "QuotaWindowPageV1",
     ),
+    ("/api/v1/capacity/history", "get"): (
+        "capacity_list_history_v1",
+        "read:telemetry",
+        "ListCapacityHistoryV1",
+        "CapacityHistoryPageV1",
+    ),
     ("/api/v1/processes", "get"): (
         "runtime_list_processes_v1",
         "read:telemetry",
@@ -72,6 +78,12 @@ OPERATION_MATRIX = {
         "ListAgentSessionsV1",
         "AgentSessionPageV1",
     ),
+    ("/api/v1/sessions/{session_id}/tree", "get"): (
+        "runtime_get_session_tree_v1",
+        "read:telemetry",
+        "GetSessionTreeV1",
+        "SessionTreeViewV1",
+    ),
     ("/api/v1/sessions/{session_id}", "get"): (
         "runtime_get_session_v1",
         "read:telemetry",
@@ -80,12 +92,24 @@ OPERATION_MATRIX = {
     ),
 }
 
-RUNTIME_PATHS = tuple(
-    path.replace("{provider_key}", "claude")
-    .replace("{account_id}", "not-enrolled")
-    .replace("{session_id}", "not-observed")
-    for path, _method in OPERATION_MATRIX
-)
+
+def _runtime_path(template: str) -> str:
+    path = (
+        template.replace("{provider_key}", "claude")
+        .replace("{account_id}", "not-enrolled")
+        .replace("{session_id}", "not-observed")
+    )
+    if path == "/api/v1/capacity/history":
+        return (
+            path
+            + "?subject_id=not-enrolled&metric=remaining_ratio"
+            + "&series_kind=poll_snapshot&from=2026-01-01T00:00:00Z"
+            + "&before=2026-01-02T00:00:00Z"
+        )
+    return path
+
+
+RUNTIME_PATHS = tuple(_runtime_path(path) for path, _method in OPERATION_MATRIX)
 
 
 def test_observation_openapi_publishes_exact_approved_m3_policy() -> None:
@@ -464,11 +488,7 @@ def test_observation_permissions_and_bounded_lists(tmp_path: Path) -> None:
                 _port,
                 _model,
             ) in OPERATION_MATRIX.items():
-                path = (
-                    template.replace("{provider_key}", "claude")
-                    .replace("{account_id}", "not-enrolled")
-                    .replace("{session_id}", "not-observed")
-                )
+                path = _runtime_path(template)
                 denied = await asyncio.to_thread(
                     _request,
                     origin,

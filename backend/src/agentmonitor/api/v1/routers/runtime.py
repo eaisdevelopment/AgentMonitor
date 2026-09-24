@@ -28,6 +28,8 @@ from agentmonitor.api.v1.schemas.runtime import (
     ProcessLabelFieldWireV1,
     ProcessMetricFieldWireV1,
     SessionIdentityWireV1,
+    SessionTreeNodeV1,
+    SessionTreeViewV1,
 )
 from agentmonitor.contracts.common_provenance_v1 import ObservationProvenanceV1
 from agentmonitor.contracts.common_v1 import OpaqueIdV1
@@ -35,6 +37,9 @@ from agentmonitor.contracts.runtime_observation_v1 import (
     AgentProcessRecordV1,
     AgentSessionRecordV1,
     ProcessMetricFieldV1,
+)
+from agentmonitor.contracts.runtime_observation_v1 import (
+    SessionTreeViewV1 as DomainSessionTreeViewV1,
 )
 from agentmonitor.modules.runtime_observation.application.queries import (
     AgentSessionNotFoundV1,
@@ -160,6 +165,33 @@ def _session(item: AgentSessionRecordV1) -> AgentSessionViewV1:
         correlation_state=item.correlation_state,
         account_id=item.account_id,
         revision=item.revision,
+    )
+
+
+def _session_tree(item: DomainSessionTreeViewV1) -> SessionTreeViewV1:
+    return SessionTreeViewV1(
+        root_session_id=item.root_session_id.value,
+        as_of=item.as_of,
+        nodes=tuple(
+            SessionTreeNodeV1(
+                session=_session(node.session),
+                parent_session_id=(
+                    node.parent_session_id.value
+                    if node.parent_session_id is not None
+                    else None
+                ),
+                child_session_ids=tuple(
+                    child_id.value for child_id in node.child_session_ids
+                ),
+                orphan_reason=node.orphan_reason,
+            )
+            for node in item.nodes
+        ),
+        included_count=item.included_count,
+        excluded_count=item.excluded_count,
+        unknown_count=item.unknown_count,
+        partial=item.partial,
+        reason_codes=item.reason_codes,
     )
 
 
@@ -308,6 +340,36 @@ def list_sessions(
         ),
         availability=availability(result.availability),
     )
+
+
+@router.get(
+    "/sessions/{session_id}/tree",
+    operation_id="runtime_get_session_tree_v1",
+    response_model=SessionTreeViewV1,
+    responses=ERROR_RESPONSES,
+    openapi_extra=policy("read:telemetry", "GetSessionTreeV1"),
+)
+def get_session_tree(
+    session_id: str,
+    request: Request,
+    depth_limit: int = Query(8, ge=1, le=32),
+    node_limit: int = Query(200, ge=1, le=200),
+) -> SessionTreeViewV1:
+    authorize_request(request, "read:telemetry")
+    reject_unknown_query(request, frozenset({"depth_limit", "node_limit"}))
+    require_opaque_selector(session_id)
+    try:
+        item = observation_ports(request).get_session_tree(
+            OpaqueIdV1(session_id),
+            as_of=datetime.now(UTC),
+            depth_limit=depth_limit,
+            node_limit=node_limit,
+        )
+    except AgentSessionNotFoundV1:
+        raise ProblemError(404, "resource_not_found") from None
+    except RuntimeQueryUnavailableV1:
+        raise ProblemError(503, "observation_repository_unavailable") from None
+    return _session_tree(item)
 
 
 @router.get(

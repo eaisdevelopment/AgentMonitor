@@ -228,7 +228,6 @@ class SqliteCollectionRepositoryV1:
                         )
                     elif (
                         schedule["target_key_digest"] != admission.target_key_digest
-                        or schedule["target_generation"] != admission.target_generation
                         or schedule["provider_key"] != admission.provider_key
                         or schedule["installation_id"]
                         != admission.installation_id.value
@@ -251,10 +250,34 @@ class SqliteCollectionRepositoryV1:
                             else None
                         )
                         or schedule["capability_id"] != admission.capability_id
+                        or schedule["target_generation"] > admission.target_generation
                     ):
                         connection.rollback()
                         raise CollectionRepositoryErrorV1(
                             "collection_schedule_conflict"
+                        )
+                    elif schedule["target_generation"] < admission.target_generation:
+                        active_lease = connection.exec_driver_sql(
+                            "SELECT 1 FROM collection_lease WHERE schedule_id=? "
+                            "LIMIT 1",
+                            (admission.schedule_id.value,),
+                        ).scalar_one_or_none()
+                        if active_lease is not None:
+                            connection.rollback()
+                            raise CollectionRepositoryErrorV1(
+                                "collection_schedule_conflict"
+                            )
+                        connection.exec_driver_sql(
+                            "UPDATE collection_schedule SET target_generation=?, "
+                            "next_due_at=?, updated_at=?, record_version=record_version+1 "
+                            "WHERE schedule_id=? AND target_generation<?",
+                            (
+                                admission.target_generation,
+                                _utc_text(admission.requested_at),
+                                _utc_text(admission.requested_at),
+                                admission.schedule_id.value,
+                                admission.target_generation,
+                            ),
                         )
                     latest_policy = (
                         connection.exec_driver_sql(

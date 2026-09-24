@@ -130,6 +130,7 @@ the lifecycle stage that needs it remains Not Ready.
 | `AUTO-QUALITY` | Run formatting, linting, typing, import-boundary, security, secret, dependency, license, and compatibility gates | Foundation/security | merge/release candidate |
 | `AUTO-GIT-PREFLIGHT` | Verify repository identity, expected branch/upstream, clean/declared changes, no secrets, and commit policy without mutating history | Foundation/release | commit/push/release |
 | `AUTO-BUILD` | Reproducibly build locked backend/frontend artifacts and emit build metadata/SBOM/notices | Foundation/release | install/deploy |
+| `AUTO-M3-LIVE` | Verify the M3 Claude vertical slice against real owner SQLite through the authenticated loopback production build and browser; keep the native password memory-only and report unavailable prerequisites as Blocked | Integration/P02 | V1-M3 handoff |
 | `AUTO-MIGRATE` | Preflight schema range, lock migration, take required backup, apply explicit revisions, verify integrity, and fail safely | Persistence/operations | upgrade/start on new schema |
 | `AUTO-DEPLOY` | Install or upgrade the native user service and frontend/backend artifacts using the approved paths, permissions, preflight, and rollback | Deployment | installed release |
 | `AUTO-BACKUP` | Create checksum-verified, integrity-checked, retention-classified backups without secrets | Operations | production-like local data |

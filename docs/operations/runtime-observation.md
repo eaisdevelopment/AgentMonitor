@@ -38,6 +38,24 @@ identity, and the selected account/profile versions. HTTP success is released
 only after the M04/M06 receipt, session, and process link reopen successfully.
 Restart the dashboard after the receiver child releases the service lock.
 
+A successful launch prints only safe AgentMonitor IDs and completion state. A
+generic `claude_otel_monitoring_start_failed` means startup failed closed before
+Claude was replaced; rerun only after checking the safe local configuration and
+service-lock conditions. Do not weaken identity, version, account, or profile
+checks to make the command start.
+
+After a successful owner-terminal collection, run the canonical populated
+dashboard acceptance:
+
+```text
+python3 tools/automation/run.py AUTO-M3-LIVE
+```
+
+The routine builds the production frontend, starts the authenticated service on
+loopback with the owner-selected database, prompts for the dashboard password
+through a native memory-only dialog, runs the real browser, and checkpoints the
+database. `BLOCKED` and `FAILED` are not passes.
+
 For a partial process result, inspect only safe outcome codes. Common causes are
 candidate exit/change, permission denial, deadline/result bounds, unsafe stat
 layout, or procfs/system-unit unavailability. Do not add logging of raw procfs

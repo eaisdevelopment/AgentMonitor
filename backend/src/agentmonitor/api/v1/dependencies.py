@@ -12,6 +12,7 @@ from agentmonitor.contracts.identity_access_v1 import (
 )
 from agentmonitor.modules.capacity.application.queries import (
     GetAccountCapacityV1,
+    ListCapacityHistoryV1,
     ListQuotaWindowsV1,
 )
 from agentmonitor.modules.collection_control.application.queries import (
@@ -50,6 +51,7 @@ from agentmonitor.modules.registry.application.discovery import (
 )
 from agentmonitor.modules.runtime_observation.application.queries import (
     GetAgentSessionV1,
+    GetSessionTreeV1,
     ListAgentProcessesV1,
     ListAgentSessionsV1,
 )
@@ -87,9 +89,11 @@ class ObservationApiPortsV1:
     list_collection_runs: ListCollectionRunsV1
     get_account_capacity: GetAccountCapacityV1
     list_quota_windows: ListQuotaWindowsV1
+    list_capacity_history: ListCapacityHistoryV1
     list_processes: ListAgentProcessesV1
     list_sessions: ListAgentSessionsV1
     get_session: GetAgentSessionV1
+    get_session_tree: GetSessionTreeV1
 
 
 @dataclass(frozen=True, slots=True)

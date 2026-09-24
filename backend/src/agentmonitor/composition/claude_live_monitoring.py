@@ -146,7 +146,7 @@ def build_owner_operator_quota_admission_v1(
         registry_revision=registry_revision,
         retry_chain_id=OpaqueIdV1(retry_chain_id),
         attempt_ordinal=1,
-        target_generation=1,
+        target_generation=registry_revision,
         scheduler_instance_id=OpaqueIdV1("agentmonitor-local-manual"),
         lease_policy_version="1.0.0",
         budget_policy_id="claude-source-minimum-interval-v1",

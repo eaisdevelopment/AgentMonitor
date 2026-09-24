@@ -1,8 +1,8 @@
 """M05 capacity V1 contracts with explicit exactness and availability."""
 
 import re
-from dataclasses import dataclass
-from datetime import datetime
+from dataclasses import dataclass, replace
+from datetime import datetime, timedelta
 from typing import ClassVar, Literal
 
 from agentmonitor.contracts.collection_control_v1 import (
@@ -40,8 +40,11 @@ CapacityHealthStateV1 = Literal[
     "reauthentication_required",
     "unknown",
 ]
+CapacityHistoryMetricV1 = Literal["used", "remaining", "limit", "remaining_ratio"]
+CapacityHistorySeriesKindV1 = Literal["raw_provider", "poll_snapshot", "derived"]
 
 _TOKEN = re.compile(r"[A-Za-z0-9][A-Za-z0-9_.:@/-]{0,127}\Z")
+_CURSOR_KEY = re.compile(r"[A-Za-z0-9_-]{1,64}\Z")
 
 
 class InvalidCapacityContractV1(ValueError):
@@ -319,6 +322,97 @@ class AccountCapacityViewV1(TechnicalValueV1):
     subject: CapacitySubjectV1
     windows: tuple[QuotaWindowViewV1, ...]
     health: CapacityHealthViewV1 | None
+
+
+@dataclass(frozen=True, slots=True)
+class CapacityHistoryQueryV1(TechnicalValueV1):
+    """One bounded, side-effect-free immutable quota-history selection."""
+
+    CONTRACT_ID: ClassVar[str] = "CTR-CAP-006"
+    OWNER: ClassVar[str] = "PLAN-M05"
+
+    subject_id: OpaqueIdV1
+    resource_id: OpaqueIdV1 | None
+    window_id: OpaqueIdV1 | None
+    metric: CapacityHistoryMetricV1
+    series_kind: CapacityHistorySeriesKindV1
+    range_start: datetime
+    range_before: datetime
+    as_of: datetime
+    limit: int
+    after_key: str | None
+    bucket_method: str | None
+    bucket_seconds: int | None
+
+    def __post_init__(self) -> None:
+        TechnicalValueV1.__post_init__(self)
+        if self.range_start >= self.range_before:
+            raise InvalidCapacityContractV1("capacity_history_range_invalid")
+        if self.range_before - self.range_start > timedelta(days=365):
+            raise InvalidCapacityContractV1("capacity_history_range_too_large")
+        if type(self.limit) is not int or not 1 <= self.limit <= 200:
+            raise InvalidCapacityContractV1("capacity_history_limit_invalid")
+        if self.after_key is not None and _CURSOR_KEY.fullmatch(self.after_key) is None:
+            raise InvalidCapacityContractV1("capacity_history_cursor_invalid")
+        if self.bucket_method is not None or self.bucket_seconds is not None:
+            raise InvalidCapacityContractV1("capacity_history_bucket_unsupported")
+
+    def with_cursor(self, after_key: str | None) -> "CapacityHistoryQueryV1":
+        return replace(self, after_key=after_key)
+
+
+@dataclass(frozen=True, slots=True)
+class CapacityHistoryPointV1(TechnicalValueV1):
+    """One persisted point; no bucket, interpolation, or value is invented."""
+
+    CONTRACT_ID: ClassVar[str] = "CTR-CAP-006"
+    OWNER: ClassVar[str] = "PLAN-M05"
+
+    observation_id: OpaqueIdV1
+    window_id: OpaqueIdV1
+    window_definition_id: OpaqueIdV1
+    subject: CapacitySubjectV1
+    window_key: str
+    safe_label: str | None
+    semantic_role: str
+    native_unit: str | None
+    definition_version: int
+    metric: CapacityHistoryMetricV1
+    series_kind: CapacityHistorySeriesKindV1
+    value: ExactMetricFieldV1
+    provenance: CapacityObservationProvenanceViewV1
+    freshness: Literal["fresh", "stale", "freshness_unknown"]
+    completeness: CompletenessV1
+    collection_run_id: OpaqueIdV1
+    derivation_id: OpaqueIdV1 | None
+    observed_at: datetime
+    interval_start: datetime | None
+    interval_end: datetime | None
+    reset_at: datetime | None
+    reset_precision: PrecisionV1
+    collected_at: datetime
+    stored_at: datetime
+
+    def __post_init__(self) -> None:
+        TechnicalValueV1.__post_init__(self)
+        if (
+            not _token(self.window_key)
+            or not _token(self.semantic_role)
+            or type(self.definition_version) is not int
+            or self.definition_version < 1
+            or (self.interval_start is None) != (self.interval_end is None)
+            or (
+                self.interval_start is not None
+                and self.interval_end is not None
+                and self.interval_start >= self.interval_end
+            )
+            or (self.reset_at is None) != (self.reset_precision == "unknown")
+        ):
+            raise InvalidCapacityContractV1("capacity_history_point_invalid")
+
+    @property
+    def cursor_key(self) -> str:
+        return self.observation_id.value
 
 
 @dataclass(frozen=True, slots=True)

@@ -6,6 +6,8 @@ import {
   type AgentProcessMetricViewV1,
   type AgentSessionPageV1,
   type AgentSessionViewV1,
+  type SessionTreeNodeV1,
+  type SessionTreeViewV1,
 } from "../../shared/api/client";
 
 type RuntimeState =
@@ -15,6 +17,8 @@ type RuntimeState =
       kind: "ready";
       processes: AgentProcessMetricPageV1 | null;
       sessions: AgentSessionPageV1;
+      trees: Readonly<Record<string, SessionTreeViewV1>>;
+      treeMessage: string | null;
       selected: AgentSessionViewV1 | null;
       detailMessage: string | null;
     }>;
@@ -23,11 +27,22 @@ function Provenance({ item }: Readonly<{ item: AgentSessionViewV1["provenance"] 
   return (
     <dl className="provenance-grid">
       <div><dt>Source</dt><dd>{item.source_id}</dd></div>
+      <div><dt>Source class</dt><dd>{words(item.source_class)}</dd></div>
+      <div><dt>Observed</dt><dd>{item.observed_at === null ? words(item.observed_at_availability.state) : new Date(item.observed_at).toLocaleString()}</dd></div>
       <div><dt>Collected</dt><dd>{new Date(item.collected_at).toLocaleString()}</dd></div>
       <div><dt>Freshness</dt><dd>{item.freshness_availability.state.replaceAll("_", " ")}</dd></div>
-      <div><dt>Version</dt><dd>{item.provider_version ?? item.provider_version_availability.state.replaceAll("_", " ")}</dd></div>
+      <div><dt>Freshness deadline</dt><dd>{item.freshness_deadline === null ? "Unknown" : new Date(item.freshness_deadline).toLocaleString()}</dd></div>
+      <div><dt>Freshness policy</dt><dd>{item.freshness_policy_id}</dd></div>
+      <div><dt>Adapter</dt><dd>{item.adapter_id} · {item.adapter_version}</dd></div>
+      <div><dt>Mechanism version</dt><dd>{item.mechanism_version}</dd></div>
+      <div><dt>Parser version</dt><dd>{item.parser_version ?? "Not applicable"}</dd></div>
+      <div><dt>Provider protocol</dt><dd>{item.provider_protocol_version}</dd></div>
+      <div><dt>Provider version</dt><dd>{item.provider_version ?? item.provider_version_availability.state.replaceAll("_", " ")}</dd></div>
+      <div><dt>Precision</dt><dd>{item.precision}</dd></div>
       <div><dt>Confidence</dt><dd>{item.confidence} · {item.confidence_reason_code.replaceAll("_", " ")}</dd></div>
       <div><dt>Value kind</dt><dd>{item.value_kind.replaceAll("_", " ")}</dd></div>
+      <div><dt>Derivation method</dt><dd>{item.derivation_method ?? "None — provider reported"}</dd></div>
+      <div><dt>Input observations</dt><dd>{item.input_observation_ids.length === 0 ? "None" : item.input_observation_ids.join(", ")}</dd></div>
     </dl>
   );
 }
@@ -119,6 +134,54 @@ function processFreshness(process: AgentProcessMetricViewV1): string {
   return `Observed ${observationAge} ago · Freshness deadline ${deadlineRelation}`;
 }
 
+function SessionTreeNode({
+  node,
+  nodes,
+  seen,
+}: Readonly<{
+  node: SessionTreeNodeV1;
+  nodes: ReadonlyMap<string, SessionTreeNodeV1>;
+  seen: ReadonlySet<string>;
+}>) {
+  const sessionId = node.session.session_id;
+  const nextSeen = new Set(seen);
+  nextSeen.add(sessionId);
+  const children = node.child_session_ids.flatMap((childId) => {
+    const child = nodes.get(childId);
+    return child === undefined || nextSeen.has(childId) ? [] : [child];
+  });
+  return (
+    <li data-session-tree-node="true">
+      <details open>
+        <summary>{node.session.identity.provider_key} session · {children.length} direct {children.length === 1 ? "child" : "children"}</summary>
+        <p>{words(node.session.correlation_state)} · {node.orphan_reason === null ? "parent evidence confirmed" : words(node.orphan_reason)}</p>
+        {children.length > 0 && <ul>{children.map((child) => (
+          <SessionTreeNode key={child.session.session_id} node={child} nodes={nodes} seen={nextSeen} />
+        ))}</ul>}
+      </details>
+    </li>
+  );
+}
+
+function SessionTree({ tree }: Readonly<{ tree: SessionTreeViewV1 }>) {
+  const nodes = new Map(tree.nodes.map((node) => [node.session.session_id, node]));
+  const root = nodes.get(tree.root_session_id);
+  return (
+    <section className="session-tree" data-session-tree="true" aria-labelledby={`session-tree-${tree.root_session_id}`}>
+      <div className="session-tree-heading">
+        <h3 id={`session-tree-${tree.root_session_id}`}>Session hierarchy</h3>
+        <p>Included {tree.included_count} · Excluded {tree.excluded_count} · Unknown {tree.unknown_count}</p>
+      </div>
+      {root === undefined ? (
+        <p role="status">The hierarchy root is unavailable.</p>
+      ) : (
+        <ul className="session-tree-list"><SessionTreeNode node={root} nodes={nodes} seen={new Set()} /></ul>
+      )}
+      {tree.partial && <p className="pagination-note">Partial hierarchy: {tree.reason_codes.map(words).join(", ")}.</p>}
+    </section>
+  );
+}
+
 export function SessionPanel({
   accountId,
   displayMode = "page",
@@ -149,10 +212,23 @@ export function SessionPanel({
         else setState({ kind: "error", message: "Session observations could not be loaded." });
         return;
       }
+      const treeResults = await Promise.all(sessions.data.items.map(async (session) => ({
+        sessionId: session.session_id,
+        result: await runtime.sessionTree(session.session_id, signal),
+      })));
+      if (treeResults.some(({ result }) => !result.ok && result.problem.code === "dashboard_authentication_required")) {
+        onExpired();
+        return;
+      }
+      const trees = Object.fromEntries(treeResults.flatMap(({ sessionId, result }) => (
+        result.ok ? [[sessionId, result.data] as const] : []
+      )));
       setState({
         kind: "ready",
         processes: processes === null ? null : processes.data,
         sessions: sessions.data,
+        trees,
+        treeMessage: treeResults.some(({ result }) => !result.ok) ? "One or more session hierarchies are unavailable." : null,
         selected: null,
         detailMessage: null,
       });
@@ -204,9 +280,16 @@ export function SessionPanel({
         <div className="empty-telemetry"><div><strong>Session observation {state.sessions.availability.state}.</strong><p>{state.sessions.availability.reason_code.replaceAll("_", " ")}.</p></div></div>
       ) : (
         <div className="session-layout">
-          <div className="session-list" aria-label="Observed sessions">{state.sessions.items.map((session) => (
-            <article className="session-row" key={session.session_id}><div><strong>{session.identity.provider_key}</strong><p>{session.correlation_state.replaceAll("_", " ")} · account {session.account_id === null ? "unresolved" : "correlated"}</p></div><button type="button" className="quiet-button" onClick={() => { void selectSession(session.session_id); }}>Inspect provenance</button></article>
-          ))}</div>
+          <div className="session-list" aria-label="Observed sessions">{state.sessions.items.map((session) => {
+            const tree = state.trees[session.session_id];
+            return (
+              <article className="session-row" key={session.session_id}>
+                <div className="session-row-main"><div><strong>{session.identity.provider_key}</strong><p>{session.correlation_state.replaceAll("_", " ")} · account {session.account_id === null ? "unresolved" : "correlated"}</p></div><button type="button" className="quiet-button" onClick={() => { void selectSession(session.session_id); }}>Inspect provenance</button></div>
+                {tree !== undefined && <SessionTree tree={tree} />}
+              </article>
+            );
+          })}</div>
+          {state.treeMessage !== null && <p role="status">{state.treeMessage}</p>}
           {state.detailMessage !== null && <p role="status">{state.detailMessage}</p>}
           {state.selected !== null && (
             <aside className="session-detail" aria-labelledby="session-detail-title"><div className="panel-heading"><div><p className="panel-code">SESSION DETAIL</p>{displayMode === "page" ? <h2 id="session-detail-title">Observation provenance</h2> : <h3 id="session-detail-title">Observation provenance</h3>}</div><button type="button" className="quiet-button" onClick={() => setState((current) => current.kind === "ready" ? { ...current, selected: null } : current)}>Close</button></div><Provenance item={state.selected.provenance} /></aside>

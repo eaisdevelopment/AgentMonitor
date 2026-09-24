@@ -207,6 +207,13 @@ def _same_owner(expected_uid: int, observed_uid: int) -> bool:
     )
 
 
+def _comm_is_eligible(
+    comm: str, executable_identity: str, *, exact_executable_verified: bool
+) -> bool:
+    """Use kernel comm only for generic discovery, never as verified identity."""
+    return exact_executable_verified or comm == executable_identity
+
+
 class InspectLinuxProcessesV1:
     """Inspect selected same-user processes without argv/environment/content."""
 
@@ -353,7 +360,11 @@ class InspectLinuxProcessesV1:
             except ValueError:
                 omissions.add("candidate_layout_invalid")
                 continue
-            if parsed[0] != request.executable_identity:
+            if not _comm_is_eligible(
+                parsed[0],
+                request.executable_identity,
+                exact_executable_verified=approved_selector is not None,
+            ):
                 continue
             executable_file_identity: _ExecutableFileIdentity | None = None
             if approved_selector is not None:

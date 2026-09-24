@@ -85,6 +85,14 @@ implementation_command = ["python3", "tools/automation/implementations/auto_test
 blockers = []
 
 [[routines]]
+id = "AUTO-M3-LIVE"
+owner = "PLAN-INT"
+status = "operational"
+scope = "V1-M3 real owner SQLite, authenticated loopback service, generated-client production browser, and populated Claude reconciliation"
+implementation_command = ["backend/.venv/bin/python", "tools/automation/implementations/auto_m3_live.py"]
+blockers = []
+
+[[routines]]
 id = "AUTO-QUALITY"
 owner = "PLAN-FND"
 status = "operational"

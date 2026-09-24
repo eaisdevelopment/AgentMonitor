@@ -203,3 +203,21 @@ class AgentSessionPageV1(_ClosedV1):
     items: tuple[AgentSessionViewV1, ...]
     page: PageMetaV1
     availability: AvailabilityV1
+
+
+class SessionTreeNodeV1(_ClosedV1):
+    session: AgentSessionViewV1
+    parent_session_id: str | None
+    child_session_ids: tuple[str, ...]
+    orphan_reason: str | None
+
+
+class SessionTreeViewV1(_ClosedV1):
+    root_session_id: str
+    as_of: datetime
+    nodes: tuple[SessionTreeNodeV1, ...]
+    included_count: int
+    excluded_count: int
+    unknown_count: int
+    partial: bool
+    reason_codes: tuple[str, ...]

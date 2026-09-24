@@ -366,3 +366,12 @@ Claude adapter consumption of registry, provenance, and runtime contracts used
 by the transparent Claude telemetry composition. It also binds the additive
 M02 provider-fingerprint operations. Contract versions are unchanged. This is
 a mechanical M3 consumer/snapshot rebind, not owner approval or live acceptance.
+
+## 16. 2026-09-24 M3 live-gate binding
+
+Plan snapshot SHA-256: `4e34a1bff2d81307e422ac105aae1927358e6176ccc23e490af9637e59cfdbdc`
+
+The automation catalog and standard now define the canonical M3 real-owner
+browser gate. The synchronized snapshot changes no module plan, public contract,
+owner authority, provider state, or M4 scope. This is a mechanical control
+binding, not a renewed all-V1 approval or an M3 acceptance claim.

@@ -249,3 +249,57 @@ There is no process control, authentication mutation, dependency addition,
 schema change, or migration. This evidence documents a passed narrow quota
 persistence/browser result while preserving the stated runtime and M0 control
 blockers; it does not claim M3 completion.
+
+## 2026-09-24 same-account runtime and populated-browser completion
+
+This section supersedes the earlier runtime/browser Blocked rows. The approved
+owner-terminal composition received a real official Claude OTLP session-count
+metric, matched its provider account fingerprint to the selected owner-confirmed
+account, verified the exact Linux process/installation/version tuple, and
+durably committed collection run
+`claude-otel-run-c0c69d2725224ec4a5ad895368b33e54`. The source is
+`claude.otel.metrics.http-json.v1`. HTTP success was released only after commit,
+checkpoint, and database-reopen verification. The protected default profile and
+running process were not modified or controlled.
+
+Real persisted history and topology checks then passed:
+
+```text
+test_real_claude_history_is_exact_stable_and_cursor_bounded
+# 1 passed in 308.30s
+
+AGENTMONITOR_TEST_DATA_ROOT=/home/dev/.local/share/agentmonitor \
+  PYTHONPATH=backend/src:. backend/.venv/bin/python -m pytest -q \
+  backend/tests/runtime_observation/integration/test_real_session_tree_read.py
+# 1 passed in 0.22s
+```
+
+The authenticated production-browser scenario first failed because the new
+history section was absent, then exposed and corrected an exact 365-day range
+boundary and an asynchronous tree-loading race. Its final Green was:
+
+```text
+P02 POPULATED MONITORING: PASSED — real Claude quota history/chart,
+collection reconciliation, exact process runtime, and same-account session
+hierarchy/provenance
+M3 LIVE: PASSED — real populated authenticated Claude dashboard
+AUTO-M3-LIVE: PASSED (operational)
+```
+
+The browser proved exact history observation IDs, values, timestamps, units,
+collection lineage and provenance; real session/process/account lineage; bounded
+tree counts with explicit unknown parentage; authenticated 200 responses for
+`/api/v1/capacity/history` and `/api/v1/sessions/{session_id}/tree`; and no
+document overflow at 1920×1080, 200% equivalent, or 390×844. No provider value,
+prompt, response, source content, credential, or arbitrary environment value was
+recorded in evidence.
+
+Natural stall evidence and an actually ambiguous correlation requiring manual
+confirmation did not occur and remain Not Run. They were not required to prove
+the M3 exit condition and no telemetry was constructed for them.
+
+The final read-only review found that history freshness was initially evaluated
+at collection time rather than the query's explicit `as_of`. A new test against
+the naturally persisted owner database failed `fresh != stale`; after the
+repository used `query.as_of`, that test and three adjacent contract/real-HTTP
+checks passed. No threshold, observation, or provider value was changed.

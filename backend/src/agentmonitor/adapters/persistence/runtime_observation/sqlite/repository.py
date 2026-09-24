@@ -35,8 +35,8 @@ from agentmonitor.contracts.runtime_observation_v1 import (
     SessionCorrelationDecisionV1,
     SessionIdentityV1,
     SessionProcessLinkInputV1,
-    SessionTreeNodeV1,
-    SessionTreeViewV1,
+    SessionTopologyFactV1,
+    SessionTopologySnapshotV1,
 )
 from sqlalchemy.engine import Connection, RowMapping
 from sqlalchemy.exc import SQLAlchemyError
@@ -1444,85 +1444,131 @@ class SqliteRuntimeObservationRepositoryV1:
             revision=int(row["record_version"]),
         )
 
-    def get_session_tree(
-        self,
-        root_session_id: OpaqueIdV1,
-        as_of: datetime,
-        depth_limit: int,
-        node_limit: int,
-    ) -> SessionTreeViewV1:
-        _validate_query(as_of, node_limit)
-        if type(depth_limit) is not int or not 1 <= depth_limit <= 32:
-            raise RuntimeRepositoryErrorV1("runtime_query_invalid")
+    def get_session_topology(
+        self, as_of: datetime, source_limit: int
+    ) -> SessionTopologySnapshotV1:
+        """Read one bounded topology snapshot without inventing hierarchy edges."""
+
+        _validate_query(as_of, source_limit)
         try:
             with open_sqlite_database(
                 self._database_ref, "runtime_read_only"
             ) as handle:
                 with handle.connect() as connection:
-                    root = (
+                    session_rows = (
                         connection.exec_driver_sql(
-                            "SELECT * FROM runtime_session WHERE session_id=? AND first_observed_at<=?",
-                            (root_session_id.value, _utc_text(as_of)),
+                            _CURRENT_SESSION_SELECT + "WHERE s.first_observed_at<=? "
+                            "ORDER BY s.session_id LIMIT ?",
+                            (_utc_text(as_of), source_limit + 1),
                         )
                         .mappings()
-                        .one_or_none()
+                        .all()
                     )
-                    if root is None:
-                        raise RuntimeRepositoryErrorV1("runtime_subject_not_found")
-                    queue: list[tuple[str, int, str | None]] = [
-                        (root_session_id.value, 0, None)
-                    ]
-                    nodes: list[SessionTreeNodeV1] = []
-                    seen: set[str] = set()
-                    partial = False
-                    while queue:
-                        session_id, depth, parent_id = queue.pop(0)
-                        if session_id in seen:
-                            continue
-                        if len(nodes) >= node_limit:
-                            partial = True
-                            break
-                        seen.add(session_id)
-                        row = (
-                            connection.exec_driver_sql(
-                                _CURRENT_SESSION_SELECT + "WHERE s.session_id=?",
-                                (session_id,),
-                            )
-                            .mappings()
-                            .one()
+                    process_rows = (
+                        connection.exec_driver_sql(
+                            "SELECT p.*, s.parent_pid_state, s.parent_pid, "
+                            "s.parent_pid_unit, s.parent_pid_reason_code, "
+                            "s.user_cpu_state, s.user_cpu_ticks, s.user_cpu_unit, "
+                            "s.user_cpu_reason_code, s.system_cpu_state, "
+                            "s.system_cpu_ticks, s.system_cpu_unit, "
+                            "s.system_cpu_reason_code, s.resident_state, "
+                            "s.resident_pages, s.resident_unit, "
+                            "s.resident_reason_code, s.thread_state, "
+                            "s.thread_count, s.thread_unit, s.thread_reason_code, "
+                            "s.kernel_state_state, s.kernel_state, "
+                            "s.kernel_state_reason_code, s.clock_ticks_per_second, "
+                            "s.page_size_bytes, "
+                            + _PROVENANCE_SELECT
+                            + " FROM runtime_process_instance AS p "
+                            "JOIN runtime_process_snapshot AS s "
+                            "ON s.snapshot_id=p.current_snapshot_id "
+                            "JOIN runtime_ingest_receipt AS r "
+                            "ON r.collection_run_id=s.collection_run_id "
+                            "AND r.capability_id='local.process.observation' "
+                            "WHERE p.first_observed_at<=? "
+                            "ORDER BY p.process_id LIMIT ?",
+                            (_utc_text(as_of), source_limit + 1),
                         )
-                        child_ids = tuple(
-                            str(value)
-                            for value in connection.exec_driver_sql(
-                                "SELECT child_session_id FROM runtime_session_relationship WHERE parent_session_id=? AND is_current=1 AND conflict_state='clear' ORDER BY child_session_id",
-                                (session_id,),
-                            ).scalars()
+                        .mappings()
+                        .all()
+                    )
+                    if (
+                        len(session_rows) > source_limit
+                        or len(process_rows) > source_limit
+                    ):
+                        raise RuntimeRepositoryErrorV1(
+                            "runtime_topology_source_bound_reached"
                         )
-                        if depth < depth_limit:
-                            queue.extend(
-                                (child_id, depth + 1, session_id)
-                                for child_id in child_ids
-                            )
-                        elif child_ids:
-                            partial = True
-                        nodes.append(
-                            SessionTreeNodeV1(
-                                session=self._session_record(row),
-                                parent_session_id=OpaqueIdV1(parent_id)
-                                if parent_id is not None
-                                else None,
-                                child_session_ids=tuple(
-                                    OpaqueIdV1(value) for value in child_ids
-                                ),
-                                orphan_reason=None,
-                            )
+                    link_rows = (
+                        connection.exec_driver_sql(
+                            "SELECT session_id, process_id, relationship_kind, "
+                            "evidence_class, certainty, conflict_state "
+                            "FROM runtime_session_process_link "
+                            "WHERE is_current=1 AND valid_from<=? "
+                            "ORDER BY session_id, link_id",
+                            (_utc_text(as_of),),
                         )
-            return SessionTreeViewV1(
-                root_session_id=root_session_id,
-                as_of=as_of,
-                nodes=tuple(nodes),
-                partial=partial,
-                reason_codes=("tree_bound_reached",) if partial else (),
+                        .mappings()
+                        .all()
+                    )
+
+            links_by_session: dict[str, list[RowMapping]] = {}
+            for row in link_rows:
+                if row["relationship_kind"] == "primary":
+                    links_by_session.setdefault(str(row["session_id"]), []).append(row)
+
+            facts: list[SessionTopologyFactV1] = []
+            for row in session_rows:
+                session = self._session_record(row)
+                links = links_by_session.get(session.session_id.value, [])
+                exact = [
+                    link
+                    for link in links
+                    if link["evidence_class"] == "strong"
+                    and link["certainty"] == "definitive"
+                    and link["conflict_state"] == "clear"
+                ]
+                if len(links) > 1 or len(exact) > 1:
+                    facts.append(
+                        SessionTopologyFactV1(
+                            session,
+                            None,
+                            "excluded",
+                            "session_process_link_ambiguous",
+                        )
+                    )
+                elif len(exact) == 1 and len(links) == 1:
+                    facts.append(
+                        SessionTopologyFactV1(
+                            session,
+                            OpaqueIdV1(str(exact[0]["process_id"])),
+                            "eligible",
+                            "session_process_link_strong",
+                        )
+                    )
+                elif links:
+                    facts.append(
+                        SessionTopologyFactV1(
+                            session,
+                            None,
+                            "excluded",
+                            "session_process_link_not_strong",
+                        )
+                    )
+                else:
+                    facts.append(
+                        SessionTopologyFactV1(
+                            session,
+                            None,
+                            "unknown",
+                            "session_process_link_missing",
+                        )
+                    )
+            return SessionTopologySnapshotV1(
+                sessions=tuple(facts),
+                processes=tuple(
+                    self._process_record(row, as_of) for row in process_rows
+                ),
             )
         except RuntimeRepositoryErrorV1:
             raise

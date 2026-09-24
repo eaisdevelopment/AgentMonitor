@@ -1,6 +1,6 @@
 # V1-M3 local foundation handoff
 
-- Outcome: **Local/non-live foundation accepted; full milestone Blocked**
+- Outcome: **V1-M3 accepted on the Linux owner workstation**
 - Milestone/plan: `V1-M3`, Tasks 1–6 in
   `docs/superpowers/plans/2026-09-19-agentmonitor-v1-m3-claude-slice.md`
 - Modules: M02 Registry, M03 Provider system, A01 Claude, M04 Collection
@@ -107,9 +107,10 @@ remain meaningful and mutation-sensitive.
   scans, fresh frozen install, SBOM/notices release generation, and publication
   remain Not Run or outside this milestone.
 
-## Blocking exit conditions
+## Historical blocking exit conditions
 
-Full V1-M3 remains Blocked until all of the following are real and Green:
+At the initial foundation handoff, V1-M3 was blocked until the following became
+real and Green:
 
 1. The owner accepts Claude workspace trust for the test workspace without
    changing or relocating the default provider profile.
@@ -123,4 +124,25 @@ Full V1-M3 remains Blocked until all of the following are real and Green:
 6. The owner accepts or rejects the documented initial Task 6 Red-evidence
    chronology deviation.
 
+Items 1–4 and 6 are resolved by the accepted live/deviation records. The real
+data volume produced no second history page, so item 5 was truthfully Not Run;
+the first-page `has_more` behavior remains tested and visible. It does not block
+the one-observation-per-lane M3 exit rule.
+
 M4 has not begun.
+
+## 2026-09-24 final M3 acceptance update
+
+This update supersedes the handoff's earlier live blockers. One owner-confirmed
+Claude account now has real quota and official-OTLP runtime observations, real
+M04/M05/M06 receipts, durable same-account correlation, versioned API transport,
+generated-client consumption, and authenticated production-browser rendering.
+Capacity history and bounded session-tree operations raise the generated OpenAPI
+operation count from 23 to 25 without a breaking V1 change.
+
+`AUTO-M3-LIVE` passed against `/home/dev/.local/share/agentmonitor` using a
+native memory-only password prompt. The real browser reconciled the exact
+account, quota observations, collection runs, process/session lineage, history,
+topology counts, and complete provenance at the required desktop and responsive
+viewports. Natural stall and ambiguous-manual-correlation examples remain Not
+Run and were not replaced with synthetic data. M4 has not begun.

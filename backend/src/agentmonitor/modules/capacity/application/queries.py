@@ -7,6 +7,8 @@ from agentmonitor.contracts.capacity_v1 import (
     AccountCapacityViewV1,
     CapacityCommitStatusV1,
     CapacityHealthViewV1,
+    CapacityHistoryPointV1,
+    CapacityHistoryQueryV1,
     QuotaWindowViewV1,
 )
 from agentmonitor.contracts.common_v1 import (
@@ -45,6 +47,12 @@ class CapacityCommitQueryRepositoryV1(Protocol):
         page_size: int,
         after_key: str | None,
     ) -> tuple[QuotaWindowViewV1, ...]: ...
+
+    def page_capacity_history(
+        self,
+        query: CapacityHistoryQueryV1,
+        page_size: int,
+    ) -> tuple[CapacityHistoryPointV1, ...]: ...
 
     def get_capacity_health(
         self,
@@ -127,6 +135,37 @@ class ListQuotaWindowsV1:
             limit,
             has_more,
             items[-1].window_id.value if has_more else None,
+            query_availability,
+        )
+
+
+class ListCapacityHistoryV1:
+    """CTR-CAP-006 bounded history query; it never invokes a provider."""
+
+    def __init__(self, repository: CapacityCommitQueryRepositoryV1) -> None:
+        self._repository = repository
+
+    def __call__(
+        self, query: CapacityHistoryQueryV1
+    ) -> QueryPageV1[CapacityHistoryPointV1]:
+        try:
+            rows = self._repository.page_capacity_history(query, query.limit + 1)
+        except ValueError:
+            raise CapacityQueryUnavailableV1("capacity_query_unavailable") from None
+        has_more = len(rows) > query.limit
+        items = rows[: query.limit]
+        query_availability = (
+            QueryAvailabilityV1("available", "capacity_history_available", query.as_of)
+            if items
+            else QueryAvailabilityV1(
+                "unavailable", "capacity_history_absent", query.as_of
+            )
+        )
+        return QueryPageV1(
+            items,
+            query.limit,
+            has_more,
+            items[-1].cursor_key if has_more else None,
             query_availability,
         )
 

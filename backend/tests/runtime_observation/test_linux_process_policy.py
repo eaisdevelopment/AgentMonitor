@@ -6,6 +6,7 @@ from pathlib import Path
 import pytest
 from agentmonitor.adapters.platform.linux.processes import (
     InspectLinuxProcessesV1,
+    _comm_is_eligible,
     _read_bounded,
     _same_owner,
     _validate_system_units,
@@ -36,6 +37,12 @@ def test_bounded_read_rejects_limit_smaller_than_real_proc_record() -> None:
 def test_owner_identity_change_fails_closed() -> None:
     assert _same_owner(1000, 1000)
     assert not _same_owner(1000, 1001)
+
+
+def test_exact_executable_identity_does_not_depend_on_kernel_comm_label() -> None:
+    """LNX-PROC-016: native version filenames remain exact-selector eligible."""
+    assert _comm_is_eligible("2.1.278", "claude", exact_executable_verified=True)
+    assert not _comm_is_eligible("2.1.278", "claude", exact_executable_verified=False)
 
 
 def test_caller_asserted_provider_attribution_is_rejected_before_io() -> None:

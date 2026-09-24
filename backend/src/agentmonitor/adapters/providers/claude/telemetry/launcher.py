@@ -19,6 +19,7 @@ class ClaudeMonitoredExecV1:
     authorization_secret: str = field(repr=False)
     launch_id: str
     installation_id: str
+    process_identity: ProcessIdentityV1
 
 
 def _read_bounded(path: Path, maximum: int) -> bytes:
@@ -65,6 +66,8 @@ def exec_monitored_claude(
     if not resolved.is_file() or not os.access(resolved, os.X_OK):
         raise ValueError("claude_monitored_launch_executable_invalid")
     identity = current_process_identity()
+    if identity != configuration.process_identity:
+        raise ValueError("claude_monitored_launch_process_identity_changed")
     resource_attributes = ",".join(
         (
             f"agentmonitor.launch_id={configuration.launch_id}",

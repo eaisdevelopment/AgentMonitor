@@ -46,12 +46,21 @@ def m2_local_suite_commands() -> dict[str, list[str]]:
     """Select M2 local suites while leaving explicit M3 live lanes Not Run."""
     browser_runner = "frontend/tests/browser/p02/run_browser.py"
     return {
+        "argon2_budget": [
+            str(BACKEND_PYTHON),
+            "-m",
+            "pytest",
+            "backend/tests/integration/identity_access/test_argon2_workload.py",
+            "-q",
+            "--tb=short",
+        ],
         "backend": [
             str(BACKEND_PYTHON),
             "-m",
             "pytest",
             "backend/tests",
             "--ignore=backend/tests/live",
+            "--ignore=backend/tests/integration/identity_access/test_argon2_workload.py",
             "--ignore=backend/tests/runtime_observation/integration/test_real_linux_commit.py",
             "-q",
             "--tb=short",
@@ -254,6 +263,7 @@ def main() -> int:
         )
     )
     suite_commands = m2_local_suite_commands()
+    run(suite_commands["argon2_budget"], environment=backend_environment())
     run(suite_commands["backend"], environment=backend_environment())
     run(
         [str(BACKEND_PYTHON), "tooling/foundation/openapi_client.py", "--check"],

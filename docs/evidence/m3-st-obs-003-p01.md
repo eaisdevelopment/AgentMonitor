@@ -149,3 +149,14 @@ The authenticated P01 observation API, OpenAPI contract, and generated client
 foundation are locally Passed for truthful empty/unavailable states. The exact
 populated Claude account/quota/runtime milestone vertical remains Blocked by the
 upstream live Task 3/4/5 evidence and must not be inferred from this result.
+
+## 2026-09-24 populated API supplement
+
+The earlier Blocked conclusion is superseded for the M3 Claude lane. Compatible
+V1 operations `capacity_list_history_v1` and `runtime_get_session_tree_v1`
+raised the generated contract to 25 operations. Real persisted Claude history
+passed direct repository and authenticated loopback pagination/no-write checks;
+the real same-account session tree passed database reopen and authenticated
+transport checks. The production browser received 200 responses from both new
+operations. OpenAPI/client generation remained compatible with SHA-256
+`aae7bbddef229a5f61ddfbe8bb388af1736467f759647770dcd51c2e6f1ca933`.

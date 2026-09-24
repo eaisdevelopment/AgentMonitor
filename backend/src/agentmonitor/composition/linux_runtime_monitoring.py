@@ -196,7 +196,7 @@ def _build_admission(
         registry_revision=registry_revision,
         retry_chain_id=OpaqueIdV1(_operation_id("linux-runtime-retry-chain")),
         attempt_ordinal=1,
-        target_generation=1,
+        target_generation=registry_revision,
         scheduler_instance_id=OpaqueIdV1("agentmonitor-local-manual"),
         lease_policy_version="1.0.0",
         budget_policy_id="local-process-inspection-v1",

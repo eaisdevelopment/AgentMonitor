@@ -15,6 +15,8 @@ import {
   type AvailabilityV1,
   type AgentProcessMetricPageV1,
   type AgentProcessMetricViewV1,
+  type CapacityHistoryPageV1,
+  type CapacityHistoryPointV1,
   type CollectionRunPageV1,
   type CollectionRunViewV1,
   type CurrentSessionViewV1,
@@ -26,6 +28,8 @@ import {
   type QuotaWindowPageV1,
   type QuotaWindowViewV1,
   type SafeProblemV1,
+  type SessionTreeNodeV1,
+  type SessionTreeViewV1,
 } from "../../generated/api";
 
 export type {
@@ -42,6 +46,8 @@ export type {
   AgentSessionPageV1,
   AgentSessionViewV1,
   AvailabilityV1,
+  CapacityHistoryPageV1,
+  CapacityHistoryPointV1,
   CollectionRunPageV1,
   CollectionRunViewV1,
   CurrentSessionViewV1,
@@ -53,6 +59,8 @@ export type {
   QuotaWindowPageV1,
   QuotaWindowViewV1,
   SafeProblemV1,
+  SessionTreeNodeV1,
+  SessionTreeViewV1,
 };
 
 export type FoundationShellState = Readonly<{
@@ -186,6 +194,27 @@ export const capacity = Object.freeze({
     apiClient.capacity_list_quota_windows_v1({
       path: { account_id: accountId }, query: { limit: 200 }, signal,
     }),
+  history: (
+    options: Readonly<{
+      accountId: string;
+      rangeFrom: string;
+      before: string;
+      metric?: "used" | "remaining" | "limit" | "remaining_ratio";
+      seriesKind?: "raw_provider" | "poll_snapshot" | "derived";
+      signal?: AbortSignal;
+    }>,
+  ): Promise<ClientResult<CapacityHistoryPageV1>> =>
+    apiClient.capacity_list_history_v1({
+      query: {
+        subject_id: options.accountId,
+        from: options.rangeFrom,
+        before: options.before,
+        metric: options.metric ?? "remaining_ratio",
+        series_kind: options.seriesKind ?? "poll_snapshot",
+        limit: 200,
+      },
+      signal: options.signal,
+    }),
 });
 
 export const runtime = Object.freeze({
@@ -207,6 +236,15 @@ export const runtime = Object.freeze({
     signal?: AbortSignal,
   ): Promise<ClientResult<AgentSessionViewV1>> =>
     apiClient.runtime_get_session_v1({ path: { session_id: sessionId }, signal }),
+  sessionTree: (
+    sessionId: string,
+    signal?: AbortSignal,
+  ): Promise<ClientResult<SessionTreeViewV1>> =>
+    apiClient.runtime_get_session_tree_v1({
+      path: { session_id: sessionId },
+      query: { depth_limit: 8, node_limit: 200 },
+      signal,
+    }),
 });
 
 /** Only the versioned safe code/correlation is rendered, never rejected input. */

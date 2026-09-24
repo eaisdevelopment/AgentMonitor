@@ -70,6 +70,7 @@ from agentmonitor.foundation.configuration import (
 )
 from agentmonitor.modules.capacity.application.queries import (
     GetAccountCapacityV1,
+    ListCapacityHistoryV1,
     ListQuotaWindowsV1,
 )
 from agentmonitor.modules.collection_control.application.queries import (
@@ -108,6 +109,7 @@ from agentmonitor.modules.registry.application.discovery import (
 )
 from agentmonitor.modules.runtime_observation.application.queries import (
     GetAgentSessionV1,
+    GetSessionTreeV1,
     ListAgentProcessesV1,
     ListAgentSessionsV1,
 )
@@ -203,9 +205,11 @@ def _observation_ports(reference: DatabaseRefV1) -> ObservationApiPortsV1:
         ListCollectionRunsV1(collection),
         GetAccountCapacityV1(capacity),
         ListQuotaWindowsV1(capacity),
+        ListCapacityHistoryV1(capacity),
         ListAgentProcessesV1(runtime),
         ListAgentSessionsV1(runtime),
         GetAgentSessionV1(runtime),
+        GetSessionTreeV1(runtime),
     )
 
 

@@ -135,6 +135,7 @@ COMPOSITION_SQLITE_SYMBOLS = {
         {
             "DatabaseRefV1",
             "SqliteDatabaseHandleV1",
+            "checkpoint_sqlite_database",
             "open_sqlite_database",
         }
     ),

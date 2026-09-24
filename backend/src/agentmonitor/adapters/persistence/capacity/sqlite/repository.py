@@ -18,6 +18,8 @@ from agentmonitor.contracts.capacity_v1 import (
     CapacityCommitRequestV1,
     CapacityCommitStatusV1,
     CapacityHealthViewV1,
+    CapacityHistoryPointV1,
+    CapacityHistoryQueryV1,
     CapacityObservationProvenanceViewV1,
     CapacitySubjectV1,
     ExactMetricFieldV1,
@@ -140,6 +142,38 @@ def _metric_field(row: RowMapping) -> ExactMetricFieldV1:
     )
 
 
+def _provenance(row: RowMapping) -> CapacityObservationProvenanceViewV1:
+    return CapacityObservationProvenanceViewV1(
+        capability_id=str(row["capability_id"]),
+        capability_schema_version=str(row["capability_schema_version"]),
+        adapter_id=str(row["adapter_id"]),
+        adapter_version=str(row["adapter_version"]),
+        provider_protocol_version=str(row["provider_protocol_version"]),
+        source_id=str(row["source_id"]),
+        source_class=row["source_class"],
+        mechanism_version=str(row["mechanism_version"]),
+        parser_version=(
+            str(row["parser_version"]) if row["parser_version"] is not None else None
+        ),
+        provider_version=(
+            str(row["provider_version"])
+            if row["provider_version"] is not None
+            else None
+        ),
+        freshness_deadline=(
+            _utc_value(str(row["freshness_deadline"]))
+            if row["freshness_deadline"] is not None
+            else None
+        ),
+        freshness_policy_id=str(row["freshness_policy_id"]),
+        precision=row["provenance_precision"],
+        confidence=row["provenance_confidence"],
+        confidence_reason_code=str(row["confidence_reason_code"]),
+        is_experimental=bool(row["experimental"]),
+        decision_reference=str(row["decision_reference"]),
+    )
+
+
 def _quota_window(
     connection: Connection, row: RowMapping, as_of: datetime
 ) -> QuotaWindowViewV1:
@@ -164,37 +198,7 @@ def _quota_window(
         remaining=measures["remaining"],
         limit=measures["limit"],
         remaining_ratio=measures["remaining_ratio"],
-        provenance=CapacityObservationProvenanceViewV1(
-            capability_id=str(row["capability_id"]),
-            capability_schema_version=str(row["capability_schema_version"]),
-            adapter_id=str(row["adapter_id"]),
-            adapter_version=str(row["adapter_version"]),
-            provider_protocol_version=str(row["provider_protocol_version"]),
-            source_id=str(row["source_id"]),
-            source_class=row["source_class"],
-            mechanism_version=str(row["mechanism_version"]),
-            parser_version=(
-                str(row["parser_version"])
-                if row["parser_version"] is not None
-                else None
-            ),
-            provider_version=(
-                str(row["provider_version"])
-                if row["provider_version"] is not None
-                else None
-            ),
-            freshness_deadline=(
-                _utc_value(str(row["freshness_deadline"]))
-                if row["freshness_deadline"] is not None
-                else None
-            ),
-            freshness_policy_id=str(row["freshness_policy_id"]),
-            precision=row["precision"],
-            confidence=row["confidence"],
-            confidence_reason_code=str(row["confidence_reason_code"]),
-            is_experimental=bool(row["experimental"]),
-            decision_reference=str(row["decision_reference"]),
-        ),
+        provenance=_provenance(row),
         freshness=(
             "conflicted"
             if row["conflict_state"] == "conflicted"
@@ -212,6 +216,68 @@ def _quota_window(
             else None
         ),
         collected_at=_utc_value(str(row["collected_at"])),
+        stored_at=_utc_value(str(row["stored_at"])),
+    )
+
+
+def _history_point(row: RowMapping, as_of: datetime) -> CapacityHistoryPointV1:
+    collected_at = _utc_value(str(row["collected_at"]))
+    freshness_deadline = (
+        _utc_value(str(row["freshness_deadline"]))
+        if row["freshness_deadline"] is not None
+        else None
+    )
+    return CapacityHistoryPointV1(
+        observation_id=OpaqueIdV1(str(row["observation_id"])),
+        window_id=OpaqueIdV1(str(row["window_id"])),
+        window_definition_id=OpaqueIdV1(str(row["window_definition_id"])),
+        subject=CapacitySubjectV1(
+            provider_key=str(row["provider_key"]),
+            installation_id=OpaqueIdV1(str(row["installation_id"])),
+            account_id=OpaqueIdV1(str(row["account_id"])),
+            resource_id=OpaqueIdV1(str(row["resource_id"])),
+        ),
+        window_key=str(row["native_window_key"]),
+        safe_label=str(row["safe_label"]) if row["safe_label"] is not None else None,
+        semantic_role=str(row["semantic_role"]),
+        native_unit=(
+            str(row["native_unit"]) if row["native_unit"] is not None else None
+        ),
+        definition_version=int(row["definition_version"]),
+        metric=row["metric_kind"],
+        series_kind=row["observation_kind"],
+        value=_metric_field(row),
+        provenance=_provenance(row),
+        freshness=(
+            "freshness_unknown"
+            if freshness_deadline is None
+            else "stale"
+            if freshness_deadline <= as_of
+            else "fresh"
+        ),
+        completeness=row["completeness"],
+        collection_run_id=OpaqueIdV1(str(row["collection_run_id"])),
+        derivation_id=(
+            OpaqueIdV1(str(row["derivation_id"]))
+            if row["derivation_id"] is not None
+            else None
+        ),
+        observed_at=_utc_value(str(row["observed_at"])),
+        interval_start=(
+            _utc_value(str(row["data_through_start"]))
+            if row["data_through_start"] is not None
+            else None
+        ),
+        interval_end=(
+            _utc_value(str(row["data_through_end"]))
+            if row["data_through_end"] is not None
+            else None
+        ),
+        reset_at=(
+            _utc_value(str(row["reset_at"])) if row["reset_at"] is not None else None
+        ),
+        reset_precision=row["reset_precision"],
+        collected_at=collected_at,
         stored_at=_utc_value(str(row["stored_at"])),
     )
 
@@ -277,7 +343,9 @@ class SqliteCapacityRepositoryV1:
                             "v.adapter_id, v.adapter_version, v.provider_protocol_version, "
                             "v.source_id, v.source_class, v.mechanism_version, "
                             "v.parser_version, v.provider_version, v.freshness_policy_id, "
-                            "v.precision, v.confidence, v.confidence_reason_code, "
+                            "v.precision AS provenance_precision, "
+                            "v.confidence AS provenance_confidence, "
+                            "v.confidence_reason_code, "
                             "v.experimental, v.decision_reference, p.conflict_state FROM "
                             "capacity_current_projection AS p JOIN "
                             "capacity_quota_window_definition AS d ON "
@@ -368,7 +436,9 @@ class SqliteCapacityRepositoryV1:
                             "o.capability_schema_version, v.adapter_id, v.adapter_version, "
                             "v.provider_protocol_version, v.source_id, v.source_class, "
                             "v.mechanism_version, v.parser_version, v.provider_version, "
-                            "v.freshness_policy_id, v.precision, v.confidence, "
+                            "v.freshness_policy_id, "
+                            "v.precision AS provenance_precision, "
+                            "v.confidence AS provenance_confidence, "
                             "v.confidence_reason_code, v.experimental, v.decision_reference, "
                             "p.conflict_state FROM "
                             "capacity_current_projection AS p JOIN capacity_quota_window_definition AS d "
@@ -394,6 +464,118 @@ class SqliteCapacityRepositoryV1:
                         .all()
                     )
                     return tuple(_quota_window(connection, row, as_of) for row in rows)
+        except CapacityRepositoryErrorV1:
+            raise
+        except (SqlitePolicyError, SQLAlchemyError, KeyError, ValueError, TypeError):
+            raise CapacityRepositoryErrorV1() from None
+
+    def page_capacity_history(
+        self,
+        query: CapacityHistoryQueryV1,
+        page_size: int,
+    ) -> tuple[CapacityHistoryPointV1, ...]:
+        """Read one exact immutable quota series without collecting or deriving."""
+        if (
+            not isinstance(query, CapacityHistoryQueryV1)
+            or type(page_size) is not int
+            or not 1 <= page_size <= 201
+        ):
+            raise CapacityRepositoryErrorV1("capacity_query_invalid")
+        try:
+            with open_sqlite_database(
+                self._database_ref, "runtime_read_only"
+            ) as handle:
+                with handle.connect() as connection:
+                    rows = (
+                        connection.exec_driver_sql(
+                            "SELECT p.projection_id AS window_id, "
+                            "d.window_definition_id, d.provider_key, "
+                            "d.installation_id, d.account_id, d.resource_id, "
+                            "d.native_window_key, d.safe_label, d.semantic_role, "
+                            "d.native_unit, d.definition_version, "
+                            "d.reset_precision, o.observation_id, "
+                            "o.observation_kind, o.completeness, o.observed_at, "
+                            "o.reset_at, o.data_through_start, "
+                            "o.data_through_end, o.collected_at, o.stored_at, "
+                            "o.collection_run_id, o.capability_schema_version, "
+                            "m.metric_kind, m.field_state, m.coefficient, m.scale, "
+                            "m.unit, m.precision, m.confidence, m.value_kind, "
+                            "m.reason_code, m.derivation_id, v.capability_id, "
+                            "v.adapter_id, v.adapter_version, "
+                            "v.provider_protocol_version, v.source_id, "
+                            "v.source_class, v.mechanism_version, "
+                            "v.parser_version, v.provider_version, "
+                            "v.freshness_deadline, v.freshness_policy_id, "
+                            "v.precision AS provenance_precision, "
+                            "v.confidence AS provenance_confidence, "
+                            "v.confidence_reason_code, v.experimental, "
+                            "v.decision_reference FROM "
+                            "capacity_quota_window_definition AS d JOIN "
+                            "capacity_quota_observation AS o INDEXED BY "
+                            "ix_capacity_quota_window_time ON "
+                            "o.window_definition_id=d.window_definition_id JOIN "
+                            "capacity_quota_measure AS m ON "
+                            "m.observation_id=o.observation_id JOIN "
+                            "capacity_observation_provenance AS v ON "
+                            "v.provenance_id=o.provenance_id JOIN "
+                            "capacity_current_projection AS p ON "
+                            "p.projection_kind='quota' AND "
+                            "p.provider_key=d.provider_key AND "
+                            "p.account_id=d.account_id AND "
+                            "p.resource_id=d.resource_id AND "
+                            "p.capability_id=d.capability_id JOIN "
+                            "capacity_quota_window_definition AS current_d ON "
+                            "current_d.window_definition_id=p.window_definition_id "
+                            "AND current_d.native_window_key=d.native_window_key "
+                            "WHERE d.account_id=? AND m.metric_kind=? AND "
+                            "o.observation_kind=? AND o.observed_at IS NOT NULL "
+                            "AND o.observed_at>=? AND o.observed_at<? AND "
+                            "o.stored_at<=? AND (? IS NULL OR d.resource_id=?) "
+                            "AND (? IS NULL OR p.projection_id=?) AND "
+                            "(? IS NULL OR (o.observed_at, o.observation_id) > "
+                            "(SELECT cursor_observation.observed_at, "
+                            "cursor_observation.observation_id FROM "
+                            "capacity_quota_observation AS cursor_observation "
+                            "WHERE cursor_observation.observation_id=? AND "
+                            "cursor_observation.observed_at IS NOT NULL)) "
+                            "ORDER BY o.observed_at, o.observation_id "
+                            "LIMIT ?",
+                            (
+                                query.subject_id.value,
+                                query.metric,
+                                query.series_kind,
+                                _utc_text(query.range_start),
+                                _utc_text(query.range_before),
+                                _utc_text(query.as_of),
+                                (
+                                    query.resource_id.value
+                                    if query.resource_id is not None
+                                    else None
+                                ),
+                                (
+                                    query.resource_id.value
+                                    if query.resource_id is not None
+                                    else None
+                                ),
+                                (
+                                    query.window_id.value
+                                    if query.window_id is not None
+                                    else None
+                                ),
+                                (
+                                    query.window_id.value
+                                    if query.window_id is not None
+                                    else None
+                                ),
+                                query.after_key,
+                                query.after_key,
+                                page_size,
+                            ),
+                        )
+                        .mappings()
+                        .all()
+                    )
+                    return tuple(_history_point(row, query.as_of) for row in rows)
         except CapacityRepositoryErrorV1:
             raise
         except (SqlitePolicyError, SQLAlchemyError, KeyError, ValueError, TypeError):

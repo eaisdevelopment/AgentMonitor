@@ -2,6 +2,7 @@
 
 import importlib
 import os
+import sqlite3
 import sys
 import traceback
 from pathlib import Path
@@ -187,6 +188,34 @@ def test_checkout_reasserts_policy_and_sidecars_have_owner_permissions(
         with handle.connect() as connection:
             assert connection.exec_driver_sql("PRAGMA foreign_keys").scalar() == 1
             assert connection.exec_driver_sql("PRAGMA synchronous").scalar() == 2
+
+
+def test_checkpoint_cleans_real_sidecars_left_by_forked_worker_exit(
+    tmp_path: Path,
+) -> None:
+    """DB-FILE-010: a forked collector cannot block the next startup inspection."""
+    policy = implementation()
+    path = tmp_path / "agentmonitor.db"
+    reference = policy.DatabaseRefV1(path, tmp_path)
+    with policy.open_sqlite_database(reference, "migration_initialize"):
+        pass
+
+    child = os.fork()
+    if child == 0:
+        connection = sqlite3.connect(path)
+        connection.execute("PRAGMA journal_mode=WAL")
+        connection.execute("PRAGMA user_version=1")
+        connection.commit()
+        os._exit(0)
+    waited, status = os.waitpid(child, 0)
+    assert waited == child
+    assert os.waitstatus_to_exitcode(status) == 0
+    assert path.with_name(path.name + "-shm").is_file()
+
+    policy.checkpoint_sqlite_database(reference)
+
+    assert not path.with_name(path.name + "-wal").exists()
+    assert not path.with_name(path.name + "-shm").exists()
 
 
 def test_changed_database_identity_refuses_cached_connection(tmp_path: Path) -> None:

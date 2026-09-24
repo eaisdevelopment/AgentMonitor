@@ -554,6 +554,7 @@ def test_allowed_inward_dependencies(tmp_path: Path) -> None:
     [
         f"from {SQLITE_POLICY} import DatabaseRefV1",
         f"from {SQLITE_POLICY} import SqliteDatabaseHandleV1 as DatabaseHandle",
+        f"from {SQLITE_POLICY} import checkpoint_sqlite_database",
         f"from {SQLITE_POLICY} import open_sqlite_database",
         f"from {SQLITE_COMPATIBILITY} import application_schema_range",
         f"from {SQLITE_COMPATIBILITY} import InspectSchemaCompatibilityV1 as Inspector",

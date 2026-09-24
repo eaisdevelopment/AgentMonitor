@@ -394,3 +394,11 @@ The synchronized controls now bind the existing Foundation composition and
 Claude adapter imports to their exact registry, provenance, and runtime
 contracts, plus the additive M02 provider-fingerprint operations. No contract
 version, migration, public API, owner authority, or M4 scope changed.
+
+## 15. 2026-09-24 M3 live-gate rebind
+
+Plan snapshot SHA-256: `4e34a1bff2d81307e422ac105aae1927358e6176ccc23e490af9637e59cfdbdc`
+
+The current controls register `AUTO-M3-LIVE` in both the machine-readable
+catalog and completion standard. This bounded synchronization changes no plan
+body, contract version, owner authority, provider state, or M4 scope.

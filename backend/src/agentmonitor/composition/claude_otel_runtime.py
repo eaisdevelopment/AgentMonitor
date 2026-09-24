@@ -6,12 +6,16 @@ import hashlib
 import os
 import re
 import sys
+import time
 import uuid
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
-from agentmonitor.adapters.persistence._shared.sqlite.core.policy import DatabaseRefV1
+from agentmonitor.adapters.persistence._shared.sqlite.core.policy import (
+    DatabaseRefV1,
+    checkpoint_sqlite_database,
+)
 from agentmonitor.adapters.persistence.collection_control.sqlite.repository import (
     SqliteCollectionRepositoryV1,
 )
@@ -20,6 +24,10 @@ from agentmonitor.adapters.persistence.registry.sqlite.repository import (
 )
 from agentmonitor.adapters.persistence.runtime_observation.sqlite.repository import (
     SqliteRuntimeObservationRepositoryV1,
+)
+from agentmonitor.adapters.platform.linux.processes import (
+    ApprovedLinuxExecutableSelectorV1,
+    InspectLinuxProcessesV1,
 )
 from agentmonitor.adapters.providers.claude.installation import (
     discover_default_installation,
@@ -35,6 +43,7 @@ from agentmonitor.adapters.providers.claude.manifest import (
 )
 from agentmonitor.adapters.providers.claude.telemetry.launcher import (
     ClaudeMonitoredExecV1,
+    current_process_identity,
     exec_monitored_claude,
 )
 from agentmonitor.adapters.providers.claude.telemetry.otlp_http_json import (
@@ -61,12 +70,15 @@ from agentmonitor.contracts.provider_system_v1 import (
 )
 from agentmonitor.contracts.registry_v1 import (
     AccountViewV1,
-    ConfirmProviderIdentityFingerprintCommandV1,
+    ProviderIdentityResolutionV1,
+    ResolveProviderIdentityFingerprintQueryV1,
 )
 from agentmonitor.contracts.runtime_observation_v1 import (
     AgentProcessRecordV1,
     AgentSessionRecordV1,
     ApprovedStrongCorrelationRuleV1,
+    PlatformInspectionRequestV1,
+    ProcessIdentityV1,
     RuntimeCommitReceiptV1,
     RuntimeCommitRequestV1,
     RuntimeObservationBatchV1,
@@ -80,9 +92,9 @@ from agentmonitor.modules.collection_control.application.runner import (
     RunOneCollectionV1,
 )
 from agentmonitor.modules.registry.application.accounts import (
-    ConfirmProviderIdentityFingerprintV1,
     ListAccountsV1,
     ListMonitoringProfilesV1,
+    ResolveProviderIdentityFingerprintV1,
 )
 from agentmonitor.modules.registry.application.discovery import (
     ListProviderInstallationsV1,
@@ -97,13 +109,14 @@ from agentmonitor.modules.runtime_observation.application.payload_digest import 
     runtime_payload_digest,
 )
 from agentmonitor.modules.runtime_observation.application.queries import (
-    ListAgentProcessesV1,
     ListAgentSessionsV1,
 )
 
 _IDENTITY_SCHEME = "claude.otel.account.sha256"
 _IDENTITY_SCOPE = "provider_account"
 _SAFE_FAILURE_CODE = re.compile(r"[a-z][a-z0-9_]{0,127}\Z")
+_LAUNCH_PROCESS_WAIT_SECONDS = 5.0
+_START_SIGNAL_MAX_BYTES = 130
 _APPROVED_ACCOUNT_RULE = ApprovedStrongCorrelationRuleV1(
     rule_id=CLAUDE_OTLP_ACCOUNT_RULE_ID,
     source_id=CLAUDE_OTLP_SOURCE_ID,
@@ -140,6 +153,7 @@ def prepare_monitored_claude_launch(
     data_root: Path,
     *,
     selected_account_id: OpaqueIdV1,
+    process_identity: ProcessIdentityV1,
     endpoint: str,
     authorization_secret: str,
     launch_id: str,
@@ -176,6 +190,7 @@ def prepare_monitored_claude_launch(
             authorization_secret=authorization_secret,
             launch_id=launch_id,
             installation_id=installation.provider_installation_id.value,
+            process_identity=process_identity,
         ),
         provider_version=discovered.provider_version,
         registry_revision=installation.registry_revision,
@@ -235,26 +250,74 @@ def _eligible_owner_account(
     return account, profile.profile_id, profile.record_version
 
 
-def _verified_process(
-    repository: SqliteRuntimeObservationRepositoryV1,
-    metric: ClaudeOtlpSessionCountV1,
-) -> AgentProcessRecordV1:
-    matches = tuple(
-        process
-        for process in ListAgentProcessesV1(repository)(
-            provider_key="claude", as_of=datetime.now(UTC), page_size=500
-        )
-        if process.identity == metric.process_identity
-        and process.installation_id == metric.installation_id
-        and process.provenance.source_id == "linux.proc.process.v1"
-    )
-    if len(matches) != 1:
-        raise ValueError("claude_otel_verified_process_unresolved")
-    return matches[0]
-
-
 def _digest(*values: str) -> str:
     return hashlib.sha256("\x00".join(values).encode()).hexdigest()
+
+
+def _start_failure_signal(error: BaseException) -> bytes:
+    code = str(error)
+    if _SAFE_FAILURE_CODE.fullmatch(code) is None:
+        code = "claude_otel_monitoring_start_failed"
+    return f"0{code}".encode("ascii")
+
+
+def _start_failure_from_signal(signal: bytes) -> str:
+    if not signal.startswith(b"0") or len(signal) > _START_SIGNAL_MAX_BYTES:
+        return "claude_otel_monitoring_start_failed"
+    try:
+        code = signal[1:].decode("ascii")
+    except UnicodeDecodeError:
+        return "claude_otel_monitoring_start_failed"
+    return (
+        code
+        if _SAFE_FAILURE_CODE.fullmatch(code) is not None
+        else "claude_otel_monitoring_start_failed"
+    )
+
+
+def _wait_for_launched_process(
+    plan: ClaudeOtlpLaunchPlanV1,
+) -> None:
+    """Observe the exact exec target before a short-lived session can exit."""
+    selector = ApprovedLinuxExecutableSelectorV1.from_executable(
+        selector_id="linux.proc.claude-process.v1",
+        executable_identity="claude",
+        provider_key="claude",
+        installation_id=plan.configuration.installation_id,
+        provider_version=plan.provider_version,
+        executable=plan.executable,
+    )
+    inspector = InspectLinuxProcessesV1(approved_executable_selectors=(selector,))
+    deadline = time.monotonic() + _LAUNCH_PROCESS_WAIT_SECONDS
+    while time.monotonic() < deadline:
+        request_deadline = datetime.now(UTC) + timedelta(seconds=1)
+        outcome = inspector(
+            PlatformInspectionRequestV1(
+                operation_id=f"claude-otel-launch-{plan.configuration.launch_id}",
+                correlation_id=f"claude-otel-launch-{plan.configuration.launch_id}",
+                provider_key="claude",
+                installation_id=plan.configuration.installation_id,
+                provider_version=plan.provider_version,
+                source_id="linux.proc.process.v1",
+                selector_id="linux.proc.claude-process.v1",
+                executable_identity="claude",
+                requested_fields=(),
+                maximum_candidates=16_384,
+                maximum_results=512,
+                deadline_at=request_deadline,
+            )
+        )
+        if any(
+            process.identity == plan.configuration.process_identity
+            for process in outcome.processes
+        ):
+            return
+        if outcome.state not in {"success", "partial"}:
+            raise ValueError(
+                outcome.error_code or "claude_otel_launch_process_observation_failed"
+            )
+        time.sleep(0.02)
+    raise ValueError("claude_otel_launch_process_not_observed")
 
 
 def _admission(
@@ -272,7 +335,7 @@ def _admission(
     )
     return CollectionRunAdmissionV1(
         run_id=OpaqueIdV1(run_id),
-        schedule_id=OpaqueIdV1("claude-otel-session-manual-schedule"),
+        schedule_id=OpaqueIdV1(f"claude-otel-session-{target_digest[:32]}"),
         request_id=OpaqueIdV1(request_id),
         trigger="manual",
         operation_family="collect.local.session.discovery",
@@ -300,7 +363,7 @@ def _admission(
         registry_revision=plan.registry_revision,
         retry_chain_id=OpaqueIdV1(f"claude-otel-retry-{uuid.uuid4().hex}"),
         attempt_ordinal=1,
-        target_generation=1,
+        target_generation=plan.registry_revision,
         scheduler_instance_id=OpaqueIdV1("agentmonitor-local-manual"),
         lease_policy_version="1.0.0",
         budget_policy_id="claude-local-session-start-v1",
@@ -324,7 +387,6 @@ def _provenance(
     *,
     admission: CollectionRunAdmissionV1,
     metric: ClaudeOtlpSessionCountV1,
-    process: AgentProcessRecordV1,
 ) -> ObservationProvenanceV1:
     collected_at = datetime.now(UTC)
     return ObservationProvenanceV1(
@@ -357,7 +419,7 @@ def _provenance(
         correlation_id=admission.correlation_id,
         decision_reference="claude-official-otel-monitoring-v1",
         derivation_method=None,
-        input_observation_ids=(process.current_snapshot_id,),
+        input_observation_ids=(),
     )
 
 
@@ -367,10 +429,11 @@ def _prepare_commit(
     completed_at: datetime,
 ) -> RuntimeCommitRequestV1 | CollectionFailedV1:
     if outcome.state != "success":
+        assert outcome.error is not None
         return CollectionFailedV1(
             run_id=admission.run_id,
             terminal_state="failed",
-            error_code="claude_otel_collection_failed",
+            error_code=outcome.error.code,
             completed_at=completed_at,
         )
     assert outcome.value is not None and outcome.provenance is not None
@@ -384,6 +447,32 @@ def _prepare_commit(
         payload=outcome.value,
         provenance=outcome.provenance,
     )
+
+
+def _identity_resolution_matches_admission(
+    resolution: ProviderIdentityResolutionV1,
+    *,
+    account_id: OpaqueIdV1,
+    account_record_version: int,
+    registry_revision: int,
+) -> bool:
+    """Close correlation to the exact registry generation admitted by M04."""
+    return (
+        resolution.state == "resolved"
+        and resolution.account_id == account_id
+        and resolution.account_record_version == account_record_version
+        and resolution.registry_revision == registry_revision
+    )
+
+
+def _checkpoint_and_acknowledge(
+    reference: DatabaseRefV1,
+    receiver: ClaudeOtlpHttpJsonReceiverV1,
+    metric: ClaudeOtlpSessionCountV1,
+) -> None:
+    """Release exporter success only after quiescent SQLite durability cleanup."""
+    checkpoint_sqlite_database(reference)
+    receiver.acknowledge_committed(metric)
 
 
 @dataclass(frozen=True, slots=True)
@@ -405,19 +494,26 @@ def _collect_session_outcome(
     collected: list[_CollectedSessionV1],
 ) -> CollectionOutcomeV1[RuntimeObservationBatchV1]:
     try:
+        _wait_for_launched_process(plan)
+        process_run = run_linux_runtime_collection(data_root)
+        process = next(
+            (
+                candidate
+                for candidate in process_run.processes
+                if candidate.identity == plan.configuration.process_identity
+            ),
+            None,
+        )
+        if process is None:
+            raise ValueError("claude_otel_live_process_verification_missing")
+        receiver.enable_observation_acceptance(process.last_observed_at)
         metric = receiver.wait(8)
         if (
             metric.installation_id != plan.configuration.installation_id
             or metric.provider_version != plan.provider_version
+            or metric.process_identity != plan.configuration.process_identity
         ):
             raise ValueError("claude_otel_launch_scope_mismatch")
-        process_run = run_linux_runtime_collection(data_root)
-        if not any(
-            candidate.identity == metric.process_identity
-            for candidate in process_run.processes
-        ):
-            raise ValueError("claude_otel_live_process_verification_missing")
-        process = _verified_process(runtime_repository, metric)
         registry = SqliteRegistryRepositoryV1(reference)
         account, _profile_id, _profile_record_version = _eligible_owner_account(
             registry,
@@ -427,6 +523,22 @@ def _collect_session_outcome(
             expected_profile_id=plan.selected_profile_id,
             expected_profile_record_version=plan.selected_profile_record_version,
         )
+        resolution = ResolveProviderIdentityFingerprintV1(registry)(
+            ResolveProviderIdentityFingerprintQueryV1(
+                provider_key="claude",
+                identity_scheme=_IDENTITY_SCHEME,
+                identity_scope=_IDENTITY_SCOPE,
+                identity_scheme_version=1,
+                subject_fingerprint=metric.observed_account_fingerprint,
+            )
+        )
+        if not _identity_resolution_matches_admission(
+            resolution,
+            account_id=account.account_id,
+            account_record_version=account.record_version,
+            registry_revision=admission.registry_revision,
+        ):
+            raise ValueError("claude_otel_account_owner_confirmation_failed")
         batch = map_otel_session_count(
             metric,
             process,
@@ -434,33 +546,6 @@ def _collect_session_outcome(
             bound_account_id=account.account_id.value,
             bound_account_fingerprint=metric.observed_account_fingerprint,
         )
-        session_observation_id = OpaqueIdV1(
-            batch.session_observations[0].observation_id
-        )
-        resolution = ConfirmProviderIdentityFingerprintV1(registry)(
-            ConfirmProviderIdentityFingerprintCommandV1(
-                idempotency_key=session_observation_id,
-                principal_id=OpaqueIdV1("agentmonitor-owner"),
-                account_id=account.account_id,
-                expected_account_record_version=account.record_version,
-                provider_key="claude",
-                identity_scheme=_IDENTITY_SCHEME,
-                identity_scope=_IDENTITY_SCOPE,
-                identity_scheme_version=1,
-                subject_fingerprint=metric.observed_account_fingerprint,
-                source_id=CLAUDE_OTLP_SOURCE_ID,
-                source_version=CLAUDE_OTLP_SOURCE_VERSION,
-                parser_version=CLAUDE_OTLP_PARSER_VERSION,
-                evidence_reference=session_observation_id,
-                expected_evidence_digest=runtime_payload_digest(batch),
-                requested_at=datetime.now(UTC),
-            )
-        )
-        if (
-            resolution.state != "resolved"
-            or resolution.account_id != account.account_id
-        ):
-            raise ValueError("claude_otel_account_owner_confirmation_failed")
         collected.append(
             _CollectedSessionV1(metric, process, batch, account.account_id)
         )
@@ -469,7 +554,6 @@ def _collect_session_outcome(
             _provenance(
                 admission=admission,
                 metric=metric,
-                process=process,
             ),
         )
     except (OSError, RuntimeError, ValueError) as error:
@@ -499,6 +583,7 @@ def _run_receiver_collection(
     verified_plan = prepare_monitored_claude_launch(
         data_root,
         selected_account_id=launch_plan.selected_account_id,
+        process_identity=launch_plan.configuration.process_identity,
         endpoint=receiver.endpoint,
         authorization_secret=receiver.authorization_secret,
         launch_id=receiver.launch_id,
@@ -594,7 +679,7 @@ def _run_receiver_collection(
                 or reopened_links != (result.link,)
             ):
                 raise ValueError("claude_otel_runtime_reopened_verification_failed")
-            receiver.acknowledge_committed(facts.metric)
+            _checkpoint_and_acknowledge(reference, receiver, facts.metric)
             return result
         except (OSError, RuntimeError, TypeError, ValueError):
             receiver.acknowledge_failed()
@@ -626,9 +711,11 @@ def main(argv: list[str] | None = None) -> int:
     reference = DatabaseRefV1(data_root / "agentmonitor.db", data_root)
     receiver = ClaudeOtlpHttpJsonReceiverV1()
     try:
+        process_identity = current_process_identity()
         plan = prepare_monitored_claude_launch(
             data_root,
             selected_account_id=selected_account_id,
+            process_identity=process_identity,
             endpoint=receiver.endpoint,
             authorization_secret=receiver.authorization_secret,
             launch_id=receiver.launch_id,
@@ -643,7 +730,11 @@ def main(argv: list[str] | None = None) -> int:
         try:
             with exclusive_service_quiescence(data_root, reference):
                 _run_receiver_collection(data_root, receiver, plan, ready_write)
-        except (OSError, RuntimeError, ValueError):
+        except (OSError, RuntimeError, ValueError) as error:
+            try:
+                os.write(ready_write, _start_failure_signal(error))
+            except OSError:
+                pass
             try:
                 os.close(ready_write)
             except OSError:
@@ -652,14 +743,14 @@ def main(argv: list[str] | None = None) -> int:
         os._exit(0)
     os.close(ready_write)
     try:
-        ready = os.read(ready_read, 1)
+        ready = os.read(ready_read, _START_SIGNAL_MAX_BYTES)
     except OSError:
         ready = b""
     finally:
         os.close(ready_read)
     if ready != b"1":
         os.waitpid(receiver_pid, 0)
-        print("claude_otel_monitoring_start_failed")
+        print(_start_failure_from_signal(ready))
         return 1
     try:
         exec_monitored_claude(plan.executable, (), plan.configuration)

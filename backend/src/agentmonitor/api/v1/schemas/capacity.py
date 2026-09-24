@@ -125,3 +125,39 @@ class QuotaWindowPageV1(_ClosedV1):
     items: tuple[QuotaWindowViewV1, ...]
     page: PageMetaV1
     availability: AvailabilityV1
+
+
+class CapacityHistoryPointV1(_ClosedV1):
+    observation_id: str
+    window_id: str
+    window_definition_id: str
+    subject: CapacitySubjectWireV1
+    window_key: str
+    safe_label: str | None
+    semantic_role: str
+    native_unit: str | None
+    definition_version: int
+    metric: Literal["used", "remaining", "limit", "remaining_ratio"]
+    series_kind: Literal["raw_provider", "poll_snapshot", "derived"]
+    value: ExactMetricFieldWireV1
+    provenance: CapacityObservationProvenanceWireV1
+    freshness: Literal["fresh", "stale", "freshness_unknown"]
+    completeness: Literal["complete", "partial", "unknown"]
+    collection_run_id: str
+    derivation_id: str | None
+    observed_at: datetime
+    interval_start: datetime | None
+    interval_end: datetime | None
+    reset_at: datetime | None
+    reset_precision: Literal["exact", "rounded", "range", "estimated", "unknown"]
+    collected_at: datetime
+    stored_at: datetime
+
+
+class CapacityHistoryPageV1(_ClosedV1):
+    subject_id: str
+    metric: Literal["used", "remaining", "limit", "remaining_ratio"]
+    series_kind: Literal["raw_provider", "poll_snapshot", "derived"]
+    items: tuple[CapacityHistoryPointV1, ...]
+    page: PageMetaV1
+    availability: AvailabilityV1

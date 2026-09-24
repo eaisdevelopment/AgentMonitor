@@ -1,10 +1,12 @@
 # Runtime observation (M06)
 
-Status: M3 Task 5 implementation Green; final owner-live acceptance remains
-**Not Run**. Generic Linux process observation, M06 persistence/query, and the
-separately versioned owner-selected Claude OTLP session-start lane are
-implemented. The latter still requires the real owner-terminal run and
-populated authenticated-browser verification before M3 completion.
+Status: M3 Task 5 live slice **Green**. Generic Linux process observation, M06
+persistence/query, and the separately versioned owner-selected Claude OTLP
+session-start lane are implemented. The owner-terminal OTLP run, durable
+same-account session/process correlation, authenticated API, and populated
+production-browser verification passed. Natural stall evidence and manual
+resolution of an actually ambiguous correlation were unavailable and remain
+Not Run; neither is substituted with constructed telemetry.
 
 ## Ownership and contracts
 
@@ -23,9 +25,9 @@ generic unresolved methods remain fail-closed; the exact M3 lane is a separate
 official-OTLP composition bound to Claude Code `2.1.278`, Linux, the protected
 default profile, and one explicitly selected owner-confirmed account.
 
-M04 calls M06 only through the collection commit seam. P01/P02 are not part of
-Task 5 and must use the later versioned API; no UI or API code reads these tables
-directly.
+M04 calls M06 only through the collection commit seam. P01 exposes M06 through
+versioned query ports, and P02 consumes only the generated API client; no UI or
+API code reads these tables directly.
 
 ## Implemented truth boundary
 
@@ -73,9 +75,11 @@ stored receipt; conflicting reuse fails closed. Process current/history queries
 reconstruct provenance after restart. Session list/tree DTOs require provenance
 and the repository reconstructs it from the current session observation and
 durable receipt. Empty and process-populated queries run against the real
-schema. The final same-account OTLP session query remains Not Run until the
-owner performs the terminal launch documented in
-`docs/operations/runtime-observation.md`.
+schema. The real owner-selected OTLP launch committed the session, exact process
+link, strong account correlation, collection receipt, and full provenance. A
+database reopen returned the same account/session lineage. The bounded tree
+query marks parentage unknown when the linked parent process is no longer
+current; it does not invent an edge.
 
 The pure state/stall evaluator accepts only the approved normalized state
 vocabulary. Missing, stale, unknown, or invalid progress evidence is not
@@ -101,7 +105,8 @@ provider-specific raw state is mapped in M06.
 ## Verification
 
 Canonical focused evidence is recorded in
-`docs/evidence/m3-st-obs-002.md` and
-`docs/evidence/m3-registry-provider-identity-binding.md`. The final transparent
-owner-terminal and populated-browser rows remain Not Run and must not be counted
-as passed until their real commands succeed.
+`docs/evidence/m3-st-obs-002.md`,
+`docs/evidence/m3-registry-provider-identity-binding.md`, and
+`docs/evidence/m3-owner-confirmed-claude-vertical.md`. The final transparent
+owner-terminal and populated-browser commands passed on 2026-09-24. Any skipped
+live declaration remains Not Run and is not counted as a pass.

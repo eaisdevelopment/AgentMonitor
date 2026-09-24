@@ -15,10 +15,7 @@ import tomllib
 from dataclasses import dataclass
 from pathlib import Path
 
-
-MODULE_SECTIONS = tuple(
-    f"## {number}." for number in range(1, 17)
-)
+MODULE_SECTIONS = tuple(f"## {number}." for number in range(1, 17))
 REQUIRED_IMPLEMENTATION_PLAN_TERMS = (
     "Status:",
     "Plan version:",
@@ -54,6 +51,7 @@ REQUIRED_AUTOMATION_ROUTINES = (
     "AUTO-M0-POSTFLIGHT",
     "AUTO-M0-LEDGER",
     "AUTO-DOCS-CHECK",
+    "AUTO-M3-LIVE",
     "AUTO-TEST",
     "AUTO-QUALITY",
     "AUTO-GIT-PREFLIGHT",
@@ -64,9 +62,7 @@ REQUIRED_AUTOMATION_ROUTINES = (
     "AUTO-RESTORE",
     "AUTO-RELEASE",
 )
-REQUIREMENT_ID_PATTERN = re.compile(
-    r"\b(?:FR|NFR|AC)-[A-Z0-9]+(?:-[A-Z0-9]+)*-\d{3}\b"
-)
+REQUIREMENT_ID_PATTERN = re.compile(r"\b(?:FR|NFR|AC)-[A-Z0-9]+(?:-[A-Z0-9]+)*-\d{3}\b")
 SCENARIO_ID_PATTERN = re.compile(r"^[A-Z][A-Z0-9]*-[A-Z][A-Z0-9-]*-\d{3}$")
 CONFIGURATION_KEY_PATTERN = re.compile(r"\bAGENTMONITOR_[A-Z0-9_]+\b")
 EVIDENCE_BOUNDARIES = {"T1", "T2", "T3", "T4", "T5", "T6", "T7", "docs"}
@@ -143,9 +139,7 @@ def _scenario_definitions(text: str, prefix: str) -> tuple[str, ...]:
     identifier = rf"{re.escape(prefix)}[A-Z][A-Z0-9-]*-\d{{3}}"
     table_rows = re.findall(rf"^\|\s*({identifier})\s*\|", text, re.MULTILINE)
     list_rows = re.findall(rf"^-\s+({identifier}):", text, re.MULTILINE)
-    dash_rows = re.findall(
-        rf"^-\s+({identifier})\s+[—–-]\s+", text, re.MULTILINE
-    )
+    dash_rows = re.findall(rf"^-\s+({identifier})\s+[—–-]\s+", text, re.MULTILINE)
     numbered_bold_rows = re.findall(
         rf"^\d+\.\s+\*\*({identifier}):\*\*", text, re.MULTILINE
     )
@@ -225,7 +219,10 @@ def _validate_contract_baseline(
     if resolution_ids != required_resolutions:
         violations.append("contract baseline does not resolve exactly CAA-C01..CAA-C17")
     for item in resolutions:
-        if item.get("owner_approved") is not False or item.get("implementation_authorized") is not False:
+        if (
+            item.get("owner_approved") is not False
+            or item.get("implementation_authorized") is not False
+        ):
             violations.append(f"{item.get('id')}: resolution overclaims authority")
 
     referenced_contracts: set[str] = set()
@@ -233,7 +230,9 @@ def _validate_contract_baseline(
         plan_path = repository_root / plan.path
         if plan_path.is_file():
             referenced_contracts.update(
-                re.findall(r"\bCTR-[A-Z]+-\d{3}\b", plan_path.read_text(encoding="utf-8"))
+                re.findall(
+                    r"\bCTR-[A-Z]+-\d{3}\b", plan_path.read_text(encoding="utf-8")
+                )
             )
     missing = sorted(referenced_contracts - set(contract_ids))
     if missing:
@@ -263,9 +262,10 @@ def validate_contract_adoption(
         violations.append("contract adoption status is not draft_exact")
     if adoption.get("contract_baseline_version") != baseline.get("baseline_version"):
         violations.append("contract adoption baseline version mismatch")
-    if adoption.get("contract_baseline_sha256") != hashlib.sha256(
-        baseline_path.read_bytes()
-    ).hexdigest():
+    if (
+        adoption.get("contract_baseline_sha256")
+        != hashlib.sha256(baseline_path.read_bytes()).hexdigest()
+    ):
         violations.append("contract adoption baseline SHA-256 mismatch")
     if adoption.get("owner_approved") is not False:
         violations.append("contract adoption must not claim owner approval")
@@ -382,9 +382,7 @@ def validate_event_topology(
     }
     table_records = topology.get("producer_outbox_tables", [])
     try:
-        actual_tables = {
-            item["plan"]: item["table"] for item in table_records
-        }
+        actual_tables = {item["plan"]: item["table"] for item in table_records}
     except (KeyError, TypeError):
         actual_tables = {}
         violations.append("event topology producer_outbox_tables are malformed")
@@ -496,22 +494,30 @@ def _validate_parallel_ownership(
         spec = catalog_by_id.get(str(unit_id))
         if spec is not None:
             plan_path = repository_root / spec.path
-            if plan_path.is_file() and unit.get("plan_sha256") != hashlib.sha256(
-                plan_path.read_bytes()
-            ).hexdigest():
+            if (
+                plan_path.is_file()
+                and unit.get("plan_sha256")
+                != hashlib.sha256(plan_path.read_bytes()).hexdigest()
+            ):
                 violations.append(
                     f"{unit_id}: ownership write set is not bound to current plan SHA-256"
                 )
         write_paths = unit.get("write_paths", [])
         if not write_paths:
-            violations.append(f"{unit_id}: ownership manifest has no canonical write set")
+            violations.append(
+                f"{unit_id}: ownership manifest has no canonical write set"
+            )
         if len(write_paths) != len(set(write_paths)):
             violations.append(f"{unit_id}: canonical write set contains duplicates")
         if not any(str(item).startswith("docs/") for item in write_paths):
             violations.append(f"{unit_id}: canonical write set omits documentation")
-        if spec is not None and spec.kind != "discovery" and not any(
-            "/tests/" in str(item) or str(item).startswith("backend/tests/")
-            for item in write_paths
+        if (
+            spec is not None
+            and spec.kind != "discovery"
+            and not any(
+                "/tests/" in str(item) or str(item).startswith("backend/tests/")
+                for item in write_paths
+            )
         ):
             violations.append(f"{unit_id}: canonical write set omits tests")
         for root in write_paths:
@@ -527,9 +533,7 @@ def _validate_parallel_ownership(
                     or normalized.startswith(previous + "/")
                     or previous.startswith(normalized + "/")
                 ):
-                    violations.append(
-                        f"write-set collision: {owner} and {unit_id}"
-                    )
+                    violations.append(f"write-set collision: {owner} and {unit_id}")
             write_roots[normalized] = str(unit_id)
         namespace = unit.get("configuration_namespace")
         if namespace != "none" and not str(namespace).startswith("AGENTMONITOR_"):
@@ -585,10 +589,14 @@ def _validate_parallel_ownership(
     shared_roots: dict[str, str] = {}
     for item in shared:
         if not item.get("semantic_owner") or not item.get("wave_writer"):
-            violations.append(f"shared artifact {item.get('artifact')!r} lacks ownership")
+            violations.append(
+                f"shared artifact {item.get('artifact')!r} lacks ownership"
+            )
         paths = item.get("paths", [])
         if not paths:
-            violations.append(f"shared artifact {item.get('artifact')!r} lacks exact paths")
+            violations.append(
+                f"shared artifact {item.get('artifact')!r} lacks exact paths"
+            )
         for path in paths:
             normalized = str(path).removesuffix("/**").rstrip("/")
             if not normalized or " " in normalized or normalized.startswith("/"):
@@ -662,9 +670,7 @@ def _validate_configuration_baseline(
         path = repository_root / plan.path
         if not path.is_file():
             continue
-        for name in CONFIGURATION_KEY_PATTERN.findall(
-            path.read_text(encoding="utf-8")
-        ):
+        for name in CONFIGURATION_KEY_PATTERN.findall(path.read_text(encoding="utf-8")):
             if name.endswith("_"):
                 continue
             mentions.setdefault(name, set()).add(plan.plan_id)
@@ -742,10 +748,12 @@ def _validate_automation_catalog(
         return
     routines = raw.get("routines", [])
     routine_ids = [item.get("id") for item in routines]
-    if set(routine_ids) != set(REQUIRED_AUTOMATION_ROUTINES) or len(
-        routine_ids
-    ) != len(set(routine_ids)):
-        violations.append("automation catalog does not define exactly the mandatory routines")
+    if set(routine_ids) != set(REQUIRED_AUTOMATION_ROUTINES) or len(routine_ids) != len(
+        set(routine_ids)
+    ):
+        violations.append(
+            "automation catalog does not define exactly the mandatory routines"
+        )
     allowed_statuses = {"operational", "operational_limited", "blocked"}
     for routine in routines:
         routine_id = routine.get("id", "<missing>")
@@ -903,13 +911,21 @@ def validate_requirement_ownership(
                 violations.append(f"{requirement_id}: deferred item lacks a V1 guard")
             continue
         if primary not in plan_ids:
-            violations.append(f"{requirement_id}: invalid exact primary plan {primary!r}")
+            violations.append(
+                f"{requirement_id}: invalid exact primary plan {primary!r}"
+            )
         if any(plan_id not in plan_ids for plan_id in supports):
             violations.append(f"{requirement_id}: invalid supporting plan")
         if primary in supports:
-            violations.append(f"{requirement_id}: primary is duplicated as supporting plan")
-        if not contracts or any(contract_id not in contract_ids for contract_id in contracts):
-            violations.append(f"{requirement_id}: missing or invalid contract reference")
+            violations.append(
+                f"{requirement_id}: primary is duplicated as supporting plan"
+            )
+        if not contracts or any(
+            contract_id not in contract_ids for contract_id in contracts
+        ):
+            violations.append(
+                f"{requirement_id}: missing or invalid contract reference"
+            )
         parties = {primary, *supports}
         missing_producers = sorted(
             {
@@ -952,7 +968,9 @@ def validate_requirement_ownership(
             violations.append(f"{requirement_id}: missing or invalid evidence boundary")
 
     if status_counts != {"approved": 137, "discovery": 3, "deferred": 7}:
-        violations.append(f"requirement ownership status counts are wrong: {status_counts}")
+        violations.append(
+            f"requirement ownership status counts are wrong: {status_counts}"
+        )
     if raw.get("non_deferred_count") != 140 or raw.get("deferred_count") != 7:
         violations.append("requirement ownership summary counts are wrong")
     return violations
@@ -984,9 +1002,7 @@ def validate_plan_snapshot(
         catalog.plans
     ):
         violations.append("plan snapshot does not contain exactly 20 records")
-    if len(record_ids) != len(set(record_ids)) or set(record_ids) != set(
-        catalog_by_id
-    ):
+    if len(record_ids) != len(set(record_ids)) or set(record_ids) != set(catalog_by_id):
         violations.append("plan snapshot IDs do not exactly match the catalog")
     for item in records:
         plan_id = item.get("id")
@@ -1007,7 +1023,9 @@ def validate_plan_snapshot(
             violations.append(f"{plan_id}: snapshot SHA-256 does not match")
         if item.get("bytes") != len(content):
             violations.append(f"{plan_id}: snapshot byte count does not match")
-        version_match = re.search(r"Plan version:\s*`?([^`\n]+)", content.decode("utf-8"))
+        version_match = re.search(
+            r"Plan version:\s*`?([^`\n]+)", content.decode("utf-8")
+        )
         current_version = version_match.group(1).strip() if version_match else None
         if not item.get("plan_version"):
             violations.append(f"{plan_id}: snapshot lacks a plan version")
@@ -1094,7 +1112,9 @@ def _validate_current_planning_entry_points(
     program_path = repository_root / "docs/plans/integration/v1-planning-program.md"
     program = program_path.read_text(encoding="utf-8") if program_path.is_file() else ""
     registry_path = repository_root / catalog.registry_path
-    registry = registry_path.read_text(encoding="utf-8") if registry_path.is_file() else ""
+    registry = (
+        registry_path.read_text(encoding="utf-8") if registry_path.is_file() else ""
+    )
     if "20 synchronized Draft planning artifacts" not in program:
         violations.append("planning program does not expose the current 20-plan state")
     for stale in (
@@ -1104,7 +1124,9 @@ def _validate_current_planning_entry_points(
         if stale in program:
             violations.append(f"planning program retains stale state: {stale!r}")
     if "every remaining module/adapter/boundary plan" in registry:
-        violations.append("planning registry incorrectly describes existing plans as remaining")
+        violations.append(
+            "planning registry incorrectly describes existing plans as remaining"
+        )
     for plan in catalog.plans:
         plan_path = repository_root / plan.path
         if not plan_path.is_file():
@@ -1139,7 +1161,9 @@ def validate_repository(repository_root: Path, stage: str) -> list[str]:
         violations.append("catalog contains duplicate plan paths")
 
     registry_file = repository_root / catalog.registry_path
-    registry_text = registry_file.read_text(encoding="utf-8") if registry_file.exists() else ""
+    registry_text = (
+        registry_file.read_text(encoding="utf-8") if registry_file.exists() else ""
+    )
     if not registry_text:
         violations.append(f"missing planning registry: {catalog.registry_path}")
 
@@ -1161,11 +1185,15 @@ def validate_repository(repository_root: Path, stage: str) -> list[str]:
         )
         for term in required_terms:
             if term.casefold() not in text.casefold():
-                violations.append(f"{plan.plan_id}: missing required content marker {term!r}")
+                violations.append(
+                    f"{plan.plan_id}: missing required content marker {term!r}"
+                )
         if plan.kind not in {"discovery", "foundation"}:
             for heading in MODULE_SECTIONS:
                 if not re.search(rf"^{re.escape(heading)}", text, re.MULTILINE):
-                    violations.append(f"{plan.plan_id}: missing template section {heading}")
+                    violations.append(
+                        f"{plan.plan_id}: missing template section {heading}"
+                    )
         scenario_definitions = _scenario_definitions(text, plan.scenario_prefix)
         scenario_count = len(set(scenario_definitions))
         if len(scenario_definitions) != scenario_count:
@@ -1221,7 +1249,9 @@ def validate_repository(repository_root: Path, stage: str) -> list[str]:
         else:
             readiness_text = readiness_file.read_text(encoding="utf-8")
             if "Status: **PASS-CONDITIONAL**" not in readiness_text:
-                violations.append("final independent readiness audit is not PASS-CONDITIONAL")
+                violations.append(
+                    "final independent readiness audit is not PASS-CONDITIONAL"
+                )
             for number in range(1, 19):
                 finding = f"CS1-R{number:02d}"
                 if finding not in readiness_text:
@@ -1243,7 +1273,9 @@ def validate_repository(repository_root: Path, stage: str) -> list[str]:
             if "Status: **Complete**" not in review_text:
                 violations.append("cross-plan synchronization review is not Complete")
             if "Semantic validation: **Passed**" not in review_text:
-                violations.append("cross-plan synchronization review lacks Passed semantic validation")
+                violations.append(
+                    "cross-plan synchronization review lacks Passed semantic validation"
+                )
             for plan in catalog.plans:
                 if plan.plan_id not in review_text:
                     violations.append(

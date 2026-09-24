@@ -426,15 +426,23 @@ def test_token_issue_scope_denial_replay_and_openapi_over_real_socket(
                     "/api/v1/accounts/{account_id}/quotas",
                     "get",
                 ): "capacity_list_quota_windows_v1",
+                (
+                    "/api/v1/capacity/history",
+                    "get",
+                ): "capacity_list_history_v1",
                 ("/api/v1/processes", "get"): "runtime_list_processes_v1",
                 (
                     "/api/v1/process-metrics",
                     "get",
                 ): "runtime_list_process_metrics_v1",
                 ("/api/v1/sessions", "get"): "runtime_list_sessions_v1",
+                (
+                    "/api/v1/sessions/{session_id}/tree",
+                    "get",
+                ): "runtime_get_session_tree_v1",
                 ("/api/v1/sessions/{session_id}", "get"): "runtime_get_session_v1",
             }
-            assert len(set(operations.values())) == 23
+            assert len(set(operations.values())) == 25
             components = document["components"]
             assert "SafeProblemV1" in components["schemas"]
             replay_schema = components["schemas"]["SafeCommittedApiTokenV1"]
@@ -2302,7 +2310,7 @@ def test_canonical_generated_artifacts_publish_m2_iam_operations() -> None:
         for methods in document["paths"].values()
         for operation in methods.values()
     ]
-    assert len(identifiers) == len(set(identifiers)) == 23
+    assert len(identifiers) == len(set(identifiers)) == 25
     client = (root / "frontend/src/generated/api/index.ts").read_text()
     assert "iam_login_v1:" in client
     assert "iam_create_api_token_v1:" in client
@@ -2330,7 +2338,7 @@ def test_generated_typescript_client_calls_real_iam_server(tmp_path: Path) -> No
             credential_absent = credential.encode() not in result.stdout + result.stderr
             assert credential_absent is True, "credential reflected"
             assert result.returncode == 0, "real generated client failed"
-            assert result.stdout == b'{"status":"passed","operations":23}\n'
+            assert result.stdout == b'{"status":"passed","operations":25}\n'
             assert result.stderr == b""
 
     asyncio.run(exercise())

@@ -63,6 +63,7 @@ CorrelationDecisionStateV1 = Literal[
     "owner_confirmed",
     "invalidated",
 ]
+TopologyEvidenceStateV1 = Literal["eligible", "excluded", "unknown"]
 PresenceStateV1 = Literal["running", "exited", "unknown"]
 MetricSemanticsV1 = Literal["gauge", "interval", "cumulative"]
 MetricOverlapV1 = Literal["disjoint", "inclusive", "unknown", "not_applicable"]
@@ -1151,6 +1152,48 @@ class AgentSessionRecordV1(TechnicalValueV1):
 
 
 @dataclass(frozen=True, slots=True)
+class SessionTopologyFactV1(TechnicalValueV1):
+    """Published read-only evidence for one CTR-RUN-003 topology node."""
+
+    CONTRACT_ID: ClassVar[str] = "CTR-RUN-003"
+    OWNER: ClassVar[str] = "PLAN-M06"
+
+    session: AgentSessionRecordV1
+    primary_process_id: OpaqueIdV1 | None
+    evidence_state: TopologyEvidenceStateV1
+    reason_code: str
+
+    def __post_init__(self) -> None:
+        TechnicalValueV1.__post_init__(self)
+        if (
+            not isinstance(self.session, AgentSessionRecordV1)
+            or self.evidence_state not in {"eligible", "excluded", "unknown"}
+            or (self.evidence_state == "eligible")
+            != (self.primary_process_id is not None)
+            or not _token(self.reason_code)
+        ):
+            raise InvalidRuntimeObservationV1("runtime_topology_fact_invalid")
+
+
+@dataclass(frozen=True, slots=True)
+class SessionTopologySnapshotV1(TechnicalValueV1):
+    """One bounded repository snapshot consumed by the pure tree builder."""
+
+    CONTRACT_ID: ClassVar[str] = "CTR-RUN-003"
+    OWNER: ClassVar[str] = "PLAN-M06"
+
+    sessions: tuple[SessionTopologyFactV1, ...]
+    processes: tuple[AgentProcessRecordV1, ...]
+
+    def __post_init__(self) -> None:
+        TechnicalValueV1.__post_init__(self)
+        if not all(
+            isinstance(item, SessionTopologyFactV1) for item in self.sessions
+        ) or not all(isinstance(item, AgentProcessRecordV1) for item in self.processes):
+            raise InvalidRuntimeObservationV1("runtime_topology_snapshot_invalid")
+
+
+@dataclass(frozen=True, slots=True)
 class ProcessHistoryEntryV1(TechnicalValueV1):
     CONTRACT_ID: ClassVar[str] = "CTR-RUN-001"
     OWNER: ClassVar[str] = "PLAN-M06"
@@ -1186,7 +1229,11 @@ class SessionTreeNodeV1(TechnicalValueV1):
 
     def __post_init__(self) -> None:
         TechnicalValueV1.__post_init__(self)
-        if len(set(self.child_session_ids)) != len(self.child_session_ids):
+        if (
+            len(set(self.child_session_ids)) != len(self.child_session_ids)
+            or self.session.session_id == self.parent_session_id
+            or self.session.session_id in self.child_session_ids
+        ):
             raise InvalidRuntimeObservationV1("runtime_session_tree_duplicate_child")
         if self.orphan_reason is not None and not _token(self.orphan_reason):
             raise InvalidRuntimeObservationV1("runtime_session_tree_orphan_invalid")
@@ -1194,19 +1241,41 @@ class SessionTreeNodeV1(TechnicalValueV1):
 
 @dataclass(frozen=True, slots=True)
 class SessionTreeViewV1(TechnicalValueV1):
+    """Bounded hierarchy with explicit rendered, omitted, and unresolved counts.
+
+    ``included_count`` is the exact number of nodes returned. ``excluded_count``
+    counts known reachable descendants omitted by the requested bounds.
+    ``unknown_count`` counts returned nodes whose parent relation cannot be
+    proven from current strong evidence. The latter intentionally overlaps the
+    included count; it is never inferred as zero from absent evidence.
+    """
+
     CONTRACT_ID: ClassVar[str] = "CTR-RUN-003"
     OWNER: ClassVar[str] = "PLAN-M06"
 
     root_session_id: OpaqueIdV1
     as_of: datetime
     nodes: tuple[SessionTreeNodeV1, ...]
+    included_count: int
+    excluded_count: int
+    unknown_count: int
     partial: bool
     reason_codes: tuple[str, ...]
 
     def __post_init__(self) -> None:
         TechnicalValueV1.__post_init__(self)
+        node_ids = tuple(node.session.session_id for node in self.nodes)
         if (
             not _utc(self.as_of)
+            or type(self.included_count) is not int
+            or self.included_count != len(self.nodes)
+            or len(set(node_ids)) != len(node_ids)
+            or self.root_session_id not in node_ids
+            or type(self.excluded_count) is not int
+            or self.excluded_count < 0
+            or type(self.unknown_count) is not int
+            or self.unknown_count
+            != sum(node.orphan_reason is not None for node in self.nodes)
             or type(self.partial) is not bool
             or self.reason_codes != tuple(sorted(set(self.reason_codes)))
             or not all(_token(code) for code in self.reason_codes)

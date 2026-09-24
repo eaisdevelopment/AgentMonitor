@@ -137,12 +137,24 @@ td { font-variant-numeric: tabular-nums; }
 .quota-provenance div, .run-provenance div { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: .45rem; }
 .quota-provenance dt, .run-provenance dt { color: #7895a6; }
 .quota-provenance dd, .run-provenance dd { margin: 0; overflow-wrap: anywhere; color: #c5d5df; }
+.history-panel { position: relative; z-index: 1; min-width: 0; margin-top: 1rem; padding: 1rem !important; background: #0a1925 !important; }
+.history-panel h3, .session-tree h3 { margin: .15rem 0 0; font-size: 1rem; }
+.history-chart { display: block; width: 100%; min-height: 8rem; margin-bottom: 1rem; border: 1px solid #31556a; border-radius: .45rem; background: #07131d; }
+.history-chart line { stroke: #52758a; stroke-width: 1; }
+.history-chart circle { fill: #87ddf1; stroke: #07131d; stroke-width: 2; }
 .runtime-summary { position: relative; z-index: 1; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .65rem; margin-bottom: 1rem; }
 .runtime-summary > div { display: flex; align-items: baseline; gap: .6rem; padding: .8rem; border: 1px solid #294b5e; border-radius: .45rem; background: #07131d9c; }
 .runtime-summary strong { color: #87ddf1; font: 750 1.65rem/1 ui-monospace, SFMono-Regular, monospace; }
 .runtime-summary span { color: #a8bfcc; }
 .session-layout { position: relative; z-index: 1; display: grid; grid-template-columns: minmax(0, 1fr) minmax(18rem, .8fr); gap: 1rem; }
-.session-row { display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
+.session-row { display: grid; gap: 1rem; }
+.session-row-main { display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
+.session-tree { min-width: 0; padding: .8rem !important; border-radius: .4rem !important; background: #0a1925 !important; }
+.session-tree-heading { display: flex; align-items: baseline; justify-content: space-between; gap: .8rem; }
+.session-tree-heading p { color: #9fc3d2; font: .72rem/1.4 ui-monospace, SFMono-Regular, monospace; }
+.session-tree-list, .session-tree-list ul { margin: .55rem 0 0; padding-left: 1.2rem; }
+.session-tree-list summary { cursor: pointer; color: #d6e2e9; font-weight: 650; }
+.session-tree-list details > p { margin-left: .4rem; font-size: .78rem; }
 .session-detail { padding: 1rem; border: 1px solid #39738c; border-radius: .55rem; background: #0a1925; }
 .provenance-grid { display: grid; gap: .55rem; margin: 0; }
 .provenance-grid div { display: grid; grid-template-columns: minmax(6rem, .6fr) minmax(0, 1fr); gap: .75rem; padding-bottom: .5rem; border-bottom: 1px solid #294258; }
@@ -157,6 +169,6 @@ td { font-variant-numeric: tabular-nums; }
 @media (max-width: 1100px) { .fleet-panel, .capacity-panel { grid-column: span 6; } .runtime-panel, .alerts-panel, .activity-panel { grid-column: span 12; } }
 @media (max-width: 1100px) { .command-grid > section, .account-observation-grid > section { grid-column: span 12; } .session-layout { grid-template-columns: 1fr; } }
 @media (max-width: 980px) { .settings-grid { grid-template-columns: 1fr; } .command-deck { align-items: flex-start; } }
-@media (max-width: 700px) { .fleet-panel, .capacity-panel { grid-column: span 12; } .command-deck, .account-security { align-items: stretch; flex-direction: column; } .link-state { min-width: 0; } .timeline-row { grid-template-columns: 1fr; } .timeline-result { justify-items: start; } .session-row { align-items: stretch; flex-direction: column; } }
+@media (max-width: 700px) { .fleet-panel, .capacity-panel { grid-column: span 12; } .command-deck, .account-security { align-items: stretch; flex-direction: column; } .link-state { min-width: 0; } .timeline-row { grid-template-columns: 1fr; } .timeline-result { justify-items: start; } .session-row-main, .session-tree-heading { align-items: stretch; flex-direction: column; } }
 @media (max-width: 600px) { .dashboard-header { align-items: stretch; flex-direction: column; } .header-actions { justify-content: flex-start; } .brand { font-size: 1.2rem; } .dashboard-main { padding: 1rem; } .runtime-summary { grid-template-columns: 1fr; } .capability-grid { grid-template-columns: 1fr; } }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; transition-duration: .01ms !important; } }
