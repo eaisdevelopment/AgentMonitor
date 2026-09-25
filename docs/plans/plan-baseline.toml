@@ -42,22 +42,22 @@ bytes = 136150
 id = "PLAN-M03"
 path = "docs/plans/modules/m03-provider-system/plan-v1.md"
 plan_version = "0.2.0-draft"
-sha256 = "c3bdb5226f38df96447f571bea592b04915997193ad5a594221a99268afd24a0"
-bytes = 106045
+sha256 = "852823439c40c922432d6f218452171f442ddf79a0b7a3bfcd188e23fdf5072c"
+bytes = 105891
 
 [[plans]]
 id = "PLAN-M04"
 path = "docs/plans/modules/m04-collection-control/plan-v1.md"
 plan_version = "0.2.0-draft"
-sha256 = "ece01a247bca1d32d75c61ed750afb5d8d4fe0e08542fb0fcd1a61ce5a97ab78"
-bytes = 124490
+sha256 = "356d9df90146c4be3da7aed621ac7186826fba2fceb3ee53623ba51910bd11e1"
+bytes = 124532
 
 [[plans]]
 id = "PLAN-M05"
 path = "docs/plans/modules/m05-capacity/plan-v1.md"
 plan_version = "0.2.0-draft"
-sha256 = "9ebb0c289de1567166ac53ef84b5f591a93040687c37cd0a0650e15318afec0d"
-bytes = 151158
+sha256 = "12c08181a0515b3384d0c4547fe81748aba87bf21d3225bf8f1c14813435d5ad"
+bytes = 151278
 
 [[plans]]
 id = "PLAN-M06"
@@ -84,22 +84,22 @@ bytes = 139226
 id = "PLAN-A01"
 path = "docs/plans/adapters/claude/plan-v1.md"
 plan_version = "0.2.1-draft"
-sha256 = "9b3747e4fa8e063f0471cd42cd77d52a22a98be929bba6f4706670d3c2ae9660"
-bytes = 89331
+sha256 = "c136c4125dc8c2cf0f4bad6929bb9307eadfc12f4599b24a965d09ad80cb13e0"
+bytes = 89500
 
 [[plans]]
 id = "PLAN-A02"
 path = "docs/plans/adapters/codex/plan-v1.md"
 plan_version = "0.2.0-draft"
-sha256 = "1dc5b4fa1bab06b13c87d059415ef913848d10b4ad887ce5b914e1dd66bdcf1e"
-bytes = 104008
+sha256 = "81c0e07ac59922dff608a386a6f7066396496d53a3ca1feef8933f807d78d823"
+bytes = 104051
 
 [[plans]]
 id = "PLAN-A03"
 path = "docs/plans/adapters/ollama/plan-v1.md"
 plan_version = "0.2.1-draft"
-sha256 = "f433efa8797695a99d85ca539bccb3f77ed80394fbd3bd998aaf61e55be43c9a"
-bytes = 115492
+sha256 = "0832be9c44953a86c7e1ef69b0a6fd8de38990bafcbab3e85d4369b32a6dface"
+bytes = 115627
 
 [[plans]]
 id = "PLAN-A04-LINUX"
@@ -165,7 +165,7 @@ bytes = 58467
 [[controls]]
 id = "contract-adoption"
 path = "docs/plans/contract-adoption.toml"
-sha256 = "0387c45f4a411fcfc6ee51a2ea5891a037ba966ff84080d7fd0d00939e1d57b5"
+sha256 = "c65f544f32311b76fb8be419a6e22fe8fd86b778539cd9a96eb68495138f81e3"
 bytes = 16274
 
 [[controls]]
@@ -183,20 +183,20 @@ bytes = 73372
 [[controls]]
 id = "parallel-ownership"
 path = "docs/plans/parallel-ownership.toml"
-sha256 = "6bb2923c662041255cea4a5d9bfceb86a5085bc8390be7964b39b3df4ccc0970"
+sha256 = "5a83ea998fdfc3106e8fca55eeb57d4ff114f8eb3d66537a288e805c81a710db"
 bytes = 22708
 
 [[controls]]
 id = "automation-routines"
 path = "tools/automation/routines.toml"
-sha256 = "ebcc50df80cfe328695a7415e94439d95772c2d757ab63c784551429bdd3b537"
-bytes = 6488
+sha256 = "5013885cdc9c817b7d4032458a172f985e65211ec8ac838966761a8627c6e459"
+bytes = 6786
 
 [[controls]]
 id = "automation-standard"
 path = "docs/engineering/completion-and-automation-gates.md"
-sha256 = "150563e187b6db95623bb2714f26ca56362d0f22d5e58f19e63bbc5a0d156ff7"
-bytes = 13885
+sha256 = "044e30b14cb74c17ccfc476f90982abf60e8bf042a053a2b5f8cc865d18a5669"
+bytes = 14063
 
 [[controls]]
 id = "m0-g0-approval"

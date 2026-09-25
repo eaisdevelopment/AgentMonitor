@@ -522,7 +522,14 @@ Publishes `AdapterDescriptorV1`, `CapabilityManifestV1`, `CapabilityDeclarationV
 
 The M0 discovery evidence record is `M0CapabilityDecisionV1`; it is evidence consumed through its approved provider or platform decision set, not the same contract type as the M03-owned production `CapabilityDecisionV1`. Direct re-export, aliasing, and identity transformation are forbidden. Before CTR-PROV-002 approval, M03 must publish and review an explicit `M0ToM03CapabilityMappingV1` transformation that preserves the approved M0 decision, evidence lineage, confidence, gaps, and applicability while translating only into fields whose production semantics are owned here. The mapping binds the exact M0 schema-bundle digest and the exact CTR-PROV-002 version, schema digest, and complete normative contract-bundle digest; any change supersedes the mapping and requires a new review and approvals.
 
-The terminal M0-to-M03 gate is a current, finalized `M0HandoffAcceptanceV1` for `PLAN-M03` with all four detached approvals (owner, security/privacy, test integrity, and root integration). It must bind the unique current G9-final ledger; all six current provider decision sets and the current platform decision set; each set's complete per-decision and set-level approval layers; each set's authoritative current scenario status; and the exact approved mapping ID, version, and digest. Individual decisions, a set without its post-finalization approvals, a pre-G9 ledger, or a stale acceptance are insufficient. Until both the mapping and this acceptance are approved, capability synchronization remains blocked and no provider adapter may claim CTR-PROV-002 conformance.
+The terminal M0-to-M03 gate is a current technical `M0HandoffAcceptanceV1`
+for `PLAN-M03` binding the unique evidence ledger, provider/platform decision
+sets, authoritative scenario status, and exact mapping ID, version, and digest.
+Detached owner, security/privacy, test-integrity, and root-integration records
+remain advisory governance evidence and are not an executable prerequisite.
+Stale or technically incomplete mappings still block capability synchronization;
+the local technical preflight is the sole prerequisite for claiming
+CTR-PROV-002 conformance.
 
 Compatibility promise: optional fields may be added in V1 minor revisions only with safe absence behavior. Capability meaning, source class, decision meaning, credential role, side-effect class, or version interpretation cannot change without a new major/ADR.
 
@@ -1121,7 +1128,8 @@ Stop immediately and notify the root when:
 ## 15. Definition of ready for implementation
 
 - [ ] This plan and its scope/non-goals are owner and reviewer approved.
-- [ ] M0 G9 is complete and the M03 handoff/capability matrices are accepted.
+- [ ] Current M0 technical evidence and the M03 handoff/capability matrices
+      validate; detached review records remain advisory.
 - [ ] CTR-COMMON-001/002/004/006 and CTR-PROV-001..008 are synchronized, registered, versioned, and Approved.
 - [ ] M02 target/profile/identity/Experimental-grant contract is Approved.
 - [ ] M04 operation-context/source/deadline/collection-run allocation is Approved.

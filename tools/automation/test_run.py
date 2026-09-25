@@ -586,7 +586,7 @@ class AutomationRoutineTests(unittest.TestCase):
 
         self.assertEqual(
             (
-                "AUTO-TEST",
+                "AUTO-M3-TEST",
                 "AUTO-QUALITY",
                 "AUTO-BUILD",
                 "AUTO-MUTATION",
@@ -801,6 +801,7 @@ class AutomationRoutineTests(unittest.TestCase):
                 "AUTO-DOCS-CHECK",
                 "AUTO-M3-LIVE",
                 "AUTO-M3-EXIT",
+                "AUTO-M3-TEST",
                 "AUTO-MUTATION",
                 "AUTO-TEST",
                 "AUTO-QUALITY",

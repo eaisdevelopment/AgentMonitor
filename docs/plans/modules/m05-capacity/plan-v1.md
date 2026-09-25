@@ -9,7 +9,7 @@
 - Requirements: FR-ORG-003; FR-QUOTA-001..006; FR-BUDGET-001..006; capacity-owned portions of FR-HIST-001..005; supporting FR-COL-004/006/008, FR-OPS-002/005/006, FR-SAFE-001/002; NFR-ARCH-001/002, NFR-API-001/002, NFR-DATA-001, NFR-TEST-001/002, NFR-SEC-001, NFR-PRIV-001/002, NFR-DOC-001, NFR-LIC-001, NFR-PLAT-001, NFR-PERF-001, NFR-RES-001, NFR-OBS-001, NFR-COMP-001
 - Acceptance criteria: AC-V1-001..008; AC-LIVE-004/005/007; AC-UI-002/003/004/005/006; AC-HIST-001/002; AC-OPS-003/004/005; AC-TEST-001..006
 - Primary project risks: R-001, R-002, R-005, R-007, R-008, R-009, R-010, R-011, R-012, R-014, R-018, R-019, R-020, R-024
-- Dependencies: accepted ADRs 0001, 0003, 0005, 0006, 0008, 0010, and 0011; approved M0 Capacity handoff; approved common contracts; synchronized M02/M03/M04/M07/M08 contracts; repository foundation; centrally allocated migration chain; persistence adapter; P01/P02 query presentation
+- Dependencies: accepted ADRs 0001, 0003, 0005, 0006, 0008, 0010, and 0011; technically validated M0 Capacity handoff; approved common contracts; synchronized M02/M03/M04/M07/M08 contracts; repository foundation; centrally allocated migration chain; persistence adapter; P01/P02 query presentation
 - Target milestone: M2 capacity history/current state, expanded through M6 API-budget support; synchronization gate CS-2
 - Approved by/date: pending
 
@@ -1201,7 +1201,9 @@ Implementation starts only after section 15 is fully satisfied, the plan status 
 
 ### Ordering and parallel-development safety
 
-- M05-I00 precedes every production/test implementation. Provider-specific rows remain blocked until their exact M0 handoff is approved.
+- M05-I00 precedes every production/test implementation. Provider-specific rows
+  remain blocked only until their exact M0 technical handoff validates; detached
+  approval records do not block local execution.
 - I01–I04 may be developed in separate M05-owned files only after the root allocates non-overlapping paths and the shared value contracts are frozen. One M05 owner integrates the domain package.
 - I05–I11 share one M05 migration chain and repository/projector invariants; migrations and current-projection writer code are serialized under one owner. Read-only test/security reviewers may operate in parallel.
 - M02, M03, M04, M07, M08, adapters, API, and UI can implement in parallel against synchronized contract versions only. None edits M05 internals/tables.
@@ -1394,7 +1396,8 @@ Implementation remains blocked until every applicable item is checked and record
 - [ ] Owner/root approves requirements, interpretations, non-goals, plan 0.2.0-draft, and changes status to Approved.
 - [ ] The canonical synchronized planning gate includes M05 and passes against the real checkout.
 - [ ] Exact owned/allowed/shared/forbidden paths and implementation/reviewer assignments are allocated without overlap.
-- [ ] M0 M05 handoff is complete and approved for each first-wave provider/resource/capability tuple.
+- [ ] M0 M05 technical handoff is complete for each first-wave
+      provider/resource/capability tuple; detached reviews are advisory.
 - [ ] CTR-COMMON exact quantity/time/provenance/event contracts are Approved.
 - [ ] CTR-CAP-001..009 schemas, ports, errors, events, compatibility promises, and consumer reviews are Approved.
 - [ ] M02 account/resource/window relationship/scope snapshot contracts are Approved.

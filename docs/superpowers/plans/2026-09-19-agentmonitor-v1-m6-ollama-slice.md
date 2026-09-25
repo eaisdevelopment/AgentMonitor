@@ -13,6 +13,10 @@
 ## Global Constraints
 
 - Milestone: `V1-M6`; epic: `EPIC-OLL-01`; entry gates: `V1-M3`, accepted applicable `M0-OLL-*`/`M0-LNX-*` evidence, Approved `docs/plans/adapters/ollama/plan-v1.md`, affected contracts, and allocated shared writers.
+- Detached M0 reviewer approvals are advisory and never block M6 execution.
+  M6 gates current technical evidence and real Ollama boundaries directly;
+  unavailable services, identities, models, or processes remain Blocked or Not
+  Run.
 - Detailed authority remains in `docs/plans/integration/v1-planning-program.md`, A03, M02–M06, P01/P02, `docs/plans/contract-adoption.toml`, and `docs/plans/parallel-ownership.toml`.
 - Local installation/service, installed model, loaded/runtime model, cloud identity, cloud subscription, and API billing are independent resources. `OLL-I09` API billing belongs to `V1-M7`; `OLL-I11` managed reauthentication requires its own authorization. Neither is implemented here.
 - All listed files and tests are unconditional deliverables. If accepted M0 evidence says a lane is Unsupported, its manifest/adapter/test must return that typed truth before external I/O; do not omit the file, test, or write set.

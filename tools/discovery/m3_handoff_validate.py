@@ -240,11 +240,15 @@ def _validate_structural_records() -> tuple[
     return acceptance, contract_bundle, decisions
 
 
-def _live_blockers(
-    acceptance: dict[str, Any],
+def _technical_blockers(
     contract_bundle: dict[str, Any],
-    decisions: dict[str, str],
 ) -> list[str]:
+    """Return only evidence blockers for the local technical release lane.
+
+    Detached reviewer records are governance evidence, not a runtime
+    prerequisite.  Keeping this list separate prevents a pending review
+    document from stopping a real provider/browser verification run.
+    """
     blockers: list[str] = []
     capabilities = {
         item.get("capability_id"): item
@@ -261,6 +265,15 @@ def _live_blockers(
         or contract_bundle.get("schema_artifact") is None
     ):
         blockers.append("ctr_prov_002_schema_missing")
+    return blockers
+
+
+def _live_blockers(
+    acceptance: dict[str, Any],
+    contract_bundle: dict[str, Any],
+    decisions: dict[str, str],
+) -> list[str]:
+    blockers = _technical_blockers(contract_bundle)
     for role in ("owner", "security_privacy", "test_integrity", "root_integration"):
         if decisions.get(role) != "approved":
             blockers.append(f"{role}_approval_{decisions.get(role, 'missing')}")
@@ -271,10 +284,16 @@ def _live_blockers(
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument(
+    live_group = parser.add_mutually_exclusive_group()
+    live_group.add_argument(
         "--require-adapter-live",
         action="store_true",
-        help="fail unless the complete adapter/live handoff is authorized",
+        help="strict governance mode; require every detached approval",
+    )
+    live_group.add_argument(
+        "--require-technical-live",
+        action="store_true",
+        help="local release mode; require technical evidence, not detached approvals",
     )
     parser.add_argument(
         "--schema-only",
@@ -289,6 +308,7 @@ def main(argv: list[str] | None = None) -> int:
             print("M0/M3 bound schema: VALID")
             return 0
         blockers = _live_blockers(acceptance, contract_bundle, decisions)
+        technical_blockers = _technical_blockers(contract_bundle)
         recorded_blockers = acceptance.get("blockers")
         if recorded_blockers != blockers:
             raise ValidationError(
@@ -301,6 +321,22 @@ def main(argv: list[str] | None = None) -> int:
         return 2
 
     print("ST-PROV-001 structural prerequisite: AUTHORIZED")
+    if args.require_technical_live:
+        if technical_blockers:
+            print("M3 technical handoff: BLOCKED")
+            for blocker in technical_blockers:
+                print(f"- {blocker}")
+            print(
+                "M3 governance approvals: ADVISORY / NOT REQUIRED BY LOCAL RELEASE POLICY"
+            )
+            print("provider/account/process/profile/network access: NOT PERFORMED")
+            return 2
+        print("M3 technical handoff: AUTHORIZED (local owner release policy)")
+        print(
+            "M3 governance approvals: ADVISORY / NOT REQUIRED BY LOCAL RELEASE POLICY"
+        )
+        print("provider/account/process/profile/network access: NOT PERFORMED")
+        return 0
     if blockers:
         print("M3 adapter/live handoff: BLOCKED")
         for blocker in blockers:

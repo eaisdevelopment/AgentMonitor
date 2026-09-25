@@ -18,7 +18,12 @@ try {
   const originUrl = new URL(origin);
   requireTruth(originUrl.protocol === "http:" && originUrl.hostname === "127.0.0.1" && originUrl.port !== "" && originUrl.origin === origin, "invalid_loopback_origin");
   requireTruth(typeof accountId === "string" && accountId.length > 0 && accountId.length <= 256, "invalid_opaque_account_id");
-  browser = await chromium.launch({ channel: "chrome", headless: true });
+  // Local acceptance is visible by default so the owner can inspect the real
+  // dashboard. CI/unattended callers may opt into headless execution explicitly.
+  browser = await chromium.launch({
+    channel: "chrome",
+    headless: process.env.AGENTMONITOR_M3_HEADLESS === "true",
+  });
   const context = await browser.newContext({
     baseURL: origin,
     viewport: { width: 1920, height: 1080 },
@@ -95,7 +100,7 @@ try {
     requireTruth(/supported cli/iu.test(provenanceText), "quota_source_class_missing");
     requireTruth(/agentmonitor\.claude\s*·\s*1\.0\.2/u.test(provenanceText), "quota_adapter_version_missing");
     requireTruth(/Mechanism version\s*1/u.test(provenanceText), "quota_mechanism_version_missing");
-    requireTruth(/Provider version\s*2\.1\.278/u.test(provenanceText), "quota_provider_version_missing");
+    requireTruth(/Provider version\s*2\.1\.282/u.test(provenanceText), "quota_provider_version_missing");
     requireTruth(/claude-usage-five-minute-v1/u.test(provenanceText), "quota_freshness_policy_missing");
     requireTruth(/Precision\s*rounded/iu.test(provenanceText), "quota_precision_missing");
     requireTruth(/confirmed/iu.test(provenanceText), "quota_confidence_missing");
@@ -113,7 +118,10 @@ try {
   await chart.waitFor();
   const chartObservationIds = (await chart.getAttribute("data-observation-ids"))?.split(" ").filter(Boolean) ?? [];
   requireTruth(JSON.stringify(chartObservationIds) === JSON.stringify(historyObservationIds), "history_chart_table_lineage_mismatch");
-  requireTruth(historyObservationIds.every((value) => quotaLineage.some((lineage) => lineage.observationId === value)), "history_current_observation_lineage_mismatch");
+  requireTruth(
+    quotaLineage.every((lineage) => historyObservationIds.includes(lineage.observationId)),
+    "history_current_observation_lineage_missing",
+  );
   requireTruth((await historyRows.locator(".history-exact-value").allTextContents()).every((value) => value.trim().length > 0), "history_exact_value_missing");
   const historyPanel = page.locator(".history-panel");
   requireTruth(

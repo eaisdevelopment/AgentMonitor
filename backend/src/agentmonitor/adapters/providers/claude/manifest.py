@@ -1,4 +1,4 @@
-"""Exact Claude Code 2.1.278 capability declaration."""
+"""Exact Claude Code 2.1.282 capability declaration."""
 
 from agentmonitor.contracts.common_v1 import FieldAvailabilityV1
 from agentmonitor.contracts.provider_system_v1 import (
@@ -16,7 +16,7 @@ from agentmonitor.contracts.provider_system_v1 import (
 CLAUDE_ADAPTER_ID = "agentmonitor.claude"
 CLAUDE_ADAPTER_VERSION = "1.0.2"
 CLAUDE_PARSER_VERSION = "1.0.2"
-CLAUDE_PROVIDER_VERSION = "2.1.278"
+CLAUDE_PROVIDER_VERSION = "2.1.282"
 CLAUDE_USAGE_SOURCE_ID = "claude.usage.ax-screen-reader.v1"
 CLAUDE_OTEL_SOURCE_ID = "claude.otel.metrics.http-json.v1"
 CLAUDE_OTEL_ADAPTER_ID = "agentmonitor.claude.otel"

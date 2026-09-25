@@ -10,7 +10,7 @@
     "scope": {
       "provider_key": "claude",
       "product": "Claude Code",
-      "provider_version": "2.1.278",
+      "provider_version": "2.1.282",
       "platform": "Linux-x86_64",
       "plan_class": "Claude Max",
       "profile_ref": "REF-M0-CLAUDE-PROFILE-001"
@@ -24,15 +24,15 @@
     "artifact_bindings": [
       {
         "path": "docs/discovery/m0/m0-to-m03-claude-v1.json",
-        "sha256": "8ad7dfb49415f7ebc0460511625d6c4766836ddbdc55c38f5b9af89bd8de4c8b"
+        "sha256": "dedfcbd9d4f4a2b0df565fb05522e378ad5f2d0b53054baec51cbd71ea139d76"
       },
       {
         "path": "docs/discovery/m0/m0-to-m03-claude-otel-v1.json",
-        "sha256": "88f558e169fb1a5f278e760ae501b79dc7455cd1d4e6ac488bc3b2bd019d0cb2"
+        "sha256": "b04e80988eb2d7a6dd60b9a51eb2a809eaa8787f56bf828ebcbfb5c52b5ffd21"
       },
       {
         "path": "docs/discovery/m0/m3-claude-handoff.md",
-        "sha256": "ee6fd505157bf9948aab55cccc389ac5d8a915a87ec2ade1c93d1782b57d619f"
+        "sha256": "b4e97a5ce3bb00706dd10c7d9db2f7a3eb55e53978a5bcb75a28554a9dd8739a"
       },
       {
         "path": "docs/discovery/m0/m3-claude-evidence-v1.json",
@@ -40,11 +40,11 @@
       },
       {
         "path": "docs/discovery/m0/m3-handoff-schema-bundle-v1.json",
-        "sha256": "cfe5b2f48678fd02a603381d947ad940b793c44e83507e51d765c2680c37c96b"
+        "sha256": "b10018ea137c2570dc705325b65cf674a22dd8cd4c1434030cd1b9d3df7201c7"
       },
       {
         "path": "docs/discovery/m0/m3-ctr-prov-002-contract-bundle-v1.json",
-        "sha256": "06879d345ace9a367a2aaad8813f5d851a9e040bb9b2b793eed5a17a2e47f6c8"
+        "sha256": "bb0c5f3a1106d73a5059d3061562bc2fb8ef56685bed116e075d83dbfc8c02b1"
       },
       {
         "path": "docs/evidence/m3-claude-otel-targeted-probe.md",
@@ -52,11 +52,11 @@
       },
       {
         "path": "docs/superpowers/plans/2026-09-19-agentmonitor-v1-m3-claude-slice.md",
-        "sha256": "27331101b6391a71af4c4fde2d0fd8faad92fcf4537df6dd1cdf5d2a401d640c"
+        "sha256": "15dfc5315abc283721eaece4444ceb35a12f7c9c2126a8394140739bcb468aa7"
       }
     ]
   },
-  "subject_sha256": "b34228357e2d4f2929f95d4a16b462e5c83046e54d32e0c8df62c2c4d0668c0b",
+  "subject_sha256": "2878d8ae61121eb2f0df3483593ab07822dffcfb7b0cdfbac1706629348dcee6",
   "approval_paths": [
     "docs/discovery/m0/m3-handoff-approvals/owner.json",
     "docs/discovery/m0/m3-handoff-approvals/security-privacy.json",

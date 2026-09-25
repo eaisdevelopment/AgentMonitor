@@ -13,6 +13,10 @@
 ## Global Constraints
 
 - Milestone: `V1-M4`; epics: `EPIC-FLEET-01`, `EPIC-ALERT-01`, `EPIC-OPS-01`; entry gates: `V1-M3`, accepted Claude evidence, Approved affected plans/contracts, and allocated shared writers.
+- Detached M0 reviewer approvals are advisory evidence only. M4 execution uses
+  the current technical handoff and real boundary checks; it must not require
+  a detached-approval authorization flag. Naturally unavailable accounts,
+  providers, processes, and time windows remain Blocked or Not Run.
 - Detailed authority remains in `docs/plans/integration/v1-planning-program.md`, `docs/plans/adapters/claude/plan-v1.md`, M02/M04/M05/M06/M07/M08, P01/P02, `docs/plans/contract-adoption.toml`, and `docs/plans/parallel-ownership.toml`.
 - The reauthentication entry gate is A01 `CLA-I09 — managed reauth, separately authorized`. Before that named packet is Approved, M4 implements read-only authentication health only and records managed reauth as Blocked. After approval, only an AgentMonitor-managed isolated profile may use the official owner-driven flow; a default or uncertain profile is rejected before provider I/O and is never modified.
 - Use real provider accounts/sources/processes, file-backed SQLite, loopback HTTP, and a built browser. No mocks, fakes, stubs, emulators, recordings, copied provider files, demo accounts, seeded telemetry, placeholder values, or in-memory SQLite.

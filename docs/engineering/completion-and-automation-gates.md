@@ -127,6 +127,7 @@ the lifecycle stage that needs it remains Not Ready.
 | `AUTO-M0-LEDGER` | Generate/validate unique complete scenario accounting from approved packet/result digests | M0/integration/test | M0 synthesis and exit |
 | `AUTO-DOCS-CHECK` | Validate local links, identifiers, required metadata, generated references, and documentation routing | Foundation/integration | any implementation handoff |
 | `AUTO-TEST` | Run the selected real-boundary test suites with explicit Passed/Failed/Blocked/Not Run reporting | Foundation/test steward | implementation handoff |
+| `AUTO-M3-TEST` | Run the bounded M3 contract and technical backend suites; keep the long M2 elapsed-time browser scenario separate | Integration | V1-M3 technical completion |
 | `AUTO-QUALITY` | Run formatting, linting, typing, import-boundary, security, secret, dependency, license, and compatibility gates | Foundation/security | merge/release candidate |
 | `AUTO-GIT-PREFLIGHT` | Verify repository identity, expected branch/upstream, clean/declared changes, no secrets, and commit policy without mutating history | Foundation/release | commit/push/release |
 | `AUTO-BUILD` | Reproducibly build locked backend/frontend artifacts and emit build metadata/SBOM/notices | Foundation/release | install/deploy |

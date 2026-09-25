@@ -50,7 +50,7 @@ class M3HandoffContractTests(unittest.TestCase):
             {
                 "provider_key": "claude",
                 "product": "Claude Code",
-                "provider_version": "2.1.278",
+                "provider_version": "2.1.282",
                 "platform": {"operating_system": "Linux", "architecture": "x86_64"},
                 "plan_class": "Claude Max",
                 "profile_ref": "REF-M0-CLAUDE-PROFILE-001",
@@ -318,7 +318,7 @@ class M3HandoffContractTests(unittest.TestCase):
             "M0-M3-CLAUDE-SCOPED-ENTRY-001",
             "does not declare M0 G9 complete",
             "Codex, Ollama, Anthropic API, OpenAI API, Ollama API, and macOS remain deferred",
-            "all four detached approval roles",
+            "Detached approval records are retained for optional governance review",
             "subscription.quota",
             "local.process.account_correlation",
         ):
@@ -369,6 +369,25 @@ class M3HandoffContractTests(unittest.TestCase):
             if all_approved
             else "M3 adapter/live handoff: BLOCKED",
             live_result.stdout,
+        )
+
+    def test_local_technical_release_ignores_detached_approval_blockers(self) -> None:
+        """The executable local lane is evidence-gated, not review-document-gated."""
+        result = subprocess.run(
+            [str(M0_PYTHON), str(VALIDATOR_PATH), "--require-technical-live"],
+            cwd=REPOSITORY_ROOT,
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+        self.assertEqual(0, result.returncode, result.stdout + result.stderr)
+        self.assertIn(
+            "M3 technical handoff: AUTHORIZED (local owner release policy)",
+            result.stdout,
+        )
+        self.assertIn(
+            "M3 governance approvals: ADVISORY / NOT REQUIRED BY LOCAL RELEASE POLICY",
+            result.stdout,
         )
 
 

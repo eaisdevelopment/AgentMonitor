@@ -85,6 +85,14 @@ implementation_command = ["python3", "tools/automation/implementations/auto_test
 blockers = []
 
 [[routines]]
+id = "AUTO-M3-TEST"
+owner = "PLAN-INT"
+status = "operational"
+scope = "V1-M3 contract and technical backend boundaries; M2's 30-minute idle-expiry browser routine remains separate"
+implementation_command = ["python3", "tools/automation/implementations/auto_m3_test.py"]
+blockers = []
+
+[[routines]]
 id = "AUTO-M3-LIVE"
 owner = "PLAN-INT"
 status = "operational"

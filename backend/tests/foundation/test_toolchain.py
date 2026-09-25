@@ -26,15 +26,15 @@ def checker_module() -> ModuleType:
         ("python", "3.12.2", False),
         ("python", "3.13.0", False),
         ("python", "3.12.14rc1", False),
-        ("node", "22.23.2", True),
+        ("node", "22.23.3", True),
         ("node", "22.23.1", False),
         ("node", "24.0.0", False),
-        ("npm", "10.9.8", True),
+        ("npm", "10.9.9", True),
         ("npm", "10.9.7", False),
         ("uv", "0.11.16", True),
         ("uv", "0.11.15", False),
         ("unknown", "1.0.0", False),
-        ("node", "22.23.2\nextra", False),
+        ("node", "22.23.3\nextra", False),
     ],
 )
 def test_version_policy(tool: str, version: str, expected: bool) -> None:
@@ -44,10 +44,10 @@ def test_version_policy(tool: str, version: str, expected: bool) -> None:
 @pytest.mark.parametrize(
     ("python_text", "node_text", "expected"),
     [
-        ("3.12.3\n", "22.23.2\n", True),
-        ("3.12.2\n", "22.23.2\n", False),
-        ("3.12.3\n", "22.23.1\n", False),
-        ("3.12.3\nextra\n", "22.23.2\n", False),
+        ("3.12.3\n", "22.23.3\n", True),
+        ("3.12.2\n", "22.23.3\n", False),
+        ("3.12.3\n", "22.23.2\n", False),
+        ("3.12.3\nextra\n", "22.23.3\n", False),
     ],
 )
 def test_version_file_policy(python_text: str, node_text: str, expected: bool) -> None:
@@ -81,7 +81,7 @@ def test_real_selected_tools_and_version_files_pass() -> None:
         "version-files: OK\n"
         f"python: OK {sys.version_info.major}.{sys.version_info.minor}."
         f"{sys.version_info.micro}\n"
-        "node: OK 22.23.2\nnpm: OK 10.9.8\nuv: OK 0.11.16\n"
+        "node: OK 22.23.3\nnpm: OK 10.9.9\nuv: OK 0.11.16\n"
     )
 
 

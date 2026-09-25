@@ -13,6 +13,9 @@
 ## Global Constraints
 
 - Milestone: `V1-M5`; epic: `EPIC-CDX-01`; entry gates: `V1-M3`, accepted applicable `M0-CDX-*`/`M0-LNX-*` evidence, Approved `docs/plans/adapters/codex/plan-v1.md`, affected contracts, and allocated shared writers.
+- Detached M0 reviewer approvals are advisory and never block M5 execution.
+  M5 gates current technical evidence and real Codex boundaries directly;
+  unavailable accounts/processes remain Blocked or Not Run.
 - Detailed authority remains in `docs/plans/integration/v1-planning-program.md`, A02, M02–M06, P01/P02, `docs/plans/contract-adoption.toml`, and `docs/plans/parallel-ownership.toml`.
 - Codex subscription and OpenAI API resources remain separate. `CDX-I08` / `CDX-OAI-*` API usage, cost, and budget work belongs to `V1-M7`, not M5.
 - Use real installations, approved sources, intended owners, real processes, file-backed SQLite, loopback HTTP, and a built browser. No mocks, fakes, stubs, emulators, recordings, copied provider files, demo accounts, seeded telemetry, placeholder values, or in-memory SQLite.

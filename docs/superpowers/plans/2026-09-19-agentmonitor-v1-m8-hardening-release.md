@@ -15,6 +15,9 @@
 - Milestone `V1-M8`; Epics `EPIC-DEP-01`, `EPIC-HARDEN-01`, and `EPIC-RELEASE-01`.
 - Requirements: `FR-HIST-001/003/004/005`, `FR-OPS-001..006`, `FR-UI-001..007`, `FR-SAFE-001/002`, and every V1 NFR. Release criteria: every mandatory `AC-V1-*`, `AC-LIVE-*`, `AC-UI-*`, `AC-PROC-*`, `AC-ALERT-*`, `AC-HIST-*`, `AC-OPS-*`, and `AC-TEST-*` row.
 - Before implementation, require `IC-2`, Approved PLAN-M08/DEP/DB/P01/P02/INT contracts, admitted dependency/tool versions, exact path/migration/shared-writer allocation, approved destructive-isolation packets, a real Linux owner window, and required provider/browser resources.
+- Detached M0 reviewer approvals are advisory and never block M8 execution or
+  the local hardening run. `AUTO-RELEASE` still fails closed on missing real
+  technical, security, migration, browser, deployment, or acceptance evidence.
 - Follow `docs/plans/modules/m08-operations/plan-v1.md`, `docs/plans/deployment/linux-native/plan-v1.md`, `docs/plans/persistence/sqlite/plan-v1.md`, `docs/plans/ui/react-dashboard/plan-v1.md`, and `docs/plans/integration/v1-plan.md`; this plan selects execution slices and does not replace their detailed state machines or scenarios.
 - All filesystem, SQLite, HTTP, browser, platform, service, provider, backup, restore, upgrade, and release claims use real production paths. No mocks, fakes, stubs, emulators, recordings, in-memory SQLite, seeded telemetry, direct table insertion, demo accounts, test-only services, or sample dashboard values.
 - Run as the normal user. Reject root, sudo, system services, broad permissions, unsafe XDG roots, remote bind, wildcard CORS, lingering mutation, arbitrary unit/action/path/PID input, runtime dependency download, and provider/agent control.

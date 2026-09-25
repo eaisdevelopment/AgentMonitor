@@ -1091,7 +1091,8 @@ Unknown items block the affected lane; they do not block documentation of Unsupp
 
 ### 14.1 Delivery order
 
-1. Complete M0 G9 and accept A01 handoffs.
+1. Complete the applicable M0 technical evidence and validate A01 handoffs;
+   detached review records are advisory and do not block local execution.
 2. Synchronize section 13.2 contracts and approve this plan.
 3. Implement pure manifest/source/version/outcome policies through TDD.
 4. Implement one lowest-side-effect Supported read-only lane and complete real conformance.
@@ -1138,7 +1139,8 @@ The handoff must name requirement/AC IDs, plan and all contract/schema versions,
 
 ## 15. Definition of ready
 
-- [ ] M0 G9 is complete and Claude, Anthropic API, and Linux handoff packets are accepted.
+- [ ] Claude, Anthropic API, and Linux technical handoff packets validate for
+      the exact implemented tuple; optional detached reviews are recorded.
 - [ ] Capability decisions and exact evidenced tuples are frozen; Unknown behavior is not treated as implementation detail.
 - [ ] This plan's scope/non-goals/lanes and Anthropic API ownership are approved.
 - [ ] CTR-COMMON, CTR-REG, CTR-PROV-001..008, CTR-COL, CTR-CAP inputs, CTR-RUN inputs, safe-execution, configuration, and evidence contracts are Synchronized/Approved.

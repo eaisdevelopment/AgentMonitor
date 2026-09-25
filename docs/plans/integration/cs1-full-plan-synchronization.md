@@ -410,3 +410,13 @@ Plan snapshot SHA-256: `6c0687cc5dbcf9c0f6a8319415e4bcfc928a186273a2510dc91758c2
 The synchronized controls register `AUTO-M3-EXIT` and `AUTO-MUTATION` in the
 catalog, validator, and completion standard. This changes no module plan,
 public contract, provider state, owner authority, or M4 scope.
+
+## 17. 2026-09-25 local milestone gate-policy rebind
+
+Plan snapshot SHA-256: `b1cb24799d8c692f13bb5abab84159de44e94a595dba5430500c2d1c35da1eb6`
+
+The local execution policy removes detached M0 reviewer approvals from the
+executable prerequisite for every milestone. Technical mapping/schema/probe
+evidence, real boundary checks, and truthful Blocked/Not Run reporting remain
+mandatory. M03/M04/M05/A01/A02/A03 plan hashes, contract adoption, ownership,
+automation catalog, and this snapshot were rebound together.

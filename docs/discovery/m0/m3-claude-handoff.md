@@ -2,7 +2,7 @@
 
 Status: **Adapter/live handoff evidence complete; authorization remains blocked pending detached review decisions**
 Mapping: `M0-M03-CLAUDE-001` and `M0-M03-CLAUDE-OTEL-001`, V1
-Scope: one `REF-M0-CLAUDE-PROFILE-001` tuple for Claude Code `2.1.278`,
+Scope: one `REF-M0-CLAUDE-PROFILE-001` tuple for Claude Code `2.1.282`,
 Claude Max, Linux x86_64
 
 This is the narrow input to `M0-M3-CLAUDE-SCOPED-ENTRY-001`; it is not M0 G9

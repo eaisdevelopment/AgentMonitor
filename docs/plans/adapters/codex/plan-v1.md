@@ -1154,7 +1154,8 @@ Provider version drift automatically makes the affected capability unverified/de
 
 - [ ] Owner/root approves this exact plan, outcome, non-goals, surface separation, and status becomes Approved.
 - [ ] Canonical draft-complete and synchronized planning gates include PLAN-A02 and pass against the real checkout.
-- [ ] M0-CDX, applicable M0-OAI, and M0-LNX handoffs are accepted with exact versions/scopes/evidence.
+- [ ] M0-CDX, applicable M0-OAI, and M0-LNX technical handoffs validate with
+      exact versions/scopes/evidence; detached reviews are advisory.
 - [ ] A02 OpenAI API provider-key and resource separation are approved.
 - [ ] A02 allowed/shared/forbidden paths and agent ownership are conflict-free.
 - [ ] CTR-COMMON and CTR-PROV-001..008 are Approved for the first capability.

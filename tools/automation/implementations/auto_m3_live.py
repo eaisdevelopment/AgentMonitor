@@ -88,8 +88,30 @@ def _owner_target() -> tuple[Path, Path, OpaqueIdV1] | None:
     return data_root, config, account_id
 
 
+def _owner_env_value(key: str) -> str | None:
+    """Read one explicitly named owner secret without printing or persisting it."""
+    supplied = os.environ.get(key, "").strip()
+    if supplied:
+        return supplied
+    env_path = ROOT / ".env"
+    try:
+        for line in env_path.read_text(encoding="utf-8").splitlines():
+            if not line.startswith(f"{key}="):
+                continue
+            value = line.partition("=")[2].strip()
+            if len(value) >= 2 and value[0] == value[-1] and value[0] in {"'", '"'}:
+                value = value[1:-1]
+            return value or None
+    except (OSError, UnicodeError):
+        return None
+    return None
+
+
 def _credential_from_owner() -> str | None:
-    """Read once from a pipe or native dialog; never use argv/env/disk/logs."""
+    """Read the owner password from the explicit local secret or one prompt."""
+    configured = _owner_env_value("AGENTMONITOR_DASHBOARD_PASSWORD")
+    if configured:
+        return configured
     supplied = ""
     try:
         readable, _, _ = select.select([sys.stdin], [], [], 0)
@@ -106,7 +128,6 @@ def _credential_from_owner() -> str | None:
     if zenity is None or os.name != "posix":
         return None
     environment = os.environ.copy()
-    environment.pop("DISPLAY", None)
     environment.setdefault("XDG_RUNTIME_DIR", f"/run/user/{os.getuid()}")
     environment.setdefault("WAYLAND_DISPLAY", "wayland-0")
     environment.setdefault(

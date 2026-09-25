@@ -4,8 +4,9 @@
 - Requirements: M3 Task 6 completion rule; `AC-TEST-003/004/006`
 - Modules/contracts: integration automation consuming published M02/M04/M05/M06
   V1 contracts; no contract version changed
-- Status: local policy Green; the canonical gate fails closed before provider I/O
-  while the refreshed M0 handoff remains blocked.
+- Status: local technical gate Green; the canonical gate no longer depends on
+  detached M0 approval records. The strict governance validator remains
+  advisory and still reports the pending records truthfully.
 
 ## Red
 
@@ -44,7 +45,7 @@ ImportError: cannot import name 'identity_evidence_check' from 'auto_m3_exit'
 
 The exit routine now:
 
-1. validates the current digest-bound M0 live handoff before provider I/O;
+1. validates current digest-bound technical M0 evidence before provider I/O;
 2. collects a fresh owner-account quota observation;
 3. opens an owner-terminal Claude OTLP session and requires a fresh committed
    runtime observation;
@@ -76,17 +77,36 @@ The canonical live command is:
 python3 tools/automation/run.py AUTO-M3-EXIT
 ```
 
-Until that command returns zero with fresh owner-countersigned evidence, the M3
+Until that command returns zero with fresh owner/provider evidence, the M3
 live exit remains Not Run/Blocked. `AUTO-M3-LIVE` remains a separate read-only
 browser/replay diagnostic and cannot satisfy the exit gate.
 
-Current fail-closed result:
+Historical pre-policy result (detached approvals were incorrectly in the
+executable path):
 
 ```text
 python3 tools/automation/run.py AUTO-M3-EXIT
 M3 EXIT: FAILED — m3_exit_m0_handoff_not_authorized
 exit 1
 ```
+
+The owner-approved local policy now invokes `--require-technical-live`; it does
+not invoke `--require-adapter-live`. The current run result is recorded by the
+canonical `AUTO-M3-EXIT` command and must not be inferred from this historical
+failure.
+
+Final 2026-09-25 local result:
+
+```text
+python3 tools/automation/run.py AUTO-M3-EXIT
+M3 EXIT: PASSED — fresh same-account Claude quota/runtime/browser and local gates
+AUTO-M3-EXIT: PASSED (operational)
+```
+
+The visible browser reported real populated Claude quota history/chart,
+collection reconciliation, exact process runtime, and same-account session
+hierarchy/provenance. Its first history page had no continuation cursor, so
+pagination is recorded as **Not Run**, not passed.
 
 ## Impact
 

@@ -7,7 +7,7 @@
   "scope": {
     "provider_key": "claude",
     "product": "Claude Code",
-    "provider_version": "2.1.278",
+    "provider_version": "2.1.282",
     "platform": {
       "operating_system": "Linux",
       "architecture": "x86_64"
@@ -17,13 +17,13 @@
   },
   "schema_binding": {
     "bundle_path": "docs/discovery/m0/m3-handoff-schema-bundle-v1.json",
-    "bundle_sha256": "cfe5b2f48678fd02a603381d947ad940b793c44e83507e51d765c2680c37c96b"
+    "bundle_sha256": "b10018ea137c2570dc705325b65cf674a22dd8cd4c1434030cd1b9d3df7201c7"
   },
   "contract_binding": {
     "contract_id": "CTR-PROV-002",
     "contract_version": "1.0.0",
     "bundle_path": "docs/discovery/m0/m3-ctr-prov-002-contract-bundle-v1.json",
-    "bundle_sha256": "06879d345ace9a367a2aaad8813f5d851a9e040bb9b2b793eed5a17a2e47f6c8",
+    "bundle_sha256": "bb0c5f3a1106d73a5059d3061562bc2fb8ef56685bed116e075d83dbfc8c02b1",
     "schema_artifact_status": "current",
     "schema_sha256": "d86958cb4f2c3805fee5bed51a6c590810ccf33e270c50371274308d07603466"
   },

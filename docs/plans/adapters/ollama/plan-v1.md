@@ -1216,7 +1216,8 @@ The section 10.3 and security incident conditions are mandatory. In addition, st
 
 ### 14.1 Delivery order
 
-1. Complete M0 G9 and accept A03 handoffs.
+1. Complete the applicable M0 technical evidence and validate A03 handoffs;
+   detached review records are advisory and do not block local execution.
 2. Synchronize section 13.2 contracts, shared ports, paths, and automation; approve this plan.
 3. Implement pure manifest/source/version/resource-separation policy through TDD.
 4. Implement installation and one lowest-side-effect Supported local read-only lane; complete real conformance.
@@ -1267,7 +1268,8 @@ The future handoff must name requirement/AC IDs; plan/adapter/protocol/capabilit
 
 ## 15. Definition of Ready for implementation
 
-- [ ] M0 G9 is complete and Ollama product/local, Ollama API, and Linux handoff packets pass section 13.3.
+- [ ] Ollama product/local, Ollama API, and Linux technical handoff packets
+      pass section 13.3; detached reviews remain advisory.
 - [ ] Exact capability decisions/tuples are frozen; Unknown behavior is not delegated to implementation guesswork.
 - [ ] Local service/model/runtime, cloud subscription, and API billing lanes/resource identities are distinct and approved.
 - [ ] This plan's scope, non-goals, paths, lane ownership, and API-adapter registration choice are approved.

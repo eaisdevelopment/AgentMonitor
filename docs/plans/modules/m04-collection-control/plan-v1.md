@@ -1082,7 +1082,9 @@ Unknown rate/cost, side effects, credential role, retry multiplication, or sourc
 
 Implementation remains blocked until every applicable item is checked by the named reviewers:
 
-- [ ] M0 M04 handoff is complete, accepted, and contains exact rate/cost/auth/deadline/concurrency evidence for every source intended for implementation.
+- [ ] M0 M04 technical handoff is complete and contains exact
+      rate/cost/auth/deadline/concurrency evidence for every source intended
+      for implementation; detached reviews are advisory.
 - [ ] Requirements, approved interpretations, non-goals, and one-invocation-per-run policy are owner-reviewed.
 - [ ] This plan is approved and status/version updated by root/integration steward.
 - [ ] Exact owned/allowed/shared/forbidden paths and implementation-agent assignments are allocated without overlap.

@@ -16,11 +16,11 @@ from typing import NoReturn
 
 ROOT = Path(__file__).resolve().parents[2]
 TOOL_ROOT = ROOT / ".ci-tools"
-NODE_VERSION = "22.23.2"
+NODE_VERSION = "22.23.3"
 UV_VERSION = "0.11.16"
 NODE_ARCHIVE = f"node-v{NODE_VERSION}-linux-x64.tar.xz"
 UV_ARCHIVE = "uv-x86_64-unknown-linux-gnu.tar.gz"
-NODE_SHA256 = "d60acfe00a2932254bb0ad20e01b0d74397a0875595de719654b214f4b03f307"
+NODE_SHA256 = "df450af89261115ef9f3830c3eeb2cc9213b63c720b1af623cb5dcbe2e02de"
 UV_SHA256 = "74947fe2c03315cf07e82ab3acc703eddef01aba4d5232a98e4c6825ec116131"
 NODE_ROOT = TOOL_ROOT / f"node-v{NODE_VERSION}-linux-x64"
 UV_ROOT = TOOL_ROOT / "uv-x86_64-unknown-linux-gnu"

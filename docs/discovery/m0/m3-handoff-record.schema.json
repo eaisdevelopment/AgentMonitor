@@ -60,7 +60,7 @@
           "properties": {
             "provider_key": {"const": "claude"},
             "product": {"const": "Claude Code"},
-            "provider_version": {"const": "2.1.278"},
+            "provider_version": {"const": "2.1.282"},
             "platform": {"const": "Linux-x86_64"},
             "profile_ref": {"$ref": "#/$defs/OpaqueRef"}
           }

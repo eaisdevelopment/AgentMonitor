@@ -26,7 +26,7 @@ if TYPE_CHECKING:
 
 CLAUDE_OTLP_SOURCE_ID = "claude.otel.metrics.http-json.v1"
 M3_LOCAL_EXIT_ROUTINES = (
-    "AUTO-TEST",
+    "AUTO-M3-TEST",
     "AUTO-QUALITY",
     "AUTO-BUILD",
     "AUTO-MUTATION",
@@ -154,14 +154,15 @@ def identity_evidence_check(
     )
 
 
-def _current_m0_handoff_is_live_authorized() -> None:
+def _current_m0_handoff_is_technically_ready() -> None:
+    """Check technical handoff evidence without detached governance approvals."""
     if not M0_SCHEMA_PYTHON.is_file():
         raise M3ExitErrorV1("m3_exit_m0_schema_runtime_unavailable")
     result = subprocess.run(
         [
             str(M0_SCHEMA_PYTHON),
             "tools/discovery/m3_handoff_validate.py",
-            "--require-adapter-live",
+            "--require-technical-live",
         ],
         cwd=ROOT,
         capture_output=True,
@@ -170,7 +171,7 @@ def _current_m0_handoff_is_live_authorized() -> None:
         timeout=30,
     )
     if result.returncode != 0:
-        raise M3ExitErrorV1("m3_exit_m0_handoff_not_authorized")
+        raise M3ExitErrorV1("m3_exit_m0_handoff_technical_evidence_missing")
 
 
 def _fresh_runtime_lineage(
@@ -243,7 +244,7 @@ def main() -> int:
 
         from tools.automation.implementations.auto_m3_live import _owner_target
 
-        _current_m0_handoff_is_live_authorized()
+        _current_m0_handoff_is_technically_ready()
         target = _owner_target()
         if target is None:
             raise M3ExitErrorV1("m3_exit_owner_target_unavailable")

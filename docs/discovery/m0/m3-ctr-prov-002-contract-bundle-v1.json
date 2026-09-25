@@ -12,7 +12,7 @@
     },
     {
       "path": "docs/plans/modules/m03-provider-system/plan-v1.md",
-      "sha256": "c3bdb5226f38df96447f571bea592b04915997193ad5a594221a99268afd24a0"
+      "sha256": "852823439c40c922432d6f218452171f442ddf79a0b7a3bfcd188e23fdf5072c"
     },
     {
       "path": "backend/src/agentmonitor/contracts/common_provenance_v1.py",

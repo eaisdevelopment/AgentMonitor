@@ -8,7 +8,7 @@ import sys
 import tempfile
 from pathlib import Path
 
-EXACT_VERSIONS = {"node": "22.23.2", "npm": "10.9.8", "uv": "0.11.16"}
+EXACT_VERSIONS = {"node": "22.23.3", "npm": "10.9.9", "uv": "0.11.16"}
 VERSION_PATTERNS = {
     "node": r"v([0-9]+\.[0-9]+\.[0-9]+)",
     "npm": r"([0-9]+\.[0-9]+\.[0-9]+)",
@@ -27,7 +27,7 @@ def version_supported(tool: str, version: str) -> bool:
 
 def version_files_supported(python_text: str, node_text: str) -> bool:
     """Require exact reference files, including a single terminating newline."""
-    return python_text == "3.12.3\n" and node_text == "22.23.2\n"
+    return python_text == "3.12.3\n" and node_text == "22.23.3\n"
 
 
 def inspect_tool(tool: str, executable: Path, node: Path) -> tuple[bool, str]:

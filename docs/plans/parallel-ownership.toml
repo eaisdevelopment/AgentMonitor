@@ -69,7 +69,7 @@ live_boundary = "owner-confirmed account/profile/resource identities; no guessed
 [[units]]
 id = "PLAN-M03"
 plan = "docs/plans/modules/m03-provider-system/plan-v1.md"
-plan_sha256 = "c3bdb5226f38df96447f571bea592b04915997193ad5a594221a99268afd24a0"
+plan_sha256 = "852823439c40c922432d6f218452171f442ddf79a0b7a3bfcd188e23fdf5072c"
 write_paths = ["backend/src/agentmonitor/modules/provider_system/**", "backend/src/agentmonitor/adapters/persistence/provider_system/sqlite/**", "backend/tests/provider_system/**", "backend/tests/integration/provider_system/**", "docs/modules/provider-system.md", "docs/test-evidence/provider-system/**"]
 contract_families = ["CTR-PROV"]
 table_prefixes = ["provider_system_"]
@@ -82,7 +82,7 @@ live_boundary = "contract conformance uses real provider adapters/accounts; no g
 [[units]]
 id = "PLAN-M04"
 plan = "docs/plans/modules/m04-collection-control/plan-v1.md"
-plan_sha256 = "ece01a247bca1d32d75c61ed750afb5d8d4fe0e08542fb0fcd1a61ce5a97ab78"
+plan_sha256 = "356d9df90146c4be3da7aed621ac7186826fba2fceb3ee53623ba51910bd11e1"
 write_paths = ["backend/src/agentmonitor/modules/collection_control/**", "backend/src/agentmonitor/adapters/persistence/collection_control/sqlite/**", "backend/tests/collection_control/**", "backend/tests/integration/collection_control/**", "docs/modules/collection-control.md", "docs/test-evidence/collection-control/**"]
 contract_families = ["CTR-COL"]
 table_prefixes = ["collection_"]
@@ -95,7 +95,7 @@ live_boundary = "one provider/account/capability reservation per live schedule t
 [[units]]
 id = "PLAN-M05"
 plan = "docs/plans/modules/m05-capacity/plan-v1.md"
-plan_sha256 = "9ebb0c289de1567166ac53ef84b5f591a93040687c37cd0a0650e15318afec0d"
+plan_sha256 = "12c08181a0515b3384d0c4547fe81748aba87bf21d3225bf8f1c14813435d5ad"
 write_paths = ["backend/src/agentmonitor/modules/capacity/**", "backend/src/agentmonitor/adapters/persistence/capacity/sqlite/**", "backend/tests/capacity/**", "backend/tests/integration/capacity/**", "docs/modules/capacity.md", "docs/test-evidence/capacity/**"]
 contract_families = ["CTR-CAP"]
 table_prefixes = ["capacity_"]
@@ -147,7 +147,7 @@ live_boundary = "real database/filesystem/service backup, restore, export, and d
 [[units]]
 id = "PLAN-A01"
 plan = "docs/plans/adapters/claude/plan-v1.md"
-plan_sha256 = "9b3747e4fa8e063f0471cd42cd77d52a22a98be929bba6f4706670d3c2ae9660"
+plan_sha256 = "c136c4125dc8c2cf0f4bad6929bb9307eadfc12f4599b24a965d09ad80cb13e0"
 write_paths = ["backend/src/agentmonitor/adapters/providers/claude/**", "backend/tests/adapters/providers/claude/**", "backend/tests/live/claude/**", "docs/adapters/claude.md", "docs/provider-capabilities/claude/**", "docs/test-evidence/claude/**"]
 contract_semantic_paths = ["backend/src/agentmonitor/contracts/providers/claude/<capability>/v1/**"]
 contract_families = ["CTR-PROV implementation", "Claude extension schemas"]
@@ -161,7 +161,7 @@ live_boundary = "assigned Claude aliases and Anthropic billing accounts; one own
 [[units]]
 id = "PLAN-A02"
 plan = "docs/plans/adapters/codex/plan-v1.md"
-plan_sha256 = "1dc5b4fa1bab06b13c87d059415ef913848d10b4ad887ce5b914e1dd66bdcf1e"
+plan_sha256 = "81c0e07ac59922dff608a386a6f7066396496d53a3ca1feef8933f807d78d823"
 write_paths = ["backend/src/agentmonitor/adapters/providers/codex/**", "backend/tests/adapters/providers/codex/**", "docs/adapters/codex.md", "docs/test-evidence/codex/**"]
 contract_semantic_paths = ["backend/src/agentmonitor/contracts/providers/codex/<capability>/v1/**"]
 contract_families = ["CTR-PROV implementation", "Codex extension schemas"]
@@ -175,7 +175,7 @@ live_boundary = "assigned Codex aliases and OpenAI billing accounts; default pro
 [[units]]
 id = "PLAN-A03"
 plan = "docs/plans/adapters/ollama/plan-v1.md"
-plan_sha256 = "f433efa8797695a99d85ca539bccb3f77ed80394fbd3bd998aaf61e55be43c9a"
+plan_sha256 = "0832be9c44953a86c7e1ef69b0a6fd8de38990bafcbab3e85d4369b32a6dface"
 write_paths = ["backend/src/agentmonitor/adapters/providers/ollama/**", "backend/tests/adapters/providers/ollama/**", "backend/tests/live/ollama/**", "docs/adapters/ollama.md", "docs/provider-capabilities/ollama/**", "docs/test-evidence/ollama/**"]
 contract_semantic_paths = ["backend/src/agentmonitor/contracts/providers/ollama/<capability>/v1/**"]
 contract_families = ["CTR-PROV implementation", "Ollama extension schemas"]

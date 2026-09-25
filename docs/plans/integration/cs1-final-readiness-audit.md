@@ -383,3 +383,13 @@ Plan snapshot SHA-256: `6c0687cc5dbcf9c0f6a8319415e4bcfc928a186273a2510dc91758c2
 The automation catalog and completion standard now register the fail-closed
 `AUTO-M3-EXIT` and real critical-policy `AUTO-MUTATION` routines. No module
 plan, public contract, owner authority, provider state, or M4 scope changed.
+
+## 18. 2026-09-25 local milestone gate-policy rebind
+
+Plan snapshot SHA-256: `b1cb24799d8c692f13bb5abab84159de44e94a595dba5430500c2d1c35da1eb6`
+
+The local execution policy treats detached M0 reviewer records as advisory and
+gates milestone execution on current technical evidence and real boundary
+checks. M03/M04/M05/A01/A02/A03 plan hashes, contract adoption, ownership,
+automation catalog, and snapshot were rebound together. This changes no
+provider claim or global V1 acceptance status.
