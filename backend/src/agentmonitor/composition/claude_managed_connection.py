@@ -70,6 +70,8 @@ def enroll_verified_managed_claude_v1(
     account_id: OpaqueIdV1,
     installation: ClaudeInstallationV1,
     expected_identity: ObservedProfileIdentityV1,
+    principal_id: OpaqueIdV1 | None = None,
+    expected_account_record_version: int | None = None,
 ) -> None:
     root = managed_claude_root_v1(data_root, account_id)
     claude_identity_environment_v1(root)
@@ -84,6 +86,11 @@ def enroll_verified_managed_claude_v1(
         or account.lifecycle not in {"pending", "active"}
     ):
         raise ValueError("claude_managed_account_ineligible")
+    if (
+        expected_account_record_version is not None
+        and account.record_version != expected_account_record_version
+    ):
+        raise ValueError("claude_managed_account_version_changed")
     installations = tuple(
         item
         for item in ListProviderInstallationsV1(repository)("claude")
@@ -93,7 +100,7 @@ def enroll_verified_managed_claude_v1(
     )
     if len(installations) != 1:
         raise ValueError("claude_managed_installation_ambiguous")
-    principal = OpaqueIdV1("agentmonitor-owner")
+    principal = principal_id or OpaqueIdV1("agentmonitor-owner")
     if not managed_identity_matches_account_v1(repository, account_id, fresh):
         ConfirmProviderIdentityFingerprintV1(repository)(
             ConfirmProviderIdentityFingerprintCommandV1(
@@ -115,6 +122,10 @@ def enroll_verified_managed_claude_v1(
                 activate_pending_account=True,
             )
         )
+    confirmed = GetAccountV1(repository)(account_id)
+    if confirmed is None:
+        raise ValueError("claude_managed_account_unavailable")
+    expected_monitoring_version = confirmed.record_version
     locator = "claude-managed-" + hashlib.sha256(account_id.value.encode()).hexdigest()
     EnrollMonitoringGraphV1(repository)(
         EnrollMonitoringGraphCommandV1(
@@ -136,6 +147,8 @@ def enroll_verified_managed_claude_v1(
     current = GetAccountV1(repository)(account_id)
     if current is None:
         raise ValueError("claude_managed_account_unavailable")
+    if current.record_version != expected_monitoring_version:
+        raise ValueError("claude_managed_account_version_changed")
     if not current.is_effective_monitoring_enabled:
         EditAccountV1(repository)(
             EditAccountCommandV1(

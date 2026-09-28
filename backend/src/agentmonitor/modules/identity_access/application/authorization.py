@@ -15,6 +15,7 @@ BROWSER_PERMISSIONS_V1: tuple[str, ...] = (
     "read:telemetry",
     "read:accounts",
     "write:accounts",
+    "write:reauth",
     "read:status",
 )
 BEARER_PERMISSIONS_V1 = frozenset(

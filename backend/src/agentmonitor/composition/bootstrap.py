@@ -59,6 +59,9 @@ from agentmonitor.api.v1.dependencies import IamApiPortsV1, ObservationApiPortsV
 from agentmonitor.composition.claude_dashboard_collection import (
     ClaudeDashboardCollectorV1,
 )
+from agentmonitor.composition.claude_dashboard_connection import (
+    ClaudeDashboardConnectionV1,
+)
 from agentmonitor.composition.linux_process_locations import (
     read_live_claude_process_locations_v1,
 )
@@ -224,7 +227,9 @@ def _iam_ports(reference: DatabaseRefV1) -> IamApiPortsV1:
 
 
 def _observation_ports(
-    reference: DatabaseRefV1, collector: ClaudeDashboardCollectorV1
+    reference: DatabaseRefV1,
+    collector: ClaudeDashboardCollectorV1,
+    connections: ClaudeDashboardConnectionV1,
 ) -> ObservationApiPortsV1:
     registry = SqliteRegistryRepositoryV1(reference)
     collection = SqliteCollectionRepositoryV1(reference)
@@ -252,6 +257,7 @@ def _observation_ports(
         GetSessionTreeV1(runtime),
         GetVerifiedQuotaIdentityV1(collector.read_verified_identity),
         ListLiveProcessLocationsV1(read_live_claude_process_locations_v1),
+        connections,
     )
 
 
@@ -267,8 +273,11 @@ def create_iam_application(
     collector = ClaudeDashboardCollectorV1(
         reference, managed_profiles_root=data_root / "profiles" / "claude"
     )
+    connections = ClaudeDashboardConnectionV1(reference, data_root)
     lifecycle = replace(
-        lifecycle, tasks=lifecycle.tasks + (collector.run,), shutdown_timeout_seconds=30
+        lifecycle,
+        tasks=lifecycle.tasks + (collector.run, connections.run),
+        shutdown_timeout_seconds=30,
     )
     return create_application(
         settings,
@@ -279,7 +288,7 @@ def create_iam_application(
         lifecycle,
         iam_mode=True,
         iam_ports=_iam_ports(reference),
-        observation_ports=_observation_ports(reference, collector),
+        observation_ports=_observation_ports(reference, collector, connections),
         service_lock_path=data_root / ".agentmonitor-service.lock",
     )
 

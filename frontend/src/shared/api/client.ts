@@ -26,6 +26,7 @@ import {
   type OrganizationOrderingViewV1,
   type OrganizationViewV1,
   type ProviderCapabilityDeclarationPageV1,
+  type ProviderConnectionViewV1,
   type ObservedAccountIdentityViewV1,
   type LiveProcessLocationPageV1,
   type ProviderInstallationPageV1,
@@ -62,6 +63,7 @@ export type {
   OrganizationOrderingViewV1,
   OrganizationViewV1,
   ProviderCapabilityDeclarationPageV1,
+  ProviderConnectionViewV1,
   ObservedAccountIdentityViewV1,
   LiveProcessLocationPageV1,
   ProviderInstallationPageV1,
@@ -317,6 +319,17 @@ export const registry = Object.freeze({
 });
 
 export const providers = Object.freeze({
+  connection: (accountId: string, signal?: AbortSignal): Promise<ClientResult<ProviderConnectionViewV1>> =>
+    apiClient.provider_get_connection_v1({ path: { account_id: accountId }, signal }),
+  connect: (account: AccountViewV1, expectedEmail: string): Promise<ClientResult<ProviderConnectionViewV1>> =>
+    apiClient.provider_start_connection_v1({
+      path: { account_id: account.account_id }, body: { expected_email: expectedEmail },
+      headers: mutationHeaders({ id: account.account_id, recordVersion: account.record_version }, true),
+    }),
+  cancelConnection: (accountId: string, flowId: string): Promise<ClientResult<ProviderConnectionViewV1>> =>
+    apiClient.provider_cancel_connection_v1({
+      path: { account_id: accountId }, body: { flow_id: flowId }, headers: mutationHeaders(),
+    }),
   observedAccountIdentity: (
     accountId: string,
     signal?: AbortSignal,

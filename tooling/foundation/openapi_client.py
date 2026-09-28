@@ -47,6 +47,7 @@ SOURCE_FILES = (
     "backend/src/agentmonitor/api/v1/routers/_observation.py",
     "backend/src/agentmonitor/api/v1/routers/registry.py",
     "backend/src/agentmonitor/api/v1/routers/providers.py",
+    "backend/src/agentmonitor/api/v1/routers/provider_connections.py",
     "backend/src/agentmonitor/api/v1/routers/collection.py",
     "backend/src/agentmonitor/api/v1/routers/capacity.py",
     "backend/src/agentmonitor/api/v1/routers/runtime.py",
@@ -60,6 +61,13 @@ SOURCE_FILES = (
     "backend/src/agentmonitor/foundation/configuration.py",
     "backend/src/agentmonitor/foundation/observability.py",
     "backend/src/agentmonitor/composition/bootstrap.py",
+    "backend/src/agentmonitor/composition/claude_dashboard_connection.py",
+    "backend/src/agentmonitor/composition/claude_managed_connection.py",
+    "backend/src/agentmonitor/adapters/providers/claude/authentication/browser.py",
+    "backend/src/agentmonitor/adapters/providers/claude/subscription/source.py",
+    "backend/src/agentmonitor/adapters/providers/claude/authentication/owned_process.py",
+    "backend/src/agentmonitor/adapters/providers/claude/authentication/reauthentication.py",
+    "backend/src/agentmonitor/modules/identity_access/application/authorization.py",
     "backend/src/agentmonitor/contracts/common_v1.py",
     "backend/src/agentmonitor/contracts/configuration_v1.py",
     "backend/src/agentmonitor/contracts/foundation_v1.py",
@@ -129,6 +137,9 @@ IAM_OPERATIONS = {
         "get",
     ): "provider_get_capabilities_v1",
     ("/api/v1/accounts/{account_id}/observed-identity", "get"): "provider_get_observed_account_identity_v1",
+    ("/api/v1/accounts/{account_id}/connection", "get"): "provider_get_connection_v1",
+    ("/api/v1/accounts/{account_id}/connection", "post"): "provider_start_connection_v1",
+    ("/api/v1/accounts/{account_id}/connection", "delete"): "provider_cancel_connection_v1",
     ("/api/v1/collection-runs", "get"): "collection_list_runs_v1",
     ("/api/v1/accounts/{account_id}/capacity", "get"): "capacity_get_account_v1",
     ("/api/v1/accounts/{account_id}/quotas", "get"): "capacity_list_quota_windows_v1",
@@ -183,6 +194,21 @@ IamPolicyRow = tuple[
     str | None,
 ]
 IAM_POLICY: dict[str, IamPolicyRow] = {
+    "provider_get_connection_v1": (
+        "cookie_or_bearer", "read:accounts", "ProviderConnectionPortV1.read",
+        "safe_query_repeat", _COOKIE_BEARER, "200", "ProviderConnectionViewV1",
+        "SafeProblemV1", _M2_REQUIRED_ERROR_STATUSES, None,
+    ),
+    "provider_start_connection_v1": (
+        "browser_cookie_only", "write:reauth", "StartProviderConnectionCommandV1",
+        "replay_safe_connection_receipt", _COOKIE_CSRF, "202", "ProviderConnectionViewV1",
+        "SafeProblemV1", _M2_REQUIRED_ERROR_STATUSES, "StartProviderConnectionInputV1",
+    ),
+    "provider_cancel_connection_v1": (
+        "browser_cookie_only", "write:reauth", "ProviderConnectionPortV1.cancel",
+        "cancel_owned_connection", _COOKIE_CSRF, "200", "ProviderConnectionViewV1",
+        "SafeProblemV1", _M2_REQUIRED_ERROR_STATUSES, "CancelProviderConnectionInputV1",
+    ),
     "iam_get_initialization_v1": (
         "preauth_loopback",
         "none",
@@ -771,7 +797,7 @@ def validate_iam_openapi(document: object) -> tuple[str, ...]:
     if (
         actual != IAM_OPERATIONS
         or set(IAM_POLICY) != set(IAM_OPERATIONS.values())
-        or len(identifiers) != 41
+        or len(identifiers) != 44
     ):
         raise OpenApiGenerationError("operation_surface_invalid")
 

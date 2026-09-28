@@ -109,6 +109,18 @@ ReauthStateV1 = Literal[
     "cancelled",
     "expired",
 ]
+ProviderConnectionStateV1 = Literal[
+    "idle",
+    "requested",
+    "awaiting_sign_in",
+    "verifying",
+    "connected",
+    "wrong_account",
+    "expired",
+    "failed",
+    "cancelled",
+    "setup_required",
+]
 ProviderVersionStateV1 = Literal["available", "unknown", "unavailable"]
 ProviderVersionSchemeV1 = Literal["opaque_exact", "semantic_exact", "date_exact"]
 CompatibilityStateV1 = Literal[
@@ -759,6 +771,62 @@ class ReauthFlowV1(TechnicalValueV1):
             and self.identity.state != "mismatched"
         ):
             raise InvalidProviderContract("reauth_identity_state_invalid")
+
+
+@dataclass(frozen=True, slots=True)
+class ProviderConnectionViewV1(TechnicalValueV1):
+    """CTR-PROV-007 additive dashboard connection; contains no login URL/code."""
+
+    CONTRACT_ID: ClassVar[str] = "CTR-PROV-007"
+    OWNER: ClassVar[str] = "PLAN-M03"
+
+    account_id: OpaqueIdV1
+    flow_id: OpaqueIdV1 | None
+    state: ProviderConnectionStateV1
+    can_connect: bool
+    expected_email: str | None
+    started_at: datetime | None
+    expires_at: datetime | None
+    reason_code: str
+
+
+@dataclass(frozen=True, slots=True)
+class StartProviderConnectionCommandV1:
+    CONTRACT_ID: ClassVar[str] = "CTR-PROV-007"
+    OWNER: ClassVar[str] = "PLAN-M03"
+
+    account_id: OpaqueIdV1
+    expected_record_version: int
+    expected_email: str
+    principal_id: OpaqueIdV1
+    idempotency_key: OpaqueIdV1
+    correlation_id: OpaqueIdV1
+
+
+class ProviderConnectionErrorV1(ValueError):
+    """Closed producer code; neither provider output nor submitted values."""
+
+    CONTRACT_ID: ClassVar[str] = "CTR-PROV-007"
+    OWNER: ClassVar[str] = "PLAN-M03"
+
+    def __init__(self, code: str) -> None:
+        self.code = code
+        super().__init__(code)
+
+
+class ProviderConnectionPortV1(Protocol):
+    CONTRACT_ID: ClassVar[str] = "CTR-PROV-007"
+    OWNER: ClassVar[str] = "PLAN-M03"
+
+    def read(self, account_id: OpaqueIdV1) -> ProviderConnectionViewV1: ...
+
+    def start(
+        self, command: StartProviderConnectionCommandV1
+    ) -> ProviderConnectionViewV1: ...
+
+    def cancel(
+        self, account_id: OpaqueIdV1, flow_id: OpaqueIdV1
+    ) -> ProviderConnectionViewV1: ...
 
 
 @dataclass(frozen=True, slots=True)

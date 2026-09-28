@@ -56,6 +56,7 @@ This index is the entry point for product, architecture, engineering, and operat
 - [Claude dashboard polling delivery](evidence/claude-dashboard-polling.md): real service-owned five-minute collection, current quota refresh, preserved registry metadata, and restart cadence for one enrolled profile.
 - [Account workspace redesign](evidence/account-workspace-redesign.md): automatic quota identity, calculated remaining allowance, real Claude process paths, and explicit unresolved process ownership.
 - [Managed Claude connection progress](evidence/claude-managed-account-connection.md): one additional SDK account verified through isolated sign-in, enrollment, per-profile collection, and the real dashboard; the other selected accounts remain pending.
+- [Dashboard Claude connection](evidence/claude-dashboard-connection.md): explicit browser connection controls, real safeguards, managed native quota equivalence, and outstanding owner-completed live acceptance and M4 scope.
 - [M2 Argon2 admission](dependencies/m2-argon2-admission.md): approved exact Linux dependency graph, work profile, and platform limitations.
 - [Configuration standard](engineering/configuration-standard.md): ownership, naming, precedence, secret classes, and compatibility.
 - [Documentation standard](engineering/documentation-standard.md): required documentation and traceability.

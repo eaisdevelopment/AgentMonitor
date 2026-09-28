@@ -82,6 +82,44 @@ expired, unavailable, or mismatched authentication.
 
 ## Security, privacy, operations, documentation, and rollback
 
+### Dashboard connection increment (owner directed)
+
+The owner's instruction to build dashboard authentication approves this next
+`ST-FLEET-001` increment. M02 coordinates the selected pending admin record;
+A01 owns official authentication and native setup; M03 publishes the additive
+connection command/status port under `CTR-PROV-007` V1; P01 publishes account
+connection POST/GET/DELETE operations; P02 consumes the generated V1 client.
+M01 adds `write:reauth` to the authenticated browser administrator permission
+set only; bearer token permissions and issuable scopes remain unchanged.
+Existing public operations and default-profile behavior remain compatible.
+
+The owner clicks Connect Claude. Only that authenticated, CSRF-protected,
+version-checked, idempotent action starts the official CLI in the background
+against an isolated managed root and opens an ordinary browser. Provider URLs,
+codes, passwords, and credentials never enter the HTTP response or audit.
+Safe lifecycle receipts beneath the private service data root retain opaque
+request fingerprints, account IDs, timestamps, and closed outcomes; interrupted
+flows are cancelled on restart and never automatically resume authentication.
+One active sign-in at a time keeps account order explicit. Read-only status
+requests never start provider I/O. Wrong identity, changed account version,
+unsafe roots, and protected/default or already connected profiles fail closed.
+The owner performs browser authorization. A01's managed quota subprocess uses
+Claude's documented `IS_DEMO` presentation flag to skip terminal onboarding,
+without editing provider settings or sending a conversation. Real native quota
+reads with and without that flag returned matching percentages and resets;
+identity checks remain separate. Default-profile reads retain their existing
+environment. `--init-only` was rejected as an onboarding solution after real
+fresh-profile verification still displayed theme setup. Newly authenticated
+fresh-profile end-to-end verification remains required.
+
+Tests must first observe missing connection HTTP/browser behavior, then verify
+real SQLite/HTTP mutation protections, native isolated flows, generated-client
+UI states, and a selected owner-completed sign-in and quota reading. Provider
+output must not be fabricated or replayed. The selected live completion routine
+must fail closed while owner interaction is incomplete. No schema migration or
+new dependency is planned. Full M4 fleet/aggregation/runtime/alerts/operations
+acceptance remains separate.
+
 ### Verified enrollment and multiple-profile increment
 
 The owner's successful official sign-in authorizes the next already-planned

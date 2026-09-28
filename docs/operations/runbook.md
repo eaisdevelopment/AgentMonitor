@@ -89,7 +89,41 @@ browser leaves collection running; the account page refreshes quota through
 the API every 30 seconds. Account labels and organizations are admin-managed.
 Adding a pending account record does not itself authenticate or bind a profile.
 
-### Additional managed Claude account authentication
+### Connect Claude from the dashboard
+
+1. Open **Accounts**, then the intended pending Claude account. Names and
+   organization assignments come from admin CRUD.
+2. Confirm **Claude account email** and click **Connect Claude** once.
+3. Complete Claude's official sign-in in the ordinary browser window. Keep
+   passwords and verification codes on Claude's page.
+4. Return to the dashboard. It verifies identity, binds the managed profile,
+   and enables monitoring. Quota waits for the next genuine scheduled reading;
+   monitoring enabled alone does not prove a successful quota observation.
+
+No terminal command or first-run terminal setup is needed for this monitoring
+path. Managed quota readers use Claude's documented `IS_DEMO` presentation
+setting to suppress onboarding; independent identity verification is unchanged.
+Real normal/flag quota fields matched in the
+[bounded evidence](../evidence/claude-dashboard-connection.md).
+Newly authenticated fresh-profile acceptance remains **Not Run**.
+
+Status reads never start sign-in. Use **Cancel connection** to cancel an active
+attempt. Wrong-account and expired outcomes require a deliberate new attempt;
+no authentication is automatically replayed. One sign-in runs at a time.
+Protected defaults and ordinary active-profile reconnection are rejected.
+An eligible interrupted managed enrollment exposes **Finish connection**,
+which resumes verified registry work without starting a new login; live recovery
+acceptance remains Not Run.
+
+Run `python3 tools/automation/run.py AUTO-CLAUDE-CONNECT` after an owner-completed
+dashboard flow with explicit `AGENTMONITOR_TEST_OWNER_DATA_ROOT`,
+`AGENTMONITOR_TEST_MANAGED_ACCOUNT_ID`, `AGENTMONITOR_TEST_DASHBOARD_CDP_ENDPOINT`,
+and `AGENTMONITOR_TEST_DASHBOARD_ORIGIN`. These are non-secret selectors;
+credentials remain local. The gate never starts sign-in and returns non-success
+without a completed flow and fresh managed quota receipt. Its scope is the
+selected account only; remaining M4 work is listed in the evidence.
+
+### Additional managed Claude account authentication: operator fallback
 
 The [bounded connection change](../plans/integration/claude-managed-account-connection-change.md)
 adds an owner-operated official sign-in stage. Start with an actual pending
@@ -154,8 +188,9 @@ requires explicit `AGENTMONITOR_TEST_OWNER_DATA_ROOT`,
 and `AGENTMONITOR_TEST_DASHBOARD_ORIGIN`. These select a real owner-approved
 record and authenticated shared dashboard, never credentials. Missing sign-in,
 pending setup, absent service receipt, stale quota, or wrong identity returns
-non-success. It proves the selected profile only. Dashboard login controls,
-process ownership, and remaining M4 goals remain separate. See
+non-success. It proves the selected profile only. The dashboard workflow above
+has its own selected live gate; process ownership and remaining M4 goals remain
+separate. See
 [current evidence](../evidence/claude-managed-account-connection.md).
 
 After an intentional service stop, start the verified local dashboard command:

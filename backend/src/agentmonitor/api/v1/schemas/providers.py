@@ -4,7 +4,8 @@ from datetime import datetime
 from typing import Literal
 
 from agentmonitor.api.v1.schemas.registry import AvailabilityV1
-from pydantic import BaseModel, ConfigDict
+from agentmonitor.contracts.provider_system_v1 import ProviderConnectionStateV1
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class _ClosedV1(BaseModel):
@@ -23,6 +24,27 @@ class ObservedAccountIdentityViewV1(_ClosedV1):
     scope: Literal["default_profile_quota"]
     running_agent_correlation: Literal["unresolved"]
     profile_protection: Literal["protected_default", "managed", "unknown"] = "unknown"
+
+
+class ProviderConnectionViewV1(_ClosedV1):
+    account_id: str
+    flow_id: str | None
+    state: ProviderConnectionStateV1
+    can_connect: bool
+    expected_email: str | None
+    started_at: datetime | None
+    expires_at: datetime | None
+    reason_code: str
+
+
+class StartProviderConnectionInputV1(_ClosedV1):
+    expected_email: str = Field(
+        min_length=3, max_length=320, pattern=r"^[^@\s]+@[^@\s]+\.[^@\s]+$"
+    )
+
+
+class CancelProviderConnectionInputV1(_ClosedV1):
+    flow_id: str = Field(min_length=1, max_length=64, pattern=r"^[A-Za-z0-9_-]+$")
 
 
 class CapabilitySourceViewV1(_ClosedV1):

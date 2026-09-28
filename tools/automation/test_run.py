@@ -104,12 +104,19 @@ class AutomationRoutineTests(unittest.TestCase):
             copy2(RUNNER, checkout / "tools/automation/run.py")
             copy2(CATALOG, checkout / "tools/automation/routines.toml")
             copy2(
-                REPOSITORY_ROOT / "tools/automation/implementations/auto_claude_poll.py",
+                REPOSITORY_ROOT
+                / "tools/automation/implementations/auto_claude_poll.py",
                 checkout / "tools/automation/implementations/auto_claude_poll.py",
             )
             copy2(
-                REPOSITORY_ROOT / "tools/automation/implementations/auto_claude_managed.py",
+                REPOSITORY_ROOT
+                / "tools/automation/implementations/auto_claude_managed.py",
                 checkout / "tools/automation/implementations/auto_claude_managed.py",
+            )
+            copy2(
+                REPOSITORY_ROOT
+                / "tools/automation/implementations/auto_claude_connect.py",
+                checkout / "tools/automation/implementations/auto_claude_connect.py",
             )
             result = subprocess.run(
                 [
@@ -811,6 +818,7 @@ class AutomationRoutineTests(unittest.TestCase):
                 "AUTO-M3-EXIT",
                 "AUTO-CLAUDE-POLL",
                 "AUTO-CLAUDE-MANAGED",
+                "AUTO-CLAUDE-CONNECT",
                 "AUTO-M3-TEST",
                 "AUTO-MUTATION",
                 "AUTO-TEST",

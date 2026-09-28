@@ -244,6 +244,10 @@ def collect_usage_once(
     }
     if managed_profile_root is not None:
         environment.update(claude_identity_environment_v1(managed_profile_root))
+        # Documented presentation flag skips first-run terminal onboarding.
+        # Real native /usage was compared with and without it; identity is
+        # independently verified using auth status around every managed read.
+        environment["IS_DEMO"] = "1"
     master_fd, slave_fd = pty.openpty()
     # Ink does not render reliably on a zero-sized pseudo-terminal.
     fcntl.ioctl(slave_fd, termios.TIOCSWINSZ, struct.pack("HHHH", 40, 160, 0, 0))

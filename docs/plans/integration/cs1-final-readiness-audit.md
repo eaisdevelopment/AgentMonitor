@@ -429,3 +429,15 @@ preserved. This mechanical control binding does not claim a new independent
 planning audit or full M4 acceptance. See the
 [connection change](claude-managed-account-connection-change.md) and
 [connection evidence](../../evidence/claude-managed-account-connection.md).
+
+## 2026-09-28 dashboard Claude connection control binding
+
+Plan snapshot SHA-256: `7ab4d65d30e7c75cbbc3c7b97eea619b95c6200a3ed9037d3a48c4129a27c4b2`
+
+The owner-directed dashboard connection adopts M03 `CTR-PROV-007` V1
+in Foundation and P01, and registers the bounded `AUTO-CLAUDE-CONNECT`
+routine. Existing operation shapes, contract producers, module plan
+hashes, and historical Draft flags are preserved. This is a mechanical
+control binding, not an independent planning audit or M4 acceptance.
+See the [approved change](claude-managed-account-connection-change.md)
+and [current evidence](../../evidence/claude-dashboard-connection.md).

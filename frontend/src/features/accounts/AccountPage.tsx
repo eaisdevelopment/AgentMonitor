@@ -3,6 +3,7 @@ import { useCallback, useEffect, useRef, useState, type FormEvent } from "react"
 import { CapacityPanel } from "../command/CapacityPanel";
 import { SessionPanel } from "../sessions/SessionPanel";
 import { AccountWorkspaceSummary } from "./AccountWorkspaceSummary";
+import { ClaudeConnectionPanel } from "./ClaudeConnectionPanel";
 import { LiveClaudeProcesses } from "./LiveClaudeProcesses";
 import {
   CsrfUnavailableError,
@@ -63,6 +64,8 @@ export function AccountPage({
       setState({ kind: "error", message: "The local account registry is unavailable." });
     }
   }, [onExpired]);
+
+  const reloadAccount = useCallback(() => { void load(); }, [load]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -152,6 +155,7 @@ export function AccountPage({
           }
         }}>Edit account</button>
       </header>
+      {selected.provider_key === "claude" && selected.lifecycle !== "archived" && <ClaudeConnectionPanel key={`connection-${selected.account_id}`} account={selected} onExpired={onExpired} onProofUnavailable={onProofUnavailable} onAccountReload={reloadAccount} />}
       <AccountWorkspaceSummary key={selected.account_id} account={selected} organizationName={state.organizations.items.find((item) => item.organization_id === selected.organization_id)?.name ?? "Ungrouped"} onExpired={onExpired} onIdentity={updateObservedIdentity} />
       {selected.provider_key === "claude" && <LiveClaudeProcesses onExpired={onExpired} />}
       <CapacityPanel accountId={selected.account_id} onExpired={onExpired} />
@@ -255,6 +259,7 @@ export function AccountPage({
             <div><span className={`provider-light ${account.is_effective_monitoring_enabled ? "active" : ""}`} aria-hidden="true" /><strong>{account.friendly_name}</strong></div>
             <p>{account.provider_key} · {state.organizations.items.find((item) => item.organization_id === account.organization_id)?.name ?? "Ungrouped"}</p>
             <p className="record-meta">{account.lifecycle} · monitoring {account.is_effective_monitoring_enabled ? "enabled" : "disabled"}</p>
+            {account.provider_key === "claude" && account.lifecycle === "pending" && <button type="button" onClick={() => onOpenAccount(account.account_id)}>Connect Claude</button>}
             <button type="button" className="quiet-button" onClick={() => onOpenAccount(account.account_id)}>Open account</button>
           </article>
         ))}</div>

@@ -10,6 +10,7 @@ from agentmonitor.contracts.identity_access_v1 import (
     SessionSummaryV1,
     TokenCallerProofV1,
 )
+from agentmonitor.contracts.provider_system_v1 import ProviderConnectionPortV1
 from agentmonitor.modules.capacity.application.queries import (
     GetAccountCapacityV1,
     ListCapacityHistoryV1,
@@ -118,6 +119,7 @@ class ObservationApiPortsV1:
     get_session_tree: GetSessionTreeV1
     get_verified_quota_identity: GetVerifiedQuotaIdentityV1 | None = None
     list_live_process_locations: ListLiveProcessLocationsV1 | None = None
+    provider_connections: ProviderConnectionPortV1 | None = None
 
 
 @dataclass(frozen=True, slots=True)

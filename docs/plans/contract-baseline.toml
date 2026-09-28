@@ -597,9 +597,9 @@ id = "CTR-PROV-007"
 name = "ReauthFlowV1"
 version = "1.0.0"
 producer = "PLAN-M03"
-consumers = ["PLAN-A01", "PLAN-A02", "PLAN-A03", "PLAN-M02", "PLAN-P02"]
+consumers = ["PLAN-FND", "PLAN-A01", "PLAN-A02", "PLAN-A03", "PLAN-M02", "PLAN-P01", "PLAN-P02"]
 maturity = "evidence_blocked"
-decision_reference = "CAA-2026-09-18-01 sections 5.5, 6 CTR-REG-008, and 9.4"
+decision_reference = "CAA-2026-09-18-01 sections 5.5, 6 CTR-REG-008, and 9.4; owner-approved claude-managed-account-connection-change dashboard increment"
 checklist = { field_state_null = true, units_time = true, auth = true, side_effects = true, idempotency = true, events = true, retention = true, errors = true, compatibility = true }
 
 [[contracts]]

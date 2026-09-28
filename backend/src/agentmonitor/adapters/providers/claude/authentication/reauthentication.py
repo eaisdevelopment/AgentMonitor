@@ -88,6 +88,18 @@ class ClaudeManagedLoginAttemptV1:
     def wait_for_identity(
         self, *, timeout_seconds: int = 600
     ) -> provider_system_v1.ObservedProfileIdentityV1 | None:
+        identity = self.wait_for_completion(timeout_seconds=timeout_seconds)
+        if (
+            identity is None
+            or identity.email.casefold() != self._expected_email.casefold()
+        ):
+            return None
+        return identity
+
+    def wait_for_completion(
+        self, *, timeout_seconds: int = 600
+    ) -> provider_system_v1.ObservedProfileIdentityV1 | None:
+        """Native completion identity; coordinator must compare it before enrollment."""
         if not 1 <= timeout_seconds <= 600:
             raise ValueError("claude_managed_login_deadline_invalid")
         try:
@@ -97,15 +109,9 @@ class ClaudeManagedLoginAttemptV1:
             return None
         if code != 0:
             return None
-        identity = read_default_profile_identity_v1(
+        return read_default_profile_identity_v1(
             self._installation, managed_profile_root=self._root
         )
-        if (
-            identity is None
-            or identity.email.casefold() != self._expected_email.casefold()
-        ):
-            return None
-        return identity
 
     def cancel(self) -> None:
         """Stop only this handle's owned login subprocess, never an agent."""
@@ -163,6 +169,9 @@ def begin_managed_profile_authentication_v1(
         environment["BROWSER"] = str(browser_opener)
     process = subprocess.Popen(
         [
+            "/usr/bin/python3",
+            "-I",
+            str(Path(__file__).with_name("owned_process.py")),
             str(installation.executable_for_adapter),
             "auth",
             "login",

@@ -112,6 +112,13 @@ PROBLEM_DESCRIPTIONS: dict[str, str] = {
     "provider_capabilities_not_found": (
         "The provider capability declaration is unavailable."
     ),
+    "provider_connection_unavailable": "The account connection service is unavailable.",
+    "provider_connection_not_eligible": (
+        "Only an unconnected managed account can start sign-in."
+    ),
+    "provider_connection_email_required": "Enter the intended provider account email.",
+    "provider_connection_busy": "Finish or cancel the current account sign-in first.",
+    "provider_connection_not_found": "The selected sign-in attempt is unavailable.",
     "request_capacity_exceeded": "The local request-capacity limit was reached.",
     "request_timeout": "The request exceeded its execution deadline.",
     "request_too_large": "The request exceeded a transport size limit.",

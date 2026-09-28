@@ -65,6 +65,7 @@ CONTRACT_MODULES = frozenset(
 SUPPORT_SYMBOLS = {
     "agentmonitor.contracts.common_v1": {"TechnicalValueV1", "AvailabilityStateV1"},
     "agentmonitor.contracts.configuration_v1": {"ConfigurationDescriptorV1"},
+    "agentmonitor.contracts.provider_system_v1": {"ProviderConnectionStateV1"},
     "agentmonitor.contracts.registry_v1": {
         "ConfirmIdentityAssociationCommandV1",
         "IdentityDecisionStateV1",

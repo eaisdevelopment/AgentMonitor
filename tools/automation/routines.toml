@@ -146,7 +146,15 @@ owner = "PLAN-M02"
 status = "operational_limited"
 scope = "one selected real managed Claude account: isolated identity, explicit registry enrollment, current quota, separate account cadence, and authenticated shared-browser V1 lineage"
 implementation_command = ["python3", "tools/automation/implementations/auto_claude_managed.py"]
-blockers = ["requires explicit real owner data root, managed account ID, authenticated dashboard CDP endpoint/origin, official first-run setup, and service-collected quota; excludes full M4 acceptance"]
+blockers = ["requires explicit real owner data root, managed account ID, authenticated dashboard CDP endpoint/origin, owner-completed official sign-in, and service-collected quota; excludes full M4 acceptance"]
+
+[[routines]]
+id = "AUTO-CLAUDE-CONNECT"
+owner = "PLAN-M02"
+status = "operational_limited"
+scope = "one selected owner-completed dashboard Claude connection: real HTTP protections, native child lifetime, built browser controls, exact managed identity, and service quota"
+implementation_command = ["python3", "tools/automation/implementations/auto_claude_connect.py"]
+blockers = ["owner must click Connect Claude and complete official browser sign-in; explicit managed account and authenticated shared dashboard selectors required; never starts authentication and excludes full M4 acceptance"]
 
 [[routines]]
 id = "AUTO-BUILD"

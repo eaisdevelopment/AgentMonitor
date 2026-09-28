@@ -182,6 +182,18 @@ td { font-variant-numeric: tabular-nums; }
 .account-breadcrumb a:hover { color: #dff4fb; text-decoration: underline; }
 .account-breadcrumb > span:last-child { color: #e7eef3; font-weight: 650; }
 .account-subtitle { display: flex; flex-wrap: wrap; gap: .65rem; color: #9eafbd; margin: 0; font-size: .9rem; }
+.claude-connection { border-color: #4d8098 !important; background: #132c3d !important; }
+.claude-connection-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; }
+.claude-connection-heading h2 { margin: .4rem 0 0; font-size: 1.25rem; }
+.claude-connection-status { margin: 1.25rem 0; line-height: 1.55; }
+.claude-connection-status strong { font-size: 1rem; }
+.claude-connection-status p { margin: .4rem 0 0; color: #b9cbd7; }
+.claude-connection-form { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: start; gap: .75rem 1rem; max-width: 46rem; }
+.claude-connection-form label { font-size: .85rem; margin-bottom: .45rem; }
+.claude-connection-form > button { margin-top: 1.7rem; }
+.claude-connection-form p { color: #a6becc; font-size: .8rem; line-height: 1.5; margin: .55rem 0 0; }
+.claude-connection-actions { display: flex; align-items: center; flex-wrap: wrap; gap: .75rem 1rem; margin-top: 1.25rem; }
+.claude-connection-actions > span, .claude-connection-note { color: #bfd0db; font-size: .8rem; line-height: 1.5; }
 .provider-name { text-transform: capitalize; }
 .account-workspace { border-color: #3b5365 !important; background: #142330 !important; padding: 0 !important; overflow: hidden; }
 .workspace-heading { display: flex; justify-content: space-between; align-items: center; gap: 1rem; padding: 1.25rem 1.5rem 1rem; }
@@ -262,6 +274,9 @@ td { font-variant-numeric: tabular-nums; }
 .live-process-source summary { cursor: pointer; }
 .live-processes > p[role="status"], .live-processes > p:not([class]) { margin: 0 1.5rem 1.25rem; }
 @media (max-width: 700px) {
+  .claude-connection-heading { flex-direction: column; gap: .75rem; }
+  .claude-connection-form { grid-template-columns: minmax(0, 1fr); }
+  .claude-connection-form > button { margin-top: 0; }
   .account-page-heading { align-items: flex-start; flex-direction: column; gap: .6rem; }
   .account-page-heading > button { padding: .6rem .75rem; font-size: .8rem; flex: 0 0 auto; }
   .workspace-heading { align-items: flex-start; flex-direction: column; padding: 1.1rem; }

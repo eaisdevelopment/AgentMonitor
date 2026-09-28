@@ -58,6 +58,7 @@ SCENARIOS = {
     "monitoring_dashboard",
     "organizations",
     "accounts_admin",
+    "claude_connection",
 }
 QUICK_SCENARIOS = (
     "setup",

@@ -5,7 +5,7 @@
 - Owner: P02 UI. Plan: [`PLAN-P02`](../plans/ui/react-dashboard/plan-v1.md), approved M2 slice [`ST-UI-001`](../superpowers/plans/2026-09-19-agentmonitor-v1-m2-authenticated-shell.md).
 - Consumes `CTR-UI-001`, `CTR-IAM-003/006/007`, and the M3 registry,
   provider, collection, capacity, and runtime V1 contracts through the generated
-  25-operation client. Publishes no backend contract, database table, migration,
+  V1 client. Publishes no backend contract, database table, migration,
   configuration key, or provider adapter.
 
 ## Scope and ownership
@@ -155,3 +155,27 @@ The canonical real-owner browser gate is
 `backend/.venv/bin/python tools/ui/verify_account_workspace.py --origin` with
 the explicit loopback origin and `--screenshots` private artifact directory.
 See [workspace evidence and limitations](../evidence/account-workspace-redesign.md).
+
+## M4 owner-driven Claude connection
+
+A pending Claude account exposes **Connect Claude**. The owner confirms its
+email and explicitly starts the official browser authentication flow through
+the generated V1 connection operation. The panel reads safe status every two
+seconds while active and offers cancellation. Status reads and page navigation
+never start authentication. Credentials stay on Claude's ordinary browser page;
+P02 receives no provider URL, authorization code, or credential.
+
+The service verifies identity before registry enrollment and monitoring.
+Managed quota collection suppresses native onboarding using the documented
+presentation flag; the owner needs no terminal setup for this monitoring path.
+Connected/monitoring status still waits for fresh quota to establish observed
+identity and run lineage. Wrong identity, expiry, unsafe roots, and changed
+versions remain explicit failures. An eligible interrupted managed enrollment
+has a separate **Finish connection** action; ordinary active/default
+reauthentication stays rejected.
+
+The real `claude_connection` browser scenario Passed for controls and safe V1
+behavior without launching provider sign-in. `AUTO-CLAUDE-CONNECT` additionally
+requires an owner-completed dashboard flow and fresh managed quota. That live
+acceptance and interrupted-enrollment recovery remain Not Run. See
+[connection evidence and the six-story M4 status](../evidence/claude-dashboard-connection.md).
