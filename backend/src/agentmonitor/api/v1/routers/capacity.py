@@ -24,6 +24,7 @@ from agentmonitor.api.v1.schemas.capacity import (
     CapacitySubjectWireV1,
     ExactMetricFieldWireV1,
     ExactQuantityWireV1,
+    QuotaAllowanceViewV1,
     QuotaWindowPageV1,
     QuotaWindowViewV1,
 )
@@ -41,7 +42,10 @@ from agentmonitor.contracts.capacity_v1 import (
     QuotaWindowViewV1 as DomainWindow,
 )
 from agentmonitor.contracts.common_v1 import OpaqueIdV1
-from agentmonitor.modules.capacity.application.queries import CapacityQueryUnavailableV1
+from agentmonitor.modules.capacity.application.queries import (
+    CapacityQueryUnavailableV1,
+    GetQuotaAllowanceV1,
+)
 from fastapi import APIRouter, Query, Request
 
 router = APIRouter(tags=["capacity"])
@@ -108,11 +112,19 @@ def _provenance(
 
 
 def _window(item: DomainWindow) -> QuotaWindowViewV1:
+    allowance = GetQuotaAllowanceV1()(item)
     return QuotaWindowViewV1(
         window_id=item.window_id.value,
         subject=_subject(item.subject),
         window_key=item.window_key,
         safe_label=item.safe_label,
+        allowance=QuotaAllowanceViewV1(
+            remaining_percentage=_metric(allowance.remaining_percentage),
+            calculation=allowance.calculation,
+            input_observation_id=allowance.input_observation_id.value,
+        )
+        if allowance
+        else None,
         used=_metric(item.used),
         remaining=_metric(item.remaining),
         limit=_metric(item.limit),

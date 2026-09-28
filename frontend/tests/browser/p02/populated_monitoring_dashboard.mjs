@@ -57,6 +57,10 @@ try {
   const document = await page.goto(`${origin}/accounts/${encodeURIComponent(accountId)}`);
   requireTruth(document?.status() === 200, "account_shell_route_missing");
   await page.locator("h1#page-title").waitFor();
+  await page.locator("details.quota-technical > summary").click();
+  await page.locator("details.quota-history > summary").click();
+  await page.locator("details[data-account-sessions] > summary").click();
+  await page.getByRole("button", { name: "Edit account", exact: true }).click();
   await page.getByRole("heading", { name: "Quota windows", exact: true }).waitFor();
   await page.getByRole("heading", { name: "Running sessions", exact: true }).waitFor();
   requireTruth(await page.locator(".identity-panel dd").filter({ hasText: /^claude$/i }).count() === 1, "real_claude_account_not_rendered");
@@ -280,6 +284,9 @@ try {
   for (const viewport of [{ width: 960, height: 540 }, { width: 390, height: 844 }]) {
     await page.setViewportSize(viewport);
     await page.goto(`${origin}/accounts/${encodeURIComponent(accountId)}`);
+    await page.locator("details.quota-technical > summary").click();
+    await page.locator("details.quota-history > summary").click();
+    await page.locator("details[data-account-sessions] > summary").click();
     await page.getByRole("heading", { name: "Quota windows", exact: true }).waitFor();
     await page.getByRole("heading", { name: "Capacity history", exact: true }).waitFor();
     await page.getByRole("heading", { name: "Running sessions", exact: true }).waitFor();

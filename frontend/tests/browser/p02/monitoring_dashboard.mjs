@@ -84,6 +84,7 @@ try {
     const capacityResponse = page.waitForResponse((response) => /^\/api\/v1\/accounts\/[^/]+\/capacity$/.test(new URL(response.url()).pathname));
     const quotaResponse = page.waitForResponse((response) => /^\/api\/v1\/accounts\/[^/]+\/quotas$/.test(new URL(response.url()).pathname));
     await accountLinks.first().click();
+    await page.locator("details[data-account-sessions] > summary").click();
     await page.getByRole("heading", { name: "Running sessions", exact: true }).waitFor();
     const responses = await Promise.all([sessionResponse, capacityResponse, quotaResponse]);
     requireTruth(responses.every((response) => response.status() === 200), "account_detail_get_not_200");

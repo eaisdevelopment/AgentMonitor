@@ -31,6 +31,7 @@ try {
   await page.getByText("pending · monitoring disabled").waitFor();
   stage = "account_edit";
   await page.getByRole("button", { name: "Open account" }).click();
+  await page.getByRole("button", { name: "Edit account" }).click();
   await page.getByText("Withheld from dashboard", { exact: true }).waitFor();
   await page.getByText("Account names and organization assignments are administrator managed.", { exact: true }).waitFor();
   await page.getByLabel("Rename account").fill("Renamed browser account");
@@ -42,6 +43,7 @@ try {
   await page.getByRole("button", { name: "Restore account" }).click();
   await page.getByRole("button", { name: "Archive account" }).waitFor();
   stage = "automatic_capacity_refresh";
+  await page.locator("details.quota-history > summary").click();
   await page.getByRole("heading", { name: "Capacity history", exact: true }).waitFor();
   await page.waitForResponse((response) =>
     response.url().includes("/capacity") && response.request().method() === "GET" && response.status() === 200,

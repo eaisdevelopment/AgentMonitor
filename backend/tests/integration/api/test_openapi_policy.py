@@ -12,6 +12,25 @@ from tooling.foundation.openapi_client import (
 )
 
 EXPECTED_SUCCESS = {
+    "provider_get_observed_account_identity_v1": (
+        "200",
+        "ObservedAccountIdentityViewV1",
+    ),
+    "runtime_list_process_locations_v1": ("200", "LiveProcessLocationPageV1"),
+    "registry_register_account_v1": ("201", "AccountViewV1"),
+    "registry_get_account_v1": ("200", "AccountViewV1"),
+    "registry_rename_account_v1": ("200", "AccountViewV1"),
+    "registry_assign_account_organization_v1": ("200", "AccountViewV1"),
+    "registry_set_account_monitoring_v1": ("200", "AccountViewV1"),
+    "registry_archive_account_v1": ("200", "AccountViewV1"),
+    "registry_restore_account_v1": ("200", "AccountViewV1"),
+    "registry_list_organizations_v1": ("200", "OrganizationPageV1"),
+    "registry_create_organization_v1": ("201", "OrganizationViewV1"),
+    "registry_get_organization_v1": ("200", "OrganizationViewV1"),
+    "registry_rename_organization_v1": ("200", "OrganizationViewV1"),
+    "registry_reorder_organizations_v1": ("200", "OrganizationOrderingViewV1"),
+    "registry_archive_organization_v1": ("200", "OrganizationViewV1"),
+    "registry_restore_organization_v1": ("200", "OrganizationViewV1"),
     "registry_list_accounts_v1": ("200", "AccountPageV1"),
     "registry_list_provider_installations_v1": ("200", "ProviderInstallationPageV1"),
     "provider_get_capabilities_v1": ("200", "ProviderCapabilityDeclarationPageV1"),
@@ -58,6 +77,15 @@ EXPECTED_ERRORS = frozenset(
     }
 )
 EXPECTED_REQUESTS = {
+    "registry_register_account_v1": "RegisterAccountInputV1",
+    "registry_rename_account_v1": "RenameAccountInputV1",
+    "registry_assign_account_organization_v1": "AssignAccountOrganizationInputV1",
+    "registry_set_account_monitoring_v1": "SetAccountMonitoringInputV1",
+    "registry_archive_account_v1": "ArchiveAccountInputV1",
+    "registry_create_organization_v1": "CreateOrganizationInputV1",
+    "registry_reorder_organizations_v1": "ReorderOrganizationsInputV1",
+    "registry_rename_organization_v1": "RenameOrganizationInputV1",
+    "registry_archive_organization_v1": "ArchiveOrganizationInputV1",
     "iam_login_v1": "LoginInputV1",
     "iam_change_password_v1": "ChangeAdministratorPasswordInputV1",
     "iam_create_api_token_v1": "CreateApiTokenInputV1",
@@ -67,7 +95,7 @@ EXPECTED_REQUESTS = {
 
 def test_generator_rejects_changed_policy_on_every_frozen_operation() -> None:
     schema = create_iam_schema_application().openapi()
-    assert len(validate_iam_openapi(schema)) == 25
+    assert len(validate_iam_openapi(schema)) == len(EXPECTED_SUCCESS)
     mutations: tuple[tuple[str, object], ...] = (
         ("x-agentmonitor-auth-profile", "preauth_loopback"),
         ("x-agentmonitor-required-permission", "read:diagnostics"),
@@ -92,7 +120,7 @@ def test_generator_rejects_changed_policy_on_every_frozen_operation() -> None:
 
 def test_generator_rejects_success_schema_drift_for_all_operations() -> None:
     schema = create_iam_schema_application().openapi()
-    assert len(validate_iam_openapi(schema)) == len(EXPECTED_SUCCESS) == 25
+    assert len(validate_iam_openapi(schema)) == len(EXPECTED_SUCCESS) == 41
     seen: set[str] = set()
     for path, methods in schema["paths"].items():
         for method, operation in methods.items():
@@ -140,7 +168,7 @@ def test_generator_rejects_success_schema_drift_for_all_operations() -> None:
 
 def test_iam_request_component_names_match_approved_catalog() -> None:
     schema = create_iam_schema_application().openapi()
-    assert len(validate_iam_openapi(schema)) == 25
+    assert len(validate_iam_openapi(schema)) == len(EXPECTED_SUCCESS)
     seen: set[str] = set()
     for path, methods in schema["paths"].items():
         for method, operation in methods.items():
@@ -183,7 +211,7 @@ def test_generator_validates_openapi_structure_with_fastapi_model() -> None:
 
 def test_generator_rejects_missing_safe_error_statuses_on_every_operation() -> None:
     schema = create_iam_schema_application().openapi()
-    assert len(validate_iam_openapi(schema)) == 25
+    assert len(validate_iam_openapi(schema)) == len(EXPECTED_SUCCESS)
     deleted_all = deepcopy(schema)
     responses = deleted_all["paths"]["/api/v1/session"]["get"]["responses"]
     for status in EXPECTED_ERRORS:
@@ -202,4 +230,4 @@ def test_generator_rejects_missing_safe_error_statuses_on_every_operation() -> N
                 ):
                     validate_iam_openapi(changed)
                 checked += 1
-    assert checked == 25 * len(EXPECTED_ERRORS)
+    assert checked == len(EXPECTED_SUCCESS) * len(EXPECTED_ERRORS)

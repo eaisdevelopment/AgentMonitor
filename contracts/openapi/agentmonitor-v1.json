@@ -2017,6 +2017,109 @@
         "title": "IamSecurityEventV1",
         "type": "object"
       },
+      "LiveProcessLocationPageV1": {
+        "additionalProperties": false,
+        "properties": {
+          "availability": {
+            "$ref": "#/components/schemas/AvailabilityV1"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/LiveProcessLocationViewV1"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "provider_version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Provider Version"
+          },
+          "source_id": {
+            "const": "linux.proc.cwd.v1",
+            "title": "Source Id",
+            "type": "string"
+          },
+          "truncated": {
+            "title": "Truncated",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "items",
+          "availability",
+          "provider_version",
+          "source_id",
+          "truncated"
+        ],
+        "title": "LiveProcessLocationPageV1",
+        "type": "object"
+      },
+      "LiveProcessLocationViewV1": {
+        "additionalProperties": false,
+        "properties": {
+          "account_correlation": {
+            "const": "unresolved",
+            "title": "Account Correlation",
+            "type": "string"
+          },
+          "observed_at": {
+            "format": "date-time",
+            "title": "Observed At",
+            "type": "string"
+          },
+          "pid": {
+            "title": "Pid",
+            "type": "integer"
+          },
+          "platform_scope_id": {
+            "title": "Platform Scope Id",
+            "type": "string"
+          },
+          "provider_key": {
+            "title": "Provider Key",
+            "type": "string"
+          },
+          "start_time_ticks": {
+            "title": "Start Time Ticks",
+            "type": "integer"
+          },
+          "state": {
+            "const": "running",
+            "title": "State",
+            "type": "string"
+          },
+          "working_directory": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Working Directory"
+          }
+        },
+        "required": [
+          "pid",
+          "start_time_ticks",
+          "platform_scope_id",
+          "provider_key",
+          "state",
+          "account_correlation",
+          "working_directory",
+          "observed_at"
+        ],
+        "title": "LiveProcessLocationViewV1",
+        "type": "object"
+      },
       "LoginInputV1": {
         "additionalProperties": false,
         "properties": {
@@ -2299,6 +2402,108 @@
           "input_observation_ids"
         ],
         "title": "ObservationProvenanceWireV1",
+        "type": "object"
+      },
+      "ObservedAccountIdentityViewV1": {
+        "additionalProperties": false,
+        "properties": {
+          "account_id": {
+            "title": "Account Id",
+            "type": "string"
+          },
+          "collection_run_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Collection Run Id"
+          },
+          "email": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Email"
+          },
+          "provider_organization": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Provider Organization"
+          },
+          "provider_version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Provider Version"
+          },
+          "running_agent_correlation": {
+            "const": "unresolved",
+            "title": "Running Agent Correlation",
+            "type": "string"
+          },
+          "scope": {
+            "const": "default_profile_quota",
+            "title": "Scope",
+            "type": "string"
+          },
+          "source_id": {
+            "const": "claude.auth.status.v1",
+            "title": "Source Id",
+            "type": "string"
+          },
+          "state": {
+            "enum": [
+              "verified",
+              "unresolved"
+            ],
+            "title": "State",
+            "type": "string"
+          },
+          "verified_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Verified At"
+          }
+        },
+        "required": [
+          "account_id",
+          "state",
+          "email",
+          "provider_organization",
+          "collection_run_id",
+          "verified_at",
+          "provider_version",
+          "source_id",
+          "scope",
+          "running_agent_correlation"
+        ],
+        "title": "ObservedAccountIdentityViewV1",
         "type": "object"
       },
       "OrganizationOrderingViewV1": {
@@ -2920,6 +3125,33 @@
         "title": "ProviderInstallationViewV1",
         "type": "object"
       },
+      "QuotaAllowanceViewV1": {
+        "additionalProperties": false,
+        "properties": {
+          "calculation": {
+            "enum": [
+              "remaining_ratio_times_100",
+              "100_minus_used_percent"
+            ],
+            "title": "Calculation",
+            "type": "string"
+          },
+          "input_observation_id": {
+            "title": "Input Observation Id",
+            "type": "string"
+          },
+          "remaining_percentage": {
+            "$ref": "#/components/schemas/ExactMetricFieldWireV1"
+          }
+        },
+        "required": [
+          "remaining_percentage",
+          "calculation",
+          "input_observation_id"
+        ],
+        "title": "QuotaAllowanceViewV1",
+        "type": "object"
+      },
       "QuotaWindowPageV1": {
         "additionalProperties": false,
         "properties": {
@@ -2953,6 +3185,16 @@
       "QuotaWindowViewV1": {
         "additionalProperties": false,
         "properties": {
+          "allowance": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/QuotaAllowanceViewV1"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "collected_at": {
             "format": "date-time",
             "title": "Collected At",
@@ -5182,6 +5424,204 @@
         "x-agentmonitor-error-schema": "SafeProblemV1",
         "x-agentmonitor-replay-policy": "replay_safe_representation",
         "x-agentmonitor-required-permission": "write:accounts"
+      }
+    },
+    "/api/v1/accounts/{account_id}/observed-identity": {
+      "get": {
+        "operationId": "provider_get_observed_account_identity_v1",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "account_id",
+            "required": true,
+            "schema": {
+              "maxLength": 64,
+              "minLength": 1,
+              "pattern": "^[A-Za-z0-9_-]+$",
+              "title": "Account Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ObservedAccountIdentityViewV1"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          },
+          "405": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          },
+          "412": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          },
+          "413": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          },
+          "415": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          },
+          "428": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          },
+          "429": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          },
+          "500": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          },
+          "504": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          }
+        },
+        "security": [
+          {
+            "BrowserSessionCookieV1": []
+          },
+          {
+            "BearerTokenV1": []
+          }
+        ],
+        "summary": "Get Observed Identity",
+        "tags": [
+          "providers"
+        ],
+        "x-agentmonitor-application-port": "GetVerifiedQuotaIdentityV1",
+        "x-agentmonitor-auth-profile": "cookie_or_bearer",
+        "x-agentmonitor-error-schema": "SafeProblemV1",
+        "x-agentmonitor-replay-policy": "safe_query_repeat",
+        "x-agentmonitor-required-permission": "read:accounts"
       }
     },
     "/api/v1/accounts/{account_id}/organization": {
@@ -9583,6 +10023,190 @@
         "x-agentmonitor-required-permission": "write:accounts"
       }
     },
+    "/api/v1/process-locations": {
+      "get": {
+        "operationId": "runtime_list_process_locations_v1",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LiveProcessLocationPageV1"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          },
+          "405": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          },
+          "412": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          },
+          "413": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          },
+          "415": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          },
+          "428": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          },
+          "429": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          },
+          "500": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          },
+          "504": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          }
+        },
+        "security": [
+          {
+            "BrowserSessionCookieV1": []
+          },
+          {
+            "BearerTokenV1": []
+          }
+        ],
+        "summary": "List Process Locations",
+        "tags": [
+          "runtime"
+        ],
+        "x-agentmonitor-application-port": "ListLiveProcessLocationsV1",
+        "x-agentmonitor-auth-profile": "cookie_or_bearer",
+        "x-agentmonitor-error-schema": "SafeProblemV1",
+        "x-agentmonitor-replay-policy": "safe_query_repeat",
+        "x-agentmonitor-required-permission": "read:telemetry"
+      }
+    },
     "/api/v1/process-metrics": {
       "get": {
         "operationId": "runtime_list_process_metrics_v1",
@@ -11905,10 +12529,10 @@
       "starlette": "1.6.0"
     },
     "generator": "agentmonitor-openapi-client",
-    "generator_sha256": "55480905506d7fa74e487716722a0368b2add299801b64f729fce27d58f44d13",
-    "generator_version": "2.0.3",
+    "generator_sha256": "f22478343be7964d741a4ea1ce72c8102208d18b09b6e16f9a1747aa24e9acb7",
+    "generator_version": "2.0.4",
     "openapi_version": "3.1.0",
-    "schema_sha256": "0638865c62fe864d4503b86524baf2b4add55831c39717c9e0714180d5e72315",
-    "source_sha256": "22a0c05a63ee3f8d65d75b459d748c95027b7e0631ebc4d1853ad6893b0c87f8"
+    "schema_sha256": "42e01b7986ef590ac45ef07342249b02c1b6f36df1dbe68e98e3505ce3953d0d",
+    "source_sha256": "6645f74e46e38f4af58f5a5b4ca01901a6015f606d20b727a5feebb7e16f10a7"
   }
 }

@@ -20,7 +20,11 @@ from agentmonitor.contracts.collection_control_v1 import (
     CollectionOutcomeCommitV1,
 )
 from agentmonitor.contracts.common_provenance_v1 import ObservationProvenanceV1
-from agentmonitor.contracts.common_v1 import OpaqueIdV1, TechnicalValueV1
+from agentmonitor.contracts.common_v1 import (
+    OpaqueIdV1,
+    QueryAvailabilityV1,
+    TechnicalValueV1,
+)
 
 ProviderKeyV1 = Literal["claude", "codex", "ollama"]
 RuntimeFieldStateV1 = Literal[
@@ -1318,3 +1322,27 @@ class InspectProcessesV1(Protocol):
     def __call__(
         self, request: PlatformInspectionRequestV1
     ) -> PlatformInspectionOutcomeV1: ...
+
+
+@dataclass(frozen=True, slots=True)
+class LiveProcessLocationV1:
+    """Guarded process presence and cwd; no account or working-state inference."""
+
+    CONTRACT_ID: ClassVar[str] = "CTR-RUN-006"
+    OWNER: ClassVar[str] = "PLAN-M06"
+
+    identity: ProcessIdentityV1
+    provider_key: str
+    working_directory: str | None
+    observed_at: datetime
+
+
+@dataclass(frozen=True, slots=True)
+class LiveProcessLocationsV1:
+    CONTRACT_ID: ClassVar[str] = "CTR-RUN-006"
+    OWNER: ClassVar[str] = "PLAN-M06"
+
+    items: tuple[LiveProcessLocationV1, ...]
+    availability: QueryAvailabilityV1
+    provider_version: str | None
+    truncated: bool

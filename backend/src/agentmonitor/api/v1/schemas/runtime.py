@@ -11,6 +11,25 @@ class _ClosedV1(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True)
 
 
+class LiveProcessLocationViewV1(_ClosedV1):
+    pid: int
+    start_time_ticks: int
+    platform_scope_id: str
+    provider_key: str
+    state: Literal["running"]
+    account_correlation: Literal["unresolved"]
+    working_directory: str | None
+    observed_at: datetime
+
+
+class LiveProcessLocationPageV1(_ClosedV1):
+    items: tuple[LiveProcessLocationViewV1, ...]
+    availability: AvailabilityV1
+    provider_version: str | None
+    source_id: Literal["linux.proc.cwd.v1"]
+    truncated: bool
+
+
 class FieldAvailabilityWireV1(_ClosedV1):
     state: Literal[
         "available",

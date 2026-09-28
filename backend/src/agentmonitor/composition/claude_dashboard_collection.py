@@ -1,7 +1,7 @@
 """Service-owned polling of the enrolled read-only Claude default profile.
 
 Account names, organizations, and opaque target IDs are read from M02. No
-enrollment, identity inference, authentication, or provider-state write occurs.
+enrollment, agent-account inference, authentication, or provider-state write occurs.
 """
 
 import asyncio
@@ -18,6 +18,9 @@ from agentmonitor.adapters.persistence.collection_control.sqlite.repository impo
 from agentmonitor.adapters.persistence.registry.sqlite.repository import (
     SqliteRegistryRepositoryV1,
 )
+from agentmonitor.adapters.providers.claude.authentication.identity import (
+    read_default_profile_identity_v1,
+)
 from agentmonitor.adapters.providers.claude.installation import (
     discover_default_installation,
 )
@@ -33,6 +36,7 @@ from agentmonitor.composition.claude_live_monitoring import (
 from agentmonitor.composition.providers import compose_claude_quota_collection
 from agentmonitor.contracts.collection_control_v1 import CollectionFailedV1
 from agentmonitor.contracts.common_v1 import OpaqueIdV1
+from agentmonitor.contracts.provider_system_v1 import VerifiedQuotaIdentityV1
 from agentmonitor.contracts.registry_v1 import (
     AccountResourceViewV1,
     AccountViewV1,
@@ -61,6 +65,14 @@ class ClaudeDashboardCollectorV1:
         self._registry = SqliteRegistryRepositoryV1(reference)
         self._collection = SqliteCollectionRepositoryV1(reference)
         self._instance = OpaqueIdV1("claude-poller-" + uuid.uuid4().hex)
+        # Only the current successful run is attested. No persistence/backfill.
+        self._verified_identity: VerifiedQuotaIdentityV1 | None = None
+
+    def read_verified_identity(
+        self, account_id: OpaqueIdV1
+    ) -> VerifiedQuotaIdentityV1 | None:
+        identity = self._verified_identity
+        return identity if identity and identity.account_id == account_id else None
 
     def _target(
         self,
@@ -201,12 +213,24 @@ class ClaudeDashboardCollectorV1:
         )
         # Leave time for provider cleanup inside the service's 30s shutdown drain.
         request = replace(request, deadline_ms=20_000)
+        before = read_default_profile_identity_v1(installation)
+        self._verified_identity = None
         result = route.collect_once(
             admission,
             request,
             started_at=datetime.now(UTC),
             completed_at=lambda: datetime.now(UTC),
         )
+        after = read_default_profile_identity_v1(installation)
+        if (
+            not isinstance(result, CollectionFailedV1)
+            and before is not None
+            and after is not None
+            and before.fingerprint == after.fingerprint
+        ):
+            self._verified_identity = VerifiedQuotaIdentityV1(
+                account.account_id, OpaqueIdV1(run_id), after
+            )
         return (
             "claude_poll_failed"
             if isinstance(result, CollectionFailedV1)

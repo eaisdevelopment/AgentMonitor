@@ -59,6 +59,9 @@ from agentmonitor.api.v1.dependencies import IamApiPortsV1, ObservationApiPortsV
 from agentmonitor.composition.claude_dashboard_collection import (
     ClaudeDashboardCollectorV1,
 )
+from agentmonitor.composition.linux_process_locations import (
+    read_live_claude_process_locations_v1,
+)
 from agentmonitor.contracts.configuration_v1 import (
     BootstrapConfigurationV1,
     ConfigurationRegistryV1,
@@ -108,6 +111,7 @@ from agentmonitor.modules.identity_access.application.sessions import (
 )
 from agentmonitor.modules.provider_system.application.queries import (
     GetProviderCapabilitiesV1,
+    GetVerifiedQuotaIdentityV1,
 )
 from agentmonitor.modules.registry.application.accounts import (
     EditAccountV1,
@@ -130,6 +134,7 @@ from agentmonitor.modules.runtime_observation.application.queries import (
     GetSessionTreeV1,
     ListAgentProcessesV1,
     ListAgentSessionsV1,
+    ListLiveProcessLocationsV1,
 )
 from fastapi import FastAPI
 
@@ -218,7 +223,9 @@ def _iam_ports(reference: DatabaseRefV1) -> IamApiPortsV1:
     )
 
 
-def _observation_ports(reference: DatabaseRefV1) -> ObservationApiPortsV1:
+def _observation_ports(
+    reference: DatabaseRefV1, collector: ClaudeDashboardCollectorV1
+) -> ObservationApiPortsV1:
     registry = SqliteRegistryRepositoryV1(reference)
     collection = SqliteCollectionRepositoryV1(reference)
     capacity = SqliteCapacityRepositoryV1(reference)
@@ -243,6 +250,8 @@ def _observation_ports(reference: DatabaseRefV1) -> ObservationApiPortsV1:
         ListAgentSessionsV1(runtime),
         GetAgentSessionV1(runtime),
         GetSessionTreeV1(runtime),
+        GetVerifiedQuotaIdentityV1(collector.read_verified_identity),
+        ListLiveProcessLocationsV1(read_live_claude_process_locations_v1),
     )
 
 
@@ -268,7 +277,7 @@ def create_iam_application(
         lifecycle,
         iam_mode=True,
         iam_ports=_iam_ports(reference),
-        observation_ports=_observation_ports(reference),
+        observation_ports=_observation_ports(reference, collector),
         service_lock_path=data_root / ".agentmonitor-service.lock",
     )
 

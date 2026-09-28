@@ -1,5 +1,6 @@
 """Read-only M06 process/session/history/tree application ports."""
 
+from collections.abc import Callable
 from datetime import datetime, timedelta
 from typing import Protocol
 
@@ -11,12 +12,21 @@ from agentmonitor.contracts.common_v1 import (
 from agentmonitor.contracts.runtime_observation_v1 import (
     AgentProcessRecordV1,
     AgentSessionRecordV1,
+    LiveProcessLocationsV1,
     ProcessHistoryEntryV1,
     RuntimeCommitStatusV1,
     SessionTopologySnapshotV1,
     SessionTreeNodeV1,
     SessionTreeViewV1,
 )
+
+
+class ListLiveProcessLocationsV1:
+    def __init__(self, reader: Callable[[], LiveProcessLocationsV1]) -> None:
+        self._reader = reader
+
+    def __call__(self) -> LiveProcessLocationsV1:
+        return self._reader()
 
 
 class AgentSessionNotFoundV1(ValueError):

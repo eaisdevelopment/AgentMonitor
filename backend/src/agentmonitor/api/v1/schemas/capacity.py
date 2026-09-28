@@ -71,11 +71,18 @@ class CapacityObservationProvenanceWireV1(_ClosedV1):
     decision_reference: str
 
 
+class QuotaAllowanceViewV1(_ClosedV1):
+    remaining_percentage: ExactMetricFieldWireV1
+    calculation: Literal["remaining_ratio_times_100", "100_minus_used_percent"]
+    input_observation_id: str
+
+
 class QuotaWindowViewV1(_ClosedV1):
     window_id: str
     subject: CapacitySubjectWireV1
     window_key: str
     safe_label: str | None
+    allowance: QuotaAllowanceViewV1 | None = None
     used: ExactMetricFieldWireV1
     remaining: ExactMetricFieldWireV1
     limit: ExactMetricFieldWireV1

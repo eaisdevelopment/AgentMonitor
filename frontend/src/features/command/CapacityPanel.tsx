@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { metricAvailability, remainingPercentage } from "./quotaPresentation";
 
 import {
   appendCapacityHistoryPage,
@@ -343,13 +344,13 @@ export function CapacityPanel({
 
   if (state.kind === "loading") return (
     <section className="telemetry-panel" aria-labelledby="quota-title" aria-busy="true">
-      <div className="panel-heading"><div><p className="panel-code">CAPACITY</p><h2 id="quota-title">Quota windows</h2></div></div>
+      <div className="panel-heading"><div><h2 id="quota-title">Usage allowance</h2></div></div>
       <p className="skeleton-copy" role="status">Reading account capacity…</p>
     </section>
   );
   if (state.kind === "error") return (
     <section className="telemetry-panel" aria-labelledby="quota-title">
-      <div className="panel-heading"><div><p className="panel-code">CAPACITY</p><h2 id="quota-title">Quota windows</h2></div><span className="state-chip state-warning">Unavailable</span></div>
+      <div className="panel-heading"><div><h2 id="quota-title">Usage allowance</h2></div><span className="state-chip state-warning">Unavailable</span></div>
       <p role="alert">{state.message}</p>
       <button type="button" className="quiet-button" onClick={() => { void load(); }}>Retry capacity</button>
     </section>
@@ -357,17 +358,27 @@ export function CapacityPanel({
 
   const healthRows = state.account.items.filter((item) => item.health !== null);
   return (
-    <section className="telemetry-panel" aria-labelledby="quota-title">
+    <section className="telemetry-panel usage-allowance" aria-labelledby="quota-title">
       <div className="panel-heading">
-        <div><p className="panel-code">CAPACITY</p><h2 id="quota-title">Quota windows</h2></div>
-        <span className={`state-chip state-${state.quotas.availability.state}`}>
-          {state.quotas.availability.state}
-        </span>
+        <div><h2 id="quota-title">Usage allowance</h2><p className="section-description">Each allowance window belongs to this account.</p></div>
+        <span className="workspace-updated">Latest provider readings</span>
       </div>
-      <p className="provenance-line">
-        {state.quotas.availability.reason_code.replaceAll("_", " ")} · as of {new Date(state.quotas.availability.as_of).toLocaleString()}
-      </p>
       {state.refreshMessage !== null && <p role="status">{state.refreshMessage}</p>}
+      {state.quotas.items.length > 0 && <div className="allowance-cards">{state.quotas.items.map((window) => {
+        const percentage = remainingPercentage(window.allowance?.remaining_percentage ?? window.remaining_ratio);
+        return <article className="allowance-card" key={window.window_id}>
+          <div className="allowance-card-heading"><h3>{window.safe_label ?? window.window_key}</h3><span className={`reading-freshness reading-${window.freshness}`}>{window.freshness === "fresh" ? "Up to date" : window.freshness.replaceAll("_", " ")}</span></div>
+          <p className="allowance-value"><strong>{percentage?.label ?? metricAvailability(window.remaining_ratio)}</strong><span>left</span></p>
+          {percentage !== null && <div className="allowance-track" role="meter" aria-label={`${window.safe_label ?? window.window_key} remaining allowance`} aria-valuemin={0} aria-valuemax={100} aria-valuenow={percentage.value} aria-valuetext={`${percentage.label} left`}><span style={{ width: `${percentage.value}%` }} /></div>}
+          <p className="allowance-time">Updated <time dateTime={window.collected_at}>{new Date(window.collected_at).toLocaleString()}</time></p>
+          {window.allowance && <p className="allowance-time">{window.allowance.calculation === "100_minus_used_percent" ? "Calculated: 100% minus reported usage." : "Calculated from reported remaining ratio."}{window.allowance.remaining_percentage.precision === "rounded" ? " Source is rounded." : ""}</p>}
+        </article>;
+      })}</div>}
+      {state.quotas.items.length === 0 && <p className="workspace-notice">{state.quotas.availability.state === "available" ? "No quota readings for this account yet." : "Quota readings are unavailable."}</p>}
+      <details className="account-secondary quota-technical">
+      <summary>Technical details <span>Exact quota values and collection source</span></summary>
+      <h3>Quota windows</h3>
+      <p className="provenance-line">{state.quotas.availability.reason_code.replaceAll("_", " ")} · as of {new Date(state.quotas.availability.as_of).toLocaleString()}</p>
       {healthRows.length > 0 && (
         <div className="health-strip" aria-label="Capacity health">
           {healthRows.map((item) => item.health && (
@@ -426,6 +437,9 @@ export function CapacityPanel({
         </div>
       )}
       {state.quotas.page.has_more && <p className="pagination-note" role="status">More quota windows are available beyond this page.</p>}
+      </details>
+      <details className="account-secondary quota-history">
+      <summary>Usage history <span>Previous allowance readings</span></summary>
       <CapacityHistory
         pages={state.historyPages}
         message={state.historyMessage}
@@ -433,6 +447,7 @@ export function CapacityPanel({
         loadingMore={state.historyLoadingMore}
         onLoadMore={() => { void loadMoreHistory(); }}
       />
+      </details>
     </section>
   );
 }

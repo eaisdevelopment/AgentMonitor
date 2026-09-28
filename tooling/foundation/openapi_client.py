@@ -29,7 +29,7 @@ from fastapi.openapi.models import OpenAPI
 from pydantic import ValidationError
 
 FACTORY_REF = "agentmonitor.composition.bootstrap:create_iam_schema_application"
-GENERATOR_VERSION = "2.0.3"
+GENERATOR_VERSION = "2.0.4"
 OPENAPI_RELATIVE = Path("contracts/openapi/agentmonitor-v1.json")
 CLIENT_RELATIVE = Path("frontend/src/generated/api/index.ts")
 METHODS = frozenset(
@@ -128,11 +128,13 @@ IAM_OPERATIONS = {
         "/api/v1/providers/{provider_key}/capabilities",
         "get",
     ): "provider_get_capabilities_v1",
+    ("/api/v1/accounts/{account_id}/observed-identity", "get"): "provider_get_observed_account_identity_v1",
     ("/api/v1/collection-runs", "get"): "collection_list_runs_v1",
     ("/api/v1/accounts/{account_id}/capacity", "get"): "capacity_get_account_v1",
     ("/api/v1/accounts/{account_id}/quotas", "get"): "capacity_list_quota_windows_v1",
     ("/api/v1/capacity/history", "get"): "capacity_list_history_v1",
     ("/api/v1/processes", "get"): "runtime_list_processes_v1",
+    ("/api/v1/process-locations", "get"): "runtime_list_process_locations_v1",
     ("/api/v1/process-metrics", "get"): "runtime_list_process_metrics_v1",
     ("/api/v1/sessions", "get"): "runtime_list_sessions_v1",
     ("/api/v1/sessions/{session_id}/tree", "get"): "runtime_get_session_tree_v1",
@@ -469,6 +471,11 @@ IAM_POLICY: dict[str, IamPolicyRow] = {
         _M2_REQUIRED_ERROR_STATUSES,
         None,
     ),
+    "provider_get_observed_account_identity_v1": (
+        "cookie_or_bearer", "read:accounts", "GetVerifiedQuotaIdentityV1",
+        "safe_query_repeat", _COOKIE_BEARER, "200", "ObservedAccountIdentityViewV1",
+        "SafeProblemV1", _M2_REQUIRED_ERROR_STATUSES, None,
+    ),
     "collection_list_runs_v1": (
         "cookie_or_bearer",
         "read:telemetry",
@@ -528,6 +535,11 @@ IAM_POLICY: dict[str, IamPolicyRow] = {
         "SafeProblemV1",
         _M2_REQUIRED_ERROR_STATUSES,
         None,
+    ),
+    "runtime_list_process_locations_v1": (
+        "cookie_or_bearer", "read:telemetry", "ListLiveProcessLocationsV1",
+        "safe_query_repeat", _COOKIE_BEARER, "200", "LiveProcessLocationPageV1",
+        "SafeProblemV1", _M2_REQUIRED_ERROR_STATUSES, None,
     ),
     "runtime_list_process_metrics_v1": (
         "cookie_or_bearer",
@@ -759,7 +771,7 @@ def validate_iam_openapi(document: object) -> tuple[str, ...]:
     if (
         actual != IAM_OPERATIONS
         or set(IAM_POLICY) != set(IAM_OPERATIONS.values())
-        or len(identifiers) != 39
+        or len(identifiers) != 41
     ):
         raise OpenApiGenerationError("operation_surface_invalid")
 

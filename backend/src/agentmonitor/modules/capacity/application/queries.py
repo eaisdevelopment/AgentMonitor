@@ -9,6 +9,7 @@ from agentmonitor.contracts.capacity_v1 import (
     CapacityHealthViewV1,
     CapacityHistoryPointV1,
     CapacityHistoryQueryV1,
+    QuotaAllowanceV1,
     QuotaWindowViewV1,
 )
 from agentmonitor.contracts.common_v1 import (
@@ -17,6 +18,18 @@ from agentmonitor.contracts.common_v1 import (
     QueryCollectionV1,
     QueryPageV1,
 )
+from agentmonitor.modules.capacity.domain.allowance import remaining_percentage_v1
+
+
+class GetQuotaAllowanceV1:
+    """Publish the per-window display calculation and its exact input lineage."""
+
+    def __call__(self, window: QuotaWindowViewV1) -> QuotaAllowanceV1 | None:
+        result = remaining_percentage_v1(window.used, window.remaining_ratio)
+        if result is None:
+            return None
+        metric, calculation = result
+        return QuotaAllowanceV1(metric, calculation, window.current_observation_id)
 
 
 class CapacityQueryUnavailableV1(RuntimeError):

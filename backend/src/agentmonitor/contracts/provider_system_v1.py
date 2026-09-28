@@ -1,7 +1,7 @@
 """Provider-neutral V1 contracts; provider behavior stays in adapters."""
 
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from decimal import Decimal
 from typing import (
@@ -18,6 +18,33 @@ from agentmonitor.contracts.common_v1 import (
     OpaqueIdV1,
     TechnicalValueV1,
 )
+
+
+@dataclass(frozen=True, slots=True)
+class ObservedProfileIdentityV1:
+    """Allowlisted provider identity; private fingerprint never crosses the API."""
+
+    CONTRACT_ID: ClassVar[str] = "CTR-PROV-005"
+    OWNER: ClassVar[str] = "PLAN-M03"
+
+    email: str = field(repr=False)
+    provider_organization: str | None = field(repr=False)
+    fingerprint: str = field(repr=False)
+    observed_at: datetime
+    provider_version: str
+
+
+@dataclass(frozen=True, slots=True)
+class VerifiedQuotaIdentityV1:
+    """Identity observed consistently around one successful quota collection."""
+
+    CONTRACT_ID: ClassVar[str] = "CTR-PROV-005"
+    OWNER: ClassVar[str] = "PLAN-M03"
+
+    account_id: OpaqueIdV1
+    collection_run_id: OpaqueIdV1
+    identity: ObservedProfileIdentityV1
+
 
 CapabilityDecisionStateV1 = Literal[
     "supported", "experimental", "deferred", "unsupported", "unknown"

@@ -26,6 +26,8 @@ import {
   type OrganizationOrderingViewV1,
   type OrganizationViewV1,
   type ProviderCapabilityDeclarationPageV1,
+  type ObservedAccountIdentityViewV1,
+  type LiveProcessLocationPageV1,
   type ProviderInstallationPageV1,
   type ProviderInstallationViewV1,
   type QuotaWindowPageV1,
@@ -60,6 +62,8 @@ export type {
   OrganizationOrderingViewV1,
   OrganizationViewV1,
   ProviderCapabilityDeclarationPageV1,
+  ObservedAccountIdentityViewV1,
+  LiveProcessLocationPageV1,
   ProviderInstallationPageV1,
   ProviderInstallationViewV1,
   QuotaWindowPageV1,
@@ -313,6 +317,11 @@ export const registry = Object.freeze({
 });
 
 export const providers = Object.freeze({
+  observedAccountIdentity: (
+    accountId: string,
+    signal?: AbortSignal,
+  ): Promise<ClientResult<ObservedAccountIdentityViewV1>> =>
+    apiClient.provider_get_observed_account_identity_v1({ path: { account_id: accountId }, signal }),
   capabilities: (
     providerKey: string,
     signal?: AbortSignal,
@@ -364,6 +373,8 @@ export const capacity = Object.freeze({
 });
 
 export const runtime = Object.freeze({
+  processLocations: (signal?: AbortSignal): Promise<ClientResult<LiveProcessLocationPageV1>> =>
+    apiClient.runtime_list_process_locations_v1({ signal }),
   processes: (signal?: AbortSignal): Promise<ClientResult<AgentProcessPageV1>> =>
     apiClient.runtime_list_processes_v1({ query: { limit: 200 }, signal }),
   processMetrics: (

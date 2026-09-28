@@ -406,3 +406,13 @@ a mechanical adoption/catalog binding; it does not claim a new independent
 CS-1 audit. Historical review statements remain historical. Current scope and
 real evidence are recorded in
 [the polling delivery](../../evidence/claude-dashboard-polling.md).
+
+## 2026-09-28 account workspace identity adoption
+
+Plan snapshot SHA-256: `d70615d4d51f0d0ff9d90ab9b22d8bc42516c9c9c7bf73122316f195bec71611`
+
+The exact controls declare Foundation and P01 consumption of M03
+`CTR-PROV-005` for the owner-directed account workspace increment. The
+existing Draft statuses and historical audit conclusions are preserved;
+this mechanical binding is not a new independent audit or broad milestone
+approval. See [the bounded change plan](account-workspace-ui-change.md).

@@ -1,7 +1,9 @@
-import { useCallback, useEffect, useState, type FormEvent } from "react";
+import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
 
 import { CapacityPanel } from "../command/CapacityPanel";
 import { SessionPanel } from "../sessions/SessionPanel";
+import { AccountWorkspaceSummary } from "./AccountWorkspaceSummary";
+import { LiveClaudeProcesses } from "./LiveClaudeProcesses";
 import {
   CsrfUnavailableError,
   registry,
@@ -35,10 +37,16 @@ export function AccountPage({
   const [organizationId, setOrganizationId] = useState("");
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
+  const settingsRef = useRef<HTMLDetailsElement>(null);
+  const [observedIdentity, setObservedIdentity] = useState<Readonly<{ accountId: string | undefined; email: string | null }> | null>(null);
+  const observedEmail = observedIdentity?.accountId === accountId ? observedIdentity?.email : null;
+  const updateObservedIdentity = useCallback((email: string | null) => {
+    setObservedIdentity({ accountId, email });
+  }, [accountId]);
   const titleId = displayMode === "page" ? "page-title" : "accounts-panel-title";
 
   const load = useCallback(async (signal?: AbortSignal) => {
-    setState({ kind: "loading" });
+    setState((current) => current.kind === "ready" ? current : { kind: "loading" });
     try {
       const [result, organizations] = await Promise.all([
         registry.accounts(signal), registry.organizations(signal),
@@ -130,23 +138,32 @@ export function AccountPage({
   );
 
   if (selected !== undefined) return (
-    <div className="feature-page">
-      <section className="command-deck" aria-labelledby={titleId}>
-        <div><p className="eyebrow">{selected.provider_key} · monitored account</p><h1 id={titleId} tabIndex={-1}>{selected.friendly_name}</h1><p className="console-summary">Identity {selected.identity_state.replaceAll("_", " ")} · monitoring {selected.is_effective_monitoring_enabled ? "enabled" : "disabled"}</p></div>
-        <span className={`state-chip state-${selected.lifecycle}`}>{selected.lifecycle}</span>
-      </section>
-      <section className="telemetry-panel identity-panel" aria-labelledby="identity-title">
-        <div className="panel-heading"><div><p className="panel-code">IDENTITY</p><h2 id="identity-title">Account identity</h2></div><span className="state-chip state-unavailable">{selected.masked_identity.state.replaceAll("_", " ")}</span></div>
-        <dl className="telemetry-readouts">
-          <div><dt>Provider</dt><dd>{selected.provider_key}</dd></div>
-          <div><dt>Organization</dt><dd>{state.organizations.items.find((item) => item.organization_id === selected.organization_id)?.name ?? "Ungrouped"}</dd></div>
-          <div><dt>Identity</dt><dd>{selected.masked_identity.state === "withheld" ? "Withheld from dashboard" : selected.masked_identity.masked_value ?? selected.masked_identity.reason_code.replaceAll("_", " ")}</dd></div>
-          <div><dt>Registry updated</dt><dd>{new Date(selected.updated_at).toLocaleString()}</dd></div>
-        </dl>
-        {selected.masked_identity.state === "withheld" && <p>Account names and organization assignments are administrator managed.</p>}
-      </section>
-      <section className="telemetry-panel" aria-labelledby="account-admin-title">
+    <div className="feature-page account-page">
+      <header className="account-page-heading" aria-labelledby={titleId}>
+        <div>
+          <nav className="account-breadcrumb" aria-label="Account breadcrumb"><a href="/accounts">Accounts</a><span aria-hidden="true">/</span><span>{state.organizations.items.find((item) => item.organization_id === selected.organization_id)?.name ?? "Ungrouped"}</span></nav>
+          <h1 id={titleId} tabIndex={-1}>{observedEmail ?? (selected.lifecycle === "pending" ? selected.friendly_name : `Connected ${selected.provider_key === "claude" ? "Claude" : selected.provider_key} profile`)}</h1>
+          <p className="account-subtitle"><span className="provider-name">{selected.provider_key}</span><span aria-hidden="true">·</span><span>{selected.is_effective_monitoring_enabled ? "Quota monitoring is on" : "Quota monitoring is off"}</span></p>
+        </div>
+        <button className="quiet-button" type="button" onClick={() => {
+          if (settingsRef.current) {
+            settingsRef.current.open = true;
+            settingsRef.current.querySelector("input")?.focus();
+          }
+        }}>Edit account</button>
+      </header>
+      <AccountWorkspaceSummary key={selected.account_id} account={selected} organizationName={state.organizations.items.find((item) => item.organization_id === selected.organization_id)?.name ?? "Ungrouped"} onExpired={onExpired} onIdentity={updateObservedIdentity} />
+      {selected.provider_key === "claude" && <LiveClaudeProcesses onExpired={onExpired} />}
+      <CapacityPanel accountId={selected.account_id} onExpired={onExpired} />
+      <details className="account-secondary" data-account-sessions="true">
+        <summary>Session details <span>Observed agents and their history</span></summary>
+        <SessionPanel accountId={selected.account_id} displayMode="panel" heading="Running sessions" onExpired={onExpired} />
+      </details>
+      <details className="account-settings account-secondary" ref={settingsRef}>
+        <summary>Account settings <span>Name, organization, and monitoring</span></summary>
+      <section className="account-admin-content" aria-labelledby="account-admin-title">
         <div className="panel-heading"><h2 id="account-admin-title">Account administration</h2></div>
+        <p className="account-settings-hint">Manage this dashboard record. Claude's detected account identity is shown above.</p>
         <p>Identity is {selected.identity_state.replaceAll("_", " ")}. Editing this record does not confirm provider identity.</p>
         <form key={`name-${selected.record_version}`} onSubmit={(event) => {
           event.preventDefault();
@@ -171,10 +188,11 @@ export function AccountPage({
           </select>
           <button type="submit" disabled={busy || selected.lifecycle === "archived"}>Save organization</button>
         </form>
+        <div className="account-settings-actions">
         {selected.lifecycle === "archived" ? (
-          <button type="button" disabled={busy} onClick={() => { void mutate(() => registry.restoreAccount(selected), "Account restored with monitoring disabled."); }}>Restore account</button>
+          <button type="button" className="quiet-button" disabled={busy} onClick={() => { void mutate(() => registry.restoreAccount(selected), "Account restored with monitoring disabled."); }}>Restore account</button>
         ) : (
-          <button type="button" disabled={busy} onClick={() => { void mutate(() => registry.archiveAccount(selected), "Account archived."); }}>Archive account</button>
+          <button type="button" className="quiet-button" disabled={busy} onClick={() => { void mutate(() => registry.archiveAccount(selected), "Account archived."); }}>Archive account</button>
         )}
         {selected.lifecycle === "active" && ["owner_confirmed", "matched"].includes(selected.identity_state) && (
           <button type="button" disabled={busy} onClick={() => {
@@ -184,12 +202,20 @@ export function AccountPage({
             {selected.monitoring_preference === "enabled" ? "Disable monitoring" : "Enable monitoring"}
           </button>
         )}
+        </div>
         {message && <p role="status">{message}</p>}
       </section>
-      <div className="account-observation-grid">
-        <CapacityPanel accountId={selected.account_id} onExpired={onExpired} />
-        <SessionPanel accountId={selected.account_id} displayMode="panel" heading="Running sessions" onExpired={onExpired} />
-      </div>
+      <section className="identity-panel account-identity-details" aria-labelledby="identity-title">
+        <div className="panel-heading"><div><p className="panel-code">IDENTITY</p><h2 id="identity-title">Account identity</h2></div><span className="state-chip state-unavailable">{selected.masked_identity.state.replaceAll("_", " ")}</span></div>
+        <dl className="telemetry-readouts">
+          <div><dt>Provider</dt><dd>{selected.provider_key}</dd></div>
+          <div><dt>Organization</dt><dd>{state.organizations.items.find((item) => item.organization_id === selected.organization_id)?.name ?? "Ungrouped"}</dd></div>
+          <div><dt>Identity</dt><dd>{selected.masked_identity.state === "withheld" ? "Withheld from dashboard" : selected.masked_identity.masked_value ?? selected.masked_identity.reason_code.replaceAll("_", " ")}</dd></div>
+          <div><dt>Registry updated</dt><dd>{new Date(selected.updated_at).toLocaleString()}</dd></div>
+        </dl>
+        {selected.masked_identity.state === "withheld" && <p>Account names and organization assignments are administrator managed.</p>}
+      </section>
+      </details>
     </div>
   );
 

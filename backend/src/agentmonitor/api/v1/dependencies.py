@@ -44,6 +44,7 @@ from agentmonitor.modules.identity_access.application.sessions import (
 )
 from agentmonitor.modules.provider_system.application.queries import (
     GetProviderCapabilitiesV1,
+    GetVerifiedQuotaIdentityV1,
 )
 from agentmonitor.modules.registry.application.accounts import (
     EditAccountV1,
@@ -66,6 +67,7 @@ from agentmonitor.modules.runtime_observation.application.queries import (
     GetSessionTreeV1,
     ListAgentProcessesV1,
     ListAgentSessionsV1,
+    ListLiveProcessLocationsV1,
 )
 from fastapi import Request
 
@@ -114,6 +116,8 @@ class ObservationApiPortsV1:
     list_sessions: ListAgentSessionsV1
     get_session: GetAgentSessionV1
     get_session_tree: GetSessionTreeV1
+    get_verified_quota_identity: GetVerifiedQuotaIdentityV1 | None = None
+    list_live_process_locations: ListLiveProcessLocationsV1 | None = None
 
 
 @dataclass(frozen=True, slots=True)

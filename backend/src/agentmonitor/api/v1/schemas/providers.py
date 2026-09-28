@@ -1,5 +1,6 @@
 """Safe wire models for the accepted M03 capability manifest."""
 
+from datetime import datetime
 from typing import Literal
 
 from agentmonitor.api.v1.schemas.registry import AvailabilityV1
@@ -8,6 +9,19 @@ from pydantic import BaseModel, ConfigDict
 
 class _ClosedV1(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True)
+
+
+class ObservedAccountIdentityViewV1(_ClosedV1):
+    account_id: str
+    state: Literal["verified", "unresolved"]
+    email: str | None
+    provider_organization: str | None
+    collection_run_id: str | None
+    verified_at: datetime | None
+    provider_version: str | None
+    source_id: Literal["claude.auth.status.v1"]
+    scope: Literal["default_profile_quota"]
+    running_agent_correlation: Literal["unresolved"]
 
 
 class CapabilitySourceViewV1(_ClosedV1):

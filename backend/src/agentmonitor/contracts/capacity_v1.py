@@ -279,6 +279,18 @@ class QuotaWindowViewV1(TechnicalValueV1):
 
 
 @dataclass(frozen=True, slots=True)
+class QuotaAllowanceV1:
+    """M05 display derivation with the original observation left intact."""
+
+    CONTRACT_ID: ClassVar[str] = "CTR-CAP-001"
+    OWNER: ClassVar[str] = "PLAN-M05"
+
+    remaining_percentage: ExactMetricFieldV1
+    calculation: Literal["remaining_ratio_times_100", "100_minus_used_percent"]
+    input_observation_id: OpaqueIdV1
+
+
+@dataclass(frozen=True, slots=True)
 class CapacityHealthPolicyV1(TechnicalValueV1):
     CONTRACT_ID: ClassVar[str] = "CTR-CAP-003"
     OWNER: ClassVar[str] = "PLAN-M05"

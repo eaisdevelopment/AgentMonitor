@@ -11,6 +11,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 from agentmonitor.contracts.runtime_observation_v1 import (
+    LiveProcessLocationV1,
     PlatformInspectionOutcomeV1,
     PlatformInspectionRequestV1,
     PlatformInspectionStateV1,
@@ -550,6 +551,59 @@ class InspectLinuxProcessesV1:
             ),
             None,
         )
+
+    def locations(
+        self, request: PlatformInspectionRequestV1
+    ) -> tuple[PlatformInspectionOutcomeV1, tuple[LiveProcessLocationV1, ...]]:
+        """Read cwd only after exact executable discovery, with PID reuse guards."""
+        outcome = self(request)
+        selector = self._approved_selector(request)
+        if selector is None or outcome.state not in {"success", "partial"}:
+            return outcome, ()
+        locations = []
+        for snapshot in outcome.processes:
+            if datetime.now(UTC) >= request.deadline_at:
+                break
+            entry = self._proc_root / str(snapshot.identity.pid)
+            try:
+                before = _parse_stat(_read_bounded(entry / "stat", _MAX_STAT_BYTES))
+                if (
+                    before[6] != snapshot.identity.start_time_ticks
+                    or before[1] in {"Z", "X", "x"}
+                    or not _same_owner(os.getuid(), entry.stat().st_uid)
+                    or _executable_file_identity(entry / "exe")
+                    != selector._file_identity
+                ):
+                    continue
+                cwd: str | None
+                try:
+                    cwd = os.readlink(entry / "cwd")
+                    if (
+                        not cwd.startswith("/")
+                        or not 1 <= len(cwd) <= 4096
+                        or not cwd.isprintable()
+                        or cwd.endswith(" (deleted)")
+                    ):
+                        cwd = None
+                except OSError:
+                    cwd = None
+                after = _parse_stat(_read_bounded(entry / "stat", _MAX_STAT_BYTES))
+                if (
+                    (before[0], before[6]) != (after[0], after[6])
+                    or not _same_owner(os.getuid(), entry.stat().st_uid)
+                    or _executable_file_identity(entry / "exe")
+                    != selector._file_identity
+                    or not selector.is_current()
+                ):
+                    continue
+                locations.append(
+                    LiveProcessLocationV1(
+                        snapshot.identity, selector.provider_key, cwd, datetime.now(UTC)
+                    )
+                )
+            except (OSError, ValueError):
+                continue
+        return outcome, tuple(locations)
 
     @staticmethod
     def _failure(

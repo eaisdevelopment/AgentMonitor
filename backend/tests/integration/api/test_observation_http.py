@@ -18,6 +18,18 @@ from backend.tests.integration.api.test_iam_http import (
 )
 
 OPERATION_MATRIX = {
+    ("/api/v1/accounts/{account_id}/observed-identity", "get"): (
+        "provider_get_observed_account_identity_v1",
+        "read:accounts",
+        "GetVerifiedQuotaIdentityV1",
+        "ObservedAccountIdentityViewV1",
+    ),
+    ("/api/v1/process-locations", "get"): (
+        "runtime_list_process_locations_v1",
+        "read:telemetry",
+        "ListLiveProcessLocationsV1",
+        "LiveProcessLocationPageV1",
+    ),
     ("/api/v1/accounts", "get"): (
         "registry_list_accounts_v1",
         "read:accounts",

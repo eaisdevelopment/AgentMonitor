@@ -577,7 +577,7 @@ id = "CTR-PROV-005"
 name = "DiscoveryOutcomeV1"
 version = "1.0.0"
 producer = "PLAN-M03"
-consumers = ["PLAN-A01", "PLAN-A02", "PLAN-A03", "PLAN-M02", "PLAN-M08"]
+consumers = ["PLAN-A01", "PLAN-A02", "PLAN-A03", "PLAN-FND", "PLAN-M02", "PLAN-M08", "PLAN-P01"]
 maturity = "evidence_blocked"
 decision_reference = "CAA-2026-09-18-01 sections 5.5 and 8"
 checklist = { field_state_null = true, units_time = true, auth = true, side_effects = true, idempotency = true, events = true, retention = true, errors = true, compatibility = true }

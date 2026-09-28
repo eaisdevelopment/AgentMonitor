@@ -22,6 +22,8 @@ from agentmonitor.api.v1.schemas.runtime import (
     AgentSessionViewV1,
     FallbackAttemptWireV1,
     FieldAvailabilityWireV1,
+    LiveProcessLocationPageV1,
+    LiveProcessLocationViewV1,
     ObservationProvenanceWireV1,
     ProcessCodeFieldWireV1,
     ProcessIdentityWireV1,
@@ -48,6 +50,41 @@ from agentmonitor.modules.runtime_observation.application.queries import (
 from fastapi import APIRouter, Query, Request
 
 router = APIRouter(tags=["runtime"])
+
+
+@router.get(
+    "/process-locations",
+    operation_id="runtime_list_process_locations_v1",
+    response_model=LiveProcessLocationPageV1,
+    responses=ERROR_RESPONSES,
+    openapi_extra=policy("read:telemetry", "ListLiveProcessLocationsV1"),
+)
+def list_process_locations(request: Request) -> LiveProcessLocationPageV1:
+    authorize_request(request, "read:telemetry")
+    reject_unknown_query(request, frozenset())
+    query = observation_ports(request).list_live_process_locations
+    if query is None:
+        raise ProblemError(503, "observation_data_unavailable")
+    result = query()
+    return LiveProcessLocationPageV1(
+        items=tuple(
+            LiveProcessLocationViewV1(
+                pid=item.identity.pid,
+                start_time_ticks=item.identity.start_time_ticks,
+                platform_scope_id=item.identity.platform_scope_id,
+                provider_key=item.provider_key,
+                state="running",
+                account_correlation="unresolved",
+                working_directory=item.working_directory,
+                observed_at=item.observed_at,
+            )
+            for item in result.items
+        ),
+        availability=availability(result.availability),
+        provider_version=result.provider_version,
+        source_id="linux.proc.cwd.v1",
+        truncated=result.truncated,
+    )
 
 
 def _provenance(item: ObservationProvenanceV1) -> ObservationProvenanceWireV1:

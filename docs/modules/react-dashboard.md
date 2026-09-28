@@ -128,3 +128,30 @@ observations with a message if a refresh fails. This timer does not contact a
 provider; Claude collection runs independently in the service at the admitted
 five-minute minimum. The built `accounts_admin` scenario verifies a subsequent
 real API response. See [polling evidence](../evidence/claude-dashboard-polling.md).
+
+## Account workspace and observed identity
+
+The account page now leads with Account / State / Left / Path. Its email comes
+from an authenticated V1 read of identity observed consistently around the
+same quota collection; the UI checks account and run IDs before displaying it.
+An administrator's registry name and dashboard organization remain separate
+from the provider-reported identity/organization. A restart leaves identity
+unresolved until the next genuine quota reading; it never backfills older data.
+
+M05 supplies a derived percentage and calculation/input lineage without
+rewriting source metrics or history. The UI formats that value and labels its
+calculation and rounding. Individual quota windows remain separate when no
+single constraining window is published. Administration, exact metrics,
+history, and session inspection are expandable.
+
+A live workstation table shows actual Claude process PIDs and working
+directories through the additive V1 process-location read. Running means
+process presence. Per-process account ownership and Working/waiting status
+remain unresolved, so these rows receive no guessed account quota. Detection
+is limited to same-user processes matching the admitted executable version;
+partial and unavailable scans are visible. Refresh is every 30 seconds.
+
+The canonical real-owner browser gate is
+`backend/.venv/bin/python tools/ui/verify_account_workspace.py --origin` with
+the explicit loopback origin and `--screenshots` private artifact directory.
+See [workspace evidence and limitations](../evidence/account-workspace-redesign.md).
