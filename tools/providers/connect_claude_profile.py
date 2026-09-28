@@ -1,12 +1,13 @@
 """Owner-operated official Claude sign-in for one registered managed account.
 
-This command authenticates only. Pending registry enrollment and quota polling
-remain explicit next stages; no credentials or provider output are inspected.
+Official authentication, optional owner-terminal setup, and explicit enrollment
+use an isolated profile. No credentials or provider output are inspected.
 """
 
 import argparse
 import hashlib
 import re
+import subprocess
 import sys
 from pathlib import Path
 
@@ -31,6 +32,9 @@ from agentmonitor.adapters.providers.claude.authentication.reauthentication impo
 from agentmonitor.adapters.providers.claude.installation import (  # noqa: E402
     discover_default_installation,
 )
+from agentmonitor.composition.claude_managed_connection import (  # noqa: E402
+    enroll_verified_managed_claude_v1,
+)
 from agentmonitor.contracts.common_v1 import OpaqueIdV1  # noqa: E402
 from agentmonitor.modules.registry.application.accounts import (  # noqa: E402
     GetAccountV1,
@@ -43,7 +47,12 @@ def main() -> int:
     parser.add_argument("--account-id", required=True)
     parser.add_argument("--expected-email")
     parser.add_argument("--browser-opener", type=Path)
+    parser.add_argument("--enroll", action="store_true")
+    parser.add_argument("--setup", action="store_true")
     options = parser.parse_args()
+    if options.setup and not (sys.stdin.isatty() and sys.stdout.isatty()):
+        print("CLAUDE CONNECTION: BLOCKED — owner terminal required for setup")
+        return 3
     attempt: ClaudeManagedLoginAttemptV1 | None = None
     try:
         data_root = options.data_root.absolute()
@@ -54,7 +63,8 @@ def main() -> int:
         if (
             account is None
             or account.provider_key != "claude"
-            or account.lifecycle != "pending"
+            or account.lifecycle
+            not in ({"pending", "active"} if options.enroll else {"pending"})
         ):
             print(
                 "CLAUDE CONNECTION: BLOCKED — "
@@ -99,6 +109,40 @@ def main() -> int:
                 flush=True,
             )
             existing = attempt.wait_for_identity()
+        if options.setup:
+            if (
+                existing is None
+                or existing.email.casefold() != expected_email.casefold()
+            ):
+                print(
+                    "CLAUDE CONNECTION: BLOCKED — "
+                    "expected managed identity not verified"
+                )
+                return 3
+            environment = claude_identity_environment_v1(managed_root)
+            environment.update(
+                {"TERM": "xterm-256color", "CLAUDE_CODE_SKIP_PROMPT_HISTORY": "1"}
+            )
+            subprocess.run(
+                [
+                    str(installation.executable_for_adapter),
+                    "--ax-screen-reader",
+                    "--safe-mode",
+                    "--restricted",
+                    "--setting-sources",
+                    "user",
+                    "--strict-mcp-config",
+                    "--no-chrome",
+                    "--permission-mode",
+                    "dontAsk",
+                ],
+                cwd=managed_root,
+                env=environment,
+                check=False,
+            )
+            existing = read_default_profile_identity_v1(
+                installation, managed_profile_root=managed_root
+            )
         protected_after = read_default_profile_identity_v1(installation)
         if (
             protected_after is None
@@ -112,6 +156,19 @@ def main() -> int:
         if existing is None or existing.email.casefold() != expected_email.casefold():
             print("CLAUDE CONNECTION: BLOCKED — expected managed identity not verified")
             return 3
+        if options.enroll:
+            enroll_verified_managed_claude_v1(
+                reference,
+                data_root=data_root,
+                account_id=account_id,
+                installation=installation,
+                expected_identity=existing,
+            )
+            print(
+                "CLAUDE CONNECTION: MONITORING ENABLED — "
+                "profile bound; awaiting scheduled quota"
+            )
+            return 0
         print(
             "CLAUDE CONNECTION: AUTHENTICATION VERIFIED — "
             "registry binding and collection still required"

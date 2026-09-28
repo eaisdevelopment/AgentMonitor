@@ -107,6 +107,10 @@ class AutomationRoutineTests(unittest.TestCase):
                 REPOSITORY_ROOT / "tools/automation/implementations/auto_claude_poll.py",
                 checkout / "tools/automation/implementations/auto_claude_poll.py",
             )
+            copy2(
+                REPOSITORY_ROOT / "tools/automation/implementations/auto_claude_managed.py",
+                checkout / "tools/automation/implementations/auto_claude_managed.py",
+            )
             result = subprocess.run(
                 [
                     sys.executable,
@@ -806,6 +810,7 @@ class AutomationRoutineTests(unittest.TestCase):
                 "AUTO-M3-LIVE",
                 "AUTO-M3-EXIT",
                 "AUTO-CLAUDE-POLL",
+                "AUTO-CLAUDE-MANAGED",
                 "AUTO-M3-TEST",
                 "AUTO-MUTATION",
                 "AUTO-TEST",

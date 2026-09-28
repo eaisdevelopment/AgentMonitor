@@ -44,6 +44,7 @@ class VerifiedQuotaIdentityV1:
     account_id: OpaqueIdV1
     collection_run_id: OpaqueIdV1
     identity: ObservedProfileIdentityV1
+    profile_protection: Literal["protected_default", "managed"] = "protected_default"
 
 
 CapabilityDecisionStateV1 = Literal[

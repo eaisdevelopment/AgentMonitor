@@ -55,7 +55,7 @@ This index is the entry point for product, architecture, engineering, and operat
 - [M4 ST-FLEET-001 interim evidence](evidence/m4-st-fleet-001-interim.md): account and organization admin flows, one read-only Claude health observation, and remaining live blockers.
 - [Claude dashboard polling delivery](evidence/claude-dashboard-polling.md): real service-owned five-minute collection, current quota refresh, preserved registry metadata, and restart cadence for one enrolled profile.
 - [Account workspace redesign](evidence/account-workspace-redesign.md): automatic quota identity, calculated remaining allowance, real Claude process paths, and explicit unresolved process ownership.
-- [Managed Claude connection progress](evidence/claude-managed-account-connection.md): additional SDK admin records, isolated identity checks, and owner-controlled official sign-in; enrollment and per-profile collection remain pending.
+- [Managed Claude connection progress](evidence/claude-managed-account-connection.md): one additional SDK account verified through isolated sign-in, enrollment, per-profile collection, and the real dashboard; the other selected accounts remain pending.
 - [M2 Argon2 admission](dependencies/m2-argon2-admission.md): approved exact Linux dependency graph, work profile, and platform limitations.
 - [Configuration standard](engineering/configuration-standard.md): ownership, naming, precedence, secret classes, and compatibility.
 - [Documentation standard](engineering/documentation-standard.md): required documentation and traceability.

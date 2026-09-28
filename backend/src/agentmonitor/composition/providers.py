@@ -3,6 +3,7 @@
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import datetime
+from pathlib import Path
 
 from agentmonitor.adapters.persistence._shared.sqlite.core.policy import DatabaseRefV1
 from agentmonitor.adapters.persistence.capacity.sqlite.repository import (
@@ -144,6 +145,9 @@ class ClaudeQuotaCollectionRouteV1:
 def compose_claude_quota_collection(
     reference: DatabaseRefV1,
     installation: ClaudeInstallationV1,
+    *,
+    managed_profile_root: Path | None = None,
+    expected_identity_fingerprint: str | None = None,
 ) -> ClaudeQuotaCollectionRouteV1:
     """Wire the real Claude adapter to one digest-validating M05 sink."""
     collection_repository = SqliteCollectionRepositoryV1(reference)
@@ -159,7 +163,11 @@ def compose_claude_quota_collection(
         map_claude_quota_to_capacity
     )
     return ClaudeQuotaCollectionRouteV1(
-        adapter=ClaudeAdapterV1(installation),
+        adapter=ClaudeAdapterV1(
+            installation,
+            managed_profile_root=managed_profile_root,
+            expected_identity_fingerprint=expected_identity_fingerprint,
+        ),
         request_manual=RequestManualCollectionV1(collection_repository),
         run_one=RunOneCollectionV1(executor),
         capacity_commit=capacity_commit,

@@ -516,6 +516,7 @@ class ConfirmProviderIdentityFingerprintCommandV1(TechnicalValueV1):
     evidence_reference: OpaqueIdV1
     expected_evidence_digest: str
     requested_at: datetime
+    activate_pending_account: bool = False
 
     def __post_init__(self) -> None:
         TechnicalValueV1.__post_init__(self)
@@ -528,7 +529,8 @@ class ConfirmProviderIdentityFingerprintCommandV1(TechnicalValueV1):
             self.parser_version,
         )
         if (
-            any(
+            type(self.activate_pending_account) is not bool
+            or any(
                 not _bounded(value, maximum=64)
                 or not value.isascii()
                 or any(

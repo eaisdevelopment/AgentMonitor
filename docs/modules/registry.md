@@ -234,6 +234,21 @@ hardening remain later M02 increments and are not claimed by `ST-REG-001`.
 
 ## M4 ST-FLEET-001 interim registry increment
 
+### Verified managed Claude connection increment
+
+The owner-directed [connection change](../plans/integration/claude-managed-account-connection-change.md)
+adds explicit `activate_pending_account=False` to the internal V1 fingerprint
+confirmation command. The default keeps the existing active owner-confirmed
+precondition and historical request fingerprints. Explicit activation checks
+the current record version and exact evidence, rejects a conflicting identity,
+then atomically activates the existing account with its identity decision,
+receipt, revision, and safe outbox. Its ID, label, organization, and disabled
+monitoring preference remain intact. The operator separately enrolls a private
+managed subscription graph and enables that selected account after verification.
+No registry column, raw provider identity, credential, or public mutation route
+is added. The service consumes the published resolution port to validate each
+managed identity. See [real evidence](../evidence/claude-managed-account-connection.md).
+
 M02 now provides admin organization rename, reorder, archive, and restore, plus
 pending account registration, rename, group assignment, monitoring preference,
 archive, and restore through its versioned V1 ports. Writes use the existing

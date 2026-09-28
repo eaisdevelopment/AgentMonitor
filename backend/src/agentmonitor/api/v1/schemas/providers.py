@@ -22,6 +22,7 @@ class ObservedAccountIdentityViewV1(_ClosedV1):
     source_id: Literal["claude.auth.status.v1"]
     scope: Literal["default_profile_quota"]
     running_agent_correlation: Literal["unresolved"]
+    profile_protection: Literal["protected_default", "managed", "unknown"] = "unknown"
 
 
 class CapabilitySourceViewV1(_ClosedV1):

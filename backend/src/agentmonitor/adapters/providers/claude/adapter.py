@@ -1,7 +1,11 @@
 """Production Claude adapter for the exact accepted subscription quota lane."""
 
 from datetime import UTC, datetime, timedelta
+from pathlib import Path
 
+from agentmonitor.adapters.providers.claude.authentication.identity import (
+    read_default_profile_identity_v1,
+)
 from agentmonitor.adapters.providers.claude.installation import ClaudeInstallationV1
 from agentmonitor.adapters.providers.claude.manifest import (
     CLAUDE_ADAPTER_ID,
@@ -44,8 +48,16 @@ from agentmonitor.modules.provider_system.application.gateway import (
 class ClaudeAdapterV1:
     """Statically composed, no-fallback Claude subscription adapter."""
 
-    def __init__(self, installation: ClaudeInstallationV1) -> None:
+    def __init__(
+        self,
+        installation: ClaudeInstallationV1,
+        *,
+        managed_profile_root: Path | None = None,
+        expected_identity_fingerprint: str | None = None,
+    ) -> None:
         self._installation = installation
+        self._managed_profile_root = managed_profile_root
+        self._expected_identity_fingerprint = expected_identity_fingerprint
         self._manifest = build_claude_manifest()
         self._gateway = ResolveAndInvokeProviderCapabilityV1[ClaudeSubscriptionQuotaV1](
             approved_mapping_digest=M0_MAPPING_DIGEST
@@ -207,7 +219,9 @@ class ClaudeAdapterV1:
                 account_ref=OpaqueIdV1(account_ref),
                 profile_ref=OpaqueIdV1(profile_ref),
                 resource_ref=OpaqueIdV1(resource_ref),
-                profile_protection="protected_default",
+                profile_protection="managed"
+                if self._managed_profile_root is not None
+                else "protected_default",
             ),
             requested_at=requested_at,
             deadline_ms=30_000,
@@ -217,21 +231,51 @@ class ClaudeAdapterV1:
                 approved_fallbacks=(),
                 experimental_grant_ref=None,
             ),
-            access_grant_refs=(OpaqueIdV1("claude-default-profile-read-only"),),
+            access_grant_refs=(
+                OpaqueIdV1(
+                    "claude-managed-profile-read-only"
+                    if self._managed_profile_root is not None
+                    else "claude-default-profile-read-only"
+                ),
+            ),
         )
 
     def _collect_resolved(
         self, request: ProviderOperationRequestHeaderV1
     ) -> CollectionOutcomeV1[ClaudeSubscriptionQuotaV1]:
+        expected_protection = (
+            "managed" if self._managed_profile_root is not None else "protected_default"
+        )
+        if request.target.profile_protection != expected_protection:
+            return CollectionOutcomeV1.failure(
+                state="invalid_provider_data",
+                code="claude_profile_target_mismatch",
+                retry=RetryAdviceV1("never"),
+            )
         if request.target.account_ref is None or request.target.resource_ref is None:
             return CollectionOutcomeV1.failure(
                 state="invalid_provider_data",
                 code="claude_quota_target_incomplete",
                 retry=RetryAdviceV1("never"),
             )
+        identity_before = None
+        if self._managed_profile_root is not None:
+            identity_before = read_default_profile_identity_v1(
+                self._installation, managed_profile_root=self._managed_profile_root
+            )
+            if identity_before is None or (
+                self._expected_identity_fingerprint is not None
+                and identity_before.fingerprint != self._expected_identity_fingerprint
+            ):
+                return CollectionOutcomeV1.failure(
+                    state="blocked_user_action_required",
+                    code="claude_managed_identity_mismatch",
+                    retry=RetryAdviceV1("after_user_action"),
+                )
         result = collect_usage_once(
             self._installation.executable_for_adapter,
             deadline_ms=request.deadline_ms,
+            managed_profile_root=self._managed_profile_root,
         )
         if isinstance(result, ClaudeUsageSourceFailure):
             retry = {
@@ -247,6 +291,20 @@ class ClaudeAdapterV1:
                 code=result.code,
                 retry=RetryAdviceV1(retry),  # type: ignore[arg-type]
             )
+        if self._managed_profile_root is not None:
+            identity_after = read_default_profile_identity_v1(
+                self._installation, managed_profile_root=self._managed_profile_root
+            )
+            if (
+                identity_before is None
+                or identity_after is None
+                or identity_before.fingerprint != identity_after.fingerprint
+            ):
+                return CollectionOutcomeV1.failure(
+                    state="blocked_user_action_required",
+                    code="claude_managed_identity_changed",
+                    retry=RetryAdviceV1("after_user_action"),
+                )
         value = map_subscription_quota(
             result,
             account_ref=request.target.account_ref,

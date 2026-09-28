@@ -674,7 +674,13 @@ class SqliteCollectionRepositoryV1:
             raise CollectionRepositoryErrorV1() from None
 
     def get_latest_source_run(
-        self, provider_key: str, capability_id: str, source_id: str, as_of: datetime
+        self,
+        provider_key: str,
+        capability_id: str,
+        source_id: str,
+        as_of: datetime,
+        *,
+        account_id: OpaqueIdV1 | None = None,
     ) -> CollectionRunViewV1 | None:
         if as_of.utcoffset() != timedelta(0):
             raise CollectionRepositoryErrorV1("collection_query_invalid")
@@ -687,8 +693,16 @@ class SqliteCollectionRepositoryV1:
                         connection.exec_driver_sql(
                             "SELECT * FROM collection_run WHERE provider_key=? "
                             "AND capability_id=? AND source_id=? AND requested_at<=? "
+                            "AND (? IS NULL OR account_id=?) "
                             "ORDER BY requested_at DESC, run_id LIMIT 1",
-                            (provider_key, capability_id, source_id, _utc_text(as_of)),
+                            (
+                                provider_key,
+                                capability_id,
+                                source_id,
+                                _utc_text(as_of),
+                                account_id.value if account_id else None,
+                                account_id.value if account_id else None,
+                            ),
                         )
                         .mappings()
                         .one_or_none()

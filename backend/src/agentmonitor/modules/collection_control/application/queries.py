@@ -17,7 +17,11 @@ from agentmonitor.modules.collection_control.domain.polling import poll_is_due
 
 
 def source_poll_is_due_v1(
-    now: datetime, latest: CollectionRunViewV1 | None, minimum_interval_ms: int
+    now: datetime,
+    latest: CollectionRunViewV1 | None,
+    minimum_interval_ms: int,
+    *,
+    transient_read_failure: bool = False,
 ) -> bool:
     """Apply M04 cadence and retry policy to the latest durable source run."""
     interval = effective_interval_seconds(
@@ -30,6 +34,7 @@ def source_poll_is_due_v1(
         (latest.completed_at or latest.requested_at) if latest else None,
         latest.state if latest else None,
         interval,
+        transient_read_failure=transient_read_failure,
     )
 
 
@@ -39,7 +44,13 @@ class CollectionQueryUnavailableV1(RuntimeError):
 
 class CollectionRunQueryRepositoryV1(Protocol):
     def get_latest_source_run(
-        self, provider_key: str, capability_id: str, source_id: str, as_of: datetime
+        self,
+        provider_key: str,
+        capability_id: str,
+        source_id: str,
+        as_of: datetime,
+        *,
+        account_id: OpaqueIdV1 | None = None,
     ) -> CollectionRunViewV1 | None: ...
 
     def list_runs(
@@ -97,8 +108,14 @@ class GetLatestSourceRunV1:
         self._repository = repository
 
     def __call__(
-        self, provider_key: str, capability_id: str, source_id: str, as_of: datetime
+        self,
+        provider_key: str,
+        capability_id: str,
+        source_id: str,
+        as_of: datetime,
+        *,
+        account_id: OpaqueIdV1 | None = None,
     ) -> CollectionRunViewV1 | None:
         return self._repository.get_latest_source_run(
-            provider_key, capability_id, source_id, as_of
+            provider_key, capability_id, source_id, as_of, account_id=account_id
         )

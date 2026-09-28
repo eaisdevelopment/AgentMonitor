@@ -2433,6 +2433,16 @@
             ],
             "title": "Email"
           },
+          "profile_protection": {
+            "default": "unknown",
+            "enum": [
+              "protected_default",
+              "managed",
+              "unknown"
+            ],
+            "title": "Profile Protection",
+            "type": "string"
+          },
           "provider_organization": {
             "anyOf": [
               {
@@ -12532,7 +12542,7 @@
     "generator_sha256": "f22478343be7964d741a4ea1ce72c8102208d18b09b6e16f9a1747aa24e9acb7",
     "generator_version": "2.0.4",
     "openapi_version": "3.1.0",
-    "schema_sha256": "42e01b7986ef590ac45ef07342249b02c1b6f36df1dbe68e98e3505ce3953d0d",
-    "source_sha256": "6645f74e46e38f4af58f5a5b4ca01901a6015f606d20b727a5feebb7e16f10a7"
+    "schema_sha256": "b9f25ca005ea787f4b808a9390498b7123f044b093d3dfd21add6922503e3195",
+    "source_sha256": "7ce48eed0526afdb2b7286206a6550394fbded7e201e9e73f874f0ec8c1f5107"
   }
 }

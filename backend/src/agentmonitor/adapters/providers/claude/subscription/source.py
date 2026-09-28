@@ -20,6 +20,9 @@ from typing import Literal
 from agentmonitor.adapters.providers.claude.authentication.classification import (
     classify_auth_failure,
 )
+from agentmonitor.adapters.providers.claude.authentication.identity import (
+    claude_identity_environment_v1,
+)
 from agentmonitor.adapters.providers.claude.subscription.mapper import (
     SanitizedClaudeUsageSnapshot,
     SanitizedClaudeUsageWindow,
@@ -70,6 +73,15 @@ class ClaudeUsageSourceFailure:
 
 class _IncompleteRender(ValueError):
     pass
+
+
+def is_transient_claude_usage_failure_v1(code: str | None) -> bool:
+    """A timed-out read permits a later fresh observation, never run replay.
+
+    Authentication, onboarding, trust, permission, version, and invalid data
+    remain blocked. No provider retry advice or historical outcome is changed.
+    """
+    return code is not None and code.startswith("usage_deadline_")
 
 
 def _plain_lines(raw: bytes) -> tuple[str, ...]:
@@ -211,13 +223,27 @@ def _safe_deadline_code(raw: bytes) -> str:
 
 
 def collect_usage_once(
-    executable: Path, *, deadline_ms: int
+    executable: Path, *, deadline_ms: int, managed_profile_root: Path | None = None
 ) -> SanitizedClaudeUsageSnapshot | ClaudeUsageSourceFailure:
     """Invoke Claude exactly once, issue `/usage`, and return allowlisted fields."""
     if not 1 <= deadline_ms <= 30_000:
         return ClaudeUsageSourceFailure(
             "invalid_provider_data", "usage_deadline_invalid"
         )
+    environment = {
+        "LANG": "C.UTF-8",
+        "LC_ALL": "C.UTF-8",
+        "TERM": "xterm-256color",
+        "NO_COLOR": "1",
+        "CLAUDE_CODE_DISABLE_TERMINAL_TITLE": "1",
+        "CLAUDE_CODE_SKIP_PROMPT_HISTORY": "1",
+        "DISABLE_AUTOUPDATER": "1",
+        "DISABLE_UPDATES": "1",
+        "DISABLE_ERROR_REPORTING": "1",
+        "DISABLE_TELEMETRY": "1",
+    }
+    if managed_profile_root is not None:
+        environment.update(claude_identity_environment_v1(managed_profile_root))
     master_fd, slave_fd = pty.openpty()
     # Ink does not render reliably on a zero-sized pseudo-terminal.
     fcntl.ioctl(slave_fd, termios.TIOCSWINSZ, struct.pack("HHHH", 40, 160, 0, 0))
@@ -245,18 +271,8 @@ def collect_usage_once(
             stderr=slave_fd,
             close_fds=True,
             start_new_session=True,
-            env={
-                "LANG": "C.UTF-8",
-                "LC_ALL": "C.UTF-8",
-                "TERM": "xterm-256color",
-                "NO_COLOR": "1",
-                "CLAUDE_CODE_DISABLE_TERMINAL_TITLE": "1",
-                "CLAUDE_CODE_SKIP_PROMPT_HISTORY": "1",
-                "DISABLE_AUTOUPDATER": "1",
-                "DISABLE_UPDATES": "1",
-                "DISABLE_ERROR_REPORTING": "1",
-                "DISABLE_TELEMETRY": "1",
-            },
+            env=environment,
+            cwd=managed_profile_root,
         )
         os.close(slave_fd)
         slave_fd = -1

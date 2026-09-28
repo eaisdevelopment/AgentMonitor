@@ -63,6 +63,7 @@ def get_observed_identity(
         source_id="claude.auth.status.v1",
         scope="default_profile_quota",
         running_agent_correlation="unresolved",
+        profile_protection=receipt.profile_protection if receipt else "unknown",
     )
 
 

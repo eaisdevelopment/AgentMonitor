@@ -11,6 +11,17 @@ Database revision: `v1_0300`
 
 ## Persistence boundary
 
+The bounded [managed Claude connection](../plans/integration/claude-managed-account-connection-change.md)
+extends `CTR-PROV-005` V1 quota identity receipts with optional
+`profile_protection` (existing callers retain `protected_default`). The API
+publishes it as `unknown` until a current service collection is attested.
+Managed identity is verified around the provider read before quota is
+committed, and against the registry before display. The legacy wire `scope`
+remains for compatibility; consumers use `profile_protection` for actual
+profile selection. This operator increment does not enable the generic
+dashboard reauthentication workflow. See
+[real connection evidence](../evidence/claude-managed-account-connection.md).
+
 M03 owns only `provider_system_compatibility_assessment` and
 `provider_system_event_outbox`. The SQLite repository accepts the public
 `CompatibilityAssessmentInputV1` and returns immutable safe compatibility

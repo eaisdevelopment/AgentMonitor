@@ -142,7 +142,7 @@ export function AccountPage({
       <header className="account-page-heading" aria-labelledby={titleId}>
         <div>
           <nav className="account-breadcrumb" aria-label="Account breadcrumb"><a href="/accounts">Accounts</a><span aria-hidden="true">/</span><span>{state.organizations.items.find((item) => item.organization_id === selected.organization_id)?.name ?? "Ungrouped"}</span></nav>
-          <h1 id={titleId} tabIndex={-1}>{observedEmail ?? (selected.lifecycle === "pending" ? selected.friendly_name : `Connected ${selected.provider_key === "claude" ? "Claude" : selected.provider_key} profile`)}</h1>
+          <h1 id={titleId} tabIndex={-1}>{observedEmail ?? selected.friendly_name}</h1>
           <p className="account-subtitle"><span className="provider-name">{selected.provider_key}</span><span aria-hidden="true">·</span><span>{selected.is_effective_monitoring_enabled ? "Quota monitoring is on" : "Quota monitoring is off"}</span></p>
         </div>
         <button className="quiet-button" type="button" onClick={() => {

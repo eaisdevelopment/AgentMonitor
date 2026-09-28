@@ -141,6 +141,14 @@ implementation_command = ["python3", "tools/automation/implementations/auto_clau
 blockers = ["requires explicit owner test data root and stopped service before start; proves one profile only, not six-account enrollment or provider email identity"]
 
 [[routines]]
+id = "AUTO-CLAUDE-MANAGED"
+owner = "PLAN-M02"
+status = "operational_limited"
+scope = "one selected real managed Claude account: isolated identity, explicit registry enrollment, current quota, separate account cadence, and authenticated shared-browser V1 lineage"
+implementation_command = ["python3", "tools/automation/implementations/auto_claude_managed.py"]
+blockers = ["requires explicit real owner data root, managed account ID, authenticated dashboard CDP endpoint/origin, official first-run setup, and service-collected quota; excludes full M4 acceptance"]
+
+[[routines]]
 id = "AUTO-BUILD"
 owner = "PLAN-FND"
 status = "operational"

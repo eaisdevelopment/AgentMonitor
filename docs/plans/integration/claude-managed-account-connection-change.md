@@ -28,7 +28,8 @@ the provider-reported email before any monitoring association is enrolled.
    `tools/providers/connect_claude_profile.py`. It selects a real registered
    account through M02, derives an opaque private directory under the selected
    AgentMonitor data root, and uses Claude's official `auth login --claudeai`.
-4. Owner completes the official browser flow; the tool checks exact identity.
+4. Owner completes the official browser flow and native first-run setup; the
+   tool checks exact identity. No AgentMonitor code edits provider settings.
 5. Continue M02 profile enrollment, per-profile collection, and generated V1
    dashboard connection controls as subsequent increments. Authentication alone
    does not activate a pending account or claim that its quota is monitored.
@@ -80,6 +81,49 @@ and opaque registry account ID. It must return a non-success result for failed,
 expired, unavailable, or mismatched authentication.
 
 ## Security, privacy, operations, documentation, and rollback
+
+### Verified enrollment and multiple-profile increment
+
+The owner's successful official sign-in authorizes the next already-planned
+connection increment. M02 remains the primary owner. `CTR-REG-006` V1 gains
+an optional `activate_pending_account=False` on its internal owner identity
+command: explicit activation preserves the account ID, label, group, disabled
+monitoring preference, optimistic version check, identity conflict rejection,
+transaction, receipt, and atomic outbox. Existing callers retain their current
+active-account precondition. No REST or database shape changes.
+
+A01's internal quota reader and composed adapter gain an optional validated
+managed root; default callers retain their exact protected-default selection.
+M04's internal latest-source query gains an optional account filter so one
+account's run cannot postpone another account. The service polls eligible
+default and managed profiles separately and verifies managed identity against
+M02 both before and after collection. A01 also checks identity around its native
+quota read before any quota can be committed to M05. A private root is derived from the opaque
+registry account ID beneath the selected service data root, never from an email.
+`CTR-PROV-005` V1 and the observed-identity V1 response gain an optional
+`profile_protection`, preserving existing constructors and API shape. The old
+`scope=default_profile_quota` remains a legacy compatibility marker; new clients
+must use `profile_protection` to distinguish default, managed, and unavailable
+provenance. Generate OpenAPI/client normally; no enum or existing field changes.
+The operator command's explicit `--enroll` performs enrollment and enables the selected account only
+after a fresh exact identity match and unchanged protected-default identity.
+
+A real service timeout exposed a permanent-stop policy. A01 may classify only
+`usage_deadline_*` as a transient read failure; M04's optional default-false
+flag admits a distinct future scheduled observation after the full five-minute
+interval. The failed run and provider retry advice remain unchanged. Auth,
+onboarding, trust, permission, version, and unknown failures remain blocked.
+Managed dispatch reserves identity/cleanup time within the 30-second drain.
+
+Real native CLI, SQLite, and service/browser evidence must cover managed quota,
+explicit pending activation, unchanged default semantics, stale/conflicting
+identity rejection, separate collection cadence, and per-account run lineage.
+Add a canonical fail-closed managed-connection gate; missing authentication or
+unexecuted collection is a non-success result. No dependency, credential copy,
+direct provider settings edit, running-agent action, or schema migration is
+approved or required. Native first-run setup belongs to the approved official
+connection flow. Remaining dashboard login controls and full M4 acceptance retain
+their separate incomplete status until their own real evidence exists.
 
 Roots must be private, owned directories without symlink escapes. Only the
 official provider CLI writes credentials. Login stdout/stderr are discarded;

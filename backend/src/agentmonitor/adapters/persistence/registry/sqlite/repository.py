@@ -1959,6 +1959,11 @@ class SqliteRegistryRepositoryV1:
                 "subject_fingerprint": command.subject_fingerprint,
                 "evidence_reference": command.evidence_reference.value,
                 "expected_evidence_digest": command.expected_evidence_digest,
+                **(
+                    {"activate_pending_account": True}
+                    if command.activate_pending_account
+                    else {}
+                ),
             }
         )
         instant = _utc_text(command.requested_at)
@@ -2010,10 +2015,17 @@ class SqliteRegistryRepositoryV1:
                         raise RegistryCommandConflictV1(
                             "registry_account_version_conflict"
                         )
-                    if (
-                        account["provider_key"] != command.provider_key
-                        or account["lifecycle"] != "active"
-                        or account["identity_state"] != "owner_confirmed"
+                    activate_pending = (
+                        command.activate_pending_account
+                        and account["lifecycle"] == "pending"
+                        and account["identity_state"] == "unresolved"
+                    )
+                    if account["provider_key"] != command.provider_key or (
+                        not activate_pending
+                        and (
+                            account["lifecycle"] != "active"
+                            or account["identity_state"] != "owner_confirmed"
+                        )
                     ):
                         connection.rollback()
                         raise RegistryCommandConflictV1("registry_identity_conflict")
@@ -2174,6 +2186,25 @@ class SqliteRegistryRepositoryV1:
                     claim_id = _identifier()
                     decision_id = _identifier()
                     revision = _next_revision(connection, instant)
+                    if activate_pending:
+                        connection.exec_driver_sql(
+                            "UPDATE reg_account SET lifecycle='active', "
+                            "identity_state='owner_confirmed', updated_at=?, "
+                            "record_version=record_version+1 WHERE account_id=?",
+                            (instant, command.account_id.value),
+                        )
+                        _append_outbox(
+                            connection,
+                            subject_type="account",
+                            subject_id=command.account_id.value,
+                            aggregate_version=command.expected_account_record_version
+                            + 1,
+                            revision=revision,
+                            change_kind="owner_confirmed",
+                            correlation_id=command.idempotency_key.value,
+                            causation_id=command.evidence_reference.value,
+                            instant=instant,
+                        )
                     _invalidate_other_provider_identity_claims(
                         connection,
                         provider_key=command.provider_key,

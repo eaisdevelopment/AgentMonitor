@@ -264,7 +264,9 @@ def create_iam_application(
     )
     build = build_metadata()
     reference = DatabaseRefV1(data_root / "agentmonitor.db", data_root)
-    collector = ClaudeDashboardCollectorV1(reference)
+    collector = ClaudeDashboardCollectorV1(
+        reference, managed_profiles_root=data_root / "profiles" / "claude"
+    )
     lifecycle = replace(
         lifecycle, tasks=lifecycle.tasks + (collector.run,), shutdown_timeout_seconds=30
     )

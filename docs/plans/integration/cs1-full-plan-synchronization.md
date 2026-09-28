@@ -445,3 +445,16 @@ snapshot are rebound together. Existing contract owners, versions, Draft
 plan statuses, and milestone acceptance remain unchanged. This is a
 mechanical binding, not a new independent planning audit. Scope is recorded
 in [the approved change plan](account-workspace-ui-change.md).
+
+## 2026-09-28 managed Claude connection automation binding
+
+Plan snapshot SHA-256: `1742d12b035aea5d74022ea4f68246522d860c1768ea0bffc4daaffd0adb8a4e`
+
+The approved additional-account connection registers `AUTO-CLAUDE-MANAGED`
+and documents its bounded real native/SQLite/shared-browser verification.
+The exact automation controls and snapshot are rebound together. The twenty
+module-plan bytes, global Draft flags, and historical audit conclusions are
+preserved. This mechanical control binding does not claim a new independent
+planning audit or full M4 acceptance. See the
+[connection change](claude-managed-account-connection-change.md) and
+[connection evidence](../../evidence/claude-managed-account-connection.md).

@@ -125,11 +125,38 @@ attempt expire or cancel only the operator-owned login child, then use the
 official login command with an ordinary browser. Do not automate challenge
 answers, change browser identity, or transfer challenge/session cookies.
 
-Successful authentication verifies the expected managed email and unchanged
-default identity. **It does not activate the pending account, enable monitoring,
-bind processes, or schedule its quota.** Registry enrollment, per-profile
-collection, and dashboard connection controls remain subsequent implementation
-stages. See the [current evidence](../evidence/claude-managed-account-connection.md).
+Authentication alone does not enable monitoring. Use `--setup --enroll` in an
+owner terminal to finish native first-run setup and bind the verified identity
+to the selected existing admin record:
+
+```bash
+backend/.venv/bin/python tools/providers/connect_claude_profile.py \
+  --data-root /path/to/agentmonitor-data --account-id REGISTRY_ACCOUNT_ID \
+  --setup --enroll
+```
+
+Complete native setup, then type `/exit`. Setup refuses redirected input and
+output; AgentMonitor never captures the setup terminal. If setup is already
+finished, `--enroll` alone is sufficient. The command verifies exact identity,
+preserves the account ID/name/group, enrolls a private subscription profile,
+and enables monitoring. Existing matching enrollment is reused. It never
+edits provider files, logs out, or replaces an account on an identity conflict.
+
+The service independently polls default and managed profiles at their minimum
+five-minute cadence, using each account's latest source run. Managed identity
+is verified around the native read before quota is committed. After a restart,
+the provider identity display waits for a new service-owned collection;
+historical quota is never backfilled with a newly read identity.
+
+The bounded gate is `python3 tools/automation/run.py AUTO-CLAUDE-MANAGED`. It
+requires explicit `AGENTMONITOR_TEST_OWNER_DATA_ROOT`,
+`AGENTMONITOR_TEST_MANAGED_ACCOUNT_ID`, `AGENTMONITOR_TEST_DASHBOARD_CDP_ENDPOINT`,
+and `AGENTMONITOR_TEST_DASHBOARD_ORIGIN`. These select a real owner-approved
+record and authenticated shared dashboard, never credentials. Missing sign-in,
+pending setup, absent service receipt, stale quota, or wrong identity returns
+non-success. It proves the selected profile only. Dashboard login controls,
+process ownership, and remaining M4 goals remain separate. See
+[current evidence](../evidence/claude-managed-account-connection.md).
 
 After an intentional service stop, start the verified local dashboard command:
 
@@ -141,8 +168,11 @@ PYTHONPATH=backend/src backend/.venv/bin/python -m agentmonitor.composition.boot
 ```
 
 Open `http://127.0.0.1:43110/accounts` and sign in locally. Read-only source
-failures remain visible as actual M04 outcomes and are not automatically
-retried. Retained observations become stale normally. Disabling monitoring
+failures remain visible as actual M04 outcomes; an existing failed run is not
+retried. A transient timeout permits a distinct new scheduled observation after
+the full five-minute interval. Authentication, setup, trust, permission,
+version, and unknown failures require action. Retained observations become
+stale normally. Disabling monitoring
 prevents subsequent attempts; it does not interrupt an in-flight provider read.
 On normal startup, retained AgentMonitor WAL journals are checkpointed under
 the service lock before schema validation. No migration or provider write is

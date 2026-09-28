@@ -33,7 +33,15 @@ def test_production_service_collects_enabled_claude_and_preserves_registry() -> 
     reference = DatabaseRefV1(root / "agentmonitor.db", root)
     registry = SqliteRegistryRepositoryV1(reference)
     accounts = registry.list_accounts("claude")
-    enabled = tuple(row for row in accounts if row.is_effective_monitoring_enabled)
+    enabled = tuple(
+        row
+        for row in accounts
+        if row.is_effective_monitoring_enabled
+        and any(
+            profile.is_protected_default and profile.lifecycle == "active"
+            for profile in registry.list_monitoring_profiles(row.account_id)
+        )
+    )
     assert len(enabled) == 1, "one eligible owner-confirmed real Claude required"
     account = enabled[0]
     before = (
