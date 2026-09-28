@@ -17,7 +17,7 @@ from decimal import Decimal, InvalidOperation
 from pathlib import Path
 from typing import Literal
 
-from agentmonitor.adapters.providers.claude.authentication.health import (
+from agentmonitor.adapters.providers.claude.authentication.classification import (
     classify_auth_failure,
 )
 from agentmonitor.adapters.providers.claude.subscription.mapper import (

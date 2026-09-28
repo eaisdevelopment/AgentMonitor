@@ -45,9 +45,21 @@ from agentmonitor.modules.identity_access.application.sessions import (
 from agentmonitor.modules.provider_system.application.queries import (
     GetProviderCapabilitiesV1,
 )
-from agentmonitor.modules.registry.application.accounts import ListAccountsV1
+from agentmonitor.modules.registry.application.accounts import (
+    EditAccountV1,
+    GetAccountV1,
+    ListAccountsV1,
+    RegisterAccountV1,
+)
 from agentmonitor.modules.registry.application.discovery import (
     ListProviderInstallationsV1,
+)
+from agentmonitor.modules.registry.application.organizations import (
+    CreateOrganizationV1,
+    EditOrganizationV1,
+    GetOrganizationV1,
+    ListOrganizationsV1,
+    ReorderOrganizationsV1,
 )
 from agentmonitor.modules.runtime_observation.application.queries import (
     GetAgentSessionV1,
@@ -83,6 +95,14 @@ class IamApiPortsV1:
 
 @dataclass(frozen=True, slots=True)
 class ObservationApiPortsV1:
+    create_organization: CreateOrganizationV1
+    edit_organization: EditOrganizationV1
+    get_organization: GetOrganizationV1
+    list_organizations: ListOrganizationsV1
+    reorder_organizations: ReorderOrganizationsV1
+    register_account: RegisterAccountV1
+    edit_account: EditAccountV1
+    get_account: GetAccountV1
     list_accounts: ListAccountsV1
     list_provider_installations: ListProviderInstallationsV1
     get_provider_capabilities: GetProviderCapabilitiesV1

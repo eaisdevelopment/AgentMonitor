@@ -14,11 +14,13 @@ BROWSER_PERMISSIONS_V1: tuple[str, ...] = (
     "read:diagnostics",
     "read:telemetry",
     "read:accounts",
+    "write:accounts",
     "read:status",
 )
 BEARER_PERMISSIONS_V1 = frozenset(
     {
         "read:accounts",
+        "write:accounts",
         "read:diagnostics",
         "read:status",
         "read:telemetry",

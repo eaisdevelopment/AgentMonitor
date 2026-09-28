@@ -209,6 +209,8 @@ M03_M06_SQLITE_POLICY_SYMBOLS = frozenset(
 M02_SQLITE_LAYER_SYMBOLS = {
     "agentmonitor.modules.registry.application.accounts": frozenset(
         {
+            "CreatePendingAccountCommandV1",
+            "EditAccountCommandV1",
             "ConfirmIdentityAssociationCommandV1",
             "EnrollMonitoringGraphCommandV1",
             "RegistryPolicyErrorV1",
@@ -221,7 +223,12 @@ M02_SQLITE_LAYER_SYMBOLS = {
         }
     ),
     "agentmonitor.modules.registry.application.organizations": frozenset(
-        {"CreateOrganizationCommandV1", "RegistryCommandConflictV1"}
+        {
+            "CreateOrganizationCommandV1",
+            "EditOrganizationCommandV1",
+            "ReorderOrganizationsCommandV1",
+            "RegistryCommandConflictV1",
+        }
     ),
 }
 A01_PROVIDER_SYSTEM_SYMBOLS = {

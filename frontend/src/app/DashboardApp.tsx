@@ -6,6 +6,7 @@ import { ProtectedRoute } from "../features/auth/ProtectedRoute";
 import { ApiTokensPage } from "../features/settings/security/ApiTokensPage";
 import { OverviewPage } from "../features/overview/OverviewPage";
 import { AccountPage } from "../features/accounts/AccountPage";
+import { OrganizationsPage } from "../features/organizations/OrganizationsPage";
 import { CollectionRunPanel } from "../features/collectors/CollectionRunPanel";
 import { ProviderPage } from "../features/providers/ProviderPage";
 import { SessionPanel } from "../features/sessions/SessionPanel";
@@ -59,6 +60,7 @@ export function DashboardApp() {
 
   useEffect(() => {
     const routeTitle = route === "/settings/api-tokens" ? "API tokens"
+      : route === "/organizations" ? "Organizations"
       : route.startsWith("/accounts") ? "Accounts"
       : route === "/providers" ? "Providers"
       : route === "/collectors" ? "Collectors"
@@ -224,6 +226,7 @@ export function DashboardApp() {
         <nav aria-label="Primary" className="dashboard-nav">
           <button type="button" aria-current={route === "/" ? "page" : undefined} onClick={() => navigate("/")}>Overview</button>
           <button type="button" aria-current={route.startsWith("/accounts") ? "page" : undefined} onClick={() => navigate("/accounts")}>Accounts</button>
+          <button type="button" aria-current={route === "/organizations" ? "page" : undefined} onClick={() => navigate("/organizations")}>Organizations</button>
           <button type="button" aria-current={route === "/providers" ? "page" : undefined} onClick={() => navigate("/providers")}>Providers</button>
           <button type="button" aria-current={route === "/collectors" ? "page" : undefined} onClick={() => navigate("/collectors")}>Collectors</button>
           <button type="button" aria-current={route === "/sessions" ? "page" : undefined} onClick={() => navigate("/sessions")}>Sessions</button>
@@ -235,11 +238,14 @@ export function DashboardApp() {
           </div>}
           {route === "/settings/api-tokens" ? (
             <ApiTokensPage onExpired={expire} onProofUnavailable={proofUnavailable} />
+          ) : route === "/organizations" ? (
+            <OrganizationsPage onExpired={expire} onProofUnavailable={proofUnavailable} />
           ) : route.startsWith("/accounts") ? (
             <AccountPage
               accountId={accountIdFromRoute(route) ?? undefined}
               onExpired={expire}
               onOpenAccount={(accountId) => navigate(accountRoute(accountId))}
+              onProofUnavailable={proofUnavailable}
             />
           ) : route === "/providers" ? (
             <ProviderPage onExpired={expire} />
@@ -252,6 +258,7 @@ export function DashboardApp() {
               onExpired={expire}
               onOpenAccount={(accountId) => navigate(accountRoute(accountId))}
               onTogglePassword={() => setShowPasswordForm((visible) => !visible)}
+              onProofUnavailable={proofUnavailable}
             />
           )}
           {route === "/" && showPasswordForm && (

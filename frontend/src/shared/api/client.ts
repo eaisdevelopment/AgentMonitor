@@ -22,6 +22,9 @@ import {
   type CurrentSessionViewV1,
   type ExactMetricFieldWireV1,
   type IamInitializationStateV1,
+  type OrganizationPageV1,
+  type OrganizationOrderingViewV1,
+  type OrganizationViewV1,
   type ProviderCapabilityDeclarationPageV1,
   type ProviderInstallationPageV1,
   type ProviderInstallationViewV1,
@@ -53,6 +56,9 @@ export type {
   CurrentSessionViewV1,
   ExactMetricFieldWireV1,
   IamInitializationStateV1,
+  OrganizationPageV1,
+  OrganizationOrderingViewV1,
+  OrganizationViewV1,
   ProviderCapabilityDeclarationPageV1,
   ProviderInstallationPageV1,
   ProviderInstallationViewV1,
@@ -216,6 +222,88 @@ export const iam = Object.freeze({
 });
 
 export const registry = Object.freeze({
+  organizations: (signal?: AbortSignal): Promise<ClientResult<OrganizationPageV1>> =>
+    apiClient.registry_list_organizations_v1({ query: { limit: 200 }, signal }),
+  createOrganization: (
+    name: string, description: string | null,
+  ): Promise<ClientResult<OrganizationViewV1>> =>
+    apiClient.registry_create_organization_v1({
+      body: { name, description },
+      headers: mutationHeaders(undefined, true),
+    }),
+  reorderOrganizations: (
+    orderedOrganizationIds: readonly string[], expectedRegistryRevision: number,
+  ): Promise<ClientResult<OrganizationOrderingViewV1>> =>
+    apiClient.registry_reorder_organizations_v1({
+      body: {
+        ordered_organization_ids: [...orderedOrganizationIds],
+        expected_registry_revision: expectedRegistryRevision,
+      },
+      headers: mutationHeaders(undefined, true),
+    }),
+  renameOrganization: (
+    organization: OrganizationViewV1, name: string,
+  ): Promise<ClientResult<OrganizationViewV1>> =>
+    apiClient.registry_rename_organization_v1({
+      path: { organization_id: organization.organization_id },
+      body: { name },
+      headers: mutationHeaders({ id: organization.organization_id, recordVersion: organization.record_version }),
+    }),
+  archiveOrganization: (
+    organization: OrganizationViewV1,
+  ): Promise<ClientResult<OrganizationViewV1>> =>
+    apiClient.registry_archive_organization_v1({
+      path: { organization_id: organization.organization_id }, body: {},
+      headers: mutationHeaders({ id: organization.organization_id, recordVersion: organization.record_version }, true),
+    }),
+  restoreOrganization: (
+    organization: OrganizationViewV1,
+  ): Promise<ClientResult<OrganizationViewV1>> =>
+    apiClient.registry_restore_organization_v1({
+      path: { organization_id: organization.organization_id },
+      headers: mutationHeaders({ id: organization.organization_id, recordVersion: organization.record_version }),
+    }),
+  registerAccount: (
+    providerKey: string, friendlyName: string, organizationId: string | null,
+  ): Promise<ClientResult<AccountViewV1>> =>
+    apiClient.registry_register_account_v1({
+      body: { provider_key: providerKey, friendly_name: friendlyName, organization_id: organizationId },
+      headers: mutationHeaders(undefined, true),
+    }),
+  renameAccount: (
+    account: AccountViewV1, friendlyName: string,
+  ): Promise<ClientResult<AccountViewV1>> =>
+    apiClient.registry_rename_account_v1({
+      path: { account_id: account.account_id },
+      body: { friendly_name: friendlyName },
+      headers: mutationHeaders({ id: account.account_id, recordVersion: account.record_version }),
+    }),
+  assignAccount: (
+    account: AccountViewV1, organizationId: string | null,
+  ): Promise<ClientResult<AccountViewV1>> =>
+    apiClient.registry_assign_account_organization_v1({
+      path: { account_id: account.account_id },
+      body: { organization_id: organizationId },
+      headers: mutationHeaders({ id: account.account_id, recordVersion: account.record_version }),
+    }),
+  setAccountMonitoring: (
+    account: AccountViewV1, preference: "enabled" | "disabled",
+  ): Promise<ClientResult<AccountViewV1>> =>
+    apiClient.registry_set_account_monitoring_v1({
+      path: { account_id: account.account_id },
+      body: { monitoring_preference: preference },
+      headers: mutationHeaders({ id: account.account_id, recordVersion: account.record_version }),
+    }),
+  archiveAccount: (account: AccountViewV1): Promise<ClientResult<AccountViewV1>> =>
+    apiClient.registry_archive_account_v1({
+      path: { account_id: account.account_id }, body: {},
+      headers: mutationHeaders({ id: account.account_id, recordVersion: account.record_version }, true),
+    }),
+  restoreAccount: (account: AccountViewV1): Promise<ClientResult<AccountViewV1>> =>
+    apiClient.registry_restore_account_v1({
+      path: { account_id: account.account_id },
+      headers: mutationHeaders({ id: account.account_id, recordVersion: account.record_version }),
+    }),
   accounts: (signal?: AbortSignal): Promise<ClientResult<AccountPageV1>> =>
     apiClient.registry_list_accounts_v1({ query: { limit: 200 }, signal }),
   providerInstallations: (

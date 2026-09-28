@@ -2,7 +2,7 @@
 
 from dataclasses import dataclass
 from datetime import datetime, timedelta
-from typing import Protocol
+from typing import Literal, Protocol
 
 from agentmonitor.contracts.common_v1 import (
     OpaqueIdV1,
@@ -34,6 +34,7 @@ from agentmonitor.contracts.registry_v1 import (
     RegisterAccountV1 as RegisterAccountPortV1,
 )
 from agentmonitor.modules.registry.domain import account as account_policy
+from agentmonitor.modules.registry.domain.names import normalize_registry_name
 
 RegistryPolicyErrorV1 = account_policy.RegistryPolicyErrorV1
 decide_account_monitoring = account_policy.decide_account_monitoring
@@ -52,6 +53,58 @@ safe_registry_event_projection = account_policy.safe_registry_event_projection
 
 class RegistryQueryUnavailableV1(RuntimeError):
     pass
+
+
+@dataclass(frozen=True, slots=True)
+class CreatePendingAccountCommandV1:
+    """Owner-entered metadata; it is never provider identity evidence."""
+
+    command_id: OpaqueIdV1
+    principal_id: OpaqueIdV1
+    provider_key: str
+    manifest_reference: str
+    friendly_name: str
+    organization_id: OpaqueIdV1 | None
+    requested_at: datetime
+
+    def __post_init__(self) -> None:
+        if (
+            not 1 <= len(self.provider_key) <= 64
+            or not self.provider_key.isascii()
+            or not self.provider_key.replace("-", "").replace("_", "").isalnum()
+            or len(self.manifest_reference) != 32
+            or any(value not in "0123456789abcdef" for value in self.manifest_reference)
+            or normalize_registry_name(self.friendly_name) != self.friendly_name
+            or self.requested_at.utcoffset() != timedelta(0)
+        ):
+            raise ValueError("registry_pending_account_command_invalid")
+
+
+@dataclass(frozen=True, slots=True)
+class EditAccountCommandV1:
+    account_id: OpaqueIdV1
+    expected_version: int
+    principal_id: OpaqueIdV1
+    command_id: OpaqueIdV1
+    action: Literal["rename", "assign", "monitoring", "archive", "restore"]
+    requested_at: datetime
+    friendly_name: str | None = None
+    organization_id: OpaqueIdV1 | None = None
+    monitoring_preference: Literal["enabled", "disabled"] | None = None
+
+    def __post_init__(self) -> None:
+        if (
+            type(self.expected_version) is not int
+            or self.expected_version < 1
+            or (self.action == "rename") != (self.friendly_name is not None)
+            or (self.action == "monitoring") != (self.monitoring_preference is not None)
+            or (
+                self.friendly_name is not None
+                and normalize_registry_name(self.friendly_name) != self.friendly_name
+            )
+            or self.requested_at.utcoffset() != timedelta(0)
+        ):
+            raise ValueError("registry_edit_account_command_invalid")
 
 
 @dataclass(frozen=True, slots=True)
@@ -87,6 +140,14 @@ class EnrollMonitoringGraphCommandV1:
 
 
 class AccountRepositoryPortV1(Protocol):
+    def register_pending_account(
+        self, command: CreatePendingAccountCommandV1
+    ) -> AccountViewV1: ...
+
+    def edit_account(self, command: EditAccountCommandV1) -> AccountViewV1: ...
+
+    def get_account(self, account_id: OpaqueIdV1) -> AccountViewV1 | None: ...
+
     def confirm_identity(
         self, command: ConfirmIdentityAssociationCommandV1
     ) -> AccountViewV1: ...
@@ -197,6 +258,26 @@ class ListAccountsV1:
 
 class RegisterAccountV1(ConfirmIdentityAssociationV1, RegisterAccountPortV1):
     """Register only through the reviewed discovery-candidate confirmation path."""
+
+    def pending(self, command: CreatePendingAccountCommandV1) -> AccountViewV1:
+        """Record admin metadata while keeping identity and monitoring unresolved."""
+        return self._repository.register_pending_account(command)
+
+
+class EditAccountV1:
+    def __init__(self, repository: AccountRepositoryPortV1) -> None:
+        self._repository = repository
+
+    def __call__(self, command: EditAccountCommandV1) -> AccountViewV1:
+        return self._repository.edit_account(command)
+
+
+class GetAccountV1:
+    def __init__(self, repository: AccountRepositoryPortV1) -> None:
+        self._repository = repository
+
+    def __call__(self, account_id: OpaqueIdV1) -> AccountViewV1 | None:
+        return self._repository.get_account(account_id)
 
 
 class ListMonitoringProfilesV1:

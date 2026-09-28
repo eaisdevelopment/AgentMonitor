@@ -231,3 +231,16 @@ record version and evidence digest before graph enrollment can be verified.
 Additional organization/account lifecycle mutations, persisted reauthentication
 workflows, history pagination/retention, API/browser surfaces, and operations
 hardening remain later M02 increments and are not claimed by `ST-REG-001`.
+
+## M4 ST-FLEET-001 interim registry increment
+
+M02 now provides admin organization rename, reorder, archive, and restore, plus
+pending account registration, rename, group assignment, monitoring preference,
+archive, and restore through its versioned V1 ports. Writes use the existing
+M02 tables, registry revision, optimistic record versions, idempotency receipts,
+change history, and outbox; there is no new migration. P01 exposes the operations
+through authenticated V1 routes and P02 consumes the generated client. Pending
+registration records owner-entered metadata only and does not assert provider
+identity. Monitoring enablement checks a confirmed identity and eligible active
+profile/resource. See [M4 interim evidence](../evidence/m4-st-fleet-001-interim.md)
+for real-boundary results and the unresolved six-account gate.

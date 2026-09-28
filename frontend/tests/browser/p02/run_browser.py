@@ -56,6 +56,8 @@ SCENARIOS = {
     "security_boundary",
     "hostile_resource",
     "monitoring_dashboard",
+    "organizations",
+    "accounts_admin",
 }
 QUICK_SCENARIOS = (
     "setup",

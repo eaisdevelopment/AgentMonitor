@@ -9,6 +9,7 @@ PASSWORD_MAX_UTF8_BYTES = 1024
 M2_ISSUABLE_SCOPES = frozenset(
     {
         "read:accounts",
+        "write:accounts",
         "read:diagnostics",
         "read:status",
         "read:telemetry",

@@ -5,6 +5,7 @@ from datetime import UTC, datetime, timedelta
 import pytest
 from agentmonitor.modules.identity_access.domain.policy import (
     canonical_token_name,
+    may_issue_scopes,
     may_manage_token,
     token_deadline,
     token_should_touch,
@@ -57,4 +58,13 @@ def test_bearer_target_management_is_closed_to_held_scopes() -> None:
     assert not may_manage_token(held, frozenset({"read:status"}))
     assert not may_manage_token(
         frozenset({"read:diagnostics"}), frozenset({"read:diagnostics"})
+    )
+
+
+def test_admin_can_issue_narrow_account_write_scope_without_escalation() -> None:
+    held = frozenset({"read:accounts", "write:accounts", "write:tokens"})
+    assert may_issue_scopes(held, frozenset({"write:accounts"}))
+    assert not may_issue_scopes(
+        frozenset({"read:accounts", "write:tokens"}),
+        frozenset({"write:accounts"}),
     )

@@ -25,7 +25,7 @@ export async function sessionBootstrap(): Promise<BootstrapState> {
 }
 
 export const ALLOWED_ROUTES = [
-  "/", "/login", "/accounts", "/providers", "/collectors", "/sessions",
+  "/", "/login", "/accounts", "/organizations", "/providers", "/collectors", "/sessions",
   "/settings/api-tokens",
 ] as const;
 export type FixedRoute = (typeof ALLOWED_ROUTES)[number];

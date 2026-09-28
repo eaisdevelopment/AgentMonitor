@@ -96,3 +96,26 @@ M3 renders the bounded first page supplied by each observation endpoint. Counts
 are labeled as records shown, not fleet totals, and `has_more` is disclosed as
 “more available.” Cursor navigation is deferred to a later approved P02
 increment; the UI never implies that the first page is the complete fleet.
+
+## M4 interim organization and account administration
+
+The authenticated `/organizations` and `/accounts` pages now use the additive
+V1 registry API through the shared generated-client wrapper. Organizations can
+be created, renamed, reordered, archived, and restored. Accounts can be added
+as pending records, renamed, assigned to an active organization or Ungrouped,
+archived, and restored. A confirmed account with an eligible profile/resource
+can enable or disable its monitoring preference. Account names and organization
+names are supplied in the admin UI; no operator accounts are built into the
+frontend. Stale edits require a refresh, and new pending records never imply a
+confirmed provider login.
+
+When M02 withholds an account identity, the detail view says `Withheld from
+dashboard` and explains that account names and organization assignments are
+administrator managed. An owner-confirmed registry state does not imply that
+the current read-only provider source supplied a displayable email.
+
+The admin browser scenarios are `accounts_admin` and `organizations` through
+`frontend/tests/browser/p02/run_browser.py`. See the
+[M4 interim evidence](../evidence/m4-st-fleet-001-interim.md). Continuous
+collection, new identity binding, and six-account owner verification remain
+outside the passing browser scenarios.

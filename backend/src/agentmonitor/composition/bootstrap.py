@@ -103,9 +103,21 @@ from agentmonitor.modules.identity_access.application.sessions import (
 from agentmonitor.modules.provider_system.application.queries import (
     GetProviderCapabilitiesV1,
 )
-from agentmonitor.modules.registry.application.accounts import ListAccountsV1
+from agentmonitor.modules.registry.application.accounts import (
+    EditAccountV1,
+    GetAccountV1,
+    ListAccountsV1,
+    RegisterAccountV1,
+)
 from agentmonitor.modules.registry.application.discovery import (
     ListProviderInstallationsV1,
+)
+from agentmonitor.modules.registry.application.organizations import (
+    CreateOrganizationV1,
+    EditOrganizationV1,
+    GetOrganizationV1,
+    ListOrganizationsV1,
+    ReorderOrganizationsV1,
 )
 from agentmonitor.modules.runtime_observation.application.queries import (
     GetAgentSessionV1,
@@ -199,6 +211,14 @@ def _observation_ports(reference: DatabaseRefV1) -> ObservationApiPortsV1:
     capacity = SqliteCapacityRepositoryV1(reference)
     runtime = SqliteRuntimeObservationRepositoryV1(reference)
     return ObservationApiPortsV1(
+        CreateOrganizationV1(registry),
+        EditOrganizationV1(registry),
+        GetOrganizationV1(registry),
+        ListOrganizationsV1(registry),
+        ReorderOrganizationsV1(registry),
+        RegisterAccountV1(registry),
+        EditAccountV1(registry),
+        GetAccountV1(registry),
         ListAccountsV1(registry),
         ListProviderInstallationsV1(registry),
         GetProviderCapabilitiesV1((build_claude_manifest(),)),

@@ -359,6 +359,7 @@ class ApiTokenSummaryV1(TechnicalValueV1):
             or not set(self.scopes)
             <= {
                 "read:accounts",
+                "write:accounts",
                 "read:diagnostics",
                 "read:status",
                 "read:telemetry",

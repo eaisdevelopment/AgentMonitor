@@ -92,6 +92,48 @@ def test_authorization_never_conflates_dashboard_with_provider_auth() -> None:
     assert diagnostics.allowed is True
 
 
+def test_registry_write_requires_explicit_browser_or_bearer_scope() -> None:
+    """M01/P01: admin CRUD has one narrow permission, not a role bypass."""
+    instant = datetime(2026, 1, 1, tzinfo=UTC)
+    authorize = AuthorizePrincipalV1()
+    browser = PrincipalV1(
+        OpaqueIdV1("administrator"),
+        "browser_session",
+        OpaqueIdV1("session"),
+        ("read:accounts", "write:accounts"),
+        instant,
+        instant,
+        instant + timedelta(hours=12),
+    )
+    bearer = PrincipalV1(
+        OpaqueIdV1("administrator"),
+        "api_bearer",
+        OpaqueIdV1("token"),
+        ("write:accounts",),
+        instant,
+        instant,
+        instant + timedelta(days=1),
+    )
+    read_only = PrincipalV1(
+        OpaqueIdV1("administrator"),
+        "api_bearer",
+        OpaqueIdV1("read-token"),
+        ("read:accounts",),
+        instant,
+        instant,
+        instant + timedelta(days=1),
+    )
+    assert authorize(
+        browser, "write:accounts", correlation_id=OpaqueIdV1("browser-write")
+    ).allowed
+    assert authorize(
+        bearer, "write:accounts", correlation_id=OpaqueIdV1("bearer-write")
+    ).allowed
+    assert not authorize(
+        read_only, "write:accounts", correlation_id=OpaqueIdV1("bearer-read")
+    ).allowed
+
+
 def test_browser_permission_registry_does_not_grant_future_scopes() -> None:
     instant = datetime(2026, 1, 1, tzinfo=UTC)
     principal = PrincipalV1(

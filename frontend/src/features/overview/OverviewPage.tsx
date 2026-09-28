@@ -6,10 +6,12 @@ import { SessionPanel } from "../sessions/SessionPanel";
 export function OverviewPage({
   onExpired,
   onOpenAccount,
+  onProofUnavailable,
   onTogglePassword,
 }: Readonly<{
   onExpired: () => void;
   onOpenAccount: (accountId: string) => void;
+  onProofUnavailable: () => void;
   onTogglePassword: () => void;
 }>) {
   return (
@@ -23,7 +25,7 @@ export function OverviewPage({
         <div className="link-state" aria-label="Dashboard service link"><span className="status-light" aria-hidden="true" /><span><strong>Dashboard API</strong><small>Authenticated · local</small></span></div>
       </section>
       <div className="command-grid">
-        <AccountPage displayMode="panel" onExpired={onExpired} onOpenAccount={onOpenAccount} />
+        <AccountPage displayMode="panel" onExpired={onExpired} onOpenAccount={onOpenAccount} onProofUnavailable={onProofUnavailable} />
         <ProviderPage displayMode="panel" onExpired={onExpired} />
         <CollectionRunPanel displayMode="panel" onExpired={onExpired} />
         <SessionPanel displayMode="panel" onExpired={onExpired} />

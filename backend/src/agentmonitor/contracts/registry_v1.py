@@ -143,6 +143,25 @@ class OrganizationViewV1(TechnicalValueV1):
 
 
 @dataclass(frozen=True, slots=True)
+class OrganizationOrderingViewV1(TechnicalValueV1):
+    CONTRACT_ID: ClassVar[str] = "CTR-REG-001"
+    OWNER: ClassVar[str] = "PLAN-M02"
+
+    organization_ids: tuple[OpaqueIdV1, ...]
+    registry_revision: int
+
+    def __post_init__(self) -> None:
+        TechnicalValueV1.__post_init__(self)
+        if (
+            not self.organization_ids
+            or len(set(self.organization_ids)) != len(self.organization_ids)
+            or type(self.registry_revision) is not int
+            or self.registry_revision < 1
+        ):
+            raise ValueError("registry_organization_ordering_invalid")
+
+
+@dataclass(frozen=True, slots=True)
 class ProviderDefinitionViewV1(TechnicalValueV1):
     CONTRACT_ID: ClassVar[str] = "CTR-REG-004"
     OWNER: ClassVar[str] = "PLAN-M02"

@@ -23,6 +23,7 @@ from agentmonitor.contracts.registry_v1 import (
     DiscoveryReconciliationViewV1,
     MaskedRegistryFieldV1,
     MonitoringProfileViewV1,
+    OrganizationOrderingViewV1,
     OrganizationViewV1,
     ProviderIdentityResolutionV1,
     ProviderInstallationViewV1,
@@ -31,6 +32,8 @@ from agentmonitor.contracts.registry_v1 import (
     ResolveProviderIdentityFingerprintQueryV1,
 )
 from agentmonitor.modules.registry.application.accounts import (
+    CreatePendingAccountCommandV1,
+    EditAccountCommandV1,
     EnrollMonitoringGraphCommandV1,
     RegistryPolicyErrorV1,
     decide_account_monitoring,
@@ -42,7 +45,9 @@ from agentmonitor.modules.registry.application.accounts import (
 )
 from agentmonitor.modules.registry.application.organizations import (
     CreateOrganizationCommandV1,
+    EditOrganizationCommandV1,
     RegistryCommandConflictV1,
+    ReorderOrganizationsCommandV1,
 )
 from sqlalchemy.engine import Connection, RowMapping
 from sqlalchemy.exc import SQLAlchemyError
@@ -303,8 +308,11 @@ def _append_change(
     correlation_id: str,
     command_digest: str,
     instant: str,
+    previous_name: str | None = None,
     new_name: str | None = None,
+    previous_organization_id: str | None = None,
     new_organization_id: str | None = None,
+    previous_lifecycle: str | None = None,
     new_lifecycle: str | None = None,
 ) -> None:
     expires_at = _utc_text(
@@ -316,7 +324,7 @@ def _append_change(
         "change_kind, previous_name, new_name, previous_organization_id, "
         "new_organization_id, previous_lifecycle, new_lifecycle, actor_class, "
         "actor_id, correlation_id, command_digest, occurred_at, recorded_at, "
-        "expires_at) VALUES (?, ?, ?, ?, ?, ?, NULL, ?, NULL, ?, NULL, ?, "
+        "expires_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, "
         "'owner', ?, ?, ?, ?, ?, ?)",
         (
             _identifier(),
@@ -325,8 +333,11 @@ def _append_change(
             aggregate_version,
             revision,
             change_kind,
+            previous_name,
             new_name,
+            previous_organization_id,
             new_organization_id,
+            previous_lifecycle,
             new_lifecycle,
             actor_id,
             correlation_id,
@@ -605,12 +616,30 @@ class SqliteRegistryRepositoryV1:
         except (SqlitePolicyError, SQLAlchemyError, ValueError):
             raise RegistryRepositoryErrorV1() from None
 
-    def list_organizations(self) -> tuple[OrganizationViewV1, ...]:
+    def list_organizations(
+        self, page_size: int = 100, after_key: str | None = None
+    ) -> tuple[OrganizationViewV1, ...]:
+        if type(page_size) is not int or not 1 <= page_size <= 201:
+            raise ValueError("registry_page_size_invalid")
         try:
             with open_sqlite_database(
                 self._database_ref, "runtime_read_write"
             ) as handle:
                 with handle.connect() as connection:
+                    after: tuple[str, int, str] | None = None
+                    if after_key is not None:
+                        cursor_row = connection.exec_driver_sql(
+                            "SELECT lifecycle, display_order, organization_id "
+                            "FROM reg_organization WHERE organization_id=?",
+                            (after_key,),
+                        ).one_or_none()
+                        if cursor_row is None:
+                            raise ValueError("registry_cursor_invalid")
+                        after = (
+                            str(cursor_row.lifecycle),
+                            int(cursor_row.display_order),
+                            str(cursor_row.organization_id),
+                        )
                     rows = (
                         connection.exec_driver_sql(
                             "SELECT o.*, s.registry_revision, "
@@ -621,15 +650,734 @@ class SqliteRegistryRepositoryV1:
                             "WHERE a.organization_id=o.organization_id "
                             "AND a.lifecycle = 'archived') AS archived_account_count "
                             "FROM reg_organization o CROSS JOIN reg_registry_state s "
-                            "WHERE s.singleton_key=1 ORDER BY o.lifecycle, "
+                            "WHERE s.singleton_key=1 AND "
+                            "(? IS NULL OR (o.lifecycle, o.display_order, "
+                            "o.organization_id) > (?, ?, ?)) "
+                            "ORDER BY o.lifecycle, "
                             "o.display_order, "
-                            "o.organization_id LIMIT 100"
+                            "o.organization_id LIMIT ?",
+                            (
+                                after_key,
+                                after[0] if after else None,
+                                after[1] if after else None,
+                                after[2] if after else None,
+                                page_size,
+                            ),
                         )
                         .mappings()
                         .all()
                     )
             return tuple(_organization(row) for row in rows)
         except (SqlitePolicyError, SQLAlchemyError, ValueError):
+            raise RegistryRepositoryErrorV1() from None
+
+    def get_organization(
+        self, organization_id: OpaqueIdV1
+    ) -> OrganizationViewV1 | None:
+        try:
+            with open_sqlite_database(
+                self._database_ref, "runtime_read_write"
+            ) as handle:
+                with handle.connect() as connection:
+                    exists = connection.exec_driver_sql(
+                        "SELECT 1 FROM reg_organization WHERE organization_id=?",
+                        (organization_id.value,),
+                    ).scalar_one_or_none()
+                    return (
+                        self._organization_by_id(connection, organization_id.value)
+                        if exists is not None
+                        else None
+                    )
+        except (SqlitePolicyError, SQLAlchemyError, ValueError):
+            raise RegistryRepositoryErrorV1() from None
+
+    def edit_organization(
+        self, command: EditOrganizationCommandV1
+    ) -> OrganizationViewV1:
+        operation = "edit_organization_" + command.action
+        command_digest = _digest(command.command_id.value)
+        request_fingerprint = _fingerprint(
+            {
+                "organization_id": command.organization_id.value,
+                "expected_version": command.expected_version,
+                "action": command.action,
+                "name": command.name,
+            }
+        )
+        instant = _utc_text(command.requested_at)
+        try:
+            with open_sqlite_database(
+                self._database_ref, "runtime_read_write"
+            ) as handle:
+                with handle.connect() as connection:
+                    connection.exec_driver_sql("BEGIN IMMEDIATE")
+                    receipt = (
+                        connection.exec_driver_sql(
+                            "SELECT request_fingerprint, outcome_subject_id, "
+                            "outcome_record_version FROM reg_command_receipt "
+                            "WHERE principal_id=? AND operation_key=? "
+                            "AND idempotency_key_digest=?",
+                            (command.principal_id.value, operation, command_digest),
+                        )
+                        .mappings()
+                        .one_or_none()
+                    )
+                    if receipt is not None:
+                        if receipt["request_fingerprint"] != request_fingerprint:
+                            raise RegistryCommandConflictV1(
+                                "registry_idempotency_conflict"
+                            )
+                        result = self._organization_by_id(
+                            connection, receipt["outcome_subject_id"]
+                        )
+                        if result.record_version != receipt["outcome_record_version"]:
+                            raise RegistryCommandConflictV1("registry_replay_stale")
+                        connection.rollback()
+                        return result
+                    row = (
+                        connection.exec_driver_sql(
+                            "SELECT * FROM reg_organization WHERE organization_id=?",
+                            (command.organization_id.value,),
+                        )
+                        .mappings()
+                        .one_or_none()
+                    )
+                    if row is None:
+                        raise RegistryCommandConflictV1("registry_subject_not_found")
+                    if row["record_version"] != command.expected_version:
+                        raise RegistryCommandConflictV1("registry_version_conflict")
+                    name = row["display_name"]
+                    lifecycle = row["lifecycle"]
+                    archived_at = row["archived_at"]
+                    display_order = row["display_order"]
+                    if command.action == "rename":
+                        name = command.name
+                    elif command.action == "archive":
+                        if lifecycle == "archived":
+                            raise RegistryCommandConflictV1("registry_subject_archived")
+                        assigned = connection.exec_driver_sql(
+                            "SELECT 1 FROM reg_account WHERE organization_id=? "
+                            "AND lifecycle <> 'archived' LIMIT 1",
+                            (command.organization_id.value,),
+                        ).scalar_one_or_none()
+                        if assigned is not None:
+                            raise RegistryCommandConflictV1(
+                                "registry_organization_not_empty"
+                            )
+                        lifecycle = "archived"
+                        archived_at = instant
+                    elif command.action == "restore":
+                        if lifecycle != "archived":
+                            raise RegistryCommandConflictV1(
+                                "registry_subject_not_archived"
+                            )
+                        lifecycle = "active"
+                        archived_at = None
+                        display_order = int(
+                            connection.exec_driver_sql(
+                                "SELECT coalesce(max(display_order), -1) + 1 "
+                                "FROM reg_organization WHERE lifecycle='active'"
+                            ).scalar_one()
+                        )
+                    if lifecycle == "active":
+                        duplicate = connection.exec_driver_sql(
+                            "SELECT 1 FROM reg_organization WHERE normalized_name=? "
+                            "AND lifecycle='active' AND organization_id<>? LIMIT 1",
+                            (name.casefold(), command.organization_id.value),
+                        ).scalar_one_or_none()
+                        if duplicate is not None:
+                            raise RegistryCommandConflictV1("registry_name_conflict")
+                    if name == row["display_name"] and lifecycle == row["lifecycle"]:
+                        result = self._organization_by_id(
+                            connection, command.organization_id.value
+                        )
+                        connection.rollback()
+                        return result
+                    version = command.expected_version + 1
+                    revision = _next_revision(connection, instant)
+                    connection.exec_driver_sql(
+                        "UPDATE reg_organization SET display_name=?, normalized_name=?, "
+                        "lifecycle=?, archived_at=?, display_order=?, "
+                        "record_version=?, updated_at=? WHERE organization_id=? "
+                        "AND record_version=?",
+                        (
+                            name,
+                            name.casefold(),
+                            lifecycle,
+                            archived_at,
+                            display_order,
+                            version,
+                            instant,
+                            command.organization_id.value,
+                            command.expected_version,
+                        ),
+                    )
+                    _append_change(
+                        connection,
+                        subject_type="organization",
+                        subject_id=command.organization_id.value,
+                        aggregate_version=version,
+                        revision=revision,
+                        change_kind=command.action,
+                        actor_id=command.principal_id.value,
+                        correlation_id=command.command_id.value,
+                        command_digest=command_digest,
+                        instant=instant,
+                        previous_name=row["display_name"],
+                        new_name=name,
+                        previous_lifecycle=row["lifecycle"],
+                        new_lifecycle=lifecycle,
+                    )
+                    _append_outbox(
+                        connection,
+                        subject_type="organization",
+                        subject_id=command.organization_id.value,
+                        aggregate_version=version,
+                        revision=revision,
+                        change_kind=command.action,
+                        correlation_id=command.command_id.value,
+                        causation_id=command.command_id.value,
+                        instant=instant,
+                    )
+                    connection.exec_driver_sql(
+                        "INSERT INTO reg_command_receipt "
+                        "(receipt_id, principal_id, operation_key, "
+                        "idempotency_key_digest, request_fingerprint, "
+                        "outcome_subject_type, outcome_subject_id, "
+                        "outcome_record_version, registry_revision, created_at, expires_at) "
+                        "VALUES (?, ?, ?, ?, ?, 'organization', ?, ?, ?, ?, ?)",
+                        (
+                            _identifier(),
+                            command.principal_id.value,
+                            operation,
+                            command_digest,
+                            request_fingerprint,
+                            command.organization_id.value,
+                            version,
+                            revision,
+                            instant,
+                            _utc_text(command.requested_at + timedelta(days=365)),
+                        ),
+                    )
+                    result = self._organization_by_id(
+                        connection, command.organization_id.value
+                    )
+                    connection.commit()
+                    return result
+        except RegistryCommandConflictV1:
+            raise
+        except (SqlitePolicyError, SQLAlchemyError, ValueError, TypeError):
+            raise RegistryRepositoryErrorV1() from None
+
+    def reorder_organizations(
+        self, command: ReorderOrganizationsCommandV1
+    ) -> OrganizationOrderingViewV1:
+        operation = "reorder_organizations"
+        command_digest = _digest(command.command_id.value)
+        ids = tuple(item.value for item in command.ordered_organization_ids)
+        request_fingerprint = _fingerprint(
+            {"ids": ids, "expected_revision": command.expected_registry_revision}
+        )
+        instant = _utc_text(command.requested_at)
+        try:
+            with open_sqlite_database(
+                self._database_ref, "runtime_read_write"
+            ) as handle:
+                with handle.connect() as connection:
+                    connection.exec_driver_sql("BEGIN IMMEDIATE")
+                    receipt = (
+                        connection.exec_driver_sql(
+                            "SELECT request_fingerprint, registry_revision "
+                            "FROM reg_command_receipt WHERE principal_id=? "
+                            "AND operation_key=? AND idempotency_key_digest=?",
+                            (command.principal_id.value, operation, command_digest),
+                        )
+                        .mappings()
+                        .one_or_none()
+                    )
+                    if receipt is not None:
+                        if receipt["request_fingerprint"] != request_fingerprint:
+                            raise RegistryCommandConflictV1(
+                                "registry_idempotency_conflict"
+                            )
+                        if (
+                            _current_revision(connection)
+                            != receipt["registry_revision"]
+                        ):
+                            raise RegistryCommandConflictV1("registry_replay_stale")
+                        connection.rollback()
+                        return OrganizationOrderingViewV1(
+                            command.ordered_organization_ids,
+                            receipt["registry_revision"],
+                        )
+                    current_revision = _current_revision(connection)
+                    if current_revision != command.expected_registry_revision:
+                        raise RegistryCommandConflictV1("registry_revision_conflict")
+                    rows = (
+                        connection.exec_driver_sql(
+                            "SELECT organization_id, display_order, record_version "
+                            "FROM reg_organization WHERE lifecycle='active' "
+                            "ORDER BY display_order, organization_id"
+                        )
+                        .mappings()
+                        .all()
+                    )
+                    current_ids = tuple(row["organization_id"] for row in rows)
+                    if len(current_ids) != len(ids) or set(current_ids) != set(ids):
+                        raise RegistryCommandConflictV1("registry_order_set_invalid")
+                    if current_ids == ids:
+                        connection.rollback()
+                        return OrganizationOrderingViewV1(
+                            command.ordered_organization_ids, current_revision
+                        )
+                    revision = _next_revision(connection, instant)
+                    by_id = {row["organization_id"]: row for row in rows}
+                    for index, organization_id in enumerate(ids):
+                        row = by_id[organization_id]
+                        if row["display_order"] == index:
+                            continue
+                        version = int(row["record_version"]) + 1
+                        connection.exec_driver_sql(
+                            "UPDATE reg_organization SET display_order=?, "
+                            "record_version=?, updated_at=? WHERE organization_id=?",
+                            (index, version, instant, organization_id),
+                        )
+                        _append_change(
+                            connection,
+                            subject_type="organization",
+                            subject_id=organization_id,
+                            aggregate_version=version,
+                            revision=revision,
+                            change_kind="reordered",
+                            actor_id=command.principal_id.value,
+                            correlation_id=command.command_id.value,
+                            command_digest=command_digest,
+                            instant=instant,
+                        )
+                        _append_outbox(
+                            connection,
+                            subject_type="organization",
+                            subject_id=organization_id,
+                            aggregate_version=version,
+                            revision=revision,
+                            change_kind="reordered",
+                            correlation_id=command.command_id.value,
+                            causation_id=command.command_id.value,
+                            instant=instant,
+                        )
+                    connection.exec_driver_sql(
+                        "INSERT INTO reg_command_receipt "
+                        "(receipt_id, principal_id, operation_key, "
+                        "idempotency_key_digest, request_fingerprint, "
+                        "outcome_subject_type, outcome_subject_id, "
+                        "outcome_record_version, registry_revision, created_at, expires_at) "
+                        "VALUES (?, ?, ?, ?, ?, 'organization_ordering', ?, 1, ?, ?, ?)",
+                        (
+                            _identifier(),
+                            command.principal_id.value,
+                            operation,
+                            command_digest,
+                            request_fingerprint,
+                            command.command_id.value,
+                            revision,
+                            instant,
+                            _utc_text(command.requested_at + timedelta(days=365)),
+                        ),
+                    )
+                    connection.commit()
+                    return OrganizationOrderingViewV1(
+                        command.ordered_organization_ids, revision
+                    )
+        except RegistryCommandConflictV1:
+            raise
+        except (SqlitePolicyError, SQLAlchemyError, ValueError, TypeError):
+            raise RegistryRepositoryErrorV1() from None
+
+    def register_pending_account(
+        self, command: CreatePendingAccountCommandV1
+    ) -> AccountViewV1:
+        operation = "register_pending_account"
+        command_digest = _digest(command.command_id.value)
+        request_fingerprint = _fingerprint(
+            {
+                "provider_key": command.provider_key,
+                "manifest_reference": command.manifest_reference,
+                "friendly_name": command.friendly_name,
+                "organization_id": (
+                    command.organization_id.value if command.organization_id else None
+                ),
+                "operation": operation,
+            }
+        )
+        instant = _utc_text(command.requested_at)
+        try:
+            with open_sqlite_database(
+                self._database_ref, "runtime_read_write"
+            ) as handle:
+                with handle.connect() as connection:
+                    connection.exec_driver_sql("BEGIN IMMEDIATE")
+                    receipt = (
+                        connection.exec_driver_sql(
+                            "SELECT request_fingerprint, outcome_subject_id "
+                            "FROM reg_command_receipt WHERE principal_id=? "
+                            "AND operation_key=? AND idempotency_key_digest=?",
+                            (command.principal_id.value, operation, command_digest),
+                        )
+                        .mappings()
+                        .one_or_none()
+                    )
+                    if receipt is not None:
+                        if receipt["request_fingerprint"] != request_fingerprint:
+                            raise RegistryCommandConflictV1(
+                                "registry_idempotency_conflict"
+                            )
+                        result = self._account_by_id(
+                            connection, receipt["outcome_subject_id"]
+                        )
+                        connection.rollback()
+                        return result
+                    if command.organization_id is not None:
+                        lifecycle = connection.exec_driver_sql(
+                            "SELECT lifecycle FROM reg_organization WHERE organization_id=?",
+                            (command.organization_id.value,),
+                        ).scalar_one_or_none()
+                        if lifecycle != "active":
+                            raise RegistryCommandConflictV1(
+                                "registry_organization_unavailable"
+                            )
+                    duplicate = connection.exec_driver_sql(
+                        "SELECT 1 FROM reg_account WHERE provider_key=? "
+                        "AND normalized_name=? AND lifecycle <> 'archived' LIMIT 1",
+                        (command.provider_key, command.friendly_name.casefold()),
+                    ).scalar_one_or_none()
+                    if duplicate is not None:
+                        raise RegistryCommandConflictV1("registry_alias_conflict")
+                    provider = connection.exec_driver_sql(
+                        "SELECT lifecycle FROM reg_provider_definition WHERE provider_key=?",
+                        (command.provider_key,),
+                    ).scalar_one_or_none()
+                    if provider is None:
+                        connection.exec_driver_sql(
+                            "INSERT INTO reg_provider_definition "
+                            "(provider_key, manifest_reference, lifecycle, "
+                            "first_admitted_at, last_admitted_at, record_version) "
+                            "VALUES (?, ?, 'active', ?, ?, 1)",
+                            (
+                                command.provider_key,
+                                command.manifest_reference,
+                                instant,
+                                instant,
+                            ),
+                        )
+                    elif provider != "active":
+                        raise RegistryCommandConflictV1("registry_provider_unavailable")
+                    account_id = _identifier()
+                    revision = _next_revision(connection, instant)
+                    connection.exec_driver_sql(
+                        "INSERT INTO reg_account "
+                        "(account_id, provider_key, friendly_name, normalized_name, "
+                        "organization_id, lifecycle, identity_state, monitoring_preference, "
+                        "record_version, created_at, updated_at, archived_at, "
+                        "creation_command_digest) "
+                        "VALUES (?, ?, ?, ?, ?, 'pending', 'unresolved', 'disabled', "
+                        "1, ?, ?, NULL, ?)",
+                        (
+                            account_id,
+                            command.provider_key,
+                            command.friendly_name,
+                            command.friendly_name.casefold(),
+                            command.organization_id.value
+                            if command.organization_id
+                            else None,
+                            instant,
+                            instant,
+                            command_digest,
+                        ),
+                    )
+                    _append_change(
+                        connection,
+                        subject_type="account",
+                        subject_id=account_id,
+                        aggregate_version=1,
+                        revision=revision,
+                        change_kind="registered_pending",
+                        actor_id=command.principal_id.value,
+                        correlation_id=command.command_id.value,
+                        command_digest=command_digest,
+                        instant=instant,
+                        new_name=command.friendly_name,
+                        new_organization_id=(
+                            command.organization_id.value
+                            if command.organization_id
+                            else None
+                        ),
+                        new_lifecycle="pending",
+                    )
+                    _append_outbox(
+                        connection,
+                        subject_type="account",
+                        subject_id=account_id,
+                        aggregate_version=1,
+                        revision=revision,
+                        change_kind="registered_pending",
+                        correlation_id=command.command_id.value,
+                        causation_id=command.command_id.value,
+                        instant=instant,
+                    )
+                    connection.exec_driver_sql(
+                        "INSERT INTO reg_command_receipt "
+                        "(receipt_id, principal_id, operation_key, "
+                        "idempotency_key_digest, request_fingerprint, "
+                        "outcome_subject_type, outcome_subject_id, "
+                        "outcome_record_version, registry_revision, created_at, expires_at) "
+                        "VALUES (?, ?, ?, ?, ?, 'account', ?, 1, ?, ?, ?)",
+                        (
+                            _identifier(),
+                            command.principal_id.value,
+                            operation,
+                            command_digest,
+                            request_fingerprint,
+                            account_id,
+                            revision,
+                            instant,
+                            _utc_text(command.requested_at + timedelta(days=365)),
+                        ),
+                    )
+                    result = self._account_by_id(connection, account_id)
+                    connection.commit()
+                    return result
+        except RegistryCommandConflictV1:
+            raise
+        except (SqlitePolicyError, SQLAlchemyError, ValueError):
+            raise RegistryRepositoryErrorV1() from None
+
+    def edit_account(self, command: EditAccountCommandV1) -> AccountViewV1:
+        operation = "edit_account_" + command.action
+        command_digest = _digest(command.command_id.value)
+        request_fingerprint = _fingerprint(
+            {
+                "account_id": command.account_id.value,
+                "expected_version": command.expected_version,
+                "action": command.action,
+                "friendly_name": command.friendly_name,
+                "monitoring_preference": command.monitoring_preference,
+                "organization_id": (
+                    command.organization_id.value if command.organization_id else None
+                ),
+            }
+        )
+        instant = _utc_text(command.requested_at)
+        try:
+            with open_sqlite_database(
+                self._database_ref, "runtime_read_write"
+            ) as handle:
+                with handle.connect() as connection:
+                    connection.exec_driver_sql("BEGIN IMMEDIATE")
+                    receipt = (
+                        connection.exec_driver_sql(
+                            "SELECT request_fingerprint, outcome_subject_id, "
+                            "outcome_record_version FROM reg_command_receipt "
+                            "WHERE principal_id=? AND operation_key=? "
+                            "AND idempotency_key_digest=?",
+                            (command.principal_id.value, operation, command_digest),
+                        )
+                        .mappings()
+                        .one_or_none()
+                    )
+                    if receipt is not None:
+                        if receipt["request_fingerprint"] != request_fingerprint:
+                            raise RegistryCommandConflictV1(
+                                "registry_idempotency_conflict"
+                            )
+                        result = self._account_by_id(
+                            connection, receipt["outcome_subject_id"]
+                        )
+                        if result.record_version != receipt["outcome_record_version"]:
+                            raise RegistryCommandConflictV1("registry_replay_stale")
+                        connection.rollback()
+                        return result
+                    row = (
+                        connection.exec_driver_sql(
+                            "SELECT * FROM reg_account WHERE account_id=?",
+                            (command.account_id.value,),
+                        )
+                        .mappings()
+                        .one_or_none()
+                    )
+                    if row is None:
+                        raise RegistryCommandConflictV1("registry_subject_not_found")
+                    if row["record_version"] != command.expected_version:
+                        raise RegistryCommandConflictV1("registry_version_conflict")
+                    name = row["friendly_name"]
+                    organization_id = row["organization_id"]
+                    lifecycle = row["lifecycle"]
+                    archived_at = row["archived_at"]
+                    preference = row["monitoring_preference"]
+                    if command.action == "rename":
+                        if command.friendly_name is None:
+                            raise RegistryRepositoryErrorV1()
+                        name = command.friendly_name
+                        duplicate = connection.exec_driver_sql(
+                            "SELECT 1 FROM reg_account WHERE provider_key=? "
+                            "AND normalized_name=? AND lifecycle <> 'archived' "
+                            "AND account_id<>? LIMIT 1",
+                            (
+                                row["provider_key"],
+                                name.casefold(),
+                                command.account_id.value,
+                            ),
+                        ).scalar_one_or_none()
+                        if duplicate is not None:
+                            raise RegistryCommandConflictV1("registry_alias_conflict")
+                    elif command.action == "assign":
+                        if lifecycle == "archived":
+                            raise RegistryCommandConflictV1("registry_subject_archived")
+                        organization_id = (
+                            command.organization_id.value
+                            if command.organization_id is not None
+                            else None
+                        )
+                    elif command.action == "monitoring":
+                        if lifecycle == "archived":
+                            raise RegistryCommandConflictV1("registry_subject_archived")
+                        if command.monitoring_preference == "enabled":
+                            if lifecycle != "active" or row["identity_state"] not in {
+                                "matched",
+                                "owner_confirmed",
+                            }:
+                                raise RegistryCommandConflictV1(
+                                    "registry_monitoring_not_eligible"
+                                )
+                            eligible = connection.exec_driver_sql(
+                                "SELECT 1 FROM reg_monitoring_profile p "
+                                "JOIN reg_account_resource r ON r.account_id=p.account_id "
+                                "WHERE p.account_id=? AND p.lifecycle='active' "
+                                "AND p.compatibility_state='compatible' "
+                                "AND p.identity_verification_state IN "
+                                "('owner_confirmed', 'provider_verified', 'matched') "
+                                "AND r.lifecycle='active' LIMIT 1",
+                                (command.account_id.value,),
+                            ).scalar_one_or_none()
+                            if eligible is None:
+                                raise RegistryCommandConflictV1(
+                                    "registry_monitoring_not_eligible"
+                                )
+                        preference = command.monitoring_preference
+                    elif command.action == "archive":
+                        if lifecycle == "archived":
+                            raise RegistryCommandConflictV1("registry_subject_archived")
+                        lifecycle = "archived"
+                        archived_at = instant
+                        preference = "disabled"
+                    elif command.action == "restore":
+                        if lifecycle != "archived":
+                            raise RegistryCommandConflictV1(
+                                "registry_subject_not_archived"
+                            )
+                        lifecycle = (
+                            "active"
+                            if row["identity_state"] in {"matched", "owner_confirmed"}
+                            else "pending"
+                        )
+                        archived_at = None
+                    if organization_id is not None and command.action in {
+                        "assign",
+                        "restore",
+                    }:
+                        organization_state = connection.exec_driver_sql(
+                            "SELECT lifecycle FROM reg_organization WHERE organization_id=?",
+                            (organization_id,),
+                        ).scalar_one_or_none()
+                        if organization_state != "active":
+                            raise RegistryCommandConflictV1(
+                                "registry_organization_unavailable"
+                            )
+                    if (
+                        name == row["friendly_name"]
+                        and organization_id == row["organization_id"]
+                        and lifecycle == row["lifecycle"]
+                        and preference == row["monitoring_preference"]
+                    ):
+                        result = self._account_by_id(
+                            connection, command.account_id.value
+                        )
+                        connection.rollback()
+                        return result
+                    version = command.expected_version + 1
+                    revision = _next_revision(connection, instant)
+                    connection.exec_driver_sql(
+                        "UPDATE reg_account SET friendly_name=?, normalized_name=?, "
+                        "organization_id=?, lifecycle=?, archived_at=?, "
+                        "monitoring_preference=?, record_version=?, updated_at=? "
+                        "WHERE account_id=? AND record_version=?",
+                        (
+                            name,
+                            name.casefold(),
+                            organization_id,
+                            lifecycle,
+                            archived_at,
+                            preference,
+                            version,
+                            instant,
+                            command.account_id.value,
+                            command.expected_version,
+                        ),
+                    )
+                    _append_change(
+                        connection,
+                        subject_type="account",
+                        subject_id=command.account_id.value,
+                        aggregate_version=version,
+                        revision=revision,
+                        change_kind=command.action,
+                        actor_id=command.principal_id.value,
+                        correlation_id=command.command_id.value,
+                        command_digest=command_digest,
+                        instant=instant,
+                        previous_name=row["friendly_name"],
+                        new_name=name,
+                        previous_organization_id=row["organization_id"],
+                        new_organization_id=organization_id,
+                        previous_lifecycle=row["lifecycle"],
+                        new_lifecycle=lifecycle,
+                    )
+                    _append_outbox(
+                        connection,
+                        subject_type="account",
+                        subject_id=command.account_id.value,
+                        aggregate_version=version,
+                        revision=revision,
+                        change_kind=command.action,
+                        correlation_id=command.command_id.value,
+                        causation_id=command.command_id.value,
+                        instant=instant,
+                    )
+                    connection.exec_driver_sql(
+                        "INSERT INTO reg_command_receipt "
+                        "(receipt_id, principal_id, operation_key, "
+                        "idempotency_key_digest, request_fingerprint, "
+                        "outcome_subject_type, outcome_subject_id, "
+                        "outcome_record_version, registry_revision, created_at, expires_at) "
+                        "VALUES (?, ?, ?, ?, ?, 'account', ?, ?, ?, ?, ?)",
+                        (
+                            _identifier(),
+                            command.principal_id.value,
+                            operation,
+                            command_digest,
+                            request_fingerprint,
+                            command.account_id.value,
+                            version,
+                            revision,
+                            instant,
+                            _utc_text(command.requested_at + timedelta(days=365)),
+                        ),
+                    )
+                    result = self._account_by_id(connection, command.account_id.value)
+                    connection.commit()
+                    return result
+        except RegistryCommandConflictV1:
+            raise
+        except (SqlitePolicyError, SQLAlchemyError, ValueError, TypeError):
             raise RegistryRepositoryErrorV1() from None
 
     def reconcile_discovery(
@@ -1813,6 +2561,26 @@ class SqliteRegistryRepositoryV1:
             .one()
         )
         return _account(row)
+
+    def get_account(self, account_id: OpaqueIdV1) -> AccountViewV1 | None:
+        try:
+            with open_sqlite_database(
+                self._database_ref, "runtime_read_write"
+            ) as handle:
+                with handle.connect() as connection:
+                    row = (
+                        connection.exec_driver_sql(
+                            "SELECT a.*, s.registry_revision FROM reg_account a "
+                            "CROSS JOIN reg_registry_state s WHERE s.singleton_key=1 "
+                            "AND a.account_id=?",
+                            (account_id.value,),
+                        )
+                        .mappings()
+                        .one_or_none()
+                    )
+                    return _account(row) if row is not None else None
+        except (SqlitePolicyError, SQLAlchemyError, ValueError):
+            raise RegistryRepositoryErrorV1() from None
 
     def list_accounts(
         self,

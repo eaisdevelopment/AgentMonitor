@@ -18,6 +18,7 @@ type ApiTokensPageProps = Readonly<{
 const AVAILABLE_SCOPES = [
   { value: "read:diagnostics", label: "Read diagnostics", description: "Read IAM security events in M2." },
   { value: "write:tokens", label: "Manage API tokens", description: "List, issue, rotate, and revoke API tokens, subject to this token’s own scopes and expiry." },
+  { value: "write:accounts", label: "Manage accounts", description: "Create and update account and organization records." },
 ] as const;
 
 function OneTimeTokenDialog({ issue, onClose }: Readonly<{

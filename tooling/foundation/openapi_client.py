@@ -72,6 +72,8 @@ SOURCE_FILES = (
     "backend/src/agentmonitor/contracts/runtime_observation_v1.py",
     "backend/src/agentmonitor/modules/registry/application/accounts.py",
     "backend/src/agentmonitor/modules/registry/application/discovery.py",
+    "backend/src/agentmonitor/modules/registry/application/organizations.py",
+    "backend/src/agentmonitor/modules/registry/domain/names.py",
     "backend/src/agentmonitor/modules/provider_system/application/queries.py",
     "backend/src/agentmonitor/modules/collection_control/application/queries.py",
     "backend/src/agentmonitor/modules/capacity/application/queries.py",
@@ -104,6 +106,20 @@ IAM_OPERATIONS = {
     ("/api/v1/api-tokens/{token_id}", "delete"): "iam_revoke_api_token_v1",
     ("/api/v1/iam/security-events", "get"): "iam_list_security_events_v1",
     ("/api/v1/accounts", "get"): "registry_list_accounts_v1",
+    ("/api/v1/accounts", "post"): "registry_register_account_v1",
+    ("/api/v1/accounts/{account_id}", "get"): "registry_get_account_v1",
+    ("/api/v1/accounts/{account_id}", "patch"): "registry_rename_account_v1",
+    ("/api/v1/accounts/{account_id}/organization", "put"): "registry_assign_account_organization_v1",
+    ("/api/v1/accounts/{account_id}/monitoring", "put"): "registry_set_account_monitoring_v1",
+    ("/api/v1/accounts/{account_id}/archivals", "post"): "registry_archive_account_v1",
+    ("/api/v1/accounts/{account_id}/archival", "delete"): "registry_restore_account_v1",
+    ("/api/v1/organizations", "get"): "registry_list_organizations_v1",
+    ("/api/v1/organizations", "post"): "registry_create_organization_v1",
+    ("/api/v1/organization-orderings", "post"): "registry_reorder_organizations_v1",
+    ("/api/v1/organizations/{organization_id}", "get"): "registry_get_organization_v1",
+    ("/api/v1/organizations/{organization_id}", "patch"): "registry_rename_organization_v1",
+    ("/api/v1/organizations/{organization_id}/archivals", "post"): "registry_archive_organization_v1",
+    ("/api/v1/organizations/{organization_id}/archival", "delete"): "registry_restore_organization_v1",
     (
         "/api/v1/provider-installations",
         "get",
@@ -332,6 +348,102 @@ IAM_POLICY: dict[str, IamPolicyRow] = {
         "SafeProblemV1",
         _M2_REQUIRED_ERROR_STATUSES,
         None,
+    ),
+    "registry_list_organizations_v1": (
+        "cookie_or_bearer",
+        "read:accounts",
+        "ListOrganizationsV1",
+        "safe_query_repeat",
+        _COOKIE_BEARER,
+        "200",
+        "OrganizationPageV1",
+        "SafeProblemV1",
+        _M2_REQUIRED_ERROR_STATUSES,
+        None,
+    ),
+    "registry_create_organization_v1": (
+        "cookie_or_bearer",
+        "write:accounts",
+        "CreateOrganizationV1",
+        "replay_safe_representation",
+        _COOKIE_CSRF_BEARER,
+        "201",
+        "OrganizationViewV1",
+        "SafeProblemV1",
+        _M2_REQUIRED_ERROR_STATUSES,
+        "CreateOrganizationInputV1",
+    ),
+    "registry_get_organization_v1": (
+        "cookie_or_bearer", "read:accounts", "GetOrganizationV1",
+        "safe_query_repeat", _COOKIE_BEARER,
+        "200", "OrganizationViewV1", "SafeProblemV1",
+        _M2_REQUIRED_ERROR_STATUSES, None,
+    ),
+    "registry_reorder_organizations_v1": (
+        "cookie_or_bearer", "write:accounts", "ReorderOrganizationsV1",
+        "replay_safe_representation", _COOKIE_CSRF_BEARER,
+        "200", "OrganizationOrderingViewV1", "SafeProblemV1",
+        _M2_REQUIRED_ERROR_STATUSES, "ReorderOrganizationsInputV1",
+    ),
+    "registry_rename_organization_v1": (
+        "cookie_or_bearer", "write:accounts", "RenameOrganizationV1",
+        "replay_safe_representation", _COOKIE_CSRF_BEARER,
+        "200", "OrganizationViewV1", "SafeProblemV1",
+        _M2_REQUIRED_ERROR_STATUSES, "RenameOrganizationInputV1",
+    ),
+    "registry_archive_organization_v1": (
+        "cookie_or_bearer", "write:accounts", "ArchiveOrganizationV1",
+        "replay_safe_representation", _COOKIE_CSRF_BEARER,
+        "200", "OrganizationViewV1", "SafeProblemV1",
+        _M2_REQUIRED_ERROR_STATUSES, "ArchiveOrganizationInputV1",
+    ),
+    "registry_restore_organization_v1": (
+        "cookie_or_bearer", "write:accounts", "RestoreOrganizationV1",
+        "replay_safe_representation", _COOKIE_CSRF_BEARER,
+        "200", "OrganizationViewV1", "SafeProblemV1",
+        _M2_REQUIRED_ERROR_STATUSES, None,
+    ),
+    "registry_register_account_v1": (
+        "cookie_or_bearer", "write:accounts", "RegisterAccountV1",
+        "replay_safe_representation", _COOKIE_CSRF_BEARER,
+        "201", "AccountViewV1", "SafeProblemV1",
+        _M2_REQUIRED_ERROR_STATUSES, "RegisterAccountInputV1",
+    ),
+    "registry_get_account_v1": (
+        "cookie_or_bearer", "read:accounts", "GetAccountV1",
+        "safe_query_repeat", _COOKIE_BEARER,
+        "200", "AccountViewV1", "SafeProblemV1",
+        _M2_REQUIRED_ERROR_STATUSES, None,
+    ),
+    "registry_rename_account_v1": (
+        "cookie_or_bearer", "write:accounts", "RenameAccountV1",
+        "replay_safe_representation", _COOKIE_CSRF_BEARER,
+        "200", "AccountViewV1", "SafeProblemV1",
+        _M2_REQUIRED_ERROR_STATUSES, "RenameAccountInputV1",
+    ),
+    "registry_assign_account_organization_v1": (
+        "cookie_or_bearer", "write:accounts", "AssignAccountOrganizationV1",
+        "replay_safe_representation", _COOKIE_CSRF_BEARER,
+        "200", "AccountViewV1", "SafeProblemV1",
+        _M2_REQUIRED_ERROR_STATUSES, "AssignAccountOrganizationInputV1",
+    ),
+    "registry_set_account_monitoring_v1": (
+        "cookie_or_bearer", "write:accounts", "SetAccountMonitoringV1",
+        "replay_safe_representation", _COOKIE_CSRF_BEARER,
+        "200", "AccountViewV1", "SafeProblemV1",
+        _M2_REQUIRED_ERROR_STATUSES, "SetAccountMonitoringInputV1",
+    ),
+    "registry_archive_account_v1": (
+        "cookie_or_bearer", "write:accounts", "ArchiveAccountV1",
+        "replay_safe_representation", _COOKIE_CSRF_BEARER,
+        "200", "AccountViewV1", "SafeProblemV1",
+        _M2_REQUIRED_ERROR_STATUSES, "ArchiveAccountInputV1",
+    ),
+    "registry_restore_account_v1": (
+        "cookie_or_bearer", "write:accounts", "RestoreAccountV1",
+        "replay_safe_representation", _COOKIE_CSRF_BEARER,
+        "200", "AccountViewV1", "SafeProblemV1",
+        _M2_REQUIRED_ERROR_STATUSES, None,
     ),
     "registry_list_provider_installations_v1": (
         "cookie_or_bearer",
@@ -647,7 +759,7 @@ def validate_iam_openapi(document: object) -> tuple[str, ...]:
     if (
         actual != IAM_OPERATIONS
         or set(IAM_POLICY) != set(IAM_OPERATIONS.values())
-        or len(identifiers) != 25
+        or len(identifiers) != 39
     ):
         raise OpenApiGenerationError("operation_surface_invalid")
 
