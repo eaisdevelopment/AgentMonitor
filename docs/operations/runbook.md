@@ -89,6 +89,39 @@ browser leaves collection running; the account page refreshes quota through
 the API every 30 seconds. Account labels and organizations are admin-managed.
 Adding a pending account record does not itself authenticate or bind a profile.
 
+### Additional managed Claude account authentication
+
+The [bounded connection change](../plans/integration/claude-managed-account-connection-change.md)
+adds an owner-operated official sign-in stage. Start with an actual pending
+Claude account created through admin CRUD. Use its opaque registry account ID
+and the explicitly selected AgentMonitor data root:
+
+```bash
+backend/.venv/bin/python tools/providers/connect_claude_profile.py \
+  --data-root /path/to/agentmonitor-data --account-id REGISTRY_ACCOUNT_ID
+```
+
+The tool uses the admin name as the expected email when it is an email address.
+For other friendly names, supply `--expected-email` with the intended email.
+Credentials and codes must remain in the official provider browser flow. The
+tool accepts no credential/code input and discards provider login output. It
+waits at most ten minutes and returns a non-success result when the expected
+managed identity cannot be verified. No default logout or credential copying
+occurs. The selected directory is private and derived from the registry ID;
+Claude's official `CLAUDE_CONFIG_DIR` isolates its credential store.
+
+An explicitly selected owner-only executable may be supplied using
+`--browser-opener` to hand the official URL directly to a shared browser. The
+opener must not log that URL or read browser credentials. Only graphical-session
+metadata is inherited for this operation; provider environment credentials are
+excluded. A new directory is never inferred from arbitrary agent environments.
+
+Successful authentication verifies the expected managed email and unchanged
+default identity. **It does not activate the pending account, enable monitoring,
+bind processes, or schedule its quota.** Registry enrollment, per-profile
+collection, and dashboard connection controls remain subsequent implementation
+stages. See the [current evidence](../evidence/claude-managed-account-connection.md).
+
 After an intentional service stop, start the verified local dashboard command:
 
 ```bash
