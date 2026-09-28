@@ -1,0 +1,158 @@
+import { useEffect, useState } from "react";
+
+import {
+  capacity, providers, registry,
+  type AccountCapacityViewV1, type AccountPageV1, type AccountViewV1,
+  type ObservedAccountIdentityViewV1, type OrganizationPageV1,
+} from "../../shared/api/client";
+import { metricAvailability, remainingPercentage } from "../command/quotaPresentation";
+
+type AccountReading = Readonly<{
+  account: AccountViewV1;
+  quota: AccountCapacityViewV1 | null;
+  identity: ObservedAccountIdentityViewV1 | null;
+  refreshFailed: boolean;
+}>;
+type OverviewState =
+  | Readonly<{ kind: "loading" }>
+  | Readonly<{ kind: "error" }>
+  | Readonly<{ kind: "ready"; accounts: AccountPageV1; organizations: OrganizationPageV1 | null; readings: readonly AccountReading[]; refreshFailed: boolean }>;
+
+function readingState(reading: AccountReading): Readonly<{ label: string; icon: string; tone: string }> {
+  const { account, quota, refreshFailed } = reading;
+  const windows = quota?.items.flatMap(item => item.windows) ?? [];
+  if (["wrong_account", "conflict", "invalidated"].includes(account.identity_state)) return { label: "Check identity", icon: "!", tone: "warning" };
+  if (account.lifecycle === "pending") return { label: "Not connected", icon: "○", tone: "unavailable" };
+  if (account.lifecycle === "disabled") return { label: "Disabled", icon: "○", tone: "unavailable" };
+  if (!account.is_effective_monitoring_enabled) return { label: "Monitoring off", icon: "○", tone: "unavailable" };
+  if (refreshFailed) return { label: "Refresh failed", icon: "!", tone: "warning" };
+  if (quota === null || quota.availability.state === "unavailable") return { label: "Unavailable", icon: "?", tone: "unavailable" };
+  if (quota.availability.state === "unsupported") return { label: "Unsupported", icon: "?", tone: "unavailable" };
+  if (quota.availability.state === "unknown") return { label: "Unknown", icon: "?", tone: "unavailable" };
+  if (windows.length === 0) return { label: "No quota yet", icon: "○", tone: "unavailable" };
+  if (windows.some(window => window.freshness === "conflicted")) return { label: "Conflicting readings", icon: "!", tone: "warning" };
+  if (windows.some(window => window.freshness === "stale")) return { label: "Stale", icon: "!", tone: "warning" };
+  if (windows.some(window => window.freshness !== "fresh")) return { label: "Unknown freshness", icon: "?", tone: "unavailable" };
+  if (quota.availability.state === "partial") return { label: "Partial readings", icon: "!", tone: "warning" };
+  return { label: "Current", icon: "✓", tone: "live" };
+}
+
+export function AccountQuotaOverview({ onExpired, onOpenAccount }: Readonly<{
+  onExpired: () => void;
+  onOpenAccount: (accountId: string) => void;
+}>) {
+  const [state, setState] = useState<OverviewState>({ kind: "loading" });
+  const [refreshKey, setRefreshKey] = useState(0);
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    let inFlight = false;
+    const refresh = async () => {
+      if (inFlight) return;
+      inFlight = true;
+      setBusy(true);
+      try {
+        const [accounts, organizations] = await Promise.all([
+          registry.accounts(controller.signal), registry.organizations(controller.signal),
+        ]);
+        if (controller.signal.aborted) return;
+        if ((!accounts.ok && accounts.problem.code === "dashboard_authentication_required") || (!organizations.ok && organizations.problem.code === "dashboard_authentication_required")) {
+          onExpired();
+          return;
+        }
+        if (!accounts.ok) throw new Error("account_list_unavailable");
+        const visible = accounts.data.items.filter(account => account.lifecycle !== "archived");
+        const readings: AccountReading[] = [];
+        let expired = false;
+        // Bound simultaneous requests while retaining every returned account.
+        for (let offset = 0; offset < visible.length; offset += 6) {
+          const batch = await Promise.all(visible.slice(offset, offset + 6).map(async account => {
+            try {
+              const [quota, identity] = await Promise.all([
+                capacity.account(account.account_id, controller.signal),
+                providers.observedAccountIdentity(account.account_id, controller.signal),
+              ]);
+              if ((!quota.ok && quota.problem.code === "dashboard_authentication_required") || (!identity.ok && identity.problem.code === "dashboard_authentication_required")) expired = true;
+              return { account, quota: quota.ok ? quota.data : null, identity: identity.ok ? identity.data : null, refreshFailed: !quota.ok || !identity.ok };
+            } catch {
+              return { account, quota: null, identity: null, refreshFailed: true };
+            }
+          }));
+          if (controller.signal.aborted) return;
+          if (expired) { onExpired(); return; }
+          readings.push(...batch);
+        }
+        setState(current => ({
+          kind: "ready", accounts: accounts.data,
+          organizations: organizations.ok ? organizations.data : current.kind === "ready" ? current.organizations : null,
+          readings: readings.map(reading => {
+            const previous = current.kind === "ready" ? current.readings.find(item => item.account.account_id === reading.account.account_id) : undefined;
+            return { ...reading, quota: reading.quota ?? previous?.quota ?? null, identity: reading.identity ?? previous?.identity ?? null };
+          }),
+          refreshFailed: !organizations.ok || readings.some(reading => reading.refreshFailed),
+        }));
+      } catch {
+        if (!controller.signal.aborted) setState(current => current.kind === "ready"
+          ? { ...current, refreshFailed: true, readings: current.readings.map(reading => ({ ...reading, refreshFailed: true })) }
+          : { kind: "error" });
+      } finally {
+        inFlight = false;
+        if (!controller.signal.aborted) setBusy(false);
+      }
+    };
+    void refresh();
+    const interval = window.setInterval(() => { void refresh(); }, 30_000);
+    return () => { controller.abort(); window.clearInterval(interval); };
+  }, [onExpired, refreshKey]);
+
+  return (
+    <section className="fleet-overview" aria-labelledby="overview-accounts-title" aria-busy={busy}>
+      <div className="fleet-overview-heading">
+        <div><h2 id="overview-accounts-title">Accounts</h2><p>Remaining quota and reading state</p></div>
+        <div className="fleet-overview-controls">
+          {state.kind === "ready" && <span>{state.readings.length} listed · {state.readings.filter(reading => reading.account.is_effective_monitoring_enabled).length} monitoring</span>}
+          <button className="quiet-button" type="button" disabled={busy} onClick={() => setRefreshKey(key => key + 1)}>{busy ? "Refreshing…" : "Refresh overview"}</button>
+        </div>
+      </div>
+      {state.kind === "loading" && <p className="fleet-overview-notice" role="status">Reading accounts and quota…</p>}
+      {state.kind === "error" && <p className="fleet-overview-notice" role="alert">Account readings are unavailable. Refresh to try again.</p>}
+      {state.kind === "ready" && <>
+        {state.readings.length === 0 ? <p className="fleet-overview-notice">No accounts are registered. Add an account from Accounts.</p> : (
+          <table className="fleet-overview-table" aria-label="Account quota overview">
+            <thead><tr><th scope="col">Account</th><th scope="col">Organization</th><th scope="col">State</th><th scope="col">Quota left</th><th scope="col">Updated</th></tr></thead>
+            <tbody>{state.readings.map(reading => {
+              const { account, quota, identity } = reading;
+              const windows = quota?.items.flatMap(item => item.windows) ?? [];
+              const verified = identity?.state === "verified" && identity.account_id === account.account_id && identity.email !== null && windows.length > 0 && windows.every(window => window.collection_run_id === identity.collection_run_id);
+              const displayedName = verified ? identity.email : account.friendly_name;
+              const status = readingState(reading);
+              const organization = account.organization_id === null ? "Ungrouped" : state.organizations?.items.find(item => item.organization_id === account.organization_id)?.name ?? "Unavailable";
+              const updatedAt = windows.map(window => window.collected_at).sort()[0];
+              return <tr key={account.account_id} data-account-id={account.account_id}>
+                <th scope="row" data-label="Account"><button type="button" className="overview-account-link" aria-label={`Open account ${displayedName}`} onClick={() => onOpenAccount(account.account_id)}>{displayedName}</button><small>{account.provider_key} · {verified ? "Identity verified" : "Admin name"}</small></th>
+                <td data-label="Organization"><span className="organization-tag">{organization}</span></td>
+                <td data-label="State"><span className={`overview-reading-state overview-state-${status.tone}`}><span aria-hidden="true">{status.icon}</span><span>{status.label}</span></span><small>Monitoring {account.is_effective_monitoring_enabled ? "on" : "off"}</small></td>
+                <td data-label="Quota left"><div className="overview-quota-list">
+                  {windows.length === 0 ? <span>{quota === null ? "Unavailable" : "No reading yet"}</span> : windows.map(window => {
+                    const percentage = remainingPercentage(window.allowance?.remaining_percentage ?? window.remaining_ratio);
+                    const calculated = window.allowance !== null && window.allowance !== undefined;
+                    const precision = calculated && window.allowance?.remaining_percentage.precision === "rounded" ? " · rounded" : "";
+                    return <div className="overview-quota" key={window.window_id} data-window-id={window.window_id}>
+                      <div className="overview-quota-label"><span>{window.safe_label ?? window.window_key}</span><strong title={calculated ? `${window.allowance?.calculation === "100_minus_used_percent" ? "Calculated: 100% minus reported usage" : "Calculated from reported remaining ratio"}${precision}.` : "Provider-reported remaining allowance."}>{percentage?.label ?? metricAvailability(window.remaining_ratio)}</strong></div>
+                      {percentage !== null && <div className="overview-quota-meter" role="meter" aria-label={`${window.safe_label ?? window.window_key} remaining allowance`} aria-valuemin={0} aria-valuemax={100} aria-valuenow={percentage.value} aria-valuetext={`${percentage.label} left${calculated ? " · calculated" : ""}${precision}`}><span style={{ width: `${percentage.value}%` }} /></div>}
+                      {window.freshness !== "fresh" && <small>{window.freshness.replaceAll("_", " ")}</small>}
+                    </div>;
+                  })}
+                </div>{windows.some(window => window.allowance != null) && <small>Calculated{windows.some(window => window.allowance?.remaining_percentage.precision === "rounded") ? " · rounded" : ""}</small>}</td>
+                <td data-label="Updated">{updatedAt === undefined ? <span>No reading yet</span> : <time dateTime={updatedAt} title={new Date(updatedAt).toLocaleString()}>{new Date(updatedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</time>}</td>
+              </tr>;
+            })}</tbody>
+          </table>
+        )}
+        {(state.refreshFailed || state.accounts.availability.state !== "available") && <p className="fleet-overview-notice" role="status">Some readings could not be refreshed. Check each account's state and update time.</p>}
+        {state.accounts.page.has_more && <p className="fleet-overview-notice" role="status">This is a bounded account page; additional accounts are available in Accounts.</p>}
+      </>}
+    </section>
+  );
+}

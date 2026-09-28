@@ -65,6 +65,20 @@ try {
   ]);
   if (statusReads !== 2) throw new Error("manual_status_check_missing");
 
+  stage = "pending_quota_overview";
+  await page.getByRole("button", { name: "Overview", exact: true }).click();
+  const overview = page.getByRole("table", { name: "Account quota overview", exact: true });
+  await overview.waitFor();
+  const pendingRow = overview.getByRole("row").filter({ hasText: name });
+  stage = "pending_overview_state";
+  await pendingRow.getByText("Not connected", { exact: true }).waitFor();
+  stage = "pending_overview_empty_quota";
+  await pendingRow.getByText("No reading yet", { exact: true }).first().waitFor();
+  if (await pendingRow.getByRole("meter").count() !== 0) throw new Error("pending_account_has_invented_quota");
+  stage = "pending_overview_detail_navigation";
+  await pendingRow.getByRole("button", { name: `Open account ${name}`, exact: true }).click();
+  await page.getByRole("heading", { name, exact: true }).waitFor();
+
   stage = "responsive";
   await page.setViewportSize({ width: 390, height: 844 });
   if (await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth + 1)) throw new Error("horizontal_overflow");

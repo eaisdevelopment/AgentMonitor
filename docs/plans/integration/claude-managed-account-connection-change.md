@@ -194,3 +194,47 @@ rejection, output bounds, and default/managed identity checks.
 Earlier incomplete renders must not be presented as a new reading.
 No dependency, provider file edit, migration, normalized contract,
 source cadence, authentication, or running-agent action is needed.
+
+### Compact connected status (owner directed)
+
+The owner's request to reduce the connected account notification approves
+this bounded P02 presentation correction. A completed connection uses one
+compact row with a text/icon connection label, current monitoring state,
+and the existing read-only status action. Setup, attention, and recovery
+retain their actionable guidance. Remove the repeated heading and future
+quota promise from the connected state; capacity freshness stays in the
+account activity view. No provider, API, domain, database, dependency, or
+generated-client contract changes are needed (`CTR-UI-001` and
+`CTR-API-001` V1 remain unchanged).
+
+Extend the existing real-owner browser verifier before production changes
+to reject a tall connected panel at 1920, 1280, and 390 pixels, verify
+keyboard/status refresh access, and forbid authentication mutations.
+The selected live `AUTO-CLAUDE-CONNECT` gate plus the pending-connection
+browser scenario bound completion. Requirements `FR-UI-001/002/004`
+and selected `AC-UI-003/005` apply. Rollback restores the prior static
+bundle; owner/provider records and profiles are untouched.
+
+### Compact quota overview (owner directed)
+
+The owner's follow-up request approves a P02 main-page correction under
+`FR-UI-001/002/004/005/006` and selected `AC-UI-002/003/005`: replace
+the oversized introduction with a small heading and prioritize a dense
+account/organization/state/remaining-quota overview above secondary
+provider, collection, and session panels. Each genuine quota window has
+its existing percentage formatter, bounded bar, freshness, and update
+time. State describes quota-reading freshness and explicit registry
+eligibility; it does not guess working-agent ownership or derive a new
+capacity policy. Provider-verified names require exact current quota
+receipt lineage. Pending, absent, stale, failed, and incomplete page
+coverage stay explicit. Admin records remain dynamic.
+
+P02 reads existing V1 registry, capacity, and observed-identity operations
+through its generated-client wrapper, with bounded concurrency and
+30-second read refresh. Add real populated-overview browser assertions
+before production changes and include them in `AUTO-CLAUDE-CONNECT`.
+The existing real SQLite/API/browser empty and pending scenarios must
+also pass. No API, domain, provider, schema, migration, dependency,
+or generated-client change is authorized or needed. This is a display
+of per-account readings, not organization/global capacity aggregation,
+forecasting, running-agent correlation, or full M4 acceptance.

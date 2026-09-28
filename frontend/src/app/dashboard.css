@@ -105,6 +105,49 @@ td { font-variant-numeric: tabular-nums; }
 .secret-dialog .dialog-actions { justify-content: flex-end; }
 .command-grid { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 1rem; }
 .command-grid > section { grid-column: span 6; min-width: 0; }
+.overview-heading { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: .1rem 0; }
+.dashboard-main .overview-heading h1 { margin: 0; font-size: 1rem; }
+.overview-local-state { display: flex; align-items: center; gap: .5rem; color: #a9bfcc; font-size: .8rem; }
+.overview-local-state .status-light { width: .5rem; height: .5rem; box-shadow: none; }
+.fleet-overview { padding: 0 !important; min-width: 0; overflow: hidden; }
+.fleet-overview-heading { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: .5rem 1rem; padding: .7rem 1rem; }
+.fleet-overview-heading h2 { margin: 0; font-size: 1.05rem; }
+.fleet-overview-heading p { margin: .2rem 0 0; color: #9fb6c5; font-size: .78rem; }
+.fleet-overview-controls { display: flex; align-items: center; flex-wrap: wrap; gap: .5rem .8rem; }
+.fleet-overview-controls > span { color: #a9bfcc; font-size: .78rem; }
+.fleet-overview-controls > button { min-height: 2.1rem; padding: .35rem .65rem; font-size: .78rem; }
+.fleet-overview-table { table-layout: fixed; }
+.fleet-overview-table thead th { padding: .55rem 1rem; background: #0b1824; color: #9fb6c5; font-size: .75rem; }
+.fleet-overview-table thead th:nth-child(1) { width: 27%; }
+.fleet-overview-table thead th:nth-child(2) { width: 13%; }
+.fleet-overview-table thead th:nth-child(3) { width: 18%; }
+.fleet-overview-table thead th:nth-child(4) { width: 32%; }
+.fleet-overview-table thead th:nth-child(5) { width: 10%; }
+.fleet-overview-table tbody th, .fleet-overview-table tbody td { padding: .75rem 1rem; vertical-align: middle; overflow-wrap: anywhere; }
+.fleet-overview-table tbody tr:last-child > * { border-bottom: 0; }
+.overview-account-link { background: transparent; border: 0; min-height: 1.75rem; padding: .1rem 0; color: #c4eefc; font-size: .9rem; text-align: left; overflow-wrap: anywhere; }
+.overview-account-link:hover { background: transparent; text-decoration: underline; }
+.fleet-overview-table small { display: block; color: #9fb6c5; font-size: .72rem; font-weight: 400; margin-top: .2rem; }
+.overview-reading-state { display: inline-flex; align-items: center; gap: .45rem; font-size: .85rem; font-weight: 650; }
+.overview-state-live { color: #95f0cc; }
+.overview-state-warning { color: #ffd58f; }
+.overview-state-unavailable { color: #b7c7d1; }
+.overview-quota-list { display: grid; gap: .5rem; }
+.overview-quota-label { display: flex; align-items: baseline; justify-content: space-between; gap: .75rem; }
+.overview-quota-label > span { color: #b7c7d1; font-size: .75rem; }
+.overview-quota-label > strong { font-size: 1rem; font-variant-numeric: tabular-nums; }
+.overview-quota-meter { height: .25rem; margin-top: .2rem; background: #294258; border-radius: .25rem; overflow: hidden; }
+.overview-quota-meter > span { display: block; height: 100%; background: #78c8e2; }
+.fleet-overview-notice { margin: .75rem 1rem 1rem; color: #b7c7d1; font-size: .85rem; }
+@media (max-width: 700px) {
+  .overview-local-state { font-size: .7rem; }
+  .fleet-overview-table thead { display: none; }
+  .fleet-overview-table, .fleet-overview-table tbody, .fleet-overview-table tr { display: block; }
+  .fleet-overview-table tbody tr { padding: .5rem 0; border-top: 1px solid #344e62; }
+  .fleet-overview-table tbody th, .fleet-overview-table tbody td { display: grid; grid-template-columns: 5rem minmax(0, 1fr); gap: .2rem .75rem; padding: .35rem 1rem; border: 0; text-align: left; }
+  .fleet-overview-table [data-label]::before { content: attr(data-label); grid-column: 1; grid-row: 1 / span 3; color: #9fb6c5; font-size: .72rem; font-weight: 500; align-self: center; }
+  .fleet-overview-table [data-label] > * { grid-column: 2; min-width: 0; }
+}
 .feature-page { display: grid; gap: 1rem; }
 .feature-page > .command-deck { min-height: 12rem; }
 .feature-page > .identity-panel, .feature-page > .telemetry-panel { min-width: 0; }
@@ -183,6 +226,13 @@ td { font-variant-numeric: tabular-nums; }
 .account-breadcrumb > span:last-child { color: #e7eef3; font-weight: 650; }
 .account-subtitle { display: flex; flex-wrap: wrap; gap: .65rem; color: #9eafbd; margin: 0; font-size: .9rem; }
 .claude-connection { border-color: #4d8098 !important; background: #132c3d !important; }
+.claude-connection-compact { padding: .5rem 1rem !important; border-color: #294258 !important; background: #111f2e !important; }
+.claude-connection-summary { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: .75rem; }
+.claude-connection-summary-status { display: flex; align-items: center; flex-wrap: wrap; gap: .35rem .75rem; min-width: 0; line-height: 1.35; }
+.claude-connection-summary-status strong { display: inline-flex; align-items: center; gap: .5rem; font-size: .9rem; }
+.claude-connected-mark { color: #95f0cc; }
+.claude-connection-summary > button { padding-inline: .75rem; font-size: .85rem; }
+.claude-connection-compact .form-status { margin: .65rem 0 0; }
 .claude-connection-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; }
 .claude-connection-heading h2 { margin: .4rem 0 0; font-size: 1.25rem; }
 .claude-connection-status { margin: 1.25rem 0; line-height: 1.55; }

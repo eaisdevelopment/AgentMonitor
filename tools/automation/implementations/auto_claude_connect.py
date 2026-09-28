@@ -46,6 +46,7 @@ def main() -> int:
             "backend/tests/adapters/providers/claude/live/test_managed_quota.py",
         ],
         ["node", "tools/providers/verify_claude_connection.mjs"],
+        ["node", "tools/ui/verify_dashboard_overview.mjs"],
     )
     for command in commands:
         result = subprocess.run(command, cwd=ROOT, check=False)

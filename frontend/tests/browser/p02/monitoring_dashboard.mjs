@@ -14,6 +14,7 @@ function requireTruth(condition, reason) {
 }
 
 async function requireNoHorizontalOverflow(page) {
+  await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
   const overflow = await page.evaluate(() => {
     if (document.documentElement.scrollWidth <= window.innerWidth + 1) return null;
     const offenders = [...document.querySelectorAll("body *")]
@@ -54,12 +55,15 @@ try {
   await page.getByLabel("Administrator password").fill(credential);
   await page.getByRole("button", { name: "Sign in" }).click();
   await page.getByRole("heading", { name: "AgentMonitor" }).waitFor();
+  await page.getByText("No accounts are registered. Add an account from Accounts.", { exact: true }).waitFor();
   stage = "command_responsive";
   for (const [width, height] of [[1920, 1080], [1440, 900], [1280, 720], [1024, 768], [768, 1024], [390, 844]]) {
     await page.setViewportSize({ width, height });
     await requireNoHorizontalOverflow(page);
     requireTruth(await page.getByRole("heading", { name: "Accounts", exact: true }).isVisible(), `accounts_panel_hidden_${width}`);
     requireTruth(await page.getByRole("heading", { name: "Sessions", exact: true }).isVisible(), `sessions_panel_hidden_${width}`);
+    const heading = await page.locator(".overview-heading").boundingBox();
+    requireTruth(heading && heading.height <= 80, `overview_intro_tall_${width}`);
   }
   requireTruth(await page.getByText(/Claude|Codex|Ollama/).count() === 0, "invented_provider_presence");
   const requiredObservationGets = [
@@ -96,7 +100,7 @@ try {
   stage = "accounts_navigation";
   await page.getByRole("button", { name: "Accounts", exact: true }).click();
   await page.getByRole("heading", { name: "Accounts", exact: true }).waitFor();
-  await page.getByText("No monitored accounts are registered.", { exact: true }).waitFor();
+  await page.getByText("No accounts are registered.", { exact: true }).waitFor();
 
   stage = "providers_navigation";
   await page.getByRole("button", { name: "Providers", exact: true }).click();

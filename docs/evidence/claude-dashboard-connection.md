@@ -23,6 +23,10 @@
 
 ## Owner workflow and limits
 
+The subsequent [dashboard density correction](dashboard-density-and-quota-overview.md)
+compacts completed connection status and adds real per-account quota to the
+main overview. Setup/attention behavior and connection ownership stay the same.
+
 The owner opens a pending Claude account, confirms its intended email, and
 clicks **Connect Claude**. That explicit action starts the official native
 login against a private managed profile and opens an ordinary Chrome window.

@@ -176,6 +176,14 @@ reauthentication stays rejected.
 
 The real `claude_connection` browser scenario Passed for controls and safe V1
 behavior without launching provider sign-in. `AUTO-CLAUDE-CONNECT` additionally
-requires an owner-completed dashboard flow and fresh managed quota. That live
-acceptance and interrupted-enrollment recovery remain Not Run. See
+requires an owner-completed dashboard flow and fresh managed quota. Two selected
+owner-completed connection gates Passed; interrupted-enrollment recovery and
+other live flow cases remain Not Run. See
 [connection evidence and the six-story M4 status](../evidence/claude-dashboard-connection.md).
+
+Completed connections now use a compact status row. The main page prioritizes
+per-account organization, quota-reading state, remaining percentages/bars,
+and update times above secondary provider/collection/session panels. It consumes
+existing V1 operations, verifies identity lineage, and never infers working
+agent ownership. The same canonical connection gate includes real connected
+layout and populated overview checks. See [density and quota-overview evidence](../evidence/dashboard-density-and-quota-overview.md).

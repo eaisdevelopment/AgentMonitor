@@ -164,6 +164,19 @@ export function ClaudeConnectionPanel({
   // interrupted dashboard connection reported by the versioned API.
   if (recovery && !connection?.can_connect && !active && !needsAttention && !isConnectedReceipt) return null;
 
+  if (isConnectedReceipt) return (
+    <section className="claude-connection claude-connection-compact" aria-label="Claude connection" aria-busy={busy}>
+      <div className="claude-connection-summary">
+        <div className="claude-connection-summary-status" role="status" aria-live="polite">
+          <strong><span className="claude-connected-mark" aria-hidden="true">✓</span><span>Claude connected</span></strong>
+          <span className={`state-chip ${isMonitoringOn ? "state-live" : "state-unavailable"}`}>Monitoring {isMonitoringOn ? "on" : "off"}</span>
+        </div>
+        <button type="button" className="quiet-button" aria-label="Check status for Claude connection" disabled={busy} onClick={() => { void checkStatus(); }}>Check status</button>
+      </div>
+      {error !== null && <p className="form-status" role="alert">{error}</p>}
+    </section>
+  );
+
   return (
     <section className="claude-connection" aria-labelledby="claude-connection-title" aria-busy={busy}>
       <div className="claude-connection-heading">

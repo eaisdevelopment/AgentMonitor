@@ -1,4 +1,4 @@
-import { AccountPage } from "../accounts/AccountPage";
+import { AccountQuotaOverview } from "./AccountQuotaOverview";
 import { CollectionRunPanel } from "../collectors/CollectionRunPanel";
 import { ProviderPage } from "../providers/ProviderPage";
 import { SessionPanel } from "../sessions/SessionPanel";
@@ -6,7 +6,6 @@ import { SessionPanel } from "../sessions/SessionPanel";
 export function OverviewPage({
   onExpired,
   onOpenAccount,
-  onProofUnavailable,
   onTogglePassword,
 }: Readonly<{
   onExpired: () => void;
@@ -16,16 +15,12 @@ export function OverviewPage({
 }>) {
   return (
     <div className="operations-console" data-monitoring-state="api">
-      <section className="command-deck" aria-labelledby="page-title">
-        <div>
-          <p className="eyebrow">Mission control · local node</p>
-          <h1 id="page-title" tabIndex={-1}>AgentMonitor</h1>
-          <p className="console-summary">Authenticated operational views from the versioned AgentMonitor API. Unknown, unavailable, and unresolved observations remain explicit.</p>
-        </div>
-        <div className="link-state" aria-label="Dashboard service link"><span className="status-light" aria-hidden="true" /><span><strong>Dashboard API</strong><small>Authenticated · local</small></span></div>
-      </section>
+      <header className="overview-heading">
+        <h1 id="page-title" tabIndex={-1}>AgentMonitor</h1>
+        <span className="overview-local-state"><span className="status-light" aria-hidden="true" />Local dashboard</span>
+      </header>
+      <AccountQuotaOverview onExpired={onExpired} onOpenAccount={onOpenAccount} />
       <div className="command-grid">
-        <AccountPage displayMode="panel" onExpired={onExpired} onOpenAccount={onOpenAccount} onProofUnavailable={onProofUnavailable} />
         <ProviderPage displayMode="panel" onExpired={onExpired} />
         <CollectionRunPanel displayMode="panel" onExpired={onExpired} />
         <SessionPanel displayMode="panel" onExpired={onExpired} />
