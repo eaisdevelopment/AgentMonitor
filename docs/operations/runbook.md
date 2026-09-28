@@ -116,6 +116,15 @@ opener must not log that URL or read browser credentials. Only graphical-session
 metadata is inherited for this operation; provider environment credentials are
 excluded. A new directory is never inferred from arbitrary agent environments.
 
+Use an ordinary owner-controlled browser window for provider authentication.
+Cloudflare documents Playwright and other browser automation frameworks as
+[unsupported for production challenges](https://developers.cloudflare.com/cloudflare-challenges/reference/supported-browsers/).
+The dashboard may remain in a shared Playwright session while the owner completes
+provider authentication separately. If verification loops, let the current
+attempt expire or cancel only the operator-owned login child, then use the
+official login command with an ordinary browser. Do not automate challenge
+answers, change browser identity, or transfer challenge/session cookies.
+
 Successful authentication verifies the expected managed email and unchanged
 default identity. **It does not activate the pending account, enable monitoring,
 bind processes, or schedule its quota.** Registry enrollment, per-profile

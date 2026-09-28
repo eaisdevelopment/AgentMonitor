@@ -76,6 +76,24 @@ collection, wrong-account live verification, and the full M4 gate remain
 **Not Run / awaiting owner action**. No provider login page fields are scraped
 or screenshotted, and no raw URL, code, token, or login output is inspected.
 
+### Owner-reported verification failure and ordinary-browser retry
+
+The owner reported that the provider's human verification repeatedly reloaded
+in the shared Playwright browser. The first operator command ended with
+`CLAUDE CONNECTION: BLOCKED — expected managed identity not verified` (exit 3).
+That is a failed authentication prerequisite, not successful connection.
+
+Cloudflare lists browser automation frameworks, including Playwright, as
+[unsupported for production challenges](https://developers.cloudflare.com/cloudflare-challenges/reference/supported-browsers/).
+The browser environment is therefore a likely contributor; the exact cause
+has not been established. A fresh official CLI login was started with a private
+ordinary Chrome window, without browser automation or a debugging connection.
+Its opener was invoked and its own Chrome process was verified running using
+only the private browser's lock metadata. No provider page, input value, token,
+challenge answer, browser fingerprint, or cookie was inspected or manipulated.
+The shared dashboard session remains available. The retry awaits owner
+verification/sign-in and is not recorded as Passed.
+
 ## Security, privacy, compatibility, and follow-up
 
 The native provider retains its credential store. The subprocess environment
