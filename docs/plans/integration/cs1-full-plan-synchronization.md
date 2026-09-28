@@ -420,3 +420,16 @@ executable prerequisite for every milestone. Technical mapping/schema/probe
 evidence, real boundary checks, and truthful Blocked/Not Run reporting remain
 mandatory. M03/M04/M05/A01/A02/A03 plan hashes, contract adoption, ownership,
 automation catalog, and this snapshot were rebound together.
+
+## 2026-09-28 bounded Claude polling consumer/catalog binding
+
+Plan snapshot SHA-256: `6ad4c8d41beea6bcc4ca6c5423a021a2a325d6390acd6edb5d9cd2da175cad13`
+
+The exact current controls add Foundation's read-only consumption of
+`CTR-REG-003` and `CTR-REG-005` at `1.0.0`, and register `AUTO-CLAUDE-POLL`
+for the approved one-profile dashboard increment. No producer meaning, payload,
+contract version, module plan, or broad milestone acceptance changes. This is
+a mechanical adoption/catalog binding; it does not claim a new independent
+CS-1 audit. Historical review statements remain historical. Current scope and
+real evidence are recorded in
+[the polling delivery](../../evidence/claude-dashboard-polling.md).

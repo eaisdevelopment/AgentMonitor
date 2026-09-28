@@ -1,7 +1,7 @@
 schema_version = "1.0"
 status = "draft_exact"
 contract_baseline_version = "0.2.0"
-contract_baseline_sha256 = "38766851fdc968001d408c3968a3a7bc1677fca7ba96fa81e8ce162a852e0a7e"
+contract_baseline_sha256 = "48f62471ba4032507a73c6cc43f765e9c0ca1ddcd48e0ae6604d407c6adb1bfd"
 plan_count = 20
 owner_approved = false
 implementation_authorized = false
@@ -18,7 +18,7 @@ id = "PLAN-FND"
 plan_path = "docs/plans/foundation/plan-v1.md"
 plan_sha256 = "07c892e3908b4be52e4d878f478a23f8be38a77fca72e5f2d192263e68d7a8c7"
 publishes = ["CTR-BOUNDARY-001", "CTR-BOUNDARY-003", "CTR-COMMON-001", "CTR-COMMON-002", "CTR-COMMON-003", "CTR-COMMON-006", "CTR-COMMON-007", "CTR-CONFIG-001", "CTR-FND-001", "CTR-FND-002", "CTR-FND-003", "CTR-FND-004", "CTR-FND-005", "CTR-FND-006", "CTR-FND-007", "CTR-FND-008", "CTR-PLAT-001"]
-consumes = ["CTR-CAP-001", "CTR-CAP-003", "CTR-CAP-004", "CTR-COL-002", "CTR-COL-004", "CTR-COL-006", "CTR-COMMON-004", "CTR-DB-001", "CTR-INT-001", "CTR-INT-002", "CTR-INT-003", "CTR-INT-004", "CTR-INT-005", "CTR-INT-006", "CTR-PROV-004", "CTR-PROV-008", "CTR-REG-002", "CTR-REG-006", "CTR-RUN-001", "CTR-RUN-002", "CTR-RUN-006", "CTR-RUN-007", "CTR-UI-001"]
+consumes = ["CTR-CAP-001", "CTR-CAP-003", "CTR-CAP-004", "CTR-COL-002", "CTR-COL-004", "CTR-COL-006", "CTR-COMMON-004", "CTR-DB-001", "CTR-INT-001", "CTR-INT-002", "CTR-INT-003", "CTR-INT-004", "CTR-INT-005", "CTR-INT-006", "CTR-PROV-004", "CTR-PROV-008", "CTR-REG-002", "CTR-REG-003", "CTR-REG-005", "CTR-REG-006", "CTR-RUN-001", "CTR-RUN-002", "CTR-RUN-006", "CTR-RUN-007", "CTR-UI-001"]
 
 [[plans]]
 id = "PLAN-M01"

@@ -103,6 +103,10 @@ class AutomationRoutineTests(unittest.TestCase):
             self.assertFalse((checkout / ".venv-m0-g1/bin/python").exists())
             copy2(RUNNER, checkout / "tools/automation/run.py")
             copy2(CATALOG, checkout / "tools/automation/routines.toml")
+            copy2(
+                REPOSITORY_ROOT / "tools/automation/implementations/auto_claude_poll.py",
+                checkout / "tools/automation/implementations/auto_claude_poll.py",
+            )
             result = subprocess.run(
                 [
                     sys.executable,
@@ -801,6 +805,7 @@ class AutomationRoutineTests(unittest.TestCase):
                 "AUTO-DOCS-CHECK",
                 "AUTO-M3-LIVE",
                 "AUTO-M3-EXIT",
+                "AUTO-CLAUDE-POLL",
                 "AUTO-M3-TEST",
                 "AUTO-MUTATION",
                 "AUTO-TEST",

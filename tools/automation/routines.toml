@@ -133,6 +133,14 @@ implementation_command = ["python3", "tools/git/preflight.py"]
 blockers = ["push/release remote and upstream readiness requires explicit --operation push or release; default local commit does not claim it"]
 
 [[routines]]
+id = "AUTO-CLAUDE-POLL"
+owner = "PLAN-M04"
+status = "operational_limited"
+scope = "one enabled real Claude default profile: service-owned collection, metadata preservation, source interval across restart, empty SQLite restart"
+implementation_command = ["python3", "tools/automation/implementations/auto_claude_poll.py"]
+blockers = ["requires explicit owner test data root and stopped service before start; proves one profile only, not six-account enrollment or provider email identity"]
+
+[[routines]]
 id = "AUTO-BUILD"
 owner = "PLAN-FND"
 status = "operational"

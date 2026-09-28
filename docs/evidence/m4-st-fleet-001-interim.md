@@ -7,6 +7,15 @@
 - Contracts: additive `registry.v1` (`CTR-REG-001/002/005/007`), `identity_access.v1` (`write:accounts`), `CTR-API-001`, `CTR-UI-001`, and generated V1 OpenAPI/client (39 operations). No breaking public change or migration.
 - Checkout: uncommitted shared worktree, 2026-09-25. Preserve all existing user changes.
 
+## 2026-09-28 delivery update
+
+The recovered admin work was committed as `2a03ee6` on `codex/v1-m2`.
+The seven real admin HTTP tests and both built admin browser scenarios passed
+again. The historical stale-quota observation below was superseded by
+[automatic Claude polling](claude-dashboard-polling.md), which saved fresh
+real quota while retaining the account and SDK assignment. Six-profile
+enrollment and managed reauthentication remain separate scope.
+
 ## Delivered behavior
 
 The authenticated dashboard has organization create, list, rename, reorder, archive, and restore, plus account pending registration, list, detail, rename, organization assignment, monitoring preference, archive, and restore. Names and provider keys are entered through admin CRUD; no owner email or account is hardcoded. A new account remains pending and cannot be monitored until provider identity, compatible profile, and resource are verified. Archive preserves history. The UI consumes only the generated V1 API through the shared wrapper.

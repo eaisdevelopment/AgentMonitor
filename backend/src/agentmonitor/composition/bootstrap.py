@@ -1,7 +1,8 @@
 """Explicit local compositions and IPv4 loopback runner, never an installed service.
 
-Startup consumes an already migrated, quiescent Task 3 SQLite file; there is no
-implicit DDL, provider discovery, global environment read or profile access.
+Startup consumes an already migrated, quiescent SQLite file without implicit
+DDL or migrations. The authenticated lifespan polls an eligible enrolled Claude
+profile through the approved read-only adapter; the schema factory does no I/O.
 The CLI selects either the M1 schema seam or the authenticated dashboard.
 Native DEP installation policy remains pending.
 """
@@ -14,6 +15,7 @@ import socket
 import tomllib
 from collections.abc import Callable, Iterator
 from contextlib import contextmanager
+from dataclasses import replace
 from functools import partial
 from pathlib import Path
 
@@ -22,6 +24,7 @@ from agentmonitor.adapters.identity_access.argon2_password import Argon2Password
 from agentmonitor.adapters.persistence._shared.sqlite.core.policy import (
     DatabaseRefV1,
     SqliteDatabaseHandleV1,
+    checkpoint_sqlite_database,
     open_sqlite_database,
 )
 from agentmonitor.adapters.persistence._shared.sqlite.schema.compatibility import (
@@ -53,6 +56,9 @@ from agentmonitor.adapters.persistence.runtime_observation.sqlite.repository imp
 from agentmonitor.adapters.providers.claude.manifest import build_claude_manifest
 from agentmonitor.api.app import create_application
 from agentmonitor.api.v1.dependencies import IamApiPortsV1, ObservationApiPortsV1
+from agentmonitor.composition.claude_dashboard_collection import (
+    ClaudeDashboardCollectorV1,
+)
 from agentmonitor.contracts.configuration_v1 import (
     BootstrapConfigurationV1,
     ConfigurationRegistryV1,
@@ -155,9 +161,16 @@ def build_metadata() -> BuildMetadataV1:
 
 
 def _open_database(
-    ref: DatabaseRefV1, build: BuildMetadataV1
+    ref: DatabaseRefV1, build: BuildMetadataV1, *, checkpoint_wal: bool = False
 ) -> SqliteDatabaseHandleV1:
     view = InspectSchemaCompatibilityV1(ref, build.schema_range, "runtime_read_write")
+    if view.state == "locked" and checkpoint_wal:
+        # IAM lifespan holds the service lock here. Recover retained SQLite WAL
+        # before the immutable schema check; this applies no DDL or migration.
+        checkpoint_sqlite_database(ref)
+        view = InspectSchemaCompatibilityV1(
+            ref, build.schema_range, "runtime_read_write"
+        )
     if view.state != "compatible":
         raise ApplicationLifecycleError("database_" + view.state)
     RequireWritableSchemaV1(view)
@@ -242,9 +255,15 @@ def create_iam_application(
     )
     build = build_metadata()
     reference = DatabaseRefV1(data_root / "agentmonitor.db", data_root)
+    collector = ClaudeDashboardCollectorV1(reference)
+    lifecycle = replace(
+        lifecycle, tasks=lifecycle.tasks + (collector.run,), shutdown_timeout_seconds=30
+    )
     return create_application(
         settings,
-        ComponentFactorySetV1(partial(_open_database, reference, build)),
+        ComponentFactorySetV1(
+            partial(_open_database, reference, build, checkpoint_wal=True)
+        ),
         build,
         lifecycle,
         iam_mode=True,

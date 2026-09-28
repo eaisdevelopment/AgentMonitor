@@ -80,6 +80,35 @@ Never enable broad debug logging that dumps HTTP bodies, CLI output, environment
 
 ## Stale or missing telemetry
 
+### Local Claude dashboard polling
+
+The current local authenticated service automatically collects from one
+unambiguous enrolled default Claude profile when monitoring is enabled. The
+admitted read-only source permits collection every five minutes. Closing the
+browser leaves collection running; the account page refreshes quota through
+the API every 30 seconds. Account labels and organizations are admin-managed.
+Adding a pending account record does not itself authenticate or bind a profile.
+
+After an intentional service stop, start the verified local dashboard command:
+
+```bash
+PYTHONPATH=backend/src backend/.venv/bin/python -m agentmonitor.composition.bootstrap \
+  --config /home/dev/.local/share/agentmonitor/service.env \
+  --data-root /home/dev/.local/share/agentmonitor \
+  --host 127.0.0.1 --port 43110 --authenticated-dashboard
+```
+
+Open `http://127.0.0.1:43110/accounts` and sign in locally. Read-only source
+failures remain visible as actual M04 outcomes and are not automatically
+retried. Retained observations become stale normally. Disabling monitoring
+prevents subsequent attempts; it does not interrupt an in-flight provider read.
+On normal startup, retained AgentMonitor WAL journals are checkpointed under
+the service lock before schema validation. No migration or provider write is
+performed. This is the local CLI service, not native installed-service approval.
+See [real polling verification](../evidence/claude-dashboard-polling.md).
+
+### Investigation
+
 1. Confirm account/capability is enabled.
 2. Inspect last collection outcome, source, versions, and backoff.
 3. Distinguish Unsupported, Experimental Disabled, Authentication Required, Rate Limited, Provider Unavailable, Invalid Provider Data, and internal failure.

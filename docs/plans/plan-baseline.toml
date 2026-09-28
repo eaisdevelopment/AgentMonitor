@@ -159,14 +159,14 @@ bytes = 4124
 [[controls]]
 id = "contract-baseline"
 path = "docs/plans/contract-baseline.toml"
-sha256 = "38766851fdc968001d408c3968a3a7bc1677fca7ba96fa81e8ce162a852e0a7e"
-bytes = 58467
+sha256 = "48f62471ba4032507a73c6cc43f765e9c0ca1ddcd48e0ae6604d407c6adb1bfd"
+bytes = 58491
 
 [[controls]]
 id = "contract-adoption"
 path = "docs/plans/contract-adoption.toml"
-sha256 = "c65f544f32311b76fb8be419a6e22fe8fd86b778539cd9a96eb68495138f81e3"
-bytes = 16274
+sha256 = "5e68104af79b89f0883ab7c9eb299e38c1bc98b6948c72d53d388ad840ebd954"
+bytes = 16304
 
 [[controls]]
 id = "configuration-baseline"
@@ -189,14 +189,14 @@ bytes = 22708
 [[controls]]
 id = "automation-routines"
 path = "tools/automation/routines.toml"
-sha256 = "5013885cdc9c817b7d4032458a172f985e65211ec8ac838966761a8627c6e459"
-bytes = 6786
+sha256 = "101e86895dd654b4f5a9efcc4109e06627efa8f4f62352648d9eea8bffc08c82"
+bytes = 7287
 
 [[controls]]
 id = "automation-standard"
 path = "docs/engineering/completion-and-automation-gates.md"
-sha256 = "044e30b14cb74c17ccfc476f90982abf60e8bf042a053a2b5f8cc865d18a5669"
-bytes = 14063
+sha256 = "8678635d8702aca4eb1eb4958a53ff6c8143db435c74ec4f457cfede87d5b005"
+bytes = 14310
 
 [[controls]]
 id = "m0-g0-approval"

@@ -53,6 +53,7 @@ This index is the entry point for product, architecture, engineering, and operat
 - [M2 post-audit correction](evidence/m2-audit-fixes.md): hostile resource/SQLite regression, origin-proof contract decision, scanner correction, and historical TDD disposition.
 - [M3 local release-gate decision](evidence/m3-local-release-gate-decision.md): detached M0 reviews are advisory; technical evidence and real boundaries remain mandatory.
 - [M4 ST-FLEET-001 interim evidence](evidence/m4-st-fleet-001-interim.md): account and organization admin flows, one read-only Claude health observation, and remaining live blockers.
+- [Claude dashboard polling delivery](evidence/claude-dashboard-polling.md): real service-owned five-minute collection, current quota refresh, preserved registry metadata, and restart cadence for one enrolled profile.
 - [M2 Argon2 admission](dependencies/m2-argon2-admission.md): approved exact Linux dependency graph, work profile, and platform limitations.
 - [Configuration standard](engineering/configuration-standard.md): ownership, naming, precedence, secret classes, and compatibility.
 - [Documentation standard](engineering/documentation-standard.md): required documentation and traceability.

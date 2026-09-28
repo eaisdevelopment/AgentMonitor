@@ -673,6 +673,30 @@ class SqliteCollectionRepositoryV1:
         except (SqlitePolicyError, SQLAlchemyError, ValueError, TypeError):
             raise CollectionRepositoryErrorV1() from None
 
+    def get_latest_source_run(
+        self, provider_key: str, capability_id: str, source_id: str, as_of: datetime
+    ) -> CollectionRunViewV1 | None:
+        if as_of.utcoffset() != timedelta(0):
+            raise CollectionRepositoryErrorV1("collection_query_invalid")
+        try:
+            with open_sqlite_database(
+                self._database_ref, "runtime_read_only"
+            ) as handle:
+                with handle.connect() as connection:
+                    row = (
+                        connection.exec_driver_sql(
+                            "SELECT * FROM collection_run WHERE provider_key=? "
+                            "AND capability_id=? AND source_id=? AND requested_at<=? "
+                            "ORDER BY requested_at DESC, run_id LIMIT 1",
+                            (provider_key, capability_id, source_id, _utc_text(as_of)),
+                        )
+                        .mappings()
+                        .one_or_none()
+                    )
+                    return _run_view(connection, row) if row is not None else None
+        except (SqlitePolicyError, SQLAlchemyError, ValueError, TypeError):
+            raise CollectionRepositoryErrorV1() from None
+
     def list_runs(
         self,
         provider_key: str | None,

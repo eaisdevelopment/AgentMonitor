@@ -31,6 +31,7 @@ type CapacityState =
       historyMessage: string | null;
       historyPageMessage: string | null;
       historyLoadingMore: boolean;
+      refreshMessage: string | null;
     }>;
 
 function exactMetricValue(field: ExactMetricFieldWireV1): string {
@@ -211,6 +212,7 @@ export function CapacityPanel({
         historyMessage: history.ok ? null : "Capacity history is unavailable from the local service.",
         historyPageMessage: null,
         historyLoadingMore: false,
+        refreshMessage: null,
       });
     } catch (error) {
       if (error instanceof DOMException && error.name === "AbortError") return;
@@ -218,14 +220,48 @@ export function CapacityPanel({
     }
   }, [accountId, onExpired]);
 
+  const refreshCurrent = useCallback(async (signal: AbortSignal) => {
+    try {
+      const [account, quotas] = await Promise.all([
+        capacity.account(accountId, signal), capacity.quotaWindows(accountId, signal),
+      ]);
+      if ((!account.ok && account.problem.code === "dashboard_authentication_required") ||
+          (!quotas.ok && quotas.problem.code === "dashboard_authentication_required")) {
+        onExpired();
+        return;
+      }
+      if (!account.ok || !quotas.ok) {
+        setState((current) => current.kind === "ready"
+          ? { ...current, refreshMessage: "Quota refresh failed. Displayed observations are from the previous read." }
+          : current);
+        return;
+      }
+      setState((current) => current.kind === "ready"
+        ? { ...current, account: account.data, quotas: quotas.data, refreshMessage: null }
+        : current);
+    } catch (error) {
+      if (error instanceof DOMException && error.name === "AbortError") return;
+      setState((current) => current.kind === "ready"
+        ? { ...current, refreshMessage: "Quota refresh failed. Displayed observations are from the previous read." }
+        : current);
+    }
+  }, [accountId, onExpired]);
+
   useEffect(() => {
     const controller = new AbortController();
     void load(controller.signal);
+    let refreshing = false;
+    const interval = window.setInterval(() => {
+      if (refreshing) return;
+      refreshing = true;
+      void refreshCurrent(controller.signal).finally(() => { refreshing = false; });
+    }, 30_000);
     return () => {
+      window.clearInterval(interval);
       controller.abort();
       historyPageController.current?.abort();
     };
-  }, [load]);
+  }, [load, refreshCurrent]);
 
   const loadMoreHistory = async () => {
     if (
@@ -331,6 +367,7 @@ export function CapacityPanel({
       <p className="provenance-line">
         {state.quotas.availability.reason_code.replaceAll("_", " ")} · as of {new Date(state.quotas.availability.as_of).toLocaleString()}
       </p>
+      {state.refreshMessage !== null && <p role="status">{state.refreshMessage}</p>}
       {healthRows.length > 0 && (
         <div className="health-strip" aria-label="Capacity health">
           {healthRows.map((item) => item.health && (

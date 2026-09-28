@@ -41,6 +41,12 @@ try {
   await page.getByRole("button", { name: "Restore account" }).waitFor();
   await page.getByRole("button", { name: "Restore account" }).click();
   await page.getByRole("button", { name: "Archive account" }).waitFor();
+  stage = "automatic_capacity_refresh";
+  await page.getByRole("heading", { name: "Capacity history", exact: true }).waitFor();
+  await page.waitForResponse((response) =>
+    response.url().includes("/capacity") && response.request().method() === "GET" && response.status() === 200,
+    { timeout: 35_000 },
+  );
   stage = "responsive";
   await page.setViewportSize({ width: 390, height: 844 });
   if (await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth + 1)) {

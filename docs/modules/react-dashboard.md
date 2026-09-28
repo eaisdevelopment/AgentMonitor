@@ -119,3 +119,12 @@ The admin browser scenarios are `accounts_admin` and `organizations` through
 [M4 interim evidence](../evidence/m4-st-fleet-001-interim.md). Continuous
 collection, new identity binding, and six-account owner verification remain
 outside the passing browser scenarios.
+
+## Current quota refresh
+
+The account capacity panel rereads current capacity and quota through the V1
+API every 30 seconds. It keeps loaded history pages and preserves previous
+observations with a message if a refresh fails. This timer does not contact a
+provider; Claude collection runs independently in the service at the admitted
+five-minute minimum. The built `accounts_admin` scenario verifies a subsequent
+real API response. See [polling evidence](../evidence/claude-dashboard-polling.md).
