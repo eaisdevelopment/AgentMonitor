@@ -208,6 +208,20 @@ for the intended official owner sign-in; its interaction deadline expired
 without a verified intended identity. That account remains Pending. No default
 or enrolled profile was logged out or reassigned.
 
-Remaining work: official login and setup for the other selected accounts,
-generated dashboard connection
-controls, running-agent ownership, and remaining fleet/alert/operations M4 goals.
+At that earlier handoff, remaining work included other account sign-ins,
+dashboard connection controls, running-agent ownership, and M4 fleet/alert/
+operations goals. The later dashboard result below supersedes the connection
+control and one further account blocker.
+
+## Subsequent dashboard connection
+
+The owner completed official browser authentication for the second
+additional SDK account using the new Connect Claude control. Its exact
+identity, active registry binding, effective monitoring, and two fresh
+service-owned quota windows were verified through the authenticated V1
+API and real dashboard. No setup terminal was required for that flow.
+`AUTO-CLAUDE-CONNECT` Passed for this selected connection; see the
+[owner-completed dashboard evidence](claude-dashboard-connection.md).
+Another selected SDK account and the full fleet/M4 acceptance remain
+incomplete. Historical wrong-identity and expired attempts remain failed
+evidence; no default or enrolled profile was reassigned or logged out.

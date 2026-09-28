@@ -3,10 +3,13 @@
 - Date: 2026-09-28.
 - Authority: the owner's instruction to build dashboard authentication under
   M4 `ST-FLEET-001` and the [approved connection change](../plans/integration/claude-managed-account-connection-change.md).
-- Status: **Partial**. Real HTTP safeguards, browser controls, and managed
-  native quota checks Passed. A newly authenticated profile connected from
-  the dashboard remains **Not Run**; the selected live completion gate is
-  not Passed. Full M4 and universal `AC-TEST-001` are not claimed.
+- Status: **Passed for one selected owner-completed dashboard connection**;
+  full `ST-FLEET-001` and M4 remain Partial. The owner started official
+  browser sign-in and completed authentication; exact managed identity,
+  enrollment, monitoring, genuine quota, and the selected canonical gate
+  Passed. Universal `AC-TEST-001` is not claimed. Earlier Not Run/Blocked
+  entries below are historical and superseded for this selected success
+  path by the owner verification section.
 - Ownership: M02 coordinates registry enrollment; A01 owns Claude behavior;
   M03 publishes `CTR-PROV-007` V1; P01/P02 and Foundation compose the workflow.
 - Requirements: `FR-ACC-001/003/005/006`, `FR-AUTH-002/003/004/005/006`,
@@ -92,7 +95,7 @@ connection, not M4.
 
 | Story | Status | Remaining artifacts or acceptance |
 |---|---|---|
-| `ST-FLEET-001` | Partial | Owner-completed dashboard connection and remaining account outcomes; six-account enrollment/unavailability matrix and full story gate. |
+| `ST-FLEET-001` | Partial | Remaining owner account connections and outcomes; six-account enrollment/unavailability matrix and full story gate. |
 | `ST-FLEET-002` | Partial | Organization/global/provider capacity aggregation, forecasts, revisioned membership coverage, and fleet collection/history/aggregation verification. Account quota/history and independent cadence exist. |
 | `ST-FLEET-003` | Partial | Organization runtime/capacity views, reliable mixed-account process ownership, representative Claude hierarchy verification, and fleet browser acceptance. Account/history/session/process views exist. |
 | `ST-ALERT-001` | Not implemented | Alert contracts, policy/consumer/repository, three M07 migrations, and lifecycle/persistence tests. |
@@ -196,3 +199,35 @@ tools/automation/test_run.py
 tools/planning/validate_plans.py
 tools/providers/verify_claude_dashboard_connection.mjs
 ```
+
+## Owner-completed dashboard verification — 2026-09-28
+
+The owner opened the selected pending SDK account, clicked Connect Claude,
+completed Claude's ordinary browser authentication, and reported that
+the sign-in window closed. No agent started sign-in or completed provider
+authentication for this attempt. No setup terminal was needed.
+
+Authenticated V1 reads then verified a non-null connected flow receipt,
+the same selected active account with effective monitoring enabled,
+the expected provider identity with managed provenance, and two fresh
+quota windows sharing its exact collection-run identity receipt. The
+canonical selected gate returned **Passed (exit 0)**:
+
+```bash
+python3 tools/automation/run.py AUTO-CLAUDE-CONNECT
+```
+
+Its real API/native safeguard suite returned **5 passed in 18.93s**;
+the production connection browser scenario Passed; the actual completed
+flow/identity/monitoring check Passed; the selected real managed quota
+suite returned **4 passed in 5.07s**; and the production V1 API/browser
+fresh quota/identity/table verification Passed. Four explicit private
+runtime selectors bound the existing owner service, selected account,
+and shared local dashboard. They are omitted from this report.
+
+This passes the selected owner-driven connection success path and
+supersedes its earlier Blocked result. The managed directory existed
+from earlier connection attempts: authentication against a brand-new
+empty directory remains separate from this claim. Live wrong-account,
+expiry, cancellation, interrupted enrollment, the remaining selected
+account outcomes, broad mutation binding, and full M4 remain incomplete.
