@@ -65,6 +65,7 @@ SOURCE_FILES = (
     "backend/src/agentmonitor/composition/claude_managed_connection.py",
     "backend/src/agentmonitor/adapters/providers/claude/authentication/browser.py",
     "backend/src/agentmonitor/adapters/providers/claude/subscription/source.py",
+    "backend/src/agentmonitor/adapters/providers/claude/subscription/terminal_screen.py",
     "backend/src/agentmonitor/adapters/providers/claude/authentication/owned_process.py",
     "backend/src/agentmonitor/adapters/providers/claude/authentication/reauthentication.py",
     "backend/src/agentmonitor/modules/identity_access/application/authorization.py",

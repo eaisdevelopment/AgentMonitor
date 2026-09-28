@@ -13290,10 +13290,10 @@
       "starlette": "1.6.0"
     },
     "generator": "agentmonitor-openapi-client",
-    "generator_sha256": "e72f6a3ce009bc672cf60014d7dc07019ff67c938c049ab1ddabc48fdb2a0e38",
+    "generator_sha256": "4d654720378a847ab3cd91b17b6fa2be56ca43b831cbc1bc8f7257c3f4c1a726",
     "generator_version": "2.0.4",
     "openapi_version": "3.1.0",
     "schema_sha256": "b628199a1355dc034d360b3e89a36189cbf3d9d1f162c29610829e60101cf931",
-    "source_sha256": "de78b2db9adffa46c01000acf2eee3ec2df319d398b151fbea8443cbabe0bf36"
+    "source_sha256": "eadb6ee4d19fb97f58cdb11243d194117960de240553880e5f8e20db0235fbe5"
   }
 }

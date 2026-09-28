@@ -178,3 +178,19 @@ Provider authentication state is left provider-managed; rollback never logs
 out or deletes any default or managed credential store. The evidence document
 and operations runbook must state separately whether authentication, registry
 binding, collection, and full M4 acceptance have actually been verified.
+
+### Native quota redraw correction within the connection increment
+
+Verification of the selected SDK records exposed real native
+`usage_deadline_window_conflicting_duplicate` and
+`usage_deadline_terminal_marker_missing` failures on an earlier
+connected managed account. A01 owns correcting its admitted bounded
+quota reader using genuine native output and allowlisted diagnostic
+fields. No terminal output is persisted or replayed. The existing
+real managed quota test supplies the failing boundary and must pass
+after the correction. Parsing must retain authoritative window
+labels, percentage/reset validation, current-render conflict
+rejection, output bounds, and default/managed identity checks.
+Earlier incomplete renders must not be presented as a new reading.
+No dependency, provider file edit, migration, normalized contract,
+source cadence, authentication, or running-agent action is needed.

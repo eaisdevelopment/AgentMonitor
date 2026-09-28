@@ -27,11 +27,12 @@ from agentmonitor.adapters.providers.claude.subscription.mapper import (
     SanitizedClaudeUsageSnapshot,
     SanitizedClaudeUsageWindow,
 )
+from agentmonitor.adapters.providers.claude.subscription.terminal_screen import (
+    visible_terminal_lines_v1,
+)
 
 _MAX_OUTPUT_BYTES = 4 * 1024 * 1024
 _ANSI_OSC = re.compile(r"\x1b\][^\x07]*(?:\x07|\x1b\\)")
-_ANSI_CSI = re.compile(r"\x1b\[[0-?]*[ -/]*[@-~]")
-_ANSI_SINGLE = re.compile(r"\x1b[@-_]")
 _PERCENT_USED = re.compile(
     r"(?:Esc to cancel)?(?:[0-9]{1,3}% )?"
     r"([0-9]{1,3}(?:\.[0-9]+)?)% used\Z"
@@ -46,6 +47,7 @@ _SAFE_PARSE_FAILURE_CODES = frozenset(
     {
         "usage_output_encoding_invalid",
         "usage_terminal_marker_missing",
+        "usage_terminal_control_unsupported",
         "usage_window_set_invalid",
         "usage_window_incomplete",
         "usage_reset_display_invalid",
@@ -90,12 +92,10 @@ def _plain_lines(raw: bytes) -> tuple[str, ...]:
     except UnicodeDecodeError as error:
         raise _IncompleteRender("usage_output_encoding_invalid") from error
     rendered = _ANSI_OSC.sub("", rendered)
-    rendered = _ANSI_CSI.sub("", rendered)
-    rendered = _ANSI_SINGLE.sub("", rendered)
-    rendered = rendered.replace("\r", "\n")
-    lines = tuple(line.strip() for line in rendered.splitlines() if line.strip())
-    rendered = ""
-    return lines
+    try:
+        return visible_terminal_lines_v1(rendered)
+    except ValueError as error:
+        raise _IncompleteRender("usage_terminal_control_unsupported") from error
 
 
 def _parse_latest_complete_render(raw: bytes) -> SanitizedClaudeUsageSnapshot:
@@ -106,13 +106,9 @@ def _parse_latest_complete_render(raw: bytes) -> SanitizedClaudeUsageSnapshot:
     if not markers:
         raise _IncompleteRender("usage_terminal_marker_missing")
 
-    for position in range(len(markers) - 1, -1, -1):
-        marker = markers[position]
-        start = markers[position - 1] + 1 if position > 0 else 0
-        segment = lines[start:marker]
-        if any(line in _LABELS for line in segment):
-            return _parse_complete_usage_segment(segment)
-    raise _IncompleteRender("usage_window_set_invalid")
+    marker = markers[-1]
+    start = markers[-2] + 1 if len(markers) > 1 else 0
+    return _parse_complete_usage_segment(lines[start:marker])
 
 
 def _parse_complete_usage_segment(
@@ -125,11 +121,11 @@ def _parse_complete_usage_segment(
         )
         if not occurrences:
             continue
-        # Ink appends terminal refresh history to the PTY byte stream. Earlier
-        # occurrences of the same label are superseded screen redraws, not
-        # simultaneous values. Only the newest occurrence is authoritative;
-        # conflicts inside that current block remain invalid.
-        index = occurrences[-1]
+        # Cursor redraw history has already been overwritten. Duplicate labels
+        # in the current surface are ambiguous and cannot supply a new reading.
+        if len(occurrences) != 1:
+            raise _IncompleteRender("usage_window_conflicting_duplicate")
+        index = occurrences[0]
         next_label = next(
             (
                 position

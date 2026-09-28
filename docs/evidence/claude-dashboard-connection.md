@@ -3,13 +3,13 @@
 - Date: 2026-09-28.
 - Authority: the owner's instruction to build dashboard authentication under
   M4 `ST-FLEET-001` and the [approved connection change](../plans/integration/claude-managed-account-connection-change.md).
-- Status: **Passed for one selected owner-completed dashboard connection**;
+- Status: **Passed for two selected owner-completed dashboard connections**;
   full `ST-FLEET-001` and M4 remain Partial. The owner started official
   browser sign-in and completed authentication; exact managed identity,
   enrollment, monitoring, genuine quota, and the selected canonical gate
   Passed. Universal `AC-TEST-001` is not claimed. Earlier Not Run/Blocked
-  entries below are historical and superseded for this selected success
-  path by the owner verification section.
+  entries below are historical and superseded for these selected success
+  paths by the owner verification sections.
 - Ownership: M02 coordinates registry enrollment; A01 owns Claude behavior;
   M03 publishes `CTR-PROV-007` V1; P01/P02 and Foundation compose the workflow.
 - Requirements: `FR-ACC-001/003/005/006`, `FR-AUTH-002/003/004/005/006`,
@@ -231,3 +231,107 @@ from earlier connection attempts: authentication against a brand-new
 empty directory remains separate from this claim. Live wrong-account,
 expiry, cancellation, interrupted enrollment, the remaining selected
 account outcomes, broad mutation binding, and full M4 remain incomplete.
+
+## Second owner-completed dashboard connection — 2026-09-28
+
+The owner clicked Connect Claude for the remaining selected SDK record
+and completed official browser authorization. Its connected flow,
+expected native managed identity, active record, effective monitoring,
+and two fresh quota windows sharing the exact identity receipt were
+verified through V1. `AUTO-CLAUDE-CONNECT` **Passed (exit 0)** for this
+selected account: API/native safeguards **5 passed in 18.73s**,
+production connection browser Passed, completed-flow check Passed,
+real managed quota **4 passed in 5.18s**, and API/browser fresh quota
+verification Passed. No terminal setup or agent-performed login occurred.
+
+A subsequent read of all four selected SDK records showed the correct
+group, active lifecycle, and effective monitoring for each. Three had
+fresh identity/quota lineage; the previously connected first managed
+account did not. Its recent durable runs contain real
+`usage_deadline_window_conflicting_duplicate` and
+`usage_deadline_terminal_marker_missing` failures. A direct real source
+test also Failed with `usage_deadline_terminal_marker_missing` after
+**20.53s**. This remaining parser/refresh issue is under investigation;
+four-account fresh fleet verification and full M4 are not Passed.
+
+## Native quota redraw correction — 2026-09-28
+
+The real failure above exposed cursor redraws being appended to the quota
+text rather than overwriting the current terminal surface. A01 now
+reconstructs only the bounded 40-row, 160-column current native surface,
+discarding scrollback. Only its latest usage segment can supply a reading;
+duplicate quota labels on that surface remain ambiguous and rejected.
+The existing real managed-identity/quota test supplied the initial Red:
+`usage_deadline_terminal_marker_missing`, **1 failed in 20.53s**. The same
+test then returned **1 passed in 4.94s** after the correction.
+
+Regression checks on the other managed profiles returned **5 passed in
+19.51s** (including genuine unauthenticated managed startup) and **4 passed
+in 5.06s**. A read against the protected default profile initially exposed
+`usage_deadline_terminal_control_unsupported`. Allowlisted control-only
+discovery identified two additional keyboard presentation controls,
+`CSI >4m` and `CSI <u`; neither writes screen cells according to the
+[xterm control reference](https://invisible-island.net/xterm/ctlseqs/ctlseqs.html)
+and [kitty keyboard protocol](https://sw.kovidgoyal.net/kitty/keyboard-protocol/).
+After admitting those exact selectors, the real default source returned
+at least two quota windows and its independent before/after identity
+fingerprints matched. Raw native buffers were discarded; no provider
+credentials or conversation content were read or retained.
+
+No new tests were added: the existing real source test exposed the changed
+behavior. Requirements `FR-QUOTA-001/002`, `FR-COL-004/007`, and
+`FR-SAFE-001/002` govern this A01 correction; selected `AC-LIVE-006/007`
+evidence remains bounded by the live gates below. The internal reader keeps
+`CTR-PROV-005`, `CTR-REG-006`, `CTR-API-001`, and `CTR-UI-001` V1 unchanged.
+Generated provenance includes the new helper; the 44-operation HTTP schema
+remains compatible. `AUTO-QUALITY` Passed with 231 formatted files, 220
+strictly typed source files, and zero module-boundary violations.
+
+With the corrected service, `AUTO-CLAUDE-MANAGED` **Passed (exit 0)**
+against the originally failing managed account: **21 passed in 7.34s**,
+then exact identified managed-account/fresh-quota V1 API and production
+browser verification Passed. This is the selected managed-account gate,
+not a full fleet or M4 completion gate.
+
+The service was reloaded with the final reader. Each account retains its
+independent 300-second minimum cadence; historical failed runs remain
+failed. No database migration, dependency/license change, provider profile
+edit, default logout, or running-agent action occurred. Rollback restores
+the previous application build and leaves provider-managed profiles intact.
+
+### Final selected SDK observations
+
+At **18:12:04 UTC**, authenticated V1 reads verified all four selected
+SDK records: intended admin name/group, active lifecycle, effective
+monitoring, expected exact provider identity, and two fresh quota windows
+sharing each account's current service collection-run identity receipt.
+The default record retained `protected_default` provenance; the three
+additional records retained `managed` provenance. Their latest native
+service runs all succeeded, completing between **18:08:40** and
+**18:11:36 UTC**. This is a current read of four selected SDK records,
+not six-account acceptance or a full fleet completion gate.
+
+Against the final reader/service, the latest support-account
+`AUTO-CLAUDE-CONNECT` **Passed (exit 0)**: API/native safeguards
+**5 passed in 18.48s**, production connection browser Passed,
+owner-completed flow/identity/monitoring verification Passed,
+real selected managed quota **4 passed in 4.98s**, and fresh exact
+V1 API/browser lineage verification Passed. No new owner sign-in
+was required. `AUTO-DOCS-CHECK` (257 Markdown files), synchronized
+planning validation, local Git preflight, and `git diff --check`
+Passed for the correction. Remaining live flow cases and full M4
+remain incomplete as listed above.
+
+### Redraw correction changed files
+
+```text
+backend/src/agentmonitor/adapters/providers/claude/subscription/source.py
+backend/src/agentmonitor/adapters/providers/claude/subscription/terminal_screen.py
+contracts/openapi/agentmonitor-v1.json
+docs/README.md
+docs/evidence/claude-dashboard-connection.md
+docs/evidence/claude-managed-account-connection.md
+docs/plans/integration/claude-managed-account-connection-change.md
+frontend/src/generated/api/index.ts
+tooling/foundation/openapi_client.py
+```

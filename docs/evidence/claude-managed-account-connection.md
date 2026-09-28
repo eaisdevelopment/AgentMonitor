@@ -4,10 +4,11 @@
 - Scope: the owner's request to connect the additional SDK Claude accounts
   through admin and continue using a shared visible browser.
 - Plan: [bounded connection change](../plans/integration/claude-managed-account-connection-change.md).
-- Status: **Partial** for the additional-account fleet. The first additional
-  SDK account has verified official authentication, registry enrollment, and
-  real managed quota. Its service/browser checks have passed for a fresh
-  service-owned reading. Other requested accounts and full M4 remain incomplete.
+- Status: **Partial** for the full requested fleet. All three additional SDK
+  accounts have verified official authentication, registry enrollment, and
+  selected real managed quota/browser gates. All four SDK records are active
+  with effective monitoring. The subsequent native redraw correction and
+  remaining fleet/M4 acceptance are tracked below.
 - Primary owner: M02 coordination, A01 provider implementation, root operator
   integration. The initial authentication increment changed A01/operator code;
   the subsequent increment adds M02 activation, M04 account-scoped cadence,
@@ -222,6 +223,21 @@ service-owned quota windows were verified through the authenticated V1
 API and real dashboard. No setup terminal was required for that flow.
 `AUTO-CLAUDE-CONNECT` Passed for this selected connection; see the
 [owner-completed dashboard evidence](claude-dashboard-connection.md).
-Another selected SDK account and the full fleet/M4 acceptance remain
-incomplete. Historical wrong-identity and expired attempts remain failed
+The next selected SDK account and the full fleet/M4 acceptance remained
+incomplete at that handoff. Historical wrong-identity and expired attempts remain failed
 evidence; no default or enrolled profile was reassigned or logged out.
+
+The owner subsequently completed the third additional SDK account through
+the dashboard. Its selected `AUTO-CLAUDE-CONNECT` gate Passed; see the
+second owner-completed dashboard verification in the same evidence.
+All four selected SDK records are active with effective monitoring.
+The native quota redraw correction and remaining fleet/M4 acceptance
+are tracked separately; enabled monitoring does not guarantee a fresh
+reading when the native source fails.
+
+The subsequent A01 redraw correction passed the original selected
+managed-account gate and repeated the latest owner-completed dashboard
+connection gate. A current authenticated V1 read verified exact identities
+and fresh service-owned quota lineage on all four selected SDK records.
+See the final selected SDK observations in the dashboard evidence.
+EAIS connections and the remaining fleet/M4 artifacts are not claimed.
