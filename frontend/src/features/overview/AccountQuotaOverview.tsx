@@ -36,6 +36,31 @@ function compareReadings(left: AccountReading, right: AccountReading): number {
   return left.account.friendly_name.localeCompare(right.account.friendly_name) || left.account.account_id.localeCompare(right.account.account_id);
 }
 
+function verifiedIdentity(reading: AccountReading): ObservedAccountIdentityViewV1 | null {
+  const { account, quota, identity, refreshFailed } = reading;
+  const windows = quota?.items.flatMap(item => item.windows) ?? [];
+  return !refreshFailed && ["matched", "owner_confirmed"].includes(account.identity_state) && quota?.availability.state === "available" && identity?.state === "verified" && identity.account_id === account.account_id && identity.email !== null && windows.length > 0 && windows.every(window => window.freshness === "fresh" && window.collection_run_id === identity.collection_run_id) ? identity : null;
+}
+
+function groupConnections(readings: readonly AccountReading[]): readonly Readonly<{ primary: AccountReading; additional: readonly AccountReading[] }>[] {
+  const groups = new Map<string, AccountReading[]>();
+  for (const reading of readings) {
+    const identity = verifiedIdentity(reading);
+    const key = identity !== null && identity.provider_organization !== null
+      ? JSON.stringify([reading.account.provider_key, reading.account.organization_id, identity.email, identity.provider_organization])
+      : JSON.stringify([reading.account.account_id]);
+    groups.set(key, [...(groups.get(key) ?? []), reading]);
+  }
+  return [...groups.values()].map(group => {
+    const ordered = [...group].sort((left, right) => {
+      const leftMatches = left.account.friendly_name === verifiedIdentity(left)?.email;
+      const rightMatches = right.account.friendly_name === verifiedIdentity(right)?.email;
+      return Number(rightMatches) - Number(leftMatches) || left.account.account_id.localeCompare(right.account.account_id);
+    });
+    return { primary: ordered[0]!, additional: ordered.slice(1) };
+  }).sort((left, right) => compareReadings(left.primary, right.primary));
+}
+
 function readingState(reading: AccountReading): Readonly<{ label: string; icon: string; tone: string }> {
   const { account, quota, refreshFailed } = reading;
   const windows = quota?.items.flatMap(item => item.windows) ?? [];
@@ -131,6 +156,7 @@ export function AccountQuotaOverview({ onExpired, onOpenAccount }: Readonly<{
     ...(state.readings.some(reading => organizationFilterKey(reading.account, state.organizations) === "unavailable") ? [{ key: "unavailable", name: "Unavailable organization" }] : []),
   ] : [];
   const visibleReadings = state.kind === "ready" ? state.readings.filter(reading => selectedOrganizations === null || selectedOrganizations.includes(organizationFilterKey(reading.account, state.organizations))).sort(compareReadings) : [];
+  const visibleConnections = groupConnections(visibleReadings);
   const toggleOrganization = (key: string) => setSelectedOrganizations(current => current === null ? [key] : current.includes(key) ? current.filter(item => item !== key) : [...current, key]);
 
   return (
@@ -143,7 +169,7 @@ export function AccountQuotaOverview({ onExpired, onOpenAccount }: Readonly<{
           {organizationOptions.map(option => <button key={option.key} type="button" aria-pressed={selectedOrganizations?.includes(option.key) ?? false} onClick={() => toggleOrganization(option.key)}>{option.name}</button>)}
         </div>}
         <div className="fleet-overview-controls">
-          {state.kind === "ready" && <span>{visibleReadings.length} of {state.readings.length} listed · {visibleReadings.filter(reading => reading.account.is_effective_monitoring_enabled).length} monitoring</span>}
+          {state.kind === "ready" && <span>{visibleConnections.length} account rows · {visibleReadings.length} of {state.readings.length} connections listed</span>}
           <button className="quiet-button" type="button" disabled={busy} onClick={() => setRefreshKey(key => key + 1)}>{busy ? "Refreshing…" : "Refresh overview"}</button>
         </div>
       </div>
@@ -153,16 +179,19 @@ export function AccountQuotaOverview({ onExpired, onOpenAccount }: Readonly<{
         {state.readings.length === 0 ? <p className="fleet-overview-notice">No accounts are registered. Add an account from Accounts.</p> : visibleReadings.length === 0 ? <p className="fleet-overview-notice" role="status">{selectedOrganizations?.length === 0 ? "No organizations selected. Choose an organization or All organizations." : "No accounts in the selected organizations. Choose another organization or All organizations."}</p> : (
           <table className="fleet-overview-table" aria-label="Account quota overview" aria-describedby="overview-quota-order">
             <thead><tr><th scope="col">Account</th><th scope="col">Organization</th><th scope="col">State</th><th scope="col" aria-sort="ascending">Quota left</th><th scope="col">Updated</th></tr></thead>
-            <tbody>{visibleReadings.map(reading => {
+            <tbody>{visibleConnections.map(({ primary: reading, additional }) => {
               const { account, quota, identity } = reading;
               const windows = quota?.items.flatMap(item => item.windows) ?? [];
-              const verified = identity?.state === "verified" && identity.account_id === account.account_id && identity.email !== null && windows.length > 0 && windows.every(window => window.collection_run_id === identity.collection_run_id);
-              const displayedName = verified ? identity.email : account.friendly_name;
+              const verified = verifiedIdentity(reading) !== null;
+              const displayedName = verified ? identity?.email ?? account.friendly_name : account.friendly_name;
               const status = readingState(reading);
               const organization = account.organization_id === null ? "Ungrouped" : state.organizations?.items.find(item => item.organization_id === account.organization_id)?.name ?? "Unavailable";
               const updatedAt = windows.map(window => window.collected_at).sort()[0];
               return <tr key={account.account_id} data-account-id={account.account_id}>
-                <th scope="row" data-label="Account"><button type="button" className="overview-account-link" aria-label={`Open account ${displayedName}`} onClick={() => onOpenAccount(account.account_id)}>{displayedName}</button><small>{account.provider_key} · {verified ? "Identity verified" : "Admin name"}</small></th>
+                <th scope="row" data-label="Account"><button type="button" className="overview-account-link" aria-label={`Open account ${displayedName}`} onClick={() => onOpenAccount(account.account_id)}>{displayedName}</button><small>{account.provider_key} · {verified ? "Identity verified" : "Admin name"}</small>
+                  {verified && account.friendly_name !== identity?.email && <small className="connection-warning">Registered as {account.friendly_name}</small>}
+                  {additional.length > 0 && <div className="additional-connections"><strong>{additional.length + 1} connected profiles · one quota balance</strong>{additional.map(other => <button key={other.account.account_id} type="button" className="quiet-button" onClick={() => onOpenAccount(other.account.account_id)}>Review {other.account.friendly_name} connection</button>)}</div>}
+                </th>
                 <td data-label="Organization"><span className="organization-tag">{organization}</span></td>
                 <td data-label="State"><span className={`overview-reading-state overview-state-${status.tone}`}><span aria-hidden="true">{status.icon}</span><span>{status.label}</span></span><small>Monitoring {account.is_effective_monitoring_enabled ? "on" : "off"}</small></td>
                 <td data-label="Quota left"><div className="overview-quota-list">

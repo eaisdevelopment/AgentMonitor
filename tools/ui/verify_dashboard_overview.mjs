@@ -27,11 +27,23 @@ try {
     const rows = [];
     for (const account of accounts.items.filter(item => item.lifecycle !== "archived")) {
       const capacity = await read(`/api/v1/accounts/${account.account_id}/capacity`);
-      rows.push({ account, capacity });
+      const identity = await read(`/api/v1/accounts/${account.account_id}/observed-identity`);
+      rows.push({ account, capacity, identity });
     }
     return { rows, organizations };
   });
   requireResult(snapshot.rows.length > 0 && snapshot.rows.some(row => row.capacity.items.some(item => item.windows.length > 0)), "real_account_quota_required");
+  // Keep every registry connection; quota presentation is one row per fresh
+  // observed provider identity within its dashboard/provider organizations.
+  const connections = new Map();
+  for (const row of snapshot.rows) {
+    const { account, capacity, identity } = row;
+    const windows = capacity.items.flatMap(item => item.windows);
+    const eligible = ["matched", "owner_confirmed"].includes(account.identity_state) && capacity.availability.state === "available" && identity.state === "verified" && identity.account_id === account.account_id && identity.email !== null && identity.provider_organization !== null && windows.length > 0 && windows.every(window => window.freshness === "fresh" && window.collection_run_id === identity.collection_run_id);
+    const key = eligible ? JSON.stringify([account.provider_key, account.organization_id, identity.email, identity.provider_organization]) : JSON.stringify([account.account_id]);
+    connections.set(key, [...(connections.get(key) ?? []), row]);
+  }
+  const presentationRows = [...connections.values()].map(group => group.sort((left, right) => Number(right.account.friendly_name === right.identity.email) - Number(left.account.friendly_name === left.identity.email) || left.account.account_id.localeCompare(right.account.account_id))[0]);
   let mutations = 0;
   page.on("request", request => { if (new URL(request.url()).origin === origin && request.url().includes("/api/v1/") && !["GET", "HEAD"].includes(request.method())) mutations += 1; });
   await page.goto(origin);
@@ -44,7 +56,7 @@ try {
   requireResult(await filters.count() === 1, "organization_filter_missing");
   const all = filters.getByRole("button", { name: "All organizations", exact: true });
   requireResult(await all.getAttribute("aria-pressed") === "true", "all_organizations_not_default");
-  const expectedIds = rows => rows.map(row => row.account.account_id).sort();
+  const expectedIds = rows => presentationRows.filter(primary => rows.some(row => row.account.account_id === primary.account.account_id)).map(row => row.account.account_id).sort();
   const visibleIds = async () => table.locator("tbody tr").evaluateAll(rows => rows.map(row => row.dataset.accountId).sort());
   const sameIds = (actual, expected) => JSON.stringify(actual) === JSON.stringify(expected);
   const groups = snapshot.organizations.items.filter(organization => snapshot.rows.some(row => row.account.organization_id === organization.organization_id));
@@ -86,7 +98,7 @@ try {
   stage = "per_window_quota";
   let lowWindows = 0;
   let normalWindows = 0;
-  for (const { account, capacity } of snapshot.rows) {
+  for (const { account, capacity } of presentationRows) {
     const row = table.locator(`tbody tr[data-account-id="${account.account_id}"]`);
     await row.waitFor();
     const accountLink = row.getByRole("button", { name: /^Open account / });
@@ -149,7 +161,7 @@ try {
   requireResult(mutations === 0, "overview_started_mutation");
   await page.goto(origin);
   await page.getByRole("table", { name: "Account quota overview", exact: true }).waitFor();
-  console.log(`DASHBOARD OVERVIEW: PASSED — ${snapshot.rows.length} real account rows, single/multiple/reset/empty organization filters, retained manual/periodic refresh selection, lowest quota first, ${lowWindows} low red / ${normalWindows} normal bars, compact desktop/narrow layout, read-only navigation`);
+  console.log(`DASHBOARD OVERVIEW: PASSED — ${presentationRows.length} real account rows from ${snapshot.rows.length} registry connections, single/multiple/reset/empty organization filters, retained manual/periodic refresh selection, lowest quota first, ${lowWindows} low red / ${normalWindows} normal bars, compact desktop/narrow layout, read-only navigation`);
   if (lowWindows === 0) console.log("LOW-QUOTA LIVE COLOR: NOT RUN — no actual reading at or below 20 percent");
   process.exit(0);
 } catch (error) {

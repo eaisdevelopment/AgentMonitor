@@ -598,7 +598,12 @@ class InspectLinuxProcessesV1:
                     continue
                 locations.append(
                     LiveProcessLocationV1(
-                        snapshot.identity, selector.provider_key, cwd, datetime.now(UTC)
+                        snapshot.identity,
+                        selector.provider_key,
+                        cwd,
+                        datetime.now(UTC),
+                        snapshot=snapshot,
+                        provider_version=selector.provider_version,
                     )
                 )
             except (OSError, ValueError):

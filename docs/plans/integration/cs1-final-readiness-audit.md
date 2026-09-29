@@ -453,3 +453,15 @@ plan hashes and historical Draft/approval flags remain unchanged. This is a
 mechanical control binding, not a new independent planning audit or full M4
 acceptance. The bounded implementation review and real boundary evidence are
 recorded separately in the LAN change evidence.
+
+## 2026-09-29 owner process association control binding
+
+Plan snapshot SHA-256: `8812c3786f9a5222a1a91e69aca703d84f10514ee4f7f5e78979ae7cfbc2c35c`
+
+Root reviewed the bounded M06 settings allocation and canonical
+AUTO-ACCOUNT-AGENTS catalog/standard addition. All twenty Draft module plans
+remain unchanged; historical conditional planning conclusions and broader
+approval state remain unchanged. Independent bounded backend/UI implementation
+review findings were corrected and are recorded in the live-account-agents
+evidence. Owner-completed persistence acceptance remains pending; this binding
+is synchronization of the changed controls, not full M4/M06 release approval.

@@ -29,6 +29,7 @@ import {
   type ProviderConnectionViewV1,
   type ObservedAccountIdentityViewV1,
   type LiveProcessLocationPageV1,
+  type LiveProcessLocationViewV1,
   type ProviderInstallationPageV1,
   type ProviderInstallationViewV1,
   type QuotaWindowPageV1,
@@ -66,6 +67,7 @@ export type {
   ProviderConnectionViewV1,
   ObservedAccountIdentityViewV1,
   LiveProcessLocationPageV1,
+  LiveProcessLocationViewV1,
   ProviderInstallationPageV1,
   ProviderInstallationViewV1,
   QuotaWindowPageV1,
@@ -388,6 +390,16 @@ export const capacity = Object.freeze({
 export const runtime = Object.freeze({
   processLocations: (signal?: AbortSignal): Promise<ClientResult<LiveProcessLocationPageV1>> =>
     apiClient.runtime_list_process_locations_v1({ signal }),
+  setProcessAccount: (process: LiveProcessLocationViewV1, accountId: string | null): Promise<ClientResult<LiveProcessLocationViewV1>> => {
+    const key = process.association_key;
+    const version = process.association_record_version ?? 0;
+    if (!key || !/^[a-f0-9]{64}$/.test(key) || !Number.isSafeInteger(version) || version < 0) throw new Error("invalid_process_revision");
+    return apiClient.runtime_set_process_account_association_v1({
+      path: { association_key: key },
+      body: { account_id: accountId, owner_confirmed: true },
+      headers: { ...csrfHeader(), "If-Match": '"' + key + "." + version + '"' },
+    });
+  },
   processes: (signal?: AbortSignal): Promise<ClientResult<AgentProcessPageV1>> =>
     apiClient.runtime_list_processes_v1({ query: { limit: 200 }, signal }),
   processMetrics: (

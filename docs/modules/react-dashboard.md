@@ -191,10 +191,31 @@ layout and populated overview checks. See [density and quota-overview evidence](
 Overview organization buttons select one or more admin-defined groups; All
 organizations restores the default. Ungrouped and unavailable assignments
 remain visible and can be filtered when present. Counts describe the filtered
-rows in the returned account page. Selection survives manual and 30-second
+account rows and registry connections. Selection survives manual and 30-second
 read refresh while Overview stays open, without browser storage or registry
 changes. Rows sort by their lowest usable remaining quota percentage, ascending,
 with missing percentages last and deterministic name/ID ties. Each native
 window remains separate. A percentage at or below 20 has a red bar, a visible
 Low label, and an accessible low description. Freshness, calculated/rounded
 provenance, and provider health policy retain their existing meanings.
+
+## Account agent drill-down and duplicate connections
+
+Account detail has **Agents using this account** for current owner-confirmed
+terminal links. **Identify other Claude terminals** lists unlinked processes;
+the owner checks the official `/status` in the matching terminal, selects an
+admin-defined account, checks confirmation, then presses **Confirm account
+link**. Agent details show only actual available PID/start, parent, CLI version,
+working directory, RSS, cumulative CPU and OS state. Running is presence;
+working/waiting, per-process session/model/tokens remain unknown. Links need
+reconfirmation after account changes inside a terminal. Session history is
+separate. No process switching/control is offered.
+
+Overview groups fresh successful lineage-matched identical reported identities
+within the same provider/provider organization/dashboard group into one quota
+row, preferring a correctly named admin record. It displays the connected
+profile count and separate review links. Incomplete/conflicted/unavailable
+readings remain separate. Accounts admin retains every registry record; no
+automatic merge, deletion or provider reconnection occurs. A different admin
+name remains visible beside observed identity on account details. See
+[bounded progress and real verification](../evidence/live-account-agents.md).

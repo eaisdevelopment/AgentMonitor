@@ -87,3 +87,17 @@ STATUS: Passed | Failed | Blocked | Not Run
 - Every module handoff identifies matrix changes.
 - Release evidence records are joined to the exact manifest entries; this summary
   never becomes the release evidence source.
+
+## 2026-09-29 bounded account terminal drill-down
+
+FR-ACC-006 remains primarily M02; M06/P01/P02/A01/A04 support the
+[owner process association change](plans/integration/live-agent-account-association-change.md)
+and [duplicate identity correction](plans/integration/duplicate-account-overview-change.md).
+CTR-RUN-006/007 V1 adds optional read metadata and browser-only conditional
+owner settings writes; existing GET grammar stays compatible. Focused
+AC-PROC-001/003/004, AC-UI-002/004/005/006 and AC-TEST-001/002/003/004/006
+coverage is named in [the progress record](evidence/live-account-agents.md).
+AUTO-ACCOUNT-AGENTS fails closed without an actual owner-completed terminal
+link; detection/controls/duplicate presentation passed independently. Full M4,
+automatic retrospective attribution and process/account switching are not
+accepted by this bounded change.

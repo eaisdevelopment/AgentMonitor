@@ -87,6 +87,11 @@ SOURCE_FILES = (
     "backend/src/agentmonitor/modules/collection_control/application/queries.py",
     "backend/src/agentmonitor/modules/capacity/application/queries.py",
     "backend/src/agentmonitor/modules/runtime_observation/application/queries.py",
+    "backend/src/agentmonitor/modules/runtime_observation/application/owner_associations.py",
+    "backend/src/agentmonitor/modules/runtime_observation/application/ports.py",
+    "backend/src/agentmonitor/adapters/persistence/runtime_observation/settings/repository.py",
+    "backend/src/agentmonitor/composition/linux_process_locations.py",
+    "backend/src/agentmonitor/adapters/providers/claude/installation.py",
     "backend/src/agentmonitor/adapters/providers/claude/manifest.py",
     "backend/src/agentmonitor/adapters/persistence/registry/sqlite/repository.py",
     "backend/src/agentmonitor/adapters/persistence/collection_control/sqlite/repository.py",
@@ -147,6 +152,7 @@ IAM_OPERATIONS = {
     ("/api/v1/capacity/history", "get"): "capacity_list_history_v1",
     ("/api/v1/processes", "get"): "runtime_list_processes_v1",
     ("/api/v1/process-locations", "get"): "runtime_list_process_locations_v1",
+    ("/api/v1/process-locations/{association_key}/account", "put"): "runtime_set_process_account_association_v1",
     ("/api/v1/process-metrics", "get"): "runtime_list_process_metrics_v1",
     ("/api/v1/sessions", "get"): "runtime_list_sessions_v1",
     ("/api/v1/sessions/{session_id}/tree", "get"): "runtime_get_session_tree_v1",
@@ -195,6 +201,11 @@ IamPolicyRow = tuple[
     str | None,
 ]
 IAM_POLICY: dict[str, IamPolicyRow] = {
+    "runtime_set_process_account_association_v1": (
+        "browser_cookie_only", "write:accounts", "OwnerProcessAccountAssociationsV1.set",
+        "replay_safe_representation", _COOKIE_CSRF, "200", "LiveProcessLocationViewV1",
+        "SafeProblemV1", _M2_REQUIRED_ERROR_STATUSES, "SetProcessAccountAssociationInputV1",
+    ),
     "provider_get_connection_v1": (
         "cookie_or_bearer", "read:accounts", "ProviderConnectionPortV1.read",
         "safe_query_repeat", _COOKIE_BEARER, "200", "ProviderConnectionViewV1",
@@ -798,7 +809,7 @@ def validate_iam_openapi(document: object) -> tuple[str, ...]:
     if (
         actual != IAM_OPERATIONS
         or set(IAM_POLICY) != set(IAM_OPERATIONS.values())
-        or len(identifiers) != 44
+        or len(identifiers) != 45
     ):
         raise OpenApiGenerationError("operation_surface_invalid")
 

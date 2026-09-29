@@ -4,11 +4,26 @@ from datetime import datetime
 from typing import Literal
 
 from agentmonitor.api.v1.schemas.registry import AvailabilityV1, PageMetaV1
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class _ClosedV1(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True)
+
+
+class OwnerProcessAccountAssociationViewV1(_ClosedV1):
+    state: Literal["owner_confirmed"] = "owner_confirmed"
+    account_id: str
+    principal_id: str
+    confirmed_at: datetime
+    record_version: int
+
+
+class SetProcessAccountAssociationInputV1(_ClosedV1):
+    account_id: str | None = Field(
+        ..., min_length=1, max_length=64, pattern=r"^[A-Za-z0-9_-]+$"
+    )
+    owner_confirmed: bool = False
 
 
 class LiveProcessLocationViewV1(_ClosedV1):
@@ -20,6 +35,14 @@ class LiveProcessLocationViewV1(_ClosedV1):
     account_correlation: Literal["unresolved"]
     working_directory: str | None
     observed_at: datetime
+    association_key: str | None = None
+    association_record_version: int = 0
+    account_association: OwnerProcessAccountAssociationViewV1 | None = None
+    provider_version: str | None = None
+    parent_pid: int | None = None
+    resident_memory_bytes: int | None = None
+    cpu_time_seconds: str | None = None
+    kernel_state: str | None = None
 
 
 class LiveProcessLocationPageV1(_ClosedV1):

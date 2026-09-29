@@ -127,3 +127,12 @@ Directories are created when an approved planning assignment begins. Drafts stat
 - Critical risks have mitigation/acceptance decisions.
 - No plan relies on prompts/content/secrets, default-profile mutation, agent control, fake telemetry, or unapproved dependencies.
 - Parallel tasks share no unresolved contracts, migration chain, or generated output.
+
+## Bounded owner-directed account-view changes
+
+- [Live agent account association](integration/live-agent-account-association-change.md):
+  explicit manual confirmation, guarded current terminal details and private
+  revisioned settings; full live persistence requires the owner's actual link.
+- [Duplicate identity overview](integration/duplicate-account-overview-change.md):
+  one quota row for fresh identical identities and review links for their
+  separate admin connections.

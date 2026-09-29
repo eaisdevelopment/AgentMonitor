@@ -12,6 +12,10 @@ from tooling.foundation.openapi_client import (
 )
 
 EXPECTED_SUCCESS = {
+    "runtime_set_process_account_association_v1": ("200", "LiveProcessLocationViewV1"),
+    "provider_get_connection_v1": ("200", "ProviderConnectionViewV1"),
+    "provider_start_connection_v1": ("202", "ProviderConnectionViewV1"),
+    "provider_cancel_connection_v1": ("200", "ProviderConnectionViewV1"),
     "provider_get_observed_account_identity_v1": (
         "200",
         "ObservedAccountIdentityViewV1",
@@ -77,6 +81,9 @@ EXPECTED_ERRORS = frozenset(
     }
 )
 EXPECTED_REQUESTS = {
+    "runtime_set_process_account_association_v1": "SetProcessAccountAssociationInputV1",
+    "provider_start_connection_v1": "StartProviderConnectionInputV1",
+    "provider_cancel_connection_v1": "CancelProviderConnectionInputV1",
     "registry_register_account_v1": "RegisterAccountInputV1",
     "registry_rename_account_v1": "RenameAccountInputV1",
     "registry_assign_account_organization_v1": "AssignAccountOrganizationInputV1",
@@ -120,7 +127,7 @@ def test_generator_rejects_changed_policy_on_every_frozen_operation() -> None:
 
 def test_generator_rejects_success_schema_drift_for_all_operations() -> None:
     schema = create_iam_schema_application().openapi()
-    assert len(validate_iam_openapi(schema)) == len(EXPECTED_SUCCESS) == 41
+    assert len(validate_iam_openapi(schema)) == len(EXPECTED_SUCCESS) == 45
     seen: set[str] = set()
     for path, methods in schema["paths"].items():
         for method, operation in methods.items():

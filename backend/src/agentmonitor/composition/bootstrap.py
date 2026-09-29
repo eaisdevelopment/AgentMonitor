@@ -51,6 +51,9 @@ from agentmonitor.adapters.persistence.identity_access.sqlite.sessions import (
 from agentmonitor.adapters.persistence.registry.sqlite.repository import (
     SqliteRegistryRepositoryV1,
 )
+from agentmonitor.adapters.persistence.runtime_observation.settings.repository import (
+    OwnerAssociationSettingsRepositoryV1,
+)
 from agentmonitor.adapters.persistence.runtime_observation.sqlite.repository import (
     SqliteRuntimeObservationRepositoryV1,
 )
@@ -132,6 +135,9 @@ from agentmonitor.modules.registry.application.organizations import (
     GetOrganizationV1,
     ListOrganizationsV1,
     ReorderOrganizationsV1,
+)
+from agentmonitor.modules.runtime_observation.application.owner_associations import (
+    OwnerProcessAccountAssociationsV1,
 )
 from agentmonitor.modules.runtime_observation.application.queries import (
     GetAgentSessionV1,
@@ -231,11 +237,17 @@ def _observation_ports(
     reference: DatabaseRefV1,
     collector: ClaudeDashboardCollectorV1,
     connections: ClaudeDashboardConnectionV1,
+    data_root: Path,
 ) -> ObservationApiPortsV1:
     registry = SqliteRegistryRepositoryV1(reference)
     collection = SqliteCollectionRepositoryV1(reference)
     capacity = SqliteCapacityRepositoryV1(reference)
     runtime = SqliteRuntimeObservationRepositoryV1(reference)
+    associations = OwnerProcessAccountAssociationsV1(
+        read_live_claude_process_locations_v1,
+        OwnerAssociationSettingsRepositoryV1(data_root),
+        GetAccountV1(registry),
+    )
     return ObservationApiPortsV1(
         CreateOrganizationV1(registry),
         EditOrganizationV1(registry),
@@ -257,8 +269,9 @@ def _observation_ports(
         GetAgentSessionV1(runtime),
         GetSessionTreeV1(runtime),
         GetVerifiedQuotaIdentityV1(collector.read_verified_identity),
-        ListLiveProcessLocationsV1(read_live_claude_process_locations_v1),
+        ListLiveProcessLocationsV1(associations.read),
         connections,
+        associations,
     )
 
 
@@ -289,7 +302,9 @@ def create_iam_application(
         lifecycle,
         iam_mode=True,
         iam_ports=_iam_ports(reference),
-        observation_ports=_observation_ports(reference, collector, connections),
+        observation_ports=_observation_ports(
+            reference, collector, connections, data_root
+        ),
         service_lock_path=data_root / ".agentmonitor-service.lock",
     )
 

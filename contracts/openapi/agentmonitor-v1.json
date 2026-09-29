@@ -2081,15 +2081,74 @@
       "LiveProcessLocationViewV1": {
         "additionalProperties": false,
         "properties": {
+          "account_association": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/OwnerProcessAccountAssociationViewV1"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "account_correlation": {
             "const": "unresolved",
             "title": "Account Correlation",
             "type": "string"
           },
+          "association_key": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Association Key"
+          },
+          "association_record_version": {
+            "default": 0,
+            "title": "Association Record Version",
+            "type": "integer"
+          },
+          "cpu_time_seconds": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cpu Time Seconds"
+          },
+          "kernel_state": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Kernel State"
+          },
           "observed_at": {
             "format": "date-time",
             "title": "Observed At",
             "type": "string"
+          },
+          "parent_pid": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parent Pid"
           },
           "pid": {
             "title": "Pid",
@@ -2102,6 +2161,28 @@
           "provider_key": {
             "title": "Provider Key",
             "type": "string"
+          },
+          "provider_version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Provider Version"
+          },
+          "resident_memory_bytes": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Resident Memory Bytes"
           },
           "start_time_ticks": {
             "title": "Start Time Ticks",
@@ -2668,6 +2749,42 @@
           "archived_at"
         ],
         "title": "OrganizationViewV1",
+        "type": "object"
+      },
+      "OwnerProcessAccountAssociationViewV1": {
+        "additionalProperties": false,
+        "properties": {
+          "account_id": {
+            "title": "Account Id",
+            "type": "string"
+          },
+          "confirmed_at": {
+            "format": "date-time",
+            "title": "Confirmed At",
+            "type": "string"
+          },
+          "principal_id": {
+            "title": "Principal Id",
+            "type": "string"
+          },
+          "record_version": {
+            "title": "Record Version",
+            "type": "integer"
+          },
+          "state": {
+            "const": "owner_confirmed",
+            "default": "owner_confirmed",
+            "title": "State",
+            "type": "string"
+          }
+        },
+        "required": [
+          "account_id",
+          "principal_id",
+          "confirmed_at",
+          "record_version"
+        ],
+        "title": "OwnerProcessAccountAssociationViewV1",
         "type": "object"
       },
       "PageMetaV1": {
@@ -3827,6 +3944,35 @@
           "monitoring_preference"
         ],
         "title": "SetAccountMonitoringInputV1",
+        "type": "object"
+      },
+      "SetProcessAccountAssociationInputV1": {
+        "additionalProperties": false,
+        "properties": {
+          "account_id": {
+            "anyOf": [
+              {
+                "maxLength": 64,
+                "minLength": 1,
+                "pattern": "^[A-Za-z0-9_-]+$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Account Id"
+          },
+          "owner_confirmed": {
+            "default": false,
+            "title": "Owner Confirmed",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "account_id"
+        ],
+        "title": "SetProcessAccountAssociationInputV1",
         "type": "object"
       },
       "StartProviderConnectionInputV1": {
@@ -10968,6 +11114,219 @@
         "x-agentmonitor-required-permission": "read:telemetry"
       }
     },
+    "/api/v1/process-locations/{association_key}/account": {
+      "put": {
+        "operationId": "runtime_set_process_account_association_v1",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "association_key",
+            "required": true,
+            "schema": {
+              "title": "Association Key",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Guarded process selector and revision; initial is 0.",
+            "in": "header",
+            "name": "If-Match",
+            "required": true,
+            "schema": {
+              "maxLength": 160,
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SetProcessAccountAssociationInputV1"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LiveProcessLocationViewV1"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          },
+          "405": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          },
+          "412": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          },
+          "413": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          },
+          "415": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          },
+          "428": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          },
+          "429": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          },
+          "500": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          },
+          "504": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          }
+        },
+        "security": [
+          {
+            "BrowserCsrfHeaderV1": [],
+            "BrowserSessionCookieV1": []
+          }
+        ],
+        "summary": "Set Process Account Association",
+        "tags": [
+          "runtime"
+        ],
+        "x-agentmonitor-application-port": "OwnerProcessAccountAssociationsV1.set",
+        "x-agentmonitor-auth-profile": "browser_cookie_only",
+        "x-agentmonitor-error-schema": "SafeProblemV1",
+        "x-agentmonitor-replay-policy": "replay_safe_representation",
+        "x-agentmonitor-required-permission": "write:accounts"
+      }
+    },
     "/api/v1/process-metrics": {
       "get": {
         "operationId": "runtime_list_process_metrics_v1",
@@ -13290,10 +13649,10 @@
       "starlette": "1.6.0"
     },
     "generator": "agentmonitor-openapi-client",
-    "generator_sha256": "4d654720378a847ab3cd91b17b6fa2be56ca43b831cbc1bc8f7257c3f4c1a726",
+    "generator_sha256": "2cd97a72130c6ba807eabe6607711577174a317830bfb5822fa0df1b232ebe46",
     "generator_version": "2.0.4",
     "openapi_version": "3.1.0",
-    "schema_sha256": "b628199a1355dc034d360b3e89a36189cbf3d9d1f162c29610829e60101cf931",
-    "source_sha256": "a027fd1e9999ebe03dc73e5987a91ef261239ef22fd92f3a8af085c2ed873d69"
+    "schema_sha256": "501843f1b4099bdb7e926f5026b68c24373a6cb9604bea2daf5ce7a434a6b67b",
+    "source_sha256": "1adc3825a146f421e3e52da16800eb16f1b72d2c59f098eb180a38f7d6ace3f6"
   }
 }

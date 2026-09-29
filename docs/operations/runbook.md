@@ -379,3 +379,38 @@ Must be allowlist-generated and include only safe versions, health states, schem
 ## Operational evidence
 
 Every exercised procedure records date, application/schema/provider versions, operator, result, sanitized evidence reference, deviations, and follow-up. A written but unexecuted procedure remains Planned.
+
+## Identify accounts of ordinary running Claude terminals
+
+Open the account from Overview. Expand **Identify other Claude terminals**,
+find the real PID/path/version, and open `/status` in that terminal yourself.
+Choose its account and confirm the link. The account page then lists that
+current terminal under **Agents using this account**. Confirmations are manual
+observations with a timestamp; reconfirm or unlink when you change the account
+inside the terminal. AgentMonitor never switches or interrupts it. Terminals
+with reused PIDs, another boot/scope or changed executable images do not inherit
+old confirmations.
+
+A repeated email in Overview can mean two distinct registered profiles signed
+in to the same provider identity. Fresh successful evidence is grouped into one
+quota row with **connected profiles** and separate review links. The configured
+account name can differ from Claude's current identity; use the corresponding
+record's admin connection workflow to review it. Grouping does not alter any
+profile, registry record or underlying quota history.
+
+M06 owner confirmations use `owner-process-account-associations-v1.json` and
+`.owner-process-account-associations-v1.lock` in the private data root. These
+are metadata settings, not provider telemetry or credentials. A SQLite-only
+backup omits them. Preserve them with owner-only permissions and checksums when
+performing an approved offline same-installation backup; validate the versioned
+format and current process identity after restore. Do not restore across users
+or installations. Full M08 backup/restore automation remains Blocked and is not
+accepted by the account-view gate. Corrupt/unsafe settings fail closed and are
+never silently reset. See ADR0015 and the account-agents progress record.
+
+Focused live verification is `python3 tools/automation/run.py AUTO-ACCOUNT-AGENTS`
+with `AGENTMONITOR_TEST_DASHBOARD_CDP_ENDPOINT`,
+`AGENTMONITOR_TEST_DASHBOARD_ORIGIN`, `AGENTMONITOR_TEST_AGENT_ACCOUNT_ID`,
+`AGENTMONITOR_TEST_AGENT_PID`, and `AGENTMONITOR_TEST_AGENT_DATA_ROOT`. Use only
+local AgentMonitor browser/data-root selectors, no provider paths/credentials.
+The command requires a real owner-completed confirmation and never creates one.

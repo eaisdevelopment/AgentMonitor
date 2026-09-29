@@ -63,6 +63,9 @@ from agentmonitor.modules.registry.application.organizations import (
     ListOrganizationsV1,
     ReorderOrganizationsV1,
 )
+from agentmonitor.modules.runtime_observation.application.owner_associations import (
+    OwnerProcessAccountAssociationsV1,
+)
 from agentmonitor.modules.runtime_observation.application.queries import (
     GetAgentSessionV1,
     GetSessionTreeV1,
@@ -120,6 +123,7 @@ class ObservationApiPortsV1:
     get_verified_quota_identity: GetVerifiedQuotaIdentityV1 | None = None
     list_live_process_locations: ListLiveProcessLocationsV1 | None = None
     provider_connections: ProviderConnectionPortV1 | None = None
+    owner_process_associations: OwnerProcessAccountAssociationsV1 | None = None
 
 
 @dataclass(frozen=True, slots=True)

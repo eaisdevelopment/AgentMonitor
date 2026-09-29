@@ -364,3 +364,31 @@ td { font-variant-numeric: tabular-nums; }
   .dashboard-nav { min-width: 0; max-width: 100vw; flex-wrap: nowrap; overflow-x: auto; gap: .3rem; }
   .dashboard-nav button { flex-shrink: 0; white-space: nowrap; }
 }
+
+.agent-heading-actions, .agent-link-actions { display: flex; align-items: center; flex-wrap: wrap; gap: .5rem; }
+.agent-link-actions { margin-top: .65rem; }
+.account-agent-table th:first-child { width: 21%; }
+.account-agent-table td:nth-child(3) { width: 42%; }
+.account-agent-table td:last-child { width: 19%; }
+.agent-details summary { cursor: pointer; color: #a8d8ff; }
+.agent-details dl { display: grid; gap: .5rem; margin: .75rem 0; font-size: .85rem; }
+.agent-details dt { color: #9cabb7; }
+.agent-details dd { margin: .15rem 0 0; overflow-wrap: anywhere; }
+.agent-details p { margin: .75rem 0 0; font-size: .8rem; }
+.unlinked-agents { margin: 1rem 1.5rem; border-top: 1px solid #2c4353; padding-top: .85rem; }
+.unlinked-agents > summary { display: flex; gap: .75rem; align-items: center; flex-wrap: wrap; cursor: pointer; font-weight: 600; }
+.unlinked-agents > summary span { color: #9cabb7; font-size: .85rem; font-weight: 400; }
+.unlinked-agents > p { font-size: .85rem; color: #9cabb7; }
+.agent-link-form { display: grid; gap: .65rem; margin-top: .75rem; }
+.agent-link-form p { font-size: .85rem; margin: 0; }
+.agent-link-form select { max-width: 100%; min-width: 0; }
+.agent-confirmation { display: flex; align-items: flex-start; gap: .5rem; font-size: .85rem; }
+.agent-confirmation input { flex: 0 0 auto; width: 1rem; margin-top: .15rem; }
+.workspace-path > code { display: block; margin-bottom: .3rem; }
+.additional-connections { display: grid; gap: .4rem; margin-top: .6rem; font-size: .75rem; }
+.additional-connections strong, .connection-warning { color: #ffd08a; }
+.additional-connections button { text-align: left; font-size: .75rem; }
+@media (max-width: 720px) {
+  .account-agent-table th:first-child, .account-agent-table td:nth-child(3), .account-agent-table td:last-child { width: auto; }
+  .agent-heading-actions { width: 100%; justify-content: space-between; }
+}

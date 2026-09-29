@@ -11,6 +11,7 @@ import {
   type AccountPageV1,
   type AccountViewV1,
   type ClientResult,
+  type LiveProcessLocationPageV1,
   type OrganizationPageV1,
 } from "../../shared/api/client";
 
@@ -39,6 +40,7 @@ export function AccountPage({
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const settingsRef = useRef<HTMLDetailsElement>(null);
+  const [liveProcesses, setLiveProcesses] = useState<LiveProcessLocationPageV1 | null>(null);
   const [observedIdentity, setObservedIdentity] = useState<Readonly<{ accountId: string | undefined; email: string | null }> | null>(null);
   const observedEmail = observedIdentity?.accountId === accountId ? observedIdentity?.email : null;
   const updateObservedIdentity = useCallback((email: string | null) => {
@@ -146,6 +148,7 @@ export function AccountPage({
         <div>
           <nav className="account-breadcrumb" aria-label="Account breadcrumb"><a href="/accounts">Accounts</a><span aria-hidden="true">/</span><span>{state.organizations.items.find((item) => item.organization_id === selected.organization_id)?.name ?? "Ungrouped"}</span></nav>
           <h1 id={titleId} tabIndex={-1}>{observedEmail ?? selected.friendly_name}</h1>
+          {observedEmail && observedEmail !== selected.friendly_name && <p className="connection-warning">Registered as {selected.friendly_name} · Claude currently reports {observedEmail}. Review this connection before treating it as the registered account.</p>}
           <p className="account-subtitle"><span className="provider-name">{selected.provider_key}</span><span aria-hidden="true">·</span><span>{selected.is_effective_monitoring_enabled ? "Quota monitoring is on" : "Quota monitoring is off"}</span></p>
         </div>
         <button className="quiet-button" type="button" onClick={() => {
@@ -156,12 +159,12 @@ export function AccountPage({
         }}>Edit account</button>
       </header>
       {selected.provider_key === "claude" && selected.lifecycle !== "archived" && <ClaudeConnectionPanel key={`connection-${selected.account_id}`} account={selected} onExpired={onExpired} onProofUnavailable={onProofUnavailable} onAccountReload={reloadAccount} />}
-      <AccountWorkspaceSummary key={selected.account_id} account={selected} organizationName={state.organizations.items.find((item) => item.organization_id === selected.organization_id)?.name ?? "Ungrouped"} onExpired={onExpired} onIdentity={updateObservedIdentity} />
-      {selected.provider_key === "claude" && <LiveClaudeProcesses onExpired={onExpired} />}
+      <AccountWorkspaceSummary key={selected.account_id} account={selected} organizationName={state.organizations.items.find((item) => item.organization_id === selected.organization_id)?.name ?? "Ungrouped"} liveProcesses={liveProcesses} onExpired={onExpired} onIdentity={updateObservedIdentity} />
+      {selected.provider_key === "claude" && <LiveClaudeProcesses key={`processes-${selected.account_id}`} account={selected} accounts={state.data.items} organizations={state.organizations.items} onExpired={onExpired} onProofUnavailable={onProofUnavailable} onRead={setLiveProcesses} />}
       <CapacityPanel accountId={selected.account_id} onExpired={onExpired} />
       <details className="account-secondary" data-account-sessions="true">
-        <summary>Session details <span>Observed agents and their history</span></summary>
-        <SessionPanel accountId={selected.account_id} displayMode="panel" heading="Running sessions" onExpired={onExpired} />
+        <summary>Session history <span>Previously observed session records</span></summary>
+        <SessionPanel accountId={selected.account_id} displayMode="panel" heading="Session records" onExpired={onExpired} />
       </details>
       <details className="account-settings account-secondary" ref={settingsRef}>
         <summary>Account settings <span>Name, organization, and monitoring</span></summary>

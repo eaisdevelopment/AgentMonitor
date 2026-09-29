@@ -211,3 +211,11 @@ status = "blocked"
 scope = "release gates, artifacts, SBOM/notices/evidence/notes, and rollback"
 implementation_command = []
 blockers = ["all release prerequisites and real T1..T7 evidence"]
+
+[[routines]]
+id = "AUTO-ACCOUNT-AGENTS"
+owner = "PLAN-M06"
+status = "operational_limited"
+scope = "real owner-selected Claude terminal account link: HTTP denials, generated client/build, guarded OS view, private settings reopen and read-only shared Chrome"
+implementation_command = ["python3", "tools/automation/implementations/auto_account_agents.py"]
+blockers = ["explicit real dashboard/account/PID/data root and owner-completed account confirmation required; automatic retrospective identity and full M4/M06 acceptance remain outside this bounded gate"]

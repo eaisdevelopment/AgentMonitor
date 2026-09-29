@@ -110,3 +110,24 @@ Canonical focused evidence is recorded in
 `docs/evidence/m3-owner-confirmed-claude-vertical.md`. The final transparent
 owner-terminal and populated-browser commands passed on 2026-09-24. Any skipped
 live declaration remains Not Run and is not counted as a pass.
+
+## Owner-confirmed terminal account view
+
+The bounded [approved change](../plans/integration/live-agent-account-association-change.md)
+adds explicit process/account settings under M06 application ports and
+`adapters/persistence/runtime_observation/settings/`. Read joins only current
+same-user processes with matching boot/namespace, PID/start and executable
+fingerprint. Separate revisioned tombstones retain optimistic concurrency;
+identical retries preserve confirmation time/actor. Legacy provider correlation
+remains unresolved. Manual account changes in a surviving terminal require a
+new owner confirmation. This does not invent provider sessions or per-agent
+quota/model/tokens. ADR0015 records the private versioned settings format,
+writer locking, fail-closed controls and separate backup requirement.
+
+P01 adds a browser-only conditional PUT; the existing global GET remains
+compatible. P02 filters that read into current confirmed account terminals and
+an explicitly unlinked terminal section. Read-only native process discovery
+includes verified retained CLI binaries independently of quota parser coverage.
+The [progress record](../evidence/live-account-agents.md) distinguishes the
+passing detection/controls from pending owner-completed persistence acceptance.
+Canonical command: `python3 tools/automation/run.py AUTO-ACCOUNT-AGENTS`.

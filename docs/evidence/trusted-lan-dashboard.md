@@ -147,3 +147,15 @@ tools/automation/test_run.py
 tools/planning/validate_plans.py
 tools/ui/verify_lan_dashboard.mjs
 ```
+
+## Owner operations follow-up, 2026-09-29
+
+The owner reports the specified UFW rule was added. The app was restarted with
+both authorized listeners, and the new dashboard password from the named
+`.env` key was applied through the existing real local-TTY recovery command.
+An offline SQLite backup passed integrity/checksum verification; a locked-view
+WAL condition was resolved with the existing quiesced checkpoint command.
+Real login/account reads succeeded at both origins; previous sessions/tokens
+were revoked. The owner confirmed the new password works. No password/hash or
+provider data is recorded here. Actual second-computer reachability remains
+owner verification; local socket/HTTP success is not proof of that boundary.

@@ -18,5 +18,6 @@ Accepted decisions are historical records. Do not edit an accepted ADR to concea
 | [0012](0012-cookie-read-origin-proof.md) | Accepted for M2 correction | Origin proof before cookie-authenticated reads |
 | [0013](0013-local-milestone-release-gates.md) | Accepted 2026-09-25 | Technical evidence gates execute local milestones; detached M0 reviews are advisory |
 | [0014](0014-trusted-lan-dashboard.md) | Accepted 2026-09-29 | Explicit private-interface/subnet dashboard access with unchanged default loopback admission |
+| [0015](0015-owner-process-account-associations.md) | Accepted bounded owner request 2026-09-29 | Persistent, explicitly owner-confirmed links between guarded live processes and account records |
 
 Use [the ADR template](../templates/adr-template.md) for new decisions.

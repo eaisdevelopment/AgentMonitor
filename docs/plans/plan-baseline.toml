@@ -183,20 +183,20 @@ bytes = 73372
 [[controls]]
 id = "parallel-ownership"
 path = "docs/plans/parallel-ownership.toml"
-sha256 = "5a83ea998fdfc3106e8fca55eeb57d4ff114f8eb3d66537a288e805c81a710db"
-bytes = 22708
+sha256 = "195b47dbc9b5ce10b8a422b7f63ea00e20f88bffa30bea585f2ae0c02e2db566"
+bytes = 22789
 
 [[controls]]
 id = "automation-routines"
 path = "tools/automation/routines.toml"
-sha256 = "9d16bfd8465b509380c16c99ede3666aa3951c26bfac8a273102d5be6c369262"
-bytes = 8967
+sha256 = "9b482c4788d8052ae39cf768db946cb09180b7037fc10621b532ac32cdb1cdf5"
+bytes = 9526
 
 [[controls]]
 id = "automation-standard"
 path = "docs/engineering/completion-and-automation-gates.md"
-sha256 = "e54051bde68f7846d91ffffeaf66edbd44e109e1e0f1747406cca598d0aca462"
-bytes = 15129
+sha256 = "5603d5f567d94617593e4d2e26f5017106f97ed5db86639a48e3276aaf2107e1"
+bytes = 15444
 
 [[controls]]
 id = "m0-g0-approval"

@@ -60,6 +60,9 @@ This index is the entry point for product, architecture, engineering, and operat
 - [Compact dashboard and quota overview](evidence/dashboard-density-and-quota-overview.md): compact connection status, multiple organization filters, lowest-quota-first account listing, and red warnings at 20% or less remaining.
 - [Trusted LAN dashboard change](plans/integration/trusted-lan-dashboard-change.md): owner-approved private interface/subnet listener, HTTP browser admission, and the real completion gate.
 - [Trusted LAN dashboard evidence](evidence/trusted-lan-dashboard.md): real dual listeners, IAM protections, LAN browser admin behavior, and pending firewall/second-computer verification.
+- [Live agent account associations](plans/integration/live-agent-account-association-change.md): approved bounded manual terminal identity and guarded process drill-down.
+- [Duplicate identity overview correction](plans/integration/duplicate-account-overview-change.md): one quota row for fresh identical observed identities, with separate connection review.
+- [Live account agents progress](evidence/live-account-agents.md): real terminal detection, HTTP guards, duplicate presentation, and pending owner confirmation.
 - [M2 Argon2 admission](dependencies/m2-argon2-admission.md): approved exact Linux dependency graph, work profile, and platform limitations.
 - [Configuration standard](engineering/configuration-standard.md): ownership, naming, precedence, secret classes, and compatibility.
 - [Documentation standard](engineering/documentation-standard.md): required documentation and traceability.

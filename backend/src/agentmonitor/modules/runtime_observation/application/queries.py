@@ -1,6 +1,7 @@
 """Read-only M06 process/session/history/tree application ports."""
 
 from collections.abc import Callable
+from dataclasses import replace
 from datetime import datetime, timedelta
 from typing import Protocol
 
@@ -25,8 +26,19 @@ class ListLiveProcessLocationsV1:
     def __init__(self, reader: Callable[[], LiveProcessLocationsV1]) -> None:
         self._reader = reader
 
-    def __call__(self) -> LiveProcessLocationsV1:
-        return self._reader()
+    def __call__(self, account_id: OpaqueIdV1 | None = None) -> LiveProcessLocationsV1:
+        result = self._reader()
+        if account_id is None:
+            return result
+        return replace(
+            result,
+            items=tuple(
+                item
+                for item in result.items
+                if item.account_association is not None
+                and item.account_association.account_id == account_id
+            ),
+        )
 
 
 class AgentSessionNotFoundV1(ValueError):

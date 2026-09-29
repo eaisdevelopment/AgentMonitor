@@ -1,12 +1,16 @@
 """Bounded discovery of the exact installed Claude executable version."""
 
+import hashlib
 import os
 import platform
 import pwd
 import re
 import shutil
+import stat
 import subprocess
+import time
 from dataclasses import dataclass
+from functools import lru_cache
 from pathlib import Path
 
 from agentmonitor.adapters.providers.claude.manifest import CLAUDE_PROVIDER_VERSION
@@ -107,3 +111,85 @@ def _read_version(executable: Path) -> str:
     if completed.returncode != 0 or match is None:
         raise ClaudeInstallationUnavailable("claude_version_invalid")
     return match.group(1).decode("ascii")
+
+
+def _binary_identity(path: Path) -> tuple[int, ...]:
+    info = path.lstat()
+    if (
+        not stat.S_ISREG(info.st_mode)
+        or info.st_uid != os.getuid()
+        or info.st_mode & 0o022
+    ):
+        raise ClaudeInstallationUnavailable("claude_process_executable_unsafe")
+    return (info.st_dev, info.st_ino, info.st_size, info.st_mtime_ns, info.st_ctime_ns)
+
+
+@lru_cache(maxsize=64)
+def _process_version(path: Path, identity: tuple[int, ...]) -> str:
+    if _binary_identity(path) != identity:
+        raise ClaudeInstallationUnavailable("claude_process_executable_changed")
+    version = _read_version(path)
+    if _binary_identity(path) != identity:
+        raise ClaudeInstallationUnavailable("claude_process_executable_changed")
+    return version
+
+
+def discover_process_installations() -> tuple[tuple[ClaudeInstallationV1, ...], bool]:
+    """Admit OS-only discovery for actual retained native CLI executables.
+
+    This does not widen the reviewed quota/auth/parser version. Only the official
+    version banner and OS metadata are read from other installed executables.
+    """
+    default = discover_default_installation()
+    versions = default.executable_for_adapter.parent
+    installations = [default]
+    if versions.name != "versions" or versions.parent.name != "claude":
+        return tuple(installations), False
+    info = versions.lstat()
+    if (
+        not stat.S_ISDIR(info.st_mode)
+        or info.st_uid != os.getuid()
+        or info.st_mode & 0o002
+        or (info.st_mode & 0o020 and info.st_gid != os.getgid())
+    ):
+        return tuple(installations), True
+    candidates = sorted(
+        (
+            entry
+            for entry in versions.iterdir()
+            if re.fullmatch(r"[0-9]+\.[0-9]+\.[0-9]+", entry.name)
+        ),
+        key=lambda entry: tuple(int(part) for part in entry.name.split(".")),
+        reverse=True,
+    )
+    truncated = len(candidates) > 32
+    deadline = time.monotonic() + 2
+    for candidate in candidates[:32]:
+        if candidate == default.executable_for_adapter:
+            continue
+        if time.monotonic() >= deadline:
+            truncated = True
+            break
+        try:
+            identity = _binary_identity(candidate)
+            if not os.access(candidate, os.X_OK):
+                continue
+            version = _process_version(candidate, identity)
+            if version != candidate.name:
+                truncated = True
+                continue
+            reference = (
+                "claude-process-"
+                + hashlib.sha256(str(candidate).encode()).hexdigest()[:24]
+            )
+            installations.append(
+                ClaudeInstallationV1(
+                    OpaqueIdV1(reference),
+                    version,
+                    default.platform_id,
+                    candidate,
+                )
+            )
+        except (OSError, RuntimeError, ValueError):
+            truncated = True
+    return tuple(installations), truncated

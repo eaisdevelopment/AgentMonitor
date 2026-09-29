@@ -1,6 +1,8 @@
 """Authenticated, read-only M06 runtime transports."""
 
+import re
 from datetime import UTC, datetime
+from decimal import Decimal
 
 from agentmonitor.api.problem import ProblemError
 from agentmonitor.api.v1.dependencies import authorize_request, observation_ports
@@ -25,6 +27,7 @@ from agentmonitor.api.v1.schemas.runtime import (
     LiveProcessLocationPageV1,
     LiveProcessLocationViewV1,
     ObservationProvenanceWireV1,
+    OwnerProcessAccountAssociationViewV1,
     ProcessCodeFieldWireV1,
     ProcessIdentityWireV1,
     ProcessLabelFieldWireV1,
@@ -32,22 +35,27 @@ from agentmonitor.api.v1.schemas.runtime import (
     SessionIdentityWireV1,
     SessionTreeNodeV1,
     SessionTreeViewV1,
+    SetProcessAccountAssociationInputV1,
 )
 from agentmonitor.contracts.common_provenance_v1 import ObservationProvenanceV1
 from agentmonitor.contracts.common_v1 import OpaqueIdV1
 from agentmonitor.contracts.runtime_observation_v1 import (
     AgentProcessRecordV1,
     AgentSessionRecordV1,
+    LiveProcessLocationV1,
     ProcessMetricFieldV1,
 )
 from agentmonitor.contracts.runtime_observation_v1 import (
     SessionTreeViewV1 as DomainSessionTreeViewV1,
 )
+from agentmonitor.modules.runtime_observation.application.ports import (
+    OwnerAssociationErrorV1,
+)
 from agentmonitor.modules.runtime_observation.application.queries import (
     AgentSessionNotFoundV1,
     RuntimeQueryUnavailableV1,
 )
-from fastapi import APIRouter, Query, Request
+from fastapi import APIRouter, Query, Request, Response
 
 router = APIRouter(tags=["runtime"])
 
@@ -65,26 +73,134 @@ def list_process_locations(request: Request) -> LiveProcessLocationPageV1:
     query = observation_ports(request).list_live_process_locations
     if query is None:
         raise ProblemError(503, "observation_data_unavailable")
-    result = query()
+    try:
+        result = query()
+    except OwnerAssociationErrorV1:
+        raise ProblemError(503, "observation_repository_unavailable") from None
     return LiveProcessLocationPageV1(
-        items=tuple(
-            LiveProcessLocationViewV1(
-                pid=item.identity.pid,
-                start_time_ticks=item.identity.start_time_ticks,
-                platform_scope_id=item.identity.platform_scope_id,
-                provider_key=item.provider_key,
-                state="running",
-                account_correlation="unresolved",
-                working_directory=item.working_directory,
-                observed_at=item.observed_at,
-            )
-            for item in result.items
-        ),
+        items=tuple(_live_process(item) for item in result.items),
         availability=availability(result.availability),
         provider_version=result.provider_version,
         source_id="linux.proc.cwd.v1",
         truncated=result.truncated,
     )
+
+
+def _live_process(item: LiveProcessLocationV1) -> LiveProcessLocationViewV1:
+    record = item.account_association
+    snapshot = item.snapshot
+    cpu = None
+    memory = None
+    parent = None
+    kernel = None
+    if snapshot is not None:
+        parent = snapshot.parent_pid.value
+        kernel = snapshot.kernel_state.value
+        if snapshot.resident_pages.value is not None:
+            memory = snapshot.resident_pages.value * snapshot.page_size_bytes
+        if (
+            snapshot.user_cpu_ticks.value is not None
+            and snapshot.system_cpu_ticks.value is not None
+        ):
+            cpu = str(
+                Decimal(snapshot.user_cpu_ticks.value + snapshot.system_cpu_ticks.value)
+                / Decimal(snapshot.clock_ticks_per_second)
+            )
+    association = None
+    if record is not None and record.account_id is not None:
+        association = OwnerProcessAccountAssociationViewV1(
+            account_id=record.account_id.value,
+            principal_id=record.principal_id.value,
+            confirmed_at=record.confirmed_at,
+            record_version=record.record_version,
+        )
+    return LiveProcessLocationViewV1(
+        pid=item.identity.pid,
+        start_time_ticks=item.identity.start_time_ticks,
+        platform_scope_id=item.identity.platform_scope_id,
+        provider_key=item.provider_key,
+        state="running",
+        account_correlation="unresolved",
+        working_directory=item.working_directory,
+        observed_at=item.observed_at,
+        association_key=item.association_key,
+        association_record_version=item.association_record_version,
+        account_association=association,
+        provider_version=item.provider_version,
+        parent_pid=parent,
+        resident_memory_bytes=memory,
+        cpu_time_seconds=cpu,
+        kernel_state=kernel,
+    )
+
+
+@router.put(
+    "/process-locations/{association_key}/account",
+    operation_id="runtime_set_process_account_association_v1",
+    response_model=LiveProcessLocationViewV1,
+    responses=ERROR_RESPONSES,
+    openapi_extra={
+        "security": [{"BrowserSessionCookieV1": [], "BrowserCsrfHeaderV1": []}],
+        "x-agentmonitor-auth-profile": "browser_cookie_only",
+        "x-agentmonitor-required-permission": "write:accounts",
+        "x-agentmonitor-application-port": "OwnerProcessAccountAssociationsV1.set",
+        "x-agentmonitor-replay-policy": "replay_safe_representation",
+        "x-agentmonitor-error-schema": "SafeProblemV1",
+        "parameters": [
+            {
+                "name": "If-Match",
+                "in": "header",
+                "required": True,
+                "description": "Guarded process selector and revision; initial is 0.",
+                "schema": {"type": "string", "maxLength": 160},
+            }
+        ],
+    },
+)
+def set_process_account_association(
+    association_key: str,
+    input: SetProcessAccountAssociationInputV1,
+    request: Request,
+    response: Response,
+) -> LiveProcessLocationViewV1:
+    caller = authorize_request(
+        request, "write:accounts", cookie_only=True, require_csrf=True
+    )
+    if re.fullmatch(r"[0-9a-f]{64}", association_key) is None:
+        raise ProblemError(422, "invalid_request_fields")
+    precondition = request.headers.get("if-match")
+    if precondition is None:
+        raise ProblemError(428, "precondition_required")
+    match = re.fullmatch(
+        r'"' + re.escape(association_key) + r'\.(0|[1-9][0-9]{0,15})"', precondition
+    )
+    if match is None:
+        raise ProblemError(400, "invalid_precondition")
+    if not input.owner_confirmed:
+        raise ProblemError(422, "invalid_request_fields")
+    command = observation_ports(request).owner_process_associations
+    if command is None:
+        raise ProblemError(503, "observation_data_unavailable")
+    try:
+        item = command.set(
+            association_key,
+            OpaqueIdV1(input.account_id) if input.account_id is not None else None,
+            int(match.group(1)),
+            caller.principal.principal_id,
+            datetime.now(UTC),
+        )
+    except OwnerAssociationErrorV1 as error:
+        status = {
+            "precondition_failed": 412,
+            "runtime_subject_not_found": 404,
+            "registry_monitoring_not_eligible": 409,
+        }.get(error.code, 503)
+        raise ProblemError(
+            status,
+            error.code if status != 503 else "observation_repository_unavailable",
+        ) from None
+    response.headers["ETag"] = f'"{association_key}.{item.association_record_version}"'
+    return _live_process(item)
 
 
 def _provenance(item: ObservationProvenanceV1) -> ObservationProvenanceWireV1:

@@ -1325,6 +1325,41 @@ class InspectProcessesV1(Protocol):
 
 
 @dataclass(frozen=True, slots=True)
+class OwnerProcessAccountAssociationV1(TechnicalValueV1):
+    """Administrator settings, separate from provider-reported correlation."""
+
+    CONTRACT_ID: ClassVar[str] = "CTR-RUN-007"
+    OWNER: ClassVar[str] = "PLAN-M06"
+
+    identity: ProcessIdentityV1
+    provider_key: str
+    account_id: OpaqueIdV1 | None
+    principal_id: OpaqueIdV1
+    confirmed_at: datetime
+    record_version: int
+    executable_identity: str | None = None
+
+    def __post_init__(self) -> None:
+        TechnicalValueV1.__post_init__(self)
+        if (
+            not _token(self.provider_key)
+            or re.fullmatch(r"[A-Za-z0-9_-]{1,64}", self.principal_id.value) is None
+            or (
+                self.account_id is not None
+                and re.fullmatch(r"[A-Za-z0-9_-]{1,64}", self.account_id.value) is None
+            )
+            or not _utc(self.confirmed_at)
+            or type(self.record_version) is not int
+            or self.record_version < 1
+            or (
+                self.executable_identity is not None
+                and _SHA256.fullmatch(self.executable_identity) is None
+            )
+        ):
+            raise InvalidRuntimeObservationV1("runtime_owner_association_invalid")
+
+
+@dataclass(frozen=True, slots=True)
 class LiveProcessLocationV1:
     """Guarded process presence and cwd; no account or working-state inference."""
 
@@ -1335,6 +1370,11 @@ class LiveProcessLocationV1:
     provider_key: str
     working_directory: str | None
     observed_at: datetime
+    snapshot: ProcessSnapshotInputV1 | None = None
+    association_key: str | None = None
+    association_record_version: int = 0
+    account_association: OwnerProcessAccountAssociationV1 | None = None
+    provider_version: str | None = None
 
 
 @dataclass(frozen=True, slots=True)

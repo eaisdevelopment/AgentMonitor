@@ -820,6 +820,7 @@ class AutomationRoutineTests(unittest.TestCase):
                 "AUTO-CLAUDE-MANAGED",
                 "AUTO-CLAUDE-CONNECT",
                 "AUTO-LAN-DASHBOARD",
+                "AUTO-ACCOUNT-AGENTS",
                 "AUTO-M3-TEST",
                 "AUTO-MUTATION",
                 "AUTO-TEST",

@@ -7,6 +7,7 @@ import {
   type AccountCapacityViewV1,
   type AccountViewV1,
   type AgentSessionPageV1,
+  type LiveProcessLocationPageV1,
   type ObservedAccountIdentityViewV1,
 } from "../../shared/api/client";
 import { metricAvailability, remainingPercentage } from "../command/quotaPresentation";
@@ -16,9 +17,10 @@ type SummaryState =
   | Readonly<{ kind: "error" }>
   | Readonly<{ kind: "ready"; accountId: string; capacity: AccountCapacityViewV1 | null; sessions: AgentSessionPageV1 | null; identity: ObservedAccountIdentityViewV1 | null; refreshFailed: boolean }>;
 
-export function AccountWorkspaceSummary({ account, organizationName, onExpired, onIdentity }: Readonly<{
+export function AccountWorkspaceSummary({ account, organizationName, liveProcesses, onExpired, onIdentity }: Readonly<{
   account: AccountViewV1;
   organizationName: string;
+  liveProcesses: LiveProcessLocationPageV1 | null;
   onExpired: () => void;
   onIdentity: (email: string | null) => void;
 }>) {
@@ -79,10 +81,12 @@ export function AccountWorkspaceSummary({ account, organizationName, onExpired, 
   useEffect(() => { onIdentity(email); }, [email, onIdentity]);
   const hasMoreSessions = scoped?.sessions?.page.has_more;
   const sessionCount = scoped?.sessions?.items.length;
+  const linked = liveProcesses?.availability.state === "available" ? liveProcesses.items.filter(item => item.account_association?.account_id === account.account_id) : [];
+  const paths = [...new Set(linked.flatMap(item => item.working_directory === null ? [] : [item.working_directory]))];
   const status = account.lifecycle === "archived" ? "Archived"
     : account.lifecycle === "pending" ? "Not connected"
     : !account.is_effective_monitoring_enabled ? "Monitoring paused"
-    : "Activity unknown";
+    : linked.length > 0 ? "Running" : "Activity unknown";
   const monitoring = account.is_effective_monitoring_enabled ? "Monitoring on" : "Monitoring off";
   const updatedAt = readings.length === 0 ? null : readings.map((window) => window.collected_at).sort()[0]!;
 
@@ -111,13 +115,13 @@ export function AccountWorkspaceSummary({ account, organizationName, onExpired, 
               })}
               </div>
             </td>
-            <td data-label="Path" className="workspace-path"><strong>Not reported</strong><small>No project location available</small></td>
+            <td data-label="Path" className="workspace-path">{paths.length > 0 ? <>{paths.map(path => <code key={path}>{path}</code>)}<small>Owner-confirmed terminals · working directories</small></> : <><strong>Not reported</strong><small>No linked terminal location available</small></>}</td>
           </tr></tbody>
         </table>
       </div>
       <div className="workspace-footnote">
         <span>{sessionCount === undefined ? "Session data unavailable" : `${sessionCount}${hasMoreSessions ? "+" : ""} linked session ${sessionCount === 1 ? "record" : "records"}`}</span>
-        <span>Running agents have not been linked to this profile.</span>
+        <span>{liveProcesses?.availability.state !== "available" ? "Live agent links unavailable" : linked.length > 0 ? linked.length + " running " + (linked.length === 1 ? "agent" : "agents") + " · Owner confirmed" : "No running agents linked to this account."}{liveProcesses?.truncated ? " · Partial scan" : ""}</span>
       </div>
       {email !== null && <details className="workspace-identity-details"><summary>How this account was identified</summary><p className="workspace-identity-note">Claude reported this identity before and after this quota check.<span>Claude organization: <strong>{receipt?.provider_organization ?? "Not reported"}</strong></span><span>Dashboard group: {organizationName} · Record: {account.friendly_name}</span><span>Quota collection: {receipt?.collection_run_id}</span></p></details>}
       {(state.kind === "error" || (state.kind === "ready" && state.refreshFailed)) && <p className="workspace-notice" role="status">Some readings could not be refreshed. Check the displayed update time.</p>}
