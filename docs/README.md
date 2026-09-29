@@ -62,7 +62,7 @@ This index is the entry point for product, architecture, engineering, and operat
 - [Trusted LAN dashboard evidence](evidence/trusted-lan-dashboard.md): real dual listeners, IAM protections, LAN browser admin behavior, and pending firewall/second-computer verification.
 - [Live agent account associations](plans/integration/live-agent-account-association-change.md): approved bounded manual terminal identity and guarded process drill-down.
 - [Duplicate identity overview correction](plans/integration/duplicate-account-overview-change.md): one quota row for fresh identical observed identities, with separate connection review.
-- [Live account agents progress](evidence/live-account-agents.md): real terminal detection, HTTP guards, duplicate presentation, and pending owner confirmation.
+- [Live account agents progress](evidence/live-account-agents.md): real terminal detection, HTTP guards, duplicate presentation, and a verified owner-authorized process/account link after restart.
 - [M2 Argon2 admission](dependencies/m2-argon2-admission.md): approved exact Linux dependency graph, work profile, and platform limitations.
 - [Configuration standard](engineering/configuration-standard.md): ownership, naming, precedence, secret classes, and compatibility.
 - [Documentation standard](engineering/documentation-standard.md): required documentation and traceability.

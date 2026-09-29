@@ -97,7 +97,8 @@ CTR-RUN-006/007 V1 adds optional read metadata and browser-only conditional
 owner settings writes; existing GET grammar stays compatible. Focused
 AC-PROC-001/003/004, AC-UI-002/004/005/006 and AC-TEST-001/002/003/004/006
 coverage is named in [the progress record](evidence/live-account-agents.md).
-AUTO-ACCOUNT-AGENTS fails closed without an actual owner-completed terminal
-link; detection/controls/duplicate presentation passed independently. Full M4,
+AUTO-ACCOUNT-AGENTS fails closed without an actual owner-authorized terminal
+link; the real link, controls and post-restart persistence gate Passed following
+explicit owner delegation. Duplicate presentation passed independently. Full M4,
 automatic retrospective attribution and process/account switching are not
 accepted by this bounded change.

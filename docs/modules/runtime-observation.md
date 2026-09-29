@@ -128,6 +128,7 @@ P01 adds a browser-only conditional PUT; the existing global GET remains
 compatible. P02 filters that read into current confirmed account terminals and
 an explicitly unlinked terminal section. Read-only native process discovery
 includes verified retained CLI binaries independently of quota parser coverage.
-The [progress record](../evidence/live-account-agents.md) distinguishes the
-passing detection/controls from pending owner-completed persistence acceptance.
+The [progress record](../evidence/live-account-agents.md) records passing
+detection, controls and owner-authorized live persistence after service restart;
+other live identity-change scenarios and full M4 remain unaccepted.
 Canonical command: `python3 tools/automation/run.py AUTO-ACCOUNT-AGENTS`.

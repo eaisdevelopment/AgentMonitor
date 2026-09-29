@@ -85,6 +85,14 @@ supply minimal non-secret account/path facts for coordination. If the terminal o
 account cannot be distinguished, that row stays unassigned. The dashboard
 requires an explicit `owner_confirmed=true` attestation.
 
+Owner delegation update, 2026-09-29: after supplying genuine `/status` identity,
+version, cwd and peer/PID details, the owner explicitly directed root to perform
+the dashboard confirmation and test it through the shared browser. That
+authorization permits this one corresponding metadata link and its verification
+using those supplied facts. It does not authorize inspecting terminal content,
+changing a provider login or assigning other unknown terminals. Canonical
+verification still remains read-only and never creates its own attestation.
+
 The timestamp records owner confirmation, not current provider verification.
 Changing accounts inside the same PID cannot be detected from OS identity;
 the UI explains that a terminal account change requires renewed `/status`
@@ -194,7 +202,8 @@ prohibited data, process/profile mutation, fabricated sessions, new dependency,
 or destructive migration; escalate the smallest sufficient correction to root.
 No additional owner permission is needed for the authorized scope.
 
-Canonical gate registered and executed by root; owner receipt remains pending:
+Canonical gate registered and executed by root; the owner's explicitly delegated
+confirmation, real receipt and named post-restart gate Passed:
 `python3 tools/automation/run.py AUTO-ACCOUNT-AGENTS`. Root must codify the real
 HTTP/filesystem/reopen and read-only owner/browser checks with explicit private
 data-root, account/process/dashboard selectors and an owner-completed receipt;
@@ -206,5 +215,7 @@ macOS and universal M06 acceptance remain separate.
 
 Approval: independent M06 planning proposal reviewed by root; bounded contract,
 security/privacy, P01/P02/A04/M02 and operations assessment accepted under the
-owner's implementation authority. Final implementation review/live verification
-remain Pending. This does not approve the whole Draft M06 plan or full M4.
+owner's implementation authority. Independent bounded implementation reviews
+and the named account-link/browser/persistence gate Passed; unexecuted live
+edge cases are recorded in the progress evidence. This does not approve the
+whole Draft M06 plan or full M4.
