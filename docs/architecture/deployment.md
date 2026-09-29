@@ -5,6 +5,9 @@
 - One native AgentMonitor installation under the developer's user account.
 - One user-level background service.
 - FastAPI serves `/api/v1`, authenticated documentation, and the built React SPA on loopback.
+- The explicitly approved [trusted LAN profile](../decisions/0014-trusted-lan-dashboard.md)
+  can additionally bind one private IPv4 interface and admit only its selected
+  subnet. Default deployment remains loopback only.
 - One SQLite database in the user's application-data directory.
 - Protected configuration `.env` in the user's configuration directory for installed use.
 - Provider profiles remain in provider-managed or AgentMonitor-managed provider directories.

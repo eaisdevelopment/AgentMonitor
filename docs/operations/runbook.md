@@ -7,7 +7,54 @@ This is a specification-phase runbook. Procedures describe required behavior, bu
 ## Operating principles
 
 - Run AgentMonitor as the normal user, never root.
-- Keep service bound to loopback in V1.
+- Keep service bound to loopback by default. Direct access from a trusted private
+  subnet requires the explicit [LAN profile](../decisions/0014-trusted-lan-dashboard.md).
+
+## Owner-approved trusted LAN dashboard
+
+The [bounded change plan](../plans/integration/trusted-lan-dashboard-change.md)
+adds two non-secret, startup-only CLI flags to the authenticated development
+runner: `--lan-host` selects one usable private IPv4 interface;
+`--lan-network` selects its canonical RFC1918 IPv4 CIDR. Supply both or neither.
+Keep `--host 127.0.0.1`; the service binds the additional interface at the same
+port using the same application lifespan. Foundation mode rejects LAN flags.
+The flags are not `.env` keys and do not change configuration version 1.0.0.
+
+Before activation, build the exact frontend and run the canonical real gate
+with explicitly selected test interface/subnet:
+
+```bash
+npm --prefix frontend run build
+python3 tools/automation/run.py AUTO-LAN-DASHBOARD
+```
+
+The gate requires `AGENTMONITOR_TEST_LAN_HOST` and
+`AGENTMONITOR_TEST_LAN_NETWORK` supplied in the operator environment. It binds
+real loopback/LAN sockets on one ephemeral port, uses isolated migrated SQLite
+and random administrator credentials, and runs actual built Chrome. Missing
+selectors or unavailable real interfaces are non-success. Test passwords stay
+in memory and a private stdin pipe; no owner password/profile is read.
+
+Restart only AgentMonitor with the existing config/data arguments and the
+approved pair of LAN flags. Verify both listeners, public shell `200`, protected
+unauthenticated reads `401`, and non-subnet peers `403`. The service announces
+both exact origins. The LAN IP has a separate host-only dashboard cookie, so
+sign in on that address. Quota observations persist; in-memory identity receipts
+return only after genuine collection. Collection cadence is unchanged.
+
+If UFW is enabled, an OS administrator must allow TCP from the selected subnet
+to the selected interface/port using `ufw allow from ... to ... port ... proto
+tcp`. Application authorization does not supply an OS administrator password.
+Keep that password in the local terminal. A local socket/HTTP success does not
+prove reachability through the firewall from a second computer; record the
+owner's remote-browser result separately.
+
+This profile uses HTTP on a trusted LAN. It provides no transport encryption
+against network observers/attackers and must not be exposed to untrusted or
+Internet networks. TLS/proxy/multi-user hosting is separate scope. To roll back,
+omit both LAN flags and restart AgentMonitor; remove only the corresponding
+firewall rule if it was added. Records, sessions, profiles, and history need no
+migration or deletion.
 - Never paste `.env`, tokens, OAuth files, OTPs, or raw provider output into diagnostics or issues.
 - Never modify default provider profiles.
 - Treat unknown/stale data as unknown/stale, not zero/current.

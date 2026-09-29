@@ -441,3 +441,15 @@ hashes, and historical Draft flags are preserved. This is a mechanical
 control binding, not an independent planning audit or M4 acceptance.
 See the [approved change](claude-managed-account-connection-change.md)
 and [current evidence](../../evidence/claude-dashboard-connection.md).
+
+## 2026-09-29 trusted LAN routine control binding
+
+Plan snapshot SHA-256: `e500c5392c3dd25a2b1acd5073a779e7e4e4efa9b98a4fe3cec700553c5e5fb8`
+
+The owner-directed [trusted LAN change](trusted-lan-dashboard-change.md) adds
+`AUTO-LAN-DASHBOARD` and its completion-standard entry. Only the two changed
+automation control digests and byte counts were rebound. All twenty module
+plan hashes and historical Draft/approval flags remain unchanged. This is a
+mechanical control binding, not a new independent planning audit or full M4
+acceptance. The bounded implementation review and real boundary evidence are
+recorded separately in the LAN change evidence.

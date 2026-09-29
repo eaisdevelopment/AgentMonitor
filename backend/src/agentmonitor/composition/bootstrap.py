@@ -1,4 +1,4 @@
-"""Explicit local compositions and IPv4 loopback runner, never an installed service.
+"""Explicit local compositions with loopback and opt-in trusted LAN listeners.
 
 Startup consumes an already migrated, quiescent SQLite file without implicit
 DDL or migrations. The authenticated lifespan polls an eligible enrolled Claude
@@ -9,6 +9,7 @@ Native DEP installation policy remains pending.
 
 import argparse
 import asyncio
+import ipaddress
 import json
 import signal
 import socket
@@ -333,29 +334,77 @@ async def _serve_loopback(
     port: int,
     ready: Callable[[str], None] | None,
     stop: asyncio.Event,
+    lan_host: str | None = None,
+    lan_network: str | None = None,
 ) -> None:
     """Serve actual Uvicorn on a prebound IPv4 loopback socket, including port 0."""
     if host != "127.0.0.1":
         raise LoopbackServerError("bind_not_loopback")
     if type(port) is not int or not 0 <= port <= 65535:
         raise LoopbackServerError("bind_port_invalid")
+    network: ipaddress.IPv4Network | None = None
+    if lan_host is not None or lan_network is not None:
+        try:
+            if lan_host is None or lan_network is None or app.state.iam_ports is None:
+                raise ValueError
+            host_address = ipaddress.IPv4Address(lan_host)
+            parsed_network = ipaddress.IPv4Network(lan_network, strict=True)
+            private_ranges = (
+                ipaddress.IPv4Network("10.0.0.0/8"),
+                ipaddress.IPv4Network("172.16.0.0/12"),
+                ipaddress.IPv4Network("192.168.0.0/16"),
+            )
+            if (
+                not any(parsed_network.subnet_of(item) for item in private_ranges)
+                or host_address not in parsed_network
+                or host_address
+                in {parsed_network.network_address, parsed_network.broadcast_address}
+                or str(host_address) != lan_host
+                or str(parsed_network) != lan_network
+            ):
+                raise ValueError
+            network = parsed_network
+        except (ValueError, AttributeError):
+            raise LoopbackServerError("lan_binding_invalid") from None
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    lan_sock: socket.socket | None = None
     failed = False
     try:
         sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         sock.bind((host, port))
         sock.setblocking(False)
+        if lan_host is not None:
+            lan_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            lan_sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+            lan_sock.bind((lan_host, sock.getsockname()[1]))
+            lan_sock.setblocking(False)
     except OSError:
         failed = True
         sock.close()
+        if lan_sock is not None:
+            lan_sock.close()
     if failed:
         raise LoopbackServerError("bind_unavailable") from None
     try:
         app.state.loopback_schema_binding.address = (host, sock.getsockname()[1])
-        await _run_server(app, sock=sock, ready=ready, stop=stop)
+        app.state.loopback_schema_binding.lan_address = (
+            lan_sock.getsockname() if lan_sock is not None else None
+        )
+        app.state.loopback_schema_binding.lan_network = network
+        await _run_server(
+            app,
+            sock=sock,
+            ready=ready,
+            stop=stop,
+            additional_sockets=(lan_sock,) if lan_sock is not None else (),
+        )
     finally:
         app.state.loopback_schema_binding.address = None
+        app.state.loopback_schema_binding.lan_address = None
+        app.state.loopback_schema_binding.lan_network = None
         sock.close()
+        if lan_sock is not None:
+            lan_sock.close()
 
 
 async def _run_server(
@@ -364,6 +413,7 @@ async def _run_server(
     sock: socket.socket,
     ready: Callable[[str], None] | None,
     stop: asyncio.Event,
+    additional_sockets: tuple[socket.socket, ...] = (),
 ) -> None:
     config = uvicorn.Config(
         app,
@@ -396,7 +446,7 @@ async def _run_server(
     async def drive() -> None:
         failure: str | None = None
         try:
-            await server.serve(sockets=[sock])
+            await server.serve(sockets=[sock, *additional_sockets])
         except SystemExit:
             failure = "startup_failed"
         except Exception:
@@ -444,11 +494,21 @@ async def serve_loopback(
     port: int,
     ready: Callable[[str], None] | None,
     stop: asyncio.Event,
+    lan_host: str | None = None,
+    lan_network: str | None = None,
 ) -> None:
     """Typed sanitized server boundary; callbacks never expose raw failures."""
     code = "server_failed"
     try:
-        await _serve_loopback(app, host=host, port=port, ready=ready, stop=stop)
+        await _serve_loopback(
+            app,
+            host=host,
+            port=port,
+            ready=ready,
+            stop=stop,
+            lan_host=lan_host,
+            lan_network=lan_network,
+        )
         return
     except LoopbackServerError as error:
         code = error.code
@@ -463,6 +523,11 @@ def main() -> int:
     parser.add_argument("--data-root", type=Path, required=True)
     parser.add_argument("--host", required=True)
     parser.add_argument("--port", type=int, required=True)
+    parser.add_argument("--lan-host", help="Opt-in private IPv4 dashboard interface")
+    parser.add_argument(
+        "--lan-network",
+        help="Canonical private IPv4 subnet allowed on the LAN listener",
+    )
     mode = parser.add_mutually_exclusive_group(required=True)
     mode.add_argument("--foundation-contract", action="store_true")
     mode.add_argument("--authenticated-dashboard", action="store_true")
@@ -489,9 +554,27 @@ def main() -> int:
 
             def ready(origin: str) -> None:
                 print(json.dumps({"event": "ready", "origin": origin}), flush=True)
+                if args.lan_host is not None:
+                    lan_port = origin.rsplit(":", 1)[1]
+                    print(
+                        json.dumps(
+                            {
+                                "event": "lan_ready",
+                                "origin": f"http://{args.lan_host}:{lan_port}",
+                                "network": args.lan_network,
+                            }
+                        ),
+                        flush=True,
+                    )
 
             await serve_loopback(
-                app, host=args.host, port=args.port, ready=ready, stop=stop
+                app,
+                host=args.host,
+                port=args.port,
+                ready=ready,
+                stop=stop,
+                lan_host=args.lan_host,
+                lan_network=args.lan_network,
             )
         finally:
             for signum in (signal.SIGTERM, signal.SIGINT):

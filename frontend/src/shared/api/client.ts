@@ -176,7 +176,7 @@ function mutationHeaders(
     }
     headers["If-Match"] = `"${subject.id}.${subject.recordVersion}"`;
   }
-  if (idempotent) headers["Idempotency-Key"] = crypto.randomUUID().replaceAll("-", "");
+  if (idempotent) headers["Idempotency-Key"] = Array.from(crypto.getRandomValues(new Uint8Array(16)), byte => byte.toString(16).padStart(2, "0")).join("");
   return headers;
 }
 

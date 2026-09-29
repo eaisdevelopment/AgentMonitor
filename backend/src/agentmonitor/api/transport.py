@@ -1,6 +1,7 @@
-"""P01 loopback request envelope; no authentication policy or IAM persistence."""
+"""P01 explicit listener/peer envelope; no IAM policy or persistence."""
 
 import asyncio
+import ipaddress
 import re
 import secrets
 
@@ -25,7 +26,7 @@ class _OversizedBody(Exception):
 
 
 class IamTransportGuard:
-    """Admit only one bound IPv4 loopback authority with bounded HTTP work."""
+    """Admit bound loopback and opt-in LAN authorities with bounded work."""
 
     def __init__(self, app: ASGIApp, binding: object) -> None:
         self.app = app
@@ -46,13 +47,19 @@ class IamTransportGuard:
             candidate if valid_correlation_id(candidate) else secrets.token_urlsafe(18)
         )
         scope.setdefault("state", {})["correlation_id"] = correlation_id
+        server = scope.get("server")
+        lan_address = getattr(self.binding, "lan_address", None)
+        lan_listener = lan_address is not None and server == lan_address
 
         async def secured_send(message: Message) -> None:
             if message["type"] == "http.response.start":
                 output = list(message.get("headers", []))
                 output += [
                     (b"x-content-type-options", b"nosniff"),
-                    (b"referrer-policy", b"no-referrer"),
+                    (
+                        b"referrer-policy",
+                        b"same-origin" if lan_listener else b"no-referrer",
+                    ),
                     (
                         b"permissions-policy",
                         b"camera=(), microphone=(), geolocation=()",
@@ -119,20 +126,30 @@ class IamTransportGuard:
         if len(supplied) > 1 or (supplied and not valid_correlation_id(candidate)):
             await deny(400, "invalid_correlation_id")
             return
-        server = scope.get("server")
         client = scope.get("client")
         address = getattr(self.binding, "address", None)
         authority = (
-            f"127.0.0.1:{server[1]}".encode("ascii")
-            if server is not None and server[0] == "127.0.0.1"
+            f"{server[0]}:{server[1]}".encode("ascii")
+            if server is not None and (server == address or lan_listener)
             else b""
         )
+        peer_allowed = (
+            server == address and client is not None and client[0] == "127.0.0.1"
+        )
+        network = getattr(self.binding, "lan_network", None)
+        if (
+            lan_listener
+            and client is not None
+            and isinstance(network, ipaddress.IPv4Network)
+        ):
+            try:
+                peer_allowed = ipaddress.ip_address(client[0]) in network
+            except ValueError:
+                peer_allowed = False
         hosts = [value for key, value in headers if key == b"host"]
         if (
             not authority
-            or server != address
-            or client is None
-            or client[0] != "127.0.0.1"
+            or not peer_allowed
             or scope.get("scheme") != "http"
             or hosts != [authority]
         ):
@@ -201,6 +218,26 @@ class IamTransportGuard:
                 and fetch_mode == [b"navigate"]
                 and fetch_dest == [b"document"]
             )
+            referrers = [value for key, value in headers if key == b"referer"]
+            lan_referrer = (
+                lan_listener
+                and len(referrers) == 1
+                and referrers[0].startswith(expected_origin + b"/")
+            )
+            public_shell = lan_listener and (
+                scope["path"]
+                in {
+                    "/",
+                    "/login",
+                    "/accounts",
+                    "/providers",
+                    "/collectors",
+                    "/sessions",
+                    "/settings/api-tokens",
+                    "/favicon.svg",
+                }
+                or scope["path"].startswith(("/assets/", "/accounts/"))
+            )
             if (
                 len(fetch_site) > 1
                 or (
@@ -208,7 +245,16 @@ class IamTransportGuard:
                     and fetch_site != [b"same-origin"]
                     and not direct_navigation
                 )
-                or (not fetch_site and origin_values != [expected_origin])
+                or (
+                    not fetch_site
+                    and origin_values != [expected_origin]
+                    and not lan_referrer
+                    and not public_shell
+                )
+                or (lan_listener and len(referrers) > 1)
+                or (
+                    lan_listener and referrers and not lan_referrer and not public_shell
+                )
             ):
                 await deny(403, "origin_not_allowed")
                 return

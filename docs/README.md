@@ -58,6 +58,8 @@ This index is the entry point for product, architecture, engineering, and operat
 - [Managed Claude connection progress](evidence/claude-managed-account-connection.md): three additional SDK accounts verified through isolated sign-in, enrollment, per-profile collection, and the real dashboard; native redraw correction and full fleet/M4 acceptance are tracked separately.
 - [Dashboard Claude connection](evidence/claude-dashboard-connection.md): explicit browser connection controls, four owner-completed SDK/EAIS live gates, native quota redraw correction, a recovered first-read timeout, and remaining acceptance/M4 scope.
 - [Compact dashboard and quota overview](evidence/dashboard-density-and-quota-overview.md): compact connection status, multiple organization filters, lowest-quota-first account listing, and red warnings at 20% or less remaining.
+- [Trusted LAN dashboard change](plans/integration/trusted-lan-dashboard-change.md): owner-approved private interface/subnet listener, HTTP browser admission, and the real completion gate.
+- [Trusted LAN dashboard evidence](evidence/trusted-lan-dashboard.md): real dual listeners, IAM protections, LAN browser admin behavior, and pending firewall/second-computer verification.
 - [M2 Argon2 admission](dependencies/m2-argon2-admission.md): approved exact Linux dependency graph, work profile, and platform limitations.
 - [Configuration standard](engineering/configuration-standard.md): ownership, naming, precedence, secret classes, and compatibility.
 - [Documentation standard](engineering/documentation-standard.md): required documentation and traceability.

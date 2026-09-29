@@ -5,6 +5,7 @@ separate transports. The foundation guard is not IAM Host/Origin/CSRF policy.
 """
 
 import fcntl
+import ipaddress
 import os
 import re
 import secrets
@@ -57,6 +58,8 @@ class LoopbackSchemaBinding:
     """Runner-owned authority; absent until the approved socket is bound."""
 
     address: tuple[str, int] | None = None
+    lan_address: tuple[str, int] | None = None
+    lan_network: ipaddress.IPv4Network | None = None
 
 
 @asynccontextmanager

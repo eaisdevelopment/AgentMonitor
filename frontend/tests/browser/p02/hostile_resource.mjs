@@ -17,10 +17,11 @@ const requireTruth = (condition, reason) => {
 };
 
 try {
-  await new Promise((resolve) => attacker.listen(0, "127.0.0.1", resolve));
+  const host = new URL(origin).hostname;
+  await new Promise((resolve) => attacker.listen(0, host, resolve));
   const address = attacker.address();
   requireTruth(address && typeof address !== "string", "attacker_socket_missing");
-  const attackOrigin = `http://127.0.0.1:${address.port}`;
+  const attackOrigin = `http://${host}:${address.port}`;
   requireTruth(attackOrigin !== origin, "attacker_origin_not_distinct");
 
   stage = "browser_login";

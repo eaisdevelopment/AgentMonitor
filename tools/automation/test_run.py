@@ -819,6 +819,7 @@ class AutomationRoutineTests(unittest.TestCase):
                 "AUTO-CLAUDE-POLL",
                 "AUTO-CLAUDE-MANAGED",
                 "AUTO-CLAUDE-CONNECT",
+                "AUTO-LAN-DASHBOARD",
                 "AUTO-M3-TEST",
                 "AUTO-MUTATION",
                 "AUTO-TEST",

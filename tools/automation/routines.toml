@@ -165,6 +165,14 @@ implementation_command = ["python3", "tools/automation/implementations/auto_buil
 blockers = []
 
 [[routines]]
+id = "AUTO-LAN-DASHBOARD"
+owner = "PLAN-P01"
+status = "operational_limited"
+scope = "owner-selected private IPv4 interface/subnet: real dual sockets, IAM HTTP protections and built Chrome sign-in/admin navigation"
+implementation_command = ["python3", "tools/automation/implementations/auto_lan_dashboard.py"]
+blockers = ["explicit real LAN interface/subnet and exact frontend build required; second-computer reachability and TLS/Internet/multi-user hosting are outside this bounded gate"]
+
+[[routines]]
 id = "AUTO-MIGRATE"
 owner = "PLAN-DB"
 status = "blocked"

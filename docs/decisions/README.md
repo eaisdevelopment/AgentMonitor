@@ -17,5 +17,6 @@ Accepted decisions are historical records. Do not edit an accepted ADR to concea
 | [0011](0011-copyright-and-dependency-licenses.md) | Accepted | All rights reserved; permissive dependency admission gate |
 | [0012](0012-cookie-read-origin-proof.md) | Accepted for M2 correction | Origin proof before cookie-authenticated reads |
 | [0013](0013-local-milestone-release-gates.md) | Accepted 2026-09-25 | Technical evidence gates execute local milestones; detached M0 reviews are advisory |
+| [0014](0014-trusted-lan-dashboard.md) | Accepted 2026-09-29 | Explicit private-interface/subnet dashboard access with unchanged default loopback admission |
 
 Use [the ADR template](../templates/adr-template.md) for new decisions.

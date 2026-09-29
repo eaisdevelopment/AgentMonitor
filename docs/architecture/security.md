@@ -76,6 +76,22 @@ Examples: session-signing secret, GitLab token used by development automation, a
 
 ## Authorization
 
+### Explicit trusted LAN exception
+
+The owner-directed [ADR 0014](../decisions/0014-trusted-lan-dashboard.md) admits
+one private IPv4 interface/subnet through opt-in runner flags, retaining the
+loopback listener. Actual peer subnet, exact Host, mutation Origin/CSRF, IAM
+permissions, request bounds, and authenticated docs remain enforced. LAN HTTP
+cookie reads require canonical Origin, valid Fetch Metadata, or an exact
+same-origin Referer before session resolution; public static SPA navigation
+does not disclose account data. LAN responses use `Referrer-Policy: same-origin`.
+Default loopback admission and its no-referrer policy remain unchanged.
+
+This is trusted-LAN HTTP, with no protection against network observers or
+transport attackers inside that subnet. It is not TLS, proxy, Internet,
+multi-user, or remote-collector hosting. Forwarded headers are not trusted,
+and neither wildcard binding nor wildcard CORS is admitted.
+
 V1 has one administrator role but still checks explicit permissions. Proposed token scopes include:
 
 - `read:status`
