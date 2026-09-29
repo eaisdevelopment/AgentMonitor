@@ -29,7 +29,7 @@ from alembic.config import Config
 from sqlalchemy.engine import Connection
 
 MIGRATIONS_PATH = Path(__file__).resolve().parents[7] / "migrations"
-CATALOG_SHA256 = "e988eeb989d194ada46480c2a134c9fcdc7eb59e73e41b9dffebc06f99cfbafc"
+CATALOG_SHA256 = "d64793d4f591eeed306e0b2290766d5d0618f883b8457923f7415852df2d271d"
 IAM_TABLES = frozenset(
     {
         "iam_administrator",
@@ -251,6 +251,76 @@ M5_OWNED_SCHEMA_SHA256 = (
 M6_OWNED_SCHEMA_SHA256 = (
     "4e90274e1aa5e867e044d168a51ebb4d2864f77f64acb89ada64dacf046250f7"
 )
+ALERT_TABLES = frozenset(
+    {
+        "alert_rule",
+        "alert_rule_revision",
+        "alert_alert",
+        "alert_event",
+        "alert_evidence_reference",
+        "alert_event_receipt",
+        "alert_stream_checkpoint",
+        "alert_command_receipt",
+        "alert_deadline",
+        "alert_reevaluation_job",
+        "alert_event_outbox",
+        "alert_retention_run",
+    }
+)
+ALERT_INDEXES = frozenset(
+    {
+        "ix_alert_deadline_due",
+        "ix_alert_event_history",
+        "ix_alert_evidence_alert",
+        "ix_alert_notifications",
+        "ix_alert_outbox_available",
+        "ix_alert_receipt_stream",
+        "ix_alert_reevaluation_due",
+        "ix_alert_rule_page",
+        "ix_alert_scope",
+        "ix_alert_subject",
+        "ix_alert_terminal_retention",
+        "ix_alert_unread_snooze",
+        "uq_alert_rule_active_scope",
+    }
+)
+M4_OWNED_SCHEMA_SHA256 = (
+    "444f60488a42d8c0d5755711a48007927911d81b27dd4eb66d5b8898550c5cb4"
+)
+M4_DELIVERY_SCHEMA_SHA256 = (
+    "18661bbdb99a85eb0db083e63fffde28b90fae14b946e64fec9c2a46c015480a"
+)
+M4_RULE_GUARD_SCHEMA_SHA256 = (
+    "081864af24c3b6ce41dcad093e785d9dc0b4b07e35239a7120946f1a843abbb4"
+)
+M4_COLLECTOR_SCHEMA_SHA256 = (
+    "3b3bf7db294670c5ff38c7d797de46119e645c07c06224c4fa09789861c230e4"
+)
+M4_CURRENT_SCHEMA_SHA256 = (
+    "bb7fc3101bff956f452a2fd79b8c085c3c930dee9d90f0e25bb931a5dbf7ebfb"
+)
+CAPACITY_PROJECTION_TRIGGERS = frozenset(
+    {
+        "tr_capacity_forecast_snapshot_insert",
+        "tr_capacity_forecast_snapshot_update",
+        "tr_capacity_projection_event_insert",
+        "tr_capacity_projection_event_update",
+    }
+)
+COLLECTOR_DELIVERY_TRIGGERS = frozenset(
+    {
+        "tr_collection_delivery_proof_insert",
+        "tr_collection_delivery_proof_update",
+    }
+)
+ALERT_CONFIGURATION_TRIGGERS = frozenset(
+    {
+        "tr_alert_rule_configuration_insert",
+        "tr_alert_rule_configuration_update",
+        "tr_alert_rule_revision_configuration_insert",
+        "tr_alert_rule_revision_configuration_update",
+    }
+)
 REVISION_ORDER = {
     "base": -1,
     "v1_0000": 0,
@@ -271,6 +341,14 @@ REVISION_ORDER = {
     "v1_0601": 601,
     "v1_0602": 602,
     "v1_0603": 603,
+    "v1_0700": 700,
+    "v1_0701": 701,
+    "v1_0702": 702,
+    "v1_0703": 703,
+    "v1_0704": 704,
+    "v1_0705": 705,
+    "v1_0706": 706,
+    "v1_0707": 707,
 }
 ApplicationSchemaRangeV1 = SchemaCompatibilityV1
 SchemaState = Literal[
@@ -433,10 +511,10 @@ def load_migration_catalog(
             raise SchemaCompatibilityError("migration_catalog_invalid")
         records = document["revisions"]
         if (
-            document["version"] != "1.6.3"
-            or document["head"] != "v1_0603"
+            document["version"] != "1.7.7"
+            or document["head"] != "v1_0707"
             or not isinstance(records, list)
-            or len(records) != 18
+            or len(records) != 26
             or not all(isinstance(record, dict) for record in records)
         ):
             raise SchemaCompatibilityError("migration_catalog_invalid")
@@ -460,6 +538,14 @@ def load_migration_catalog(
             "v1_0601_m06_runtime_correlation.py",
             "v1_0602_m06_runtime_state_outbox.py",
             "v1_0603_m06_runtime_indexes.py",
+            "v1_0700_m07_alert_rules.py",
+            "v1_0701_m07_alert_lifecycle.py",
+            "v1_0702_m07_alert_deadlines_outbox.py",
+            "v1_0703_m05_capacity_projection_metadata.py",
+            "v1_0704_m05_event_delivery_proof.py",
+            "v1_0705_m07_rule_configuration_guards.py",
+            "v1_0706_m04_collector_alerts.py",
+            "v1_0707_m05_current_capacity_projections.py",
         ) or tuple(record.get("ordinal") for record in records) != (
             0,
             100,
@@ -479,6 +565,14 @@ def load_migration_catalog(
             601,
             602,
             603,
+            700,
+            701,
+            702,
+            703,
+            704,
+            705,
+            706,
+            707,
         ):
             raise SchemaCompatibilityError("migration_catalog_invalid")
         inventory = {path.name for path in (migrations_path / "versions").glob("*.py")}
@@ -553,6 +647,47 @@ def load_migration_catalog(
             or set(table for item in metadata[14:18] for table in item.tables)
             != RUNTIME_TABLES
             or any(record.get("status") != "shared" for record in records[14:18])
+            or tuple(item.revision for item in metadata[18:21])
+            != ("v1_0700", "v1_0701", "v1_0702")
+            or tuple(item.parent_revision for item in metadata[18:22])
+            != ("v1_0603", "v1_0700", "v1_0701", "v1_0702")
+            or any(
+                item.owner != "M07" or item.plan_id != "PLAN-M07"
+                for item in metadata[18:21]
+            )
+            or set(table for item in metadata[18:21] for table in item.tables)
+            != ALERT_TABLES
+            or metadata[21].owner != "M05"
+            or metadata[21].plan_id != "PLAN-M05"
+            or set(metadata[21].tables)
+            != {"capacity_quota_window_definition", "capacity_forecast_projection"}
+            or metadata[22].parent_revision != "v1_0703"
+            or metadata[22].owner != "M05"
+            or metadata[22].plan_id != "PLAN-M05"
+            or metadata[22].tables != ("capacity_event_delivery",)
+            or metadata[23].parent_revision != "v1_0704"
+            or metadata[23].owner != "M07"
+            or metadata[23].plan_id != "PLAN-M07"
+            or metadata[23].tables != ()
+            or metadata[24].parent_revision != "v1_0705"
+            or metadata[24].owner != "M04"
+            or metadata[24].plan_id != "PLAN-M04"
+            or set(metadata[24].tables)
+            != {
+                "collection_alert_condition",
+                "collection_run",
+                "collection_event_delivery",
+            }
+            or metadata[25].parent_revision != "v1_0706"
+            or metadata[25].owner != "M05"
+            or metadata[25].plan_id != "PLAN-M05"
+            or set(metadata[25].tables)
+            != {
+                "capacity_forecast_projection",
+                "capacity_event_outbox",
+                "capacity_availability_current",
+            }
+            or any(record.get("status") != "shared" for record in records[18:26])
             or any(
                 item.backup_prerequisite
                 not in {"none_empty_bootstrap", "required_existing_database"}
@@ -560,7 +695,7 @@ def load_migration_catalog(
             )
         ):
             raise SchemaCompatibilityError("migration_catalog_invalid")
-        result = MigrationCatalogV1("1.6.3", digest, "v1_0603", metadata)
+        result = MigrationCatalogV1("1.7.7", digest, "v1_0707", metadata)
     except SchemaCompatibilityError as error:
         failure = error.code
     except (OSError, ValueError, KeyError, TypeError, SyntaxError, UnicodeError):
@@ -735,6 +870,82 @@ def _inspect(
             return "migration_failed", current
         if not _m6_owned_structure_is_valid(connection):
             return "migration_failed", current
+    if current in {"v1_0700", "v1_0701", "v1_0702"}:
+        return "upgrade_required", current
+    if current in {"v1_0703", "v1_0704", "v1_0705", "v1_0706", "v1_0707"}:
+        table_names = {name for kind, name in objects if kind == "table"}
+        explicit_indexes = {
+            name
+            for kind, name in objects
+            if kind == "index" and not name.startswith("sqlite_autoindex_")
+        }
+        expected_tables = (
+            IAM_TABLES
+            | REGISTRY_TABLES
+            | PROVIDER_SYSTEM_TABLES
+            | COLLECTION_TABLES
+            | CAPACITY_TABLES
+            | RUNTIME_TABLES
+            | ALERT_TABLES
+        )
+        expected_indexes = (
+            IAM_INDEXES
+            | REGISTRY_INDEXES
+            | PROVIDER_SYSTEM_INDEXES
+            | COLLECTION_INDEXES
+            | CAPACITY_INDEXES
+            | RUNTIME_INDEXES
+            | ALERT_INDEXES
+        )
+        guarded = current in {"v1_0705", "v1_0706", "v1_0707"}
+        collector_guarded = current in {"v1_0706", "v1_0707"}
+        projection_guarded = current == "v1_0707"
+        expected_triggers = (
+            (ALERT_CONFIGURATION_TRIGGERS if guarded else frozenset())
+            | (COLLECTOR_DELIVERY_TRIGGERS if collector_guarded else frozenset())
+            | (CAPACITY_PROJECTION_TRIGGERS if projection_guarded else frozenset())
+        )
+        additional_tables = (
+            frozenset({"collection_alert_condition"})
+            if collector_guarded
+            else frozenset()
+        ) | (
+            frozenset({"capacity_availability_current"})
+            if projection_guarded
+            else frozenset()
+        )
+        additional_indexes = (
+            frozenset({"ix_collection_alert_subject", "ix_collection_alert_freshness"})
+            if collector_guarded
+            else frozenset()
+        ) | (
+            frozenset({"ix_capacity_availability_account"})
+            if projection_guarded
+            else frozenset()
+        )
+        triggers = {name for kind, name in objects if kind == "trigger"}
+        if (
+            table_names != expected_tables | additional_tables | {"alembic_version"}
+            or explicit_indexes != expected_indexes | additional_indexes
+            or triggers != expected_triggers
+            or any(kind not in {"table", "index", "trigger"} for kind, _ in objects)
+            or not _m4_owned_structure_is_valid(
+                connection,
+                M4_CURRENT_SCHEMA_SHA256
+                if projection_guarded
+                else M4_COLLECTOR_SCHEMA_SHA256
+                if collector_guarded
+                else M4_RULE_GUARD_SCHEMA_SHA256
+                if guarded
+                else M4_OWNED_SCHEMA_SHA256
+                if current == "v1_0703"
+                else M4_DELIVERY_SCHEMA_SHA256,
+                expected_triggers=expected_triggers,
+                additional_tables=additional_tables,
+                additional_indexes=additional_indexes,
+            )
+        ):
+            return "migration_failed", current
     order = REVISION_ORDER
     bounds = (
         app.minimum_readable_revision,
@@ -903,6 +1114,54 @@ def _m6_owned_structure_is_valid(connection: Connection) -> bool:
         return False
     digest = hashlib.sha256("\n".join(definitions).encode("utf-8")).hexdigest()
     return digest == M6_OWNED_SCHEMA_SHA256
+
+
+def _m4_owned_structure_is_valid(
+    connection: Connection,
+    expected_digest: str,
+    *,
+    expected_triggers: frozenset[str] = frozenset(),
+    additional_tables: frozenset[str] = frozenset(),
+    additional_indexes: frozenset[str] = frozenset(),
+) -> bool:
+    """Verify exact reviewed M4 schema; never inspect stored business values."""
+    expected = (
+        IAM_TABLES
+        | REGISTRY_TABLES
+        | PROVIDER_SYSTEM_TABLES
+        | COLLECTION_TABLES
+        | CAPACITY_TABLES
+        | RUNTIME_TABLES
+        | ALERT_TABLES
+        | IAM_INDEXES
+        | REGISTRY_INDEXES
+        | PROVIDER_SYSTEM_INDEXES
+        | COLLECTION_INDEXES
+        | CAPACITY_INDEXES
+        | RUNTIME_INDEXES
+        | ALERT_INDEXES
+        | expected_triggers
+        | additional_tables
+        | additional_indexes
+    )
+    rows = connection.exec_driver_sql(
+        "SELECT type, name, sql FROM sqlite_schema "
+        "WHERE type IN ('table', 'index', 'trigger') ORDER BY type, name LIMIT 513"
+    ).fetchall()
+    definitions: list[str] = []
+    names: set[str] = set()
+    for kind, name, sql in rows:
+        if name not in expected:
+            continue
+        if not isinstance(sql, str):
+            return False
+        names.add(name)
+        definitions.append(f"{kind}|{name}|{' '.join(sql.split())}")
+    return (
+        names == expected
+        and hashlib.sha256("\n".join(definitions).encode("utf-8")).hexdigest()
+        == expected_digest
+    )
 
 
 def _marker_structure_is_valid(connection: Connection) -> bool:

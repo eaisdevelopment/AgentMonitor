@@ -1,15 +1,19 @@
 """M05 pure exact-value and health evidence; examples perform no I/O."""
 
 from collections.abc import Callable
+from dataclasses import replace
+from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 
 from agentmonitor.contracts.capacity_v1 import (
     CapacityHealthPolicyV1,
+    CapacityObservationProvenanceViewV1,
     CapacitySubjectV1,
     ExactMetricFieldV1,
     InvalidCapacityContractV1,
     ProviderQuotaInputV1,
     ProviderQuotaWindowInputV1,
+    QuotaWindowViewV1,
 )
 from agentmonitor.contracts.common_quantity_v1 import (
     CanonicalDecimalV1,
@@ -24,6 +28,8 @@ from agentmonitor.modules.capacity.application.commit import (
 from agentmonitor.modules.capacity.domain.health import (
     CapacityConstraintInputV1,
     classify_capacity_health,
+    classify_capacity_windows_v1,
+    default_capacity_health_policy_v1,
 )
 from agentmonitor.modules.capacity.domain.payload_digest import (
     capacity_payload_digest,
@@ -317,3 +323,128 @@ def test_capacity_health_auth_and_exhausted_precedence_is_explicit() -> None:
     )
     assert auth.state == "reauthentication_required"
     assert auth.constraining_window_id is None
+
+
+def _quota_view() -> QuotaWindowViewV1:
+    now = datetime(2026, 9, 24, 12, tzinfo=UTC)
+    return QuotaWindowViewV1(
+        window_id=OpaqueIdV1("window-view"),
+        subject=CapacitySubjectV1(
+            "claude",
+            OpaqueIdV1("installation-one"),
+            OpaqueIdV1("account-one"),
+            OpaqueIdV1("resource-one"),
+        ),
+        window_key="current-session",
+        safe_label=None,
+        used=_available("20", "percent"),
+        remaining=_unknown(),
+        limit=_unknown(),
+        remaining_ratio=_available("0.8", "ratio"),
+        provenance=CapacityObservationProvenanceViewV1(
+            "quota",
+            "1.0.0",
+            "capacity-test-adapter",
+            "1.0.0",
+            "1.0.0",
+            "capacity-test-source",
+            "supported_cli",
+            "1.0.0",
+            None,
+            None,
+            now + timedelta(minutes=5),
+            "capacity-test-freshness",
+            "rounded",
+            "high",
+            "capacity-test-report",
+            False,
+            "capacity-test-decision",
+        ),
+        freshness="fresh",
+        current_observation_id=OpaqueIdV1("observation-one"),
+        collection_run_id=OpaqueIdV1("run-one"),
+        observed_at=now,
+        collected_at=now,
+        stored_at=now,
+        is_constraining=True,
+        completeness="complete",
+    )
+
+
+def test_default_capacity_health_policy_has_exact_admitted_thresholds() -> None:
+    policy = default_capacity_health_policy_v1()
+    assert policy.policy_id == "capacity-health-default-v1"
+    assert policy.policy_version == "1.0.0"
+    assert policy.constrained_remaining_ratio.as_decimal() == Decimal("0.30")
+    assert policy.critical_remaining_ratio.as_decimal() == Decimal("0.15")
+
+
+def test_quota_window_health_uses_exact_remaining_and_used_fallback() -> None:
+    policy = default_capacity_health_policy_v1()
+    available = _quota_view()
+    result = classify_capacity_windows_v1((available,), policy=policy)
+    assert (result.state, result.completeness, result.freshness) == (
+        "available",
+        "complete",
+        "fresh",
+    )
+    assert result.constraining_window_id == "window-view"
+    used_fallback = replace(
+        available,
+        used=_available("90", "percent"),
+        remaining_ratio=_unknown(),
+    )
+    result = classify_capacity_windows_v1((used_fallback,), policy=policy)
+    assert (result.state, result.constraining_window_id) == ("critical", "window-view")
+    exhausted = replace(available, remaining_ratio=_available("0", "ratio"))
+    assert (
+        classify_capacity_windows_v1((exhausted,), policy=policy).state == "exhausted"
+    )
+
+
+def test_quota_window_health_does_not_invent_missing_constraints() -> None:
+    policy = default_capacity_health_policy_v1()
+    available = _quota_view()
+    missing = replace(available, used=_unknown(), remaining_ratio=_unknown())
+    unknown = classify_capacity_windows_v1((missing,), policy=policy)
+    assert (unknown.state, unknown.completeness, unknown.freshness) == (
+        "unknown",
+        "partial",
+        "freshness_unknown",
+    )
+    ignored = replace(available, is_constraining=False)
+    assert classify_capacity_windows_v1((ignored,), policy=policy).state == "unknown"
+    undecided = replace(available, is_constraining=None)
+    assert classify_capacity_windows_v1((undecided,), policy=policy).state == "unknown"
+    stale = replace(available, freshness="stale")
+    assert classify_capacity_windows_v1((stale,), policy=policy).freshness == "stale"
+    unobserved = replace(available, freshness="no_observation")
+    assert (
+        classify_capacity_windows_v1((unobserved,), policy=policy).freshness
+        == "freshness_unknown"
+    )
+
+
+def test_quota_window_health_preserves_incomplete_and_reauth_precedence() -> None:
+    policy = default_capacity_health_policy_v1()
+    available = _quota_view()
+    incomplete = replace(available, completeness="partial")
+    result = classify_capacity_windows_v1((incomplete,), policy=policy)
+    assert (result.state, result.completeness, result.explanation_codes) == (
+        "unknown",
+        "partial",
+        ("incomplete_constraints",),
+    )
+    critical = replace(
+        incomplete,
+        remaining_ratio=_available("0.1", "ratio"),
+    )
+    result = classify_capacity_windows_v1((critical,), policy=policy)
+    assert (result.state, result.completeness) == ("critical", "partial")
+    reauth = classify_capacity_windows_v1(
+        (critical,), policy=policy, is_reauthentication_required=True
+    )
+    assert (reauth.state, reauth.completeness) == (
+        "reauthentication_required",
+        "unknown",
+    )

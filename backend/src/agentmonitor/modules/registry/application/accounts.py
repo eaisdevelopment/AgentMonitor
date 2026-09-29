@@ -12,6 +12,7 @@ from agentmonitor.contracts.common_v1 import (
 from agentmonitor.contracts.registry_v1 import (
     AccountResourceViewV1,
     AccountViewV1,
+    AlertSubjectScopeV1,
     ConfirmProviderIdentityFingerprintCommandV1,
     MonitoringProfileViewV1,
     PrivateProfileLocatorRefV1,
@@ -306,3 +307,28 @@ class AlertScopeAndSubjectQueryV1:
         if (scope_kind == "global") != (scope_id is None):
             raise ValueError("registry_scope_invalid")
         return self._repository.get_registry_scope_snapshot(scope_kind, scope_id)
+
+
+class ResolveAlertSubjectScopeV1:
+    """Resolve current membership under a stable actual registry revision."""
+
+    def __init__(self, repository: AccountRepositoryPortV1) -> None:
+        self._repository = repository
+
+    def __call__(self, account_id: OpaqueIdV1) -> AlertSubjectScopeV1 | None:
+        before = self._repository.get_registry_scope_snapshot("global", None)
+        if before.completeness_state != "complete":
+            raise RegistryQueryUnavailableV1("registry_scope_unavailable")
+        account = self._repository.get_account(account_id)
+        after = self._repository.get_registry_scope_snapshot("global", None)
+        if before != after:
+            raise RegistryQueryUnavailableV1("registry_scope_changed")
+        if account is None:
+            return None
+        return AlertSubjectScopeV1(
+            account.account_id,
+            account.provider_key,
+            account.organization_id,
+            account.lifecycle == "active" and account.is_effective_monitoring_enabled,
+            before.registry_revision,
+        )

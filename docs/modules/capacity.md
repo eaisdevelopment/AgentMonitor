@@ -1,19 +1,18 @@
 # M05 capacity module
 
-Status: **Partially implemented for M3 `ST-OBS-001`**. Exact capacity
-contracts, health policy, the complete empty M05 schema allocation, durable
-commit/query repositories, and the typed Claude-normalization route are
-present. Production composition constructs the real Claude adapter, M04
-executor/recovery path, exactly one digest-validating M05 sink, and the M05
-query surfaces. The current real Claude subscription collector tuple is
-version/workspace blocked, so a real collection and capacity commit remain
-**Blocked / Not Run**. No constructed or seeded provider observation is used as
-a substitute.
+Status: **M4 implementation in progress**. Approved focused increments publish
+current native metadata, the M05 30%/15% health policy, revisioned scope coverage,
+pure burn/forecast derivations, current alert facts and typed existing commit
+notice delivery. Genuine selected owner-data reads and pure policies have been
+verified. Nonempty delivery acknowledgement and a fresh post-upgrade classified
+commit still require root's real integration evidence. The full M4 gate and
+full M05 master-plan acceptance are not claimed.
 
 Owner: `PLAN-M05`
-Contracts: `capacity.v1`, `CTR-CAP-001/003/004/009`,
-`CTR-COMMON-003/004/007`, `CTR-COL-006`
-Database allocation: `v1_0500..v1_0504`
+Contracts: compatible `capacity.v1` extensions to
+`CTR-CAP-001/003/004/005/006/007`, existing `CTR-COMMON-003/004/007`,
+`CTR-COL-006`, `CTR-REG-009`, `CTR-EVT-001`.
+Database allocation: `v1_0500..v1_0504`, additive `v1_0703/0704`.
 
 ## Purpose and boundaries
 
@@ -49,6 +48,58 @@ boundary. Queries do not trigger collection.
   remaining ratio, those fields remain explicitly Unknown. Reset display text
   is not parsed into an invented instant.
 
+## M4 current views and pure derivations
+
+Current quota views expose actual stored semantic role, definition version,
+registry revision, current projection version, completeness and reset evidence.
+Constraint evidence is nullable: an old definition remains Unknown until an
+actual fresh collection creates a definition with the reported constraint flag.
+There is no backfill from labels or guessed provider semantics.
+
+The default M05 health thresholds are 30% constrained and 15% critical. The
+classifier runs on actual current selected observations inside the commit
+transaction and during freshness-aware reads. Partial or unresolved constraints
+cannot become complete Available health. Alert rules and UI coloring remain
+separate consumers of published facts.
+
+`GetCapacityAggregateV1` receives one immutable public M02 scope snapshot with
+account/resource metadata at the same registry revision. It rechecks membership
+before and after its bounded reads, rejecting a race. Eligible, covered, missing
+and excluded accounts and health/freshness counts remain explicit. Native
+window groups are inventories. Absent identity equality or additive-pool
+evidence means Unknown relationship and no summed percentage or numeric total.
+
+`ListCapacityForecastsV1` reads the actual recent immutable history. Its pure
+bounded-secant method requires three samples, 900 seconds of span, no gap over
+900 seconds, matching source/definition/native unit, an evidenced reset segment,
+positive monotonic consumption, fresh latest evidence and valid precision
+bounds. It returns an explained rate and exhaustion interval only with those
+inputs; otherwise it returns explicit insufficiency/staleness/conflict with no
+numbers. Rounded values without evidenced bounds and the current Claude source's
+unknown reset instant cannot produce a numeric forecast. Query derivations are
+read-only; durable forecast generation/alerts remain a separate integration.
+
+`CTR-CAP-005` publishes `CapacityAlertConditionV1`, its bounded query and the
+`ListCapacityAlertConditionsV1` protocol. Its generation is the actual current
+projection `record_version`, never target generation. Fresh complete native
+remaining ratios produce exact canonical basis points. The supported native
+percent-used source uses the existing `100_minus_used_percent` allowance and
+labels its denominator `used_percent_complement`, preserving original rounded
+precision/confidence and observation provenance. Unknown, stale, conflicted or
+partial sources carry no remaining/exhausted value and cannot imply recovery.
+
+`ReadCapacityEventsV1` and `AcknowledgeCapacityEventV1` publish typed delivery of
+the existing `capacity.committed.v1` notice. Its closed payload remains exactly
+capability ID, projection count and terminal commit state. The stable cursor is
+the immutable producer sequence; historical producer version comes from the
+actual matching M05 receipt. A notice asks a consumer to read current facts; it
+does not assert condition truth. Acknowledgement verifies the exact digest and
+preserves its committed consumer receipt reference. Identical retry is
+idempotent; different proof conflicts. No other module's tables are read. The
+caller must have committed its receipt before acknowledgement. Since that port
+does not supply consumer build version, a new delivery records explicit Unknown
+consumer version; historical known versions are retained.
+
 ## Commit and projection behavior
 
 One `(collection_run_id, capability_id)` has one durable receipt. Replay with
@@ -73,7 +124,7 @@ returns placeholder telemetry.
 
 ## Persistence allocation
 
-The fresh M05 chain creates 24 empty tables and no rows:
+The M05 base chain through v1_0504 creates 24 empty tables and no rows:
 
 | Revision | Allocation |
 |---|---|
@@ -101,6 +152,48 @@ tokens, profile paths, and free-form provider errors have no persistence field.
 No dependency or configuration key is introduced. Provider-owned profiles are
 read-only and were not modified during this slice.
 
+## M4 durable current capacity projections
+
+The focused I04 increment adds a separate `SqliteCurrentCapacityRepositoryV1`
+over the existing owned quota history. `RefreshCurrentCapacityProjectionsV1`
+pages current native windows (at most 32), derives a forecast only from the
+latest compatible definition, source and exact reset segment, then rechecks
+the actual source projection generation and selected immutable observation IDs
+under one short `BEGIN IMMEDIATE` transaction. It writes the durable forecast,
+capability availability condition and matching typed outbox changes atomically.
+The persisted derivation digest binds the selected input set to the current
+projection generation and observation, so a later source generation cannot
+silently reuse older derivation provenance.
+An identical reread leaves record versions and events unchanged. The query-only
+I01 forecast still has a synthetic generation and is not an alert source.
+
+`ListCurrentCapacityForecastsV1` and `ListForecastAlertConditionsV1` read only
+complete persisted snapshots whose source window generation remains current.
+The forecast alert uses the latest exhaustion bound conservatively. `before_reset`
+is true only if the entire interval ends before an exact native reset; crossing
+or unknown reset remains unknown. `ListCapacityAvailabilityConditionsV1` pages
+independent capability streams by account/resource/capability. Current quota
+facts do not include a per-observation provider identity-binding proof, so the
+live capability producer reports `unknown/identity_binding_unproven` even for
+fresh values. It cannot declare healthy recovery. Auth and collector ingestion
+wait for normalized published runtime ports and composition.
+
+`ReadCapacityProjectionEventsV1` is a separate closed union over original
+commit notices and the new forecast/availability changes. The original
+`ReadCapacityEventsV1` remains commit-only. New event `subject_version` is the
+durable producer generation; original commit `subject_version` retains target
+generation meaning. Both readers use the same producer sequence cursor and
+exact digest acknowledgement proof. The internal ack call still requires an
+actual committed consumer receipt established by composition; that live proof
+is Not Run in this M05 assignment.
+
+Pinned `v1_0707` adds nullable forecast snapshot/source fields, a nullable
+producer-version field on the owned outbox, and one independent current
+availability table with source-stream uniqueness. Existing forecasts, notices
+and availability signals are preserved without backfill. No owner installation
+was migrated or provider profile modified in this assignment; testing used a
+private temporary SQLite backup of genuine owner data, removed afterward.
+
 ## Operations and incomplete acceptance
 
 Writable startup requires the reviewed migration catalog, compatible schema,
@@ -110,17 +203,17 @@ closed with bounded codes.
 
 The following are **Blocked / Not Run**, not Passed:
 
-- `M04-LIVE-004/009..011` real Claude dispatch, typed outcome, source/version,
-  and one-sink verification;
-- `M05-LIVE-001..006` real quota reconciliation, exact persisted values,
-  projection/health, and idempotent replay;
-- the real provider-to-M04-to-M05 composition run while the accepted Claude
-  version/workspace tuple is unavailable (production construction and
-  no-provider recovery are Green);
-- non-empty M05 commit/replay/conflict/current/outbox assertions, because they
-  require a fresh real provider observation;
-- later budget, forecast, retention, export, API, browser, scale, backup, and
+- fresh post-0703 provider-to-M04-to-M05 classified commit/receipt replay and
+  persisted default-policy inspection in this M4 assignment;
+- nonempty exact delivery acknowledgement/reopen with an actual committed
+  consumer receipt, pending root's integrated dispatcher proof;
+- naturally observed numeric forecast with a trustworthy native reset segment
+  and uncertainty bounds; the current source does not supply those facts;
+- later budget, retention, export, API, browser, scale, backup, and
   restore behavior.
 
 See [M3 ST-OBS-001 evidence](../evidence/m3-st-obs-001.md) for exact Red/Green
 commands and the live acceptance ledger.
+See [M4 capacity evidence](../evidence/m4-capacity.md) and the
+[approved focused packet](../plans/integration/m4-capacity-change.md) for this
+bounded implementation, migration allocation and remaining integration work.

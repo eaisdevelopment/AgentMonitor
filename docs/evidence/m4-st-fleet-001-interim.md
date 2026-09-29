@@ -1,5 +1,10 @@
 # M4 ST-FLEET-001 — interim registry and dashboard handoff
 
+This file preserves the earlier interim state. The later installed owner upgrade,
+six-account result and canonical gate are recorded in the
+[M4 completion evidence](m4-completion.md). Historical partial statements below
+describe the earlier handoff and do not override that final record.
+
 - Evidence ID: `M4-ST-FLEET-001-INTERIM-2026-09-25`
 - Outcome: **Partial**. The admin registry and one real Claude health observation are usable; six-account reconciliation and the M4 exit gate remain **Blocked/Not Run**.
 - Authority: the owner approved implementation of `ST-FLEET-001` in this session. The A01 `CLA-I09` managed reauthentication packet has not been approved.

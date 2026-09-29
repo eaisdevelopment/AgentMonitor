@@ -1,0 +1,11 @@
+# M04 collection control
+
+M04 owns collection schedules, durable runs, local event history and current collector conditions. Its versioned public surface is `contracts/collection_control_v1.py`; consumers use these contracts and M04 application facades rather than reading M04 tables.
+
+The M4 alert increment publishes `CollectorAlertConditionV1` with a target-scoped positive generation from `collection_alert_condition.record_version`. The named internal `refresh` command classifies actual M04 schedule/run/reference records and atomically writes a changed condition plus `collector.health_changed.v1` event. Repeated identical evidence does not advance a generation. Read-only `get_current` never invokes a provider or mutates storage; it reports partial availability for missing, mismatched or expired unevaluated projections.
+
+A fully succeeded current-target run with committed references and a current collection deadline is the only healthy/current inverse. Partial, running, failed, blocked, unsupported, paused and missing inputs cannot prove recovery. Freshness is the fully succeeded run's completion plus the schedule's actual effective interval. An advised retry is persisted in nullable run metadata but is not an applied backoff unless the schedule actually carries a deferral.
+
+The M04 SQLite adapter owns the projection and event read/ack path. Acknowledgement binds the exact payload digest to a consumer receipt. Other modules consume the published typed event and never import M04 SQL or provider data. The bounded writer's two-second budget covers local SQLite busy/VM work on the approved data root; filesystem and OS scheduling stalls are outside that guarantee.
+
+See `docs/plans/integration/m4-collector-alert-condition-change.md` for the approved increment and `docs/evidence/m4-collector-alert-conditions.md` for test status and remaining real-history verification.

@@ -180,8 +180,8 @@ def test_changed_catalog_or_revision_fails_before_database_creation(
 def test_catalog_and_revision_metadata_are_complete_and_immutable() -> None:
     schema = implementation()
     catalog = schema.load_migration_catalog()
-    assert len(catalog.revisions) == 18
-    assert catalog.head == "v1_0603"
+    assert len(catalog.revisions) == 26
+    assert catalog.head == "v1_0707"
     metadata = catalog.revisions[0]
     assert metadata.revision == "v1_0000"
     assert metadata.parent_revision is None
@@ -228,7 +228,7 @@ def test_catalog_and_revision_metadata_are_complete_and_immutable() -> None:
         "v1_0504",
     )
     assert all(item.owner == "M05" for item in capacity)
-    runtime = catalog.revisions[14:]
+    runtime = catalog.revisions[14:18]
     assert tuple(item.revision for item in runtime) == (
         "v1_0600",
         "v1_0601",
@@ -236,6 +236,26 @@ def test_catalog_and_revision_metadata_are_complete_and_immutable() -> None:
         "v1_0603",
     )
     assert all(item.owner == "M06" for item in runtime)
+    assert tuple(item.revision for item in catalog.revisions[18:]) == (
+        "v1_0700",
+        "v1_0701",
+        "v1_0702",
+        "v1_0703",
+        "v1_0704",
+        "v1_0705",
+        "v1_0706",
+        "v1_0707",
+    )
+    assert tuple(item.owner for item in catalog.revisions[18:]) == (
+        "M07",
+        "M07",
+        "M07",
+        "M05",
+        "M05",
+        "M07",
+        "M04",
+        "M05",
+    )
 
 
 def test_schema_marker_failures_refuse_writes_and_are_preserved(tmp_path: Path) -> None:

@@ -110,6 +110,28 @@ def _owner_actor(reference: DatabaseRefV1, owner_credential: str) -> TokenCaller
     )
 
 
+def test_explicit_alert_scope_survives_real_token_repository_reopen(
+    real_iam_installation: tuple[DatabaseRefV1, str],
+) -> None:
+    reference, owner_credential = real_iam_installation
+    actor = _owner_actor(reference, owner_credential)
+    issued = CreateApiTokenV1(SqliteIdentityAccessApiTokenRepositoryV1(reference))(
+        actor,
+        name="alert management",
+        scopes=("write:alerts",),
+        lifetime_seconds=None,
+        idempotency_key="alert_scope_create_0001",
+        correlation_id="alert-scope-create",
+    )
+    assert isinstance(issued, ApiTokenCredentialIssueV1)
+    resolved = ResolveBearerTokenV1(
+        SqliteIdentityAccessApiTokenRepositoryV1(reference)
+    )(SecretInputV1(issued.bearer_credential), correlation_id="alert-scope-resolve")
+    assert resolved.code == "authenticated"
+    assert resolved.principal is not None
+    assert resolved.principal.effective_permissions == ("write:alerts",)
+
+
 @pytest.mark.parametrize("action", ("rotate", "revoke"))
 def test_stale_active_token_version_is_precondition_not_terminal_conflict(
     real_iam_installation: tuple[DatabaseRefV1, str], action: str

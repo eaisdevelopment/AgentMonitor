@@ -1,5 +1,5 @@
-version = "1.6.3"
-head = "v1_0603"
+version = "1.7.7"
+head = "v1_0707"
 env_sha256 = "27449e3ed3984acde690510f9e4974eb6412f5f1b7e62af65bc8bb616879a7d7"
 
 [[revisions]]
@@ -397,3 +397,179 @@ backup_prerequisite = "required_existing_database"
 validation_ids = ["single_head", "m06_indexes", "query_plan", "foreign_key_check", "full_integrity"]
 recovery_policy = "preserve_failed_database_and_restore_verified_backup_or_forward_fix"
 reviewer = "M06-PLAN-DB-performance-review"
+
+[[revisions]]
+ordinal = 700
+filename = "v1_0700_m07_alert_rules.py"
+sha256 = "42f2b67a2dad989e7f5009fcbb1524becd44d76da714c4fa423589d1c050babd"
+status = "shared"
+reviewed_at = "2026-09-29"
+revision = "v1_0700"
+parent_revision = "v1_0603"
+owner = "M07"
+plan_id = "PLAN-M07"
+requirement_ids = ["FR-ALERT-001", "FR-ALERT-002", "FR-ALERT-003", "FR-ALERT-004", "FR-ALERT-005", "FR-HIST-001", "FR-HIST-002", "FR-HIST-003", "NFR-DATA-001"]
+portability_notes = ["Portable scalar identifiers, UTC instants and closed canonical JSON; M07-local foreign keys only"]
+lock_policy = "exclusive_migration_and_begin_immediate"
+downtime_policy = "offline_additive_schema_migration"
+expected_data_volume = "zero_alert_rows_on_initial_install"
+backup_prerequisite = "required_existing_database"
+validation_ids = ["single_head", "m07_owned_tables", "foreign_key_check", "full_integrity"]
+recovery_policy = "preserve_failed_database_and_restore_verified_backup_or_forward_fix"
+reviewer = "M07-PLAN-DB-security-review"
+schema_range = ["v1_0700", "v1_0700", "v1_0700", "v1_0700", "v1_0700"]
+tables = ["alert_rule", "alert_rule_revision"]
+
+[[revisions]]
+ordinal = 701
+filename = "v1_0701_m07_alert_lifecycle.py"
+sha256 = "4f413c08ee51921f69c32f3130a0477080fb7986f27863a56f60cd15205376f8"
+status = "shared"
+reviewed_at = "2026-09-29"
+revision = "v1_0701"
+parent_revision = "v1_0700"
+owner = "M07"
+plan_id = "PLAN-M07"
+requirement_ids = ["FR-ALERT-001", "FR-ALERT-002", "FR-ALERT-003", "FR-ALERT-004", "FR-ALERT-005", "FR-HIST-001", "FR-HIST-002", "FR-HIST-003", "NFR-DATA-001"]
+portability_notes = ["Portable scalar identifiers, UTC instants and closed canonical JSON; M07-local foreign keys only"]
+lock_policy = "exclusive_migration_and_begin_immediate"
+downtime_policy = "offline_additive_schema_migration"
+expected_data_volume = "zero_alert_rows_on_initial_install"
+backup_prerequisite = "required_existing_database"
+validation_ids = ["single_head", "m07_owned_tables", "foreign_key_check", "full_integrity"]
+recovery_policy = "preserve_failed_database_and_restore_verified_backup_or_forward_fix"
+reviewer = "M07-PLAN-DB-security-review"
+schema_range = ["v1_0701", "v1_0701", "v1_0701", "v1_0701", "v1_0701"]
+tables = ["alert_alert", "alert_event", "alert_evidence_reference", "alert_event_receipt", "alert_stream_checkpoint", "alert_command_receipt"]
+
+[[revisions]]
+ordinal = 702
+filename = "v1_0702_m07_alert_deadlines_outbox.py"
+sha256 = "b6f3190fbf45a7658ab68aa1ef45b3c12147cc1286a8833ae4d34e76d111cc02"
+status = "shared"
+reviewed_at = "2026-09-29"
+revision = "v1_0702"
+parent_revision = "v1_0701"
+owner = "M07"
+plan_id = "PLAN-M07"
+requirement_ids = ["FR-ALERT-001", "FR-ALERT-002", "FR-ALERT-003", "FR-ALERT-004", "FR-ALERT-005", "FR-HIST-001", "FR-HIST-002", "FR-HIST-003", "NFR-DATA-001"]
+portability_notes = ["Portable scalar identifiers, UTC instants and closed canonical JSON; M07-local foreign keys only"]
+lock_policy = "exclusive_migration_and_begin_immediate"
+downtime_policy = "offline_additive_schema_migration"
+expected_data_volume = "zero_alert_rows_on_initial_install"
+backup_prerequisite = "required_existing_database"
+validation_ids = ["single_head", "m07_owned_tables", "foreign_key_check", "full_integrity"]
+recovery_policy = "preserve_failed_database_and_restore_verified_backup_or_forward_fix"
+reviewer = "M07-PLAN-DB-security-review"
+schema_range = ["v1_0702", "v1_0702", "v1_0702", "v1_0702", "v1_0702"]
+tables = ["alert_deadline", "alert_reevaluation_job", "alert_event_outbox", "alert_retention_run"]
+
+[[revisions]]
+ordinal = 703
+filename = "v1_0703_m05_capacity_projection_metadata.py"
+sha256 = "26c8958878c285dd0c4d960e04d80e8d32feeb6d9cb99a95fb9c21d96a0655a3"
+status = "shared"
+reviewed_at = "2026-09-29"
+revision = "v1_0703"
+parent_revision = "v1_0702"
+owner = "M05"
+plan_id = "PLAN-M05"
+requirement_ids = ["FR-QUOTA-003", "FR-QUOTA-004", "FR-QUOTA-005", "NFR-DATA-001"]
+schema_range = ["v1_0703", "v1_0703", "v1_0703", "v1_0703", "v1_0703"]
+tables = ["capacity_quota_window_definition", "capacity_forecast_projection"]
+portability_notes = ["Nullable constraint evidence remains unknown for legacy observations", "Forecast bounds retain canonical coefficients/scales and UTC text"]
+lock_policy = "exclusive_migration_and_begin_immediate"
+downtime_policy = "offline_additive_schema_migration"
+expected_data_volume = "existing_capacity_definitions_and_forecasts_preserved"
+backup_prerequisite = "required_existing_database"
+validation_ids = ["single_head", "m05_constraint_forecast_bounds", "foreign_key_check", "full_integrity"]
+recovery_policy = "preserve_failed_database_and_restore_verified_backup_or_forward_fix"
+reviewer = "root-M05-PLAN-DB-security-review"
+
+[[revisions]]
+ordinal = 704
+filename = "v1_0704_m05_event_delivery_proof.py"
+sha256 = "1bc4b9ada482ec03c4ec1dbb540a34cb2b79681e764510be1136e9e071d9411a"
+status = "shared"
+reviewed_at = "2026-09-29"
+revision = "v1_0704"
+parent_revision = "v1_0703"
+owner = "M05"
+plan_id = "PLAN-M05"
+requirement_ids = ["FR-QUOTA-003", "FR-QUOTA-004", "FR-ALERT-001", "NFR-DATA-001"]
+schema_range = ["v1_0704", "v1_0704", "v1_0704", "v1_0704", "v1_0704"]
+tables = ["capacity_event_delivery"]
+portability_notes = ["Nullable legacy acknowledgement proof remains unknown", "Exact opaque receipt reference and canonical digest contain no telemetry"]
+lock_policy = "exclusive_migration_and_begin_immediate"
+downtime_policy = "offline_additive_schema_migration"
+expected_data_volume = "existing_capacity_delivery_rows_preserved"
+backup_prerequisite = "required_existing_database"
+validation_ids = ["single_head", "m05_event_delivery_proof", "foreign_key_check", "full_integrity"]
+recovery_policy = "preserve_failed_database_and_restore_verified_backup_or_forward_fix"
+reviewer = "root-M05-PLAN-DB-security-review"
+
+[[revisions]]
+ordinal = 705
+filename = "v1_0705_m07_rule_configuration_guards.py"
+sha256 = "9d9d5505e3f873bb258c28c3fbbe7ed5402f1313c3a867e7ae97de2bbd41d027"
+status = "shared"
+reviewed_at = "2026-09-29"
+revision = "v1_0705"
+parent_revision = "v1_0704"
+owner = "M07"
+plan_id = "PLAN-M07"
+requirement_ids = ["FR-ALERT-001", "FR-ALERT-002", "NFR-DATA-001"]
+schema_range = ["v1_0705", "v1_0705", "v1_0705", "v1_0705", "v1_0705"]
+tables = []
+portability_notes = ["SQLite trigger guards isolate nullable CHECK semantics; portable adapter must enforce the same closed configuration invariant"]
+lock_policy = "exclusive_migration_and_begin_immediate"
+downtime_policy = "offline_additive_schema_migration"
+expected_data_volume = "bounded current rule and immutable rule revision validation; no telemetry touched"
+backup_prerequisite = "required_existing_database"
+validation_ids = ["single_head", "m07_configuration_guards", "existing_rule_validation", "foreign_key_check", "full_integrity"]
+recovery_policy = "preserve_failed_database_and_restore_verified_backup_or_forward_fix"
+reviewer = "M07-PLAN-DB-security-review"
+
+[[revisions]]
+ordinal = 706
+filename = "v1_0706_m04_collector_alerts.py"
+sha256 = "2f5210db90076967c373f9d6b42017b198f0a986e846414be6bcdcf2a4fe5987"
+status = "shared"
+reviewed_at = "2026-09-29"
+revision = "v1_0706"
+parent_revision = "v1_0705"
+owner = "M04"
+plan_id = "PLAN-M04"
+requirement_ids = ["FR-COL-003", "FR-COL-005", "FR-COL-006", "FR-COL-008", "FR-ALERT-003", "FR-ALERT-004", "NFR-DATA-001"]
+schema_range = ["v1_0706", "v1_0706", "v1_0706", "v1_0706", "v1_0706"]
+tables = ["collection_alert_condition", "collection_run", "collection_event_delivery"]
+portability_notes = ["Positive target-scoped health versions; M04-local foreign keys only"]
+lock_policy = "exclusive_migration_and_begin_immediate"
+downtime_policy = "offline_additive_schema_migration"
+expected_data_volume = "zero_condition_rows_on_initial_install"
+backup_prerequisite = "required_existing_database"
+validation_ids = ["single_head", "m04_collection_alert_conditions", "foreign_key_check", "full_integrity"]
+recovery_policy = "preserve_failed_database_and_restore_verified_backup_or_forward_fix"
+reviewer = "M04-PLAN-DB-security-review"
+
+[[revisions]]
+ordinal = 707
+filename = "v1_0707_m05_current_capacity_projections.py"
+sha256 = "7d6314c469685c8857f8872c6a156c82cfec38c8bea661483946777e46a3381e"
+status = "shared"
+reviewed_at = "2026-09-29"
+revision = "v1_0707"
+parent_revision = "v1_0706"
+owner = "M05"
+plan_id = "PLAN-M05"
+requirement_ids = ["FR-QUOTA-005", "FR-QUOTA-006", "FR-COL-008", "FR-ALERT-001", "FR-ALERT-004", "NFR-DATA-001"]
+schema_range = ["v1_0707", "v1_0707", "v1_0707", "v1_0707", "v1_0707"]
+tables = ["capacity_forecast_projection", "capacity_event_outbox", "capacity_availability_current"]
+portability_notes = ["Additive nullable current forecast fields preserve legacy unknown rows", "Independent source stream key preserves capability/auth/collector truth", "SQLite guards new pairs without rebuilding old tables"]
+lock_policy = "exclusive_migration_and_begin_immediate"
+downtime_policy = "offline_additive_schema_migration"
+expected_data_volume = "preserve_existing;zero_availability_rows"
+backup_prerequisite = "required_existing_database"
+validation_ids = ["single_head", "m05_durable_current_forecast_availability", "foreign_key_check", "full_integrity"]
+recovery_policy = "preserve_failed_database_and_restore_verified_backup_or_forward_fix"
+reviewer = "root-M05-PLAN-DB-security-review"

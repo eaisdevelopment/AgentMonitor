@@ -13,6 +13,7 @@ from contextlib import asynccontextmanager
 from dataclasses import dataclass, field
 from typing import Literal, Protocol
 
+from agentmonitor.contracts.foundation_v1 import LifecycleStateV1
 from agentmonitor.foundation.observability import CorrelationContextV1
 
 
@@ -76,6 +77,10 @@ class ApplicationLifecycleV1:
     failure_code: str | None = None
     task_failures: tuple[str, ...] = ()
     startup_context: CorrelationContextV1 | None = field(default=None, repr=False)
+
+    def get_lifecycle_state(self) -> LifecycleStateV1:
+        """Publish only current safe state; never acquire or probe a resource."""
+        return LifecycleStateV1(self.phase, self.failure_code)
 
     async def _supervise(self, hook: AsyncHook) -> None:
         try:

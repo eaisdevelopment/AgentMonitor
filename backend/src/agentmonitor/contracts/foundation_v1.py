@@ -2,7 +2,7 @@
 
 from dataclasses import dataclass
 from datetime import datetime
-from typing import ClassVar, Literal
+from typing import ClassVar, Literal, Protocol
 
 from agentmonitor.contracts.common_v1 import OpaqueIdV1, TechnicalValueV1
 from agentmonitor.contracts.configuration_v1 import BootstrapConfigurationV1
@@ -47,6 +47,40 @@ class ApplicationFactoryV1(TechnicalValueV1):
     startup_hook_ids: tuple[str, ...]
     shutdown_hook_ids: tuple[str, ...]
     shutdown_timeout_ms: int
+
+
+@dataclass(frozen=True, slots=True)
+class LifecycleStateV1(TechnicalValueV1):
+    """Current in-process phase; no resources, handles or exception messages."""
+
+    CONTRACT_ID: ClassVar[str] = "CTR-FND-002"
+    OWNER: ClassVar[str] = "PLAN-FND"
+
+    phase: Literal["created", "starting", "running", "stopping", "stopped", "failed"]
+    failure_code: str | None
+
+    def __post_init__(self) -> None:
+        TechnicalValueV1.__post_init__(self)
+        if self.failure_code is not None and self.failure_code not in {
+            "runtime_components_missing",
+            "startup_cancelled",
+            "startup_timeout",
+            "startup_failed",
+            "shutdown_timeout",
+            "shutdown_cancelled",
+            "shutdown_failed",
+            "resource_close_failed",
+        }:
+            raise ValueError("lifecycle_failure_code_invalid")
+
+
+class GetLifecycleStateV1(Protocol):
+    """Read the current immutable lifecycle state without external I/O."""
+
+    CONTRACT_ID: ClassVar[str] = "CTR-FND-002"
+    OWNER: ClassVar[str] = "PLAN-FND"
+
+    def __call__(self) -> LifecycleStateV1: ...
 
 
 @dataclass(frozen=True, slots=True)

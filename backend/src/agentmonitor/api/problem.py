@@ -71,6 +71,22 @@ _TITLES = {
 # Closed local documentation catalog. Neither the route nor the problem type
 # accepts a code copied from submitted input or an unrecognized port outcome.
 PROBLEM_DESCRIPTIONS: dict[str, str] = {
+    "alert_not_found": "The alert is unavailable.",
+    "alert_notification_conflict": "The notification changed before this command.",
+    "alert_command_subject_conflict": "The alert command targets a different subject.",
+    "alert_not_open": "This alert is no longer open.",
+    "alert_transition_time_invalid": "The alert changed after this command time.",
+    "alert_rule_not_found": "The alert rule is unavailable.",
+    "alert_version_conflict": "The alert rule changed before this command.",
+    "alert_idempotency_conflict": (
+        "The operation key was used for another alert command."
+    ),
+    "alert_rule_scope_conflict": (
+        "An active rule already covers this scope and condition."
+    ),
+    "alert_rule_archived": "The alert rule is archived.",
+    "alert_rule_time_conflict": "The rule clock is behind its last update.",
+    "alert_repository_unavailable": "Alert storage is unavailable.",
     "active_token_limit_reached": "The active API-token limit has been reached.",
     "ambiguous_credentials": "Use a session cookie or a bearer token, not both.",
     "api_token_not_found": "The requested API token is unavailable.",

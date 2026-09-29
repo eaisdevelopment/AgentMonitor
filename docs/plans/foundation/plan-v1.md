@@ -1033,3 +1033,11 @@ Until every applicable item is checked and the approval record below is complete
 | P01/P02/PLAN-DB/M01/M08/PLAN-DEP consumers | Pending | Contract and handoff synchronization | Same | Pending |
 
 Drafting this document creates no authorization to initialize Git, add manifests or configuration, install/download dependencies, create `.env`, contact GitLab, inspect provider state, or implement production/test code.
+
+### Focused M4 operations composition adoption
+
+The approved M4 operations and producer-health packets authorize the FND
+composition mechanism to consume `CTR-OPS-001/004/006` V1 for facade wiring,
+actual lifecycle/configuration leaves and typed live schema-version mapping.
+The allocated integration writer implements this FND mechanism; master Draft
+status and approval flags remain unchanged. No business SQL in composition.

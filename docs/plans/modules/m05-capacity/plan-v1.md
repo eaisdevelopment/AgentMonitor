@@ -17,6 +17,14 @@ This plan is governed by the [product requirements](../../../product/requirement
 
 ## CS-1 Draft-alignment addendum
 
+M4 focused synchronization, 2026-09-29: the separately approved
+[capacity increment](../../integration/m4-capacity-change.md) consumes the
+published `CTR-REG-009` revisioned scope query for fleet completeness. Its
+explicitly allocated additive `v1_0703` metadata revision follows the three
+M07 revisions and remains M05-owned by table/filename/write allocation.
+The serial root-owned catalog fixes order; no existing revision is edited.
+This focused authority does not approve this whole Draft plan.
+
 This `0.2.0-draft` revision adopts contract-baseline `0.2.0` and the parallel-ownership manifest as its concrete CS-1 review position. It remains Draft and evidence-blocked; M0, provider reconciliation, and all scenarios remain `Not Run`.
 
 - M05 is the sole semantic producer of CTR-CAP-001..009. It owns normalized capacity-health classification, including state priority, constraining-window selection, freshness and uncertainty. M07 owns alert thresholds and alert lifecycle; M05 never consumes an M07 threshold or alert state, removing the prior M05↔M07 policy cycle.

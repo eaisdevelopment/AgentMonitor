@@ -465,3 +465,31 @@ approval state remain unchanged. Independent bounded backend/UI implementation
 review findings were corrected and are recorded in the live-account-agents
 evidence. Owner-completed persistence acceptance remains pending; this binding
 is synchronization of the changed controls, not full M4/M06 release approval.
+
+
+## Focused M4 adoption binding — 2026-09-29
+
+Plan snapshot SHA-256: `2b51fcaca4358b1a619b33b4ea7c4c4211ad59c6b982985ccefda6f084f22a49`
+
+Independent read-only review: `/root/m4_capacity_plan` inspected the actual
+M05/M08 plan and contract-baseline/adoption diffs and reported Passed. The
+changes add REG-009 consumption by M05, FND-002 lifecycle consumption by M08,
+and the approved M05 metadata revision 0703 after the three M07 revisions.
+Root rebound the two master-plan digests and made the allocation disjoint
+(M07 owns 0700..0702 and 0704..0799; M05 explicitly owns 0703).
+Versions and maturity remain unchanged. Full master plans remain Draft and
+their owner approval and implementation authorization flags remain false;
+implementation authority is confined to the approved focused M4 packets.
+This review binds planning synchronization only. It does not report a product,
+live acceptance, migration, or full M4 completion result.
+
+Plan snapshot SHA-256: `9109f19353e317d2a7656653ab68cb8764e9e29acb1dd543c6a8fb24c6e37e1a`
+
+## M4 alert delivery composition binding — 2026-09-29
+
+Plan snapshot SHA-256: `9ca1d5840aa88fdcd4cf4cbb68602f38de813a82e190cf4e99bc3f283fefdfbf`
+
+The contract baseline now records PLAN-FND composition's consumption of the
+existing `CTR-ALERT-002` alert receipt and `CTR-EVT-001` durable event types.
+This is an exact adoption correction for the implemented M4 delivery seam; it
+does not change contract versions, plan approval, or wider readiness status.

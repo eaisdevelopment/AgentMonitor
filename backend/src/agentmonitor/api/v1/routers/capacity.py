@@ -17,10 +17,13 @@ from agentmonitor.api.v1.routers._observation import (
 from agentmonitor.api.v1.schemas.capacity import (
     AccountCapacityItemV1,
     AccountCapacityViewV1,
+    CapacityForecastPageV1,
+    CapacityForecastWireV1,
     CapacityHealthViewV1,
     CapacityHistoryPageV1,
     CapacityHistoryPointV1,
     CapacityObservationProvenanceWireV1,
+    CapacityScopeViewV1,
     CapacitySubjectWireV1,
     ExactMetricFieldWireV1,
     ExactQuantityWireV1,
@@ -28,15 +31,18 @@ from agentmonitor.api.v1.schemas.capacity import (
     QuotaWindowPageV1,
     QuotaWindowViewV1,
 )
+from agentmonitor.api.v1.serialization import technical_wire
 from agentmonitor.contracts.capacity_v1 import AccountCapacityViewV1 as DomainCapacity
 from agentmonitor.contracts.capacity_v1 import (
-    CapacityHistoryPointV1 as DomainHistoryPoint,
-)
-from agentmonitor.contracts.capacity_v1 import (
+    CapacityAggregateQueryV1,
+    CapacityForecastQueryV1,
     CapacityHistoryQueryV1,
     CapacitySubjectV1,
     ExactMetricFieldV1,
     InvalidCapacityContractV1,
+)
+from agentmonitor.contracts.capacity_v1 import (
+    CapacityHistoryPointV1 as DomainHistoryPoint,
 )
 from agentmonitor.contracts.capacity_v1 import (
     QuotaWindowViewV1 as DomainWindow,
@@ -360,6 +366,159 @@ def list_capacity_history(
             caller,
             operation_id="capacity_list_history_v1",
             limit=result.limit,
+            has_more=result.has_more,
+            next_key=result.next_key,
+            filters=filters,
+        ),
+        availability=availability(result.availability),
+    )
+
+
+@router.get(
+    "/capacity/scope",
+    operation_id="capacity_get_scope_v1",
+    response_model=CapacityScopeViewV1,
+    responses=ERROR_RESPONSES,
+    openapi_extra=policy("read:telemetry", "GetCapacityAggregateV1"),
+)
+def get_capacity_scope(
+    request: Request,
+    scope_kind: Literal["global", "organization", "provider", "account"] = "global",
+    scope_id: str | None = Query(None, max_length=128),
+) -> CapacityScopeViewV1:
+    authorize_request(request, "read:telemetry")
+    reject_unknown_query(request, frozenset({"scope_kind", "scope_id"}))
+    if (scope_kind == "global") != (scope_id is None):
+        raise ProblemError(400, "invalid_filter")
+    if scope_id is not None:
+        require_opaque_selector(scope_id)
+    services = observation_ports(request)
+    if (
+        services.registry_scope is None
+        or services.list_account_resources is None
+        or services.get_capacity_aggregate is None
+        or services.capacity_health_policy is None
+    ):
+        raise ProblemError(503, "observation_data_unavailable")
+    as_of = datetime.now(UTC)
+    try:
+        snapshot = services.registry_scope(
+            scope_kind, OpaqueIdV1(scope_id) if scope_id is not None else None
+        )
+        members = set(snapshot.account_ids)
+        accounts = tuple(
+            account
+            for account in services.list_accounts()
+            if account.account_id in members
+        )
+        resources = tuple(
+            resource
+            for account in accounts
+            for resource in services.list_account_resources(account.account_id)
+        )
+        result = services.get_capacity_aggregate(
+            CapacityAggregateQueryV1(
+                snapshot, accounts, resources, as_of, services.capacity_health_policy
+            )
+        )
+    except (CapacityQueryUnavailableV1, ValueError):
+        raise ProblemError(503, "observation_repository_unavailable") from None
+    values = technical_wire(result)
+    if not isinstance(values, dict):
+        raise ProblemError(500, "internal_error")
+    for key in ("accounts", "missing_accounts", "excluded_accounts"):
+        coverage = getattr(result, key)
+        mapped_coverage = []
+        for item in coverage:
+            mapped = technical_wire(item)
+            if not isinstance(mapped, dict):
+                raise ProblemError(500, "internal_error")
+            mapped["windows"] = tuple(_window(window) for window in item.windows)
+            mapped_coverage.append(mapped)
+        values[key] = tuple(mapped_coverage)
+    for key in (
+        "registered_account_count",
+        "eligible_account_count",
+        "covered_account_count",
+        "excluded_account_count",
+        "missing_account_count",
+        "observed_capacity_count",
+    ):
+        values[key] = getattr(result, key)
+    values["health_counts"] = tuple(
+        {"state": state, "count": count} for state, count in result.health_counts
+    )
+    values["freshness_counts"] = tuple(
+        {"state": state, "count": count} for state, count in result.freshness_counts
+    )
+    return CapacityScopeViewV1.model_validate(values)
+
+
+@router.get(
+    "/accounts/{account_id}/forecasts",
+    operation_id="capacity_list_forecasts_v1",
+    response_model=CapacityForecastPageV1,
+    responses=ERROR_RESPONSES,
+    openapi_extra=policy("read:telemetry", "ListCapacityForecastsV1"),
+)
+def list_capacity_forecasts(
+    account_id: str,
+    request: Request,
+    resource_id: str | None = Query(None, max_length=128),
+    window_id: str | None = Query(None, max_length=128),
+    limit: int = Query(50, ge=1, le=200),
+    cursor: str | None = Query(None, max_length=1024),
+) -> CapacityForecastPageV1:
+    caller = authorize_request(request, "read:telemetry")
+    reject_unknown_query(
+        request, frozenset({"resource_id", "window_id", "limit", "cursor"})
+    )
+    for selector in (account_id, resource_id, window_id):
+        if selector is not None:
+            require_opaque_selector(selector)
+    services = observation_ports(request)
+    if services.list_capacity_forecasts is None:
+        raise ProblemError(503, "observation_data_unavailable")
+    if services.get_account(OpaqueIdV1(account_id)) is None:
+        raise ProblemError(404, "registry_subject_not_found")
+    as_of = datetime.now(UTC)
+    filters = {
+        "account_id": account_id,
+        "resource_id": resource_id,
+        "window_id": window_id,
+    }
+    after_key = decode_cursor(
+        request,
+        caller,
+        cursor,
+        operation_id="capacity_list_forecasts_v1",
+        limit=limit,
+        filters=filters,
+    )
+    try:
+        result = services.list_capacity_forecasts(
+            CapacityForecastQueryV1(
+                OpaqueIdV1(account_id),
+                OpaqueIdV1(resource_id) if resource_id else None,
+                OpaqueIdV1(window_id) if window_id else None,
+                as_of,
+                limit,
+                after_key,
+            )
+        )
+    except (CapacityQueryUnavailableV1, ValueError):
+        raise ProblemError(503, "observation_repository_unavailable") from None
+    return CapacityForecastPageV1(
+        account_id=account_id,
+        items=tuple(
+            CapacityForecastWireV1.model_validate(technical_wire(item))
+            for item in result.items
+        ),
+        page=page_meta(
+            request,
+            caller,
+            operation_id="capacity_list_forecasts_v1",
+            limit=limit,
             has_more=result.has_more,
             next_key=result.next_key,
             filters=filters,

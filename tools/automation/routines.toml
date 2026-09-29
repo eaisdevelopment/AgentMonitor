@@ -175,10 +175,10 @@ blockers = ["explicit real LAN interface/subnet and exact frontend build require
 [[routines]]
 id = "AUTO-MIGRATE"
 owner = "PLAN-DB"
-status = "blocked"
-scope = "schema preflight, backup, migration lock/apply, and integrity verification"
-implementation_command = []
-blockers = ["PLAN-DB approval and real migration implementation"]
+status = "operational_limited"
+scope = "explicit offline v1_0603 to v1_0707 M4 schema upgrade with verified private pre-migration backup"
+implementation_command = ["backend/.venv/bin/python", "tools/automation/implementations/auto_migrate.py"]
+blockers = ["installed owner upgrade, service activation/restricted start, broader backup/restore and other source revisions remain separate"]
 
 [[routines]]
 id = "AUTO-DEPLOY"
@@ -219,3 +219,11 @@ status = "operational_limited"
 scope = "real owner-selected Claude terminal account link: HTTP denials, generated client/build, guarded OS view, private settings reopen and read-only shared Chrome"
 implementation_command = ["python3", "tools/automation/implementations/auto_account_agents.py"]
 blockers = ["explicit real dashboard/account/PID/data root and owner-completed account confirmation required; automatic retrospective identity and full M4/M06 acceptance remain outside this bounded gate"]
+
+[[routines]]
+id = "AUTO-M4-EXIT"
+owner = "PLAN-INT"
+status = "operational"
+scope = "all six V1-M4 stories: actual artifacts, zero-skipped real suites, owner fleet outcomes, production fleet/alert/diagnostic browsers and local quality gates"
+implementation_command = ["python3", "tools/automation/implementations/auto_m4_exit.py"]
+blockers = []

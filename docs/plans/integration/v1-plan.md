@@ -1480,3 +1480,18 @@ PLAN-INT independently reruns applicable gates and inspects artifacts. It does n
 | Accessibility/performance | Pending | browser/AT and numeric 100/200 budgets accepted | pending | — |
 
 Approval of this document authorizes only the exact later implementation task packet explicitly issued by the owner/root steward. It does not authorize provider access, owner credential interaction, Git/GitLab mutation, deployment, restore, publication, or release.
+
+
+### Focused M4 durable event availability adoption
+
+The approved typed M4 event-delivery packet consumes CTR-COMMON-007 for the
+actual bounded event-batch query availability. This additive consumption has
+no business derivation or provider data fields. Full master approval stays Draft.
+
+
+### Focused M4 operational composition adoption
+
+The approved operations and producer-health packets consume OPS-001/004/006
+for the actual application facade, bounded leaf wiring and live schema-version
+mapping. Composition uses published producer ports and no business SQL.
+Full master status and approval flags remain Draft.

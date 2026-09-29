@@ -10,6 +10,9 @@ import { OrganizationsPage } from "../features/organizations/OrganizationsPage";
 import { CollectionRunPanel } from "../features/collectors/CollectionRunPanel";
 import { ProviderPage } from "../features/providers/ProviderPage";
 import { SessionPanel } from "../features/sessions/SessionPanel";
+import { OperationsPage } from "../features/operations/OperationsPage";
+import { AlertRulesPage } from "../features/alerts/AlertRulesPage";
+import { AlertsPage } from "../features/alerts/AlertsPage";
 import { CsrfUnavailableError, iam, safeProblemMessage, type CurrentSessionViewV1 } from "../shared/api/client";
 import { accountIdFromRoute, accountRoute, safeReturnRoute, safeRoute, sessionBootstrap, type AllowedRoute, type BootstrapState } from "./sessionBootstrap";
 
@@ -65,6 +68,9 @@ export function DashboardApp() {
       : route === "/providers" ? "Providers"
       : route === "/collectors" ? "Collectors"
       : route === "/sessions" ? "Sessions"
+      : route === "/operations" ? "Operations"
+      : route === "/alert-rules" ? "Alert rules"
+      : route === "/alerts" ? "Alerts"
       : "AgentMonitor";
     document.title = `${routeTitle} · AgentMonitor`;
     if (session !== null) document.getElementById("page-title")?.focus();
@@ -230,6 +236,9 @@ export function DashboardApp() {
           <button type="button" aria-current={route === "/providers" ? "page" : undefined} onClick={() => navigate("/providers")}>Providers</button>
           <button type="button" aria-current={route === "/collectors" ? "page" : undefined} onClick={() => navigate("/collectors")}>Collectors</button>
           <button type="button" aria-current={route === "/sessions" ? "page" : undefined} onClick={() => navigate("/sessions")}>Sessions</button>
+          <button type="button" aria-current={route === "/operations" ? "page" : undefined} onClick={() => navigate("/operations")}>Operations</button>
+          <button type="button" aria-current={route === "/alert-rules" ? "page" : undefined} onClick={() => navigate("/alert-rules")}>Alert rules</button>
+          <button type="button" aria-current={route === "/alerts" ? "page" : undefined} onClick={() => navigate("/alerts")}>Alerts</button>
           <button type="button" aria-current={route === "/settings/api-tokens" ? "page" : undefined} onClick={() => navigate("/settings/api-tokens")}>API tokens</button>
         </nav>
         <main id="main-content" className="dashboard-main">
@@ -253,6 +262,14 @@ export function DashboardApp() {
             <CollectionRunPanel onExpired={expire} />
           ) : route === "/sessions" ? (
             <SessionPanel onExpired={expire} />
+          ) : route === "/operations" ? (
+            <OperationsPage onExpired={expire} />
+          ) : route === "/alert-rules" ? (
+            <AlertRulesPage onExpired={expire} onProofUnavailable={proofUnavailable} />
+          ) : route === "/alerts" ? (
+            <AlertsPage onExpired={expire} onProofUnavailable={proofUnavailable}
+              onOpenAccount={(accountId) => navigate(accountRoute(accountId))}
+              onOpenRules={() => navigate("/alert-rules")} />
           ) : (
             <OverviewPage
               onExpired={expire}

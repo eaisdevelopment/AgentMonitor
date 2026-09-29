@@ -53,6 +53,7 @@ CONTRACT_MODULES = frozenset(
         "runtime_observation_v1",
         "alerting_v1",
         "operations_v1",
+        "events_v1",
         "deployment_v1",
         "integration_v1",
         "events_v1",
@@ -63,9 +64,22 @@ CONTRACT_MODULES = frozenset(
 # Published supporting values have no independent catalog ID. This closed list
 # prevents arbitrary aliases/re-exports from masquerading as support metadata.
 SUPPORT_SYMBOLS = {
-    "agentmonitor.contracts.common_v1": {"TechnicalValueV1", "AvailabilityStateV1"},
+    "agentmonitor.contracts.common_v1": {
+        "TechnicalValueV1",
+        "AvailabilityStateV1",
+        "QueryAvailabilityStateV1",
+    },
     "agentmonitor.contracts.configuration_v1": {"ConfigurationDescriptorV1"},
-    "agentmonitor.contracts.provider_system_v1": {"ProviderConnectionStateV1"},
+    "agentmonitor.contracts.common_provenance_v1": {"ConfidenceV1", "PrecisionV1"},
+    "agentmonitor.contracts.database_v1": {
+        "DatabaseSchemaStateV1",
+        "DatabaseHealthReasonV1",
+    },
+    "agentmonitor.contracts.provider_system_v1": {"ProviderConnectionStateV1", "OutcomeStateV1"},
+    "agentmonitor.contracts.collection_control_v1": {
+        "CollectorHealthStateV1", "CollectorFreshnessStateV1",
+        "CollectorRetryCategoryV1", "CollectorConditionReasonV1",
+    },
     "agentmonitor.contracts.registry_v1": {
         "ConfirmIdentityAssociationCommandV1",
         "IdentityDecisionStateV1",
@@ -99,8 +113,41 @@ SUPPORT_SYMBOLS = {
         "RuntimeStateCertaintyV1",
         "StallEvaluationStateV1",
     },
+    "agentmonitor.contracts.operations_v1": {
+        "MAX_COMPONENTS_V1",
+        "MAX_INDICATORS_V1",
+        "MAX_REASONS_V1",
+        "MAX_HEALTH_BUDGET_MS_V1",
+        "COMPONENT_KEYS_V1",
+        "INDICATOR_UNITS_V1",
+        "REASON_CODES_V1",
+        "HealthStateV1",
+        "ReadinessStateV1",
+        "ComponentCriticalityV1",
+        "ComponentResultStateV1",
+        "DisclosureLevelV1",
+        "InvalidOperationsContractV1",
+    },
+    "agentmonitor.contracts.alerting_v1": {
+        "AlertConditionTypeV1",
+        "AlertSeverityV1",
+        "AlertLifecycleV1",
+        "AlertRuleScopeV1",
+        "AlertTransitionV1",
+        "AlertDimensionKindV1",
+        "AlertTruthStateV1",
+        "AlertValueV1",
+        "InvalidAlertContractV1",
+        "AlertRuleConfigurationV1",
+        "AlertReasonCodeV1",
+    },
     "agentmonitor.contracts.capacity_v1": {
+        "CompletenessV1",
+        "CapacityAvailabilityStateV1",
+        "CapacityAlertAvailabilityV1",
+        "CapacityAlertReasonV1",
         "CapacityHealthStateV1",
+        "CapacityProjectionEventPayloadV1",
         "InvalidCapacityContractV1",
     },
 }
@@ -132,6 +179,12 @@ TASK_CONTRACT_IDS = frozenset(
 # Keeping the allowance at symbol granularity prevents a module import from
 # exposing migration, inspection-internal, or future public-looking helpers.
 COMPOSITION_SQLITE_SYMBOLS = {
+    "agentmonitor.adapters.persistence._shared.sqlite.schema.live_health": frozenset(
+        {
+            "InspectStartupDatabaseHealthV1",
+            "LiveDatabaseHealthReaderV1",
+        }
+    ),
     "agentmonitor.adapters.persistence._shared.sqlite.core.policy": frozenset(
         {
             "DatabaseRefV1",
@@ -202,6 +255,7 @@ M03_M06_SQLITE_POLICY_PREFIXES = frozenset(
         "agentmonitor.adapters.persistence.collection_control.sqlite",
         "agentmonitor.adapters.persistence.capacity.sqlite",
         "agentmonitor.adapters.persistence.runtime_observation.sqlite",
+        "agentmonitor.adapters.persistence.alerting.sqlite",
     }
 )
 M03_M06_SQLITE_POLICY_SYMBOLS = frozenset(
@@ -409,6 +463,57 @@ def _approved_a01_provider_system_symbol(source: str, target: str) -> bool:
     )
 
 
+def _bounded_health_read_module(source: str, target: str) -> bool:
+    return (
+        source
+        in {
+            "agentmonitor.adapters.persistence.identity_access.sqlite.health",
+            "agentmonitor.adapters.persistence.registry.sqlite.health",
+            "agentmonitor.adapters.persistence.collection_control.sqlite.health",
+            "agentmonitor.adapters.persistence.collection_control.sqlite.alert_conditions",
+        }
+        and target
+        == "agentmonitor.adapters.persistence._shared.sqlite.core.bounded_read"
+    )
+
+
+def _approved_owner_adapter_domain_module(source: str, target: str) -> bool:
+    return (source, target) in {
+        (
+            "agentmonitor.adapters.persistence.collection_control.sqlite.alert_conditions",
+            "agentmonitor.modules.collection_control.domain.alert_conditions",
+        ),
+        (
+            "agentmonitor.adapters.persistence.alerting.sqlite.capacity_consumer",
+            "agentmonitor.modules.alerting.domain.fingerprint",
+        ),
+        (
+            "agentmonitor.adapters.persistence.alerting.sqlite.capacity_consumer",
+            "agentmonitor.modules.alerting.domain.lifecycle",
+        ),
+        (
+            "agentmonitor.adapters.persistence.alerting.sqlite.actions",
+            "agentmonitor.modules.alerting.domain.lifecycle",
+        ),
+        (
+            "agentmonitor.adapters.persistence.alerting.sqlite.actions",
+            "agentmonitor.modules.alerting.domain.notifications",
+        ),
+        (
+            "agentmonitor.adapters.persistence.capacity.sqlite.current_repository",
+            "agentmonitor.modules.capacity.application.queries",
+        ),
+        (
+            "agentmonitor.adapters.persistence.capacity.sqlite.current_repository",
+            "agentmonitor.modules.capacity.domain.current_projection",
+        ),
+        (
+            "agentmonitor.adapters.persistence.capacity.sqlite.current_events",
+            "agentmonitor.modules.capacity.domain.events",
+        ),
+    }
+
+
 def _allowed(source: str, target: str, *, symbol_import: bool = False) -> bool:
     src, dst = source.split("."), target.split(".")
     if "utils" in dst or dst[0] in {"frontend", "backend"}:
@@ -417,6 +522,13 @@ def _allowed(source: str, target: str, *, symbol_import: bool = False) -> bool:
         src[1:2] == ["modules"] and src[3:4] == ["domain"]
     )
     if dst[0] != "agentmonitor":
+        if (
+            source == "agentmonitor.modules.operations.application.health"
+            and dst[0] == "asyncio"
+        ):
+            # M4 M08 approved bounded application orchestration; domain remains
+            # I/O-free and producer adapters own their actual I/O deadlines.
+            return True
         if pure or src[1:2] == ["modules"]:
             return dst[0] in PURE_IMPORTS
         if src[1:2] == ["api"]:
@@ -432,7 +544,12 @@ def _allowed(source: str, target: str, *, symbol_import: bool = False) -> bool:
     if len(dst) < 2:
         return False
     if symbol_import and (
-        _approved_composition_sqlite_symbol(source, target)
+        (
+            _bounded_health_read_module(source, target.rpartition(".")[0])
+            and target.rpartition(".")[2] == "open_bounded_sqlite_read"
+        )
+        or _approved_owner_adapter_domain_module(source, target.rpartition(".")[0])
+        or _approved_composition_sqlite_symbol(source, target)
         or _approved_m2_fresh_init_migration(source, target)
         or _approved_m01_sqlite_policy_symbol(source, target)
         or _approved_m01_adapter_port_symbol(source, target)
@@ -523,6 +640,8 @@ def _imports(
                         and len(base.split(".")) == 3
                     )
                     and not _composition_sqlite_symbol_module(module, base)
+                    and not _bounded_health_read_module(module, base)
+                    and not _approved_owner_adapter_domain_module(module, base)
                     and not _m01_sqlite_policy_symbol_module(module, base)
                     and not _m01_adapter_port_symbol_module(module, base)
                     and not _m02_sqlite_policy_symbol_module(module, base)

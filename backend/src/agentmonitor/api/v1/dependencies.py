@@ -3,6 +3,7 @@
 from dataclasses import dataclass
 
 from agentmonitor.api.problem import ProblemError
+from agentmonitor.contracts.capacity_v1 import CapacityHealthPolicyV1
 from agentmonitor.contracts.common_v1 import OpaqueIdV1
 from agentmonitor.contracts.identity_access_v1 import (
     PrincipalV1,
@@ -11,8 +12,30 @@ from agentmonitor.contracts.identity_access_v1 import (
     TokenCallerProofV1,
 )
 from agentmonitor.contracts.provider_system_v1 import ProviderConnectionPortV1
+from agentmonitor.modules.alerting.application.commands import (
+    AcknowledgeAlertV1,
+    MarkAlertReadV1,
+    SnoozeAlertV1,
+    UnsnoozeAlertV1,
+)
+from agentmonitor.modules.alerting.application.queries import (
+    GetAlertV1,
+    GetDashboardNotificationCountsV1,
+    ListAlertHistoryV1,
+    ListAlertsV1,
+    ListDashboardNotificationsV1,
+)
+from agentmonitor.modules.alerting.application.rules import (
+    ArchiveAlertRuleOverrideV1,
+    CreateAlertRuleV1,
+    GetAlertRuleV1,
+    ListAlertRulesV1,
+    UpdateAlertRuleV1,
+)
 from agentmonitor.modules.capacity.application.queries import (
     GetAccountCapacityV1,
+    GetCapacityAggregateV1,
+    ListCapacityForecastsV1,
     ListCapacityHistoryV1,
     ListQuotaWindowsV1,
 )
@@ -48,8 +71,10 @@ from agentmonitor.modules.provider_system.application.queries import (
     GetVerifiedQuotaIdentityV1,
 )
 from agentmonitor.modules.registry.application.accounts import (
+    AlertScopeAndSubjectQueryV1,
     EditAccountV1,
     GetAccountV1,
+    ListAccountResourcesV1,
     ListAccountsV1,
     RegisterAccountV1,
 )
@@ -124,6 +149,29 @@ class ObservationApiPortsV1:
     list_live_process_locations: ListLiveProcessLocationsV1 | None = None
     provider_connections: ProviderConnectionPortV1 | None = None
     owner_process_associations: OwnerProcessAccountAssociationsV1 | None = None
+    get_capacity_aggregate: GetCapacityAggregateV1 | None = None
+    list_capacity_forecasts: ListCapacityForecastsV1 | None = None
+    registry_scope: AlertScopeAndSubjectQueryV1 | None = None
+    list_account_resources: ListAccountResourcesV1 | None = None
+    capacity_health_policy: CapacityHealthPolicyV1 | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class AlertApiPortsV1:
+    create_rule: CreateAlertRuleV1
+    update_rule: UpdateAlertRuleV1
+    archive_rule: ArchiveAlertRuleOverrideV1
+    get_rule: GetAlertRuleV1
+    list_rules: ListAlertRulesV1
+    get_alert: GetAlertV1
+    list_alerts: ListAlertsV1
+    list_alert_history: ListAlertHistoryV1
+    list_notifications: ListDashboardNotificationsV1
+    notification_counts: GetDashboardNotificationCountsV1
+    acknowledge_alert: AcknowledgeAlertV1
+    snooze_alert: SnoozeAlertV1
+    unsnooze_alert: UnsnoozeAlertV1
+    mark_alert_read: MarkAlertReadV1
 
 
 @dataclass(frozen=True, slots=True)
@@ -144,6 +192,13 @@ def observation_ports(request: Request) -> ObservationApiPortsV1:
     available: ObservationApiPortsV1 | None = request.app.state.observation_ports
     if available is None:
         raise ProblemError(503, "observation_data_unavailable")
+    return available
+
+
+def alert_ports(request: Request) -> AlertApiPortsV1:
+    available: AlertApiPortsV1 | None = getattr(request.app.state, "alert_ports", None)
+    if available is None:
+        raise ProblemError(503, "alert_repository_unavailable")
     return available
 
 

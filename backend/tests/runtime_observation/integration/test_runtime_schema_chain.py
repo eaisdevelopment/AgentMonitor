@@ -32,8 +32,10 @@ def test_runtime_schema_chain_reaches_v1_0603(tmp_path: Path) -> None:
                 ).scalars()
             )
 
-    assert view.current_revision == "v1_0603"
-    assert tuple(item.revision for item in catalog.revisions[-4:]) == (
+    assert view.current_revision == application_schema_range().migration_target_revision
+    assert tuple(
+        item.revision for item in catalog.revisions if item.owner == "M06"
+    ) == (
         "v1_0600",
         "v1_0601",
         "v1_0602",

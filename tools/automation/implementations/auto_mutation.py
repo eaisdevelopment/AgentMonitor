@@ -22,7 +22,7 @@ MUTMUT = BACKEND / ".venv/bin/mutmut"
 MUTMUT_VERSION = "3.8.0"
 RUNTIME_CONTRACT = Path("src/agentmonitor/contracts/runtime_observation_v1.py")
 RUNTIME_CONTRACT_SHA256 = (
-    "4b8cbead227bcf6b37ee75188fc04a42f086464e2d8c26589011f456371318f2"
+    "0733bf799efeaa6d047e2dbf51e3ba79ca309feb39a69b2a17a18b1cf8826ecc"
 )
 TARGETS = (
     Path("src/agentmonitor/modules/capacity/domain/health.py"),
@@ -205,6 +205,20 @@ def _tool_ready() -> bool:
         return False
 
 
+def baseline_policy_command() -> list[str]:
+    """Run exact checkout tests without requiring caller source-path settings."""
+    return [
+        str(PYTHON),
+        "-c",
+        "import sys; sys.path.insert(0,sys.argv.pop(1)); "
+        "import pytest; raise SystemExit(pytest.main(sys.argv[1:]))",
+        str(BACKEND / "src"),
+        "-q",
+        *(str(BACKEND / path) for path in PURE_TESTS),
+        str(MUTATION_POLICY_TEST),
+    ]
+
+
 def main() -> int:
     if not hasattr(os, "fork"):
         print("M3 MUTATION: BLOCKED — fork_process_isolation_unavailable")
@@ -213,17 +227,7 @@ def main() -> int:
         print("M3 MUTATION: BLOCKED — admitted_mutmut_toolchain_unavailable")
         return 3
 
-    baseline = _run(
-        [
-            str(PYTHON),
-            "-m",
-            "pytest",
-            "-q",
-            *(str(BACKEND / path) for path in PURE_TESTS),
-            str(MUTATION_POLICY_TEST),
-        ],
-        cwd=ROOT,
-    )
+    baseline = _run(baseline_policy_command(), cwd=ROOT)
     if baseline.returncode != 0:
         print("M3 MUTATION: FAILED — selected_clean_tests_failed")
         print((baseline.stdout + baseline.stderr)[-4_000:])

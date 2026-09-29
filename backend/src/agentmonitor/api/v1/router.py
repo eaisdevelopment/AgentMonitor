@@ -6,9 +6,11 @@ from fastapi import APIRouter
 def create_router(*, iam_mode: bool = False) -> APIRouter:
     router = APIRouter(prefix="/api/v1")
     if iam_mode:
+        from agentmonitor.api.v1.routers.alerts import router as alerts_router
         from agentmonitor.api.v1.routers.capacity import router as capacity_router
         from agentmonitor.api.v1.routers.collection import router as collection_router
         from agentmonitor.api.v1.routers.iam import router as iam_router
+        from agentmonitor.api.v1.routers.operations import router as operations_router
         from agentmonitor.api.v1.routers.provider_connections import (
             router as connections_router,
         )
@@ -22,5 +24,7 @@ def create_router(*, iam_mode: bool = False) -> APIRouter:
         router.include_router(connections_router)
         router.include_router(collection_router)
         router.include_router(capacity_router)
+        router.include_router(alerts_router)
         router.include_router(runtime_router)
+        router.include_router(operations_router)
     return router

@@ -4,6 +4,15 @@ import {
   type AccountCapacityViewV1,
   type AccountPageV1,
   type AccountViewV1,
+  type AlertRuleCommandWireV1,
+  type AlertRuleInputV1,
+  type AlertRulePageV1,
+  type AlertRuleWireV1,
+  type AlertCommandWireV1,
+  type AlertHistoryPageV1,
+  type AlertNotificationCountsWireV1,
+  type AlertNotificationPageV1,
+  type AlertWireV1,
   type AgentProcessPageV1,
   type AgentProcessViewV1,
   type AgentSessionPageV1,
@@ -46,6 +55,15 @@ export type {
   AccountCapacityViewV1,
   AccountPageV1,
   AccountViewV1,
+  AlertRuleCommandWireV1,
+  AlertRuleInputV1,
+  AlertRulePageV1,
+  AlertRuleWireV1,
+  AlertCommandWireV1,
+  AlertHistoryPageV1,
+  AlertNotificationCountsWireV1,
+  AlertNotificationPageV1,
+  AlertWireV1,
   AgentProcessPageV1,
   AgentProcessViewV1,
   AgentProcessMetricPageV1,
@@ -347,6 +365,65 @@ export const providers = Object.freeze({
 export const collections = Object.freeze({
   runs: (signal?: AbortSignal): Promise<ClientResult<CollectionRunPageV1>> =>
     apiClient.collection_list_runs_v1({ query: { limit: 50 }, signal }),
+});
+
+export const alerts = Object.freeze({
+  notifications: (
+    scope?: Readonly<{ kind: "organization"; id: string }>, cursor?: string,
+    signal?: AbortSignal,
+  ): Promise<ClientResult<AlertNotificationPageV1>> =>
+    apiClient.alert_list_notifications_v1({
+      query: { limit: 100, ...(scope ? { scope_kind: scope.kind, scope_id: scope.id } : {}),
+        ...(cursor ? { cursor } : {}) }, signal,
+    }),
+  counts: (
+    scope?: Readonly<{ kind: "organization"; id: string }>, signal?: AbortSignal,
+  ): Promise<ClientResult<AlertNotificationCountsWireV1>> =>
+    apiClient.alert_get_notification_counts_v1({
+      query: scope ? { scope_kind: scope.kind, scope_id: scope.id } : {}, signal,
+    }),
+  history: (alertId: string, signal?: AbortSignal): Promise<ClientResult<AlertHistoryPageV1>> =>
+    apiClient.alert_list_history_v1({ path: { alert_id: alertId }, query: { limit: 100 }, signal }),
+  acknowledge: (alert: AlertWireV1): Promise<ClientResult<AlertCommandWireV1>> =>
+    apiClient.alert_acknowledge_v1({
+      path: { alert_id: alert.alert_id },
+      headers: mutationHeaders({ id: alert.alert_id, recordVersion: alert.record_version }, true),
+    }),
+  snooze: (alert: AlertWireV1, durationSeconds: number): Promise<ClientResult<AlertCommandWireV1>> =>
+    apiClient.alert_snooze_v1({
+      path: { alert_id: alert.alert_id }, body: { duration_seconds: durationSeconds },
+      headers: mutationHeaders({ id: alert.alert_id, recordVersion: alert.record_version }, true),
+    }),
+  unsnooze: (alert: AlertWireV1): Promise<ClientResult<AlertCommandWireV1>> =>
+    apiClient.alert_unsnooze_v1({
+      path: { alert_id: alert.alert_id },
+      headers: mutationHeaders({ id: alert.alert_id, recordVersion: alert.record_version }, true),
+    }),
+  markRead: (alert: AlertWireV1): Promise<ClientResult<AlertCommandWireV1>> =>
+    apiClient.alert_mark_read_v1({
+      path: { alert_id: alert.alert_id },
+      headers: mutationHeaders({ id: alert.alert_id, recordVersion: alert.notification_revision }, true),
+    }),
+  rules: (cursor?: string, signal?: AbortSignal): Promise<ClientResult<AlertRulePageV1>> =>
+    apiClient.alert_list_rules_v1({ query: { limit: 200, ...(cursor ? { cursor } : {}) }, signal }),
+  createRule: (input: AlertRuleInputV1): Promise<ClientResult<AlertRuleCommandWireV1>> =>
+    apiClient.alert_create_rule_v1({ body: input, headers: mutationHeaders(undefined, true) }),
+  updateRule: (
+    rule: AlertRuleWireV1, input: AlertRuleInputV1,
+  ): Promise<ClientResult<AlertRuleCommandWireV1>> => {
+    if (rule.rule_id === null) throw new Error("builtin_rule_cannot_be_updated");
+    return apiClient.alert_update_rule_v1({
+      path: { rule_id: rule.rule_id }, body: input,
+      headers: mutationHeaders({ id: rule.rule_id, recordVersion: rule.record_version }, true),
+    });
+  },
+  archiveRule: (rule: AlertRuleWireV1): Promise<ClientResult<AlertRuleCommandWireV1>> => {
+    if (rule.rule_id === null) throw new Error("builtin_rule_cannot_be_archived");
+    return apiClient.alert_archive_rule_v1({
+      path: { rule_id: rule.rule_id },
+      headers: mutationHeaders({ id: rule.rule_id, recordVersion: rule.record_version }, true),
+    });
+  },
 });
 
 export const capacity = Object.freeze({

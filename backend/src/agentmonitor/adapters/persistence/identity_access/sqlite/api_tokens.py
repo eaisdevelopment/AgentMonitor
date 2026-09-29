@@ -370,6 +370,7 @@ def _authorize_caller(
         if required_permission not in {
             "write:tokens",
             "read:accounts",
+            "read:alerts",
             "write:accounts",
             "read:diagnostics",
             "read:status",

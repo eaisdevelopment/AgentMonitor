@@ -19,6 +19,8 @@ const AVAILABLE_SCOPES = [
   { value: "read:diagnostics", label: "Read diagnostics", description: "Read IAM security events in M2." },
   { value: "write:tokens", label: "Manage API tokens", description: "List, issue, rotate, and revoke API tokens, subject to this token’s own scopes and expiry." },
   { value: "write:accounts", label: "Manage accounts", description: "Create and update account and organization records." },
+  { value: "read:alerts", label: "Read alerts", description: "Read alerts, rules, and notifications." },
+  { value: "write:alerts", label: "Manage alerts", description: "Create rules and update alert state." },
 ] as const;
 
 function OneTimeTokenDialog({ issue, onClose }: Readonly<{

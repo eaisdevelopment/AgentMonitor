@@ -4,6 +4,7 @@
 
 import hashlib
 import json
+import re
 import secrets
 from datetime import UTC, datetime, timedelta
 
@@ -14,22 +15,35 @@ from agentmonitor.adapters.persistence._shared.sqlite.core.policy import (
 )
 from agentmonitor.contracts.capacity_v1 import (
     AccountCapacityViewV1,
+    CapacityAlertConditionQueryV1,
     CapacityCommitReceiptV1,
     CapacityCommitRequestV1,
     CapacityCommitStatusV1,
+    CapacityCommittedNoticeV1,
     CapacityHealthViewV1,
     CapacityHistoryPointV1,
     CapacityHistoryQueryV1,
     CapacityObservationProvenanceViewV1,
     CapacitySubjectV1,
     ExactMetricFieldV1,
+    InvalidCapacityContractV1,
     QuotaWindowViewV1,
 )
 from agentmonitor.contracts.common_quantity_v1 import (
     CanonicalDecimalV1,
     ExactQuantityV1,
 )
-from agentmonitor.contracts.common_v1 import FieldAvailabilityV1, OpaqueIdV1
+from agentmonitor.contracts.common_v1 import (
+    EventEnvelopeV1,
+    FieldAvailabilityV1,
+    OpaqueIdV1,
+    QueryAvailabilityV1,
+)
+from agentmonitor.contracts.events_v1 import DurableEventBatchV1, DurableEventV1
+from agentmonitor.modules.capacity.application.ports import (
+    CapacityCommittedPayloadPolicyV1,
+    ClassifyCapacityProjectionV1,
+)
 from sqlalchemy.engine import Connection, RowMapping
 from sqlalchemy.exc import SQLAlchemyError
 
@@ -217,7 +231,138 @@ def _quota_window(
         ),
         collected_at=_utc_value(str(row["collected_at"])),
         stored_at=_utc_value(str(row["stored_at"])),
+        semantic_role=str(row["semantic_role"]),
+        is_constraining=(
+            bool(row["is_constraining"]) if row["is_constraining"] is not None else None
+        ),
+        definition_version=int(row["definition_version"]),
+        reset_at=_utc_value(str(row["reset_at"]))
+        if row["reset_at"] is not None
+        else None,
+        reset_precision=row["reset_precision"],
+        registry_revision=int(row["registry_revision"]),
+        projection_version=int(row["projection_version"]),
+        completeness=row["completeness"],
     )
+
+
+def _has_constraint_metadata(connection: Connection) -> bool:
+    return (
+        connection.exec_driver_sql(
+            "SELECT 1 FROM pragma_table_info('capacity_quota_window_definition') WHERE name='is_constraining'"
+        ).scalar_one_or_none()
+        is not None
+    )
+
+
+def _quota_metadata_columns(connection: Connection) -> str:
+    constraint = "d.is_constraining" if _has_constraint_metadata(connection) else "NULL"
+    return (
+        "d.semantic_role, d.definition_version, d.reset_precision, o.reset_at, "
+        "o.completeness, p.registry_revision, p.record_version AS projection_version, "
+        + constraint
+        + " AS is_constraining, "
+    )
+
+
+def _delivery_has_proof_columns(connection: Connection) -> bool:
+    names = set(
+        connection.exec_driver_sql(
+            "SELECT name FROM pragma_table_info('capacity_event_delivery') "
+            "WHERE name IN ('ack_receipt_id','ack_payload_digest')"
+        ).scalars()
+    )
+    return names == {"ack_receipt_id", "ack_payload_digest"}
+
+
+def _event_query_valid(consumer_key: str, after_cursor: str | None, limit: int) -> int:
+    if (
+        not re.fullmatch(r"[A-Za-z0-9_.-]{1,64}", consumer_key)
+        or type(limit) is not int
+        or not 1 <= limit <= 200
+        or after_cursor is not None
+        and not re.fullmatch(r"[0-9]{1,19}", after_cursor)
+    ):
+        raise CapacityRepositoryErrorV1("capacity_event_query_invalid")
+    sequence = int(after_cursor) if after_cursor is not None else 0
+    if not 0 <= sequence <= 9223372036854775807:
+        raise CapacityRepositoryErrorV1("capacity_event_query_invalid")
+    return sequence
+
+
+def _event_record(
+    connection: Connection, row: RowMapping
+) -> DurableEventV1[CapacityCommittedNoticeV1]:
+    if (
+        row["event_type"] != "capacity.committed.v1"
+        or row["event_schema"] != "capacity.committed.v1"
+    ):
+        raise CapacityRepositoryErrorV1("capacity_event_schema_unsupported")
+    versions = (
+        connection.exec_driver_sql(
+            "SELECT DISTINCT r.consumer_version FROM capacity_commit_receipt r, "
+            "json_each(r.event_ids_json) refs WHERE refs.value=?",
+            (row["event_id"],),
+        )
+        .scalars()
+        .all()
+    )
+    if len(versions) != 1:
+        raise CapacityRepositoryErrorV1("capacity_event_producer_version_unknown")
+    policy = CapacityCommittedPayloadPolicyV1()
+    notice = policy.decode(str(row["payload_json"]))
+    return DurableEventV1(
+        EventEnvelopeV1(
+            OpaqueIdV1(str(row["event_id"])),
+            str(row["event_type"]),
+            _utc_value(str(row["occurred_at"])),
+            _utc_value(str(row["recorded_at"])),
+            "capacity",
+            str(versions[0]),
+            OpaqueIdV1(str(row["correlation_id"])),
+            OpaqueIdV1(str(row["causation_id"])) if row["causation_id"] else None,
+            OpaqueIdV1(str(row["subject_id"])),
+        ),
+        1,
+        str(row["projection_stream_key"]),
+        int(row["stream_sequence"]),
+        notice,
+        policy.digest(notice),
+    )
+
+
+def _current_windows(
+    connection: Connection,
+    account_id: OpaqueIdV1,
+    resource_id: OpaqueIdV1,
+    capability_id: str,
+    as_of: datetime,
+) -> tuple[QuotaWindowViewV1, ...]:
+    rows = (
+        connection.exec_driver_sql(
+            "SELECT "
+            + _quota_metadata_columns(connection)
+            + "p.projection_id, p.account_id, p.resource_id, p.freshness_state, d.provider_key, "
+            "d.installation_id, d.native_window_key, d.safe_label, "
+            "o.observation_id, o.collection_run_id, o.observed_at, "
+            "o.collected_at, o.stored_at, p.freshness_deadline, "
+            "p.capability_id, o.capability_schema_version, "
+            "v.adapter_id, v.adapter_version, v.provider_protocol_version, "
+            "v.source_id, v.source_class, v.mechanism_version, "
+            "v.parser_version, v.provider_version, v.freshness_policy_id, "
+            "v.precision AS provenance_precision, v.confidence AS provenance_confidence, "
+            "v.confidence_reason_code, v.experimental, v.decision_reference, p.conflict_state FROM "
+            "capacity_current_projection AS p JOIN capacity_quota_window_definition AS d ON "
+            "d.window_definition_id=p.window_definition_id JOIN capacity_quota_observation AS o ON "
+            "o.observation_id=p.current_observation_id JOIN capacity_observation_provenance AS v ON "
+            "v.provenance_id=o.provenance_id WHERE p.projection_kind='quota' AND p.account_id=? AND "
+            "p.resource_id=? AND p.capability_id=? AND o.collected_at<=? ORDER BY d.native_window_key",
+            (account_id.value, resource_id.value, capability_id, _utc_text(as_of)),
+        )
+        .mappings()
+        .all()
+    )
+    return tuple(_quota_window(connection, row, as_of) for row in rows)
 
 
 def _history_point(row: RowMapping, as_of: datetime) -> CapacityHistoryPointV1:
@@ -290,6 +435,147 @@ class SqliteCapacityRepositoryV1:
 
     def __init__(self, database_ref: DatabaseRefV1) -> None:
         self._database_ref = database_ref
+        self._health_policy = ClassifyCapacityProjectionV1()
+
+    def read_capacity_events(
+        self,
+        consumer_key: str,
+        after_cursor: str | None,
+        as_of: datetime,
+        limit: int = 200,
+    ) -> DurableEventBatchV1[CapacityCommittedNoticeV1]:
+        sequence = _event_query_valid(consumer_key, after_cursor, limit)
+        as_of_text = _utc_text(as_of)
+        try:
+            with open_sqlite_database(
+                self._database_ref, "runtime_read_only"
+            ) as handle:
+                with handle.connect() as connection:
+                    skip_ack = (
+                        " AND NOT EXISTS (SELECT 1 FROM capacity_event_delivery d WHERE "
+                        "d.event_id=e.event_id AND d.consumer_key=? AND d.state='acknowledged' "
+                        "AND d.ack_receipt_id IS NOT NULL AND d.ack_payload_digest IS NOT NULL)"
+                        if _delivery_has_proof_columns(connection)
+                        else ""
+                    )
+                    params: tuple[object, ...] = (sequence, as_of_text)
+                    if skip_ack:
+                        params += (consumer_key,)
+                    params += (limit,)
+                    rows = (
+                        connection.exec_driver_sql(
+                            "SELECT e.* FROM capacity_event_outbox e WHERE e.producer_sequence>? "
+                            "AND e.available_at<=? AND e.event_type='capacity.committed.v1'"
+                            + skip_ack
+                            + " ORDER BY e.producer_sequence LIMIT ?",
+                            params,
+                        )
+                        .mappings()
+                        .all()
+                    )
+                    events = tuple(_event_record(connection, row) for row in rows)
+            return DurableEventBatchV1(
+                events,
+                str(rows[-1]["producer_sequence"]) if rows else after_cursor,
+                QueryAvailabilityV1(
+                    "available", "capacity_event_batch_available", as_of
+                ),
+            )
+        except CapacityRepositoryErrorV1:
+            raise
+        except (SqlitePolicyError, SQLAlchemyError, ValueError, TypeError, KeyError):
+            raise CapacityRepositoryErrorV1("capacity_event_read_unavailable") from None
+
+    def acknowledge_capacity_event(
+        self,
+        consumer_key: str,
+        event_id: OpaqueIdV1,
+        payload_digest: str,
+        receipt_id: OpaqueIdV1,
+        as_of: datetime,
+    ) -> None:
+        _event_query_valid(consumer_key, None, 1)
+        if not re.fullmatch(r"[a-f0-9]{64}", payload_digest):
+            raise CapacityRepositoryErrorV1("capacity_event_digest_invalid")
+        as_of_text = _utc_text(as_of)
+        try:
+            with open_sqlite_database(
+                self._database_ref, "runtime_read_write"
+            ) as handle:
+                with handle.connect() as connection:
+                    connection.exec_driver_sql("BEGIN IMMEDIATE")
+                    if not _delivery_has_proof_columns(connection):
+                        raise CapacityRepositoryErrorV1(
+                            "capacity_event_proof_schema_required"
+                        )
+                    row = (
+                        connection.exec_driver_sql(
+                            "SELECT * FROM capacity_event_outbox WHERE event_id=?",
+                            (event_id.value,),
+                        )
+                        .mappings()
+                        .one_or_none()
+                    )
+                    if row is None:
+                        raise CapacityRepositoryErrorV1("capacity_event_not_found")
+                    event = _event_record(connection, row)
+                    if _utc_value(str(row["available_at"])) > as_of:
+                        raise CapacityRepositoryErrorV1("capacity_event_not_available")
+                    previous = (
+                        connection.exec_driver_sql(
+                            "SELECT * FROM capacity_event_delivery WHERE event_id=? AND consumer_key=?",
+                            (event_id.value, consumer_key),
+                        )
+                        .mappings()
+                        .one_or_none()
+                    )
+                    try:
+                        disposition = CapacityCommittedPayloadPolicyV1().acknowledge(
+                            actual_digest=event.payload_digest,
+                            provided_digest=payload_digest,
+                            receipt_id=receipt_id,
+                            previous_receipt_id=OpaqueIdV1(
+                                str(previous["ack_receipt_id"])
+                            )
+                            if previous is not None
+                            and previous["ack_receipt_id"] is not None
+                            else None,
+                            previous_digest=str(previous["ack_payload_digest"])
+                            if previous is not None
+                            and previous["ack_payload_digest"] is not None
+                            else None,
+                            previously_acknowledged=previous is not None
+                            and previous["state"] == "acknowledged",
+                        )
+                    except InvalidCapacityContractV1 as error:
+                        raise CapacityRepositoryErrorV1(error.code) from None
+                    if disposition == "duplicate":
+                        connection.commit()
+                        return
+                    connection.exec_driver_sql(
+                        "INSERT INTO capacity_event_delivery (event_id,consumer_key,consumer_version,state,"
+                        "attempt_count,delivered_at,acknowledged_at,ack_receipt_id,ack_payload_digest) "
+                        "VALUES (?,?,?,'acknowledged',1,?,?,?,?) ON CONFLICT(event_id,consumer_key) "
+                        "DO UPDATE SET state='acknowledged',attempt_count=capacity_event_delivery.attempt_count+1,"
+                        "delivered_at=excluded.delivered_at,acknowledged_at=excluded.acknowledged_at,"
+                        "ack_receipt_id=excluded.ack_receipt_id,ack_payload_digest=excluded.ack_payload_digest",
+                        (
+                            event_id.value,
+                            consumer_key,
+                            "unknown",
+                            as_of_text,
+                            as_of_text,
+                            receipt_id.value,
+                            payload_digest,
+                        ),
+                    )
+                    connection.commit()
+        except CapacityRepositoryErrorV1:
+            raise
+        except (SqlitePolicyError, SQLAlchemyError, ValueError, TypeError, KeyError):
+            raise CapacityRepositoryErrorV1(
+                "capacity_event_acknowledgement_unavailable"
+            ) from None
 
     def get_commit_status(
         self, run_id: OpaqueIdV1, capability_id: str
@@ -333,41 +619,13 @@ class SqliteCapacityRepositoryV1:
                 self._database_ref, "runtime_read_only"
             ) as handle:
                 with handle.connect() as connection:
-                    rows = (
-                        connection.exec_driver_sql(
-                            "SELECT p.projection_id, p.account_id, p.resource_id, p.freshness_state, d.provider_key, "
-                            "d.installation_id, d.native_window_key, d.safe_label, "
-                            "o.observation_id, o.collection_run_id, o.observed_at, "
-                            "o.collected_at, o.stored_at, p.freshness_deadline, "
-                            "p.capability_id, o.capability_schema_version, "
-                            "v.adapter_id, v.adapter_version, v.provider_protocol_version, "
-                            "v.source_id, v.source_class, v.mechanism_version, "
-                            "v.parser_version, v.provider_version, v.freshness_policy_id, "
-                            "v.precision AS provenance_precision, "
-                            "v.confidence AS provenance_confidence, "
-                            "v.confidence_reason_code, "
-                            "v.experimental, v.decision_reference, p.conflict_state FROM "
-                            "capacity_current_projection AS p JOIN "
-                            "capacity_quota_window_definition AS d ON "
-                            "d.window_definition_id=p.window_definition_id JOIN "
-                            "capacity_quota_observation AS o ON "
-                            "o.observation_id=p.current_observation_id JOIN "
-                            "capacity_observation_provenance AS v ON "
-                            "v.provenance_id=o.provenance_id WHERE "
-                            "p.projection_kind='quota' AND p.account_id=? AND "
-                            "p.resource_id=? AND p.capability_id=? AND "
-                            "o.collected_at<=? ORDER BY d.native_window_key",
-                            (
-                                account_id.value,
-                                resource_id.value,
-                                capability_id,
-                                _utc_text(as_of),
-                            ),
-                        )
-                        .mappings()
-                        .all()
+                    return _current_windows(
+                        connection,
+                        account_id,
+                        resource_id,
+                        capability_id,
+                        as_of,
                     )
-                    return tuple(_quota_window(connection, row, as_of) for row in rows)
         except (SqlitePolicyError, SQLAlchemyError, KeyError, ValueError, TypeError):
             raise CapacityRepositoryErrorV1() from None
 
@@ -420,6 +678,30 @@ class SqliteCapacityRepositoryV1:
         page_size: int,
         after_key: str | None,
     ) -> tuple[QuotaWindowViewV1, ...]:
+        return self._page_current_windows(account_id, as_of, page_size, after_key)
+
+    def page_capacity_alert_windows(
+        self, query: CapacityAlertConditionQueryV1, page_size: int
+    ) -> tuple[QuotaWindowViewV1, ...]:
+        return self._page_current_windows(
+            query.account_id,
+            query.as_of,
+            page_size,
+            query.after_key,
+            resource_id=query.resource_id,
+            window_id=query.window_id,
+        )
+
+    def _page_current_windows(
+        self,
+        account_id: OpaqueIdV1,
+        as_of: datetime,
+        page_size: int,
+        after_key: str | None,
+        *,
+        resource_id: OpaqueIdV1 | None = None,
+        window_id: OpaqueIdV1 | None = None,
+    ) -> tuple[QuotaWindowViewV1, ...]:
         if type(page_size) is not int or not 1 <= page_size <= 201:
             raise CapacityRepositoryErrorV1("capacity_query_invalid")
         try:
@@ -429,7 +711,9 @@ class SqliteCapacityRepositoryV1:
                 with handle.connect() as connection:
                     rows = (
                         connection.exec_driver_sql(
-                            "SELECT p.projection_id, p.account_id, p.resource_id, p.freshness_state, "
+                            "SELECT "
+                            + _quota_metadata_columns(connection)
+                            + "p.projection_id, p.account_id, p.resource_id, p.freshness_state, "
                             "d.provider_key, d.installation_id, d.native_window_key, d.safe_label, "
                             "o.observation_id, o.collection_run_id, o.observed_at, o.collected_at, "
                             "o.stored_at, p.freshness_deadline, p.capability_id, "
@@ -447,6 +731,7 @@ class SqliteCapacityRepositoryV1:
                             "capacity_observation_provenance AS v ON "
                             "v.provenance_id=o.provenance_id WHERE p.projection_kind='quota' "
                             "AND p.account_id=? AND o.collected_at<=? AND (? IS NULL OR "
+                            "p.resource_id=?) AND (? IS NULL OR p.projection_id=?) AND (? IS NULL OR "
                             "(p.resource_id, d.native_window_key, p.projection_id) > ("
                             "SELECT p2.resource_id, d2.native_window_key, p2.projection_id FROM "
                             "capacity_current_projection p2 JOIN capacity_quota_window_definition d2 "
@@ -455,6 +740,10 @@ class SqliteCapacityRepositoryV1:
                             (
                                 account_id.value,
                                 _utc_text(as_of),
+                                resource_id.value if resource_id else None,
+                                resource_id.value if resource_id else None,
+                                window_id.value if window_id else None,
+                                window_id.value if window_id else None,
                                 after_key,
                                 after_key,
                                 page_size,
@@ -473,6 +762,8 @@ class SqliteCapacityRepositoryV1:
         self,
         query: CapacityHistoryQueryV1,
         page_size: int,
+        *,
+        _recent: bool = False,
     ) -> tuple[CapacityHistoryPointV1, ...]:
         """Read one exact immutable quota series without collecting or deriving."""
         if (
@@ -538,8 +829,12 @@ class SqliteCapacityRepositoryV1:
                             "capacity_quota_observation AS cursor_observation "
                             "WHERE cursor_observation.observation_id=? AND "
                             "cursor_observation.observed_at IS NOT NULL)) "
-                            "ORDER BY o.observed_at, o.observation_id "
-                            "LIMIT ?",
+                            + (
+                                "ORDER BY o.observed_at DESC, o.observation_id DESC "
+                                if _recent
+                                else "ORDER BY o.observed_at, o.observation_id "
+                            )
+                            + "LIMIT ?",
                             (
                                 query.subject_id.value,
                                 query.metric,
@@ -580,6 +875,17 @@ class SqliteCapacityRepositoryV1:
             raise
         except (SqlitePolicyError, SQLAlchemyError, KeyError, ValueError, TypeError):
             raise CapacityRepositoryErrorV1() from None
+
+    def recent_capacity_history(
+        self,
+        query: CapacityHistoryQueryV1,
+        page_size: int,
+    ) -> tuple[CapacityHistoryPointV1, ...]:
+        if query.after_key is not None:
+            raise CapacityRepositoryErrorV1("capacity_forecast_cursor_invalid")
+        return tuple(
+            reversed(self.page_capacity_history(query, page_size, _recent=True))
+        )
 
     def list_account_capacities(
         self, account_id: OpaqueIdV1, as_of: datetime
@@ -639,29 +945,16 @@ class SqliteCapacityRepositoryV1:
                     )
                     if row is None:
                         raise CapacityRepositoryErrorV1("capacity_health_not_found")
-                    explanations = json.loads(str(row["explanation_codes_json"]))
-                    if not isinstance(explanations, list) or not all(
-                        isinstance(value, str) for value in explanations
-                    ):
-                        raise CapacityRepositoryErrorV1()
-                    return CapacityHealthViewV1(
-                        state=row["health_state"],
-                        completeness=row["completeness"],
-                        freshness=(
-                            "stale"
-                            if row["valid_until"] is not None
-                            and _utc_value(str(row["valid_until"])) <= as_of
-                            else row["freshness_state"]
-                        ),
-                        constraining_window_id=(
-                            str(row["constraining_window_definition_id"])
-                            if row["constraining_window_definition_id"] is not None
-                            else None
-                        ),
-                        policy_id=str(row["policy_id"]),
-                        policy_version=str(row["policy_version"]),
-                        explanation_codes=tuple(explanations),
+                    windows = _current_windows(
+                        connection,
+                        account_id,
+                        resource_id,
+                        capability_id,
+                        as_of,
                     )
+                    if not windows:
+                        raise CapacityRepositoryErrorV1("capacity_health_not_found")
+                    return self._health_policy(windows)
         except CapacityRepositoryErrorV1:
             raise
         except (SqlitePolicyError, SQLAlchemyError, ValueError, TypeError):
@@ -729,6 +1022,10 @@ class SqliteCapacityRepositoryV1:
     ) -> CapacityCommitReceiptV1:
         payload = request.payload
         provenance = request.provenance
+        if not _has_constraint_metadata(connection):
+            raise CapacityRepositoryErrorV1(
+                "capacity_projection_metadata_schema_required"
+            )
         if (
             payload.subject.provider_key != provenance.provider_key
             or request.capability_id != provenance.capability_id
@@ -821,6 +1118,7 @@ class SqliteCapacityRepositoryV1:
                     latest_definition["native_unit"] == native_unit,
                     latest_definition["reset_at"] == reset_text,
                     latest_definition["reset_precision"] == window.reset_precision,
+                    latest_definition["is_constraining"] == int(window.is_constraining),
                 )
             )
             if same_semantics and latest_definition is not None:
@@ -879,6 +1177,10 @@ class SqliteCapacityRepositoryV1:
                         stored_text,
                         stored_text,
                     ),
+                )
+                connection.exec_driver_sql(
+                    "UPDATE capacity_quota_window_definition SET is_constraining=? WHERE window_definition_id=?",
+                    (int(window.is_constraining), window_definition_id),
                 )
             observation_id = OpaqueIdV1(_identifier())
             observation_ids.append(observation_id)
@@ -1032,6 +1334,31 @@ class SqliteCapacityRepositoryV1:
                     "record_version=record_version+1 WHERE projection_key=?",
                     (stored_text, stored_text, projection_key),
                 )
+        current_windows = _current_windows(
+            connection,
+            payload.subject.account_id,
+            payload.subject.resource_id,
+            request.capability_id,
+            stored_at,
+        )
+        health = self._health_policy(current_windows)
+        policy = self._health_policy.policy
+        constraining_definition = (
+            connection.exec_driver_sql(
+                "SELECT window_definition_id FROM capacity_current_projection WHERE projection_id=?",
+                (health.constraining_window_id,),
+            ).scalar_one_or_none()
+            if health.constraining_window_id is not None
+            else None
+        )
+        deadlines = tuple(
+            window.provenance.freshness_deadline for window in current_windows
+        )
+        valid_until = (
+            min(deadline for deadline in deadlines if deadline is not None)
+            if deadlines and all(deadline is not None for deadline in deadlines)
+            else None
+        )
         health_projection_id = _stable_identifier(
             "health",
             payload.subject.provider_key,
@@ -1039,48 +1366,83 @@ class SqliteCapacityRepositoryV1:
             payload.subject.resource_id.value,
             request.capability_id,
         )
+        columns = (
+            "health_projection_id",
+            "provider_key",
+            "account_id",
+            "resource_id",
+            "capability_id",
+            "subject_scope_kind",
+            "subject_scope_id",
+            "health_state",
+            "completeness",
+            "freshness_state",
+            "constraining_window_definition_id",
+            "constraining_resource_id",
+            "policy_id",
+            "policy_version",
+            "constrained_coefficient",
+            "constrained_scale",
+            "critical_coefficient",
+            "critical_scale",
+            "availability_signal_id",
+            "availability_signal_generation",
+            "input_set_digest",
+            "derivation_id",
+            "explanation_codes_json",
+            "evaluated_at",
+            "valid_until",
+            "updated_at",
+            "projected_at",
+            "record_version",
+        )
+        input_digest = hashlib.sha256(
+            "\x1f".join(
+                sorted(
+                    window.current_observation_id.value for window in current_windows
+                )
+            ).encode()
+        ).hexdigest()
+        values = (
+            health_projection_id,
+            payload.subject.provider_key,
+            payload.subject.account_id.value,
+            payload.subject.resource_id.value,
+            request.capability_id,
+            "resource",
+            payload.subject.resource_id.value,
+            health.state,
+            health.completeness,
+            health.freshness,
+            constraining_definition,
+            payload.subject.resource_id.value if constraining_definition else None,
+            policy.policy_id,
+            policy.policy_version,
+            policy.constrained_remaining_ratio.coefficient,
+            policy.constrained_remaining_ratio.scale,
+            policy.critical_remaining_ratio.coefficient,
+            policy.critical_remaining_ratio.scale,
+            None,
+            None,
+            input_digest,
+            None,
+            json.dumps(health.explanation_codes, separators=(",", ":")),
+            stored_text,
+            _utc_text(valid_until) if valid_until else None,
+            stored_text,
+            stored_text,
+            1,
+        )
+        updates = ", ".join(column + "=excluded." + column for column in columns[7:-1])
         connection.exec_driver_sql(
-            "INSERT INTO capacity_health_projection "
-            "(health_projection_id, provider_key, account_id, resource_id, "
-            "capability_id, subject_scope_kind, subject_scope_id, health_state, "
-            "completeness, freshness_state, constraining_window_definition_id, "
-            "constraining_resource_id, policy_id, policy_version, "
-            "constrained_coefficient, constrained_scale, critical_coefficient, "
-            "critical_scale, availability_signal_id, "
-            "availability_signal_generation, input_set_digest, derivation_id, "
-            "explanation_codes_json, evaluated_at, valid_until, updated_at, "
-            "projected_at, record_version) VALUES (?, ?, ?, ?, ?, 'resource', ?, "
-            "'unknown', ?, ?, NULL, NULL, 'capacity-health-unconfigured', '1.0.0', "
-            "NULL, NULL, NULL, NULL, NULL, NULL, ?, NULL, ?, ?, NULL, ?, ?, 1) "
-            "ON CONFLICT(provider_key, account_id, resource_id, capability_id) "
-            "DO UPDATE SET completeness=excluded.completeness, "
-            "freshness_state=excluded.freshness_state, "
-            "input_set_digest=excluded.input_set_digest, "
-            "explanation_codes_json=excluded.explanation_codes_json, "
-            "evaluated_at=excluded.evaluated_at, updated_at=excluded.updated_at, "
-            "projected_at=excluded.projected_at, "
-            "record_version=capacity_health_projection.record_version+1",
-            (
-                health_projection_id,
-                payload.subject.provider_key,
-                payload.subject.account_id.value,
-                payload.subject.resource_id.value,
-                request.capability_id,
-                payload.subject.resource_id.value,
-                ("complete" if payload.completeness == "complete_scope" else "partial"),
-                (
-                    "stale"
-                    if provenance.freshness_availability.state == "stale"
-                    else "fresh"
-                    if provenance.freshness_deadline is not None
-                    else "freshness_unknown"
-                ),
-                request.payload_digest,
-                '["no_configured_health_policy"]',
-                stored_text,
-                stored_text,
-                stored_text,
-            ),
+            "INSERT INTO capacity_health_projection ("
+            + ", ".join(columns)
+            + ") VALUES ("
+            + ", ".join("?" for _ in columns)
+            + ") ON CONFLICT(provider_key, account_id, resource_id, capability_id) DO UPDATE SET "
+            + updates
+            + ", record_version=capacity_health_projection.record_version+1",
+            values,
         )
         producer_sequence = int(
             connection.exec_driver_sql(

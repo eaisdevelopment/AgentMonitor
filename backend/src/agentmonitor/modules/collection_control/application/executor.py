@@ -7,6 +7,7 @@ from typing import Protocol
 from agentmonitor.contracts.collection_control_v1 import (
     CollectionCommitReceiptV1,
     CollectionFailedV1,
+    CollectionFailurePolicyV1,
     CollectionOutcomeCommitPortV1,
     CollectionOutcomeCommitV1,
     CollectionRunAdmissionV1,
@@ -56,7 +57,11 @@ class CollectionRunRepositoryV1(Protocol):
     ) -> None: ...
 
     def finalize_failed(
-        self, failure: CollectionFailedV1, *, fencing_token: int
+        self,
+        failure: CollectionFailedV1,
+        *,
+        fencing_token: int,
+        provider_policy: CollectionFailurePolicyV1 | None = None,
     ) -> None: ...
 
     def finalize_interrupted(
@@ -117,7 +122,14 @@ class ExecuteCollectionRunV1[SourceT: TechnicalValueV1, PayloadT: TechnicalValue
             if outcome.run_id != admission.run_id:
                 raise CollectionExecutionErrorV1("collection_outcome_run_mismatch")
             self._repository.finalize_failed(
-                outcome, fencing_token=admitted.fencing_token
+                outcome,
+                fencing_token=admitted.fencing_token,
+                provider_policy=(
+                    CollectionFailurePolicyV1(collected.state, collected.error.retry)
+                    if collected.error is not None
+                    and collected.state not in {"success", "partial"}
+                    else None
+                ),
             )
             return outcome
         if (

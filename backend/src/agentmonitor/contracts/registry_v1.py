@@ -723,3 +723,31 @@ class AlertScopeAndSubjectQueryV1(Protocol):
     def __call__(
         self, scope_kind: RegistryScopeKindV1, scope_id: OpaqueIdV1 | None = None
     ) -> RegistryScopeSnapshotV1: ...
+
+
+@dataclass(frozen=True, slots=True)
+class AlertSubjectScopeV1(TechnicalValueV1):
+    CONTRACT_ID: ClassVar[str] = "CTR-REG-009"
+    OWNER: ClassVar[str] = "PLAN-M02"
+    account_id: OpaqueIdV1
+    provider_key: str
+    organization_id: OpaqueIdV1 | None
+    eligible: bool
+    registry_revision: int
+
+    def __post_init__(self) -> None:
+        TechnicalValueV1.__post_init__(self)
+        if (
+            not _bounded(self.provider_key, maximum=64)
+            or type(self.eligible) is not bool
+        ):
+            raise ValueError("registry_alert_subject_invalid")
+        if type(self.registry_revision) is not int or self.registry_revision < 1:
+            raise ValueError("registry_version_invalid")
+
+
+class ResolveAlertSubjectScopeV1(Protocol):
+    CONTRACT_ID: ClassVar[str] = "CTR-REG-009"
+    OWNER: ClassVar[str] = "PLAN-M02"
+
+    def __call__(self, account_id: OpaqueIdV1) -> AlertSubjectScopeV1 | None: ...

@@ -14,6 +14,7 @@ from agentmonitor.adapters.persistence._shared.sqlite.core.policy import (
 from agentmonitor.contracts.collection_control_v1 import (
     CollectionCommitReceiptV1,
     CollectionFailedV1,
+    CollectionFailurePolicyV1,
     CollectionRunAdmissionV1,
     CollectionRunViewV1,
 )
@@ -817,7 +818,11 @@ class SqliteCollectionRepositoryV1:
         )
 
     def finalize_failed(
-        self, failure: CollectionFailedV1, *, fencing_token: int
+        self,
+        failure: CollectionFailedV1,
+        *,
+        fencing_token: int,
+        provider_policy: CollectionFailurePolicyV1 | None = None,
     ) -> None:
         self._transition(
             failure.run_id,
@@ -827,6 +832,7 @@ class SqliteCollectionRepositoryV1:
             terminal_code=failure.error_code,
             receipt=None,
             fencing_token=fencing_token,
+            provider_policy=provider_policy,
         )
 
     def finalize_interrupted(
@@ -853,6 +859,7 @@ class SqliteCollectionRepositoryV1:
         receipt: CollectionCommitReceiptV1 | None,
         fencing_token: int,
         payload_digest: str | None = None,
+        provider_policy: CollectionFailurePolicyV1 | None = None,
     ) -> None:
         try:
             with open_sqlite_database(
@@ -915,6 +922,27 @@ class SqliteCollectionRepositoryV1:
                                 run_id.value,
                             ),
                         )
+                        if provider_policy is not None:
+                            retry = provider_policy.retry
+                            advised_after = (
+                                instant + timedelta(seconds=retry.delay_seconds)
+                                if retry.delay_seconds is not None
+                                else None
+                            )
+                            connection.exec_driver_sql(
+                                "UPDATE collection_run SET provider_outcome_state=?, "
+                                "retry_disposition=?,retry_eligible=?,retry_after=? "
+                                "WHERE run_id=?",
+                                (
+                                    provider_policy.provider_outcome,
+                                    retry.disposition,
+                                    int(retry.disposition == "after_delay"),
+                                    _utc_text(advised_after)
+                                    if advised_after is not None
+                                    else None,
+                                    run_id.value,
+                                ),
+                            )
                         if state == "running":
                             connection.exec_driver_sql(
                                 "UPDATE collection_budget_reservation SET "

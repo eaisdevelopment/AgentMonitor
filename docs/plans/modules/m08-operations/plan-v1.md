@@ -20,6 +20,12 @@ All schemas, paths, configuration names, schedules, and commands below are propo
 
 ## CS-1 Draft-alignment addendum
 
+M4 focused synchronization, 2026-09-29: the separately approved
+[operations increment](../../integration/m4-operations-change.md) consumes
+`CTR-FND-002` through its immutable in-process lifecycle snapshot query for
+liveness. It imports the published contract, never a foundation runtime object
+or resource handle. This focused authority does not approve this whole Draft.
+
 This `0.2.0-draft` revision adopts contract-baseline `0.2.0` and the parallel-ownership manifest as its concrete CS-1 review position. It remains Draft; no operational command exists, every scenario is `Not Run`, and backup, restore, migration, service, or data authority is absent.
 
 - M08 is the sole semantic producer of CTR-OPS-001..007 and CTR-APP-001. CTR-OPS-007 defines the common retention preview/purge, export-record query, and post-restore consistency participant protocol; M01–M07 implement their own semantics and table transactions. CTR-APP-001 is a bounded read-only dashboard overview fan-in over published query ports; it creates no new domain truth, cross-module transaction, or client-side join.
@@ -1444,3 +1450,12 @@ Until every applicable item is checked, M08 is **Not Ready for implementation**.
 | Dependency/license reviewer | Pending | scanner/shared tool/runtime admission | — | — |
 
 Approval authorizes only a later explicit implementation task packet. It does not authorize backup, restore, migration, deployment, provider access, dependency installation, `.env` creation, destructive testing, Git/GitLab mutation, or external publication.
+
+
+### Focused M4 overview adoption
+
+The approved M4 operations packet publishes APP-001 using the actual REG-009
+registry scope snapshot and ALERT-005 dashboard notification counts. M08
+consumes both V1 contracts for typed bounded projections; it does not query
+producer tables or infer missing section values. Full master approval remains
+Draft; this adoption is confined to the approved focused M4 implementation.

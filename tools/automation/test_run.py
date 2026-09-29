@@ -23,6 +23,41 @@ from run import index_routines, load_catalog, validate_catalog  # noqa: E402
 
 
 class AutomationRoutineTests(unittest.TestCase):
+    def test_m4_exit_without_real_selectors_never_claims_completion(self) -> None:
+        """The actual milestone gate must reject absent genuine live resources."""
+        catalog = load_catalog(REPOSITORY_ROOT)
+        routine = catalog["AUTO-M4-EXIT"]
+        self.assertEqual("operational", routine["status"])
+        result = subprocess.run(
+            [sys.executable, str(RUNNER), "AUTO-M4-EXIT"],
+            cwd=REPOSITORY_ROOT,
+            env={"PATH": os.defpath},
+            capture_output=True,
+            text=True,
+            check=False,
+            timeout=15,
+        )
+        self.assertIn(result.returncode, (1, 3), result.stdout + result.stderr)
+        self.assertNotIn("PASSED", result.stdout)
+        self.assertIn("M4 EXIT:", result.stdout)
+
+    def test_mutation_baseline_runs_without_caller_pythonpath(self) -> None:
+        """The actual selected policy suite must run in a clean caller context."""
+        sys.path.insert(0, str(REPOSITORY_ROOT / "tools/automation/implementations"))
+        from auto_mutation import baseline_policy_command
+
+        result = subprocess.run(
+            baseline_policy_command(),
+            cwd=REPOSITORY_ROOT,
+            env={"PATH": os.defpath, "PYTHONHASHSEED": "0"},
+            capture_output=True,
+            text=True,
+            check=False,
+            timeout=30,
+        )
+        self.assertEqual(0, result.returncode, result.stdout + result.stderr)
+        self.assertIn("passed", result.stdout)
+
     def test_m2_local_suite_selection_covers_real_backend_and_browser_boundaries(
         self,
     ) -> None:
@@ -816,6 +851,7 @@ class AutomationRoutineTests(unittest.TestCase):
                 "AUTO-DOCS-CHECK",
                 "AUTO-M3-LIVE",
                 "AUTO-M3-EXIT",
+                "AUTO-M4-EXIT",
                 "AUTO-CLAUDE-POLL",
                 "AUTO-CLAUDE-MANAGED",
                 "AUTO-CLAUDE-CONNECT",

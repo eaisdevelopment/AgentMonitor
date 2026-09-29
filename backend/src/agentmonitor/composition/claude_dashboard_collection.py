@@ -51,6 +51,7 @@ from agentmonitor.contracts.registry_v1 import (
 )
 from agentmonitor.modules.collection_control.application.queries import (
     GetLatestSourceRunV1,
+    eligible_run_for_readonly_reattest_v1,
     source_poll_is_due_v1,
 )
 from agentmonitor.modules.collection_control.application.runner import (
@@ -78,6 +79,7 @@ class ClaudeDashboardCollectorV1:
         self._verified_identities: dict[OpaqueIdV1, VerifiedQuotaIdentityV1] = {}
         self._managed_profiles_root = managed_profiles_root
         self._next_target = 0
+        self._next_attestation_target = 0
 
     def read_verified_identity(
         self, account_id: OpaqueIdV1
@@ -144,6 +146,12 @@ class ClaudeDashboardCollectorV1:
         targets = self._targets()
         if not targets:
             return "claude_poll_no_enabled_target"
+        try:
+            self._reattest_one_current_target(targets)
+        except (OSError, RuntimeError, ValueError):
+            # Identity read failure leaves this account unresolved; it must
+            # not postpone another account's due native quota collection.
+            pass
         blocked = False
         for offset in range(len(targets)):
             index = (self._next_target + offset) % len(targets)
@@ -174,6 +182,103 @@ class ClaudeDashboardCollectorV1:
                 latest and latest.state not in {"succeeded", "partial"}
             )
         return "claude_poll_blocked" if blocked else "claude_poll_waiting"
+
+    def _reattest_one_current_target(
+        self,
+        targets: tuple[
+            tuple[AccountViewV1, MonitoringProfileViewV1, AccountResourceViewV1], ...
+        ],
+    ) -> None:
+        """Re-read auth status, never quota, for one not-due persisted run.
+
+        A verified M02 fingerprint claim is mandatory for both managed and
+        protected-default profiles. The legacy default account without that
+        exact claim remains unresolved until an approved owner confirmation.
+        """
+        minimum_ms = (
+            build_claude_manifest().declarations[0].constraints.minimum_interval_ms
+        )
+        if minimum_ms is None:
+            return
+        for offset in range(len(targets)):
+            index = (self._next_attestation_target + offset) % len(targets)
+            account, profile, resource = targets[index]
+            if account.account_id in self._verified_identities:
+                continue
+            now = datetime.now(UTC)
+            latest = GetLatestSourceRunV1(self._collection)(
+                "claude",
+                "subscription.quota",
+                CLAUDE_USAGE_SOURCE_ID,
+                now,
+                account_id=account.account_id,
+            )
+            if not eligible_run_for_readonly_reattest_v1(
+                latest,
+                account_id=account.account_id,
+                resource_id=resource.resource_id,
+                provider_key="claude",
+                capability_id="subscription.quota",
+                source_id=CLAUDE_USAGE_SOURCE_ID,
+                as_of=now,
+                is_due=source_poll_is_due_v1(now, latest, minimum_ms),
+            ):
+                continue
+            assert latest is not None
+            self._next_attestation_target = (index + 1) % len(targets)
+            installation = discover_default_installation()
+            managed_root = (
+                self._managed_profiles_root
+                / hashlib.sha256(account.account_id.value.encode()).hexdigest()
+                if profile.management_state == "managed"
+                and self._managed_profiles_root is not None
+                else None
+            )
+            if profile.management_state == "managed" and managed_root is None:
+                return
+            identity = read_default_profile_identity_v1(
+                installation, managed_profile_root=managed_root
+            )
+            if (
+                identity is None
+                or identity.provider_version != latest.provider_version
+                or latest.adapter_version != CLAUDE_ADAPTER_VERSION
+                or not managed_identity_matches_account_v1(
+                    self._registry, account.account_id, identity
+                )
+                or (account, profile, resource) not in self._targets()
+            ):
+                return
+            checked_at = datetime.now(UTC)
+            current = GetLatestSourceRunV1(self._collection)(
+                "claude",
+                "subscription.quota",
+                CLAUDE_USAGE_SOURCE_ID,
+                checked_at,
+                account_id=account.account_id,
+            )
+            if (
+                current is None
+                or current.run_id != latest.run_id
+                or not eligible_run_for_readonly_reattest_v1(
+                    current,
+                    account_id=account.account_id,
+                    resource_id=resource.resource_id,
+                    provider_key="claude",
+                    capability_id="subscription.quota",
+                    source_id=CLAUDE_USAGE_SOURCE_ID,
+                    as_of=checked_at,
+                    is_due=source_poll_is_due_v1(checked_at, current, minimum_ms),
+                )
+            ):
+                return
+            self._verified_identities[account.account_id] = VerifiedQuotaIdentityV1(
+                account.account_id,
+                current.run_id,
+                identity,
+                "managed" if managed_root is not None else "protected_default",
+            )
+            return
 
     def _collect_target(
         self,
@@ -220,13 +325,13 @@ class ClaudeDashboardCollectorV1:
         before = read_default_profile_identity_v1(
             installation, managed_profile_root=managed_root
         )
-        self._verified_identities.pop(account.account_id, None)
         if managed_root is not None and (
             before is None
             or not managed_identity_matches_account_v1(
                 self._registry, account.account_id, before
             )
         ):
+            self._verified_identities.pop(account.account_id, None)
             return "claude_poll_managed_identity_blocked"
         key = _digest(
             "claude",
@@ -314,9 +419,8 @@ class ClaudeDashboardCollectorV1:
         after = read_default_profile_identity_v1(
             installation, managed_profile_root=managed_root
         )
-        if (
-            not isinstance(result, CollectionFailedV1)
-            and before is not None
+        identity_is_stable = (
+            before is not None
             and after is not None
             and before.fingerprint == after.fingerprint
             and (
@@ -325,13 +429,17 @@ class ClaudeDashboardCollectorV1:
                     self._registry, account.account_id, after
                 )
             )
-        ):
+        )
+        if not isinstance(result, CollectionFailedV1) and identity_is_stable:
+            assert after is not None
             self._verified_identities[account.account_id] = VerifiedQuotaIdentityV1(
                 account.account_id,
                 OpaqueIdV1(run_id),
                 after,
                 "managed" if managed_root is not None else "protected_default",
             )
+        elif not identity_is_stable:
+            self._verified_identities.pop(account.account_id, None)
         return (
             "claude_poll_failed"
             if isinstance(result, CollectionFailedV1)
@@ -353,4 +461,8 @@ class ClaudeDashboardCollectorV1:
             if status != previous:
                 print(json.dumps({"event": status}), flush=True)
                 previous = status
-            await asyncio.sleep(5)
+            # The admitted source interval is measured between invocation
+            # starts. A short scheduler tick keeps the next genuine reading
+            # inside the prior five-minute freshness lease without polling
+            # the provider before its 300-second minimum.
+            await asyncio.sleep(1)

@@ -9,6 +9,9 @@ from agentmonitor.contracts.common_v1 import (
     QueryAvailabilityV1,
     QueryPageV1,
 )
+from agentmonitor.modules.collection_control.domain.identity_attestation import (
+    eligible_run_for_readonly_reattest_v1 as eligible_run_for_readonly_reattest_v1,
+)
 from agentmonitor.modules.collection_control.domain.policy import (
     CollectionCadencePolicyV1,
     effective_interval_seconds,
@@ -31,7 +34,7 @@ def source_poll_is_due_v1(
     )
     return poll_is_due(
         now,
-        (latest.completed_at or latest.requested_at) if latest else None,
+        (latest.started_at or latest.requested_at) if latest else None,
         latest.state if latest else None,
         interval,
         transient_read_failure=transient_read_failure,

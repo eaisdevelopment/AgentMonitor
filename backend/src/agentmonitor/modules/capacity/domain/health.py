@@ -1,23 +1,85 @@
 """Pure M05 capacity-health classification over exact normalized inputs."""
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
+from decimal import Decimal
 from typing import Literal
 
 from agentmonitor.contracts.capacity_v1 import (
     CapacityHealthPolicyV1,
     CapacityHealthStateV1,
     CapacityHealthViewV1,
+    QuotaWindowViewV1,
 )
 from agentmonitor.contracts.common_quantity_v1 import CanonicalDecimalV1
+from agentmonitor.modules.capacity.domain.allowance import remaining_percentage_v1
 
 FreshnessV1 = Literal["fresh", "stale", "freshness_unknown", "conflicted"]
+WindowFreshnessV1 = Literal[
+    "fresh", "stale", "freshness_unknown", "conflicted", "no_observation"
+]
+
+
+def default_capacity_health_policy_v1() -> CapacityHealthPolicyV1:
+    """M05 classification defaults; M07 settings never supply this policy."""
+    return CapacityHealthPolicyV1(
+        "capacity-health-default-v1",
+        "1.0.0",
+        CanonicalDecimalV1.from_decimal(Decimal("0.30")),
+        CanonicalDecimalV1.from_decimal(Decimal("0.15")),
+    )
+
+
+def classify_capacity_windows_v1(
+    windows: tuple[QuotaWindowViewV1, ...],
+    *,
+    policy: CapacityHealthPolicyV1,
+    is_reauthentication_required: bool = False,
+) -> CapacityHealthViewV1:
+    """Select independent constraints using stored metadata and exact lineage."""
+    constraints = []
+    for window in windows:
+        remaining = remaining_percentage_v1(window.used, window.remaining_ratio)
+        ratio = (
+            CanonicalDecimalV1.from_decimal(
+                remaining[0].value.as_decimal() / Decimal(100)
+            )
+            if remaining is not None
+            and remaining[0].value is not None
+            and window.is_constraining is True
+            else None
+        )
+        constraints.append(
+            CapacityConstraintInputV1(
+                window.window_id.value,
+                ratio,
+                window.freshness,
+                window.is_constraining is not False,
+            )
+        )
+    result = classify_capacity_health(
+        tuple(constraints),
+        policy=policy,
+        is_reauthentication_required=is_reauthentication_required,
+    )
+    if (
+        windows
+        and any(window.completeness != "complete" for window in windows)
+        and result.state != "reauthentication_required"
+    ):
+        result = replace(
+            result,
+            state="unknown" if result.state == "available" else result.state,
+            completeness="partial",
+            explanation_codes=("incomplete_constraints",),
+        )
+    return result
 
 
 @dataclass(frozen=True, slots=True)
 class CapacityConstraintInputV1:
     window_id: str
     remaining_ratio: CanonicalDecimalV1 | None
-    freshness: FreshnessV1
+    freshness: WindowFreshnessV1
     is_constraining: bool
 
 

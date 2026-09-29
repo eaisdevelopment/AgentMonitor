@@ -14,8 +14,9 @@ The authenticated service polls the one eligible, unambiguous, owner-confirmed
 Claude default profile independently of the browser. It reads account, profile,
 resource, and organization relationships from the admin registry. Enabling or
 disabling monitoring controls eligibility for subsequent attempts. The source
-minimum is 300 seconds after the preceding successful attempt completes;
-durable M04 runs preserve that interval across service restarts. Failed,
+minimum is 300 seconds between actual attempt starts; time spent finishing a
+run does not extend that source constraint. Durable M04 runs preserve that
+interval across service restarts. Failed,
 blocked, or incomplete attempts are not automatically retried against the
 adapter's no-retry advice. A failed observation never becomes fresh telemetry.
 
@@ -36,6 +37,7 @@ it applies no migration or DDL.
 | SQLite journal recovery | The first collecting implementation saved real fresh quota but failed its second startup with `database_locked`. The same live scenario passed after the exclusive-lock checkpoint; a second real empty file SQLite restart scenario also passed. |
 | Automatic browser refresh | Red: built Chrome `accounts_admin` timed out after 35 seconds at `automatic_capacity_refresh`. Green: the same scenario observed a real subsequent capacity GET with HTTP 200 after the new production build. No request interception or generated telemetry. |
 | Pure scheduling policy | Nine domain tests cover first attempt, the 299/300-second boundary, partial success, failure/incomplete blocking, and invalid input pairs. Constructed inputs have no I/O. |
+| Fleet freshness boundary | Red: the full M4 gate returned `244 passed, 2 failed` when one healthy account's windows expired before its next permitted read; the fleet lineage assertion saw `stale` and the organization aggregate truthfully reported `missing`. A new pure assertion then failed because cadence was anchored to run completion. Green: cadence is anchored to the persisted attempt start, the scheduler checks once per second, the focused collection suite returned `13 passed, 3 skipped`, and the unchanged real M4 gate returned `246 passed` plus all three live browser verifiers. The provider's 300-second minimum and five-minute observation freshness policy are unchanged. |
 | Regression | Registry/admin HTTP, collection repository, runtime recovery, and pure collection tests: `39 passed in 12.26s`. |
 | Static/build refactor | `AUTO-QUALITY` passed lint, format, typing, declared module boundaries, generated artifacts, locked inputs, and production build. OpenAPI regeneration changed provenance hashes only; the 39 operations and schema digest are unchanged. Cadence remains behind M04's application boundary. |
 

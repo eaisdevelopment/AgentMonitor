@@ -44,6 +44,7 @@ CAPACITY_TABLES = {
     "capacity_aggregate_projection",
     "capacity_aggregate_value",
     "capacity_availability_signal",
+    "capacity_availability_current",
     "capacity_event_outbox",
     "capacity_event_delivery",
     "capacity_derivation",
@@ -59,7 +60,7 @@ def _database(tmp_path: Path) -> DatabaseRefV1:
     return reference
 
 
-def test_capacity_schema_chain_reaches_v1_0504_without_business_rows(
+def test_capacity_schema_chain_reaches_current_head_without_business_rows(
     tmp_path: Path,
 ) -> None:
     """M05-DB-001: full production chain allocates an empty frozen schema."""

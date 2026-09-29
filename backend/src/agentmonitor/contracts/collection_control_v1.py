@@ -2,11 +2,12 @@
 
 import re
 from dataclasses import dataclass
-from datetime import datetime
-from typing import ClassVar, Literal, Protocol, runtime_checkable
+from datetime import datetime, timedelta
+from typing import ClassVar, Literal, Protocol, get_args, runtime_checkable
 
 from agentmonitor.contracts.common_provenance_v1 import ObservationProvenanceV1
-from agentmonitor.contracts.common_v1 import OpaqueIdV1, TechnicalValueV1
+from agentmonitor.contracts.common_v1 import OpaqueIdV1, QueryPageV1, TechnicalValueV1
+from agentmonitor.contracts.provider_system_v1 import OutcomeStateV1, RetryAdviceV1
 
 CollectionRunStateV1 = Literal[
     "requested",
@@ -32,6 +33,206 @@ CollectionTriggerV1 = Literal[
 CollectionCommitStatusStateV1 = Literal[
     "not_committed", "committed", "conflict", "unavailable"
 ]
+
+CollectorHealthStateV1 = Literal[
+    "healthy",
+    "degraded",
+    "failed",
+    "blocked",
+    "backoff",
+    "unsupported",
+    "paused",
+    "unknown",
+]
+CollectorFreshnessStateV1 = Literal[
+    "current", "stale", "unknown", "unsupported", "not_applicable"
+]
+CollectorRetryCategoryV1 = Literal[
+    "none",
+    "rate_backoff",
+    "transient_backoff",
+    "authentication",
+    "authorization",
+    "user_action",
+    "compatibility",
+    "unknown_constraints",
+    "unsupported",
+    "cancelled",
+    "unclassified",
+]
+CollectorConditionReasonV1 = Literal[
+    "collector_healthy",
+    "collector_partial",
+    "collector_failed",
+    "collector_blocked_authentication",
+    "collector_blocked_authorization",
+    "collector_blocked_user_action",
+    "collector_blocked_compatibility",
+    "collector_blocked_unknown_constraints",
+    "collector_blocked_unclassified",
+    "collector_rate_backoff",
+    "collector_transient_backoff",
+    "collector_unsupported",
+    "collector_cancelled",
+    "collector_paused",
+    "collector_no_success",
+    "collector_stale",
+    "collector_source_unknown",
+    "collector_clock_invalid",
+]
+
+
+@dataclass(frozen=True, slots=True)
+class CollectorAlertConditionV1(TechnicalValueV1):
+    CONTRACT_ID: ClassVar[str] = "CTR-COL-007"
+    OWNER: ClassVar[str] = "PLAN-M04"
+    target_id: OpaqueIdV1
+    account_id: OpaqueIdV1 | None
+    provider_key: str
+    capability_id: str
+    generation: int
+    health_state: CollectorHealthStateV1
+    freshness_state: CollectorFreshnessStateV1
+    retry_category: CollectorRetryCategoryV1
+    latest_run_id: OpaqueIdV1 | None
+    last_successful_at: datetime | None
+    freshness_deadline: datetime | None
+    not_before_at: datetime | None
+    evaluated_at: datetime
+    reason_code: CollectorConditionReasonV1
+
+    def __post_init__(self) -> None:
+        TechnicalValueV1.__post_init__(self)
+        if (
+            type(self.generation) is not int
+            or self.generation < 1
+            or not _bounded(self.provider_key, 64)
+            or not _bounded(self.capability_id)
+            or (self.last_successful_at is None) != (self.freshness_deadline is None)
+            or (
+                self.last_successful_at is not None
+                and self.freshness_deadline is not None
+                and self.freshness_deadline <= self.last_successful_at
+            )
+            or (
+                self.freshness_state in {"current", "stale"}
+                and self.freshness_deadline is None
+            )
+            or (
+                self.freshness_state == "current"
+                and (
+                    self.health_state != "healthy"
+                    or self.freshness_deadline is None
+                    or self.evaluated_at >= self.freshness_deadline
+                )
+            )
+            or (
+                self.freshness_state == "stale"
+                and (
+                    self.freshness_deadline is None
+                    or self.evaluated_at < self.freshness_deadline
+                )
+            )
+            or (
+                self.health_state == "backoff"
+                and (
+                    self.not_before_at is None
+                    or self.not_before_at <= self.evaluated_at
+                )
+            )
+        ):
+            raise InvalidCollectionControlV1("collector_condition_invalid")
+
+
+@dataclass(frozen=True, slots=True)
+class CollectorAlertQueryV1(TechnicalValueV1):
+    CONTRACT_ID: ClassVar[str] = "CTR-COL-007"
+    OWNER: ClassVar[str] = "PLAN-M04"
+    as_of: datetime
+    deadline: datetime
+    correlation_id: OpaqueIdV1
+    provider_key: str | None = None
+    account_id: OpaqueIdV1 | None = None
+    target_id: OpaqueIdV1 | None = None
+    minimum_generation: int | None = None
+    limit: int = 100
+    after_target_id: OpaqueIdV1 | None = None
+
+    def __post_init__(self) -> None:
+        TechnicalValueV1.__post_init__(self)
+        if (
+            not timedelta(0) < self.deadline - self.as_of <= timedelta(seconds=2)
+            or type(self.limit) is not int
+            or not 1 <= self.limit <= 200
+            or (self.provider_key is not None and not _bounded(self.provider_key, 64))
+            or (
+                self.minimum_generation is not None
+                and (
+                    self.target_id is None
+                    or type(self.minimum_generation) is not int
+                    or self.minimum_generation < 1
+                )
+            )
+        ):
+            raise InvalidCollectionControlV1("collector_condition_query_invalid")
+
+
+@dataclass(frozen=True, slots=True)
+class CollectorHealthChangedV1(TechnicalValueV1):
+    CONTRACT_ID: ClassVar[str] = "CTR-COL-007"
+    OWNER: ClassVar[str] = "PLAN-M04"
+    previous_health_state: CollectorHealthStateV1 | None
+    previous_freshness_state: CollectorFreshnessStateV1 | None
+    current: CollectorAlertConditionV1
+
+    def __post_init__(self) -> None:
+        TechnicalValueV1.__post_init__(self)
+        if (
+            (self.previous_health_state is None)
+            != (self.previous_freshness_state is None)
+            or (
+                self.previous_health_state is not None
+                and self.previous_health_state not in get_args(CollectorHealthStateV1)
+            )
+            or (
+                self.previous_freshness_state is not None
+                and self.previous_freshness_state
+                not in get_args(CollectorFreshnessStateV1)
+            )
+        ):
+            raise InvalidCollectionControlV1("collector_transition_invalid")
+
+
+@dataclass(frozen=True, slots=True)
+class CollectionFailurePolicyV1(TechnicalValueV1):
+    CONTRACT_ID: ClassVar[str] = "CTR-COL-004"
+    OWNER: ClassVar[str] = "PLAN-M04"
+    provider_outcome: OutcomeStateV1
+    retry: RetryAdviceV1
+
+    def __post_init__(self) -> None:
+        TechnicalValueV1.__post_init__(self)
+        if self.provider_outcome in {"success", "partial"}:
+            raise InvalidCollectionControlV1("collection_failure_policy_invalid")
+
+
+class GetCurrentCollectorAlertInputsV1(Protocol):
+    CONTRACT_ID: ClassVar[str] = "CTR-COL-007"
+    OWNER: ClassVar[str] = "PLAN-M04"
+
+    async def __call__(
+        self, query: CollectorAlertQueryV1
+    ) -> QueryPageV1[CollectorAlertConditionV1]: ...
+
+
+class RefreshCollectorAlertInputsV1(Protocol):
+    CONTRACT_ID: ClassVar[str] = "CTR-COL-007"
+    OWNER: ClassVar[str] = "PLAN-M04"
+
+    async def __call__(
+        self, query: CollectorAlertQueryV1
+    ) -> QueryPageV1[CollectorAlertConditionV1]: ...
+
 
 _SHA256 = re.compile(r"[0-9a-f]{64}\Z")
 _SAFE_CODE = re.compile(r"[a-z][a-z0-9_]{0,127}\Z")

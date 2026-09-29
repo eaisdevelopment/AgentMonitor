@@ -9,6 +9,7 @@ Native DEP installation policy remains pending.
 
 import argparse
 import asyncio
+import hashlib
 import ipaddress
 import json
 import signal
@@ -33,8 +34,21 @@ from agentmonitor.adapters.persistence._shared.sqlite.schema.compatibility impor
     RequireWritableSchemaV1,
     application_schema_range,
 )
+from agentmonitor.adapters.persistence._shared.sqlite.schema.live_health import (
+    InspectStartupDatabaseHealthV1,
+    LiveDatabaseHealthReaderV1,
+)
+from agentmonitor.adapters.persistence.alerting.sqlite.actions import (
+    SqliteAlertActionRepositoryV1,
+)
+from agentmonitor.adapters.persistence.alerting.sqlite.repository import (
+    SqliteAlertingRepositoryV1,
+)
 from agentmonitor.adapters.persistence.capacity.sqlite.repository import (
     SqliteCapacityRepositoryV1,
+)
+from agentmonitor.adapters.persistence.collection_control.sqlite.health import (
+    GetCollectorComponentHealthV1,
 )
 from agentmonitor.adapters.persistence.collection_control.sqlite.repository import (
     SqliteCollectionRepositoryV1,
@@ -42,11 +56,17 @@ from agentmonitor.adapters.persistence.collection_control.sqlite.repository impo
 from agentmonitor.adapters.persistence.identity_access.sqlite.api_tokens import (
     SqliteIdentityAccessApiTokenRepositoryV1,
 )
+from agentmonitor.adapters.persistence.identity_access.sqlite.health import (
+    GetIamComponentHealthV1,
+)
 from agentmonitor.adapters.persistence.identity_access.sqlite.repository import (
     SqliteIdentityAccessRepositoryV1,
 )
 from agentmonitor.adapters.persistence.identity_access.sqlite.sessions import (
     SqliteIdentityAccessSessionRepositoryV1,
+)
+from agentmonitor.adapters.persistence.registry.sqlite.health import (
+    GetRegistryComponentHealthV1,
 )
 from agentmonitor.adapters.persistence.registry.sqlite.repository import (
     SqliteRegistryRepositoryV1,
@@ -59,7 +79,12 @@ from agentmonitor.adapters.persistence.runtime_observation.sqlite.repository imp
 )
 from agentmonitor.adapters.providers.claude.manifest import build_claude_manifest
 from agentmonitor.api.app import create_application
-from agentmonitor.api.v1.dependencies import IamApiPortsV1, ObservationApiPortsV1
+from agentmonitor.api.v1.dependencies import (
+    AlertApiPortsV1,
+    IamApiPortsV1,
+    ObservationApiPortsV1,
+)
+from agentmonitor.composition.alert_delivery import CapacityAlertDeliveryV1
 from agentmonitor.composition.claude_dashboard_collection import (
     ClaudeDashboardCollectorV1,
 )
@@ -69,11 +94,18 @@ from agentmonitor.composition.claude_dashboard_connection import (
 from agentmonitor.composition.linux_process_locations import (
     read_live_claude_process_locations_v1,
 )
+from agentmonitor.composition.operations_health import (
+    ConfigurationHealthLeafV1,
+    DatabaseHealthLeafV1,
+    DatabaseSchemaVersionQueryV1,
+    FoundationHealthLeafV1,
+)
 from agentmonitor.contracts.configuration_v1 import (
     BootstrapConfigurationV1,
     ConfigurationRegistryV1,
 )
 from agentmonitor.contracts.foundation_v1 import BuildMetadataV1
+from agentmonitor.contracts.operations_v1 import ComponentRegistrationV1
 from agentmonitor.foundation.application import (
     ApplicationLifecycleError,
     ComponentFactorySetV1,
@@ -84,8 +116,31 @@ from agentmonitor.foundation.configuration import (
     BootstrapConfigurationError,
     load_bootstrap_configuration,
 )
+from agentmonitor.modules.alerting.application.commands import (
+    AcknowledgeAlertV1,
+    MarkAlertReadV1,
+    SnoozeAlertV1,
+    UnsnoozeAlertV1,
+)
+from agentmonitor.modules.alerting.application.queries import (
+    GetAlertV1,
+    GetDashboardNotificationCountsV1,
+    ListAlertHistoryV1,
+    ListAlertsV1,
+    ListDashboardNotificationsV1,
+)
+from agentmonitor.modules.alerting.application.rules import (
+    ArchiveAlertRuleOverrideV1,
+    CreateAlertRuleV1,
+    GetAlertRuleV1,
+    ListAlertRulesV1,
+    UpdateAlertRuleV1,
+)
+from agentmonitor.modules.capacity.application.ports import ClassifyCapacityProjectionV1
 from agentmonitor.modules.capacity.application.queries import (
     GetAccountCapacityV1,
+    GetCapacityAggregateV1,
+    ListCapacityForecastsV1,
     ListCapacityHistoryV1,
     ListQuotaWindowsV1,
 )
@@ -116,13 +171,16 @@ from agentmonitor.modules.identity_access.application.sessions import (
     RevokeSessionV1,
     VerifyCsrfV1,
 )
+from agentmonitor.modules.operations.application.service import OperationsServiceV1
 from agentmonitor.modules.provider_system.application.queries import (
     GetProviderCapabilitiesV1,
     GetVerifiedQuotaIdentityV1,
 )
 from agentmonitor.modules.registry.application.accounts import (
+    AlertScopeAndSubjectQueryV1,
     EditAccountV1,
     GetAccountV1,
+    ListAccountResourcesV1,
     ListAccountsV1,
     RegisterAccountV1,
 )
@@ -162,33 +220,99 @@ def build_metadata() -> BuildMetadataV1:
         version = tomllib.load(stream)["project"]["version"]
     if not isinstance(version, str):
         raise ApplicationLifecycleError("build_version_invalid")
+    root = manifest.parent.parent
+    openapi_path = root / "contracts/openapi/agentmonitor-v1.json"
+    client_path = root / "frontend/src/generated/api/index.ts"
+    frontend_manifest = root / "frontend/package.json"
+    frontend_build = root / "frontend/dist"
+    openapi_hash = None
+    client_hash = None
+    frontend_hash = None
+    versions: list[tuple[str, str]] = []
+    if openapi_path.is_file() and not openapi_path.is_symlink():
+        source = openapi_path.read_bytes()
+        document = json.loads(source)
+        openapi_hash = hashlib.sha256(source).hexdigest()
+        versions.extend(
+            (
+                ("api", document["info"]["version"]),
+                ("openapi", document["openapi"]),
+            )
+        )
+        if client_path.is_file() and not client_path.is_symlink():
+            client_hash = hashlib.sha256(client_path.read_bytes()).hexdigest()
+            versions.append(
+                ("client", document["x-agentmonitor-generation"]["generator_version"])
+            )
+    if (
+        frontend_build / "dashboard.html"
+    ).is_file() and not frontend_build.is_symlink():
+        digest = hashlib.sha256()
+        artifacts = tuple(
+            sorted(path for path in frontend_build.rglob("*") if path.is_file())
+        )
+        if len(artifacts) <= 128 and all(
+            not path.is_symlink() and path.stat().st_size <= 20_000_000
+            for path in artifacts
+        ):
+            for path in artifacts:
+                digest.update(
+                    path.relative_to(frontend_build).as_posix().encode("utf-8")
+                )
+                digest.update(b"\0")
+                digest.update(hashlib.sha256(path.read_bytes()).digest())
+            frontend_hash = digest.hexdigest()
+            versions.append(
+                ("frontend", json.loads(frontend_manifest.read_bytes())["version"])
+            )
     return BuildMetadataV1(
         version,
         None,
         None,
         "omitted_for_reproducibility",
         application_schema_range(),
-        None,
-        None,
-        None,
-        (),
+        frontend_hash,
+        openapi_hash,
+        client_hash,
+        tuple(versions),
     )
 
 
 def _open_database(
-    ref: DatabaseRefV1, build: BuildMetadataV1, *, checkpoint_wal: bool = False
+    ref: DatabaseRefV1,
+    build: BuildMetadataV1,
+    *,
+    checkpoint_wal: bool = False,
+    database_health: LiveDatabaseHealthReaderV1 | None = None,
 ) -> SqliteDatabaseHandleV1:
-    view = InspectSchemaCompatibilityV1(ref, build.schema_range, "runtime_read_write")
+    receipt = None
+    if database_health is None:
+        view = InspectSchemaCompatibilityV1(
+            ref, build.schema_range, "runtime_read_write"
+        )
+    else:
+        view, receipt = InspectStartupDatabaseHealthV1(
+            ref, build.schema_range, "runtime_read_write"
+        )
     if view.state == "locked" and checkpoint_wal:
         # IAM lifespan holds the service lock here. Recover retained SQLite WAL
         # before the immutable schema check; this applies no DDL or migration.
         checkpoint_sqlite_database(ref)
-        view = InspectSchemaCompatibilityV1(
-            ref, build.schema_range, "runtime_read_write"
-        )
+        if database_health is None:
+            view = InspectSchemaCompatibilityV1(
+                ref, build.schema_range, "runtime_read_write"
+            )
+        else:
+            view, receipt = InspectStartupDatabaseHealthV1(
+                ref, build.schema_range, "runtime_read_write"
+            )
     if view.state != "compatible":
         raise ApplicationLifecycleError("database_" + view.state)
     RequireWritableSchemaV1(view)
+    if database_health is not None:
+        if receipt is None:
+            raise ApplicationLifecycleError("database_health_unverified")
+        database_health.bind_startup_receipt(receipt)
     return open_sqlite_database(ref, "runtime_read_write")
 
 
@@ -272,6 +396,13 @@ def _observation_ports(
         ListLiveProcessLocationsV1(associations.read),
         connections,
         associations,
+        get_capacity_aggregate=GetCapacityAggregateV1(
+            capacity, AlertScopeAndSubjectQueryV1(registry)
+        ),
+        list_capacity_forecasts=ListCapacityForecastsV1(capacity),
+        registry_scope=AlertScopeAndSubjectQueryV1(registry),
+        list_account_resources=ListAccountResourcesV1(registry),
+        capacity_health_policy=ClassifyCapacityProjectionV1().policy,
     )
 
 
@@ -284,19 +415,27 @@ def create_iam_application(
     )
     build = build_metadata()
     reference = DatabaseRefV1(data_root / "agentmonitor.db", data_root)
+    database_health = LiveDatabaseHealthReaderV1(reference, build.schema_range)
     collector = ClaudeDashboardCollectorV1(
         reference, managed_profiles_root=data_root / "profiles" / "claude"
     )
     connections = ClaudeDashboardConnectionV1(reference, data_root)
+    alert_delivery = CapacityAlertDeliveryV1(reference)
     lifecycle = replace(
         lifecycle,
-        tasks=lifecycle.tasks + (collector.run, connections.run),
+        tasks=lifecycle.tasks + (collector.run, connections.run, alert_delivery.run),
         shutdown_timeout_seconds=30,
     )
-    return create_application(
+    app = create_application(
         settings,
         ComponentFactorySetV1(
-            partial(_open_database, reference, build, checkpoint_wal=True)
+            partial(
+                _open_database,
+                reference,
+                build,
+                checkpoint_wal=True,
+                database_health=database_health,
+            )
         ),
         build,
         lifecycle,
@@ -307,6 +446,72 @@ def create_iam_application(
         ),
         service_lock_path=data_root / ".agentmonitor-service.lock",
     )
+    alerting = SqliteAlertingRepositoryV1(reference)
+    alert_actions = SqliteAlertActionRepositoryV1(reference)
+    alert_scope = AlertScopeAndSubjectQueryV1(SqliteRegistryRepositoryV1(reference))
+    app.state.alert_ports = AlertApiPortsV1(
+        CreateAlertRuleV1(alerting, alert_scope),
+        UpdateAlertRuleV1(alerting, alert_scope),
+        ArchiveAlertRuleOverrideV1(alerting, alert_scope),
+        GetAlertRuleV1(alerting),
+        ListAlertRulesV1(alerting),
+        GetAlertV1(alert_actions),
+        ListAlertsV1(alert_actions),
+        ListAlertHistoryV1(alert_actions),
+        ListDashboardNotificationsV1(alert_actions),
+        GetDashboardNotificationCountsV1(alert_actions),
+        AcknowledgeAlertV1(alert_actions),
+        SnoozeAlertV1(alert_actions),
+        UnsnoozeAlertV1(alert_actions),
+        MarkAlertReadV1(alert_actions),
+    )
+    required = (
+        "foundation",
+        "configuration",
+        "database",
+        "identity_access",
+        "registry",
+    )
+    optional = (
+        "provider_system",
+        "collection_control",
+        "capacity",
+        "runtime_observation",
+        "alerting",
+        "provider.claude",
+    )
+    manifest = tuple(
+        ComponentRegistrationV1(key, "required_for_normal_readiness", ())
+        for key in required
+    )
+    manifest += tuple(
+        ComponentRegistrationV1(
+            key,
+            "optional_degraded",
+            ("due_count", "running_count", "blocked_count")
+            if key == "collection_control"
+            else (),
+        )
+        for key in optional
+    )
+    lifecycle_query = app.state.lifecycle.get_lifecycle_state
+    app.state.operations_ports = OperationsServiceV1(
+        manifest,
+        (
+            ("foundation", FoundationHealthLeafV1(lifecycle_query)),
+            ("configuration", ConfigurationHealthLeafV1(settings)),
+            ("database", DatabaseHealthLeafV1(database_health)),
+            ("identity_access", GetIamComponentHealthV1(reference)),
+            ("registry", GetRegistryComponentHealthV1(reference)),
+            ("collection_control", GetCollectorComponentHealthV1(reference)),
+        ),
+        lifecycle_query,
+        build,
+        settings,
+        ConfigurationRegistryV1(()),
+        DatabaseSchemaVersionQueryV1(database_health),
+    )
+    return app
 
 
 def create_iam_schema_application() -> FastAPI:
