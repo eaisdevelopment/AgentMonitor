@@ -1,9 +1,10 @@
 # Dashboard Claude connection: intermediate evidence
 
 - Date: 2026-09-28.
+- Last live verification: 2026-09-29.
 - Authority: the owner's instruction to build dashboard authentication under
   M4 `ST-FLEET-001` and the [approved connection change](../plans/integration/claude-managed-account-connection-change.md).
-- Status: **Passed for two selected owner-completed dashboard connections**;
+- Status: **Passed for four selected owner-completed dashboard connections**;
   full `ST-FLEET-001` and M4 remain Partial. The owner started official
   browser sign-in and completed authentication; exact managed identity,
   enrollment, monitoring, genuine quota, and the selected canonical gate
@@ -339,3 +340,53 @@ docs/plans/integration/claude-managed-account-connection-change.md
 frontend/src/generated/api/index.ts
 tooling/foundation/openapi_client.py
 ```
+
+## Owner-completed EAIS connections — 2026-09-29
+
+The owner added and authenticated two EAIS accounts using the production
+admin/browser flow. The first selected account has active enrollment,
+effective monitoring, the intended verified managed identity, and two
+fresh service quota windows with matching identity lineage.
+Its selected `AUTO-CLAUDE-CONNECT` **Passed (exit 0)**: API/native
+safeguards **5 passed in 18.37s**, production pending-connection browser
+Passed, completed owner flow check Passed, genuine managed quota
+**4 passed in 5.02s**, compact connected layout and fresh exact V1/browser
+lineage Passed, and the six-record populated overview Passed.
+
+The owner reported no reading on the second selected EAIS account.
+Authenticated V1 inspection confirmed successful connection, active
+enrollment and monitoring, but no stored capacity yet. Its first scheduled
+run Failed with `usage_deadline_window_incomplete` at
+**09:03:58–09:04:12 UTC**. A direct genuine quota/identity/default-protection
+check then returned **1 passed in 4.53s** with at least two valid native
+windows. No source code changed, so this is operational verification,
+not an implementation Red/Green claim. The existing transient policy
+admits a new scheduled attempt after the full minimum interval; the
+failed run remains failed and test-collected quota is not inserted into
+the owner's telemetry store. Its service/browser outcome follows below.
+
+No agent started provider sign-in, inspected an authentication page,
+edited provider/default profiles, changed source cadence, restarted the
+service, modified owner records, or controlled monitored agents for this
+verification. Runtime selectors are omitted. This does not complete full
+`ST-FLEET-001`, the full fleet, or M4; the other requested EAIS account
+has not yet been registered.
+
+The second account's next genuine scheduled run **Succeeded** at
+**09:09:14–09:09:19 UTC** without application changes. Authenticated V1
+then verified its intended managed identity and two fresh quota windows
+sharing the exact service-run receipt. Its `AUTO-CLAUDE-CONNECT`
+**Passed (exit 0)**: safeguards **5 passed in 18.47s**, production
+pending browser Passed, owner-completed flow verification Passed,
+real managed quota **4 passed in 4.96s**, compact connected layout and
+fresh exact API/browser identity/quota Passed, and the six-record
+populated overview Passed. This supersedes the initial no-reading state,
+while retaining the failed first run. Both selected EAIS records are
+verified for their individual success paths. Natural recovery of a
+transient read is not interrupted-enrollment recovery acceptance.
+
+This operational handoff changes only evidence/index/module documentation;
+no tests, production code, contracts, migrations, or dependencies were added
+or changed. Documentation (258 files), local Git preflight, and
+`git diff --check` Passed. Requirements/contracts and remaining live/M4
+limits are listed at the top and in the story table.

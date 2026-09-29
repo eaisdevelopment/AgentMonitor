@@ -176,8 +176,8 @@ reauthentication stays rejected.
 
 The real `claude_connection` browser scenario Passed for controls and safe V1
 behavior without launching provider sign-in. `AUTO-CLAUDE-CONNECT` additionally
-requires an owner-completed dashboard flow and fresh managed quota. Two selected
-owner-completed connection gates Passed; interrupted-enrollment recovery and
+requires an owner-completed dashboard flow and fresh managed quota. Four selected
+owner-completed SDK/EAIS connection gates Passed; interrupted-enrollment recovery and
 other live flow cases remain Not Run. See
 [connection evidence and the six-story M4 status](../evidence/claude-dashboard-connection.md).
 

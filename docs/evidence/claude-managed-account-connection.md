@@ -241,3 +241,13 @@ connection gate. A current authenticated V1 read verified exact identities
 and fresh service-owned quota lineage on all four selected SDK records.
 See the final selected SDK observations in the dashboard evidence.
 EAIS connections and the remaining fleet/M4 artifacts are not claimed.
+
+## EAIS owner connections — 2026-09-29
+
+The owner subsequently created and authenticated two EAIS records through
+the dashboard. Both selected `AUTO-CLAUDE-CONNECT` gates Passed with exact
+managed identity and fresh service-owned quota. The second record's first
+native read failed; its normal scheduled retry succeeded without code,
+profile, or cadence changes. See the [EAIS connection evidence](claude-dashboard-connection.md).
+The current overview has six real account records across SDK and EAIS.
+The remaining EAIS record and full fleet/M4 scope are still incomplete.
