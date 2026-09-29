@@ -63,6 +63,11 @@ byte-for-byte unchanged from the pre-LAN commit. The broader mutation gate
 has not been reaccepted by this LAN increment. These results are not claimed
 Passed or hidden by the targeted verification.
 
+After the LAN implementation commit, the exact previously failing clean-clone
+test Passed against a genuine fresh Git checkout. The generation checks had
+already Passed after the canonical provenance update. The unrelated runtime
+mutation-equivalence fingerprint remains the outstanding broader test finding.
+
 ## Deployment and remaining real boundary
 
 After the gate and independent review, only AgentMonitor was gracefully
