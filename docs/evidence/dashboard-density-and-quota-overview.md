@@ -142,3 +142,93 @@ The owner can review the served Overview and the selected account page by
 refreshing their browser. Organization/global capacity aggregation, forecasts,
 mixed-account running-agent ownership, alerts, operations, and full M4 retain
 their existing incomplete status.
+
+## Organization selection and low-quota emphasis — 2026-09-29
+
+The owner's next request approves the bounded P02 increment recorded in the
+same change plan. Requirements `FR-UI-001/002/004/005/006` and selected
+`AC-UI-002/003/005` apply. `CTR-UI-001` and `CTR-API-001` V1 and their registry,
+capacity, and observed-identity responses remain compatible and unchanged.
+
+Compact dynamic organization buttons support single and multiple selection.
+All organizations is the initial/reset choice. Selecting a group isolates it;
+further selected groups join the view. An empty selection is explicit instead
+of silently restoring unrelated accounts. Ungrouped/unavailable assignments
+get their own options when present. Filtered counts, manual read refresh, and
+30-second API refresh retain the current selection within Overview. Navigation
+or reload returns to All; no selection is placed in browser storage.
+
+The account list sorts by the minimum usable remaining percentage across its
+native quota windows, with missing percentages last and deterministic registry
+name/account-ID ties. The display retains every window and its freshness.
+At or below 20%, the individual window's bar and value are red with a textual
+Low label and accessible low wording. Other windows keep their normal color.
+The threshold does not alter the producer's health policy or reading-state
+label and does not aggregate organization capacity.
+
+### Incremental real-browser Red and Green
+
+The existing live overview verifier was extended before production changes.
+It used the actual authenticated loopback service, real registry organizations,
+current V1 per-account quota, and the built production UI. No provider response
+was constructed, persisted, intercepted, or replayed.
+
+| Increment | Real evidence |
+|---|---|
+| Organization filter Red | Exit 3: `DASHBOARD OVERVIEW: BLOCKED — organization_filter: organization_filter_missing`. |
+| Filter Green / ordering Red | After the filter implementation, single/multiple/reset/empty selection and manual refresh Passed; the verifier advanced to exit 3: `DASHBOARD OVERVIEW: BLOCKED — lowest_quota_first: accounts_not_sorted_by_lowest_remaining_quota`. |
+| Ordering Green / color Red | After ordering was implemented, the actual lowest-percentage order and accessible ascending column Passed; the verifier advanced to exit 3: `DASHBOARD OVERVIEW: BLOCKED — per_window_quota: low_quota_bar_not_red`. |
+| Color and initial combined Green | Exit 0: six real rows; single/multiple/reset/empty selection; retained manual refresh selection; lowest quota first; one actual low red bar and eleven normal bars; exact per-window readings; 1920/1280/390 layout; keyboard filter/account access and read-only navigation. The low reading was 18%; the test used the live numeric field, not a hardcoded account or percentage. |
+
+The verifier also waits for the actual subsequent 30-second account GET and
+checks that selection and filtered rows survive that periodic refresh. This
+does not change the clock, native collection cadence, or provider state.
+The final `AUTO-CLAUDE-CONNECT` **Passed (exit 0)** against the exact built
+checkout: five real API/native safeguards in **19.66s**, the real pending
+connection browser, the actual owner-completed identity/monitoring/quota
+receipt, four real selected managed quota tests in **5.05s**, compact connected
+status, and the six-account Overview. The extended Overview check Passed
+single/multiple/reset/empty selection, keyboard filtering, retained selection
+after both manual refresh and the actual subsequent periodic GET, ascending
+minimum quota, one low red/eleven normal bars, desktop/narrow geometry, and
+zero API mutations. All six real rows remained on the first 1920×1080 screen.
+
+The isolated real SQLite/API/browser `monitoring_dashboard` scenario also
+Passed, retaining its explicit account-detail Blocked qualification because
+that database contains no registered accounts. `AUTO-QUALITY` Passed strict
+typechecking/build, zero module-boundary violations, and unchanged compatible
+44-operation OpenAPI/generated-client checks. The bounded independent P02
+review found no blocking implementation, accessibility, privacy, or test
+integrity issues. `AUTO-DOCS-CHECK` Passed all 258 Markdown files, synchronized
+planning Passed, local `AUTO-GIT-PREFLIGHT` Passed, and `git diff --check`
+Passed. Remote push/release was Not Run.
+
+Exact live 20% and 0% cases, missing-percentage ordering among populated rows,
+and naturally unavailable organization lookups were **Not Run**: those
+conditions were not present in the six-account environment. The inclusive
+numeric `<= 20` rule and missing-value-last comparator are present in code;
+the 18% actual reading supplies the live red-color/text evidence. No fake
+quota, consumed allowance, or registry changes were used to manufacture cases.
+
+### Increment impact and changed files
+
+There is no backend, API/schema, generated-client, dependency/license,
+migration, provider/default-profile, running-agent, authentication, or native
+collection-cadence change. The production frontend build is served by the
+existing service without restarting it. No prompts, responses, credentials,
+provider pages, browser cookies, populated screenshots, or traces were read
+or retained. Rollback restores the prior compatible static build.
+
+```text
+docs/README.md
+docs/evidence/dashboard-density-and-quota-overview.md
+docs/modules/react-dashboard.md
+docs/plans/integration/claude-managed-account-connection-change.md
+frontend/src/app/dashboard.css
+frontend/src/features/overview/AccountQuotaOverview.tsx
+tools/ui/verify_dashboard_overview.mjs
+```
+
+The increment retains the earlier full-M4 limitations and does not change
+organization aggregation, forecasts, process ownership, alerts, or operations
+scope.

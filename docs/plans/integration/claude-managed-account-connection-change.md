@@ -238,3 +238,34 @@ also pass. No API, domain, provider, schema, migration, dependency,
 or generated-client change is authorized or needed. This is a display
 of per-account readings, not organization/global capacity aggregation,
 forecasting, running-agent correlation, or full M4 acceptance.
+
+### Organization filters and low-quota emphasis (owner directed)
+
+The owner's 2026-09-29 request approves this additional P02 Overview increment
+under `FR-UI-001/002/004/005/006` and selected `AC-UI-002/003/005`.
+Compact organization toggle buttons use the existing dynamic registry. All
+organizations is the default/reset; selecting a group isolates it, and further
+selections include multiple groups. An empty selection has an explicit empty
+view. Ungrouped and unavailable organization assignments remain selectable
+when present. Selection survives manual and periodic refresh within Overview;
+no browser storage or registry mutation is used.
+
+Rows sort ascending by the lowest usable remaining percentage among their
+returned quota windows, with unavailable percentages last and deterministic
+ties. Every window remains visible and retains freshness/provenance. A usable
+percentage at or below 20 receives a red bar and a textual Low indicator.
+These are owner-requested display rules, not changes to producer health policy,
+organization aggregation, forecasts, or running-agent ownership.
+
+Extend the existing real-owner overview verifier before production changes to
+cover single/multiple/reset/empty organization selection, retained selection
+after refresh, actual quota ordering, inclusive red threshold and accessible
+low wording, compact responsive layout, and zero mutations. Use actual current
+V1 readings; never fabricate a provider response to reach a threshold.
+The existing `AUTO-CLAUDE-CONNECT`, empty and pending browser scenarios, and
+quality/documentation/planning/Git gates bound completion. P02 remains the
+production owner; root owns verification and evidence. `CTR-UI-001` and
+`CTR-API-001` V1 remain unchanged, with no backend, provider, generated-client,
+schema, migration, dependency/license, or collection-cadence change. Rollback
+restores the previous compatible static bundle and leaves all records and
+provider profiles intact.

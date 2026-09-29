@@ -18,6 +18,24 @@ type OverviewState =
   | Readonly<{ kind: "error" }>
   | Readonly<{ kind: "ready"; accounts: AccountPageV1; organizations: OrganizationPageV1 | null; readings: readonly AccountReading[]; refreshFailed: boolean }>;
 
+function organizationFilterKey(account: AccountViewV1, organizations: OrganizationPageV1 | null): string {
+  if (account.organization_id === null) return "ungrouped";
+  return organizations?.items.some(item => item.organization_id === account.organization_id)
+    ? `organization:${account.organization_id}` : "unavailable";
+}
+
+function lowestRemainingPercentage(reading: AccountReading): number {
+  return Math.min(Infinity, ...(reading.quota?.items.flatMap(item => item.windows) ?? [])
+    .map(window => remainingPercentage(window.allowance?.remaining_percentage ?? window.remaining_ratio)?.value ?? Infinity));
+}
+
+function compareReadings(left: AccountReading, right: AccountReading): number {
+  const leftPercentage = lowestRemainingPercentage(left);
+  const rightPercentage = lowestRemainingPercentage(right);
+  if (leftPercentage !== rightPercentage) return leftPercentage < rightPercentage ? -1 : 1;
+  return left.account.friendly_name.localeCompare(right.account.friendly_name) || left.account.account_id.localeCompare(right.account.account_id);
+}
+
 function readingState(reading: AccountReading): Readonly<{ label: string; icon: string; tone: string }> {
   const { account, quota, refreshFailed } = reading;
   const windows = quota?.items.flatMap(item => item.windows) ?? [];
@@ -44,6 +62,7 @@ export function AccountQuotaOverview({ onExpired, onOpenAccount }: Readonly<{
   const [state, setState] = useState<OverviewState>({ kind: "loading" });
   const [refreshKey, setRefreshKey] = useState(0);
   const [busy, setBusy] = useState(false);
+  const [selectedOrganizations, setSelectedOrganizations] = useState<readonly string[] | null>(null);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -106,22 +125,35 @@ export function AccountQuotaOverview({ onExpired, onOpenAccount }: Readonly<{
     return () => { controller.abort(); window.clearInterval(interval); };
   }, [onExpired, refreshKey]);
 
+  const organizationOptions = state.kind === "ready" ? [
+    ...(state.organizations?.items.map(item => ({ key: `organization:${item.organization_id}`, name: item.name })) ?? []),
+    ...(state.readings.some(reading => reading.account.organization_id === null) ? [{ key: "ungrouped", name: "Ungrouped" }] : []),
+    ...(state.readings.some(reading => organizationFilterKey(reading.account, state.organizations) === "unavailable") ? [{ key: "unavailable", name: "Unavailable organization" }] : []),
+  ] : [];
+  const visibleReadings = state.kind === "ready" ? state.readings.filter(reading => selectedOrganizations === null || selectedOrganizations.includes(organizationFilterKey(reading.account, state.organizations))).sort(compareReadings) : [];
+  const toggleOrganization = (key: string) => setSelectedOrganizations(current => current === null ? [key] : current.includes(key) ? current.filter(item => item !== key) : [...current, key]);
+
   return (
     <section className="fleet-overview" aria-labelledby="overview-accounts-title" aria-busy={busy}>
       <div className="fleet-overview-heading">
-        <div><h2 id="overview-accounts-title">Accounts</h2><p>Remaining quota and reading state</p></div>
+        <div><h2 id="overview-accounts-title">Accounts</h2><p id="overview-quota-order">Lowest quota first · low ≤20%</p></div>
+        {state.kind === "ready" && organizationOptions.length > 0 && <div className="overview-organization-filters" role="group" aria-labelledby="overview-organizations-label">
+          <span id="overview-organizations-label">Organizations</span>
+          <button type="button" aria-pressed={selectedOrganizations === null} onClick={() => setSelectedOrganizations(null)}>All organizations</button>
+          {organizationOptions.map(option => <button key={option.key} type="button" aria-pressed={selectedOrganizations?.includes(option.key) ?? false} onClick={() => toggleOrganization(option.key)}>{option.name}</button>)}
+        </div>}
         <div className="fleet-overview-controls">
-          {state.kind === "ready" && <span>{state.readings.length} listed · {state.readings.filter(reading => reading.account.is_effective_monitoring_enabled).length} monitoring</span>}
+          {state.kind === "ready" && <span>{visibleReadings.length} of {state.readings.length} listed · {visibleReadings.filter(reading => reading.account.is_effective_monitoring_enabled).length} monitoring</span>}
           <button className="quiet-button" type="button" disabled={busy} onClick={() => setRefreshKey(key => key + 1)}>{busy ? "Refreshing…" : "Refresh overview"}</button>
         </div>
       </div>
       {state.kind === "loading" && <p className="fleet-overview-notice" role="status">Reading accounts and quota…</p>}
       {state.kind === "error" && <p className="fleet-overview-notice" role="alert">Account readings are unavailable. Refresh to try again.</p>}
       {state.kind === "ready" && <>
-        {state.readings.length === 0 ? <p className="fleet-overview-notice">No accounts are registered. Add an account from Accounts.</p> : (
-          <table className="fleet-overview-table" aria-label="Account quota overview">
-            <thead><tr><th scope="col">Account</th><th scope="col">Organization</th><th scope="col">State</th><th scope="col">Quota left</th><th scope="col">Updated</th></tr></thead>
-            <tbody>{state.readings.map(reading => {
+        {state.readings.length === 0 ? <p className="fleet-overview-notice">No accounts are registered. Add an account from Accounts.</p> : visibleReadings.length === 0 ? <p className="fleet-overview-notice" role="status">{selectedOrganizations?.length === 0 ? "No organizations selected. Choose an organization or All organizations." : "No accounts in the selected organizations. Choose another organization or All organizations."}</p> : (
+          <table className="fleet-overview-table" aria-label="Account quota overview" aria-describedby="overview-quota-order">
+            <thead><tr><th scope="col">Account</th><th scope="col">Organization</th><th scope="col">State</th><th scope="col" aria-sort="ascending">Quota left</th><th scope="col">Updated</th></tr></thead>
+            <tbody>{visibleReadings.map(reading => {
               const { account, quota, identity } = reading;
               const windows = quota?.items.flatMap(item => item.windows) ?? [];
               const verified = identity?.state === "verified" && identity.account_id === account.account_id && identity.email !== null && windows.length > 0 && windows.every(window => window.collection_run_id === identity.collection_run_id);
@@ -136,11 +168,12 @@ export function AccountQuotaOverview({ onExpired, onOpenAccount }: Readonly<{
                 <td data-label="Quota left"><div className="overview-quota-list">
                   {windows.length === 0 ? <span>{quota === null ? "Unavailable" : "No reading yet"}</span> : windows.map(window => {
                     const percentage = remainingPercentage(window.allowance?.remaining_percentage ?? window.remaining_ratio);
+                    const low = percentage !== null && percentage.value <= 20;
                     const calculated = window.allowance !== null && window.allowance !== undefined;
                     const precision = calculated && window.allowance?.remaining_percentage.precision === "rounded" ? " · rounded" : "";
-                    return <div className="overview-quota" key={window.window_id} data-window-id={window.window_id}>
-                      <div className="overview-quota-label"><span>{window.safe_label ?? window.window_key}</span><strong title={calculated ? `${window.allowance?.calculation === "100_minus_used_percent" ? "Calculated: 100% minus reported usage" : "Calculated from reported remaining ratio"}${precision}.` : "Provider-reported remaining allowance."}>{percentage?.label ?? metricAvailability(window.remaining_ratio)}</strong></div>
-                      {percentage !== null && <div className="overview-quota-meter" role="meter" aria-label={`${window.safe_label ?? window.window_key} remaining allowance`} aria-valuemin={0} aria-valuemax={100} aria-valuenow={percentage.value} aria-valuetext={`${percentage.label} left${calculated ? " · calculated" : ""}${precision}`}><span style={{ width: `${percentage.value}%` }} /></div>}
+                    return <div className={`overview-quota${low ? " overview-quota-low" : ""}`} key={window.window_id} data-window-id={window.window_id}>
+                      <div className="overview-quota-label"><span>{window.safe_label ?? window.window_key}</span><span className="overview-quota-value">{low && <span className="overview-quota-warning">Low</span>}<strong title={calculated ? `${window.allowance?.calculation === "100_minus_used_percent" ? "Calculated: 100% minus reported usage" : "Calculated from reported remaining ratio"}${precision}.` : "Provider-reported remaining allowance."}>{percentage?.label ?? metricAvailability(window.remaining_ratio)}</strong></span></div>
+                      {percentage !== null && <div className="overview-quota-meter" role="meter" aria-label={`${window.safe_label ?? window.window_key} remaining allowance`} aria-valuemin={0} aria-valuemax={100} aria-valuenow={percentage.value} aria-valuetext={`${percentage.label} left${low ? " · low" : ""}${calculated ? " · calculated" : ""}${precision}`}><span style={{ width: `${percentage.value}%` }} /></div>}
                       {window.freshness !== "fresh" && <small>{window.freshness.replaceAll("_", " ")}</small>}
                     </div>;
                   })}

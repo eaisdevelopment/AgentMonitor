@@ -187,3 +187,14 @@ and update times above secondary provider/collection/session panels. It consumes
 existing V1 operations, verifies identity lineage, and never infers working
 agent ownership. The same canonical connection gate includes real connected
 layout and populated overview checks. See [density and quota-overview evidence](../evidence/dashboard-density-and-quota-overview.md).
+
+Overview organization buttons select one or more admin-defined groups; All
+organizations restores the default. Ungrouped and unavailable assignments
+remain visible and can be filtered when present. Counts describe the filtered
+rows in the returned account page. Selection survives manual and 30-second
+read refresh while Overview stays open, without browser storage or registry
+changes. Rows sort by their lowest usable remaining quota percentage, ascending,
+with missing percentages last and deterministic name/ID ties. Each native
+window remains separate. A percentage at or below 20 has a red bar, a visible
+Low label, and an accessible low description. Freshness, calculated/rounded
+provenance, and provider health policy retain their existing meanings.

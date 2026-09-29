@@ -5,10 +5,14 @@ const endpoint = process.env.AGENTMONITOR_TEST_DASHBOARD_CDP_ENDPOINT;
 const origin = process.env.AGENTMONITOR_TEST_DASHBOARD_ORIGIN;
 let stage = "prerequisites";
 function requireResult(condition, reason) { if (!condition) throw new Error(reason); }
-function percentage(field) {
+function percentageValue(field) {
   if (!field || !["available", "stale"].includes(field.availability) || field.value === null || !["ratio", "percent"].includes(field.value.unit)) return null;
   const value = Number(field.value.coefficient) * 10 ** ((field.value.unit === "ratio" ? 2 : 0) - field.value.scale);
-  return Number.isFinite(value) && value >= 0 && value <= 100 ? `${Number(value.toFixed(2))}%` : null;
+  return Number.isFinite(value) && value >= 0 && value <= 100 ? value : null;
+}
+function percentage(field) {
+  const value = percentageValue(field);
+  return value === null ? null : `${Number(value.toFixed(2))}%`;
 }
 
 try {
@@ -35,6 +39,53 @@ try {
   const table = page.getByRole("table", { name: "Account quota overview", exact: true });
   await table.waitFor({ timeout: 10_000 });
   for (const label of ["Account", "Organization", "State", "Quota left", "Updated"]) requireResult(await table.getByRole("columnheader", { name: label, exact: true }).count() === 1, "overview_column_missing");
+  stage = "organization_filter";
+  const filters = page.getByRole("group", { name: "Organizations", exact: true });
+  requireResult(await filters.count() === 1, "organization_filter_missing");
+  const all = filters.getByRole("button", { name: "All organizations", exact: true });
+  requireResult(await all.getAttribute("aria-pressed") === "true", "all_organizations_not_default");
+  const expectedIds = rows => rows.map(row => row.account.account_id).sort();
+  const visibleIds = async () => table.locator("tbody tr").evaluateAll(rows => rows.map(row => row.dataset.accountId).sort());
+  const sameIds = (actual, expected) => JSON.stringify(actual) === JSON.stringify(expected);
+  const groups = snapshot.organizations.items.filter(organization => snapshot.rows.some(row => row.account.organization_id === organization.organization_id));
+  requireResult(groups.length >= 2, "two_real_organizations_required");
+  const firstGroup = filters.getByRole("button", { name: groups[0].name, exact: true });
+  const secondGroup = filters.getByRole("button", { name: groups[1].name, exact: true });
+  await firstGroup.focus();
+  requireResult(await firstGroup.evaluate(node => document.activeElement === node), "organization_filter_not_keyboard_accessible");
+  await page.keyboard.press("Space");
+  requireResult(await firstGroup.getAttribute("aria-pressed") === "true" && await all.getAttribute("aria-pressed") === "false", "single_organization_selection_not_exposed");
+  requireResult(sameIds(await visibleIds(), expectedIds(snapshot.rows.filter(row => row.account.organization_id === groups[0].organization_id))), "single_organization_rows_mismatch");
+  await page.getByRole("button", { name: "Refresh overview", exact: true }).click();
+  await page.getByRole("button", { name: "Refresh overview", exact: true }).waitFor();
+  requireResult(await firstGroup.getAttribute("aria-pressed") === "true", "organization_selection_lost_after_refresh");
+  requireResult(sameIds(await visibleIds(), expectedIds(snapshot.rows.filter(row => row.account.organization_id === groups[0].organization_id))), "filtered_refresh_rows_mismatch");
+  stage = "organization_periodic_refresh";
+  const periodicRead = await page.waitForResponse(response => new URL(response.url()).pathname === "/api/v1/accounts" && response.request().method() === "GET", { timeout: 40_000 });
+  requireResult(periodicRead.status() === 200, "periodic_account_read_unavailable");
+  await page.getByRole("button", { name: "Refresh overview", exact: true }).waitFor();
+  requireResult(await firstGroup.getAttribute("aria-pressed") === "true" && sameIds(await visibleIds(), expectedIds(snapshot.rows.filter(row => row.account.organization_id === groups[0].organization_id))), "organization_selection_lost_after_periodic_refresh");
+  stage = "organization_filter";
+  await secondGroup.click();
+  requireResult(await firstGroup.getAttribute("aria-pressed") === "true" && await secondGroup.getAttribute("aria-pressed") === "true", "multiple_organization_selection_not_exposed");
+  requireResult(sameIds(await visibleIds(), expectedIds(snapshot.rows.filter(row => [groups[0].organization_id, groups[1].organization_id].includes(row.account.organization_id)))), "multiple_organization_rows_mismatch");
+  await firstGroup.click();
+  await secondGroup.click();
+  requireResult(await table.count() === 0 && await page.getByText("No organizations selected. Choose an organization or All organizations.", { exact: true }).count() === 1, "empty_organization_selection_not_explicit");
+  await all.click();
+  requireResult(await all.getAttribute("aria-pressed") === "true" && sameIds(await visibleIds(), expectedIds(snapshot.rows)), "all_organizations_reset_failed");
+  stage = "lowest_quota_first";
+  const actualOrder = await table.locator("tbody tr").evaluateAll(rows => rows.map(row => row.dataset.accountId));
+  const minimum = row => {
+    const values = row.capacity.items.flatMap(item => item.windows).map(window => percentageValue(window.allowance?.remaining_percentage ?? window.remaining_ratio)).filter(value => value !== null);
+    return values.length > 0 ? Math.min(...values) : Infinity;
+  };
+  const orderedMinimums = actualOrder.map(id => minimum(snapshot.rows.find(row => row.account.account_id === id)));
+  requireResult(orderedMinimums.every((value, index) => index === 0 || value >= orderedMinimums[index - 1]), "accounts_not_sorted_by_lowest_remaining_quota");
+  requireResult(await table.getByRole("columnheader", { name: "Quota left", exact: true }).getAttribute("aria-sort") === "ascending", "quota_sort_not_accessible");
+  stage = "per_window_quota";
+  let lowWindows = 0;
+  let normalWindows = 0;
   for (const { account, capacity } of snapshot.rows) {
     const row = table.locator(`tbody tr[data-account-id="${account.account_id}"]`);
     await row.waitFor();
@@ -56,7 +107,19 @@ try {
       requireResult(await reading.getByText(window.safe_label ?? window.window_key, { exact: true }).count() === 1, "quota_window_label_missing");
       if (expected !== null) {
         requireResult(await reading.getByText(expected, { exact: true }).count() === 1, "account_percentage_mismatch");
-        requireResult(await reading.getByRole("meter").count() === 1, "account_quota_bar_missing");
+        const meter = reading.getByRole("meter");
+        requireResult(await meter.count() === 1, "account_quota_bar_missing");
+        const value = percentageValue(window.allowance?.remaining_percentage ?? window.remaining_ratio);
+        const color = await meter.locator("span").evaluate(node => getComputedStyle(node).backgroundColor.match(/\d+/g)?.slice(0, 3).map(Number));
+        if (value <= 20) {
+          lowWindows += 1;
+          requireResult(color && color[0] > color[1] * 1.5 && color[0] > color[2] * 1.5, "low_quota_bar_not_red");
+          requireResult(await reading.getByText("Low", { exact: true }).count() === 1 && /low/i.test(await meter.getAttribute("aria-valuetext") ?? ""), "low_quota_text_missing");
+        } else {
+          normalWindows += 1;
+          requireResult(color && color[2] > color[0], "normal_quota_bar_changed_to_warning");
+          requireResult(await reading.getByText("Low", { exact: true }).count() === 0, "normal_quota_marked_low");
+        }
       }
     }
     requireResult(await row.locator("time").count() > 0 || capacity.items.every(item => item.windows.length === 0), "account_update_time_missing");
@@ -86,7 +149,8 @@ try {
   requireResult(mutations === 0, "overview_started_mutation");
   await page.goto(origin);
   await page.getByRole("table", { name: "Account quota overview", exact: true }).waitFor();
-  console.log(`DASHBOARD OVERVIEW: PASSED — ${snapshot.rows.length} real account rows, exact per-window percentages/bars, compact desktop/narrow layout, read-only navigation`);
+  console.log(`DASHBOARD OVERVIEW: PASSED — ${snapshot.rows.length} real account rows, single/multiple/reset/empty organization filters, retained manual/periodic refresh selection, lowest quota first, ${lowWindows} low red / ${normalWindows} normal bars, compact desktop/narrow layout, read-only navigation`);
+  if (lowWindows === 0) console.log("LOW-QUOTA LIVE COLOR: NOT RUN — no actual reading at or below 20 percent");
   process.exit(0);
 } catch (error) {
   const reason = error instanceof Error && /^[a-z_]+$/.test(error.message) ? error.message : "browser_verification_unavailable";

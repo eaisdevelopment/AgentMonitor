@@ -116,6 +116,10 @@ td { font-variant-numeric: tabular-nums; }
 .fleet-overview-controls { display: flex; align-items: center; flex-wrap: wrap; gap: .5rem .8rem; }
 .fleet-overview-controls > span { color: #a9bfcc; font-size: .78rem; }
 .fleet-overview-controls > button { min-height: 2.1rem; padding: .35rem .65rem; font-size: .78rem; }
+.overview-organization-filters { display: flex; align-items: center; flex-wrap: wrap; gap: .35rem; min-width: 0; }
+.overview-organization-filters > span { color: #9fb6c5; font-size: .75rem; margin-right: .2rem; }
+.overview-organization-filters > button { min-height: 2.1rem; padding: .35rem .65rem; border-radius: 1rem; background: #0b1824; color: #b7c7d1; font-size: .78rem; overflow-wrap: anywhere; max-width: 100%; }
+.overview-organization-filters > button[aria-pressed="true"] { background: #23485b; border-color: #78c8e2; color: #e0f7ff; }
 .fleet-overview-table { table-layout: fixed; }
 .fleet-overview-table thead th { padding: .55rem 1rem; background: #0b1824; color: #9fb6c5; font-size: .75rem; }
 .fleet-overview-table thead th:nth-child(1) { width: 27%; }
@@ -135,9 +139,14 @@ td { font-variant-numeric: tabular-nums; }
 .overview-quota-list { display: grid; gap: .5rem; }
 .overview-quota-label { display: flex; align-items: baseline; justify-content: space-between; gap: .75rem; }
 .overview-quota-label > span { color: #b7c7d1; font-size: .75rem; }
-.overview-quota-label > strong { font-size: 1rem; font-variant-numeric: tabular-nums; }
+.overview-quota-value { display: inline-flex; align-items: baseline; gap: .4rem; white-space: nowrap; }
+.overview-quota-label strong { font-size: 1rem; font-variant-numeric: tabular-nums; }
+.overview-quota-warning { font-size: .68rem; font-weight: 650; }
 .overview-quota-meter { height: .25rem; margin-top: .2rem; background: #294258; border-radius: .25rem; overflow: hidden; }
 .overview-quota-meter > span { display: block; height: 100%; background: #78c8e2; }
+.overview-quota-low .overview-quota-value { color: #ff9aa2; }
+.overview-quota-low .overview-quota-meter { background: #542d36; }
+.overview-quota-low .overview-quota-meter > span { background: #f87171; }
 .fleet-overview-notice { margin: .75rem 1rem 1rem; color: #b7c7d1; font-size: .85rem; }
 @media (max-width: 700px) {
   .overview-local-state { font-size: .7rem; }
