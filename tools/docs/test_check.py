@@ -12,7 +12,7 @@ from pathlib import Path
 REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from check import check_repository  # noqa: E402
+from check import check_repository, check_v1_implementation_status
 
 
 class DocumentationCheckTests(unittest.TestCase):
@@ -133,6 +133,40 @@ class DocumentationCheckTests(unittest.TestCase):
         path.write_text(json.dumps(record), encoding="utf-8")
         return path
 
+    def _copy_status_repository(self, root: Path) -> tuple[Path, dict[str, object]]:
+        backlog = root / "docs/superpowers/plans/implementation-backlog.toml"
+        backlog.parent.mkdir(parents=True)
+        backlog.write_bytes(
+            (
+                REPOSITORY_ROOT / "docs/superpowers/plans/implementation-backlog.toml"
+            ).read_bytes()
+        )
+        status_path = root / "docs/evidence/v1-implementation-status-v1.json"
+        status_path.parent.mkdir(parents=True)
+        status = json.loads(
+            (
+                REPOSITORY_ROOT / "docs/evidence/v1-implementation-status-v1.json"
+            ).read_text(encoding="utf-8")
+        )
+        for collection in (status["milestones"], status["stories"]):
+            for item in collection:
+                for evidence_path in item["evidence_paths"]:
+                    path = root / evidence_path
+                    path.parent.mkdir(parents=True, exist_ok=True)
+                    path.write_text("# Evidence\n", encoding="utf-8")
+        roadmap = root / status["roadmap"]
+        roadmap.parent.mkdir(parents=True, exist_ok=True)
+        roadmap.write_text(
+            "# Roadmap\n\n"
+            + "\n".join(
+                f"## {item['milestone_id']} — {item['title']}"
+                for item in status["milestones"]
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+        return status_path, status
+
     def test_real_repository_documentation_is_internally_resolvable(self) -> None:
         self.assertEqual([], check_repository(REPOSITORY_ROOT))
 
@@ -162,6 +196,110 @@ class DocumentationCheckTests(unittest.TestCase):
             )
 
             self.assertEqual([], check_repository(root))
+
+    def test_import_backlog_requires_current_implementation_status_overlay(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            root = Path(temporary_directory)
+            self._minimal_repository(root)
+            backlog = root / "docs/superpowers/plans/implementation-backlog.toml"
+            backlog.parent.mkdir(parents=True)
+            backlog.write_bytes(
+                (
+                    REPOSITORY_ROOT
+                    / "docs/superpowers/plans/implementation-backlog.toml"
+                ).read_bytes()
+            )
+
+            violations = check_repository(root)
+
+            self.assertTrue(
+                any(
+                    "V1 implementation status overlay is missing" in item
+                    for item in violations
+                ),
+                violations,
+            )
+
+    def test_implementation_status_rejects_story_milestone_drift(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            root = Path(temporary_directory)
+            status_path, status = self._copy_status_repository(root)
+            status["stories"][0]["milestone_id"] = "V1-M8"
+            status_path.write_text(json.dumps(status), encoding="utf-8")
+
+            violations = check_v1_implementation_status(root)
+
+            self.assertTrue(
+                any(
+                    "story milestone differs from backlog" in item
+                    for item in violations
+                ),
+                violations,
+            )
+
+    def test_implementation_status_rejects_satisfied_blocked_dependency(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            root = Path(temporary_directory)
+            status_path, status = self._copy_status_repository(root)
+            m4 = next(
+                item for item in status["milestones"] if item["milestone_id"] == "V1-M4"
+            )
+            m4["dependency_state"] = "satisfied"
+            m4["unresolved_dependency_ids"] = []
+            status_path.write_text(json.dumps(status), encoding="utf-8")
+
+            violations = check_v1_implementation_status(root)
+
+            self.assertTrue(
+                any(
+                    "dependency acceptance is inconsistent for V1-M4" in item
+                    for item in violations
+                ),
+                violations,
+            )
+
+    def test_implementation_status_requires_distinct_acceptance_decision(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            root = Path(temporary_directory)
+            status_path, status = self._copy_status_repository(root)
+            m1 = next(
+                item for item in status["milestones"] if item["milestone_id"] == "V1-M1"
+            )
+            m1["acceptance_decision_path"] = None
+            status_path.write_text(json.dumps(status), encoding="utf-8")
+
+            violations = check_v1_implementation_status(root)
+
+            self.assertTrue(
+                any(
+                    "accepted milestone lacks acceptance decision evidence" in item
+                    for item in violations
+                ),
+                violations,
+            )
+
+    def test_current_gate_binding_requires_exact_implementation_revision(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            root = Path(temporary_directory)
+            status_path, status = self._copy_status_repository(root)
+            m4 = next(
+                item for item in status["milestones"] if item["milestone_id"] == "V1-M4"
+            )
+            m4["gate_binding"] = "current_implementation_revision"
+            m4["gate_revision"] = "b" * 40
+            status_path.write_text(json.dumps(status), encoding="utf-8")
+
+            violations = check_v1_implementation_status(root)
+
+            self.assertTrue(
+                any(
+                    "current gate revision differs from implementation revision" in item
+                    for item in violations
+                ),
+                violations,
+            )
 
     def test_m3_plan_requires_one_machine_readable_active_status_record(self) -> None:
         with tempfile.TemporaryDirectory() as temporary_directory:

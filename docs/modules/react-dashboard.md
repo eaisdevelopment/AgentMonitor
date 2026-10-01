@@ -1,7 +1,14 @@
 # P02 React dashboard — M2 identity shell and M3 observation views
 
-- Status: **M2 identity shell and M3 Claude vertical slice accepted; not a V1 dashboard release**.
-- Post-audit note: Story 5's historical Red-first exceptions are documented in the [M2 correction record](../evidence/m2-audit-fixes.md); the M2 milestone reacceptance remains held. The separate `hostile_resource` Chrome scenario and SQLite assertion now cover cookie-read idle-state integrity after 62 real seconds.
+- Status: **M2 local identity shell accepted; M3 dashboard delivery implemented
+  with formal M3 acceptance Blocked; M4 dashboard delivery passed its standalone
+  gate; not a V1 dashboard release**.
+- Post-audit note: Story 5's historical Red-first exceptions are documented in
+  the [M2 correction record](../evidence/m2-audit-fixes.md), which records the
+  owner disposition and independent QA reacceptance. The separate
+  `hostile_resource` Chrome scenario and SQLite assertion cover cookie-read
+  idle-state integrity after 62 real seconds. Current milestone distinctions are
+  recorded in the [V1 status overlay](../evidence/v1-implementation-status-v1.json).
 - Owner: P02 UI. Plan: [`PLAN-P02`](../plans/ui/react-dashboard/plan-v1.md), approved M2 slice [`ST-UI-001`](../superpowers/plans/2026-09-19-agentmonitor-v1-m2-authenticated-shell.md).
 - Consumes `CTR-UI-001`, `CTR-IAM-003/006/007`, and the M3 registry,
   provider, collection, capacity, and runtime V1 contracts through the generated

@@ -1,11 +1,20 @@
 # AgentMonitor V1 implementation-plan index
 
-Status: **Planning complete; implementation not authorized**
+Status: **Planning topology frozen for import; current delivery is tracked
+separately**
 
 This is the execution layer over the approved product requirements and the 20
 detailed module plans. It contains eight milestones, 19 Epics, and 44 Stories.
 Every Story names exact files, module contracts, requirement/acceptance IDs,
 real-boundary Red/Green commands, expected results, and a commit boundary.
+
+The `status = "planned_import_ready"`, `implementation_authorized = false`, and
+per-Story `Planned` values in the import backlog describe the unsubmitted GitLab
+import snapshot. They are intentionally immutable planning provenance and are
+not the repository's current implementation status. The machine-readable
+[V1 implementation-status overlay](../../evidence/v1-implementation-status-v1.json)
+records current delivery, canonical gate, acceptance, dependency, and evidence
+state for the same eight milestones and 44 Stories.
 
 ## Authoritative files
 
@@ -14,6 +23,8 @@ real-boundary Red/Green commands, expected results, and a commit boundary.
 - [Import-ready backlog](implementation-backlog.toml): unique Milestone, Epic,
   Story, ownership, and dependency records. `gitlab_objects_created = false` is
   intentional until a GitLab project ID and protected token are configured.
+  Its lifecycle fields are planning/import metadata rather than live delivery
+  state.
 - [V1-M1 Foundation](2026-09-19-agentmonitor-v1-m1-foundation.md)
 - [V1-M2 Authenticated shell](2026-09-19-agentmonitor-v1-m2-authenticated-shell.md)
 - [V1-M3 Claude slice](2026-09-19-agentmonitor-v1-m3-claude-slice.md)

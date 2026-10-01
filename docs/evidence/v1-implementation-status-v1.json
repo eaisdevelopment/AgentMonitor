@@ -1,0 +1,599 @@
+{
+  "schema_version": "1.0.0",
+  "record_type": "agentmonitor.v1_implementation_status",
+  "record_id": "V1-STATUS-2026-10-01-01",
+  "implementation_revision": "e2fec69dfe8fc1413521e551c106b5bead804f8f",
+  "recorded_at": "2026-10-01T15:11:07Z",
+  "planning_backlog": "docs/superpowers/plans/implementation-backlog.toml",
+  "planning_backlog_sha256": "2e93367d304fda306776f8789db23c754798f6307277628f0565350d0dbb962e",
+  "roadmap": "docs/roadmap.md",
+  "milestones": [
+    {
+      "milestone_id": "V1-M1",
+      "title": "Foundation and local-stack skeleton",
+      "depends_on": [],
+      "delivery_state": "implemented",
+      "canonical_gate_state": "passed",
+      "gate_binding": "historical_run",
+      "gate_revision": null,
+      "acceptance_state": "accepted",
+      "acceptance_scope": "local_foundation",
+      "acceptance_decision_path": "docs/evidence/m1-hosted-ci.md",
+      "dependency_state": "not_applicable",
+      "unresolved_dependency_ids": [],
+      "evidence_paths": [
+        "docs/evidence/m1-hosted-ci.md",
+        "docs/evidence/m1-audit-fixes.md"
+      ],
+      "decision": "Local foundation acceptance is recorded and the hosted code commit passed. The evidence does not record the requested hosted confirmation for the later documentation-only acceptance commit, and no V1 release is claimed."
+    },
+    {
+      "milestone_id": "V1-M2",
+      "title": "Authenticated local dashboard shell",
+      "depends_on": [
+        "V1-M1"
+      ],
+      "delivery_state": "implemented",
+      "canonical_gate_state": "passed",
+      "gate_binding": "historical_run",
+      "gate_revision": null,
+      "acceptance_state": "accepted",
+      "acceptance_scope": "local_authenticated_shell",
+      "acceptance_decision_path": "docs/evidence/m2-audit-fixes.md",
+      "dependency_state": "satisfied",
+      "unresolved_dependency_ids": [],
+      "evidence_paths": [
+        "docs/evidence/m2-st-api-002.md",
+        "docs/evidence/m2-audit-fixes.md"
+      ],
+      "decision": "The corrected local authenticated-shell slice is accepted with its recorded bounded historical TDD deviation; this is not provider or V1 release acceptance."
+    },
+    {
+      "milestone_id": "V1-M3",
+      "title": "Real Claude vertical slice",
+      "depends_on": [
+        "V1-M2"
+      ],
+      "delivery_state": "implemented",
+      "canonical_gate_state": "passed",
+      "gate_binding": "historical_run",
+      "gate_revision": null,
+      "acceptance_state": "blocked",
+      "acceptance_scope": "full_milestone",
+      "acceptance_decision_path": "docs/evidence/v1-m3-acceptance-status-v1.json",
+      "dependency_state": "satisfied",
+      "unresolved_dependency_ids": [],
+      "evidence_paths": [
+        "docs/evidence/m3-local-release-gate-decision.md",
+        "docs/evidence/v1-m3-acceptance-status-v1.json"
+      ],
+      "decision": "The technical exit gate passed on 2026-09-25, after the active 2026-09-24 acceptance record was written. Formal M3 acceptance remains blocked until a superseding record closes or explicitly disposes every selected criterion."
+    },
+    {
+      "milestone_id": "V1-M4",
+      "title": "Claude fleet, alerts, and operations",
+      "depends_on": [
+        "V1-M3"
+      ],
+      "delivery_state": "implemented",
+      "canonical_gate_state": "passed",
+      "gate_binding": "historical_run",
+      "gate_revision": null,
+      "acceptance_state": "not_recorded",
+      "acceptance_scope": "none",
+      "acceptance_decision_path": null,
+      "dependency_state": "unresolved",
+      "unresolved_dependency_ids": [
+        "V1-M3"
+      ],
+      "evidence_paths": [
+        "docs/evidence/m4-completion.md"
+      ],
+      "decision": "All six M4 Story implementations are present and the later committed evidence records a standalone canonical gate pass without an exact tested-revision binding. Six monitored profile connections currently resolve to five distinct reported identity quota rows, so six distinct intended accounts are not accepted. Program closure also remains unresolved because the required V1-M3 entry gate is not formally accepted."
+    },
+    {
+      "milestone_id": "V1-M5",
+      "title": "Codex vertical slice and fleet",
+      "depends_on": [
+        "V1-M3"
+      ],
+      "delivery_state": "planned",
+      "canonical_gate_state": "not_run",
+      "gate_binding": "none",
+      "gate_revision": null,
+      "acceptance_state": "not_recorded",
+      "acceptance_scope": "none",
+      "acceptance_decision_path": null,
+      "dependency_state": "unresolved",
+      "unresolved_dependency_ids": [
+        "V1-M3"
+      ],
+      "evidence_paths": [],
+      "decision": "Codex implementation and its canonical gate have not started; the V1-M3 prerequisite is unresolved."
+    },
+    {
+      "milestone_id": "V1-M6",
+      "title": "Ollama local/cloud vertical slice",
+      "depends_on": [
+        "V1-M3"
+      ],
+      "delivery_state": "planned",
+      "canonical_gate_state": "not_run",
+      "gate_binding": "none",
+      "gate_revision": null,
+      "acceptance_state": "not_recorded",
+      "acceptance_scope": "none",
+      "acceptance_decision_path": null,
+      "dependency_state": "unresolved",
+      "unresolved_dependency_ids": [
+        "V1-M3"
+      ],
+      "evidence_paths": [],
+      "decision": "Ollama implementation and its canonical gate have not started; the V1-M3 prerequisite is unresolved."
+    },
+    {
+      "milestone_id": "V1-M7",
+      "title": "API usage, cost, credit, and budget monitoring",
+      "depends_on": [
+        "V1-M3"
+      ],
+      "delivery_state": "planned",
+      "canonical_gate_state": "not_run",
+      "gate_binding": "none",
+      "gate_revision": null,
+      "acceptance_state": "not_recorded",
+      "acceptance_scope": "none",
+      "acceptance_decision_path": null,
+      "dependency_state": "unresolved",
+      "unresolved_dependency_ids": [
+        "V1-M3"
+      ],
+      "evidence_paths": [],
+      "decision": "API-budget implementation and its canonical gate have not started; the V1-M3 prerequisite is unresolved."
+    },
+    {
+      "milestone_id": "V1-M8",
+      "title": "Hardening and release",
+      "depends_on": [
+        "V1-M4",
+        "V1-M5",
+        "V1-M6",
+        "V1-M7"
+      ],
+      "delivery_state": "planned",
+      "canonical_gate_state": "not_run",
+      "gate_binding": "none",
+      "gate_revision": null,
+      "acceptance_state": "not_recorded",
+      "acceptance_scope": "none",
+      "acceptance_decision_path": null,
+      "dependency_state": "unresolved",
+      "unresolved_dependency_ids": [
+        "V1-M4",
+        "V1-M5",
+        "V1-M6",
+        "V1-M7"
+      ],
+      "evidence_paths": [],
+      "decision": "Release hardening has not started; every direct program prerequisite still lacks accepted closure."
+    }
+  ],
+  "stories": [
+    {
+      "story_id": "ST-CONTRACT-001",
+      "milestone_id": "V1-M1",
+      "title": "Freeze V1 technical contracts and import ownership",
+      "delivery_state": "implemented",
+      "evidence_paths": [
+        "docs/evidence/m1-hosted-ci.md",
+        "docs/evidence/m1-audit-fixes.md"
+      ],
+      "decision": "Implementation is present at the assessed revision; aggregate M1 evidence supports this delivery row and is not an individual Story acceptance record."
+    },
+    {
+      "story_id": "ST-FND-001",
+      "milestone_id": "V1-M1",
+      "title": "Typed bootstrap configuration and safe correlation logging",
+      "delivery_state": "implemented",
+      "evidence_paths": [
+        "docs/evidence/m1-hosted-ci.md",
+        "docs/evidence/m1-audit-fixes.md"
+      ],
+      "decision": "Implementation is present at the assessed revision; aggregate M1 evidence supports this delivery row and is not an individual Story acceptance record."
+    },
+    {
+      "story_id": "ST-DATA-001",
+      "milestone_id": "V1-M1",
+      "title": "Real SQLite policy, compatibility inspection, and base migration",
+      "delivery_state": "implemented",
+      "evidence_paths": [
+        "docs/evidence/m1-hosted-ci.md",
+        "docs/evidence/m1-audit-fixes.md"
+      ],
+      "decision": "Implementation is present at the assessed revision; aggregate M1 evidence supports this delivery row and is not an individual Story acceptance record."
+    },
+    {
+      "story_id": "ST-CONTRACT-002",
+      "milestone_id": "V1-M1",
+      "title": "Loopback application factory and deterministic OpenAPI client",
+      "delivery_state": "implemented",
+      "evidence_paths": [
+        "docs/evidence/m1-hosted-ci.md",
+        "docs/evidence/m1-audit-fixes.md"
+      ],
+      "decision": "Implementation is present at the assessed revision; aggregate M1 evidence supports this delivery row and is not an individual Story acceptance record."
+    },
+    {
+      "story_id": "ST-FND-002",
+      "milestone_id": "V1-M1",
+      "title": "Built browser shell and canonical milestone automation",
+      "delivery_state": "implemented",
+      "evidence_paths": [
+        "docs/evidence/m1-hosted-ci.md"
+      ],
+      "decision": "Implementation is present at the assessed revision; Story evidence does not override milestone acceptance."
+    },
+    {
+      "story_id": "ST-IAM-001",
+      "milestone_id": "V1-M2",
+      "title": "M01 policy contracts, administrator bootstrap, and real persistence",
+      "delivery_state": "implemented",
+      "evidence_paths": [
+        "docs/evidence/m2-st-iam-001.md"
+      ],
+      "decision": "Implementation is present at the assessed revision; Story evidence does not override milestone acceptance."
+    },
+    {
+      "story_id": "ST-IAM-002",
+      "milestone_id": "V1-M2",
+      "title": "Durable sessions, CSRF, throttle, and authorization",
+      "delivery_state": "implemented",
+      "evidence_paths": [
+        "docs/evidence/m2-st-iam-002.md"
+      ],
+      "decision": "Implementation is present at the assessed revision; Story evidence does not override milestone acceptance."
+    },
+    {
+      "story_id": "ST-IAM-003",
+      "milestone_id": "V1-M2",
+      "title": "Least-privilege API-token lifecycle",
+      "delivery_state": "implemented",
+      "evidence_paths": [
+        "docs/evidence/m2-st-iam-003.md"
+      ],
+      "decision": "Implementation is present at the assessed revision; Story evidence does not override milestone acceptance."
+    },
+    {
+      "story_id": "ST-API-001",
+      "milestone_id": "V1-M2",
+      "title": "Hardened IAM HTTP boundary and generated client",
+      "delivery_state": "implemented",
+      "evidence_paths": [
+        "docs/evidence/m2-st-api-001.md"
+      ],
+      "decision": "Implementation is present at the assessed revision; Story evidence does not override milestone acceptance."
+    },
+    {
+      "story_id": "ST-UI-001",
+      "milestone_id": "V1-M2",
+      "title": "Real-browser authentication and token settings",
+      "delivery_state": "implemented",
+      "evidence_paths": [
+        "docs/evidence/m2-st-ui-001.md",
+        "docs/evidence/m2-audit-fixes.md"
+      ],
+      "decision": "Implementation is present at the assessed revision; Story evidence does not override milestone acceptance."
+    },
+    {
+      "story_id": "ST-API-002",
+      "milestone_id": "V1-M2",
+      "title": "Cross-origin denial and milestone integration gate",
+      "delivery_state": "implemented",
+      "evidence_paths": [
+        "docs/evidence/m2-st-api-002.md",
+        "docs/evidence/m2-audit-fixes.md"
+      ],
+      "decision": "Implementation is present at the assessed revision; Story evidence does not override milestone acceptance."
+    },
+    {
+      "story_id": "ST-PROV-001",
+      "milestone_id": "V1-M3",
+      "title": "Provider protocol, provenance, negotiation, and compatibility",
+      "delivery_state": "implemented",
+      "evidence_paths": [
+        "docs/evidence/m3-st-prov-001.md"
+      ],
+      "decision": "Implementation is present at the assessed revision; Story evidence does not override milestone acceptance."
+    },
+    {
+      "story_id": "ST-REG-001",
+      "milestone_id": "V1-M3",
+      "title": "Registry persistence and one owner-confirmed Claude account",
+      "delivery_state": "implemented",
+      "evidence_paths": [
+        "docs/evidence/m3-st-reg-001.md",
+        "docs/evidence/m3-owner-confirmed-claude-vertical.md"
+      ],
+      "decision": "Implementation is present at the assessed revision; Story evidence does not override milestone acceptance."
+    },
+    {
+      "story_id": "ST-CLA-001",
+      "milestone_id": "V1-M3",
+      "title": "Evidence-scoped Claude adapter and real subscription observation",
+      "delivery_state": "implemented",
+      "evidence_paths": [
+        "docs/evidence/m3-claude-live-unblock.md",
+        "docs/evidence/m3-st-cla-001-provider-system-persistence.md"
+      ],
+      "decision": "Implementation is present at the assessed revision; Story evidence does not override milestone acceptance."
+    },
+    {
+      "story_id": "ST-OBS-001",
+      "milestone_id": "V1-M3",
+      "title": "Real collection run and idempotent capacity commit",
+      "delivery_state": "implemented",
+      "evidence_paths": [
+        "docs/evidence/m3-st-obs-001.md",
+        "docs/evidence/m3-owner-confirmed-claude-vertical.md"
+      ],
+      "decision": "Implementation is present at the assessed revision; Story evidence does not override milestone acceptance."
+    },
+    {
+      "story_id": "ST-OBS-002",
+      "milestone_id": "V1-M3",
+      "title": "Real Linux process/session observation for the same account",
+      "delivery_state": "implemented",
+      "evidence_paths": [
+        "docs/evidence/m3-st-obs-002.md",
+        "docs/evidence/m3-st-obs-002-executable-identity.md"
+      ],
+      "decision": "Implementation is present at the assessed revision; Story evidence does not override milestone acceptance."
+    },
+    {
+      "story_id": "ST-OBS-003",
+      "milestone_id": "V1-M3",
+      "title": "Authenticated API, generated client, browser, and live milestone gate",
+      "delivery_state": "implemented",
+      "evidence_paths": [
+        "docs/evidence/m3-st-obs-003-p01.md",
+        "docs/evidence/m3-st-obs-003-p02.md",
+        "docs/evidence/m3-authenticated-dashboard-runner.md",
+        "docs/evidence/m3-local-release-gate-decision.md"
+      ],
+      "decision": "Implementation is present at the assessed revision; Story evidence does not override milestone acceptance."
+    },
+    {
+      "story_id": "ST-FLEET-001",
+      "milestone_id": "V1-M4",
+      "title": "Reconcile six accounts, organizations, and read-only auth health",
+      "delivery_state": "implemented",
+      "evidence_paths": [
+        "docs/evidence/m4-completion.md",
+        "docs/evidence/claude-dashboard-connection.md"
+      ],
+      "decision": "Implementation is present at the assessed revision. The gate observed six monitored profile connections and five distinct reported identity quota rows; intended-account acceptance remains unrecorded."
+    },
+    {
+      "story_id": "ST-FLEET-002",
+      "milestone_id": "V1-M4",
+      "title": "Collect account and organization capacity with history",
+      "delivery_state": "implemented",
+      "evidence_paths": [
+        "docs/evidence/m4-completion.md",
+        "docs/evidence/m4-capacity.md"
+      ],
+      "decision": "Implementation is present at the assessed revision; Story evidence does not override milestone acceptance."
+    },
+    {
+      "story_id": "ST-FLEET-003",
+      "milestone_id": "V1-M4",
+      "title": "Expose runtime, capacity, and history in the browser",
+      "delivery_state": "implemented",
+      "evidence_paths": [
+        "docs/evidence/m4-completion.md",
+        "docs/evidence/live-account-agents.md"
+      ],
+      "decision": "Implementation is present at the assessed revision; Story evidence does not override milestone acceptance."
+    },
+    {
+      "story_id": "ST-ALERT-001",
+      "milestone_id": "V1-M4",
+      "title": "Implement alert contracts, three migrations, and event lifecycle",
+      "delivery_state": "implemented",
+      "evidence_paths": [
+        "docs/evidence/m4-completion.md",
+        "docs/evidence/m4-alerting-i01-i02.md"
+      ],
+      "decision": "Implementation is present at the assessed revision; Story evidence does not override milestone acceptance."
+    },
+    {
+      "story_id": "ST-ALERT-002",
+      "milestone_id": "V1-M4",
+      "title": "Deliver alert rules and console through HTTP and browser",
+      "delivery_state": "implemented",
+      "evidence_paths": [
+        "docs/evidence/m4-completion.md"
+      ],
+      "decision": "Implementation is present at the assessed revision; Story evidence does not override milestone acceptance."
+    },
+    {
+      "story_id": "ST-OPS-001",
+      "milestone_id": "V1-M4",
+      "title": "Publish operations contracts, diagnostics, and M4 evidence",
+      "delivery_state": "implemented",
+      "evidence_paths": [
+        "docs/evidence/m4-completion.md",
+        "docs/evidence/m4-operations-verification.md"
+      ],
+      "decision": "Implementation is present at the assessed revision; Story evidence does not override milestone acceptance."
+    },
+    {
+      "story_id": "ST-CDX-001",
+      "milestone_id": "V1-M5",
+      "title": "Admit the evidence-scoped adapter and real installation",
+      "delivery_state": "planned",
+      "evidence_paths": [],
+      "decision": "No implementation or canonical Story completion is claimed."
+    },
+    {
+      "story_id": "ST-CDX-002",
+      "milestone_id": "V1-M5",
+      "title": "Reconcile four identities and authentication health",
+      "delivery_state": "planned",
+      "evidence_paths": [],
+      "decision": "No implementation or canonical Story completion is claimed."
+    },
+    {
+      "story_id": "ST-CDX-003",
+      "milestone_id": "V1-M5",
+      "title": "Collect native subscription windows into capacity history",
+      "delivery_state": "planned",
+      "evidence_paths": [],
+      "decision": "No implementation or canonical Story completion is claimed."
+    },
+    {
+      "story_id": "ST-CDX-004",
+      "milestone_id": "V1-M5",
+      "title": "Discover and correlate 5\u20136 representative processes",
+      "delivery_state": "planned",
+      "evidence_paths": [],
+      "decision": "No implementation or canonical Story completion is claimed."
+    },
+    {
+      "story_id": "ST-CDX-005",
+      "milestone_id": "V1-M5",
+      "title": "Integrate HTTP, browser, health, and M5 evidence",
+      "delivery_state": "planned",
+      "evidence_paths": [],
+      "decision": "No implementation or canonical Story completion is claimed."
+    },
+    {
+      "story_id": "ST-OLL-001",
+      "milestone_id": "V1-M6",
+      "title": "Admit independently gated capabilities and installation evidence",
+      "delivery_state": "planned",
+      "evidence_paths": [],
+      "decision": "No implementation or canonical Story completion is claimed."
+    },
+    {
+      "story_id": "ST-OLL-002",
+      "milestone_id": "V1-M6",
+      "title": "Observe local service, metadata decision, catalog, and runtime safely",
+      "delivery_state": "planned",
+      "evidence_paths": [],
+      "decision": "No implementation or canonical Story completion is claimed."
+    },
+    {
+      "story_id": "ST-OLL-003",
+      "milestone_id": "V1-M6",
+      "title": "Reconcile two cloud identities and authentication health",
+      "delivery_state": "planned",
+      "evidence_paths": [],
+      "decision": "No implementation or canonical Story completion is claimed."
+    },
+    {
+      "story_id": "ST-OLL-004",
+      "milestone_id": "V1-M6",
+      "title": "Collect cloud subscription capacity as a separate pool",
+      "delivery_state": "planned",
+      "evidence_paths": [],
+      "decision": "No implementation or canonical Story completion is claimed."
+    },
+    {
+      "story_id": "ST-OLL-005",
+      "milestone_id": "V1-M6",
+      "title": "Correlate, integrate, render, and close M6 evidence",
+      "delivery_state": "planned",
+      "evidence_paths": [],
+      "decision": "No implementation or canonical Story completion is claimed."
+    },
+    {
+      "story_id": "ST-BUDGET-001",
+      "milestone_id": "V1-M7",
+      "title": "Build the exact M05 budget core",
+      "delivery_state": "planned",
+      "evidence_paths": [],
+      "decision": "No implementation or canonical Story completion is claimed."
+    },
+    {
+      "story_id": "ST-BUDGET-002",
+      "milestone_id": "V1-M7",
+      "title": "Complete OpenAI and Ollama provider API lanes",
+      "delivery_state": "planned",
+      "evidence_paths": [],
+      "decision": "No implementation or canonical Story completion is claimed."
+    },
+    {
+      "story_id": "ST-BUDGET-003",
+      "milestone_id": "V1-M7",
+      "title": "Publish budget HTTP resources and generated client",
+      "delivery_state": "planned",
+      "evidence_paths": [],
+      "decision": "No implementation or canonical Story completion is claimed."
+    },
+    {
+      "story_id": "ST-BUDGET-004",
+      "milestone_id": "V1-M7",
+      "title": "Render truthful budget and history views",
+      "delivery_state": "planned",
+      "evidence_paths": [],
+      "decision": "No implementation or canonical Story completion is claimed."
+    },
+    {
+      "story_id": "ST-BUDGET-005",
+      "milestone_id": "V1-M7",
+      "title": "Reconcile verticals and close V1-M7",
+      "delivery_state": "planned",
+      "evidence_paths": [],
+      "decision": "No implementation or canonical Story completion is claimed."
+    },
+    {
+      "story_id": "ST-DEP-001",
+      "milestone_id": "V1-M8",
+      "title": "Build and preflight the native Linux release",
+      "delivery_state": "planned",
+      "evidence_paths": [],
+      "decision": "No implementation or canonical Story completion is claimed."
+    },
+    {
+      "story_id": "ST-DEP-002",
+      "milestone_id": "V1-M8",
+      "title": "Install, operate, upgrade, and recover the fixed user service",
+      "delivery_state": "planned",
+      "evidence_paths": [],
+      "decision": "No implementation or canonical Story completion is claimed."
+    },
+    {
+      "story_id": "ST-HARDEN-001",
+      "milestone_id": "V1-M8",
+      "title": "Implement operations, backup, retention, export, and restore",
+      "delivery_state": "planned",
+      "evidence_paths": [],
+      "decision": "No implementation or canonical Story completion is claimed."
+    },
+    {
+      "story_id": "ST-HARDEN-002",
+      "milestone_id": "V1-M8",
+      "title": "Expose operations and close UI, scale, security, and license findings",
+      "delivery_state": "planned",
+      "evidence_paths": [],
+      "decision": "No implementation or canonical Story completion is claimed."
+    },
+    {
+      "story_id": "ST-RELEASE-001",
+      "milestone_id": "V1-M8",
+      "title": "Implement candidate evidence and fail-closed release automation",
+      "delivery_state": "planned",
+      "evidence_paths": [],
+      "decision": "No implementation or canonical Story completion is claimed."
+    },
+    {
+      "story_id": "ST-RELEASE-002",
+      "milestone_id": "V1-M8",
+      "title": "Exercise the release candidate and record the V1 decision",
+      "delivery_state": "planned",
+      "evidence_paths": [],
+      "decision": "No implementation or canonical Story completion is claimed."
+    }
+  ]
+}

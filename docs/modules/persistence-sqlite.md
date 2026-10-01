@@ -2,7 +2,7 @@
 
 ## Delivery scope
 
-This guide covers the root-approved [M4 live-health increment](../plans/integration/m4-live-database-health-change.md), additive CTR-DB-001 V1 1.0.0. The wider PLAN-DB lifecycle, backup/restore and full M4 acceptance remain outside this delivery. [Focused evidence](../evidence/m4-live-database-health.md) distinguishes actual SQLite verification from pending root integration.
+This guide covers the root-approved [M4 live-health increment](../plans/integration/m4-live-database-health-change.md), additive CTR-DB-001 V1 1.0.0. The wider PLAN-DB lifecycle and backup/restore remain outside this focused delivery. [Focused evidence](../evidence/m4-live-database-health.md) distinguishes its actual SQLite verification; the later [M4 completion evidence](../evidence/m4-completion.md) records the installed migration and standalone full-M4 integration result.
 
 ## Live health and startup integrity
 

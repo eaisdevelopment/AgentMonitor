@@ -3,6 +3,14 @@
 - Date: 2026-09-29.
 - Status: **Passed** by the canonical `AUTO-M4-EXIT` command against the
   installed owner environment.
+- Program reconciliation (2026-10-01): this is a genuine standalone M4 gate
+  pass. The [current implementation-status overlay](v1-implementation-status-v1.json)
+  records formal V1-M3 acceptance as Blocked, so M4's declared M3 program
+  prerequisite remains unresolved; no acceptance decision or exact
+  tested-revision binding is inferred here. The fleet verifier proves six
+  selected monitored registry/profile connections. It does not prove six
+  distinct provider identities; the current overview has five genuine identity
+  quota rows because two connections report the same identity.
 - Stories: `ST-FLEET-001`, `ST-FLEET-002`, `ST-FLEET-003`,
   `ST-ALERT-001`, `ST-ALERT-002`, `ST-OPS-001`.
 - Plan: [approved executable completion change](../plans/integration/m4-completion-change.md)
@@ -10,13 +18,16 @@
 
 ## Delivered scope and contracts
 
-M4 now provides organization and account administration, six-account Claude
+M4 now provides organization and account administration, six-profile Claude
 monitoring, current native quota and retained history, organization aggregates,
 conservative forecasts, account-to-runtime drill-down, alert rule/lifecycle
 views, and operations health/diagnostics through the authenticated versioned
 API and built dashboard. The installed fleet contains six owner-selected real
-Claude accounts in two organizations. Account records remain administrator CRUD
-data; no account address is compiled into the application.
+Claude profile connections in two organizations and five distinct reported
+identity quota rows. Account records remain administrator CRUD data; no account
+address is compiled into the application. The duplicate reported identity still
+requires owner review before `AC-LIVE-001` can claim six distinct intended
+accounts.
 
 The compatible V1 surface includes `CTR-REG-*`, `CTR-COL-002/004/006/007`,
 `CTR-CAP-001/003..009`, `CTR-ALERT-001..005`, `CTR-EVT-001`,
@@ -50,8 +61,9 @@ python3 tools/automation/run.py AUTO-M4-EXIT
 
 It passed **257 tests with zero skips**, then passed:
 
-- the real fleet browser verifier for six accounts, two organizations, current
-  identity/quota lineage, history, runtime scope and account activity;
+- the real fleet browser verifier for six selected registry connections, two
+  organizations, current identity/quota lineage, history, runtime scope and
+  account activity;
 - the real alert browser verifier with one genuine derived alert and history;
 - the real operations browser verifier with eleven component rows;
 - `AUTO-PLAN-CHECK`, `AUTO-QUALITY`, `AUTO-BUILD`, `AUTO-MUTATION`,
@@ -69,8 +81,8 @@ verified an owner-only SQLite backup, then passed schema, integrity, foreign-key
 checksum and file-mode postchecks. The service restarted on loopback and the
 owner-authorized private LAN address. Five managed profiles recovered their
 identity receipts through read-only fingerprint re-attestation; the protected
-default recovered on its next genuine quota collection. All six were verified
-for the final gate.
+default recovered on its next genuine quota collection. All six profile records
+were verified for the final gate.
 
 ## Security, privacy, migration, license and documentation impact
 
@@ -97,4 +109,6 @@ until its next genuine due quota read; automatic owner-confirmed claim creation
 would require a separate M02 contract and policy. AgentMonitor V1 remains
 read-mostly and does not switch, route, stop or restart a running Claude agent.
 Naturally occurring alert recovery, aged retention, hosted CI and full V1
-release acceptance are not claimed by this M4 result.
+release acceptance are not claimed by this M4 result. Six distinct intended
+Claude identities are also not claimed until the genuine duplicate profile
+identity is owner-dispositioned.

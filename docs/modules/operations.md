@@ -1,10 +1,12 @@
 # M08 operations — M4 typed core
 
-- Status: **Intermediate — pure core verified; real producer/API/browser integration pending**
+- Status: **M4 operations delivery implemented and its standalone milestone
+  gate Passed**; this guide begins with the earlier focused pure-core increment.
 - Module/contracts: M08, `operations.v1` `1.0.0`; CTR-OPS-001..007 and CTR-APP-001
 - Approved increment: [focused M4 plan](../plans/integration/m4-operations-change.md), `0.2.0` I01
 - Requirements: FR-OPS-002/005/006, NFR-RES-001, NFR-OBS-001; ST-OPS-001
-- Evidence: [M4 operations record](../evidence/m4-operations.md)
+- Evidence: [focused M4 operations record](../evidence/m4-operations.md) and
+  [later canonical M4 completion](../evidence/m4-completion.md)
 
 ## Purpose and boundary
 
@@ -82,7 +84,7 @@ backend/.venv/bin/python -m pytest backend/tests/operations/pure -q
 ```
 
 This executes no I/O collaborators or provider data. It is not an HTTP,
-database, browser, scheduler or failure-isolation acceptance test. Root must
-run the real leaf/SQLite/HTTP/built-browser/live cadence scenarios and the
-canonical full-M4 gate. An absent or incomplete integration gate remains
-non-success; no M4 or wider-M08 completion follows from this module guide.
+database, browser, scheduler or failure-isolation acceptance test. The later
+[M4 completion evidence](../evidence/m4-completion.md) records the real
+leaf/SQLite/HTTP/built-browser/live cadence scenarios and canonical full-M4
+gate. This focused command alone does not claim wider-M08 or V1 completion.

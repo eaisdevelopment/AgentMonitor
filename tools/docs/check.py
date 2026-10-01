@@ -73,6 +73,61 @@ M3_STATUS_MARKER = re.compile(
     r"status=(?P<status>passed|failed|blocked|not_run|deviation_accepted) "
     r"authority=(?P<authority>[A-Za-z0-9._-]+) -->"
 )
+V1_IMPLEMENTATION_BACKLOG = Path("docs/superpowers/plans/implementation-backlog.toml")
+V1_IMPLEMENTATION_STATUS = Path("docs/evidence/v1-implementation-status-v1.json")
+V1_STATUS_TOP_KEYS = frozenset(
+    {
+        "schema_version",
+        "record_type",
+        "record_id",
+        "implementation_revision",
+        "recorded_at",
+        "planning_backlog",
+        "planning_backlog_sha256",
+        "roadmap",
+        "milestones",
+        "stories",
+    }
+)
+V1_STATUS_MILESTONE_KEYS = frozenset(
+    {
+        "milestone_id",
+        "title",
+        "depends_on",
+        "delivery_state",
+        "canonical_gate_state",
+        "gate_binding",
+        "gate_revision",
+        "acceptance_state",
+        "acceptance_scope",
+        "acceptance_decision_path",
+        "dependency_state",
+        "unresolved_dependency_ids",
+        "evidence_paths",
+        "decision",
+    }
+)
+V1_STATUS_STORY_KEYS = frozenset(
+    {
+        "story_id",
+        "milestone_id",
+        "title",
+        "delivery_state",
+        "evidence_paths",
+        "decision",
+    }
+)
+V1_DELIVERY_STATES = frozenset({"planned", "in_progress", "implemented"})
+V1_GATE_STATES = frozenset({"not_run", "blocked", "failed", "passed"})
+V1_GATE_BINDINGS = frozenset(
+    {"none", "historical_run", "current_implementation_revision"}
+)
+V1_ACCEPTANCE_STATES = frozenset({"not_recorded", "blocked", "accepted"})
+V1_ACCEPTANCE_SCOPES = frozenset(
+    {"none", "local_foundation", "local_authenticated_shell", "full_milestone"}
+)
+V1_DEPENDENCY_STATES = frozenset({"not_applicable", "satisfied", "unresolved"})
+V1_ROADMAP_HEADING = re.compile(r"^## (V1-M\d+) — (.+)$", re.MULTILINE)
 SHA256 = re.compile(r"[0-9a-f]{64}")
 GIT_REVISION = re.compile(r"[0-9a-f]{40}")
 UTC_INSTANT = re.compile(r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z")
@@ -444,6 +499,353 @@ def check_m3_acceptance_status(repository_root: Path) -> list[str]:
     return violations
 
 
+def check_v1_implementation_status(repository_root: Path) -> list[str]:
+    """Validate the current delivery overlay against the frozen import backlog."""
+
+    backlog_path = repository_root / V1_IMPLEMENTATION_BACKLOG
+    if not backlog_path.is_file():
+        return []
+    if not (repository_root / V1_IMPLEMENTATION_STATUS).is_file():
+        return [
+            f"{V1_IMPLEMENTATION_STATUS}: V1 implementation status overlay is missing"
+        ]
+
+    violations: list[str] = []
+
+    def reject(code: str) -> None:
+        violations.append(f"{V1_IMPLEMENTATION_STATUS}: {code}")
+
+    try:
+        with backlog_path.open("rb") as stream:
+            backlog = tomllib.load(stream)
+    except (OSError, tomllib.TOMLDecodeError):
+        return [f"{V1_IMPLEMENTATION_BACKLOG}: import backlog is not valid TOML"]
+    try:
+        status = json.loads(
+            (repository_root / V1_IMPLEMENTATION_STATUS).read_text(encoding="utf-8")
+        )
+    except (OSError, UnicodeError, json.JSONDecodeError):
+        return [f"{V1_IMPLEMENTATION_STATUS}: status overlay is not valid JSON"]
+    if not isinstance(status, dict):
+        return [f"{V1_IMPLEMENTATION_STATUS}: status overlay root must be an object"]
+    if set(status) != V1_STATUS_TOP_KEYS:
+        reject("status overlay keys do not match V1 schema")
+    if status.get("schema_version") != "1.0.0":
+        reject("schema_version must be 1.0.0")
+    if status.get("record_type") != "agentmonitor.v1_implementation_status":
+        reject("record_type is invalid")
+    record_id = status.get("record_id")
+    if (
+        not isinstance(record_id, str)
+        or re.fullmatch(r"[A-Z0-9][A-Z0-9._-]{2,127}", record_id) is None
+    ):
+        reject("record_id is invalid")
+    revision = status.get("implementation_revision")
+    if not isinstance(revision, str) or GIT_REVISION.fullmatch(revision) is None:
+        reject("implementation_revision is not an exact revision")
+    recorded_at = status.get("recorded_at")
+    if not isinstance(recorded_at, str) or UTC_INSTANT.fullmatch(recorded_at) is None:
+        reject("recorded_at is not exact UTC")
+    if status.get("planning_backlog") != V1_IMPLEMENTATION_BACKLOG.as_posix():
+        reject("planning_backlog does not name the canonical import backlog")
+    backlog_digest = status.get("planning_backlog_sha256")
+    if (
+        not isinstance(backlog_digest, str)
+        or SHA256.fullmatch(backlog_digest) is None
+        or backlog_digest != hashlib.sha256(backlog_path.read_bytes()).hexdigest()
+    ):
+        reject("planning_backlog_sha256 does not match the import backlog")
+
+    backlog_milestones_raw = backlog.get("milestones")
+    backlog_stories_raw = backlog.get("stories")
+    if not isinstance(backlog_milestones_raw, list) or not all(
+        isinstance(item, dict) for item in backlog_milestones_raw
+    ):
+        reject("canonical backlog milestones are invalid")
+        backlog_milestones_raw = []
+    if not isinstance(backlog_stories_raw, list) or not all(
+        isinstance(item, dict) for item in backlog_stories_raw
+    ):
+        reject("canonical backlog stories are invalid")
+        backlog_stories_raw = []
+    backlog_milestones = {
+        item.get("id"): item
+        for item in backlog_milestones_raw
+        if isinstance(item.get("id"), str)
+    }
+    backlog_stories = {
+        item.get("id"): item
+        for item in backlog_stories_raw
+        if isinstance(item.get("id"), str)
+    }
+
+    def evidence_paths(value: object, *, owner: str, required: bool) -> list[str]:
+        if not isinstance(value, list) or not all(
+            isinstance(item, str) and item for item in value
+        ):
+            reject(f"{owner} evidence_paths are invalid")
+            return []
+        if required and not value:
+            reject(f"{owner} requires implementation evidence")
+        for item in value:
+            path = _safe_repository_path(repository_root, item)
+            if (
+                path is None
+                or not item.startswith("docs/evidence/")
+                or not path.is_file()
+            ):
+                reject(f"{owner} evidence path is invalid: {item}")
+        return value
+
+    milestones_raw = status.get("milestones")
+    milestone_entries: dict[str, dict[str, object]] = {}
+    if not isinstance(milestones_raw, list):
+        reject("milestones must be a list")
+    else:
+        for item in milestones_raw:
+            if not isinstance(item, dict) or set(item) != V1_STATUS_MILESTONE_KEYS:
+                reject("milestone entry is not closed")
+                continue
+            milestone_id = item.get("milestone_id")
+            if not isinstance(milestone_id, str):
+                reject("milestone_id is invalid")
+                continue
+            if milestone_id in milestone_entries:
+                reject(f"duplicate milestone {milestone_id}")
+                continue
+            milestone_entries[milestone_id] = item
+            expected = backlog_milestones.get(milestone_id)
+            if expected is None:
+                reject(f"unknown milestone {milestone_id}")
+                continue
+            if item.get("title") != expected.get("title"):
+                reject(f"milestone title differs from backlog for {milestone_id}")
+            if item.get("depends_on") != expected.get("depends_on"):
+                reject(f"milestone dependencies differ from backlog for {milestone_id}")
+            delivery = item.get("delivery_state")
+            gate = item.get("canonical_gate_state")
+            binding = item.get("gate_binding")
+            gate_revision = item.get("gate_revision")
+            acceptance = item.get("acceptance_state")
+            scope = item.get("acceptance_scope")
+            dependency = item.get("dependency_state")
+            if delivery not in V1_DELIVERY_STATES:
+                reject(f"delivery_state is invalid for {milestone_id}")
+            if gate not in V1_GATE_STATES:
+                reject(f"canonical_gate_state is invalid for {milestone_id}")
+            if binding not in V1_GATE_BINDINGS:
+                reject(f"gate_binding is invalid for {milestone_id}")
+            if gate_revision is not None and (
+                not isinstance(gate_revision, str)
+                or GIT_REVISION.fullmatch(gate_revision) is None
+            ):
+                reject(f"gate_revision is invalid for {milestone_id}")
+            if acceptance not in V1_ACCEPTANCE_STATES:
+                reject(f"acceptance_state is invalid for {milestone_id}")
+            if scope not in V1_ACCEPTANCE_SCOPES:
+                reject(f"acceptance_scope is invalid for {milestone_id}")
+            if dependency not in V1_DEPENDENCY_STATES:
+                reject(f"dependency_state is invalid for {milestone_id}")
+            unresolved = item.get("unresolved_dependency_ids")
+            expected_dependencies = expected.get("depends_on")
+            if not isinstance(unresolved, list) or not all(
+                isinstance(value, str) for value in unresolved
+            ):
+                reject(f"unresolved_dependency_ids are invalid for {milestone_id}")
+                unresolved = []
+            elif len(unresolved) != len(set(unresolved)) or not set(
+                unresolved
+            ).issubset(set(expected_dependencies or [])):
+                reject(f"unresolved dependencies are inconsistent for {milestone_id}")
+            if not expected_dependencies and (
+                dependency != "not_applicable" or unresolved
+            ):
+                reject(f"dependency state must be not_applicable for {milestone_id}")
+            if expected_dependencies and dependency == "satisfied" and unresolved:
+                reject(
+                    f"satisfied milestone lists unresolved dependencies: {milestone_id}"
+                )
+            if dependency == "unresolved" and not unresolved:
+                reject(f"unresolved milestone lacks dependency IDs: {milestone_id}")
+            if gate == "passed" and binding == "none":
+                reject(f"passed gate lacks a revision binding for {milestone_id}")
+            if gate != "passed" and binding != "none":
+                reject(f"unpassed gate has a positive binding for {milestone_id}")
+            if binding == "none" and gate_revision is not None:
+                reject(f"unbound gate has a revision for {milestone_id}")
+            if (
+                binding == "current_implementation_revision"
+                and gate_revision != revision
+            ):
+                reject(
+                    "current gate revision differs from implementation revision "
+                    f"for {milestone_id}"
+                )
+            if acceptance == "accepted" and (
+                delivery != "implemented"
+                or gate != "passed"
+                or dependency == "unresolved"
+                or scope == "none"
+            ):
+                reject(
+                    f"accepted milestone is internally contradictory: {milestone_id}"
+                )
+            if acceptance == "not_recorded" and scope != "none":
+                reject(f"unrecorded acceptance has a scope for {milestone_id}")
+            if delivery == "planned" and (
+                gate != "not_run" or acceptance != "not_recorded"
+            ):
+                reject(f"planned milestone claims execution for {milestone_id}")
+            milestone_evidence = evidence_paths(
+                item.get("evidence_paths"),
+                owner=f"milestone {milestone_id}",
+                required=delivery != "planned" or gate == "passed",
+            )
+            acceptance_path_value = item.get("acceptance_decision_path")
+            acceptance_path = _safe_repository_path(
+                repository_root, acceptance_path_value
+            )
+            if acceptance in {"accepted", "blocked"}:
+                if (
+                    acceptance_path is None
+                    or not isinstance(acceptance_path_value, str)
+                    or not acceptance_path_value.startswith("docs/evidence/")
+                    or not acceptance_path.is_file()
+                    or acceptance_path_value not in milestone_evidence
+                ):
+                    state_name = (
+                        "accepted milestone lacks acceptance decision evidence"
+                        if acceptance == "accepted"
+                        else "blocked milestone lacks acceptance decision evidence"
+                    )
+                    reject(f"{state_name}: {milestone_id}")
+            elif acceptance_path_value is not None:
+                reject(f"unrecorded acceptance has decision evidence: {milestone_id}")
+            if not isinstance(item.get("decision"), str) or not item["decision"]:
+                reject(f"decision is invalid for milestone {milestone_id}")
+    if set(milestone_entries) != set(backlog_milestones):
+        reject("milestone IDs do not exactly match the import backlog")
+    for milestone_id, item in milestone_entries.items():
+        expected = backlog_milestones.get(milestone_id)
+        if expected is None:
+            continue
+        dependencies = expected.get("depends_on")
+        if not isinstance(dependencies, list):
+            continue
+        unresolved_expected = {
+            dependency_id
+            for dependency_id in dependencies
+            if milestone_entries.get(dependency_id, {}).get("acceptance_state")
+            != "accepted"
+        }
+        unresolved_recorded = item.get("unresolved_dependency_ids")
+        dependency_state = item.get("dependency_state")
+        expected_state = (
+            "not_applicable"
+            if not dependencies
+            else "unresolved"
+            if unresolved_expected
+            else "satisfied"
+        )
+        if (
+            dependency_state != expected_state
+            or not isinstance(unresolved_recorded, list)
+            or set(unresolved_recorded) != unresolved_expected
+        ):
+            reject(f"dependency acceptance is inconsistent for {milestone_id}")
+
+    m3_entry = milestone_entries.get("V1-M3")
+    if m3_entry is not None:
+        active_m3_records: list[dict[str, object]] = []
+        evidence_root = repository_root / "docs/evidence"
+        for path in sorted(evidence_root.glob(M3_RECORD_GLOB)):
+            try:
+                candidate = json.loads(path.read_text(encoding="utf-8"))
+            except (OSError, UnicodeError, json.JSONDecodeError):
+                continue
+            if isinstance(candidate, dict) and candidate.get("lifecycle") == "active":
+                active_m3_records.append(candidate)
+        if len(active_m3_records) == 1:
+            active_status = active_m3_records[0].get("overall_status")
+            expected_acceptance = {
+                "passed": "accepted",
+                "blocked": "blocked",
+                "failed": "blocked",
+                "not_run": "not_recorded",
+            }.get(active_status)
+            if m3_entry.get("acceptance_state") != expected_acceptance:
+                reject(
+                    "V1-M3 acceptance state contradicts the active acceptance record"
+                )
+
+    stories_raw = status.get("stories")
+    story_entries: dict[str, dict[str, object]] = {}
+    if not isinstance(stories_raw, list):
+        reject("stories must be a list")
+    else:
+        for item in stories_raw:
+            if not isinstance(item, dict) or set(item) != V1_STATUS_STORY_KEYS:
+                reject("story entry is not closed")
+                continue
+            story_id = item.get("story_id")
+            if not isinstance(story_id, str):
+                reject("story_id is invalid")
+                continue
+            if story_id in story_entries:
+                reject(f"duplicate story {story_id}")
+                continue
+            story_entries[story_id] = item
+            expected = backlog_stories.get(story_id)
+            if expected is None:
+                reject(f"unknown story {story_id}")
+                continue
+            if item.get("milestone_id") != expected.get("milestone_id"):
+                reject(f"story milestone differs from backlog for {story_id}")
+            if item.get("title") != expected.get("title"):
+                reject(f"story title differs from backlog for {story_id}")
+            delivery = item.get("delivery_state")
+            if delivery not in V1_DELIVERY_STATES:
+                reject(f"delivery_state is invalid for story {story_id}")
+            evidence_paths(
+                item.get("evidence_paths"),
+                owner=f"story {story_id}",
+                required=delivery != "planned",
+            )
+            if not isinstance(item.get("decision"), str) or not item["decision"]:
+                reject(f"decision is invalid for story {story_id}")
+    if set(story_entries) != set(backlog_stories):
+        reject("story IDs do not exactly match the import backlog")
+    for milestone_id, milestone in milestone_entries.items():
+        if milestone.get("delivery_state") != "implemented":
+            continue
+        milestone_stories = [
+            item
+            for item in story_entries.values()
+            if item.get("milestone_id") == milestone_id
+        ]
+        if any(
+            item.get("delivery_state") != "implemented" for item in milestone_stories
+        ):
+            reject(f"implemented milestone has an incomplete Story: {milestone_id}")
+
+    roadmap_value = status.get("roadmap")
+    roadmap_path = _safe_repository_path(repository_root, roadmap_value)
+    if (
+        roadmap_path is None
+        or not isinstance(roadmap_value, str)
+        or roadmap_path.suffix != ".md"
+        or not roadmap_path.is_file()
+    ):
+        reject("roadmap path is invalid")
+    else:
+        headings = V1_ROADMAP_HEADING.findall(roadmap_path.read_text(encoding="utf-8"))
+        heading_ids = [item[0] for item in headings]
+        expected_ids = [item["id"] for item in backlog_milestones_raw]
+        if heading_ids != expected_ids:
+            reject("roadmap milestone IDs differ from the import backlog")
+    return violations
+
+
 def _link_target(raw_target: str) -> str:
     target = raw_target.strip()
     if target.startswith("<") and ">" in target:
@@ -512,6 +914,7 @@ def check_repository(repository_root: Path) -> list[str]:
                 f"{relative}: unknown contract IDs: {', '.join(unknown_contracts)}"
             )
     violations.extend(check_m3_acceptance_status(repository_root))
+    violations.extend(check_v1_implementation_status(repository_root))
     return violations
 
 

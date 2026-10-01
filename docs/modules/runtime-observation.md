@@ -129,6 +129,8 @@ compatible. P02 filters that read into current confirmed account terminals and
 an explicitly unlinked terminal section. Read-only native process discovery
 includes verified retained CLI binaries independently of quota parser coverage.
 The [progress record](../evidence/live-account-agents.md) records passing
-detection, controls and owner-authorized live persistence after service restart;
-other live identity-change scenarios and full M4 remain unaccepted.
+detection, controls and owner-authorized live persistence after service restart.
+The later [M4 completion evidence](../evidence/m4-completion.md) records the
+standalone full-M4 gate; other naturally unavailable identity-change scenarios
+retain their recorded status.
 Canonical command: `python3 tools/automation/run.py AUTO-ACCOUNT-AGENTS`.

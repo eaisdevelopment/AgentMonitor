@@ -2,14 +2,34 @@
 
 <!-- agentmonitor-milestone-status:v1 milestone=V1-M3 lifecycle=active status=blocked authority=M3-ACCEPTANCE-2026-09-24-01 -->
 
-The authoritative V1-M3 status is **Blocked** in the machine-readable
-[V1-M3 acceptance record](evidence/v1-m3-acceptance-status-v1.json). Historical
+The machine-readable
+[V1 implementation-status overlay](evidence/v1-implementation-status-v1.json)
+is the current delivery index. It is separate from the frozen import backlog
+and records implementation, canonical gate, acceptance, and dependency state
+independently. The authoritative V1-M3 acceptance status remains **Blocked** in
+the [active V1-M3 record](evidence/v1-m3-acceptance-status-v1.json). Historical
 Story and handoff documents remain evidence, but they do not override that
 record.
 
-Status: **V1-M1 foundation and V1-M2 local authenticated shell are accepted; V1-M3 foundations and one real same-account Claude vertical are implemented, while milestone acceptance remains Blocked by the outstanding criteria in the active record.** A hostile browser resource initially invalidated M2's security acceptance; the [M2 audit correction](evidence/m2-audit-fixes.md) then passed the full local canonical rerun and independent post-audit QA. On 2026-09-21 the owner accepted the bounded historical M2 Red-first deviation; missing pre-fix Reds remain missing and universal `AC-TEST-001` is not retroactively Passed. This is not V1-M3 or V1 release approval. Installed native lifecycle, macOS, hosted, mutation, remaining live process, and release gates remain Not Run or Blocked as listed in the authoritative record.
+Current program state:
+
+- **V1-M1:** local foundation accepted; historical gate evidence.
+- **V1-M2:** local authenticated shell accepted after its recorded correction;
+  historical gate evidence.
+- **V1-M3:** implementation present and the canonical technical gate passed on
+  2026-09-25; formal milestone acceptance remains Blocked.
+- **V1-M4:** all six Stories are implemented and the standalone canonical gate
+  has a recorded historical pass. The implementation state was assessed at
+  revision `e2fec69`; the gate evidence does not bind its run to that exact
+  revision. Program closure remains dependency-blocked by V1-M3.
+- **V1-M5 through V1-M8:** Planned; their canonical gates have not run.
+
+The [M3 closure audit](evidence/m3-closure-audit-2026-10-01.md) distinguishes
+the stale acceptance evidence, full-V1 criteria that were selected too early,
+the historical TDD disposition, and the current gate's post-M4 safety problem.
+No current document treats those blockers as passed.
 Owner: Pavlo Sidelov <pavlo@sidelov.com>  
-Last substantive review: 2026-09-23
+Last substantive review: 2026-10-01
 
 This index is the entry point for product, architecture, engineering, and operations documentation. Requirements marked **Approved** reflect the project interview. Items marked **Discovery** require Milestone 0 evidence. Items marked **Deferred** are intentionally outside V1.
 
@@ -52,12 +72,12 @@ This index is the entry point for product, architecture, engineering, and operat
 - [M2 API Story 6 evidence](evidence/m2-st-api-002.md): hostile-origin HTTP/browser verification, historical failures, passing canonical local gate, and independent M2 acceptance.
 - [M2 post-audit correction](evidence/m2-audit-fixes.md): hostile resource/SQLite regression, origin-proof contract decision, scanner correction, and historical TDD disposition.
 - [M3 local release-gate decision](evidence/m3-local-release-gate-decision.md): detached M0 reviews are advisory; technical evidence and real boundaries remain mandatory.
-- [M4 ST-FLEET-001 interim evidence](evidence/m4-st-fleet-001-interim.md): account and organization admin flows, one read-only Claude health observation, and remaining live blockers.
-- [M4 completion evidence](evidence/m4-completion.md): all six M4 stories, installed migration, six real Claude accounts, browser verification, and the passing canonical M4 gate.
+- [Historical M4 ST-FLEET-001 interim evidence](evidence/m4-st-fleet-001-interim.md): account and organization admin flows, one read-only Claude health observation, and the blockers that remained at that point.
+- [M4 completion evidence](evidence/m4-completion.md): all six M4 Stories, installed migration, six monitored real profile connections, browser verification, and the passing standalone M4 gate; distinct intended-account review remains explicit.
 - [Claude dashboard polling delivery](evidence/claude-dashboard-polling.md): real service-owned five-minute collection, current quota refresh, preserved registry metadata, and restart cadence for one enrolled profile.
 - [Account workspace redesign](evidence/account-workspace-redesign.md): automatic quota identity, calculated remaining allowance, real Claude process paths, and explicit unresolved process ownership.
-- [Managed Claude connection progress](evidence/claude-managed-account-connection.md): three additional SDK accounts verified through isolated sign-in, enrollment, per-profile collection, and the real dashboard; native redraw correction and full fleet/M4 acceptance are tracked separately.
-- [Dashboard Claude connection](evidence/claude-dashboard-connection.md): explicit browser connection controls, four owner-completed SDK/EAIS live gates, native quota redraw correction, a recovered first-read timeout, and remaining acceptance/M4 scope.
+- [Historical managed Claude connection progress](evidence/claude-managed-account-connection.md): three additional SDK accounts verified through isolated sign-in, enrollment, per-profile collection, and the real dashboard.
+- [Historical dashboard Claude connection increment](evidence/claude-dashboard-connection.md): explicit browser connection controls, four owner-completed SDK/EAIS live gates, native quota redraw correction, and a recovered first-read timeout.
 - [Compact dashboard and quota overview](evidence/dashboard-density-and-quota-overview.md): compact connection status, multiple organization filters, lowest-quota-first account listing, and red warnings at 20% or less remaining.
 - [Trusted LAN dashboard change](plans/integration/trusted-lan-dashboard-change.md): owner-approved private interface/subnet listener, HTTP browser admission, and the real completion gate.
 - [Trusted LAN dashboard evidence](evidence/trusted-lan-dashboard.md): real dual listeners, IAM protections, LAN browser admin behavior, and pending firewall/second-computer verification.
@@ -82,6 +102,9 @@ This index is the entry point for product, architecture, engineering, and operat
 ## Governance
 
 - [Roadmap](roadmap.md)
+- [Current V1 implementation status](evidence/v1-implementation-status-v1.json):
+  evidence-bound delivery, gate, acceptance, and dependency state for all eight
+  milestones and 44 Stories.
 - [Superpowers implementation plans](superpowers/plans/README.md): eight
   milestones, 19 Epics, 44 traceable Stories, module coverage, and the
   import-ready GitLab backlog.

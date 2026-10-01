@@ -1,12 +1,12 @@
 # M05 capacity module
 
-Status: **M4 implementation in progress**. Approved focused increments publish
-current native metadata, the M05 30%/15% health policy, revisioned scope coverage,
-pure burn/forecast derivations, current alert facts and typed existing commit
-notice delivery. Genuine selected owner-data reads and pure policies have been
-verified. Nonempty delivery acknowledgement and a fresh post-upgrade classified
-commit still require root's real integration evidence. The full M4 gate and
-full M05 master-plan acceptance are not claimed.
+Status: **M4 capacity delivery implemented and its standalone milestone gate
+Passed**. The focused increments below publish current native metadata, the M05
+30%/15% health policy, revisioned scope coverage, pure burn/forecast derivations,
+current alert facts, and typed existing commit notice delivery. Their later
+real integration, post-upgrade migration, fleet, browser, and canonical results
+are recorded in the [M4 completion evidence](../evidence/m4-completion.md). Full
+M05 master-plan and V1 release acceptance are not claimed.
 
 Owner: `PLAN-M05`
 Contracts: compatible `capacity.v1` extensions to
