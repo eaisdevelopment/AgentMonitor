@@ -13,8 +13,8 @@ planning_catalog_source = "docs/plans/planning-catalog.toml"
 planning_catalog_schema_version = "1.0"
 contract_baseline_source = "docs/plans/contract-baseline.toml"
 contract_baseline_version = "0.2.0"
-entry_count = 147
-non_deferred_count = 140
+entry_count = 154
+non_deferred_count = 147
 deferred_count = 7
 
 [semantics]
@@ -1285,6 +1285,69 @@ supporting_plans = ["PLAN-M0-DISCOVERY", "PLAN-FND", "PLAN-M01", "PLAN-M02", "PL
 contract_ids = ["CTR-FND-008"]
 scenario_ids = ["INT-TRACE-006", "INT-EVID-001", "INT-AUTO-003", "INT-AUTO-011"]
 evidence_boundaries = ["T1", "T2", "T3", "T4", "T5", "T6", "T7", "docs"]
+
+[[requirements]]
+requirement_id = "AC-M3-001"
+status = "approved"
+primary_plan = "PLAN-INT"
+supporting_plans = ["PLAN-M0-DISCOVERY", "PLAN-M03", "PLAN-A01"]
+contract_ids = ["CTR-PROV-001", "CTR-PROV-002", "CTR-PROV-003", "CTR-PROV-004", "CTR-PROV-005", "CTR-PROV-006", "CTR-PROV-007", "CTR-PROV-008"]
+scenario_ids = ["INT-M3-001"]
+evidence_boundaries = ["T1", "T2", "T5", "T6", "docs"]
+
+[[requirements]]
+requirement_id = "AC-M3-002"
+status = "approved"
+primary_plan = "PLAN-INT"
+supporting_plans = ["PLAN-M02", "PLAN-A01", "PLAN-DB"]
+contract_ids = ["CTR-REG-001", "CTR-REG-002", "CTR-REG-005", "CTR-REG-006", "CTR-REG-007"]
+scenario_ids = ["INT-M3-002"]
+evidence_boundaries = ["T2", "T6", "docs"]
+
+[[requirements]]
+requirement_id = "AC-M3-003"
+status = "approved"
+primary_plan = "PLAN-INT"
+supporting_plans = ["PLAN-M03", "PLAN-M05", "PLAN-A01", "PLAN-P01", "PLAN-P02"]
+contract_ids = ["CTR-PROV-004", "CTR-CAP-001", "CTR-UI-001"]
+scenario_ids = ["INT-M3-003"]
+evidence_boundaries = ["T2", "T3", "T4", "T6"]
+
+[[requirements]]
+requirement_id = "AC-M3-004"
+status = "approved"
+primary_plan = "PLAN-INT"
+supporting_plans = ["PLAN-M03", "PLAN-M04", "PLAN-M05", "PLAN-A01", "PLAN-DB"]
+contract_ids = ["CTR-COL-001", "CTR-COL-003", "CTR-COL-006", "CTR-CAP-001", "CTR-CAP-004", "CTR-CAP-006"]
+scenario_ids = ["INT-M3-004"]
+evidence_boundaries = ["T1", "T2", "T3", "T4", "T6", "docs"]
+
+[[requirements]]
+requirement_id = "AC-M3-005"
+status = "approved"
+primary_plan = "PLAN-INT"
+supporting_plans = ["PLAN-M04", "PLAN-M06", "PLAN-A01", "PLAN-A04-LINUX", "PLAN-P01", "PLAN-P02"]
+contract_ids = ["CTR-COL-006", "CTR-RUN-001", "CTR-RUN-002", "CTR-RUN-003", "CTR-RUN-006", "CTR-RUN-007", "CTR-API-001", "CTR-UI-001"]
+scenario_ids = ["INT-M3-005"]
+evidence_boundaries = ["T2", "T3", "T4", "T5", "T6"]
+
+[[requirements]]
+requirement_id = "AC-M3-006"
+status = "approved"
+primary_plan = "PLAN-INT"
+supporting_plans = ["PLAN-M02", "PLAN-M03", "PLAN-M04", "PLAN-M05", "PLAN-M06", "PLAN-A01", "PLAN-P01", "PLAN-P02"]
+contract_ids = ["CTR-API-001", "CTR-UI-001", "CTR-REG-002", "CTR-PROV-002", "CTR-COL-003", "CTR-CAP-003", "CTR-RUN-002"]
+scenario_ids = ["INT-M3-006"]
+evidence_boundaries = ["T2", "T3", "T4", "T5", "T6"]
+
+[[requirements]]
+requirement_id = "AC-M3-007"
+status = "approved"
+primary_plan = "PLAN-INT"
+supporting_plans = ["PLAN-FND", "PLAN-M02", "PLAN-M03", "PLAN-M04", "PLAN-M05", "PLAN-M06", "PLAN-A01", "PLAN-P01", "PLAN-P02", "PLAN-DB"]
+contract_ids = ["CTR-FND-008"]
+scenario_ids = ["INT-M3-007"]
+evidence_boundaries = ["T1", "T2", "T3", "T4", "T5", "T6", "docs"]
 
 [[requirements]]
 requirement_id = "FR-ALERT-007"

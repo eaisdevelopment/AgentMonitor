@@ -493,3 +493,15 @@ The contract baseline now records PLAN-FND composition's consumption of the
 existing `CTR-ALERT-002` alert receipt and `CTR-EVT-001` durable event types.
 This is an exact adoption correction for the implemented M4 delivery seam; it
 does not change contract versions, plan approval, or wider readiness status.
+
+## 2026-10-02 M3 scope-ownership addendum
+
+The owner-approved M3 scope correction adds `AC-M3-001..007` as seven
+one-account Claude milestone gates. Exact ownership now contains 154 source
+IDs: 144 approved, three discovery, and seven deferred. PLAN-INT owns their
+milestone evidence closure, with the producing module, adapter, API, UI, and
+persistence plans named explicitly. Full provider-fleet and release criteria
+retain their existing owners. This addendum changes no module contract or
+implementation authority.
+
+Plan snapshot SHA-256: `6350ad1239c4826e993f826ef682e23f312ff14cd539614f22e376b852c42b03`

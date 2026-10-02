@@ -857,10 +857,10 @@ def validate_requirement_ownership(
             "requirement ownership does not exactly match product sources: "
             f"missing={missing}, extra={extra}"
         )
-    if raw.get("entry_count") != len(entries) or len(entries) != 147:
+    if raw.get("entry_count") != len(entries) or len(entries) != 154:
         violations.append(
             "requirement ownership entry count mismatch: "
-            f"metadata={raw.get('entry_count')}, records={len(entries)}, expected=147"
+            f"metadata={raw.get('entry_count')}, records={len(entries)}, expected=154"
         )
 
     contract_raw = _load_toml(
@@ -976,11 +976,11 @@ def validate_requirement_ownership(
         ):
             violations.append(f"{requirement_id}: missing or invalid evidence boundary")
 
-    if status_counts != {"approved": 137, "discovery": 3, "deferred": 7}:
+    if status_counts != {"approved": 144, "discovery": 3, "deferred": 7}:
         violations.append(
             f"requirement ownership status counts are wrong: {status_counts}"
         )
-    if raw.get("non_deferred_count") != 140 or raw.get("deferred_count") != 7:
+    if raw.get("non_deferred_count") != 147 or raw.get("deferred_count") != 7:
         violations.append("requirement ownership summary counts are wrong")
     return violations
 

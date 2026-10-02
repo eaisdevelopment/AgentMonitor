@@ -13,6 +13,10 @@
 ## Global Constraints
 
 - Milestone: `V1-M6`; epic: `EPIC-OLL-01`; entry gates: `V1-M3`, accepted applicable `M0-OLL-*`/`M0-LNX-*` evidence, Approved `docs/plans/adapters/ollama/plan-v1.md`, affected contracts, and allocated shared writers.
+- Scope ownership: M6 owns Ollama local/cloud identities, resources, and
+  representative Ollama process trees. Its `AC-LIVE-*`, `AC-PROC-*`, and
+  `AC-TEST-*` results are Ollama contributions; universal release acceptance
+  closes in V1-M8 and these outcomes are outside the V1-M3 exit.
 - Detached M0 reviewer approvals are advisory and never block M6 execution.
   M6 gates current technical evidence and real Ollama boundaries directly;
   unavailable services, identities, models, or processes remain Blocked or Not

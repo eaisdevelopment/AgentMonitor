@@ -61,7 +61,7 @@ and owner approval.
 - [Exact contract adoption](contract-adoption.toml): machine-checked
   per-plan published and consumed contract sets bound to the baseline digest.
 - [Exact configuration allocation](configuration-baseline.toml): all 57 currently planned `AGENTMONITOR_*` keys with one owner, type, units, defaults/derivations, constraints, sensitivity, reload semantics, and unresolved-decision status.
-- [Exact requirement ownership](requirement-ownership.toml): all 147 requirement and acceptance IDs with one primary plan and exact planned evidence.
+- [Exact requirement ownership](requirement-ownership.toml): all 154 requirement and acceptance IDs with one primary plan and exact planned evidence.
 - [Parallel ownership manifest](parallel-ownership.toml): plan-hash-bound code, test, and documentation write sets; contract families; tables; migration slots; configuration namespaces; dependencies; and shared writers.
 - [Planning completeness catalog](planning-catalog.toml): the 20 required artifacts and their executable minimums.
 - [Routine automation catalog](../../tools/automation/routines.toml): canonical operational, limited, and fail-closed Blocked commands.

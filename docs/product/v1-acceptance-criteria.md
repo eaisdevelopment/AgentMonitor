@@ -66,6 +66,22 @@ V1 is releasable only when every mandatory criterion below is Passed. A Blocked,
 - **AC-TEST-005:** Mutations of critical quota, threshold, forecast, retention, authentication, and authorization logic are killed at the target score defined in the module plan.
 - **AC-TEST-006:** Tests that cannot run are reported separately as Blocked/Not Run and cannot be hidden by the main pipeline success state.
 
+## V1-M3 milestone gates
+
+These seven criteria decide only whether the one-account Claude vertical exits
+V1-M3. They contribute evidence to the release-wide criteria above without
+marking those broader criteria Passed. Six-account Claude fleet behavior belongs
+to V1-M4, Codex to V1-M5, Ollama to V1-M6, API budgets to V1-M7, and complete
+cross-provider/release acceptance to V1-M8.
+
+- **AC-M3-001:** The approved Claude/Linux/source tuple implements the V1 M03 provider protocol with closed negotiation, compatibility, availability, provenance, and pre-I/O refusal behavior for the selected real account.
+- **AC-M3-002:** One owner-confirmed real Claude identity has one durable M02 account/profile/resource graph in real SQLite, with exact revisions and no guessed or rewritten identity.
+- **AC-M3-003:** The selected account produces a genuine read-only Claude subscription quota observation with native windows, units, precision, timestamps, source and provider versions, and owner reconciliation.
+- **AC-M3-004:** A real terminal quota run for that account commits once through M04 into an exact M05 receipt, immutable observation, quota windows, health, and history; replay does not duplicate telemetry.
+- **AC-M3-005:** One real Linux Claude process and owner-terminal session for the same account are linked to their real M04 collection run and persisted through the M06 durable receipt/observation path with PID/start identity, safe metadata-only lineage, explicit unresolved states, and no profile or process mutation.
+- **AC-M3-006:** A revision-bound M3 technical run proves that the authenticated versioned API, generated client, and built visible browser render that same account's quota, runtime, history, source, time, freshness, precision, confidence, and provenance without placeholders at the approved responsive checkpoints. Current-revision regression belongs to `AC-M3-007`.
+- **AC-M3-007:** The canonical current-revision M3 exit command passes the required quota, runtime, API, browser, technical-suite, mutation, documentation, and Git lanes with no hidden skips; unavailable optional scenarios remain separate, live interaction is owner-countersigned, and every historical Red-first gap has an explicit disposition.
+
 ## Explicit post-V1 items
 
 The following do not block V1: email, native desktop notifications, messenger integrations, remote hosting, multi-user authorization, additional providers, full transcript storage, or agent control/routing.

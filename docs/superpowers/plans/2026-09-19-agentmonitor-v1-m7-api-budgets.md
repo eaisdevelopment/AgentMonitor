@@ -13,6 +13,9 @@
 ## Global Constraints
 
 - Milestone `V1-M7`; Epic `EPIC-BUDGET-01`; requirements `FR-BUDGET-001..006`; acceptance contributions `AC-LIVE-004/005/007`, `AC-UI-002..006`, `AC-HIST-001`, `AC-OPS-003/006`, and `AC-TEST-001..006`.
+- Scope ownership: M7 owns Anthropic, OpenAI, and supported Ollama API usage,
+  cost, credit, and budget monitoring. These provider-budget contributions are
+  outside the V1-M3 exit; their release-wide criteria close in V1-M8.
 - Before any Red test, require Approved `PLAN-M05`, applicable A01/A02/A03, P01/P02 plans and contracts, admitted dependencies, `PG-FULL`, a collision-free start packet, and reserved owner-controlled live accounts. `AUTO-PLAN-CHECK` alone is not implementation authority.
 - Detached M0 reviewer approvals are advisory and never block M7 execution.
   Each provider lane still requires current technical capability evidence and a

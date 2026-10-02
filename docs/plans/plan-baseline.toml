@@ -146,9 +146,9 @@ bytes = 138806
 [[plans]]
 id = "PLAN-INT"
 path = "docs/plans/integration/v1-plan.md"
-plan_version = "0.1.0"
-sha256 = "4ebafcb2ecba7315319fddb59e89646f8748730873113d47f396ffa3b81c1a2f"
-bytes = 139132
+plan_version = "0.1.1"
+sha256 = "14b6239b65adcddb05281ee88fe1be53f0511f1936b60b3a6574d9e4091fc22c"
+bytes = 141289
 
 [[controls]]
 id = "planning-catalog"
@@ -165,7 +165,7 @@ bytes = 58760
 [[controls]]
 id = "contract-adoption"
 path = "docs/plans/contract-adoption.toml"
-sha256 = "6dc962e5bcd1f8988b635ee942d320274f19c7d8082abd39ebfca3b4aa8fcb25"
+sha256 = "3ee2d2ff5c29a703b09e64e5b716bfed77811dc542f4d9ae0b9821306a3211ca"
 bytes = 16555
 
 [[controls]]
@@ -177,13 +177,13 @@ bytes = 22059
 [[controls]]
 id = "requirement-ownership"
 path = "docs/plans/requirement-ownership.toml"
-sha256 = "98b6964c2f22f4384f24c696f8ec61119779d6f2298fe4547dfb08ead1d1472f"
-bytes = 73372
+sha256 = "32d753cb231f84b7fa7f44d820c751ec4f8298b2e5251b010be28ea78d9f7d8b"
+bytes = 75933
 
 [[controls]]
 id = "parallel-ownership"
 path = "docs/plans/parallel-ownership.toml"
-sha256 = "03ff8bf353d627684041fa021a94951eca7975a4d8f0b24b3f3b90850ce6980d"
+sha256 = "484c49cd32476ba01686a8e133f0572e800a8ed80257c6cea1bf6b3946ab9975"
 bytes = 23073
 
 [[controls]]

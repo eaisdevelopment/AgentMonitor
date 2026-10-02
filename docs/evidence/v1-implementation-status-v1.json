@@ -1,9 +1,9 @@
 {
   "schema_version": "1.0.0",
   "record_type": "agentmonitor.v1_implementation_status",
-  "record_id": "V1-STATUS-2026-10-01-01",
+  "record_id": "V1-STATUS-2026-10-02-01",
   "implementation_revision": "e2fec69dfe8fc1413521e551c106b5bead804f8f",
-  "recorded_at": "2026-10-01T15:11:07Z",
+  "recorded_at": "2026-10-02T15:05:39Z",
   "planning_backlog": "docs/superpowers/plans/implementation-backlog.toml",
   "planning_backlog_sha256": "2e93367d304fda306776f8789db23c754798f6307277628f0565350d0dbb962e",
   "roadmap": "docs/roadmap.md",
@@ -60,14 +60,16 @@
       "gate_revision": null,
       "acceptance_state": "blocked",
       "acceptance_scope": "full_milestone",
-      "acceptance_decision_path": "docs/evidence/v1-m3-acceptance-status-v1.json",
+      "acceptance_decision_path": "docs/evidence/v1-m3-acceptance-status-v2.json",
       "dependency_state": "satisfied",
       "unresolved_dependency_ids": [],
       "evidence_paths": [
         "docs/evidence/m3-local-release-gate-decision.md",
-        "docs/evidence/v1-m3-acceptance-status-v1.json"
+        "docs/evidence/m3-scope-correction-2026-10-02.md",
+        "docs/evidence/v1-m3-acceptance-status-v1.json",
+        "docs/evidence/v1-m3-acceptance-status-v2.json"
       ],
-      "decision": "The technical exit gate passed on 2026-09-25, after the active 2026-09-24 acceptance record was written. Formal M3 acceptance remains blocked until a superseding record closes or explicitly disposes every selected criterion."
+      "decision": "The owner corrected M3 to one real Claude vertical. Historical evidence supports AC-M3-001..006, while the active schema 2.0.0 record keeps AC-M3-007 and formal acceptance blocked pending a safe current-revision gate, current browser witness, owner countersignature, and historical TDD disposition."
     },
     {
       "milestone_id": "V1-M4",

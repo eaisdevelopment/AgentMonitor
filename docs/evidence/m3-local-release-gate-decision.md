@@ -1,10 +1,12 @@
 # M3 local release-gate decision — 2026-09-25
 
-> Reconciled on 2026-10-01: this document remains genuine historical technical
+> Reconciled through 2026-10-02: this document remains genuine historical technical
 > gate evidence. The older active
-> [formal M3 acceptance record](v1-m3-acceptance-status-v1.json) is still
+> [historical M3 acceptance record](v1-m3-acceptance-status-v1.json) is
+> superseded by the scope-corrected
+> [active M3 acceptance record](v1-m3-acceptance-status-v2.json), which remains
 > Blocked. See the [closure audit](m3-closure-audit-2026-10-01.md) for the safe
-> current-revision rerun and supersession work that remains.
+> current-revision rerun work that remains.
 
 The owner explicitly directed that the repeated detached M0 approval blocker be
 removed from milestone execution. This record applies to local Linux

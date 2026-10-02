@@ -523,3 +523,14 @@ existing `CTR-ALERT-002` alert receipt and `CTR-EVT-001` durable event types.
 This is an exact adoption correction for the implemented M4 delivery seam; it
 does not change contract versions, plan approval, or wider synchronization
 status.
+
+## 2026-10-02 M3 scope-ownership synchronization
+
+The synchronized controls now include exact PLAN-INT ownership for
+`AC-M3-001..007`. Those criteria close only the one-account Claude M3 vertical;
+M4 owns the six-account Claude fleet, M5 Codex, M6 Ollama, M7 API budgets, and
+M8 complete release acceptance. PLAN-INT `0.1.1` adds seven bounded M3
+scenarios; the other 19 canonical plan bodies and all runtime contracts are
+unchanged by this ownership addendum.
+
+Plan snapshot SHA-256: `6350ad1239c4826e993f826ef682e23f312ff14cd539614f22e376b852c42b03`

@@ -2,7 +2,7 @@
 
 - Status: **Draft — contract synchronization and approval pending; implementation and release are not authorized**
 - Plan ID: `PLAN-INT`
-- Plan version: `0.1.0`
+- Plan version: `0.1.1`
 - Proposed integration contract bundle: `integration-release.v1`
 - Contract-register baseline: `0.2.0` Draft-aligned; owner approval, synchronization, implementation authorization, and live verification remain absent
 - Primary owner: integration/release steward (unassigned)
@@ -892,6 +892,20 @@ and are real-tested, Git/commit/push/tag/publication readiness is Not Ready.
 ### 9.5 Real provider vertical-slice scenarios
 
 Every scenario requires exact approved provider/product/account/version/capability evidence. Unsupported capability decisions may produce truthful UI states, but cannot turn a criterion requiring a real supported path into Passed.
+
+The bounded M3 scenarios below close only one owner-confirmed Claude vertical.
+They do not select the six-account fleet, other vendors, complete dashboard,
+universal mutation matrix, or release-wide criteria.
+
+| Test ID | Layer | Requirement/AC | Real dependency | Expected initial Red | Pass condition |
+|---|---|---|---|---|---|
+| INT-M3-001 | T1/T5/T6 | AC-M3-001 | one approved Claude/Linux/source tuple | tuple can invoke without exact M03 negotiation and pre-I/O refusal | selected tuple conforms with exact compatibility, availability, and provenance |
+| INT-M3-002 | T2/T6 | AC-M3-002 | one owner-confirmed Claude account and real SQLite | identity is guessed, duplicated, or detached from profile/resource history | one exact M02 graph persists with owner confirmation and revisions |
+| INT-M3-003 | T2/T6 | AC-M3-003 | authoritative Claude quota for that account | native windows, units, time, or precision diverge | genuine read-only observation reconciles with complete provenance |
+| INT-M3-004 | T2/T6 | AC-M3-004 | real quota collection run and receipt | M04/M05 lineage is incomplete or replay duplicates telemetry | run, receipt, immutable observation, windows, health, and history reconcile once |
+| INT-M3-005 | T2/T5/T6 | AC-M3-005 | real same-account Claude process, terminal session, and collection run | M04 run and M06 receipt/observation lineage diverge or capture prohibited data | durable metadata-only same-account lineage has verified PID/start identity, keeps weak evidence unresolved, and causes no process/profile mutation |
+| INT-M3-006 | T2/T3/T4/T5/T6 | AC-M3-006 | revision-bound authenticated M3 API/client/browser run | selected account quota, runtime, history, or provenance is missing or invented | built visible browser/generated client render source, time, freshness, precision, confidence, and provenance at approved responsive checkpoints |
+| INT-M3-007 | T1/T2/T3/T4/T5/T6 | AC-M3-007 | exact current checkout and safe owner window | any required M3 lane is unsafe, skipped, stale, or lacks disposition | scoped current-revision gate passes with owner countersignature and explicit historical Red disposition |
 
 | Test ID | Layer | Requirement/AC | Real dependency | Expected initial Red | Pass condition |
 |---|---|---|---|---|---|

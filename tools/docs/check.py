@@ -16,7 +16,7 @@ CONTRACT_ID = re.compile(r"\bCTR-[A-Z]+-\d{3}\b")
 EXTERNAL_SCHEMES = ("http://", "https://", "mailto:", "app://", "data:")
 M3_PLAN = Path("docs/superpowers/plans/2026-09-19-agentmonitor-v1-m3-claude-slice.md")
 M3_RECORD_GLOB = "v1-m3-acceptance-status-*.json"
-M3_REQUIRED_CRITERIA = frozenset(
+M3_REQUIRED_CRITERIA_V1 = frozenset(
     {
         "AC-V1-001",
         "AC-V1-002",
@@ -44,11 +44,22 @@ M3_REQUIRED_CRITERIA = frozenset(
         "AC-TEST-006",
     }
 )
+M3_REQUIRED_CRITERIA_V2 = frozenset(
+    {
+        "AC-M3-001",
+        "AC-M3-002",
+        "AC-M3-003",
+        "AC-M3-004",
+        "AC-M3-005",
+        "AC-M3-006",
+        "AC-M3-007",
+    }
+)
 M3_STATUSES = frozenset(
     {"passed", "failed", "blocked", "not_run", "deviation_accepted"}
 )
 M3_COMMAND_STATUSES = frozenset({"passed", "failed", "blocked", "not_run"})
-M3_RECORD_KEYS = frozenset(
+M3_RECORD_KEYS_V1 = frozenset(
     {
         "schema_version",
         "record_type",
@@ -65,6 +76,20 @@ M3_RECORD_KEYS = frozenset(
         "reviewer_decisions",
         "supersedes",
     }
+)
+M3_RECORD_KEYS_V2 = M3_RECORD_KEYS_V1 | {
+    "scope_decision",
+    "supersedes_record",
+}
+M3_SCOPE_DECISION_PATH = "docs/evidence/m3-scope-correction-2026-10-02.md"
+M3_SCOPE_KIND = "m3_one_account_claude_vertical"
+M3_SCOPE_DECISION_SHA256 = (
+    "7b4c0fcd46a47e0827c03da3973f08243b23c1c398dca4fe42e3388795f0067b"
+)
+M3_PREDECESSOR_PATH = "docs/evidence/v1-m3-acceptance-status-v1.json"
+M3_PREDECESSOR_RECORD_ID = "M3-ACCEPTANCE-2026-09-24-01"
+M3_PREDECESSOR_SHA256 = (
+    "ff40162231e1af00798828fb4694d64748fc1d125a40b0baa80d70596aa7248a"
 )
 M3_STATUS_MARKER = re.compile(
     r"<!-- agentmonitor-milestone-status:v1 "
@@ -172,10 +197,14 @@ def _validate_m3_record(
     def reject(code: str) -> None:
         violations.append(f"{relative}: {code}")
 
-    if set(record) != M3_RECORD_KEYS:
+    schema_version = record.get("schema_version")
+    expected_keys = (
+        M3_RECORD_KEYS_V2 if schema_version == "2.0.0" else M3_RECORD_KEYS_V1
+    )
+    if set(record) != expected_keys:
         reject("acceptance record keys do not match V1 schema")
-    if record.get("schema_version") != "1.0.0":
-        reject("acceptance record schema_version must be 1.0.0")
+    if schema_version not in {"1.0.0", "2.0.0"}:
+        reject("acceptance record schema_version is unsupported")
     if record.get("record_type") != "agentmonitor.milestone_acceptance_status":
         reject("acceptance record type is invalid")
     record_id = record.get("record_id")
@@ -190,6 +219,8 @@ def _validate_m3_record(
     overall_status = record.get("overall_status")
     if overall_status not in M3_COMMAND_STATUSES:
         reject("acceptance record overall_status is invalid")
+    if schema_version == "2.0.0" and overall_status == "passed":
+        reject("M3 schema 2.0.0 cannot claim Passed without a current-gate receipt")
     revision = record.get("assessed_revision")
     if not isinstance(revision, str) or GIT_REVISION.fullmatch(revision) is None:
         reject("acceptance record assessed_revision is not an exact revision")
@@ -335,7 +366,12 @@ def _validate_m3_record(
                 reject(f"acceptance criterion decision is invalid for {criterion_id}")
     if len(criterion_ids) != len(set(criterion_ids)):
         reject("acceptance criteria contain duplicates")
-    if set(criterion_ids) != M3_REQUIRED_CRITERIA:
+    expected_criteria = (
+        M3_REQUIRED_CRITERIA_V2
+        if schema_version == "2.0.0"
+        else M3_REQUIRED_CRITERIA_V1
+    )
+    if set(criterion_ids) != expected_criteria:
         reject("acceptance criteria do not match approved M3 Task 6")
     if overall_status == "passed" and any(
         status not in {"passed", "deviation_accepted"} for status in criterion_statuses
@@ -413,6 +449,73 @@ def _validate_m3_record(
             path = _safe_repository_path(repository_root, value)
             if path is None or path.suffix != ".md" or not path.is_file():
                 reject("acceptance status document path is invalid")
+
+    if schema_version == "2.0.0":
+        scope_decision = record.get("scope_decision")
+        if not isinstance(scope_decision, dict) or set(scope_decision) != {
+            "path",
+            "sha256",
+            "scope_kind",
+        }:
+            reject("M3 scope decision is not closed")
+        else:
+            scope_path_value = scope_decision.get("path")
+            scope_path = _safe_repository_path(repository_root, scope_path_value)
+            if (
+                scope_path_value != M3_SCOPE_DECISION_PATH
+                or scope_path is None
+                or not scope_path.is_file()
+            ):
+                reject("M3 scope decision path is invalid")
+            digest = scope_decision.get("sha256")
+            if digest != M3_SCOPE_DECISION_SHA256:
+                reject("M3 scope decision digest is not approved")
+            elif (
+                not isinstance(digest, str)
+                or SHA256.fullmatch(digest) is None
+                or scope_path is None
+                or not scope_path.is_file()
+                or hashlib.sha256(scope_path.read_bytes()).hexdigest() != digest
+            ):
+                reject("M3 scope decision digest is invalid")
+            if scope_decision.get("scope_kind") != M3_SCOPE_KIND:
+                reject("M3 scope decision kind is invalid")
+
+        predecessor = record.get("supersedes_record")
+        if not isinstance(predecessor, dict) or set(predecessor) != {
+            "path",
+            "record_id",
+            "sha256",
+            "prior_status",
+        }:
+            reject("M3 predecessor record is not closed")
+        else:
+            predecessor_path_value = predecessor.get("path")
+            predecessor_path = _safe_repository_path(
+                repository_root, predecessor_path_value
+            )
+            if (
+                predecessor_path is None
+                or predecessor_path_value != M3_PREDECESSOR_PATH
+                or not predecessor_path.is_file()
+            ):
+                reject("M3 predecessor record path is invalid")
+            predecessor_digest = predecessor.get("sha256")
+            if predecessor_digest != M3_PREDECESSOR_SHA256:
+                reject("M3 predecessor record digest is not canonical")
+            elif (
+                not isinstance(predecessor_digest, str)
+                or SHA256.fullmatch(predecessor_digest) is None
+                or predecessor_path is None
+                or not predecessor_path.is_file()
+                or hashlib.sha256(predecessor_path.read_bytes()).hexdigest()
+                != predecessor_digest
+            ):
+                reject("M3 predecessor record digest is invalid")
+            if predecessor.get("record_id") != M3_PREDECESSOR_RECORD_ID:
+                reject("M3 predecessor record_id is invalid")
+            if predecessor.get("prior_status") != "blocked":
+                reject("M3 predecessor prior_status is invalid")
     return violations
 
 
@@ -495,6 +598,25 @@ def check_m3_acceptance_status(repository_root: Path) -> list[str]:
                 ):
                     violations.append(
                         f"{item['path']}: superseded status lacks matching marker"
+                    )
+        if record.get("schema_version") == "2.0.0":
+            predecessor = record.get("supersedes_record")
+            records_by_path = {
+                relative.as_posix(): candidate for relative, candidate in records
+            }
+            if isinstance(predecessor, dict) and isinstance(
+                predecessor.get("path"), str
+            ):
+                prior = records_by_path.get(predecessor["path"])
+                if (
+                    prior is None
+                    or prior.get("schema_version") != "1.0.0"
+                    or prior.get("lifecycle") != "superseded"
+                    or prior.get("record_id") != predecessor.get("record_id")
+                    or prior.get("overall_status") != predecessor.get("prior_status")
+                ):
+                    violations.append(
+                        f"{predecessor['path']}: M3 predecessor authority is invalid"
                     )
     return violations
 
@@ -756,7 +878,7 @@ def check_v1_implementation_status(repository_root: Path) -> list[str]:
 
     m3_entry = milestone_entries.get("V1-M3")
     if m3_entry is not None:
-        active_m3_records: list[dict[str, object]] = []
+        active_m3_records: list[tuple[str, dict[str, object]]] = []
         evidence_root = repository_root / "docs/evidence"
         for path in sorted(evidence_root.glob(M3_RECORD_GLOB)):
             try:
@@ -764,9 +886,12 @@ def check_v1_implementation_status(repository_root: Path) -> list[str]:
             except (OSError, UnicodeError, json.JSONDecodeError):
                 continue
             if isinstance(candidate, dict) and candidate.get("lifecycle") == "active":
-                active_m3_records.append(candidate)
+                active_m3_records.append(
+                    (path.relative_to(repository_root).as_posix(), candidate)
+                )
         if len(active_m3_records) == 1:
-            active_status = active_m3_records[0].get("overall_status")
+            active_path, active_record = active_m3_records[0]
+            active_status = active_record.get("overall_status")
             expected_acceptance = {
                 "passed": "accepted",
                 "blocked": "blocked",
@@ -776,6 +901,10 @@ def check_v1_implementation_status(repository_root: Path) -> list[str]:
             if m3_entry.get("acceptance_state") != expected_acceptance:
                 reject(
                     "V1-M3 acceptance state contradicts the active acceptance record"
+                )
+            if m3_entry.get("acceptance_decision_path") != active_path:
+                reject(
+                    "V1-M3 acceptance decision does not name the active record"
                 )
 
     stories_raw = status.get("stories")

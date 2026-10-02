@@ -5,19 +5,19 @@
   `e2fec69dfe8fc1413521e551c106b5bead804f8f`.
 - Scope: reconcile the active M3 acceptance record with later technical and M4
   evidence, and identify the exact work required for safe closure.
-- Requirements / acceptance: `AC-V1-001`, `AC-V1-002`, `AC-LIVE-001`,
-  `AC-LIVE-004`, `AC-PROC-002`, `AC-PROC-003`, `AC-PROC-005`,
-  `AC-TEST-001`, `AC-TEST-003`, `AC-TEST-004`, `AC-TEST-005`,
-  `AC-TEST-006`.
+- Requirements / acceptance: corrected on 2026-10-02 to
+  `AC-M3-001..007`. The former full-release rows remain historical facts in the
+  superseded record and close under V1-M4 through V1-M8.
 - Contracts: no runtime contract change. Current M02/M04/M05/P01 read
   contracts are sufficient for the proposed replacement gate.
 
 ## Reconciled facts
 
-The [active acceptance record](v1-m3-acceptance-status-v1.json) was recorded on
+The [historical acceptance record](v1-m3-acceptance-status-v1.json) was recorded on
 2026-09-24 against revision `6b1edfc4a1ed1ac2c64692ec0d790b34b21ae7b8`.
 It records `AUTO-M3-EXIT` as `not_run`, the then-missing mutation gate, and
-formal M3 status as `blocked`.
+formal M3 status as `blocked`. The 2026-10-02 scope correction preserves those
+facts and supersedes that authority with a scoped, still-Blocked record.
 
 The later [local release-gate decision](m3-local-release-gate-decision.md)
 records that `AUTO-M3-EXIT` returned zero on 2026-09-25. That run used a fresh
@@ -37,12 +37,13 @@ documentation, and Git checks.
 
 The [live account-agent evidence](live-account-agents.md) also proves one real
 owner-confirmed unresolved-terminal-to-account link. These results close or
-substantially improve several findings in the older M3 record, but no newer
-formal M3 acceptance record supersedes it.
+substantially improve several findings in the older M3 record. The
+scope-corrected record now supersedes its authority while preserving every
+historical result.
 
 ## Closure blockers
 
-### 1. The selected M3 acceptance set crosses later milestone boundaries
+### 1. Resolved — the M3 acceptance set crossed later milestone boundaries
 
 M3 Task 6 selects release-wide criteria and scenarios including all six Claude
 accounts, every provider adapter, representative Claude/Codex/Ollama process
@@ -51,17 +52,13 @@ and full artifact/backup secret review. The same M3 plan's completion rule is a
 one-account Claude vertical. The program assigns the fleet to M4, Codex to M5,
 Ollama to M6, API budgets to M7, and release completion to M8.
 
-Proper closure requires an approved M3 acceptance-scope correction. It must
-retain the evidence contributed by M3 while assigning full-V1 and later-provider
-completion to their owning milestones. Unavailable scenarios cannot be changed
-to `passed`. If those broad criteria remain mandatory for M3, M3 cannot close
-before M5, M6, and M8, which also leaves their declared M3 prerequisite
-unsatisfiable. The documentation validator currently hardcodes all 24 selected
-criteria and rejects a passing active record with any blocked/not-run criterion,
-reviewer decision, or current failed command. The scope correction therefore
-requires a reviewed validator/schema change as well as plan prose and a new
-record; the historical failed command remains preserved in the superseded
-record.
+On 2026-10-02 the owner approved the
+[scope correction](m3-scope-correction-2026-10-02.md). M3 now has seven
+one-account Claude criteria, the validator supports a hash-bound schema `2.0.0`
+successor, and M4–M8 plans state their ownership. The historical blocked and
+not-run results remain unchanged in the superseded schema `1.0.0` record. This
+blocker is closed without treating any unavailable later-provider or release
+scenario as Passed.
 
 ### 2. The current M3 exit command is unsafe on the post-M4 owner database
 
@@ -105,26 +102,25 @@ must not replace the wider M4 browser evidence.
 
 The 2026-09-25 technical pass is genuine historical evidence. It does not prove
 that the safe successor gate passes against implementation revision `e2fec69`.
-After Blockers 1–3 are resolved, the successor command must pass against the
+After Blockers 2–3 are resolved, the successor command must pass against the
 exact assessed implementation checkout and real owner environment before a new
 acceptance record can claim current closure.
 
 ### 5. The historical M3 Red-first gap needs an explicit disposition
 
-The active record correctly says older M3 corrections lack captured pre-fix
+The historical record correctly says older M3 corrections lack captured pre-fix
 Reds. That history cannot be reconstructed. Formal closure requires an explicit
 owner decision that either accepts this bounded historical M3 deviation or
-keeps `AC-TEST-001` blocked. The decision cannot waive Red-first evidence for
+keeps `AC-M3-007` blocked. The decision cannot waive Red-first evidence for
 the successor gate or future changes.
 
-### 6. The formal status authority has not been superseded
+### 6. The scope-corrected formal status authority remains Blocked
 
-The documentation checker requires exactly one active M3 record and matching
-Markdown marker. After the corrected scope, safe current gate, and historical
-deviation decision are available, a new versioned record must preserve the old
-failed/not-run results, carry exact evidence hashes, record criterion-level
-decisions and owner countersignature, supersede the 2026-09-24 record, and move
-the active marker atomically. Until that record validates, M3 stays Blocked.
+The schema `2.0.0` record and matching Markdown marker now preserve the old
+failed/not-run results and make the corrected scope authoritative. It remains
+Blocked on `AC-M3-007`. After the safe current gate and historical deviation
+decision are available, this active record must be updated or superseded with
+their exact evidence and owner countersignature before M3 can be accepted.
 
 ## Evidence already available for the successor decision
 
@@ -141,18 +137,20 @@ the active marker atomically. Until that record validates, M3 stays Blocked.
 
 ## Required closure sequence
 
-1. Approve and validate a milestone-scoped M3 acceptance set, retaining broader
-   criteria as contributions to their V1 owners.
-2. Add the read-only installed-service M3 successor gate with recorded
+1. **Completed 2026-10-02:** approve and validate a milestone-scoped M3
+   acceptance set, retaining broader criteria as contributions to their V1
+   owners.
+2. **Pending:** add the read-only installed-service M3 successor gate with recorded
    Red/Green evidence and current-browser coverage.
-3. Run that gate in a controlling terminal against the exact implementation
+3. **Pending:** run that gate in a controlling terminal against the exact implementation
    revision and real owner environment; record every unavailable scenario
    separately.
-4. Record the owner's explicit M3 historical-TDD disposition and interactive
+4. **Pending:** record the owner's explicit M3 historical-TDD disposition and interactive
    live countersignature.
-5. Publish a superseding M3 acceptance JSON and synchronized active Markdown
-   marker; run `AUTO-DOCS-CHECK` and `AUTO-GIT-PREFLIGHT`.
-6. When M3 becomes accepted, update the implementation-status overlay so M4's
+5. **Pending:** update or supersede the active M3 acceptance JSON with the
+   current gate result and synchronized Markdown marker; run
+   `AUTO-DOCS-CHECK` and `AUTO-GIT-PREFLIGHT`.
+6. **Pending:** when M3 becomes accepted, update the implementation-status overlay so M4's
    dependency becomes satisfied and make the appropriate M4 acceptance
    decision explicitly.
 

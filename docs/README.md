@@ -1,13 +1,13 @@
 # AgentMonitor documentation index
 
-<!-- agentmonitor-milestone-status:v1 milestone=V1-M3 lifecycle=active status=blocked authority=M3-ACCEPTANCE-2026-09-24-01 -->
+<!-- agentmonitor-milestone-status:v1 milestone=V1-M3 lifecycle=active status=blocked authority=M3-ACCEPTANCE-2026-10-02-01 -->
 
 The machine-readable
 [V1 implementation-status overlay](evidence/v1-implementation-status-v1.json)
 is the current delivery index. It is separate from the frozen import backlog
 and records implementation, canonical gate, acceptance, and dependency state
 independently. The authoritative V1-M3 acceptance status remains **Blocked** in
-the [active V1-M3 record](evidence/v1-m3-acceptance-status-v1.json). Historical
+the [active V1-M3 record](evidence/v1-m3-acceptance-status-v2.json). Historical
 Story and handoff documents remain evidence, but they do not override that
 record.
 
@@ -16,20 +16,22 @@ Current program state:
 - **V1-M1:** local foundation accepted; historical gate evidence.
 - **V1-M2:** local authenticated shell accepted after its recorded correction;
   historical gate evidence.
-- **V1-M3:** implementation present and the canonical technical gate passed on
-  2026-09-25; formal milestone acceptance remains Blocked.
+- **V1-M3:** scope corrected to one real Claude vertical. Historical evidence
+  supports `AC-M3-001..006`; `AC-M3-007` and formal milestone acceptance remain
+  Blocked pending the safe current-revision gate and historical TDD disposition.
 - **V1-M4:** all six Stories are implemented and the standalone canonical gate
   has a recorded historical pass. The implementation state was assessed at
   revision `e2fec69`; the gate evidence does not bind its run to that exact
   revision. Program closure remains dependency-blocked by V1-M3.
 - **V1-M5 through V1-M8:** Planned; their canonical gates have not run.
 
-The [M3 closure audit](evidence/m3-closure-audit-2026-10-01.md) distinguishes
-the stale acceptance evidence, full-V1 criteria that were selected too early,
-the historical TDD disposition, and the current gate's post-M4 safety problem.
-No current document treats those blockers as passed.
+The approved [M3 scope correction](evidence/m3-scope-correction-2026-10-02.md)
+moves fleet, other-provider, and release-wide outcomes to V1-M4 through V1-M8.
+The [M3 closure audit](evidence/m3-closure-audit-2026-10-01.md) records the
+remaining current-gate and historical-TDD blockers. No current document treats
+them as passed.
 Owner: Pavlo Sidelov <pavlo@sidelov.com>  
-Last substantive review: 2026-10-01
+Last substantive review: 2026-10-02
 
 This index is the entry point for product, architecture, engineering, and operations documentation. Requirements marked **Approved** reflect the project interview. Items marked **Discovery** require Milestone 0 evidence. Items marked **Deferred** are intentionally outside V1.
 

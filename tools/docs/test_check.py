@@ -12,7 +12,11 @@ from pathlib import Path
 REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from check import check_repository, check_v1_implementation_status
+from check import (
+    check_m3_acceptance_status,
+    check_repository,
+    check_v1_implementation_status,
+)
 
 
 class DocumentationCheckTests(unittest.TestCase):
@@ -42,6 +46,15 @@ class DocumentationCheckTests(unittest.TestCase):
         "AC-TEST-005",
         "AC-TEST-006",
     )
+    _M3_SCOPED_CRITERIA = (
+        "AC-M3-001",
+        "AC-M3-002",
+        "AC-M3-003",
+        "AC-M3-004",
+        "AC-M3-005",
+        "AC-M3-006",
+        "AC-M3-007",
+    )
 
     def _minimal_repository(self, root: Path, *, with_m3: bool = False) -> None:
         (root / "docs/product").mkdir(parents=True)
@@ -50,7 +63,9 @@ class DocumentationCheckTests(unittest.TestCase):
             "# Requirements\n\nNFR-DOC-001\n", encoding="utf-8"
         )
         (root / "docs/product/v1-acceptance-criteria.md").write_text(
-            "# Acceptance criteria\n\n" + "\n".join(self._M3_CRITERIA) + "\n",
+            "# Acceptance criteria\n\n"
+            + "\n".join(self._M3_CRITERIA + self._M3_SCOPED_CRITERIA)
+            + "\n",
             encoding="utf-8",
         )
         (root / "docs/plans/contract-baseline.toml").write_text(
@@ -132,6 +147,30 @@ class DocumentationCheckTests(unittest.TestCase):
         path = root / f"docs/evidence/v1-m3-acceptance-status-{record_id}.json"
         path.write_text(json.dumps(record), encoding="utf-8")
         return path
+
+    def _copy_real_m3_status_repository(self, root: Path) -> tuple[Path, Path]:
+        relative_paths = (
+            "docs/README.md",
+            "docs/superpowers/plans/2026-09-19-agentmonitor-v1-m3-claude-slice.md",
+            "docs/evidence/v1-m3-acceptance-status-v1.json",
+            "docs/evidence/v1-m3-acceptance-status-v2.json",
+        )
+        for relative in relative_paths:
+            target = root / relative
+            target.parent.mkdir(parents=True, exist_ok=True)
+            target.write_bytes((REPOSITORY_ROOT / relative).read_bytes())
+        predecessor = root / relative_paths[2]
+        active = root / relative_paths[3]
+        for record_path in (predecessor, active):
+            record = json.loads(record_path.read_text(encoding="utf-8"))
+            for item in record["evidence"]:
+                target = root / item["path"]
+                target.parent.mkdir(parents=True, exist_ok=True)
+                target.write_bytes((REPOSITORY_ROOT / item["path"]).read_bytes())
+        return predecessor, active
+
+    def _check_m3_v2_repository(self, root: Path) -> list[str]:
+        return check_m3_acceptance_status(root)
 
     def _copy_status_repository(self, root: Path) -> tuple[Path, dict[str, object]]:
         backlog = root / "docs/superpowers/plans/implementation-backlog.toml"
@@ -301,6 +340,40 @@ class DocumentationCheckTests(unittest.TestCase):
                 violations,
             )
 
+    def test_implementation_status_m3_decision_must_name_active_record(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            root = Path(temporary_directory)
+            status_path, status = self._copy_status_repository(root)
+            historical = root / "docs/evidence/v1-m3-acceptance-status-v1.json"
+            historical.write_bytes(
+                (
+                    REPOSITORY_ROOT
+                    / historical.relative_to(root)
+                ).read_bytes()
+            )
+            active = root / "docs/evidence/v1-m3-acceptance-status-v2.json"
+            active.write_bytes(
+                (
+                    REPOSITORY_ROOT
+                    / active.relative_to(root)
+                ).read_bytes()
+            )
+            m3 = next(
+                item for item in status["milestones"] if item["milestone_id"] == "V1-M3"
+            )
+            m3["acceptance_decision_path"] = historical.relative_to(root).as_posix()
+            status_path.write_text(json.dumps(status), encoding="utf-8")
+
+            violations = check_v1_implementation_status(root)
+
+            self.assertTrue(
+                any(
+                    "V1-M3 acceptance decision does not name the active record" in item
+                    for item in violations
+                ),
+                violations,
+            )
+
     def test_m3_plan_requires_one_machine_readable_active_status_record(self) -> None:
         with tempfile.TemporaryDirectory() as temporary_directory:
             root = Path(temporary_directory)
@@ -311,6 +384,173 @@ class DocumentationCheckTests(unittest.TestCase):
             self.assertTrue(
                 any(
                     "V1-M3 requires exactly one active acceptance record" in item
+                    for item in violations
+                ),
+                violations,
+            )
+
+    def test_m3_v2_scoped_record_supersedes_legacy_authority(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            root = Path(temporary_directory)
+            self._copy_real_m3_status_repository(root)
+
+            violations = self._check_m3_v2_repository(root)
+
+            self.assertEqual([], violations)
+
+    def test_m3_v2_rejects_later_provider_criterion(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            root = Path(temporary_directory)
+            _predecessor, active_path = self._copy_real_m3_status_repository(root)
+            active = json.loads(active_path.read_text(encoding="utf-8"))
+            active["criteria"][-1]["criterion_id"] = "AC-LIVE-002"
+            active_path.write_text(json.dumps(active), encoding="utf-8")
+
+            violations = self._check_m3_v2_repository(root)
+
+            self.assertTrue(
+                any(
+                    "criteria do not match approved M3 Task 6" in item
+                    for item in violations
+                ),
+                violations,
+            )
+
+    def test_m3_v2_rejects_changed_predecessor_record(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            root = Path(temporary_directory)
+            predecessor, _active_path = self._copy_real_m3_status_repository(root)
+            predecessor.write_text(
+                predecessor.read_text(encoding="utf-8") + "\n", encoding="utf-8"
+            )
+
+            violations = self._check_m3_v2_repository(root)
+
+            self.assertTrue(
+                any(
+                    "M3 predecessor record digest" in item
+                    for item in violations
+                ),
+                violations,
+            )
+
+    def test_m3_v2_rejects_coedited_scope_and_self_reported_digest(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            root = Path(temporary_directory)
+            _predecessor, active_path = self._copy_real_m3_status_repository(root)
+            active = json.loads(active_path.read_text(encoding="utf-8"))
+            scope = root / active["scope_decision"]["path"]
+            scope.write_text("# Changed M3 scope\n", encoding="utf-8")
+            changed_digest = hashlib.sha256(scope.read_bytes()).hexdigest()
+            active["scope_decision"]["sha256"] = changed_digest
+            scope_evidence = next(
+                item
+                for item in active["evidence"]
+                if item["evidence_id"] == "E-M3-SCOPE"
+            )
+            scope_evidence["sha256"] = changed_digest
+            active_path.write_text(json.dumps(active), encoding="utf-8")
+
+            violations = self._check_m3_v2_repository(root)
+
+            self.assertTrue(
+                any(
+                    "M3 scope decision digest is not approved" in item
+                    for item in violations
+                ),
+                violations,
+            )
+
+    def test_m3_v2_rejects_coedited_predecessor_and_digest(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            root = Path(temporary_directory)
+            predecessor, active_path = self._copy_real_m3_status_repository(root)
+            active = json.loads(active_path.read_text(encoding="utf-8"))
+            predecessor_record = json.loads(predecessor.read_text(encoding="utf-8"))
+            predecessor_record["recorded_at"] = "2026-09-24T12:00:01Z"
+            predecessor.write_text(json.dumps(predecessor_record), encoding="utf-8")
+            active["supersedes_record"]["sha256"] = hashlib.sha256(
+                predecessor.read_bytes()
+            ).hexdigest()
+            active_path.write_text(json.dumps(active), encoding="utf-8")
+
+            violations = self._check_m3_v2_repository(root)
+
+            self.assertTrue(
+                any(
+                    "M3 predecessor record digest is not canonical" in item
+                    for item in violations
+                ),
+                violations,
+            )
+
+    def test_m3_v2_rejects_substitute_predecessor_path(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            root = Path(temporary_directory)
+            predecessor, active_path = self._copy_real_m3_status_repository(root)
+            active = json.loads(active_path.read_text(encoding="utf-8"))
+            substitute = root / "docs/evidence/v1-m3-acceptance-status-substitute.json"
+            substitute.write_bytes(predecessor.read_bytes())
+            active["supersedes_record"]["path"] = substitute.relative_to(
+                root
+            ).as_posix()
+            active_path.write_text(json.dumps(active), encoding="utf-8")
+
+            violations = self._check_m3_v2_repository(root)
+
+            self.assertTrue(
+                any(
+                    "M3 predecessor record path is invalid" in item
+                    for item in violations
+                ),
+                violations,
+            )
+
+    def test_m3_v2_rejects_self_reported_predecessor_id(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            root = Path(temporary_directory)
+            _predecessor, active_path = self._copy_real_m3_status_repository(root)
+            active = json.loads(active_path.read_text(encoding="utf-8"))
+            active["supersedes_record"]["record_id"] = "M3-SUBSTITUTE-001"
+            active_path.write_text(json.dumps(active), encoding="utf-8")
+
+            violations = self._check_m3_v2_repository(root)
+
+            self.assertTrue(
+                any(
+                    "M3 predecessor record_id is invalid" in item
+                    for item in violations
+                ),
+                violations,
+            )
+
+    def test_m3_v2_cannot_claim_passed_without_current_gate_receipt_schema(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            root = Path(temporary_directory)
+            _predecessor, active_path = self._copy_real_m3_status_repository(root)
+            active = json.loads(active_path.read_text(encoding="utf-8"))
+            active["overall_status"] = "passed"
+            active["commands"][0].update(status="passed", exit_code=0, skips=[])
+            for criterion in active["criteria"]:
+                criterion["status"] = "passed"
+            for decision in active["reviewer_decisions"]:
+                decision["status"] = "passed"
+            active_path.write_text(json.dumps(active), encoding="utf-8")
+            (root / "docs/README.md").write_text(
+                "# Index\n\n"
+                "<!-- agentmonitor-milestone-status:v1 milestone=V1-M3 "
+                "lifecycle=active status=passed "
+                "authority=M3-ACCEPTANCE-2026-10-02-01 -->\n",
+                encoding="utf-8",
+            )
+
+            violations = self._check_m3_v2_repository(root)
+
+            self.assertTrue(
+                any(
+                    "cannot claim Passed without a current-gate receipt" in item
                     for item in violations
                 ),
                 violations,

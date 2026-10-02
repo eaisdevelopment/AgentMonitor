@@ -267,7 +267,7 @@ live_boundary = "real non-root target Linux user service; installation requires 
 [[units]]
 id = "PLAN-INT"
 plan = "docs/plans/integration/v1-plan.md"
-plan_sha256 = "4ebafcb2ecba7315319fddb59e89646f8748730873113d47f396ffa3b81c1a2f"
+plan_sha256 = "14b6239b65adcddb05281ee88fe1be53f0511f1936b60b3a6574d9e4091fc22c"
 write_paths = ["tooling/automation/integration/**", "tooling/automation/release/**", "backend/tests/integration/release/**", "frontend/tests/browser/release/**", "docs/releases/**"]
 contract_families = ["CTR-INT", "CTR-EVT infrastructure governance"]
 table_prefixes = []

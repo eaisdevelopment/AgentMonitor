@@ -13,6 +13,9 @@
 ## Global Constraints
 
 - Milestone: `V1-M4`; epics: `EPIC-FLEET-01`, `EPIC-ALERT-01`, `EPIC-OPS-01`; entry gates: `V1-M3`, accepted Claude evidence, Approved affected plans/contracts, and allocated shared writers.
+- Scope ownership: M4 owns `AC-LIVE-001` and the six intended Claude-account,
+  organization, fleet, alert, and Claude-operations outcomes. Those outcomes
+  are outside the one-account V1-M3 exit and do not retroactively block it.
 - Detached M0 reviewer approvals are advisory evidence only. M4 execution uses
   the current technical handoff and real boundary checks; it must not require
   a detached-approval authorization flag. Naturally unavailable accounts,

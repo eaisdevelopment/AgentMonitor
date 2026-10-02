@@ -18,8 +18,8 @@
 
 ## Delivered scope and contracts
 
-M4 now provides organization and account administration, six-profile Claude
-monitoring, current native quota and retained history, organization aggregates,
+M4 now provides organization and account administration, monitoring for six
+selected Claude profile connections, current native quota and retained history,
 conservative forecasts, account-to-runtime drill-down, alert rule/lifecycle
 views, and operations health/diagnostics through the authenticated versioned
 API and built dashboard. The installed fleet contains six owner-selected real

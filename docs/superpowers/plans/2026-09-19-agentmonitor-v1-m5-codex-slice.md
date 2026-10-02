@@ -13,6 +13,10 @@
 ## Global Constraints
 
 - Milestone: `V1-M5`; epic: `EPIC-CDX-01`; entry gates: `V1-M3`, accepted applicable `M0-CDX-*`/`M0-LNX-*` evidence, Approved `docs/plans/adapters/codex/plan-v1.md`, affected contracts, and allocated shared writers.
+- Scope ownership: M5 owns Codex identities, subscription capacity, and
+  representative Codex process trees. Its `AC-LIVE-*`, `AC-PROC-*`, and
+  `AC-TEST-*` results are Codex contributions; universal release acceptance
+  closes in V1-M8 and these outcomes are outside the V1-M3 exit.
 - Detached M0 reviewer approvals are advisory and never block M5 execution.
   M5 gates current technical evidence and real Codex boundaries directly;
   unavailable accounts/processes remain Blocked or Not Run.

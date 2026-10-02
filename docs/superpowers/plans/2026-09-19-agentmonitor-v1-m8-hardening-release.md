@@ -13,6 +13,10 @@
 ## Global Constraints
 
 - Milestone `V1-M8`; Epics `EPIC-DEP-01`, `EPIC-HARDEN-01`, and `EPIC-RELEASE-01`.
+- Scope ownership: M8 closes the complete cross-provider matrices, dashboard,
+  deployment and recovery behavior, natural-time scenarios, universal
+  test/security/documentation controls, and final V1 acceptance. Earlier
+  milestones contribute evidence without passing these release-wide rows.
 - Requirements: `FR-HIST-001/003/004/005`, `FR-OPS-001..006`, `FR-UI-001..007`, `FR-SAFE-001/002`, and every V1 NFR. Release criteria: every mandatory `AC-V1-*`, `AC-LIVE-*`, `AC-UI-*`, `AC-PROC-*`, `AC-ALERT-*`, `AC-HIST-*`, `AC-OPS-*`, and `AC-TEST-*` row.
 - Before implementation, require `IC-2`, Approved PLAN-M08/DEP/DB/P01/P02/INT contracts, admitted dependency/tool versions, exact path/migration/shared-writer allocation, approved destructive-isolation packets, a real Linux owner window, and required provider/browser resources.
 - Detached M0 reviewer approvals are advisory and never block M8 execution or

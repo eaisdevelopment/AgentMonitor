@@ -24,6 +24,25 @@
   no alternative source is guessed.
 - Exit gate: one owner-confirmed account produces one real quota observation and one real runtime observation, each linked to real collection runs and rendered through authenticated generated-client browser views with complete provenance. Any naturally unavailable state remains visibly `Blocked`.
 
+## Acceptance-scope allocation
+
+The owner corrected M3 on 2026-10-02 to the seven one-account Claude gates
+`AC-M3-001..007`. M3 records bounded contributions to broader V1 criteria but
+does not pass them. Full ownership is allocated as follows:
+
+| Broader outcome | Owner after M3 |
+|---|---|
+| Six intended Claude accounts, organization fleet, alerts, and Claude operations | V1-M4 |
+| Codex identities, capacity, and representative process trees | V1-M5 |
+| Ollama local/cloud identities, resources, and representative process trees | V1-M6 |
+| Anthropic, OpenAI, and supported Ollama API budgets | V1-M7 |
+| Complete cross-provider matrices, dashboard, natural-time scenarios, universal test/security/docs controls, and release acceptance | V1-M8 |
+
+The release-wide `AC-V1-*`, `AC-LIVE-*`, `AC-UI-*`, `AC-PROC-*`,
+`AC-HIST-*`, `AC-OPS-*`, and `AC-TEST-*` rows keep their original full-V1
+meaning. M3 evidence may be cited as a contribution without changing a full row
+to Passed.
+
 `M0-M3-CLAUDE-SCOPED-ENTRY-001` is an M3-only technical evidence boundary and
 does not declare M0 G9 complete. It binds exactly one Claude Code `2.1.278` /
 Linux / Claude Max opaque profile tuple, its mapping, sanitized evidence/status
@@ -58,7 +77,7 @@ adapter/live handoff Blocked.
 
 **Epic:** `EPIC-PROV-01`
 
-**Requirements / acceptance:** `FR-COL-004/006..008`, `FR-AUTH-001`, `NFR-ARCH-001/002`, `NFR-COMP-001`, `AC-LIVE-004`; `M03-PURE-001..024/031..034`, `M03-CONF-001..006`.
+**Requirements / acceptance:** `FR-COL-004/006..008`, `FR-AUTH-001`, `NFR-ARCH-001/002`, `NFR-COMP-001`, `AC-M3-001`; `M03-PURE-001..024/031..034`, `M03-CONF-001..006`. This is the Claude contribution to full `AC-LIVE-004`; Codex/Ollama/API contributions and final closure belong to M5–M8.
 
 **Contracts:** `CTR-COMMON-004/007` and `CTR-PROV-001..008` at V1.
 
@@ -115,7 +134,7 @@ Review M03/M02/M04/M05/M06 consumer signatures and commit: `git commit -m "feat(
 
 **Epic:** `EPIC-REG-01`
 
-**Requirements / acceptance:** `FR-ACC-001..006`, `NFR-DATA-001`, `NFR-SEC-001`; `M02-PURE-006..23`, `M02-DB-007..24/28`, `M02-LIVE-001..010` applicable to the selected account.
+**Requirements / acceptance:** `FR-ACC-001..006`, `NFR-DATA-001`, `NFR-SEC-001`, `AC-M3-002`; `M02-PURE-006..23`, `M02-DB-007..24/28`, `M02-LIVE-001..010` applicable to the selected account. Six-account acceptance remains V1-M4 `AC-LIVE-001`.
 
 **Contracts:** `CTR-REG-001..010`, `CTR-PROV-002/005/006/007`, and `CTR-DB-002` at V1.
 
@@ -177,7 +196,7 @@ Review identity/privacy/migration and account-history semantics; commit: `git co
 
 **Epic:** `EPIC-CLA-01`
 
-**Requirements / acceptance:** `FR-ACC-005/006`, `FR-AUTH-001`, `FR-QUOTA-001..006`, `FR-COL-004..008`, `AC-LIVE-001/004/005`; `M03-DB-001..013`, `CLA-PURE-001..012`, `CLA-CLI-001..008`, `CLA-PARSER-001..004`, `CLA-LIVE-001..005/011`, `CLA-SEC-001..010`.
+**Requirements / acceptance:** `FR-ACC-005/006`, `FR-AUTH-001`, `FR-QUOTA-001..006`, `FR-COL-004..008`, `AC-M3-003`; `M03-DB-001..013`, `CLA-PURE-001..012`, `CLA-CLI-001..008`, `CLA-PARSER-001..004`, `CLA-LIVE-001..005/011`, `CLA-SEC-001..010`. This selected-account result contributes to full `AC-LIVE-004/005`; the six-account row belongs to M4.
 
 **Contracts:** `CTR-PROV-001..008`, `CTR-CAP-001`, `CTR-REG-002/003`, `CTR-BOUNDARY-001/003`, and `CTR-DB-002` at V1.
 
@@ -246,7 +265,7 @@ Confirm source rate/cost budget and protected-profile no-change evidence; commit
 
 **Epic:** `EPIC-OBS-01`
 
-**Requirements / acceptance:** `FR-COL-001..008`, `FR-QUOTA-001..005`, `AC-HIST-001`, `AC-OPS-003`; `M04-DB-001..19`, `M04-LIVE-004/009..011`, `M05-DB-001..10/16..21`, `M05-LIVE-001..006` applicable to quota.
+**Requirements / acceptance:** `FR-COL-001..008`, `FR-QUOTA-001..005`, `AC-M3-004`; `M04-DB-001..19`, `M04-LIVE-004/009..011`, `M05-DB-001..10/16..21`, `M05-LIVE-001..006` applicable to quota. This is the Claude history contribution to `AC-HIST-001`; multi-adapter isolation under `AC-OPS-003` closes after later providers.
 
 **Contracts:** `CTR-COL-001..007`, `CTR-CAP-001/003/004/009`, `CTR-PROV-001..004`, and `CTR-DB-002` at V1.
 
@@ -321,7 +340,7 @@ Review concurrency, retry, freshness, migration, and provider-budget impact; com
 
 **Epic:** `EPIC-OBS-01`
 
-**Requirements / acceptance:** `FR-DISC-001..008`, `FR-STATE-001/002`, `AC-PROC-001..005`; `LNX-PROC-001..015`, `LNX-LIVE-001..009`, `CLA-FS-001..010`, `CLA-LIVE-008..010`, `M06-LNX-001..009`, `M06-LIVE-001..008` applicable to the reserved process.
+**Requirements / acceptance:** `FR-DISC-001..008`, `FR-STATE-001/002`, `AC-M3-005`; `LNX-PROC-001..015`, `LNX-LIVE-001..009`, `CLA-FS-001..010`, `CLA-LIVE-008..010`, `M06-LNX-001..009`, `M06-LIVE-001..008` applicable to the reserved process. Claude contributes to `AC-PROC-001/003/004`; Codex/Ollama trees and full natural-stall acceptance belong to M5/M6/M8.
 
 **Contracts:** `CTR-PLAT-001`, `CTR-RUN-001..007`, `CTR-COL-006`, `CTR-PROV-001/003/004/008`, and `CTR-BOUNDARY-001/003` at V1.
 
@@ -394,7 +413,7 @@ Review privacy, PID reuse, correlation, no-control, and migration evidence; comm
 
 **Epic:** `EPIC-OBS-01`
 
-**Requirements / acceptance:** `AC-V1-001/002/005/006/007/008`, `AC-UI-002/003/006`, `AC-LIVE-001/004/005`, `AC-PROC-001..005`, `AC-HIST-001`, `AC-TEST-001..006`; applicable `API-HTTP`, `API-OAPI`, `UI-ACC`, `UI-CAP`, `UI-RUN`, and `UI-COL` scenarios from P01/P02.
+**Requirements / acceptance:** `AC-M3-006/007`; applicable `API-HTTP`, `API-OAPI`, `UI-ACC`, `UI-CAP`, `UI-RUN`, and `UI-COL` scenarios from P01/P02. The complete dashboard, cross-provider, universal test/security/documentation, and V1 release criteria close in their later owning milestones.
 
 **Contracts:** `CTR-API-001..003`, `CTR-UI-001`, `CTR-REG-001..007`, `CTR-PROV-002`, `CTR-COL-001/002/005`, `CTR-CAP-001/003`, and `CTR-RUN-001..003/007` at V1.
 
@@ -458,4 +477,4 @@ Reconcile authoritative provider views, default-profile/running-process no-chang
 
 ## Completion rule
 
-`V1-M3` is complete only when all six Stories are reviewed, the one account is owner-confirmed, both approved Claude observation lanes reach the same account through real production paths, and Task 6 passes. Unsupported or unavailable required lanes, unverified versions, missing live owner evidence, or skipped T5/T6 work leave the milestone intermediate or Blocked; they never justify fake data or a broader provider claim.
+`V1-M3` is complete only when `AC-M3-001..007` pass, all six Stories are reviewed, the one account is owner-confirmed, both approved Claude observation lanes reach the same account through real production paths, and Task 6 passes. Unsupported or unavailable required lanes, unverified versions, missing live owner evidence, or skipped T5/T6 work leave the milestone intermediate or Blocked; they never justify fake data or a broader provider claim. M4–M8 outcomes cannot block M3 and M3 cannot claim them.
