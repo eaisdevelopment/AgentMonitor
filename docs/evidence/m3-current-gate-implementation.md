@@ -189,6 +189,21 @@ records, and `mutations=0`. The UI correctly displayed the unlinked path and
 session state. A historic runtime record does not imply a currently running
 agent for this selected managed account.
 
+The first clean-revision canonical run then exposed a real restart race. The
+new dashboard emitted its exact ready event, but its observed-identity view was
+still unavailable when the browser made its first request:
+
+```text
+M3 CURRENT BROWSER: FAILED — current_identity_and_capacity: selected_identity_not_verified
+M3 CURRENT EXIT: BLOCKED — m3_current_browser_failed
+```
+
+The gate returned exit 3 and created no receipt. A read-only follow-up showed
+the same view became verified after startup. The verifier now polls that view
+inside the existing 420-second deadline and accepts only a collection run whose
+request and completion times are both after the post-restart witness started;
+it does not accept the persisted pre-restart identity as fresh evidence.
+
 ## Impact and outstanding evidence
 
 - Security/privacy: GET-only authenticated V1 browser reads and a

@@ -62,10 +62,11 @@ try {
 
   stage = "current_identity_and_capacity";
   const id = encodeURIComponent(accountId);
-  let identity = await read(`/api/v1/accounts/${id}/observed-identity`);
-  requireResult(identity.state === "verified" && identity.account_id === accountId && identity.email && identity.collection_run_id && identity.source_id === "claude.auth.status.v1", "selected_identity_not_verified");
-  requireResult(account.friendly_name === identity.email, "registered_observed_identity_mismatch");
+  let identity;
   if (preflightOnly) {
+    identity = await read(`/api/v1/accounts/${id}/observed-identity`);
+    requireResult(identity.state === "verified" && identity.account_id === accountId && identity.email && identity.collection_run_id && identity.source_id === "claude.auth.status.v1", "selected_identity_not_verified");
+    requireResult(account.friendly_name === identity.email, "registered_observed_identity_mismatch");
     stage = "preflight_registry_unchanged";
     const finalAccounts = await read("/api/v1/accounts?limit=200");
     const finalAccount = finalAccounts.items.find(item => item.account_id === accountId);
@@ -76,14 +77,13 @@ try {
     console.log("M3 CURRENT PREFLIGHT: PASSED — selected owner-confirmed account and exact reported identity");
     console.log(JSON.stringify({ event: "m3_current_browser_preflight", selected_account_digest: digest(accountId), selected_account_metadata_digest: selectedMetadataDigest, identity_match: true, registry_unchanged: true, mutations: 0 }));
   } else {
-  const previousRunId = identity.collection_run_id;
   const gateStartedAt = Date.now();
   const deadline = gateStartedAt + timeoutSeconds * 1000;
   let freshRun;
   stage = "fresh_installed_service_collection";
   while (Date.now() < deadline) {
     identity = await read(`/api/v1/accounts/${id}/observed-identity`);
-    if (identity.state === "verified" && identity.account_id === accountId && identity.email === account.friendly_name && identity.collection_run_id && identity.collection_run_id !== previousRunId) {
+    if (identity.state === "verified" && identity.account_id === accountId && identity.email === account.friendly_name && identity.collection_run_id && identity.source_id === "claude.auth.status.v1") {
       const runs = await read(`/api/v1/collection-runs?${new URLSearchParams({ provider_key: "claude", account_id: accountId, limit: "200" })}`);
       const candidate = runs.items.find(item => item.run_id === identity.collection_run_id);
       if (candidate && candidate.state === "succeeded" && candidate.account_id === accountId && candidate.source_id === "claude.usage.ax-screen-reader.v1" && candidate.requested_at && candidate.completed_at && Date.parse(candidate.requested_at) >= gateStartedAt && Date.parse(candidate.completed_at) >= gateStartedAt && candidate.observation_ids.length > 0) {
