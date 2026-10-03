@@ -516,3 +516,14 @@ rebind makes no plan, contract, provider, or acceptance expansion and does not
 claim a current M3 gate result or milestone acceptance.
 
 Plan snapshot SHA-256: `c3be3c580dd9f9e77b97f712b25588d9168904950d4d0cdf8bdb87c20a5fa9c5`
+
+## 2026-10-03 current M3 technical-suite scope correction
+
+The [focused PLAN-INT packet](m3-current-technical-suite-scope-change.md)
+binds the owner-directed one-account technical test scope while leaving the
+reviewed M0 handoff and all nine snapshot controls unchanged. The canonical
+renderer still produces the exact baseline SHA below. This is no new CS-1
+approval, plan, contract, provider, or acceptance expansion and does not claim
+the clean current-revision M3 exit passed.
+
+Plan snapshot SHA-256: `c3be3c580dd9f9e77b97f712b25588d9168904950d4d0cdf8bdb87c20a5fa9c5`

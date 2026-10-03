@@ -544,3 +544,14 @@ control digests and byte counts changed. This rebind makes no plan, contract,
 provider, or acceptance expansion and does not claim the current M3 gate passed.
 
 Plan snapshot SHA-256: `c3be3c580dd9f9e77b97f712b25588d9168904950d4d0cdf8bdb87c20a5fa9c5`
+
+## 2026-10-03 current M3 technical-suite scope correction
+
+The [focused PLAN-INT change plan](m3-current-technical-suite-scope-change.md)
+records the owner-directed one-account M3 test selection and preserves the
+historical M0 handoff subject. It changes no canonical plan body or snapshotted
+control, so `plan-baseline.toml` retains its exact rendered bytes and SHA below.
+There is no plan, contract, provider, or acceptance expansion; the clean
+current-revision M3 exit remains a separate gate.
+
+Plan snapshot SHA-256: `c3be3c580dd9f9e77b97f712b25588d9168904950d4d0cdf8bdb87c20a5fa9c5`

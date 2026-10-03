@@ -204,6 +204,39 @@ inside the existing 420-second deadline and accepts only a collection run whose
 request and completion times are both after the post-restart witness started;
 it does not accept the persisted pre-restart identity as fresh evidence.
 
+The next canonical run passed that real browser lane with a new post-restart
+quota run, then failed `AUTO-M3-TEST`: its historical M0-to-M3 handoff tests
+expected current checkout bytes even though their approved V1 mapping and
+acceptance records bind the earlier reviewed subject. Five tests failed and the
+gate again created no receipt. A proposed in-place hash rebind made those tests
+green, but independent policy review rejected it because PLAN-M03 requires a
+changed mapping to be superseded and reviewed. The proposal was reverted; the
+historical mapping, acceptance, and four pending approval records remain
+unchanged.
+
+The same technical command also selected whole test directories. After later
+milestones added files there, that pulled M4 fleet/organization/alert tests,
+LAN prerequisites, M2 global operation-count checks, and current migration-head
+checks into M3. Its focused Red was `16 failed, 470 passed, 26 skipped`. The
+scope-corrected runner now names exact one-account M3 contract, manifest,
+persistence, API, capacity, collection, and runtime tests. Naturally variable
+provider/process cases are exercised by the gate's real browser/provider lane
+or remain in their owning live command; M4 and LAN tests remain in their own
+gates. The initial technical Green was `285 passed` with zero skips.
+
+Independent review then found that the exact suite omitted the safe A01 Claude
+manifest and capacity mapping coverage, and that pytest could still return zero
+if a selected test skipped. Adding those required targets exposed a real Red:
+the production OTEL manifest digest began `88f558e1`, while the unchanged
+approved mapping file hashes to `b04e8098`. The minimum A01 correction binds
+the manifest to those existing approved bytes; it does not change or reapprove
+the historical mapping. The runtime adapter adds six exact in-memory safety
+nodes while excluding the same file's constructed subprocess, listener, and
+temporary-database cases. A runner plugin now turns any selected skip or xfail
+into exit 1, and its negative test proves that behavior with a real skipped
+pytest case. The expanded Green is a two-test scope/skip guard followed by
+`295 passed` with zero skips.
+
 ## Impact and outstanding evidence
 
 - Security/privacy: GET-only authenticated V1 browser reads and a
@@ -211,8 +244,12 @@ it does not accept the persisted pre-restart identity as fresh evidence.
   observation ID appears in output. The service restart command is parsed from
   the existing owned process, validated against a closed allowlist, and never
   printed.
-- Data/migration: no database or API migration. The only output is an
-  owner-readable receipt in the fixed local AgentMonitor evidence directory.
+- Data/migration: no database or API migration. The live gate's only local
+  runtime output is an owner-readable receipt in the fixed AgentMonitor
+  evidence directory.
+- API/generated client: no schema or operation change. The canonical generator
+  refreshed only its source-provenance hashes after the A01 source correction;
+  the schema digest remains unchanged and the operation count remains 66.
 - Migration/license: none.
 - Live verification: fresh default-cadence browser pass for one selected
   managed account; the protected-default identity mismatch remains a genuine
@@ -223,7 +260,13 @@ it does not accept the persisted pre-restart identity as fresh evidence.
 ## Files in the implementation increment
 
 - `tools/automation/implementations/auto_m3_current_exit.py`
+- `tools/automation/implementations/auto_m3_test.py`
+- `tools/automation/pytest_no_skip.py`
 - `tools/automation/test_m3_current_exit.py`
+- `tools/automation/test_m3_test.py`
+- `backend/src/agentmonitor/adapters/providers/claude/manifest.py`
+- `contracts/openapi/agentmonitor-v1.json`
+- `frontend/src/generated/api/index.ts`
 - `tools/ui/verify_m3_current.mjs`
 - `tools/automation/routines.toml`
 - `tools/automation/test_run.py`
