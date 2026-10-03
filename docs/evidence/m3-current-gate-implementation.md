@@ -3,9 +3,11 @@
 - Scope: `AC-M3-006`, `AC-M3-007`; one explicitly selected real Claude account.
 - Owners: PLAN-INT integration gate and P02 browser verification. Consumed API
   contracts: M02 account V1, M03 observed identity V1, M04 collection run V1,
-  M05 capacity/history V1, M06 runtime V1. No contract or production change.
-- Status: implementation verification passed. The canonical clean-revision
-  `AUTO-M3-EXIT` run and acceptance decision remain separate evidence.
+  M05 capacity/history V1, M06 runtime V1. No contract-shape change; the A01
+  manifest provenance digest is corrected to the existing approved mapping.
+- Status: the canonical clean-revision `AUTO-M3-EXIT` passed at revision
+  `b0113bba2e330bb63cc2d1d6f4c266e879ab3ffe`. The owner acceptance decision
+  remains separate evidence.
 
 ## Automation behavior
 
@@ -237,6 +239,25 @@ into exit 1, and its negative test proves that behavior with a real skipped
 pytest case. The expanded Green is a two-test scope/skip guard followed by
 `295 passed` with zero skips.
 
+## Canonical current-revision result
+
+The clean-revision command ran from 2026-10-03 09:45:52Z through 09:50:57Z
+and returned zero. It restarted the reviewed AgentMonitor service from exact
+revision `b0113bba2e330bb63cc2d1d6f4c266e879ab3ffe`, then observed a new
+scheduled Claude run requested and completed after the witness began. The
+authenticated visible browser reconciled identity, quota current/history,
+runtime availability, and the built desktop/mobile account page. Registry
+metadata was unchanged and browser mutation count was zero.
+
+The same canonical run recorded the two passing suite guards, `295 passed`
+technical tests with no skips, passing quality/build/generated checks, and the
+mutation result: 628 total, 621 killed, seven reviewed equivalents, zero
+non-equivalent survivors, zero skips, and zero timeouts. Documentation and
+local Git preflight passed. The owner-only local receipt was created only after
+all required lanes passed. Its exact sanitized copy is
+`docs/evidence/m3-current-gate-receipt-2026-10-03.json`, SHA-256
+`043d4d51ff201bf14c3b50708e9391fd2c9c25c488d7e387fd0b1545028bc121`.
+
 ## Impact and outstanding evidence
 
 - Security/privacy: GET-only authenticated V1 browser reads and a
@@ -254,8 +275,9 @@ pytest case. The expanded Green is a two-test scope/skip guard followed by
 - Live verification: fresh default-cadence browser pass for one selected
   managed account; the protected-default identity mismatch remains a genuine
   failure for that selector.
-- Acceptance: the canonical M3 exit, owner interaction/countersignature, and
-  historical Red-first disposition remain separate required evidence.
+- Acceptance: the canonical M3 exit is Passed. Owner countersignature and the
+  bounded historical Red-first disposition remain required before the active
+  milestone status can be superseded as Passed.
 
 ## Files in the implementation increment
 
@@ -272,12 +294,12 @@ pytest case. The expanded Green is a two-test scope/skip guard followed by
 - `tools/automation/test_run.py`
 - `tools/docs/check.py` and `tools/docs/test_check.py`
 - `docs/engineering/completion-and-automation-gates.md`
+- `docs/evidence/m3-current-gate-receipt-2026-10-03.json`
 - this evidence record
 
 The documentation validator adds fail-closed support for a future M3 schema
-`3.0.0` acceptance record. Its predecessor and receipt digest pins remain
-unset until the real gate receipt exists and the owner decisions are recorded.
-After review, the real receipt is copied to
-`docs/evidence/m3-current-gate-receipt-2026-10-03.json`; the validator binds
-that fixed path and its independent SHA rather than trusting a self-reported
-digest.
+`3.0.0` acceptance record. The receipt now exists at its fixed reviewed path.
+Its validator digest pin and the owner-decision pins remain unset until the
+owner disposition and countersignature are recorded together; the future
+validator binds their independent SHA values rather than trusting self-reported
+digests.
