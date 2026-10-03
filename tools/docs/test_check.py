@@ -12,7 +12,9 @@ from pathlib import Path
 REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
+import check as docs_check
 from check import (
+    _validate_m3_receipt_payload,
     check_m3_acceptance_status,
     check_repository,
     check_v1_implementation_status,
@@ -149,28 +151,123 @@ class DocumentationCheckTests(unittest.TestCase):
         return path
 
     def _copy_real_m3_status_repository(self, root: Path) -> tuple[Path, Path]:
-        relative_paths = (
+        relative_paths = [
             "docs/README.md",
             "docs/superpowers/plans/2026-09-19-agentmonitor-v1-m3-claude-slice.md",
             "docs/evidence/v1-m3-acceptance-status-v1.json",
             "docs/evidence/v1-m3-acceptance-status-v2.json",
-        )
+        ]
+        v3_relative = "docs/evidence/v1-m3-acceptance-status-v3.json"
+        if (REPOSITORY_ROOT / v3_relative).is_file():
+            relative_paths.append(v3_relative)
         for relative in relative_paths:
             target = root / relative
             target.parent.mkdir(parents=True, exist_ok=True)
             target.write_bytes((REPOSITORY_ROOT / relative).read_bytes())
         predecessor = root / relative_paths[2]
         active = root / relative_paths[3]
-        for record_path in (predecessor, active):
+        for record_path in (root / relative for relative in relative_paths[2:]):
             record = json.loads(record_path.read_text(encoding="utf-8"))
-            for item in record["evidence"]:
-                target = root / item["path"]
+            related_paths = {
+                *(item["path"] for item in record["evidence"]),
+                *record["status_documents"],
+                *(item["path"] for item in record["supersedes"]),
+            }
+            for relative in related_paths:
+                target = root / relative
                 target.parent.mkdir(parents=True, exist_ok=True)
-                target.write_bytes((REPOSITORY_ROOT / item["path"]).read_bytes())
+                target.write_bytes((REPOSITORY_ROOT / relative).read_bytes())
         return predecessor, active
 
     def _check_m3_v2_repository(self, root: Path) -> list[str]:
         return check_m3_acceptance_status(root)
+
+    def _pure_m3_v3_receipt(self) -> tuple[dict[str, object], dict[str, object]]:
+        record = {
+            "assessed_revision": "a" * 40,
+            "recorded_at": "2026-10-03T10:02:00Z",
+        }
+        evidence_by_lane = {
+            "selected_account_preflight": "browser_api_account_verified",
+            "fresh_quota_lineage": "run_sha256:" + "b" * 64,
+            "registry_unchanged": "browser_get_only_registry_unchanged",
+            "revision_bound_service": "service_restarted_from_clean_head",
+            "current_browser": "visible_shared_chrome_passed",
+            "runtime_regression": "runtime_query:available",
+            "technical_suite": "auto-m3-test_passed",
+            "quality": "auto-quality_passed",
+            "build": "auto-build_passed",
+            "mutation": "auto-mutation_passed",
+            "documentation": "auto-docs-check_passed",
+            "git_preflight": "auto-git-preflight_passed",
+        }
+        receipt: dict[str, object] = {
+            "schema_version": "1.0.0",
+            "record_type": "agentmonitor.m3_current_gate_receipt",
+            "receipt_id": "M3-CURRENT-GATE-20261003T100100Z",
+            "milestone_id": "V1-M3",
+            "command_id": "AUTO-M3-EXIT",
+            "command": "python3 tools/automation/run.py AUTO-M3-EXIT",
+            "implementation_revision": record["assessed_revision"],
+            "started_at": "2026-10-03T10:00:00Z",
+            "completed_at": "2026-10-03T10:01:00Z",
+            "status": "passed",
+            "exit_code": 0,
+            "skips": [],
+            "selected_account_digest": "c" * 64,
+            "required_lanes": [
+                {"lane_id": key, "status": "passed", "evidence": value}
+                for key, value in evidence_by_lane.items()
+            ],
+        }
+        return record, receipt
+
+    def test_m3_v3_pure_receipt_requires_exact_canonical_lanes(self) -> None:
+        record, receipt = self._pure_m3_v3_receipt()
+        self.assertEqual([], _validate_m3_receipt_payload(receipt, record))
+
+        receipt["required_lanes"][0]["evidence"] = "test metadata"
+        self.assertIn(
+            "M3 current-gate receipt lane evidence is invalid",
+            _validate_m3_receipt_payload(receipt, record),
+        )
+
+    def test_m3_v3_pure_owner_decisions_require_distinct_evidence(self) -> None:
+        decisions = [
+            {
+                "decision_id": "M3-SCOPE-2026-10-02",
+                "status": "passed",
+                "evidence_ids": ["E-SCOPE"],
+            },
+            {
+                "decision_id": "M3-CURRENT-GATE-2026-10-02",
+                "status": "passed",
+                "evidence_ids": ["E-SCOPE"],
+            },
+            {
+                "decision_id": "M3-HISTORICAL-TDD-2026-10-03",
+                "status": "deviation_accepted",
+                "evidence_ids": ["E-SCOPE"],
+            },
+            {
+                "decision_id": "M3-OWNER-LIVE-2026-10-03",
+                "status": "passed",
+                "evidence_ids": ["E-SCOPE"],
+            },
+        ]
+        violations = docs_check._validate_m3_v3_decision_bindings(
+            decisions,
+            receipt_evidence_id="E-GATE",
+            historical_evidence_id="E-TDD",
+            owner_live_evidence_id="E-LIVE",
+        )
+        self.assertIn("M3 current-gate review lacks receipt evidence", violations)
+        self.assertIn(
+            "M3 historical TDD owner disposition lacks dedicated evidence", violations
+        )
+        self.assertIn(
+            "M3 owner live countersignature lacks dedicated evidence", violations
+        )
 
     def _copy_status_repository(self, root: Path) -> tuple[Path, dict[str, object]]:
         backlog = root / "docs/superpowers/plans/implementation-backlog.toml"
@@ -346,17 +443,11 @@ class DocumentationCheckTests(unittest.TestCase):
             status_path, status = self._copy_status_repository(root)
             historical = root / "docs/evidence/v1-m3-acceptance-status-v1.json"
             historical.write_bytes(
-                (
-                    REPOSITORY_ROOT
-                    / historical.relative_to(root)
-                ).read_bytes()
+                (REPOSITORY_ROOT / historical.relative_to(root)).read_bytes()
             )
             active = root / "docs/evidence/v1-m3-acceptance-status-v2.json"
             active.write_bytes(
-                (
-                    REPOSITORY_ROOT
-                    / active.relative_to(root)
-                ).read_bytes()
+                (REPOSITORY_ROOT / active.relative_to(root)).read_bytes()
             )
             m3 = next(
                 item for item in status["milestones"] if item["milestone_id"] == "V1-M3"
@@ -427,10 +518,7 @@ class DocumentationCheckTests(unittest.TestCase):
             violations = self._check_m3_v2_repository(root)
 
             self.assertTrue(
-                any(
-                    "M3 predecessor record digest" in item
-                    for item in violations
-                ),
+                any("M3 predecessor record digest" in item for item in violations),
                 violations,
             )
 
@@ -518,8 +606,7 @@ class DocumentationCheckTests(unittest.TestCase):
 
             self.assertTrue(
                 any(
-                    "M3 predecessor record_id is invalid" in item
-                    for item in violations
+                    "M3 predecessor record_id is invalid" in item for item in violations
                 ),
                 violations,
             )
@@ -555,6 +642,96 @@ class DocumentationCheckTests(unittest.TestCase):
                 ),
                 violations,
             )
+
+    def test_m3_v3_pure_receipt_rejects_skips_revision_and_missing_lane(self) -> None:
+        record, receipt = self._pure_m3_v3_receipt()
+        receipt["skips"] = ["runtime_regression"]
+        self.assertIn(
+            "M3 current-gate receipt result is not Passed",
+            _validate_m3_receipt_payload(receipt, record),
+        )
+        receipt["skips"] = []
+        receipt["implementation_revision"] = "f" * 40
+        self.assertIn(
+            "M3 current-gate receipt revision differs",
+            _validate_m3_receipt_payload(receipt, record),
+        )
+        receipt["implementation_revision"] = record["assessed_revision"]
+        receipt["required_lanes"].pop()
+        self.assertIn(
+            "M3 current-gate receipt lanes are incomplete",
+            _validate_m3_receipt_payload(receipt, record),
+        )
+
+    def test_m3_v3_pure_receipt_rejects_unproven_run_and_runtime(self) -> None:
+        record, receipt = self._pure_m3_v3_receipt()
+        lanes = {item["lane_id"]: item for item in receipt["required_lanes"]}
+        lanes["fresh_quota_lineage"]["evidence"] = "run_sha256:unknown"
+        lanes["runtime_regression"]["evidence"] = "runtime_query:unavailable"
+        violations = _validate_m3_receipt_payload(receipt, record)
+        self.assertEqual(
+            2,
+            violations.count("M3 current-gate receipt lane evidence is invalid"),
+        )
+
+    def test_m3_v3_pure_owner_decision_binding_accepts_only_exact_refs(self) -> None:
+        decisions = [
+            {
+                "decision_id": "M3-SCOPE-2026-10-02",
+                "status": "passed",
+                "evidence_ids": ["E-SCOPE"],
+            },
+            {
+                "decision_id": "M3-CURRENT-GATE-2026-10-02",
+                "status": "passed",
+                "evidence_ids": ["E-GATE"],
+            },
+            {
+                "decision_id": "M3-HISTORICAL-TDD-2026-10-03",
+                "status": "deviation_accepted",
+                "evidence_ids": ["E-TDD"],
+            },
+            {
+                "decision_id": "M3-OWNER-LIVE-2026-10-03",
+                "status": "passed",
+                "evidence_ids": ["E-LIVE"],
+            },
+        ]
+        self.assertEqual(
+            [],
+            docs_check._validate_m3_v3_decision_bindings(
+                decisions,
+                receipt_evidence_id="E-GATE",
+                historical_evidence_id="E-TDD",
+                owner_live_evidence_id="E-LIVE",
+            ),
+        )
+        decisions[-1]["status"] = "blocked"
+        self.assertIn(
+            "M3 owner live countersignature is missing",
+            docs_check._validate_m3_v3_decision_bindings(
+                decisions,
+                receipt_evidence_id="E-GATE",
+                historical_evidence_id="E-TDD",
+                owner_live_evidence_id="E-LIVE",
+            ),
+        )
+
+    def test_m3_real_checkout_transition_remains_valid(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            root = Path(temporary_directory)
+            _v1_path, v2_path = self._copy_real_m3_status_repository(root)
+            v3_path = root / "docs/evidence/v1-m3-acceptance-status-v3.json"
+            if v3_path.is_file():
+                v3 = json.loads(v3_path.read_text(encoding="utf-8"))
+                self.assertEqual("3.0.0", v3["schema_version"])
+                self.assertEqual("passed", v3["overall_status"])
+            else:
+                v2 = json.loads(v2_path.read_text(encoding="utf-8"))
+                self.assertEqual("2.0.0", v2["schema_version"])
+                self.assertEqual("active", v2["lifecycle"])
+                self.assertEqual("blocked", v2["overall_status"])
+            self.assertEqual([], check_m3_acceptance_status(root))
 
     def test_m3_status_rejects_two_contradictory_active_records(self) -> None:
         with tempfile.TemporaryDirectory() as temporary_directory:

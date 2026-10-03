@@ -81,6 +81,7 @@ M3_RECORD_KEYS_V2 = M3_RECORD_KEYS_V1 | {
     "scope_decision",
     "supersedes_record",
 }
+M3_RECORD_KEYS_V3 = M3_RECORD_KEYS_V2 | {"current_gate_receipt"}
 M3_SCOPE_DECISION_PATH = "docs/evidence/m3-scope-correction-2026-10-02.md"
 M3_SCOPE_KIND = "m3_one_account_claude_vertical"
 M3_SCOPE_DECISION_SHA256 = (
@@ -91,6 +92,51 @@ M3_PREDECESSOR_RECORD_ID = "M3-ACCEPTANCE-2026-09-24-01"
 M3_PREDECESSOR_SHA256 = (
     "ff40162231e1af00798828fb4694d64748fc1d125a40b0baa80d70596aa7248a"
 )
+M3_V2_PREDECESSOR_PATH = "docs/evidence/v1-m3-acceptance-status-v2.json"
+M3_V2_PREDECESSOR_RECORD_ID = "M3-ACCEPTANCE-2026-10-02-01"
+# Set only after the real v2 record is finalized with lifecycle=superseded.
+M3_V2_PREDECESSOR_SHA256: str | None = None
+M3_CURRENT_GATE_RECEIPT_PATH = "docs/evidence/m3-current-gate-receipt-2026-10-03.json"
+# Set only after the real current-revision gate receipt has been reviewed.
+M3_CURRENT_GATE_RECEIPT_SHA256: str | None = None
+M3_HISTORICAL_TDD_OWNER_ARTIFACT_PATH = (
+    "docs/evidence/m3-historical-tdd-owner-disposition-2026-10-03.md"
+)
+M3_OWNER_LIVE_ARTIFACT_PATH = (
+    "docs/evidence/m3-owner-live-countersignature-2026-10-03.md"
+)
+# These decisions are separate owner evidence, never inferred from gate output.
+M3_HISTORICAL_TDD_OWNER_ARTIFACT_SHA256: str | None = None
+M3_OWNER_LIVE_ARTIFACT_SHA256: str | None = None
+M3_CURRENT_GATE_LANES = frozenset(
+    {
+        "selected_account_preflight",
+        "fresh_quota_lineage",
+        "registry_unchanged",
+        "revision_bound_service",
+        "current_browser",
+        "runtime_regression",
+        "technical_suite",
+        "quality",
+        "build",
+        "mutation",
+        "documentation",
+        "git_preflight",
+    }
+)
+M3_CURRENT_GATE_EXACT_EVIDENCE = {
+    "selected_account_preflight": "browser_api_account_verified",
+    "registry_unchanged": "browser_get_only_registry_unchanged",
+    "revision_bound_service": "service_restarted_from_clean_head",
+    "current_browser": "visible_shared_chrome_passed",
+    "technical_suite": "auto-m3-test_passed",
+    "quality": "auto-quality_passed",
+    "build": "auto-build_passed",
+    "mutation": "auto-mutation_passed",
+    "documentation": "auto-docs-check_passed",
+    "git_preflight": "auto-git-preflight_passed",
+}
+M3_CURRENT_GATE_COMMAND = "python3 tools/automation/run.py AUTO-M3-EXIT"
 M3_STATUS_MARKER = re.compile(
     r"<!-- agentmonitor-milestone-status:v1 "
     r"milestone=(?P<milestone>\S+) "
@@ -189,6 +235,219 @@ def _m3_markers(repository_root: Path) -> list[tuple[Path, dict[str, str]]]:
     return markers
 
 
+def _m3_lane_evidence_is_canonical(lane_id: str, evidence: object) -> bool:
+    if not isinstance(evidence, str):
+        return False
+    if lane_id == "fresh_quota_lineage":
+        return re.fullmatch(r"run_sha256:[0-9a-f]{64}", evidence) is not None
+    if lane_id == "runtime_regression":
+        return evidence in {"runtime_query:available", "runtime_query:partial"}
+    return evidence == M3_CURRENT_GATE_EXACT_EVIDENCE.get(lane_id)
+
+
+def _validate_m3_v3_decision_bindings(
+    reviewer_decisions: object,
+    *,
+    receipt_evidence_id: str | None,
+    historical_evidence_id: str | None,
+    owner_live_evidence_id: str | None,
+) -> list[str]:
+    """Validate V3 decision references without reading files or trusting labels."""
+    decisions_by_id = (
+        {
+            item["decision_id"]: item
+            for item in reviewer_decisions
+            if isinstance(item, dict) and isinstance(item.get("decision_id"), str)
+        }
+        if isinstance(reviewer_decisions, list)
+        else {}
+    )
+    required = (
+        ("M3-SCOPE-2026-10-02", "passed", "M3 scope decision", None),
+        (
+            "M3-CURRENT-GATE-2026-10-02",
+            "passed",
+            "M3 current-gate review",
+            receipt_evidence_id,
+        ),
+        (
+            "M3-HISTORICAL-TDD-2026-10-03",
+            "deviation_accepted",
+            "M3 historical TDD owner disposition",
+            historical_evidence_id,
+        ),
+        (
+            "M3-OWNER-LIVE-2026-10-03",
+            "passed",
+            "M3 owner live countersignature",
+            owner_live_evidence_id,
+        ),
+    )
+    violations: list[str] = []
+    for decision_id, status, label, required_evidence_id in required:
+        decision = decisions_by_id.get(decision_id)
+        if decision is None or decision.get("status") != status:
+            violations.append(f"{label} is missing")
+            continue
+        references = decision.get("evidence_ids")
+        if not isinstance(references, list) or not references:
+            violations.append(f"{label} lacks evidence")
+            continue
+        if decision_id == "M3-SCOPE-2026-10-02":
+            continue
+        if required_evidence_id is None or required_evidence_id not in references:
+            if decision_id == "M3-CURRENT-GATE-2026-10-02":
+                violations.append("M3 current-gate review lacks receipt evidence")
+            else:
+                violations.append(f"{label} lacks dedicated evidence")
+    return violations
+
+
+def _m3_pinned_evidence_id(
+    evidence: object, *, path: str, pinned_sha: str | None
+) -> str | None:
+    """Find an artifact only by its independent exact path and pinned digest."""
+    if pinned_sha is None or not isinstance(evidence, list):
+        return None
+    return next(
+        (
+            item["evidence_id"]
+            for item in evidence
+            if isinstance(item, dict)
+            and item.get("path") == path
+            and item.get("sha256") == pinned_sha
+            and isinstance(item.get("evidence_id"), str)
+        ),
+        None,
+    )
+
+
+def _validate_m3_receipt_payload(
+    receipt: object, record: dict[str, object]
+) -> list[str]:
+    """Check typed gate metadata without crossing a file or provider boundary."""
+    violations: list[str] = []
+    if not isinstance(receipt, dict):
+        return ["M3 current-gate receipt is not valid JSON object"]
+    expected_keys = {
+        "schema_version",
+        "record_type",
+        "receipt_id",
+        "milestone_id",
+        "command_id",
+        "command",
+        "implementation_revision",
+        "started_at",
+        "completed_at",
+        "status",
+        "exit_code",
+        "skips",
+        "selected_account_digest",
+        "required_lanes",
+    }
+    if set(receipt) != expected_keys:
+        violations.append("M3 current-gate receipt fields are not closed")
+    receipt_id = receipt.get("receipt_id")
+    if (
+        receipt.get("schema_version") != "1.0.0"
+        or receipt.get("record_type") != "agentmonitor.m3_current_gate_receipt"
+        or not isinstance(receipt_id, str)
+        or not receipt_id
+        or receipt.get("milestone_id") != "V1-M3"
+    ):
+        violations.append("M3 current-gate receipt identity is invalid")
+    if receipt.get("implementation_revision") != record.get("assessed_revision"):
+        violations.append("M3 current-gate receipt revision differs")
+    started_at = receipt.get("started_at")
+    completed_at = receipt.get("completed_at")
+    recorded_at = record.get("recorded_at")
+    if (
+        not isinstance(started_at, str)
+        or UTC_INSTANT.fullmatch(started_at) is None
+        or not isinstance(completed_at, str)
+        or UTC_INSTANT.fullmatch(completed_at) is None
+        or completed_at < started_at
+        or not isinstance(recorded_at, str)
+        or UTC_INSTANT.fullmatch(recorded_at) is None
+        or recorded_at < completed_at
+    ):
+        violations.append("M3 current-gate receipt time is invalid")
+    if (
+        receipt.get("command_id") != "AUTO-M3-EXIT"
+        or receipt.get("command") != M3_CURRENT_GATE_COMMAND
+        or receipt.get("status") != "passed"
+        or type(receipt.get("exit_code")) is not int
+        or receipt.get("exit_code") != 0
+        or receipt.get("skips") != []
+    ):
+        violations.append("M3 current-gate receipt result is not Passed")
+    account_digest = receipt.get("selected_account_digest")
+    if not isinstance(account_digest, str) or SHA256.fullmatch(account_digest) is None:
+        violations.append("M3 current-gate selected-account digest is invalid")
+    lanes = receipt.get("required_lanes")
+    if not isinstance(lanes, list) or len(lanes) != len(M3_CURRENT_GATE_LANES):
+        violations.append("M3 current-gate receipt lanes are incomplete")
+    else:
+        lane_ids: list[str] = []
+        for lane in lanes:
+            if not isinstance(lane, dict) or set(lane) != {
+                "lane_id",
+                "status",
+                "evidence",
+            }:
+                violations.append("M3 current-gate receipt lane is not closed")
+                continue
+            lane_id = lane.get("lane_id")
+            if not isinstance(lane_id, str):
+                violations.append("M3 current-gate receipt lane ID is invalid")
+                continue
+            lane_ids.append(lane_id)
+            evidence = lane.get("evidence")
+            if lane.get("status") != "passed":
+                violations.append("M3 current-gate receipt lane did not pass")
+            if not _m3_lane_evidence_is_canonical(lane_id, evidence):
+                violations.append("M3 current-gate receipt lane evidence is invalid")
+        if set(lane_ids) != M3_CURRENT_GATE_LANES or len(lane_ids) != len(
+            set(lane_ids)
+        ):
+            violations.append("M3 current-gate receipt lanes are incomplete")
+    return violations
+
+
+def _validate_m3_current_gate_receipt(
+    repository_root: Path, record: dict[str, object]
+) -> list[str]:
+    violations: list[str] = []
+    reference = record.get("current_gate_receipt")
+    if not isinstance(reference, dict) or set(reference) != {"path", "sha256"}:
+        return ["M3 current-gate receipt reference is not closed"]
+
+    path_value = reference.get("path")
+    path = _safe_repository_path(repository_root, path_value)
+    if path_value != M3_CURRENT_GATE_RECEIPT_PATH or path is None:
+        violations.append("M3 current-gate receipt path is invalid")
+    if path is None or not path.is_file():
+        violations.append("M3 current-gate receipt file is missing")
+
+    digest = reference.get("sha256")
+    if M3_CURRENT_GATE_RECEIPT_SHA256 is None:
+        violations.append("M3 current-gate receipt SHA is not pinned")
+    elif digest != M3_CURRENT_GATE_RECEIPT_SHA256:
+        violations.append("M3 current-gate receipt digest is not canonical")
+    if not isinstance(digest, str) or SHA256.fullmatch(digest) is None:
+        violations.append("M3 current-gate receipt digest is invalid")
+    elif path is not None and path.is_file():
+        content = path.read_bytes()
+        if hashlib.sha256(content).hexdigest() != digest:
+            violations.append("M3 current-gate receipt digest does not match file")
+        try:
+            receipt = json.loads(content)
+        except (UnicodeError, json.JSONDecodeError):
+            receipt = None
+        violations.extend(_validate_m3_receipt_payload(receipt, record))
+    return violations
+
+
 def _validate_m3_record(
     repository_root: Path, relative: Path, record: dict[str, object]
 ) -> list[str]:
@@ -198,12 +457,14 @@ def _validate_m3_record(
         violations.append(f"{relative}: {code}")
 
     schema_version = record.get("schema_version")
-    expected_keys = (
-        M3_RECORD_KEYS_V2 if schema_version == "2.0.0" else M3_RECORD_KEYS_V1
-    )
+    expected_keys = {
+        "1.0.0": M3_RECORD_KEYS_V1,
+        "2.0.0": M3_RECORD_KEYS_V2,
+        "3.0.0": M3_RECORD_KEYS_V3,
+    }.get(schema_version, M3_RECORD_KEYS_V1)
     if set(record) != expected_keys:
         reject("acceptance record keys do not match V1 schema")
-    if schema_version not in {"1.0.0", "2.0.0"}:
+    if schema_version not in {"1.0.0", "2.0.0", "3.0.0"}:
         reject("acceptance record schema_version is unsupported")
     if record.get("record_type") != "agentmonitor.milestone_acceptance_status":
         reject("acceptance record type is invalid")
@@ -221,6 +482,8 @@ def _validate_m3_record(
         reject("acceptance record overall_status is invalid")
     if schema_version == "2.0.0" and overall_status == "passed":
         reject("M3 schema 2.0.0 cannot claim Passed without a current-gate receipt")
+    if schema_version == "3.0.0" and overall_status != "passed":
+        reject("M3 schema 3.0.0 requires a Passed current gate")
     revision = record.get("assessed_revision")
     if not isinstance(revision, str) or GIT_REVISION.fullmatch(revision) is None:
         reject("acceptance record assessed_revision is not an exact revision")
@@ -368,7 +631,7 @@ def _validate_m3_record(
         reject("acceptance criteria contain duplicates")
     expected_criteria = (
         M3_REQUIRED_CRITERIA_V2
-        if schema_version == "2.0.0"
+        if schema_version in {"2.0.0", "3.0.0"}
         else M3_REQUIRED_CRITERIA_V1
     )
     if set(criterion_ids) != expected_criteria:
@@ -420,7 +683,6 @@ def _validate_m3_record(
         status not in {"passed", "deviation_accepted"} for status in reviewer_statuses
     ):
         reject("passed milestone contradicts reviewer decision")
-
     supersedes = record.get("supersedes")
     if not isinstance(supersedes, list):
         reject("acceptance supersedes must be a list")
@@ -450,7 +712,7 @@ def _validate_m3_record(
             if path is None or path.suffix != ".md" or not path.is_file():
                 reject("acceptance status document path is invalid")
 
-    if schema_version == "2.0.0":
+    if schema_version in {"2.0.0", "3.0.0"}:
         scope_decision = record.get("scope_decision")
         if not isinstance(scope_decision, dict) or set(scope_decision) != {
             "path",
@@ -482,13 +744,29 @@ def _validate_m3_record(
                 reject("M3 scope decision kind is invalid")
 
         predecessor = record.get("supersedes_record")
+        expected_predecessor_path = (
+            M3_V2_PREDECESSOR_PATH if schema_version == "3.0.0" else M3_PREDECESSOR_PATH
+        )
+        expected_predecessor_id = (
+            M3_V2_PREDECESSOR_RECORD_ID
+            if schema_version == "3.0.0"
+            else M3_PREDECESSOR_RECORD_ID
+        )
+        expected_predecessor_sha = (
+            M3_V2_PREDECESSOR_SHA256
+            if schema_version == "3.0.0"
+            else M3_PREDECESSOR_SHA256
+        )
+        predecessor_label = (
+            "M3 v2 predecessor" if schema_version == "3.0.0" else "M3 predecessor"
+        )
         if not isinstance(predecessor, dict) or set(predecessor) != {
             "path",
             "record_id",
             "sha256",
             "prior_status",
         }:
-            reject("M3 predecessor record is not closed")
+            reject(f"{predecessor_label} record is not closed")
         else:
             predecessor_path_value = predecessor.get("path")
             predecessor_path = _safe_repository_path(
@@ -496,13 +774,17 @@ def _validate_m3_record(
             )
             if (
                 predecessor_path is None
-                or predecessor_path_value != M3_PREDECESSOR_PATH
+                or predecessor_path_value != expected_predecessor_path
                 or not predecessor_path.is_file()
             ):
-                reject("M3 predecessor record path is invalid")
+                record_word = "" if schema_version == "3.0.0" else " record"
+                reject(f"{predecessor_label}{record_word} path is invalid")
             predecessor_digest = predecessor.get("sha256")
-            if predecessor_digest != M3_PREDECESSOR_SHA256:
-                reject("M3 predecessor record digest is not canonical")
+            if expected_predecessor_sha is None:
+                reject("M3 v2 predecessor SHA is not pinned")
+            elif predecessor_digest != expected_predecessor_sha:
+                record_word = "" if schema_version == "3.0.0" else " record"
+                reject(f"{predecessor_label}{record_word} digest is not canonical")
             elif (
                 not isinstance(predecessor_digest, str)
                 or SHA256.fullmatch(predecessor_digest) is None
@@ -511,11 +793,106 @@ def _validate_m3_record(
                 or hashlib.sha256(predecessor_path.read_bytes()).hexdigest()
                 != predecessor_digest
             ):
-                reject("M3 predecessor record digest is invalid")
-            if predecessor.get("record_id") != M3_PREDECESSOR_RECORD_ID:
-                reject("M3 predecessor record_id is invalid")
+                record_word = "" if schema_version == "3.0.0" else " record"
+                reject(f"{predecessor_label}{record_word} digest is invalid")
+            if predecessor.get("record_id") != expected_predecessor_id:
+                reject(f"{predecessor_label} record_id is invalid")
             if predecessor.get("prior_status") != "blocked":
-                reject("M3 predecessor prior_status is invalid")
+                reject(f"{predecessor_label} prior_status is invalid")
+    if schema_version == "3.0.0":
+        for code in _validate_m3_current_gate_receipt(repository_root, record):
+            reject(code)
+        receipt_reference = record.get("current_gate_receipt")
+        receipt_path = (
+            receipt_reference.get("path")
+            if isinstance(receipt_reference, dict)
+            else None
+        )
+        receipt_digest = (
+            receipt_reference.get("sha256")
+            if isinstance(receipt_reference, dict)
+            else None
+        )
+        receipt_evidence_id = None
+        if isinstance(evidence, list):
+            for entry in evidence:
+                if (
+                    isinstance(entry, dict)
+                    and entry.get("path") == receipt_path
+                    and entry.get("sha256") == receipt_digest
+                ):
+                    receipt_evidence_id = entry.get("evidence_id")
+                    break
+        if not isinstance(receipt_evidence_id, str):
+            reject("M3 current-gate receipt is absent from evidence")
+        owner_artifacts = (
+            (
+                "M3 historical TDD owner disposition",
+                M3_HISTORICAL_TDD_OWNER_ARTIFACT_PATH,
+                M3_HISTORICAL_TDD_OWNER_ARTIFACT_SHA256,
+            ),
+            (
+                "M3 owner live countersignature",
+                M3_OWNER_LIVE_ARTIFACT_PATH,
+                M3_OWNER_LIVE_ARTIFACT_SHA256,
+            ),
+        )
+        owner_evidence_ids: list[str | None] = []
+        for label, artifact_path, pinned_sha in owner_artifacts:
+            if pinned_sha is None:
+                reject(f"{label} artifact SHA is not pinned")
+            artifact_evidence_id = _m3_pinned_evidence_id(
+                evidence, path=artifact_path, pinned_sha=pinned_sha
+            )
+            if artifact_evidence_id is None:
+                reject(f"{label} artifact is absent from evidence")
+            owner_evidence_ids.append(artifact_evidence_id)
+        for code in _validate_m3_v3_decision_bindings(
+            reviewer_decisions,
+            receipt_evidence_id=receipt_evidence_id,
+            historical_evidence_id=owner_evidence_ids[0],
+            owner_live_evidence_id=owner_evidence_ids[1],
+        ):
+            reject(code)
+        gate_command = None
+        if isinstance(commands, list):
+            gate_command = next(
+                (
+                    entry
+                    for entry in commands
+                    if isinstance(entry, dict)
+                    and entry.get("command_id") == "AUTO-M3-EXIT"
+                ),
+                None,
+            )
+        if (
+            not isinstance(gate_command, dict)
+            or gate_command.get("command") != M3_CURRENT_GATE_COMMAND
+            or gate_command.get("status") != "passed"
+            or gate_command.get("exit_code") != 0
+            or gate_command.get("skips") != []
+            or not isinstance(gate_command.get("evidence_ids"), list)
+            or receipt_evidence_id not in gate_command["evidence_ids"]
+        ):
+            reject("M3 AUTO-M3-EXIT is not bound to current-gate receipt")
+        closure_criterion = None
+        if isinstance(criteria, list):
+            closure_criterion = next(
+                (
+                    entry
+                    for entry in criteria
+                    if isinstance(entry, dict)
+                    and entry.get("criterion_id") == "AC-M3-007"
+                ),
+                None,
+            )
+        if (
+            not isinstance(closure_criterion, dict)
+            or closure_criterion.get("status") != "passed"
+            or not isinstance(closure_criterion.get("evidence_ids"), list)
+            or receipt_evidence_id not in closure_criterion["evidence_ids"]
+        ):
+            reject("M3 closure criterion lacks current-gate receipt")
     return violations
 
 
@@ -599,7 +976,8 @@ def check_m3_acceptance_status(repository_root: Path) -> list[str]:
                     violations.append(
                         f"{item['path']}: superseded status lacks matching marker"
                     )
-        if record.get("schema_version") == "2.0.0":
+        schema_version = record.get("schema_version")
+        if schema_version in {"2.0.0", "3.0.0"}:
             predecessor = record.get("supersedes_record")
             records_by_path = {
                 relative.as_posix(): candidate for relative, candidate in records
@@ -608,15 +986,21 @@ def check_m3_acceptance_status(repository_root: Path) -> list[str]:
                 predecessor.get("path"), str
             ):
                 prior = records_by_path.get(predecessor["path"])
+                expected_schema = "2.0.0" if schema_version == "3.0.0" else "1.0.0"
                 if (
                     prior is None
-                    or prior.get("schema_version") != "1.0.0"
+                    or prior.get("schema_version") != expected_schema
                     or prior.get("lifecycle") != "superseded"
                     or prior.get("record_id") != predecessor.get("record_id")
                     or prior.get("overall_status") != predecessor.get("prior_status")
                 ):
+                    label = (
+                        "M3 v2 predecessor"
+                        if schema_version == "3.0.0"
+                        else "M3 predecessor"
+                    )
                     violations.append(
-                        f"{predecessor['path']}: M3 predecessor authority is invalid"
+                        f"{predecessor['path']}: {label} authority is invalid"
                     )
     return violations
 
@@ -903,9 +1287,7 @@ def check_v1_implementation_status(repository_root: Path) -> list[str]:
                     "V1-M3 acceptance state contradicts the active acceptance record"
                 )
             if m3_entry.get("acceptance_decision_path") != active_path:
-                reject(
-                    "V1-M3 acceptance decision does not name the active record"
-                )
+                reject("V1-M3 acceptance decision does not name the active record")
 
     stories_raw = status.get("stories")
     story_entries: dict[str, dict[str, object]] = {}

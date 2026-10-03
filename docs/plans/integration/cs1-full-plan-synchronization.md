@@ -534,3 +534,13 @@ scenarios; the other 19 canonical plan bodies and all runtime contracts are
 unchanged by this ownership addendum.
 
 Plan snapshot SHA-256: `6350ad1239c4826e993f826ef682e23f312ff14cd539614f22e376b852c42b03`
+
+## 2026-10-03 safe current M3 gate control rebind
+
+The synchronized snapshot now binds the canonical read-only `AUTO-M3-EXIT`
+successor in the automation catalog and its bounded completion rule in the
+automation standard. Only the `automation-routines` and `automation-standard`
+control digests and byte counts changed. This rebind makes no plan, contract,
+provider, or acceptance expansion and does not claim the current M3 gate passed.
+
+Plan snapshot SHA-256: `c3be3c580dd9f9e77b97f712b25588d9168904950d4d0cdf8bdb87c20a5fa9c5`

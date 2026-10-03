@@ -137,7 +137,7 @@ the lifecycle stage that needs it remains Not Ready.
 | `AUTO-CLAUDE-CONNECT` | Verify one owner-completed dashboard connection through real HTTP safeguards, native process lifetime, built browser controls, verified identity, and quota | M02/A01/M01/M03/P01/P02 | requires owner browser interaction; full M4 remains separate |
 | `AUTO-LAN-DASHBOARD` | Verify explicit private interface/subnet, dual real sockets, IAM HTTP protections and built browser sign-in/admin navigation | P01/integration | requires real LAN selector and frontend build; second-computer reachability and TLS hosting remain separate |
 | `AUTO-ACCOUNT-AGENTS` | Verify real terminal detection, HTTP confirmation guards, generated client/build, owner-confirmed settings reopen and read-only shared-browser drill-down | M06/P01/P02 | requires owner CDP/origin/account/PID/private data root and an actual owner-completed link; full M4 remains separate |
-| `AUTO-M3-EXIT` | Perform fresh authorized Claude quota and owner-terminal runtime collection, prove same-account lineage and current identity evidence, exercise the authenticated production browser, then run every local M3 gate | Integration | V1-M3 completion claim |
+| `AUTO-M3-EXIT` | Build the clean revision, restart its existing AgentMonitor dashboard service without changing provider or registry state, select one owner-confirmed monitored Claude account, witness a fresh scheduled quota run with exact identity and persistence lineage, regress its account-scoped runtime query and authenticated browser, prove registry metadata unchanged, then run every local M3 gate | Integration | V1-M3 completion claim |
 | `AUTO-M4-EXIT` | Verify all six M4 story artifacts, execute actual real suites without skipped scenarios, reconcile owner fleet outcomes, exercise fleet/alert/diagnostic browsers and local quality routines | Integration | V1-M4 completion claim; missing implementation fails and missing genuine live evidence blocks |
 | `AUTO-MUTATION` | Mutate the exact admitted critical M05/M06 pure-policy surface and fail on every survivor or result not covered by an exact independently reviewed equivalence binding | Foundation/test steward | V1-M3 completion claim |
 | `AUTO-MIGRATE` | Preflight schema range, lock migration, take required backup, apply explicit revisions, verify integrity, and fail safely | Persistence/operations | upgrade/start on new schema |
@@ -197,25 +197,32 @@ automation is approved, PLAN-FND and PLAN-INT must define:
 - hosted GitLab jobs and the boundaries they can truthfully exercise without a
   local runner.
 
-The current checkout not being a Git repository is a visible Blocked condition,
-not an invitation for an agent to initialize or publish it.
+If a checkout is not a Git repository, that is a visible Blocked condition and
+does not authorize initialization or publication. In this repository,
+`AUTO-GIT-PREFLIGHT` currently provides the bounded local commit preflight; its
+cataloged push and release limitations remain explicit.
 
 ## 7. Test routine
 
-The future `AUTO-TEST` command must select explicit suites for T1 pure, T2 real
-SQLite, T3 real loopback HTTP, T4 real built browser, T5 real platform, T6 real
-provider/account, and T7 native lifecycle. It must emit the environment and
-boundary actually exercised and attach Red/Green/refactor evidence identifiers.
+`AUTO-TEST` is operational for the cataloged M1/M2 local suites, and the M3
+completion flow uses its bounded `AUTO-M3-TEST` successor together with the
+real browser/provider gate. Later scopes must add explicit T5 real platform,
+T6 real provider/account, and T7 native lifecycle selections rather than
+inferring them from the current local suites. Each command must emit the
+environment and boundary actually exercised and attach
+Red/Green/refactor evidence identifiers.
 
 No aggregate green status may conceal a Blocked or Not Run T5/T6/T7 scenario.
 
 ## 8. Deployment and recovery routines
 
-`AUTO-DEPLOY`, `AUTO-MIGRATE`, `AUTO-BACKUP`, and `AUTO-RESTORE` are designed in
-PLAN-DEP, PLAN-DB, and PLAN-M08 and synchronized in PLAN-INT. They remain
-unavailable until those plans are approved and implementation follows TDD.
-Their absence keeps deployment/recovery readiness red; prose procedures alone
-cannot make the gate green.
+`AUTO-MIGRATE` is operational only for the cataloged offline
+`v1_0603` to `v1_0707` M4 upgrade with its verified private pre-migration
+backup. Other source revisions and installed activation remain outside that
+bounded command. `AUTO-DEPLOY`, `AUTO-BACKUP`, and `AUTO-RESTORE` remain
+Blocked on their cataloged prerequisites. This keeps broader
+deployment/recovery readiness red; prose procedures alone cannot make the gate
+green.
 
 ## 9. Handoff evidence
 

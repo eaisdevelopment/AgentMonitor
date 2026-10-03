@@ -19,7 +19,7 @@ RUNNER = REPOSITORY_ROOT / "tools/automation/run.py"
 CATALOG = REPOSITORY_ROOT / "tools/automation/routines.toml"
 sys.path.insert(0, str(RUNNER.parent))
 
-from run import index_routines, load_catalog, validate_catalog  # noqa: E402
+from run import index_routines, load_catalog, validate_catalog
 
 
 class AutomationRoutineTests(unittest.TestCase):
@@ -632,20 +632,24 @@ class AutomationRoutineTests(unittest.TestCase):
     def test_m3_exit_actively_runs_the_mutation_gate(self) -> None:
         """M3 completion cannot bypass the admitted critical-policy gate."""
         sys.path.insert(0, str(REPOSITORY_ROOT / "tools/automation/implementations"))
-        from auto_m3_exit import M3_LOCAL_EXIT_ROUTINES, main
+        from auto_m3_current_exit import LOCAL_ROUTINES, PRE_BROWSER_ROUTINES, main
 
+        self.assertEqual(
+            ("AUTO-BUILD",),
+            tuple(routine for _lane, routine in PRE_BROWSER_ROUTINES),
+        )
         self.assertEqual(
             (
                 "AUTO-M3-TEST",
                 "AUTO-QUALITY",
-                "AUTO-BUILD",
                 "AUTO-MUTATION",
                 "AUTO-DOCS-CHECK",
                 "AUTO-GIT-PREFLIGHT",
             ),
-            M3_LOCAL_EXIT_ROUTINES,
+            tuple(routine for _lane, routine in LOCAL_ROUTINES),
         )
-        self.assertIn("for routine in M3_LOCAL_EXIT_ROUTINES", getsource(main))
+        self.assertIn("for lane, routine in PRE_BROWSER_ROUTINES", getsource(main))
+        self.assertIn("for lane, routine in LOCAL_ROUTINES", getsource(main))
 
     def test_m3_mutmut_dependency_graph_names_the_full_locked_closure(self) -> None:
         """Dependency verification includes every package in the selected closure."""
@@ -678,7 +682,7 @@ class AutomationRoutineTests(unittest.TestCase):
         )
 
     def test_m3_exit_gate_is_distinct_and_cataloged_fail_closed(self) -> None:
-        """M3 completion creates fresh provider/runtime rows before browser proof."""
+        """M3 completion uses the safe current read-only successor gate."""
         catalog = load_catalog(REPOSITORY_ROOT)
         routine = catalog["AUTO-M3-EXIT"]
 
@@ -686,12 +690,13 @@ class AutomationRoutineTests(unittest.TestCase):
         self.assertEqual(
             [
                 "backend/.venv/bin/python",
-                "tools/automation/implementations/auto_m3_exit.py",
+                "tools/automation/implementations/auto_m3_current_exit.py",
             ],
             routine["implementation_command"],
         )
-        self.assertIn("fresh", routine["scope"])
-        self.assertIn("same-account", routine["scope"])
+        self.assertIn("clean-revision build", routine["scope"])
+        self.assertIn("fresh scheduled", routine["scope"])
+        self.assertIn("account-scoped runtime", routine["scope"])
         self.assertEqual([], routine["blockers"])
 
     def test_m3_exit_lineage_rejects_non_utc_gate_time(self) -> None:
