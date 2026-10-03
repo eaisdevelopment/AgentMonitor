@@ -375,15 +375,15 @@ class DocumentationCheckTests(unittest.TestCase):
                 violations,
             )
 
-    def test_implementation_status_rejects_satisfied_blocked_dependency(self) -> None:
+    def test_implementation_status_rejects_unresolved_accepted_dependency(self) -> None:
         with tempfile.TemporaryDirectory() as temporary_directory:
             root = Path(temporary_directory)
             status_path, status = self._copy_status_repository(root)
             m4 = next(
                 item for item in status["milestones"] if item["milestone_id"] == "V1-M4"
             )
-            m4["dependency_state"] = "satisfied"
-            m4["unresolved_dependency_ids"] = []
+            m4["dependency_state"] = "unresolved"
+            m4["unresolved_dependency_ids"] = ["V1-M3"]
             status_path.write_text(json.dumps(status), encoding="utf-8")
 
             violations = check_v1_implementation_status(root)
@@ -445,7 +445,7 @@ class DocumentationCheckTests(unittest.TestCase):
             historical.write_bytes(
                 (REPOSITORY_ROOT / historical.relative_to(root)).read_bytes()
             )
-            active = root / "docs/evidence/v1-m3-acceptance-status-v2.json"
+            active = root / "docs/evidence/v1-m3-acceptance-status-v3.json"
             active.write_bytes(
                 (REPOSITORY_ROOT / active.relative_to(root)).read_bytes()
             )

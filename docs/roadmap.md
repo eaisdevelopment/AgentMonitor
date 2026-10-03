@@ -80,8 +80,9 @@ Scope:
 
 Exit: one owner-confirmed account produces real quota and runtime observations
 with same-account lineage from source through SQLite, API, generated client,
-and browser. The technical gate has historical passing evidence; formal
-acceptance remains governed by the active M3 acceptance record.
+and browser. The revision-bound current gate passed at implementation revision
+`b0113bba2e330bb63cc2d1d6f4c266e879ab3ffe`; the active M3 acceptance record
+is Passed.
 
 ## V1-M4 — Claude fleet, alerts, and operations
 
@@ -96,9 +97,10 @@ Scope:
   compatibility;
 - built-browser verification across fleet, alerts, and operations.
 
-Exit: all six M4 Stories and the standalone canonical gate pass. Later committed
-evidence records that gate pass without an exact tested-revision binding;
-program closure is still dependency-blocked by formal V1-M3 acceptance.
+Exit: all six M4 Stories and the standalone canonical gate pass. Historical
+evidence records that gate pass without an exact tested-revision binding. The
+M3 dependency is satisfied; formal M4 closure still needs current
+exact-revision evidence and resolution of the duplicate reported identity.
 
 ## V1-M5 — Codex vertical slice and fleet
 

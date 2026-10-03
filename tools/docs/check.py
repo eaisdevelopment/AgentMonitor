@@ -94,11 +94,13 @@ M3_PREDECESSOR_SHA256 = (
 )
 M3_V2_PREDECESSOR_PATH = "docs/evidence/v1-m3-acceptance-status-v2.json"
 M3_V2_PREDECESSOR_RECORD_ID = "M3-ACCEPTANCE-2026-10-02-01"
-# Set only after the real v2 record is finalized with lifecycle=superseded.
-M3_V2_PREDECESSOR_SHA256: str | None = None
+M3_V2_PREDECESSOR_SHA256: str | None = (
+    "3fd735a90aaee5be32e60880add1a316814400e5d3233bf0d8dbe006820605f8"
+)
 M3_CURRENT_GATE_RECEIPT_PATH = "docs/evidence/m3-current-gate-receipt-2026-10-03.json"
-# Set only after the real current-revision gate receipt has been reviewed.
-M3_CURRENT_GATE_RECEIPT_SHA256: str | None = None
+M3_CURRENT_GATE_RECEIPT_SHA256: str | None = (
+    "043d4d51ff201bf14c3b50708e9391fd2c9c25c488d7e387fd0b1545028bc121"
+)
 M3_HISTORICAL_TDD_OWNER_ARTIFACT_PATH = (
     "docs/evidence/m3-historical-tdd-owner-disposition-2026-10-03.md"
 )
@@ -106,8 +108,12 @@ M3_OWNER_LIVE_ARTIFACT_PATH = (
     "docs/evidence/m3-owner-live-countersignature-2026-10-03.md"
 )
 # These decisions are separate owner evidence, never inferred from gate output.
-M3_HISTORICAL_TDD_OWNER_ARTIFACT_SHA256: str | None = None
-M3_OWNER_LIVE_ARTIFACT_SHA256: str | None = None
+M3_HISTORICAL_TDD_OWNER_ARTIFACT_SHA256: str | None = (
+    "8a514b7736a39b2dc29d06a8d09a3aee701e20beae86017419f9f012d57b5a3e"
+)
+M3_OWNER_LIVE_ARTIFACT_SHA256: str | None = (
+    "85ab4fcee6291cef04c6334588d5118de2838b41587929a00ca231b964c135d2"
+)
 M3_CURRENT_GATE_LANES = frozenset(
     {
         "selected_account_preflight",

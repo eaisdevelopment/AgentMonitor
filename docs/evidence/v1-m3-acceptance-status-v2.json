@@ -3,7 +3,7 @@
   "record_type": "agentmonitor.milestone_acceptance_status",
   "record_id": "M3-ACCEPTANCE-2026-10-02-01",
   "milestone_id": "V1-M3",
-  "lifecycle": "active",
+  "lifecycle": "superseded",
   "overall_status": "blocked",
   "assessed_revision": "c97e2ba58ca6f2017517f780ab4e112dee44f3b0",
   "recorded_at": "2026-10-02T14:44:41Z",
