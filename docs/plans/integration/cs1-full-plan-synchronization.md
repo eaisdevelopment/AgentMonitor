@@ -545,12 +545,27 @@ provider, or acceptance expansion and does not claim the current M3 gate passed.
 
 Plan snapshot SHA-256: `c3be3c580dd9f9e77b97f712b25588d9168904950d4d0cdf8bdb87c20a5fa9c5`
 
+## 2026-10-03 safe current M4 gate control rebind
+
+The synchronized snapshot now selects the current-revision `AUTO-M4-EXIT`
+successor and its exact completion rule. The successor binds the existing six
+M4 Stories to a clean dashboard restart, six distinct Claude identities whose
+reported addresses match their administrator records, fresh post-restart
+quota/history lineage, zero-skip technical and
+browser lanes, local gates and a private receipt. Only the
+`automation-routines` and `automation-standard` controls changed; no canonical
+module plan, public contract, provider write, schema or dependency changed.
+The live M4 result and owner acceptance remain separate gates.
+
+Plan snapshot SHA-256: `da2e36813484ceb16e5724cd18e77463d896d681c53e162ee2bcaa198b233761`
+
 ## 2026-10-03 current M3 technical-suite scope correction
 
 The [focused PLAN-INT change plan](m3-current-technical-suite-scope-change.md)
 records the owner-directed one-account M3 test selection and preserves the
-historical M0 handoff subject. It changes no canonical plan body or snapshotted
-control, so `plan-baseline.toml` retains its exact rendered bytes and SHA below.
+historical M0 handoff subject. It changed no canonical plan body or snapshotted
+control; at that point `plan-baseline.toml` retained the historical rendered
+bytes and SHA below.
 There is no plan, contract, provider, or acceptance expansion; the clean
 current-revision M3 exit remains a separate gate.
 

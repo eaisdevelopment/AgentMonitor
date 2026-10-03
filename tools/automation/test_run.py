@@ -39,7 +39,7 @@ class AutomationRoutineTests(unittest.TestCase):
         )
         self.assertIn(result.returncode, (1, 3), result.stdout + result.stderr)
         self.assertNotIn("PASSED", result.stdout)
-        self.assertIn("M4 EXIT:", result.stdout)
+        self.assertIn("M4 CURRENT EXIT:", result.stdout)
 
     def test_mutation_baseline_runs_without_caller_pythonpath(self) -> None:
         """The actual selected policy suite must run in a clean caller context."""

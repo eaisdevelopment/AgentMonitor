@@ -1,7 +1,7 @@
 # Change plan: executable completion of all six M4 stories
 
 - Status: **Approved for root-owned completion automation**.
-- Plan version: `1.0.0`; root integration review: 2026-09-29.
+- Plan version: `1.1.0`; root integration review: 2026-10-03.
 - Owner: PLAN-INT; parent [M4 milestone plan](../../superpowers/plans/2026-09-19-agentmonitor-v1-m4-claude-fleet-alerts.md).
 - Authority: active owner-authorized objective, fully implement M4 goals.
 - Requirements: the six canonical M4 story requirement sets; `NFR-TEST-002`,
@@ -57,3 +57,33 @@ the separate M06 settings file. Rollback removes this routine registration
 coherently; it never deletes owner data. Stop for shared ownership conflict,
 false evidence, sensitive output or a changed story/contract; continue unaffected
 module implementation. Full M4 remains incomplete until the gate really passes.
+
+## Current-revision acceptance correction
+
+The owner directed M4 to be closed against the current implementation after
+M3 acceptance. The canonical command therefore selects a fail-closed successor
+that preserves the historical runner as evidence and adds the following
+mandatory controls:
+
+- a clean 40-character Git revision and an explicit running AgentMonitor
+  service PID whose closed command, loopback origin and private data root match
+  the selected owner installation;
+- a production frontend build before a bounded restart of that service from the
+  clean checkout, with Linux PID/start identity held through receipt creation;
+- six owner-selected registry records in two organizations whose administrator
+  names match six distinct current Claude-reported identities, without writing
+  identity values to output or evidence;
+- a fresh post-restart quota collection for every selected account, with the
+  current identity, capacity and history records bound to the same run;
+- pre/post fleet metadata and identity-set digests, zero API mutations, the
+  existing zero-skip M4 suite, fleet/alert/operations browser checks and every
+  local gate; and
+- one owner-only, create-once receipt containing digests and counts rather than
+  account identifiers, addresses, profile paths or provider payloads.
+
+The successor blocks before replacing the service when the preflight fleet is
+ambiguous, including duplicate or wrong reported identities. A blocked run
+does not create a receipt or acceptance claim. This correction changes
+PLAN-INT automation and browser verification only; it adds no provider write,
+registry mutation, public contract, schema, dependency or process-control
+capability beyond restarting AgentMonitor's own selected dashboard service.

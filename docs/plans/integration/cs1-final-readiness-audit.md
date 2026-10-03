@@ -517,12 +517,25 @@ claim a current M3 gate result or milestone acceptance.
 
 Plan snapshot SHA-256: `c3be3c580dd9f9e77b97f712b25588d9168904950d4d0cdf8bdb87c20a5fa9c5`
 
+## 2026-10-03 safe current M4 gate control rebind
+
+The current snapshot binds the canonical `AUTO-M4-EXIT` successor to a clean
+revision, the selected AgentMonitor service, six distinct Claude identities
+whose reported addresses match their administrator records, fresh post-restart
+quota/history lineage and a private
+receipt. Only the `automation-routines` and `automation-standard` control
+digests and byte counts changed. Historical CS-1 conclusions remain
+historical; this rebind makes no provider, product-contract or schema expansion
+and does not claim that the live M4 gate or milestone acceptance has passed.
+
+Plan snapshot SHA-256: `da2e36813484ceb16e5724cd18e77463d896d681c53e162ee2bcaa198b233761`
+
 ## 2026-10-03 current M3 technical-suite scope correction
 
 The [focused PLAN-INT packet](m3-current-technical-suite-scope-change.md)
 binds the owner-directed one-account technical test scope while leaving the
-reviewed M0 handoff and all nine snapshot controls unchanged. The canonical
-renderer still produces the exact baseline SHA below. This is no new CS-1
+reviewed M0 handoff and all nine snapshot controls then unchanged. At that
+point the canonical renderer produced the historical baseline SHA below. This is no new CS-1
 approval, plan, contract, provider, or acceptance expansion and does not claim
 the clean current-revision M3 exit passed.
 

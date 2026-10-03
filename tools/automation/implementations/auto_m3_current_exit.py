@@ -553,11 +553,44 @@ def _launch_service(launch: ServiceLaunchV1, origin: str) -> ServiceProcessV1:
             process.stdout.close()
 
 
-def _restart_service(pid: int, origin: str) -> ServiceProcessV1:
+def service_identity_matches_v1(
+    expected_launch: ServiceLaunchV1,
+    expected_start_ticks: int,
+    actual_launch: ServiceLaunchV1,
+    actual_start_ticks: int,
+) -> bool:
+    """Match the exact process generation and closed service launch target."""
+
+    return (
+        type(expected_start_ticks) is int
+        and expected_start_ticks > 0
+        and actual_start_ticks == expected_start_ticks
+        and actual_launch == expected_launch
+    )
+
+
+def _restart_service(
+    pid: int,
+    origin: str,
+    *,
+    expected_launch: ServiceLaunchV1 | None = None,
+    expected_start_ticks: int | None = None,
+) -> ServiceProcessV1:
     old_pidfd = _pidfd(pid)
     try:
         old_ticks = _process_start_ticks(pid)
         launch = _read_service_launch(pid, origin)
+        if (expected_launch is None) != (expected_start_ticks is None) or (
+            expected_launch is not None
+            and expected_start_ticks is not None
+            and not service_identity_matches_v1(
+                expected_launch,
+                expected_start_ticks,
+                launch,
+                old_ticks,
+            )
+        ):
+            raise M3CurrentExitErrorV1("m3_current_service_process_invalid")
         if _process_start_ticks(pid) != old_ticks or _pidfd_exited(old_pidfd):
             raise M3CurrentExitErrorV1("m3_current_service_process_invalid")
         _signal_pidfd(old_pidfd, signal.SIGTERM)
