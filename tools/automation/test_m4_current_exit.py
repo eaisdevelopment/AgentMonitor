@@ -16,6 +16,7 @@ from tools.automation.implementations.auto_m3_current_exit import (
     service_identity_matches_v1,
 )
 from tools.automation.implementations.auto_m4_current_exit import (
+    BROWSER_CHECKS,
     LOCAL_ROUTINES,
     PRE_SERVICE_ROUTINES,
     RECEIPT_BASENAME,
@@ -72,6 +73,11 @@ def test_catalog_selects_current_m4_exit_and_all_six_stories() -> None:
         "tools.automation.implementations.auto_m4_current_exit",
     ]
     assert PRE_SERVICE_ROUTINES == (("build", "AUTO-BUILD"),)
+    assert BROWSER_CHECKS == (
+        ("fleet_browser", "tools/ui/verify_dashboard_overview.mjs"),
+        ("alerts_browser", "tools/ui/verify_m4_alerts.mjs"),
+        ("operations_browser", "tools/ui/verify_m4_operations.mjs"),
+    )
     assert LOCAL_ROUTINES == (
         ("planning", "AUTO-PLAN-CHECK"),
         ("quality", "AUTO-QUALITY"),

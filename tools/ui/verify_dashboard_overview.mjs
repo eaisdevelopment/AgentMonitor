@@ -45,12 +45,107 @@ try {
   }
   const presentationRows = [...connections.values()].map(group => group.sort((left, right) => Number(right.account.friendly_name === right.identity.email) - Number(left.account.friendly_name === left.identity.email) || left.account.account_id.localeCompare(right.account.account_id))[0]);
   let mutations = 0;
-  page.on("request", request => { if (new URL(request.url()).origin === origin && request.url().includes("/api/v1/") && !["GET", "HEAD"].includes(request.method())) mutations += 1; });
+  let collectionHistoryGets = 0;
+  page.on("request", request => {
+    const url = new URL(request.url());
+    if (url.origin !== origin || !url.pathname.startsWith("/api/v1/")) return;
+    if (url.pathname === "/api/v1/collection-runs" && request.method() === "GET") collectionHistoryGets += 1;
+    if (!["GET", "HEAD"].includes(request.method())) mutations += 1;
+  });
   await page.goto(origin);
   stage = "account_quota_overview";
+  const collectionHistory = page.getByRole("button", { name: "Collection / History", exact: true });
+  await collectionHistory.waitFor({ timeout: 10_000 });
+  requireResult(await collectionHistory.count() === 1, "collection_history_navigation_missing");
+  requireResult(await page.getByRole("heading", { name: "Collection runs", exact: true }).count() === 0, "collection_history_still_on_overview");
   const table = page.getByRole("table", { name: "Account quota overview", exact: true });
   await table.waitFor({ timeout: 10_000 });
+  requireResult(collectionHistoryGets === 0, "overview_loaded_collection_history");
+  const collectionResponse = page.waitForResponse(response => {
+    const url = new URL(response.url());
+    return url.origin === origin && url.pathname === "/api/v1/collection-runs" && response.request().method() === "GET";
+  });
+  await collectionHistory.click();
+  await page.getByRole("heading", { name: "Collection runs", exact: true }).waitFor();
+  requireResult((await collectionResponse).status() === 200, "collection_history_get_unavailable");
+  requireResult(new URL(page.url()).pathname === "/collectors" && await page.title() === "Collection / History · AgentMonitor" && collectionHistoryGets > 0, "collection_history_route_missing");
+  const historyGetsAfterNavigation = collectionHistoryGets;
+  await page.goto(origin);
+  await table.waitFor({ timeout: 10_000 });
+  requireResult(collectionHistoryGets === historyGetsAfterNavigation, "overview_loaded_collection_history");
   for (const label of ["Account", "Organization", "State", "Quota left", "Updated"]) requireResult(await table.getByRole("columnheader", { name: label, exact: true }).count() === 1, "overview_column_missing");
+  stage = "interactive_sorting";
+  const sortHeaders = Object.fromEntries(["Organization", "State", "Quota left"].map(label => [label, table.getByRole("columnheader", { name: label, exact: true })]));
+  for (const label of Object.keys(sortHeaders)) requireResult(await sortHeaders[label].getByRole("button", { name: label, exact: true }).count() === 1, "overview_sort_control_missing");
+  const organizationLabel = row => row.account.organization_id === null ? "Ungrouped" : snapshot.organizations.items.find(item => item.organization_id === row.account.organization_id)?.name ?? "Unavailable";
+  const stateLabel = row => {
+    const { account, capacity } = row;
+    const windows = capacity.items.flatMap(item => item.windows);
+    if (["wrong_account", "conflict", "invalidated"].includes(account.identity_state)) return "Check identity";
+    if (account.lifecycle === "pending") return "Not connected";
+    if (account.lifecycle === "disabled") return "Disabled";
+    if (!account.is_effective_monitoring_enabled) return "Monitoring off";
+    if (capacity.availability.state === "unavailable") return "Unavailable";
+    if (capacity.availability.state === "unsupported") return "Unsupported";
+    if (capacity.availability.state === "unknown") return "Unknown";
+    if (windows.length === 0) return "No quota yet";
+    if (windows.some(window => window.freshness === "conflicted")) return "Conflicting readings";
+    if (windows.some(window => window.freshness === "stale")) return "Stale";
+    if (windows.some(window => window.freshness !== "fresh")) return "Unknown freshness";
+    if (capacity.availability.state === "partial") return "Partial readings";
+    return "Current";
+  };
+  const minimum = row => {
+    const values = row.capacity.items.flatMap(item => item.windows).map(window => percentageValue(window.allowance?.remaining_percentage ?? window.remaining_ratio)).filter(value => value !== null);
+    return values.length > 0 ? Math.min(...values) : Infinity;
+  };
+  const tie = (left, right) => left.account.friendly_name.localeCompare(right.account.friendly_name) || left.account.account_id.localeCompare(right.account.account_id);
+  const expectedOrder = (key, direction, rows = presentationRows) => [...rows].sort((left, right) => {
+    let primary = 0;
+    if (key === "quota") {
+      const leftValue = minimum(left);
+      const rightValue = minimum(right);
+      const leftAvailable = Number.isFinite(leftValue);
+      const rightAvailable = Number.isFinite(rightValue);
+      if (leftAvailable !== rightAvailable) return leftAvailable ? -1 : 1;
+      if (leftAvailable) primary = leftValue - rightValue;
+    } else {
+      const leftValue = key === "organization" ? organizationLabel(left) : stateLabel(left);
+      const rightValue = key === "organization" ? organizationLabel(right) : stateLabel(right);
+      primary = leftValue.localeCompare(rightValue);
+    }
+    return (primary === 0 ? 0 : direction === "ascending" ? primary : -primary) || tie(left, right);
+  }).map(row => row.account.account_id);
+  const orderedIds = () => table.locator("tbody tr").evaluateAll(rows => rows.map(row => row.dataset.accountId));
+  const assertSort = async (label, key, direction, rows = presentationRows, headersVisible = true) => {
+    if (headersVisible) {
+      requireResult(await sortHeaders[label].getAttribute("aria-sort") === direction, "overview_sort_direction_missing");
+      for (const other of Object.keys(sortHeaders).filter(value => value !== label)) requireResult(await sortHeaders[other].getAttribute("aria-sort") === null, "overview_multiple_active_sorts");
+    }
+    requireResult(JSON.stringify(await orderedIds()) === JSON.stringify(expectedOrder(key, direction, rows)), "overview_sort_order_mismatch");
+  };
+  await assertSort("Quota left", "quota", "ascending");
+  await sortHeaders.Organization.getByRole("button", { name: "Organization", exact: true }).click();
+  await assertSort("Organization", "organization", "ascending");
+  await sortHeaders.Organization.getByRole("button", { name: "Organization", exact: true }).click();
+  await assertSort("Organization", "organization", "descending");
+  const stateSort = sortHeaders.State.getByRole("button", { name: "State", exact: true });
+  await stateSort.focus();
+  requireResult(await stateSort.evaluate(node => document.activeElement === node), "overview_sort_not_keyboard_accessible");
+  await page.keyboard.press("Enter");
+  await assertSort("State", "state", "ascending");
+  await page.keyboard.press("Space");
+  await assertSort("State", "state", "descending");
+  const quotaSort = sortHeaders["Quota left"].getByRole("button", { name: "Quota left", exact: true });
+  await quotaSort.click();
+  await assertSort("Quota left", "quota", "ascending");
+  await quotaSort.click();
+  await assertSort("Quota left", "quota", "descending");
+  await quotaSort.click();
+  await assertSort("Quota left", "quota", "ascending");
+  await sortHeaders.Organization.getByRole("button", { name: "Organization", exact: true }).click();
+  await sortHeaders.Organization.getByRole("button", { name: "Organization", exact: true }).click();
+  await assertSort("Organization", "organization", "descending");
   stage = "organization_filter";
   const filters = page.getByRole("group", { name: "Organizations", exact: true });
   requireResult(await filters.count() === 1, "organization_filter_missing");
@@ -68,15 +163,19 @@ try {
   await page.keyboard.press("Space");
   requireResult(await firstGroup.getAttribute("aria-pressed") === "true" && await all.getAttribute("aria-pressed") === "false", "single_organization_selection_not_exposed");
   requireResult(sameIds(await visibleIds(), expectedIds(snapshot.rows.filter(row => row.account.organization_id === groups[0].organization_id))), "single_organization_rows_mismatch");
+  const firstGroupRows = presentationRows.filter(row => row.account.organization_id === groups[0].organization_id);
+  await assertSort("Organization", "organization", "descending", firstGroupRows);
   await page.getByRole("button", { name: "Refresh overview", exact: true }).click();
   await page.getByRole("button", { name: "Refresh overview", exact: true }).waitFor();
   requireResult(await firstGroup.getAttribute("aria-pressed") === "true", "organization_selection_lost_after_refresh");
   requireResult(sameIds(await visibleIds(), expectedIds(snapshot.rows.filter(row => row.account.organization_id === groups[0].organization_id))), "filtered_refresh_rows_mismatch");
+  await assertSort("Organization", "organization", "descending", firstGroupRows);
   stage = "organization_periodic_refresh";
   const periodicRead = await page.waitForResponse(response => new URL(response.url()).pathname === "/api/v1/accounts" && response.request().method() === "GET", { timeout: 40_000 });
   requireResult(periodicRead.status() === 200, "periodic_account_read_unavailable");
   await page.getByRole("button", { name: "Refresh overview", exact: true }).waitFor();
   requireResult(await firstGroup.getAttribute("aria-pressed") === "true" && sameIds(await visibleIds(), expectedIds(snapshot.rows.filter(row => row.account.organization_id === groups[0].organization_id))), "organization_selection_lost_after_periodic_refresh");
+  await assertSort("Organization", "organization", "descending", firstGroupRows);
   stage = "organization_filter";
   await secondGroup.click();
   requireResult(await firstGroup.getAttribute("aria-pressed") === "true" && await secondGroup.getAttribute("aria-pressed") === "true", "multiple_organization_selection_not_exposed");
@@ -86,12 +185,11 @@ try {
   requireResult(await table.count() === 0 && await page.getByText("No organizations selected. Choose an organization or All organizations.", { exact: true }).count() === 1, "empty_organization_selection_not_explicit");
   await all.click();
   requireResult(await all.getAttribute("aria-pressed") === "true" && sameIds(await visibleIds(), expectedIds(snapshot.rows)), "all_organizations_reset_failed");
+  await assertSort("Organization", "organization", "descending");
+  await quotaSort.click();
+  await assertSort("Quota left", "quota", "ascending");
   stage = "lowest_quota_first";
   const actualOrder = await table.locator("tbody tr").evaluateAll(rows => rows.map(row => row.dataset.accountId));
-  const minimum = row => {
-    const values = row.capacity.items.flatMap(item => item.windows).map(window => percentageValue(window.allowance?.remaining_percentage ?? window.remaining_ratio)).filter(value => value !== null);
-    return values.length > 0 ? Math.min(...values) : Infinity;
-  };
   const orderedMinimums = actualOrder.map(id => minimum(snapshot.rows.find(row => row.account.account_id === id)));
   requireResult(orderedMinimums.every((value, index) => index === 0 || value >= orderedMinimums[index - 1]), "accounts_not_sorted_by_lowest_remaining_quota");
   requireResult(await table.getByRole("columnheader", { name: "Quota left", exact: true }).getAttribute("aria-sort") === "ascending", "quota_sort_not_accessible");
@@ -145,6 +243,16 @@ try {
       const heading = await page.locator(".overview-heading").boundingBox();
       requireResult(heading && heading.height <= 80, "overview_intro_too_tall");
       requireResult(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1), "overview_horizontal_overflow");
+      const mobileSort = page.getByLabel("Sort accounts", { exact: true });
+      if (viewport.width < 600) {
+        requireResult(await mobileSort.isVisible(), "mobile_sort_control_missing");
+        await mobileSort.selectOption("organization:descending");
+        requireResult(await mobileSort.inputValue() === "organization:descending", "mobile_sort_direction_missing");
+        await assertSort("Organization", "organization", "descending", presentationRows, false);
+        await mobileSort.selectOption("quota:ascending");
+        requireResult(await mobileSort.inputValue() === "quota:ascending", "mobile_sort_direction_missing");
+        await assertSort("Quota left", "quota", "ascending", presentationRows, false);
+      } else requireResult(await mobileSort.isHidden(), "mobile_sort_control_visible_on_desktop");
       if (viewport.width >= 1280) {
         const box = await table.boundingBox();
         requireResult(box && box.y < 300, "account_quota_not_prioritized");

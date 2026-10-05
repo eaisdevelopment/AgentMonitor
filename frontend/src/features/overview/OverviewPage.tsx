@@ -1,5 +1,4 @@
 import { AccountQuotaOverview } from "./AccountQuotaOverview";
-import { CollectionRunPanel } from "../collectors/CollectionRunPanel";
 import { ProviderPage } from "../providers/ProviderPage";
 import { SessionPanel } from "../sessions/SessionPanel";
 
@@ -22,7 +21,6 @@ export function OverviewPage({
       <AccountQuotaOverview onExpired={onExpired} onOpenAccount={onOpenAccount} />
       <div className="command-grid">
         <ProviderPage displayMode="panel" onExpired={onExpired} />
-        <CollectionRunPanel displayMode="panel" onExpired={onExpired} />
         <SessionPanel displayMode="panel" onExpired={onExpired} />
       </div>
       <section className="account-security" aria-labelledby="security-title">

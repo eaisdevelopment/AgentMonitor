@@ -167,7 +167,7 @@ try {
     const url = new URL(response.url());
     return url.origin === origin && url.pathname === "/api/v1/collection-runs" && response.request().method() === "GET";
   });
-  await page.getByRole("button", { name: "Collectors", exact: true }).click();
+  await page.getByRole("button", { name: "Collection / History", exact: true }).click();
   requireTruth((await collectionResponse).status() === 200, "collection_run_get_failed");
   await page.getByRole("heading", { name: "Collection runs", exact: true }).waitFor();
   await page.getByText("Reading collection history…", { exact: true }).waitFor({ state: "detached" });

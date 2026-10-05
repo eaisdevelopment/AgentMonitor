@@ -80,9 +80,9 @@ quota rows show exact remaining ratio, observation/run IDs, collected and
 stored times, source, adapter/provider versions, freshness policy, precision,
 and confidence. Capacity history renders exact retained poll observations in a
 non-interpolated chart and accessible table with shared observation IDs.
-Collection runs expose their actual source,
-adapter/provider version availability, request/start/completion times,
-duration/outcome, and observation IDs; they do not claim freshness because the
+The `/collectors` **Collection / History** view exposes each run's actual
+source, adapter/provider version availability, request/start/completion times,
+duration/outcome, and observation IDs. It does not claim freshness because the
 run DTO publishes no freshness field.
 
 The production browser scenario `monitoring_dashboard` uses a fresh real
@@ -190,10 +190,12 @@ other live flow cases remain Not Run. See
 
 Completed connections now use a compact status row. The main page prioritizes
 per-account organization, quota-reading state, remaining percentages/bars,
-and update times above secondary provider/collection/session panels. It consumes
+and update times above secondary provider and session panels. Collection-run
+history is available only from the primary **Collection / History** action at
+`/collectors`; opening Overview does not request that history. The UI consumes
 existing V1 operations, verifies identity lineage, and never infers working
-agent ownership. The same canonical connection gate includes real connected
-layout and populated overview checks. See [density and quota-overview evidence](../evidence/dashboard-density-and-quota-overview.md).
+agent ownership. The canonical M4 exit includes the real populated Overview
+check. See [density and quota-overview evidence](../evidence/dashboard-density-and-quota-overview.md).
 
 Overview organization buttons select one or more admin-defined groups; All
 organizations restores the default. Ungrouped and unavailable assignments
@@ -202,9 +204,13 @@ account rows and registry connections. Selection survives manual and 30-second
 read refresh while Overview stays open, without browser storage or registry
 changes. Rows sort by their lowest usable remaining quota percentage, ascending,
 with missing percentages last and deterministic name/ID ties. Each native
-window remains separate. A percentage at or below 20 has a red bar, a visible
-Low label, and an accessible low description. Freshness, calculated/rounded
-provenance, and provider health policy retain their existing meanings.
+window remains separate. The Organization, State, and Quota left headings are
+keyboard-accessible sort controls; activating the current heading reverses its
+direction. On narrow screens an equivalent labeled select remains visible.
+Missing quota stays last in either direction. A percentage at or below 20 has
+a red bar, a visible Low label, and an accessible low description. Freshness,
+calculated/rounded provenance, and provider health policy retain their existing
+meanings.
 
 ## Account agent drill-down and duplicate connections
 

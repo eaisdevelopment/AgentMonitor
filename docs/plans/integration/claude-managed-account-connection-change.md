@@ -269,3 +269,48 @@ production owner; root owns verification and evidence. `CTR-UI-001` and
 schema, migration, dependency/license, or collection-cadence change. Rollback
 restores the previous compatible static bundle and leaves all records and
 provider profiles intact.
+
+### Interactive Overview sorting (owner directed, 2026-10-05)
+
+The owner's request to activate sorting from the **Organization**, **State**,
+and **Quota left** headings approves this bounded P02 presentation increment
+under `FR-UI-001/002/003/004/006` and selected
+`AC-UI-002/003/004/005`. The loaded Overview page retains lowest usable quota
+ascending as its default. Each approved heading is a keyboard-accessible button:
+selecting a different heading starts ascending, while selecting the active
+heading toggles ascending and descending. Exactly one heading exposes
+`aria-sort`; its visible direction indicator is supplementary.
+
+Organization sorting uses the displayed administrator-defined organization
+name. State sorting uses the displayed reading-state label. Quota sorting uses
+the existing minimum usable remaining percentage, with unavailable percentages
+last in either direction. Name and account-ID ties remain deterministic.
+Sorting applies after organization filtering and duplicate-identity grouping,
+retains every native quota window, and survives manual and 30-second refreshes
+while Overview remains mounted. It sorts only the bounded account page already
+returned by V1 and makes no global-pagination claim.
+
+Extend the real authenticated Overview verifier before production changes to
+exercise all three controls in both directions, focus/keyboard access,
+`aria-sort`, deterministic actual row order, filter composition, refresh
+retention, compact layouts, and zero API mutations. No provider response or
+quota value may be fabricated. `CTR-UI-001` and `CTR-API-001` V1 remain
+unchanged; there is no backend, provider, generated-client, schema, migration,
+dependency/license, persistence, or collection-cadence impact.
+
+### Overview collection-history separation (owner directed, 2026-10-05)
+
+The owner's instruction to remove the low-value **Collection runs** status card
+from Overview approves a bounded P02 information-architecture correction under
+`FR-UI-001/002/003/004/006` and selected `AC-UI-002/003/004/005`. The existing
+`/collectors` page remains the only collection-run/history presentation and its
+primary-navigation label and document title become **Collection / History**.
+Overview keeps account quota first and does not issue the collection-history
+request merely because the landing page opened.
+
+The real browser verifier must first reject the old duplicated card, then prove
+the Overview has no Collection runs region, the renamed main-menu action opens
+the existing real collection page, direct `/collectors` navigation remains
+valid, and navigation causes no mutation. No API, generated client, backend,
+provider, schema, migration, dependency, persistence, collection cadence, or
+data-retention behavior changes.

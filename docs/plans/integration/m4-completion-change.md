@@ -16,7 +16,7 @@
 ST-FLEET-001/002/003, ST-ALERT-001/002 and ST-OPS-001 together. It verifies
 required actual implementation/test/browser artifacts, executes the real
 selected suites, rejects skipped/empty test results, runs the production
-browser fleet/alert/operations acceptance and the local quality routines.
+browser fleet/Overview/alert/operations acceptance and the local quality routines.
 A missing implementation fails; absent genuine live prerequisites blocks.
 A narrower selected-account pass cannot satisfy this command.
 
@@ -76,8 +76,8 @@ mandatory controls:
 - a fresh post-restart quota collection for every selected account, with the
   current identity, capacity and history records bound to the same run;
 - pre/post fleet metadata and identity-set digests, zero API mutations, the
-  existing zero-skip M4 suite, fleet/alert/operations browser checks and every
-  local gate; and
+  existing zero-skip M4 suite, fleet/Overview/alert/operations browser checks
+  and every local gate; and
 - one owner-only, create-once receipt containing digests and counts rather than
   account identifiers, addresses, profile paths or provider payloads.
 
@@ -87,3 +87,9 @@ does not create a receipt or acceptance claim. This correction changes
 PLAN-INT automation and browser verification only; it adds no provider write,
 registry mutation, public contract, schema, dependency or process-control
 capability beyond restarting AgentMonitor's own selected dashboard service.
+
+The owner's 2026-10-05 Overview sorting and collection-history separation
+instructions also require the current-revision gate to execute the real
+authenticated Overview verifier after the fresh six-account witness. The
+existing `fleet_browser` lane covers both the identity/quota witness and that
+built presentation check; no receipt schema or public contract changes.

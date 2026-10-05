@@ -24,9 +24,10 @@ The main introduction is a small heading. The first substantive panel is a
 full-width account table with organization, quota-reading state, every returned
 quota window's remaining percentage and bounded bar, and its update time.
 Calculated/rounded provenance remains visible; details explain the exact
-source on the account page. Provider, collection, and session panels follow.
-Account names and groups come from dynamic admin/API data. A provider-verified
-name requires matching current quota collection-run lineage.
+source on the account page. Provider and session panels follow. Collection-run
+history has its own primary **Collection / History** page and is not requested
+by Overview. Account names and groups come from dynamic admin/API data. A
+provider-verified name requires matching current quota collection-run lineage.
 
 State means quota-reading freshness/availability, with explicit registry
 eligibility. It never means an agent is working or that an unknown capacity
@@ -232,3 +233,51 @@ tools/ui/verify_dashboard_overview.mjs
 The increment retains the earlier full-M4 limitations and does not change
 organization aggregation, forecasts, process ownership, alerts, or operations
 scope.
+
+## Interactive sorting and separate history — 2026-10-05
+
+The owner approved two further bounded P02 changes under
+`FR-UI-001/002/003/004/006` and selected `AC-UI-002/003/004/005`:
+
+- Organization, State, and Quota left are interactive sort controls. Each
+  starts ascending and reverses when selected again. The mobile layout exposes
+  the same six choices in a labeled select. Missing quota remains last in both
+  directions, and deterministic account-name/ID ties remain stable.
+- Overview no longer renders or requests Collection runs. The existing
+  `/collectors` route is reached from the primary **Collection / History**
+  action and retains the genuine V1 history request and empty/error states.
+
+The real authenticated Overview verifier was extended before each production
+change. It returned these meaningful Reds against the prior built UI:
+
+```text
+DASHBOARD OVERVIEW: BLOCKED — interactive_sorting: overview_sort_control_missing
+DASHBOARD OVERVIEW: BLOCKED — account_quota_overview: collection_history_navigation_missing
+```
+
+During responsive verification it then exposed two real density regressions:
+`account_quota_below_first_screen` at 1920 pixels and
+`account_quota_not_prioritized` at 1280 pixels. Compact row spacing and primary
+navigation spacing corrected those failures without hiding account data.
+
+The final real authenticated browser command Passed (exit 0):
+
+```text
+DASHBOARD OVERVIEW: PASSED — 6 real account rows from 6 registry connections, single/multiple/reset/empty organization filters, retained manual/periodic refresh selection, lowest quota first, 1 low red / 11 normal bars, compact desktop/narrow layout, read-only navigation
+```
+
+That Green checked all three headings in both directions, keyboard activation,
+one active `aria-sort`, the mobile sort control, filtered and refreshed order,
+absence of collection history on Overview, successful navigation to the real
+history page, 1920/1280/390 geometry, and zero API mutations. The isolated
+`auth` and `monitoring_dashboard` browser scenarios Passed against genuine
+temporary SQLite/API services. TypeScript checking and the production build
+Passed. The current M4 exit now runs this Overview verifier after its fresh
+six-account witness in the existing `fleet_browser` lane.
+
+There is no backend, API/schema, generated-client, provider, migration,
+dependency/license, authentication, persistence, data-retention, or collection
+cadence impact. No provider response or quota value was fabricated. The live
+rows were genuine and stale after the intentional service restart; the UI kept
+that state explicit. Full current-revision M4 acceptance remains separately
+gated by `AUTO-M4-EXIT` and is not claimed by this focused evidence.

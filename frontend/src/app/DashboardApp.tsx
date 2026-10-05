@@ -66,7 +66,7 @@ export function DashboardApp() {
       : route === "/organizations" ? "Organizations"
       : route.startsWith("/accounts") ? "Accounts"
       : route === "/providers" ? "Providers"
-      : route === "/collectors" ? "Collectors"
+      : route === "/collectors" ? "Collection / History"
       : route === "/sessions" ? "Sessions"
       : route === "/operations" ? "Operations"
       : route === "/alert-rules" ? "Alert rules"
@@ -234,7 +234,7 @@ export function DashboardApp() {
           <button type="button" aria-current={route.startsWith("/accounts") ? "page" : undefined} onClick={() => navigate("/accounts")}>Accounts</button>
           <button type="button" aria-current={route === "/organizations" ? "page" : undefined} onClick={() => navigate("/organizations")}>Organizations</button>
           <button type="button" aria-current={route === "/providers" ? "page" : undefined} onClick={() => navigate("/providers")}>Providers</button>
-          <button type="button" aria-current={route === "/collectors" ? "page" : undefined} onClick={() => navigate("/collectors")}>Collectors</button>
+          <button type="button" aria-current={route === "/collectors" ? "page" : undefined} onClick={() => navigate("/collectors")}>Collection / History</button>
           <button type="button" aria-current={route === "/sessions" ? "page" : undefined} onClick={() => navigate("/sessions")}>Sessions</button>
           <button type="button" aria-current={route === "/operations" ? "page" : undefined} onClick={() => navigate("/operations")}>Operations</button>
           <button type="button" aria-current={route === "/alert-rules" ? "page" : undefined} onClick={() => navigate("/alert-rules")}>Alert rules</button>

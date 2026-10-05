@@ -540,3 +540,16 @@ approval, plan, contract, provider, or acceptance expansion and does not claim
 the clean current-revision M3 exit passed.
 
 Plan snapshot SHA-256: `c3be3c580dd9f9e77b97f712b25588d9168904950d4d0cdf8bdb87c20a5fa9c5`
+
+## 2026-10-05 M4 Overview presentation gate extension
+
+The current snapshot binds the real authenticated account-quota Overview
+verifier into the existing `fleet_browser` lane of `AUTO-M4-EXIT`. It covers
+the owner-approved interactive sorting and separate Collection / History page
+after the fresh six-account witness. Only the `automation-routines` and
+`automation-standard` control digests and byte counts changed. Historical CS-1
+conclusions remain historical; this extension changes no canonical module
+plan, public contract, provider behavior, schema, dependency, or M4 acceptance
+state.
+
+Plan snapshot SHA-256: `559468c158d5b3727faf547026cdd18a8c25b59e82025375c7e2384f262611b0`

@@ -41,20 +41,19 @@ try {
   stage = "authenticated_shell";
   await page.getByRole("heading", { name: "AgentMonitor" }).waitFor();
   stage = "monitoring_dashboard";
-  for (const region of ["Accounts", "Providers", "Collection runs", "Sessions"]) {
+  for (const region of ["Accounts", "Providers", "Sessions"]) {
     await page.getByRole("region", { name: region }).waitFor();
   }
+  requireTruth(await page.getByRole("region", { name: "Collection runs" }).count() === 0, "collection_history_present_on_overview");
   await page.locator('[data-monitoring-state="api"]').waitFor();
   for (const emptyState of [
-    "No monitored accounts are registered.",
+    "No accounts are registered. Add an account from Accounts.",
     "No provider installations were discovered.",
-    "No collection runs have been recorded.",
     "No observed sessions are available.",
   ]) await page.getByText(emptyState, { exact: true }).waitFor();
   for (const requiredRoute of [
     "/api/v1/accounts?limit=200",
     "/api/v1/provider-installations?limit=200",
-    "/api/v1/collection-runs?limit=50",
     "/api/v1/process-metrics?limit=200",
     "/api/v1/sessions?limit=200",
   ]) {
@@ -62,6 +61,15 @@ try {
     requireTruth(calls.length > 0, `observation_get_missing_${requiredRoute}`);
     requireTruth(calls.every((entry) => entry.status === 200), `observation_get_not_200_${requiredRoute}`);
   }
+  requireTruth(observationGets.every((entry) => entry.route !== "/api/v1/collection-runs?limit=50"), "overview_loaded_collection_history");
+  stage = "collection_history_navigation";
+  await page.getByRole("button", { name: "Collection / History", exact: true }).click();
+  await page.getByRole("region", { name: "Collection runs" }).waitFor();
+  await page.getByText("No collection runs have been recorded.", { exact: true }).waitFor();
+  const collectionCalls = observationGets.filter((entry) => entry.route === "/api/v1/collection-runs?limit=50");
+  requireTruth(collectionCalls.length > 0 && collectionCalls.every((entry) => entry.status === 200), "collection_history_get_missing");
+  await page.getByRole("button", { name: "Overview", exact: true }).click();
+  await page.getByRole("heading", { name: "AgentMonitor" }).waitFor();
   const sessionCookie = (await context.cookies(origin)).find((item) => item.name === "agentmonitor_session");
   requireTruth(sessionCookie?.httpOnly === true, "session_cookie_not_httponly");
   const storageEmpty = await page.evaluate(() => localStorage.length === 0 && sessionStorage.length === 0);

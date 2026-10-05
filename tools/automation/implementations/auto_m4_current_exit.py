@@ -70,6 +70,7 @@ LIVE_SELECTORS = (
     "AGENTMONITOR_M4_SERVICE_PID",
 )
 BROWSER_CHECKS = (
+    ("fleet_browser", "tools/ui/verify_dashboard_overview.mjs"),
     ("alerts_browser", "tools/ui/verify_m4_alerts.mjs"),
     ("operations_browser", "tools/ui/verify_m4_operations.mjs"),
 )
@@ -524,7 +525,6 @@ def main() -> int:
         witness = _run_fleet_browser(environment, preflight=False)
         fleet_digest, identity_digest = validate_fleet_transition_v1(preflight, witness)
         lane_evidence.update(
-            fleet_browser="built_browser_six_accounts_passed",
             registry_unchanged="pre_post_fleet_digest_matched",
             fresh_fleet_lineage="six_post_restart_runs_with_history",
         )
@@ -574,7 +574,7 @@ def main() -> int:
                 pass
     print(
         "M4 CURRENT EXIT: PASSED — exact revision, six distinct Claude identities, "
-        "fresh fleet lineage, alerts, operations and local gates"
+        "fresh fleet lineage, Overview, alerts, operations and local gates"
     )
     return 0
 

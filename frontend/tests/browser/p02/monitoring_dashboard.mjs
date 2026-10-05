@@ -69,7 +69,6 @@ try {
   const requiredObservationGets = [
     "/api/v1/accounts?limit=200",
     "/api/v1/provider-installations?limit=200",
-    "/api/v1/collection-runs?limit=50",
     "/api/v1/process-metrics?limit=200",
     "/api/v1/sessions?limit=200",
   ];
@@ -108,7 +107,9 @@ try {
   await page.getByText("No provider installations were discovered.", { exact: true }).waitFor();
 
   stage = "collectors_navigation";
-  await page.getByRole("button", { name: "Collectors", exact: true }).click();
+  const collectionResponse = page.waitForResponse((response) => new URL(response.url()).pathname === "/api/v1/collection-runs" && response.request().method() === "GET");
+  await page.getByRole("button", { name: "Collection / History", exact: true }).click();
+  requireTruth((await collectionResponse).status() === 200, "collection_history_get_not_200");
   await page.getByRole("heading", { name: "Collection runs", exact: true }).waitFor();
   await page.getByText("No collection runs have been recorded.", { exact: true }).waitFor();
 
