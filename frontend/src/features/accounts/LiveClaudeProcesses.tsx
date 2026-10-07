@@ -5,6 +5,7 @@ import {
   type AccountViewV1, type OrganizationViewV1,
   type LiveProcessLocationPageV1, type LiveProcessLocationViewV1,
 } from "../../shared/api/client";
+import { providerDisplayName } from "./providerPresentation";
 
 function time(value: string) {
   return new Date(value).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" });
@@ -17,7 +18,7 @@ function ProcessDetails({ item }: Readonly<{ item: LiveProcessLocationViewV1 }>)
       <div><dt>PID</dt><dd>{item.pid}</dd></div>
       <div><dt>Parent PID</dt><dd>{item.parent_pid ?? "Unavailable"}</dd></div>
       <div><dt>Start identity</dt><dd>{item.start_time_ticks} ticks</dd></div>
-      <div><dt>Claude version</dt><dd>{item.provider_version ?? "Unavailable"}</dd></div>
+      <div><dt>{providerDisplayName(item.provider_key)} version</dt><dd>{item.provider_version ?? "Unavailable"}</dd></div>
       <div><dt>Memory</dt><dd>{item.resident_memory_bytes == null ? "Unavailable" : (item.resident_memory_bytes / 1048576).toFixed(1) + " MiB"}</dd></div>
       <div><dt>CPU time</dt><dd>{item.cpu_time_seconds == null ? "Unavailable" : item.cpu_time_seconds + " seconds · cumulative"}</dd></div>
       <div><dt>OS state</dt><dd>{item.kernel_state ?? "Unavailable"}</dd></div>
@@ -28,7 +29,7 @@ function ProcessDetails({ item }: Readonly<{ item: LiveProcessLocationViewV1 }>)
   </details>;
 }
 
-export function LiveClaudeProcesses({
+export function LiveProviderProcesses({
   account, accounts, organizations, onExpired, onProofUnavailable, onRead,
 }: Readonly<{
   account: AccountViewV1;
@@ -134,15 +135,16 @@ export function LiveClaudeProcesses({
   }
 
   const unavailable = failed || (data !== null && data.availability.state !== "available");
-  const current = unavailable ? [] : data?.items ?? [];
+  const current = unavailable ? [] : (data?.items ?? []).filter(item => item.provider_key === account.provider_key);
   const linked = current.filter(item => item.account_association?.account_id === account.account_id);
   const unlinked = current.filter(item => !item.account_association);
+  const provider = providerDisplayName(account.provider_key);
 
   function table(items: readonly LiveProcessLocationViewV1[], label: string, isLinked: boolean) {
     return <div className="workspace-table-scroll"><table className="workspace-table account-agent-table" aria-label={label}>
       <thead><tr><th scope="col">Agent</th><th scope="col">State</th><th scope="col">Path</th><th scope="col">Details</th></tr></thead>
       <tbody>{items.map(item => <tr key={item.association_key} data-association-key={item.association_key}>
-        <th scope="row" data-label="Agent"><strong>Claude · PID {item.pid}</strong>
+        <th scope="row" data-label="Agent"><strong>{providerDisplayName(item.provider_key)} · PID {item.pid}</strong>
           <small>{isLinked ? "Owner confirmed" : "Account unknown"}</small>
           {item.account_association && <small>{time(item.account_association.confirmed_at)}</small>}
         </th>
@@ -165,14 +167,14 @@ export function LiveClaudeProcesses({
         <button type="button" className="quiet-button" disabled={busy} onClick={() => { void refresh(); }}>Refresh agents</button>
       </div>
     </div>
-    {data === null && !failed ? <p role="status">Reading running Claude processes…</p>
+    {data === null && !failed ? <p role="status">Reading running {provider} processes…</p>
       : unavailable ? <p role="status">Live process information could not be refreshed. Current account links are unavailable.</p>
       : linked.length === 0 ? <p>No agents linked to this account yet.</p>
       : table(linked, "Agents using this account", true)}
     {!unavailable && data !== null && unlinked.length > 0 && <details className="unlinked-agents" data-unlinked-agents="true">
-      <summary>Identify other Claude terminals <span>{unlinked.length} unlinked</span></summary>
+      <summary>Identify other {provider} terminals <span>{unlinked.length} unlinked</span></summary>
       <p>These terminals have no confirmed account. Check each terminal’s <code>/status</code> before linking it.</p>
-      {table(unlinked, "Unlinked Claude terminals", false)}
+      {table(unlinked, `Unlinked ${provider} terminals`, false)}
     </details>}
     {message && <p role="status">{message}</p>}
     {data !== null && <p className="live-process-note">Updated {time(data.availability.as_of)} · Running means present; working or waiting is unknown. Reconfirm the link if you change the account inside a terminal.</p>}

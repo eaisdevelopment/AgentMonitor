@@ -3,8 +3,9 @@ import { useCallback, useEffect, useRef, useState, type FormEvent } from "react"
 import { CapacityPanel } from "../command/CapacityPanel";
 import { SessionPanel } from "../sessions/SessionPanel";
 import { AccountWorkspaceSummary } from "./AccountWorkspaceSummary";
-import { ClaudeConnectionPanel } from "./ClaudeConnectionPanel";
-import { LiveClaudeProcesses } from "./LiveClaudeProcesses";
+import { ProviderConnectionPanel } from "./ClaudeConnectionPanel";
+import { LiveProviderProcesses } from "./LiveClaudeProcesses";
+import { providerDisplayName } from "./providerPresentation";
 import {
   CsrfUnavailableError,
   registry,
@@ -148,7 +149,7 @@ export function AccountPage({
         <div>
           <nav className="account-breadcrumb" aria-label="Account breadcrumb"><a href="/accounts">Accounts</a><span aria-hidden="true">/</span><span>{state.organizations.items.find((item) => item.organization_id === selected.organization_id)?.name ?? "Ungrouped"}</span></nav>
           <h1 id={titleId} tabIndex={-1}>{observedEmail ?? selected.friendly_name}</h1>
-          {observedEmail && observedEmail !== selected.friendly_name && <p className="connection-warning">Registered as {selected.friendly_name} · Claude currently reports {observedEmail}. Review this connection before treating it as the registered account.</p>}
+          {observedEmail && observedEmail !== selected.friendly_name && <p className="connection-warning">Registered as {selected.friendly_name} · {providerDisplayName(selected.provider_key)} currently reports {observedEmail}. Review this connection before treating it as the registered account.</p>}
           <p className="account-subtitle"><span className="provider-name">{selected.provider_key}</span><span aria-hidden="true">·</span><span>{selected.is_effective_monitoring_enabled ? "Quota monitoring is on" : "Quota monitoring is off"}</span></p>
         </div>
         <button className="quiet-button" type="button" onClick={() => {
@@ -158,9 +159,9 @@ export function AccountPage({
           }
         }}>Edit account</button>
       </header>
-      {selected.provider_key === "claude" && selected.lifecycle !== "archived" && <ClaudeConnectionPanel key={`connection-${selected.account_id}`} account={selected} onExpired={onExpired} onProofUnavailable={onProofUnavailable} onAccountReload={reloadAccount} />}
+      {["claude", "codex"].includes(selected.provider_key) && selected.lifecycle !== "archived" && <ProviderConnectionPanel key={`connection-${selected.account_id}`} account={selected} onExpired={onExpired} onProofUnavailable={onProofUnavailable} onAccountReload={reloadAccount} />}
       <AccountWorkspaceSummary key={selected.account_id} account={selected} organizationName={state.organizations.items.find((item) => item.organization_id === selected.organization_id)?.name ?? "Ungrouped"} liveProcesses={liveProcesses} onExpired={onExpired} onIdentity={updateObservedIdentity} />
-      {selected.provider_key === "claude" && <LiveClaudeProcesses key={`processes-${selected.account_id}`} account={selected} accounts={state.data.items} organizations={state.organizations.items} onExpired={onExpired} onProofUnavailable={onProofUnavailable} onRead={setLiveProcesses} />}
+      {["claude", "codex"].includes(selected.provider_key) && <LiveProviderProcesses key={`processes-${selected.account_id}`} account={selected} accounts={state.data.items} organizations={state.organizations.items} onExpired={onExpired} onProofUnavailable={onProofUnavailable} onRead={setLiveProcesses} />}
       <CapacityPanel accountId={selected.account_id} onExpired={onExpired} />
       <details className="account-secondary" data-account-sessions="true">
         <summary>Session history <span>Previously observed session records</span></summary>
@@ -170,7 +171,7 @@ export function AccountPage({
         <summary>Account settings <span>Name, organization, and monitoring</span></summary>
       <section className="account-admin-content" aria-labelledby="account-admin-title">
         <div className="panel-heading"><h2 id="account-admin-title">Account administration</h2></div>
-        <p className="account-settings-hint">Manage this dashboard record. Claude's detected account identity is shown above.</p>
+        <p className="account-settings-hint">Manage this dashboard record. {providerDisplayName(selected.provider_key)}'s detected account identity is shown above.</p>
         <p>Identity is {selected.identity_state.replaceAll("_", " ")}. Editing this record does not confirm provider identity.</p>
         <form key={`name-${selected.record_version}`} onSubmit={(event) => {
           event.preventDefault();
@@ -262,7 +263,7 @@ export function AccountPage({
             <div><span className={`provider-light ${account.is_effective_monitoring_enabled ? "active" : ""}`} aria-hidden="true" /><strong>{account.friendly_name}</strong></div>
             <p>{account.provider_key} · {state.organizations.items.find((item) => item.organization_id === account.organization_id)?.name ?? "Ungrouped"}</p>
             <p className="record-meta">{account.lifecycle} · monitoring {account.is_effective_monitoring_enabled ? "enabled" : "disabled"}</p>
-            {account.provider_key === "claude" && account.lifecycle === "pending" && <button type="button" onClick={() => onOpenAccount(account.account_id)}>Connect Claude</button>}
+            {["claude", "codex"].includes(account.provider_key) && account.lifecycle === "pending" && <button type="button" onClick={() => onOpenAccount(account.account_id)}>Connect {providerDisplayName(account.provider_key)}</button>}
             <button type="button" className="quiet-button" onClick={() => onOpenAccount(account.account_id)}>Open account</button>
           </article>
         ))}</div>

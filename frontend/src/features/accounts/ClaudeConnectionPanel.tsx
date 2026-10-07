@@ -7,42 +7,17 @@ import {
   type ClientResult,
   type ProviderConnectionViewV1,
 } from "../../shared/api/client";
+import { providerConnectionCopy } from "./providerPresentation";
 
 const activeStates = new Set<ProviderConnectionViewV1["state"]>([
   "requested", "awaiting_sign_in", "verifying",
 ]);
 
-const stateLabels: Readonly<Record<ProviderConnectionViewV1["state"], string>> = {
-  idle: "Ready to connect",
-  requested: "Opening Claude sign-in",
-  awaiting_sign_in: "Waiting for your sign-in",
-  verifying: "Verifying the account",
-  connected: "Claude connected",
-  wrong_account: "Different Claude account detected",
-  expired: "Sign-in expired",
-  failed: "Connection unsuccessful",
-  cancelled: "Connection cancelled",
-  setup_required: "Claude setup required",
-};
-
-const stateDescriptions: Readonly<Record<ProviderConnectionViewV1["state"], string>> = {
-  idle: "Confirm the email, then open Claude's official sign-in in a separate browser window.",
-  requested: "Keep this page open. Claude's official sign-in window is being opened.",
-  awaiting_sign_in: "Complete sign-in in Claude's browser window using the email below. This page will update after verification.",
-  verifying: "Sign-in finished. Checking that Claude reports the account you selected before enabling monitoring.",
-  connected: "Identity verified and monitoring enabled. Quota will appear after a successful scheduled reading.",
-  wrong_account: "Claude reported a different identity from the selected email. Monitoring was not enabled by this attempt. Review the selected account before trying again.",
-  expired: "The browser sign-in was not completed in time. Start a new connection when you are ready.",
-  failed: "The connection did not finish. Check connection status and try again.",
-  cancelled: "This sign-in attempt was cancelled. You can start a new connection when you are ready.",
-  setup_required: "Claude sign-in succeeded, but its first-use setup still needs attention. Monitoring has not started. Check status after completing Claude setup.",
-};
-
 function isEmail(value: string): boolean {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim());
 }
 
-export function ClaudeConnectionPanel({
+export function ProviderConnectionPanel({
   account,
   onExpired,
   onProofUnavailable,
@@ -53,6 +28,31 @@ export function ClaudeConnectionPanel({
   onProofUnavailable: () => void;
   onAccountReload: () => void;
 }>) {
+  const copy = providerConnectionCopy(account.provider_key);
+  const stateLabels: Readonly<Record<ProviderConnectionViewV1["state"], string>> = {
+    idle: "Ready to connect",
+    requested: `Opening ${copy.provider} sign-in`,
+    awaiting_sign_in: "Waiting for your sign-in",
+    verifying: "Verifying the account",
+    connected: copy.connected,
+    wrong_account: copy.differentAccount,
+    expired: "Sign-in expired",
+    failed: "Connection unsuccessful",
+    cancelled: "Connection cancelled",
+    setup_required: copy.setupRequired,
+  };
+  const stateDescriptions: Readonly<Record<ProviderConnectionViewV1["state"], string>> = {
+    idle: copy.idle,
+    requested: copy.requested,
+    awaiting_sign_in: copy.awaiting,
+    verifying: copy.verifying,
+    connected: "Identity verified and monitoring enabled. Quota will appear after a successful scheduled reading.",
+    wrong_account: copy.wrongAccount,
+    expired: "The browser sign-in was not completed in time. Start a new connection when you are ready.",
+    failed: "The connection did not finish. Check connection status and try again.",
+    cancelled: "This sign-in attempt was cancelled. You can start a new connection when you are ready.",
+    setup_required: copy.setupDescription,
+  };
   const [connection, setConnection] = useState<ProviderConnectionViewV1 | null>(null);
   const [email, setEmail] = useState(() => isEmail(account.friendly_name) ? account.friendly_name.trim() : "");
   const [busy, setBusy] = useState(false);
@@ -155,9 +155,9 @@ export function ClaudeConnectionPanel({
   const description = connection === null
     ? "Reading this account's connection status from the local service."
     : isConnectedReceipt && !isMonitoringOn
-      ? "Claude identity was verified by this connection. Monitoring is currently off."
+      ? `${copy.provider} identity was verified by this connection. Monitoring is currently off.`
       : recovery && connection.can_connect
-        ? "Confirm the email of the same previously verified Claude identity, then finish connecting this account to monitoring. This continues the existing profile without a new sign-in."
+        ? `Confirm the email of the same previously verified ${copy.provider} identity, then finish connecting this account to monitoring. This continues the existing profile without a new sign-in.`
         : stateDescriptions[connection.state];
 
   // Existing active/default profiles only expose a control for an eligible,
@@ -165,13 +165,13 @@ export function ClaudeConnectionPanel({
   if (recovery && !connection?.can_connect && !active && !needsAttention && !isConnectedReceipt) return null;
 
   if (isConnectedReceipt) return (
-    <section className="claude-connection claude-connection-compact" aria-label="Claude connection" aria-busy={busy}>
+    <section className="claude-connection claude-connection-compact" aria-label={`${copy.provider} connection`} aria-busy={busy}>
       <div className="claude-connection-summary">
         <div className="claude-connection-summary-status" role="status" aria-live="polite">
-          <strong><span className="claude-connected-mark" aria-hidden="true">✓</span><span>Claude connected</span></strong>
+          <strong><span className="claude-connected-mark" aria-hidden="true">✓</span><span>{copy.connected}</span></strong>
           <span className={`state-chip ${isMonitoringOn ? "state-live" : "state-unavailable"}`}>Monitoring {isMonitoringOn ? "on" : "off"}</span>
         </div>
-        <button type="button" className="quiet-button" aria-label="Check status for Claude connection" disabled={busy} onClick={() => { void checkStatus(); }}>Check status</button>
+        <button type="button" className="quiet-button" aria-label={`Check status for ${copy.provider} connection`} disabled={busy} onClick={() => { void checkStatus(); }}>Check status</button>
       </div>
       {error !== null && <p className="form-status" role="alert">{error}</p>}
     </section>
@@ -180,7 +180,7 @@ export function ClaudeConnectionPanel({
   return (
     <section className="claude-connection" aria-labelledby="claude-connection-title" aria-busy={busy}>
       <div className="claude-connection-heading">
-        <div><p className="panel-code">ACCOUNT CONNECTION</p><h2 id="claude-connection-title">{isConnectedReceipt ? "Claude connection" : recovery ? "Finish Claude connection" : "Connect Claude"}</h2></div>
+        <div><p className="panel-code">ACCOUNT CONNECTION</p><h2 id="claude-connection-title">{isConnectedReceipt ? `${copy.provider} connection` : recovery ? `Finish ${copy.provider} connection` : `Connect ${copy.provider}`}</h2></div>
         <span className={`state-chip ${isMonitoringOn ? "state-live" : "state-unavailable"}`}>Monitoring {isMonitoringOn ? "on" : "off"}</span>
       </div>
       <div className="claude-connection-status" role="status" aria-live="polite">
@@ -189,11 +189,11 @@ export function ClaudeConnectionPanel({
       </div>
       {!isConnectedReceipt && <form className="claude-connection-form" onSubmit={connect}>
         <div>
-          <label htmlFor="claude-connection-email">Claude account email</label>
+          <label htmlFor="claude-connection-email">{copy.provider} account email</label>
           <input id="claude-connection-email" type="email" value={email} onChange={(event) => setEmail(event.target.value)} autoComplete="email" maxLength={256} required disabled={busy || active || isRecoveryEmailFixed || connection?.state === "connected"} aria-describedby="claude-connection-email-help" />
-          <p id="claude-connection-email-help">{recovery ? "Confirm the email used for the previously verified Claude account. The service will check it again before continuing." : "Sign in with this email in Claude. Enter passwords and verification codes only on Claude's official page."}</p>
+          <p id="claude-connection-email-help">{recovery ? copy.recoveryHelp : copy.emailHelp}</p>
         </div>
-        <button type="submit" disabled={busy || active || outcomeUnknown || !connection?.can_connect || !isEmail(email)}>{recovery ? "Finish connection" : "Connect Claude"}</button>
+        <button type="submit" disabled={busy || active || outcomeUnknown || !connection?.can_connect || !isEmail(email)}>{recovery ? "Finish connection" : `Connect ${copy.provider}`}</button>
       </form>}
       <div className="claude-connection-actions">
         {active && connection.flow_id !== null && <button type="button" className="quiet-button" disabled={busy} onClick={() => {
