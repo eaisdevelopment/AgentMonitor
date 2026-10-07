@@ -553,3 +553,15 @@ plan, public contract, provider behavior, schema, dependency, or M4 acceptance
 state.
 
 Plan snapshot SHA-256: `559468c158d5b3727faf547026cdd18a8c25b59e82025375c7e2384f262611b0`
+
+## 2026-10-07 M5 Codex capacity contract adoption
+
+The current snapshot binds the approved focused M5 packet's use of existing
+`CTR-COL-002` collection admission and `CTR-COMMON-003` exact quantities to
+PLAN-A02. Only the two consumer registrations, their generated adoption
+projection, and the snapshot control digests changed. Contract versions,
+producers, maturity, and all canonical plan bodies remain unchanged. This is a
+bounded mechanical registry rebind; it does not renew the historical all-V1
+readiness audit or claim M5 implementation, live verification, or completion.
+
+Plan snapshot SHA-256: `53e5be92a17537a360eaeab85d01a317d7287a9c4ce1cb6e20d72ad73a94ef9d`

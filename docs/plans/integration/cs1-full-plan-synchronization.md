@@ -582,3 +582,16 @@ canonical module plan, public contract, provider behavior, schema, dependency,
 or live M4 result changed.
 
 Plan snapshot SHA-256: `559468c158d5b3727faf547026cdd18a8c25b59e82025375c7e2384f262611b0`
+
+## 2026-10-07 M5 Codex capacity contract adoption
+
+The synchronized controls now register PLAN-A02 as a consumer of the existing
+`CTR-COL-002` collection-run admission contract and `CTR-COMMON-003` exact
+quantity contract. The approved focused M5 packet requires both contracts for
+the admitted Codex subscription-quota result and its exact decimal capacity
+mapping. Contract versions, producers, maturity, and all 20 canonical plan
+hashes remain unchanged. This mechanical rebind preserves the historical CS-1
+conclusions and does not claim M5 implementation, live verification, or
+milestone completion.
+
+Plan snapshot SHA-256: `53e5be92a17537a360eaeab85d01a317d7287a9c4ce1cb6e20d72ad73a94ef9d`

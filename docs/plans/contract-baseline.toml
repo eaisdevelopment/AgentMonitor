@@ -199,7 +199,7 @@ id = "CTR-COMMON-003"
 name = "ExactQuantityV1"
 version = "1.0.0"
 producer = "PLAN-FND"
-consumers = ["PLAN-M05", "PLAN-M07", "PLAN-A01", "PLAN-P01", "PLAN-P02", "PLAN-DB"]
+consumers = ["PLAN-M05", "PLAN-M07", "PLAN-A01", "PLAN-A02", "PLAN-P01", "PLAN-P02", "PLAN-DB"]
 maturity = "proposed_aligned"
 decision_reference = "CAA-2026-09-18-01 sections 5.1 and 9.2"
 checklist = { field_state_null = true, units_time = true, auth = true, side_effects = true, idempotency = true, events = true, retention = true, errors = true, compatibility = true }
@@ -629,7 +629,7 @@ id = "CTR-COL-002"
 name = "CollectionRunViewV1"
 version = "1.0.0"
 producer = "PLAN-M04"
-consumers = ["PLAN-FND", "PLAN-M05", "PLAN-M06", "PLAN-M07", "PLAN-M08", "PLAN-A01", "PLAN-P01", "PLAN-P02"]
+consumers = ["PLAN-FND", "PLAN-M05", "PLAN-M06", "PLAN-M07", "PLAN-M08", "PLAN-A01", "PLAN-A02", "PLAN-P01", "PLAN-P02"]
 maturity = "proposed_aligned"
 decision_reference = "CAA-2026-09-18-01 sections 5.6 and 9.1"
 checklist = { field_state_null = true, units_time = true, auth = true, side_effects = true, idempotency = true, events = true, retention = true, errors = true, compatibility = true }

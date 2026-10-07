@@ -56,7 +56,6 @@ CONTRACT_MODULES = frozenset(
         "events_v1",
         "deployment_v1",
         "integration_v1",
-        "events_v1",
         "api_v1",
         "ui_v1",
     }
@@ -75,10 +74,18 @@ SUPPORT_SYMBOLS = {
         "DatabaseSchemaStateV1",
         "DatabaseHealthReasonV1",
     },
-    "agentmonitor.contracts.provider_system_v1": {"ProviderConnectionStateV1", "OutcomeStateV1"},
+    "agentmonitor.contracts.provider_system_v1": {
+        "CapabilityDecisionStateV1",
+        "OutcomeStateV1",
+        "ProviderConnectionStateV1",
+        "SideEffectClassV1",
+        "StabilityV1",
+    },
     "agentmonitor.contracts.collection_control_v1": {
-        "CollectorHealthStateV1", "CollectorFreshnessStateV1",
-        "CollectorRetryCategoryV1", "CollectorConditionReasonV1",
+        "CollectorHealthStateV1",
+        "CollectorFreshnessStateV1",
+        "CollectorRetryCategoryV1",
+        "CollectorConditionReasonV1",
     },
     "agentmonitor.contracts.registry_v1": {
         "ConfirmIdentityAssociationCommandV1",
@@ -142,6 +149,7 @@ SUPPORT_SYMBOLS = {
         "AlertReasonCodeV1",
     },
     "agentmonitor.contracts.capacity_v1": {
+        "ConfidenceV1",
         "CompletenessV1",
         "CapacityAvailabilityStateV1",
         "CapacityAlertAvailabilityV1",
@@ -149,6 +157,12 @@ SUPPORT_SYMBOLS = {
         "CapacityHealthStateV1",
         "CapacityProjectionEventPayloadV1",
         "InvalidCapacityContractV1",
+        "ValueKindV1",
+    },
+    "agentmonitor.contracts.providers.codex.subscription_quota.v1.schema": {
+        "CodexPlanTypeV1",
+        "CodexRateLimitReachedTypeV1",
+        "CodexWindowRoleV1",
     },
 }
 TASK_CONTRACT_IDS = frozenset(
@@ -287,10 +301,16 @@ M02_SQLITE_LAYER_SYMBOLS = {
         }
     ),
 }
-A01_PROVIDER_SYSTEM_SYMBOLS = {
-    "agentmonitor.modules.provider_system.application.gateway": frozenset(
+PROVIDER_SYSTEM_GATEWAY_MODULE = (
+    "agentmonitor.modules.provider_system.application.gateway"
+)
+PROVIDER_SYSTEM_GATEWAY_SYMBOLS_BY_ADAPTER = {
+    "agentmonitor.adapters.providers.claude": frozenset(
         {"ResolveAndInvokeProviderCapabilityV1", "resolve_one_exact_observation"}
-    )
+    ),
+    "agentmonitor.adapters.providers.codex": frozenset(
+        {"ResolveAndInvokeProviderCapabilityV1"}
+    ),
 }
 FRESH_INIT_MIGRATE_TARGET = (
     "agentmonitor.adapters.persistence._shared.sqlite.schema.compatibility."
@@ -448,19 +468,28 @@ def _approved_m02_adapter_port_symbol(source: str, target: str) -> bool:
     )
 
 
-def _a01_provider_system_symbol_module(source: str, target: str) -> bool:
-    prefix = "agentmonitor.adapters.providers.claude"
+def _provider_system_gateway_symbols(source: str) -> frozenset[str] | None:
+    for prefix, symbols in PROVIDER_SYSTEM_GATEWAY_SYMBOLS_BY_ADAPTER.items():
+        if source == prefix or source.startswith(prefix + "."):
+            return symbols
+    return None
+
+
+def _provider_system_gateway_symbol_module(source: str, target: str) -> bool:
     return (
-        source == prefix or source.startswith(prefix + ".")
-    ) and target in A01_PROVIDER_SYSTEM_SYMBOLS
+        target == PROVIDER_SYSTEM_GATEWAY_MODULE
+        and _provider_system_gateway_symbols(source) is not None
+    )
 
 
-def _approved_a01_provider_system_symbol(source: str, target: str) -> bool:
+def _approved_provider_system_gateway_symbol(source: str, target: str) -> bool:
     module, separator, symbol = target.rpartition(".")
+    allowed = _provider_system_gateway_symbols(source)
     return (
         bool(separator)
-        and _a01_provider_system_symbol_module(source, module)
-        and symbol in A01_PROVIDER_SYSTEM_SYMBOLS[module]
+        and module == PROVIDER_SYSTEM_GATEWAY_MODULE
+        and allowed is not None
+        and symbol in allowed
     )
 
 
@@ -557,7 +586,7 @@ def _allowed(source: str, target: str, *, symbol_import: bool = False) -> bool:
         or _approved_m02_sqlite_policy_symbol(source, target)
         or _approved_m03_m06_sqlite_policy_symbol(source, target)
         or _approved_m02_adapter_port_symbol(source, target)
-        or _approved_a01_provider_system_symbol(source, target)
+        or _approved_provider_system_gateway_symbol(source, target)
     ):
         return True
     if any(part.startswith("_") for part in dst[1:]) and src[1:3] != dst[1:3]:
@@ -648,7 +677,7 @@ def _imports(
                     and not _m02_sqlite_policy_symbol_module(module, base)
                     and not _m03_m06_sqlite_policy_symbol_module(module, base)
                     and not _m02_adapter_port_symbol_module(module, base)
-                    and not _a01_provider_system_symbol_module(module, base)
+                    and not _provider_system_gateway_symbol_module(module, base)
                     and not _allowed(module, base)
                 ):
                     edges.append((node.lineno, base, False))
@@ -659,20 +688,18 @@ def _imports(
                     )
             else:
                 edges.append((node.lineno, base, False))
-        elif isinstance(node, ast.Call):
-            if isinstance(node.func, ast.Name) and node.func.id in {
-                "__import__",
-                "eval",
-                "exec",
-            }:
-                errors.append((node.lineno, "dynamic-import"))
-            elif isinstance(node.func, ast.Attribute) and node.func.attr in {
-                "import_module",
-                "__import__",
-                "exec_module",
-                "load_module",
-            }:
-                errors.append((node.lineno, "dynamic-import"))
+        elif isinstance(node, ast.Call) and (
+            (
+                isinstance(node.func, ast.Name)
+                and node.func.id in {"__import__", "eval", "exec"}
+            )
+            or (
+                isinstance(node.func, ast.Attribute)
+                and node.func.attr
+                in {"import_module", "__import__", "exec_module", "load_module"}
+            )
+        ):
+            errors.append((node.lineno, "dynamic-import"))
     return edges, errors
 
 
@@ -814,9 +841,12 @@ def _catalog_rebindings(
         elif isinstance(node, (ast.ExceptHandler, ast.MatchAs, ast.MatchStar)):
             if node.name is not None and node.name in scope:
                 result.append((node.lineno, node.name))
-        elif isinstance(node, ast.MatchMapping):
-            if node.rest is not None and node.rest in scope:
-                result.append((node.lineno, node.rest))
+        elif (
+            isinstance(node, ast.MatchMapping)
+            and node.rest is not None
+            and node.rest in scope
+        ):
+            result.append((node.lineno, node.rest))
         for child in ast.iter_child_nodes(node):
             visit(child, scope, walrus_scope)
 
@@ -844,18 +874,18 @@ def _class_string_literal(node: ast.ClassDef, field: str) -> str | None:
     matches: list[str] = []
     for statement in node.body:
         value: ast.expr | None = None
-        if isinstance(statement, ast.Assign) and any(
-            isinstance(target, ast.Name) and target.id == field
-            for target in statement.targets
-        ):
+        targets: tuple[ast.expr, ...]
+        if isinstance(statement, ast.Assign):
+            targets = tuple(statement.targets)
             value = statement.value
-        elif (
-            isinstance(statement, ast.AnnAssign)
-            and isinstance(statement.target, ast.Name)
-            and statement.target.id == field
-        ):
+        elif isinstance(statement, ast.AnnAssign):
+            targets = (statement.target,)
             value = statement.value
-        if value is not None:
+        else:
+            continue
+        if value is not None and any(
+            isinstance(target, ast.Name) and target.id == field for target in targets
+        ):
             if not isinstance(value, ast.Constant) or not isinstance(value.value, str):
                 return None
             matches.append(value.value)

@@ -261,6 +261,94 @@ def test_public_alias_cannot_disguise_an_undeclared_contract(tmp_path: Path) -> 
 
 
 @pytest.mark.parametrize(
+    ("contract_module", "contract_declaration", "symbols"),
+    [
+        (
+            "provider_system_v1",
+            "class AdapterDescriptorV1:\n"
+            '    CONTRACT_ID = "CTR-PROV-001"\n'
+            '    OWNER = "PLAN-M03"\n'
+            "CapabilityDecisionStateV1 = str\n"
+            "SideEffectClassV1 = str\n"
+            "StabilityV1 = str\n",
+            (
+                "CapabilityDecisionStateV1",
+                "SideEffectClassV1",
+                "StabilityV1",
+            ),
+        ),
+        (
+            "capacity_v1",
+            "class ProviderQuotaInputV1:\n"
+            '    CONTRACT_ID = "CTR-CAP-001"\n'
+            '    OWNER = "PLAN-M05"\n'
+            "ConfidenceV1 = str\n"
+            "ValueKindV1 = str\n",
+            ("ConfidenceV1", "ValueKindV1"),
+        ),
+        (
+            "providers/codex/subscription_quota/v1/schema",
+            "class CodexSubscriptionQuotaV1:\n"
+            '    CONTRACT_ID = "CODEX-SUBSCRIPTION-QUOTA-V1"\n'
+            '    OWNER = "PLAN-A02"\n'
+            "CodexWindowRoleV1 = str\n"
+            "CodexPlanTypeV1 = str\n"
+            "CodexRateLimitReachedTypeV1 = str\n",
+            (
+                "CodexWindowRoleV1",
+                "CodexPlanTypeV1",
+                "CodexRateLimitReachedTypeV1",
+            ),
+        ),
+    ],
+)
+def test_reviewed_contract_support_alias_is_importable(
+    tmp_path: Path,
+    contract_module: str,
+    contract_declaration: str,
+    symbols: tuple[str, ...],
+) -> None:
+    copy_contract_policy(tmp_path)
+    write_source(
+        tmp_path,
+        f"contracts/{contract_module}.py",
+        contract_declaration,
+    )
+    module_name = contract_module.replace("/", ".")
+    write_source(
+        tmp_path,
+        "adapters/providers/codex/support_consumer.py",
+        f"from agentmonitor.contracts.{module_name} import {', '.join(symbols)}\n",
+    )
+
+    assert checker().find_forbidden_imports(tmp_path) == []
+
+
+def test_unreviewed_provider_extension_alias_remains_rejected(tmp_path: Path) -> None:
+    copy_contract_policy(tmp_path)
+    contract_module = "providers/codex/subscription_quota/v1/schema"
+    write_source(
+        tmp_path,
+        f"contracts/{contract_module}.py",
+        "class CodexSubscriptionQuotaV1:\n"
+        '    CONTRACT_ID = "CODEX-SUBSCRIPTION-QUOTA-V1"\n'
+        '    OWNER = "PLAN-A02"\n'
+        "CodexPlanTypeV1 = str\n"
+        "UnreviewedCodexAliasV1 = str\n",
+    )
+    source = write_source(
+        tmp_path,
+        "adapters/providers/codex/support_consumer.py",
+        "from agentmonitor.contracts.providers.codex.subscription_quota.v1.schema "
+        "import UnreviewedCodexAliasV1\n",
+    )
+
+    assert checker().find_forbidden_imports(tmp_path) == [
+        f"{source}:1:unresolved-contract-symbol"
+    ]
+
+
+@pytest.mark.parametrize(
     "assignment",
     [
         "OpaqueIdV1 = SchemaCompatibilityV1",
@@ -506,6 +594,43 @@ def test_domain_rejects_outward_dependencies(tmp_path: Path, dependency: str) ->
 def test_other_forbidden_edges(tmp_path: Path, source: str, dependency: str) -> None:
     path = write_source(tmp_path, source, f"import {dependency}\n")
     assert checker().find_forbidden_imports(tmp_path) == [f"{path}:1:{dependency}"]
+
+
+@pytest.mark.parametrize(
+    ("provider", "symbol"),
+    [
+        ("claude", "ResolveAndInvokeProviderCapabilityV1"),
+        ("claude", "resolve_one_exact_observation"),
+        ("codex", "ResolveAndInvokeProviderCapabilityV1"),
+    ],
+)
+def test_provider_adapter_can_import_its_exact_gateway_symbols(
+    tmp_path: Path, provider: str, symbol: str
+) -> None:
+    write_source(
+        tmp_path,
+        f"adapters/providers/{provider}/adapter.py",
+        "from agentmonitor.modules.provider_system.application.gateway "
+        f"import {symbol}\n",
+    )
+
+    assert checker().find_forbidden_imports(tmp_path) == []
+
+
+def test_codex_adapter_cannot_import_unallocated_gateway_helper(
+    tmp_path: Path,
+) -> None:
+    source = write_source(
+        tmp_path,
+        "adapters/providers/codex/adapter.py",
+        "from agentmonitor.modules.provider_system.application.gateway "
+        "import resolve_one_exact_observation\n",
+    )
+
+    assert checker().find_forbidden_imports(tmp_path) == [
+        f"{source}:1:agentmonitor.modules.provider_system.application.gateway."
+        "resolve_one_exact_observation"
+    ]
 
 
 def test_relative_and_from_parent_imports_cannot_bypass_policy(tmp_path: Path) -> None:
