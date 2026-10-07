@@ -1,8 +1,8 @@
 # M03 provider-system module
 
 Status: **provider-neutral protocol and compatibility persistence implemented;
-the bounded Claude Code 2.1.289 admission passed; current M4 acceptance is
-pending**.
+the bounded Claude Code 2.1.289 admission passed; V1-M4 is accepted at its
+revision-bound current gate**.
 
 Owner: `PLAN-M03`
 
@@ -71,11 +71,11 @@ to `2.1.289`; privacy-minimized digests for six accounts, one candidate, six
 profiles, and six resource links were unchanged. See the
 [exact admission evidence](../evidence/claude-2.1.289-admission.md).
 One new owner-completed `2.1.289` managed sign-in and its genuine sparse-reset
-quota read passed. The authenticated M4 preflight also passed for six accounts,
-two organizations, six distinct identities, six current history rows, one
-owner-confirmed live process link, and zero mutations. The clean-revision
-restart, six fresh post-restart readings, `AUTO-M4-EXIT`, and formal acceptance
-remain required; this module page does not claim current M4 acceptance.
+quota read passed. The authenticated M4 gate then passed for six accounts, two
+organizations, six distinct identities, six fresh post-restart quota/history
+lineages, one owner-confirmed live process link, and zero mutations. The
+revision-bound `AUTO-M4-EXIT` receipt and explicit owner countersignature record
+formal V1-M4 acceptance.
 
 The canonical M4 technical lane now runs `AUTO-M3-TEST` plus exact current
 authentication/quota, manifest/parser, installation/reconciliation, and OTLP
@@ -158,5 +158,5 @@ This persistence evidence alone does not establish Claude conformance or
 milestone completion. The exact `2.1.289` adapter, selected live provider
 profiles, and installation reconciliation are covered by the current admission
 section above. The complete `ST-CLA-001` collection/capacity/runtime, API,
-built-browser, and current M4 acceptance scope remains outside this persistence
-slice.
+built-browser evidence and aggregate M4 acceptance are established separately;
+neither is implied by this persistence slice.

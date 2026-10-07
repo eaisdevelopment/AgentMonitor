@@ -1,6 +1,7 @@
 # AgentMonitor documentation index
 
 <!-- agentmonitor-milestone-status:v1 milestone=V1-M3 lifecycle=active status=passed authority=M3-ACCEPTANCE-2026-10-03-01 -->
+<!-- agentmonitor-milestone-status:v1 milestone=V1-M4 lifecycle=active status=passed authority=M4-ACCEPTANCE-2026-10-07-01 -->
 
 The machine-readable
 [V1 implementation-status overlay](evidence/v1-implementation-status-v1.json)
@@ -9,7 +10,8 @@ and records implementation, canonical gate, acceptance, and dependency state
 independently. The authoritative V1-M3 acceptance status is **Passed** in the
 [active V1-M3 record](evidence/v1-m3-acceptance-status-v3.json). Historical
 Story, handoff, and superseded acceptance documents remain evidence, but they
-do not override that record.
+do not override that record. V1-M4 is also **Passed and owner-accepted** in the
+[active V1-M4 record](evidence/v1-m4-acceptance-status-v1.json).
 
 Current program state:
 
@@ -19,11 +21,11 @@ Current program state:
 - **V1-M3:** accepted for one real Claude vertical. The safe current-revision
   gate passed every required lane, and the owner countersigned the result and
   accepted the bounded historical TDD deviation without waiving future TDD.
-- **V1-M4:** all six Stories are implemented and the standalone canonical gate
-  has a recorded historical pass. The current implementation overlay is bound
-  to revision `b0113bb`, while the M4 gate evidence is not bound to an exact
-  revision. Its M3 dependency is now satisfied; formal M4 acceptance still
-  requires current exact-revision evidence and the duplicate-identity outcome.
+- **V1-M4:** accepted in full at implementation revision `9dbb765`. Its
+  current-revision gate passed six distinct Claude identities in two
+  organizations, six fresh post-restart quota/history lineages, the guarded
+  current-process witness, and every required technical, browser, and local
+  quality lane with zero skips and zero registry mutations.
 - **V1-M5 through V1-M8:** Planned; their canonical gates have not run.
 
 The approved [M3 scope correction](evidence/m3-scope-correction-2026-10-02.md)
@@ -32,7 +34,7 @@ The [M3 current-gate receipt](evidence/m3-current-gate-receipt-2026-10-03.json)
 and owner disposition records close the blockers retained by the historical
 [M3 closure audit](evidence/m3-closure-audit-2026-10-01.md).
 Owner: Pavlo Sidelov <pavlo@sidelov.com>  
-Last substantive review: 2026-10-03
+Last substantive review: 2026-10-07
 
 This index is the entry point for product, architecture, engineering, and operations documentation. Requirements marked **Approved** reflect the project interview. Items marked **Discovery** require Milestone 0 evidence. Items marked **Deferred** are intentionally outside V1.
 
@@ -76,12 +78,15 @@ This index is the entry point for product, architecture, engineering, and operat
 - [M2 post-audit correction](evidence/m2-audit-fixes.md): hostile resource/SQLite regression, origin-proof contract decision, scanner correction, and historical TDD disposition.
 - [M3 local release-gate decision](evidence/m3-local-release-gate-decision.md): detached M0 reviews are advisory; technical evidence and real boundaries remain mandatory.
 - [Historical M4 ST-FLEET-001 interim evidence](evidence/m4-st-fleet-001-interim.md): account and organization admin flows, one read-only Claude health observation, and the blockers that remained at that point.
-- [M4 completion evidence](evidence/m4-completion.md): all six M4 Stories, installed migration, six monitored real profile connections, browser verification, and the passing standalone M4 gate; distinct intended-account review remains explicit.
+- [M4 completion evidence](evidence/m4-completion.md): all six M4 Stories, installed migration, six distinct monitored identities, fresh post-restart lineage, browser verification, and owner-accepted revision-bound closure.
+- [M4 current-gate receipt](evidence/m4-current-gate-receipt-2026-10-07.json): sanitized create-once result for the exact accepted implementation revision.
+- [M4 owner countersignature](evidence/m4-owner-live-countersignature-2026-10-07.md): explicit acceptance of the complete approved M4 scope.
 - [Claude dashboard polling delivery](evidence/claude-dashboard-polling.md): real service-owned five-minute collection, current quota refresh, preserved registry metadata, and restart cadence for one enrolled profile.
 - [Claude Code 2.1.289 admission evidence](evidence/claude-2.1.289-admission.md):
   exact-version quota and managed-auth compatibility, bounded model-card
-  omission, separate OTLP gating, and the passed six-account preflight; the
-  clean-revision post-restart M4 gate remains pending.
+  omission, separate OTLP gating, and its historical admission-checkpoint
+  preflight. The later M4 receipt records the successful post-restart gate
+  without rewriting that hash-bound evidence.
 - [Account workspace redesign](evidence/account-workspace-redesign.md): automatic quota identity, calculated remaining allowance, real Claude process paths, and explicit unresolved process ownership.
 - [Historical managed Claude connection progress](evidence/claude-managed-account-connection.md): three additional SDK accounts verified through isolated sign-in, enrollment, per-profile collection, and the real dashboard.
 - [Historical dashboard Claude connection increment](evidence/claude-dashboard-connection.md): explicit browser connection controls, four owner-completed SDK/EAIS live gates, native quota redraw correction, and a recovered first-read timeout.

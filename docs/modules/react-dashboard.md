@@ -1,8 +1,8 @@
 # P02 React dashboard — M2 identity shell and M3 observation views
 
-- Status: **M2 local identity shell accepted; M3 dashboard delivery implemented
-  with formal M3 acceptance Blocked; M4 dashboard delivery passed its standalone
-  gate; not a V1 dashboard release**.
+- Status: **M2 local identity shell accepted; M3 accepted for its approved
+  one-account vertical; M4 dashboard delivery accepted through its
+  revision-bound six-account gate; not a V1 dashboard release**.
 - Post-audit note: Story 5's historical Red-first exceptions are documented in
   the [M2 correction record](../evidence/m2-audit-fixes.md), which records the
   owner disposition and independent QA reacceptance. The separate

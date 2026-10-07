@@ -97,10 +97,13 @@ Scope:
   compatibility;
 - built-browser verification across fleet, alerts, and operations.
 
-Exit: all six M4 Stories and the standalone canonical gate pass. Historical
-evidence records that gate pass without an exact tested-revision binding. The
-M3 dependency is satisfied; formal M4 closure still needs current
-exact-revision evidence and resolution of the duplicate reported identity.
+Exit: **Passed and owner-accepted.** All six M4 Stories passed the canonical
+gate at implementation revision
+`9dbb765531f05f2ae1e8174383cc0ff8b7cb8072`. The gate proved six distinct
+current Claude identities across two organizations, six fresh post-restart
+quota/history lineages, the guarded current-process witness, and every required
+technical, built-browser, and local quality lane with zero skips and zero
+registry mutations. The owner countersigned the result on 2026-10-07.
 
 ## V1-M5 — Codex vertical slice and fleet
 

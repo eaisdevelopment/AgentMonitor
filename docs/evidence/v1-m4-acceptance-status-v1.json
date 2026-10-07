@@ -1,0 +1,124 @@
+{
+  "schema_version": "1.0.0",
+  "record_type": "agentmonitor.milestone_acceptance_status",
+  "record_id": "M4-ACCEPTANCE-2026-10-07-01",
+  "milestone_id": "V1-M4",
+  "lifecycle": "active",
+  "overall_status": "passed",
+  "assessed_revision": "9dbb765531f05f2ae1e8174383cc0ff8b7cb8072",
+  "recorded_at": "2026-10-07T15:21:40Z",
+  "status_documents": [
+    "docs/README.md"
+  ],
+  "evidence": [
+    {
+      "evidence_id": "E-M4-COMPLETION",
+      "path": "docs/evidence/m4-completion.md",
+      "sha256": "8f624e9b0ec5c3590b01cf3464be7043f80a1dd952246b90491f7c657303b21b"
+    },
+    {
+      "evidence_id": "E-M4-CURRENT-GATE-RECEIPT",
+      "path": "docs/evidence/m4-current-gate-receipt-2026-10-07.json",
+      "sha256": "5cd935c352a626ef7ca30a23bba5b8265fb91d2d0982628623b2541861885c86"
+    },
+    {
+      "evidence_id": "E-M4-OWNER-LIVE",
+      "path": "docs/evidence/m4-owner-live-countersignature-2026-10-07.md",
+      "sha256": "e390eb88e1f90069006eb352c053dad1f3cccd3b04056edb4f300ebbc3fdfccc"
+    }
+  ],
+  "commands": [
+    {
+      "command_id": "AUTO-M4-EXIT",
+      "command": "python3 tools/automation/run.py AUTO-M4-EXIT",
+      "status": "passed",
+      "exit_code": 0,
+      "skips": [],
+      "test_count": 302,
+      "evidence_ids": [
+        "E-M4-CURRENT-GATE-RECEIPT"
+      ]
+    }
+  ],
+  "stories": [
+    {
+      "story_id": "ST-FLEET-001",
+      "status": "passed",
+      "evidence_ids": [
+        "E-M4-COMPLETION",
+        "E-M4-CURRENT-GATE-RECEIPT"
+      ],
+      "decision": "Six selected monitored connections resolved to six distinct current Claude identities in two organizations."
+    },
+    {
+      "story_id": "ST-FLEET-002",
+      "status": "passed",
+      "evidence_ids": [
+        "E-M4-COMPLETION",
+        "E-M4-CURRENT-GATE-RECEIPT"
+      ],
+      "decision": "All six accounts had fresh post-restart quota observations with matching current and history lineage."
+    },
+    {
+      "story_id": "ST-FLEET-003",
+      "status": "passed",
+      "evidence_ids": [
+        "E-M4-COMPLETION",
+        "E-M4-CURRENT-GATE-RECEIPT"
+      ],
+      "decision": "The built fleet and Overview views passed with the guarded current owner-confirmed process witness."
+    },
+    {
+      "story_id": "ST-ALERT-001",
+      "status": "passed",
+      "evidence_ids": [
+        "E-M4-COMPLETION",
+        "E-M4-CURRENT-GATE-RECEIPT"
+      ],
+      "decision": "The required real alert lifecycle and current derived-alert integration passed."
+    },
+    {
+      "story_id": "ST-ALERT-002",
+      "status": "passed",
+      "evidence_ids": [
+        "E-M4-COMPLETION",
+        "E-M4-CURRENT-GATE-RECEIPT"
+      ],
+      "decision": "The authenticated alert API and built browser checks passed."
+    },
+    {
+      "story_id": "ST-OPS-001",
+      "status": "passed",
+      "evidence_ids": [
+        "E-M4-COMPLETION",
+        "E-M4-CURRENT-GATE-RECEIPT"
+      ],
+      "decision": "Operations health, diagnostics, migration evidence, automation, and the canonical milestone gate passed."
+    }
+  ],
+  "reviewer_decisions": [
+    {
+      "decision_id": "M4-CURRENT-GATE-2026-10-07",
+      "status": "passed",
+      "decision": "The safe current-revision gate passed every required technical, live, browser, and local quality lane with zero skips.",
+      "evidence_ids": [
+        "E-M4-CURRENT-GATE-RECEIPT",
+        "E-M4-COMPLETION"
+      ]
+    },
+    {
+      "decision_id": "M4-OWNER-LIVE-2026-10-07",
+      "status": "passed",
+      "decision": "The owner reviewed the exact passing result and explicitly confirmed full V1-M4 acceptance.",
+      "evidence_ids": [
+        "E-M4-OWNER-LIVE",
+        "E-M4-CURRENT-GATE-RECEIPT"
+      ]
+    }
+  ],
+  "supersedes": [],
+  "current_gate_receipt": {
+    "path": "docs/evidence/m4-current-gate-receipt-2026-10-07.json",
+    "sha256": "5cd935c352a626ef7ca30a23bba5b8265fb91d2d0982628623b2541861885c86"
+  }
+}

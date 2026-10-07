@@ -200,8 +200,9 @@ retrying.
 This command never installs, upgrades, downgrades, or relinks the Claude
 executable; changes its default symlink; discovers an account; reads a
 credential; or writes a Claude profile. Restart AgentMonitor normally after a
-pass. The next genuine scheduled collection and the current-revision M4 gate
-still have to prove account identity, quota/history lineage, and browser state.
+pass. At the admission checkpoint, the later genuine scheduled collection and
+current-revision M4 gate still had to prove account identity, quota/history
+lineage, and browser state; the accepted M4 receipt now records that proof.
 The command has passed real installed-binary and real file-backed SQLite tests;
 its stopped-service invocation against the owner's current data root also
 passed. It preserved the opaque installation ID while advancing the reported
@@ -231,8 +232,9 @@ Run the command only with the documented owner data root, authenticated shared
 browser endpoint/origin, owner outcome file, and current service PID selectors.
 The bounded `2.1.289` admission evidence is Passed. The default `claude`
 command is `2.1.292` and remains outside that admission; exact resolution uses
-the retained `2.1.289` executable. No current-revision M4 receipt is claimed
-until all six post-restart account readings and the complete gate pass.
+the retained `2.1.289` executable. The accepted current-revision M4 run met
+that condition; its sanitized receipt and owner countersignature are linked
+from the documentation index.
 
 ### Connect Claude from the dashboard
 
@@ -269,7 +271,8 @@ dashboard flow with explicit `AGENTMONITOR_TEST_OWNER_DATA_ROOT`,
 and `AGENTMONITOR_TEST_DASHBOARD_ORIGIN`. These are non-secret selectors;
 credentials remain local. The gate never starts sign-in and returns non-success
 without a completed flow and fresh managed quota receipt. Its scope is the
-selected account only; remaining M4 work is listed in the evidence.
+selected account only. The linked evidence preserves what remained at that
+checkpoint; current M4 status is recorded in the implementation overlay.
 
 ### Additional managed Claude account authentication: operator fallback
 
@@ -337,8 +340,8 @@ and `AGENTMONITOR_TEST_DASHBOARD_ORIGIN`. These select a real owner-approved
 record and authenticated shared dashboard, never credentials. Missing sign-in,
 pending setup, absent service receipt, stale quota, or wrong identity returns
 non-success. It proves the selected profile only. The dashboard workflow above
-has its own selected live gate; process ownership and remaining M4 goals remain
-separate. See
+has its own selected live gate; aggregate process ownership and M4 acceptance
+are established separately by the accepted milestone receipt. See
 [current evidence](../evidence/claude-managed-account-connection.md).
 
 After an intentional service stop, start the verified local dashboard command:
