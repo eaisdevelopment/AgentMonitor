@@ -11,21 +11,22 @@
   for the exact M5 scope below; the remaining A02 and OpenAI API lanes stay
   Draft.
 - Stories: `ST-CDX-001..005`.
-- Requirements: `FR-ACC-001/004..006`, `FR-AUTH-001..006`,
+- Requirements: `FR-ACC-001/004..006`, `FR-AUTH-001/002/004..006`,
   `FR-QUOTA-001..006`, `FR-COL-003..008`, `FR-HIST-001/002`,
-  `FR-DISC-001/003/004/006/008`, `FR-STATE-001..004`, `FR-SAFE-002`,
+  `FR-DISC-001/003/004/006/008`, `FR-STATE-001/002`, `FR-SAFE-002`,
   `FR-ALERT-002..006`, `FR-UI-001..006`, `NFR-API-001/002`,
   `NFR-TEST-001/002`,
   `NFR-SEC-001`, `NFR-PRIV-001/002`, `NFR-RES-001`, `NFR-OBS-001`,
   `NFR-COMP-001`, and `NFR-DOC-001`.
-- Acceptance contributions: `AC-LIVE-002/004..007`,
-  `AC-UI-002/005/006`, `AC-PROC-001..005`, `AC-HIST-001`,
-  `AC-ALERT-002/003`, `AC-OPS-003/006`, and `AC-TEST-001..006` within
+- Acceptance contributions: `AC-LIVE-002/004/005/007`,
+  `AC-UI-002/005/006`, `AC-PROC-001..004`, `AC-HIST-001`,
+  `AC-ALERT-002`, `AC-OPS-003/006`, and `AC-TEST-001..006` within
   M5's Codex boundary.
 - Contracts: compatible V1 use of `CTR-PROV-001..008`, `CTR-REG-001/002/004/
   005/006/009/010`, `CTR-COL-002/004/006/007`, `CTR-CAP-001/003/004/007`,
   `CTR-RUN-001/002/003/006/007`, `CTR-PLAT-001`, `CTR-OPS-006`,
-  `CTR-API-001`, and `CTR-UI-001`.
+  `CTR-ALERT-001..005`, `CTR-CAP-008/009`, `CTR-EVT-001`, `CTR-API-001`,
+  and `CTR-UI-001`.
 
 ## Outcome
 
@@ -43,6 +44,14 @@ representative real Codex processes. Process/account correlation uses existing
 guarded owner confirmation when provider evidence is insufficient; it never
 guesses or controls a process.
 
+The four-account selection is supplied in
+`<owner-data-root>/m5-owner-outcomes.json`: one owner-only, no-symlink regular
+file containing exactly four unique opaque account IDs and unique private
+aliases. Each row is either `verified` with a current distinct provider
+identity fingerprint or `owner_unavailable` with an owner reason. The gate
+rejects `unresolved`, duplicate, extra, missing, public, stale, or changing
+rows. Only its SHA-256 digest and aggregate counts enter sanitized evidence.
+
 `python3 tools/automation/run.py AUTO-M5-EXIT` becomes the sole milestone
 completion command. It must bind one clean implementation revision to exact
 provider compatibility, current real account/quota lineage, real process
@@ -59,7 +68,7 @@ sanitized receipt.
   `backend/src/agentmonitor/contracts/providers/codex/**` when the existing
   provider-neutral contracts cannot express the exact observed payload.
 - Root-owned Codex composition, managed connection, scheduled collection,
-  process selection, capacity/auth/collector alert delivery, API integration,
+  process selection, capacity alert delivery, API integration,
   UI rendering, browser verification, milestone automation, runbook,
   traceability, and sanitized evidence.
 - Compatible reuse of existing Registry, Collection, Capacity, Runtime,
@@ -78,12 +87,20 @@ sanitized receipt.
   environments.
 - Automatic account inference from the current login, process arguments,
   environment, terminal, or content.
+- Reauthentication of a previously connected Codex account and its
+  history-preservation proof. M5 supplies first managed-profile enrollment;
+  `FR-AUTH-003` and `AC-LIVE-006` remain release-gate work.
 - Process stop, restart, signal, input, routing, account switching, or session
   migration.
 - Codex reset-credit consumption, credit-purchase/nudge actions, workspace
   mutations, account logout, and every app-server method outside the closed
   allowlist below.
 - macOS acceptance; it remains visibly Blocked until a real Mac is available.
+- `FR-STATE-003/004` and `AC-PROC-005` live stall/wait acceptance. The exact
+  admitted Codex and Linux sources do not distinguish an owner/permission wait
+  without reading content, so M5 reports state/certainty as unknown instead of
+  guessing. A later separately admitted content-free source is required before
+  the release gate can claim those criteria.
 
 ## Accepted discovery and exact source boundary
 
@@ -98,8 +115,8 @@ installed version-specific generated schema establish this closed allowlist:
 | `codex login` | owner-started official authentication | AgentMonitor-managed `CODEX_HOME` only; owner completes browser/MFA; ten-minute deadline |
 | `codex app-server --listen stdio://` | private per-operation JSONL transport | managed root only; one child, minimal environment, no shell, bounded lines, deadline, terminated after response |
 | `initialize` / `initialized` | required protocol handshake | client identifies as AgentMonitor; no experimental API capability opt-in |
-| `account/read` | identity and auth category | `refreshToken=false`; allow only account type, email, plan type, and required-auth flag |
-| `account/rateLimits/read` | native Codex subscription windows | `excludeResetCreditDetails=true`, `supportsLunaReserve=false`; allow only rate-window and availability fields |
+| `account/read` | identity and auth category | `refreshToken=false`; allow account type, email, plan type, required-auth flag, and `workspaceRouting.chatgptAccountId` solely as ephemeral fingerprint input |
+| `account/rateLimits/read` | native Codex subscription windows | `excludeResetCreditDetails=true`, `supportsLunaReserve=false`; allow rate-window and availability fields plus `accountId` solely for same-profile comparison and one-way fingerprint input |
 
 The app-server command is documented as experimental by OpenAI. The initial
 manifest therefore binds it to exact CLI version `0.160.0`, records mechanism
@@ -127,14 +144,14 @@ read `auth.json`; Codex owns creation, refresh, and use of that credential.
   combined with OpenAI API billing.
 - Runtime: extend the existing Linux exact-executable selector to Codex. Reuse
   the live-process and owner-association contracts; do not read provider thread
-  content or add a provider-shaped process API. M06 owns the ten-minute
-  possible-stall classification; M5 must feed it real Codex observations and
-  prove that an observable owner/permission wait is not classified as stuck.
-- Alerting: reuse the existing provider-neutral capacity/authentication/
-  collector condition consumers and dashboard lifecycle. Prove that a real
-  Codex condition can open, deduplicate, display, acknowledge or snooze, and
-  recover without provider-shaped alert code. Existing threshold precedence
-  remains the accepted M4 contract; M5 does not redefine it.
+  content or add a provider-shaped process API. M5 preserves unknown state and
+  certainty when safe metadata cannot prove activity or a wait.
+- Alerting: reuse the existing provider-neutral capacity condition consumer and
+  dashboard lifecycle. Prove that a real Codex capacity condition can open,
+  deduplicate, display, acknowledge or snooze, and recover without
+  provider-shaped alert code. Existing threshold precedence remains the
+  accepted M4 contract; M5 does not claim `AC-ALERT-003` stale/auth condition
+  coverage.
 - API/UI: existing versioned endpoints and generated DTOs should suffice. Any
   DTO change must be additive, regenerate OpenAPI/client through the canonical
   generator, and pass compatibility checks.
@@ -154,8 +171,8 @@ read `auth.json`; Codex owns creation, refresh, and use of that credential.
 | 2 | `M5-CDX-SOURCE-001..010` | managed-root app-server source absent | bounded JSONL client, identity and rate-limit parsing, sanitized typed failures | real empty managed-root and owner-authenticated managed-root runs; no raw output retained |
 | 3 | `M5-CDX-CONNECT-001..010`, `M5-CDX-REG-001..006` | Codex accounts cannot connect/enroll | provider-dispatched connection coordinator and M02 enrollment | real HTTP/browser login, expected identity match, wrong-account fail closed, default untouched |
 | 4 | `M5-CDX-COL-001..012`, `M5-CDX-CAP-001..008` | no Codex schedule or capacity history | provider-neutral route plus Codex collector | real SQLite admission/commit/history and one genuine managed-account quota read |
-| 5 | `M5-CDX-RUN-001..010` | Linux selector rejects Codex and M06 receives no Codex activity evidence | exact executable selector, Codex process composition, and existing M06 stall-policy input | five to six real same-user PID/start/executable observations; unresolved identity stays unresolved; a real observable wait is not classified stuck across the ten-minute policy boundary |
-| 6 | `M5-CDX-ALERT-001..006`, `M5-CDX-API-001..008`, `M5-CDX-UI-001..012` | service/browser expose no usable Codex vertical or alert lifecycle | composition, provider-neutral capacity/auth/collector alert delivery, health, presentation and generated artifacts if required | real server/database, genuine Codex condition lifecycle, generated client, production build and shared Chrome browser |
+| 5 | `M5-CDX-RUN-001..008` | Linux selector rejects Codex | exact executable selector and Codex process composition | five to six real same-user PID/start/executable observations; unresolved identity and unavailable state evidence remain visibly unresolved/unknown |
+| 6 | `M5-CDX-ALERT-001..006`, `M5-CDX-API-001..008`, `M5-CDX-UI-001..012` | service/browser expose no usable Codex vertical or alert lifecycle | composition, provider-neutral capacity alert delivery, health, presentation and generated artifacts if required | real server/database, genuine Codex capacity condition lifecycle, generated client, production build and shared Chrome browser |
 | 7 | `M5-CDX-GATE-001..014` | no fail-closed milestone command | register and implement `AUTO-M5-EXIT` | exact-revision four-account/process/browser/local-gate receipt with zero skips |
 
 Each behavior records a meaningful Red before production Green. Pure tests may
@@ -217,15 +234,16 @@ writes its private create-once receipt. The gate must prove:
 
 1. exact `codex-cli 0.160.0` installation and admitted schema/mapping digests;
 2. four selected real Codex account outcomes with distinct verified identities,
-   or explicit owner-unavailable rows permitted by `AC-LIVE-002`;
+   or explicit owner-unavailable rows permitted by `AC-LIVE-002`, loaded from
+   the fixed owner-only outcome file and bound by digest/count only;
 3. current genuine quota plus matching history lineage for every available
    monitored account, reconciled with Codex's own view within documented
    precision and time;
 4. five to six representative real Codex processes, exact PID/start/executable
    identity, safe hierarchy/location presentation, and truthful unresolved or
-   owner-confirmed account association, plus a real ten-minute observation
-   proving an observable owner/permission wait is not classified as stuck;
-5. a genuine Codex capacity, authentication, or collector condition traverses
+   owner-confirmed account association with unknown state retained when no
+   safe state evidence exists;
+5. a genuine Codex capacity condition traverses
    the existing alert lifecycle through dedupe, browser presentation, an owner
    action, and source-proven recovery;
 6. real file-backed SQLite, production HTTP, generated client, built Chrome,
@@ -242,6 +260,14 @@ current or carries an owner-recorded unavailable outcome; unresolved is not a
 permitted substitute. Every other item in the numbered list above is required
 for `AUTO-M5-EXIT`. Broader cross-provider release acceptance remains a V1-M8
 contribution and is not credited by this gate.
+
+The gate is finite and noninteractive. Owner authentication and the capacity
+alert open/action/recovery witness happen beforehand through the running
+application and write bounded owner-only prerequisite receipts below the same
+data root. `AUTO-M5-EXIT` validates their schema, permissions, source lineage,
+timestamps, exact selected service/revision, and immutable digests; missing or
+expired receipts are Blocked and never trigger provider login or wait for a
+natural condition inside the gate.
 
 The owner reviews that exact result before formal M5 acceptance. M5 acceptance
 does not accept M6, M7, M8, hosted release publication, macOS, OpenAI API

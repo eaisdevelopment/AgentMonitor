@@ -66,12 +66,15 @@ private process identifiers in committed evidence.
 
 ## Accepted field and operation decisions
 
-- Identity/auth: allow `account.type`, ChatGPT `email`, `planType`, and
-  `requiresOpenaiAuth`. Call `account/read` only with `refreshToken=false`.
-- Subscription: allow `accountId` only as input to a one-way private identity
-  fingerprint; allow `ordinaryUsageAllowed`, `rateLimits`,
-  `rateLimitsByLimitId`, and each bucket's `limitId`, bounded `limitName`,
-  `planType`, `primary`, `secondary`, and `rateLimitReachedType`.
+- Identity/auth: allow `account.type`, ChatGPT `email`, `planType`,
+  `requiresOpenaiAuth`, and `workspaceRouting.chatgptAccountId` only as input
+  to a one-way private identity fingerprint. Call `account/read` only with
+  `refreshToken=false`.
+- Subscription: allow `accountId` only for same-profile comparison and as
+  input to that one-way private fingerprint; allow `ordinaryUsageAllowed`,
+  `rateLimits`, `rateLimitsByLimitId`, and each bucket's `limitId`, bounded
+  `limitName`, `planType`, `primary`, `secondary`, and
+  `rateLimitReachedType`.
 - Window: allow integer `usedPercent` in 0..100, nullable positive
   `windowDurationMins`, and nullable Unix-second `resetsAt`. Derive remaining
   percentage and ratio with exact decimal arithmetic.
