@@ -14,7 +14,9 @@ from agentmonitor.adapters.providers.claude.installation import ClaudeInstallati
 from agentmonitor.adapters.providers.claude.manifest import (
     CLAUDE_ADAPTER_ID,
     CLAUDE_ADAPTER_VERSION,
+    CLAUDE_AUTH_DECISION_REFERENCE,
     CLAUDE_PARSER_VERSION,
+    CLAUDE_PROVIDER_VERSION,
     CLAUDE_USAGE_SOURCE_ID,
 )
 from agentmonitor.contracts.common_provenance_v1 import ObservationProvenanceV1
@@ -84,7 +86,7 @@ def _provenance(
         warnings=(),
         operation_id=request.operation_id,
         correlation_id=request.correlation_id,
-        decision_reference="M0-M3-CLAUDE-EVIDENCE-001",
+        decision_reference=CLAUDE_AUTH_DECISION_REFERENCE,
         derivation_method=None,
         input_observation_ids=(),
     )
@@ -110,6 +112,12 @@ class ClaudeAuthenticationHealthV1:
                 state="unsupported",
                 code="claude_auth_health_target_unsupported",
                 retry=RetryAdviceV1("never"),
+            )
+        if self.installation.provider_version != CLAUDE_PROVIDER_VERSION:
+            return AuthHealthOutcomeV1.failure(
+                state="unverified_provider_version",
+                code="claude_version_unverified",
+                retry=RetryAdviceV1("after_version_review"),
             )
         from agentmonitor.adapters.providers.claude.subscription.source import (
             ClaudeUsageSourceFailure,

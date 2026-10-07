@@ -11,6 +11,7 @@ from agentmonitor.adapters.providers.claude.manifest import (
     CLAUDE_ADAPTER_ID,
     CLAUDE_ADAPTER_VERSION,
     CLAUDE_PARSER_VERSION,
+    CLAUDE_QUOTA_DECISION_REFERENCE,
     M0_MAPPING_DIGEST,
     build_claude_manifest,
 )
@@ -32,9 +33,11 @@ from agentmonitor.contracts.provider_system_v1 import (
     DiscoveredInstallationV1,
     DiscoveryCandidatesV1,
     DiscoveryOutcomeV1,
+    MissingFieldV1,
     ProviderOperationRequestHeaderV1,
     ProviderTargetV1,
     RetryAdviceV1,
+    SanitizedWarningV1,
     SourcePolicyV1,
 )
 from agentmonitor.contracts.providers.claude.subscription_quota.v1.schema import (
@@ -335,11 +338,23 @@ class ClaudeAdapterV1:
             value_kind="provider_reported",
             is_experimental=False,
             fallback_lineage=(),
-            warnings=(),
+            warnings=result.omission_codes,
             operation_id=request.operation_id,
             correlation_id=request.correlation_id,
-            decision_reference="M0-M3-CLAUDE-ACCEPTANCE-001",
+            decision_reference=CLAUDE_QUOTA_DECISION_REFERENCE,
             derivation_method=None,
             input_observation_ids=(),
         )
+        if result.omission_codes:
+            return CollectionOutcomeV1.partial(
+                value,
+                omissions=tuple(
+                    MissingFieldV1(code, FieldAvailabilityV1("unsupported"))
+                    for code in result.omission_codes
+                ),
+                warnings=tuple(
+                    SanitizedWarningV1(code) for code in result.omission_codes
+                ),
+                provenance=provenance,
+            )
         return CollectionOutcomeV1.success(value, provenance)

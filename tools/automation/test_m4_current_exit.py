@@ -11,6 +11,7 @@ from pathlib import Path
 
 import pytest
 
+from tools.automation.implementations import auto_m4_current_exit
 from tools.automation.implementations.auto_m3_current_exit import (
     ServiceLaunchV1,
     service_identity_matches_v1,
@@ -22,6 +23,7 @@ from tools.automation.implementations.auto_m4_current_exit import (
     RECEIPT_BASENAME,
     RECEIPT_DIRECTORY_NAME,
     REQUIRED_LANES,
+    STORY_PYTEST_FLAGS,
     M4CurrentExitErrorV1,
     build_passed_receipt_v1,
     validate_fleet_transition_v1,
@@ -84,6 +86,34 @@ def test_catalog_selects_current_m4_exit_and_all_six_stories() -> None:
         ("mutation", "AUTO-MUTATION"),
         ("documentation", "AUTO-DOCS-CHECK"),
         ("git_preflight", "AUTO-GIT-PREFLIGHT"),
+    )
+    assert auto_m4_current_exit.DEPENDENCY_ROUTINES == ("AUTO-M3-TEST",)
+    assert auto_m4_current_exit.CURRENT_VERSION_TEST_PATHS == (
+        "backend/tests/adapters/providers/claude/live/test_authentication.py",
+        "backend/tests/adapters/providers/claude/test_authentication_health.py",
+        "backend/tests/adapters/providers/claude/test_capacity_mapper.py",
+        "backend/tests/adapters/providers/claude/test_manifest.py",
+        "backend/tests/adapters/providers/claude/test_subscription_source_parser.py",
+        "backend/tests/live/claude/test_installation.py",
+        "backend/tests/live/claude/test_otel_version_gate.py",
+        "backend/tests/live/claude/test_subscription_quota.py",
+        "backend/tests/registry/test_installation_reconciliation_policy.py",
+        "backend/tests/integration/registry/test_claude_installation_reconciliation.py",
+    )
+    selected_names = tuple(
+        Path(path).name
+        for path in (
+            *auto_m4_current_exit.CURRENT_VERSION_TEST_PATHS,
+            *auto_m4_current_exit.TEST_PATHS,
+        )
+    )
+    assert len(selected_names) > len(set(selected_names))
+    assert STORY_PYTEST_FLAGS == (
+        "-q",
+        "--tb=short",
+        "-p",
+        "tools.automation.pytest_no_skip",
+        "--import-mode=importlib",
     )
 
 

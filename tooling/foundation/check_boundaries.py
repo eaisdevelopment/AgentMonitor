@@ -272,6 +272,7 @@ M02_SQLITE_LAYER_SYMBOLS = {
             "decide_account_monitoring",
             "decide_candidate_evidence_transition",
             "decide_command_replay",
+            "decide_installation_only_reconciliation",
             "decide_provider_identity_confirmation",
             "ensure_candidate_confirmation_is_current",
             "safe_registry_event_projection",

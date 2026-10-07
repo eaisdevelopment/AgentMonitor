@@ -54,13 +54,33 @@ def test_real_subscription_observation_has_current_structural_semantics() -> Non
     assert outcome.value.resource_ref == request.target.resource_ref
     assert outcome.provenance.source_id == CLAUDE_USAGE_SOURCE_ID
     assert outcome.provenance.provider_version == installation.provider_version
-    assert 2 <= len(outcome.value.windows) <= 4
-    assert len({window.window_key for window in outcome.value.windows}) == len(
-        outcome.value.windows
-    )
+    assert outcome.provenance.decision_reference == "A01-M03-CLAUDE-2-1-289-001"
+    keys = tuple(window.window_key for window in outcome.value.windows)
+    assert 2 <= len(keys) <= 3
+    assert len(set(keys)) == len(keys)
+    assert {"current_session", "current_week_all_models"} <= set(keys)
+    assert set(keys) <= {
+        "current_session",
+        "current_week_all_models",
+        "current_week_sonnet_only",
+    }
+    if outcome.state == "partial":
+        assert tuple(item.code for item in outcome.omissions) == (
+            "claude_model_specific_window_unsupported",
+        )
+        assert tuple(item.availability.state for item in outcome.omissions) == (
+            "unsupported",
+        )
+        assert tuple(item.code for item in outcome.warnings) == (
+            "claude_model_specific_window_unsupported",
+        )
     for window in outcome.value.windows:
         assert window.percent_used.unit == "percent"
         assert window.percent_used.value is not None
         assert 0 <= window.percent_used.value <= 100
-        assert window.reset_display.value is not None
-        assert 1 <= len(window.reset_display.value) <= 96
+        if window.reset_display.value is None:
+            assert window.reset_display.availability.state == "unknown"
+            assert window.reset_display.precision == "unknown"
+        else:
+            assert window.reset_display.availability.state == "available"
+            assert 1 <= len(window.reset_display.value) <= 96

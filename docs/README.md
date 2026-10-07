@@ -78,6 +78,10 @@ This index is the entry point for product, architecture, engineering, and operat
 - [Historical M4 ST-FLEET-001 interim evidence](evidence/m4-st-fleet-001-interim.md): account and organization admin flows, one read-only Claude health observation, and the blockers that remained at that point.
 - [M4 completion evidence](evidence/m4-completion.md): all six M4 Stories, installed migration, six monitored real profile connections, browser verification, and the passing standalone M4 gate; distinct intended-account review remains explicit.
 - [Claude dashboard polling delivery](evidence/claude-dashboard-polling.md): real service-owned five-minute collection, current quota refresh, preserved registry metadata, and restart cadence for one enrolled profile.
+- [Claude Code 2.1.289 admission evidence](evidence/claude-2.1.289-admission.md):
+  exact-version quota and managed-auth compatibility, bounded model-card
+  omission, separate OTLP gating, and the passed six-account preflight; the
+  clean-revision post-restart M4 gate remains pending.
 - [Account workspace redesign](evidence/account-workspace-redesign.md): automatic quota identity, calculated remaining allowance, real Claude process paths, and explicit unresolved process ownership.
 - [Historical managed Claude connection progress](evidence/claude-managed-account-connection.md): three additional SDK accounts verified through isolated sign-in, enrollment, per-profile collection, and the real dashboard.
 - [Historical dashboard Claude connection increment](evidence/claude-dashboard-connection.md): explicit browser connection controls, four owner-completed SDK/EAIS live gates, native quota redraw correction, and a recovered first-read timeout.

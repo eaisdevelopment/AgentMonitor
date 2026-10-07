@@ -6,9 +6,13 @@ from typing import Protocol
 from agentmonitor.contracts.common_v1 import QueryAvailabilityV1, QueryPageV1
 from agentmonitor.contracts.provider_system_v1 import DiscoveryOutcomeV1
 from agentmonitor.contracts.registry_v1 import (
-    DiscoveryCandidateViewV1,
-    DiscoveryReconciliationViewV1,
-    ProviderInstallationViewV1,
+    DiscoveryCandidateViewV1 as DiscoveryCandidateViewV1,
+)
+from agentmonitor.contracts.registry_v1 import (
+    DiscoveryReconciliationViewV1 as DiscoveryReconciliationViewV1,
+)
+from agentmonitor.contracts.registry_v1 import (
+    ProviderInstallationViewV1 as ProviderInstallationViewV1,
 )
 from agentmonitor.contracts.registry_v1 import (
     ReconcileProviderDiscoveryV1 as ReconcileProviderDiscoveryPortV1,

@@ -26,23 +26,29 @@ from agentmonitor.adapters.providers.claude.authentication.identity import (
 from agentmonitor.adapters.providers.claude.subscription.mapper import (
     SanitizedClaudeUsageSnapshot,
     SanitizedClaudeUsageWindow,
+    SanitizedWindowKey,
 )
 from agentmonitor.adapters.providers.claude.subscription.terminal_screen import (
     visible_terminal_lines_v1,
 )
 
 _MAX_OUTPUT_BYTES = 4 * 1024 * 1024
+_USAGE_TERMINAL_ROWS = 40
 _ANSI_OSC = re.compile(r"\x1b\][^\x07]*(?:\x07|\x1b\\)")
 _PERCENT_USED = re.compile(
     r"(?:Esc to cancel)?(?:[0-9]{1,3}% )?"
     r"([0-9]{1,3}(?:\.[0-9]+)?)% used\Z"
 )
 _SAFE_RESET = re.compile(r"Resets [A-Za-z0-9 (),:+/.-]{1,88}\Z")
-_LABELS = {
+_RESET_SHAPED = re.compile(r"Resets?(?:[^A-Za-z].*)?\Z")
+_LABELS: dict[str, SanitizedWindowKey] = {
     "Current session": "current_session",
     "Current week (all models)": "current_week_all_models",
     "Current week (Sonnet only)": "current_week_sonnet_only",
 }
+_MODEL_SPECIFIC_LABEL = re.compile(
+    r"Current week \([A-Za-z0-9][A-Za-z0-9 .+_-]{0,47}\)\Z"
+)
 _SAFE_PARSE_FAILURE_CODES = frozenset(
     {
         "usage_output_encoding_invalid",
@@ -54,6 +60,7 @@ _SAFE_PARSE_FAILURE_CODES = frozenset(
         "usage_percent_invalid",
         "usage_percent_out_of_range",
         "usage_window_conflicting_duplicate",
+        "usage_window_label_invalid",
     }
 )
 
@@ -114,36 +121,44 @@ def _parse_latest_complete_render(raw: bytes) -> SanitizedClaudeUsageSnapshot:
 def _parse_complete_usage_segment(
     final: tuple[str, ...],
 ) -> SanitizedClaudeUsageSnapshot:
+    if len(final) > _USAGE_TERMINAL_ROWS:
+        raise _IncompleteRender("usage_window_set_invalid")
     parsed: list[SanitizedClaudeUsageWindow] = []
-    for label, key in _LABELS.items():
-        occurrences = tuple(
-            index for index, candidate in enumerate(final) if candidate == label
+    if any(
+        candidate.startswith("Current week")
+        and candidate not in _LABELS
+        and _MODEL_SPECIFIC_LABEL.fullmatch(candidate) is None
+        for candidate in final
+    ):
+        raise _IncompleteRender("usage_window_label_invalid")
+    recognized = tuple(
+        (index, candidate, _LABELS.get(candidate))
+        for index, candidate in enumerate(final)
+        if candidate in _LABELS or _MODEL_SPECIFIC_LABEL.fullmatch(candidate)
+    )
+    keys = tuple(key or "current_week_model_specific" for _, _, key in recognized)
+    if len(keys) != len(set(keys)):
+        # Cursor redraw history has already been overwritten. Duplicate fixed
+        # or model-specific labels in one current surface remain ambiguous.
+        raise _IncompleteRender("usage_window_conflicting_duplicate")
+    for position, (index, _label, key) in enumerate(recognized):
+        next_label = (
+            recognized[position + 1][0]
+            if position + 1 < len(recognized)
+            else len(final)
         )
-        if not occurrences:
-            continue
-        # Cursor redraw history has already been overwritten. Duplicate labels
-        # in the current surface are ambiguous and cannot supply a new reading.
-        if len(occurrences) != 1:
-            raise _IncompleteRender("usage_window_conflicting_duplicate")
-        index = occurrences[0]
-        next_label = next(
-            (
-                position
-                for position in range(index + 1, len(final))
-                if final[position] in _LABELS
-            ),
-            len(final),
-        )
-        following = final[index + 1 : min(index + 7, next_label)]
+        following = final[index + 1 : next_label]
         percent_matches = tuple(
             match
             for candidate in following
             if (match := _PERCENT_USED.fullmatch(candidate)) is not None
         )
         reset_lines = tuple(
-            candidate for candidate in following if candidate.startswith("Resets ")
+            candidate
+            for candidate in following
+            if _RESET_SHAPED.fullmatch(candidate) is not None
         )
-        if not percent_matches or not reset_lines:
+        if not percent_matches:
             raise _IncompleteRender("usage_window_incomplete")
         if any(_SAFE_RESET.fullmatch(value) is None for value in reset_lines):
             raise _IncompleteRender("usage_reset_display_invalid")
@@ -153,26 +168,35 @@ def _parse_complete_usage_segment(
             raise _IncompleteRender("usage_percent_invalid") from error
         if any(not Decimal("0") <= percent <= Decimal("100") for percent in percents):
             raise _IncompleteRender("usage_percent_out_of_range")
-        if len(set(percents)) != 1 or len(set(reset_lines)) != 1:
+        if len(set(percents)) != 1 or (reset_lines and len(set(reset_lines)) != 1):
             raise _IncompleteRender("usage_window_conflicting_duplicate")
-        percent, reset_display = percents[-1], reset_lines[-1]
-        parsed.append(
-            SanitizedClaudeUsageWindow(
-                window_key=key,  # type: ignore[arg-type]
-                percent_used=percent,
-                reset_display=reset_display,
+        percent = percents[-1]
+        reset_display = reset_lines[-1] if reset_lines else None
+        if key is not None:
+            parsed.append(
+                SanitizedClaudeUsageWindow(
+                    window_key=key,
+                    percent_used=percent,
+                    reset_display=reset_display,
+                )
             )
-        )
-    keys = tuple(item.window_key for item in parsed)
+    parsed_keys = tuple(item.window_key for item in parsed)
     if (
         not 2 <= len(parsed) <= 3
-        or len(keys) != len(set(keys))
-        or "current_session" not in keys
-        or "current_week_all_models" not in keys
+        or len(parsed_keys) != len(set(parsed_keys))
+        or "current_session" not in parsed_keys
+        or "current_week_all_models" not in parsed_keys
     ):
         raise _IncompleteRender("usage_window_set_invalid")
     now = datetime.now(UTC)
-    return SanitizedClaudeUsageSnapshot(tuple(parsed), now, now)
+    omission_codes = (
+        ("claude_model_specific_window_unsupported",)
+        if "current_week_model_specific" in keys
+        else ()
+    )
+    return SanitizedClaudeUsageSnapshot(
+        tuple(parsed), now, now, omission_codes=omission_codes
+    )
 
 
 def _terminate_owned_process(process: subprocess.Popen[bytes]) -> None:
@@ -246,7 +270,11 @@ def collect_usage_once(
         environment["IS_DEMO"] = "1"
     master_fd, slave_fd = pty.openpty()
     # Ink does not render reliably on a zero-sized pseudo-terminal.
-    fcntl.ioctl(slave_fd, termios.TIOCSWINSZ, struct.pack("HHHH", 40, 160, 0, 0))
+    fcntl.ioctl(
+        slave_fd,
+        termios.TIOCSWINSZ,
+        struct.pack("HHHH", _USAGE_TERMINAL_ROWS, 160, 0, 0),
+    )
     process: subprocess.Popen[bytes] | None = None
     raw = bytearray()
     started = time.monotonic()

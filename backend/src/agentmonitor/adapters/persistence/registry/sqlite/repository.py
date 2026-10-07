@@ -39,6 +39,7 @@ from agentmonitor.modules.registry.application.accounts import (
     decide_account_monitoring,
     decide_candidate_evidence_transition,
     decide_command_replay,
+    decide_installation_only_reconciliation,
     decide_provider_identity_confirmation,
     ensure_candidate_confirmation_is_current,
     safe_registry_event_projection,
@@ -156,6 +157,40 @@ def _current_revision(connection: Connection) -> int:
         "SELECT registry_revision FROM reg_registry_state WHERE singleton_key=1"
     ).scalar_one_or_none()
     return int(value) if value is not None else 0
+
+
+def _installation_only_protected_state(
+    connection: Connection, provider_key: str
+) -> tuple[tuple[tuple[object, ...], ...], ...]:
+    """Snapshot provider-owned identity/account/profile rows inside one transaction."""
+    statements = (
+        (
+            "SELECT * FROM reg_discovery_candidate WHERE provider_key=? "
+            "ORDER BY candidate_id",
+            (provider_key,),
+        ),
+        (
+            "SELECT * FROM reg_account WHERE provider_key=? ORDER BY account_id",
+            (provider_key,),
+        ),
+        (
+            "SELECT p.* FROM reg_monitoring_profile p "
+            "JOIN reg_account a ON a.account_id=p.account_id "
+            "WHERE a.provider_key=? ORDER BY p.profile_id",
+            (provider_key,),
+        ),
+        (
+            "SELECT l.* FROM reg_profile_resource_link l "
+            "JOIN reg_monitoring_profile p ON p.profile_id=l.profile_id "
+            "JOIN reg_account a ON a.account_id=p.account_id "
+            "WHERE a.provider_key=? ORDER BY l.profile_id, l.resource_id",
+            (provider_key,),
+        ),
+    )
+    return tuple(
+        tuple(tuple(row) for row in connection.exec_driver_sql(sql, parameters).all())
+        for sql, parameters in statements
+    )
 
 
 def _provider_identity_resolution(
@@ -1383,50 +1418,167 @@ class SqliteRegistryRepositoryV1:
     def reconcile_discovery(
         self, outcome: DiscoveryOutcomeV1, *, reconciled_at: datetime
     ) -> DiscoveryReconciliationViewV1:
+        return self._reconcile_discovery(
+            outcome,
+            reconciled_at=reconciled_at,
+            installation_only=False,
+        )
+
+    def reconcile_installation_only_discovery(
+        self, outcome: DiscoveryOutcomeV1, *, reconciled_at: datetime
+    ) -> DiscoveryReconciliationViewV1:
+        """Run the operator-only installation invariant in the write transaction."""
+        return self._reconcile_discovery(
+            outcome,
+            reconciled_at=reconciled_at,
+            installation_only=True,
+        )
+
+    def _reconcile_discovery(
+        self,
+        outcome: DiscoveryOutcomeV1,
+        *,
+        reconciled_at: datetime,
+        installation_only: bool,
+    ) -> DiscoveryReconciliationViewV1:
         if outcome.value is None or outcome.provenance is None:
             raise RegistryRepositoryErrorV1("registry_discovery_outcome_invalid")
         instant = _utc_text(reconciled_at)
         provider_key = outcome.provenance.provider_key
         operation_id = outcome.provenance.operation_id.value
         correlation_id = outcome.provenance.correlation_id.value
-        operation = "reconcile_provider_discovery"
+        operation = (
+            "reconcile_installation_only_discovery"
+            if installation_only
+            else "reconcile_provider_discovery"
+        )
         command_digest = _digest(operation_id)
         service_principal = _digest(f"registry-discovery\x00{provider_key}")
-        request_fingerprint = _fingerprint(
-            {
-                "accounts": [
-                    {
-                        "candidate_ref": item.candidate_ref.value,
-                        "decision_reference": item.provenance.decision_reference,
-                        "evidence_strength": item.evidence_strength,
-                        "installation_ref": item.installation_ref.value,
-                        "owner_confirmation_required": (
-                            item.owner_confirmation_required
-                        ),
-                        "source_class": item.provenance.source_class,
-                    }
-                    for item in outcome.value.accounts
+        fingerprint_payload: dict[str, object] = {
+            "accounts": [
+                {
+                    "candidate_ref": item.candidate_ref.value,
+                    "decision_reference": item.provenance.decision_reference,
+                    "evidence_strength": item.evidence_strength,
+                    "installation_ref": item.installation_ref.value,
+                    "owner_confirmation_required": item.owner_confirmation_required,
+                    "source_class": item.provenance.source_class,
+                }
+                for item in outcome.value.accounts
+            ],
+            "installations": [
+                {
+                    "decision_reference": item.provenance.decision_reference,
+                    "installation_ref": item.installation_ref.value,
+                    "platform_id": item.platform_id,
+                    "product_version": item.product_version,
+                }
+                for item in outcome.value.installations
+            ],
+            "operation": operation,
+            "provider_key": provider_key,
+            "state": outcome.state,
+        }
+        if installation_only:
+            fingerprint_payload["installation_only_scope"] = {
+                "capability_id": outcome.provenance.capability_id,
+                "correlation_id": correlation_id,
+                "decision_reference": outcome.provenance.decision_reference,
+                "installation_provider_keys": [
+                    item.provider_key for item in outcome.value.installations
                 ],
-                "installations": [
-                    {
-                        "decision_reference": item.provenance.decision_reference,
-                        "installation_ref": item.installation_ref.value,
-                        "platform_id": item.platform_id,
-                        "product_version": item.product_version,
-                    }
-                    for item in outcome.value.installations
-                ],
-                "operation": operation,
-                "provider_key": provider_key,
-                "state": outcome.state,
             }
-        )
+        request_fingerprint = _fingerprint(fingerprint_payload)
         try:
             with open_sqlite_database(
                 self._database_ref, "runtime_read_write"
             ) as handle:
                 with handle.connect() as connection:
                     connection.exec_driver_sql("BEGIN IMMEDIATE")
+                    installation_only_identity: str | None = None
+                    installation_only_platform: str | None = None
+                    installation_only_version: str | None = None
+                    installation_only_existing_id: str | None = None
+                    installation_only_protected_state = None
+                    if installation_only:
+                        incoming_installation = (
+                            outcome.value.installations[0]
+                            if len(outcome.value.installations) == 1
+                            else None
+                        )
+                        installation_only_identity = (
+                            _digest(
+                                f"{provider_key}\x00"
+                                f"{incoming_installation.installation_ref.value}"
+                            )
+                            if incoming_installation is not None
+                            else ""
+                        )
+                        installation_only_platform = (
+                            incoming_installation.platform_id
+                            if incoming_installation is not None
+                            else ""
+                        )
+                        installation_only_version = (
+                            incoming_installation.product_version
+                            if incoming_installation is not None
+                            else None
+                        )
+                        existing_installation_rows = (
+                            connection.exec_driver_sql(
+                                "SELECT provider_installation_id, "
+                                "installation_identity_fingerprint, platform_key "
+                                "FROM reg_provider_installation "
+                                "WHERE provider_key=? ORDER BY "
+                                "provider_installation_id",
+                                (provider_key,),
+                            )
+                            .mappings()
+                            .all()
+                        )
+                        existing_installations = tuple(
+                            (
+                                str(row["installation_identity_fingerprint"]),
+                                str(row["platform_key"]),
+                            )
+                            for row in existing_installation_rows
+                        )
+                        try:
+                            installation_decision = (
+                                decide_installation_only_reconciliation(
+                                    capability_id=outcome.provenance.capability_id,
+                                    account_count=len(outcome.value.accounts),
+                                    installation_count=len(outcome.value.installations),
+                                    outcome_provider_key=provider_key,
+                                    incoming_provider_key=(
+                                        incoming_installation.provider_key
+                                        if incoming_installation is not None
+                                        else ""
+                                    ),
+                                    incoming_identity_fingerprint=(
+                                        installation_only_identity
+                                    ),
+                                    incoming_platform_key=installation_only_platform,
+                                    existing_installations=existing_installations,
+                                )
+                            )
+                        except RegistryPolicyErrorV1 as error:
+                            connection.rollback()
+                            raise RegistryRepositoryErrorV1(str(error)) from None
+                        if installation_decision == "not_applicable":
+                            connection.rollback()
+                            raise RegistryRepositoryErrorV1(
+                                "registry_installation_scope_invalid"
+                            )
+                        if installation_decision == "update":
+                            installation_only_existing_id = str(
+                                existing_installation_rows[0][
+                                    "provider_installation_id"
+                                ]
+                            )
+                        installation_only_protected_state = (
+                            _installation_only_protected_state(connection, provider_key)
+                        )
                     receipt = (
                         connection.exec_driver_sql(
                             "SELECT request_fingerprint FROM reg_command_receipt "
@@ -1724,6 +1876,53 @@ class SqliteRegistryRepositoryV1:
                             causation_id=operation_id,
                             instant=instant,
                         )
+                    if installation_only_protected_state is not None:
+                        protected_state_after = _installation_only_protected_state(
+                            connection, provider_key
+                        )
+                        installations_after = (
+                            connection.exec_driver_sql(
+                                "SELECT provider_installation_id, "
+                                "installation_identity_fingerprint, "
+                                "platform_key, reported_version, presence_state "
+                                "FROM reg_provider_installation WHERE provider_key=?",
+                                (provider_key,),
+                            )
+                            .mappings()
+                            .all()
+                        )
+                        expected_installation_state = (
+                            installation_only_existing_id
+                            or installation_ids[
+                                outcome.value.installations[0].installation_ref.value
+                            ],
+                            installation_only_identity,
+                            installation_only_platform,
+                            installation_only_version,
+                            "present",
+                        )
+                        actual_installation_state = (
+                            (
+                                installations_after[0]["provider_installation_id"],
+                                installations_after[0][
+                                    "installation_identity_fingerprint"
+                                ],
+                                installations_after[0]["platform_key"],
+                                installations_after[0]["reported_version"],
+                                installations_after[0]["presence_state"],
+                            )
+                            if len(installations_after) == 1
+                            else None
+                        )
+                        if (
+                            protected_state_after != installation_only_protected_state
+                            or len(installations_after) != 1
+                            or actual_installation_state != expected_installation_state
+                        ):
+                            connection.rollback()
+                            raise RegistryRepositoryErrorV1(
+                                "registry_installation_reconciliation_invariant"
+                            )
                     provider_record_version = connection.exec_driver_sql(
                         "SELECT record_version FROM reg_provider_definition "
                         "WHERE provider_key=?",
@@ -1749,6 +1948,25 @@ class SqliteRegistryRepositoryV1:
                             _utc_text(reconciled_at + timedelta(days=365)),
                         ),
                     )
+                    if installation_only:
+                        stored_fingerprint = connection.exec_driver_sql(
+                            "SELECT request_fingerprint FROM reg_command_receipt "
+                            "WHERE principal_id=? AND operation_key=? "
+                            "AND idempotency_key_digest=?",
+                            (service_principal, operation, command_digest),
+                        ).scalar_one_or_none()
+                        try:
+                            verified_replay = decide_command_replay(
+                                stored_fingerprint, request_fingerprint
+                            )
+                        except RegistryPolicyErrorV1 as error:
+                            connection.rollback()
+                            raise RegistryRepositoryErrorV1(str(error)) from None
+                        if verified_replay != "replay":
+                            connection.rollback()
+                            raise RegistryRepositoryErrorV1(
+                                "registry_installation_replay_invariant"
+                            )
                     result = self._discovery_view(connection, provider_key)
                     connection.commit()
                     return result

@@ -11,6 +11,26 @@ const normalizeIdentity = (value) => {
   }
   return normalized;
 };
+const opaque = (value) => typeof value === "string"
+  && /^[A-Za-z0-9_-]{1,64}$/.test(value);
+const timestamp = (value) => typeof value === "string"
+  && Number.isFinite(Date.parse(value));
+const quotaProvenanceV1 = Object.freeze({
+  source_id: "claude.usage.ax-screen-reader.v1",
+  adapter_id: "agentmonitor.claude",
+  adapter_version: "1.0.3",
+  parser_version: "1.0.3",
+  provider_version: "2.1.289",
+  decision_reference: "A01-M03-CLAUDE-2-1-289-001",
+});
+const exactQuotaProvenanceV1 = (provenance) => Object.entries(quotaProvenanceV1)
+  .every(([field, expected]) => provenance?.[field] === expected);
+
+export function isExactRenderedQuotaProvenanceV1(fields) {
+  return fields?.Source === quotaProvenanceV1.source_id
+    && fields?.Adapter === `${quotaProvenanceV1.adapter_id} · ${quotaProvenanceV1.adapter_version}`
+    && fields?.["Provider version"] === quotaProvenanceV1.provider_version;
+}
 
 export function isFreshCollectionLineageV1(candidate, serviceStartedAt) {
   const lowerBound = Date.parse(serviceStartedAt);
@@ -19,12 +39,58 @@ export function isFreshCollectionLineageV1(candidate, serviceStartedAt) {
   const observationIds = candidate?.run?.observation_ids;
   const windows = candidate?.windows;
   const history = candidate?.history;
+  const windowKeys = new Set(Array.isArray(windows)
+    ? windows.map(window => window?.window_key)
+    : []);
+  const allowedPartialWindowKeys = new Set([
+    "current_session", "current_week_all_models", "current_week_sonnet_only",
+  ]);
+  const currentObservationIds = new Set(Array.isArray(windows)
+    ? windows.map(window => window?.current_observation_id)
+    : []);
+  const currentHistoryPoints = Array.isArray(history?.items)
+    ? history.items.filter(point => point?.subject?.account_id === candidate?.accountId
+      && point.collection_run_id === candidate?.run?.run_id
+      && candidate?.run?.observation_ids?.includes(point.observation_id)
+      && currentObservationIds.has(point.observation_id))
+    : [];
+  const historyMatches = (window) => currentHistoryPoints.filter(point =>
+    point.observation_id === window?.current_observation_id
+    && point.window_key === window?.window_key);
+  const historyLineageComplete = Array.isArray(windows) && windows.length > 0
+    && currentObservationIds.size === windows.length
+    && currentHistoryPoints.length === windows.length
+    && windows.every(window => {
+      const matches = historyMatches(window);
+      return matches.length === 1 && exactQuotaProvenanceV1(matches[0].provenance);
+    });
+  const allowedWindowSet = Array.isArray(windows) && windows.length > 0
+    && windowKeys.has("current_session")
+    && windowKeys.has("current_week_all_models")
+    && windows.length === windowKeys.size
+    && currentObservationIds.size === windows.length
+    && [...windowKeys].every(key => allowedPartialWindowKeys.has(key));
+  const completeHistoryComplete = allowedWindowSet && historyLineageComplete
+    && currentHistoryPoints.every(point => point.completeness === "complete");
+  const partialHistoryComplete = allowedWindowSet && historyLineageComplete
+    && currentHistoryPoints.every(point => point.completeness === "partial");
+  const exactCollectionVersion = candidate?.run?.adapter_version === quotaProvenanceV1.adapter_version
+    && candidate?.run?.provider_version === quotaProvenanceV1.provider_version;
+  const acceptedTerminalState = exactCollectionVersion && allowedWindowSet
+    && ((candidate?.run?.state === "succeeded"
+      && candidate.run.outcome_code === "succeeded"
+      && candidate.run.error_code === null
+      && completeHistoryComplete)
+    || (candidate?.run?.state === "partial"
+      && candidate.run.outcome_code === "partial"
+      && candidate.run.error_code === null
+      && partialHistoryComplete));
   if (!Number.isFinite(lowerBound) || !Number.isFinite(requestedAt)
       || !Number.isFinite(completedAt) || requestedAt < lowerBound
       || completedAt < requestedAt || candidate?.run?.run_id !== candidate?.identity?.collection_run_id
       || candidate?.run?.account_id !== candidate?.accountId
       || candidate?.identity?.account_id !== candidate?.accountId
-      || candidate?.run?.state !== "succeeded"
+      || !acceptedTerminalState
       || candidate?.run?.source_id !== "claude.usage.ax-screen-reader.v1"
       || !Array.isArray(observationIds) || observationIds.length === 0
       || !Array.isArray(windows) || windows.length === 0
@@ -33,16 +99,58 @@ export function isFreshCollectionLineageV1(candidate, serviceStartedAt) {
         && window.collection_run_id === candidate.run.run_id
         && text(window.current_observation_id, 128)
         && observationIds.includes(window.current_observation_id)
-        && window.provenance?.source_id === "claude.usage.ax-screen-reader.v1")
-      || history?.availability?.state !== "available" || !Array.isArray(history.items)) {
+        && exactQuotaProvenanceV1(window.provenance))
+      || history?.availability?.state !== "available" || !Array.isArray(history.items)
+      || !historyLineageComplete) {
     return false;
   }
-  const currentObservationIds = new Set(windows.map(window => window.current_observation_id));
-  return history.items.some(point => point?.subject?.account_id === candidate.accountId
-    && point.collection_run_id === candidate.run.run_id
-    && currentObservationIds.has(point.observation_id)
-    && observationIds.includes(point.observation_id)
-    && point.provenance?.source_id === "claude.usage.ax-screen-reader.v1");
+  return true;
+}
+
+export function buildFleetRuntimeWitnessV1(locations, selectedAccountIds) {
+  if (!Array.isArray(selectedAccountIds) || selectedAccountIds.length !== 6
+      || new Set(selectedAccountIds).size !== 6
+      || !selectedAccountIds.every(opaque)) {
+    throw new Error("six_owner_outcomes_required");
+  }
+  const selected = new Set(selectedAccountIds);
+  const items = locations?.availability?.state === "available"
+      && [true, false].includes(locations?.truncated)
+      && Array.isArray(locations?.items)
+    ? locations.items
+    : [];
+  const linked = items.filter((item) => {
+    const association = item?.account_association;
+    const observedAt = Date.parse(item?.observed_at);
+    const confirmedAt = Date.parse(association?.confirmed_at);
+    return item?.provider_key === "claude"
+      && item.state === "running"
+      && item.account_correlation === "unresolved"
+      && Number.isInteger(item.pid) && item.pid > 0
+      && Number.isInteger(item.start_time_ticks) && item.start_time_ticks > 0
+      && text(item.platform_scope_id, 128)
+      && /^[0-9a-f]{64}$/.test(item.association_key ?? "")
+      && Number.isInteger(item.association_record_version)
+      && item.association_record_version >= 1
+      && association?.state === "owner_confirmed"
+      && opaque(association.account_id)
+      && selected.has(association.account_id)
+      && opaque(association.principal_id)
+      && Number.isInteger(association.record_version)
+      && association.record_version === item.association_record_version
+      && timestamp(item.observed_at)
+      && timestamp(association.confirmed_at)
+      && confirmedAt <= observedAt;
+  });
+  if (linked.length === 0) {
+    throw new Error("owner_confirmed_selected_live_process_required");
+  }
+  return {
+    owner_confirmed_live_process_count: linked.length,
+    owner_confirmed_live_account_count: new Set(
+      linked.map(item => item.account_association.account_id),
+    ).size,
+  };
 }
 
 export function buildFleetWitnessV1(records, { event }) {

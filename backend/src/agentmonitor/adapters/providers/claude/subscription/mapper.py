@@ -22,7 +22,9 @@ from agentmonitor.contracts.providers.claude.subscription_quota.v1.schema import
 )
 
 SanitizedWindowKey = Literal[
-    "current_session", "current_week_all_models", "current_week_sonnet_only"
+    "current_session",
+    "current_week_all_models",
+    "current_week_sonnet_only",
 ]
 
 
@@ -32,7 +34,7 @@ class SanitizedClaudeUsageWindow:
 
     window_key: SanitizedWindowKey
     percent_used: Decimal
-    reset_display: str
+    reset_display: str | None
 
 
 @dataclass(frozen=True, slots=True)
@@ -42,6 +44,7 @@ class SanitizedClaudeUsageSnapshot:
     windows: tuple[SanitizedClaudeUsageWindow, ...]
     observed_at: datetime
     collected_at: datetime
+    omission_codes: tuple[str, ...] = ()
 
 
 _WINDOW_METADATA = {
@@ -73,8 +76,12 @@ def map_subscription_quota(
             ),
             reset_display=ClaudeResetDisplayV1(
                 value=item.reset_display,
-                availability=FieldAvailabilityV1("available"),
-                precision="provider_display",
+                availability=FieldAvailabilityV1(
+                    "available" if item.reset_display is not None else "unknown"
+                ),
+                precision=(
+                    "provider_display" if item.reset_display is not None else "unknown"
+                ),
             ),
         )
         for item in snapshot.windows

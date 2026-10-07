@@ -2,7 +2,9 @@
 import { readFile, stat } from "node:fs/promises";
 import { chromium } from "../../frontend/node_modules/@playwright/test/index.mjs";
 import {
+  buildFleetRuntimeWitnessV1,
   buildFleetWitnessV1,
+  isExactRenderedQuotaProvenanceV1,
   isFreshCollectionLineageV1,
 } from "./m4_fleet_policy.mjs";
 
@@ -44,10 +46,9 @@ try {
     return response.json();
   }, path);
   stage = "authenticated_fleet_lineage";
-  const [accounts, organizations, locations] = await Promise.all([
+  const [accounts, organizations] = await Promise.all([
     read("/api/v1/accounts?limit=200"),
     read("/api/v1/organizations?limit=200"),
-    read("/api/v1/process-locations"),
   ]);
   requireResult(!accounts.page.has_more && !organizations.page.has_more, "bounded_registry_page_incomplete");
   const selectRegistryRecords = (accountPage, organizationPage) => {
@@ -137,9 +138,11 @@ try {
     requireResult(Date.now() < freshnessDeadline, preflightOnly ? "fleet_quota_identity_lineage_mismatch" : "fresh_post_restart_fleet_collection_required");
     await new Promise(resolve => setTimeout(resolve, 10_000));
   }
-  const [finalAccounts, finalOrganizations] = await Promise.all([
+  stage = "current_owner_confirmed_runtime";
+  const [finalAccounts, finalOrganizations, finalLocations] = await Promise.all([
     read("/api/v1/accounts?limit=200"),
     read("/api/v1/organizations?limit=200"),
+    read("/api/v1/process-locations"),
   ]);
   selectedAccounts = selectRegistryRecords(finalAccounts, finalOrganizations);
   const finalRegistryByAccount = new Map(selectedAccounts.map(item => [item.outcome.account_id, item]));
@@ -148,11 +151,16 @@ try {
     requireResult(current, "fleet_membership_mismatch");
     return { ...item, account: current.account, organization: current.organization };
   });
-  const observedSessions = selected.reduce((total, item) => total + item.sessions.items.length, 0);
-  requireResult(observedSessions > 0, "real_claude_sessions_required");
-  const witness = buildFleetWitnessV1(witnessRecords(selected), {
-    event: preflightOnly ? "m4_fleet_preflight" : "m4_fleet_witness",
-  });
+  const runtimeWitness = buildFleetRuntimeWitnessV1(
+    finalLocations,
+    selectedAccounts.map(item => item.account.account_id),
+  );
+  const witness = {
+    ...buildFleetWitnessV1(witnessRecords(selected), {
+      event: preflightOnly ? "m4_fleet_preflight" : "m4_fleet_witness",
+    }),
+    ...runtimeWitness,
+  };
   if (!preflightOnly) {
     stage = "built_fleet_overview";
     await page.goto(origin);
@@ -176,10 +184,34 @@ try {
       requireResult(await row.count() === 1, "fleet_account_identity_not_displayed");
       requireResult((await row.locator('[data-label="State"]').textContent()).includes("Monitoring on"), "fleet_account_monitoring_state_missing");
       requireResult(await row.locator(".workspace-reading").count() > 0, "fleet_account_quota_missing");
-      const linked = locations.availability.state === "available" ? locations.items.filter(process => process.account_association?.account_id === item.account.account_id && process.working_directory !== null) : [];
+      await page.locator("details.quota-technical > summary").click();
+      const provenanceRows = page.locator("details.quota-technical .quota-provenance");
+      await provenanceRows.first().waitFor({ timeout: 15_000 });
+      requireResult(await provenanceRows.count() === item.windows.length, "fleet_quota_provenance_rows_missing");
+      for (let index = 0; index < item.windows.length; index += 1) {
+        const fields = await provenanceRows.nth(index).locator("div").evaluateAll(rows => Object.fromEntries(
+          rows.map(row => [
+            row.querySelector("dt")?.textContent?.trim() ?? "",
+            row.querySelector("dd")?.textContent?.trim() ?? "",
+          ]),
+        ));
+        requireResult(isExactRenderedQuotaProvenanceV1(fields), "fleet_quota_provenance_version_not_rendered");
+      }
+      const linked = finalLocations.items.filter(process => process.account_association?.account_id === item.account.account_id);
+      const linkedWithPath = linked.filter(process => process.working_directory !== null);
       const pathCell = row.locator('[data-label="Path"]');
-      if (linked.length === 0) requireResult((await pathCell.textContent()).includes("Not reported"), "unlinked_path_not_explicit");
-      else for (const process of linked) await pathCell.getByText(process.working_directory, { exact: true }).waitFor({ timeout: 15_000 });
+      if (linkedWithPath.length === 0) requireResult((await pathCell.textContent()).includes("Not reported"), "unlinked_path_not_explicit");
+      else for (const process of linkedWithPath) await pathCell.getByText(process.working_directory, { exact: true }).waitFor({ timeout: 15_000 });
+      if (linked.length > 0) {
+        const agents = page.getByRole("table", { name: "Agents using this account", exact: true });
+        await agents.waitFor({ timeout: 15_000 });
+        for (const process of linked) {
+          const agent = agents.locator(`tbody tr[data-association-key="${process.association_key}"]`);
+          requireResult(await agent.count() === 1, "owner_confirmed_live_process_not_displayed");
+          const agentText = await agent.textContent();
+          requireResult(agentText?.includes(`PID ${process.pid}`) && agentText.includes("Owner confirmed") && agentText.includes("Running"), "owner_confirmed_live_process_not_displayed");
+        }
+      }
     }
     stage = "built_runtime_view";
     await page.goto(`${origin}/sessions`);
@@ -188,7 +220,7 @@ try {
   }
   requireResult(mutations === 0, "fleet_read_verification_mutated_owner_state");
   console.log(JSON.stringify({ ...witness, mutations }));
-  console.log(`M4 FLEET: PASSED — six distinct administrator-matched real Claude identities, two organizations, verified ${preflightOnly ? "current" : "fresh post-restart"} quota lineage, retained history, runtime scope${preflightOnly ? "" : ", authenticated API and built account activity"}`);
+  console.log(`M4 FLEET: PASSED — six distinct administrator-matched real Claude identities, two organizations, verified ${preflightOnly ? "current" : "fresh post-restart"} quota lineage, retained history, owner-confirmed live runtime scope${preflightOnly ? "" : ", authenticated API and built account activity"}`);
 } catch (error) {
   const reason = error instanceof Error && /^[a-z0-9_]+$/.test(error.message) ? error.message : "fleet_verification_unavailable";
   console.error(`M4 FLEET: BLOCKED — ${stage}: ${reason}`);

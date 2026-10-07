@@ -1,13 +1,88 @@
 # M03 provider-system module
 
 Status: **provider-neutral protocol and compatibility persistence implemented;
-Claude/provider conformance Not Run**.
+the bounded Claude Code 2.1.289 admission passed; current M4 acceptance is
+pending**.
 
 Owner: `PLAN-M03`
 
 Contracts: `CTR-PROV-001..008` V1
 
 Database revision: `v1_0300`
+
+## Exact Claude Code 2.1.289 admission
+
+The owner-approved
+[`A01-M03-CLAUDE-2-1-289-001`](../discovery/m0/m0-to-m03-claude-2.1.289-v1.json)
+record admits only Claude Code `2.1.289` on Linux x86-64 for read-only
+installation discovery, subscription quota, authentication health, identity
+verification, and owner-interactive official login to an AgentMonitor-managed
+profile. The quota adapter and parser are `1.0.3` and the source remains
+`claude.usage.ax-screen-reader.v1`. Unknown versions fail closed;
+protected-default writes, credential handling, and running-agent control are
+outside the admission. Generic `local.process.observation` remains an A04/M06
+platform/runtime capability and is not published by the A01 manifest.
+
+The workstation default `claude` command is now `2.1.292` and remains outside
+this admission. The admitted capabilities select the retained exact `2.1.289`
+native executable. The unretained `2.1.282` executable remains the separate
+OTLP requirement; no version is substituted for another.
+
+The public contracts remain `CTR-PROV-001..008` V1. In particular,
+`ClaudeSubscriptionQuotaV1@1.0` keeps its closed three-key allowlist. Claude
+Code `2.1.289` may render one bounded model-specific weekly card outside that
+allowlist. A01 validates and omits that card, returns `partial` with
+`claude_model_specific_window_unsupported` and `availability=unsupported`, and
+retains the required current session and all-model weekly windows. Multiple
+such cards, an unallowlisted shaped label, duplicate/conflicting values, or a
+missing required window fails closed. There is no provider-extension, API,
+generated-client, event, or database-contract change.
+
+A recognized quota window may contain a valid provider-reported percentage and
+no reset line. A01 preserves that percentage and publishes the existing
+`ClaudeResetDisplayV1` Unknown state: no value, Unknown availability, and
+Unknown precision. It never infers reset text or an instant. A present reset
+still requires the existing bounded provider-display form; malformed or
+conflicting reset-shaped text fails closed rather than becoming Unknown. This
+changes no V1 schema or public API.
+
+The official OTLP session lane is separate. Its adapter remains `1.0.0` and
+its manifest remains exact-pinned to Claude Code `2.1.282`. Quota admission on
+`2.1.289` does not widen OTLP support. When the old executable is absent, OTLP
+preparation returns `claude_version_unverified` before profile access or a
+monitored launch.
+
+Exact-version installation discovery produces one `DiscoveryOutcomeV1@1.0`
+installation and zero account candidates. M02 consumes it through the existing
+`ReconcileProviderDiscoveryV1` port so a retained installation row can advance
+through one strict transaction without changing its stable ID or the
+provider-scoped account, monitoring-profile, profile-resource-link, or
+discovery-candidate records. The same transaction creates and verifies the
+operation receipt before commit. The canonical command first acquires the
+stable owner-only exclusive service lock and returns Blocked without mutation
+if AgentMonitor is running. This adds no public contract, schema, migration, or
+dependency.
+
+Focused native checks passed exact installation selection, genuine quota,
+managed identity/authentication/quota reads, and the fail-closed OTLP version
+gate. The stopped-service owner reconciliation also preserved the existing
+opaque installation ID while advancing the registered version from `2.1.282`
+to `2.1.289`; privacy-minimized digests for six accounts, one candidate, six
+profiles, and six resource links were unchanged. See the
+[exact admission evidence](../evidence/claude-2.1.289-admission.md).
+One new owner-completed `2.1.289` managed sign-in and its genuine sparse-reset
+quota read passed. The authenticated M4 preflight also passed for six accounts,
+two organizations, six distinct identities, six current history rows, one
+owner-confirmed live process link, and zero mutations. The clean-revision
+restart, six fresh post-restart readings, `AUTO-M4-EXIT`, and formal acceptance
+remain required; this module page does not claim current M4 acceptance.
+
+The canonical M4 technical lane now runs `AUTO-M3-TEST` plus exact current
+authentication/quota, manifest/parser, installation/reconciliation, and OTLP
+version-gate tests. Its fleet witness requires exact source, adapter/parser,
+provider-version, and decision-reference provenance in every current window
+and matching history point. The built account page must render the exact
+source, adapter/version, and provider version for every quota window.
 
 ## Persistence boundary
 
@@ -79,7 +154,9 @@ direct-SQL constraint rejection, bounded pending ordering, and assessment/
 outbox rollback on an actual SQLite write failure. See
 [the ST-CLA-001 persistence evidence](../evidence/m3-st-cla-001-provider-system-persistence.md).
 
-The broader `ST-CLA-001` adapter, live provider/account observation, registry
-reconciliation, collection/capacity/runtime integration, API, and browser are
-outside this slice and remain Not Run. The repository does not establish
-Claude conformance or milestone completion.
+This persistence evidence alone does not establish Claude conformance or
+milestone completion. The exact `2.1.289` adapter, selected live provider
+profiles, and installation reconciliation are covered by the current admission
+section above. The complete `ST-CLA-001` collection/capacity/runtime, API,
+built-browser, and current M4 acceptance scope remains outside this persistence
+slice.

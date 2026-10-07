@@ -12,7 +12,10 @@ from agentmonitor.adapters.providers.claude.authentication.reauthentication impo
 from agentmonitor.adapters.providers.claude.installation import (
     discover_default_installation,
 )
-from agentmonitor.adapters.providers.claude.manifest import CLAUDE_USAGE_SOURCE_ID
+from agentmonitor.adapters.providers.claude.manifest import (
+    CLAUDE_AUTH_DECISION_REFERENCE,
+    CLAUDE_USAGE_SOURCE_ID,
+)
 from agentmonitor.contracts.common_v1 import OpaqueIdV1
 from agentmonitor.contracts.provider_system_v1 import (
     CapabilitySchemaVersionV1,
@@ -75,6 +78,7 @@ def test_real_claude_auth_health_uses_a_bounded_read_only_observation() -> None:
         assert outcome.value.identity.state == "unresolved"
         assert outcome.provenance.source_id == CLAUDE_USAGE_SOURCE_ID
         assert outcome.provenance.provider_version == installation.provider_version
+        assert outcome.provenance.decision_reference == CLAUDE_AUTH_DECISION_REFERENCE
 
 
 def test_default_profile_reauthentication_is_rejected_before_provider_io() -> None:

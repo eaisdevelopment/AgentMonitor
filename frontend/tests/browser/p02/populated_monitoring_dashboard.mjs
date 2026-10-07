@@ -102,9 +102,9 @@ try {
     requireTruth(!/Unavailable in API v1/u.test(provenanceText), "quota_provenance_missing_from_api");
     requireTruth(/claude\.usage\.ax-screen-reader\.v1/u.test(provenanceText), "quota_source_id_missing");
     requireTruth(/supported cli/iu.test(provenanceText), "quota_source_class_missing");
-    requireTruth(/agentmonitor\.claude\s*·\s*1\.0\.2/u.test(provenanceText), "quota_adapter_version_missing");
+    requireTruth(/agentmonitor\.claude\s*·\s*1\.0\.3/u.test(provenanceText), "quota_adapter_version_missing");
     requireTruth(/Mechanism version\s*1/u.test(provenanceText), "quota_mechanism_version_missing");
-    requireTruth(/Provider version\s*2\.1\.282/u.test(provenanceText), "quota_provider_version_missing");
+    requireTruth(/Provider version\s*2\.1\.289/u.test(provenanceText), "quota_provider_version_missing");
     requireTruth(/claude-usage-five-minute-v1/u.test(provenanceText), "quota_freshness_policy_missing");
     requireTruth(/Precision\s*rounded/iu.test(provenanceText), "quota_precision_missing");
     requireTruth(/confirmed/iu.test(provenanceText), "quota_confidence_missing");

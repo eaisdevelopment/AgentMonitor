@@ -35,6 +35,7 @@ from agentmonitor.contracts.registry_v1 import (
     RegisterAccountV1 as RegisterAccountPortV1,
 )
 from agentmonitor.modules.registry.domain import account as account_policy
+from agentmonitor.modules.registry.domain import discovery as discovery_policy
 from agentmonitor.modules.registry.domain.names import normalize_registry_name
 
 RegistryPolicyErrorV1 = account_policy.RegistryPolicyErrorV1
@@ -50,6 +51,9 @@ ensure_candidate_confirmation_is_current = (
     account_policy.ensure_candidate_confirmation_is_current
 )
 safe_registry_event_projection = account_policy.safe_registry_event_projection
+decide_installation_only_reconciliation = (
+    discovery_policy.decide_installation_only_reconciliation
+)
 
 
 class RegistryQueryUnavailableV1(RuntimeError):

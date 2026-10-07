@@ -74,6 +74,26 @@ BROWSER_CHECKS = (
     ("alerts_browser", "tools/ui/verify_m4_alerts.mjs"),
     ("operations_browser", "tools/ui/verify_m4_operations.mjs"),
 )
+DEPENDENCY_ROUTINES = ("AUTO-M3-TEST",)
+CURRENT_VERSION_TEST_PATHS = (
+    "backend/tests/adapters/providers/claude/live/test_authentication.py",
+    "backend/tests/adapters/providers/claude/test_authentication_health.py",
+    "backend/tests/adapters/providers/claude/test_capacity_mapper.py",
+    "backend/tests/adapters/providers/claude/test_manifest.py",
+    "backend/tests/adapters/providers/claude/test_subscription_source_parser.py",
+    "backend/tests/live/claude/test_installation.py",
+    "backend/tests/live/claude/test_otel_version_gate.py",
+    "backend/tests/live/claude/test_subscription_quota.py",
+    "backend/tests/registry/test_installation_reconciliation_policy.py",
+    "backend/tests/integration/registry/test_claude_installation_reconciliation.py",
+)
+STORY_PYTEST_FLAGS = (
+    "-q",
+    "--tb=short",
+    "-p",
+    "tools.automation.pytest_no_skip",
+    "--import-mode=importlib",
+)
 _SHA256 = re.compile(r"[0-9a-f]{64}\Z")
 _REVISION = re.compile(r"[0-9a-f]{40}\Z")
 _SAFE_EVIDENCE = re.compile(r"[A-Za-z0-9_.:+-]{1,160}\Z")
@@ -365,11 +385,9 @@ def _run_story_suite(environment: Mapping[str, str]) -> int:
                 "-m",
                 "pytest",
                 "tools/automation/test_m4_current_exit.py",
+                *CURRENT_VERSION_TEST_PATHS,
                 *TEST_PATHS,
-                "-q",
-                "--tb=short",
-                "-p",
-                "tools.automation.pytest_no_skip",
+                *STORY_PYTEST_FLAGS,
                 f"--junitxml={report}",
             ],
             environment,
@@ -520,8 +538,12 @@ def main() -> int:
             service_started_at.isoformat(timespec="milliseconds").replace("+00:00", "Z")
         )
         lane_evidence["revision_bound_service"] = "service_restarted_from_clean_head"
+        for routine in DEPENDENCY_ROUTINES:
+            _run_routine(routine, environment)
         test_count = _run_story_suite(environment)
-        lane_evidence["technical_suite"] = f"pytest_{test_count}_passed_zero_skips"
+        lane_evidence["technical_suite"] = (
+            f"auto_m3_test_and_pytest_{test_count}_passed_zero_skips"
+        )
         witness = _run_fleet_browser(environment, preflight=False)
         fleet_digest, identity_digest = validate_fleet_transition_v1(preflight, witness)
         lane_evidence.update(

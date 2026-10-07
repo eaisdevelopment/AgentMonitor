@@ -71,7 +71,7 @@ def test_claude_quota_maps_only_reported_values_and_preserves_unknowns() -> None
             SanitizedClaudeUsageWindow(
                 window_key="current_session",
                 percent_used=Decimal("12.5"),
-                reset_display="Resets in 2 hr",
+                reset_display=None,
             ),
             SanitizedClaudeUsageWindow(
                 window_key="current_week_all_models",
@@ -99,6 +99,9 @@ def test_claude_quota_maps_only_reported_values_and_preserves_unknowns() -> None
         "current_week_all_models",
     )
     first = result.windows[0]
+    assert quota.windows[0].reset_display.value is None
+    assert quota.windows[0].reset_display.availability.state == "unknown"
+    assert quota.windows[0].reset_display.precision == "unknown"
     assert first.used.value is not None
     assert first.used.value.as_decimal() == Decimal("12.5")
     assert first.used.value.unit == "percent"

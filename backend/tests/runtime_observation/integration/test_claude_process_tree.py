@@ -2,9 +2,13 @@
 
 from datetime import UTC, datetime
 
+from agentmonitor.adapters.persistence.registry.sqlite.repository import (
+    SqliteRegistryRepositoryV1,
+)
 from agentmonitor.adapters.persistence.runtime_observation.sqlite.repository import (
     SqliteRuntimeObservationRepositoryV1,
 )
+from agentmonitor.modules.registry.application.accounts import ListAccountsV1
 from agentmonitor.modules.runtime_observation.application.queries import (
     GetSessionTreeV1,
     ListAgentProcessesV1,
@@ -23,6 +27,13 @@ def test_real_claude_session_tree_keeps_account_correlation_explicit() -> None:
     )
     expected = {item.account_id for item in selected.outcomes}
     repository = SqliteRuntimeObservationRepositoryV1(selected.reference)
+    known_accounts = {
+        item.account_id.value
+        for item in ListAccountsV1(SqliteRegistryRepositoryV1(selected.reference))(
+            "claude"
+        )
+    }
+    assert expected <= known_accounts
     as_of = datetime.now(UTC)
     sessions = ListAgentSessionsV1(repository)(
         provider_key="claude", as_of=as_of, page_size=200
@@ -32,9 +43,9 @@ def test_real_claude_session_tree_keeps_account_correlation_explicit() -> None:
     )
     assert sessions and processes, "m4_real_claude_runtime_history_required"
     assert all(
-        session.account_id is None or session.account_id in expected
+        session.account_id is None or session.account_id in known_accounts
         for session in sessions
-    ), "m4_runtime_association_outside_owner_fleet"
+    ), "m4_runtime_association_orphaned"
     assert all(item.provenance.source_id for item in sessions + processes)
     assert all(item.provenance.collected_at <= as_of for item in sessions + processes)
     tree = GetSessionTreeV1(repository)(
@@ -49,6 +60,6 @@ def test_real_claude_session_tree_keeps_account_correlation_explicit() -> None:
     assert 0 <= tree.unknown_count <= tree.included_count
     assert len({node.session.session_id for node in tree.nodes}) == len(tree.nodes)
     assert all(
-        node.session.account_id is None or node.session.account_id in expected
+        node.session.account_id is None or node.session.account_id in known_accounts
         for node in tree.nodes
     )

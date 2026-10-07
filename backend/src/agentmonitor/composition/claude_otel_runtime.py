@@ -40,6 +40,7 @@ from agentmonitor.adapters.providers.claude.manifest import (
     CLAUDE_OTEL_ADAPTER_ID,
     CLAUDE_OTEL_ADAPTER_VERSION,
     CLAUDE_OTEL_MAPPING_DIGEST,
+    CLAUDE_OTEL_PROVIDER_VERSION,
 )
 from agentmonitor.adapters.providers.claude.telemetry.launcher import (
     ClaudeMonitoredExecV1,
@@ -183,7 +184,9 @@ def prepare_monitored_claude_launch(
     if len(installations) != 1:
         raise ValueError("claude_otel_registered_installation_unresolved")
     installation = installations[0]
-    discovered = discover_default_installation()
+    discovered = discover_default_installation(
+        verified_provider_version=CLAUDE_OTEL_PROVIDER_VERSION
+    )
     if discovered.provider_version != installation.version.masked_value:
         raise ValueError("claude_otel_installation_version_mismatch")
     account, profile_id, profile_record_version = _eligible_owner_account(

@@ -75,7 +75,8 @@ backend/.venv/bin/python -m pytest \
 ```
 
 This command gates only isolated identity reads. Official login verification
-requires owner interaction and remains Not Run until that interaction succeeds.
+requires owner interaction and remains Not Run for a selected profile until
+that interaction succeeds; completed flows are recorded in live evidence.
 The canonical operational login command accepts the selected private data root
 and opaque registry account ID. It must return a non-success result for failed,
 expired, unavailable, or mismatched authentication.
@@ -109,8 +110,10 @@ without editing provider settings or sending a conversation. Real native quota
 reads with and without that flag returned matching percentages and resets;
 identity checks remain separate. Default-profile reads retain their existing
 environment. `--init-only` was rejected as an onboarding solution after real
-fresh-profile verification still displayed theme setup. Newly authenticated
-fresh-profile end-to-end verification remains required.
+fresh-profile verification still displayed theme setup. A later selected
+`2.1.289` managed profile completed owner authentication and a genuine quota
+read; interrupted-flow recovery, the full wrong-account matrix, and M4 fleet
+acceptance remain separate.
 
 Tests must first observe missing connection HTTP/browser behavior, then verify
 real SQLite/HTTP mutation protections, native isolated flows, generated-client
@@ -314,3 +317,96 @@ the existing real collection page, direct `/collectors` navigation remains
 valid, and navigation causes no mutation. No API, generated client, backend,
 provider, schema, migration, dependency, persistence, collection cadence, or
 data-retention behavior changes.
+
+### Claude Code 2.1.289 capability admission (owner directed, 2026-10-05)
+
+The owner's direction to finish M4 against the current real workstation
+approves a bounded A01/M03 compatibility increment under `FR-DISC-008`,
+`FR-COL-004/006/007/008`, `FR-AUTH-002/003/006`, `FR-SAFE-001/002`,
+`NFR-COMP-001`, and `AC-LIVE-004/005/006/007`. At approval time, the default
+native Claude Code executable was `2.1.289`; production discovery initially
+failed closed with `claude_version_unverified`, which is the required Red. The
+workstation default later advanced to `2.1.292`, which remains outside this
+admission. The exact `2.1.289` executable is retained and selected for these
+capabilities; the historical OTLP `2.1.282` executable is not retained.
+
+Admit only the exact Linux x86-64 Claude Code `2.1.289` tuple through a
+separately versioned, hash-bound technical mapping. Its approved capabilities
+are read-only subscription quota, authentication health, bounded `auth status`
+identity, and the official interactive `auth login` flow for an
+AgentMonitor-managed profile. The write-capable login flow
+requires owner browser interaction, writes only provider-owned state below the
+selected managed profile root, and rechecks that the protected default identity
+did not change. Increment the adapter and parser versions because compatibility
+and parsing change. Preserve the historical `2.1.282` M0/M3 handoff,
+approvals, receipts, and evidence bytes.
+
+Generic `local.process.observation` through `linux.proc.process.v1` remains an
+A04/M06-owned platform/runtime lane used alongside Claude monitoring. It is
+not an A01 capability and is not bound to the Claude Code `2.1.289` admission.
+
+The official OTLP session manifest remains pinned to `2.1.282`. OTLP launch
+must request that exact capability version before provider-profile access or a
+monitored process launch and fail closed with `claude_version_unverified` on
+this workstation until a separate real OTLP probe is approved and run. The
+general 2.1.289 resolver must not widen the OTLP tuple.
+
+Before commit, use the selected retained `2.1.289` binary to prove exact
+installation selection, bounded `auth status --json` identity behavior for
+protected and managed profiles, an unauthenticated isolated-profile denial, genuine native
+quota reads with the existing window bounds and truthful per-field reset
+availability, stable identity before and after reads, exact provenance and
+decision reference, and at least one fresh scheduled reading per selected fleet
+account. The new mapping digest must be checked against its repository bytes.
+Unknown versions remain non-invokable.
+
+The first genuine `2.1.289` quota Red exposed one provider-format change: the
+optional model-specific weekly card now has a bounded provider label rather
+than the former fixed Sonnet-only label. The V1 Claude quota extension is a
+closed cross-module contract, so this increment does not add an enum value to
+that schema. A01 validates at most one bounded model-specific card as a render
+boundary, omits it from the V1 value, and returns a partial outcome with the
+closed `claude_model_specific_window_unsupported` omission and
+`availability=unsupported`. The required session and all-model windows remain
+available. More than one such card, an unallowlisted label, or
+duplicate/conflicting values fails closed. There is no provider-extension,
+wire-shape, or generated-client version change.
+
+A later genuine read immediately after owner-completed managed authentication
+exposed another valid `2.1.289` presentation: Claude reported a percentage for
+the required current-session window without displaying a reset line. The live
+test first failed with `usage_deadline_window_incomplete`. A safe structural
+diagnostic confirmed only that the percentage field was present and the reset
+field was absent; no value or raw provider output was retained.
+
+The approved correction uses the `ClaudeResetDisplayV1` field availability
+already defined within `ClaudeSubscriptionQuotaV1@1.0`. A recognized quota
+window still requires a valid reported percentage with no conflicting value.
+When it has no reset line, A01 preserves the percentage and maps reset display
+to `value=None`, `availability=unknown`, and `precision=unknown`. A valid,
+nonconflicting reported reset remains available with `provider_display`
+precision. A present reset-shaped line that is malformed or conflicting still
+fails closed and is never treated as absent. AgentMonitor never invents a reset
+display or reset instant. Pure parser/mapper Red and Green evidence and the
+same genuine managed-profile quota test bind this behavior.
+
+The M4 current-revision fleet witness may treat that one exact `2.1.289` /
+adapter `1.0.3` partial collection as fresh lineage only when the committed run
+has current observations and partial history for the required session and
+all-model windows, every returned key remains in the V1 allowlist, and no
+provider error exists. Any other partial tuple or missing required window stays
+fail closed. This preserves truthful partial status without weakening the six
+identity, post-restart, history, freshness, or registry-immutability checks.
+
+M02 installation-version reconciliation, when needed, must consume a genuine
+A01 discovery outcome through the existing public application port while
+holding the stable owner-only exclusive service lock. An occupied lock blocks
+before mutation; no SQL edit or profile relinking is authorized. The canonical
+M4 technical lane runs `AUTO-M3-TEST` plus the exact admitted auth/quota,
+manifest/parser, installation/reconciliation, and OTLP version-gate tests. Its
+fleet witness requires exact persisted and rendered provenance for the admitted
+tuple. There is no public API, UI shape, database schema, migration,
+dependency/license, credential, provider-profile, or running-agent-control
+change beyond the already approved official managed login flow. Rollback
+restores the prior manifest/code and leaves registry history, quota history,
+provider profiles, and the default Claude installation untouched.

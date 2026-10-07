@@ -1,14 +1,17 @@
 # Change plan: executable completion of all six M4 stories
 
 - Status: **Approved for root-owned completion automation**.
-- Plan version: `1.1.0`; root integration review: 2026-10-03.
+- Plan version: `1.3.0`; root integration review: 2026-10-06.
 - Owner: PLAN-INT; parent [M4 milestone plan](../../superpowers/plans/2026-09-19-agentmonitor-v1-m4-claude-fleet-alerts.md).
 - Authority: active owner-authorized objective, fully implement M4 goals.
 - Requirements: the six canonical M4 story requirement sets; `NFR-TEST-002`,
   `NFR-COMP-001`, `NFR-DOC-001` for the executable integration boundary.
 - Acceptance: M4-selected `AC-LIVE-*`, `AC-UI-*`, `AC-PROC-*`,
   `AC-ALERT-*`, `AC-HIST-*`, `AC-OPS-*`, `AC-V1-*`, `AC-TEST-*`.
-- Contracts: existing V1 module/API/client contracts; no provider or data change.
+- Contracts: existing V1 module/API/client/data contracts remain unchanged;
+  the exact A01 provider compatibility/parser behavior changes within those
+  contracts, with no API, generated-client, database schema, migration, or
+  dependency change.
 
 ## Outcome and ownership
 
@@ -93,3 +96,68 @@ instructions also require the current-revision gate to execute the real
 authenticated Overview verifier after the fresh six-account witness. The
 existing `fleet_browser` lane covers both the identity/quota witness and that
 built presentation check; no receipt schema or public contract changes.
+
+## Current runtime witness
+
+ST-FLEET-003 continues to require its real persisted Claude process/session
+topology suite and the built global runtime view. A durable session does not,
+however, have to be associated with one of the six selected accounts. Under
+`FR-DISC-004` and `AC-PROC-003`, an ordinary terminal without approved strong
+session evidence remains visibly unresolved; a historical durable row is not
+proof that an agent is currently running under that account.
+
+The positive current account/runtime witness therefore uses the additive
+`CTR-RUN-006/007` owner-confirmed process view. After quota lineage settles, both
+the preflight and post-restart fleet checks freshly read
+`/api/v1/process-locations` and require an available real Linux scan containing
+at least one running Claude process with a guarded association key, matching
+association record versions, `owner_confirmed` provenance, and an account ID in
+the final six active monitored selections. The built account page must render
+that same guarded process with its PID, Running state, and Owner confirmed
+label. Missing genuine process/owner evidence blocks; the verifier never creates
+an association.
+
+Account-scoped `/api/v1/sessions` reads remain zero-or-more. Every returned row
+must stay within the requested selected account, and the global durable
+session/tree and unresolved-state checks remain in the required zero-skip M4
+suite and runtime page. Pure policy Red/Green coverage rejects unavailable,
+unselected, cleared, or version-inconsistent live links. This correction changes
+only PLAN-INT verification and documentation; it adds no public contract,
+schema, provider write, process control, dependency, or receipt field.
+
+## Claude 2.1.289 bounded partial lineage
+
+The approved exact-version increment may return a partial quota collection
+when Claude reports the new bounded model-specific weekly card that is outside
+the closed V1 provider extension. The required current-session and all-model
+windows remain current, persisted, and usable. The M4 witness therefore accepts
+`partial` as fresh lineage only for provider `2.1.289` with adapter `1.0.3`, a
+null error, terminal outcome `partial`, the complete V1 window allowlist, both
+required windows, and partial history bound to the same observation IDs. Every
+other partial tuple remains ineligible.
+
+Reset display remains a field-level availability within each quota window. An
+exact `2.1.289` reading may carry a current provider-reported percentage while
+its reset display and reset instant are Unknown because Claude displayed no
+reset line. That state remains eligible for the same fresh-lineage checks; the
+witness must not invent reset data or reject the genuine percentage. Required
+window keys, percentage values, observation/history linkage, provenance, and
+all other freshness checks remain unchanged. A malformed or conflicting reset
+is still a source failure rather than an Unknown field.
+
+Pure Red/Green policy coverage binds this exception before the real browser
+witness. The change does not alter the six distinct identities, post-restart
+time bound, current observation/history relationship, registry digests, zero
+mutation rule, API, database, provider extension, or receipt contract.
+
+For every selected account, the built-page witness expands the quota technical
+details and requires every rendered provenance row to show source
+`claude.usage.ax-screen-reader.v1`, adapter `agentmonitor.claude · 1.0.3`, and
+provider version `2.1.289`. The underlying current windows and their matching
+history points must also carry the exact parser `1.0.3` and decision reference
+`A01-M03-CLAUDE-2-1-289-001`; a stale field blocks both successful and partial
+collection lineage. Both terminal outcomes require the current-session and
+all-model weekly windows, no duplicate or unapproved window key, distinct
+current observation IDs, and exactly one history point with the same window key
+and observation ID. History completeness must be `complete` for success and
+`partial` for partial.

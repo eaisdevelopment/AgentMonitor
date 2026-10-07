@@ -136,6 +136,104 @@ browser leaves collection running; the account page refreshes quota through
 the API every 30 seconds. Account labels and organizations are admin-managed.
 Adding a pending account record does not itself authenticate or bind a profile.
 
+Claude Code `2.1.289` may report a current percentage without displaying a
+reset for that window. AgentMonitor keeps the percentage and reports the reset
+as Unknown/Not reported. Do not infer a reset display or time, edit the stored
+reading, repeatedly refresh, or treat the missing reset alone as an
+authentication failure. A present reset-shaped line that is malformed or
+conflicting remains a source failure and follows the investigation procedure
+below; it is never downgraded to the absent/Unknown case. A bounded
+model-specific weekly card is omitted as `unsupported`, while the required
+session and all-model windows remain available in the partial reading.
+
+### Reconcile an exact admitted Claude installation
+
+When the installed Claude Code version changes after a separately approved
+exact-version admission, stop only the AgentMonitor service and run the bounded
+installation reconciliation. Do not stop or modify running Claude agents. For
+the owner data root and retained exact `2.1.289` admission, use:
+
+```bash
+AGENTMONITOR_OWNER_DATA_ROOT=/absolute/path/to/agentmonitor-owner-data
+PYTHONPATH=backend/src backend/.venv/bin/python \
+  -m agentmonitor.composition.claude_installation_reconciliation \
+  --data-root "$AGENTMONITOR_OWNER_DATA_ROOT"
+```
+
+Success prints:
+
+```text
+CLAUDE INSTALLATION RECONCILIATION: PASSED — current admitted installation registered
+```
+
+The command requires an absolute data root, reads the real executable's bounded
+version banner, and emits one installation with no account candidates through
+`DiscoveryOutcomeV1`. M02 processes that outcome through its existing public
+reconciliation port. The repository transaction requires one stable Claude
+installation identity and platform, updates its reported exact version, and
+verifies that Claude discovery candidates, accounts, monitoring profiles, and
+profile-resource links did not change before commit. The same transaction
+creates the strict operation receipt and verifies that the exact request is
+classified as a replay. There are no failure-producing reads after commit. A
+separate fresh observation preserves the stable installation ID and protected
+records, although it may advance registry record/revision metadata; an exact
+receipt replay does not.
+
+Before discovery or registry mutation, the command acquires the stable
+owner-only exclusive AgentMonitor service lock. If the running service already
+owns that lock, the command exits non-success and prints:
+
+```text
+CLAUDE INSTALLATION RECONCILIATION: BLOCKED — service quiescence required
+```
+
+The occupied-lock path leaves the database unchanged. Stop AgentMonitor and
+rerun the same command; never remove or bypass the lock file.
+
+Missing or unadmitted binaries return **Blocked**. Relative targets, ambiguous
+installations, identity/platform conflicts, incomplete protected-state checks,
+or repository failures return non-success without a passing message. Do not
+work around a failure with direct SQL or by changing a provider profile. Keep
+AgentMonitor stopped and resolve the exact admission or registry conflict before
+retrying.
+
+This command never installs, upgrades, downgrades, or relinks the Claude
+executable; changes its default symlink; discovers an account; reads a
+credential; or writes a Claude profile. Restart AgentMonitor normally after a
+pass. The next genuine scheduled collection and the current-revision M4 gate
+still have to prove account identity, quota/history lineage, and browser state.
+The command has passed real installed-binary and real file-backed SQLite tests;
+its stopped-service invocation against the owner's current data root also
+passed. It preserved the opaque installation ID while advancing the reported
+version from `2.1.282` to `2.1.289`, and privacy-minimized public-view digests
+for six accounts, one candidate, six profiles, and six resource links were
+unchanged. See the
+[exact-version admission evidence](../evidence/claude-2.1.289-admission.md).
+
+### Current-revision M4 exact-version gate
+
+`AUTO-M4-EXIT` is the canonical M4 completion command. Its technical lane runs
+`AUTO-M3-TEST`, then the M4 story suite together with the exact admitted Claude
+authentication, quota mapper, manifest, parser, installation, OTLP rejection,
+subscription-quota, installation-policy, and reconciliation tests. Any failed
+or skipped required test prevents the receipt.
+
+The post-restart fleet witness also requires exact quota provenance in current
+windows and their matching history: source
+`claude.usage.ax-screen-reader.v1`, adapter `agentmonitor.claude` `1.0.3`,
+parser `1.0.3`, provider `2.1.289`, and decision reference
+`A01-M03-CLAUDE-2-1-289-001`. For every selected account, the built account
+page must render the exact source, adapter/version, and provider version in its
+quota technical details. A stale or partially matching tuple returns
+non-success; it cannot satisfy the gate through current percentages alone.
+
+Run the command only with the documented owner data root, authenticated shared
+browser endpoint/origin, owner outcome file, and current service PID selectors.
+The bounded `2.1.289` admission evidence is Passed. The default `claude`
+command is `2.1.292` and remains outside that admission; exact resolution uses
+the retained `2.1.289` executable. No current-revision M4 receipt is claimed
+until all six post-restart account readings and the complete gate pass.
+
 ### Connect Claude from the dashboard
 
 1. Open **Accounts**, then the intended pending Claude account. Names and
@@ -152,7 +250,10 @@ path. Managed quota readers use Claude's documented `IS_DEMO` presentation
 setting to suppress onboarding; independent identity verification is unchanged.
 Real normal/flag quota fields matched in the
 [bounded evidence](../evidence/claude-dashboard-connection.md).
-Newly authenticated fresh-profile acceptance remains **Not Run**.
+One newly authenticated `2.1.289` managed profile subsequently passed a genuine
+quota read with a provider-omitted reset preserved as Unknown. See the
+[exact-version admission evidence](../evidence/claude-2.1.289-admission.md).
+This selected-profile result does not replace the six-account M4 gate.
 
 Status reads never start sign-in. Use **Cancel connection** to cancel an active
 attempt. Wrong-account and expired outcomes require a deliberate new attempt;
@@ -277,9 +378,10 @@ See [real polling verification](../evidence/claude-dashboard-polling.md).
 1. Record AgentMonitor observation time, source, unit, precision, and provider/adapter version.
 2. Owner checks provider authoritative UI/command at the nearest possible time.
 3. Confirm correct account, workspace/project, billing interval, model scope, timezone, and reset precision.
-4. Confirm polling delay and provider eventual consistency.
-5. Do not edit stored observation to match manually.
-6. If meaning/mapping is wrong, mark capability unverified/degraded, preserve sanitized evidence, and return through discovery/contract/TDD.
+4. If the provider reports no reset, confirm AgentMonitor exposes Unknown/Not reported rather than an inferred time.
+5. Confirm polling delay and provider eventual consistency.
+6. Do not edit stored observation to match manually.
+7. If meaning/mapping is wrong, mark capability unverified/degraded, preserve sanitized evidence, and return through discovery/contract/TDD.
 
 ## Unresolved session-account mapping
 

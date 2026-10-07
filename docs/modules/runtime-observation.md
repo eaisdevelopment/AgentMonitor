@@ -22,7 +22,7 @@ account, provider, organization, then global. A04-LINUX owns the read-only procf
 implementation and the narrow Linux `CTR-PLAT-001` capability producer. A01
 owns the three provider-neutral Claude local runtime capability ports. Their
 generic unresolved methods remain fail-closed; the exact M3 lane is a separate
-official-OTLP composition bound to Claude Code `2.1.278`, Linux, the protected
+official-OTLP composition bound to Claude Code `2.1.282`, Linux, the protected
 default profile, and one explicitly selected owner-confirmed account.
 
 M04 calls M06 only through the collection commit seam. P01 exposes M06 through
@@ -133,4 +133,14 @@ detection, controls and owner-authorized live persistence after service restart.
 The later [M4 completion evidence](../evidence/m4-completion.md) records the
 standalone full-M4 gate; other naturally unavailable identity-change scenarios
 retain their recorded status.
+
+For the current-revision M4 gate, this freshly read live process association is
+the positive account/runtime witness: at least one guarded running Claude process
+must have an owner-confirmed link to a selected active monitored account before
+and after AgentMonitor's restart. Account-scoped durable session reads remain
+zero-or-more because unresolved correlation is a truthful result. The separate
+persisted process/session topology suite and global runtime browser view remain
+required, so accepting an empty selected-account session page does not waive
+ST-FLEET-003 persistence, hierarchy, provenance, or UI evidence.
+
 Canonical command: `python3 tools/automation/run.py AUTO-ACCOUNT-AGENTS`.

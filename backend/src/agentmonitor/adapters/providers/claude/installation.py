@@ -13,7 +13,10 @@ from dataclasses import dataclass
 from functools import lru_cache
 from pathlib import Path
 
-from agentmonitor.adapters.providers.claude.manifest import CLAUDE_PROVIDER_VERSION
+from agentmonitor.adapters.providers.claude.manifest import (
+    CLAUDE_OTEL_PROVIDER_VERSION,
+    CLAUDE_PROVIDER_VERSION,
+)
 from agentmonitor.contracts.common_v1 import OpaqueIdV1
 
 _VERSION = re.compile(rb"([0-9]+\.[0-9]+\.[0-9]+) \(Claude Code\)\s*\Z")
@@ -37,14 +40,21 @@ class ClaudeInstallationV1:
         return self._executable
 
 
-def discover_default_installation() -> ClaudeInstallationV1:
+def discover_default_installation(
+    *, verified_provider_version: str = CLAUDE_PROVIDER_VERSION
+) -> ClaudeInstallationV1:
     """Resolve the accepted installed Claude version without changing defaults.
 
     Claude's native installer retains earlier versioned executables when it
-    advances the ``claude`` symlink.  Prefer the current command only when it
-    still matches the reviewed tuple; otherwise inspect the one exact native
-    version path.  This never rewrites the symlink or provider-owned profile.
+    advances the ``claude`` symlink. Prefer the current command only when it
+    matches the requested capability's reviewed tuple; otherwise inspect that
+    one exact native version path. This never rewrites the symlink or profile.
     """
+    if verified_provider_version not in {
+        CLAUDE_PROVIDER_VERSION,
+        CLAUDE_OTEL_PROVIDER_VERSION,
+    }:
+        raise ClaudeInstallationUnavailable("claude_version_unverified")
     found = shutil.which("claude")
     if found is None:
         raise ClaudeInstallationUnavailable("claude_executable_unavailable")
@@ -58,7 +68,7 @@ def discover_default_installation() -> ClaudeInstallationV1:
         / "share"
         / "claude"
         / "versions"
-        / CLAUDE_PROVIDER_VERSION
+        / verified_provider_version
     )
     candidates = (Path(found), native_version)
     saw_executable = False
@@ -71,7 +81,7 @@ def discover_default_installation() -> ClaudeInstallationV1:
             continue
         saw_executable = True
         provider_version = _read_version(executable)
-        if provider_version != CLAUDE_PROVIDER_VERSION:
+        if provider_version != verified_provider_version:
             continue
         return ClaudeInstallationV1(
             installation_ref=OpaqueIdV1("claude-installation-default"),
