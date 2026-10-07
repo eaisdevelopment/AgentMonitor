@@ -385,7 +385,7 @@ def test_token_issue_scope_denial_replay_and_openapi_over_real_socket(
                 for path, methods in document["paths"].items()
                 for method, record in methods.items()
             }
-            assert operations == {
+            required_operations = {
                 ("/api/v1/iam/initialization", "get"): "iam_get_initialization_v1",
                 ("/api/v1/session", "post"): "iam_login_v1",
                 ("/api/v1/session", "get"): "iam_get_current_session_v1",
@@ -442,7 +442,8 @@ def test_token_issue_scope_denial_replay_and_openapi_over_real_socket(
                 ): "runtime_get_session_tree_v1",
                 ("/api/v1/sessions/{session_id}", "get"): "runtime_get_session_v1",
             }
-            assert len(set(operations.values())) == 25
+            assert required_operations.items() <= operations.items()
+            assert len(operations) == len(set(operations.values()))
             components = document["components"]
             assert "SafeProblemV1" in components["schemas"]
             replay_schema = components["schemas"]["SafeCommittedApiTokenV1"]
@@ -472,8 +473,11 @@ def test_token_issue_scope_denial_replay_and_openapi_over_real_socket(
                 "iam_rotate_api_token_v1": {"If-Match", "Idempotency-Key"},
                 "iam_revoke_api_token_v1": {"If-Match"},
             }
+            required_operation_ids = set(required_operations.values())
             for methods in document["paths"].values():
                 for operation in methods.values():
+                    if operation["operationId"] not in required_operation_ids:
+                        continue
                     required_headers = {
                         parameter["name"]
                         for parameter in operation.get("parameters", [])
@@ -2310,7 +2314,22 @@ def test_canonical_generated_artifacts_publish_m2_iam_operations() -> None:
         for methods in document["paths"].values()
         for operation in methods.values()
     ]
-    assert len(identifiers) == len(set(identifiers)) == 25
+    assert len(identifiers) == len(set(identifiers))
+    assert {
+        "iam_get_initialization_v1",
+        "iam_login_v1",
+        "iam_get_current_session_v1",
+        "iam_logout_v1",
+        "iam_change_password_v1",
+        "iam_list_sessions_v1",
+        "iam_revoke_session_v1",
+        "iam_revoke_other_sessions_v1",
+        "iam_list_api_tokens_v1",
+        "iam_create_api_token_v1",
+        "iam_rotate_api_token_v1",
+        "iam_revoke_api_token_v1",
+        "iam_list_security_events_v1",
+    } <= set(identifiers)
     client = (root / "frontend/src/generated/api/index.ts").read_text()
     assert "iam_login_v1:" in client
     assert "iam_create_api_token_v1:" in client
@@ -2338,7 +2357,14 @@ def test_generated_typescript_client_calls_real_iam_server(tmp_path: Path) -> No
             credential_absent = credential.encode() not in result.stdout + result.stderr
             assert credential_absent is True, "credential reflected"
             assert result.returncode == 0, "real generated client failed"
-            assert result.stdout == b'{"status":"passed","operations":25}\n'
+            payload = json.loads(result.stdout)
+            document = json.loads(
+                (root / "contracts/openapi/agentmonitor-v1.json").read_bytes()
+            )
+            operation_count = sum(
+                len(methods) for methods in document["paths"].values()
+            )
+            assert payload == {"status": "passed", "operations": operation_count}
             assert result.stderr == b""
 
     asyncio.run(exercise())

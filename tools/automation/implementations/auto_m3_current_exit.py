@@ -17,7 +17,7 @@ from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import BinaryIO
+from typing import BinaryIO, cast
 from urllib.parse import urlsplit
 
 ROOT = Path(__file__).resolve().parents[3]
@@ -83,7 +83,8 @@ class ServiceProcessV1:
 
 
 def _utc_text(value: datetime) -> str:
-    if value.utcoffset() is None or value.utcoffset().total_seconds() != 0:
+    utc_offset = value.utcoffset()
+    if utc_offset is None or utc_offset.total_seconds() != 0:
         raise M3CurrentExitErrorV1("m3_current_receipt_time_invalid")
     return value.isoformat(timespec="seconds").replace("+00:00", "Z")
 
@@ -485,6 +486,7 @@ def _launch_service(launch: ServiceLaunchV1, origin: str) -> ServiceProcessV1:
         )
         if process.stdout is None:
             raise M3CurrentExitErrorV1("m3_current_service_start_failed")
+        service_output = cast(BinaryIO, process.stdout)
         pidfd = _pidfd(process.pid)
         start_ticks = _process_start_ticks(process.pid)
         deadline = time.monotonic() + 30
@@ -522,7 +524,7 @@ def _launch_service(launch: ServiceLaunchV1, origin: str) -> ServiceProcessV1:
                     except json.JSONDecodeError:
                         continue
                     if is_exact_service_ready_event_v1(event, origin):
-                        start_service_output_drainer_v1(process.stdout)
+                        start_service_output_drainer_v1(service_output)
                         process.stdout.close()
                         return ServiceProcessV1(process.pid, start_ticks, pidfd)
             if len(buffer) > 4096:
@@ -773,10 +775,11 @@ def main() -> int:
         environment = os.environ.copy()
         environment["PYTHONPATH"] = str(ROOT / "backend/src")
         preflight = _run_browser(environment, preflight=True)
+        account_metadata_digest = preflight.get("selected_account_metadata_digest")
         if (
             preflight.get("selected_account_digest") != account_digest
-            or not isinstance(preflight.get("selected_account_metadata_digest"), str)
-            or _SHA256.fullmatch(preflight["selected_account_metadata_digest"]) is None
+            or not isinstance(account_metadata_digest, str)
+            or _SHA256.fullmatch(account_metadata_digest) is None
             or preflight.get("identity_match") is not True
             or preflight.get("registry_unchanged") is not True
             or preflight.get("mutations") != 0

@@ -167,7 +167,7 @@ def test_schema_has_fail_closed_identifiers_ranges_and_mapping_digest() -> None:
     assert constraint_properties["deadline_ms"] == {
         "type": "integer",
         "minimum": 1,
-        "maximum": 300_000,
+        "maximum": 600_000,
     }
     assert constraint_properties["maximum_concurrency"] == {
         "type": "integer",

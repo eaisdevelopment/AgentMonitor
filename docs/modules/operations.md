@@ -54,7 +54,12 @@ The increment is stateless: no M08 tables, migrations, health history, audit
 outbox or persisted configuration. Build and schema versions come through
 published receipts. Missing artifact digests keep API/client/frontend version
 availability unknown. A declared build target never substitutes for the
-actual database revision.
+actual database revision. The additive V1 `source_revision` fact is available
+only when root composition observed one unchanged 40-hex Git HEAD around clean
+tracked and untracked worktree checks at service construction. A dirty,
+unavailable, changing, or non-repository source stays unknown and makes the
+version inventory partial; no branch name, status row, or repository path is
+exposed.
 
 Configuration projections contain registered key/owner and presence only.
 No values, provider credential presence, account identity/ID, process/path,

@@ -15,6 +15,8 @@ const codex = providerConnectionCopy("codex");
 assert.equal(codex.connected, "Codex connected");
 assert.match(codex.idle, /Codex's official sign-in/);
 assert.match(codex.wrongAccount, /Codex reported a different identity/);
+assert.match(codex.wrongAccount, /quarantined/);
+assert.match(codex.wrongAccount, /create a new account record/);
 assert.match(codex.emailHelp, /Codex's official page/);
 
 const claude = providerConnectionCopy("claude");

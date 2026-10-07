@@ -17,6 +17,11 @@ from agentmonitor.adapters.providers.claude.installation import ClaudeInstallati
 from agentmonitor.adapters.providers.claude.subscription.mapper import (
     map_claude_quota_to_capacity,
 )
+from agentmonitor.adapters.providers.codex.adapter import CodexAdapterV1
+from agentmonitor.adapters.providers.codex.installation import CodexInstallationV1
+from agentmonitor.adapters.providers.codex.subscription.mapper import (
+    map_codex_quota_to_capacity,
+)
 from agentmonitor.contracts.capacity_v1 import (
     CapacityCommitReceiptV1,
     CapacityCommitStatusV1,
@@ -29,9 +34,15 @@ from agentmonitor.contracts.collection_control_v1 import (
     CollectionRunAdmissionV1,
 )
 from agentmonitor.contracts.common_v1 import OpaqueIdV1
-from agentmonitor.contracts.provider_system_v1 import ProviderOperationRequestHeaderV1
+from agentmonitor.contracts.provider_system_v1 import (
+    ObservedProfileIdentityV1,
+    ProviderOperationRequestHeaderV1,
+)
 from agentmonitor.contracts.providers.claude.subscription_quota.v1.schema import (
     ClaudeSubscriptionQuotaV1,
+)
+from agentmonitor.contracts.providers.codex.subscription_quota.v1.schema import (
+    CodexSubscriptionQuotaV1,
 )
 from agentmonitor.modules.capacity.application.commit import (
     CommitCapacityCollectionOutcomeV1,
@@ -142,6 +153,69 @@ class ClaudeQuotaCollectionRouteV1:
         return result
 
 
+@dataclass(frozen=True, slots=True)
+class CodexQuotaCollectionRouteV1:
+    """One managed-profile Codex collector over the provider-neutral M05 sink."""
+
+    adapter: CodexAdapterV1
+    request_manual: RequestManualCollectionV1
+    run_one: RunOneCollectionV1[CodexSubscriptionQuotaV1, ProviderQuotaInputV1]
+    capacity_commit: CommitCapacityCollectionOutcomeV1
+    get_commit_status: GetCollectionCommitStatusV1
+    get_account_capacity: GetAccountCapacityV1
+    list_quota_windows: ListQuotaWindowsV1
+    get_capacity_health: GetCapacityHealthV1
+    _prepare: PrepareCapacityCollectionOutcomeV1[CodexSubscriptionQuotaV1]
+    _executor: ExecuteCollectionRunV1[CodexSubscriptionQuotaV1, ProviderQuotaInputV1]
+
+    def collect_once(
+        self,
+        admission: CollectionRunAdmissionV1,
+        provider_request: ProviderOperationRequestHeaderV1,
+        *,
+        started_at: datetime,
+        completed_at: datetime | Callable[[], datetime],
+    ) -> CapacityCommitReceiptV1 | CollectionFailedV1:
+        """Execute one exact Codex target only after durable M04 admission."""
+        if (
+            admission.provider_key != "codex"
+            or provider_request.provider_key != admission.provider_key
+            or provider_request.capability_id != admission.capability_id
+            or provider_request.correlation_id != admission.correlation_id
+            or provider_request.target.installation_ref != admission.installation_id
+            or provider_request.target.account_ref != admission.account_id
+            or provider_request.target.profile_ref != admission.profile_id
+            or provider_request.target.resource_ref != admission.resource_id
+        ):
+            raise ValueError("codex_collection_route_identity_mismatch")
+        result = self.run_one(
+            admission,
+            lambda: self.adapter.collect_subscription_quota(provider_request),
+            self._prepare,
+            started_at=started_at,
+            completed_at=completed_at,
+        )
+        if isinstance(result, CollectionFailedV1):
+            return result
+        if not isinstance(result, CapacityCommitReceiptV1):
+            raise ValueError("codex_capacity_receipt_type_invalid")
+        return result
+
+    def recover_commit(
+        self,
+        admission: CollectionRunAdmissionV1,
+        *,
+        completed_at: datetime,
+    ) -> CapacityCommitReceiptV1 | CollectionFailedV1:
+        """Reconcile one committing run without another Codex invocation."""
+        result = self._executor.recover_commit(admission, completed_at=completed_at)
+        if isinstance(result, CollectionFailedV1):
+            return result
+        if not isinstance(result, CapacityCommitReceiptV1):
+            raise ValueError("codex_capacity_receipt_type_invalid")
+        return result
+
+
 def compose_claude_quota_collection(
     reference: DatabaseRefV1,
     installation: ClaudeInstallationV1,
@@ -167,6 +241,58 @@ def compose_claude_quota_collection(
             installation,
             managed_profile_root=managed_profile_root,
             expected_identity_fingerprint=expected_identity_fingerprint,
+        ),
+        request_manual=RequestManualCollectionV1(collection_repository),
+        run_one=RunOneCollectionV1(executor),
+        capacity_commit=capacity_commit,
+        get_commit_status=get_commit_status,
+        get_account_capacity=GetAccountCapacityV1(capacity_repository),
+        list_quota_windows=ListQuotaWindowsV1(capacity_repository),
+        get_capacity_health=GetCapacityHealthV1(capacity_repository),
+        _prepare=prepare,
+        _executor=executor,
+    )
+
+
+def compose_codex_quota_collection(
+    reference: DatabaseRefV1,
+    installation: CodexInstallationV1,
+    *,
+    managed_profiles_root: Path,
+    managed_profile_root: Path,
+    expected_identity_fingerprint: str | None = None,
+    identity_matches: Callable[[ObservedProfileIdentityV1], bool] | None = None,
+    installation_ref: OpaqueIdV1,
+    account_ref: OpaqueIdV1,
+    profile_ref: OpaqueIdV1,
+    resource_ref: OpaqueIdV1,
+    access_grant_ref: OpaqueIdV1,
+) -> CodexQuotaCollectionRouteV1:
+    """Wire the exact Codex managed-profile adapter to the existing M05 sink."""
+    collection_repository = SqliteCollectionRepositoryV1(reference)
+    capacity_repository = SqliteCapacityRepositoryV1(reference)
+    capacity_commit = CommitCapacityCollectionOutcomeV1(capacity_repository)
+    get_commit_status = GetCollectionCommitStatusV1(capacity_repository)
+    sink = _SingleCapacityOutcomeSinkV1(capacity_commit, get_commit_status)
+    executor = ExecuteCollectionRunV1[CodexSubscriptionQuotaV1, ProviderQuotaInputV1](
+        collection_repository,
+        sink,
+    )
+    prepare = PrepareCapacityCollectionOutcomeV1[CodexSubscriptionQuotaV1](
+        map_codex_quota_to_capacity
+    )
+    return CodexQuotaCollectionRouteV1(
+        adapter=CodexAdapterV1(
+            installation,
+            managed_profiles_root=managed_profiles_root,
+            managed_profile_root=managed_profile_root,
+            expected_identity_fingerprint=expected_identity_fingerprint,
+            identity_matches=identity_matches,
+            installation_ref=installation_ref,
+            account_ref=account_ref,
+            profile_ref=profile_ref,
+            resource_ref=resource_ref,
+            access_grant_ref=access_grant_ref,
         ),
         request_manual=RequestManualCollectionV1(collection_repository),
         run_one=RunOneCollectionV1(executor),

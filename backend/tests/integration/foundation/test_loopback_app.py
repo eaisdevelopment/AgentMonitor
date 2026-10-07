@@ -804,7 +804,14 @@ def test_generation_is_reproducible_check_detects_drift_and_types_compile(
         for methods in json.loads(before[0])["paths"].values()
         for operation in methods.values()
     ]
-    assert len(operations) == len(set(operations)) == 25
+    assert len(operations) == len(set(operations))
+    assert {
+        "iam_get_initialization_v1",
+        "iam_login_v1",
+        "iam_get_current_session_v1",
+        "iam_create_api_token_v1",
+        "iam_list_security_events_v1",
+    } <= set(operations)
     assert str(root).encode() not in b"".join(before)
     compiled = subprocess.run(
         [

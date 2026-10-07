@@ -564,4 +564,28 @@ producers, maturity, and all canonical plan bodies remain unchanged. This is a
 bounded mechanical registry rebind; it does not renew the historical all-V1
 readiness audit or claim M5 implementation, live verification, or completion.
 
-Plan snapshot SHA-256: `53e5be92a17537a360eaeab85d01a317d7287a9c4ce1cb6e20d72ad73a94ef9d`
+Plan snapshot SHA-256: `26c8f1b5be85121408184005e647a20fc4eb9e69dea128862b7d515a96c67be6`
+
+## 2026-10-07 M5 completion-automation control rebind
+
+The current snapshot binds the canonical `AUTO-M5-ALERT-WITNESS` prerequisite
+and `AUTO-M5-EXIT` completion command in the automation catalog and completion
+standard. Only the `automation-routines` and `automation-standard` control
+digests and byte counts changed. This mechanical rebind makes no plan,
+contract, provider, schema, implementation, live-verification, or milestone
+acceptance claim; the approved focused M5 packet and its executable gates
+remain the authority for those results.
+
+Plan snapshot SHA-256: `221ed2d0202a77ad4d107685fc1867d03658fed51534cc2b3b71c92657f9e47d`
+
+## 2026-10-07 M5 implementation gate reconciliation
+
+The current snapshot binds the completed M5 automation definitions, including
+managed-profile syscall containment and the final local gate lanes, to the
+canonical automation catalog and completion standard. The provider deadline
+widening, service drain, pagination implementation, test inventory, and any
+later live results remain evidence outside this synchronized planning snapshot.
+This mechanical rebind changes no canonical module plan, public
+contract version, approval flag, or milestone acceptance state.
+
+Plan snapshot SHA-256: `2c37537514d50a8abf1890fdff9fc53af442b6e627cc13e91fb60f14b2ecae2b`

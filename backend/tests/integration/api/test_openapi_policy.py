@@ -20,6 +20,7 @@ EXPECTED_SUCCESS = {
         "200",
         "ObservedAccountIdentityViewV1",
     ),
+    "provider_get_account_identity_v1": ("200", "ProviderAccountIdentityViewV1"),
     "runtime_list_process_locations_v1": ("200", "LiveProcessLocationPageV1"),
     "registry_register_account_v1": ("201", "AccountViewV1"),
     "registry_get_account_v1": ("200", "AccountViewV1"),
@@ -60,6 +61,27 @@ EXPECTED_SUCCESS = {
     "iam_rotate_api_token_v1": ("201", "ApiTokenCredentialIssueV1"),
     "iam_revoke_api_token_v1": ("204", None),
     "iam_list_security_events_v1": ("200", "IamSecurityEventPageV1"),
+    "alert_acknowledge_v1": ("200", "AlertCommandWireV1"),
+    "alert_archive_rule_v1": ("200", "AlertRuleCommandWireV1"),
+    "alert_create_rule_v1": ("201", "AlertRuleCommandWireV1"),
+    "alert_get_alert_v1": ("200", "AlertWireV1"),
+    "alert_get_notification_counts_v1": ("200", "AlertNotificationCountsWireV1"),
+    "alert_get_rule_v1": ("200", "AlertRuleWireV1"),
+    "alert_list_alerts_v1": ("200", "AlertPageV1"),
+    "alert_list_history_v1": ("200", "AlertHistoryPageV1"),
+    "alert_list_notifications_v1": ("200", "AlertNotificationPageV1"),
+    "alert_list_rules_v1": ("200", "AlertRulePageV1"),
+    "alert_mark_read_v1": ("200", "AlertCommandWireV1"),
+    "alert_snooze_v1": ("200", "AlertCommandWireV1"),
+    "alert_unsnooze_v1": ("200", "AlertCommandWireV1"),
+    "alert_update_rule_v1": ("200", "AlertRuleCommandWireV1"),
+    "capacity_get_scope_v1": ("200", "CapacityScopeViewV1"),
+    "capacity_list_forecasts_v1": ("200", "CapacityForecastPageV1"),
+    "operations_get_diagnostics_v1": ("200", "OperationsDiagnosticsWireV1"),
+    "operations_get_health_v1": ("200", "OperationsHealthWireV1"),
+    "operations_get_liveness_v1": ("200", "OperationsLivenessWireV1"),
+    "operations_get_readiness_v1": ("200", "OperationsReadinessWireV1"),
+    "operations_get_versions_v1": ("200", "OperationsVersionsWireV1"),
 }
 EXPECTED_ERRORS = frozenset(
     {
@@ -97,6 +119,9 @@ EXPECTED_REQUESTS = {
     "iam_change_password_v1": "ChangeAdministratorPasswordInputV1",
     "iam_create_api_token_v1": "CreateApiTokenInputV1",
     "iam_rotate_api_token_v1": "RotateApiTokenInputV1",
+    "alert_create_rule_v1": "AlertRuleInputV1",
+    "alert_snooze_v1": "SnoozeAlertInputV1",
+    "alert_update_rule_v1": "AlertRuleInputV1",
 }
 
 
@@ -127,7 +152,7 @@ def test_generator_rejects_changed_policy_on_every_frozen_operation() -> None:
 
 def test_generator_rejects_success_schema_drift_for_all_operations() -> None:
     schema = create_iam_schema_application().openapi()
-    assert len(validate_iam_openapi(schema)) == len(EXPECTED_SUCCESS) == 45
+    assert len(validate_iam_openapi(schema)) == len(EXPECTED_SUCCESS) == 67
     seen: set[str] = set()
     for path, methods in schema["paths"].items():
         for method, operation in methods.items():
@@ -214,6 +239,17 @@ def test_generator_validates_openapi_structure_with_fastapi_model() -> None:
     changed["info"]["termsOfService"] = 42
     with pytest.raises(OpenApiGenerationError, match="openapi_schema_invalid"):
         validate_iam_openapi(changed)
+
+
+def test_operations_source_revision_is_an_additive_optional_v1_response_field() -> None:
+    """M5-CDX-GATE-007: old V1 clients may ignore the service revision fact."""
+
+    schema = create_iam_schema_application().openapi()
+    versions = schema["components"]["schemas"]["OperationsVersionsWireV1"]
+    assert versions["properties"]["source_revision"] == {
+        "$ref": "#/components/schemas/OperationsVersionValueWireV1"
+    }
+    assert "source_revision" not in versions["required"]
 
 
 def test_generator_rejects_missing_safe_error_statuses_on_every_operation() -> None:

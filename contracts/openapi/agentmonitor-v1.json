@@ -4686,6 +4686,9 @@
           },
           "schema_version": {
             "$ref": "#/components/schemas/OperationsVersionValueWireV1"
+          },
+          "source_revision": {
+            "$ref": "#/components/schemas/OperationsVersionValueWireV1"
           }
         },
         "required": [
@@ -5100,6 +5103,129 @@
           "reason_code"
         ],
         "title": "ProcessMetricFieldWireV1",
+        "type": "object"
+      },
+      "ProviderAccountIdentityViewV1": {
+        "additionalProperties": false,
+        "description": "Provider-neutral identity receipt without legacy Claude markers.",
+        "properties": {
+          "account_id": {
+            "title": "Account Id",
+            "type": "string"
+          },
+          "collection_run_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Collection Run Id"
+          },
+          "email": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Email"
+          },
+          "identity_source_id": {
+            "anyOf": [
+              {
+                "maxLength": 128,
+                "minLength": 1,
+                "pattern": "^[A-Za-z0-9._-]+$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Identity Source Id"
+          },
+          "profile_protection": {
+            "default": "unknown",
+            "enum": [
+              "protected_default",
+              "managed",
+              "unknown"
+            ],
+            "title": "Profile Protection",
+            "type": "string"
+          },
+          "provider_key": {
+            "maxLength": 64,
+            "minLength": 1,
+            "pattern": "^[a-z][a-z0-9_-]{0,63}$",
+            "title": "Provider Key",
+            "type": "string"
+          },
+          "provider_organization": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Provider Organization"
+          },
+          "provider_version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Provider Version"
+          },
+          "running_agent_correlation": {
+            "const": "unresolved",
+            "title": "Running Agent Correlation",
+            "type": "string"
+          },
+          "state": {
+            "enum": [
+              "verified",
+              "unresolved"
+            ],
+            "title": "State",
+            "type": "string"
+          },
+          "verified_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Verified At"
+          }
+        },
+        "required": [
+          "account_id",
+          "provider_key",
+          "state",
+          "email",
+          "provider_organization",
+          "collection_run_id",
+          "verified_at",
+          "provider_version",
+          "running_agent_correlation"
+        ],
+        "title": "ProviderAccountIdentityViewV1",
         "type": "object"
       },
       "ProviderCapabilityDeclarationPageV1": {
@@ -5572,6 +5698,30 @@
           "remaining_ratio": {
             "$ref": "#/components/schemas/ExactMetricFieldWireV1"
           },
+          "reset_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reset At"
+          },
+          "reset_precision": {
+            "default": "unknown",
+            "enum": [
+              "exact",
+              "rounded",
+              "range",
+              "estimated",
+              "unknown"
+            ],
+            "title": "Reset Precision",
+            "type": "string"
+          },
           "safe_label": {
             "anyOf": [
               {
@@ -5582,6 +5732,17 @@
               }
             ],
             "title": "Safe Label"
+          },
+          "semantic_role": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Semantic Role"
           },
           "stored_at": {
             "format": "date-time",
@@ -9135,6 +9296,205 @@
         "x-agentmonitor-error-schema": "SafeProblemV1",
         "x-agentmonitor-replay-policy": "replay_safe_representation",
         "x-agentmonitor-required-permission": "write:accounts"
+      }
+    },
+    "/api/v1/accounts/{account_id}/provider-identity": {
+      "get": {
+        "description": "Return exact provider provenance without the legacy Claude markers.",
+        "operationId": "provider_get_account_identity_v1",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "account_id",
+            "required": true,
+            "schema": {
+              "maxLength": 64,
+              "minLength": 1,
+              "pattern": "^[A-Za-z0-9_-]+$",
+              "title": "Account Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProviderAccountIdentityViewV1"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          },
+          "405": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          },
+          "412": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          },
+          "413": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          },
+          "415": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          },
+          "428": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          },
+          "429": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          },
+          "500": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          },
+          "504": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          }
+        },
+        "security": [
+          {
+            "BrowserSessionCookieV1": []
+          },
+          {
+            "BearerTokenV1": []
+          }
+        ],
+        "summary": "Get Provider Identity",
+        "tags": [
+          "providers"
+        ],
+        "x-agentmonitor-application-port": "GetVerifiedQuotaIdentityV1",
+        "x-agentmonitor-auth-profile": "cookie_or_bearer",
+        "x-agentmonitor-error-schema": "SafeProblemV1",
+        "x-agentmonitor-replay-policy": "safe_query_repeat",
+        "x-agentmonitor-required-permission": "read:accounts"
       }
     },
     "/api/v1/accounts/{account_id}/quotas": {
@@ -20421,10 +20781,10 @@
       "starlette": "1.6.0"
     },
     "generator": "agentmonitor-openapi-client",
-    "generator_sha256": "ee6772993f3cbc50a314e8a11f33e3206ecff96d9b58f3b7235b85524e0542ef",
+    "generator_sha256": "41b0c3a5539ca878de623e8fa90d51c2102c8cac4c4378c99ebb40f48925cb6a",
     "generator_version": "2.0.8",
     "openapi_version": "3.1.0",
-    "schema_sha256": "463c8b020df0167477f90de77e39744e462acc1ab0d5ca2efd4940b66a02586c",
-    "source_sha256": "29ec2290e35d41e33224fc503e5237b817f391ee112b6a5bdf757d664298847d"
+    "schema_sha256": "77a9852168b79486b140007d3bdd531cca904c1757efeb61de351580526a877f",
+    "source_sha256": "e7843b46023b31364d52309ccd2ac673dc1291379be9d18a91a6e9fed773b8a9"
   }
 }

@@ -8,15 +8,15 @@ import {
   type AccountViewV1,
   type AgentSessionPageV1,
   type LiveProcessLocationPageV1,
-  type ObservedAccountIdentityViewV1,
+  type ProviderAccountIdentityViewV1,
 } from "../../shared/api/client";
-import { metricAvailability, remainingPercentage } from "../command/quotaPresentation";
+import { metricAvailability, quotaResetPresentation, remainingPercentage } from "../command/quotaPresentation";
 import { providerDisplayName } from "./providerPresentation";
 
 type SummaryState =
   | Readonly<{ kind: "loading" }>
   | Readonly<{ kind: "error" }>
-  | Readonly<{ kind: "ready"; accountId: string; capacity: AccountCapacityViewV1 | null; sessions: AgentSessionPageV1 | null; identity: ObservedAccountIdentityViewV1 | null; refreshFailed: boolean }>;
+  | Readonly<{ kind: "ready"; accountId: string; capacity: AccountCapacityViewV1 | null; sessions: AgentSessionPageV1 | null; identity: ProviderAccountIdentityViewV1 | null; refreshFailed: boolean }>;
 
 export function AccountWorkspaceSummary({ account, organizationName, liveProcesses, onExpired, onIdentity }: Readonly<{
   account: AccountViewV1;
@@ -37,7 +37,7 @@ export function AccountWorkspaceSummary({ account, organizationName, liveProcess
         const [quota, sessions, identity] = await Promise.all([
           capacity.account(account.account_id, controller.signal),
           runtime.sessions({ accountId: account.account_id, signal: controller.signal }),
-          providers.observedAccountIdentity(account.account_id, controller.signal),
+          providers.accountIdentity(account.account_id, controller.signal),
         ]);
         if (controller.signal.aborted) return;
         if ((!quota.ok && quota.problem.code === "dashboard_authentication_required") ||
@@ -108,9 +108,11 @@ export function AccountWorkspaceSummary({ account, organizationName, liveProcess
               <div className="workspace-readings">
               {state.kind === "loading" ? <span role="status">Reading quota…</span> : readings.length === 0 ? <strong>Unavailable</strong> : readings.map((window) => {
                 const percentage = remainingPercentage(window.allowance?.remaining_percentage ?? window.remaining_ratio);
-                return <div className="workspace-reading" key={window.window_id}>
+                const reset = quotaResetPresentation(window.reset_at ?? null, window.reset_precision ?? "unknown");
+                return <div className="workspace-reading" key={window.window_id} data-window-id={window.window_id} data-window-key={window.window_key} data-semantic-role={window.semantic_role ?? "unknown"}>
                   <strong>{percentage?.label ?? metricAvailability(window.remaining_ratio)}</strong>
                   <small>{window.safe_label ?? window.window_key}{window.freshness !== "fresh" ? ` · ${window.freshness.replaceAll("_", " ")}` : ""}</small>
+                  <small className="quota-reset" data-reset-precision={reset.precision}>{reset.dateTime === null ? reset.label : <>{reset.label} <time dateTime={reset.dateTime}>{new Date(reset.dateTime).toLocaleString()}</time></>} · {reset.precision}</small>
                   {window.allowance !== null && window.allowance !== undefined && <small className="calculated-label">Calculated{window.allowance.remaining_percentage.precision === "rounded" ? " · rounded" : ""}</small>}
                   {percentage !== null && <div className="allowance-track" aria-hidden="true"><span style={{ width: `${percentage.value}%` }} /></div>}
                 </div>;

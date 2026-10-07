@@ -123,6 +123,7 @@ ProviderConnectionStateV1 = Literal[
 ]
 ProviderVersionStateV1 = Literal["available", "unknown", "unavailable"]
 ProviderVersionSchemeV1 = Literal["opaque_exact", "semantic_exact", "date_exact"]
+MAX_PROVIDER_OPERATION_DEADLINE_MS = 600_000
 CompatibilityStateV1 = Literal[
     "compatible", "incompatible", "unverified", "unsupported", "disabled"
 ]
@@ -271,7 +272,7 @@ class CollectionConstraintV1(TechnicalValueV1):
         TechnicalValueV1.__post_init__(self)
         if (
             type(self.deadline_ms) is not int
-            or not 1 <= self.deadline_ms <= 300_000
+            or not 1 <= self.deadline_ms <= MAX_PROVIDER_OPERATION_DEADLINE_MS
             or type(self.minimum_interval_ms) is not int
             or self.minimum_interval_ms < 0
             or type(self.maximum_concurrency) is not int
@@ -525,7 +526,10 @@ class ProviderOperationRequestHeaderV1(TechnicalValueV1):
         _validate_capability_id(self.capability_id)
         if self.provider_key != self.target.provider_key:
             raise InvalidProviderContract("request_target_provider_mismatch")
-        if type(self.deadline_ms) is not int or not 1 <= self.deadline_ms <= 300_000:
+        if (
+            type(self.deadline_ms) is not int
+            or not 1 <= self.deadline_ms <= MAX_PROVIDER_OPERATION_DEADLINE_MS
+        ):
             raise InvalidProviderContract("request_deadline_invalid")
         if not self.access_grant_refs:
             raise InvalidProviderContract("request_access_grant_required")

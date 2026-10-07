@@ -1,5 +1,6 @@
 """Pure disclosure policy; constructed receipts have no external boundary."""
 
+from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 from importlib import import_module
 from types import ModuleType
@@ -49,11 +50,47 @@ def test_declared_client_frontend_api_version_needs_actual_artifact_receipt() ->
         build(), SCHEMA, (), as_of=NOW
     )
     assert inventory.application_version.value == "0.0.0"
+    assert inventory.source_revision.value is None
+    assert inventory.source_revision.availability.state == "unknown"
+    assert inventory.source_revision.source == "build_manifest"
     assert inventory.schema_version.value == "v1_0702"
     assert inventory.frontend_version.value is None
     assert inventory.client_version.value is None
     assert inventory.api_version.value is None
     assert inventory.availability.state == "partial"
+
+
+def test_clean_source_revision_is_required_for_complete_version_inventory() -> None:
+    """M5-CDX-GATE-007: the running revision is an explicit version fact."""
+
+    inventory = diagnostics().project_version_inventory_v1(
+        replace(
+            build(),
+            source_revision="a" * 40,
+            frontend_hash="b" * 64,
+            openapi_hash="c" * 64,
+            client_hash="d" * 64,
+        ),
+        SCHEMA,
+        (),
+        as_of=NOW,
+    )
+    assert inventory.source_revision.value == "a" * 40
+    assert inventory.source_revision.availability.state == "available"
+    assert inventory.source_revision.source == "build_manifest"
+    assert inventory.availability.state == "available"
+
+
+def test_invalid_source_revision_is_rejected() -> None:
+    """M5-CDX-GATE-007: paths, branches and arbitrary text are not versions."""
+
+    with pytest.raises(ValueError, match="operations_version_invalid"):
+        diagnostics().project_version_inventory_v1(
+            replace(build(), source_revision="refs/heads/main"),
+            SCHEMA,
+            (),
+            as_of=NOW,
+        )
 
 
 def test_unknown_schema_is_not_copied_from_build_target() -> None:
@@ -112,8 +149,6 @@ def test_unregistered_presence_cannot_be_echoed() -> None:
 
 
 def test_component_build_version_with_unknown_key_is_rejected() -> None:
-    from dataclasses import replace
-
     with pytest.raises(ValueError, match="operations_version_invalid"):
         diagnostics().project_version_inventory_v1(
             replace(build(), component_versions=(("arbitrary_account_name", "1.0.0"),)),

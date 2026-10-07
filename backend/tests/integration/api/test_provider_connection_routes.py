@@ -1,17 +1,50 @@
 """Dashboard connection safeguards over real HTTP, SQLite, and native identity."""
 
 import asyncio
+import hashlib
 import http.cookiejar
 import json
 import secrets
 import time
+import uuid
+from datetime import UTC, datetime
 from pathlib import Path
 
+from agentmonitor.adapters.persistence._shared.sqlite.core.policy import DatabaseRefV1
+from agentmonitor.adapters.persistence.registry.sqlite.repository import (
+    SqliteRegistryRepositoryV1,
+)
 from agentmonitor.adapters.providers.claude.authentication.identity import (
     read_default_profile_identity_v1,
 )
 from agentmonitor.adapters.providers.claude.installation import (
     discover_default_installation,
+)
+from agentmonitor.adapters.providers.codex.manifest import build_codex_manifest
+from agentmonitor.composition.codex_installation_reconciliation import (
+    reconcile_codex_installation_v1,
+)
+from agentmonitor.composition.codex_managed_connection import (
+    _complete_matched_codex_registry_v1,
+    managed_codex_root_v1,
+)
+from agentmonitor.contracts.common_v1 import OpaqueIdV1
+from agentmonitor.contracts.provider_system_v1 import ObservedProfileIdentityV1
+from agentmonitor.contracts.registry_v1 import (
+    ConfirmProviderIdentityFingerprintCommandV1,
+    PrivateProfileLocatorRefV1,
+)
+from agentmonitor.modules.provider_system.application.gateway import (
+    get_manifest_fingerprint_v1,
+)
+from agentmonitor.modules.registry.application.accounts import (
+    ConfirmProviderIdentityFingerprintV1,
+    CreatePendingAccountCommandV1,
+    EditAccountCommandV1,
+    EditAccountV1,
+    EnrollMonitoringGraphCommandV1,
+    EnrollMonitoringGraphV1,
+    RegisterAccountV1,
 )
 
 from backend.tests.integration.api.test_iam_http import (
@@ -20,6 +53,191 @@ from backend.tests.integration.api.test_iam_http import (
     _running,
     _session_cookies,
 )
+
+
+def _disabled_complete_codex_account(tmp_path: Path) -> tuple[str, str]:
+    """Create only AgentMonitor registry state; no provider identity is read."""
+    reference = DatabaseRefV1(tmp_path / "agentmonitor.db", tmp_path)
+    installation = reconcile_codex_installation_v1(reference)
+    repository = SqliteRegistryRepositoryV1(reference)
+    owner = OpaqueIdV1("codex-disabled-owner")
+    pending = RegisterAccountV1(repository).pending(
+        CreatePendingAccountCommandV1(
+            OpaqueIdV1(uuid.uuid4().hex),
+            owner,
+            "codex",
+            get_manifest_fingerprint_v1(build_codex_manifest()),
+            "Disabled connected Codex",
+            None,
+            datetime.now(UTC),
+        )
+    )
+    fingerprint = hashlib.sha256(b"disabled-connected-codex").hexdigest()
+    ConfirmProviderIdentityFingerprintV1(repository)(
+        ConfirmProviderIdentityFingerprintCommandV1(
+            idempotency_key=OpaqueIdV1(uuid.uuid4().hex),
+            principal_id=owner,
+            account_id=pending.account_id,
+            expected_account_record_version=pending.record_version,
+            provider_key="codex",
+            identity_scheme="codex.app_server.account.sha256",
+            identity_scope="provider_account",
+            identity_scheme_version=1,
+            subject_fingerprint=fingerprint,
+            source_id="codex.app-server.account-read.v2",
+            source_version="2",
+            parser_version="1.0.0",
+            evidence_reference=OpaqueIdV1("disabled-connected-evidence"),
+            expected_evidence_digest=fingerprint,
+            requested_at=datetime.now(UTC),
+            activate_pending_account=True,
+        )
+    )
+    locator = "codex-disabled-complete-profile"
+    EnrollMonitoringGraphV1(repository)(
+        EnrollMonitoringGraphCommandV1(
+            command_id=OpaqueIdV1("codex-disabled-enrollment"),
+            principal_id=owner,
+            account_id=pending.account_id,
+            provider_installation_id=installation.provider_installation_id,
+            purpose="subscription",
+            profile_locator_ref=PrivateProfileLocatorRefV1(locator),
+            locator_fingerprint=hashlib.sha256(locator.encode()).hexdigest(),
+            management_state="managed",
+            compatibility_state="compatible",
+            is_protected_default=False,
+            resource_kind="subscription_pool",
+            parent_resource_id=None,
+            requested_at=datetime.now(UTC),
+        )
+    )
+    active = repository.get_account(pending.account_id)
+    assert active is not None
+    enabled = EditAccountV1(repository)(
+        EditAccountCommandV1(
+            account_id=active.account_id,
+            expected_version=active.record_version,
+            principal_id=owner,
+            command_id=OpaqueIdV1("codex-disabled-enable"),
+            action="monitoring",
+            monitoring_preference="enabled",
+            requested_at=datetime.now(UTC),
+        )
+    )
+    disabled = EditAccountV1(repository)(
+        EditAccountCommandV1(
+            account_id=enabled.account_id,
+            expected_version=enabled.record_version,
+            principal_id=owner,
+            command_id=OpaqueIdV1("codex-disabled-disable"),
+            action="monitoring",
+            monitoring_preference="disabled",
+            requested_at=datetime.now(UTC),
+        )
+    )
+    assert not disabled.is_effective_monitoring_enabled
+    return disabled.account_id.value, fingerprint
+
+
+def test_replayed_complete_codex_enrollment_preserves_monitoring_preference(
+    tmp_path: Path,
+) -> None:
+    """FR-ACC-003: idempotent graph completion cannot undo an owner disable."""
+    _installation(tmp_path)
+    account_id, fingerprint = _disabled_complete_codex_account(tmp_path)
+    reference = DatabaseRefV1(tmp_path / "agentmonitor.db", tmp_path)
+    repository = SqliteRegistryRepositoryV1(reference)
+    installations = repository.list_provider_installations("codex")
+    assert len(installations) == 1
+
+    _complete_matched_codex_registry_v1(
+        repository,
+        account_id=OpaqueIdV1(account_id),
+        provider_installation_id=installations[0].provider_installation_id,
+        identity=ObservedProfileIdentityV1(
+            "owner@example.invalid",
+            None,
+            fingerprint,
+            datetime.now(UTC),
+            "0.160.0",
+        ),
+        principal_id=OpaqueIdV1("codex-disabled-owner"),
+    )
+
+    account = repository.get_account(OpaqueIdV1(account_id))
+    assert account is not None
+    assert account.monitoring_preference == "disabled"
+    assert not account.is_effective_monitoring_enabled
+
+
+def test_disabled_complete_codex_connection_cannot_restart_or_enable_monitoring(
+    tmp_path: Path,
+) -> None:
+    """FR-ACC-003/M5-CDX-CONNECT-010: connection POST preserves monitoring off."""
+    app, credential = _installation(tmp_path)
+    account_id, _ = _disabled_complete_codex_account(tmp_path)
+    reference = DatabaseRefV1(tmp_path / "agentmonitor.db", tmp_path)
+    # If the Red implementation starts background work, this isolated unsafe
+    # root stops it before Codex login can begin.
+    root = managed_codex_root_v1(tmp_path, OpaqueIdV1(account_id))
+    root.parent.mkdir(mode=0o700, parents=True)
+    root.parent.parent.chmod(0o700)
+    root.parent.chmod(0o700)
+    target = tmp_path / "disabled-connection-unsafe-target"
+    target.mkdir(mode=0o700)
+    root.symlink_to(target, target_is_directory=True)
+
+    async def exercise() -> None:
+        async with _running(app) as origin:
+            jar = http.cookiejar.CookieJar()
+            assert (
+                await asyncio.to_thread(
+                    _request,
+                    origin,
+                    "POST",
+                    "/api/v1/session",
+                    body={"password": credential},
+                    headers={"Origin": origin},
+                    cookies=jar,
+                )
+            )[0] == 204
+            account_path = "/api/v1/accounts/" + account_id
+            account_response = await asyncio.to_thread(
+                _request, origin, "GET", account_path, cookies=jar
+            )
+            assert account_response[0] == 200
+            connection_path = account_path + "/connection"
+            status = await asyncio.to_thread(
+                _request, origin, "GET", connection_path, cookies=jar
+            )
+            assert status[0] == 200
+            view = json.loads(status[2])
+            assert view["state"] == "connected"
+            assert view["can_connect"] is False
+            headers = {
+                "Origin": origin,
+                "X-CSRF-Token": _session_cookies(jar)["agentmonitor_csrf"],
+                "Idempotency-Key": secrets.token_urlsafe(24),
+                "If-Match": account_response[1]["ETag"],
+            }
+            refused = await asyncio.to_thread(
+                _request,
+                origin,
+                "POST",
+                connection_path,
+                body={"expected_email": "owner@example.invalid"},
+                headers=headers,
+                cookies=jar,
+            )
+            assert refused[0] == 409
+            assert json.loads(refused[2])["code"] == "provider_connection_not_eligible"
+
+    asyncio.run(exercise())
+
+    account = SqliteRegistryRepositoryV1(reference).get_account(OpaqueIdV1(account_id))
+    assert account is not None and not account.is_effective_monitoring_enabled
+    assert tuple(target.iterdir()) == ()
+    assert not (tmp_path / "connection-flows").exists()
 
 
 def test_pending_connection_status_and_mutation_protections(tmp_path: Path) -> None:

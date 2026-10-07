@@ -82,6 +82,11 @@ class QuotaWindowViewV1(_ClosedV1):
     subject: CapacitySubjectWireV1
     window_key: str
     safe_label: str | None
+    semantic_role: str | None = None
+    reset_at: datetime | None = None
+    reset_precision: Literal["exact", "rounded", "range", "estimated", "unknown"] = (
+        "unknown"
+    )
     allowance: QuotaAllowanceViewV1 | None = None
     used: ExactMetricFieldWireV1
     remaining: ExactMetricFieldWireV1

@@ -299,7 +299,7 @@
           "type": "integer"
         },
         "deadline_ms": {
-          "maximum": 300000,
+          "maximum": 600000,
           "minimum": 1,
           "type": "integer"
         },

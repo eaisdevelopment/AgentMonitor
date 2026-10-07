@@ -74,6 +74,7 @@ def project_version_inventory_v1(
                 result.sample.component_version, "adapter_manifest"
             )
     application = _value(build.application_version, "application_manifest")
+    source_revision = _value(build.source_revision, "build_manifest")
     api = _value(
         metadata.get("api"),
         "generated_artifact",
@@ -100,10 +101,19 @@ def project_version_inventory_v1(
     )
     complete = all(
         item.availability.state == "available"
-        for item in (application, schema, api, openapi, client, frontend)
+        for item in (
+            application,
+            source_revision,
+            schema,
+            api,
+            openapi,
+            client,
+            frontend,
+        )
     )
     return VersionInventoryV1(
         application,
+        source_revision,
         schema,
         api,
         openapi,

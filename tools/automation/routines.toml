@@ -112,7 +112,7 @@ blockers = []
 id = "AUTO-MUTATION"
 owner = "PLAN-FND"
 status = "operational"
-scope = "V1-M3 M05/M06 critical pure-policy mutation gate with zero non-equivalent survivors"
+scope = "V1-M3 M05/M06 and V1-M5 Codex parser, mapper, admission, and closed-schema security critical pure-policy mutation gate with zero non-equivalent survivors"
 implementation_command = ["backend/.venv/bin/python", "tools/automation/implementations/auto_mutation.py"]
 blockers = []
 
@@ -226,4 +226,36 @@ owner = "PLAN-INT"
 status = "operational"
 scope = "all six V1-M4 stories at one clean revision: exact dashboard restart, six distinct administrator-matched identities with fresh quota/history lineage, zero-skipped real suites, production fleet/Overview/alert/diagnostic browsers, local quality gates and private receipt"
 implementation_command = ["backend/.venv/bin/python", "-m", "tools.automation.implementations.auto_m4_current_exit"]
+blockers = []
+
+[[routines]]
+id = "AUTO-M5-OWNER-OUTCOMES"
+owner = "PLAN-INT"
+status = "operational"
+scope = "interactive four-account M5 owner attestation from the real Codex registry, bound to one clean revision and selected pre-gate service, written once as a private owner-only file"
+implementation_command = ["backend/.venv/bin/python", "-m", "tools.automation.implementations.m5_owner_outcomes"]
+blockers = []
+
+[[routines]]
+id = "AUTO-M5-QUOTA-WITNESS"
+owner = "PLAN-INT"
+status = "operational"
+scope = "owner-assisted authoritative Codex /usage reconciliation for every verified M5 account, bound to exact API/history/DOM values, current collection lineage, unchanged Registry state, and the selected service's exact clean source revision"
+implementation_command = ["backend/.venv/bin/python", "-m", "tools.automation.implementations.m5_codex_quota_witness"]
+blockers = []
+
+[[routines]]
+id = "AUTO-M5-ALERT-WITNESS"
+owner = "PLAN-INT"
+status = "operational"
+scope = "one selected genuine Codex capacity alert: distinct persisted open and repeated active-condition deliveries, owner dashboard acknowledge or snooze, a third newer source-proven recovery delivery, built-browser and service/version proof, unchanged full public registry snapshots, and create-once private M5 witness"
+implementation_command = ["backend/.venv/bin/python", "-m", "tools.automation.implementations.m5_codex_alert_witness"]
+blockers = []
+
+[[routines]]
+id = "AUTO-M5-EXIT"
+owner = "PLAN-INT"
+status = "operational"
+scope = "bounded V1-M5 Codex slice at one clean running-service revision: exact 0.160.0/schema/mapping admission, four private owner outcomes, fresh genuine quota/history, five to six independently verified external processes, recovered source-proven alert lifecycle, production browser, zero-skipped technical/local gates and private receipt"
+implementation_command = ["backend/.venv/bin/python", "-m", "tools.automation.implementations.auto_m5_current_exit"]
 blockers = []

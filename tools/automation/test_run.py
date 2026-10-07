@@ -23,6 +23,84 @@ from run import index_routines, load_catalog, validate_catalog
 
 
 class AutomationRoutineTests(unittest.TestCase):
+    def test_m5_owner_outcomes_without_real_selectors_never_writes_file(
+        self,
+    ) -> None:
+        """The interactive producer fails closed before owner registry access."""
+        catalog = load_catalog(REPOSITORY_ROOT)
+        routine = catalog["AUTO-M5-OWNER-OUTCOMES"]
+        self.assertEqual("operational", routine["status"])
+        result = subprocess.run(
+            [sys.executable, str(RUNNER), "AUTO-M5-OWNER-OUTCOMES"],
+            cwd=REPOSITORY_ROOT,
+            env={"PATH": os.defpath},
+            capture_output=True,
+            text=True,
+            check=False,
+            timeout=15,
+        )
+        self.assertEqual(3, result.returncode, result.stdout + result.stderr)
+        self.assertNotIn("PASSED", result.stdout)
+        self.assertIn("M5 OWNER OUTCOMES: BLOCKED", result.stdout)
+
+    def test_m5_alert_witness_without_real_selectors_never_writes_receipt(
+        self,
+    ) -> None:
+        """The application-owned witness command fails closed before live input."""
+        catalog = load_catalog(REPOSITORY_ROOT)
+        routine = catalog["AUTO-M5-ALERT-WITNESS"]
+        self.assertEqual("operational", routine["status"])
+        result = subprocess.run(
+            [sys.executable, str(RUNNER), "AUTO-M5-ALERT-WITNESS"],
+            cwd=REPOSITORY_ROOT,
+            env={"PATH": os.defpath},
+            capture_output=True,
+            text=True,
+            check=False,
+            timeout=15,
+        )
+        self.assertEqual(3, result.returncode, result.stdout + result.stderr)
+        self.assertNotIn("PASSED", result.stdout)
+        self.assertIn("M5 CODEX ALERT WITNESS: BLOCKED", result.stdout)
+
+    def test_m5_quota_witness_without_real_selectors_never_writes_receipt(
+        self,
+    ) -> None:
+        """The quota witness fails closed before browser or owner interaction."""
+        catalog = load_catalog(REPOSITORY_ROOT)
+        routine = catalog["AUTO-M5-QUOTA-WITNESS"]
+        self.assertEqual("operational", routine["status"])
+        result = subprocess.run(
+            [sys.executable, str(RUNNER), "AUTO-M5-QUOTA-WITNESS"],
+            cwd=REPOSITORY_ROOT,
+            env={"PATH": os.defpath},
+            capture_output=True,
+            text=True,
+            check=False,
+            timeout=15,
+        )
+        self.assertEqual(3, result.returncode, result.stdout + result.stderr)
+        self.assertNotIn("PASSED", result.stdout)
+        self.assertIn("M5 CODEX QUOTA WITNESS: BLOCKED", result.stdout)
+
+    def test_m5_exit_without_real_selectors_never_claims_completion(self) -> None:
+        """The Codex milestone gate rejects absent live owner prerequisites."""
+        catalog = load_catalog(REPOSITORY_ROOT)
+        routine = catalog["AUTO-M5-EXIT"]
+        self.assertEqual("operational", routine["status"])
+        result = subprocess.run(
+            [sys.executable, str(RUNNER), "AUTO-M5-EXIT"],
+            cwd=REPOSITORY_ROOT,
+            env={"PATH": os.defpath},
+            capture_output=True,
+            text=True,
+            check=False,
+            timeout=15,
+        )
+        self.assertIn(result.returncode, (1, 3), result.stdout + result.stderr)
+        self.assertNotIn("PASSED", result.stdout)
+        self.assertRegex(result.stdout, r"M5 CURRENT EXIT: (?:BLOCKED|FAILED)")
+
     def test_m4_exit_without_real_selectors_never_claims_completion(self) -> None:
         """The actual milestone gate must reject absent genuine live resources."""
         catalog = load_catalog(REPOSITORY_ROOT)
@@ -857,6 +935,10 @@ class AutomationRoutineTests(unittest.TestCase):
                 "AUTO-M3-LIVE",
                 "AUTO-M3-EXIT",
                 "AUTO-M4-EXIT",
+                "AUTO-M5-OWNER-OUTCOMES",
+                "AUTO-M5-QUOTA-WITNESS",
+                "AUTO-M5-ALERT-WITNESS",
+                "AUTO-M5-EXIT",
                 "AUTO-CLAUDE-POLL",
                 "AUTO-CLAUDE-MANAGED",
                 "AUTO-CLAUDE-CONNECT",

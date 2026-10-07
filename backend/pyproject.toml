@@ -49,14 +49,27 @@ only_mutate = [
   "src/agentmonitor/modules/capacity/domain/health.py",
   "src/agentmonitor/modules/runtime_observation/application/correlation.py",
   "src/agentmonitor/modules/runtime_observation/application/state.py",
+  "src/agentmonitor/adapters/providers/codex/authentication/identity.py",
+  "src/agentmonitor/adapters/providers/codex/manifest.py",
+  "src/agentmonitor/adapters/providers/codex/subscription/mapper.py",
+  "src/agentmonitor/adapters/providers/codex/subscription/schema.py",
+  "src/agentmonitor/adapters/providers/codex/subscription/source.py",
 ]
 pytest_add_cli_args = ["-q", "-p", "no:cacheprovider"]
 pytest_add_cli_args_test_selection = [
   "tests/capacity/test_quantity_and_health.py",
   "tests/runtime_observation/test_contracts.py",
   "tests/runtime_observation/test_runtime_state_policy.py",
+  "tests/adapters/providers/codex/test_identity_parser.py",
+  "tests/adapters/providers/codex/test_manifest.py",
+  "tests/adapters/providers/codex/test_security_policy.py",
+  "tests/adapters/providers/codex/test_subscription_source_parser.py",
+  "tests/adapters/providers/codex/test_critical_mutation_policies.py",
+  "tests/adapters/providers/codex/unit/test_subscription_mapper.py",
   "tests/mutation/test_m3_critical_mutation_policies.py",
+  "tests/mutation/test_m5_codex_mutation_policies.py",
 ]
+mutate_only_covered_lines = true
 process_isolation = "fork"
 use_git_change_detection = false
 on_dependency_change = "rerun"

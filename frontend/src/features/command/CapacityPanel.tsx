@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { metricAvailability, remainingPercentage } from "./quotaPresentation";
+import { metricAvailability, quotaResetPresentation, remainingPercentage } from "./quotaPresentation";
 
 import {
   appendCapacityHistoryPage,
@@ -130,17 +130,19 @@ function CapacityHistory({
         <div className="table-scroll" tabIndex={0} role="region" aria-label="Capacity history table">
           <table aria-label="Capacity history exact values">
             <caption>Real retained capacity observations matching the visible trend points</caption>
-            <thead><tr><th scope="col">Window</th><th scope="col">Exact value</th><th scope="col">Observed</th><th scope="col">State</th><th scope="col">Source</th><th scope="col">Trace</th></tr></thead>
-            <tbody>{items.map((point) => (
-              <tr key={point.observation_id}>
+            <thead><tr><th scope="col">Window</th><th scope="col">Exact value</th><th scope="col">Observed</th><th scope="col">Reset</th><th scope="col">State</th><th scope="col">Source</th><th scope="col">Trace</th></tr></thead>
+            <tbody>{items.map((point) => {
+              const reset = quotaResetPresentation(point.reset_at, point.reset_precision);
+              return <tr key={point.observation_id} data-window-key={point.window_key} data-semantic-role={point.semantic_role}>
                 <th scope="row">{point.safe_label ?? point.window_key}<small>{point.semantic_role} · definition {point.definition_version}</small></th>
                 <td className="history-exact-value"><ExactMetric field={point.value} /></td>
                 <td>{new Date(point.observed_at).toLocaleString()}<small>Stored {new Date(point.stored_at).toLocaleString()}</small></td>
+                <td className="quota-reset" data-reset-precision={reset.precision}>{reset.dateTime === null ? reset.label : <>{reset.label} <time dateTime={reset.dateTime}>{new Date(reset.dateTime).toLocaleString()}</time></>}<small>{reset.precision}</small></td>
                 <td>{point.freshness}<small>{point.completeness} · {point.series_kind.replaceAll("_", " ")}</small></td>
                 <td>{point.provenance.source_id}<small>{point.provenance.source_class.replaceAll("_", " ")} · {point.provenance.precision} · {point.provenance.confidence}</small></td>
                 <td><span className="history-observation-id">{point.observation_id}</span><small>Run {point.collection_run_id}</small></td>
-              </tr>
-            ))}</tbody>
+              </tr>;
+            })}</tbody>
           </table>
         </div>
       </>}
@@ -366,10 +368,12 @@ export function CapacityPanel({
       {state.refreshMessage !== null && <p role="status">{state.refreshMessage}</p>}
       {state.quotas.items.length > 0 && <div className="allowance-cards">{state.quotas.items.map((window) => {
         const percentage = remainingPercentage(window.allowance?.remaining_percentage ?? window.remaining_ratio);
-        return <article className="allowance-card" key={window.window_id}>
+        const reset = quotaResetPresentation(window.reset_at ?? null, window.reset_precision ?? "unknown");
+        return <article className="allowance-card" key={window.window_id} data-window-id={window.window_id} data-window-key={window.window_key} data-semantic-role={window.semantic_role ?? "unknown"}>
           <div className="allowance-card-heading"><h3>{window.safe_label ?? window.window_key}</h3><span className={`reading-freshness reading-${window.freshness}`}>{window.freshness === "fresh" ? "Up to date" : window.freshness.replaceAll("_", " ")}</span></div>
           <p className="allowance-value"><strong>{percentage?.label ?? metricAvailability(window.remaining_ratio)}</strong><span>left</span></p>
           {percentage !== null && <div className="allowance-track" role="meter" aria-label={`${window.safe_label ?? window.window_key} remaining allowance`} aria-valuemin={0} aria-valuemax={100} aria-valuenow={percentage.value} aria-valuetext={`${percentage.label} left`}><span style={{ width: `${percentage.value}%` }} /></div>}
+          <p className="allowance-time quota-reset" data-reset-precision={reset.precision}>{reset.dateTime === null ? reset.label : <>{reset.label} <time dateTime={reset.dateTime}>{new Date(reset.dateTime).toLocaleString()}</time></>} · {reset.precision}</p>
           <p className="allowance-time">Updated <time dateTime={window.collected_at}>{new Date(window.collected_at).toLocaleString()}</time></p>
           {window.allowance && <p className="allowance-time">{window.allowance.calculation === "100_minus_used_percent" ? "Calculated: 100% minus reported usage." : "Calculated from reported remaining ratio."}{window.allowance.remaining_percentage.precision === "rounded" ? " Source is rounded." : ""}</p>}
         </article>;
@@ -400,14 +404,16 @@ export function CapacityPanel({
         <div className="table-scroll" tabIndex={0} role="region" aria-label="Quota windows table">
           <table>
             <caption>Provider-reported windows with exact values and freshness</caption>
-            <thead><tr><th scope="col">Window</th><th scope="col">Used</th><th scope="col">Remaining</th><th scope="col">Limit</th><th scope="col">Remaining ratio</th><th scope="col">Freshness</th><th scope="col">Observed</th><th scope="col">Trace and provenance</th></tr></thead>
-            <tbody>{state.quotas.items.map((window) => (
-              <tr key={window.window_id}>
-                <th scope="row">{window.safe_label ?? window.window_key}<small>{window.subject.provider_key}</small></th>
+            <thead><tr><th scope="col">Window</th><th scope="col">Used</th><th scope="col">Remaining</th><th scope="col">Limit</th><th scope="col">Remaining ratio</th><th scope="col">Reset</th><th scope="col">Freshness</th><th scope="col">Observed</th><th scope="col">Trace and provenance</th></tr></thead>
+            <tbody>{state.quotas.items.map((window) => {
+              const reset = quotaResetPresentation(window.reset_at ?? null, window.reset_precision ?? "unknown");
+              return <tr key={window.window_id} data-window-key={window.window_key} data-semantic-role={window.semantic_role ?? "unknown"}>
+                <th scope="row">{window.safe_label ?? window.window_key}<small>{window.subject.provider_key} · {window.semantic_role ?? "role not reported"}</small></th>
                 <td><ExactMetric field={window.used} /></td>
                 <td><ExactMetric field={window.remaining} /></td>
                 <td><ExactMetric field={window.limit} /></td>
                 <td><ExactMetric field={window.remaining_ratio} /></td>
+                <td className="quota-reset" data-reset-precision={reset.precision}>{reset.dateTime === null ? reset.label : <>{reset.label} <time dateTime={reset.dateTime}>{new Date(reset.dateTime).toLocaleString()}</time></>}<small>{reset.precision}</small></td>
                 <td><span className={`state-chip state-${window.freshness}`}>{window.freshness.replaceAll("_", " ")}</span></td>
                 <td>{window.observed_at === null ? "Unknown" : new Date(window.observed_at).toLocaleString()}</td>
                 <td><dl className="quota-provenance">
@@ -431,8 +437,8 @@ export function CapacityPanel({
                     <div><dt>Confidence</dt><dd>{window.provenance.confidence} · {window.provenance.confidence_reason_code.replaceAll("_", " ")}</dd></div>
                   </>}
                 </dl></td>
-              </tr>
-            ))}</tbody>
+              </tr>;
+            })}</tbody>
           </table>
         </div>
       )}

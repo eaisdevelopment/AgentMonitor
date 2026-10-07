@@ -19,6 +19,7 @@ if str(BACKEND_SOURCE) not in sys.path:
 
 from agentmonitor.contracts.common_v1 import FieldAvailabilityV1  # noqa: E402
 from agentmonitor.contracts.provider_system_v1 import (  # noqa: E402
+    MAX_PROVIDER_OPERATION_DEADLINE_MS,
     AdapterDescriptorV1,
     CapabilityDeclarationV1,
     CapabilityManifestV1,
@@ -182,7 +183,11 @@ def _definitions() -> dict[str, object]:
     constraints = _closed_object(
         CollectionConstraintV1,
         {
-            "deadline_ms": {"type": "integer", "minimum": 1, "maximum": 300_000},
+            "deadline_ms": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": MAX_PROVIDER_OPERATION_DEADLINE_MS,
+            },
             "minimum_interval_ms": {"type": "integer", "minimum": 0},
             "maximum_concurrency": {
                 "type": "integer",

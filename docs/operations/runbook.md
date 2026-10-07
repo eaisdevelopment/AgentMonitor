@@ -236,6 +236,276 @@ the retained `2.1.289` executable. The accepted current-revision M4 run met
 that condition; its sanitized receipt and owner countersignature are linked
 from the documentation index.
 
+### Current-revision M5 Codex completion gate
+
+`AUTO-M5-EXIT` is the sole V1-M5 completion command. It is finite and
+noninteractive. The owner completes Codex browser authentication, the
+authoritative `/usage` reconciliation, and the real capacity-alert lifecycle
+before running it. The command never initiates login, acknowledges or snoozes
+an alert, waits for a natural recovery, switches an agent account, or reads the
+default Codex profile.
+
+Run it only against the already running authenticated loopback dashboard, with
+these selectors in the calling environment:
+
+- `AGENTMONITOR_TEST_OWNER_DATA_ROOT` and `AGENTMONITOR_TEST_DATA_ROOT`, both
+  naming the same absolute owner-only data root;
+- `AGENTMONITOR_TEST_DASHBOARD_CDP_ENDPOINT` and
+  `AGENTMONITOR_TEST_DASHBOARD_ORIGIN`, both selecting the authenticated shared
+  loopback browser/service; and
+- `AGENTMONITOR_M5_SERVICE_PID`, selecting that exact dashboard process.
+
+Create the fixed `<owner-data-root>/m5-owner-outcomes.json` prerequisite with:
+
+```bash
+python3 tools/automation/run.py AUTO-M5-OWNER-OUTCOMES
+```
+
+This command requires a controlling TTY and the owner data root, dashboard
+origin and selected service PID variables above; it does not need the browser
+CDP endpoint. It reads Codex accounts through the Registry's public query over
+the real owner database and performs no provider operation. It displays only
+the selected registry aliases and opaque account IDs, collects `verified` or
+`owner_unavailable` plus a bounded reason code for each row, shows the four-row
+summary, and writes only after the owner types the exact confirmation phrase.
+
+The result is a regular, single-link, no-symlink `0600` file of at most 16 KiB
+which the command creates once and never replaces. Its closed schema is
+`agentmonitor.m5-owner-outcomes.v2`, with the exact top-level fields `schema`,
+`implementation_revision`, `service_pid`, `service_start_time_ticks`,
+`owner_confirmed_at`, `owner_confirmation`, and `outcomes`. The revision and
+service tuple identify the selected pre-gate service, `owner_confirmation` is
+true, and the confirmation remains current for at most eight days with five
+minutes of allowed clock skew. `outcomes` contains exactly four rows with
+unique opaque `account_id` values and unique private `alias` values. A
+`verified` row has only `account_id`, `alias`, and `disposition`; an
+`owner_unavailable` row additionally has a bounded lowercase `reason` code.
+Identity fingerprints are not accepted in this private file. The live
+authenticated API/browser verification derives a private digest from each
+current provider identity and rejects duplicate verified identities. Alias,
+account and identity values remain private; only digests and aggregate counts
+reach the gate receipt.
+
+Create the fixed `<owner-data-root>/m5-quota-witness.json` prerequisite with:
+
+```bash
+python3 tools/automation/run.py AUTO-M5-QUOTA-WITNESS
+```
+
+Run it from the same clean revision while the selected pre-gate service and
+authenticated shared browser are still running. It requires a controlling TTY
+and these exact selectors: `AGENTMONITOR_TEST_OWNER_DATA_ROOT`,
+`AGENTMONITOR_TEST_DASHBOARD_CDP_ENDPOINT`,
+`AGENTMONITOR_TEST_DASHBOARD_ORIGIN`, and `AGENTMONITOR_M5_SERVICE_PID`. The
+owner root must be an absolute, resolved, owner-owned `0700` directory; both
+browser selectors must resolve to loopback, the dashboard origin must use
+HTTP, and the service PID, start identity, launch origin, data root, clean
+40-character revision, and existing owner-outcome file must all agree.
+
+The command does not invoke Codex. It first uses a new page in the already
+authenticated shared browser to read every `verified` outcome account through
+the versioned API and built dashboard. Each account must be active, monitored,
+have a distinct current provider identity, and have genuine current collection
+lineage. Current API values must render exactly in the account quota table, and
+their observation IDs and exact values must occur in retained history. The
+browser makes no POST, PUT, PATCH, or DELETE request. The command also hashes
+the complete public Registry graph before and after its checks and rejects an
+incomplete, changing, or over-200 account or organization graph.
+
+For every displayed private alias and quota window, open that account's
+official Codex `/usage` view and enter only:
+
+1. the displayed whole percentage left, from `0` through `100`;
+2. the displayed reset as a UTC RFC 3339 timestamp ending in `Z`, or `none`;
+3. when a reset is present, its displayed precision: `second`, `minute`,
+   `hour`, or `day`.
+
+Do not paste provider output, credentials, prompts, responses, or account
+content. The whole percentage and semantic role must match AgentMonitor
+exactly, a reset must match at the stated display precision, and the owner
+observation must be within 300 seconds of the corresponding collection. Finish
+by typing the exact phrase `I CONFIRM CODEX USAGE`. A missing window, extra
+window, fractional percentage, mismatch, stale collection, or wrong phrase
+blocks the writer without producing a witness.
+
+The result uses the closed schema `agentmonitor.m5-quota-witness.v1`. Its exact
+top-level fields are `schema`, `implementation_revision`, `service_pid`,
+`service_source_revision`, `service_start_time_ticks`, `recorded_at`,
+`owner_confirmation`, `provider_key`,
+`provider_version`, `source_id`, `account_count`, `window_count`,
+`owner_outcomes_digest`, `identity_set_digest`, `collection_run_set_digest`,
+`quota_value_set_digest`, `owner_observation_digest`,
+`rendered_value_set_digest`, `history_value_set_digest`,
+`browser_proof_digest`, `registry_graph_digest_before`,
+`registry_graph_digest_after`, `browser_registry_digest_before`, and
+`browser_registry_digest_after`. `service_source_revision` must equal the clean
+gate revision and the available value returned by the running service's
+Operations version inventory. These fields bind that service revision and the
+selected service PID/start identity to the owner outcome, exact Codex `0.160.0`
+rate-limit source, verified-account and window counts, distinct identities,
+collection lineage, exact quota values, owner observations, API/DOM/history
+proof, and unchanged Registry state. The file stores only aggregate counts and
+SHA-256 digests, never the entered values, aliases, identities, profile paths,
+provider payloads, or content.
+
+The private browser proof keeps only the opaque current observation ID needed
+to bind each safe window row to retained history; it discards rendered display
+text. The Python writer independently rebuilds the same canonical history
+material and accepts `history_value_set_digest` only when it matches.
+
+The fixed file is an owner-owned, regular, single-link, no-symlink `0600` file
+of at most 16 KiB below the resolved owner-owned `0700` root. The command
+creates it once with exclusive creation and never edits or replaces it. At gate
+start, `AUTO-M5-EXIT` accepts it for at most 15 minutes after `recorded_at`, with
+at most one minute of future clock skew. The gate rereads the identical file at
+the end against the actual completion time. A stale, changed, wrong-revision,
+wrong-service, wrong-outcome, or Registry-mismatched witness is **Blocked**.
+Because the real alert lifecycle can take longer than this freshness window,
+create the quota witness after the alert witness and immediately before
+`AUTO-M5-EXIT`, even though its validation is documented here next to the
+owner-outcome prerequisite on which it depends.
+
+The fixed `<owner-data-root>/m5-alert-witness.json` prerequisite uses the same
+file controls and the closed schema `agentmonitor.m5-alert-witness.v2`. The
+application-owned witness binds the current 40-character implementation
+revision, an equal `service_source_revision` read from the running service's
+Operations version inventory, and the selected service PID/start identity; the
+service start and browser check times plus an exact public-version digest; one
+verified outcome account;
+Codex provider, source, adapter, parser, mapping and schema-bundle versions; an
+equal alert record version and aggregate sequence of at least four; ordered
+service start, open, deduplication, owner action, recovery, service check, and
+recording times; and an `owner_action` of `acknowledged` or `snoozed`. Its seven
+open, dedupe, browser, recovery, and source-proven assertions are true. Eleven
+service, source-event, observation-stage, delivery, history, owner-action, and
+registry fields are SHA-256 digests; the registry scope is
+`all-public-registry-fields-v1` and its before/after digests are equal. A receipt
+older than eight days, from another revision/service/account, with changed
+registry state, or with an incomplete lifecycle is rejected. Its final registry
+digest must also equal the gate's current read-only browser preflight. Only the
+receipt's SHA-256 digest and the safe action category reach the final receipt.
+
+Create the real lifecycle in this order:
+
+1. Choose one verified Codex account with a current genuine reading above 0%
+   remaining. Keep monitoring enabled and record only its opaque dashboard
+   account ID for the command selector.
+2. In **Alerts → Alert rules**, create an enabled **Capacity remaining** rule
+   for that one account with warning and critical both set to 100%. Wait for a
+   newer scheduled Codex collection and alert delivery. The account's genuine
+   current reading must open the alert. Keep the condition active and wait for
+   a second distinct scheduled Codex collection and delivery to record the
+   repeated condition. Do not insert or edit quota, event, or alert rows.
+3. In **Alerts**, open **Details and history** for that alert and click either
+   **Acknowledge** or **Snooze 15 minutes** once. Keep the resulting opaque
+   alert ID as `AGENTMONITOR_TEST_M5_ALERT_ID` if the account has more than one
+   recovered capacity alert.
+4. Return to **Alert rules**, archive the temporary 100% account rule, then
+   create an enabled rule for the same account with warning and critical both
+   set to 0%. Wait for another scheduled Codex collection and delivery. A
+   newer genuine reading above 0% must recover the same alert. If the real
+   reading is 0%, select another verified account or wait for a real provider
+   reset; never edit telemetry to manufacture recovery.
+5. Confirm the alert card says **recovered** and its history shows the open,
+   repeated condition, owner action, and recovery in that order. Leave both
+   rules and alert history intact until the M5 exit gate succeeds.
+
+After creating the owner-outcome file and completing that lifecycle, create the
+alert prerequisite from the same clean revision and pre-gate service tuple:
+
+```bash
+python3 tools/automation/run.py AUTO-M5-ALERT-WITNESS
+```
+
+Set `AGENTMONITOR_TEST_CODEX_ACCOUNT_ID` when more than one verified outcome
+could supply the witness, and `AGENTMONITOR_TEST_M5_ALERT_ID` when more than one
+recovered Codex capacity alert matches. The writer first proves that the source
+open and repeated-condition events are distinct persisted genuine deliveries,
+that the owner action has an authenticated command receipt, and that a third
+distinct genuine event recovered the alert. It validates exact per-stage
+observations and delivery receipts, alert history, the built browser, service
+freshness and version inventory, and unchanged full public registry snapshots.
+The writer is read-only: it does not replay delivery or mutate the lifecycle.
+It creates the owner-only witness once and never replaces an existing witness.
+
+Run:
+
+```bash
+python3 tools/automation/run.py AUTO-M5-EXIT
+```
+
+The command first validates all three exact private prerequisites and the
+current clean revision. Before the browser preflight, it runs the production
+managed-profile identity and quota operations under the real system `strace`,
+requires zero access or writes to the default Codex profile, and permits
+provider-controlled writes only below the selected managed profile. It binds
+only a sanitized containment digest and aggregate syscall counts to the final
+receipt, and requires the complete public Registry graph to remain unchanged.
+It then binds the owner-observed quota values to its read-only browser
+preflight, runs the canonical build, and restarts only the selected
+AgentMonitor service. It waits for fresh post-restart Codex quota/history
+lineage and requires those exact quota values and verified identities to remain
+unchanged, executes the M3 dependency gate and exact M5 technical suite with
+the no-skip plugin, observes five or six real exact-executable Codex processes,
+and verifies account, history, provider, Overview, alert and Operations
+behavior in the production build. Planning, quality, mutation, documentation
+and Git preflight must all pass. Any Registry digest change, quota value change,
+or prerequisite-file change blocks completion.
+
+The same-user process scan may truthfully report `truncated` when unrelated
+procfs entries disappear or deny safe metadata during the bounded read. That
+does not invalidate five or six exact admitted Codex observations. The gate
+independently rereads PID/start and executable identity for every selected row,
+and excludes AgentMonitor's own managed-profile Codex children from the agent
+sample. A missing working directory cannot provide positive representative
+agent evidence. The gate still rejects fewer than five valid rows and records `partial` or `complete`
+scan completeness in its sanitized receipt without retaining process IDs or
+paths.
+
+On success it creates `.agentmonitor-local/m5-current-gate-receipt.json` with
+mode `0600`. It never replaces an existing receipt. The receipt contains the
+revision, exact admitted public versions and digests, aggregate outcome/process
+counts, the pre-restart `quota_history_value_set_digest`, the distinct
+`post_restart_history_value_set_digest`, the authenticated-containment digest
+and aggregate access/write counts, other sanitized evidence digests, test
+count, zero skips and every required lane. It contains no account identity,
+alias, provider/profile path, process ID,
+credential, provider payload, prompt, response, source content or arbitrary
+environment value. Missing live prerequisites return **Blocked**; a failing
+implemented boundary returns **Failed**. Neither result is M5 completion.
+
+### Connect Codex from the dashboard
+
+1. In **Accounts**, create a pending Codex account record through admin CRUD,
+   give it a useful name, and assign its dashboard organization. Open that
+   record; organization membership does not prove the provider identity.
+2. Enter the intended **Codex account email** and click **Connect Codex** once.
+   Complete only the official Codex browser sign-in that opens. Keep the
+   password, verification codes, cookies, and authorization data on that page.
+   The bounded login waits at most ten minutes before returning an expired
+   outcome; start a new deliberate attempt if that happens.
+3. Return to the account page and use **Check connection status**. A connected
+   result means Codex returned the intended identity and monitoring was
+   enabled. Quota remains unavailable until a genuine scheduled collection
+   succeeds, so **Monitoring on** by itself is not a quota reading.
+
+If Codex returns another identity, the attempt ends in the terminal
+`wrong_account` state and monitoring is not enabled by that attempt. The
+managed profile is quarantined from retry for that account record; do not
+rename the record to make the mismatch appear valid. Review the selected
+account and create or use the correct record before starting another deliberate
+connection.
+
+Every connection uses that account record's private AgentMonitor-managed
+`CODEX_HOME`. The service rejects unsafe or symlinked roots and never selects,
+reads, logs out, relocates, or rewrites the user's default Codex profile. Only
+Codex CLI `0.160.0` is admitted. If the installed executable or reported schema
+drifts, collection and connection fail closed; inspect **Operations**, restore
+or approve an exact-version admission through the engineering process, and do
+not treat a nearby version as compatible. See the
+[Codex adapter runbook](../adapters/codex.md) for the admitted tuple, data flow,
+failure codes, and current acceptance status.
+
 ### Connect Claude from the dashboard
 
 1. Open **Accounts**, then the intended pending Claude account. Names and

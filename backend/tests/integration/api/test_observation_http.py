@@ -24,6 +24,12 @@ OPERATION_MATRIX = {
         "GetVerifiedQuotaIdentityV1",
         "ObservedAccountIdentityViewV1",
     ),
+    ("/api/v1/accounts/{account_id}/provider-identity", "get"): (
+        "provider_get_account_identity_v1",
+        "read:accounts",
+        "GetVerifiedQuotaIdentityV1",
+        "ProviderAccountIdentityViewV1",
+    ),
     ("/api/v1/process-locations", "get"): (
         "runtime_list_process_locations_v1",
         "read:telemetry",
@@ -183,6 +189,27 @@ def test_observation_openapi_publishes_exact_approved_m3_policy() -> None:
     metric_schema = schema["components"]["schemas"]["AgentProcessMetricViewV1"]
     assert process_metrics <= metric_schema["properties"].keys()
     assert process_metrics <= set(metric_schema["required"])
+
+    quota_window_schema = schema["components"]["schemas"]["QuotaWindowViewV1"]
+    quota_window_properties = quota_window_schema["properties"]
+    assert {
+        "semantic_role",
+        "reset_at",
+        "reset_precision",
+    } <= quota_window_properties.keys()
+    assert {
+        "semantic_role",
+        "reset_at",
+        "reset_precision",
+    }.isdisjoint(quota_window_schema["required"])
+    assert quota_window_properties["reset_precision"]["enum"] == [
+        "exact",
+        "rounded",
+        "range",
+        "estimated",
+        "unknown",
+    ]
+    assert quota_window_properties["reset_precision"]["default"] == "unknown"
 
 
 @pytest.mark.parametrize("path", RUNTIME_PATHS)

@@ -47,6 +47,7 @@ COMPONENT_KEYS_V1 = frozenset(
         "runtime_observation",
         "alerting",
         "provider.claude",
+        "provider.codex",
     }
 )
 INDICATOR_UNITS_V1 = {
@@ -102,7 +103,7 @@ MAX_REASONS_V1 = 8
 MAX_HEALTH_BUDGET_MS_V1 = 2000
 _VERSION = re.compile(
     r"(?:[0-9]{1,8}\.[0-9]{1,8}\.[0-9]{1,8}(?:-[a-z0-9.-]{1,32})?"
-    r"|v1_[0-9]{4}|[a-f0-9]{64})"
+    r"|v1_[0-9]{4}|[a-f0-9]{40}|[a-f0-9]{64})"
 )
 _DIGEST = re.compile(r"[a-f0-9]{64}")
 
@@ -375,6 +376,7 @@ class VersionInventoryV1(TechnicalValueV1):
     CONTRACT_ID: ClassVar[str] = "CTR-OPS-004"
     OWNER: ClassVar[str] = "PLAN-M08"
     application_version: VersionValueV1
+    source_revision: VersionValueV1
     schema_version: VersionValueV1
     api_version: VersionValueV1
     openapi_version: VersionValueV1

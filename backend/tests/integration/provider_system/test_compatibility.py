@@ -10,6 +10,7 @@ from agentmonitor.adapters.persistence._shared.sqlite.core.policy import (
 from agentmonitor.adapters.persistence._shared.sqlite.schema.compatibility import (
     InspectSchemaCompatibilityV1,
     application_schema_range,
+    load_migration_catalog,
     migrate_to_head,
 )
 from sqlalchemy.engine import Connection
@@ -24,7 +25,7 @@ def test_v1_0300_creates_empty_provider_system_schema(tmp_path: Path) -> None:
         reference, application_schema_range(), "runtime_read_write"
     )
     assert view.state == "compatible"
-    assert view.current_revision == "v1_0603"
+    assert view.current_revision == load_migration_catalog().head
 
     with open_sqlite_database(reference, "runtime_read_write") as handle:
         with handle.connect() as connection:

@@ -187,6 +187,10 @@ IAM_OPERATIONS = {
         "/api/v1/accounts/{account_id}/observed-identity",
         "get",
     ): "provider_get_observed_account_identity_v1",
+    (
+        "/api/v1/accounts/{account_id}/provider-identity",
+        "get",
+    ): "provider_get_account_identity_v1",
     ("/api/v1/accounts/{account_id}/connection", "get"): "provider_get_connection_v1",
     (
         "/api/v1/accounts/{account_id}/connection",
@@ -904,6 +908,18 @@ IAM_POLICY: dict[str, IamPolicyRow] = {
         _M2_REQUIRED_ERROR_STATUSES,
         None,
     ),
+    "provider_get_account_identity_v1": (
+        "cookie_or_bearer",
+        "read:accounts",
+        "GetVerifiedQuotaIdentityV1",
+        "safe_query_repeat",
+        _COOKIE_BEARER,
+        "200",
+        "ProviderAccountIdentityViewV1",
+        "SafeProblemV1",
+        _M2_REQUIRED_ERROR_STATUSES,
+        None,
+    ),
     "collection_list_runs_v1": (
         "cookie_or_bearer",
         "read:telemetry",
@@ -1230,7 +1246,7 @@ def validate_iam_openapi(document: object) -> tuple[str, ...]:
     if (
         actual != IAM_OPERATIONS
         or set(IAM_POLICY) != set(IAM_OPERATIONS.values())
-        or len(identifiers) != 66
+        or len(identifiers) != 67
     ):
         raise OpenApiGenerationError("operation_surface_invalid")
 
@@ -1466,8 +1482,10 @@ def _typescript(schema: dict[str, object], artifact: bytes) -> bytes:
         "}>;",
         "export type ApiResultV1<T> =",
         "  | Readonly<{ ok: true; status: number; data: T; headers: Headers }>",
-        "  | Readonly<{ ok: false; status: number; "
-        "problem: SafeProblemV1; headers: Headers }>;",
+        (
+            "  | Readonly<{ ok: false; status: number; "
+            "problem: SafeProblemV1; headers: Headers }>;"
+        ),
         "export type OperationRequestMap = Readonly<{",
     ]
     routes: list[tuple[str, str, str, str]] = []
@@ -1527,25 +1545,35 @@ def _typescript(schema: dict[str, object], artifact: bytes) -> bytes:
         "  if (typeof value !== 'object' || value === null) return false;",
         "  const record = value as Record<string, unknown>;",
         "  return typeof record.code === 'string' && typeof record.status === 'number'",
-        "    && typeof record.correlation_id === 'string' "
-        "&& typeof record.title === 'string';",
+        (
+            "    && typeof record.correlation_id === 'string' "
+            "&& typeof record.title === 'string';"
+        ),
         "}",
-        "async function send<T>(method: string, template: string, "
-        "input: RequestOptionsV1 & {",
+        (
+            "async function send<T>(method: string, template: string, "
+            "input: RequestOptionsV1 & {"
+        ),
         "  body?: unknown; path?: Readonly<Record<string, string>>;",
-        "  query?: Readonly<Record<string, string | number | boolean "
-        "| null | undefined>>;",
+        (
+            "  query?: Readonly<Record<string, string | number | boolean "
+            "| null | undefined>>;"
+        ),
         "}): Promise<ApiResultV1<T>> {",
-        "  const route = template.replace(/\\{([A-Za-z_][A-Za-z0-9_]*)\\}/g, "
-        "(_match, key: string) => {",
+        (
+            "  const route = template.replace(/\\{([A-Za-z_][A-Za-z0-9_]*)\\}/g, "
+            "(_match, key: string) => {"
+        ),
         "    const value = input.path?.[key];",
         "    if (value === undefined) throw new Error('missing_path_parameter');",
         "    return encodeURIComponent(value);",
         "  });",
         "  const query = new URLSearchParams();",
         "  for (const [key, value] of Object.entries(input.query ?? {})) {",
-        "    if (value !== undefined && value !== null) "
-        "query.append(key, String(value));",
+        (
+            "    if (value !== undefined && value !== null) "
+            "query.append(key, String(value));"
+        ),
         "  }",
         "  const suffix = query.size ? `?${query.toString()}` : '';",
         "  const headers: Record<string, string> = { ...(input.headers ?? {}) };",
@@ -1553,22 +1581,32 @@ def _typescript(schema: dict[str, object], artifact: bytes) -> bytes:
         "  const bearer = Object.entries(headers).some(([key, value]) =>",
         "    key.toLowerCase() === 'authorization' && value.startsWith('Bearer '));",
         "  if (bearer) for (const key of Object.keys(headers)) {",
-        "    if (key.toLowerCase() === 'cookie' || "
-        "key.toLowerCase() === 'x-csrf-token') delete headers[key];",
+        (
+            "    if (key.toLowerCase() === 'cookie' || "
+            "key.toLowerCase() === 'x-csrf-token') delete headers[key];"
+        ),
         "  }",
         "  const response = await fetch(`${input.baseUrl ?? ''}${route}${suffix}`, {",
-        "    method, headers, credentials: bearer ? 'omit' : "
-        "(input.credentials ?? 'same-origin'),",
+        (
+            "    method, headers, credentials: bearer ? 'omit' : "
+            "(input.credentials ?? 'same-origin'),"
+        ),
         "    body: input.body === undefined ? undefined : JSON.stringify(input.body),",
         "    signal: input.signal,",
         "  });",
-        "  const raw: unknown = response.status === 204 "
-        "? undefined : await response.json();",
-        "  if (response.ok) return { ok: true, status: response.status, "
-        "data: raw as T, headers: response.headers };",
+        (
+            "  const raw: unknown = response.status === 204 "
+            "? undefined : await response.json();"
+        ),
+        (
+            "  if (response.ok) return { ok: true, status: response.status, "
+            "data: raw as T, headers: response.headers };"
+        ),
         "  if (!isProblem(raw)) throw new Error('invalid_problem_response');",
-        "  return { ok: false, status: response.status, "
-        "problem: raw, headers: response.headers };",
+        (
+            "  return { ok: false, status: response.status, "
+            "problem: raw, headers: response.headers };"
+        ),
         "}",
         "export const operationIds = Object.freeze([",
         *[

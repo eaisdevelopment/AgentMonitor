@@ -85,6 +85,8 @@ This index is the entry point for product, architecture, engineering, and operat
   exact Codex 0.160.0 managed-profile, quota, process, API/UI, and completion-gate scope.
 - [Codex 0.160.0 discovery evidence](evidence/m5-codex-0.160.0-discovery.md):
   official-source, installed-schema, isolated app-server, and safe process findings that bind the M5 implementation.
+- [Codex CLI adapter](adapters/codex.md): exact-version managed login, identity,
+  quota, process, operations, privacy, and completion boundaries for V1-M5.
 - [Claude dashboard polling delivery](evidence/claude-dashboard-polling.md): real service-owned five-minute collection, current quota refresh, preserved registry metadata, and restart cadence for one enrolled profile.
 - [Claude Code 2.1.289 admission evidence](evidence/claude-2.1.289-admission.md):
   exact-version quota and managed-auth compatibility, bounded model-card

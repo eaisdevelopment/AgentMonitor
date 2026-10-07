@@ -58,7 +58,7 @@ class LifecycleHooksV1:
 
     def __post_init__(self) -> None:
         for timeout in (self.startup_timeout_seconds, self.shutdown_timeout_seconds):
-            if not math.isfinite(timeout) or not 0.05 <= timeout <= 30:
+            if not math.isfinite(timeout) or not 0.05 <= timeout <= 60:
                 raise ApplicationLifecycleError("lifecycle_deadline_invalid")
         for hooks in (self.startup, self.shutdown, self.tasks):
             if not isinstance(hooks, tuple) or len(hooks) > 32:

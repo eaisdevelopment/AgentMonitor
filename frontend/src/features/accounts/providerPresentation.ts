@@ -15,8 +15,10 @@ export function providerConnectionCopy(providerKey: string) {
     requested: `Keep this page open. ${provider}'s official sign-in window is being opened.`,
     awaiting: `Complete sign-in in ${provider}'s browser window using the email below. This page will update after verification.`,
     verifying: `Sign-in finished. Checking that ${provider} reports the account you selected before enabling monitoring.`,
-    wrongAccount: `${provider} reported a different identity from the selected email. Monitoring was not enabled by this attempt. Review the selected account before trying again.`,
-    setupDescription: `${provider} sign-in succeeded, but its first-use setup still needs attention. Monitoring has not started. Check status after completing ${provider} setup.`,
+    wrongAccount: providerKey === "codex"
+      ? "Codex reported a different identity from the selected email. This managed profile is quarantined for this account record. Archive this record and create a new account record for the intended identity."
+      : `${provider} reported a different identity from the selected email. Monitoring was not enabled by this attempt. Review the selected account before trying again.`,
+    setupDescription: `${provider} sign-in was verified, but dashboard enrollment is incomplete. Review the account email, then finish the connection.`,
     emailHelp: `Sign in with this email in ${provider}. Enter passwords and verification codes only on ${provider}'s official page.`,
     recoveryHelp: `Confirm the email used for the previously verified ${provider} account. The service will check it again before continuing.`,
   });

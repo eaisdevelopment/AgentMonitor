@@ -80,6 +80,18 @@ def test_operations_diagnostics_use_real_schema_and_closed_safe_output(
             assert result[0] == 200
             payload = json.loads(result[2])
             assert payload["versions"]["schema_version"]["value"] == "v1_0707"
+            revision = payload["versions"]["source_revision"]
+            assert set(revision) == {"value", "availability", "source"}
+            assert revision["source"] == "build_manifest"
+            if app.state.build.source_revision is None:
+                assert revision == {
+                    "value": None,
+                    "availability": "unknown",
+                    "source": "build_manifest",
+                }
+            else:
+                assert revision["value"] == app.state.build.source_revision
+                assert revision["availability"] == "available"
             assert payload["readiness"]["state"] == "ready"
             keys = {item["component_key"] for item in payload["health"]["components"]}
             assert {
@@ -92,6 +104,7 @@ def test_operations_diagnostics_use_real_schema_and_closed_safe_output(
             wire = result[2].decode()
             assert credential not in wire
             assert str(tmp_path) not in wire
+            assert str(Path(__file__).resolve().parents[4]) not in wire
             assert '"password"' not in wire and '"email"' not in wire
             assert set(payload) == {
                 "versions",

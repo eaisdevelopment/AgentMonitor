@@ -1,4 +1,4 @@
-"""Run the admitted M3 critical pure-policy mutation gate."""
+"""Run the admitted M3 and M5 critical pure-policy mutation gate."""
 
 from __future__ import annotations
 
@@ -12,7 +12,7 @@ from collections.abc import Mapping
 from hashlib import sha256
 from importlib import metadata
 from pathlib import Path
-from shutil import copy2, copytree
+from shutil import copy2, copytree, which
 from typing import cast
 
 ROOT = Path(__file__).resolve().parents[3]
@@ -24,19 +24,42 @@ RUNTIME_CONTRACT = Path("src/agentmonitor/contracts/runtime_observation_v1.py")
 RUNTIME_CONTRACT_SHA256 = (
     "0733bf799efeaa6d047e2dbf51e3ba79ca309feb39a69b2a17a18b1cf8826ecc"
 )
-TARGETS = (
+M3_TARGETS = (
     Path("src/agentmonitor/modules/capacity/domain/health.py"),
     Path("src/agentmonitor/modules/runtime_observation/application/correlation.py"),
     Path("src/agentmonitor/modules/runtime_observation/application/state.py"),
 )
-PURE_TESTS = (
+CODEX_TARGETS = (
+    Path("src/agentmonitor/adapters/providers/codex/authentication/identity.py"),
+    Path("src/agentmonitor/adapters/providers/codex/manifest.py"),
+    Path("src/agentmonitor/adapters/providers/codex/subscription/mapper.py"),
+    Path("src/agentmonitor/adapters/providers/codex/subscription/schema.py"),
+    Path("src/agentmonitor/adapters/providers/codex/subscription/source.py"),
+)
+TARGETS = (*M3_TARGETS, *CODEX_TARGETS)
+M3_PURE_TESTS = (
     Path("tests/capacity/test_quantity_and_health.py"),
     Path("tests/runtime_observation/test_contracts.py"),
     Path("tests/runtime_observation/test_runtime_state_policy.py"),
 )
-MUTATION_POLICY_TEST = ROOT / "tools/automation/test_m3_critical_mutation_policies.py"
-MUTATION_POLICY_TEST_DESTINATION = Path(
-    "tests/mutation/test_m3_critical_mutation_policies.py"
+CODEX_PURE_TESTS = (
+    Path("tests/adapters/providers/codex/test_identity_parser.py"),
+    Path("tests/adapters/providers/codex/test_manifest.py"),
+    Path("tests/adapters/providers/codex/test_security_policy.py"),
+    Path("tests/adapters/providers/codex/test_subscription_source_parser.py"),
+    Path("tests/adapters/providers/codex/test_critical_mutation_policies.py"),
+    Path("tests/adapters/providers/codex/unit/test_subscription_mapper.py"),
+)
+PURE_TESTS = (*M3_PURE_TESTS, *CODEX_PURE_TESTS)
+MUTATION_POLICY_TESTS = (
+    (
+        ROOT / "tools/automation/test_m3_critical_mutation_policies.py",
+        Path("tests/mutation/test_m3_critical_mutation_policies.py"),
+    ),
+    (
+        ROOT / "tools/automation/test_m5_codex_mutation_policies.py",
+        Path("tests/mutation/test_m5_codex_mutation_policies.py"),
+    ),
 )
 NON_KILLED_STATUSES = (
     "survived",
@@ -76,6 +99,19 @@ EQUIVALENT_MUTANT_SHA256 = {
     "x_decide_session_correlation__mutmut_52": (
         "a5dc71272f40a24fc6039da92948cea11deae3844060a421829af267c1e24037"
     ),
+    # Python treats UTF-8 encoding names case-insensitively.
+    "agentmonitor.adapters.providers.codex.authentication.identity."
+    "x_parse_account_identity_v1__mutmut_114": (
+        "153ca0608e11f01fc3af856d1b56f75bc206179716b10bfb59007d69d6c37478"
+    ),
+    # typing.cast returns its second argument unchanged at runtime; changing only
+    # either type expression cannot change this pure parser's runtime behavior.
+    "agentmonitor.adapters.providers.codex.subscription.source.x__bucket__mutmut_41": (
+        "3967069aee6c6f276a2ff69f67e5109c7b089789f40fbbdcebbb6b749a88a746"
+    ),
+    "agentmonitor.adapters.providers.codex.subscription.source.x__bucket__mutmut_50": (
+        "3ac220acee297a5c4a2cb3619fa8d9ee04e3e383627ba19478d13d9220d7e4ff"
+    ),
 }
 
 
@@ -93,7 +129,14 @@ def mutation_config_matches(config: object) -> bool:
         and config.get("only_mutate") == [str(path) for path in TARGETS]
         and config.get("pytest_add_cli_args") == ["-q", "-p", "no:cacheprovider"]
         and config.get("pytest_add_cli_args_test_selection")
-        == [str(path) for path in (*PURE_TESTS, MUTATION_POLICY_TEST_DESTINATION)]
+        == [
+            str(path)
+            for path in (
+                *PURE_TESTS,
+                *(destination for _source, destination in MUTATION_POLICY_TESTS),
+            )
+        ]
+        and config.get("mutate_only_covered_lines") is True
         and config.get("process_isolation") == "fork"
         and config.get("use_git_change_detection") is False
         and config.get("on_dependency_change") == "rerun"
@@ -169,9 +212,10 @@ def _copy_workspace(destination: Path) -> None:
         target = destination / relative
         target.parent.mkdir(parents=True, exist_ok=True)
         copy2(BACKEND / relative, target)
-    mutation_policy_target = destination / MUTATION_POLICY_TEST_DESTINATION
-    mutation_policy_target.parent.mkdir(parents=True, exist_ok=True)
-    copy2(MUTATION_POLICY_TEST, mutation_policy_target)
+    for source, relative in MUTATION_POLICY_TESTS:
+        mutation_policy_target = destination / relative
+        mutation_policy_target.parent.mkdir(parents=True, exist_ok=True)
+        copy2(source, mutation_policy_target)
 
 
 def _run(
@@ -191,14 +235,26 @@ def _run(
     )
 
 
+def _codex_executable() -> Path | None:
+    found = which("codex")
+    if found is None:
+        return None
+    candidate = Path(found)
+    if not candidate.is_absolute() or not candidate.is_file():
+        return None
+    return candidate
+
+
 def _tool_ready() -> bool:
     try:
+        codex = _codex_executable()
         return (
             PYTHON.is_file()
             and MUTMUT.is_file()
+            and codex is not None
             and metadata.version("mutmut") == MUTMUT_VERSION
             and all((BACKEND / path).is_file() for path in (*TARGETS, *PURE_TESTS))
-            and MUTATION_POLICY_TEST.is_file()
+            and all(source.is_file() for source, _relative in MUTATION_POLICY_TESTS)
             and _workspace_policy_matches(BACKEND)
         )
     except (metadata.PackageNotFoundError, OSError):
@@ -207,43 +263,55 @@ def _tool_ready() -> bool:
 
 def baseline_policy_command() -> list[str]:
     """Run exact checkout tests without requiring caller source-path settings."""
+    codex = _codex_executable()
+    executable_path = os.defpath
+    if codex is not None:
+        executable_path = os.pathsep.join((str(codex.parent), os.defpath))
     return [
         str(PYTHON),
         "-c",
-        "import sys; sys.path.insert(0,sys.argv.pop(1)); "
-        "import pytest; raise SystemExit(pytest.main(sys.argv[1:]))",
+        (
+            "import os,sys; os.environ['PATH']=sys.argv.pop(1); "
+            "sys.path.insert(0,sys.argv.pop(1)); "
+            "import pytest; raise SystemExit(pytest.main(sys.argv[1:]))"
+        ),
+        executable_path,
         str(BACKEND / "src"),
         "-q",
         *(str(BACKEND / path) for path in PURE_TESTS),
-        str(MUTATION_POLICY_TEST),
+        *(str(source) for source, _relative in MUTATION_POLICY_TESTS),
     ]
 
 
 def main() -> int:
     if not hasattr(os, "fork"):
-        print("M3 MUTATION: BLOCKED — fork_process_isolation_unavailable")
+        print("M3/M5 MUTATION: BLOCKED — fork_process_isolation_unavailable")
         return 3
     if not _tool_ready():
-        print("M3 MUTATION: BLOCKED — admitted_mutmut_toolchain_unavailable")
+        print("M3/M5 MUTATION: BLOCKED — admitted_mutmut_toolchain_unavailable")
         return 3
 
     baseline = _run(baseline_policy_command(), cwd=ROOT)
     if baseline.returncode != 0:
-        print("M3 MUTATION: FAILED — selected_clean_tests_failed")
+        print("M3/M5 MUTATION: FAILED — selected_clean_tests_failed")
         print((baseline.stdout + baseline.stderr)[-4_000:])
         return 1
 
+    codex = _codex_executable()
+    if codex is None:
+        print("M3/M5 MUTATION: BLOCKED — admitted_codex_executable_unavailable")
+        return 3
     environment = {
-        "PATH": f"{MUTMUT.parent}{os.pathsep}{os.defpath}",
+        "PATH": os.pathsep.join((str(MUTMUT.parent), str(codex.parent), os.defpath)),
         "PYTHONHASHSEED": "0",
     }
     try:
-        with tempfile.TemporaryDirectory(prefix="agentmonitor-m3-mutation-") as raw:
+        with tempfile.TemporaryDirectory(prefix="agentmonitor-m3-m5-mutation-") as raw:
             workspace = Path(raw) / "backend"
             workspace.mkdir(mode=0o700)
             _copy_workspace(workspace)
             if not _workspace_policy_matches(workspace):
-                print("M3 MUTATION: FAILED — mutation_policy_drift")
+                print("M3/M5 MUTATION: FAILED — mutation_policy_drift")
                 return 1
             mutation = _run(
                 [str(MUTMUT), "run", "--max-children", "4"],
@@ -251,7 +319,7 @@ def main() -> int:
                 environment=environment,
             )
             if mutation.returncode != 0:
-                print("M3 MUTATION: FAILED — mutmut_execution_failed")
+                print("M3/M5 MUTATION: FAILED — mutmut_execution_failed")
                 print((mutation.stdout + mutation.stderr)[-4_000:])
                 return 1
             exported = _run(
@@ -261,12 +329,12 @@ def main() -> int:
             )
             stats_path = workspace / "mutants/mutmut-cicd-stats.json"
             if exported.returncode != 0 or not stats_path.is_file():
-                print("M3 MUTATION: FAILED — mutation_summary_unavailable")
+                print("M3/M5 MUTATION: FAILED — mutation_summary_unavailable")
                 return 1
             try:
                 summary = json.loads(stats_path.read_text(encoding="utf-8"))
             except (OSError, json.JSONDecodeError):
-                print("M3 MUTATION: FAILED — mutation_summary_invalid")
+                print("M3/M5 MUTATION: FAILED — mutation_summary_invalid")
                 return 1
             results = _run(
                 [str(MUTMUT), "results"],
@@ -290,9 +358,9 @@ def main() -> int:
                     accepted_equivalent_count=accepted_equivalent_count,
                 )
             ):
-                print("M3 MUTATION: FAILED — non_killed_or_unclassified_mutant")
+                print("M3/M5 MUTATION: FAILED — non_killed_or_unclassified_mutant")
                 print(json.dumps(summary, sort_keys=True))
-                print("M3 MUTATION RESULTS:")
+                print("M3/M5 MUTATION RESULTS:")
                 print("\n".join((results.stdout + results.stderr).splitlines()[:200]))
                 return 1
             safe_summary = {
@@ -300,13 +368,16 @@ def main() -> int:
             }
             safe_summary["accepted_equivalent"] = accepted_equivalent_count
     except (OSError, subprocess.TimeoutExpired):
-        print("M3 MUTATION: FAILED — mutation_runner_unavailable")
+        print("M3/M5 MUTATION: FAILED — mutation_runner_unavailable")
         return 1
 
-    print(f"M3 MUTATION: CLEAN TESTS PASSED ({len(PURE_TESTS) + 1} selected files)")
-    print("M3 MUTATION: TARGETS — " + ", ".join(str(path) for path in TARGETS))
-    print("M3 MUTATION: " + json.dumps(safe_summary, sort_keys=True))
-    print("M3 MUTATION: PASSED — all non-equivalent critical-policy mutants killed")
+    print(
+        "M3/M5 MUTATION: CLEAN TESTS PASSED "
+        f"({len(PURE_TESTS) + len(MUTATION_POLICY_TESTS)} selected files)"
+    )
+    print("M3/M5 MUTATION: TARGETS — " + ", ".join(str(path) for path in TARGETS))
+    print("M3/M5 MUTATION: " + json.dumps(safe_summary, sort_keys=True))
+    print("M3/M5 MUTATION: PASSED — all non-equivalent critical-policy mutants killed")
     return 0
 
 

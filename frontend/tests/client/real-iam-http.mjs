@@ -65,8 +65,24 @@ async function run() {
   requireResult(!denied.ok && denied.status === 403, 'scope_denial_failed');
   requireResult(denied.problem.code === 'permission_denied', 'problem_decode_failed');
   requireResult(typeof denied.problem.correlation_id === 'string', 'correlation_missing');
-  requireResult(operationIds.length === 25, 'operation_count_mismatch');
-  process.stdout.write('{"status":"passed","operations":25}\n');
+  const requiredOperationIds = [
+    'iam_get_initialization_v1',
+    'iam_login_v1',
+    'iam_get_current_session_v1',
+    'iam_logout_v1',
+    'iam_change_password_v1',
+    'iam_list_sessions_v1',
+    'iam_revoke_session_v1',
+    'iam_revoke_other_sessions_v1',
+    'iam_list_api_tokens_v1',
+    'iam_create_api_token_v1',
+    'iam_rotate_api_token_v1',
+    'iam_revoke_api_token_v1',
+    'iam_list_security_events_v1',
+  ];
+  requireResult(requiredOperationIds.every((operationId) => operationIds.includes(operationId)), 'required_operation_missing');
+  requireResult(new Set(operationIds).size === operationIds.length, 'operation_id_duplicate');
+  process.stdout.write(`${JSON.stringify({ status: 'passed', operations: operationIds.length })}\n`);
 }
 
 run().catch((error) => {

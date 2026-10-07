@@ -35,6 +35,7 @@ import {
   type OrganizationOrderingViewV1,
   type OrganizationViewV1,
   type ProviderCapabilityDeclarationPageV1,
+  type ProviderAccountIdentityViewV1,
   type ProviderConnectionViewV1,
   type ObservedAccountIdentityViewV1,
   type LiveProcessLocationPageV1,
@@ -82,6 +83,7 @@ export type {
   OrganizationOrderingViewV1,
   OrganizationViewV1,
   ProviderCapabilityDeclarationPageV1,
+  ProviderAccountIdentityViewV1,
   ProviderConnectionViewV1,
   ObservedAccountIdentityViewV1,
   LiveProcessLocationPageV1,
@@ -330,8 +332,19 @@ export const registry = Object.freeze({
       path: { account_id: account.account_id },
       headers: mutationHeaders({ id: account.account_id, recordVersion: account.record_version }),
     }),
-  accounts: (signal?: AbortSignal): Promise<ClientResult<AccountPageV1>> =>
-    apiClient.registry_list_accounts_v1({ query: { limit: 200 }, signal }),
+  accounts: (
+    signal?: AbortSignal,
+    cursor?: string,
+  ): Promise<ClientResult<AccountPageV1>> =>
+    apiClient.registry_list_accounts_v1({
+      query: { limit: 200, ...(cursor ? { cursor } : {}) },
+      signal,
+    }),
+  account: (
+    accountId: string,
+    signal?: AbortSignal,
+  ): Promise<ClientResult<AccountViewV1>> =>
+    apiClient.registry_get_account_v1({ path: { account_id: accountId }, signal }),
   providerInstallations: (
     signal?: AbortSignal,
   ): Promise<ClientResult<ProviderInstallationPageV1>> =>
@@ -355,6 +368,11 @@ export const providers = Object.freeze({
     signal?: AbortSignal,
   ): Promise<ClientResult<ObservedAccountIdentityViewV1>> =>
     apiClient.provider_get_observed_account_identity_v1({ path: { account_id: accountId }, signal }),
+  accountIdentity: (
+    accountId: string,
+    signal?: AbortSignal,
+  ): Promise<ClientResult<ProviderAccountIdentityViewV1>> =>
+    apiClient.provider_get_account_identity_v1({ path: { account_id: accountId }, signal }),
   capabilities: (
     providerKey: string,
     signal?: AbortSignal,

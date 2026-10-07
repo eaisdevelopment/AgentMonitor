@@ -594,4 +594,27 @@ hashes remain unchanged. This mechanical rebind preserves the historical CS-1
 conclusions and does not claim M5 implementation, live verification, or
 milestone completion.
 
-Plan snapshot SHA-256: `53e5be92a17537a360eaeab85d01a317d7287a9c4ce1cb6e20d72ad73a94ef9d`
+Plan snapshot SHA-256: `26c8f1b5be85121408184005e647a20fc4eb9e69dea128862b7d515a96c67be6`
+
+## 2026-10-07 M5 completion-automation control rebind
+
+The synchronized snapshot now catalogs `AUTO-M5-ALERT-WITNESS` as the
+application-owned genuine alert-lifecycle evidence producer and
+`AUTO-M5-EXIT` as the bounded milestone successor. The completion standard
+binds both commands to the approved focused M5 packet. Only the
+`automation-routines` and `automation-standard` controls changed; all 20
+canonical plan hashes and public contracts remain unchanged. This rebind does
+not claim an implementation, live verification, or M5 completion result.
+
+Plan snapshot SHA-256: `221ed2d0202a77ad4d107685fc1867d03658fed51534cc2b3b71c92657f9e47d`
+
+## 2026-10-07 M5 implementation gate reconciliation
+
+The synchronized snapshot now binds the M5 managed-profile syscall-containment
+lane and final local completion lanes in the canonical automation controls.
+Implementation corrections for provider deadlines, service drain, Registry
+pagination, generated artifacts, and exact test inventory are verified by their
+own Red/Green evidence and do not alter the twenty canonical module-plan bytes.
+This rebind does not claim live verification or M5 completion.
+
+Plan snapshot SHA-256: `2c37537514d50a8abf1890fdff9fc53af442b6e627cc13e91fb60f14b2ecae2b`

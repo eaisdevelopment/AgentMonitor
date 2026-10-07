@@ -86,6 +86,13 @@ class OperationsComponentVersionWireV1(_ClosedV1):
 
 class OperationsVersionsWireV1(_ClosedV1):
     application_version: OperationsVersionValueWireV1
+    source_revision: OperationsVersionValueWireV1 = Field(
+        default_factory=lambda: OperationsVersionValueWireV1(
+            value=None,
+            availability="unknown",
+            source="build_manifest",
+        )
+    )
     schema_version: OperationsVersionValueWireV1
     api_version: OperationsVersionValueWireV1
     openapi_version: OperationsVersionValueWireV1

@@ -63,7 +63,7 @@ def test_fresh_migration_preserves_empty_m01_schema_at_current_head(
                 connection.exec_driver_sql(
                     "SELECT version_num FROM alembic_version"
                 ).scalar_one()
-                == "v1_0603"
+                == compatibility.application_schema_range().migration_target_revision
             )
             assert (
                 connection.exec_driver_sql(
@@ -78,7 +78,10 @@ def test_fresh_migration_preserves_empty_m01_schema_at_current_head(
         ref, compatibility.application_schema_range(), "runtime_read_write"
     )
     assert view.state == "compatible"
-    assert compatibility.RequireWritableSchemaV1(view).revision == "v1_0603"
+    assert (
+        compatibility.RequireWritableSchemaV1(view).revision
+        == compatibility.application_schema_range().migration_target_revision
+    )
 
 
 def test_existing_empty_file_is_not_silently_initialized(tmp_path: Path) -> None:

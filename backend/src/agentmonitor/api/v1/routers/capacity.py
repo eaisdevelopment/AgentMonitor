@@ -124,6 +124,9 @@ def _window(item: DomainWindow) -> QuotaWindowViewV1:
         subject=_subject(item.subject),
         window_key=item.window_key,
         safe_label=item.safe_label,
+        semantic_role=item.semantic_role,
+        reset_at=item.reset_at,
+        reset_precision=item.reset_precision,
         allowance=QuotaAllowanceViewV1(
             remaining_percentage=_metric(allowance.remaining_percentage),
             calculation=allowance.calculation,

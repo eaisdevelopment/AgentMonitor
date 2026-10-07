@@ -27,6 +27,10 @@ LINUX_PROCESS_ADAPTER_VERSION = "1.1.0"
 LINUX_PROCESS_SOURCE_VERSION = "linux-procfs-stat-exe-v1"
 _MAX_STAT_BYTES = 16 * 1024
 _MAX_BOOT_SCOPE_BYTES = 128
+_ADMITTED_SELECTOR_IDENTITIES = {
+    "linux.proc.claude-process.v1": "claude",
+    "linux.proc.codex-process.v1": "codex",
+}
 
 
 @dataclass(frozen=True, slots=True)
@@ -268,11 +272,14 @@ class InspectLinuxProcessesV1:
             return self._failure(
                 request, observed_at, "unsupported", "linux_source_unverified"
             )
-        if request.selector_id != "linux.proc.claude-process.v1":
+        expected_executable_identity = _ADMITTED_SELECTOR_IDENTITIES.get(
+            request.selector_id
+        )
+        if expected_executable_identity is None:
             return self._failure(
                 request, observed_at, "unsupported", "linux_selector_unverified"
             )
-        if request.executable_identity != "claude":
+        if request.executable_identity != expected_executable_identity:
             return self._failure(
                 request, observed_at, "invalid_request", "linux_selector_mismatch"
             )

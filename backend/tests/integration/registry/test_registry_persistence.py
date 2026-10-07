@@ -67,7 +67,7 @@ def test_v1_0200_through_v1_0204_create_owned_schema_without_rows(
     )
 
     assert view.state == "compatible"
-    assert view.current_revision == "v1_0603"
+    assert view.current_revision == application_schema_range().migration_target_revision
     with open_sqlite_database(reference, "runtime_read_write") as handle:
         with handle.connect() as connection:
             tables = set(

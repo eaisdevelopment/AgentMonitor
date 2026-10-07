@@ -12,8 +12,12 @@ import asyncio
 import hashlib
 import ipaddress
 import json
+import os
+import re
 import signal
 import socket
+import stat
+import subprocess
 import tomllib
 from collections.abc import Callable, Iterator
 from contextlib import contextmanager
@@ -78,6 +82,7 @@ from agentmonitor.adapters.persistence.runtime_observation.sqlite.repository imp
     SqliteRuntimeObservationRepositoryV1,
 )
 from agentmonitor.adapters.providers.claude.manifest import build_claude_manifest
+from agentmonitor.adapters.providers.codex.manifest import build_codex_manifest
 from agentmonitor.api.app import create_application
 from agentmonitor.api.v1.dependencies import (
     AlertApiPortsV1,
@@ -91,14 +96,25 @@ from agentmonitor.composition.claude_dashboard_collection import (
 from agentmonitor.composition.claude_dashboard_connection import (
     ClaudeDashboardConnectionV1,
 )
+from agentmonitor.composition.codex_dashboard_collection import (
+    CodexDashboardCollectorV1,
+)
+from agentmonitor.composition.codex_dashboard_connection import (
+    CodexDashboardConnectionV1,
+)
 from agentmonitor.composition.linux_process_locations import (
-    read_live_claude_process_locations_v1,
+    read_live_process_locations_v1,
 )
 from agentmonitor.composition.operations_health import (
+    CodexProviderHealthLeafV1,
     ConfigurationHealthLeafV1,
     DatabaseHealthLeafV1,
     DatabaseSchemaVersionQueryV1,
     FoundationHealthLeafV1,
+)
+from agentmonitor.composition.provider_dashboard_connections import (
+    ProviderDashboardConnectionsV1,
+    ProviderVerifiedQuotaIdentitiesV1,
 )
 from agentmonitor.contracts.configuration_v1 import (
     BootstrapConfigurationV1,
@@ -213,6 +229,108 @@ class LoopbackServerError(ValueError):
         super().__init__(code)
 
 
+_GIT_EXECUTABLE_V1 = Path("/usr/bin/git")
+_GIT_REVISION_V1 = re.compile(r"[a-f0-9]{40}")
+_GIT_ENVIRONMENT_V1 = {
+    "GIT_CONFIG_NOSYSTEM": "1",
+    "GIT_NO_REPLACE_OBJECTS": "1",
+    "GIT_OPTIONAL_LOCKS": "0",
+    "GIT_TERMINAL_PROMPT": "0",
+    "HOME": "/nonexistent",
+    "LANG": "C",
+    "LC_ALL": "C",
+    "PATH": "/usr/bin:/bin",
+    "XDG_CONFIG_HOME": "/nonexistent",
+}
+
+
+def _git_revision_command_v1(root: Path) -> str | None:
+    result = subprocess.run(
+        [
+            str(_GIT_EXECUTABLE_V1),
+            "-c",
+            "core.fsmonitor=false",
+            "-c",
+            "core.untrackedCache=false",
+            "rev-parse",
+            "--verify",
+            "HEAD^{commit}",
+        ],
+        cwd=root,
+        env=_GIT_ENVIRONMENT_V1,
+        check=False,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.DEVNULL,
+        timeout=5,
+    )
+    if result.returncode != 0 or len(result.stdout) > 41:
+        return None
+    revision = result.stdout.decode("ascii", errors="strict").strip()
+    return revision if _GIT_REVISION_V1.fullmatch(revision) is not None else None
+
+
+def _git_exit_v1(root: Path, *arguments: str) -> int:
+    return subprocess.run(
+        [
+            str(_GIT_EXECUTABLE_V1),
+            "-c",
+            "core.fsmonitor=false",
+            "-c",
+            "core.untrackedCache=false",
+            *arguments,
+        ],
+        cwd=root,
+        env=_GIT_ENVIRONMENT_V1,
+        check=False,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+        timeout=5,
+    ).returncode
+
+
+def read_clean_source_revision_v1(root: Path) -> str | None:
+    """Read exact clean HEAD through the fixed local Git boundary.
+
+    Only a revision is returned. Repository paths, status rows and Git errors
+    remain internal, and any unavailable or dirty state becomes unknown.
+    """
+
+    try:
+        executable = os.lstat(_GIT_EXECUTABLE_V1)
+        if (
+            not stat.S_ISREG(executable.st_mode)
+            or executable.st_uid != 0
+            or executable.st_mode & (stat.S_IWGRP | stat.S_IWOTH)
+            or executable.st_mode & (stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH) == 0
+        ):
+            return None
+        before = _git_revision_command_v1(root)
+        if before is None or _git_exit_v1(
+            root,
+            "diff-index",
+            "--quiet",
+            "--ignore-submodules=none",
+            "HEAD",
+            "--",
+        ):
+            return None
+        untracked = _git_exit_v1(
+            root,
+            "ls-files",
+            "--others",
+            "--exclude-standard",
+            "--error-unmatch",
+            "--",
+            "*",
+        )
+        if untracked != 1:
+            return None
+        after = _git_revision_command_v1(root)
+        return before if before == after else None
+    except (OSError, subprocess.SubprocessError, UnicodeError):
+        return None
+
+
 def build_metadata() -> BuildMetadataV1:
     """Read only repository build inputs, with no timestamps or local-path output."""
     manifest = Path(__file__).resolve().parents[3] / "pyproject.toml"
@@ -221,6 +339,7 @@ def build_metadata() -> BuildMetadataV1:
     if not isinstance(version, str):
         raise ApplicationLifecycleError("build_version_invalid")
     root = manifest.parent.parent
+    source_revision = read_clean_source_revision_v1(root)
     openapi_path = root / "contracts/openapi/agentmonitor-v1.json"
     client_path = root / "frontend/src/generated/api/index.ts"
     frontend_manifest = root / "frontend/package.json"
@@ -267,7 +386,7 @@ def build_metadata() -> BuildMetadataV1:
             )
     return BuildMetadataV1(
         version,
-        None,
+        source_revision,
         None,
         "omitted_for_reproducibility",
         application_schema_range(),
@@ -359,18 +478,32 @@ def _iam_ports(reference: DatabaseRefV1) -> IamApiPortsV1:
 
 def _observation_ports(
     reference: DatabaseRefV1,
-    collector: ClaudeDashboardCollectorV1,
-    connections: ClaudeDashboardConnectionV1,
+    claude_collector: ClaudeDashboardCollectorV1,
+    codex_collector: CodexDashboardCollectorV1,
+    claude_connections: ClaudeDashboardConnectionV1,
+    codex_connections: CodexDashboardConnectionV1,
     data_root: Path,
 ) -> ObservationApiPortsV1:
     registry = SqliteRegistryRepositoryV1(reference)
     collection = SqliteCollectionRepositoryV1(reference)
     capacity = SqliteCapacityRepositoryV1(reference)
     runtime = SqliteRuntimeObservationRepositoryV1(reference)
+    get_account = GetAccountV1(registry)
     associations = OwnerProcessAccountAssociationsV1(
-        read_live_claude_process_locations_v1,
+        read_live_process_locations_v1,
         OwnerAssociationSettingsRepositoryV1(data_root),
-        GetAccountV1(registry),
+        get_account,
+    )
+    connections = ProviderDashboardConnectionsV1(
+        get_account,
+        {"claude": claude_connections, "codex": codex_connections},
+    )
+    verified_identities = ProviderVerifiedQuotaIdentitiesV1(
+        get_account,
+        {
+            "claude": claude_collector.read_verified_identity,
+            "codex": codex_collector.read_verified_identity,
+        },
     )
     return ObservationApiPortsV1(
         CreateOrganizationV1(registry),
@@ -383,7 +516,7 @@ def _observation_ports(
         GetAccountV1(registry),
         ListAccountsV1(registry),
         ListProviderInstallationsV1(registry),
-        GetProviderCapabilitiesV1((build_claude_manifest(),)),
+        GetProviderCapabilitiesV1((build_claude_manifest(), build_codex_manifest())),
         ListCollectionRunsV1(collection),
         GetAccountCapacityV1(capacity),
         ListQuotaWindowsV1(capacity),
@@ -392,7 +525,7 @@ def _observation_ports(
         ListAgentSessionsV1(runtime),
         GetAgentSessionV1(runtime),
         GetSessionTreeV1(runtime),
-        GetVerifiedQuotaIdentityV1(collector.read_verified_identity),
+        GetVerifiedQuotaIdentityV1(verified_identities),
         ListLiveProcessLocationsV1(associations.read),
         connections,
         associations,
@@ -416,15 +549,29 @@ def create_iam_application(
     build = build_metadata()
     reference = DatabaseRefV1(data_root / "agentmonitor.db", data_root)
     database_health = LiveDatabaseHealthReaderV1(reference, build.schema_range)
-    collector = ClaudeDashboardCollectorV1(
+    claude_collector = ClaudeDashboardCollectorV1(
         reference, managed_profiles_root=data_root / "profiles" / "claude"
     )
-    connections = ClaudeDashboardConnectionV1(reference, data_root)
+    codex_collector = CodexDashboardCollectorV1(
+        reference, managed_profiles_root=data_root / "profiles" / "codex"
+    )
+    claude_connections = ClaudeDashboardConnectionV1(reference, data_root)
+    codex_connections = CodexDashboardConnectionV1(reference, data_root)
     alert_delivery = CapacityAlertDeliveryV1(reference)
     lifecycle = replace(
         lifecycle,
-        tasks=lifecycle.tasks + (collector.run, connections.run, alert_delivery.run),
-        shutdown_timeout_seconds=30,
+        tasks=lifecycle.tasks
+        + (
+            claude_collector.run,
+            codex_collector.run,
+            claude_connections.run,
+            codex_connections.run,
+            alert_delivery.run,
+        ),
+        # A Codex request is bounded at 30 seconds and owned-child TERM/KILL
+        # cleanup can consume four more. Leave bounded scheduling/SQLite margin
+        # so lifecycle cancellation drains the worker before closing resources.
+        shutdown_timeout_seconds=45,
     )
     app = create_application(
         settings,
@@ -442,7 +589,12 @@ def create_iam_application(
         iam_mode=True,
         iam_ports=_iam_ports(reference),
         observation_ports=_observation_ports(
-            reference, collector, connections, data_root
+            reference,
+            claude_collector,
+            codex_collector,
+            claude_connections,
+            codex_connections,
+            data_root,
         ),
         service_lock_path=data_root / ".agentmonitor-service.lock",
     )
@@ -479,6 +631,7 @@ def create_iam_application(
         "runtime_observation",
         "alerting",
         "provider.claude",
+        "provider.codex",
     )
     manifest = tuple(
         ComponentRegistrationV1(key, "required_for_normal_readiness", ())
@@ -504,6 +657,7 @@ def create_iam_application(
             ("identity_access", GetIamComponentHealthV1(reference)),
             ("registry", GetRegistryComponentHealthV1(reference)),
             ("collection_control", GetCollectorComponentHealthV1(reference)),
+            ("provider.codex", CodexProviderHealthLeafV1()),
         ),
         lifecycle_query,
         build,

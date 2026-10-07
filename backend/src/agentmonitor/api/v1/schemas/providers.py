@@ -26,6 +26,29 @@ class ObservedAccountIdentityViewV1(_ClosedV1):
     profile_protection: Literal["protected_default", "managed", "unknown"] = "unknown"
 
 
+class ProviderAccountIdentityViewV1(_ClosedV1):
+    """Provider-neutral identity receipt without legacy Claude markers."""
+
+    account_id: str
+    provider_key: str = Field(
+        min_length=1, max_length=64, pattern=r"^[a-z][a-z0-9_-]{0,63}$"
+    )
+    state: Literal["verified", "unresolved"]
+    email: str | None
+    provider_organization: str | None
+    collection_run_id: str | None
+    verified_at: datetime | None
+    provider_version: str | None
+    identity_source_id: str | None = Field(
+        default=None,
+        min_length=1,
+        max_length=128,
+        pattern=r"^[A-Za-z0-9._-]+$",
+    )
+    running_agent_correlation: Literal["unresolved"]
+    profile_protection: Literal["protected_default", "managed", "unknown"] = "unknown"
+
+
 class ProviderConnectionViewV1(_ClosedV1):
     account_id: str
     flow_id: str | None

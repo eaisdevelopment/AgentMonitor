@@ -58,6 +58,7 @@ SCENARIOS = {
     "monitoring_dashboard",
     "organizations",
     "accounts_admin",
+    "account_beyond_page",
     "claude_connection",
     "alerts",
     "alert_console",

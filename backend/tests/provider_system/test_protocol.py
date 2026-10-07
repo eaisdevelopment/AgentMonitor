@@ -233,6 +233,20 @@ def request_header(
     )
 
 
+def test_provider_deadlines_allow_ten_minutes_but_remain_bounded() -> None:
+    """CTR-PROV-002/004: owner login may use the approved ten-minute bound."""
+    ten_minute_constraint = replace(constraints(), deadline_ms=600_000)
+    ten_minute_request = replace(request_header(), deadline_ms=600_000)
+
+    assert ten_minute_constraint.deadline_ms == 600_000
+    assert ten_minute_request.deadline_ms == 600_000
+
+    with pytest.raises(InvalidProviderContract, match="collection_constraint_invalid"):
+        replace(constraints(), deadline_ms=600_001)
+    with pytest.raises(InvalidProviderContract, match="request_deadline_invalid"):
+        replace(request_header(), deadline_ms=600_001)
+
+
 @pytest.mark.parametrize(
     "capability_id",
     ["", "Subscription.Quota", "subscription/quota", "subscription..quota", "x" * 129],

@@ -135,6 +135,9 @@ PROBLEM_DESCRIPTIONS: dict[str, str] = {
     "provider_connection_email_required": "Enter the intended provider account email.",
     "provider_connection_busy": "Finish or cancel the current account sign-in first.",
     "provider_connection_not_found": "The selected sign-in attempt is unavailable.",
+    "provider_identity_legacy_unavailable": (
+        "Use the provider-neutral identity resource for this provider."
+    ),
     "request_capacity_exceeded": "The local request-capacity limit was reached.",
     "request_timeout": "The request exceeded its execution deadline.",
     "request_too_large": "The request exceeded a transport size limit.",

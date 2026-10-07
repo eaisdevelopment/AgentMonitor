@@ -1,8 +1,13 @@
-"""M4 composition maps published operational receipts, without business SQL."""
+"""Composition maps real operational leaves without business SQL."""
 
 from datetime import UTC, datetime, timedelta
 from typing import ClassVar
 
+from agentmonitor.adapters.providers.codex.installation import (
+    CodexInstallationUnavailable,
+    CodexInstallationV1,
+    discover_default_installation,
+)
 from agentmonitor.contracts.common_v1 import FieldAvailabilityV1
 from agentmonitor.contracts.configuration_v1 import BootstrapConfigurationV1
 from agentmonitor.contracts.database_v1 import (
@@ -76,6 +81,55 @@ class ConfigurationHealthLeafV1:
             (),
         )
         return ComponentHealthResultV1("configuration", "available", sample, now, code)
+
+
+class CodexProviderHealthLeafV1:
+    """Report the exact admitted Codex installation through the operations view."""
+
+    CONTRACT_ID: ClassVar[str] = "CTR-OPS-006"
+    OWNER: ClassVar[str] = "PLAN-INT"
+
+    def __init__(self) -> None:
+        self._installation: CodexInstallationV1 | None
+        try:
+            self._installation = discover_default_installation()
+        except CodexInstallationUnavailable:
+            self._installation = None
+
+    async def __call__(
+        self, request: ComponentHealthRequestV1
+    ) -> ComponentHealthResultV1:
+        try:
+            if self._installation is None:
+                raise CodexInstallationUnavailable("codex_executable_unavailable")
+            self._installation.executable_for_launch()
+        except CodexInstallationUnavailable:
+            now = datetime.now(UTC)
+            return ComponentHealthResultV1(
+                "provider.codex",
+                "unavailable",
+                None,
+                now,
+                "operations_component_unavailable",
+            )
+        now = datetime.now(UTC)
+        sample = ComponentHealthSampleV1(
+            "provider.codex",
+            self._installation.provider_version,
+            "healthy",
+            now,
+            now + timedelta(seconds=30),
+            now,
+            ("operations_component_healthy",),
+            (),
+        )
+        return ComponentHealthResultV1(
+            "provider.codex",
+            "available",
+            sample,
+            now,
+            "operations_component_healthy",
+        )
 
 
 class DatabaseHealthLeafV1:

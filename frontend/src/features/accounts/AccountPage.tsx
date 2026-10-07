@@ -19,7 +19,12 @@ import {
 type AccountState =
   | Readonly<{ kind: "loading" }>
   | Readonly<{ kind: "error"; message: string }>
-  | Readonly<{ kind: "ready"; data: AccountPageV1; organizations: OrganizationPageV1 }>;
+  | Readonly<{
+      kind: "ready";
+      data: AccountPageV1;
+      organizations: OrganizationPageV1;
+      selected: AccountViewV1 | null;
+    }>;
 
 export function AccountPage({
   accountId,
@@ -39,6 +44,8 @@ export function AccountPage({
   const [accountName, setAccountName] = useState("");
   const [organizationId, setOrganizationId] = useState("");
   const [busy, setBusy] = useState(false);
+  const [paginationBusy, setPaginationBusy] = useState(false);
+  const [paginationMessage, setPaginationMessage] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const settingsRef = useRef<HTMLDetailsElement>(null);
   const [liveProcesses, setLiveProcesses] = useState<LiveProcessLocationPageV1 | null>(null);
@@ -52,21 +59,31 @@ export function AccountPage({
   const load = useCallback(async (signal?: AbortSignal) => {
     setState((current) => current.kind === "ready" ? current : { kind: "loading" });
     try {
-      const [result, organizations] = await Promise.all([
+      const [result, organizations, detail] = await Promise.all([
         registry.accounts(signal), registry.organizations(signal),
+        accountId === undefined ? null : registry.account(accountId, signal),
       ]);
-      if (!result.ok || !organizations.ok) {
+      if (!result.ok || !organizations.ok || (detail !== null && !detail.ok)) {
         if ((!result.ok && result.problem.code === "dashboard_authentication_required") ||
-            (!organizations.ok && organizations.problem.code === "dashboard_authentication_required")) onExpired();
+            (!organizations.ok && organizations.problem.code === "dashboard_authentication_required") ||
+            (detail !== null && !detail.ok && detail.problem.code === "dashboard_authentication_required")) onExpired();
+        else if (result.ok && organizations.ok && detail !== null && !detail.ok && detail.problem.status === 404) {
+          setState({ kind: "ready", data: result.data, organizations: organizations.data, selected: null });
+        }
         else setState({ kind: "error", message: "Accounts could not be loaded from the local service." });
         return;
       }
-      setState({ kind: "ready", data: result.data, organizations: organizations.data });
+      setState({
+        kind: "ready",
+        data: result.data,
+        organizations: organizations.data,
+        selected: detail === null ? null : detail.data,
+      });
     } catch (error) {
       if (error instanceof DOMException && error.name === "AbortError") return;
       setState({ kind: "error", message: "The local account registry is unavailable." });
     }
-  }, [onExpired]);
+  }, [accountId, onExpired]);
 
   const reloadAccount = useCallback(() => { void load(); }, [load]);
 
@@ -121,6 +138,52 @@ export function AccountPage({
     });
   }
 
+  async function loadMoreAccounts(): Promise<void> {
+    if (paginationBusy || state.kind !== "ready" || accountId !== undefined) return;
+    const cursor = state.data.page.next_cursor;
+    if (!state.data.page.has_more || cursor === null || cursor.trim().length === 0) {
+      setPaginationMessage("More accounts could not be requested because the service did not provide a continuation.");
+      return;
+    }
+    setPaginationBusy(true);
+    setPaginationMessage(null);
+    try {
+      const result = await registry.accounts(undefined, cursor);
+      if (!result.ok) {
+        if (result.problem.code === "dashboard_authentication_required") onExpired();
+        else setPaginationMessage("More accounts could not be loaded from the local service.");
+        return;
+      }
+      const existingIds = new Set(state.data.items.map((account) => account.account_id));
+      const nextIds = new Set<string>();
+      const repeatsAccount = result.data.items.some((account) => {
+        if (existingIds.has(account.account_id) || nextIds.has(account.account_id)) return true;
+        nextIds.add(account.account_id);
+        return false;
+      });
+      const repeatsCursor = result.data.page.has_more &&
+        result.data.page.next_cursor === cursor;
+      if (repeatsAccount || repeatsCursor) {
+        setPaginationMessage("More accounts could not be loaded because the continuation was inconsistent.");
+        return;
+      }
+      setState((current) => current.kind === "ready" &&
+        current.data.page.next_cursor === cursor ? {
+          ...current,
+          data: {
+            ...result.data,
+            items: [...current.data.items, ...result.data.items],
+          },
+        } : current);
+    } catch (error) {
+      if (!(error instanceof DOMException && error.name === "AbortError")) {
+        setPaginationMessage("The local account registry is unavailable.");
+      }
+    } finally {
+      setPaginationBusy(false);
+    }
+  }
+
   const Heading = displayMode === "page" ? "h1" : "h2";
   if (state.kind === "loading") return (
     <section className="telemetry-panel" aria-labelledby={titleId} aria-busy="true">
@@ -135,13 +198,16 @@ export function AccountPage({
     </section>
   );
 
-  const selected = accountId === undefined ? undefined : state.data.items.find((account) => account.account_id === accountId);
+  const selected = accountId === undefined ? undefined : state.selected ?? undefined;
   if (accountId !== undefined && selected === undefined) return (
     <section className="telemetry-panel" aria-labelledby={titleId}>
       <p className="panel-code">REGISTRY / ACCOUNT</p><h1 id={titleId} tabIndex={-1}>Account unavailable</h1>
       <p>The requested account was not returned by the authenticated registry query.</p>
     </section>
   );
+  const detailAccounts = selected === undefined || state.data.items.some(
+    (account) => account.account_id === selected.account_id,
+  ) ? state.data.items : [...state.data.items, selected];
 
   if (selected !== undefined) return (
     <div className="feature-page account-page">
@@ -161,7 +227,7 @@ export function AccountPage({
       </header>
       {["claude", "codex"].includes(selected.provider_key) && selected.lifecycle !== "archived" && <ProviderConnectionPanel key={`connection-${selected.account_id}`} account={selected} onExpired={onExpired} onProofUnavailable={onProofUnavailable} onAccountReload={reloadAccount} />}
       <AccountWorkspaceSummary key={selected.account_id} account={selected} organizationName={state.organizations.items.find((item) => item.organization_id === selected.organization_id)?.name ?? "Ungrouped"} liveProcesses={liveProcesses} onExpired={onExpired} onIdentity={updateObservedIdentity} />
-      {["claude", "codex"].includes(selected.provider_key) && <LiveProviderProcesses key={`processes-${selected.account_id}`} account={selected} accounts={state.data.items} organizations={state.organizations.items} onExpired={onExpired} onProofUnavailable={onProofUnavailable} onRead={setLiveProcesses} />}
+      {["claude", "codex"].includes(selected.provider_key) && <LiveProviderProcesses key={`processes-${selected.account_id}`} account={selected} accounts={detailAccounts} organizations={state.organizations.items} onExpired={onExpired} onProofUnavailable={onProofUnavailable} onRead={setLiveProcesses} />}
       <CapacityPanel accountId={selected.account_id} onExpired={onExpired} />
       <details className="account-secondary" data-account-sessions="true">
         <summary>Session history <span>Previously observed session records</span></summary>
@@ -268,7 +334,17 @@ export function AccountPage({
           </article>
         ))}</div>
       )}
-      {state.data.page.has_more && <p className="pagination-note" role="status">More accounts are available beyond this page.</p>}
+      {state.data.page.has_more && state.data.page.next_cursor !== null && (
+        <div className="pagination-note">
+          <button type="button" className="quiet-button" disabled={paginationBusy} onClick={() => { void loadMoreAccounts(); }}>
+            {paginationBusy ? "Loading more accounts…" : "Load more accounts"}
+          </button>
+        </div>
+      )}
+      {state.data.page.has_more && state.data.page.next_cursor === null && (
+        <p className="pagination-note" role="alert">More accounts are reported, but the service did not provide a continuation.</p>
+      )}
+      {paginationMessage && <p className="pagination-note" role="status">{paginationMessage}</p>}
     </section>
   );
 }
