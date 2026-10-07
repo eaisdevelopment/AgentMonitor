@@ -11,6 +11,7 @@ from agentmonitor.composition.claude_live_monitoring import (
 from agentmonitor.contracts.collection_control_v1 import (
     CollectionCommitReceiptV1,
     CollectionFailedV1,
+    CollectionRunAdmissionV1,
     CollectionRunViewV1,
     InvalidCollectionControlV1,
 )
@@ -148,9 +149,8 @@ def test_commit_receipt_contract_carries_complete_recovery_evidence() -> None:
     } <= names
 
 
-def test_manual_operator_admission_records_its_actual_authorization_boundary() -> None:
-    """M04-PURE-019: a local operator is never labeled as an M01 session."""
-    admission = build_owner_operator_quota_admission_v1(
+def _owner_admission() -> CollectionRunAdmissionV1:
+    return build_owner_operator_quota_admission_v1(
         run_id="run-one",
         request_id="request-one",
         correlation_id="correlation-one",
@@ -172,5 +172,15 @@ def test_manual_operator_admission_records_its_actual_authorization_boundary() -
         requested_at=datetime(2026, 9, 23, tzinfo=UTC),
     )
 
+
+def test_manual_operator_admission_records_its_actual_authorization_boundary() -> None:
+    """M04-PURE-019: a local operator is never labeled as an M01 session."""
+    admission = _owner_admission()
+
     assert admission.request_auth_method == "owner_local_operator"
     assert admission.request_principal_id == OpaqueIdV1("agentmonitor-owner")
+
+
+def test_quota_admission_adds_the_reviewed_policy_generation() -> None:
+    """M4-GEN-001: quota policy generation is separate from registry revision."""
+    assert _owner_admission().target_generation == 5

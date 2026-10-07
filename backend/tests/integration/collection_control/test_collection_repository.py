@@ -1,10 +1,12 @@
 """M04 real file-backed SQLite admission and idempotency evidence."""
 
 from concurrent.futures import ThreadPoolExecutor
+from dataclasses import replace
 from datetime import UTC, datetime
 from pathlib import Path
 from threading import Barrier
 
+import pytest
 from agentmonitor.adapters.persistence._shared.sqlite.core.policy import (
     DatabaseRefV1,
     open_sqlite_database,
@@ -46,6 +48,9 @@ def _admission(
     target_key_digest: str = "b" * 64,
     resource_id: str = "resource-one",
     registry_revision: int = 1,
+    target_generation: int = 1,
+    manifest_fingerprint: str = "e" * 64,
+    collection_policy_version: str = "1.0.0",
 ) -> CollectionRunAdmissionV1:
     return CollectionRunAdmissionV1(
         run_id=OpaqueIdV1(run_id),
@@ -70,12 +75,12 @@ def _admission(
         adapter_version="1.0.0",
         provider_version="2.1.278",
         adapter_protocol_version="1.0.0",
-        manifest_fingerprint="e" * 64,
-        collection_policy_version="1.0.0",
+        manifest_fingerprint=manifest_fingerprint,
+        collection_policy_version=collection_policy_version,
         registry_revision=registry_revision,
         retry_chain_id=OpaqueIdV1("retry-chain-one"),
         attempt_ordinal=1,
-        target_generation=1,
+        target_generation=target_generation,
         scheduler_instance_id=OpaqueIdV1("scheduler-instance-one"),
         lease_policy_version="1.0.0",
         budget_policy_id="provider-request-budget-v1",
@@ -272,10 +277,53 @@ def test_concurrent_scoped_budget_admission_has_one_winner(tmp_path: Path) -> No
     assert sorted(results) == ["admitted", "collection_budget_exhausted"]
 
 
+@pytest.mark.parametrize(
+    "changed",
+    (
+        replace(
+            _admission(
+                run_id="collection-run-two",
+                request_id="collection-request-two",
+                idempotency_digest="1" * 64,
+                budget_units=0,
+            ),
+            registry_revision=2,
+        ),
+        replace(
+            _admission(
+                run_id="collection-run-two",
+                request_id="collection-request-two",
+                idempotency_digest="1" * 64,
+                budget_units=0,
+            ),
+            source_id="source-two",
+        ),
+        replace(
+            _admission(
+                run_id="collection-run-two",
+                request_id="collection-request-two",
+                idempotency_digest="1" * 64,
+                budget_units=0,
+            ),
+            manifest_fingerprint="2" * 64,
+        ),
+        replace(
+            _admission(
+                run_id="collection-run-two",
+                request_id="collection-request-two",
+                idempotency_digest="1" * 64,
+                budget_units=0,
+            ),
+            collection_policy_version="1.0.1",
+        ),
+    ),
+    ids=("registry-revision", "source", "manifest", "collection-policy"),
+)
 def test_same_schedule_generation_rejects_changed_policy_snapshot(
     tmp_path: Path,
+    changed: CollectionRunAdmissionV1,
 ) -> None:
-    """M04 admission mechanism: one generation cannot change policy inputs."""
+    """M4-GEN-003: one generation cannot change any policy input."""
     repository = _repository(tmp_path)
     first = repository.admit_run(_admission(budget_units=0))
     repository.mark_running(first.run_id, NOW, fencing_token=first.fencing_token)
@@ -290,19 +338,62 @@ def test_same_schedule_generation_rejects_changed_policy_snapshot(
     )
 
     try:
+        repository.admit_run(changed)
+    except CollectionRepositoryErrorV1 as error:
+        assert error.code == "collection_generation_conflict"
+    else:
+        raise AssertionError("same generation accepted changed policy snapshot")
+
+
+def test_active_lease_blocks_generation_advance_without_schedule_mutation(
+    tmp_path: Path,
+) -> None:
+    """M04-DB-004/012: a newer policy cannot refence active work."""
+    reference = DatabaseRefV1(tmp_path / "agentmonitor.db", tmp_path)
+    migrate_to_head(reference)
+    repository = SqliteCollectionRepositoryV1(reference)
+    first = repository.admit_run(
+        _admission(registry_revision=48, target_generation=48, budget_units=0)
+    )
+
+    try:
         repository.admit_run(
             _admission(
                 run_id="collection-run-two",
                 request_id="collection-request-two",
                 idempotency_digest="1" * 64,
-                registry_revision=2,
+                registry_revision=48,
+                target_generation=49,
+                manifest_fingerprint="2" * 64,
                 budget_units=0,
             )
         )
     except CollectionRepositoryErrorV1 as error:
-        assert error.code == "collection_generation_conflict"
+        assert error.code == "collection_schedule_conflict"
     else:
-        raise AssertionError("same generation accepted changed registry policy")
+        raise AssertionError("active lease was replaced by a newer generation")
+
+    with open_sqlite_database(reference, "runtime_read_only") as handle:
+        with handle.connect() as connection:
+            generation = connection.exec_driver_sql(
+                "SELECT target_generation FROM collection_schedule "
+                "WHERE schedule_id='collection-schedule-one'"
+            ).scalar_one()
+            second_run_count = connection.exec_driver_sql(
+                "SELECT count(*) FROM collection_run WHERE run_id='collection-run-two'"
+            ).scalar_one()
+            second_request_count = connection.exec_driver_sql(
+                "SELECT count(*) FROM collection_request "
+                "WHERE request_id='collection-request-two'"
+            ).scalar_one()
+            lease = connection.exec_driver_sql(
+                "SELECT run_id, fencing_token FROM collection_lease "
+                "WHERE schedule_id='collection-schedule-one'"
+            ).one()
+    assert generation == 48
+    assert second_run_count == 0
+    assert second_request_count == 0
+    assert lease == (first.run_id.value, first.fencing_token)
 
 
 def test_interrupted_committing_run_resolves_without_reinvoking_provider(

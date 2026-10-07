@@ -58,6 +58,10 @@ OWNER_PROFILE_REF = "claude-profile-default-read-only"
 OWNER_RESOURCE_REF = "claude-subscription-current"
 OWNER_PRINCIPAL_ID = "agentmonitor-owner"
 _MINIMUM_SOURCE_INTERVAL = timedelta(milliseconds=300_000)
+# Increment only when the reviewed quota source ID, manifest fingerprint, or
+# collection policy changes. Adapter/provider compatibility is bound by the
+# manifest; this generation is independent from M02's registry watermark.
+_COLLECTION_POLICY_GENERATION = 1
 
 
 class ClaudeLiveMonitoringErrorV1(RuntimeError):
@@ -146,7 +150,7 @@ def build_owner_operator_quota_admission_v1(
         registry_revision=registry_revision,
         retry_chain_id=OpaqueIdV1(retry_chain_id),
         attempt_ordinal=1,
-        target_generation=registry_revision,
+        target_generation=registry_revision + _COLLECTION_POLICY_GENERATION,
         scheduler_instance_id=OpaqueIdV1("agentmonitor-local-manual"),
         lease_policy_version="1.0.0",
         budget_policy_id="claude-source-minimum-interval-v1",
