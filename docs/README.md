@@ -81,6 +81,10 @@ This index is the entry point for product, architecture, engineering, and operat
 - [M4 completion evidence](evidence/m4-completion.md): all six M4 Stories, installed migration, six distinct monitored identities, fresh post-restart lineage, browser verification, and owner-accepted revision-bound closure.
 - [M4 current-gate receipt](evidence/m4-current-gate-receipt-2026-10-07.json): sanitized create-once result for the exact accepted implementation revision.
 - [M4 owner countersignature](evidence/m4-owner-live-countersignature-2026-10-07.md): explicit acceptance of the complete approved M4 scope.
+- [Approved M5 Codex slice change](plans/integration/m5-codex-slice-change.md):
+  exact Codex 0.160.0 managed-profile, quota, process, API/UI, and completion-gate scope.
+- [Codex 0.160.0 discovery evidence](evidence/m5-codex-0.160.0-discovery.md):
+  official-source, installed-schema, isolated app-server, and safe process findings that bind the M5 implementation.
 - [Claude dashboard polling delivery](evidence/claude-dashboard-polling.md): real service-owned five-minute collection, current quota refresh, preserved registry metadata, and restart cadence for one enrolled profile.
 - [Claude Code 2.1.289 admission evidence](evidence/claude-2.1.289-admission.md):
   exact-version quota and managed-auth compatibility, bounded model-card
