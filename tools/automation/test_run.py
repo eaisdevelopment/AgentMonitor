@@ -23,6 +23,26 @@ from run import index_routines, load_catalog, validate_catalog
 
 
 class AutomationRoutineTests(unittest.TestCase):
+    def test_m5_prerequisite_archive_without_selection_never_moves_files(
+        self,
+    ) -> None:
+        """The recovery command blocks before selecting an owner data root."""
+        catalog = load_catalog(REPOSITORY_ROOT)
+        routine = catalog["AUTO-M5-ARCHIVE-PREREQUISITES"]
+        self.assertEqual("operational", routine["status"])
+        result = subprocess.run(
+            [sys.executable, str(RUNNER), "AUTO-M5-ARCHIVE-PREREQUISITES"],
+            cwd=REPOSITORY_ROOT,
+            env={"PATH": os.defpath},
+            capture_output=True,
+            text=True,
+            check=False,
+            timeout=15,
+        )
+        self.assertEqual(3, result.returncode, result.stdout + result.stderr)
+        self.assertNotIn("PASSED", result.stdout)
+        self.assertIn("M5 PREREQUISITE ARCHIVE: BLOCKED", result.stdout)
+
     def test_m5_owner_outcomes_without_real_selectors_never_writes_file(
         self,
     ) -> None:
@@ -935,6 +955,7 @@ class AutomationRoutineTests(unittest.TestCase):
                 "AUTO-M3-LIVE",
                 "AUTO-M3-EXIT",
                 "AUTO-M4-EXIT",
+                "AUTO-M5-ARCHIVE-PREREQUISITES",
                 "AUTO-M5-OWNER-OUTCOMES",
                 "AUTO-M5-QUOTA-WITNESS",
                 "AUTO-M5-ALERT-WITNESS",

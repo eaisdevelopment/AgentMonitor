@@ -618,3 +618,37 @@ own Red/Green evidence and do not alter the twenty canonical module-plan bytes.
 This rebind does not claim live verification or M5 completion.
 
 Plan snapshot SHA-256: `2c37537514d50a8abf1890fdff9fc53af442b6e627cc13e91fb60f14b2ecae2b`
+
+## 2026-10-08 M5 stale-prerequisite recovery control rebind
+
+The synchronized snapshot now catalogs
+`AUTO-M5-ARCHIVE-PREREQUISITES` and its bounded completion rule. The command
+preserves one stale, internally consistent create-once prerequisite set before
+fresh M5 evidence is collected. Only the `automation-routines` and
+`automation-standard` controls changed; all 20 canonical plan hashes and
+public contracts remain unchanged. This mechanical rebind does not claim a
+live archive run, refreshed owner evidence, or M5 completion.
+
+Plan snapshot SHA-256: `451deff945dcb532dcbd134e6f9e4eec138d87083b4940bc76ee10a29306e603`
+
+## 2026-10-08 M5 archive race-safety control correction
+
+The automation standard now binds stale-prerequisite recovery to Linux atomic
+no-replace movement and one validated owner-only lock shared with final M5
+receipt creation. This correction closes the reviewed destination-replacement
+and receipt/archive serialization gaps. Only the `automation-standard` control
+changed; canonical plan bodies, public contracts, and acceptance state remain
+unchanged.
+
+Plan snapshot SHA-256: `22e312a4f907bde4f17026b6f97a9c933b22e89ee3a4c348df2b31d1f42e0780`
+
+## 2026-10-08 M5 receipt-scope lock correction
+
+The automation standard now scopes M5 archive/exit exclusion to the shared
+checkout receipt instead of an individual owner data root. A validated private
+receipt directory and nonreplaceable Linux abstract kernel guard serialize all
+owner roots and remain exclusive across filesystem pathname replacement. Only
+the `automation-standard` control changed; canonical plans, public contracts,
+and acceptance state remain unchanged.
+
+Plan snapshot SHA-256: `6b1ea0fd2117dc1d5a173df69bf5f59122ef9a42ec736a473ea71c61bd294215`

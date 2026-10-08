@@ -135,6 +135,10 @@ test("live entrypoint wires independent executable proofs into the witness", () 
     new URL("./verify_m5_codex_alert_lifecycle.mjs", import.meta.url),
     "utf8",
   );
+  const quotaSource = readFileSync(
+    new URL("./verify_m5_codex_quota_reconciliation.mjs", import.meta.url),
+    "utf8",
+  );
   assert.match(source, /await readIndependentProcessProof\(process\)/);
   assert.match(source, /open\(`\$\{root\}\/exe`, "r"\)/);
   assert.match(source, /bindIndependentCodexExecutableProofsV1\([\s\S]*?\{ ownerRoot \},\n\s*\)/);
@@ -147,6 +151,12 @@ test("live entrypoint wires independent executable proofs into the witness", () 
   assert.doesNotMatch(source, /for \(let pageIndex = 0; pageIndex < 64;/);
   assert.match(alertSource, /readAllRegistryItemsV1/);
   assert.doesNotMatch(alertSource, /for \(let pageIndex = 0; pageIndex < 64;/);
+  assert.match(quotaSource, /\.usage-allowance \.allowance-card\[data-window-key\]/);
+  assert.doesNotMatch(quotaSource, /\.workspace-reading\[data-window-key\]/);
+  assert.match(
+    quotaSource,
+    /const historyDetails = page\.locator\("details\.quota-history"\);[\s\S]*?await historyDetails\.locator\("summary"\)\.evaluate\(element => element\.click\(\)\);/,
+  );
 });
 
 test("registry pagination requires every available page and a progressing cursor", async () => {

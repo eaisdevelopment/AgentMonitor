@@ -589,3 +589,35 @@ This mechanical rebind changes no canonical module plan, public
 contract version, approval flag, or milestone acceptance state.
 
 Plan snapshot SHA-256: `2c37537514d50a8abf1890fdff9fc53af442b6e627cc13e91fb60f14b2ecae2b`
+
+## 2026-10-08 M5 stale-prerequisite recovery control rebind
+
+The current snapshot binds `AUTO-M5-ARCHIVE-PREREQUISITES` in the automation
+catalog and completion standard. The routine has the approved narrow purpose
+of preserving stale private M5 prerequisite evidence before a new create-once
+run. Only the two automation controls changed. This mechanical rebind changes
+no canonical module plan, public contract version, approval flag, live result,
+or milestone acceptance state.
+
+Plan snapshot SHA-256: `451deff945dcb532dcbd134e6f9e4eec138d87083b4940bc76ee10a29306e603`
+
+## 2026-10-08 M5 archive race-safety control correction
+
+The current snapshot records the reviewed correction that makes archive moves
+and rollback atomic without replacement and serializes archive with final M5
+receipt creation. Only the completion automation standard changed. This
+mechanical correction changes no module plan, public contract, approval flag,
+live result, or milestone acceptance state.
+
+Plan snapshot SHA-256: `22e312a4f907bde4f17026b6f97a9c933b22e89ee3a4c348df2b31d1f42e0780`
+
+## 2026-10-08 M5 receipt-scope lock correction
+
+The current snapshot records the reviewed correction that serializes archive
+and final receipt creation across every owner data root using the one shared
+checkout receipt scope and a nonreplaceable Linux kernel guard. Only the
+completion automation standard changed. This mechanical correction changes no
+module plan, public contract, approval flag, live result, or milestone
+acceptance state.
+
+Plan snapshot SHA-256: `6b1ea0fd2117dc1d5a173df69bf5f59122ef9a42ec736a473ea71c61bd294215`

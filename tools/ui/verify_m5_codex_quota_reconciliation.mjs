@@ -231,7 +231,11 @@ try {
     await page.goto(`${origin}/accounts/${encodeURIComponent(record.account_id)}`);
     await page.getByRole("table", { name: "Account activity", exact: true })
       .waitFor({ timeout: 15_000 });
-    const rows = await page.locator(".workspace-reading[data-window-key]").evaluateAll(items =>
+    const allowanceRows = page.locator(
+      ".usage-allowance .allowance-card[data-window-key]",
+    );
+    await allowanceRows.first().waitFor({ timeout: 15_000 });
+    const rows = await allowanceRows.evaluateAll(items =>
       items.map(item => ({
         window_key: item.getAttribute("data-window-key"),
         semantic_role: item.getAttribute("data-semantic-role"),
@@ -253,6 +257,8 @@ try {
       rendered.push({ account_id: record.account_id, ...matches[0],
         remaining_percent: window.remaining_percent });
     }
+    const historyDetails = page.locator("details.quota-history");
+    await historyDetails.locator("summary").evaluate(element => element.click());
     const chart = page.getByRole("img", { name: "Capacity history trend", exact: true });
     await chart.waitFor({ timeout: 15_000 });
     const chartIds = new Set(((await chart.getAttribute("data-observation-ids")) ?? "")

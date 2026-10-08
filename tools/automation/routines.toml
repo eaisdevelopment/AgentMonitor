@@ -229,6 +229,14 @@ implementation_command = ["backend/.venv/bin/python", "-m", "tools.automation.im
 blockers = []
 
 [[routines]]
+id = "AUTO-M5-ARCHIVE-PREREQUISITES"
+owner = "PLAN-INT"
+status = "operational"
+scope = "fail-closed preservation of one stale M5 create-once prerequisite set in a private same-filesystem revision-and-digest archive before fresh owner evidence is collected"
+implementation_command = ["backend/.venv/bin/python", "-m", "tools.automation.implementations.m5_prerequisite_archive"]
+blockers = []
+
+[[routines]]
 id = "AUTO-M5-OWNER-OUTCOMES"
 owner = "PLAN-INT"
 status = "operational"

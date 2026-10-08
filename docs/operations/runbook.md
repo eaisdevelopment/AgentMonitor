@@ -289,6 +289,77 @@ current provider identity and rejects duplicate verified identities. Alias,
 account and identity values remain private; only digests and aggregate counts
 reach the gate receipt.
 
+#### Preserve stale M5 prerequisites before collecting them again
+
+The three fixed M5 prerequisite files are create-once evidence. If the clean
+implementation revision or selected service PID/start identity changes, or a
+bounded witness expires before `AUTO-M5-EXIT`, do not edit, overwrite, copy,
+hard-link, or delete the old files and do not create a replacement data root.
+First finish and commit the intended clean revision, restart AgentMonitor from
+that revision, and verify the Operations inventory reports it. Then, with the
+same owner-root, data-root, dashboard-origin, and new service-PID selectors
+used above, run:
+
+```bash
+python3 tools/automation/run.py AUTO-M5-ARCHIVE-PREREQUISITES
+```
+
+The command requires a clean checkout and the exact selected running service.
+It refuses to act when `.agentmonitor-local/m5-current-gate-receipt.json`
+already exists, when the existing prerequisite set is still usable for the
+current revision/service/freshness bounds, when the owner-outcome file is
+absent, or when any existing dependent witness is malformed or belongs to a
+different owner-outcome context.
+
+Archive and `AUTO-M5-EXIT` use one checkout-global lock scope matching the
+shared `.agentmonitor-local/m5-current-gate-receipt.json` path, regardless of
+which owner data root is selected. The protocol opens and validates the
+resolved owner-owned `0700` receipt directory, takes a nonblocking exclusive
+lock on its directory descriptor, and binds a Linux abstract Unix socket whose
+kernel name is derived from the OS owner and canonical receipt path. The
+kernel-bound name cannot be renamed, unlinked, or replaced through the
+filesystem. Replacing even the complete receipt directory cannot let a second
+process enter while the first guard is held, and the first process detects the
+directory identity change before claiming success.
+
+Archive holds the guard from final-receipt preflight through every move,
+verification, fsync, and rollback. M5 exit acquires it before its first receipt
+and prerequisite preflight and holds it through all gates, final rereads,
+receipt creation, service recheck, and safe receipt cleanup. Contention, an
+unsafe receipt directory, a changed directory identity, or an unavailable
+kernel guard blocks the command. Do not start a fresh prerequisite writer until
+archive reports success.
+
+Before the first rename it validates the resolved owner-owned `0700` data root
+and every existing fixed prerequisite as an owner-owned, regular, single-link,
+no-symlink `0600` file of at most 16 KiB. It validates the closed documents as
+one internally consistent dependency set, keeps each inode open, and computes
+its SHA-256 digest. It then uses Linux `renameat2(RENAME_NOREPLACE)` to move
+each entry atomically on the same filesystem without replacing a destination
+created by another process. The command blocks when this kernel primitive is
+unavailable. It moves the complete existing set below
+`<owner-data-root>/.m5-prerequisite-archive/<old-revision>-<bundle-digest>/`.
+The archive directories are `0700`; the evidence files retain their inode,
+mode, link count, size, and digest. A final `0600` manifest contains only the
+old revision, timestamp, fixed basenames, counts, and SHA-256 digests. It never
+contains aliases, account IDs, provider identities, profile paths, process IDs,
+or provider content.
+
+The complete set is preflighted before mutation and each successful rename is
+verified and fsynced. Rollback uses the same atomic no-replace primitive. A
+detected rename or manifest failure attempts to return every moved inode to its
+original fixed name without overwriting another file.
+An abrupt host or process failure between the individually atomic renames may
+leave a private incomplete archive; preserve it and investigate the fixed and
+archive names by inode and digest before retrying. Never delete or rewrite a
+partial archive to force a pass.
+
+After a successful archive, rerun `AUTO-M5-OWNER-OUTCOMES` against that already
+verified revision and service. Any capacity-alert lifecycle used for the new
+alert witness must open after both that service start and the new owner
+confirmation. Older alert rules and history remain retained evidence but
+cannot satisfy the new service-bound witness.
+
 Create the fixed `<owner-data-root>/m5-quota-witness.json` prerequisite with:
 
 ```bash

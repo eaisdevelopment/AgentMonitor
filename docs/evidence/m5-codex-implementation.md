@@ -97,7 +97,7 @@ the clean-revision milestone gate.
 | `AUTO-M3-TEST` dependency checkpoint | M3 contract and technical backend suites | Canonical routine on the development checkout | Passed | `305 passed`, zero skipped | Satisfies the local M3 dependency checkpoint; it does not establish an exact clean M5 revision. |
 | `AUTO-MUTATION` checkpoint | Critical pure-policy mutation | Canonical routine on the development checkout | Passed | `1708` mutants: `1698` killed, `10` independently accepted equivalent, `0` skipped | No non-equivalent survivor was admitted. This remains subject to the final clean-revision M5 gate. |
 | Quality, build, planning, documentation, and Git checkpoints | Static quality, generated artifacts/frontend build, repository validation, and local Git preflight | Canonical local routines on the development checkout | Passed | `AUTO-QUALITY`, `AUTO-BUILD`, `AUTO-PLAN-CHECK`, `AUTO-DOCS-CHECK`, and `AUTO-GIT-PREFLIGHT` exited zero | These individual checkpoints do not replace the unrun exact-revision `AUTO-M5-EXIT`. |
-| Full M5 Python story selection before live setup | Backend and automation Story scope | Real local boundaries plus explicit owner/provider selectors | Blocked | The exact pre-recovery-policy run returned `362 passed, 6 skipped, 1 failed` across 369 cases; the added recovery-policy case passed its focused run. The current inventory contains 370 cases. | The sole failure is the explicit `BLOCKED: m5_owner_installation_required` release selector. All six skips name missing owner/live selectors; no ordinary test failed. The final gate must rerun the 370-case inventory with zero skips. |
+| Full M5 Python story selection before live setup | Backend and automation Story scope | Real local boundaries plus explicit owner/provider selectors | Blocked | The current 386-case development-checkout run returned `379 passed, 6 skipped, 1 failed`; the real-filesystem archive race file separately returned `15 passed`. | The sole full-run failure is the explicit `BLOCKED: m5_owner_installation_required` release selector. All six skips name missing owner/live selectors; no ordinary test failed. The final gate must rerun the 386-case inventory with zero skips. |
 | Full backend regression checkpoint | Backend regression | Real local test boundaries selected by the backend suite | Blocked | Historical pre-correction rerun: `10 failed, 1374 passed, 39 skipped` | Every reported failure was an explicit M4/LAN/M5 real-owner selector requirement. This historical result does not describe the corrected checkout. |
 | `AC-LIVE-002/004` four selected Codex outcomes and live identities | Provider/account | Four real owner-selected Codex accounts or explicit owner-unavailable outcomes | Blocked | No current owner outcome file | Owner authentication and current identity verification are still required. |
 | `AC-LIVE-005`, `M5-CDX-COL/CAP` authoritative quota/history | Provider/DB/API/browser | Official Codex `/usage`, fresh scheduled observations, current and retained history | Blocked | One authenticated provider outcome normalized one primary window, but its capacity commit failed before persistence | Provenance admission and full-cadence interrupted-commit recovery are pure Green. A real retry must still prove commit, current/history lineage, exact whole percentages, reset precision, and at most 300-second skew. |
@@ -308,6 +308,17 @@ The following Reds were retained from the recovered session:
   `16 failed, 1363 passed, 39 skipped`. Ten failures were explicit missing
   owner/live selectors. Six were stale exact operation-count or migration-head
   expectations and were treated as regressions rather than waived.
+- Independent real-filesystem review reproduced two archive races: pathname
+  checks followed by POSIX rename could replace a destination created in the
+  gap, including during rollback, and a final receipt created after archive's
+  one-time check did not stop evidence movement. The new race suite first
+  failed collection because `_acquire_m5_current_completion_lock_v1` did not
+  exist. No compatibility fallback was accepted.
+- Final integration review then reproduced two lock-design Reds. Distinct
+  owner data roots could acquire distinct locks while targeting the same
+  checkout-global final receipt, and renaming the held lock pathname allowed a
+  second process to lock a replacement inode. These results invalidated the
+  first owner-root-scoped lock design before commit.
 
 The exact shell spelling for the recovered six-test pagination run, the
 receipt test invocation, and the 77-test witness-policy run was not retained.
@@ -489,6 +500,18 @@ returned `3 passed in 3.37s` with a 45-second service drain.
   true.
 - Owner-outcome private-file tests returned `12 passed`; quota witness tests
   returned `22 passed`.
+- The archive file now returns `15 passed` against real temporary filesystems.
+  Two forked processes racing to one destination prove exactly one Linux
+  `renameat2(RENAME_NOREPLACE)` move succeeds and the losing source remains.
+  A separate pipe-coordinated child holds the checkout receipt-scoped guard
+  while archives for two distinct owner roots and the M5-exit adapter all
+  refuse contention. Another forked child cannot enter after the first process
+  has had its entire receipt directory renamed and replaced: the Linux abstract
+  socket name remains kernel-bound, and the first holder detects the directory
+  identity change. Nonprivate or symlinked receipt directories are rejected,
+  and a real rollback keeps both the archived inode and a newly created
+  fixed-name destination without replacing either. No mock or injected
+  filesystem collaborator is used.
 - The containment and admission command was:
 
   ```bash
@@ -522,12 +545,13 @@ returned `3 passed in 3.37s` with a 45-second service drain.
 - `AUTO-GIT-PREFLIGHT` passed its documented local-commit scope. Remote and
   upstream release readiness were not run and are not required for this local
   implementation commit.
-- The exact pre-recovery-policy M5 Python Story selection returned `362
-  passed`, six truthful live-selector skips, and one explicit
-  `BLOCKED: m5_owner_installation_required` result across 369 cases. The added
-  recovery-policy case then passed its focused run, and canonical inventory
-  reconciliation produced 370 unique test IDs with SHA-256
-  `0b64bfb74d6d67d42854d865d1713b43ad94f3c8fef3699f9d29cbc0ded9fe44`.
+- The current full M5 Python Story selection returned `379 passed`, six
+  truthful live-selector skips, and one explicit
+  `BLOCKED: m5_owner_installation_required` result across 386 cases. The
+  archive race file separately returned `15 passed` against real files and
+  forked processes. Exact JUnit reconciliation produces 386 unique test IDs
+  with SHA-256
+  `561d47287a62b1a4773131c043099de22324e65fcb0eb7289052076181a04547`.
   The final gate must execute that complete inventory with live selectors.
 
 These were individual intermediate runs. They do not assert that the worktree

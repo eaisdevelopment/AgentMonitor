@@ -45,6 +45,13 @@ from tools.automation.implementations.m5_codex_quota_witness import (
     read_quota_witness_v1,
     registry_graph_digest_for_root_v1,
 )
+from tools.automation.implementations.m5_completion_lock import (
+    M5CompletionLockErrorV1,
+    M5CompletionLockV1,
+    acquire_m5_completion_lock_v1,
+    release_m5_completion_lock_v1,
+    validate_m5_completion_lock_v1,
+)
 from tools.automation.implementations.m5_owner_outcomes import (
     OWNER_OUTCOMES_BASENAME,
     M5OwnerOutcomesErrorV1,
@@ -121,6 +128,7 @@ BROWSER_CHECKS = (
     ("operations_browser", "tools/ui/verify_m4_operations.mjs"),
 )
 STORY_TEST_PATHS = (
+    "tools/automation/test_m5_prerequisite_archive.py",
     "tools/automation/test_m5_current_exit.py",
     "tools/automation/test_m5_owner_outcomes.py",
     "tools/automation/test_m5_codex_alert_witness.py",
@@ -149,6 +157,7 @@ STORY_TEST_PATHS = (
     "backend/tests/integration/release/test_v1_m5_codex_slice.py",
 )
 STORY_AUTOMATION_TEST_IDS = (
+    "tools/automation/test_run.py::AutomationRoutineTests::test_m5_prerequisite_archive_without_selection_never_moves_files",
     "tools/automation/test_run.py::AutomationRoutineTests::test_m5_owner_outcomes_without_real_selectors_never_writes_file",
     "tools/automation/test_run.py::AutomationRoutineTests::test_m5_alert_witness_without_real_selectors_never_writes_receipt",
     "tools/automation/test_run.py::AutomationRoutineTests::test_m5_quota_witness_without_real_selectors_never_writes_receipt",
@@ -166,11 +175,13 @@ STORY_NODE_TEST_INVENTORY_SHA256 = (
 )
 STORY_BROWSER_SCENARIOS = ("account_beyond_page",)
 # Updated only from the exact collected inventory after intentional test changes.
-STORY_PYTEST_TEST_COUNT = 370
+STORY_PYTEST_TEST_COUNT = 386
 STORY_PYTEST_TEST_INVENTORY_SHA256 = (
-    "0b64bfb74d6d67d42854d865d1713b43ad94f3c8fef3699f9d29cbc0ded9fe44"
+    "561d47287a62b1a4773131c043099de22324e65fcb0eb7289052076181a04547"
 )
 STORY_ARTIFACTS = (
+    "tools/automation/implementations/m5_completion_lock.py",
+    "tools/automation/implementations/m5_prerequisite_archive.py",
     "tools/automation/implementations/m5_owner_outcomes.py",
     "tools/automation/test_m5_owner_outcomes.py",
     "tools/automation/implementations/m5_codex_alert_witness.py",
@@ -799,6 +810,24 @@ def _validate_receipt_target_v1(path: Path) -> None:
         raise M5CurrentExitErrorV1("m5_current_receipt_path_invalid")
 
 
+def _acquire_m5_current_completion_lock_v1(
+    final_receipt_path: Path,
+) -> M5CompletionLockV1:
+    """Translate shared lifecycle-lock refusal into the M5 exit vocabulary."""
+
+    try:
+        return acquire_m5_completion_lock_v1(final_receipt_path)
+    except M5CompletionLockErrorV1:
+        raise M5CurrentExitErrorV1("m5_current_completion_lock_unavailable") from None
+
+
+def _validate_m5_current_completion_lock_v1(lock: M5CompletionLockV1) -> None:
+    try:
+        validate_m5_completion_lock_v1(lock)
+    except M5CompletionLockErrorV1:
+        raise M5CurrentExitErrorV1("m5_current_completion_lock_changed") from None
+
+
 def _unlink_created_receipt_inode_v1(path: Path, *, device: int, inode: int) -> None:
     """Remove only the directory entry that still names our created inode."""
 
@@ -1367,16 +1396,18 @@ def _read_current_quota_witness_v1(
 
 def main() -> int:
     service: ServiceProcessV1 | None = None
+    completion_lock: M5CompletionLockV1 | None = None
     try:
         missing = tuple(path for path in STORY_ARTIFACTS if not (ROOT / path).exists())
         if missing:
             raise M5CurrentExitFailedV1("m5_current_story_artifact_missing")
-        _validate_receipt_target_v1(RECEIPT_PATH)
         environment = os.environ.copy()
         environment["PYTHONPATH"] = str(ROOT / "backend/src")
         selected_service = _validate_live_selection(environment)
-        revision = _clean_m5_revision_v1()
         owner_root = selected_service.launch.data_root
+        completion_lock = _acquire_m5_current_completion_lock_v1(RECEIPT_PATH)
+        _validate_receipt_target_v1(RECEIPT_PATH)
+        revision = _clean_m5_revision_v1()
         outcomes_path = owner_root / OWNER_OUTCOMES_BASENAME
         quota_path = owner_root / QUOTA_WITNESS_BASENAME
         alert_path = owner_root / ALERT_WITNESS_BASENAME
@@ -1615,10 +1646,13 @@ def main() -> int:
             test_count=test_count,
             lane_evidence=lane_evidence,
         )
+        _validate_m5_current_completion_lock_v1(completion_lock)
+        _validate_receipt_target_v1(RECEIPT_PATH)
         try:
             write_verified_receipt_v1(service, RECEIPT_PATH, receipt)
         except M3CurrentExitErrorV1 as error:
             raise _translated_service_error_v1(error, pre_restart=False) from error
+        _validate_m5_current_completion_lock_v1(completion_lock)
     except M5CurrentExitFailedV1 as error:
         print(f"M5 CURRENT EXIT: FAILED — {error}")
         return 1
@@ -1641,6 +1675,8 @@ def main() -> int:
         print("M5 CURRENT EXIT: FAILED — execution_unavailable")
         return 1
     finally:
+        if completion_lock is not None:
+            release_m5_completion_lock_v1(completion_lock)
         if service is not None:
             try:
                 os.close(service.pidfd)

@@ -318,6 +318,11 @@ def _quota_document(recorded_at: datetime) -> dict[str, object]:
 
 def test_catalog_selects_exact_m5_gate_and_closed_lanes() -> None:
     catalog = tomllib.loads((ROOT / "tools/automation/routines.toml").read_text())
+    archive = next(
+        item
+        for item in catalog["routines"]
+        if item["id"] == "AUTO-M5-ARCHIVE-PREREQUISITES"
+    )
     producer = next(
         item for item in catalog["routines"] if item["id"] == "AUTO-M5-OWNER-OUTCOMES"
     )
@@ -326,6 +331,12 @@ def test_catalog_selects_exact_m5_gate_and_closed_lanes() -> None:
     )
     routine = next(item for item in catalog["routines"] if item["id"] == "AUTO-M5-EXIT")
 
+    assert archive["status"] == "operational"
+    assert archive["implementation_command"] == [
+        "backend/.venv/bin/python",
+        "-m",
+        "tools.automation.implementations.m5_prerequisite_archive",
+    ]
     assert producer["status"] == "operational"
     assert producer["implementation_command"] == [
         "backend/.venv/bin/python",
@@ -377,17 +388,19 @@ def test_catalog_selects_exact_m5_gate_and_closed_lanes() -> None:
     assert auto_m5_current_exit.STORY_NODE_TEST_INVENTORY_SHA256 == (
         "fcda9d4e7d59d3c9cb504edfbca3fe1744a8857c5e5457a549105054ca1e0b0e"
     )
-    assert auto_m5_current_exit.STORY_PYTEST_TEST_COUNT == 370
+    assert auto_m5_current_exit.STORY_PYTEST_TEST_COUNT == 386
     assert auto_m5_current_exit.STORY_PYTEST_TEST_INVENTORY_SHA256 == (
-        "0b64bfb74d6d67d42854d865d1713b43ad94f3c8fef3699f9d29cbc0ded9fe44"
+        "561d47287a62b1a4773131c043099de22324e65fcb0eb7289052076181a04547"
     )
     assert STORY_AUTOMATION_TEST_IDS == (
+        "tools/automation/test_run.py::AutomationRoutineTests::test_m5_prerequisite_archive_without_selection_never_moves_files",
         "tools/automation/test_run.py::AutomationRoutineTests::test_m5_owner_outcomes_without_real_selectors_never_writes_file",
         "tools/automation/test_run.py::AutomationRoutineTests::test_m5_alert_witness_without_real_selectors_never_writes_receipt",
         "tools/automation/test_run.py::AutomationRoutineTests::test_m5_quota_witness_without_real_selectors_never_writes_receipt",
         "tools/automation/test_run.py::AutomationRoutineTests::test_m5_exit_without_real_selectors_never_claims_completion",
         "tools/automation/test_run.py::AutomationRoutineTests::test_real_catalog_defines_every_mandatory_routine",
     )
+    assert "tools/automation/test_m5_prerequisite_archive.py" in STORY_TEST_PATHS
     assert "tools/automation/test_m5_owner_outcomes.py" in STORY_TEST_PATHS
     assert "tools/automation/test_m5_codex_alert_witness.py" in STORY_TEST_PATHS
     assert "tools/automation/test_m5_codex_mutation_policies.py" in STORY_TEST_PATHS
@@ -409,6 +422,9 @@ def test_catalog_selects_exact_m5_gate_and_closed_lanes() -> None:
     }.issubset(STORY_TEST_PATHS)
     assert auto_m5_current_exit.DEPENDENCY_ROUTINES == ("AUTO-M3-TEST",)
     assert {
+        "tools/automation/implementations/m5_completion_lock.py",
+        "tools/automation/implementations/m5_prerequisite_archive.py",
+        "tools/automation/test_m5_prerequisite_archive.py",
         "tools/automation/implementations/m5_owner_outcomes.py",
         "tools/automation/test_m5_owner_outcomes.py",
         "tools/automation/implementations/m5_codex_alert_witness.py",
