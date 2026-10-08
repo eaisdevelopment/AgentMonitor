@@ -371,6 +371,42 @@ def _quota_view() -> QuotaWindowViewV1:
     )
 
 
+def test_provenance_accepts_semver_build_metadata_in_mechanism_version() -> None:
+    """M05-PURE-056: admitted provider mechanism versions retain build metadata."""
+    now = datetime(2026, 10, 8, 12, tzinfo=UTC)
+
+    provenance = CapacityObservationProvenanceViewV1(
+        capability_id="subscription.quota",
+        capability_schema_version="1.0",
+        adapter_id="agentmonitor.codex",
+        adapter_version="1.0.2",
+        provider_protocol_version="1.0.0",
+        source_id="codex.app-server.account-rate-limits-read.v2",
+        source_class="experimental_private_or_browser",
+        mechanism_version=(
+            "codex-app-server-v2@0.160.0+schema."
+            "36bd8e1d76b12b89b06446a85c45e957945eb8cb63b05061264c3dec97f625da"
+        ),
+        parser_version="1.0.1",
+        provider_version="0.160.0",
+        freshness_deadline=now + timedelta(minutes=5),
+        freshness_policy_id="codex-rate-limits-five-minute-v1",
+        precision="exact",
+        confidence="confirmed",
+        confidence_reason_code="provider_reported_rate_limit_windows",
+        is_experimental=True,
+        decision_reference="M5-CDX-0-160-0-002",
+    )
+
+    assert "+schema." in provenance.mechanism_version
+    try:
+        replace(provenance, confidence_reason_code="provider+reason")
+    except InvalidCapacityContractV1 as error:
+        assert error.code == "capacity_provenance_invalid"
+    else:
+        raise AssertionError("build-metadata separator escaped the mechanism field")
+
+
 def test_default_capacity_health_policy_has_exact_admitted_thresholds() -> None:
     policy = default_capacity_health_policy_v1()
     assert policy.policy_id == "capacity-health-default-v1"

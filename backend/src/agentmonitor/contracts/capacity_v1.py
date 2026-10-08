@@ -52,6 +52,7 @@ CapacityHistoryMetricV1 = Literal["used", "remaining", "limit", "remaining_ratio
 CapacityHistorySeriesKindV1 = Literal["raw_provider", "poll_snapshot", "derived"]
 
 _TOKEN = re.compile(r"[A-Za-z0-9][A-Za-z0-9_.:@/-]{0,127}\Z")
+_PROVENANCE_MECHANISM_TOKEN = re.compile(r"[A-Za-z0-9][A-Za-z0-9_.:@/+-]{0,127}\Z")
 _CURSOR_KEY = re.compile(r"[A-Za-z0-9_-]{1,64}\Z")
 
 
@@ -247,12 +248,14 @@ class CapacityObservationProvenanceViewV1(TechnicalValueV1):
             self.adapter_version,
             self.provider_protocol_version,
             self.source_id,
-            self.mechanism_version,
             self.freshness_policy_id,
             self.confidence_reason_code,
             self.decision_reference,
         )
-        if not all(_token(value) for value in required):
+        if not all(_token(value) for value in required) or not (
+            type(self.mechanism_version) is str
+            and _PROVENANCE_MECHANISM_TOKEN.fullmatch(self.mechanism_version)
+        ):
             raise InvalidCapacityContractV1("capacity_provenance_invalid")
         if self.parser_version is not None and not _token(self.parser_version):
             raise InvalidCapacityContractV1("capacity_provenance_parser_invalid")

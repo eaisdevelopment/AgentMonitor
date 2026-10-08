@@ -87,6 +87,8 @@ def _quota_minimum_interval_ms() -> int:
 def _is_transient_failure(code: str | None) -> bool:
     if code is None:
         return False
+    if code == "collection_commit_interrupted":
+        return True
     state, retry = classify_codex_app_server_failure_v1(code)
     return state == "provider_unavailable" and retry.disposition == "after_delay"
 

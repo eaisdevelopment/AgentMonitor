@@ -43,6 +43,10 @@ boundary. Queries do not trigger collection.
 - A canonical digest is recomputed from the closed payload before persistence.
   Window order is normalized by typed identity, and a caller-supplied
   mismatching digest is rejected.
+- `CTR-CAP-001` provenance mechanism versions use the existing bounded safe
+  ASCII token grammar, including `+` for SemVer build metadata. This compatible
+  validation widening preserves an admitted provider schema digest without
+  changing the meaning of any previously accepted version.
 - The Claude mapper stores the reported rounded percent-used value. Because the
   accepted source does not report a trustworthy limit, remaining value, or
   remaining ratio, those fields remain explicitly Unknown. Reset display text

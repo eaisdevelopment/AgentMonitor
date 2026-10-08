@@ -63,6 +63,16 @@ UI, automation, and live closure. The focused approved plan is
   are reused compatibly. Account and alert traversal now consumes complete
   cursor-paginated Registry views; no fixed 200-account assumption remains in
   those changed paths.
+- `CTR-CAP-001` capacity provenance now admits `+` in its existing bounded
+  token grammar so an admitted SemVer mechanism version can retain build
+  metadata such as a schema digest. This is a compatible character-set
+  widening: existing values keep their meaning, and the contract major,
+  REST/OpenAPI schemas, persistence schema, and consumers remain unchanged.
+- The Codex collection action policy now treats exactly the bounded local
+  `collection_commit_interrupted` outcome as transient. Recovery permits a
+  distinct durable run only after the full configured quota cadence; it does
+  not perform an immediate retry or reclassify other internal failures. No
+  collection, capacity, API, event, or persistence contract changes.
 - No database table or migration was added. Real tests migrate fresh
   file-backed SQLite databases through the existing `v1_0707` head.
 - No production or development dependency was added.
@@ -75,6 +85,8 @@ the clean-revision milestone gate.
 | Test/scenario ID | Layer | Real dependencies | Status | Evidence reference | Notes |
 |---|---|---|---|---|---|
 | `M5-CDX-SOURCE` empty-root safety correction | Provider/filesystem/subprocess | Exact installed Codex `0.160.0`, real private managed root | Passed | [read-side-effect correction](m5-codex-read-side-effect-blocker.md) | This focused correction passed: real Red observed provider writes; Green rejects an uninitialized managed root before provider startup. The remaining source scenarios and authenticated behavior remain separate below. |
+| `CTR-CAP-001` SemVer build-metadata provenance | Pure capacity contract | Production `CapacityObservationProvenanceViewV1` with an admitted Codex mechanism-version shape | Passed | Focused Red plus complete `test_quantity_and_health.py` Green below | The compatible grammar correction passed its pure contract suite. The authenticated live commit that exposed it must still be retried and is not credited as a quota pass. |
+| `M5-CDX-COL-004` interrupted local commit recovery | Pure composition policy | Production Codex collection action policy | Passed | Focused Red and combined collection-policy/Capacity Green below | Exactly `collection_commit_interrupted` becomes eligible for a distinct durable run after the full cadence. No live retry is credited. |
 | `CTR-PROV-002/004`, Codex managed-login deadline | Pure contract/generated schema | Production contract and generated provider schema | Passed | Four focused tests, broader provider suite, mutation suite, schema check | Ten minutes accepted; 600,001 ms rejected. |
 | `M5-CDX-COL-013` shutdown drain | Real application lifecycle/process | Production application lifecycle and a real owned child | Passed | Focused shutdown and lifecycle runs | Service drain is 45 seconds, strictly above the 30-second operation plus four-second owned-child cleanup bound. |
 | Owner, quota, alert, and receipt prerequisite policies | Real filesystem plus pure closed-schema policy | Real files, modes, hard links, symlinks, inode substitution, kernel process behavior | Passed | Focused automation results below | These are prerequisite-policy Greens, not owner-authenticated live receipts. |
@@ -85,10 +97,10 @@ the clean-revision milestone gate.
 | `AUTO-M3-TEST` dependency checkpoint | M3 contract and technical backend suites | Canonical routine on the development checkout | Passed | `305 passed`, zero skipped | Satisfies the local M3 dependency checkpoint; it does not establish an exact clean M5 revision. |
 | `AUTO-MUTATION` checkpoint | Critical pure-policy mutation | Canonical routine on the development checkout | Passed | `1708` mutants: `1698` killed, `10` independently accepted equivalent, `0` skipped | No non-equivalent survivor was admitted. This remains subject to the final clean-revision M5 gate. |
 | Quality, build, planning, documentation, and Git checkpoints | Static quality, generated artifacts/frontend build, repository validation, and local Git preflight | Canonical local routines on the development checkout | Passed | `AUTO-QUALITY`, `AUTO-BUILD`, `AUTO-PLAN-CHECK`, `AUTO-DOCS-CHECK`, and `AUTO-GIT-PREFLIGHT` exited zero | These individual checkpoints do not replace the unrun exact-revision `AUTO-M5-EXIT`. |
-| Full M5 Python story selection before live setup | Backend and automation Story scope | Real local boundaries plus explicit owner/provider selectors | Blocked | `362 passed, 6 skipped, 1 failed` of the exact `369` cases | The sole failure is the explicit `BLOCKED: m5_owner_installation_required` release selector. All six skips name missing owner/live selectors; no ordinary test failed. The final gate must rerun with zero skips. |
+| Full M5 Python story selection before live setup | Backend and automation Story scope | Real local boundaries plus explicit owner/provider selectors | Blocked | The exact pre-recovery-policy run returned `362 passed, 6 skipped, 1 failed` across 369 cases; the added recovery-policy case passed its focused run. The current inventory contains 370 cases. | The sole failure is the explicit `BLOCKED: m5_owner_installation_required` release selector. All six skips name missing owner/live selectors; no ordinary test failed. The final gate must rerun the 370-case inventory with zero skips. |
 | Full backend regression checkpoint | Backend regression | Real local test boundaries selected by the backend suite | Blocked | Historical pre-correction rerun: `10 failed, 1374 passed, 39 skipped` | Every reported failure was an explicit M4/LAN/M5 real-owner selector requirement. This historical result does not describe the corrected checkout. |
 | `AC-LIVE-002/004` four selected Codex outcomes and live identities | Provider/account | Four real owner-selected Codex accounts or explicit owner-unavailable outcomes | Blocked | No current owner outcome file | Owner authentication and current identity verification are still required. |
-| `AC-LIVE-005`, `M5-CDX-COL/CAP` authoritative quota/history | Provider/DB/API/browser | Official Codex `/usage`, fresh scheduled observations, current and retained history | Blocked | No current quota witness | Exact whole percentages, reset precision, lineage, and at most 300-second skew have not been reconciled. |
+| `AC-LIVE-005`, `M5-CDX-COL/CAP` authoritative quota/history | Provider/DB/API/browser | Official Codex `/usage`, fresh scheduled observations, current and retained history | Blocked | One authenticated provider outcome normalized one primary window, but its capacity commit failed before persistence | Provenance admission and full-cadence interrupted-commit recovery are pure Green. A real retry must still prove commit, current/history lineage, exact whole percentages, reset precision, and at most 300-second skew. |
 | `AC-PROC-001..004`, `M5-CDX-RUN-001..008` representative processes | Linux/platform/browser | Five to six real Codex processes outside the managed-profile subtree | Blocked | No current process witness | PID/start/executable reread, hierarchy/location, and unresolved or owner-confirmed association remain required. |
 | `AC-ALERT-002`, `M5-CDX-ALERT-001..006` live lifecycle | DB/API/browser/provider | Genuine Codex capacity condition, repeated delivery, owner action, later source-proven recovery | Blocked | No current alert witness | Local DB pagination passed; the natural live lifecycle did not run. |
 | Authenticated managed-profile syscall containment | Linux/provider/security | Real authenticated managed Codex profile and `strace` | Blocked | One truthful live-selector skip in the containment suite | Identity and quota operations must show provider access inside the selected root and zero default-profile access/write. |
@@ -135,6 +147,47 @@ PYTHONPATH=backend/src backend/.venv/bin/pytest -q \
 ```
 
 It reported `m5_codex_mapping_evidence_invalid` (`1 failed in 0.04s`).
+
+### Capacity provenance rejected admitted SemVer build metadata
+
+A real authenticated Codex quota operation completed its provider read and
+normalized one primary window. The subsequent Capacity commit failed closed in
+`CapacityObservationProvenanceViewV1` with
+`capacity_provenance_invalid`. The admitted mechanism version has the form
+`codex-app-server-v2@0.160.0+schema.<digest>`, while the Capacity token grammar
+did not admit the SemVer `+` build-metadata separator.
+
+The pure contract regression test was added first:
+
+```bash
+PYTHONPATH=backend/src backend/.venv/bin/pytest -q \
+  backend/tests/capacity/test_quantity_and_health.py::test_provenance_accepts_semver_build_metadata_in_mechanism_version
+```
+
+It failed for the expected bounded rejection (`1 failed in 0.29s`). This live
+observation proves the provider read and normalization reached one primary
+window; it does not prove a successful Capacity commit, persisted quota,
+history, API value, or dashboard value. No raw provider data, credential,
+identity, or private provider response was retained.
+
+### Recovered commit interruption permanently blocked later collection
+
+After the failed local Capacity commit was recovered as
+`collection_commit_interrupted`, the Codex action policy classified that code
+as an internal permanent failure. The account could therefore remain
+ineligible for every later scheduled collection even after the full quota
+cadence elapsed.
+
+The focused regression test was added first:
+
+```bash
+PYTHONPATH=backend/src backend/.venv/bin/pytest -q \
+  backend/tests/adapters/providers/codex/unit/test_collection_action_policy.py::test_interrupted_local_commit_allows_a_new_run_after_full_cadence
+```
+
+It failed for the expected permanent classification (`1 failed in 0.51s`).
+The test is a closed pure policy check; it does not claim a provider call,
+durable run, Capacity commit, or quota result.
 
 ### Managed-root side effects were classified incorrectly
 
@@ -310,6 +363,49 @@ tightened to an otherwise-complete API-key shape. The final canonical mutation
 run evaluated `1708` mutants: `1698` killed, `10` exact hash-pinned equivalent,
 and zero skipped, suspicious, timed out, or non-equivalent survivors.
 
+### Capacity provenance admits SemVer build metadata
+
+The existing bounded Capacity token grammar now also accepts `+`, allowing the
+admitted Codex mechanism version to retain its SemVer build metadata and schema
+digest without changing the interpretation of any previously accepted value.
+The complete focused Capacity contract file passed:
+
+```bash
+PYTHONPATH=backend/src backend/.venv/bin/pytest -q \
+  backend/tests/capacity/test_quantity_and_health.py
+```
+
+```text
+13 passed in 0.22s
+```
+
+This Green establishes the compatible `CTR-CAP-001` validation widening only.
+The authenticated provider operation must be repeated through a successful
+Capacity commit before any live quota, history, API, UI, or acceptance claim.
+
+### Interrupted local commit recovers after full cadence
+
+The collection action policy now classifies exactly
+`collection_commit_interrupted` as transient. A different durable collection
+run can become eligible after the complete configured quota cadence; the
+change does not create an immediate retry and leaves every other internal
+failure classification unchanged.
+
+The collection policy and Capacity contract suites passed together:
+
+```bash
+PYTHONPATH=backend/src backend/.venv/bin/pytest -q \
+  backend/tests/adapters/providers/codex/unit/test_collection_action_policy.py \
+  backend/tests/capacity/test_quantity_and_health.py
+```
+
+```text
+16 passed in 0.53s
+```
+
+This Green proves the local scheduling and provenance policies. A real
+post-cadence provider run and successful Capacity commit remain required.
+
 ### Managed-profile safety correction
 
 ```bash
@@ -426,10 +522,13 @@ returned `3 passed in 3.37s` with a 45-second service drain.
 - `AUTO-GIT-PREFLIGHT` passed its documented local-commit scope. Remote and
   upstream release readiness were not run and are not required for this local
   implementation commit.
-- The exact `369`-case M5 Python Story selection returned `362 passed`, six
-  truthful live-selector skips, and one explicit
-  `BLOCKED: m5_owner_installation_required` result. This confirms no ordinary
-  Story regression while leaving the live gate unresolved.
+- The exact pre-recovery-policy M5 Python Story selection returned `362
+  passed`, six truthful live-selector skips, and one explicit
+  `BLOCKED: m5_owner_installation_required` result across 369 cases. The added
+  recovery-policy case then passed its focused run, and canonical inventory
+  reconciliation produced 370 unique test IDs with SHA-256
+  `0b64bfb74d6d67d42854d865d1713b43ad94f3c8fef3699f9d29cbc0ded9fe44`.
+  The final gate must execute that complete inventory with live selectors.
 
 These were individual intermediate runs. They do not assert that the worktree
 was committed and clean, that one unchanged exact revision supplied every
@@ -467,7 +566,7 @@ result, or that the live selectors required by `AUTO-M5-EXIT` were available.
 | Built Chrome UI | Passed for focused 201-account navigation | The production frontend and Chrome displayed and opened the account beyond page 200. Four-account identity/quota and alert-lifecycle browser witnesses remain Blocked. |
 | Linux process/filesystem | Passed for non-authenticated admission and containment policies | Real processes, file descriptors, pipes, files, links, and tracer admission were exercised. Five to six external Codex process observations and authenticated containment remain Blocked. |
 | Four live accounts | Blocked | No four-row owner outcome artifact is current for this worktree/revision. |
-| Authoritative live quota/history | Blocked | No official `/usage` reconciliation or fresh post-restart lineage witness exists. |
+| Authoritative live quota/history | Blocked | One authenticated provider outcome normalized one primary window, then the Capacity commit failed on the now-corrected provenance grammar. The recovered interruption is now eligible only after full cadence. A fresh successful commit, official `/usage` reconciliation, and post-restart lineage witness remain required. |
 | Genuine capacity alert lifecycle | Blocked | No natural opening, repeated condition, owner action, and source-proven recovery witness exists. |
 | Clean exact running revision | Not Run | The worktree is not a committed clean assessment revision, and no create-once M5 receipt exists. |
 
@@ -498,6 +597,9 @@ its read-only assumption for authenticated app-server operations.
   agent.
 - The existing database head remains `v1_0707`; no table, destructive
   migration, backfill, or rollback procedure was added.
+- The `CTR-CAP-001` provenance token change only admits `+` in a bounded safe
+  technical version. It changes no stored field, API schema, secret handling,
+  or provider operation.
 - No dependency, lockfile, SBOM, notice, or license inventory changed.
 - The approved plan, Codex adapter documentation, operations runbook,
   completion-gate documentation, generated contracts, and this evidence are
@@ -591,6 +693,10 @@ startup; provider write semantics are declared honestly; the ten-minute login
 and service-drain bounds align; real SQLite/API/browser account pagination and
 real SQLite alert Registry pagination work beyond 200 records; and the local
 completion-prerequisite policies fail closed at their tested boundaries.
+One authenticated quota operation also reached a normalized primary window
+before exposing the corrected Capacity provenance grammar; its failed commit
+is not a live quota pass. The recovered interruption can now become eligible
+for a distinct run after full cadence, but that live retry has not passed.
 
 It does not prove V1-M5 complete. Before any completion or acceptance claim,
 the integration owner must:
