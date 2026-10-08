@@ -264,10 +264,13 @@ python3 tools/automation/run.py AUTO-M5-OWNER-OUTCOMES
 This command requires a controlling TTY and the owner data root, dashboard
 origin and selected service PID variables above; it does not need the browser
 CDP endpoint. It reads Codex accounts through the Registry's public query over
-the real owner database and performs no provider operation. It displays only
-the selected registry aliases and opaque account IDs, collects `verified` or
-`owner_unavailable` plus a bounded reason code for each row, shows the four-row
-summary, and writes only after the owner types the exact confirmation phrase.
+the real owner database and performs no provider operation. At selection,
+disposition, and confirmation checkpoints it displays each selected registry
+alias and opaque account ID with the fixed safe labels `vendor: OpenAI` and
+`provider: Codex`. These labels are not persisted. The command collects
+`verified` or `owner_unavailable` plus a bounded reason code for each row, shows
+the four-row summary, and writes only after the owner types the exact
+confirmation phrase.
 
 The result is a regular, single-link, no-symlink `0600` file of at most 16 KiB
 which the command creates once and never replaces. Its closed schema is

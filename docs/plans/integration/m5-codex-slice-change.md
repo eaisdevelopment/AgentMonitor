@@ -58,7 +58,10 @@ single-link regular file containing exactly four unique opaque account IDs and
 unique private aliases. It binds the explicit owner confirmation and timestamp
 to the current clean implementation revision and selected pre-gate service
 PID/start identity. Each row is either `verified` or `owner_unavailable` with
-an owner reason. The file accepts no private identity fingerprint; distinct
+an owner reason. At selection, disposition, and confirmation checkpoints, each
+alias and opaque account ID is shown with the fixed safe labels `vendor: OpenAI`
+and `provider: Codex`; those labels are not added to the persisted closed
+schema. The file accepts no private identity fingerprint; distinct
 verified identities are derived from current authenticated API results in the
 live browser gate. The gate rejects `unresolved`, duplicate, extra, missing,
 public, stale, wrong-revision, wrong-service, or changing rows. Only its SHA-256

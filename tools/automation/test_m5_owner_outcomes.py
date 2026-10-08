@@ -176,7 +176,10 @@ def test_account_selection_displays_only_the_four_selected_safe_rows(
     output = capsys.readouterr().out
     assert "Available non-archived" not in output
     for account in accounts:
-        assert output.count(f"{account.alias} [{account.account_id}]") == 1
+        assert output.count(
+            f"{account.alias} [vendor: OpenAI; provider: Codex; "
+            f"account ID: {account.account_id}]"
+        ) == 1
 
 
 def test_real_migrated_registry_is_read_through_public_account_query(

@@ -43,6 +43,8 @@ OWNER_OUTCOMES_BASENAME = "m5-owner-outcomes.json"
 OWNER_OUTCOMES_SCHEMA = "agentmonitor.m5-owner-outcomes.v2"
 OWNER_CONFIRMATION_VALUE = True
 OWNER_CONFIRMATION_PHRASE = "CONFIRM M5 OWNER OUTCOMES"
+OWNER_VENDOR_LABEL = "OpenAI"
+OWNER_PROVIDER_LABEL = "Codex"
 MAX_OWNER_OUTCOME_AGE = timedelta(days=8)
 MAX_CLOCK_SKEW = timedelta(minutes=5)
 MAX_FILE_BYTES = 16_384
@@ -672,6 +674,17 @@ def _read_tty_line(prompt: str, *, maximum: int = 512) -> str:
     return value
 
 
+def _owner_account_reference_v1(
+    account: OwnerAccountSelectionV1 | OwnerOutcomeV1,
+) -> str:
+    """Identify the vendor, provider, alias and registry row at owner checkpoints."""
+
+    return (
+        f"{account.alias} [vendor: {OWNER_VENDOR_LABEL}; "
+        f"provider: {OWNER_PROVIDER_LABEL}; account ID: {account.account_id}]"
+    )
+
+
 def _select_four_accounts(
     accounts: tuple[OwnerAccountSelectionV1, ...],
 ) -> tuple[OwnerAccountSelectionV1, ...]:
@@ -696,7 +709,7 @@ def _select_four_accounts(
         selected = tuple(by_id[item] for item in identifiers)
     print("Selected M5 accounts:", flush=True)
     for account in selected:
-        print(f"- {account.alias} [{account.account_id}]", flush=True)
+        print(f"- {_owner_account_reference_v1(account)}", flush=True)
     return selected
 
 
@@ -706,7 +719,7 @@ def _collect_outcomes(
     outcomes: list[OwnerOutcomeV1] = []
     for account in selected:
         disposition = _read_tty_line(
-            f"Disposition for {account.alias} [{account.account_id}] "
+            f"Disposition for {_owner_account_reference_v1(account)} "
             "(verified/owner_unavailable): ",
             maximum=64,
         )
@@ -760,7 +773,7 @@ def create_owner_outcomes_v2(environment: Mapping[str, str]) -> str:
     for item in outcomes:
         suffix = f" ({item.reason})" if item.reason is not None else ""
         print(
-            f"- {item.alias} [{item.account_id}]: {item.disposition}{suffix}",
+            f"- {_owner_account_reference_v1(item)}: {item.disposition}{suffix}",
             flush=True,
         )
     confirmation = _read_tty_line(
