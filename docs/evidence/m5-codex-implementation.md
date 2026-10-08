@@ -1,6 +1,6 @@
 # Test evidence: V1-M5 Codex implementation
 
-- Evidence ID: `M5-CDX-IMPLEMENTATION-2026-10-07`
+- Evidence ID: `M5-CDX-IMPLEMENTATION-2026-10-08`
 - Module/plan/increment: A02 Codex provider adapter and root-owned V1-M5
   integration, approved focused plan version `1.1.0`, Stories
   `ST-CDX-001..005`.
@@ -20,13 +20,13 @@
   `CTR-RUN-001/002/003/006/007`, `CTR-PLAT-001`,
   `CTR-OPS-004/006`, `CTR-ALERT-001..005`, `CTR-EVT-001`,
   `CTR-API-001`, and `CTR-UI-001`; `ProviderAdapterV1`
-  `1.0.0-draft.2`; `codex-adapter.v1` adapter `1.0.1`; Codex
+  `1.0.0-draft.2`; `codex-adapter.v1` adapter `1.0.2`; Codex
   subscription capability schema `1.0`; REST `/api/v1`; database head
   `v1_0707` unchanged.
 - Commit/worktree reference: integration worktree based on
-  `b577a0613e031b186b938d87354b4e925df84776`. The implementation is
-  uncommitted and does not yet have a clean assessed revision.
-- Recorder/date: Codex integration record, 2026-10-07.
+  `e4ea22a815af4fc89e7899ea57cb35814a1fa6c8`. The identity correction does
+  not yet have a clean revision assessed by the canonical M5 gate.
+- Recorder/date: Codex integration record, 2026-10-08.
 - Overall status: **Intermediate**. The canonical `AUTO-M5-EXIT` run and its
   owner review are **Not Run**. This record is not milestone acceptance.
 
@@ -48,11 +48,15 @@ UI, automation, and live closure. The focused approved plan is
   values above 600,000 remain invalid. The generated capability-manifest
   schema and consumers were regenerated. This is a compatible V1 validation
   widening, so no major-version migration or ADR is required.
-- The Codex adapter is `1.0.1`. Its exact `0.160.0` identity,
+- The Codex adapter is `1.0.2` and its parser is `1.0.1`. Its exact `0.160.0` identity,
   authentication-health, and quota sources are classified
   `managed_profile_write`, because the provider can perform automatic
   credential refresh and runtime maintenance inside the selected managed
-  profile. Installation discovery remains read-only.
+  profile. Installation discovery remains read-only. Mapping ID
+  `M5-CDX-0-160-0-002` is unchanged; its canonical evidence digest rotated to
+  `417c46ba301f9c4217c606beed52be93c9bf497da9ca5b99ca4b1993167688d3`
+  because the canonical mapping artifact now binds the corrected authenticated
+  identity semantics as well as the corrected read-side effects.
 - Operations V1 gains the optional `source_revision` inventory field. An
   unavailable clean startup revision remains explicit rather than inferred.
 - Registry, Collection, Capacity, Runtime, Alerting, event, API, and UI shapes
@@ -79,10 +83,10 @@ the clean-revision milestone gate.
 | `M5-CDX-ALERT-001` complete Registry scope | Pure policy and DB integration | Real migrated file SQLite, production Registry commands, exact Codex installation reconciliation, 201 accounts | Passed | Three focused tests; full file `8 passed, 3 skipped` | Cursor progress and duplicate IDs fail closed; the target after page 200 resolves. Three owner-live selectors remain skipped. |
 | M5 Node story inventory | Pure UI/gate policy and source wiring | Production policy modules and browser entrypoint sources | Passed | `17 passed`, zero skipped | Includes the alert browser verifier's use of the shared complete Registry-page reader. This is a development-checkout result, not a live browser witness. |
 | `AUTO-M3-TEST` dependency checkpoint | M3 contract and technical backend suites | Canonical routine on the development checkout | Passed | `305 passed`, zero skipped | Satisfies the local M3 dependency checkpoint; it does not establish an exact clean M5 revision. |
-| `AUTO-MUTATION` checkpoint | Critical pure-policy mutation | Canonical routine on the development checkout | Passed | `1711` mutants: `1701` killed, `10` independently accepted equivalent, `0` skipped | No non-equivalent survivor was admitted. This remains subject to the final clean-revision M5 gate. |
+| `AUTO-MUTATION` checkpoint | Critical pure-policy mutation | Canonical routine on the development checkout | Passed | `1708` mutants: `1698` killed, `10` independently accepted equivalent, `0` skipped | No non-equivalent survivor was admitted. This remains subject to the final clean-revision M5 gate. |
 | Quality, build, planning, documentation, and Git checkpoints | Static quality, generated artifacts/frontend build, repository validation, and local Git preflight | Canonical local routines on the development checkout | Passed | `AUTO-QUALITY`, `AUTO-BUILD`, `AUTO-PLAN-CHECK`, `AUTO-DOCS-CHECK`, and `AUTO-GIT-PREFLIGHT` exited zero | These individual checkpoints do not replace the unrun exact-revision `AUTO-M5-EXIT`. |
-| Full M5 Python story selection before live setup | Backend and automation Story scope | Real local boundaries plus explicit owner/provider selectors | Blocked | `361 passed, 6 skipped, 1 failed` of the exact `368` cases | The sole failure is the explicit `BLOCKED: m5_owner_installation_required` release selector. All six skips name missing owner/live selectors; no ordinary test failed. The final gate must rerun with zero skips. |
-| Full backend regression checkpoint | Backend regression | Real local test boundaries selected by the backend suite | Blocked | Current rerun: `10 failed, 1374 passed, 39 skipped` | Every remaining failure is an explicit M4/LAN/M5 real-owner selector requirement. No ordinary backend regression failure remains. |
+| Full M5 Python story selection before live setup | Backend and automation Story scope | Real local boundaries plus explicit owner/provider selectors | Blocked | `362 passed, 6 skipped, 1 failed` of the exact `369` cases | The sole failure is the explicit `BLOCKED: m5_owner_installation_required` release selector. All six skips name missing owner/live selectors; no ordinary test failed. The final gate must rerun with zero skips. |
+| Full backend regression checkpoint | Backend regression | Real local test boundaries selected by the backend suite | Blocked | Historical pre-correction rerun: `10 failed, 1374 passed, 39 skipped` | Every reported failure was an explicit M4/LAN/M5 real-owner selector requirement. This historical result does not describe the corrected checkout. |
 | `AC-LIVE-002/004` four selected Codex outcomes and live identities | Provider/account | Four real owner-selected Codex accounts or explicit owner-unavailable outcomes | Blocked | No current owner outcome file | Owner authentication and current identity verification are still required. |
 | `AC-LIVE-005`, `M5-CDX-COL/CAP` authoritative quota/history | Provider/DB/API/browser | Official Codex `/usage`, fresh scheduled observations, current and retained history | Blocked | No current quota witness | Exact whole percentages, reset precision, lineage, and at most 300-second skew have not been reconciled. |
 | `AC-PROC-001..004`, `M5-CDX-RUN-001..008` representative processes | Linux/platform/browser | Five to six real Codex processes outside the managed-profile subtree | Blocked | No current process witness | PID/start/executable reread, hierarchy/location, and unresolved or owner-confirmed association remain required. |
@@ -96,6 +100,41 @@ the clean-revision milestone gate.
 No timestamp was retained for the recovered development runs below. Their
 commands, failure outputs, and worktree context are preserved where available;
 no time is inferred.
+
+### Authenticated identity was confused with provider authentication policy
+
+After the owner completed the official browser login in an isolated
+AgentMonitor-managed profile, a bounded `account/read` structural check
+reported a ChatGPT account, a valid workspace account identifier, and
+`requiresOpenaiAuth=true`. The former parser treated that boolean as current
+login state, rejected the authenticated response with
+`CodexIdentityFailure`, and the dashboard truthfully ended the connection as
+`connection_failed`.
+
+The exact OpenAI Codex `rust-v0.160.0` source establishes that
+`requiresOpenaiAuth` comes from the active model provider while account
+presence independently determines login state. The regression test changed
+first:
+
+```bash
+PYTHONPATH=backend/src backend/.venv/bin/pytest -q \
+  backend/tests/adapters/providers/codex/test_identity_parser.py::test_chatgpt_identity_is_allowlisted_and_fingerprinted
+```
+
+It failed with the expected `codex_identity_invalid` exception (`1 failed in
+0.09s`). No raw provider response, identity value, credential, URL, prompt,
+response, source content, or arbitrary environment value was retained.
+
+The canonical mapping artifact was then extended with the corrected identity
+semantics before its admission digest was rotated. The exact real-installation
+admission test failed closed against the prior digest:
+
+```bash
+PYTHONPATH=backend/src backend/.venv/bin/pytest -q \
+  tools/automation/test_m5_codex_admission.py::M5CodexAdmissionTests::test_real_installed_codex_matches_exact_discovery_and_mapping_evidence
+```
+
+It reported `m5_codex_mapping_evidence_invalid` (`1 failed in 0.04s`).
 
 ### Managed-root side effects were classified incorrectly
 
@@ -232,6 +271,45 @@ was not retained.
 
 ## Green evidence
 
+### Exact authenticated identity semantics
+
+The parser now treats `true` as the admitted default provider's authentication
+policy, returns absent identity only for `true` with no account or workspace,
+accepts a complete ChatGPT account and workspace with `true`, and rejects
+inconsistent `false` plus account shapes. The adapter version advanced to
+`1.0.2` and the parser version to `1.0.1`; the provider wire schema, normalized
+output schema, mapping ID, database, and public API remain unchanged.
+
+Focused Green:
+
+```bash
+PYTHONPATH=backend/src backend/.venv/bin/pytest -q \
+  backend/tests/adapters/providers/codex/test_identity_parser.py \
+  backend/tests/adapters/providers/codex/test_manifest.py \
+  backend/tests/adapters/providers/codex/test_critical_mutation_policies.py
+```
+
+```text
+74 passed in 0.25s
+```
+
+This covered the identity parser, exact manifest policy, and critical Codex
+mutation policies. Live dashboard retry and quota collection remain required
+before M5 acceptance.
+
+After every admission consumer was bound to the canonical mapping artifact's
+new SHA-256 digest
+`417c46ba301f9c4217c606beed52be93c9bf497da9ca5b99ca4b1993167688d3`,
+the same exact real-installation admission test passed (`1 passed in 0.18s`).
+The mapping ID remains `M5-CDX-0-160-0-002`.
+
+The first mutation rerun failed closed because changing the ChatGPT type check
+from `or` to `and` survived. The API-key case lacked otherwise-valid identity
+fields, so a later validation rejected both implementations. The test input was
+tightened to an otherwise-complete API-key shape. The final canonical mutation
+run evaluated `1708` mutants: `1698` killed, `10` exact hash-pinned equivalent,
+and zero skipped, suspicious, timed out, or non-equivalent survivors.
+
 ### Managed-profile safety correction
 
 ```bash
@@ -327,15 +405,16 @@ returned `3 passed in 3.37s` with a 45-second service drain.
   live-selector skip. Ruff, mypy, byte compilation, and scoped diff checks
   passed after the refactor.
 - The six stale backend regression expectations passed focused reruns: five in
-  the first batch and the corrected remaining case in a one-test run. A later
-  complete backend rerun returned `10 failed, 1374 passed, 39 skipped`; all ten
-  failures are explicit real M4 fleet, LAN, or M5 owner-selection prerequisites.
-  They remain Blocked and are not reported Passed.
+  the first batch and the corrected remaining case in a one-test run. A
+  historical pre-identity-correction complete backend rerun returned
+  `10 failed, 1374 passed, 39 skipped`; all ten failures were explicit real M4
+  fleet, LAN, or M5 owner-selection prerequisites. That historical result is
+  retained for provenance and is not a current corrected-checkout result.
 
 ### Canonical local routine checkpoints
 
 - `AUTO-M3-TEST` passed `305` tests with zero skips.
-- `AUTO-MUTATION` evaluated `1711` mutants: `1701` were killed, `10` were
+- `AUTO-MUTATION` evaluated `1708` mutants: `1698` were killed, `10` were
   independently bound as equivalent, and none were skipped, suspicious, or
   timed out.
 - `AUTO-BUILD` and `AUTO-PLAN-CHECK` exited zero at their
@@ -347,7 +426,7 @@ returned `3 passed in 3.37s` with a 45-second service drain.
 - `AUTO-GIT-PREFLIGHT` passed its documented local-commit scope. Remote and
   upstream release readiness were not run and are not required for this local
   implementation commit.
-- The exact `368`-case M5 Python Story selection returned `361 passed`, six
+- The exact `369`-case M5 Python Story selection returned `362 passed`, six
   truthful live-selector skips, and one explicit
   `BLOCKED: m5_owner_installation_required` result. This confirms no ordinary
   Story regression while leaving the live gate unresolved.

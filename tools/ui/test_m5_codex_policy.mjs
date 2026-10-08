@@ -39,8 +39,8 @@ const outcomes = {
 const provenance = {
   source_id: "codex.app-server.account-rate-limits-read.v2",
   adapter_id: "agentmonitor.codex",
-  adapter_version: "1.0.1",
-  parser_version: "1.0.0",
+  adapter_version: "1.0.2",
+  parser_version: "1.0.1",
   provider_version: "0.160.0",
   decision_reference: "M5-CDX-0-160-0-002",
   is_experimental: true,
@@ -276,7 +276,7 @@ test("fresh Codex lineage binds run windows and matching history", () => {
   const candidate = {
     accountId: "account-one",
     identity: { account_id: "account-one", collection_run_id: "run-new", state: "verified", provider_key: "codex", provider_version: "0.160.0", identity_source_id: "codex.app-server.account-read.v2", profile_protection: "managed" },
-    run: { run_id: "run-new", account_id: "account-one", provider_key: "codex", capability_id: "subscription.quota", state: "succeeded", outcome_code: "succeeded", error_code: null, source_id: provenance.source_id, adapter_version: "1.0.1", provider_version: "0.160.0", requested_at: "2026-10-07T10:00:01Z", completed_at: "2026-10-07T10:00:02Z", observation_ids: ["observation-one"] },
+    run: { run_id: "run-new", account_id: "account-one", provider_key: "codex", capability_id: "subscription.quota", state: "succeeded", outcome_code: "succeeded", error_code: null, source_id: provenance.source_id, adapter_version: "1.0.2", provider_version: "0.160.0", requested_at: "2026-10-07T10:00:01Z", completed_at: "2026-10-07T10:00:02Z", observation_ids: ["observation-one"] },
     windows: [{ window_key: "codex:primary", subject: { account_id: "account-one", provider_key: "codex" }, freshness: "fresh", collection_run_id: "run-new", current_observation_id: "observation-one", remaining_ratio: remainingRatio, provenance }],
     history: { availability: { state: "available" }, items: [{ subject: { account_id: "account-one", provider_key: "codex" }, collection_run_id: "run-new", observation_id: "observation-one", window_key: "codex:primary", completeness: "complete", value: remainingRatio, provenance }] },
   };

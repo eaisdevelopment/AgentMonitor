@@ -6,6 +6,7 @@ from agentmonitor.adapters.providers.codex.manifest import (
     CODEX_ADAPTER_VERSION,
     CODEX_INSTALLATION_SOURCE_ID,
     CODEX_LOGIN_SOURCE_ID,
+    CODEX_PARSER_VERSION,
     CODEX_PROVIDER_VERSION,
     CODEX_RATE_LIMITS_SOURCE_ID,
     CODEX_SCHEMA_BUNDLE_DIGEST,
@@ -66,14 +67,15 @@ def test_manifest_binds_the_exact_accepted_codex_tuple() -> None:
 
     assert manifest.descriptor.adapter_id == CODEX_ADAPTER_ID
     assert manifest.descriptor.adapter_version == CODEX_ADAPTER_VERSION
-    assert CODEX_ADAPTER_VERSION == "1.0.1"
+    assert CODEX_ADAPTER_VERSION == "1.0.2"
+    assert CODEX_PARSER_VERSION == "1.0.1"
     assert manifest.descriptor.provider_key == "codex"
     assert manifest.descriptor.protocol_versions.includes("1.0.0")
     assert manifest.m0_mapping_id == M0_MAPPING_ID
     assert manifest.m0_mapping_digest == M0_MAPPING_DIGEST
     assert M0_MAPPING_ID == "M5-CDX-0-160-0-002"
     assert M0_MAPPING_DIGEST == (
-        "2ac086063dbfdae1c673f7cd899ac60d6d559bc72dbb598c6e5196c43567a204"
+        "417c46ba301f9c4217c606beed52be93c9bf497da9ca5b99ca4b1993167688d3"
     )
     assert len(M0_MAPPING_DIGEST) == 64
 

@@ -121,7 +121,7 @@ def test_running_service_persisted_native_codex_windows_and_history() -> None:
     assert matching, "no post-restart service-owned Codex quota lineage"
     run = matching[0]
     assert run.provider_version == "0.160.0"
-    assert run.adapter_version == "1.0.1"
+    assert run.adapter_version == "1.0.2"
     assert run.observation_ids
     windows = ListQuotaWindowsV1(SqliteCapacityRepositoryV1(reference))(
         account_id, as_of=datetime.now(UTC)

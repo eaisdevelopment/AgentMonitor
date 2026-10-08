@@ -20,7 +20,10 @@ from agentmonitor.adapters.providers.claude.authentication.identity import (
 from agentmonitor.adapters.providers.claude.installation import (
     discover_default_installation,
 )
-from agentmonitor.adapters.providers.codex.manifest import build_codex_manifest
+from agentmonitor.adapters.providers.codex.manifest import (
+    CODEX_PARSER_VERSION,
+    build_codex_manifest,
+)
 from agentmonitor.composition.codex_installation_reconciliation import (
     reconcile_codex_installation_v1,
 )
@@ -86,7 +89,7 @@ def _disabled_complete_codex_account(tmp_path: Path) -> tuple[str, str]:
             subject_fingerprint=fingerprint,
             source_id="codex.app-server.account-read.v2",
             source_version="2",
-            parser_version="1.0.0",
+            parser_version=CODEX_PARSER_VERSION,
             evidence_reference=OpaqueIdV1("disabled-connected-evidence"),
             expected_evidence_digest=fingerprint,
             requested_at=datetime.now(UTC),

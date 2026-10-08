@@ -15,7 +15,10 @@ from agentmonitor.adapters.persistence.collection_control.sqlite.repository impo
 from agentmonitor.adapters.persistence.registry.sqlite.repository import (
     SqliteRegistryRepositoryV1,
 )
-from agentmonitor.adapters.providers.codex.manifest import build_codex_manifest
+from agentmonitor.adapters.providers.codex.manifest import (
+    CODEX_PARSER_VERSION,
+    build_codex_manifest,
+)
 from agentmonitor.composition.codex_dashboard_collection import (
     CodexDashboardCollectorV1,
 )
@@ -102,7 +105,7 @@ def test_codex_poller_paginates_to_enrolled_account_after_first_200(
             subject_fingerprint=fingerprint,
             source_id="codex.app-server.account-read.v2",
             source_version="2",
-            parser_version="1.0.0",
+            parser_version=CODEX_PARSER_VERSION,
             evidence_reference=OpaqueIdV1("pagination-evidence"),
             expected_evidence_digest=fingerprint,
             requested_at=datetime.now(UTC),

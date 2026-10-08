@@ -189,12 +189,12 @@ export function canonicalCodexHistoryMaterialV1(rows) {
 export const codexAdmissionV1 = Object.freeze({
   provider_version: "0.160.0",
   adapter_id: "agentmonitor.codex",
-  adapter_version: "1.0.1",
-  parser_version: "1.0.0",
+  adapter_version: "1.0.2",
+  parser_version: "1.0.1",
   rate_limits_source_id: "codex.app-server.account-rate-limits-read.v2",
   identity_source_id: "codex.app-server.account-read.v2",
   mapping_id: "M5-CDX-0-160-0-002",
-  mapping_digest: "2ac086063dbfdae1c673f7cd899ac60d6d559bc72dbb598c6e5196c43567a204",
+  mapping_digest: "417c46ba301f9c4217c606beed52be93c9bf497da9ca5b99ca4b1993167688d3",
   schema_bundle_digest: "36bd8e1d76b12b89b06446a85c45e957945eb8cb63b05061264c3dec97f625da",
 });
 

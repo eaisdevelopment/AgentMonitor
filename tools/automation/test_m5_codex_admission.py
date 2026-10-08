@@ -103,7 +103,7 @@ class M5CodexAdmissionTests(unittest.TestCase):
         )
         self.assertEqual(
             evidence.mapping_digest,
-            "2ac086063dbfdae1c673f7cd899ac60d6d559bc72dbb598c6e5196c43567a204",
+            "417c46ba301f9c4217c606beed52be93c9bf497da9ca5b99ca4b1993167688d3",
         )
         self.assertEqual(evidence.default_profile_access_count, 0)
         self.assertEqual(evidence.default_profile_write_count, 0)

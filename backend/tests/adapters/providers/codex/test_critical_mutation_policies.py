@@ -33,7 +33,7 @@ from agentmonitor.contracts.common_v1 import OpaqueIdV1
 OBSERVED_AT = datetime(2026, 10, 7, 12, 0, tzinfo=UTC)
 MAX_UNIX_SECONDS = 253_402_300_799
 SCHEMA_DIGEST = "36bd8e1d76b12b89b06446a85c45e957945eb8cb63b05061264c3dec97f625da"
-MAPPING_DIGEST = "2ac086063dbfdae1c673f7cd899ac60d6d559bc72dbb598c6e5196c43567a204"
+MAPPING_DIGEST = "417c46ba301f9c4217c606beed52be93c9bf497da9ca5b99ca4b1993167688d3"
 
 
 def _manifest_row(declaration: object) -> tuple[object, ...]:
@@ -104,7 +104,7 @@ def test_manifest_exactly_declares_every_admitted_codex_policy() -> None:
         manifest.m0_mapping_digest,
     ) == (
         "agentmonitor.codex",
-        "1.0.1",
+        "1.0.2",
         "codex",
         "1.0.0",
         "1.0.0",
@@ -260,7 +260,7 @@ def _identity_payload(
 ) -> dict[str, object]:
     return {
         "account": {"type": "chatgpt", "email": email, "planType": plan_type},
-        "requiresOpenaiAuth": False,
+        "requiresOpenaiAuth": True,
         "workspaceRouting": {"chatgptAccountId": account_id},
     }
 
@@ -377,7 +377,7 @@ def test_identity_rejects_invalid_email_even_with_a_typed_plan() -> None:
 def test_identity_account_shape_failure_is_exact() -> None:
     with pytest.raises(CodexIdentityFailure) as caught:
         parse_account_identity_v1(
-            {"account": {}, "requiresOpenaiAuth": False},
+            {"account": {}, "requiresOpenaiAuth": True},
             provider_version="0.160.0",
             observed_at=OBSERVED_AT,
         )
@@ -675,7 +675,7 @@ def _admission() -> CollectionRunAdmissionV1:
         resource_id=OpaqueIdV1("resource-codex"),
         capability_id="subscription.quota",
         source_id="codex.app-server.account-rate-limits-read.v2",
-        adapter_version="1.0.1",
+        adapter_version="1.0.2",
         provider_version="0.160.0",
         adapter_protocol_version="1.0.0",
         manifest_fingerprint="e" * 64,

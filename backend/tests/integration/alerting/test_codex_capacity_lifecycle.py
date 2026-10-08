@@ -205,7 +205,7 @@ def test_alert_delivery_resolves_event_subject_after_first_200_real_accounts(
             subject_fingerprint=fingerprint,
             source_id="codex.app-server.account-read.v2",
             source_version="2",
-            parser_version="1.0.0",
+            parser_version=CODEX_PARSER_VERSION,
             evidence_reference=OpaqueIdV1("alert-pagination-evidence"),
             expected_evidence_digest=fingerprint,
             requested_at=requested_at,

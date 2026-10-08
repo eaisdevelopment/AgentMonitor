@@ -377,9 +377,9 @@ def test_catalog_selects_exact_m5_gate_and_closed_lanes() -> None:
     assert auto_m5_current_exit.STORY_NODE_TEST_INVENTORY_SHA256 == (
         "fcda9d4e7d59d3c9cb504edfbca3fe1744a8857c5e5457a549105054ca1e0b0e"
     )
-    assert auto_m5_current_exit.STORY_PYTEST_TEST_COUNT == 368
+    assert auto_m5_current_exit.STORY_PYTEST_TEST_COUNT == 369
     assert auto_m5_current_exit.STORY_PYTEST_TEST_INVENTORY_SHA256 == (
-        "e126bb2622ff05096f3d3f29309b7450845c54c8e02bf98f3f432dc4943f422b"
+        "f90e81c6b501f778c15ffbe6fbb904e9a0390f581e6e720b1fee9e3f2824509d"
     )
     assert STORY_AUTOMATION_TEST_IDS == (
         "tools/automation/test_run.py::AutomationRoutineTests::test_m5_owner_outcomes_without_real_selectors_never_writes_file",

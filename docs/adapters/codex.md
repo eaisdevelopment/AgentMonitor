@@ -18,11 +18,14 @@ and `CTR-OPS-006`.
 ## Admitted tuple
 
 The adapter admits only Codex CLI `0.160.0` on Linux x86-64. Its capability
-manifest is `codex-adapter.v1`, adapter version `1.0.1`, parser version
-`1.0.0`, and provider protocol version `1.0.0`. The discovery decision is
-`M5-CDX-0-160-0-002`, bound to the corrected side-effect decision in the
-[Codex read-side-effect evidence](../evidence/m5-codex-read-side-effect-blocker.md)
-and the generated-schema digest retained in the original
+manifest is `codex-adapter.v1`, adapter version `1.0.2`, parser version
+`1.0.1`, and provider protocol version `1.0.0`. The discovery decision is
+`M5-CDX-0-160-0-002`. Its canonical record binds both the corrected read-side
+effects and authenticated identity semantics in the
+[Codex mapping evidence](../evidence/m5-codex-read-side-effect-blocker.md),
+with SHA-256 admission digest
+`417c46ba301f9c4217c606beed52be93c9bf497da9ca5b99ca4b1993167688d3`.
+The generated-schema digest remains in the original
 [Codex discovery evidence](../evidence/m5-codex-0.160.0-discovery.md).
 
 Another provider version, platform, schema bundle, executable identity, or
@@ -98,6 +101,17 @@ out or delete provider state.
 Connection state is retained only as bounded owner-only receipts containing
 opaque identifiers, state/reason codes, and timestamps. Restart changes an
 in-progress flow to a cancelled state instead of pretending it completed.
+
+For the admitted `0.160.0` tuple, `requiresOpenaiAuth` describes the active
+model provider's authentication policy; it is not the current login state.
+An authenticated default-provider response therefore has the flag set to
+`true` and a populated ChatGPT account. The unauthenticated response has the
+same flag with a null account. AgentMonitor derives login state from the
+account field and rejects a populated ChatGPT account paired with `false` as
+inconsistent with the exact admitted tuple. `workspaceRouting` is an observed
+exact-version extension in the real `0.160.0` response rather than a guarantee
+of the stable generated response schema; this adapter requires its allowlisted
+`chatgptAccountId` and otherwise fails closed.
 
 ## Quota and identity collection
 

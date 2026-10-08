@@ -53,7 +53,7 @@ def test_codex_manifest_and_pending_account_are_available_over_http(
             assert capabilities[0] == 200
             manifest = json.loads(capabilities[2])
             assert manifest["provider_key"] == "codex"
-            assert manifest["adapter_version"] == "1.0.1"
+            assert manifest["adapter_version"] == "1.0.2"
 
             headers = {
                 "Origin": origin,

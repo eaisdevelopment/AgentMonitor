@@ -63,12 +63,12 @@ ALERT_REGISTRY_DIGEST_SCOPE = "all-public-registry-fields-v1"
 
 CODEX_PROVIDER_VERSION = "0.160.0"
 CODEX_ADAPTER_ID = "agentmonitor.codex"
-CODEX_ADAPTER_VERSION = "1.0.1"
-CODEX_PARSER_VERSION = "1.0.0"
+CODEX_ADAPTER_VERSION = "1.0.2"
+CODEX_PARSER_VERSION = "1.0.1"
 CODEX_RATE_LIMITS_SOURCE_ID = "codex.app-server.account-rate-limits-read.v2"
 CODEX_MAPPING_ID = "M5-CDX-0-160-0-002"
 CODEX_MAPPING_DIGEST = (
-    "2ac086063dbfdae1c673f7cd899ac60d6d559bc72dbb598c6e5196c43567a204"
+    "417c46ba301f9c4217c606beed52be93c9bf497da9ca5b99ca4b1993167688d3"
 )
 CODEX_SCHEMA_BUNDLE_DIGEST = (
     "36bd8e1d76b12b89b06446a85c45e957945eb8cb63b05061264c3dec97f625da"
@@ -166,9 +166,9 @@ STORY_NODE_TEST_INVENTORY_SHA256 = (
 )
 STORY_BROWSER_SCENARIOS = ("account_beyond_page",)
 # Updated only from the exact collected inventory after intentional test changes.
-STORY_PYTEST_TEST_COUNT = 368
+STORY_PYTEST_TEST_COUNT = 369
 STORY_PYTEST_TEST_INVENTORY_SHA256 = (
-    "e126bb2622ff05096f3d3f29309b7450845c54c8e02bf98f3f432dc4943f422b"
+    "f90e81c6b501f778c15ffbe6fbb904e9a0390f581e6e720b1fee9e3f2824509d"
 )
 STORY_ARTIFACTS = (
     "tools/automation/implementations/m5_owner_outcomes.py",

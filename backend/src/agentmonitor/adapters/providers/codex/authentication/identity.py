@@ -60,22 +60,21 @@ def parse_account_identity_v1(
     """Reduce one response to the identity contract without raw payload escape."""
     if type(payload) is not dict:
         raise CodexIdentityFailure("codex_identity_invalid")
-    requires_auth = payload.get("requiresOpenaiAuth")
-    if type(requires_auth) is not bool:
+    provider_requires_auth = payload.get("requiresOpenaiAuth")
+    if type(provider_requires_auth) is not bool:
         raise CodexIdentityFailure("codex_identity_invalid")
-    if requires_auth:
-        if (
-            payload.get("account") is not None
-            or payload.get("workspaceRouting") is not None
-        ):
-            raise CodexIdentityFailure("codex_identity_invalid")
-        return None
     account = payload.get("account")
+    workspace = payload.get("workspaceRouting")
+    if account is None:
+        if provider_requires_auth and workspace is None:
+            return None
+        raise CodexIdentityFailure("codex_identity_invalid")
+    if not provider_requires_auth:
+        raise CodexIdentityFailure("codex_identity_invalid")
     if type(account) is not dict or account.get("type") != "chatgpt":
         raise CodexIdentityFailure("codex_identity_invalid")
     email = account.get("email")
     plan_type = account.get("planType")
-    workspace = payload.get("workspaceRouting")
     provider_account_id = (
         workspace.get("chatgptAccountId") if type(workspace) is dict else None
     )

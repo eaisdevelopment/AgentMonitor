@@ -101,8 +101,8 @@ EQUIVALENT_MUTANT_SHA256 = {
     ),
     # Python treats UTF-8 encoding names case-insensitively.
     "agentmonitor.adapters.providers.codex.authentication.identity."
-    "x_parse_account_identity_v1__mutmut_114": (
-        "153ca0608e11f01fc3af856d1b56f75bc206179716b10bfb59007d69d6c37478"
+    "x_parse_account_identity_v1__mutmut_111": (
+        "94a0a66e0fc8221baf911064ed9425288995e565a9e734812ea830f69cad3a62"
     ),
     # typing.cast returns its second argument unchanged at runtime; changing only
     # either type expression cannot change this pure parser's runtime behavior.

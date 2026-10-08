@@ -1,8 +1,10 @@
 # M5 Codex app-server read-side-effect blocker
 
 - Date: 2026-10-07.
-- Status: **Safety assumption corrected in production; authenticated live
-  verification remains required before M5 acceptance.**
+- Updated: 2026-10-08.
+- Status: **Safety and authenticated identity assumptions corrected in
+  production; authenticated quota, containment, and fleet verification remain
+  required before M5 acceptance.**
 - Requirements: `NFR-SEC-001`, `NFR-PRIV-001/002`, `FR-SAFE-002`, and
   `ST-CDX-001..005`.
 - Owning module and contracts: A02 provider adapter,
@@ -99,6 +101,41 @@ Primary source references:
 The reviewed config-schema SHA-256 was
 `7ce31bde1ed6ef15c53a96ba460bb1d0fb7b99fd9ab719b567c94c474f62b023`.
 
+## Authenticated identity semantic correction
+
+On 2026-10-08 the owner completed the official browser login in an isolated
+AgentMonitor-managed profile. A bounded structural `account/read` check found
+a ChatGPT account and workspace identifier while `requiresOpenaiAuth` was
+`true`. The former parser incorrectly treated that flag as current login state,
+rejected the authenticated response, and the dashboard ended the connection as
+`connection_failed`.
+
+The exact tagged source shows that the flag is the active model provider's
+authentication policy. The
+[`0.160.0` provider account implementation](https://github.com/openai/codex/blob/rust-v0.160.0/codex-rs/model-provider/src/provider.rs#L554-L594)
+copies `requires_openai_auth` from the provider configuration while deriving
+the account independently from cached authentication. The
+[`0.160.0` TUI login decision](https://github.com/openai/codex/blob/rust-v0.160.0/codex-rs/tui/src/lib.rs#L2142-L2152)
+derives login state from account presence.
+
+For the admitted default-provider tuple, the closed interpretation is:
+
+- `true` with no account and no workspace means no authenticated identity;
+- `true` with a complete ChatGPT account and a valid workspace account ID is
+  an authenticated identity;
+- `true` with an incomplete, non-ChatGPT, or inconsistent account/workspace
+  shape fails closed; and
+- `false` with any account shape is outside the admitted ChatGPT provider mode
+  and fails closed.
+
+The stable generated response schema requires the Boolean and permits a null or
+absent account. It defines the workspace-routing type without exposing
+`workspaceRouting` as a stable response property. The experimental schema and
+the real exact-version response expose it, so M5 treats
+`workspaceRouting.chatgptAccountId` as a required, allowlisted exact-version
+observed extension. No raw provider response, identity value, credential, URL,
+prompt, response, source content, or arbitrary environment value was retained.
+
 ## Why redirection is insufficient
 
 Redirecting SQLite, logs, history, skills, plugins, or temporary runtime state
@@ -144,9 +181,9 @@ PYTHONPATH=backend/src backend/.venv/bin/python -m pytest -q \
   backend/tests/adapters/providers/codex/test_security_policy.py
 ```
 
-Result: `22 passed`. Owner-authenticated identity/quota behavior and exact
-managed-root containment remain live M5 gate requirements; they are not
-claimed by this empty-root correction.
+Result: `22 passed`. The later owner-authenticated identity shape is documented
+above; successful enrollment, quota behavior, and exact managed-root
+containment remain live M5 gate requirements.
 
 ## Impact
 
@@ -156,7 +193,8 @@ claimed by this empty-root correction.
   or retained.
 - API/database/migration: none.
 - Dependency/license: none.
-- Live verification: empty-root non-mutation is **Passed**; authenticated
-  managed-profile behavior is **Not Run** until owner enrollment.
+- Live verification: empty-root non-mutation and the authenticated identity
+  response shape are **Passed**; enrollment, quota, and authenticated
+  containment remain **Not Run**.
 - Production implementation: metadata preflight and truthful side-effect
   classification implemented without a dependency or schema migration.

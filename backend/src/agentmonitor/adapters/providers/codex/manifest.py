@@ -26,8 +26,8 @@ SourceClassV1 = Literal[
 ]
 
 CODEX_ADAPTER_ID = "agentmonitor.codex"
-CODEX_ADAPTER_VERSION = "1.0.1"
-CODEX_PARSER_VERSION = "1.0.0"
+CODEX_ADAPTER_VERSION = "1.0.2"
+CODEX_PARSER_VERSION = "1.0.1"
 CODEX_PROVIDER_VERSION = "0.160.0"
 CODEX_INSTALLATION_SOURCE_ID = "codex.version.banner.v1"
 CODEX_ACCOUNT_SOURCE_ID = "codex.app-server.account-read.v2"
@@ -42,7 +42,7 @@ CODEX_APP_SERVER_MECHANISM_VERSION = (
 M0_MAPPING_ID = "M5-CDX-0-160-0-002"
 # SHA-256 of the corrected exact-version source decision in
 # docs/evidence/m5-codex-read-side-effect-blocker.md.
-M0_MAPPING_DIGEST = "2ac086063dbfdae1c673f7cd899ac60d6d559bc72dbb598c6e5196c43567a204"
+M0_MAPPING_DIGEST = "417c46ba301f9c4217c606beed52be93c9bf497da9ca5b99ca4b1993167688d3"
 
 
 def _schema_v1() -> CapabilitySchemaRangeV1:

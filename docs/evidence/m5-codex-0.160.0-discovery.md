@@ -64,6 +64,29 @@ start identity. The count establishes that the M5 five-to-six process boundary
 is presently testable. It does not establish account ownership or expose those
 private process identifiers in committed evidence.
 
+### Authenticated identity semantic correction
+
+On 2026-10-08 the owner completed an official login in an isolated
+AgentMonitor-managed profile. A bounded structural `account/read` check found
+an authenticated ChatGPT account and workspace identifier while
+`requiresOpenaiAuth` remained `true`. This disproved the implementation's
+earlier assumption that the flag represented current login state.
+
+The exact tagged OpenAI source confirms the observed meaning. The
+[`0.160.0` provider account implementation](https://github.com/openai/codex/blob/rust-v0.160.0/codex-rs/model-provider/src/provider.rs#L554-L594)
+derives the flag from the active model provider and independently derives the
+account from cached authentication. The
+[`0.160.0` TUI login decision](https://github.com/openai/codex/blob/rust-v0.160.0/codex-rs/tui/src/lib.rs#L2142-L2152)
+derives login state from account presence. For the admitted default-provider
+tuple, `true` plus a populated ChatGPT account is authenticated, while `true`
+plus a null account is unauthenticated. A populated account with `false` is
+rejected as inconsistent. The stable generated response schema defines the
+workspace-routing type but does not expose `workspaceRouting` as a response
+property; the experimental schema and real exact-version response do. M5
+therefore treats `workspaceRouting.chatgptAccountId` as a required,
+allowlisted exact-version observed extension. No admitted field, operation,
+source identifier, or normalized output schema changed.
+
 ## Accepted field and operation decisions
 
 - Identity/auth: allow `account.type`, ChatGPT `email`, `planType`,
@@ -97,7 +120,8 @@ private process identifiers in committed evidence.
 
 The implementation must still prove, without simulated provider data:
 
-- official login and identity verification for the intended managed profiles;
+- official login and identity verification for the remaining intended managed
+  profiles and a successful enrollment retry for the first profile;
 - exact real rate-limit response mapping and authoritative UI reconciliation;
 - four intended account outcomes under `AC-LIVE-002`;
 - five to six representative process trees and truthful correlation;

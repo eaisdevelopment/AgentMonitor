@@ -104,7 +104,7 @@
       "depends_on": [
         "V1-M3"
       ],
-      "delivery_state": "planned",
+      "delivery_state": "in_progress",
       "canonical_gate_state": "not_run",
       "gate_binding": "none",
       "gate_revision": null,
@@ -113,8 +113,12 @@
       "acceptance_decision_path": null,
       "dependency_state": "satisfied",
       "unresolved_dependency_ids": [],
-      "evidence_paths": [],
-      "decision": "Codex implementation and its canonical gate have not started; the accepted V1-M3 entry prerequisite is now satisfied."
+      "evidence_paths": [
+        "docs/evidence/m5-codex-0.160.0-discovery.md",
+        "docs/evidence/m5-codex-read-side-effect-blocker.md",
+        "docs/evidence/m5-codex-implementation.md"
+      ],
+      "decision": "Codex implementation is in progress in the integration worktree, with discovery, safety-correction, and implementation evidence recorded. The retained implementation revision remains the last accepted M4 revision; the clean exact-revision AUTO-M5-EXIT run, required live fleet/quota/process/alert/containment evidence, and owner acceptance are not recorded."
     },
     {
       "milestone_id": "V1-M6",
@@ -432,41 +436,58 @@
       "story_id": "ST-CDX-001",
       "milestone_id": "V1-M5",
       "title": "Admit the evidence-scoped adapter and real installation",
-      "delivery_state": "planned",
-      "evidence_paths": [],
-      "decision": "No implementation or canonical Story completion is claimed."
+      "delivery_state": "in_progress",
+      "evidence_paths": [
+        "docs/evidence/m5-codex-0.160.0-discovery.md",
+        "docs/evidence/m5-codex-read-side-effect-blocker.md",
+        "docs/evidence/m5-codex-implementation.md"
+      ],
+      "decision": "The exact-version adapter, installation admission, managed-profile safety correction, and local policy checks are present in the integration worktree. A clean exact-revision M5 gate and authenticated containment evidence remain unrecorded."
     },
     {
       "story_id": "ST-CDX-002",
       "milestone_id": "V1-M5",
       "title": "Reconcile four identities and authentication health",
-      "delivery_state": "planned",
-      "evidence_paths": [],
-      "decision": "No implementation or canonical Story completion is claimed."
+      "delivery_state": "in_progress",
+      "evidence_paths": [
+        "docs/evidence/m5-codex-0.160.0-discovery.md",
+        "docs/evidence/m5-codex-read-side-effect-blocker.md",
+        "docs/evidence/m5-codex-implementation.md"
+      ],
+      "decision": "Managed Codex connection, identity, and authentication-health implementation is present in the integration worktree. The required four selected real-account outcomes and owner-reviewed live verification remain unrecorded."
     },
     {
       "story_id": "ST-CDX-003",
       "milestone_id": "V1-M5",
       "title": "Collect native subscription windows into capacity history",
-      "delivery_state": "planned",
-      "evidence_paths": [],
-      "decision": "No implementation or canonical Story completion is claimed."
+      "delivery_state": "in_progress",
+      "evidence_paths": [
+        "docs/evidence/m5-codex-0.160.0-discovery.md",
+        "docs/evidence/m5-codex-read-side-effect-blocker.md",
+        "docs/evidence/m5-codex-implementation.md"
+      ],
+      "decision": "Native Codex subscription mapping, collection, and capacity-history implementation is present in the integration worktree. Authenticated quota reconciliation and fresh scheduled history evidence remain unrecorded."
     },
     {
       "story_id": "ST-CDX-004",
       "milestone_id": "V1-M5",
       "title": "Discover and correlate 5\u20136 representative processes",
-      "delivery_state": "planned",
-      "evidence_paths": [],
-      "decision": "No implementation or canonical Story completion is claimed."
+      "delivery_state": "in_progress",
+      "evidence_paths": [
+        "docs/evidence/m5-codex-0.160.0-discovery.md",
+        "docs/evidence/m5-codex-implementation.md"
+      ],
+      "decision": "Codex process discovery and guarded association implementation is present in the integration worktree. The required five-to-six representative real-process witness remains unrecorded."
     },
     {
       "story_id": "ST-CDX-005",
       "milestone_id": "V1-M5",
       "title": "Integrate HTTP, browser, health, and M5 evidence",
-      "delivery_state": "planned",
-      "evidence_paths": [],
-      "decision": "No implementation or canonical Story completion is claimed."
+      "delivery_state": "in_progress",
+      "evidence_paths": [
+        "docs/evidence/m5-codex-implementation.md"
+      ],
+      "decision": "Codex HTTP, browser, health, alert, and completion-gate implementation is present in the integration worktree. The full built-browser/live witness set and clean exact-revision AUTO-M5-EXIT run remain unrecorded."
     },
     {
       "story_id": "ST-OLL-001",

@@ -19,7 +19,7 @@ def test_chatgpt_identity_is_allowlisted_and_fingerprinted() -> None:
                 "email": "owner@example.invalid",
                 "planType": "plus",
             },
-            "requiresOpenaiAuth": False,
+            "requiresOpenaiAuth": True,
             "workspaceRouting": {
                 "chatgptAccountId": "account-owner-1",
                 "ignored": "provider detail",
@@ -38,7 +38,7 @@ def test_chatgpt_identity_is_allowlisted_and_fingerprinted() -> None:
     assert "owner@example.invalid" not in repr(identity)
 
 
-def test_auth_required_is_an_explicit_absent_identity() -> None:
+def test_auth_requiring_provider_without_account_has_no_identity() -> None:
     assert (
         parse_account_identity_v1(
             {"account": None, "requiresOpenaiAuth": True},
@@ -58,13 +58,22 @@ def test_auth_required_is_an_explicit_absent_identity() -> None:
                 "email": "owner@example.invalid",
                 "planType": "plus",
             },
-            "requiresOpenaiAuth": False,
+            "requiresOpenaiAuth": True,
             "workspaceRouting": {"chatgptAccountId": "account owner"},
         },
         {
             "account": {},
             "requiresOpenaiAuth": True,
             "workspaceRouting": None,
+        },
+        {
+            "account": {
+                "type": "chatgpt",
+                "email": "owner@example.invalid",
+                "planType": "plus",
+            },
+            "requiresOpenaiAuth": False,
+            "workspaceRouting": {"chatgptAccountId": "account-owner-1"},
         },
         {
             "account": None,
@@ -92,7 +101,7 @@ def test_stable_provider_account_changes_the_private_fingerprint() -> None:
             "email": "owner@example.invalid",
             "planType": "plus",
         },
-        "requiresOpenaiAuth": False,
+        "requiresOpenaiAuth": True,
         "workspaceRouting": {"chatgptAccountId": "account-owner-1"},
     }
     first = parse_account_identity_v1(
@@ -113,14 +122,22 @@ def test_stable_provider_account_changes_the_private_fingerprint() -> None:
     "payload",
     [
         {"account": None, "requiresOpenaiAuth": False},
-        {"account": {"type": "apiKey"}, "requiresOpenaiAuth": False},
+        {
+            "account": {
+                "type": "apiKey",
+                "email": "owner@example.invalid",
+                "planType": "plus",
+            },
+            "requiresOpenaiAuth": True,
+            "workspaceRouting": {"chatgptAccountId": "account-owner-1"},
+        },
         {
             "account": {
                 "type": "chatgpt",
                 "email": None,
                 "planType": "plus",
             },
-            "requiresOpenaiAuth": False,
+            "requiresOpenaiAuth": True,
         },
         {
             "account": {
@@ -128,7 +145,7 @@ def test_stable_provider_account_changes_the_private_fingerprint() -> None:
                 "email": "owner@example.invalid",
                 "planType": "invented",
             },
-            "requiresOpenaiAuth": False,
+            "requiresOpenaiAuth": True,
             "workspaceRouting": {"chatgptAccountId": "account-owner-1"},
         },
         {
@@ -137,7 +154,7 @@ def test_stable_provider_account_changes_the_private_fingerprint() -> None:
                 "email": "owner@example.invalid",
                 "planType": "plus",
             },
-            "requiresOpenaiAuth": False,
+            "requiresOpenaiAuth": True,
             "workspaceRouting": None,
         },
     ],

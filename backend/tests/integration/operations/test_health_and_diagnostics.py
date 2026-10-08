@@ -195,7 +195,7 @@ def test_real_codex_source_failure_isolated_from_healthy_service(
             assert codex["sample"]["component_version"] == "0.160.0"
             provider = json.loads(capabilities[2])
             assert provider["provider_key"] == "codex"
-            assert provider["adapter_version"] == "1.0.1"
+            assert provider["adapter_version"] == "1.0.2"
 
     asyncio.run(exercise())
     assert tuple(managed_root.iterdir()) == ()
