@@ -549,6 +549,60 @@ rows. The read made no Registry, provider, or database mutation. The exact
 clean-revision canonical preflight remains required after commit and service
 restart.
 
+The later authoritative quota witness exposed a separate browser-presentation
+Red. Its API proof had already consumed every history page, but its DOM check
+inspected only the initially rendered page. A real account had 502 retained
+rows across three pages; the built account view truthfully rendered its first
+200 rows and the visible **Load next history page** control, while neither
+current quota observation was in that first ascending page. The canonical
+witness therefore blocked with
+`m5_quota_current_history_point_not_charted`. A source-wiring test also failed
+before the verifier change because it did not import
+`advanceCapacityHistoryPageV1` or drive the visible pagination control.
+
+The corrected witness keeps the production UI's bounded, owner-visible paging
+behavior. It now clicks that generated-client control until the UI reports a
+terminal page. For every real GET it requires the stable account/metric/series/
+range selector, including byte-for-byte equal `from` and `before` values from
+the initial request through every continuation, exact 200-row bound, a new
+opaque cursor, an available and contract-valid response page, at least one row
+from every nonterminal page, unique observation IDs, exact append order,
+chart/table lineage equality, a progressing visible page count, and terminal
+UI state. Any HTTP, cursor, page, DOM, or lineage mismatch blocks the witness;
+partial rows cannot satisfy the current-point assertion.
+
+Focused Green:
+
+```bash
+node --experimental-strip-types --test tools/ui/test_m5_codex_policy.mjs
+```
+
+Result: `16 passed, 0 failed, 0 skipped`. The real authenticated shared-Chrome
+verifier then traversed `2`, `3`, and `2` visible pages for the three verified
+accounts and returned:
+
+```text
+M5 CODEX QUOTA BROWSER: PASSED — 3 account(s), 5 window(s), exact API/history/DOM values
+```
+
+That run used only versioned same-origin GETs and made zero Registry or provider
+mutations. It is focused Green evidence for `AC-LIVE-005`, `AC-HIST-001`, and
+the M5 quota browser witness; the revision-bound canonical prerequisite and
+`AUTO-M5-EXIT` still must pass after integration. This correction changes no
+product UI, API, generated contract, database, migration, dependency, secret,
+or provider boundary.
+
+A follow-up source-policy Red failed because the first correction required one
+`from` and `before` parameter per request but did not compare their values
+across pages. The final policy binds both decoded values from the initial real
+request and rejects drift on every continuation. Its focused test and exact
+19-test Node inventory passed. The first post-hardening live attempt blocked at
+`m5_quota_current_lineage_required` before reaching the UI. A subsequent
+read-only complete-history inspection proved current matches of `1/1`, `2/2`,
+and `2/2` with successful identity collection runs; the next full browser run
+then passed for all three accounts and five windows. The blocked attempt is not
+credited as Green.
+
 ### Latest complete alert occurrence on retained history
 
 The alert-witness selector now validates the complete retained sequence and

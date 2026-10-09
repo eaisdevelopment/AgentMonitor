@@ -12,9 +12,12 @@ import {
   liveIdentityDigestV1,
 } from "./m5_codex_policy.mjs";
 import {
+  advanceCapacityHistoryPageV1,
   readAllCapacityHistoryV1,
   readAllRegistryItemsV1,
 } from "./m5_registry_pages.mjs";
+
+const MAX_RENDERED_HISTORY_PAGES = 10_000;
 
 const endpoint = process.env.AGENTMONITOR_TEST_DASHBOARD_CDP_ENDPOINT;
 const origin = process.env.AGENTMONITOR_TEST_DASHBOARD_ORIGIN;
@@ -113,6 +116,193 @@ const registryMaterial = async (read, accounts, organizations, installations) =>
     ]),
     ...details.map(item => ["codex-detail", ...item]),
   ].sort((left, right) => JSON.stringify(left).localeCompare(JSON.stringify(right)));
+};
+
+const renderedHistoryObservationIds = async (historyDetails, chart) => {
+  const tableIds = (await historyDetails.locator(
+    'table[aria-label="Capacity history exact values"] .history-observation-id',
+  ).allTextContents()).map(value => value.trim());
+  const chartIds = ((await chart.getAttribute("data-observation-ids")) ?? "")
+    .split(" ").filter(Boolean);
+  requireResult(tableIds.length > 0
+    && new Set(tableIds).size === tableIds.length
+    && JSON.stringify(chartIds) === JSON.stringify(tableIds),
+  "m5_quota_history_render_incomplete");
+  return tableIds;
+};
+
+const historyRequestSelection = (
+  response,
+  { accountId, expectedCursor, expectedRange, origin },
+) => {
+  const url = new URL(response.url());
+  const cursorValues = url.searchParams.getAll("cursor");
+  const requestedCursor = cursorValues[0] ?? null;
+  const rangeFrom = url.searchParams.get("from");
+  const rangeBefore = url.searchParams.get("before");
+  requireResult(response.status() === 200
+    && response.request().method() === "GET"
+    && url.origin === origin
+    && url.pathname === "/api/v1/capacity/history"
+    && url.searchParams.getAll("subject_id").length === 1
+    && url.searchParams.get("subject_id") === accountId
+    && url.searchParams.getAll("metric").length === 1
+    && url.searchParams.get("metric") === "remaining_ratio"
+    && url.searchParams.getAll("series_kind").length === 1
+    && url.searchParams.get("series_kind") === "poll_snapshot"
+    && url.searchParams.getAll("from").length === 1
+    && url.searchParams.getAll("before").length === 1
+    && typeof rangeFrom === "string" && rangeFrom.length > 0
+    && typeof rangeBefore === "string" && rangeBefore.length > 0
+    && (expectedRange === null
+      || (rangeFrom === expectedRange.from
+        && rangeBefore === expectedRange.before))
+    && url.searchParams.getAll("limit").length === 1
+    && url.searchParams.get("limit") === "200"
+    && (expectedCursor === null
+      ? cursorValues.length === 0
+      : cursorValues.length === 1
+        && requestedCursor === expectedCursor
+        && requestedCursor.length <= 1024
+        && !/[\u0000-\u001f\u007f]/u.test(requestedCursor)),
+  response.status() === 200
+    ? "m5_quota_history_page_selection_invalid"
+    : "m5_quota_history_page_unavailable");
+  return Object.freeze({
+    before: rangeBefore,
+    cursor: requestedCursor,
+    from: rangeFrom,
+  });
+};
+
+const historyResponseDocument = async response => {
+  try {
+    return await response.json();
+  } catch {
+    throw new VerificationError("m5_quota_history_page_invalid");
+  }
+};
+
+const readAllRenderedHistoryPages = async ({
+  accountId, chart, historyDetails, initialResponse, origin, page,
+}) => {
+  const selection = Object.freeze({
+    subject_id: accountId,
+    metric: "remaining_ratio",
+    series_kind: "poll_snapshot",
+  });
+  const issuedCursors = new Set();
+  const requestedCursors = new Set();
+  let pageCount = 1;
+  let observationIds = await renderedHistoryObservationIds(historyDetails, chart);
+  const initialRequest = historyRequestSelection(initialResponse, {
+    accountId, expectedCursor: null, expectedRange: null, origin,
+  });
+  const historyRange = Object.freeze({
+    from: initialRequest.from,
+    before: initialRequest.before,
+  });
+  const initialDocument = await historyResponseDocument(initialResponse);
+  let initialDecision;
+  try {
+    initialDecision = advanceCapacityHistoryPageV1(initialDocument, selection, {
+      cursor: null,
+      seenCursors: [],
+      seenObservationIds: [],
+    });
+  } catch {
+    throw new VerificationError("m5_quota_history_page_invalid");
+  }
+  requireResult(JSON.stringify(observationIds)
+    === JSON.stringify(initialDecision.observationIds),
+  "m5_quota_history_render_incomplete");
+  let expectedCursor = initialDecision.nextCursor;
+  if (expectedCursor !== null) issuedCursors.add(expectedCursor);
+
+  while (pageCount < MAX_RENDERED_HISTORY_PAGES) {
+    const note = historyDetails.locator(".pagination-note");
+    const noteText = await note.innerText();
+    const loadNext = historyDetails.getByRole("button", {
+      name: "Load next history page",
+      exact: true,
+    });
+    if (noteText.includes("No additional pages remain for this 365-day range.")) {
+      requireResult(initialDecision.terminal && expectedCursor === null
+        && await loadNext.count() === 0,
+        "m5_quota_history_render_incomplete");
+      return observationIds;
+    }
+    requireResult(!initialDecision.terminal && expectedCursor !== null
+      && noteText.includes(
+      "Additional pages remain for this 365-day range.",
+    ) && await loadNext.count() === 1,
+    "m5_quota_history_render_incomplete");
+
+    const responsePromise = page.waitForResponse(response => {
+      const url = new URL(response.url());
+      return url.origin === origin
+        && url.pathname === "/api/v1/capacity/history"
+        && url.searchParams.get("subject_id") === accountId
+        && url.searchParams.has("cursor")
+        && response.request().method() === "GET";
+    }, { timeout: 15_000 });
+    await loadNext.click();
+    const response = await responsePromise;
+    const continuationRequest = historyRequestSelection(response, {
+      accountId, expectedCursor, expectedRange: historyRange, origin,
+    });
+    const requestedCursor = continuationRequest.cursor;
+    requireResult(requestedCursor !== null
+      && !requestedCursors.has(requestedCursor),
+    "m5_quota_history_page_selection_invalid");
+    const document = await historyResponseDocument(response);
+    let decision;
+    try {
+      decision = advanceCapacityHistoryPageV1(document, selection, {
+        cursor: requestedCursor,
+        seenCursors: [...issuedCursors],
+        seenObservationIds: observationIds,
+      });
+    } catch {
+      throw new VerificationError("m5_quota_history_page_invalid");
+    }
+    requireResult(decision.terminal || decision.observationIds.length > 0,
+      "m5_quota_history_render_incomplete");
+    const expectedIds = [...observationIds, ...decision.observationIds];
+    pageCount += 1;
+    await page.waitForFunction(({ expectedCount, expectedPageCount }) => {
+      const count = document.querySelectorAll(
+        'details.quota-history table[aria-label="Capacity history exact values"] tbody tr',
+      ).length;
+      const status = document.querySelector(
+        "details.quota-history .pagination-note",
+      )?.textContent ?? "";
+      return count === expectedCount
+        && status.includes(`from ${expectedPageCount} bounded pages.`);
+    }, { expectedCount: expectedIds.length, expectedPageCount: pageCount });
+    const nextIds = await renderedHistoryObservationIds(historyDetails, chart);
+    requireResult(JSON.stringify(nextIds) === JSON.stringify(expectedIds),
+      "m5_quota_history_render_incomplete");
+    observationIds = nextIds;
+    requestedCursors.add(requestedCursor);
+    expectedCursor = decision.nextCursor;
+    if (expectedCursor !== null) issuedCursors.add(expectedCursor);
+    initialDecision = decision;
+
+    const updatedNote = await note.innerText();
+    if (decision.terminal) {
+      requireResult(updatedNote.includes(
+        "No additional pages remain for this 365-day range.",
+      ) && await loadNext.count() === 0,
+      "m5_quota_history_render_incomplete");
+      return observationIds;
+    }
+    requireResult(updatedNote.includes(
+      "Additional pages remain for this 365-day range.",
+    ) && await loadNext.count() === 1,
+    "m5_quota_history_render_incomplete");
+  }
+  throw new VerificationError("m5_quota_history_render_incomplete");
 };
 
 let page;
@@ -231,6 +421,14 @@ try {
   const rendered = [];
   const historyRendered = [];
   for (const record of records) {
+    const initialHistoryResponse = page.waitForResponse(response => {
+      const url = new URL(response.url());
+      return url.origin === origin
+        && url.pathname === "/api/v1/capacity/history"
+        && url.searchParams.get("subject_id") === record.account_id
+        && !url.searchParams.has("cursor")
+        && response.request().method() === "GET";
+    }, { timeout: 15_000 });
     await page.goto(`${origin}/accounts/${encodeURIComponent(record.account_id)}`);
     await page.getByRole("table", { name: "Account activity", exact: true })
       .waitFor({ timeout: 15_000 });
@@ -264,8 +462,14 @@ try {
     await historyDetails.locator("summary").evaluate(element => element.click());
     const chart = page.getByRole("img", { name: "Capacity history trend", exact: true });
     await chart.waitFor({ timeout: 15_000 });
-    const chartIds = new Set(((await chart.getAttribute("data-observation-ids")) ?? "")
-      .split(" ").filter(Boolean));
+    const chartIds = new Set(await readAllRenderedHistoryPages({
+      accountId: record.account_id,
+      chart,
+      historyDetails,
+      initialResponse: await initialHistoryResponse,
+      origin,
+      page,
+    }));
     for (const window of record.windows) {
       requireResult(chartIds.has(window.current_observation_id),
         "m5_quota_current_history_point_not_charted");

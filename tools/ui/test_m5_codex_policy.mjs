@@ -162,6 +162,28 @@ test("live entrypoint wires independent executable proofs into the witness", () 
     quotaSource,
     /const historyDetails = page\.locator\("details\.quota-history"\);[\s\S]*?await historyDetails\.locator\("summary"\)\.evaluate\(element => element\.click\(\)\);/,
   );
+  assert.match(quotaSource, /advanceCapacityHistoryPageV1/);
+  assert.match(
+    quotaSource,
+    /getByRole\("button", \{[\s\S]*?name: "Load next history page",[\s\S]*?exact: true,[\s\S]*?\}\)/,
+  );
+  assert.match(
+    quotaSource,
+    /waitForResponse\([\s\S]*?\/api\/v1\/capacity\/history[\s\S]*?request\(\)\.method\(\) === "GET"/,
+  );
+  assert.match(
+    quotaSource,
+    /decision\.terminal \|\| decision\.observationIds\.length > 0/,
+  );
+  assert.match(
+    quotaSource,
+    /rangeFrom === expectedRange\.from[\s\S]*?rangeBefore === expectedRange\.before/,
+  );
+  assert.match(
+    quotaSource,
+    /const historyRange = Object\.freeze\(\{[\s\S]*?from: initialRequest\.from,[\s\S]*?before: initialRequest\.before,/,
+  );
+  assert.match(quotaSource, /m5_quota_history_render_incomplete/);
 });
 
 test("registry pagination requires every available page and a progressing cursor", async () => {
