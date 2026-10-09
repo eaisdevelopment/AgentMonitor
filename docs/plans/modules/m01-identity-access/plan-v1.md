@@ -1,6 +1,7 @@
 # Module plan: M01 — Identity and access
 
-- Status: **Draft — approval pending; implementation is not authorized**
+- Status: **Draft for the all-V1 scope — approval pending; bounded current
+  overlays may be approved separately**
 - Plan version: 0.2.0-draft
 - Proposed module contract: `identity-access.v1` (unapproved)
 - Owner: M01 identity/access implementation role (unassigned)
@@ -10,13 +11,28 @@
 - Primary project risks: R-005, R-009, R-011, R-013, R-018, R-019, R-020
 - Dependencies: accepted ADRs 0001, 0002, 0003, 0004, 0007, and 0008; repository foundation; centrally allocated migration chain; P01 transport contract; P02 generated-client workflow; M08 retention/recovery orchestration
 - Target milestone: M1 foundation
-- Approved by/date: pending
+- Approved by/date: all-V1 scope pending; fixed 24-hour session overlay
+  owner-approved 2026-10-09
 
 This plan is governed by the [product requirements](../../../product/requirements.md), [V1 acceptance criteria](../../../product/v1-acceptance-criteria.md), [module boundaries](../../../architecture/modules.md), [security architecture](../../../architecture/security.md), [API standards](../../../api/api-standards.md), [testing strategy](../../../engineering/testing-strategy.md), and [SDLC](../../../engineering/sdlc.md). Where this draft proposes behavior not already approved there, it labels the proposal and records a root synchronization decision in section 13.
 
+### Current 24-hour browser-session overlay
+
+The owner-approved
+[dashboard 24-hour session policy change](../../integration/dashboard-session-24h-change.md)
+supersedes this draft's earlier 1,800-second idle and 43,200-second absolute
+proposals for current builds. A newly issued browser session has fixed idle and
+absolute deadlines exactly 86,400 seconds after successful login. Existing
+persisted rows keep their issued absolute deadline and idle window; accepted
+activity continues using that window and deployment never replaces it with the
+new 86,400-second window. There is no migration or database rewrite. The
+documentary configuration names remain fixed policy allocations and are not
+runtime `.env` controls. A literal 24-hour elapsed expiry observation remains
+**Not Run**.
+
 ## CS-1 Draft-alignment addendum
 
-This `0.2.0-draft` revision adopts contract-baseline `0.2.0` and the parallel-ownership manifest as its concrete CS-1 review position. It remains Draft: no contract is Synchronized or Approved, every scenario is `Not Run`, and implementation authority is absent.
+This `0.2.0-draft` revision adopts contract-baseline `0.2.0` and the parallel-ownership manifest as its concrete CS-1 review position. The all-V1 plan remains Draft: no remaining contract is Synchronized or Approved, and general implementation authority is absent. A bounded current-policy overlay must cite its own approval and evidence, as the 24-hour browser-session change above does.
 
 - M01 owns only AgentMonitor dashboard authentication: administrator password verification, dashboard sessions/CSRF, bearer API tokens, permissions, and IAM security events. Provider/profile authentication is outside M01. `dashboard_authentication_required` is the only normalized missing/expired/revoked dashboard-credential outcome; M01 never emits or interprets `provider_reauthentication_required`, and a provider-auth failure must not revoke a dashboard session.
 - CTR-IAM-006/007 commands that reveal a password-derived session/CSRF credential or API-token plaintext declare `replay_policy = one_time_secret_non_replayable`. After commit, the same idempotency key returns `one_time_secret_not_replayable` plus safe resource ID/version/state only **after current authentication and authorization**. A password-change replay using the revoked old cookie returns `dashboard_authentication_required` before receipt lookup; a fresh authorized session can receive the safe non-replay conflict before stale version/current-password evaluation. Password-change receipts are scoped to stable administrator principal plus operation, never to the old session. Token-management receipts remain scoped to the authenticated issuer credential/principal context and must recheck attenuation and target authority before safe metadata disclosure; separate bearer credentials under one administrator do not share a receipt. Plaintext is never cached in the receipt, reconstructed, persisted, logged, serialized to an event, or returned again. Normal safe-summary mutations retain their separately declared replay policy.
@@ -157,7 +173,10 @@ M01 domain/application code may import Python standard-library types and approve
 - Proposed: initialization and forgotten-password recovery occur only through an interactive local operator entry point using a controlling TTY and exclusive database access. No web setup endpoint, command-line password argument, email recovery, or long-lived bootstrap password in `.env` is planned.
 - Proposed: browser sessions use opaque random credentials and server-side state rather than JWTs.
 - Proposed: API bearer tokens use high-entropy opaque secrets and fast cryptographic digests; the memory-hard primitive is reserved for human-chosen passwords.
-- Proposed: default timeout, rate-limit, password-length, cookie, scope, and one-time-secret retry policies below require approval at contract synchronization.
+- Approved bounded overlay: newly issued browser sessions use the fixed
+  86,400-second idle and absolute deadlines described above. Other timeout,
+  rate-limit, password-length, cookie, scope, and one-time-secret retry
+  proposals below retain their existing approval state.
 
 ## 3. Domain design
 
@@ -185,8 +204,10 @@ M01 domain/application code may import Python standard-library types and approve
 - The browser credential is at least 256 bits from the OS cryptographic random source, encoded URL-safely, and is never a signed self-contained authorization document.
 - A public random selector supports bounded lookup; the database stores the selector and a cryptographic digest of the full credential, never the credential.
 - Fields include stable session ID, administrator ID, credential selector/digest, issued time, last-activity time, idle-expiry time, absolute-expiry time, revocation time/reason, CSRF digest, and optimistic version.
-- Proposed installed defaults are 30 minutes idle and 12 hours absolute. Defaults and permitted ranges require root/security approval.
-- Expiry is evaluated at request authentication. Equality at the expiry instant is expired. Absolute expiry never slides. Idle expiry slides only on accepted authenticated activity and never beyond absolute expiry.
+- Current installed policy for newly issued sessions is 24 hours idle and 24
+  hours absolute. The initial deadlines coincide exactly at issue time;
+  existing persisted session deadlines are not rewritten.
+- Expiry is evaluated at request authentication. Equality at the expiry instant is expired. Absolute expiry never slides. Accepted activity may update persisted activity, but neither deadline can move beyond the original absolute deadline.
 - `last_activity_at` persistence is coalesced (proposed once per 60 seconds) to avoid a write on every read. Authorization uses the calculated current deadline, not stale client state.
 - A login always creates a fresh session and CSRF binding. Password change/recovery rotates or revokes sessions as specified below. Session fixation is not accepted.
 
@@ -599,14 +620,17 @@ The module needs only one opaque administrator ID, verifier material, credential
 
 ## 8. Configuration and operations
 
-### Proposed configuration registry
+### Current fixed session policy and proposed configuration registry
 
-These names allocate no secret values. Exact names/defaults/ranges require configuration-owner approval. Security floors cannot be weakened below the approved minimum merely through `.env`.
+These names allocate no secret values. The two session-lifetime names document
+the approved fixed code policy and are not runtime `.env` controls. Remaining
+exact names/defaults/ranges require configuration-owner approval. Security
+floors cannot be weakened below the approved minimum merely through `.env`.
 
 | Proposed key | Type/default proposal | Secret | Reload | Owner/validation |
 |---|---|---:|---|---|
-| `AGENTMONITOR_IAM_SESSION_IDLE_SECONDS` | positive duration; proposed installed default 1,800 | No | restart | M01; less than absolute, approved range |
-| `AGENTMONITOR_IAM_SESSION_ABSOLUTE_SECONDS` | positive duration; proposed default 43,200 | No | restart | M01; greater than idle, bounded maximum |
+| `AGENTMONITOR_IAM_SESSION_IDLE_SECONDS` | fixed 86,400 seconds for newly issued sessions | No | code revision | M01; equals absolute; no runtime override; existing rows unchanged |
+| `AGENTMONITOR_IAM_SESSION_ABSOLUTE_SECONDS` | fixed 86,400 seconds for newly issued sessions | No | code revision | M01; equals idle; no runtime override; existing rows unchanged |
 | `AGENTMONITOR_IAM_SESSION_TOUCH_INTERVAL_SECONDS` | positive duration; proposed default 60 | No | restart | M01; less than idle |
 | `AGENTMONITOR_IAM_LOGIN_WINDOW_SECONDS` | positive duration; proposed default 900 | No | restart | M01 |
 | `AGENTMONITOR_IAM_LOGIN_MAX_FAILURES` | positive count; proposed default 5 | No | restart | M01 |
@@ -616,11 +640,11 @@ These names allocate no secret values. Exact names/defaults/ranges require confi
 | `AGENTMONITOR_IAM_TERMINAL_RECORD_RETENTION_DAYS` | proposed fixed/default 365 | No | restart | M01; cannot undercut approved history without requirements change |
 | Argon2 policy keys or code policy version | M2 Linux fixed code policy: RFC 9106 low-memory profile and version 19 PHC; no weaker configuration key | No | restart | M01/security; reviewed Linux benchmark and work floor in `docs/dependencies/m2-argon2-admission.md`; invalid policy fails readiness |
 
-For M2, each numeric IAM value in this table is fixed to its listed default;
-the permitted range is a singleton, as recorded in the configuration baseline.
-No environment, CLI, API, or test-mode override may weaken or alter these
-values. A future configurable range requires a separate versioned security and
-contract review.
+For current builds, each numeric IAM value in this table is fixed to its listed
+default; the permitted range is a singleton, as recorded in the configuration
+baseline. No environment, CLI, API, or test-mode override may weaken or alter
+these values. A future configurable range requires a separate versioned
+security and contract review.
 
 Cookie name, canonical public origin, trusted hosts, bind host/port, TLS, and proxy trust are P01/deployment configuration, not M01 keys. Passwords, API-token plaintext, session/CSRF credentials, and token bootstrap material are never configuration values. A future root-approved application cryptographic key, if proven necessary, must use an `AGENTMONITOR_` secret name, live only in the protected `.env`, and have a rotation runbook; this draft does not invent one.
 
@@ -859,7 +883,10 @@ The following are not delegated to the M01 implementation agent. Each can materi
 2. Approve local interactive bootstrap and forgotten-password recovery, including whether any one-shot `.env` bootstrap input is permitted. This draft recommends no plaintext dashboard password in `.env`.
 3. Freeze exact `identity-access.v1` DTO/port/event names, package path, sensitive-result handling, and compatibility promise.
 4. Freeze permission and bearer-scope vocabulary/mapping for every `/api/v1` operation, including whether bearer tokens may manage attenuated tokens or token management is browser-only.
-5. Approve session idle/absolute defaults and ranges, activity touch interval, password policy, Argon2 selection/parameter policy, and rate-limit algorithm/defaults.
+5. Preserve the approved fixed 86,400-second idle/absolute session overlay;
+   approve any future configurable ranges, activity touch interval changes,
+   password policy, Argon2 selection/parameter policy, and rate-limit
+   algorithm/defaults.
 6. Approve session and CSRF cookie names/attributes, CSRF cookie+header method, login Origin rule, ambiguous cookie+bearer denial, plain-loopback HTTP `Secure` behavior, and exact M01/P01/P02 responsibility split.
 7. Approve canonical loopback/public-origin/trusted-host semantics for IPv4, IPv6, and `localhost`, plus forwarded-header rejection in V1.
 8. Approve every stable problem code/status mapping, particularly `iam_setup_required`, idempotent logout, stale versions, and management-time `404` behavior.
@@ -921,7 +948,9 @@ Implementation remains blocked until every item is checked by the named reviewer
 - [ ] M08 retention, IAM audit, health, diagnostics, restore-invalidation, and recovery contracts are approved.
 - [ ] Permission/scope catalog and every planned route requirement are centrally synchronized.
 - [ ] Bootstrap, normal password change, forgotten-password recovery, and credential invalidation policies are security-approved.
-- [ ] Password policy, Argon2id parameters/benchmark method, rate defaults, session expiries, and configuration ranges are approved.
+- [ ] Password policy, Argon2id parameters/benchmark method, rate defaults, and
+  configuration ranges beyond the approved fixed 86,400-second session
+  overlay are approved.
 - [ ] API-token format, digest, attenuation, rotation, one-time reveal, and retry/idempotency decisions are approved.
 - [ ] IAM table/constraint/index plan and shared migration revision order are approved; backup/recovery exists.
 - [ ] Every test has a valid real boundary, meaningful expected Red, safe credential handling, cleanup, and assigned owner.

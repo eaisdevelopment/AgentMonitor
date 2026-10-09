@@ -80,7 +80,7 @@ blockers = []
 id = "AUTO-TEST"
 owner = "PLAN-FND"
 status = "operational"
-scope = "V1-M2 complete backend, generated contract/client, M1 and M2 real-browser suites; T5/T6/T7 and hosted-CI separate"
+scope = "V1-M2 backend, generated contract/client, M1/M2 real-browser suites, and fixed 24-hour session issuance; literal 24-hour elapsed expiry, T5/T6/T7, and hosted CI remain separate"
 implementation_command = ["python3", "tools/automation/implementations/auto_test.py"]
 blockers = []
 
@@ -88,7 +88,7 @@ blockers = []
 id = "AUTO-M3-TEST"
 owner = "PLAN-INT"
 status = "operational"
-scope = "V1-M3 contract and technical backend boundaries; M2's 30-minute idle-expiry browser routine remains separate"
+scope = "V1-M3 contract and technical backend boundaries; M01's literal 24-hour wall-clock session-expiry browser routine remains separate"
 implementation_command = ["python3", "tools/automation/implementations/auto_m3_test.py"]
 blockers = []
 

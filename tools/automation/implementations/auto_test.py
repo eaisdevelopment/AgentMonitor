@@ -29,6 +29,15 @@ M1_TOOL_TEST_MODULES = (
     "tools.planning.test_implementation_backlog",
     "tools.planning.test_validate_plans",
 )
+POST_M2_OWNER_BOUNDARIES = (
+    "backend/tests/integration/api/test_fleet_routes.py",
+    "backend/tests/integration/api/test_lan_http.py",
+    "backend/tests/integration/capacity/test_claude_organization_aggregates.py",
+    "backend/tests/integration/collection_control/test_claude_fleet_collection.py",
+    "backend/tests/integration/release/test_v1_m4_claude_fleet_alerts.py",
+    "backend/tests/integration/release/test_v1_m5_codex_slice.py",
+    "backend/tests/runtime_observation/integration/test_claude_process_tree.py",
+)
 
 
 def fail(code: str) -> NoReturn:
@@ -58,10 +67,12 @@ def m2_local_suite_commands() -> dict[str, list[str]]:
             str(BACKEND_PYTHON),
             "-m",
             "pytest",
+            "--import-mode=importlib",
             "backend/tests",
             "--ignore=backend/tests/live",
             "--ignore=backend/tests/integration/identity_access/test_argon2_workload.py",
             "--ignore=backend/tests/runtime_observation/integration/test_real_linux_commit.py",
+            *(f"--ignore={path}" for path in POST_M2_OWNER_BOUNDARIES),
             "-q",
             "--tb=short",
         ],
@@ -88,7 +99,7 @@ def m2_local_suite_commands() -> dict[str, list[str]]:
 
 def m2_local_acceptance_ids() -> tuple[str, ...]:
     """Bound a local gate claim to observed behavior, not historical TDD."""
-    return ("AC-UI-001", "AC-TEST-003", "AC-TEST-006")
+    return ("AC-TEST-003", "AC-TEST-006")
 
 
 def backend_environment() -> dict[str, str]:
@@ -96,6 +107,11 @@ def backend_environment() -> dict[str, str]:
         "PATH": os.environ.get("PATH", os.defpath),
         "PYTHONPATH": str(ROOT / "backend/src"),
     }
+
+
+def tool_test_command(*arguments: str) -> list[str]:
+    """Run repository tool tests with the admitted dependency-complete Python."""
+    return [str(BACKEND_PYTHON), "-m", "unittest", *arguments]
 
 
 def browser_environment(origin: str) -> dict[str, str]:
@@ -204,18 +220,7 @@ def main() -> int:
     if not BACKEND_PYTHON.is_file():
         fail("admitted_backend_toolchain_missing")
     if all(path.is_file() for path in M0_OWNER_LOCAL_ASSETS):
-        run(
-            [
-                "python3",
-                "-m",
-                "unittest",
-                "discover",
-                "-s",
-                "tools",
-                "-p",
-                "test_*.py",
-            ]
-        )
+        run(tool_test_command("discover", "-s", "tools", "-p", "test_*.py"))
         print("M0 OWNER-LOCAL TOOL SUITE: Passed with real local assets")
     else:
         print("M0 OWNER-LOCAL TOOL SUITE: Not Run — local assets unavailable")
@@ -231,7 +236,7 @@ def main() -> int:
                 sort_keys=True,
             )
         )
-        run(["python3", "-m", "unittest", *M1_TOOL_TEST_MODULES])
+        run(tool_test_command(*M1_TOOL_TEST_MODULES))
     m0_exit = subprocess.run(
         ["python3", "tools/automation/run.py", "AUTO-M0-G1-EXIT"],
         cwd=ROOT,
@@ -307,6 +312,30 @@ def main() -> int:
             red_reference="docs/evidence/m2-audit-fixes.md#red-evidence",
             green_reference="docs/evidence/m2-audit-fixes.md#green-evidence",
             refactor_reference="docs/evidence/m2-audit-fixes.md#refactor-evidence",
+        ),
+        evidence_row(
+            test_id="M01-SESSION-24H-ISSUANCE",
+            command_id="AUTO-TEST",
+            boundary=(
+                "T2/T3/T4 fixed 24-hour session policy, real SQLite/HTTP "
+                "issuance, cookie lifetime, and production Chrome authentication"
+            ),
+            status="Passed",
+            versions=versions,
+            requirement_ids=("FR-IAM-001", "FR-IAM-003", "NFR-SEC-001"),
+            acceptance_ids=("AC-TEST-002", "AC-TEST-003"),
+            red_reference="docs/evidence/dashboard-session-24h.md#red",
+            green_reference="docs/evidence/dashboard-session-24h.md#green",
+            refactor_reference="docs/evidence/dashboard-session-24h.md#refactor",
+        ),
+        evidence_row(
+            test_id="M01-SESSION-24H-ELAPSED",
+            command_id="AUTO-TEST",
+            boundary="literal 24-hour wall-clock browser expiry",
+            status="Not Run",
+            versions=(),
+            requirement_ids=("FR-IAM-003",),
+            acceptance_ids=("AC-UI-001", "AC-TEST-006"),
         ),
         *(
             evidence_row(

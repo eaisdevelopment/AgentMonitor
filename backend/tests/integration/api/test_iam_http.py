@@ -16,6 +16,7 @@ import urllib.parse
 import urllib.request
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
+from datetime import datetime, timedelta
 from email.message import Message
 from pathlib import Path
 
@@ -128,6 +129,7 @@ def test_login_uses_real_migrated_iam_and_sets_two_cookies(tmp_path: Path) -> No
 
     async def exercise() -> None:
         async with _running(app) as origin:
+            jar = http.cookiejar.CookieJar()
             status, headers, body = await asyncio.to_thread(
                 _request,
                 origin,
@@ -135,6 +137,7 @@ def test_login_uses_real_migrated_iam_and_sets_two_cookies(tmp_path: Path) -> No
                 "/api/v1/session",
                 body={"password": credential},
                 headers={"Origin": origin},
+                cookies=jar,
             )
             assert status == 204
             assert body == b""
@@ -150,10 +153,20 @@ def test_login_uses_real_migrated_iam_and_sets_two_cookies(tmp_path: Path) -> No
                 assert "secure" not in attributes  # exact loopback HTTP policy
                 ages = [part for part in attributes if part.startswith("max-age=")]
                 assert len(ages) == 1
-                assert 1 <= int(ages[0].split("=", 1)[1]) <= 43200
+                assert 86390 <= int(ages[0].split("=", 1)[1]) <= 86400
             assert "httponly" in by_name["agentmonitor_session"].lower()
             assert "httponly" not in by_name["agentmonitor_csrf"].lower()
             assert headers.get("Cache-Control") == "no-store, private"
+            current = await asyncio.to_thread(
+                _request, origin, "GET", "/api/v1/session", cookies=jar
+            )
+            assert current[0] == 200
+            view = json.loads(current[2])
+            issued_at = datetime.fromisoformat(view["issued_at"])
+            idle_expires_at = datetime.fromisoformat(view["idle_expires_at"])
+            absolute_expires_at = datetime.fromisoformat(view["absolute_expires_at"])
+            assert idle_expires_at - issued_at == timedelta(seconds=86_400)
+            assert absolute_expires_at - issued_at == timedelta(seconds=86_400)
 
     asyncio.run(exercise())
 

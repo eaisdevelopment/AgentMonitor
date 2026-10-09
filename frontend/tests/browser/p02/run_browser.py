@@ -116,7 +116,7 @@ async def run_scenario(scenario: str, *, initialized: bool = True) -> None:
                 capture_output=True,
                 text=True,
                 check=False,
-                timeout=1950 if scenario == "idle_expiry" else 180,
+                timeout=86_550 if scenario == "idle_expiry" else 180,
             )
             if browser.returncode != 0:
                 raise RuntimeError(
@@ -136,7 +136,7 @@ async def run_scenario(scenario: str, *, initialized: bool = True) -> None:
                     or (
                         datetime.fromisoformat(idle) - datetime.fromisoformat(issued)
                     ).total_seconds()
-                    != 1800
+                    != 86400
                     or version != 1
                 ):
                     raise RuntimeError("hostile_resource_changed_session_state")
@@ -172,7 +172,7 @@ def main() -> int:
             return 1
     selected = (
         QUICK_SCENARIOS
-        + (("logout_after_touch", "idle_expiry") if options.scenario == "all" else ())
+        + (("logout_after_touch",) if options.scenario == "all" else ())
         if options.scenario in {"quick", "all"}
         else (options.scenario,)
     )

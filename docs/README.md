@@ -98,6 +98,9 @@ This index is the entry point for product, architecture, engineering, and operat
 - [Historical dashboard Claude connection increment](evidence/claude-dashboard-connection.md): explicit browser connection controls, four owner-completed SDK/EAIS live gates, native quota redraw correction, and a recovered first-read timeout.
 - [Compact dashboard and quota overview](evidence/dashboard-density-and-quota-overview.md): compact connection status, organization filters, interactive account sorting, low-quota warnings, and collection history on its own page.
 - [Trusted LAN dashboard change](plans/integration/trusted-lan-dashboard-change.md): owner-approved private interface/subnet listener, HTTP browser admission, and the real completion gate.
+- [Dashboard 24-hour session policy change](plans/integration/dashboard-session-24h-change.md):
+  owner-approved fixed 24-hour browser-session lifetime with existing IAM,
+  CSRF, revocation, and transport protections retained.
 - [Trusted LAN dashboard evidence](evidence/trusted-lan-dashboard.md): real dual listeners, IAM protections, LAN browser admin behavior, and pending firewall/second-computer verification.
 - [Live agent account associations](plans/integration/live-agent-account-association-change.md): approved bounded manual terminal identity and guarded process drill-down.
 - [Duplicate identity overview correction](plans/integration/duplicate-account-overview-change.md): one quota row for fresh identical observed identities, with separate connection review.

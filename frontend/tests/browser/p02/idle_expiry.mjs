@@ -31,15 +31,15 @@ try {
   const unsafeAfterLogin = unsafeRequests;
   const startedAt = performance.now();
   stage = "real_idle_wait";
-  await new Promise((resolve) => setTimeout(resolve, 1_805_000));
-  if (performance.now() - startedAt < 1_800_000) throw new Error("elapsed_time_insufficient");
+  await new Promise((resolve) => setTimeout(resolve, 86_405_000));
+  if (performance.now() - startedAt < 86_400_000) throw new Error("elapsed_time_insufficient");
   stage = "expiry_recovery";
   await page.getByRole("button", { name: "Check session" }).click();
   await page.getByRole("heading", { name: "Sign in" }).waitFor({ timeout: 15_000 });
   if (responseStatuses.at(-1) !== 401) throw new Error("real_session_not_expired");
   if (unsafeRequests !== unsafeAfterLogin) throw new Error("unsafe_request_after_expiry");
   await browser.close();
-  console.log("P02 IDLE EXPIRY BROWSER: PASSED — actual elapsed >= 1800 s");
+  console.log("P02 SESSION EXPIRY BROWSER: PASSED — actual elapsed >= 86400 s");
 } catch {
   if (browser) await browser.close();
   console.error(`P02 IDLE EXPIRY BROWSER: FAILED — ${stage}`);

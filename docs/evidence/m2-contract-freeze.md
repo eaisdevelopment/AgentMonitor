@@ -2,6 +2,16 @@
 
 > **2026-09-21 security correction:** [ADR 0012](../decisions/0012-cookie-read-origin-proof.md) supersedes only §3's permission for a cookie GET/HEAD with no Origin and no other origin proof. Cookie reads now require exact Origin, same-origin Fetch Metadata, or the exact direct-navigation metadata tuple; otherwise P01 returns 403 before IAM session resolution. Pure bearer behavior, cookie attributes, and all other decisions below remain unchanged. A real cross-port Chrome/SQLite mutation observed in the M2 audit drove this correction.
 
+> **2026-10-09 current-policy supersession:** This record preserves the exact
+> M2 policy and evidence for its historical revision. The owner-approved
+> [dashboard 24-hour session policy change](../plans/integration/dashboard-session-24h-change.md)
+> supersedes only the current session lifetimes: new sessions now receive equal
+> idle and absolute deadlines 86,400 seconds after login. Existing persisted
+> rows keep their issued deadlines; no migration or retroactive extension is
+> performed. The literal 24-hour elapsed expiry scenario remains **Not Run**.
+> The 1,800/43,200-second statements below remain historical M2 claims and are
+> not the current build policy.
+
 - Status: **Approved for the M2 slice** by root integration/security review on 2026-09-20, following independent M2 entry and migration/security reviews. This is not approval of all-V1 Draft plans or a claim of production implementation, migration, application tests, or owner bootstrap. The Linux dependency admission and real upstream benchmark are separate evidence.
 - Scope: only `ST-IAM-001..003`, `ST-API-001..002`, `ST-UI-001`; `FR-IAM-001..007`, `NFR-SEC-001`, `AC-UI-001/004/005`. See the [M2 plan](../superpowers/plans/2026-09-19-agentmonitor-v1-m2-authenticated-shell.md), [entry packet](m2-entry-gate.md), [M01 plan](../plans/modules/m01-identity-access/plan-v1.md), [P01 plan](../plans/api/fastapi-boundary/plan-v1.md), [P02 plan](../plans/ui/react-dashboard/plan-v1.md), and [DB plan](../plans/persistence/sqlite/plan-v1.md). All public types below are proposed V1, not a second implementation plan.
 - Source priority: approved [requirements](../product/requirements.md) and [security architecture](../architecture/security.md) govern. This overlay resolves M2 Draft-plan ambiguities. Accepted decisions have been propagated into the relevant M01/P01 text and contract adoption/baseline; route registry, application contracts, tests, and generated artifacts are Story implementation outputs, not an entry-gate claim.

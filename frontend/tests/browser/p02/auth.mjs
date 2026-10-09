@@ -72,6 +72,13 @@ try {
   await page.getByRole("heading", { name: "AgentMonitor" }).waitFor();
   const sessionCookie = (await context.cookies(origin)).find((item) => item.name === "agentmonitor_session");
   requireTruth(sessionCookie?.httpOnly === true, "session_cookie_not_httponly");
+  const remainingSessionSeconds = sessionCookie.expires - Date.now() / 1000;
+  requireTruth(remainingSessionSeconds >= 86_300 && remainingSessionSeconds <= 86_400,
+    "session_cookie_not_24_hours");
+  stage = "authenticated_reload";
+  await page.reload();
+  await page.getByRole("heading", { name: "AgentMonitor" }).waitFor();
+  await page.locator('[data-monitoring-state="api"]').waitFor();
   const storageEmpty = await page.evaluate(() => localStorage.length === 0 && sessionStorage.length === 0);
   requireTruth(storageEmpty, "auth_material_in_browser_storage");
   stage = "route_focus";

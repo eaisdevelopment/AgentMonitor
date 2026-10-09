@@ -652,3 +652,30 @@ the `automation-standard` control changed; canonical plans, public contracts,
 and acceptance state remain unchanged.
 
 Plan snapshot SHA-256: `6b1ea0fd2117dc1d5a173df69bf5f59122ef9a42ec736a473ea71c61bd294215`
+
+## 2026-10-09 dashboard 24-hour session policy rebind
+
+The synchronized snapshot now binds the owner-approved focused
+[dashboard session change](dashboard-session-24h-change.md) to the current M01
+draft bytes and the exact adoption, ownership, configuration, and automation
+controls. Newly issued browser sessions use fixed 86,400-second idle and
+absolute deadlines; existing persisted deadlines remain unchanged, and the
+literal 24-hour elapsed observation remains Not Run. Contract identifiers and
+versions, migration and dependency state, and the all-V1 M01 Draft status do
+not change. Historical snapshot bindings above remain historical. This rebind
+records current control coherence without approving the full M01 plan or
+claiming elapsed live evidence.
+
+Plan snapshot SHA-256: `fb47bd4d18853398c21a6d5f0029a4c30578311a7d4703156efc9429f9a250f7`
+
+## 2026-10-09 existing-session wording correction rebind
+
+The synchronized snapshot now binds the reviewed M01 clarification that
+existing sessions retain their issued absolute deadline and idle window, with
+accepted activity continuing under that old window. Deployment neither applies
+the new 86,400-second window to those rows nor rewrites them. Only the M01 plan
+digest and the derived adoption, ownership, and snapshot bindings changed.
+Historical bindings remain historical; contracts, migrations, dependencies,
+approval scope, and elapsed-live evidence remain unchanged.
+
+Plan snapshot SHA-256: `7fe722823aa660845d10d006228032ad3d168c9db26958e4902db06e04d9c7c7`

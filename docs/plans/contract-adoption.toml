@@ -23,7 +23,7 @@ consumes = ["CTR-ALERT-002", "CTR-CAP-001", "CTR-CAP-003", "CTR-CAP-004", "CTR-C
 [[plans]]
 id = "PLAN-M01"
 plan_path = "docs/plans/modules/m01-identity-access/plan-v1.md"
-plan_sha256 = "97ff3e249567ae4ff72e5605a87ac63001b5e05112fc25ffef6007d96fa2bce1"
+plan_sha256 = "514848b5344dbdde821a5b55d27c905b13f0029c46553ac55adcae3f36c7e036"
 publishes = ["CTR-IAM-001", "CTR-IAM-002", "CTR-IAM-003", "CTR-IAM-004", "CTR-IAM-005", "CTR-IAM-006", "CTR-IAM-007", "CTR-IAM-008"]
 consumes = ["CTR-COMMON-001", "CTR-COMMON-002", "CTR-COMMON-007", "CTR-CONFIG-001", "CTR-DB-002", "CTR-DB-003", "CTR-FND-001", "CTR-FND-003", "CTR-FND-004", "CTR-FND-006", "CTR-FND-008", "CTR-INT-001", "CTR-INT-002", "CTR-INT-003", "CTR-INT-005", "CTR-INT-006", "CTR-OPS-006", "CTR-OPS-007"]
 

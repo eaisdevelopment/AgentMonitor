@@ -1,4 +1,4 @@
-"""Opt-in real elapsed browser-session idle-expiry proof (about 30 minutes)."""
+"""Opt-in real elapsed browser-session expiry proof (about 24 hours)."""
 
 from __future__ import annotations
 
@@ -58,9 +58,9 @@ def test_real_elapsed_idle_expiry_denies_browser_cookie(tmp_path: Path) -> None:
             )
             assert current[0] == 200
             started = time.monotonic()
-            await asyncio.sleep(1801)
+            await asyncio.sleep(86401)
             elapsed = time.monotonic() - started
-            assert elapsed >= 1800
+            assert elapsed >= 86400
             expired = await asyncio.to_thread(
                 _request, origin, "GET", "/api/v1/session", cookies=jar
             )

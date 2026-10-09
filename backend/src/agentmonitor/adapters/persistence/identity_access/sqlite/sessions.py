@@ -520,9 +520,12 @@ class SqliteIdentityAccessSessionRepositoryV1:
                         connection.rollback()
                         return denial
                     assert row is not None
-                    if should_touch_session(instant, _time(row["last_activity_at"])):
+                    persisted_activity = _time(row["last_activity_at"])
+                    if should_touch_session(instant, persisted_activity):
                         idle, _ = session_deadlines(
                             instant,
+                            persisted_activity_at=persisted_activity,
+                            persisted_idle_expires_at=_time(row["idle_expires_at"]),
                             absolute_expires_at=_time(row["absolute_expires_at"]),
                         )
                         connection.exec_driver_sql(

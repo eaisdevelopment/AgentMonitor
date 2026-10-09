@@ -59,6 +59,6 @@ def test_two_real_requests_after_elapsed_minute_coalesce_to_one_durable_touch(
     idle = datetime.fromisoformat(row[1].replace("Z", "+00:00"))
     absolute = datetime.fromisoformat(row[2].replace("Z", "+00:00"))
     assert last_activity >= target - timedelta(milliseconds=100)
-    assert idle == last_activity + timedelta(seconds=1800)
-    assert absolute == issued.session.absolute_expires_at
+    assert idle == absolute == issued.session.absolute_expires_at
+    assert absolute == issued.session.issued_at + timedelta(seconds=86400)
     assert row[3] == 2

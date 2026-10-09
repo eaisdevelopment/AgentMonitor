@@ -1,9 +1,9 @@
 """Run the bounded real M3 technical test surface.
 
-M2's complete browser routine intentionally includes a 30-minute real idle
-expiry scenario. M3's exit gate already performs its own fresh authenticated
+M01's literal 24-hour wall-clock browser expiry scenario remains an explicit
+owner-long-run check. M3's exit gate already performs its own fresh authenticated
 visible browser and provider checks, so it runs the M3-owned backend/contract
-surface here and leaves the long M2 routine under AUTO-TEST. Exact files keep
+surface here and leaves that long M01 scenario separate. Exact files keep
 later M4 fleet, organization, alert, operations, and LAN scenarios in their
 own milestone gates. Historical M0 handoff records remain immutable evidence;
 current protocol behavior is checked directly through the production contract,

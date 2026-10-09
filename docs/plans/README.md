@@ -130,6 +130,9 @@ Directories are created when an approved planning assignment begins. Drafts stat
 
 ## Bounded owner-directed account-view changes
 
+- [Dashboard 24-hour session policy](integration/dashboard-session-24h-change.md):
+  approved M01/P01 fixed 86,400-second policy for newly issued browser sessions,
+  with no runtime `.env` override or schema/API change.
 - [V1-M5 Codex slice](integration/m5-codex-slice-change.md): approved exact
   `0.160.0` managed-profile identity/quota, four-account fleet, five-to-six
   process, provider-neutral API/UI, and fail-closed milestone completion scope;

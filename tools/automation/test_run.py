@@ -161,7 +161,7 @@ class AutomationRoutineTests(unittest.TestCase):
     ) -> None:
         """The canonical runner must select the complete installed M2 boundary."""
         sys.path.insert(0, str(REPOSITORY_ROOT / "tools/automation/implementations"))
-        from auto_test import m2_local_suite_commands
+        from auto_test import POST_M2_OWNER_BOUNDARIES, m2_local_suite_commands
 
         commands = m2_local_suite_commands()
         self.assertEqual(
@@ -181,6 +181,7 @@ class AutomationRoutineTests(unittest.TestCase):
         )
         backend = commands["backend"]
         self.assertIn("backend/tests", backend)
+        self.assertIn("--import-mode=importlib", backend)
         self.assertIn("--ignore=backend/tests/live", backend)
         self.assertIn(
             "--ignore=backend/tests/integration/identity_access/test_argon2_workload.py",
@@ -190,6 +191,8 @@ class AutomationRoutineTests(unittest.TestCase):
             "--ignore=backend/tests/runtime_observation/integration/test_real_linux_commit.py",
             backend,
         )
+        for path in POST_M2_OWNER_BOUNDARIES:
+            self.assertIn(f"--ignore={path}", backend)
         self.assertNotIn("-k", backend)
         self.assertFalse(any(value.startswith("--deselect") for value in backend))
         for key, scenario in (
@@ -206,6 +209,17 @@ class AutomationRoutineTests(unittest.TestCase):
         )
         self.assertTrue(browser_test.is_file())
 
+    def test_tool_suites_use_the_admitted_dependency_complete_python(self) -> None:
+        """M5 tool imports must not be launched with dependency-empty system Python."""
+        sys.path.insert(0, str(REPOSITORY_ROOT / "tools/automation/implementations"))
+        from auto_test import BACKEND_PYTHON, tool_test_command
+
+        command = tool_test_command("tools.automation.test_run")
+        self.assertEqual(str(BACKEND_PYTHON), command[0])
+        self.assertEqual(
+            ["-m", "unittest", "tools.automation.test_run"], command[1:]
+        )
+
     def test_m2_local_evidence_does_not_claim_universal_historical_tdd(self) -> None:
         """A passing current gate cannot invent Reds for prior UI corrections."""
         sys.path.insert(0, str(REPOSITORY_ROOT / "tools/automation/implementations"))
@@ -213,6 +227,7 @@ class AutomationRoutineTests(unittest.TestCase):
 
         accepted = m2_local_acceptance_ids()
         self.assertNotIn("AC-TEST-001", accepted)
+        self.assertNotIn("AC-UI-001", accepted)
         self.assertIn("AC-TEST-003", accepted)
 
     def test_clean_clone_blocks_missing_owner_local_m0_executable(self) -> None:

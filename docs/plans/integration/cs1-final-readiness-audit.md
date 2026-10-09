@@ -621,3 +621,30 @@ module plan, public contract, approval flag, live result, or milestone
 acceptance state.
 
 Plan snapshot SHA-256: `6b1ea0fd2117dc1d5a173df69bf5f59122ef9a42ec736a473ea71c61bd294215`
+
+## 2026-10-09 dashboard 24-hour session policy rebind
+
+The current snapshot binds the owner-approved focused
+[dashboard session change](dashboard-session-24h-change.md) to the exact M01
+draft overlay, its generated contract-adoption projection, the M01 ownership
+digest, the fixed 86,400-second configuration allocations, and the automation
+catalog wording that keeps literal 24-hour elapsed expiry separate. Existing
+contract IDs and versions, the all-V1 M01 Draft status, migration and dependency
+state, and the absence of a literal 24-hour elapsed observation remain
+unchanged. Historical snapshot bindings above remain historical. This bounded
+mechanical rebind does not approve the full M01 plan or claim the Not Run
+elapsed observation passed.
+
+Plan snapshot SHA-256: `fb47bd4d18853398c21a6d5f0029a4c30578311a7d4703156efc9429f9a250f7`
+
+## 2026-10-09 existing-session wording correction rebind
+
+The current snapshot binds the reviewed M01 clarification that an existing
+session preserves both its issued absolute deadline and its issued idle window;
+accepted activity continues under that old window. Deployment does not replace
+either value with the new 86,400-second policy and performs no row rewrite.
+Only the M01 plan bytes and their generated adoption, ownership, and snapshot
+bindings changed. Historical bindings remain historical, and this correction
+adds no contract version, migration, dependency, or elapsed-live claim.
+
+Plan snapshot SHA-256: `7fe722823aa660845d10d006228032ad3d168c9db26958e4902db06e04d9c7c7`

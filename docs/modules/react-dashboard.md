@@ -64,7 +64,16 @@ backend/.venv/bin/python frontend/tests/browser/p02/run_browser.py quick
 backend/.venv/bin/python frontend/tests/browser/p02/run_browser.py all
 ```
 
-`quick` runs nine isolated real-browser scenarios and is an intermediate development gate. `all` also waits for an actual ≥61-second session activity touch before logout and the actual 1,805-second browser idle interval; it is the P02 Story 5 browser gate. `--no-build` is available only when the caller has already built the exact source being tested. Neither command reads the operator `.env` or provider accounts. For Red/Green results and residual `Not Run`, see [`m2-st-ui-001.md`](../evidence/m2-st-ui-001.md).
+`quick` runs the isolated real-browser development scenarios. `all` also waits
+for an actual ≥61-second session activity touch before logout. The explicit
+`idle_expiry` scenario now observes the fixed 24-hour session deadline and is an
+owner-long-run check; the ordinary `all` gate proves 24-hour issuance in the
+production Chrome authentication scenario without claiming a full day elapsed.
+`--no-build` is available only when the caller has already built the exact
+source being tested. Neither command reads the operator `.env` or provider
+accounts. Historical M2 browser evidence remains in
+[`m2-st-ui-001.md`](../evidence/m2-st-ui-001.md); the current policy change is
+recorded in [`dashboard-session-24h.md`](../evidence/dashboard-session-24h.md).
 
 Current limitations: local loopback only, single administrator, no provider dashboard data, and no automatic agent routing. Actual 200% browser zoom, macOS, owner installation, natural lost-response, and later V1 provider-data workflows remain outside the M2 acceptance claim unless separately verified.
 

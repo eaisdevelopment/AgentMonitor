@@ -2,6 +2,7 @@
 
 from datetime import UTC, datetime, timedelta
 
+import pytest
 from agentmonitor.contracts.common_v1 import OpaqueIdV1
 from agentmonitor.contracts.identity_access_v1 import PrincipalV1
 from agentmonitor.modules.identity_access.application.authorization import (
@@ -19,16 +20,50 @@ from agentmonitor.modules.identity_access.domain.policy import (
 def test_idle_deadline_is_capped_by_absolute_and_touch_is_coalesced() -> None:
     issued = datetime(2026, 1, 1, tzinfo=UTC)
     initial_idle, absolute = session_deadlines(issued)
-    assert initial_idle == issued + timedelta(seconds=1800)
-    assert absolute == issued + timedelta(seconds=43200)
+    assert initial_idle == issued + timedelta(seconds=86400)
+    assert absolute == issued + timedelta(seconds=86400)
     assert not should_touch_session(issued + timedelta(seconds=59), issued)
     assert should_touch_session(issued + timedelta(seconds=60), issued)
     near_absolute = absolute - timedelta(seconds=60)
     refreshed_idle, unchanged_absolute = session_deadlines(
-        near_absolute, absolute_expires_at=absolute
+        near_absolute,
+        absolute_expires_at=absolute,
+        persisted_activity_at=issued,
+        persisted_idle_expires_at=absolute,
     )
     assert refreshed_idle == unchanged_absolute == absolute
     assert SESSION_TOUCH_SECONDS == 60
+
+
+def test_touch_preserves_the_idle_window_persisted_for_each_session() -> None:
+    issued = datetime(2026, 1, 1, tzinfo=UTC)
+    touched = issued + timedelta(seconds=60)
+    legacy_absolute = issued + timedelta(seconds=43_200)
+    legacy_idle, unchanged_legacy_absolute = session_deadlines(
+        touched,
+        persisted_activity_at=issued,
+        persisted_idle_expires_at=issued + timedelta(seconds=1_800),
+        absolute_expires_at=legacy_absolute,
+    )
+    assert legacy_idle == touched + timedelta(seconds=1_800)
+    assert unchanged_legacy_absolute == legacy_absolute
+    current_absolute = issued + timedelta(seconds=86_400)
+    current_idle, unchanged_current_absolute = session_deadlines(
+        touched,
+        persisted_activity_at=issued,
+        persisted_idle_expires_at=current_absolute,
+        absolute_expires_at=current_absolute,
+    )
+    assert current_idle == unchanged_current_absolute == current_absolute
+
+
+def test_existing_absolute_deadline_requires_its_persisted_idle_window() -> None:
+    issued = datetime(2026, 1, 1, tzinfo=UTC)
+    with pytest.raises(ValueError, match="session_idle_window_incomplete"):
+        session_deadlines(
+            issued + timedelta(seconds=60),
+            absolute_expires_at=issued + timedelta(seconds=43_200),
+        )
 
 
 def test_idempotency_receipt_expires_at_exact_24_hour_deadline() -> None:
@@ -42,8 +77,8 @@ def test_idempotency_receipt_expires_at_exact_24_hour_deadline() -> None:
 
 def test_observed_expiry_remains_terminal_even_if_clock_moves_backward() -> None:
     issued = datetime(2026, 1, 1, tzinfo=UTC)
-    idle = issued + timedelta(seconds=1800)
-    absolute = issued + timedelta(seconds=43200)
+    idle = issued + timedelta(seconds=86400)
+    absolute = issued + timedelta(seconds=86400)
     observed = idle
     assert session_state(observed, idle, absolute, None, None) == "expired"
     assert (

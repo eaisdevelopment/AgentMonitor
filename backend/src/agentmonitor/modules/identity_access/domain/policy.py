@@ -19,8 +19,8 @@ M2_ISSUABLE_SCOPES = frozenset(
     }
 )
 TERMINAL_RETENTION_DAYS = 365
-SESSION_IDLE_SECONDS = 1800
-SESSION_ABSOLUTE_SECONDS = 43200
+SESSION_IDLE_SECONDS = 86_400
+SESSION_ABSOLUTE_SECONDS = 86_400
 SESSION_TOUCH_SECONDS = 60
 TOKEN_MIN_SECONDS = 3600
 TOKEN_MAX_SECONDS = 31_536_000
@@ -83,13 +83,24 @@ def session_state(
 
 
 def session_deadlines(
-    as_of: datetime, *, absolute_expires_at: datetime | None = None
+    as_of: datetime,
+    *,
+    absolute_expires_at: datetime | None = None,
+    persisted_activity_at: datetime | None = None,
+    persisted_idle_expires_at: datetime | None = None,
 ) -> tuple[datetime, datetime]:
     """Return persisted idle/absolute deadlines; absolute never slides."""
-    absolute = absolute_expires_at or as_of + timedelta(
-        seconds=SESSION_ABSOLUTE_SECONDS
-    )
-    return min(as_of + timedelta(seconds=SESSION_IDLE_SECONDS), absolute), absolute
+    if absolute_expires_at is None:
+        if persisted_activity_at is not None or persisted_idle_expires_at is not None:
+            raise ValueError("session_idle_window_incomplete")
+        absolute = as_of + timedelta(seconds=SESSION_ABSOLUTE_SECONDS)
+        idle_window = timedelta(seconds=SESSION_IDLE_SECONDS)
+    else:
+        if persisted_activity_at is None or persisted_idle_expires_at is None:
+            raise ValueError("session_idle_window_incomplete")
+        absolute = absolute_expires_at
+        idle_window = persisted_idle_expires_at - persisted_activity_at
+    return min(as_of + idle_window, absolute), absolute
 
 
 def should_touch_session(as_of: datetime, persisted_activity_at: datetime) -> bool:
