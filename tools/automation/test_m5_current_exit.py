@@ -385,9 +385,9 @@ def test_catalog_selects_exact_m5_gate_and_closed_lanes() -> None:
         "frontend/tests/pure/provider-account-presentation.mjs",
         "frontend/tests/pure/quota-reset-presentation.mjs",
     )
-    assert auto_m5_current_exit.STORY_NODE_TEST_COUNT == 18
+    assert auto_m5_current_exit.STORY_NODE_TEST_COUNT == 19
     assert auto_m5_current_exit.STORY_NODE_TEST_INVENTORY_SHA256 == (
-        "b45b2a949c7b9db3e71229a17c30ff94e44c460a63acc1b8bd3cc042e5c3a76f"
+        "556bfd17af977e243e3a9c6c9b1372382cb1eaacfc46dd5136af736c4c76b41b"
     )
     assert auto_m5_current_exit.STORY_PYTEST_TEST_COUNT == 386
     assert auto_m5_current_exit.STORY_PYTEST_TEST_INVENTORY_SHA256 == (

@@ -16,7 +16,10 @@ import {
   selectRepresentativeCodexProcessesV1,
   validateOwnerOutcomesV1,
 } from "./m5_codex_policy.mjs";
-import { readAllRegistryItemsV1 } from "./m5_registry_pages.mjs";
+import {
+  advanceCapacityHistoryPageV1,
+  readAllRegistryItemsV1,
+} from "./m5_registry_pages.mjs";
 
 const digest = value => value.repeat(64);
 const serviceRevision = "a".repeat(40);
@@ -145,12 +148,14 @@ test("live entrypoint wires independent executable proofs into the witness", () 
   assert.match(source, /buildCodexWitnessV1\(ownerDocument, records, representativeProcesses,/);
   assert.match(source, /processScanTruncated:[\s\S]*?ownerRoot,/);
   assert.match(source, /readAllRegistryItemsV1/);
+  assert.match(source, /readAllCapacityHistoryV1\(read,/);
   assert.match(source, /getByText\("Activity unknown", \{[\s\S]*?exact: true,/);
   assert.match(source, /process\.account_association === null[\s\S]*?"Account unknown"[\s\S]*?: "Owner confirmed"/);
   assert.match(source, /throw new VerificationError\("owner_outcomes_changed", true\)/);
   assert.doesNotMatch(source, /for \(let pageIndex = 0; pageIndex < 64;/);
   assert.match(alertSource, /readAllRegistryItemsV1/);
   assert.doesNotMatch(alertSource, /for \(let pageIndex = 0; pageIndex < 64;/);
+  assert.match(quotaSource, /readAllCapacityHistoryV1\(read,/);
   assert.match(quotaSource, /\.usage-allowance \.allowance-card\[data-window-key\]/);
   assert.doesNotMatch(quotaSource, /\.workspace-reading\[data-window-key\]/);
   assert.match(
@@ -191,6 +196,77 @@ test("registry pagination requires every available page and a progressing cursor
     }), "/api/v1/accounts"),
     /registry_page_invalid/,
   );
+});
+
+test("capacity history page policy is complete and fail closed", () => {
+  const selection = {
+    subject_id: "account-one",
+    metric: "remaining_ratio",
+    series_kind: "poll_snapshot",
+  };
+  const page = {
+    ...selection,
+    availability: { state: "available", reason_code: "history_available" },
+    items: [{ observation_id: "observation-one" }],
+    page: { limit: 200, has_more: true, next_cursor: "cursor-one" },
+  };
+  const initial = {
+    cursor: null,
+    seenCursors: [],
+    seenObservationIds: [],
+  };
+  const first = advanceCapacityHistoryPageV1(page, selection, initial);
+  assert.equal(first.terminal, false);
+  assert.equal(first.nextCursor, "cursor-one");
+  assert.deepEqual(first.observationIds, ["observation-one"]);
+  const terminal = advanceCapacityHistoryPageV1({
+    ...page,
+    items: [{ observation_id: "current-observation" }],
+    page: { limit: 200, has_more: false, next_cursor: null },
+  }, selection, {
+    cursor: first.nextCursor,
+    seenCursors: [first.nextCursor],
+    seenObservationIds: [...first.observationIds],
+  });
+  assert.equal(terminal.terminal, true);
+  assert.equal(terminal.nextCursor, null);
+  assert.deepEqual(terminal.observationIds, ["current-observation"]);
+
+  const invalidPages = [
+    { ...page, subject_id: "another-account" },
+    { ...page, metric: "remaining" },
+    { ...page, series_kind: "derived" },
+    { ...page, availability: { state: "unavailable" } },
+    { ...page, page: { ...page.page, limit: 199 } },
+    { ...page, page: { limit: 200, has_more: false, next_cursor: "unexpected" } },
+  ];
+  for (const invalid of invalidPages) {
+    assert.throws(
+      () => advanceCapacityHistoryPageV1(invalid, selection, initial),
+      /capacity_history_page_invalid/,
+    );
+  }
+  const incompletePages = [
+    { ...page, page: { ...page.page, next_cursor: "active-cursor" } },
+    { ...page, page: { ...page.page, next_cursor: "seen-cursor" } },
+    { ...page, page: { ...page.page, next_cursor: "invalid\ncursor" } },
+    { ...page, items: [{ observation_id: "seen-observation" }] },
+    { ...page, items: [
+      { observation_id: "duplicate-observation" },
+      { observation_id: "duplicate-observation" },
+    ] },
+  ];
+  const progressed = {
+    cursor: "active-cursor",
+    seenCursors: ["seen-cursor"],
+    seenObservationIds: ["seen-observation"],
+  };
+  for (const incomplete of incompletePages) {
+    assert.throws(
+      () => advanceCapacityHistoryPageV1(incomplete, selection, progressed),
+      /capacity_history_page_incomplete/,
+    );
+  }
 });
 
 test("owner outcomes accept exactly four unique verified or unavailable rows", () => {

@@ -170,9 +170,9 @@ STORY_NODE_TEST_PATHS = (
     "frontend/tests/pure/provider-account-presentation.mjs",
     "frontend/tests/pure/quota-reset-presentation.mjs",
 )
-STORY_NODE_TEST_COUNT = 18
+STORY_NODE_TEST_COUNT = 19
 STORY_NODE_TEST_INVENTORY_SHA256 = (
-    "b45b2a949c7b9db3e71229a17c30ff94e44c460a63acc1b8bd3cc042e5c3a76f"
+    "556bfd17af977e243e3a9c6c9b1372382cb1eaacfc46dd5136af736c4c76b41b"
 )
 STORY_BROWSER_SCENARIOS = ("account_beyond_page",)
 # Updated only from the exact collected inventory after intentional test changes.

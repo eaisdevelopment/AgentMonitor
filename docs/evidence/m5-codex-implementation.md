@@ -61,8 +61,10 @@ UI, automation, and live closure. The focused approved plan is
   unavailable clean startup revision remains explicit rather than inferred.
 - Registry, Collection, Capacity, Runtime, Alerting, event, API, and UI shapes
   are reused compatibly. Account and alert traversal now consumes complete
-  cursor-paginated Registry views; no fixed 200-account assumption remains in
-  those changed paths.
+  cursor-paginated Registry views. The M5 quota and completion witnesses also
+  consume every page in their fixed 30-day capacity-history query, so retained
+  observations beyond the first 200 cannot hide the current lineage. No API
+  contract or response shape changed.
 - `CTR-CAP-001` capacity provenance now admits `+` in its existing bounded
   token grammar so an admitted SemVer mechanism version can retain build
   metadata such as a schema digest. This is a compatible character-set
@@ -93,7 +95,7 @@ the clean-revision milestone gate.
 | `M5-CDX-GATE-001` admission/containment policy | Linux/platform/provider | Real installed executable and schema; real OS pipes, file descriptors and process tracing | Passed | `28` unittest cases: `27` passed and one live-selector skip | The skipped authenticated containment scenario is Blocked, not Passed. |
 | `M5-CDX-UI` account beyond first page | DB/API/browser | Real migrated file SQLite, production HTTP/API, generated client path, production frontend, Chrome | Passed | `account_beyond_page` browser scenario | This focused UI behavior passed: it creates 201 real account records, uses the visible **Load more accounts** control, and opens the last account through a generated detail GET. Other UI scenarios remain subject to the canonical gate. |
 | `M5-CDX-ALERT-001` complete Registry scope | Pure policy and DB integration | Real migrated file SQLite, production Registry commands, exact Codex installation reconciliation, 201 accounts | Passed | Three focused tests; full file `8 passed, 3 skipped` | Cursor progress and duplicate IDs fail closed; the target after page 200 resolves. Three owner-live selectors remain skipped. |
-| M5 Node story inventory | Pure UI/gate policy and source wiring | Production policy modules and browser entrypoint sources | Passed | `18 passed`, zero skipped | Includes configurable capacity-alert presentation and the alert browser verifier's use of the shared complete Registry-page reader. This is a development-checkout result, not a live browser witness. |
+| M5 Node story inventory | Pure UI/gate policy and source wiring | Production policy modules and browser entrypoint sources | Passed | `19 passed`, zero skipped | Includes configurable capacity-alert presentation and the alert and quota browser verifiers' use of shared complete page readers. This is a development-checkout result, not a live browser witness. |
 | `AUTO-M3-TEST` dependency checkpoint | M3 contract and technical backend suites | Canonical routine on the development checkout | Passed | Two routine tests and `307` technical tests passed, zero skipped | Satisfies the local M3 dependency checkpoint; it does not establish an exact clean M5 revision. |
 | `AUTO-MUTATION` checkpoint | Critical pure-policy mutation | Canonical routine on the development checkout | Passed | `1708` mutants: `1698` killed, `10` independently accepted equivalent, `0` skipped | No non-equivalent survivor was admitted. This remains subject to the final clean-revision M5 gate. |
 | Quality, build, planning, documentation, and Git checkpoints | Static quality, generated artifacts/frontend build, repository validation, and local Git preflight | Canonical local routines on the development checkout | Passed | `AUTO-QUALITY`, `AUTO-BUILD`, `AUTO-PLAN-CHECK`, `AUTO-DOCS-CHECK`, and `AUTO-GIT-PREFLIGHT` exited zero | These individual checkpoints do not replace the unrun exact-revision `AUTO-M5-EXIT`. |
@@ -333,6 +335,19 @@ reader. That Red prevented the alert browser proof from having weaker
 pagination checks than the main and quota verifiers. The exact failure timing
 was not retained.
 
+### The M5 witnesses stopped at the first 200 history points
+
+The canonical preflight ran against three verified accounts with current
+successful provider collections, but reported
+`current_codex_quota_lineage_required`. The verifier requested a 30-day
+capacity-history range and consumed only its first 200 ascending rows. Real
+retained histories contained 247, 488, and 364 rows, so their current
+observation IDs were on later pages. The separate authoritative quota
+reconciliation entrypoint had the same one-page defect and was included in the
+correction. During the fail-closed refactor, the pure page-policy regression
+also failed with `Missing expected exception` because a control-character
+cursor was accepted; that cursor case was rejected before Green.
+
 ## Green evidence
 
 ### Exact authenticated identity semantics
@@ -475,6 +490,23 @@ node --experimental-strip-types --test \
 The alert browser verifier now imports `readAllRegistryItemsV1`; the source
 wiring test rejects restoration of its former private 64-page loop. The real
 201-account SQLite/loopback/Chrome scenario also passed.
+
+### Complete M5 quota-history pagination
+
+The shared browser reader now follows the versioned API's opaque capacity
+history cursor until a terminal page. It requires an available bounded page,
+stable subject/metric/series identity, the exact page limit, a progressing
+unseen cursor, a null terminal cursor, and unique observation IDs. Both the
+main M5 verifier and the official `/usage` reconciliation witness use this
+reader without narrowing the approved 30-day history range.
+
+The focused Node policy file passed all 16 tests; the exact M5 Node inventory
+passed all 19 tests. A real authenticated shared-browser/API Green traversed
+the same three histories and found exactly 1/1, 2/2, and 2/2 current
+observations respectively after collecting all 247, 488, and 364 retained
+rows. The read made no Registry, provider, or database mutation. The exact
+clean-revision canonical preflight remains required after commit and service
+restart.
 
 ### Configured capacity thresholds use truthful alert copy
 

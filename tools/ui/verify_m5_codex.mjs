@@ -33,7 +33,10 @@ import {
   selectRepresentativeCodexProcessesV1,
   validateOwnerOutcomesV1,
 } from "./m5_codex_policy.mjs";
-import { readAllRegistryItemsV1 } from "./m5_registry_pages.mjs";
+import {
+  readAllCapacityHistoryV1,
+  readAllRegistryItemsV1,
+} from "./m5_registry_pages.mjs";
 
 const endpoint = process.env.AGENTMONITOR_TEST_DASHBOARD_CDP_ENDPOINT;
 const origin = process.env.AGENTMONITOR_TEST_DASHBOARD_ORIGIN;
@@ -403,13 +406,12 @@ try {
     const [identity, capacity, history, runs] = await Promise.all([
       read(`/api/v1/accounts/${id}/provider-identity`),
       read(`/api/v1/accounts/${id}/capacity`),
-      read(`/api/v1/capacity/history?${new URLSearchParams({
+      readAllCapacityHistoryV1(read, `/api/v1/capacity/history?${new URLSearchParams({
         subject_id: outcome.account_id,
         metric: "remaining_ratio",
         series_kind: "poll_snapshot",
         from: from.toISOString(),
         before: now.toISOString(),
-        limit: "200",
       })}`),
       read(`/api/v1/collection-runs?${new URLSearchParams({
         provider_key: "codex", account_id: outcome.account_id, limit: "200",
