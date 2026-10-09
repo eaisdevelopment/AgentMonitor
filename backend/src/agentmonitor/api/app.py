@@ -311,9 +311,13 @@ def create_application(
         @app.get("/settings/api-tokens", include_in_schema=False)
         @app.get("/accounts", include_in_schema=False)
         @app.get("/accounts/{account_id}", include_in_schema=False)
+        @app.get("/organizations", include_in_schema=False)
         @app.get("/providers", include_in_schema=False)
         @app.get("/collectors", include_in_schema=False)
         @app.get("/sessions", include_in_schema=False)
+        @app.get("/operations", include_in_schema=False)
+        @app.get("/alerts", include_in_schema=False)
+        @app.get("/alert-rules", include_in_schema=False)
         def dashboard_html() -> FileResponse:
             """Serve only approved SPA entries; API/docs routes remain distinct."""
             entry = frontend_build / "dashboard.html"

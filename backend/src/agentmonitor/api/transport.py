@@ -230,9 +230,13 @@ class IamTransportGuard:
                     "/",
                     "/login",
                     "/accounts",
+                    "/organizations",
                     "/providers",
                     "/collectors",
                     "/sessions",
+                    "/operations",
+                    "/alerts",
+                    "/alert-rules",
                     "/settings/api-tokens",
                     "/favicon.svg",
                 }

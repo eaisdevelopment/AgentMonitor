@@ -40,6 +40,14 @@ bytes from browser `crypto.getRandomValues`; key format/entropy remains a
 | Loopback HTTP regression | 5 real IAM tests Passed in 4.46s: login/cookies, session/CSRF/logout, bearer-advertised login Origin, initialization foreign Origin, raw TCP Host/header bounds. 31 unrelated cases were deselected. |
 | Loopback admin browser | Actual `accounts_admin` production browser/API/SQLite scenario Passed. No provider sign-in was started. |
 
+The later route-parity correction added `/organizations`, `/operations`,
+`/alerts`, and `/alert-rules` to both the exact dashboard HTML routes and the
+trusted-LAN public-shell allowlist. Its real dual-listener Red returned `403`
+for `/organizations` with a valid cookie and no Origin, Referer, or Fetch
+Metadata while `/accounts` returned `200`. The synchronized allowlist made the
+same complete fixed-route and dynamic-account HTTP check pass. Unknown page and
+`/api/v1` paths remain safe JSON 404 responses rather than SPA fallbacks.
+
 `AUTO-QUALITY` Passed after formatting/type corrections and regenerating the
 source-bound provenance pair. The canonical generator reported **compatible**,
 44 unchanged operations; only generation provenance/header hashes changed.

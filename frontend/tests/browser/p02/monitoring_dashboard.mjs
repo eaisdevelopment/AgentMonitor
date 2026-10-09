@@ -119,10 +119,27 @@ try {
   await page.getByText("No observed sessions are available.", { exact: true }).waitFor();
 
   stage = "direct_shell_routes";
-  for (const [path, heading] of [["/accounts", "Accounts"], ["/providers", "Providers"], ["/collectors", "Collection runs"], ["/sessions", "Sessions"]]) {
+  for (const [path, heading] of [
+    ["/", "AgentMonitor"],
+    ["/accounts", "Accounts"],
+    ["/accounts/current-opaque-account", "Account unavailable"],
+    ["/organizations", "Organizations"],
+    ["/providers", "Providers"],
+    ["/collectors", "Collection runs"],
+    ["/sessions", "Sessions"],
+    ["/operations", "Operations"],
+    ["/alerts", "Alerts"],
+    ["/alert-rules", "Alert rules"],
+    ["/settings/api-tokens", "API tokens"],
+  ]) {
     const response = await page.goto(`${origin}${path}`);
     requireTruth(response?.status() === 200, `shell_route_missing_${path}`);
     await page.getByRole("heading", { name: heading, exact: true }).waitFor();
+    requireTruth(new URL(page.url()).pathname === path, `shell_route_not_selected_${path}`);
+    const refreshed = await page.reload();
+    requireTruth(refreshed?.status() === 200, `shell_route_refresh_missing_${path}`);
+    await page.getByRole("heading", { name: heading, exact: true }).waitFor();
+    requireTruth(new URL(page.url()).pathname === path, `shell_route_refresh_not_selected_${path}`);
   }
 
   stage = "truth_and_privacy";

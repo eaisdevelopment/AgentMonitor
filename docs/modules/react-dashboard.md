@@ -17,7 +17,23 @@
 
 ## Scope and ownership
 
-The M1 `index.html` foundation entry remains intact. Vite builds a separate `dashboard.html` entry; P01 serves it only on `/`, `/login`, and `/settings/api-tokens` in IAM mode. P02 owns the React entry, guarded route controller, browser-session flow, password-change form, token settings, and the handwritten `shared/api` wrapper. The wrapper is the only handwritten importer of `frontend/src/generated/api/**`; feature modules do not call `fetch`, read SQLite, import backend internals, or inspect provider state.
+The M1 `index.html` foundation entry remains intact. Vite builds a separate
+`dashboard.html` entry. In IAM mode P01 serves it only on the closed P02 route
+allowlist: `/`, `/login`, `/accounts`, `/accounts/{opaque-id}`,
+`/organizations`, `/providers`, `/collectors`, `/sessions`, `/operations`,
+`/alerts`, `/alert-rules`, and `/settings/api-tokens`. This lets a user refresh
+or directly open every current React view. Unknown page paths and unknown
+`/api/v1/**` resources retain the versioned JSON 404 behavior; there is no
+catch-all HTML fallback. P02 owns the React entry, guarded route controller,
+browser-session flow, password-change form, token settings, and the handwritten
+`shared/api` wrapper. The wrapper is the only handwritten importer of
+`frontend/src/generated/api/**`; feature modules do not call `fetch`, read
+SQLite, import backend internals, or inspect provider state.
+
+The `monitoring_dashboard` production Chrome scenario directly opens and
+reloads the complete fixed feature-route set and an opaque account-detail path,
+then verifies the selected React view. The real LAN HTTP suite separately keeps
+the same paths synchronized with P01's closed public-shell navigation allowlist.
 
 M2 contains no account, quota, budget, agent, alert, or provider telemetry. The authenticated overview states that identity/access is active and provider monitoring is outside this milestone; it never renders invented values. The command dashboard and provider modules remain later V1 work.
 

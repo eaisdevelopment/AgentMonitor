@@ -61,6 +61,52 @@ def test_iam_mode_serves_the_m2_entry_on_exact_browser_routes(tmp_path: Path) ->
     asyncio.run(exercise())
 
 
+def test_iam_mode_serves_every_current_spa_deep_link_without_masking_404s(
+    tmp_path: Path,
+) -> None:
+    """FR-UI-002/DEP-NET-007: every published SPA route survives refresh."""
+    app, _ = _installation(tmp_path)
+
+    async def exercise() -> None:
+        async with _running(app) as origin:
+            fixed_routes = (
+                "/",
+                "/login",
+                "/accounts",
+                "/organizations",
+                "/providers",
+                "/collectors",
+                "/sessions",
+                "/operations",
+                "/alerts",
+                "/alert-rules",
+                "/settings/api-tokens",
+            )
+            for path in (*fixed_routes, "/accounts/current-opaque-account"):
+                status, headers, body = await asyncio.to_thread(
+                    _request, origin, "GET", path
+                )
+                assert status == 200, path
+                assert headers.get_content_type() == "text/html", path
+                assert b'id="agentmonitor-dashboard-root"' in body, path
+
+            unknown = await asyncio.to_thread(
+                _request, origin, "GET", "/settings/not-an-app-route"
+            )
+            assert unknown[0] == 404
+            assert unknown[1].get_content_type() == "application/problem+json"
+            assert json.loads(unknown[2])["code"] == "resource_not_found"
+
+            unknown_api = await asyncio.to_thread(
+                _request, origin, "GET", "/api/v1/not-a-real-resource"
+            )
+            assert unknown_api[0] == 404
+            assert unknown_api[1].get_content_type() == "application/problem+json"
+            assert json.loads(unknown_api[2])["code"] == "resource_not_found"
+
+    asyncio.run(exercise())
+
+
 def test_production_cli_starts_authenticated_dashboard_mode(tmp_path: Path) -> None:
     """M3 Task 6: the production CLI can run the real dashboard composition."""
     config = tmp_path / "isolated.env"

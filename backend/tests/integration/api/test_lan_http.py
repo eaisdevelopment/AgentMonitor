@@ -195,11 +195,24 @@ def test_real_lan_and_loopback_auth_host_origin_csrf_and_peer(tmp_path: Path) ->
                             cookies=jar,
                         )
                     )[0] == 403
-                    assert (
-                        await asyncio.to_thread(
-                            _request, origin, "GET", "/accounts", cookies=jar
+                    for shell_path in (
+                        "/",
+                        "/login",
+                        "/accounts",
+                        "/organizations",
+                        "/providers",
+                        "/collectors",
+                        "/sessions",
+                        "/operations",
+                        "/alerts",
+                        "/alert-rules",
+                        "/settings/api-tokens",
+                        "/accounts/current-opaque-account",
+                    ):
+                        shell = await asyncio.to_thread(
+                            _request, origin, "GET", shell_path, cookies=jar
                         )
-                    )[0] == 200
+                        assert shell[0] == 200, shell_path
                     csrf = next(
                         cookie.value
                         for cookie in jar

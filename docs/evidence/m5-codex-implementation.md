@@ -94,7 +94,7 @@ the clean-revision milestone gate.
 | `M5-CDX-UI` account beyond first page | DB/API/browser | Real migrated file SQLite, production HTTP/API, generated client path, production frontend, Chrome | Passed | `account_beyond_page` browser scenario | This focused UI behavior passed: it creates 201 real account records, uses the visible **Load more accounts** control, and opens the last account through a generated detail GET. Other UI scenarios remain subject to the canonical gate. |
 | `M5-CDX-ALERT-001` complete Registry scope | Pure policy and DB integration | Real migrated file SQLite, production Registry commands, exact Codex installation reconciliation, 201 accounts | Passed | Three focused tests; full file `8 passed, 3 skipped` | Cursor progress and duplicate IDs fail closed; the target after page 200 resolves. Three owner-live selectors remain skipped. |
 | M5 Node story inventory | Pure UI/gate policy and source wiring | Production policy modules and browser entrypoint sources | Passed | `18 passed`, zero skipped | Includes configurable capacity-alert presentation and the alert browser verifier's use of the shared complete Registry-page reader. This is a development-checkout result, not a live browser witness. |
-| `AUTO-M3-TEST` dependency checkpoint | M3 contract and technical backend suites | Canonical routine on the development checkout | Passed | `305 passed`, zero skipped | Satisfies the local M3 dependency checkpoint; it does not establish an exact clean M5 revision. |
+| `AUTO-M3-TEST` dependency checkpoint | M3 contract and technical backend suites | Canonical routine on the development checkout | Passed | Two routine tests and `307` technical tests passed, zero skipped | Satisfies the local M3 dependency checkpoint; it does not establish an exact clean M5 revision. |
 | `AUTO-MUTATION` checkpoint | Critical pure-policy mutation | Canonical routine on the development checkout | Passed | `1708` mutants: `1698` killed, `10` independently accepted equivalent, `0` skipped | No non-equivalent survivor was admitted. This remains subject to the final clean-revision M5 gate. |
 | Quality, build, planning, documentation, and Git checkpoints | Static quality, generated artifacts/frontend build, repository validation, and local Git preflight | Canonical local routines on the development checkout | Passed | `AUTO-QUALITY`, `AUTO-BUILD`, `AUTO-PLAN-CHECK`, `AUTO-DOCS-CHECK`, and `AUTO-GIT-PREFLIGHT` exited zero | These individual checkpoints do not replace the unrun exact-revision `AUTO-M5-EXIT`. |
 | Full M5 Python story selection before live setup | Backend and automation Story scope | Real local boundaries plus explicit owner/provider selectors | Blocked | The current 386-case development-checkout run returned `379 passed, 6 skipped, 1 failed`; the real-filesystem archive race file separately returned `15 passed`. | The sole full-run failure is the explicit `BLOCKED: m5_owner_installation_required` release selector. All six skips name missing owner/live selectors; no ordinary test failed. The final gate must rerun the 386-case inventory with zero skips. |
@@ -512,6 +512,41 @@ recovered, and configuration-closed capacity records. The focused pure test is
 Green for all three lifecycles, while the exact inventory count and digest stay
 unchanged because the strengthened assertions remain one Node subtest.
 
+### Current dashboard views survive direct open and refresh
+
+`FR-UI-002` and deployment scenario `DEP-NET-007` require each published
+dashboard view to open at its own URL. The React route allowlist already
+published Organizations, Operations, Alerts, and Alert rules, but the P01 HTML
+transport omitted those four exact paths. A real migrated file SQLite and
+production Uvicorn regression failed on `GET /organizations` with `404` before
+the transport correction:
+
+```text
+backend/.venv/bin/python -m pytest \
+  backend/tests/integration/api/test_dashboard_html_routes.py -q --tb=short
+```
+
+After adding the four exact routes, the same command passed all three tests.
+It requests every fixed P02 route plus an opaque account detail over a real
+loopback socket and checks that each returns the production dashboard HTML. It
+also proves an unknown page and an unknown `/api/v1` resource still return the
+safe `resource_not_found` JSON problem, so the correction does not introduce a
+catch-all that could mask API errors. The public API operation set and schema
+digest are unchanged; the canonical generator refreshed only the source and
+artifact provenance in the committed OpenAPI/client pair.
+
+Independent review found the same four paths missing from the trusted-LAN
+public-shell allowlist. A real migrated SQLite service on the selected loopback
+and private-LAN sockets failed at `/organizations` with `403`; after the closed
+allowlist was synchronized, the same real HTTP regression passed. The
+production Chrome `monitoring_dashboard` scenario then directly opened and
+reloaded every fixed P02 feature route plus the dynamic account route. Every
+document returned `200`, React selected the expected view before and after
+reload, and the scenario passed without external requests, browser storage, or
+browser exceptions. The isolated database contained no registered account, so
+the dynamic account route truthfully rendered **Account unavailable** rather
+than invented account data.
+
 ### Deadline contract and application drain
 
 After the compatible provider-contract widening, the four focused tests
@@ -569,7 +604,8 @@ returned `3 passed in 3.37s` with a 45-second service drain.
 
 ### Canonical local routine checkpoints
 
-- `AUTO-M3-TEST` passed `305` tests with zero skips.
+- `AUTO-M3-TEST` passed its two routine tests and `307` selected technical
+  tests with zero skips.
 - `AUTO-MUTATION` evaluated `1708` mutants: `1698` were killed, `10` were
   independently bound as equivalent, and none were skipped, suspicious, or
   timed out.
