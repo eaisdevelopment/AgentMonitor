@@ -106,7 +106,7 @@ try {
   "selected_codex_alert_not_recovered");
   const history = await read(`/api/v1/alerts/${encodeURIComponent(alertId)}/history?limit=200`);
   requireResult(history.availability.state === "available" && !history.page.has_more
-    && history.items.some(item => item.transition === "opened")
+    && history.items.some(item => ["opened", "reopened"].includes(item.transition))
     && history.items.some(item => item.transition === "repeated")
     && history.items.some(item => ["acknowledged", "snoozed"].includes(item.transition))
     && history.items.some(item => item.transition === "recovered"),

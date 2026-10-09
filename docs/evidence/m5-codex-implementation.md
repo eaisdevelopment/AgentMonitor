@@ -23,12 +23,15 @@
   `1.0.0-draft.2`; `codex-adapter.v1` adapter `1.0.2`; Codex
   subscription capability schema `1.0`; REST `/api/v1`; database head
   `v1_0707` unchanged.
-- Commit/worktree reference: integration worktree based on
-  `e4ea22a815af4fc89e7899ea57cb35814a1fa6c8`. The identity correction does
-  not yet have a clean revision assessed by the canonical M5 gate.
-- Recorder/date: Codex integration record, 2026-10-08.
-- Overall status: **Intermediate**. The canonical `AUTO-M5-EXIT` run and its
-  owner review are **Not Run**. This record is not milestone acceptance.
+- Commit/worktree reference: retained quota-history pagination is committed at
+  `d7b8b9b6af9eabd584257919947d341f6df5fa93`; the alert occurrence retry is
+  carried by the revision containing this record. No clean revision has passed
+  the canonical M5 gate.
+- Recorder/date: Codex integration record, 2026-10-08; retained-history retry
+  update, 2026-10-09.
+- Overall status: **Intermediate**. The canonical `AUTO-M5-EXIT` has not passed;
+  its preflight was **Blocked** and no completion receipt exists. Final owner
+  review is **Not Run**. This record is not milestone acceptance.
 
 The primary production owner is A02 for provider behavior under
 `backend/src/agentmonitor/adapters/providers/codex/**`. Root integration owns
@@ -65,6 +68,15 @@ UI, automation, and live closure. The focused approved plan is
   consume every page in their fixed 30-day capacity-history query, so retained
   observations beyond the first 200 cannot hide the current lineage. No API
   contract or response shape changed.
+- The M5 alert-witness selector now binds the latest complete alert occurrence.
+  A never-before-seen fingerprint begins with `opened`; a recovered retained
+  fingerprint begins its next occurrence with the existing provider-neutral
+  `reopened` transition. Earlier occurrences remain in immutable history and
+  cannot satisfy the fresh service-bound witness. The private
+  `agentmonitor.m5-alert-witness.v2` schema remains unchanged: `opened_at` and
+  the opening proof bind the selected occurrence start. No public API, event,
+  database, or persistence schema changed, so no migration, contract-version
+  change, or ADR is required.
 - `CTR-CAP-001` capacity provenance now admits `+` in its existing bounded
   token grammar so an admitted SemVer mechanism version can retain build
   metadata such as a schema digest. This is a compatible character-set
@@ -95,18 +107,19 @@ the clean-revision milestone gate.
 | `M5-CDX-GATE-001` admission/containment policy | Linux/platform/provider | Real installed executable and schema; real OS pipes, file descriptors and process tracing | Passed | `28` unittest cases: `27` passed and one live-selector skip | The skipped authenticated containment scenario is Blocked, not Passed. |
 | `M5-CDX-UI` account beyond first page | DB/API/browser | Real migrated file SQLite, production HTTP/API, generated client path, production frontend, Chrome | Passed | `account_beyond_page` browser scenario | This focused UI behavior passed: it creates 201 real account records, uses the visible **Load more accounts** control, and opens the last account through a generated detail GET. Other UI scenarios remain subject to the canonical gate. |
 | `M5-CDX-ALERT-001` complete Registry scope | Pure policy and DB integration | Real migrated file SQLite, production Registry commands, exact Codex installation reconciliation, 201 accounts | Passed | Three focused tests; full file `8 passed, 3 skipped` | Cursor progress and duplicate IDs fail closed; the target after page 200 resolves. Three owner-live selectors remain skipped. |
+| `M5-CDX-ALERT-002` retained-history occurrence selection | Pure alert-witness policy | Production selector with constructed closed lifecycle values and no I/O | Passed | Meaningful Red and focused Green below | The latest `opened` or `reopened` occurrence must contain a distinct repeat, exactly one owner action, and exactly one later recovery. The combined focused run returned `19 passed, 3 skipped`; the owner-live skips are not credited as passes. |
 | M5 Node story inventory | Pure UI/gate policy and source wiring | Production policy modules and browser entrypoint sources | Passed | `19 passed`, zero skipped | Includes configurable capacity-alert presentation and the alert and quota browser verifiers' use of shared complete page readers. This is a development-checkout result, not a live browser witness. |
 | `AUTO-M3-TEST` dependency checkpoint | M3 contract and technical backend suites | Canonical routine on the development checkout | Passed | Two routine tests and `307` technical tests passed, zero skipped | Satisfies the local M3 dependency checkpoint; it does not establish an exact clean M5 revision. |
 | `AUTO-MUTATION` checkpoint | Critical pure-policy mutation | Canonical routine on the development checkout | Passed | `1708` mutants: `1698` killed, `10` independently accepted equivalent, `0` skipped | No non-equivalent survivor was admitted. This remains subject to the final clean-revision M5 gate. |
 | Quality, build, planning, documentation, and Git checkpoints | Static quality, generated artifacts/frontend build, repository validation, and local Git preflight | Canonical local routines on the development checkout | Passed | `AUTO-QUALITY`, `AUTO-BUILD`, `AUTO-PLAN-CHECK`, `AUTO-DOCS-CHECK`, and `AUTO-GIT-PREFLIGHT` exited zero | These individual checkpoints do not replace the unrun exact-revision `AUTO-M5-EXIT`. |
-| Full M5 Python story selection before live setup | Backend and automation Story scope | Real local boundaries plus explicit owner/provider selectors | Blocked | The current 386-case development-checkout run returned `379 passed, 6 skipped, 1 failed`; the real-filesystem archive race file separately returned `15 passed`. | The sole full-run failure is the explicit `BLOCKED: m5_owner_installation_required` release selector. All six skips name missing owner/live selectors; no ordinary test failed. The final gate must rerun the 386-case inventory with zero skips. |
+| Full M5 Python story selection before live setup | Backend and automation Story scope | Real local boundaries plus explicit owner/provider selectors | Blocked | The prior 386-case development-checkout run returned `379 passed, 6 skipped, 1 failed`; the real-filesystem archive race file separately returned `15 passed`. The current pinned inventory is 387 cases. | The prior sole full-run failure was the explicit `BLOCKED: m5_owner_installation_required` release selector, and its six skips named missing owner/live selectors. The added retained-occurrence regression changes the pinned inventory; no new full 387-case zero-skip execution is credited. |
 | Full backend regression checkpoint | Backend regression | Real local test boundaries selected by the backend suite | Blocked | Historical pre-correction rerun: `10 failed, 1374 passed, 39 skipped` | Every reported failure was an explicit M4/LAN/M5 real-owner selector requirement. This historical result does not describe the corrected checkout. |
-| `AC-LIVE-002/004` four selected Codex outcomes and live identities | Provider/account | Four real owner-selected Codex accounts or explicit owner-unavailable outcomes | Blocked | No current owner outcome file | Owner authentication and current identity verification are still required. |
+| `AC-LIVE-002/004` four selected Codex outcomes and live identities | Provider/account | Four real owner-selected Codex accounts or explicit owner-unavailable outcomes | Blocked | A four-row owner outcome file passed operationally for base revision `d7b8b9b`; it cannot bind a later alert-correction revision. | The exact outcomes need revision/service rebinding after the correction is committed; this row does not claim provider verification for the future revision. |
 | `AC-LIVE-005`, `M5-CDX-COL/CAP` authoritative quota/history | Provider/DB/API/browser | Official Codex `/usage`, fresh scheduled observations, current and retained history | Blocked | One authenticated provider outcome normalized one primary window, but its capacity commit failed before persistence | Provenance admission and full-cadence interrupted-commit recovery are pure Green. A real retry must still prove commit, current/history lineage, exact whole percentages, reset precision, and at most 300-second skew. |
 | `AC-PROC-001..004`, `M5-CDX-RUN-001..008` representative processes | Linux/platform/browser | Five to six real Codex processes outside the managed-profile subtree | Blocked | No current process witness | PID/start/executable reread, hierarchy/location, and unresolved or owner-confirmed association remain required. |
-| `AC-ALERT-002`, `M5-CDX-ALERT-001..006` live lifecycle | DB/API/browser/provider | Genuine Codex capacity condition, repeated delivery, owner action, later source-proven recovery | Blocked | No current alert witness | Local DB pagination passed; the natural live lifecycle did not run. |
+| `AC-ALERT-002`, `M5-CDX-ALERT-001..006` live lifecycle | DB/API/browser/provider | Genuine Codex capacity condition, fresh opening, repeated delivery, owner action, later source-proven recovery | Blocked | No current alert witness | Local DB pagination and retained-history selection policy passed; the fresh `opened` or `reopened` occurrence has not completed the real browser/provider witness. |
 | Authenticated managed-profile syscall containment | Linux/provider/security | Real authenticated managed Codex profile and `strace` | Blocked | One truthful live-selector skip in the containment suite | Identity and quota operations must show provider access inside the selected root and zero default-profile access/write. |
-| `M5-CDX-GATE-001..014`, canonical `AUTO-M5-EXIT` | Full local/live gate | Clean exact revision, selected running service, prerequisite receipts, all local gates with zero skips | Not Run | No M5 completion receipt | Must be the last technical gate before owner review. |
+| `M5-CDX-GATE-001..014`, canonical `AUTO-M5-EXIT` | Full local/live gate | Clean exact revision, selected running service, prerequisite receipts, all local gates with zero skips | Blocked | The preflight failed closed and no M5 completion receipt exists. | Must be rerun after every prerequisite is current, then pass as the last technical gate before owner review. |
 | macOS compatibility | Platform | Real macOS host | Blocked | No real Mac available | Outside Linux-first M5 acceptance; remains visible for V1. |
 
 ## Red evidence
@@ -348,6 +361,34 @@ correction. During the fail-closed refactor, the pure page-policy regression
 also failed with `Missing expected exception` because a control-character
 cursor was accepted; that cursor case was rejected before Green.
 
+### Retained alert history made a fresh literal `opened` impossible
+
+Every eligible real Codex capacity fingerprint already had retained alert
+history. The alert domain correctly emits `reopened` when a recovered
+fingerprint becomes active again, but the M5 witness selector required exactly
+one `opened` transition across the alert's complete history. A clean retry could
+therefore pass only by deleting valid history, which the retention contract and
+runbook forbid.
+
+The pure regression changed first. It supplies one completed historical
+occurrence followed by a complete fresh `reopened`, repeated, owner-action, and
+recovery occurrence:
+
+```bash
+PYTHONPATH=backend/src:. backend/.venv/bin/pytest -q --tb=short \
+  backend/tests/integration/alerting/test_codex_capacity_lifecycle.py::test_alert_witness_policy_selects_the_latest_reopened_generation
+```
+
+Before the selector change it failed for the expected reason:
+
+```text
+M5CodexAlertWitnessErrorV1: m5_alert_witness_lifecycle_incomplete
+1 failed
+```
+
+This Red proves the retained-history selection defect only. It does not claim a
+provider delivery, owner browser action, recovery, or private alert witness.
+
 ## Green evidence
 
 ### Exact authenticated identity semantics
@@ -508,6 +549,33 @@ rows. The read made no Registry, provider, or database mutation. The exact
 clean-revision canonical preflight remains required after commit and service
 restart.
 
+### Latest complete alert occurrence on retained history
+
+The alert-witness selector now validates the complete retained sequence and
+lifecycle/severity continuity, requires its single literal `opened` at sequence
+one, then selects the latest activation (`opened` or `reopened`). That selected
+occurrence must contain a distinct genuine repeat before exactly one owner
+action and exactly one later recovery. Missing recovery, an extra recovery,
+nested activation, absent initial `opened`, duplicate active source lineage, or
+an incomplete occurrence fails closed. Older complete occurrences remain
+retained but cannot supply any stage of the selected witness.
+
+The combined selector and witness-policy Green ran with the admitted retained
+Codex CLI `0.160.0` first on `PATH`:
+
+```bash
+PYTHONPATH=backend/src:. backend/.venv/bin/pytest -q --tb=short \
+  backend/tests/integration/alerting/test_codex_capacity_lifecycle.py \
+  tools/automation/test_m5_codex_alert_witness.py
+```
+
+Result: `19 passed, 3 skipped in 5.89s`. The three skips are explicit
+owner-live selectors and are **Blocked**, not Passed. The browser verifier now
+recognizes either `opened` or `reopened` as an opening transition while still
+requiring repeated condition, owner action, and recovery history. That is a
+source-level compatibility correction; a fresh production Chrome lifecycle and
+the create-once `AUTO-M5-ALERT-WITNESS` remain required.
+
 ### Configured capacity thresholds use truthful alert copy
 
 Requirements `FR-ALERT-001/002`, `FR-UI-003/006`, and scenarios
@@ -650,14 +718,15 @@ returned `3 passed in 3.37s` with a 45-second service drain.
 - `AUTO-GIT-PREFLIGHT` passed its documented local-commit scope. Remote and
   upstream release readiness were not run and are not required for this local
   implementation commit.
-- The current full M5 Python Story selection returned `379 passed`, six
-  truthful live-selector skips, and one explicit
-  `BLOCKED: m5_owner_installation_required` result across 386 cases. The
-  archive race file separately returned `15 passed` against real files and
-  forked processes. Exact JUnit reconciliation produces 386 unique test IDs
-  with SHA-256
-  `561d47287a62b1a4773131c043099de22324e65fcb0eb7289052076181a04547`.
-  The final gate must execute that complete inventory with live selectors.
+- Before the retained-occurrence regression, the full M5 Python Story
+  selection returned `379 passed`, six truthful live-selector skips, and one
+  explicit `BLOCKED: m5_owner_installation_required` result across 386 cases.
+  The archive race file separately returned `15 passed` against real files and
+  forked processes. The current exact JUnit inventory now pins 387 unique test
+  IDs with SHA-256
+  `95fbb92c42123a3b12fda276112c03a9659e7ca4abd540e054ea71aeabed074a`.
+  That inventory update is not a full-suite pass; the final gate must execute
+  all 387 cases with live selectors and zero skips.
 
 These were individual intermediate runs. They do not assert that the worktree
 was committed and clean, that one unchanged exact revision supplied every
@@ -691,13 +760,13 @@ result, or that the live selectors required by `AUTO-M5-EXIT` were available.
 |---|---|---|
 | Exact installed provider | Passed for installation/admission and empty-root safety | Exact Codex CLI `0.160.0`, installed schema, and local executable were used. The committed config-schema digest is recorded in the discovery/correction evidence. No authenticated quota claim is made. |
 | File-backed SQLite/migration | Passed for focused persistence and pagination | Fresh databases used the real migration chain and production repositories/commands. No M5 migration was needed. |
-| Production HTTP/generated client | Passed for focused account pagination and Codex API composition | Real loopback service, IAM/CSRF, versioned API, and generated client paths were exercised. `AUTO-BUILD` passed as an intermediate generated-artifact/build checkpoint; the exact clean-revision M5 gate remains Not Run. |
+| Production HTTP/generated client | Passed for focused account pagination and Codex API composition | Real loopback service, IAM/CSRF, versioned API, and generated client paths were exercised. `AUTO-BUILD` passed as an intermediate generated-artifact/build checkpoint; the exact clean-revision M5 gate remains Blocked. |
 | Built Chrome UI | Passed for focused 201-account navigation | The production frontend and Chrome displayed and opened the account beyond page 200. Four-account identity/quota and alert-lifecycle browser witnesses remain Blocked. |
 | Linux process/filesystem | Passed for non-authenticated admission and containment policies | Real processes, file descriptors, pipes, files, links, and tracer admission were exercised. Five to six external Codex process observations and authenticated containment remain Blocked. |
-| Four live accounts | Blocked | No four-row owner outcome artifact is current for this worktree/revision. |
+| Four live accounts | Blocked | A four-row owner outcome artifact passed operationally for base revision `d7b8b9b`, but its revision/service binding cannot satisfy the later alert-correction revision. |
 | Authoritative live quota/history | Blocked | One authenticated provider outcome normalized one primary window, then the Capacity commit failed on the now-corrected provenance grammar. The recovered interruption is now eligible only after full cadence. A fresh successful commit, official `/usage` reconciliation, and post-restart lineage witness remain required. |
-| Genuine capacity alert lifecycle | Blocked | No natural opening, repeated condition, owner action, and source-proven recovery witness exists. |
-| Clean exact running revision | Not Run | The worktree is not a committed clean assessment revision, and no create-once M5 receipt exists. |
+| Genuine capacity alert lifecycle | Blocked | Retained-history policy accepts a fresh `opened` or `reopened` occurrence without deleting older generations, but no current natural repeat, owner action, source-proven recovery, built-browser proof, and create-once alert witness has completed. |
+| Clean exact running revision | Not Run | No exact clean revision has produced a create-once M5 receipt. |
 
 The provider discovery basis is
 [Codex 0.160.0 discovery](m5-codex-0.160.0-discovery.md). The later
@@ -726,6 +795,10 @@ its read-only assumption for authenticated app-server operations.
   agent.
 - The existing database head remains `v1_0707`; no table, destructive
   migration, backfill, or rollback procedure was added.
+- Selecting the latest retained alert occurrence changes only the private M5
+  witness policy and browser verifier. It reuses the existing provider-neutral
+  `reopened` transition, preserves all history, and does not change alert API,
+  event, database, or witness-document schemas.
 - The `CTR-CAP-001` provenance token change only admits `+` in a bounded safe
   technical version. It changes no stored field, API schema, secret handling,
   or provider operation.
@@ -839,8 +912,10 @@ the integration owner must:
    current API/DOM values, and retained history;
 4. verify five to six representative external Codex processes without account
    guessing or process control;
-5. record one genuine Codex capacity alert through open, repeat/deduplication,
-   owner action, and source-proven recovery;
+5. record one genuine Codex capacity alert through a fresh `opened` occurrence,
+   or a `reopened` occurrence for a retained recovered fingerprint, followed by
+   repeat/deduplication, owner action, and source-proven recovery without
+   deleting earlier history;
 6. run authenticated syscall containment for identity and quota with zero
    default-profile access/write; and
 7. run `python3 tools/automation/run.py AUTO-M5-EXIT`, which reruns every
@@ -849,4 +924,4 @@ the integration owner must:
    review.
 
 Until those steps pass, M5 remains **Intermediate**, its live scenarios remain
-**Blocked**, and its canonical completion gate remains **Not Run**.
+**Blocked**, and its canonical completion gate remains **Blocked**.

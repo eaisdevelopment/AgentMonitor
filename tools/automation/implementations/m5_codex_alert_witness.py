@@ -237,7 +237,7 @@ def _history_material(
 def select_alert_lifecycle_evidence_v1(
     history: tuple[AlertHistoryEntryV1, ...],
 ) -> CodexAlertHistoryEvidenceV1:
-    """Select one unambiguous open/repeat/action/recovery generation."""
+    """Select the latest unambiguous open/repeat/action/recovery generation."""
 
     if (
         not history
@@ -247,27 +247,66 @@ def select_alert_lifecycle_evidence_v1(
         or any(
             current.aggregate_sequence + 1 != following.aggregate_sequence
             or current.occurred_at > following.occurred_at
+            or current.current_lifecycle != following.previous_lifecycle
+            or current.current_severity != following.previous_severity
             for current, following in pairwise(history)
         )
     ):
         raise M5CodexAlertWitnessErrorV1("m5_alert_witness_lifecycle_incomplete")
-    opened = tuple(item for item in history if item.transition == "opened")
-    recovered = tuple(item for item in history if item.transition == "recovered")
-    owner_actions = tuple(
-        item for item in history if item.transition in {"acknowledged", "snoozed"}
+    literal_openings = tuple(item for item in history if item.transition == "opened")
+    openings = tuple(
+        item for item in history if item.transition in {"opened", "reopened"}
     )
-    if len(opened) != 1 or len(recovered) != 1 or len(owner_actions) != 1:
+    if len(literal_openings) != 1 or literal_openings[0] != history[0] or not openings:
         raise M5CodexAlertWitnessErrorV1("m5_alert_witness_lifecycle_incomplete")
-    opening = opened[0]
-    action = owner_actions[0]
-    recovery = recovered[0]
-    repeats = tuple(
+    opening = openings[-1]
+    recoveries = tuple(
         item
         for item in history
-        if item.transition == "repeated"
-        and opening.aggregate_sequence
+        if item.transition == "recovered"
+        and item.aggregate_sequence > opening.aggregate_sequence
+    )
+    if len(recoveries) != 1:
+        raise M5CodexAlertWitnessErrorV1("m5_alert_witness_lifecycle_incomplete")
+    recovery = recoveries[0]
+    generation = tuple(
+        item
+        for item in history
+        if opening.aggregate_sequence
         < item.aggregate_sequence
-        < action.aggregate_sequence
+        < recovery.aggregate_sequence
+    )
+    owner_actions = tuple(
+        item for item in generation if item.transition in {"acknowledged", "snoozed"}
+    )
+    if (
+        len(owner_actions) != 1
+        or opening.current_lifecycle != "open"
+        or (
+            opening.transition == "opened"
+            and (
+                opening.aggregate_sequence != 1
+                or opening.previous_lifecycle is not None
+            )
+        )
+        or (
+            opening.transition == "reopened"
+            and opening.previous_lifecycle
+            not in {"recovered", "closed_by_configuration"}
+        )
+        or recovery.current_lifecycle != "recovered"
+        or any(
+            item.transition in {"opened", "reopened", "recovered"}
+            for item in generation
+        )
+    ):
+        raise M5CodexAlertWitnessErrorV1("m5_alert_witness_lifecycle_incomplete")
+    action = owner_actions[0]
+    repeats = tuple(
+        item
+        for item in generation
+        if item.transition == "repeated"
+        and item.aggregate_sequence < action.aggregate_sequence
     )
     active_source_ids = {
         opening.source_event_id,

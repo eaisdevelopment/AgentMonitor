@@ -268,13 +268,21 @@ def _history_entry(
     actor_id: str | None = None,
 ) -> AlertHistoryEntryV1:
     previous_lifecycle: AlertLifecycleV1 | None = (
-        None if transition == "opened" else "open"
+        None
+        if transition == "opened"
+        else "recovered"
+        if transition == "reopened"
+        else "open"
     )
     current_lifecycle: AlertLifecycleV1 = (
         "recovered" if transition == "recovered" else "open"
     )
     previous_severity: AlertSeverityV1 | None = (
-        None if transition == "opened" else "critical"
+        None
+        if transition == "opened"
+        else "information"
+        if transition == "reopened"
+        else "critical"
     )
     current_severity: AlertSeverityV1 = (
         "information" if transition == "recovered" else "critical"
@@ -386,6 +394,74 @@ def test_alert_witness_policy_binds_latest_repeat_and_distinct_recovery() -> Non
         select_alert_lifecycle_evidence_v1(
             (history[0], history[2], history[3], history[4])
         )
+
+
+def test_alert_witness_policy_selects_the_latest_reopened_generation() -> None:
+    """M5-CDX-ALERT-002: a fresh retry remains provable on retained history."""
+
+    history = (
+        _history_entry(1, "opened", source_event_id="old-open"),
+        _history_entry(2, "repeated", source_event_id="old-repeat"),
+        _history_entry(
+            3,
+            "acknowledged",
+            command_id="old-owner-command",
+            actor_id="administrator",
+        ),
+        _history_entry(4, "recovered", source_event_id="old-recovery"),
+        _history_entry(5, "reopened", source_event_id="fresh-open"),
+        _history_entry(6, "repeated", source_event_id="fresh-repeat"),
+        _history_entry(
+            7,
+            "acknowledged",
+            command_id="fresh-owner-command",
+            actor_id="administrator",
+        ),
+        _history_entry(8, "recovered", source_event_id="fresh-recovery"),
+    )
+
+    selected = select_alert_lifecycle_evidence_v1(history)
+
+    assert selected.opened.transition == "reopened"
+    assert selected.opened.source_event_id == OpaqueIdV1("fresh-open")
+    assert selected.repeated.source_event_id == OpaqueIdV1("fresh-repeat")
+    assert selected.owner_action.command_id == OpaqueIdV1("fresh-owner-command")
+    assert selected.recovered.source_event_id == OpaqueIdV1("fresh-recovery")
+
+    invalid_generations = (
+        history[:-1],
+        (
+            _history_entry(1, "reopened", source_event_id="fresh-open"),
+            _history_entry(2, "repeated", source_event_id="fresh-repeat"),
+            _history_entry(
+                3,
+                "acknowledged",
+                command_id="fresh-owner-command",
+                actor_id="administrator",
+            ),
+            _history_entry(4, "recovered", source_event_id="fresh-recovery"),
+        ),
+        (*history, _history_entry(9, "reopened", source_event_id="late-open")),
+        (*history, _history_entry(9, "recovered", source_event_id="extra-recovery")),
+        (
+            history[0],
+            _history_entry(2, "reopened", source_event_id="nested-open"),
+            _history_entry(3, "repeated", source_event_id="nested-repeat"),
+            _history_entry(
+                4,
+                "acknowledged",
+                command_id="nested-owner-command",
+                actor_id="administrator",
+            ),
+            _history_entry(5, "recovered", source_event_id="nested-recovery"),
+        ),
+    )
+    for invalid in invalid_generations:
+        with pytest.raises(
+            M5CodexAlertWitnessErrorV1,
+            match="m5_alert_witness_lifecycle_incomplete",
+        ):
+            select_alert_lifecycle_evidence_v1(invalid)
 
 
 @pytest.mark.parametrize(
@@ -575,7 +651,8 @@ def test_genuine_codex_alert_deduplicates_owner_action_and_recovers(
     copied = _copy_owner_database(root / "agentmonitor.db", tmp_path)
     lifecycle = _lifecycle(copied, account_id, prove_deduplication=True)
     assert lifecycle.alert.lifecycle == "recovered"
-    assert lifecycle.opened.transition == "opened"
+    assert lifecycle.opened.transition in {"opened", "reopened"}
+    assert lifecycle.opened.source_event_id == lifecycle.opening_event.envelope.event_id
     assert lifecycle.repeated.transition == "repeated"
     assert lifecycle.owner_action.transition in {"acknowledged", "snoozed"}
     assert lifecycle.recovered.transition == "recovered"

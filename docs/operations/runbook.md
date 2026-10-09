@@ -356,9 +356,10 @@ partial archive to force a pass.
 
 After a successful archive, rerun `AUTO-M5-OWNER-OUTCOMES` against that already
 verified revision and service. Any capacity-alert lifecycle used for the new
-alert witness must open after both that service start and the new owner
-confirmation. Older alert rules and history remain retained evidence but
-cannot satisfy the new service-bound witness.
+alert witness must start a new occurrence after both that service start and
+the new owner confirmation. A first occurrence records `opened`; a recovered
+retained fingerprint records `reopened`. Older alert rules and generations
+remain retained evidence but cannot satisfy the new service-bound witness.
 
 Create the fixed `<owner-data-root>/m5-quota-witness.json` prerequisite with:
 
@@ -448,7 +449,9 @@ service start and browser check times plus an exact public-version digest; one
 verified outcome account;
 Codex provider, source, adapter, parser, mapping and schema-bundle versions; an
 equal alert record version and aggregate sequence of at least four; ordered
-service start, open, deduplication, owner action, recovery, service check, and
+service start, fresh opening (`opened` for a new fingerprint or `reopened` for
+a retained recovered fingerprint), deduplication, owner action, recovery,
+service check, and
 recording times; and an `owner_action` of `acknowledged` or `snoozed`. Its seven
 open, dedupe, browser, recovery, and source-proven assertions are true. Eleven
 service, source-event, observation-stage, delivery, history, owner-action, and
@@ -467,9 +470,11 @@ Create the real lifecycle in this order:
 2. In **Alerts → Alert rules**, create an enabled **Capacity remaining** rule
    for that one account with warning and critical both set to 100%. Wait for a
    newer scheduled Codex collection and alert delivery. The account's genuine
-   current reading must open the alert. Keep the condition active and wait for
-   a second distinct scheduled Codex collection and delivery to record the
-   repeated condition. Do not insert or edit quota, event, or alert rows.
+   current reading must open the alert. It records `opened` for a new
+   fingerprint or `reopened` when an earlier recovered generation is retained.
+   Keep the condition active and wait for a second distinct scheduled Codex
+   collection and delivery to record the repeated condition. Do not delete
+   retained history or insert or edit quota, event, or alert rows.
 3. In **Alerts**, open **Details and history** for that alert and click either
    **Acknowledge** or **Snooze 15 minutes** once. Keep the resulting opaque
    alert ID as `AGENTMONITOR_TEST_M5_ALERT_ID` if the account has more than one
@@ -480,9 +485,10 @@ Create the real lifecycle in this order:
    newer genuine reading above 0% must recover the same alert. If the real
    reading is 0%, select another verified account or wait for a real provider
    reset; never edit telemetry to manufacture recovery.
-5. Confirm the alert card says **recovered** and its history shows the open,
-   repeated condition, owner action, and recovery in that order. Leave both
-   rules and alert history intact until the M5 exit gate succeeds.
+5. Confirm the alert card says **recovered** and its history shows the latest
+   opening, repeated condition, owner action, and recovery in that order.
+   Leave both rules and all alert history intact until the M5 exit gate
+   succeeds.
 
 After creating the owner-outcome file and completing that lifecycle, create the
 alert prerequisite from the same clean revision and pre-gate service tuple:

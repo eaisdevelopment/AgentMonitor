@@ -176,9 +176,9 @@ STORY_NODE_TEST_INVENTORY_SHA256 = (
 )
 STORY_BROWSER_SCENARIOS = ("account_beyond_page",)
 # Updated only from the exact collected inventory after intentional test changes.
-STORY_PYTEST_TEST_COUNT = 386
+STORY_PYTEST_TEST_COUNT = 387
 STORY_PYTEST_TEST_INVENTORY_SHA256 = (
-    "561d47287a62b1a4773131c043099de22324e65fcb0eb7289052076181a04547"
+    "95fbb92c42123a3b12fda276112c03a9659e7ca4abd540e054ea71aeabed074a"
 )
 STORY_ARTIFACTS = (
     "tools/automation/implementations/m5_completion_lock.py",

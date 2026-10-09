@@ -310,9 +310,10 @@ writes its private create-once receipt. The gate must prove:
    identity, safe hierarchy/location presentation, and truthful unresolved or
    owner-confirmed account association with unknown state retained when no
    safe state evidence exists;
-5. a genuine Codex capacity condition traverses
+5. a genuine Codex capacity condition starts a fresh occurrence through
+   `opened` or `reopened` for a retained recovered fingerprint, then traverses
    the existing alert lifecycle through dedupe, browser presentation, an owner
-   action, and source-proven recovery;
+   action, and source-proven recovery without deleting retained history;
 6. real file-backed SQLite, production HTTP, generated client, built Chrome,
    provider capability/health/failure isolation, and zero registry mutation by
    verification; a real syscall trace of the production managed-profile
@@ -335,8 +336,9 @@ for `AUTO-M5-EXIT`. Broader cross-provider release acceptance remains a V1-M8
 contribution and is not credited by this gate.
 
 The gate is finite and noninteractive. Owner authentication, owner outcomes,
-authoritative `/usage` reconciliation, and the capacity-alert
-open/action/recovery witness happen beforehand through the running application
+authoritative `/usage` reconciliation, and the capacity-alert opening, action,
+and recovery witness for the fresh occurrence happen beforehand through the
+running application
 and write bounded owner-only prerequisite receipts below the same data root.
 `AUTO-M5-EXIT` validates their closed schemas, permissions, source lineage,
 timestamps, exact selected service/revision, and immutable digests. It binds

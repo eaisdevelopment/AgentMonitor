@@ -389,9 +389,9 @@ def test_catalog_selects_exact_m5_gate_and_closed_lanes() -> None:
     assert auto_m5_current_exit.STORY_NODE_TEST_INVENTORY_SHA256 == (
         "556bfd17af977e243e3a9c6c9b1372382cb1eaacfc46dd5136af736c4c76b41b"
     )
-    assert auto_m5_current_exit.STORY_PYTEST_TEST_COUNT == 386
+    assert auto_m5_current_exit.STORY_PYTEST_TEST_COUNT == 387
     assert auto_m5_current_exit.STORY_PYTEST_TEST_INVENTORY_SHA256 == (
-        "561d47287a62b1a4773131c043099de22324e65fcb0eb7289052076181a04547"
+        "95fbb92c42123a3b12fda276112c03a9659e7ca4abd540e054ea71aeabed074a"
     )
     assert STORY_AUTOMATION_TEST_IDS == (
         "tools/automation/test_run.py::AutomationRoutineTests::test_m5_prerequisite_archive_without_selection_never_moves_files",
