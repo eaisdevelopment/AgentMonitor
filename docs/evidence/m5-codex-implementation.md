@@ -93,7 +93,7 @@ the clean-revision milestone gate.
 | `M5-CDX-GATE-001` admission/containment policy | Linux/platform/provider | Real installed executable and schema; real OS pipes, file descriptors and process tracing | Passed | `28` unittest cases: `27` passed and one live-selector skip | The skipped authenticated containment scenario is Blocked, not Passed. |
 | `M5-CDX-UI` account beyond first page | DB/API/browser | Real migrated file SQLite, production HTTP/API, generated client path, production frontend, Chrome | Passed | `account_beyond_page` browser scenario | This focused UI behavior passed: it creates 201 real account records, uses the visible **Load more accounts** control, and opens the last account through a generated detail GET. Other UI scenarios remain subject to the canonical gate. |
 | `M5-CDX-ALERT-001` complete Registry scope | Pure policy and DB integration | Real migrated file SQLite, production Registry commands, exact Codex installation reconciliation, 201 accounts | Passed | Three focused tests; full file `8 passed, 3 skipped` | Cursor progress and duplicate IDs fail closed; the target after page 200 resolves. Three owner-live selectors remain skipped. |
-| M5 Node story inventory | Pure UI/gate policy and source wiring | Production policy modules and browser entrypoint sources | Passed | `17 passed`, zero skipped | Includes the alert browser verifier's use of the shared complete Registry-page reader. This is a development-checkout result, not a live browser witness. |
+| M5 Node story inventory | Pure UI/gate policy and source wiring | Production policy modules and browser entrypoint sources | Passed | `18 passed`, zero skipped | Includes configurable capacity-alert presentation and the alert browser verifier's use of the shared complete Registry-page reader. This is a development-checkout result, not a live browser witness. |
 | `AUTO-M3-TEST` dependency checkpoint | M3 contract and technical backend suites | Canonical routine on the development checkout | Passed | `305 passed`, zero skipped | Satisfies the local M3 dependency checkpoint; it does not establish an exact clean M5 revision. |
 | `AUTO-MUTATION` checkpoint | Critical pure-policy mutation | Canonical routine on the development checkout | Passed | `1708` mutants: `1698` killed, `10` independently accepted equivalent, `0` skipped | No non-equivalent survivor was admitted. This remains subject to the final clean-revision M5 gate. |
 | Quality, build, planning, documentation, and Git checkpoints | Static quality, generated artifacts/frontend build, repository validation, and local Git preflight | Canonical local routines on the development checkout | Passed | `AUTO-QUALITY`, `AUTO-BUILD`, `AUTO-PLAN-CHECK`, `AUTO-DOCS-CHECK`, and `AUTO-GIT-PREFLIGHT` exited zero | These individual checkpoints do not replace the unrun exact-revision `AUTO-M5-EXIT`. |
@@ -461,12 +461,13 @@ Registry snapshot, and resolves exactly one eligible resource subject.
 
 The related owner/quota/alert Registry pagination and expiry work also
 returned `7` focused tests passed and `100` broader tests passed. The complete
-current Node story inventory then passed all `17` tests with zero failures or
+current Node story inventory then passed all `18` tests with zero failures or
 skips:
 
 ```bash
 node --experimental-strip-types --test \
   tools/ui/test_m5_codex_policy.mjs \
+  frontend/tests/pure/alert-presentation.mjs \
   frontend/tests/pure/provider-account-presentation.mjs \
   frontend/tests/pure/quota-reset-presentation.mjs
 ```
@@ -474,6 +475,42 @@ node --experimental-strip-types --test \
 The alert browser verifier now imports `readAllRegistryItemsV1`; the source
 wiring test rejects restoration of its former private 64-page loop. The real
 201-account SQLite/loopback/Chrome scenario also passed.
+
+### Configured capacity thresholds use truthful alert copy
+
+Requirements `FR-ALERT-001/002`, `FR-UI-003/006`, and scenarios
+`UI-ALERT-007/010` require configured threshold context without relying on
+color or implying a different capacity state. The alert card previously used
+the fixed title `Capacity running low` for every `capacity_remaining` alert.
+A genuine 94% remaining observation therefore appeared low when the temporary
+account rule deliberately used a 100% critical threshold.
+
+The Red command was:
+
+```bash
+node --experimental-strip-types --test \
+  frontend/tests/pure/alert-presentation.mjs
+```
+
+It failed with `a configured capacity threshold must not label 94% remaining
+as low`. The Green policy uses **Capacity threshold reached**, preserves the
+exact `94% remaining` value, and renders `Critical threshold: 100% or less`
+from the V1 alert fields. The same focused command then returned `1 passed`.
+The exact Node story inventory returned `18 passed`,
+`tools/automation/test_m5_current_exit.py` returned `50 passed`, TypeScript
+typechecking exited zero, and the production Vite build completed. No backend,
+API, database, provider, migration, dependency, security, or privacy contract
+changed. A fresh built-browser check remains required after the corrected
+revision replaces the current revision-bound live evidence.
+
+Independent review then found that the first Green still described a recovered
+record as having reached the threshold. A lifecycle regression was added and
+failed with actual `Capacity threshold reached` / `Configured capacity
+threshold reached` where `Capacity threshold cleared` / `Warning threshold:
+0% or less` was required. The refactored policy now distinguishes open,
+recovered, and configuration-closed capacity records. The focused pure test is
+Green for all three lifecycles, while the exact inventory count and digest stay
+unchanged because the strengthened assertions remain one Node subtest.
 
 ### Deadline contract and application drain
 
@@ -678,8 +715,9 @@ revision manifest:
   `backend/src/agentmonitor/composition/linux_process_locations.py`.
 - UI/generated client:
   `frontend/src/features/accounts/**`, affected quota/overview presentation,
-  `frontend/src/shared/api/client.ts`, and
-  `frontend/src/generated/api/index.ts`.
+  `frontend/src/features/alerts/AlertsPage.tsx`,
+  `frontend/src/features/alerts/alertPresentation.ts`,
+  `frontend/src/shared/api/client.ts`, and `frontend/src/generated/api/index.ts`.
 - Tests:
   Codex adapter, Registry, Collection, Capacity, Alerting, API, Operations,
   Linux runtime, release, client, pure UI, and built-browser suites under

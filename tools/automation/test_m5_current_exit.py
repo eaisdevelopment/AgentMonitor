@@ -381,12 +381,13 @@ def test_catalog_selects_exact_m5_gate_and_closed_lanes() -> None:
     )
     assert STORY_NODE_TEST_PATHS == (
         "tools/ui/test_m5_codex_policy.mjs",
+        "frontend/tests/pure/alert-presentation.mjs",
         "frontend/tests/pure/provider-account-presentation.mjs",
         "frontend/tests/pure/quota-reset-presentation.mjs",
     )
-    assert auto_m5_current_exit.STORY_NODE_TEST_COUNT == 17
+    assert auto_m5_current_exit.STORY_NODE_TEST_COUNT == 18
     assert auto_m5_current_exit.STORY_NODE_TEST_INVENTORY_SHA256 == (
-        "fcda9d4e7d59d3c9cb504edfbca3fe1744a8857c5e5457a549105054ca1e0b0e"
+        "b45b2a949c7b9db3e71229a17c30ff94e44c460a63acc1b8bd3cc042e5c3a76f"
     )
     assert auto_m5_current_exit.STORY_PYTEST_TEST_COUNT == 386
     assert auto_m5_current_exit.STORY_PYTEST_TEST_INVENTORY_SHA256 == (

@@ -166,12 +166,13 @@ STORY_AUTOMATION_TEST_IDS = (
 )
 STORY_NODE_TEST_PATHS = (
     "tools/ui/test_m5_codex_policy.mjs",
+    "frontend/tests/pure/alert-presentation.mjs",
     "frontend/tests/pure/provider-account-presentation.mjs",
     "frontend/tests/pure/quota-reset-presentation.mjs",
 )
-STORY_NODE_TEST_COUNT = 17
+STORY_NODE_TEST_COUNT = 18
 STORY_NODE_TEST_INVENTORY_SHA256 = (
-    "fcda9d4e7d59d3c9cb504edfbca3fe1744a8857c5e5457a549105054ca1e0b0e"
+    "b45b2a949c7b9db3e71229a17c30ff94e44c460a63acc1b8bd3cc042e5c3a76f"
 )
 STORY_BROWSER_SCENARIOS = ("account_beyond_page",)
 # Updated only from the exact collected inventory after intentional test changes.

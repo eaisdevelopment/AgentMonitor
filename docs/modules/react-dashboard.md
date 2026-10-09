@@ -232,3 +232,17 @@ readings remain separate. Accounts admin retains every registry record; no
 automatic merge, deletion or provider reconnection occurs. A different admin
 name remains visible beside observed identity on account details. See
 [bounded progress and real verification](../evidence/live-account-agents.md).
+
+## Configured capacity alert presentation
+
+A `capacity_remaining` alert uses the neutral title **Capacity threshold
+reached** because administrators may configure its warning and critical
+thresholds anywhere from 0% through 100%. The card shows the exact remaining
+percentage separately and explains the effective severity threshold as
+`Warning threshold: N% or less` or `Critical threshold: N% or less`. It does
+not describe a high remaining percentage as intrinsically low merely because a
+high custom threshold matched. A recovered record says **Capacity threshold
+cleared** and retains its warning threshold context; a record closed by a rule
+change says **Capacity alert closed** and explains that the configured rule is
+inactive. Severity, lifecycle, remaining value, threshold, and rule scope
+continue to come only from the V1 alert API.

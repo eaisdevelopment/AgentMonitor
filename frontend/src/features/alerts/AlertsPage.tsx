@@ -7,6 +7,7 @@ import {
   type AlertNotificationPageV1, type AlertWireV1, type ClientResult,
   type OrganizationViewV1,
 } from "../../shared/api/client";
+import { alertPresentation } from "./alertPresentation";
 
 type ReadyState = Readonly<{
   kind: "ready";
@@ -16,24 +17,6 @@ type ReadyState = Readonly<{
   accounts: readonly AccountViewV1[];
 }>;
 type PageState = ReadyState | Readonly<{ kind: "loading" | "error" }>;
-
-const conditionNames: Readonly<Record<AlertWireV1["condition_type"], string>> = {
-  capacity_remaining: "Capacity running low",
-  capacity_exhausted: "Capacity exhausted",
-  capacity_unavailable: "Capacity unavailable",
-  forecasted_exhaustion: "Capacity may run out",
-  authentication_attention: "Sign-in needs attention",
-  data_stale: "Reading is stale",
-  collector_failure: "Collector failed",
-  possible_stall: "Agent may be stalled",
-};
-
-function remaining(alert: AlertWireV1): string | null {
-  if (alert.remaining_basis_points === null) return null;
-  const percent = Number(alert.remaining_basis_points) / 100;
-  if (!Number.isFinite(percent) || percent < 0 || percent > 100) return null;
-  return `${Number(percent.toFixed(2))}% left`;
-}
 
 function accountName(alert: AlertWireV1, accounts: readonly AccountViewV1[]): string {
   if (alert.account_id === null) return "Account unresolved";
@@ -172,16 +155,16 @@ export function AlertsPage({
       {items.length === 0 ? <p>No active alerts.</p> :
         <ul className="alert-list">{items.map(({ alert, rank }) => {
           const account = accountName(alert, state.accounts);
-          const quota = remaining(alert);
+          const presentation = alertPresentation(alert);
           const alertHistory = history[alert.alert_id];
           const snoozed = alert.snoozed_until !== null && new Date(alert.snoozed_until).getTime() > Date.now();
           return <li key={alert.alert_id} className={`alert-card alert-rank-${rank}`}>
             <div className="alert-card-heading"><div>
               <span className={`state-chip state-${alert.severity}`}>{alert.severity}</span>
-              <h2>{conditionNames[alert.condition_type]}</h2>
-              <p>{account}{quota ? ` · ${quota}` : ""}</p>
+              <h2>{presentation.title}</h2>
+              <p>{account}{presentation.remaining ? ` · ${presentation.remaining}` : ""}</p>
             </div><time dateTime={alert.last_seen_at}>{time(alert.last_seen_at)}</time></div>
-            <p className="alert-explanation">{alert.decision_reason_code.replaceAll("_", " ")}
+            <p className="alert-explanation">{presentation.explanation}
               {alert.lifecycle !== "open" ? ` · ${alert.lifecycle.replaceAll("_", " ")}` : ""}
               {snoozed ? ` · Snoozed until ${time(alert.snoozed_until!)}` : ""}
             </p>
