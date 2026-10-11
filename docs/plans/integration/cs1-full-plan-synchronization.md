@@ -679,3 +679,16 @@ Historical bindings remain historical; contracts, migrations, dependencies,
 approval scope, and elapsed-live evidence remain unchanged.
 
 Plan snapshot SHA-256: `7fe722823aa660845d10d006228032ad3d168c9db26958e4902db06e04d9c7c7`
+
+## 2026-10-11 Overview provider-filter automation control rebind
+
+The synchronized snapshot now catalogs `AUTO-DASHBOARD-PROVIDER-FILTER` as
+the focused P02 gate for the authenticated real mixed-provider Overview. It
+builds the production frontend and verifies provider and organization
+composition, manual and scheduled refresh retention, responsive layouts, and
+zero API mutations. Only the `automation-routines` and `automation-standard`
+controls changed; all 20 canonical plan hashes and public contracts remain
+unchanged. This mechanical rebind does not claim a live gate result or expand
+M5 completion or milestone acceptance.
+
+Plan snapshot SHA-256: `a59395be92d354692182a6e8c290029a474ce71a4a15c876f71df27680d963b6`

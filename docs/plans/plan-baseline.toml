@@ -189,14 +189,14 @@ bytes = 23073
 [[controls]]
 id = "automation-routines"
 path = "tools/automation/routines.toml"
-sha256 = "06b6a715a0558e18f5c8ad58948198c716d2ae6401c97c66bfe5bf0aa549e566"
-bytes = 12787
+sha256 = "6d2b0a876b03e5969d44472d94df559b6e008cd0331c419c1f0d39b6e72fc7d7"
+bytes = 13430
 
 [[controls]]
 id = "automation-standard"
 path = "docs/engineering/completion-and-automation-gates.md"
-sha256 = "10f691407773594149650e2c6f58dfb30ba1181f05265314593b816f15cc9be2"
-bytes = 20438
+sha256 = "c9d8c847705d871443b962da7219c2f7c8071310412d781eccfbe5467ff76487"
+bytes = 20996
 
 [[controls]]
 id = "m0-g0-approval"

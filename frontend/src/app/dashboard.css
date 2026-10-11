@@ -120,6 +120,8 @@ td { font-variant-numeric: tabular-nums; }
 .overview-organization-filters > span { color: #9fb6c5; font-size: .75rem; margin-right: .2rem; }
 .overview-organization-filters > button { min-height: 2.1rem; padding: .35rem .65rem; border-radius: 1rem; background: #0b1824; color: #b7c7d1; font-size: .78rem; overflow-wrap: anywhere; max-width: 100%; }
 .overview-organization-filters > button[aria-pressed="true"] { background: #23485b; border-color: #78c8e2; color: #e0f7ff; }
+.overview-provider-filter { display: flex; align-items: center; gap: .45rem; color: #9fb6c5; font-size: .75rem; }
+.overview-provider-filter select { width: auto; min-width: 9rem; min-height: 2.1rem; padding: .3rem 1.8rem .3rem .55rem; font-size: .78rem; }
 .fleet-overview-table { table-layout: fixed; }
 .fleet-overview-table thead th { padding: .55rem 1rem; background: #0b1824; color: #9fb6c5; font-size: .75rem; }
 .fleet-overview-table thead th:nth-child(1) { width: 27%; }

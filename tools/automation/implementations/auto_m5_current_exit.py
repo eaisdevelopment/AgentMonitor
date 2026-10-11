@@ -124,6 +124,7 @@ LIVE_SELECTORS = (
     "AGENTMONITOR_M5_SERVICE_PID",
 )
 BROWSER_CHECKS = (
+    ("overview_browser", "tools/ui/verify_dashboard_provider_filter.mjs"),
     ("alerts_browser", "tools/ui/verify_m4_alerts.mjs"),
     ("operations_browser", "tools/ui/verify_m4_operations.mjs"),
 )
@@ -200,6 +201,7 @@ STORY_ARTIFACTS = (
     "tools/ui/verify_m5_codex.mjs",
     "tools/ui/verify_m5_codex_alert_lifecycle.mjs",
     "tools/ui/verify_m5_codex_quota_reconciliation.mjs",
+    "tools/ui/verify_dashboard_provider_filter.mjs",
     "tools/ui/m5_registry_pages.mjs",
     "frontend/tests/browser/p02/run_browser.py",
     "frontend/tests/browser/p02/account_beyond_page.mjs",

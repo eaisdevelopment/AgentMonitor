@@ -1,7 +1,7 @@
 # Change plan: executable V1-M5 Codex slice
 
 - Status: **Approved for root-owned V1-M5 implementation and live verification**.
-- Plan version: `1.1.0`; root integration review: 2026-10-07.
+- Plan version: `1.2.0`; root integration review: 2026-10-11.
 - Safety correction: exact-version review proved that authenticated app-server
   queries may perform Codex's automatic credential refresh. The approved
   managed-auth lifecycle therefore classifies those queries as
@@ -276,6 +276,36 @@ code. Provider unavailability is Blocked, never simulated.
   acceptance records only as their evidence becomes true.
 - Preserve the synchronized Draft A02 plan as historical full-lane planning;
   this focused plan owns the current M5 implementation authority.
+
+## Owner-directed Overview provider filter addendum — 2026-10-11
+
+The owner's direction to separate Claude and Codex accounts on Overview
+approves this bounded P02 increment within `M5-CDX-UI-001..012`. It contributes
+to `FR-UI-001/002/003/004/007` and `AC-UI-002/003/004/005`. The UI consumes the
+existing `provider_key` in `CTR-REG-002` through compatible `CTR-API-001` V1 and
+`CTR-UI-001` V1 behavior; no API, OpenAPI, generated client, persistence,
+provider adapter, configuration, dependency, migration, or ADR change is
+authorized or expected.
+
+Overview derives its provider choices from the real account page already
+returned by the API. A compact labeled Provider control initially selects all
+providers and lets the administrator show Claude only, Codex only, or all
+loaded providers together. Provider and organization filters compose before
+identity grouping and the existing quota sort. Provider selection remains
+while manual and 30-second reads refresh the open page, uses no browser
+storage, performs no mutation, and displays an explicit empty result. If the
+selected provider disappears from a later real Registry page, selection
+returns to All providers so the user retains an actionable view. Account
+names, provider keys, organizations, and telemetry remain dynamic; no account
+or quota value is compiled into production code.
+
+Implementation begins with a separate authenticated mixed-provider built-
+browser Red. The Green must prove Claude-only, Codex-only, all-provider reset,
+keyboard use, composition with organization filtering, refresh retention,
+accurate filtered counts, and zero API mutations against the real service.
+The focused fail-closed browser command is also consumed by the M5 completion
+path. A bounded first API page remains visibly bounded by the existing
+`has_more` notice and cannot be described as a complete fleet query.
 
 ## Stop conditions
 

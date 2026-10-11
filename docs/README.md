@@ -96,7 +96,7 @@ This index is the entry point for product, architecture, engineering, and operat
 - [Account workspace redesign](evidence/account-workspace-redesign.md): automatic quota identity, calculated remaining allowance, real Claude process paths, and explicit unresolved process ownership.
 - [Historical managed Claude connection progress](evidence/claude-managed-account-connection.md): three additional SDK accounts verified through isolated sign-in, enrollment, per-profile collection, and the real dashboard.
 - [Historical dashboard Claude connection increment](evidence/claude-dashboard-connection.md): explicit browser connection controls, four owner-completed SDK/EAIS live gates, native quota redraw correction, and a recovered first-read timeout.
-- [Compact dashboard and quota overview](evidence/dashboard-density-and-quota-overview.md): compact connection status, organization filters, interactive account sorting, low-quota warnings, and collection history on its own page.
+- [Compact dashboard and quota overview](evidence/dashboard-density-and-quota-overview.md): compact connection status, organization and provider filters, interactive account sorting, low-quota warnings, and collection history on its own page.
 - [Trusted LAN dashboard change](plans/integration/trusted-lan-dashboard-change.md): owner-approved private interface/subnet listener, HTTP browser admission, and the real completion gate.
 - [Dashboard 24-hour session policy change](plans/integration/dashboard-session-24h-change.md):
   owner-approved fixed 24-hour browser-session lifetime with existing IAM,

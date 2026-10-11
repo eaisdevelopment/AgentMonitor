@@ -357,6 +357,7 @@ def test_catalog_selects_exact_m5_gate_and_closed_lanes() -> None:
     ]
     assert PRE_SERVICE_ROUTINES == (("build", "AUTO-BUILD"),)
     assert BROWSER_CHECKS == (
+        ("overview_browser", "tools/ui/verify_dashboard_provider_filter.mjs"),
         ("alerts_browser", "tools/ui/verify_m4_alerts.mjs"),
         ("operations_browser", "tools/ui/verify_m4_operations.mjs"),
     )
@@ -441,6 +442,7 @@ def test_catalog_selects_exact_m5_gate_and_closed_lanes() -> None:
         "tools/automation/test_run.py",
         "tools/ui/verify_m5_codex_quota_reconciliation.mjs",
         "tools/ui/verify_m5_codex_alert_lifecycle.mjs",
+        "tools/ui/verify_dashboard_provider_filter.mjs",
         "frontend/tests/browser/p02/run_browser.py",
         "frontend/tests/browser/p02/account_beyond_page.mjs",
         "tools/ui/m5_registry_pages.mjs",

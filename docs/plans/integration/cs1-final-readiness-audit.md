@@ -648,3 +648,16 @@ bindings changed. Historical bindings remain historical, and this correction
 adds no contract version, migration, dependency, or elapsed-live claim.
 
 Plan snapshot SHA-256: `7fe722823aa660845d10d006228032ad3d168c9db26958e4902db06e04d9c7c7`
+
+## 2026-10-11 Overview provider-filter automation control rebind
+
+The current snapshot binds `AUTO-DASHBOARD-PROVIDER-FILTER` in the automation
+catalog and completion standard. The focused P02 routine builds the production
+frontend and verifies the authenticated real mixed-provider Overview across
+provider and organization selection, manual and scheduled refresh, responsive
+layouts, and zero API mutations. Only the `automation-routines` and
+`automation-standard` control digests and byte counts changed. This mechanical
+rebind changes no canonical module plan, public contract, provider behavior,
+schema, dependency, approval flag, live result, or milestone acceptance state.
+
+Plan snapshot SHA-256: `a59395be92d354692182a6e8c290029a474ce71a4a15c876f71df27680d963b6`

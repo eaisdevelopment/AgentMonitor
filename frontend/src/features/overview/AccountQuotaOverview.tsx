@@ -5,6 +5,7 @@ import {
   type AccountCapacityViewV1, type AccountPageV1, type AccountViewV1,
   type ProviderAccountIdentityViewV1, type OrganizationPageV1,
 } from "../../shared/api/client";
+import { providerDisplayName } from "../accounts/providerPresentation";
 import { metricAvailability, quotaResetPresentation, remainingPercentage } from "../command/quotaPresentation";
 
 type AccountReading = Readonly<{
@@ -133,6 +134,7 @@ export function AccountQuotaOverview({ onExpired, onOpenAccount }: Readonly<{
   const [refreshKey, setRefreshKey] = useState(0);
   const [busy, setBusy] = useState(false);
   const [selectedOrganizations, setSelectedOrganizations] = useState<readonly string[] | null>(null);
+  const [selectedProvider, setSelectedProvider] = useState<string | null>(null);
   const [sort, setSort] = useState<OverviewSort>({ key: "quota", direction: "ascending" });
 
   useEffect(() => {
@@ -201,7 +203,17 @@ export function AccountQuotaOverview({ onExpired, onOpenAccount }: Readonly<{
     ...(state.readings.some(reading => reading.account.organization_id === null) ? [{ key: "ungrouped", name: "Ungrouped" }] : []),
     ...(state.readings.some(reading => organizationFilterKey(reading.account, state.organizations) === "unavailable") ? [{ key: "unavailable", name: "Unavailable organization" }] : []),
   ] : [];
-  const visibleReadings = state.kind === "ready" ? state.readings.filter(reading => selectedOrganizations === null || selectedOrganizations.includes(organizationFilterKey(reading.account, state.organizations))) : [];
+  const providerOptions = state.kind === "ready" ? [...new Set(state.readings.map(reading => reading.account.provider_key))]
+    .sort((left, right) => providerDisplayName(left).localeCompare(providerDisplayName(right))) : [];
+  const activeProvider = selectedProvider !== null && providerOptions.includes(selectedProvider)
+    ? selectedProvider
+    : null;
+  useEffect(() => {
+    if (state.kind === "ready" && selectedProvider !== null && activeProvider === null) setSelectedProvider(null);
+  }, [activeProvider, selectedProvider, state.kind]);
+  const visibleReadings = state.kind === "ready" ? state.readings.filter(reading =>
+    (selectedOrganizations === null || selectedOrganizations.includes(organizationFilterKey(reading.account, state.organizations)))
+    && (activeProvider === null || reading.account.provider_key === activeProvider)) : [];
   const visibleConnections = state.kind === "ready"
     ? [...groupConnections(visibleReadings)].sort((left, right) => compareConnectionGroups(left, right, sort, state.organizations))
     : [];
@@ -224,6 +236,10 @@ export function AccountQuotaOverview({ onExpired, onOpenAccount }: Readonly<{
           <button type="button" aria-pressed={selectedOrganizations === null} onClick={() => setSelectedOrganizations(null)}>All organizations</button>
           {organizationOptions.map(option => <button key={option.key} type="button" aria-pressed={selectedOrganizations?.includes(option.key) ?? false} onClick={() => toggleOrganization(option.key)}>{option.name}</button>)}
         </div>}
+        {state.kind === "ready" && providerOptions.length > 1 && <label className="overview-provider-filter"><span>Provider</span><select value={activeProvider ?? "all"} onChange={(event) => setSelectedProvider(event.target.value === "all" ? null : event.target.value)}>
+          <option value="all">All providers</option>
+          {providerOptions.map(providerKey => <option key={providerKey} value={providerKey}>{providerDisplayName(providerKey)}</option>)}
+        </select></label>}
         <div className="fleet-overview-controls">
           {state.kind === "ready" && <span>{visibleConnections.length} account rows · {visibleReadings.length} of {state.readings.length} connections listed</span>}
           {state.kind === "ready" && <label className="overview-mobile-sort"><span>Sort accounts</span><select aria-label="Sort accounts" value={`${sort.key}:${sort.direction}`} onChange={(event) => selectSortOption(event.target.value)}>{sortOptions.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}</select></label>}
@@ -233,7 +249,7 @@ export function AccountQuotaOverview({ onExpired, onOpenAccount }: Readonly<{
       {state.kind === "loading" && <p className="fleet-overview-notice" role="status">Reading accounts and quota…</p>}
       {state.kind === "error" && <p className="fleet-overview-notice" role="alert">Account readings are unavailable. Refresh to try again.</p>}
       {state.kind === "ready" && <>
-        {state.readings.length === 0 ? <p className="fleet-overview-notice">No accounts are registered. Add an account from Accounts.</p> : visibleReadings.length === 0 ? <p className="fleet-overview-notice" role="status">{selectedOrganizations?.length === 0 ? "No organizations selected. Choose an organization or All organizations." : "No accounts in the selected organizations. Choose another organization or All organizations."}</p> : (
+        {state.readings.length === 0 ? <p className="fleet-overview-notice">No accounts are registered. Add an account from Accounts.</p> : visibleReadings.length === 0 ? <p className="fleet-overview-notice" role="status">{selectedOrganizations?.length === 0 ? "No organizations selected. Choose an organization or All organizations." : activeProvider !== null ? `No ${providerDisplayName(activeProvider)} accounts in the selected organizations. Choose another provider or organization.` : "No accounts in the selected organizations. Choose another organization or All organizations."}</p> : (
           <table className="fleet-overview-table" aria-label="Account quota overview" aria-describedby="overview-quota-order">
             <thead><tr><th scope="col">Account</th>
               <th scope="col" aria-sort={sort.key === "organization" ? sort.direction : undefined}><button type="button" className="overview-sort-button" onClick={() => selectSort("organization")}>Organization<span aria-hidden="true">{sort.key === "organization" ? sort.direction === "ascending" ? "↑" : "↓" : "↕"}</span></button></th>

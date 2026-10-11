@@ -237,6 +237,16 @@ a red bar, a visible Low label, and an accessible low description. Freshness,
 calculated/rounded provenance, and provider health policy retain their existing
 meanings.
 
+When more than one provider exists in the loaded account page, Overview shows
+a compact labeled Provider select. Its dynamic choices include All providers
+plus each returned provider, using the existing display-name mapping. Claude,
+Codex, and organization selections compose before identity grouping and quota
+sorting. The provider choice survives manual and 30-second read refresh while
+the page remains open, returns to All after navigation or reload, and performs
+no storage or API mutation. It also returns to All when the selected provider
+no longer exists in a refreshed account page. Counts reflect the filtered loaded page; the
+existing bounded-page notice remains visible when more Registry accounts exist.
+
 ## Account agent drill-down and duplicate connections
 
 Account detail has **Agents using this account** for current owner-confirmed

@@ -2,7 +2,7 @@
 
 - Evidence ID: `M5-CDX-IMPLEMENTATION-2026-10-08`
 - Module/plan/increment: A02 Codex provider adapter and root-owned V1-M5
-  integration, approved focused plan version `1.1.0`, Stories
+  integration, approved focused plan version `1.2.0`, Stories
   `ST-CDX-001..005`.
 - Requirements/acceptance IDs:
   `FR-ACC-001/004..006`, `FR-AUTH-001/002/004..006`,
@@ -106,6 +106,7 @@ the clean-revision milestone gate.
 | Owner, quota, alert, and receipt prerequisite policies | Real filesystem plus pure closed-schema policy | Real files, modes, hard links, symlinks, inode substitution, kernel process behavior | Passed | Focused automation results below | These are prerequisite-policy Greens, not owner-authenticated live receipts. |
 | `M5-CDX-GATE-001` admission/containment policy | Linux/platform/provider | Real installed executable and schema; real OS pipes, file descriptors and process tracing | Passed | `28` unittest cases: `27` passed and one live-selector skip | The skipped authenticated containment scenario is Blocked, not Passed. |
 | `M5-CDX-UI` account beyond first page | DB/API/browser | Real migrated file SQLite, production HTTP/API, generated client path, production frontend, Chrome | Passed | `account_beyond_page` browser scenario | This focused UI behavior passed: it creates 201 real account records, uses the visible **Load more accounts** control, and opens the last account through a generated detail GET. Other UI scenarios remain subject to the canonical gate. |
+| `M5-CDX-UI` mixed-provider Overview filter | API/built browser | Authenticated real owner service, genuine Claude and Codex Registry rows, production frontend, shared Chrome | Passed for the focused increment | `AUTO-DASHBOARD-PROVIDER-FILTER` and [Overview evidence](dashboard-density-and-quota-overview.md#mixed-provider-selection--2026-10-11) | Claude-only, Codex-only, all-provider reset, organization composition, keyboard use, manual/periodic refresh retention, 1920/1280/390 reflow, filtered counts, and zero mutations passed. This does not close the canonical M5 gate. |
 | `M5-CDX-ALERT-001` complete Registry scope | Pure policy and DB integration | Real migrated file SQLite, production Registry commands, exact Codex installation reconciliation, 201 accounts | Passed | Three focused tests; full file `8 passed, 3 skipped` | Cursor progress and duplicate IDs fail closed; the target after page 200 resolves. Three owner-live selectors remain skipped. |
 | `M5-CDX-ALERT-002` retained-history occurrence selection | Pure alert-witness policy | Production selector with constructed closed lifecycle values and no I/O | Passed | Meaningful Red and focused Green below | The latest `opened` or `reopened` occurrence must contain a distinct repeat, exactly one owner action, and exactly one later recovery. The combined focused run returned `19 passed, 3 skipped`; the owner-live skips are not credited as passes. |
 | M5 Node story inventory | Pure UI/gate policy and source wiring | Production policy modules and browser entrypoint sources | Passed | `19 passed`, zero skipped | Includes configurable capacity-alert presentation and the alert and quota browser verifiers' use of shared complete page readers. This is a development-checkout result, not a live browser witness. |

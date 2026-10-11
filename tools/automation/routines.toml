@@ -157,6 +157,14 @@ implementation_command = ["python3", "tools/automation/implementations/auto_clau
 blockers = ["owner must click Connect Claude and complete official browser sign-in; explicit managed account and authenticated shared dashboard selectors required; never starts authentication and excludes full M4 acceptance"]
 
 [[routines]]
+id = "AUTO-DASHBOARD-PROVIDER-FILTER"
+owner = "PLAN-P02"
+status = "operational_limited"
+scope = "production build and authenticated real mixed-provider Overview: Claude-only, Codex-only, all-provider reset, organization composition, refresh retention, responsive layout and zero mutations"
+implementation_command = ["python3", "tools/automation/implementations/auto_dashboard_provider_filter.py"]
+blockers = ["requires an authenticated shared loopback Chrome dashboard containing genuine nonarchived Claude and Codex Registry accounts; complete-fleet filtering beyond the bounded account page remains outside this focused gate"]
+
+[[routines]]
 id = "AUTO-BUILD"
 owner = "PLAN-FND"
 status = "operational"

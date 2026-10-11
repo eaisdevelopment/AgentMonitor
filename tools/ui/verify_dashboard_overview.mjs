@@ -18,16 +18,22 @@ function percentage(field) {
 try {
   requireResult(endpoint && origin && new URL(endpoint).hostname === "127.0.0.1" && new URL(origin).hostname === "127.0.0.1", "explicit_loopback_dashboard_required");
   const browser = await chromium.connectOverCDP(endpoint);
-  const page = browser.contexts()[0]?.pages()[0];
-  requireResult(page && await page.evaluate(() => location.origin) === origin, "shared_dashboard_required");
+  const page = browser.contexts().flatMap(context => context.pages())
+    .find(candidate => new URL(candidate.url()).origin === origin);
+  requireResult(page, "shared_dashboard_required");
+  await page.setViewportSize({ width: 1280, height: 800 });
   const snapshot = await page.evaluate(async () => {
-    const read = async path => { const r = await fetch(path); if (!r.ok) throw new Error("versioned_read_unavailable"); return r.json(); };
+    const read = async (path, allowedUnavailable = []) => {
+      const response = await fetch(path);
+      if (!response.ok && !allowedUnavailable.includes(response.status)) throw new Error("versioned_read_unavailable");
+      return response.ok ? response.json() : null;
+    };
     const accounts = await read("/api/v1/accounts?limit=200");
     const organizations = await read("/api/v1/organizations?limit=200");
     const rows = [];
     for (const account of accounts.items.filter(item => item.lifecycle !== "archived")) {
       const capacity = await read(`/api/v1/accounts/${account.account_id}/capacity`);
-      const identity = await read(`/api/v1/accounts/${account.account_id}/observed-identity`);
+      const identity = await read(`/api/v1/accounts/${account.account_id}/observed-identity`, [409]);
       rows.push({ account, capacity, identity });
     }
     return { rows, organizations };
@@ -39,11 +45,11 @@ try {
   for (const row of snapshot.rows) {
     const { account, capacity, identity } = row;
     const windows = capacity.items.flatMap(item => item.windows);
-    const eligible = ["matched", "owner_confirmed"].includes(account.identity_state) && capacity.availability.state === "available" && identity.state === "verified" && identity.account_id === account.account_id && identity.email !== null && identity.provider_organization !== null && windows.length > 0 && windows.every(window => window.freshness === "fresh" && window.collection_run_id === identity.collection_run_id);
+    const eligible = identity !== null && ["matched", "owner_confirmed"].includes(account.identity_state) && capacity.availability.state === "available" && identity.state === "verified" && identity.account_id === account.account_id && identity.email !== null && identity.provider_organization !== null && windows.length > 0 && windows.every(window => window.freshness === "fresh" && window.collection_run_id === identity.collection_run_id);
     const key = eligible ? JSON.stringify([account.provider_key, account.organization_id, identity.email, identity.provider_organization]) : JSON.stringify([account.account_id]);
     connections.set(key, [...(connections.get(key) ?? []), row]);
   }
-  const presentationRows = [...connections.values()].map(group => group.sort((left, right) => Number(right.account.friendly_name === right.identity.email) - Number(left.account.friendly_name === left.identity.email) || left.account.account_id.localeCompare(right.account.account_id))[0]);
+  const presentationRows = [...connections.values()].map(group => group.sort((left, right) => Number(right.account.friendly_name === right.identity?.email) - Number(left.account.friendly_name === left.identity?.email) || left.account.account_id.localeCompare(right.account.account_id))[0]);
   let mutations = 0;
   let collectionHistoryGets = 0;
   page.on("request", request => {
@@ -235,7 +241,7 @@ try {
     requireResult(await row.locator("time").count() > 0 || capacity.items.every(item => item.windows.length === 0), "account_update_time_missing");
   }
   stage = "compact_responsive";
-  const prior = page.viewportSize() ?? await page.evaluate(() => ({ width: innerWidth, height: innerHeight }));
+  const prior = page.viewportSize() ?? { width: 1280, height: 800 };
   try {
     for (const viewport of [{ width: 1920, height: 1080 }, { width: 1280, height: 800 }, { width: 390, height: 844 }]) {
       await page.setViewportSize(viewport);
@@ -259,7 +265,9 @@ try {
         if (viewport.width === 1920 && snapshot.rows.length <= 6 && snapshot.rows.reduce((count, row) => count + row.capacity.items.reduce((total, item) => total + item.windows.length, 0), 0) <= 12) requireResult(box.y + box.height < viewport.height, "account_quota_below_first_screen");
       }
     }
-  } finally { await page.setViewportSize(prior); }
+  } finally {
+    await page.setViewportSize(prior);
+  }
   stage = "read_only_navigation";
   const first = table.getByRole("button", { name: /^Open account / }).first();
   await first.focus();

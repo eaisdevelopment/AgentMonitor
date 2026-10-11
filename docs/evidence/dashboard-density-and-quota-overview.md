@@ -281,3 +281,66 @@ cadence impact. No provider response or quota value was fabricated. The live
 rows were genuine and stale after the intentional service restart; the UI kept
 that state explicit. Full current-revision M4 acceptance remains separately
 gated by `AUTO-M4-EXIT` and is not claimed by this focused evidence.
+
+## Mixed-provider selection — 2026-10-11
+
+The owner directed Overview to separate Claude from Codex while retaining a
+combined view. The approved M5 change-plan addendum maps this P02 increment to
+`FR-UI-001/002/003/004/007`, `AC-UI-002/003/004/005`, and
+`M5-CDX-UI-001..012`. It uses the existing `provider_key` from `CTR-REG-002`
+through compatible `CTR-API-001` V1 and `CTR-UI-001` V1 behavior. No backend,
+API/OpenAPI, generated client, database, migration, provider adapter,
+configuration, dependency, or ADR changed.
+
+The test changed before production code. At `2026-10-11T21:01:22Z`, the real
+authenticated mixed-provider browser command exposed the missing control, but
+its first runner classified the product defect as Blocked (exit 3):
+
+```text
+DASHBOARD PROVIDER FILTER: BLOCKED — provider_filter: provider_filter_missing
+```
+
+That classification was corrected before handoff so absent live prerequisites
+remain Blocked while product assertions fail. At `2026-10-11T22:10:51+01:00`,
+the corrected verifier was replayed against the exact prior production
+frontend from revision `29d6f9c` and the real current API/browser session. It
+returned the required technical Red with exit 1:
+
+```text
+DASHBOARD PROVIDER FILTER: FAILED — provider_filter: provider_filter_missing
+```
+
+Production then added a compact labeled Provider select whose choices are
+derived from the loaded real account page. All providers is the default;
+Claude and Codex can each be isolated, and All providers restores the combined
+view. Provider and organization filters compose before existing identity
+grouping and quota sorting. The choice remains local component state, survives
+manual and 30-second read refresh, and is not written to browser storage or the
+API. A no-match result names the selected provider instead of showing an empty
+table without explanation. If that provider disappears from a later Registry
+read, the selection returns to All providers so the hidden unavailable choice
+cannot strand the page in an empty state.
+
+The focused canonical command builds the production UI before driving the
+shared Chrome session:
+
+```bash
+AGENTMONITOR_TEST_DASHBOARD_CDP_ENDPOINT=http://127.0.0.1:9224 \
+AGENTMONITOR_TEST_DASHBOARD_ORIGIN=http://127.0.0.1:43110 \
+python3 tools/automation/run.py AUTO-DASHBOARD-PROVIDER-FILTER
+```
+
+Its Green passed against 6 genuine Claude rows and 5 genuine Codex rows. It
+proved Claude-only, Codex-only, and combined row sets; accurate filtered
+connection counts; composition with a real mixed-provider organization;
+keyboard focus and selection; retained selection after both manual and actual
+30-second refreshes; visible 1920, 1280, and 390-pixel layouts without
+horizontal overflow; and zero non-read API requests. No provider response,
+account, organization, quota, or telemetry was created or changed for the
+test. No screenshot, browser trace, identity value, cookie, or credential was
+retained.
+
+The Overview remains a bounded account page. When `has_more` is true, its
+existing notice prevents the filtered page from being described as the entire
+fleet. Navigation or reload intentionally restores All providers. Full
+`AUTO-M5-EXIT` and M5 owner acceptance remain separate and incomplete.

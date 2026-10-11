@@ -266,6 +266,12 @@ class AutomationRoutineTests(unittest.TestCase):
                 / "tools/automation/implementations/auto_claude_connect.py",
                 checkout / "tools/automation/implementations/auto_claude_connect.py",
             )
+            copy2(
+                REPOSITORY_ROOT
+                / "tools/automation/implementations/auto_dashboard_provider_filter.py",
+                checkout
+                / "tools/automation/implementations/auto_dashboard_provider_filter.py",
+            )
             result = subprocess.run(
                 [
                     sys.executable,
@@ -978,6 +984,7 @@ class AutomationRoutineTests(unittest.TestCase):
                 "AUTO-CLAUDE-POLL",
                 "AUTO-CLAUDE-MANAGED",
                 "AUTO-CLAUDE-CONNECT",
+                "AUTO-DASHBOARD-PROVIDER-FILTER",
                 "AUTO-LAN-DASHBOARD",
                 "AUTO-ACCOUNT-AGENTS",
                 "AUTO-M3-TEST",
