@@ -31,6 +31,7 @@ _ADMITTED_SELECTOR_IDENTITIES = {
     "linux.proc.claude-process.v1": "claude",
     "linux.proc.codex-process.v1": "codex",
 }
+type LinuxExecutableFileIdentityV1 = tuple[int, int, int, int, int, int, int, int]
 
 
 @dataclass(frozen=True, slots=True)
@@ -59,6 +60,12 @@ class _ExecutableFileIdentity:
 
 def _executable_file_identity(path: Path) -> _ExecutableFileIdentity:
     metadata = path.stat()
+    return _executable_file_identity_from_metadata(metadata)
+
+
+def _executable_file_identity_from_metadata(
+    metadata: os.stat_result,
+) -> _ExecutableFileIdentity:
     if not stat.S_ISREG(metadata.st_mode):
         raise ValueError("linux_executable_identity_invalid")
     return _ExecutableFileIdentity(
@@ -68,6 +75,28 @@ def _executable_file_identity(path: Path) -> _ExecutableFileIdentity:
         size_bytes=metadata.st_size,
         modified_ns=metadata.st_mtime_ns,
         changed_ns=metadata.st_ctime_ns,
+    )
+
+
+def _stable_executable_file_identity(path: Path) -> LinuxExecutableFileIdentityV1:
+    metadata = path.lstat()
+    return _stable_executable_file_identity_from_metadata(path, metadata)
+
+
+def _stable_executable_file_identity_from_metadata(
+    path: Path, metadata: os.stat_result
+) -> LinuxExecutableFileIdentityV1:
+    if not stat.S_ISREG(metadata.st_mode) or not os.access(path, os.X_OK):
+        raise ValueError("linux_executable_identity_invalid")
+    return (
+        metadata.st_dev,
+        metadata.st_ino,
+        metadata.st_size,
+        metadata.st_mtime_ns,
+        metadata.st_ctime_ns,
+        metadata.st_uid,
+        metadata.st_gid,
+        stat.S_IMODE(metadata.st_mode),
     )
 
 
@@ -93,10 +122,18 @@ class ApprovedLinuxExecutableSelectorV1:
         installation_id: str,
         provider_version: str,
         executable: Path,
+        expected_file_identity: LinuxExecutableFileIdentityV1 | None = None,
     ) -> ApprovedLinuxExecutableSelectorV1:
         resolved = executable.resolve(strict=True)
-        if not os.access(resolved, os.X_OK):
-            raise ValueError("linux_executable_identity_invalid")
+        metadata = resolved.lstat()
+        current_identity = _stable_executable_file_identity_from_metadata(
+            resolved, metadata
+        )
+        if (
+            expected_file_identity is not None
+            and current_identity != expected_file_identity
+        ):
+            raise ValueError("linux_executable_identity_changed")
         return cls(
             selector_id=selector_id,
             executable_identity=executable_identity,
@@ -104,7 +141,7 @@ class ApprovedLinuxExecutableSelectorV1:
             installation_id=installation_id,
             provider_version=provider_version,
             _executable=resolved,
-            _file_identity=_executable_file_identity(resolved),
+            _file_identity=_executable_file_identity_from_metadata(metadata),
         )
 
     def is_current(self) -> bool:

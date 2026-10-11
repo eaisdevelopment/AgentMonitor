@@ -10,6 +10,7 @@ from pathlib import Path
 from agentmonitor.adapters.platform.linux.processes import (
     ApprovedLinuxExecutableSelectorV1,
     InspectLinuxProcessesV1,
+    LinuxExecutableFileIdentityV1,
 )
 from agentmonitor.adapters.providers.claude.installation import (
     discover_process_installations as discover_claude_process_installations,
@@ -33,6 +34,7 @@ class _ProcessInstallation:
     installation_id: str
     provider_version: str
     executable: Path
+    expected_file_identity: LinuxExecutableFileIdentityV1 | None
 
 
 def _discover_installations(
@@ -44,30 +46,38 @@ def _discover_installations(
         try:
             discovered, truncated = discover_claude_process_installations()
             incomplete = incomplete or truncated
-            installations.extend(
-                _ProcessInstallation(
-                    "claude",
-                    "linux.proc.claude-process.v1",
-                    "claude",
-                    item.installation_ref.value,
-                    item.provider_version,
-                    item.executable_for_adapter,
-                )
-                for item in discovered
-            )
+            for item in discovered:
+                try:
+                    executable, expected_file_identity = (
+                        item.executable_for_process_observation()
+                    )
+                    installations.append(
+                        _ProcessInstallation(
+                            "claude",
+                            "linux.proc.claude-process.v1",
+                            "claude",
+                            item.installation_ref.value,
+                            item.provider_version,
+                            executable,
+                            expected_file_identity,
+                        )
+                    )
+                except (OSError, RuntimeError, ValueError):
+                    incomplete = True
         except (OSError, RuntimeError, ValueError):
             incomplete = True
     if include_codex:
         try:
-            item = discover_codex_installation()
+            codex_installation = discover_codex_installation()
             installations.append(
                 _ProcessInstallation(
                     "codex",
                     "linux.proc.codex-process.v1",
                     "codex",
-                    item.installation_ref.value,
-                    item.provider_version,
-                    item.executable_for_adapter,
+                    codex_installation.installation_ref.value,
+                    codex_installation.provider_version,
+                    codex_installation.executable_for_launch(),
+                    None,
                 )
             )
         except (OSError, RuntimeError, ValueError):
@@ -90,40 +100,45 @@ def _read_process_locations_v1(
             if datetime.now(UTC) >= deadline_at:
                 truncated = True
                 break
-            selector = ApprovedLinuxExecutableSelectorV1.from_executable(
-                selector_id=installation.selector_id,
-                executable_identity=installation.executable_identity,
-                provider_key=installation.provider_key,
-                installation_id=installation.installation_id,
-                provider_version=installation.provider_version,
-                executable=installation.executable,
-            )
-            operation_id = "process-locations-" + uuid.uuid4().hex
-            outcome, locations = InspectLinuxProcessesV1(
-                approved_executable_selectors=(selector,)
-            ).locations(
-                PlatformInspectionRequestV1(
-                    operation_id=operation_id,
-                    correlation_id=operation_id,
+            try:
+                selector = ApprovedLinuxExecutableSelectorV1.from_executable(
+                    selector_id=installation.selector_id,
+                    executable_identity=installation.executable_identity,
                     provider_key=installation.provider_key,
                     installation_id=installation.installation_id,
                     provider_version=installation.provider_version,
-                    source_id="linux.proc.process.v1",
-                    selector_id=installation.selector_id,
-                    executable_identity=installation.executable_identity,
-                    requested_fields=(
-                        "kernel_state",
-                        "parent_pid",
-                        "resident_pages",
-                        "system_cpu_ticks",
-                        "thread_count",
-                        "user_cpu_ticks",
-                    ),
-                    maximum_candidates=16_384,
-                    maximum_results=512,
-                    deadline_at=deadline_at,
+                    executable=installation.executable,
+                    expected_file_identity=installation.expected_file_identity,
                 )
-            )
+                operation_id = "process-locations-" + uuid.uuid4().hex
+                outcome, locations = InspectLinuxProcessesV1(
+                    approved_executable_selectors=(selector,)
+                ).locations(
+                    PlatformInspectionRequestV1(
+                        operation_id=operation_id,
+                        correlation_id=operation_id,
+                        provider_key=installation.provider_key,
+                        installation_id=installation.installation_id,
+                        provider_version=installation.provider_version,
+                        source_id="linux.proc.process.v1",
+                        selector_id=installation.selector_id,
+                        executable_identity=installation.executable_identity,
+                        requested_fields=(
+                            "kernel_state",
+                            "parent_pid",
+                            "resident_pages",
+                            "system_cpu_ticks",
+                            "thread_count",
+                            "user_cpu_ticks",
+                        ),
+                        maximum_candidates=16_384,
+                        maximum_results=512,
+                        deadline_at=deadline_at,
+                    )
+                )
+            except (OSError, RuntimeError, ValueError):
+                truncated = True
+                continue
             usable = usable or outcome.state in {"success", "partial"}
             observed_at = outcome.observed_at
             items.extend(locations)

@@ -230,9 +230,13 @@ non-success; it cannot satisfy the gate through current percentages alone.
 
 Run the command only with the documented owner data root, authenticated shared
 browser endpoint/origin, owner outcome file, and current service PID selectors.
-The bounded `2.1.289` admission evidence is Passed. The default `claude`
-command is `2.1.292` and remains outside that admission; exact resolution uses
-the retained `2.1.289` executable. The accepted current-revision M4 run met
+The bounded `2.1.289` admission evidence is Passed. At the accepted M4 run, the
+default `claude` command was `2.1.292` and exact resolution used the retained
+`2.1.289` executable. As of 2026-10-11 the default is `2.1.296` and the retained
+`2.1.289` executable is absent. Scheduled Claude quota/identity/authentication
+collection therefore fails closed until a separately approved exact-version
+admission is completed; the historical M4 acceptance remains a historical
+revision-bound result. The accepted current-revision M4 run met
 that condition; its sanitized receipt and owner countersignature are linked
 from the documentation index.
 
@@ -845,6 +849,17 @@ observations with a timestamp; reconfirm or unlink when you change the account
 inside the terminal. AgentMonitor never switches or interrupts it. Terminals
 with reused PIDs, another boot/scope or changed executable images do not inherit
 old confirmations.
+
+This process view is independent of Claude quota/auth parser admission. It
+scans only safe owner-controlled native executables already present in Claude's
+versions directory, validates each official version banner, and reads guarded
+OS metadata. A missing exact quota binary can therefore leave Overview quota
+stale while current terminals remain visible on the account page. The time
+shown with quota on Overview is the quota reading time, not agent activity.
+Processes whose executable was deleted after launch cannot be revalidated from
+disk and are omitted; the process result remains partial/truncated rather than
+claiming a complete fleet. Do not reinstall, downgrade or relink Claude merely
+to populate the process view.
 
 A repeated email in Overview can mean two distinct registered profiles signed
 in to the same provider identity. Fresh successful evidence is grouped into one

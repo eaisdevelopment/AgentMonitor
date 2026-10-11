@@ -23,10 +23,24 @@ protected-default writes, credential handling, and running-agent control are
 outside the admission. Generic `local.process.observation` remains an A04/M06
 platform/runtime capability and is not published by the A01 manifest.
 
-The workstation default `claude` command is now `2.1.292` and remains outside
-this admission. The admitted capabilities select the retained exact `2.1.289`
-native executable. The unretained `2.1.282` executable remains the separate
+The workstation default `claude` command observed on 2026-10-11 is `2.1.296`
+and remains outside this admission. The retained exact `2.1.289` native
+executable is currently absent, so quota, identity and authentication reads
+remain unavailable until a separately approved exact-version admission is
+completed. Historical `2.1.289` observations stay visible as stale and are not
+presented as current. The unretained `2.1.282` executable remains the separate
 OTLP requirement; no version is substituted for another.
+
+Process-only discovery is independent of that quota/auth admission. For
+`local.process.observation`, A01 may enumerate at most 32 owner-controlled
+native executables in the existing Claude versions directory, validate each
+file identity and official bounded `--version` banner, and pass the verified
+executable handles to A04/M06. This reveals current OS metadata only; it does
+not authorize quota parsing, authentication, identity reads, provider writes or
+process control for those versions. Unsafe, changed, invalid, timed-out or
+deleted executable images are omitted and make the scan partial. If no safe
+native executable remains, discovery fails closed rather than reporting a
+successful empty Claude fleet.
 
 The public contracts remain `CTR-PROV-001..008` V1. In particular,
 `ClaudeSubscriptionQuotaV1@1.0` keeps its closed three-key allowlist. Claude

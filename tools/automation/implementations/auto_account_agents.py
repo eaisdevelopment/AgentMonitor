@@ -24,6 +24,17 @@ def main() -> int:
             "real dashboard/account/PID/data root required"
         )
         return 3
+    try:
+        selected_pid = int(os.environ["AGENTMONITOR_TEST_AGENT_PID"])
+        if selected_pid <= 0:
+            raise ValueError("owner_pid_invalid")
+        (Path("/proc") / str(selected_pid) / "exe").resolve(strict=True)
+    except (OSError, RuntimeError, ValueError):
+        print(
+            "AUTO-ACCOUNT-AGENTS: BLOCKED — "
+            "owner-selected Claude terminal is no longer running"
+        )
+        return 3
     environment = dict(os.environ, PYTHONPATH=str(ROOT / "backend/src"))
     commands = (
         [str(PYTHON), "tooling/foundation/openapi_client.py", "--check"],
@@ -39,6 +50,8 @@ def main() -> int:
             "backend/tests/runtime_observation/test_owner_association_settings.py",
             "backend/tests/integration/api/test_owner_process_association_routes.py",
             "backend/tests/integration/api/test_openapi_policy.py",
+            "backend/tests/adapters/providers/claude/test_process_installation_policy.py",
+            "backend/tests/live/claude/test_process_installation_discovery.py",
         ],
         ["node", "tools/ui/verify_account_agents.mjs"],
     )

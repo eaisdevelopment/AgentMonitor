@@ -1,8 +1,10 @@
 # Live account agents and duplicate identity progress
 
-Date: 2026-09-29. Owner: integration steward. Status: Passed for the bounded
-owner-authorized terminal/account link, built browser and persistent read view.
-Full M4 is not accepted; other unidentified processes and unexecuted live
+Initial date: 2026-09-29. Amended: 2026-10-11. Owner: integration steward.
+Status: Passed for the bounded owner-authorized terminal/account link, built
+browser and persistent read view. V1-M4 was later accepted by its separate
+revision-bound gate and owner record; this evidence does not re-prove that
+milestone. Other unidentified processes and unexecuted live
 unlink/PID-reuse/exec/account-change scenarios remain outside this result.
 
 ## Scope and authority
@@ -100,9 +102,10 @@ Both bounded read-only reviews reported no further concrete blocker.
 
 The app was restarted on existing loopback/private-LAN listeners; dashboard
 password and registry remain intact. Real quota collection continues every
-300 seconds. Existing read-only quota/auth parsing remains pinned to reviewed
-Claude 2.1.282; additional actual native binaries are admitted only for OS
-process metadata after their official version banner is checked. Native version
+300 seconds when the exact admitted executable is available. Existing read-only
+quota/auth parsing remains pinned to reviewed Claude 2.1.289; additional actual
+native binaries are admitted only for OS process metadata after their official
+version banner is checked. Native version
 directories may be owner/primary-group writable, never world writable; selected
 binaries must be owner-owned regular executables with no group/world write.
 This relies on the existing workstation user/primary-group trust boundary and
@@ -133,5 +136,71 @@ identity evidence or a separately approved automatic source. Live unlink,
 natural PID reuse, executable replacement and in-terminal account changes were
 not exercised; pure guards cover those identities/revisions. Preserve distinct
 registry records when provider identity duplicates; the owner reviews/reconnects
-the mismatched record through admin controls. Full M4 and automatic switching
-remain separate work.
+the mismatched record through admin controls. Automatic switching remains
+separate work.
+
+## 2026-10-11 retained-version process correction
+
+Requirements FR-ACC-006 and FR-DISC-001/002/004/007, with bounded
+AC-PROC-001/003/004, apply. Primary ownership remains M06 with A01/A04 and root
+composition support. Runtime and provider contracts remain V1; the OpenAPI
+schema and operation set are unchanged. Regeneration changed only the source
+fingerprint in the generated artifacts.
+
+A01 now passes an eight-field executable identity through root composition to
+A04, which binds its process selector from the same filesystem metadata
+snapshot. This is an internal cross-module contract impact under the approved
+live-agent-association plan. It does not change public CTR-RUN-006/007, an
+OpenAPI operation or schema, database/configuration storage, or a published
+contract version. The failure-isolation branches are covered by code review and
+the existing fail-closed structure; a naturally failing retained installation
+was unavailable, so that specific live edge remains Blocked/Not Run rather than
+being manufactured by changing provider-owned files.
+
+The meaningful live Red selected the owner's genuine running Claude terminal
+through `AGENTMONITOR_TEST_AGENT_PID`. Its executable was a safely readable
+retained native version, while the separately admitted quota executable was no
+longer present. `discover_process_installations()` stopped at
+`ClaudeInstallationUnavailable: claude_version_unverified`, so the selected
+terminal and every other Claude process were absent.
+
+The initial Red command was:
+
+```console
+env PYTHONPATH=backend/src AGENTMONITOR_TEST_AGENT_PID=4058900 backend/.venv/bin/python -m pytest -q --tb=short backend/tests/live/claude/test_process_installation_discovery.py
+```
+
+The subsequent safety-policy Red ran that file with
+`backend/tests/adapters/providers/claude/test_process_installation_policy.py`;
+three tests failed for the missing identity handoff, unbounded version output
+and absent bounded candidate helper. The same two-file command is the focused
+Green and Passed three tests in 0.47 seconds.
+
+After the correction, the same focused test Passed against that unchanged
+terminal. At the final run, the authenticated versioned API returned eight
+safely verified Claude processes across installed versions `2.1.291`,
+`2.1.292`, `2.1.293`, `2.1.295` and `2.1.296`; the selected terminal retained
+its genuine owner-confirmed account association. The result was truthfully
+truncated because running processes whose executable files had been deleted
+could not be revalidated. The final canonical `AUTO-ACCOUNT-AGENTS` run Passed
+28 tests in 79.25 seconds. Both browser reads reported eight Claude processes,
+one linked and seven unlinked, without submitting a mutation.
+
+This correction does not admit a new Claude version for quota, identity,
+authentication or provider parsing. The current default `2.1.296` remains
+outside the exact `2.1.289` admission, and the admitted executable is absent;
+fresh Claude quota collection is therefore still Blocked. No dependency,
+database migration, public schema, provider profile, credential, default
+symlink or running process changed. The live test reads only the selected
+`/proc/<pid>/exe` link and guarded OS metadata; it does not read command lines,
+environment values, terminal content, prompts or responses.
+
+The separate exact-admission live check was not called Passed: one installation
+test failed with `ClaudeInstallationUnavailable: claude_version_unverified`
+and the independent OTLP rejection test passed. Restoring fresh quota requires
+its own exact-version admission and live provider verification.
+
+Verification files added for this correction are the pure bounded-candidate and
+real subprocess policy test plus the real owner-selected Claude process test.
+The version-output case executes the real admitted workstation `bash --version`;
+candidate selection is a pure policy input with no external I/O.
