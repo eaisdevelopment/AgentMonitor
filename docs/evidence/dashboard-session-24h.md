@@ -29,7 +29,7 @@ to receive a session under the new policy.
 | Evidence | Requirement or acceptance ID | Boundary | Result |
 |---|---|---|---|
 | Equal 86,400-second issue deadlines, equality expiry, absolute cap | `FR-IAM-003`, `NFR-SEC-001`, `AC-TEST-002` | M01 pure policy | Passed in the focused Green below |
-| Preserve each persisted session's issued idle window on touch | `FR-IAM-003`, `NFR-SEC-001`, `AC-TEST-002` | M01 pure policy and real pre-upgrade service session | Pure policy Passed; live post-restart check pending |
+| Preserve each persisted session's issued idle window on touch | `FR-IAM-003`, `NFR-SEC-001`, `AC-TEST-002` | M01 pure policy and real pre-upgrade service session | Passed in pure policy and live post-restart checks |
 | Real migrated SQLite and HTTP login, returned deadlines, cookie lifetime | `FR-IAM-001/003`, `AC-TEST-003` | M01/P01 real SQLite and HTTP | Passed in the focused Green below |
 | Production-built Chrome authentication and retained session protections | `AC-UI-001`, `AC-TEST-006` | P02 built browser | Owned by the applicable canonical local gate |
 | Literal elapsed expiry after at least 86,400 seconds | `FR-IAM-003`, `AC-UI-001` | Real service and browser wall clock | **Not Run**; it is an explicit long-run scenario and is not credited by issuance tests |
@@ -139,9 +139,26 @@ an explicit Not Run evidence row in `AUTO-TEST` with `FR-IAM-003`,
 Before restart, the authenticated real dashboard session returned status 200
 with a persisted 1,800-second idle window, 43,200-second absolute lifetime,
 active state, and record version 2. This is the real pre-upgrade row selected
-for the compatibility check. Post-restart preservation of that row and fresh
-24-hour login issuance remain pending deployment below; no credential value was
-read, printed, or stored.
+for the compatibility check. That shared-browser row reached its existing idle
+deadline before the post-restart request and was correctly recorded expired; it
+was not reclassified as a compatibility pass.
+
+After restart on revision `cdc42eb177228c21e84ae04d6c4c584c99c73991`, a
+different real active pre-upgrade session was touched by the running service at
+`2026-10-09T17:04:20Z`. Its last activity moved to that instant, its idle
+deadline moved to `2026-10-09T17:34:20Z`, and its original absolute deadline
+remained `2026-10-10T01:22:48Z`. The exact 1,800-second window proves the
+deployed touch path preserved that row's prior policy rather than applying the
+new 86,400-second duration.
+
+On `2026-10-11`, the owner completed one fresh dashboard login in the shared
+production Chrome profile. A same-origin `GET /api/v1/session` returned status
+200, active state, record version 1, an 86,400-second idle window, and an
+86,400-second issued-to-absolute lifetime. At observation, 86,384 seconds
+remained on the absolute deadline. Chrome reported 86,383 seconds remaining on
+both cookies; the session cookie remained host-only, `HttpOnly`, and
+`SameSite=Strict`. Loopback and LAN listeners both returned HTTP 200. No cookie
+or credential value was read, printed, or stored.
 
 ## Impact assessment
 
