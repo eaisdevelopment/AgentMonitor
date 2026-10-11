@@ -42,7 +42,7 @@ class ClaudeInstallationUnavailable(RuntimeError):
 
 @dataclass(frozen=True, slots=True)
 class ClaudeInstallationV1:
-    """Private adapter installation handle; executable path never leaves A01."""
+    """Private handle exposing only revalidated executable data to composition."""
 
     installation_ref: OpaqueIdV1
     provider_version: str

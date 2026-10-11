@@ -25,7 +25,8 @@ scenarios. This is not universal coverage of those release criteria.
 Primary M06, supporting M02/A01/A04/P01/P02/root; additive CTR-RUN-006/007 V1,
 existing M02/M01 and generated API V1. New PUT is browser-only write:accounts,
 CSRF and If-Match; old GET operation/query grammar is unchanged. The canonical
-generator reports 45 operations and compatible V1 drift.
+generator reported 45 operations and compatible V1 drift in the original
+2026-09-29 run.
 
 ## Red and Green evidence
 
@@ -39,7 +40,7 @@ generator reports 45 operations and compatible V1 drift.
 | Duplicate quota identity | `duplicate_identity_quota_displayed_twice` in actual authenticated Overview | Live post-restart shared Chrome Passed: one genuine duplicate group, one quota row, two connected profiles and review link; all six records have fresh verified quota lineage |
 | Owner write/persistence/reopen | Initial association was unavailable; no attestation invented | Owner explicitly delegated the known terminal confirmation; real browser PUT 200, private settings receipt and post-service-restart guarded join/reopen Passed; canonical AUTO-ACCOUNT-AGENTS Passed |
 
-Initial pure and OpenAPI rerun: 10 Passed in 34.96s. Canonical focused run after
+Original 2026-09-29 pure and OpenAPI rerun: 10 Passed in 34.96s. Canonical focused run after
 refactor: 24 tests Passed in 32.10s; final import/format rerun 24 Passed in
 32.24s. Read-only populated browser and genuine duplicate presentation Passed;
 the historical full command exited Blocked because no owner confirmation existed.
@@ -55,9 +56,10 @@ owner CDP/origin/account/PID/private data-root selectors; the full gate requires
 the owner-authorized persistent receipt and never submits a confirmation.
 Optional `AGENTMONITOR_TEST_DUPLICATE_IDENTITY=1` requires the genuine duplicate
 condition. `AUTO-QUALITY`, `AUTO-DOCS-CHECK`, `AUTO-PLAN-CHECK` and
-`AUTO-GIT-PREFLIGHT` Passed. Documentation validates 265 Markdown files and the
-planning baseline is synchronized. Thirteen canonical-catalog/planning tests
-Passed in 1.231s. No skipped/live-unexecuted result is a pass. The previously
+`AUTO-GIT-PREFLIGHT` Passed in the original run. Documentation then validated
+265 Markdown files and the planning baseline was synchronized. Thirteen
+canonical-catalog/planning tests Passed in 1.231s. No skipped/live-unexecuted
+result is a pass. The previously
 delivered organization-filter verifier was updated for distinct connected
 profiles; its full manual/periodic-filter regression rerun Passed: five genuine
 quota rows from six registry connections, one low red and nine normal bars,
@@ -89,7 +91,7 @@ Passed in 40.47s. That unavailable duplicate prerequisite was not called Passed.
 The genuine duplicate/group/filter scenario had independently Passed before
 restart. Missing fresh identity keeps grouping fail-closed until collection.
 
-Local `AUTO-QUALITY` Passed: 241 Python files formatted, 228 typed sources,
+Original local `AUTO-QUALITY` Passed: 241 Python files formatted, 228 typed sources,
 zero boundary violations, 45 compatible generated operations, frontend
 typecheck/build and locked-input verification. Hosted/platform/release security
 scans, fresh install and SBOM/notices remain Not Run.
@@ -144,18 +146,19 @@ separate work.
 Requirements FR-ACC-006 and FR-DISC-001/002/004/007, with bounded
 AC-PROC-001/003/004, apply. Primary ownership remains M06 with A01/A04 and root
 composition support. Runtime and provider contracts remain V1; the OpenAPI
-schema and operation set are unchanged. Regeneration changed only the source
-fingerprint in the generated artifacts.
+schema and 67-operation set are unchanged. Regeneration changed the OpenAPI
+source fingerprint and the generated TypeScript artifact hash only.
 
 A01 now passes an eight-field executable identity through root composition to
 A04, which binds its process selector from the same filesystem metadata
 snapshot. This is an internal cross-module contract impact under the approved
 live-agent-association plan. It does not change public CTR-RUN-006/007, an
 OpenAPI operation or schema, database/configuration storage, or a published
-contract version. The failure-isolation branches are covered by code review and
-the existing fail-closed structure; a naturally failing retained installation
-was unavailable, so that specific live edge remains Blocked/Not Run rather than
-being manufactured by changing provider-owned files.
+contract version. Candidate-validation isolation is **Blocked** because no
+naturally failing retained executable was available. The root-to-A04
+replacement race is **Not Run**. Those paths were reviewed against the existing
+fail-closed structure and were not manufactured by changing provider-owned
+files.
 
 The meaningful live Red selected the owner's genuine running Claude terminal
 through `AGENTMONITOR_TEST_AGENT_PID`. Its executable was a safely readable
@@ -170,21 +173,30 @@ The initial Red command was:
 env PYTHONPATH=backend/src AGENTMONITOR_TEST_AGENT_PID=4058900 backend/.venv/bin/python -m pytest -q --tb=short backend/tests/live/claude/test_process_installation_discovery.py
 ```
 
-The subsequent safety-policy Red ran that file with
-`backend/tests/adapters/providers/claude/test_process_installation_policy.py`;
-three tests failed for the missing identity handoff, unbounded version output
+The subsequent safety-policy Red used:
+
+```console
+env PYTHONPATH=backend/src AGENTMONITOR_TEST_AGENT_PID=4058900 backend/.venv/bin/python -m pytest -q --tb=short backend/tests/live/claude/test_process_installation_discovery.py backend/tests/adapters/providers/claude/test_process_installation_policy.py
+```
+
+Three tests failed for the missing identity handoff, unbounded version output
 and absent bounded candidate helper. The same two-file command is the focused
 Green and Passed three tests in 0.47 seconds.
 
 After the correction, the same focused test Passed against that unchanged
-terminal. At the final run, the authenticated versioned API returned eight
-safely verified Claude processes across installed versions `2.1.291`,
-`2.1.292`, `2.1.293`, `2.1.295` and `2.1.296`; the selected terminal retained
-its genuine owner-confirmed account association. The result was truthfully
-truncated because running processes whose executable files had been deleted
-could not be revalidated. The final canonical `AUTO-ACCOUNT-AGENTS` run Passed
-28 tests in 79.25 seconds. Both browser reads reported eight Claude processes,
-one linked and seven unlinked, without submitting a mutation.
+terminal. In the committed-service run at 2026-10-11T22:55:40+01:00, the
+authenticated versioned API returned seven safely verified Claude processes
+across installed versions `2.1.291`, `2.1.292`, `2.1.293` and `2.1.295`; the
+selected terminal retained its genuine owner-confirmed account association.
+Detected `candidate_executable_identity_permission_denied` and
+`candidate_exited_before_executable_identity` omissions made the result
+truthfully truncated. Deleted running images are omitted and prevent this view
+from proving complete fleet coverage, but are not themselves claimed as the
+source of the truncated flag. `AUTO-ACCOUNT-AGENTS` Passed 28 tests in 71.01
+seconds. Both browser reads reported seven Claude processes, one linked and six
+unlinked, without submitting a mutation. This run used clean revision
+`1b45aa92573d45876c68970ba26e779a6bda4381` after restarting the service from
+that revision.
 
 This correction does not admit a new Claude version for quota, identity,
 authentication or provider parsing. The current default `2.1.296` remains
@@ -202,5 +214,27 @@ its own exact-version admission and live provider verification.
 
 Verification files added for this correction are the pure bounded-candidate and
 real subprocess policy test plus the real owner-selected Claude process test.
-The version-output case executes the real admitted workstation `bash --version`;
+The version-output case executes the real installed workstation `bash --version`;
 candidate selection is a pure policy input with no external I/O.
+
+Current correction gates also Passed: `AUTO-QUALITY` with 398 formatted files,
+372 typed sources, zero boundary violations, compatible 67-operation OpenAPI,
+frontend typecheck/build and locked inputs; `AUTO-DOCS-CHECK` with 307 Markdown
+files; synchronized `AUTO-PLAN-CHECK`; and the 52-test automation harness in
+19.123 seconds. Hosted security/release checks, fresh installation and SBOM
+generation remain Not Run.
+
+Files changed by this correction:
+
+- `backend/src/agentmonitor/adapters/platform/linux/processes.py`
+- `backend/src/agentmonitor/adapters/providers/claude/installation.py`
+- `backend/src/agentmonitor/composition/linux_process_locations.py`
+- `backend/tests/adapters/providers/claude/test_process_installation_policy.py`
+- `backend/tests/live/claude/test_process_installation_discovery.py`
+- `contracts/openapi/agentmonitor-v1.json`
+- `frontend/src/generated/api/index.ts`
+- `tools/automation/implementations/auto_account_agents.py`
+- `tools/ui/verify_account_agents.mjs`
+- `docs/evidence/live-account-agents.md`
+- `docs/modules/provider-system.md`
+- `docs/operations/runbook.md`

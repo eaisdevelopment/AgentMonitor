@@ -38,9 +38,11 @@ file identity and official bounded `--version` banner, and pass the verified
 executable handles to A04/M06. This reveals current OS metadata only; it does
 not authorize quota parsing, authentication, identity reads, provider writes or
 process control for those versions. Unsafe, changed, invalid, timed-out or
-deleted executable images are omitted and make the scan partial. If no safe
-native executable remains, discovery fails closed rather than reporting a
-successful empty Claude fleet.
+deleted executable images are omitted. The view therefore cannot prove a
+complete fleet when a running image is no longer present on disk. Detected
+permission, process-exit, deadline and candidate-limit omissions mark the scan
+partial. If no safe native executable remains, discovery fails closed rather
+than reporting a successful empty Claude fleet.
 
 The public contracts remain `CTR-PROV-001..008` V1. In particular,
 `ClaudeSubscriptionQuotaV1@1.0` keeps its closed three-key allowlist. Claude

@@ -857,9 +857,10 @@ OS metadata. A missing exact quota binary can therefore leave Overview quota
 stale while current terminals remain visible on the account page. The time
 shown with quota on Overview is the quota reading time, not agent activity.
 Processes whose executable was deleted after launch cannot be revalidated from
-disk and are omitted; the process result remains partial/truncated rather than
-claiming a complete fleet. Do not reinstall, downgrade or relink Claude merely
-to populate the process view.
+disk and are omitted, so this view must not be treated as proof of a complete
+fleet. Detected permission, exit, deadline and candidate-limit omissions mark
+the response partial/truncated. Do not reinstall, downgrade or relink Claude
+merely to populate the process view.
 
 A repeated email in Overview can mean two distinct registered profiles signed
 in to the same provider identity. Fresh successful evidence is grouped into one
