@@ -805,3 +805,31 @@ fresh corrected-service collection, refreshed prerequisites, and canonical
 unrecorded, and canonical gate state remains `not_run`.
 
 Plan snapshot SHA-256: `567510d4eeb9790b7614b4aeff971944e55cdae023efb6f69490c9ac976096ed`
+
+## 2026-10-16 approved M5 1.6.0 closeout rebind
+
+The synchronized Draft snapshot now binds PLAN-DEP/D01 to the owner-approved M5
+focused plan 1.6.0 amendment. After exact revision `6d6e1aa` was activated and
+new genuine Codex collections proved its corrected one-window current set, the
+named live regression exposed a test-only pagination defect: it inspected only
+the first 200 rows of a correct 1,606-row ascending cursor history. The
+approved scope retains the corrected bounded all-page verification and permits one
+exact third evidence-preserving rollover from
+`6d6e1aa9d9b64d50e3f83d0f1686e6cff04b7c17` into the single eventual reviewed
+correction commit.
+
+The owner's 2026-10-16 approval authorizes only that exact test correction and
+third rollover through Red/Green/refactor, independent review, one clean
+candidate, and fail-closed live preconditions. Approved focused plan 1.5.0,
+the active service, retained prerequisites, public contracts, schema,
+migrations, dependencies, provider authority, and milestone state remain
+unchanged. General deployment and `AUTO-DEPLOY` remain unauthorized.
+
+Among synchronized baseline inputs, only the PLAN-DEP plan body, its generated
+contract-adoption digest, reviewed parallel-ownership digest, the bounded M5
+service-activation routine and automation-standard descriptions, and this
+exact plan snapshot changed. The other 19 canonical plan bodies and every
+canonical approval flag remain unchanged. M5 remains Intermediate, acceptance
+remains unrecorded, and `AUTO-M5-EXIT` remains Not Run.
+
+Plan snapshot SHA-256: `4ecf1c391799cc14ddb39e8f33e3ac4620f5732b92a777c2841913514d745177`

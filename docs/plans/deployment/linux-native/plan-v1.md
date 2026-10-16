@@ -123,6 +123,18 @@ deployment behavior: unexpected archive entries, changed first-archive
 custody, another prior revision, cleanup, repair, upgrade, or `AUTO-DEPLOY`
 remain outside the exception and fail closed.
 
+The linked M5 plan also contains the **owner-approved 1.6.0 amendment dated
+2026-10-16**. It permits exactly one further evidence-preserving rollover
+from completed clean detached revision
+`6d6e1aa9d9b64d50e3f83d0f1686e6cff04b7c17` into the eventual single reviewed
+commit needed to retain the corrected cursor-paginated live-history test. The
+proposal requires a third fixed owner-only singleton archive parent,
+`m5-service-activation-corrective-archive-6d6e1aa`, and revalidation of the
+closed ordered three-archive chain before every mutation. The approval is
+limited to the focused plan's Red/Green/refactor, independent review,
+clean-candidate, and fail-closed service preconditions and grants no general
+deployment authority.
+
 The final candidate worktree must have no symbolic branch reference. Activation
 and every subsequent M5 archive, owner-outcome, alert-witness, quota-witness and
 exit boundary revalidate its resolved root, detached state, clean tracked and

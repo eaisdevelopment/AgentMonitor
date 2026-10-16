@@ -64,6 +64,14 @@ CORRECTIVE_ROLLOVER_REVISION = "6bfa69dc13cc9e1ded9c6baa6e803cb99bc8c20b"
 SECOND_CORRECTIVE_ARCHIVE_BASENAME = "m5-service-activation-corrective-archive-0634451"
 SECOND_CORRECTIVE_ARCHIVE_ROOT = DATA_ROOT / SECOND_CORRECTIVE_ARCHIVE_BASENAME
 SECOND_CORRECTIVE_ROLLOVER_REVISION = "063445154bca0bf5ec43db94ba57c17fd193fd99"
+THIRD_CORRECTIVE_ARCHIVE_BASENAME = "m5-service-activation-corrective-archive-6d6e1aa"
+THIRD_CORRECTIVE_ARCHIVE_ROOT = DATA_ROOT / THIRD_CORRECTIVE_ARCHIVE_BASENAME
+THIRD_CORRECTIVE_ROLLOVER_REVISION = "6d6e1aa9d9b64d50e3f83d0f1686e6cff04b7c17"
+CORRECTIVE_ROLLOVER_REVISIONS = (
+    CORRECTIVE_ROLLOVER_REVISION,
+    SECOND_CORRECTIVE_ROLLOVER_REVISION,
+    THIRD_CORRECTIVE_ROLLOVER_REVISION,
+)
 ACTIVATION_JOURNAL_BASENAME = "activation-journal-v1.json"
 ACTIVATION_LOCK_BASENAME = "activation-lock-v1"
 JOURNAL_PATH = TRANSITION_ROOT / ACTIVATION_JOURNAL_BASENAME
@@ -553,7 +561,7 @@ def corrective_activation_rollover_decision_v1(
     completed_revision: str,
     service_revision: str,
 ) -> Literal["not_applicable", "rollback_candidate", "archive_restored", "blocked"]:
-    """Select only either approved completed-activation correction."""
+    """Select only the next exact approved completed-activation correction."""
 
     if not all(
         isinstance(value, str) and _REVISION.fullmatch(value) is not None
@@ -562,14 +570,14 @@ def corrective_activation_rollover_decision_v1(
         return "blocked"
     if candidate_revision == completed_revision:
         return "not_applicable"
-    if completed_revision not in {
-        CORRECTIVE_ROLLOVER_REVISION,
-        SECOND_CORRECTIVE_ROLLOVER_REVISION,
-    }:
+    if completed_revision not in CORRECTIVE_ROLLOVER_REVISIONS:
         return "blocked"
-    if candidate_revision == PINNED_ROLLBACK_REVISION or (
-        completed_revision == SECOND_CORRECTIVE_ROLLOVER_REVISION
-        and candidate_revision == CORRECTIVE_ROLLOVER_REVISION
+    completed_index = CORRECTIVE_ROLLOVER_REVISIONS.index(completed_revision)
+    if completed_index < len(CORRECTIVE_ROLLOVER_REVISIONS) - 1:
+        if candidate_revision != CORRECTIVE_ROLLOVER_REVISIONS[completed_index + 1]:
+            return "blocked"
+    elif candidate_revision == PINNED_ROLLBACK_REVISION or (
+        candidate_revision in CORRECTIVE_ROLLOVER_REVISIONS
     ):
         return "blocked"
     if service_revision == completed_revision:
@@ -654,7 +662,100 @@ def _corrective_rollover_archive_basename_v1(prior_revision: str) -> str:
         return CORRECTIVE_ARCHIVE_BASENAME
     if prior_revision == SECOND_CORRECTIVE_ROLLOVER_REVISION:
         return SECOND_CORRECTIVE_ARCHIVE_BASENAME
+    if prior_revision == THIRD_CORRECTIVE_ROLLOVER_REVISION:
+        return THIRD_CORRECTIVE_ARCHIVE_BASENAME
     raise M5ServiceActivationErrorV1("m5_service_rollover_archive_invalid")
+
+
+def _corrective_rollover_chain_revisions_v1(
+    latest_revision: str,
+) -> tuple[str, ...]:
+    """Return the closed ordered prefix ending at one approved revision."""
+
+    try:
+        latest_index = CORRECTIVE_ROLLOVER_REVISIONS.index(latest_revision)
+    except ValueError:
+        raise M5ServiceActivationErrorV1(
+            "m5_service_rollover_archive_invalid"
+        ) from None
+    return CORRECTIVE_ROLLOVER_REVISIONS[: latest_index + 1]
+
+
+def corrective_rollover_transition_policy_v1(
+    *,
+    receipt_revision: str | None,
+    candidate_revision: str,
+    archive_states: tuple[str, str, str],
+) -> tuple[Literal["none", "retain", "archive", "retry", "blocked"], str | None]:
+    """Require one exact archive prefix for the approved rollover sequence."""
+
+    if (
+        _REVISION.fullmatch(candidate_revision) is None
+        or (
+            receipt_revision is not None
+            and _REVISION.fullmatch(receipt_revision) is None
+        )
+        or len(archive_states) != len(CORRECTIVE_ROLLOVER_REVISIONS)
+        or any(
+            state not in {"absent", "empty", "complete", "invalid"}
+            for state in archive_states
+        )
+    ):
+        return "blocked", None
+
+    def stable_prefix(length: int) -> tuple[str, ...]:
+        return ("complete",) * length + ("absent",) * (
+            len(CORRECTIVE_ROLLOVER_REVISIONS) - length
+        )
+
+    def candidate_follows(index: int) -> bool:
+        if index < len(CORRECTIVE_ROLLOVER_REVISIONS) - 1:
+            return candidate_revision == CORRECTIVE_ROLLOVER_REVISIONS[index + 1]
+        return candidate_revision != PINNED_ROLLBACK_REVISION and (
+            candidate_revision not in CORRECTIVE_ROLLOVER_REVISIONS
+        )
+
+    if receipt_revision is None:
+        if archive_states == stable_prefix(0):
+            return "none", None
+        for prefix_length in range(1, len(CORRECTIVE_ROLLOVER_REVISIONS) + 1):
+            if archive_states == stable_prefix(prefix_length):
+                latest_index = prefix_length - 1
+                if candidate_follows(latest_index):
+                    return "retry", CORRECTIVE_ROLLOVER_REVISIONS[latest_index]
+                return "blocked", None
+        return "blocked", None
+
+    if receipt_revision == candidate_revision:
+        if candidate_revision == PINNED_ROLLBACK_REVISION:
+            return "blocked", None
+        if candidate_revision in CORRECTIVE_ROLLOVER_REVISIONS:
+            expected_prefix_length = CORRECTIVE_ROLLOVER_REVISIONS.index(
+                candidate_revision
+            )
+        else:
+            expected_prefix_length = len(CORRECTIVE_ROLLOVER_REVISIONS)
+        if archive_states != stable_prefix(expected_prefix_length):
+            return "blocked", None
+        if expected_prefix_length == 0:
+            return "none", None
+        return (
+            "retain",
+            CORRECTIVE_ROLLOVER_REVISIONS[expected_prefix_length - 1],
+        )
+
+    if receipt_revision not in CORRECTIVE_ROLLOVER_REVISIONS:
+        return "blocked", None
+    completed_index = CORRECTIVE_ROLLOVER_REVISIONS.index(receipt_revision)
+    expected_states = list(stable_prefix(completed_index))
+    expected_states[completed_index] = archive_states[completed_index]
+    if (
+        archive_states[completed_index] not in {"absent", "empty"}
+        or archive_states != tuple(expected_states)
+        or not candidate_follows(completed_index)
+    ):
+        return "blocked", None
+    return "archive", receipt_revision
 
 
 def _corrective_rollover_archive_root_v1(prior_revision: str) -> Path:
@@ -1122,8 +1223,7 @@ def _retain_archived_activation_rollover_after_commit_v1(
         }
         if (
             separator != "-"
-            or prior_revision
-            not in {CORRECTIVE_ROLLOVER_REVISION, SECOND_CORRECTIVE_ROLLOVER_REVISION}
+            or prior_revision not in CORRECTIVE_ROLLOVER_REVISIONS
             or _DIGEST.fullmatch(receipt_digest) is None
             or artifact_digests.get(RECEIPT_PATH.name) != receipt_digest
             or set(artifact_digests)
@@ -3992,16 +4092,7 @@ def _retain_activation_rollover_archive_chain_v1(
 ) -> tuple[_ValidatedRetainedActivationArchiveV1, ...]:
     """Retain the fixed singleton archive chain through one stable proof."""
 
-    revisions: tuple[str, ...]
-    if latest_revision == CORRECTIVE_ROLLOVER_REVISION:
-        revisions = (CORRECTIVE_ROLLOVER_REVISION,)
-    elif latest_revision == SECOND_CORRECTIVE_ROLLOVER_REVISION:
-        revisions = (
-            CORRECTIVE_ROLLOVER_REVISION,
-            SECOND_CORRECTIVE_ROLLOVER_REVISION,
-        )
-    else:
-        raise M5ServiceActivationErrorV1("m5_service_rollover_archive_invalid")
+    revisions = _corrective_rollover_chain_revisions_v1(latest_revision)
     retained_archives: list[_ValidatedRetainedActivationArchiveV1] = []
     try:
         for revision in revisions:
@@ -4182,7 +4273,7 @@ def _maybe_correct_completed_activation_rollover_v1(
     rollback_runtime_state: _RollbackRuntimeStateV1,
     activation_lock: M5CompletionLockV1,
 ) -> tuple[_ValidatedRetainedActivationArchiveV1, ...]:
-    """Restore and archive either fixed approved completed activation."""
+    """Restore and archive one exact member of the approved rollover chain."""
 
     first_archive_state = _corrective_rollover_archive_parent_state_v1(
         archive_parent=CORRECTIVE_ARCHIVE_ROOT,
@@ -4192,31 +4283,41 @@ def _maybe_correct_completed_activation_rollover_v1(
         archive_parent=SECOND_CORRECTIVE_ARCHIVE_ROOT,
         prior_revision=SECOND_CORRECTIVE_ROLLOVER_REVISION,
     )
-    if not _path_present(RECEIPT_PATH):
-        if second_archive_state == "complete":
-            latest_revision = SECOND_CORRECTIVE_ROLLOVER_REVISION
-            if candidate.source_revision in {
-                PINNED_ROLLBACK_REVISION,
-                CORRECTIVE_ROLLOVER_REVISION,
-                SECOND_CORRECTIVE_ROLLOVER_REVISION,
-            }:
-                raise M5ServiceActivationErrorV1(
-                    "m5_service_transition_recovery_required"
-                )
-        elif second_archive_state != "absent":
-            raise M5ServiceActivationErrorV1("m5_service_transition_recovery_required")
-        elif first_archive_state == "complete":
-            latest_revision = CORRECTIVE_ROLLOVER_REVISION
-            if candidate.source_revision != SECOND_CORRECTIVE_ROLLOVER_REVISION:
-                raise M5ServiceActivationErrorV1(
-                    "m5_service_transition_recovery_required"
-                )
-        elif first_archive_state != "absent":
-            raise M5ServiceActivationErrorV1("m5_service_transition_recovery_required")
-        else:
-            return ()
+    third_archive_state = _corrective_rollover_archive_parent_state_v1(
+        archive_parent=THIRD_CORRECTIVE_ARCHIVE_ROOT,
+        prior_revision=THIRD_CORRECTIVE_ROLLOVER_REVISION,
+    )
+    receipt_document: dict[str, object] | None = None
+    receipt_revision: str | None = None
+    if _path_present(RECEIPT_PATH):
+        receipt_document = _load_json_artifact(RECEIPT_PATH)
+        receipt_revision_value = receipt_document.get("candidate_revision")
+        if not isinstance(receipt_revision_value, str):
+            raise M5ServiceActivationErrorV1("m5_service_receipt_invalid")
+        receipt_revision = receipt_revision_value
+    transition_action, transition_revision = corrective_rollover_transition_policy_v1(
+        receipt_revision=receipt_revision,
+        candidate_revision=candidate.source_revision,
+        archive_states=(
+            first_archive_state,
+            second_archive_state,
+            third_archive_state,
+        ),
+    )
+    if transition_action == "blocked":
+        raise M5ServiceActivationErrorV1("m5_service_transition_recovery_required")
+    if transition_action == "none":
+        return ()
+    if transition_revision is None:
+        raise M5ServiceActivationErrorV1("m5_service_transition_recovery_required")
+    if transition_action == "retain":
+        return _retain_activation_rollover_archive_chain_v1(
+            transition_revision,
+            rollback_runtime_state,
+        )
+    if transition_action == "retry":
         archive_chain = _retain_activation_rollover_archive_chain_v1(
-            latest_revision,
+            transition_revision,
             rollback_runtime_state,
         )
         return _validate_completed_activation_rollover_archive_retry_v1(
@@ -4226,42 +4327,15 @@ def _maybe_correct_completed_activation_rollover_v1(
             activation_lock,
             archive_chain,
         )
-
-    receipt_document = _load_json_artifact(RECEIPT_PATH)
-    completed_revision = receipt_document.get("candidate_revision")
-    if completed_revision == candidate.source_revision:
-        current_archive_revision: str | None = None
-        if second_archive_state == "complete":
-            current_archive_revision = SECOND_CORRECTIVE_ROLLOVER_REVISION
-        elif second_archive_state != "absent":
-            raise M5ServiceActivationErrorV1("m5_service_transition_recovery_required")
-        elif first_archive_state == "complete":
-            current_archive_revision = CORRECTIVE_ROLLOVER_REVISION
-        elif first_archive_state != "absent":
-            raise M5ServiceActivationErrorV1("m5_service_transition_recovery_required")
-        if current_archive_revision is not None:
-            return _retain_activation_rollover_archive_chain_v1(
-                current_archive_revision,
-                rollback_runtime_state,
-            )
-        return ()
-    if completed_revision not in {
-        CORRECTIVE_ROLLOVER_REVISION,
-        SECOND_CORRECTIVE_ROLLOVER_REVISION,
-    }:
+    if transition_action != "archive" or receipt_document is None:
         raise M5ServiceActivationErrorV1("m5_service_transition_recovery_required")
-    if completed_revision == CORRECTIVE_ROLLOVER_REVISION:
-        if second_archive_state != "absent":
-            raise M5ServiceActivationErrorV1("m5_service_transition_recovery_required")
+    completed_revision = transition_revision
+    completed_index = CORRECTIVE_ROLLOVER_REVISIONS.index(completed_revision)
+    if completed_index == 0:
         preserved_archive_chain: tuple[_ValidatedRetainedActivationArchiveV1, ...] = ()
     else:
-        if first_archive_state != "complete" or second_archive_state not in {
-            "absent",
-            "empty",
-        }:
-            raise M5ServiceActivationErrorV1("m5_service_transition_recovery_required")
         preserved_archive_chain = _retain_activation_rollover_archive_chain_v1(
-            CORRECTIVE_ROLLOVER_REVISION,
+            CORRECTIVE_ROLLOVER_REVISIONS[completed_index - 1],
             rollback_runtime_state,
         )
     preserved_rollovers = tuple(archive.retained for archive in preserved_archive_chain)

@@ -771,3 +771,31 @@ fresh corrected-service collection, prerequisite recollection, and canonical
 acceptance remains unrecorded, and its canonical gate remains `not_run`.
 
 Plan snapshot SHA-256: `567510d4eeb9790b7614b4aeff971944e55cdae023efb6f69490c9ac976096ed`
+
+## 2026-10-16 approved M5 1.6.0 closeout rebind
+
+The current snapshot records the owner-approved M5 focused plan 1.6.0
+amendment and corresponding bounded PLAN-DEP/D01 proposal. Real corrected
+service evidence proves the current native-window lifecycle behavior, while a
+later live Red proves that its verification read only page one of a valid
+nine-page immutable history. The approved test correction follows every
+bounded opaque cursor, rejects missing or repeated progress, preserves exact
+ascending ordering, and proves both the newest lineage and prior history.
+
+Because committing that test changes the revision required by the canonical
+exit gate, the approval permits one exact evidence-preserving rollover from
+completed clean revision
+`6d6e1aa9d9b64d50e3f83d0f1686e6cff04b7c17` into one eventual reviewed commit.
+It requires a closed ordered three-archive chain and the same fail-closed real
+Git, filesystem, systemd, HTTP, browser, Registry, database, and rollback
+proofs. It changes no public contract, schema, migration, dependency, provider
+behavior, or read-mostly product boundary.
+
+The owner's 2026-10-16 approval grants implementation readiness only for that
+exact test correction and rollover. Approved plan 1.5.0 and every retained
+evidence artifact remain authoritative. No gate, service, acceptance, or
+milestone state changes through this planning rebind. The synchronized control
+set also binds the bounded three-rollover routine and automation-standard
+descriptions. M5 remains Intermediate and `AUTO-M5-EXIT` remains Not Run.
+
+Plan snapshot SHA-256: `4ecf1c391799cc14ddb39e8f33e3ac4620f5732b92a777c2841913514d745177`

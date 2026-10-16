@@ -25,7 +25,10 @@ from agentmonitor.adapters.providers.codex.installation import (
 )
 from agentmonitor.adapters.providers.codex.manifest import CODEX_RATE_LIMITS_SOURCE_ID
 from agentmonitor.composition.providers import compose_codex_quota_collection
-from agentmonitor.contracts.capacity_v1 import CapacityHistoryQueryV1
+from agentmonitor.contracts.capacity_v1 import (
+    CapacityHistoryPointV1,
+    CapacityHistoryQueryV1,
+)
 from agentmonitor.contracts.common_v1 import OpaqueIdV1
 from agentmonitor.modules.capacity.application.queries import (
     ListCapacityHistoryV1,
@@ -151,27 +154,53 @@ def test_running_service_persisted_native_codex_windows_and_history() -> None:
         "subscription_pool"
     }
     as_of = datetime.now(UTC)
-    history = ListCapacityHistoryV1(SqliteCapacityRepositoryV1(reference))(
-        CapacityHistoryQueryV1(
-            subject_id=account_id,
-            resource_id=None,
-            window_id=None,
-            metric="remaining_ratio",
-            series_kind="poll_snapshot",
-            range_start=as_of - timedelta(days=30),
-            range_before=as_of + timedelta(seconds=1),
-            as_of=as_of,
-            limit=200,
-            after_key=None,
-            bucket_method=None,
-            bucket_seconds=None,
+    history_query = CapacityHistoryQueryV1(
+        subject_id=account_id,
+        resource_id=None,
+        window_id=None,
+        metric="remaining_ratio",
+        series_kind="poll_snapshot",
+        range_start=as_of - timedelta(days=30),
+        range_before=as_of + timedelta(seconds=1),
+        as_of=as_of,
+        limit=200,
+        after_key=None,
+        bucket_method=None,
+        bucket_seconds=None,
+    )
+    list_history = ListCapacityHistoryV1(SqliteCapacityRepositoryV1(reference))
+    history_points: list[CapacityHistoryPointV1] = []
+    seen_cursors: set[str] = set()
+    next_key = None
+    for _ in range(128):
+        history = list_history(history_query.with_cursor(next_key))
+        history_points.extend(history.items)
+        if not history.has_more:
+            assert history.next_key is None
+            break
+        assert history.next_key is not None
+        assert history.next_key not in seen_cursors
+        seen_cursors.add(history.next_key)
+        next_key = history.next_key
+    else:
+        pytest.fail("capacity history exceeded the bounded cursor traversal")
+
+    assert history_points
+    assert tuple(
+        (point.observed_at, point.observation_id.value) for point in history_points
+    ) == tuple(
+        sorted(
+            (point.observed_at, point.observation_id.value) for point in history_points
         )
     )
-    assert history.items
+    assert len({point.observation_id for point in history_points}) == len(
+        history_points
+    )
     current_lineage = tuple(
-        point for point in history.items if point.collection_run_id == run.run_id
+        point for point in history_points if point.collection_run_id == run.run_id
     )
     assert current_lineage
     assert {point.window_id for point in current_lineage} == {
         window.window_id for window in windows
     }
+    assert any(point.collection_run_id != run.run_id for point in history_points)

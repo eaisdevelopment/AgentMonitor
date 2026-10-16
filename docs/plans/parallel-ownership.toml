@@ -254,7 +254,7 @@ live_boundary = "real file-backed SQLite and real migrations; never in-memory su
 [[units]]
 id = "PLAN-DEP"
 plan = "docs/plans/deployment/linux-native/plan-v1.md"
-plan_sha256 = "1a16f99d0a1fcf28988f40668d3dfc92af6e716d2f03d0120dea2cf1d37a7d46"
+plan_sha256 = "83d3efe1365e9db9bc632bc71500842d73397dddeb5acef55f234bd2e8ebbc85"
 write_paths = ["packaging/linux-native/**", "tooling/automation/deployment/**", "backend/tests/deployment/linux_native/**", "docs/modules/deployment-linux-native.md", "docs/operations/install-linux.md", "docs/operations/upgrade-linux.md", "docs/operations/uninstall-linux.md", "docs/operations/deployment-recovery-linux.md", "docs/contracts/native-service-lifecycle-v1.md"]
 contract_families = ["CTR-DEP"]
 table_prefixes = []

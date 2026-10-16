@@ -309,7 +309,7 @@ proven: stop M5 evidence collection, preserve the journal and both runtimes,
 and diagnose the user unit. Never edit the journal, unit backup, or trusted
 runtime to force another result.
 
-Exactly two revision-pinned corrective rollover modes are authorized. The
+Exactly three revision-pinned corrective rollover modes are authorized. The
 first preserves the completed
 `6bfa69dc13cc9e1ded9c6baa6e803cb99bc8c20b` transition below
 `<owner-data-root>/m5-service-activation-corrective-archive/`. The second
@@ -317,12 +317,16 @@ preserves the completed
 `063445154bca0bf5ec43db94ba57c17fd193fd99` transition below the distinct fixed
 singleton parent
 `<owner-data-root>/m5-service-activation-corrective-archive-0634451/`.
+The third preserves the completed
+`6d6e1aa9d9b64d50e3f83d0f1686e6cff04b7c17` transition below the distinct fixed
+singleton parent
+`<owner-data-root>/m5-service-activation-corrective-archive-6d6e1aa/`.
 Each archive entry name binds its source revision and activation-receipt
-digest. Neither mode accepts a different source revision, archive parent, or
+digest. No mode accepts a different source revision, archive parent, or
 additional entry.
 
 The requested new candidate must differ from the pinned trusted revision and
-both completed corrective revisions above. The command checks those reserved
+all three completed corrective revisions above. The command checks those reserved
 revisions before any service restoration, archive move, or transition-state
 write; a reserved candidate blocks without changing the existing service or
 evidence.
@@ -335,17 +339,17 @@ revision, HTTP/browser proof, Registry, database, journal, rollback unit, and
 trusted runtime all still validate for the receipt's exact completed revision.
 Any other mismatch blocks before service or archive mutation.
 
-When a newer detached candidate invokes the command while either exact source
+When a newer detached candidate invokes the command while any exact source
 candidate is active, the command validates the completed receipt, journal,
 rollback unit, clean source checkout, current service/browser revision,
 Registry digest, database identity, and retained trusted runtime before
-changing the service. The second mode also retains descriptors, inodes, modes,
-link counts, and digests for the first archive and revalidates that archive
-before every service or filesystem mutation. It restores and proves the
+changing the service. Each later mode also retains descriptors, inodes, modes,
+link counts, and digests for every earlier archive and revalidates that ordered
+chain before every service or filesystem mutation. It restores and proves the
 trusted runtime, then atomically moves the complete current transition
-directory without replacement into its fixed owner-only singleton. Both
-archive parents and entries are fsynced and revalidated; all three source
-evidence inodes and bytes remain preserved.
+directory without replacement into its fixed owner-only singleton. Every
+archive parent and entry is fsynced and revalidated; each source evidence inode
+and byte sequence remains preserved.
 
 The command then creates a fresh owner-only transition directory and reports
 `m5_service_activation_rerun_required` with the new trusted service PID. The
@@ -363,7 +367,7 @@ including name, parent and entry identity, owner, mode, exact three artifacts,
 artifact digests, clean source checkout, immutable rollback runtime, and prior
 activation receipt.
 
-A retry after the second no-replace archive move accepts an absent canonical
+A retry after a no-replace archive move accepts an absent canonical
 transition root, or an owner-only root in exactly one recovery state: empty
 `fresh`, `journal_only`, `rollback_only`, or `prepared` with the exact valid
 journal and rollback unit. The existing guarded root creation handles an absent

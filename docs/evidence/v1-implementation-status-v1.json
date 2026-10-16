@@ -1,9 +1,9 @@
 {
   "schema_version": "1.0.0",
   "record_type": "agentmonitor.v1_implementation_status",
-  "record_id": "V1-STATUS-2026-10-16-03",
-  "implementation_revision": "063445154bca0bf5ec43db94ba57c17fd193fd99",
-  "recorded_at": "2026-10-16T14:51:04Z",
+  "record_id": "V1-STATUS-2026-10-16-04",
+  "implementation_revision": "6d6e1aa9d9b64d50e3f83d0f1686e6cff04b7c17",
+  "recorded_at": "2026-10-16T20:19:20Z",
   "planning_backlog": "docs/superpowers/plans/implementation-backlog.toml",
   "planning_backlog_sha256": "2e93367d304fda306776f8789db23c754798f6307277628f0565350d0dbb962e",
   "roadmap": "docs/roadmap.md",
@@ -118,7 +118,7 @@
         "docs/evidence/m5-codex-read-side-effect-blocker.md",
         "docs/evidence/m5-codex-implementation.md"
       ],
-      "decision": "Codex implementation is Intermediate, with discovery, safety correction, implementation, and service-transition evidence recorded. The first corrective rollover preserved the completed 6bfa69dc13cc9e1ded9c6baa6e803cb99bc8c20b transition, and the required rerun activated exact revision 063445154bca0bf5ec43db94ba57c17fd193fd99 with real systemd, HTTP, authenticated-browser, Registry, and rollback proof. AUTO-M5-OWNER-OUTCOMES then passed for that service with four total outcomes: three verified and one owner-unavailable. A real quota-history regression was Red because a latest complete one-window collection left one prior-run window in the public current set. The owner approved focused plan 1.5.0; its complete-scope lifecycle correction passed all 71 Capacity tests, its exact second-rollover implementation passed all 43 activation tests, and the module boundary check is clean. The first live second-rollover attempt blocked before mutation because the rebooted same-revision service had a later PID/start generation than its immutable activation receipt; the frozen policy node went Red and the narrow restart-generation correction returned all 43 activation tests to Green. The corrected live rollover/activation, fresh corrected-service collection, refreshed owner prerequisites, required quota, process, alert, and containment evidence, clean exact-revision AUTO-M5-EXIT run, and owner acceptance remain Not Run or Blocked as recorded. The canonical gate state remains not_run."
+      "decision": "Codex implementation is Intermediate, with discovery, safety correction, implementation, and service-transition evidence recorded. The first two corrective rollovers preserved the completed 6bfa69dc13cc9e1ded9c6baa6e803cb99bc8c20b and 063445154bca0bf5ec43db94ba57c17fd193fd99 transitions in their fixed private archives, and the required rerun activated exact revision 6d6e1aa9d9b64d50e3f83d0f1686e6cff04b7c17 with real systemd, HTTP, authenticated-browser, Registry, database, rollback, and receipt proof. AUTO-M5-OWNER-OUTCOMES is current for that service with four total outcomes: three verified and one owner-unavailable. Fresh complete collections now leave only the newest run in the public current set while preserving immutable earlier history. The named real regression first failed because its history assertion read only the first 200 of 1,606 ascending rows; the owner-approved plan 1.6.0 bounded traversal passed nine pages with all 1,606 unique rows and passed again with 1,608 rows after newer genuine collection. The exact third-rollover correction recorded two meaningful Reds, passed the unchanged 43-node activation suite plus Ruff/format, strict mypy, and frozen inventory checks, and received an independent clean review. Its clean candidate and live third rollover, refreshed prerequisites, required official quota, process, alert, and containment evidence, clean exact-revision AUTO-M5-EXIT run, and owner acceptance remain Not Run or Blocked as recorded. The canonical gate state remains not_run."
     },
     {
       "milestone_id": "V1-M6",
@@ -454,7 +454,7 @@
         "docs/evidence/m5-codex-read-side-effect-blocker.md",
         "docs/evidence/m5-codex-implementation.md"
       ],
-      "decision": "Managed Codex connection, identity, and authentication-health implementation is present in the integration worktree. AUTO-M5-OWNER-OUTCOMES passed for the exact 063445154bca0bf5ec43db94ba57c17fd193fd99 service with four total outcomes: three verified and one owner-unavailable. This private checkpoint contains no quota or acceptance result and must be archived and recollected when the approved second service rollover is executed."
+      "decision": "Managed Codex connection, identity, and authentication-health implementation is present in the integration worktree. AUTO-M5-OWNER-OUTCOMES passed for exact 6d6e1aa9d9b64d50e3f83d0f1686e6cff04b7c17 with four total outcomes: three verified and one owner-unavailable. This private checkpoint contains no quota or acceptance result and must be archived and recollected when the approved third service rollover changes the selected revision and service."
     },
     {
       "story_id": "ST-CDX-003",
@@ -466,7 +466,7 @@
         "docs/evidence/m5-codex-read-side-effect-blocker.md",
         "docs/evidence/m5-codex-implementation.md"
       ],
-      "decision": "Native Codex subscription mapping, collection, and capacity-history implementation is present in the integration worktree. A real regression against exact service 063445154bca0bf5ec43db94ba57c17fd193fd99 proved that a latest complete one-window collection left one prior-run window in the public current set. The owner-approved plan 1.5.0 complete-scope lifecycle correction passed all 71 Capacity tests and the module boundary check is clean. The live second rollover/activation, fresh corrected-service collection, AUTO-M5-QUOTA-WITNESS, and authenticated quota reconciliation remain Not Run or unrecorded."
+      "decision": "Native Codex subscription mapping, collection, and capacity-history implementation is present in the integration worktree. Fresh complete collections against exact service 6d6e1aa9d9b64d50e3f83d0f1686e6cff04b7c17 leave one public current window bound only to the newest run while retaining immutable earlier history. The live regression first failed because it searched only the first 200 of 1,606 ascending rows; the approved bounded traversal passed all nine pages with 1,606 unique rows and passed again with 1,608 after newer genuine collection. This is current/history lineage evidence for the selected account; AUTO-M5-QUOTA-WITNESS and authenticated official /usage reconciliation remain Not Run or unrecorded."
     },
     {
       "story_id": "ST-CDX-004",
@@ -487,7 +487,7 @@
       "evidence_paths": [
         "docs/evidence/m5-codex-implementation.md"
       ],
-      "decision": "Codex HTTP, browser, health, alert, completion-gate, detached Git preflight, and bounded service-activation implementation are present in the integration worktree with local Red/Green evidence. The first corrective rollover archived the completed 6bfa69dc13cc9e1ded9c6baa6e803cb99bc8c20b transition, and the required rerun activated exact revision 063445154bca0bf5ec43db94ba57c17fd193fd99. The current owner-outcome checkpoint passed in sanitized aggregate form. After the later real stale-current-window Red, the owner-approved plan 1.5.0 lifecycle correction passed 71 Capacity tests and its exact second-rollover implementation passed 43 activation tests with a clean module boundary check. The first live second-rollover attempt blocked without mutation on an obsolete original-PID equality after reboot; the restart-generation correction is local Green with the same 43-test inventory. The corrected live rollover/activation, fresh collection, quota, process, alert, containment, clean exact-revision AUTO-M5-EXIT, and owner acceptance remain Blocked or Not Run."
+      "decision": "Codex HTTP, browser, health, alert, completion-gate, detached Git preflight, and bounded service-activation implementation are present in the integration worktree with recorded Red/Green evidence. The first two corrective rollovers archived the completed 6bfa69dc13cc9e1ded9c6baa6e803cb99bc8c20b and 063445154bca0bf5ec43db94ba57c17fd193fd99 transitions, and the required rerun activated exact revision 6d6e1aa9d9b64d50e3f83d0f1686e6cff04b7c17. The owner-outcome checkpoint and corrected live current/history lineage are current for that service. Focused plan 1.6.0 approves the test-only complete-history traversal and one exact third rollover into fixed parent m5-service-activation-corrective-archive-6d6e1aa. The third-rollover correction recorded two meaningful Reds, passed the unchanged 43-node suite and required static/frozen-inventory checks, and received an independent clean review. The clean candidate, live third rollover, fresh post-rollover prerequisites, official quota, process, alert, containment, clean exact-revision AUTO-M5-EXIT, and owner acceptance remain Blocked or Not Run."
     },
     {
       "story_id": "ST-OLL-001",

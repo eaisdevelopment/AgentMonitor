@@ -1,8 +1,9 @@
 # Change plan: executable V1-M5 Codex slice
 
-- Status: **Approved 1.5.0 for the root-owned M5 complete-scope lifecycle
-  correction and one exact second service rollover**.
-- Plan version: `1.5.0`; owner approval: 2026-10-16.
+- Status: **Approved 1.6.0 for the root-owned M5 complete-scope lifecycle,
+  paginated history verification, and three exact evidence-preserving service
+  rollovers**.
+- Plan version: `1.6.0`; owner approval: 2026-10-16.
 - Safety correction: exact-version review proved that authenticated app-server
   queries may perform Codex's automatic credential refresh. The approved
   managed-auth lifecycle therefore classifies those queries as
@@ -15,10 +16,11 @@
   and [A02 adapter](../adapters/codex/plan-v1.md).
 - Authority: the active owner objective, **fully implement M5 with our SDLC and
   runbook**, approved version 1.4.0 and its first corrective rollover. The
-  owner's explicit 2026-10-16 approval extends the same focused A02 and
-  PLAN-DEP/D01 exception only by the exact complete-scope lifecycle correction
-  and one second rollover from
-  `063445154bca0bf5ec43db94ba57c17fd193fd99` specified below. The remaining
+  owner's explicit 2026-10-16 approvals extend the same focused A02 and
+  PLAN-DEP/D01 exception only by the exact complete-scope lifecycle correction,
+  the second rollover from `063445154bca0bf5ec43db94ba57c17fd193fd99`,
+  the paginated live-history verification, and the third rollover from
+  `6d6e1aa9d9b64d50e3f83d0f1686e6cff04b7c17` specified below. The remaining
   A02, OpenAI API, PLAN-DEP/D01, and `AUTO-DEPLOY` lanes stay Draft or Blocked
   as already recorded.
 - Stories: `ST-CDX-001..005`.
@@ -731,6 +733,109 @@ review, clean detached candidate, and fail-closed preconditions above. The
 approval does not itself change production, service, or evidence state.
 Completion still requires the unchanged canonical `AUTO-M5-EXIT` result and
 separate owner acceptance; plan approval is never a completion claim.
+
+## Approved paginated-history verification and third exact rollover — 2026-10-16
+
+**Status: Owner-approved 1.6.0 on 2026-10-16. Production implementation and
+the bounded live transition are authorized only within this exact correction
+and rollover. Approval is not a completion claim; approved version 1.5.0 and
+its retained evidence remain unchanged.**
+
+### New real-system evidence
+
+After the approved 1.5.0 correction was activated as exact revision
+`6d6e1aa9d9b64d50e3f83d0f1686e6cff04b7c17`, three newer genuine complete
+Codex collections succeeded. The named live regression proved that the public
+current set now contains one window and that it binds only the newest run. Its
+history assertion nevertheless failed because the test read only the first
+200 rows of an ascending cursor-paginated 30-day history. The genuine account
+had 1,606 retained rows over nine pages, and the newest run was correctly the
+last row. A read-only traversal through the production `CTR-CAP-006` query
+found all 1,606 unique observations, the exact current observation once, and
+older immutable observations.
+
+This is a verification defect, not a product, persistence, ordering, or
+contract defect. `CTR-CAP-006` and PLAN-M05 require deterministic ascending
+semantic-time and observation-ID ordering with bounded cursor pages. Changing
+repository ordering, narrowing the range, deleting retained history, or
+raising the 200-row page limit is prohibited.
+
+### Approved test-only correction
+
+The existing named live test may traverse the unchanged 30-day query through
+at most 128 pages of 200 rows. Every `has_more` page must provide a new opaque
+cursor, the terminal page must provide no cursor, and the combined result must
+contain unique observation IDs in production order. The existing latest-run
+current-window assertions then apply to the complete traversal, with an
+additional assertion that at least one prior-run observation remains. This
+changes no production module, public contract, API, schema, migration,
+provider behavior, dependency, license, generated client, or ADR.
+
+The existing Red is the live first-page failure at the newest-lineage
+assertion. Green requires the same real service and database to pass after the
+bounded traversal, while retaining all 1,606 observations. Synthetic history,
+database cleanup, clock changes, altered ordering, and skipped live evidence
+cannot satisfy this correction.
+
+### Approved one-time third service rollover
+
+Committing the test and evidence correction creates a new Git revision, while
+`AUTO-M5-EXIT` requires the clean checkout, running Operations source
+revision, and immutable activation receipt to agree exactly. No approved
+command can rebind those facts: prerequisite archival does not change service
+activation evidence, general deployment remains unauthorized, and manual
+receipt editing or deletion is prohibited. Version 1.6.0 therefore authorizes
+one exact third corrective rollover from completed clean detached revision
+`6d6e1aa9d9b64d50e3f83d0f1686e6cff04b7c17` to one eventual reviewed clean
+candidate containing the pagination test, this rollover implementation and
+tests, synchronized controls, documentation, and evidence in one commit.
+
+The command must use the same exclusive transition guard and preserve a closed
+ordered chain for the completed `6bfa69d`, `0634451`, and `6d6e1aa` revisions.
+It must retain the complete `6d6e1aa` transition directory by Linux
+same-filesystem atomic no-replace rename into the fixed owner-only parent
+`m5-service-activation-corrective-archive-6d6e1aa`, whose sole child is bound
+to the full revision and activation-receipt digest. The new candidate must be
+different from the pinned trusted revision and all three completed corrective
+revisions. No archive is discovered generically or selected by recency.
+
+Before any mutation, the command must validate the current `6d6e1aa` receipt,
+journal, rollback unit, clean detached checkout, exact same-user systemd and
+`/proc` process shape, Operations revision, authenticated browser, Registry
+digest, database identity, and pinned rollback runtime. A later PID/start
+generation is accepted only through the approved same-revision restart policy.
+Descriptors retain each earlier archive parent, directory, and artifact;
+owner, mode, link count, inode, and digest are revalidated before every
+filesystem or service mutation. Empty, partial, multiple, collided,
+cross-filesystem, changed, or unknown archive and transition states block
+without cleanup or replacement.
+
+After proving the trusted rollback service, the command fsyncs the source and
+target parents around the no-replace move, creates one fresh owner-only
+transition root, binds the eventual candidate in the journal, and returns the
+existing typed rerun-required result. The second invocation revalidates all
+three exact singleton archives and the exact prepared state before performing
+the existing real rollback drill and activating only that candidate. A failed
+or interrupted attempt preserves or restores the same evidence and service
+guarantees already approved for 1.5.0.
+
+Red/Green evidence extends the existing frozen activation nodes for exact
+candidate/reserved-revision policy, atomic inode move, ordered three-archive
+retry, partial/multiple/collision rejection, browser proof, and restarted
+same-revision service handling. It must preserve the canonical story inventory
+or explicitly rebind that inventory before live work. Required local proof is
+the full activation suite, Ruff/format, strict mypy, diff, documentation,
+planning, quality, build, test, mutation, and Git preflight gates. Live proof
+requires stage one to return typed status 5 with the trusted service active,
+stage two to activate the exact clean candidate, and HTTP, authenticated
+browser, Registry, database, service, and receipt checks to agree. Every
+prerequisite bound to `6d6e1aa` is then archived and recollected canonically.
+
+This approval adds no general deployment, upgrade, repair, cleanup, provider
+or profile operation, Registry or database mutation, agent control, or
+`AUTO-DEPLOY` authority. Production implementation may proceed only through
+the stated Red/Green/refactor, review, clean-candidate, and fail-closed live
+preconditions.
 
 ## Stop conditions
 

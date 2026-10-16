@@ -580,6 +580,8 @@ def test_corrective_rollover_archives_complete_transition_by_atomic_inode_move(
         ).hexdigest(),
     )
     second_archived_retained = None
+    third_retained = None
+    third_archived_retained = None
     try:
         second_archive_id = module._archive_completed_activation_rollover_v1(
             second_retained,
@@ -591,7 +593,60 @@ def test_corrective_rollover_archives_complete_transition_by_atomic_inode_move(
         module._require_preserved_activation_rollovers_v1(
             (first_retained, second_archived_retained)
         )
+        second_archived = second_archive_parent / second_archive_id
+        second_parent_identity = (
+            second_archive_parent.stat().st_dev,
+            second_archive_parent.stat().st_ino,
+        )
+        second_archive_identities = {
+            path.name: (path.stat().st_dev, path.stat().st_ino)
+            for path in second_archived.iterdir()
+        }
+        third_payloads = {
+            basename: payload.replace(b"second-complete", b"third-complete")
+            for basename, payload in second_payloads.items()
+        }
+        third_identities: dict[str, tuple[int, int]] = {}
+        for basename, payload in third_payloads.items():
+            path = transition_root / basename
+            path.write_bytes(payload)
+            path.chmod(0o600)
+            third_identities[basename] = (path.stat().st_dev, path.stat().st_ino)
+        third_source_identity = (
+            transition_root.stat().st_dev,
+            transition_root.stat().st_ino,
+        )
+        third_receipt_digest = hashlib.sha256(
+            third_payloads[module.RECEIPT_PATH.name]
+        ).hexdigest()
+        third_archive_parent = tmp_path / module.THIRD_CORRECTIVE_ARCHIVE_BASENAME
+        third_retained = module._retain_completed_activation_rollover_v1(
+            transition_root=transition_root,
+            archive_parent=third_archive_parent,
+            prior_revision=module.THIRD_CORRECTIVE_ROLLOVER_REVISION,
+            receipt_digest=third_receipt_digest,
+            journal_digest=hashlib.sha256(
+                third_payloads[module.ACTIVATION_JOURNAL_BASENAME]
+            ).hexdigest(),
+            rollback_unit_digest=hashlib.sha256(
+                third_payloads[module.ROLLBACK_UNIT_PATH.name]
+            ).hexdigest(),
+        )
+        third_archive_id = module._archive_completed_activation_rollover_v1(
+            third_retained,
+            preserved_rollovers=(first_retained, second_archived_retained),
+        )
+        third_archived_retained = (
+            module._retain_archived_activation_rollover_after_commit_v1(third_retained)
+        )
+        module._require_preserved_activation_rollovers_v1(
+            (first_retained, second_archived_retained, third_archived_retained)
+        )
     finally:
+        if third_archived_retained is not None:
+            module._close_completed_activation_rollover_v1(third_archived_retained)
+        if third_retained is not None:
+            module._close_completed_activation_rollover_v1(third_retained)
         if second_archived_retained is not None:
             module._close_completed_activation_rollover_v1(second_archived_retained)
         module._close_completed_activation_rollover_v1(second_retained)
@@ -617,6 +672,26 @@ def test_corrective_rollover_archives_complete_transition_by_atomic_inode_move(
         path = second_archived / basename
         assert path.read_bytes() == payload
         assert (path.stat().st_dev, path.stat().st_ino) == second_identities[basename]
+    third_archived = third_archive_parent / third_archive_id
+    assert third_archive_id == (
+        f"{module.THIRD_CORRECTIVE_ROLLOVER_REVISION}-{third_receipt_digest}"
+    )
+    assert (third_archived.stat().st_dev, third_archived.stat().st_ino) == (
+        third_source_identity
+    )
+    assert (
+        second_archive_parent.stat().st_dev,
+        second_archive_parent.stat().st_ino,
+    ) == (second_parent_identity)
+    for basename, identity in second_archive_identities.items():
+        assert (
+            (second_archived / basename).stat().st_dev,
+            (second_archived / basename).stat().st_ino,
+        ) == identity
+    for basename, payload in third_payloads.items():
+        path = third_archived / basename
+        assert path.read_bytes() == payload
+        assert (path.stat().st_dev, path.stat().st_ino) == third_identities[basename]
     assert tuple(transition_root.iterdir()) == ()
 
 
@@ -856,6 +931,146 @@ def test_corrective_rollover_rejects_non_private_custody_root(
 def test_corrective_rollover_policy_is_exact_and_returns_typed_rerun() -> None:
     module = _module()
     new_revision = "c" * 40
+    assert (
+        module.THIRD_CORRECTIVE_ROLLOVER_REVISION
+        == "6d6e1aa9d9b64d50e3f83d0f1686e6cff04b7c17"
+    )
+    assert (
+        module.THIRD_CORRECTIVE_ARCHIVE_BASENAME
+        == "m5-service-activation-corrective-archive-6d6e1aa"
+    )
+    chain_policy = getattr(
+        module,
+        "_corrective_rollover_chain_revisions_v1",
+        None,
+    )
+    assert callable(chain_policy), "ordered corrective rollover chain is absent"
+    assert chain_policy(module.CORRECTIVE_ROLLOVER_REVISION) == (
+        module.CORRECTIVE_ROLLOVER_REVISION,
+    )
+    assert chain_policy(module.SECOND_CORRECTIVE_ROLLOVER_REVISION) == (
+        module.CORRECTIVE_ROLLOVER_REVISION,
+        module.SECOND_CORRECTIVE_ROLLOVER_REVISION,
+    )
+    assert chain_policy(module.THIRD_CORRECTIVE_ROLLOVER_REVISION) == (
+        module.CORRECTIVE_ROLLOVER_REVISION,
+        module.SECOND_CORRECTIVE_ROLLOVER_REVISION,
+        module.THIRD_CORRECTIVE_ROLLOVER_REVISION,
+    )
+    with pytest.raises(
+        module.M5ServiceActivationErrorV1,
+        match="m5_service_rollover_archive_invalid",
+    ):
+        chain_policy(new_revision)
+
+    transition_policy = getattr(
+        module,
+        "corrective_rollover_transition_policy_v1",
+        None,
+    )
+    assert callable(transition_policy), "corrective rollover state policy is absent"
+    absent = ("absent", "absent", "absent")
+    first = ("complete", "absent", "absent")
+    second = ("complete", "complete", "absent")
+    third = ("complete", "complete", "complete")
+    assert transition_policy(
+        receipt_revision=None,
+        candidate_revision=new_revision,
+        archive_states=absent,
+    ) == ("none", None)
+    for candidate_revision, states, expected in (
+        (
+            module.SECOND_CORRECTIVE_ROLLOVER_REVISION,
+            first,
+            ("retry", module.CORRECTIVE_ROLLOVER_REVISION),
+        ),
+        (
+            module.THIRD_CORRECTIVE_ROLLOVER_REVISION,
+            second,
+            ("retry", module.SECOND_CORRECTIVE_ROLLOVER_REVISION),
+        ),
+        (
+            new_revision,
+            third,
+            ("retry", module.THIRD_CORRECTIVE_ROLLOVER_REVISION),
+        ),
+    ):
+        assert (
+            transition_policy(
+                receipt_revision=None,
+                candidate_revision=candidate_revision,
+                archive_states=states,
+            )
+            == expected
+        )
+    for receipt_revision, candidate_revision, states, expected in (
+        (
+            module.CORRECTIVE_ROLLOVER_REVISION,
+            module.CORRECTIVE_ROLLOVER_REVISION,
+            absent,
+            ("none", None),
+        ),
+        (
+            module.SECOND_CORRECTIVE_ROLLOVER_REVISION,
+            module.SECOND_CORRECTIVE_ROLLOVER_REVISION,
+            first,
+            ("retain", module.CORRECTIVE_ROLLOVER_REVISION),
+        ),
+        (
+            module.THIRD_CORRECTIVE_ROLLOVER_REVISION,
+            module.THIRD_CORRECTIVE_ROLLOVER_REVISION,
+            second,
+            ("retain", module.SECOND_CORRECTIVE_ROLLOVER_REVISION),
+        ),
+        (
+            new_revision,
+            new_revision,
+            third,
+            ("retain", module.THIRD_CORRECTIVE_ROLLOVER_REVISION),
+        ),
+        (
+            module.CORRECTIVE_ROLLOVER_REVISION,
+            module.SECOND_CORRECTIVE_ROLLOVER_REVISION,
+            ("empty", "absent", "absent"),
+            ("archive", module.CORRECTIVE_ROLLOVER_REVISION),
+        ),
+        (
+            module.SECOND_CORRECTIVE_ROLLOVER_REVISION,
+            module.THIRD_CORRECTIVE_ROLLOVER_REVISION,
+            ("complete", "empty", "absent"),
+            ("archive", module.SECOND_CORRECTIVE_ROLLOVER_REVISION),
+        ),
+        (
+            module.THIRD_CORRECTIVE_ROLLOVER_REVISION,
+            new_revision,
+            ("complete", "complete", "empty"),
+            ("archive", module.THIRD_CORRECTIVE_ROLLOVER_REVISION),
+        ),
+    ):
+        assert (
+            transition_policy(
+                receipt_revision=receipt_revision,
+                candidate_revision=candidate_revision,
+                archive_states=states,
+            )
+            == expected
+        )
+    blocked_cases = (
+        (None, module.CORRECTIVE_ROLLOVER_REVISION, third),
+        (None, module.SECOND_CORRECTIVE_ROLLOVER_REVISION, third),
+        (None, module.THIRD_CORRECTIVE_ROLLOVER_REVISION, third),
+        (None, new_revision, ("absent", "complete", "absent")),
+        (None, new_revision, ("complete", "empty", "absent")),
+        (module.THIRD_CORRECTIVE_ROLLOVER_REVISION, new_revision, first),
+        (new_revision, new_revision, ("complete", "complete", "empty")),
+        (new_revision, new_revision, ("complete", "invalid", "absent")),
+    )
+    for receipt_revision, candidate_revision, states in blocked_cases:
+        assert transition_policy(
+            receipt_revision=receipt_revision,
+            candidate_revision=candidate_revision,
+            archive_states=states,
+        ) == ("blocked", None)
 
     generation_policy = getattr(
         module,
@@ -865,8 +1080,8 @@ def test_corrective_rollover_policy_is_exact_and_returns_typed_rerun() -> None:
     assert callable(generation_policy), "completed rollover restart policy is absent"
     assert (
         generation_policy(
-            completed_revision=module.SECOND_CORRECTIVE_ROLLOVER_REVISION,
-            service_revision=module.SECOND_CORRECTIVE_ROLLOVER_REVISION,
+            completed_revision=module.THIRD_CORRECTIVE_ROLLOVER_REVISION,
+            service_revision=module.THIRD_CORRECTIVE_ROLLOVER_REVISION,
             receipt_main_pid=2982335,
             receipt_start_time_ticks=101,
             current_main_pid=3609,
@@ -904,7 +1119,7 @@ def test_corrective_rollover_policy_is_exact_and_returns_typed_rerun() -> None:
 
     assert (
         module.corrective_activation_rollover_decision_v1(
-            candidate_revision=new_revision,
+            candidate_revision=module.SECOND_CORRECTIVE_ROLLOVER_REVISION,
             completed_revision=module.CORRECTIVE_ROLLOVER_REVISION,
             service_revision=module.CORRECTIVE_ROLLOVER_REVISION,
         )
@@ -912,7 +1127,7 @@ def test_corrective_rollover_policy_is_exact_and_returns_typed_rerun() -> None:
     )
     assert (
         module.corrective_activation_rollover_decision_v1(
-            candidate_revision=new_revision,
+            candidate_revision=module.SECOND_CORRECTIVE_ROLLOVER_REVISION,
             completed_revision=module.CORRECTIVE_ROLLOVER_REVISION,
             service_revision=module.PINNED_ROLLBACK_REVISION,
         )
@@ -920,7 +1135,7 @@ def test_corrective_rollover_policy_is_exact_and_returns_typed_rerun() -> None:
     )
     assert (
         module.corrective_activation_rollover_decision_v1(
-            candidate_revision=new_revision,
+            candidate_revision=module.THIRD_CORRECTIVE_ROLLOVER_REVISION,
             completed_revision=module.SECOND_CORRECTIVE_ROLLOVER_REVISION,
             service_revision=module.SECOND_CORRECTIVE_ROLLOVER_REVISION,
         )
@@ -928,8 +1143,24 @@ def test_corrective_rollover_policy_is_exact_and_returns_typed_rerun() -> None:
     )
     assert (
         module.corrective_activation_rollover_decision_v1(
-            candidate_revision=new_revision,
+            candidate_revision=module.THIRD_CORRECTIVE_ROLLOVER_REVISION,
             completed_revision=module.SECOND_CORRECTIVE_ROLLOVER_REVISION,
+            service_revision=module.PINNED_ROLLBACK_REVISION,
+        )
+        == "archive_restored"
+    )
+    assert (
+        module.corrective_activation_rollover_decision_v1(
+            candidate_revision=new_revision,
+            completed_revision=module.THIRD_CORRECTIVE_ROLLOVER_REVISION,
+            service_revision=module.THIRD_CORRECTIVE_ROLLOVER_REVISION,
+        )
+        == "rollback_candidate"
+    )
+    assert (
+        module.corrective_activation_rollover_decision_v1(
+            candidate_revision=new_revision,
+            completed_revision=module.THIRD_CORRECTIVE_ROLLOVER_REVISION,
             service_revision=module.PINNED_ROLLBACK_REVISION,
         )
         == "archive_restored"
@@ -944,6 +1175,20 @@ def test_corrective_rollover_policy_is_exact_and_returns_typed_rerun() -> None:
                 candidate_revision=reserved_candidate,
                 completed_revision=module.SECOND_CORRECTIVE_ROLLOVER_REVISION,
                 service_revision=module.SECOND_CORRECTIVE_ROLLOVER_REVISION,
+            )
+            == expected
+        )
+    for reserved_candidate, expected in (
+        (module.PINNED_ROLLBACK_REVISION, "blocked"),
+        (module.CORRECTIVE_ROLLOVER_REVISION, "blocked"),
+        (module.SECOND_CORRECTIVE_ROLLOVER_REVISION, "blocked"),
+        (module.THIRD_CORRECTIVE_ROLLOVER_REVISION, "not_applicable"),
+    ):
+        assert (
+            module.corrective_activation_rollover_decision_v1(
+                candidate_revision=reserved_candidate,
+                completed_revision=module.THIRD_CORRECTIVE_ROLLOVER_REVISION,
+                service_revision=module.THIRD_CORRECTIVE_ROLLOVER_REVISION,
             )
             == expected
         )
@@ -963,6 +1208,22 @@ def test_corrective_rollover_policy_is_exact_and_returns_typed_rerun() -> None:
         )
         == "rollback_candidate"
     )
+    for completed_revision, skipped_revision in (
+        (
+            module.CORRECTIVE_ROLLOVER_REVISION,
+            module.THIRD_CORRECTIVE_ROLLOVER_REVISION,
+        ),
+        (module.CORRECTIVE_ROLLOVER_REVISION, new_revision),
+        (module.SECOND_CORRECTIVE_ROLLOVER_REVISION, new_revision),
+    ):
+        assert (
+            module.corrective_activation_rollover_decision_v1(
+                candidate_revision=skipped_revision,
+                completed_revision=completed_revision,
+                service_revision=completed_revision,
+            )
+            == "blocked"
+        )
     assert (
         module.corrective_activation_rollover_decision_v1(
             candidate_revision=module.CORRECTIVE_ROLLOVER_REVISION,
@@ -1148,6 +1409,46 @@ def test_corrective_rollover_retry_selects_one_complete_schema_bound_archive(
     assert second_selected_root == second_archived_root
     assert second_selected_digest == second_proof.digest
 
+    third_case = tmp_path / "third-corrective-archive"
+    third_case.mkdir(mode=0o700)
+    third_fixture = _activation_receipt_fixture(
+        third_case,
+        revision=module.THIRD_CORRECTIVE_ROLLOVER_REVISION,
+    )
+    (
+        _,
+        third_candidate,
+        third_current,
+        third_receipt_path,
+        third_journal_path,
+        third_rollback_unit_path,
+        third_rollback_root,
+        _,
+    ) = third_fixture
+    third_proof = module.validate_current_activation_receipt_v1(
+        third_candidate,
+        third_current,
+        receipt_path=third_receipt_path,
+        journal_path=third_journal_path,
+        rollback_unit_path=third_rollback_unit_path,
+        rollback_root=third_rollback_root,
+    )
+    third_archive_parent = third_case / module.THIRD_CORRECTIVE_ARCHIVE_BASENAME
+    third_archive_parent.mkdir(mode=0o700)
+    third_archive_id = (
+        f"{module.THIRD_CORRECTIVE_ROLLOVER_REVISION}-{third_proof.digest}"
+    )
+    third_archived_root = third_archive_parent / third_archive_id
+    third_receipt_path.parent.rename(third_archived_root)
+    third_selected_root, third_selected_digest = (
+        module._select_completed_activation_rollover_archive_v1(
+            archive_parent=third_archive_parent,
+            prior_revision=module.THIRD_CORRECTIVE_ROLLOVER_REVISION,
+        )
+    )
+    assert third_selected_root == third_archived_root
+    assert third_selected_digest == third_proof.digest
+
 
 def test_corrective_rollover_retry_rejects_multiple_or_partial_archives(
     tmp_path: Path,
@@ -1171,6 +1472,52 @@ def test_corrective_rollover_retry_rejects_multiple_or_partial_archives(
         == "empty"
     )
     empty_second_archive.rmdir()
+    empty_third_archive = tmp_path / module.THIRD_CORRECTIVE_ARCHIVE_BASENAME
+    assert (
+        module._corrective_rollover_archive_parent_state_v1(
+            archive_parent=empty_third_archive,
+            prior_revision=module.THIRD_CORRECTIVE_ROLLOVER_REVISION,
+        )
+        == "absent"
+    )
+    empty_third_archive.mkdir(mode=0o700)
+    assert (
+        module._corrective_rollover_archive_parent_state_v1(
+            archive_parent=empty_third_archive,
+            prior_revision=module.THIRD_CORRECTIVE_ROLLOVER_REVISION,
+        )
+        == "empty"
+    )
+    partial_third = empty_third_archive / (
+        f"{module.THIRD_CORRECTIVE_ROLLOVER_REVISION}-{'3' * 64}"
+    )
+    partial_third.mkdir(mode=0o700)
+    assert (
+        module._corrective_rollover_archive_parent_state_v1(
+            archive_parent=empty_third_archive,
+            prior_revision=module.THIRD_CORRECTIVE_ROLLOVER_REVISION,
+        )
+        == "complete"
+    )
+    with pytest.raises(
+        module.M5ServiceActivationErrorV1,
+        match="m5_service_rollover_archive_invalid",
+    ):
+        module._select_completed_activation_rollover_archive_v1(
+            archive_parent=empty_third_archive,
+            prior_revision=module.THIRD_CORRECTIVE_ROLLOVER_REVISION,
+        )
+    second_third = empty_third_archive / (
+        f"{module.THIRD_CORRECTIVE_ROLLOVER_REVISION}-{'4' * 64}"
+    )
+    second_third.mkdir(mode=0o700)
+    assert (
+        module._corrective_rollover_archive_parent_state_v1(
+            archive_parent=empty_third_archive,
+            prior_revision=module.THIRD_CORRECTIVE_ROLLOVER_REVISION,
+        )
+        == "invalid"
+    )
     archive_parent = tmp_path / module.CORRECTIVE_ARCHIVE_BASENAME
     archive_parent.mkdir(mode=0o700)
     first = archive_parent / (f"{module.CORRECTIVE_ROLLOVER_REVISION}-{'1' * 64}")
