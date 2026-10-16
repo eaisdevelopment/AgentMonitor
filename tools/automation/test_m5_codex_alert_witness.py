@@ -10,20 +10,62 @@ from pathlib import Path
 
 import pytest
 
+from tools.automation._m5_test_git import (
+    attached_real_checkout_v1,
+    git_status_v1,
+)
 from tools.automation.implementations import m5_codex_alert_witness
 from tools.automation.implementations.m5_codex_alert_witness import (
     BROWSER_PROOF_SCHEMA,
     M5CodexAlertWitnessErrorV1,
+    _revalidate_runtime_binding_v1,
+    _select_runtime_binding_v1,
     _unlink_created_witness_v1,
     _validate_browser_proof,
     _validate_created_witness_v1,
     _write_create_once,
+)
+from tools.automation.implementations.m5_service_activation import (
+    candidate_for_checkout_v1,
 )
 
 REVISION = "a" * 40
 DIGEST_A = "b" * 64
 DIGEST_B = "c" * 64
 RECOVERED_AT = datetime(2026, 10, 7, 10, 3, tzinfo=UTC)
+
+
+def test_alert_selection_rejects_a_real_attached_checkout_before_runtime_io() -> None:
+    with attached_real_checkout_v1() as checkout:
+        before = git_status_v1(checkout)
+        with pytest.raises(
+            M5CodexAlertWitnessErrorV1,
+            match="m5_alert_witness_checkout_invalid",
+        ):
+            _select_runtime_binding_v1({}, checkout_root=checkout)
+        assert before == git_status_v1(checkout) == ""
+
+
+def test_alert_prewrite_recheck_rejects_an_attached_checkout_before_io() -> None:
+    with attached_real_checkout_v1() as checkout:
+        candidate = candidate_for_checkout_v1(
+            source_revision=REVISION,
+            checkout_root=checkout,
+        )
+        with pytest.raises(
+            M5CodexAlertWitnessErrorV1,
+            match="m5_alert_witness_context_changed",
+        ):
+            _revalidate_runtime_binding_v1(
+                candidate,
+                expected_revision=REVISION,
+                selected_pid=321,
+                selected_start_time_ticks=654,
+                dashboard_origin="http://127.0.0.1:43110",
+                dashboard_cdp_endpoint="http://127.0.0.1:9222",
+                checkout_root=checkout,
+            )
+        assert git_status_v1(checkout) == ""
 
 
 def test_source_observation_pagination_requires_a_terminal_page() -> None:

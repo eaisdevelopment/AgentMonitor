@@ -11,6 +11,10 @@ from pathlib import Path
 
 import pytest
 
+from tools.automation._m5_test_git import (
+    attached_real_checkout_v1,
+    git_status_v1,
+)
 from tools.automation.implementations.auto_m5_current_exit import (
     ALERT_WITNESS_BASENAME,
     CODEX_ADAPTER_VERSION,
@@ -45,8 +49,13 @@ from tools.automation.implementations.m5_prerequisite_archive import (
     M5PrerequisiteArchiveResultV1,
     _open_artifact,
     _rename_noreplace_v1,
+    _revalidate_runtime_binding_v1,
     _rollback,
+    _select_runtime_binding_v1,
     archive_m5_prerequisites_v1,
+)
+from tools.automation.implementations.m5_service_activation import (
+    candidate_for_checkout_v1,
 )
 
 OLD_REVISION = "a" * 40
@@ -57,6 +66,39 @@ CURRENT_PID = 987
 CURRENT_START_TICKS = 765
 NOW = datetime(2026, 10, 8, 10, 10, tzinfo=UTC)
 DIGESTS = tuple(character * 64 for character in "cdef0123456789")
+
+
+def test_archive_selection_rejects_a_real_attached_checkout_before_runtime_io() -> None:
+    with attached_real_checkout_v1() as checkout:
+        before = git_status_v1(checkout)
+        with pytest.raises(
+            M5PrerequisiteArchiveErrorV1,
+            match="m5_prerequisite_archive_checkout_invalid",
+        ):
+            _select_runtime_binding_v1({}, checkout_root=checkout)
+        assert before == git_status_v1(checkout) == ""
+
+
+def test_archive_prewrite_recheck_rejects_an_attached_checkout_before_io() -> None:
+    with attached_real_checkout_v1() as checkout:
+        candidate = candidate_for_checkout_v1(
+            source_revision=CURRENT_REVISION,
+            checkout_root=checkout,
+        )
+        with pytest.raises(
+            M5PrerequisiteArchiveErrorV1,
+            match="m5_prerequisite_archive_context_changed",
+        ):
+            _revalidate_runtime_binding_v1(
+                candidate,
+                expected_revision=CURRENT_REVISION,
+                selected_pid=CURRENT_PID,
+                selected_start_time_ticks=CURRENT_START_TICKS,
+                dashboard_origin="http://127.0.0.1:43110",
+                dashboard_cdp_endpoint="http://127.0.0.1:9222",
+                checkout_root=checkout,
+            )
+        assert git_status_v1(checkout) == ""
 
 
 def _owner_document(

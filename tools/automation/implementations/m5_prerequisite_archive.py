@@ -21,9 +21,7 @@ from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 from tools.automation.implementations.auto_m3_current_exit import (
-    M3CurrentExitErrorV1,
     ServiceLaunchV1,
-    _clean_revision,
 )
 from tools.automation.implementations.auto_m5_current_exit import (
     ALERT_WITNESS_BASENAME,
@@ -49,9 +47,21 @@ from tools.automation.implementations.m5_owner_outcomes import (
     OWNER_OUTCOMES_BASENAME,
     M5OwnerOutcomesErrorV1,
     ParsedOwnerOutcomesV2,
+    SelectedOwnerServiceV1,
     _selected_service,
     parse_owner_outcomes_document_v2,
 )
+from tools.automation.implementations.m5_service_activation import (
+    M5ServiceActivationErrorV1,
+    M5ServiceActivationFailedV1,
+    M5ServiceCandidateV1,
+    clean_detached_revision_v1,
+    revalidate_current_systemd_binding_v1,
+    select_current_systemd_binding_v1,
+    verify_current_service_revision_browser_v1,
+)
+
+ROOT = Path(__file__).resolve().parents[3]
 
 CANONICAL_COMMAND = "python3 tools/automation/run.py AUTO-M5-ARCHIVE-PREREQUISITES"
 ARCHIVE_ROOT_BASENAME = ".m5-prerequisite-archive"
@@ -86,6 +96,86 @@ if _RENAMEAT2 is not None:
 
 class M5PrerequisiteArchiveErrorV1(ValueError):
     """One sanitized archive refusal or filesystem failure."""
+
+
+def _revalidate_runtime_binding_v1(
+    candidate: M5ServiceCandidateV1,
+    *,
+    expected_revision: str,
+    selected_pid: int,
+    selected_start_time_ticks: int,
+    dashboard_origin: str,
+    dashboard_cdp_endpoint: str,
+    checkout_root: Path = ROOT,
+) -> None:
+    """Recheck Git, systemd and Operations immediately before archive mutation."""
+
+    try:
+        if clean_detached_revision_v1(checkout_root) != expected_revision:
+            raise M5ServiceActivationErrorV1("m5_service_checkout_not_clean")
+        revalidate_current_systemd_binding_v1(
+            candidate,
+            selected_pid=selected_pid,
+            selected_start_time_ticks=selected_start_time_ticks,
+        )
+        verify_current_service_revision_browser_v1(
+            dashboard_origin=dashboard_origin,
+            dashboard_cdp_endpoint=dashboard_cdp_endpoint,
+            source_revision=expected_revision,
+            checkout_root=checkout_root,
+        )
+        revalidate_current_systemd_binding_v1(
+            candidate,
+            selected_pid=selected_pid,
+            selected_start_time_ticks=selected_start_time_ticks,
+        )
+    except (M5ServiceActivationErrorV1, M5ServiceActivationFailedV1):
+        raise M5PrerequisiteArchiveErrorV1(
+            "m5_prerequisite_archive_context_changed"
+        ) from None
+
+
+def _select_runtime_binding_v1(
+    environment: Mapping[str, str], *, checkout_root: Path = ROOT
+) -> tuple[SelectedOwnerServiceV1, str, M5ServiceCandidateV1]:
+    """Bind one clean detached checkout to its exact systemd-owned service."""
+
+    try:
+        revision = clean_detached_revision_v1(checkout_root)
+    except (M5ServiceActivationErrorV1, M5ServiceActivationFailedV1):
+        raise M5PrerequisiteArchiveErrorV1(
+            "m5_prerequisite_archive_checkout_invalid"
+        ) from None
+    try:
+        service = _selected_service(environment)
+        endpoint = environment["AGENTMONITOR_TEST_DASHBOARD_CDP_ENDPOINT"]
+        origin = environment["AGENTMONITOR_TEST_DASHBOARD_ORIGIN"]
+        candidate, _observation = select_current_systemd_binding_v1(
+            source_revision=revision,
+            data_root=service.launch.data_root,
+            selected_pid=service.pid,
+            selected_start_time_ticks=service.start_time_ticks,
+            checkout_root=checkout_root,
+        )
+        _revalidate_runtime_binding_v1(
+            candidate,
+            expected_revision=revision,
+            selected_pid=service.pid,
+            selected_start_time_ticks=service.start_time_ticks,
+            dashboard_origin=origin,
+            dashboard_cdp_endpoint=endpoint,
+            checkout_root=checkout_root,
+        )
+    except (
+        KeyError,
+        M5OwnerOutcomesErrorV1,
+        M5ServiceActivationErrorV1,
+        M5ServiceActivationFailedV1,
+    ):
+        raise M5PrerequisiteArchiveErrorV1(
+            "m5_prerequisite_archive_selection_invalid"
+        ) from None
+    return service, revision, candidate
 
 
 def _rename_noreplace_v1(
@@ -763,6 +853,10 @@ def archive_m5_prerequisites_v1(
     current_service_start_time_ticks: int,
     now: datetime,
     final_receipt_path: Path,
+    runtime_candidate: M5ServiceCandidateV1 | None = None,
+    dashboard_origin: str | None = None,
+    dashboard_cdp_endpoint: str | None = None,
+    checkout_root: Path = ROOT,
 ) -> M5PrerequisiteArchiveResultV1:
     """Archive one stale, internally consistent prerequisite set."""
 
@@ -774,6 +868,14 @@ def archive_m5_prerequisites_v1(
         or not 1 <= current_service_start_time_ticks <= 2**63 - 1
         or now.utcoffset() != timedelta(0)
         or not final_receipt_path.is_absolute()
+        or (
+            runtime_candidate is None
+            and (dashboard_origin is not None or dashboard_cdp_endpoint is not None)
+        )
+        or (
+            runtime_candidate is not None
+            and (dashboard_origin is None or dashboard_cdp_endpoint is None)
+        )
     ):
         raise M5PrerequisiteArchiveErrorV1("m5_prerequisite_archive_selection_invalid")
     root_descriptor = -1
@@ -865,6 +967,18 @@ def archive_m5_prerequisites_v1(
             raise M5PrerequisiteArchiveErrorV1(
                 "m5_prerequisite_archive_lock_unavailable"
             ) from None
+        if runtime_candidate is not None:
+            assert dashboard_origin is not None
+            assert dashboard_cdp_endpoint is not None
+            _revalidate_runtime_binding_v1(
+                runtime_candidate,
+                expected_revision=current_revision,
+                selected_pid=current_service_pid,
+                selected_start_time_ticks=current_service_start_time_ticks,
+                dashboard_origin=dashboard_origin,
+                dashboard_cdp_endpoint=dashboard_cdp_endpoint,
+                checkout_root=checkout_root,
+            )
         archive_id = _archive_artifacts(
             owner_root,
             root_descriptor,
@@ -901,13 +1015,7 @@ def archive_from_environment_v1(
 ) -> M5PrerequisiteArchiveResultV1:
     """Select the exact live owner root/service and archive stale evidence."""
 
-    try:
-        service = _selected_service(environment)
-        revision = _clean_revision()
-    except (M3CurrentExitErrorV1, M5OwnerOutcomesErrorV1):
-        raise M5PrerequisiteArchiveErrorV1(
-            "m5_prerequisite_archive_selection_invalid"
-        ) from None
+    service, revision, candidate = _select_runtime_binding_v1(environment)
     return archive_m5_prerequisites_v1(
         service.launch.data_root,
         current_revision=revision,
@@ -915,6 +1023,9 @@ def archive_from_environment_v1(
         current_service_start_time_ticks=service.start_time_ticks,
         now=datetime.now(UTC),
         final_receipt_path=RECEIPT_PATH,
+        runtime_candidate=candidate,
+        dashboard_origin=environment["AGENTMONITOR_TEST_DASHBOARD_ORIGIN"],
+        dashboard_cdp_endpoint=environment["AGENTMONITOR_TEST_DASHBOARD_CDP_ENDPOINT"],
     )
 
 

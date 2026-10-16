@@ -661,3 +661,25 @@ rebind changes no canonical module plan, public contract, provider behavior,
 schema, dependency, approval flag, live result, or milestone acceptance state.
 
 Plan snapshot SHA-256: `a59395be92d354692182a6e8c290029a474ce71a4a15c876f71df27680d963b6`
+
+## 2026-10-16 M5 exact-revision service-activation control rebind
+
+The current snapshot binds the approved `AUTO-M5-SERVICE-ACTIVATE`
+prerequisite in the automation catalog and completion standard. The control is
+limited to selecting one detached, clean, committed M5 worktree under the
+existing dashboard user service; revalidating that HEAD and the service/source
+binding at every M5 evidence boundary; preserving the existing
+data/config/network/provider-tool selections; applying the approved 45-second
+candidate drain bound; and restoring the exact retained trusted
+`77a3bad12a096a81587b94b8981ceee812b6445b` unit/runtime automatically on
+failure.
+
+PLAN-DEP/D01 `0.2.0-draft` now cross-references the active owner's exact M5
+exception while preserving all broader Draft restrictions, pending approvals,
+proposed contract meaning, and blocked `AUTO-DEPLOY` state. Its plan digest,
+generated contract-adoption binding, reviewed parallel-ownership binding, and
+the two automation controls changed. Historical CS-1 conclusions and the other
+19 canonical module-plan hashes remain unchanged. This rebind records no live
+transition, M5 evidence, completion, PLAN-DEP approval, or acceptance result.
+
+Plan snapshot SHA-256: `50e786deadb666da6ca21ef21a310f4d3c8b1d9ad344ee83a1ff3db4597cded5`

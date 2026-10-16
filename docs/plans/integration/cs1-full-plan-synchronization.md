@@ -692,3 +692,26 @@ unchanged. This mechanical rebind does not claim a live gate result or expand
 M5 completion or milestone acceptance.
 
 Plan snapshot SHA-256: `a59395be92d354692182a6e8c290029a474ce71a4a15c876f71df27680d963b6`
+
+## 2026-10-16 M5 exact-revision service-activation control rebind
+
+The synchronized snapshot now catalogs `AUTO-M5-SERVICE-ACTIVATE` as the
+approved narrow prerequisite transition from the pinned trusted dashboard
+runtime to one detached, clean, committed Git worktree required by fresh M5
+evidence. PLAN-DEP/D01 `0.2.0-draft` now records the active owner's exact
+exception to its normal implementation prohibition and exclusive native unit
+lifecycle ownership. Its broader Draft, unchecked readiness, pending approvals,
+proposed `CTR-DEP-001`, and `AUTO-DEPLOY` blocker remain unchanged.
+
+The completion standard binds candidate preparation, boundary-by-boundary
+detached HEAD and source-revision proof, unchanged Registry state, the
+45-second candidate drain bound, and automatic byte-exact restoration of the
+retained trusted `77a3bad12a096a81587b94b8981ceee812b6445b` unit/runtime on
+failure. The PLAN-DEP plan digest, its generated contract-adoption and reviewed
+parallel-ownership bindings, and the two automation controls changed. The
+other 19 canonical plan hashes and all public contract versions and meanings
+remain unchanged. This bounded rebind does not claim the transition ran, any
+M5 prerequisite is current, `AUTO-M5-EXIT` passed, PLAN-DEP was approved, or M5
+was accepted.
+
+Plan snapshot SHA-256: `50e786deadb666da6ca21ef21a310f4d3c8b1d9ad344ee83a1ff3db4597cded5`

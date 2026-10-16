@@ -21,12 +21,8 @@ from typing import cast
 from tools.automation.implementations.auto_m3_current_exit import (
     M3CurrentExitErrorV1,
     ServiceLaunchV1,
-    ServiceProcessV1,
-    _clean_revision,
     _process_start_ticks,
     _read_service_launch,
-    _restart_service,
-    _verify_service_process,
 )
 from tools.automation.implementations.m5_codex_admission import (
     M5CodexAdmissionErrorV1,
@@ -56,6 +52,19 @@ from tools.automation.implementations.m5_owner_outcomes import (
     OWNER_OUTCOMES_BASENAME,
     M5OwnerOutcomesErrorV1,
     read_owner_outcomes_file_v2,
+)
+from tools.automation.implementations.m5_service_activation import (
+    M5ServiceActivationErrorV1,
+    M5ServiceActivationFailedV1,
+    M5ServiceCandidateV1,
+    SystemdServiceObservationV1,
+    clean_detached_revision_v1,
+    observe_selected_systemd_service_v1,
+    restart_selected_systemd_service_v1,
+    revalidate_current_systemd_binding_v1,
+    select_current_systemd_binding_v1,
+    validate_receipt_systemd_ownership_v1,
+    verify_current_service_revision_browser_v1,
 )
 
 ROOT = Path(__file__).resolve().parents[3]
@@ -129,8 +138,10 @@ BROWSER_CHECKS = (
     ("operations_browser", "tools/ui/verify_m4_operations.mjs"),
 )
 STORY_TEST_PATHS = (
+    "tools/git/test_preflight.py",
     "tools/automation/test_m5_prerequisite_archive.py",
     "tools/automation/test_m5_current_exit.py",
+    "tools/automation/test_m5_service_activation.py",
     "tools/automation/test_m5_owner_outcomes.py",
     "tools/automation/test_m5_codex_alert_witness.py",
     "tools/automation/test_m5_codex_mutation_policies.py",
@@ -158,6 +169,7 @@ STORY_TEST_PATHS = (
     "backend/tests/integration/release/test_v1_m5_codex_slice.py",
 )
 STORY_AUTOMATION_TEST_IDS = (
+    "tools/automation/test_run.py::AutomationRoutineTests::test_m5_service_activation_without_selection_never_mutates_unit",
     "tools/automation/test_run.py::AutomationRoutineTests::test_m5_prerequisite_archive_without_selection_never_moves_files",
     "tools/automation/test_run.py::AutomationRoutineTests::test_m5_owner_outcomes_without_real_selectors_never_writes_file",
     "tools/automation/test_run.py::AutomationRoutineTests::test_m5_alert_witness_without_real_selectors_never_writes_receipt",
@@ -177,12 +189,16 @@ STORY_NODE_TEST_INVENTORY_SHA256 = (
 )
 STORY_BROWSER_SCENARIOS = ("account_beyond_page",)
 # Updated only from the exact collected inventory after intentional test changes.
-STORY_PYTEST_TEST_COUNT = 387
+STORY_PYTEST_TEST_COUNT = 423
 STORY_PYTEST_TEST_INVENTORY_SHA256 = (
-    "95fbb92c42123a3b12fda276112c03a9659e7ca4abd540e054ea71aeabed074a"
+    "854c6461e5f3510dbde908c0867cb56853754f58cad908deef73312ec5063a3a"
 )
 STORY_ARTIFACTS = (
+    "tools/git/preflight.py",
+    "tools/automation/_m5_test_git.py",
     "tools/automation/implementations/m5_completion_lock.py",
+    "tools/automation/implementations/m5_service_activation.py",
+    "tools/automation/test_m5_service_activation.py",
     "tools/automation/implementations/m5_prerequisite_archive.py",
     "tools/automation/implementations/m5_owner_outcomes.py",
     "tools/automation/test_m5_owner_outcomes.py",
@@ -199,6 +215,7 @@ STORY_ARTIFACTS = (
     "tools/ui/m5_codex_policy.mjs",
     *STORY_NODE_TEST_PATHS,
     "tools/ui/verify_m5_codex.mjs",
+    "tools/ui/verify_m5_service_revision.mjs",
     "tools/ui/verify_m5_codex_alert_lifecycle.mjs",
     "tools/ui/verify_m5_codex_quota_reconciliation.mjs",
     "tools/ui/verify_dashboard_provider_filter.mjs",
@@ -278,6 +295,22 @@ def _translated_service_error_v1(
     )
 
 
+def _translated_systemd_service_error_v1(
+    error: M5ServiceActivationErrorV1 | M5ServiceActivationFailedV1,
+    *,
+    pre_restart: bool,
+) -> M5CurrentExitErrorV1:
+    """Map selection drift to Blocked and gate-owned failures to Failed."""
+
+    if pre_restart and isinstance(error, M5ServiceActivationErrorV1):
+        return M5CurrentExitErrorV1("m5_current_service_selection_changed")
+    return M5CurrentExitFailedV1(
+        "m5_current_service_restart_failed"
+        if pre_restart
+        else "m5_current_service_receipt_binding_failed"
+    )
+
+
 def _translated_checkout_error_v1(
     error: M3CurrentExitErrorV1,
 ) -> M5CurrentExitErrorV1:
@@ -290,9 +323,11 @@ def _translated_checkout_error_v1(
 
 def _clean_m5_revision_v1() -> str:
     try:
-        return cast(str, _clean_revision())
-    except M3CurrentExitErrorV1 as error:
-        raise _translated_checkout_error_v1(error) from error
+        return clean_detached_revision_v1(ROOT)
+    except M5ServiceActivationErrorV1 as error:
+        if str(error) == "m5_service_checkout_not_clean":
+            raise M5CurrentExitErrorV1("m5_current_checkout_not_clean") from error
+        raise M5CurrentExitFailedV1("m5_current_git_revision_failed") from error
 
 
 @dataclass(frozen=True, slots=True)
@@ -302,6 +337,10 @@ class SelectedServiceV1:
     pid: int
     start_time_ticks: int
     launch: ServiceLaunchV1
+    candidate: M5ServiceCandidateV1 | None = field(default=None, repr=False)
+    systemd_observation: SystemdServiceObservationV1 | None = field(
+        default=None, repr=False
+    )
 
 
 @dataclass(frozen=True, slots=True)
@@ -939,24 +978,72 @@ def write_private_receipt_v1(
 
 
 def write_verified_receipt_v1(
-    process: ServiceProcessV1,
+    candidate: M5ServiceCandidateV1,
+    restarted: SystemdServiceObservationV1,
     path: Path,
     receipt: Mapping[str, object],
 ) -> None:
-    """Create the receipt only while the exact restarted service stays alive."""
+    """Create the receipt only while systemd owns the restarted generation."""
 
-    _verify_service_process(process)
+    validate_receipt_systemd_ownership_v1(
+        candidate,
+        restarted_main_pid=restarted.main_pid,
+        restarted_start_time_ticks=restarted.main_pid_start_time_ticks,
+        observation=observe_selected_systemd_service_v1(candidate),
+    )
     created_identity = write_private_receipt_v1(path, receipt)
     try:
-        _verify_service_process(process)
-    except M3CurrentExitErrorV1:
+        validate_receipt_systemd_ownership_v1(
+            candidate,
+            restarted_main_pid=restarted.main_pid,
+            restarted_start_time_ticks=restarted.main_pid_start_time_ticks,
+            observation=observe_selected_systemd_service_v1(candidate),
+        )
+    except (M5ServiceActivationErrorV1, M5ServiceActivationFailedV1):
         _unlink_created_receipt_inode_v1(
             path, device=created_identity[0], inode=created_identity[1]
         )
         raise
 
 
-def _validate_live_selection(environment: Mapping[str, str]) -> SelectedServiceV1:
+def _revalidate_runtime_binding_v1(
+    candidate: M5ServiceCandidateV1,
+    *,
+    expected_revision: str,
+    selected_pid: int,
+    selected_start_time_ticks: int,
+    dashboard_origin: str,
+    dashboard_cdp_endpoint: str,
+    checkout_root: Path = ROOT,
+) -> None:
+    """Reprove Git, systemd and authenticated Operations at an exit boundary."""
+
+    try:
+        if clean_detached_revision_v1(checkout_root) != expected_revision:
+            raise M5ServiceActivationErrorV1("m5_service_checkout_changed")
+        revalidate_current_systemd_binding_v1(
+            candidate,
+            selected_pid=selected_pid,
+            selected_start_time_ticks=selected_start_time_ticks,
+        )
+        verify_current_service_revision_browser_v1(
+            dashboard_origin=dashboard_origin,
+            dashboard_cdp_endpoint=dashboard_cdp_endpoint,
+            source_revision=expected_revision,
+            checkout_root=checkout_root,
+        )
+        revalidate_current_systemd_binding_v1(
+            candidate,
+            selected_pid=selected_pid,
+            selected_start_time_ticks=selected_start_time_ticks,
+        )
+    except (M5ServiceActivationErrorV1, M5ServiceActivationFailedV1):
+        raise M5CurrentExitErrorV1("m5_current_service_selection_changed") from None
+
+
+def _validate_live_selection(
+    environment: Mapping[str, str], *, expected_revision: str
+) -> SelectedServiceV1:
     if not all(environment.get(key) for key in LIVE_SELECTORS):
         raise M5CurrentExitErrorV1("m5_current_live_selectors_required")
     service_pid = environment["AGENTMONITOR_M5_SERVICE_PID"]
@@ -971,6 +1058,12 @@ def _validate_live_selection(environment: Mapping[str, str]) -> SelectedServiceV
         launch = _read_service_launch(
             pid, environment["AGENTMONITOR_TEST_DASHBOARD_ORIGIN"]
         )
+        candidate, systemd_observation = select_current_systemd_binding_v1(
+            source_revision=expected_revision,
+            data_root=owner_root,
+            selected_pid=pid,
+            selected_start_time_ticks=start_time_ticks,
+        )
         if (
             not owner_root.is_absolute()
             or owner_root.resolve(strict=True) != owner_root
@@ -980,11 +1073,35 @@ def _validate_live_selection(environment: Mapping[str, str]) -> SelectedServiceV
             or stat.S_IMODE(root_info.st_mode) != 0o700
             or launch.data_root != owner_root
             or _process_start_ticks(pid) != start_time_ticks
+            or systemd_observation.main_pid != pid
+            or systemd_observation.main_pid_start_time_ticks != start_time_ticks
         ):
             raise OSError
-    except (M3CurrentExitErrorV1, OSError, RuntimeError):
+        _revalidate_runtime_binding_v1(
+            candidate,
+            expected_revision=expected_revision,
+            selected_pid=pid,
+            selected_start_time_ticks=start_time_ticks,
+            dashboard_origin=environment["AGENTMONITOR_TEST_DASHBOARD_ORIGIN"],
+            dashboard_cdp_endpoint=environment[
+                "AGENTMONITOR_TEST_DASHBOARD_CDP_ENDPOINT"
+            ],
+        )
+    except (
+        M3CurrentExitErrorV1,
+        M5ServiceActivationErrorV1,
+        M5ServiceActivationFailedV1,
+        OSError,
+        RuntimeError,
+    ):
         raise M5CurrentExitErrorV1("m5_current_service_selection_invalid") from None
-    return SelectedServiceV1(pid, start_time_ticks, launch)
+    return SelectedServiceV1(
+        pid,
+        start_time_ticks,
+        launch,
+        candidate,
+        systemd_observation,
+    )
 
 
 def _run_command(
@@ -1018,13 +1135,26 @@ def _run_command(
 
 
 def _run_routine(routine: str, environment: Mapping[str, str]) -> None:
+    child_environment = _routine_environment_v1(routine, environment)
     _run_command(
         [sys.executable, "tools/automation/run.py", routine],
-        environment,
+        child_environment,
         timeout=3600,
         blocked_reason=f"m5_current_{routine.lower()}_blocked",
         failed_reason=f"m5_current_{routine.lower()}_failed",
     )
+
+
+def _routine_environment_v1(
+    routine: str, environment: Mapping[str, str]
+) -> dict[str, str]:
+    """Scope the detached-checkout exception to the M5 Git preflight child."""
+
+    child_environment = dict(environment)
+    child_environment.pop("AGENTMONITOR_M5_DETACHED_GIT_PREFLIGHT", None)
+    if routine == "AUTO-GIT-PREFLIGHT":
+        child_environment["AGENTMONITOR_M5_DETACHED_GIT_PREFLIGHT"] = "1"
+    return child_environment
 
 
 def _node_test_count_v1(output: str) -> int:
@@ -1398,7 +1528,7 @@ def _read_current_quota_witness_v1(
 
 
 def main() -> int:
-    service: ServiceProcessV1 | None = None
+    service: SystemdServiceObservationV1 | None = None
     completion_lock: M5CompletionLockV1 | None = None
     try:
         missing = tuple(path for path in STORY_ARTIFACTS if not (ROOT / path).exists())
@@ -1406,11 +1536,17 @@ def main() -> int:
             raise M5CurrentExitFailedV1("m5_current_story_artifact_missing")
         environment = os.environ.copy()
         environment["PYTHONPATH"] = str(ROOT / "backend/src")
-        selected_service = _validate_live_selection(environment)
+        revision = _clean_m5_revision_v1()
+        selected_service = _validate_live_selection(
+            environment, expected_revision=revision
+        )
         owner_root = selected_service.launch.data_root
+        candidate = selected_service.candidate
+        selected_systemd_service = selected_service.systemd_observation
+        if candidate is None or selected_systemd_service is None:
+            raise M5CurrentExitFailedV1("m5_current_service_selection_invalid")
         completion_lock = _acquire_m5_current_completion_lock_v1(RECEIPT_PATH)
         _validate_receipt_target_v1(RECEIPT_PATH)
-        revision = _clean_m5_revision_v1()
         outcomes_path = owner_root / OWNER_OUTCOMES_BASENAME
         quota_path = owner_root / QUOTA_WITNESS_BASENAME
         alert_path = owner_root / ALERT_WITNESS_BASENAME
@@ -1522,15 +1658,25 @@ def main() -> int:
             _run_routine(routine, environment)
             lane_evidence[lane] = f"{routine.lower()}_passed"
         lane_evidence["generated_client"] = "auto_build_generated_client_passed"
+        _revalidate_runtime_binding_v1(
+            candidate,
+            expected_revision=revision,
+            selected_pid=selected_service.pid,
+            selected_start_time_ticks=selected_service.start_time_ticks,
+            dashboard_origin=environment["AGENTMONITOR_TEST_DASHBOARD_ORIGIN"],
+            dashboard_cdp_endpoint=environment[
+                "AGENTMONITOR_TEST_DASHBOARD_CDP_ENDPOINT"
+            ],
+        )
         try:
-            service = _restart_service(
-                selected_service.pid,
-                environment["AGENTMONITOR_TEST_DASHBOARD_ORIGIN"],
-                expected_launch=selected_service.launch,
-                expected_start_ticks=selected_service.start_time_ticks,
+            service = restart_selected_systemd_service_v1(
+                candidate,
+                selected_systemd_service,
             )
-        except M3CurrentExitErrorV1 as error:
-            raise _translated_service_error_v1(error, pre_restart=True) from error
+        except (M5ServiceActivationErrorV1, M5ServiceActivationFailedV1) as error:
+            raise _translated_systemd_service_error_v1(
+                error, pre_restart=True
+            ) from error
         service_started_at = datetime.now(UTC)
         environment["AGENTMONITOR_M5_SERVICE_STARTED_AT"] = (
             service_started_at.isoformat(timespec="milliseconds").replace("+00:00", "Z")
@@ -1580,8 +1726,16 @@ def main() -> int:
         for lane, routine in LOCAL_ROUTINES:
             _run_routine(routine, environment)
             lane_evidence[lane] = f"{routine.lower()}_passed"
-        if revision != _clean_m5_revision_v1():
-            raise M5CurrentExitErrorV1("m5_current_checkout_revision_changed")
+        _revalidate_runtime_binding_v1(
+            candidate,
+            expected_revision=revision,
+            selected_pid=service.main_pid,
+            selected_start_time_ticks=service.main_pid_start_time_ticks,
+            dashboard_origin=environment["AGENTMONITOR_TEST_DASHBOARD_ORIGIN"],
+            dashboard_cdp_endpoint=environment[
+                "AGENTMONITOR_TEST_DASHBOARD_CDP_ENDPOINT"
+            ],
+        )
         final_outcomes = read_owner_outcomes_v1(
             outcomes_path,
             expected_revision=revision,
@@ -1649,12 +1803,24 @@ def main() -> int:
             test_count=test_count,
             lane_evidence=lane_evidence,
         )
+        _revalidate_runtime_binding_v1(
+            candidate,
+            expected_revision=revision,
+            selected_pid=service.main_pid,
+            selected_start_time_ticks=service.main_pid_start_time_ticks,
+            dashboard_origin=environment["AGENTMONITOR_TEST_DASHBOARD_ORIGIN"],
+            dashboard_cdp_endpoint=environment[
+                "AGENTMONITOR_TEST_DASHBOARD_CDP_ENDPOINT"
+            ],
+        )
         _validate_m5_current_completion_lock_v1(completion_lock)
         _validate_receipt_target_v1(RECEIPT_PATH)
         try:
-            write_verified_receipt_v1(service, RECEIPT_PATH, receipt)
-        except M3CurrentExitErrorV1 as error:
-            raise _translated_service_error_v1(error, pre_restart=False) from error
+            write_verified_receipt_v1(candidate, service, RECEIPT_PATH, receipt)
+        except (M5ServiceActivationErrorV1, M5ServiceActivationFailedV1) as error:
+            raise _translated_systemd_service_error_v1(
+                error, pre_restart=False
+            ) from error
         _validate_m5_current_completion_lock_v1(completion_lock)
     except M5CurrentExitFailedV1 as error:
         print(f"M5 CURRENT EXIT: FAILED — {error}")
@@ -1680,11 +1846,6 @@ def main() -> int:
     finally:
         if completion_lock is not None:
             release_m5_completion_lock_v1(completion_lock)
-        if service is not None:
-            try:
-                os.close(service.pidfd)
-            except OSError:
-                pass
     print(
         "M5 CURRENT EXIT: PASSED — exact Codex admission, four account outcomes, "
         "fresh quota history, representative processes, recovered alert, built browser "

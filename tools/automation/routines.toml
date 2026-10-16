@@ -237,6 +237,14 @@ implementation_command = ["backend/.venv/bin/python", "-m", "tools.automation.im
 blockers = []
 
 [[routines]]
+id = "AUTO-M5-SERVICE-ACTIVATE"
+owner = "PLAN-INT"
+status = "operational_limited"
+scope = "bounded owner-workstation transition from the pinned trusted dashboard runtime to this exact clean M5 Git revision under the existing persistent user service, with authenticated source-revision proof and automatic byte-exact rollback before any success receipt"
+implementation_command = ["backend/.venv/bin/python", "-m", "tools.automation.implementations.m5_service_activation"]
+blockers = ["explicit live selectors and an authenticated shared browser are required for this workstation transition", "AUTO-DEPLOY and every general deployment lifecycle remain blocked"]
+
+[[routines]]
 id = "AUTO-M5-ARCHIVE-PREREQUISITES"
 owner = "PLAN-INT"
 status = "operational"

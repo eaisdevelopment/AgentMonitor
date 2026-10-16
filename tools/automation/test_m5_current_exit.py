@@ -16,6 +16,10 @@ from types import SimpleNamespace
 
 import pytest
 
+from tools.automation._m5_test_git import (
+    attached_real_checkout_v1,
+    git_status_v1,
+)
 from tools.automation.implementations import auto_m5_current_exit
 from tools.automation.implementations.auto_m3_current_exit import (
     M3CurrentExitErrorV1,
@@ -48,6 +52,9 @@ from tools.automation.implementations.auto_m5_current_exit import (
     _digest_values,
     _node_test_count_v1,
     _read_private_json_v1,
+    _revalidate_runtime_binding_v1,
+    _routine_environment_v1,
+    _translated_systemd_service_error_v1,
     _validate_node_test_inventory_v1,
     _validate_pytest_report_inventory_v1,
     build_passed_receipt_v1,
@@ -62,6 +69,11 @@ from tools.automation.implementations.m5_codex_quota_witness import (
     ValidatedQuotaWitnessV1,
     read_quota_witness_v1,
 )
+from tools.automation.implementations.m5_service_activation import (
+    M5ServiceActivationErrorV1,
+    M5ServiceActivationFailedV1,
+    candidate_for_checkout_v1,
+)
 
 ROOT = Path(__file__).resolve().parents[2]
 REVISION = "a" * 40
@@ -71,6 +83,44 @@ DIGEST_C = "d" * 64
 DIGEST_D = "e" * 64
 DIGEST_E = "f" * 64
 STARTED = datetime(2026, 10, 7, 10, 0, tzinfo=UTC)
+
+
+def test_exit_runtime_recheck_rejects_an_attached_checkout_before_service_io() -> None:
+    with attached_real_checkout_v1() as checkout:
+        candidate = candidate_for_checkout_v1(
+            source_revision=REVISION,
+            checkout_root=checkout,
+        )
+        with pytest.raises(
+            M5CurrentExitErrorV1,
+            match="m5_current_service_selection_changed",
+        ):
+            _revalidate_runtime_binding_v1(
+                candidate,
+                expected_revision=REVISION,
+                selected_pid=321,
+                selected_start_time_ticks=654,
+                dashboard_origin="http://127.0.0.1:43110",
+                dashboard_cdp_endpoint="http://127.0.0.1:9222",
+                checkout_root=checkout,
+            )
+        assert git_status_v1(checkout) == ""
+
+
+def test_only_m5_git_preflight_child_receives_detached_checkout_selector() -> None:
+    environment = {
+        "PATH": "/usr/bin:/bin",
+        "AGENTMONITOR_M5_DETACHED_GIT_PREFLIGHT": "untrusted-parent-value",
+    }
+
+    selected = _routine_environment_v1("AUTO-GIT-PREFLIGHT", environment)
+    ordinary = _routine_environment_v1("AUTO-QUALITY", environment)
+
+    assert selected["AGENTMONITOR_M5_DETACHED_GIT_PREFLIGHT"] == "1"
+    assert "AGENTMONITOR_M5_DETACHED_GIT_PREFLIGHT" not in ordinary
+    assert environment["AGENTMONITOR_M5_DETACHED_GIT_PREFLIGHT"] == (
+        "untrusted-parent-value"
+    )
 
 
 def _start_receipt_writer_and_stop_after_create(
@@ -390,11 +440,13 @@ def test_catalog_selects_exact_m5_gate_and_closed_lanes() -> None:
     assert auto_m5_current_exit.STORY_NODE_TEST_INVENTORY_SHA256 == (
         "556bfd17af977e243e3a9c6c9b1372382cb1eaacfc46dd5136af736c4c76b41b"
     )
-    assert auto_m5_current_exit.STORY_PYTEST_TEST_COUNT == 387
+    assert auto_m5_current_exit.STORY_PYTEST_TEST_COUNT == 423
     assert auto_m5_current_exit.STORY_PYTEST_TEST_INVENTORY_SHA256 == (
-        "95fbb92c42123a3b12fda276112c03a9659e7ca4abd540e054ea71aeabed074a"
+        "854c6461e5f3510dbde908c0867cb56853754f58cad908deef73312ec5063a3a"
     )
+    assert "tools/git/test_preflight.py" in STORY_TEST_PATHS
     assert STORY_AUTOMATION_TEST_IDS == (
+        "tools/automation/test_run.py::AutomationRoutineTests::test_m5_service_activation_without_selection_never_mutates_unit",
         "tools/automation/test_run.py::AutomationRoutineTests::test_m5_prerequisite_archive_without_selection_never_moves_files",
         "tools/automation/test_run.py::AutomationRoutineTests::test_m5_owner_outcomes_without_real_selectors_never_writes_file",
         "tools/automation/test_run.py::AutomationRoutineTests::test_m5_alert_witness_without_real_selectors_never_writes_receipt",
@@ -403,6 +455,7 @@ def test_catalog_selects_exact_m5_gate_and_closed_lanes() -> None:
         "tools/automation/test_run.py::AutomationRoutineTests::test_real_catalog_defines_every_mandatory_routine",
     )
     assert "tools/automation/test_m5_prerequisite_archive.py" in STORY_TEST_PATHS
+    assert "tools/automation/test_m5_service_activation.py" in STORY_TEST_PATHS
     assert "tools/automation/test_m5_owner_outcomes.py" in STORY_TEST_PATHS
     assert "tools/automation/test_m5_codex_alert_witness.py" in STORY_TEST_PATHS
     assert "tools/automation/test_m5_codex_mutation_policies.py" in STORY_TEST_PATHS
@@ -424,7 +477,11 @@ def test_catalog_selects_exact_m5_gate_and_closed_lanes() -> None:
     }.issubset(STORY_TEST_PATHS)
     assert auto_m5_current_exit.DEPENDENCY_ROUTINES == ("AUTO-M3-TEST",)
     assert {
+        "tools/git/preflight.py",
+        "tools/automation/_m5_test_git.py",
         "tools/automation/implementations/m5_completion_lock.py",
+        "tools/automation/implementations/m5_service_activation.py",
+        "tools/automation/test_m5_service_activation.py",
         "tools/automation/implementations/m5_prerequisite_archive.py",
         "tools/automation/test_m5_prerequisite_archive.py",
         "tools/automation/implementations/m5_owner_outcomes.py",
@@ -440,6 +497,7 @@ def test_catalog_selects_exact_m5_gate_and_closed_lanes() -> None:
         "tools/automation/implementations/m5_codex_quota_witness.py",
         "tools/automation/test_m5_codex_quota_witness.py",
         "tools/automation/test_run.py",
+        "tools/ui/verify_m5_service_revision.mjs",
         "tools/ui/verify_m5_codex_quota_reconciliation.mjs",
         "tools/ui/verify_m5_codex_alert_lifecycle.mjs",
         "tools/ui/verify_dashboard_provider_filter.mjs",
@@ -471,6 +529,24 @@ def test_catalog_selects_exact_m5_gate_and_closed_lanes() -> None:
     )
     assert type(receipt_failed) is M5CurrentExitFailedV1
     assert str(receipt_failed) == "m5_current_service_receipt_binding_failed"
+    changed_systemd = _translated_systemd_service_error_v1(
+        M5ServiceActivationErrorV1("m5_service_selection_invalid"),
+        pre_restart=True,
+    )
+    assert type(changed_systemd) is M5CurrentExitErrorV1
+    assert str(changed_systemd) == "m5_current_service_selection_changed"
+    failed_systemd = _translated_systemd_service_error_v1(
+        M5ServiceActivationFailedV1("m5_service_restart_failed"),
+        pre_restart=True,
+    )
+    assert type(failed_systemd) is M5CurrentExitFailedV1
+    assert str(failed_systemd) == "m5_current_service_restart_failed"
+    receipt_systemd = _translated_systemd_service_error_v1(
+        M5ServiceActivationErrorV1("m5_service_receipt_binding_failed"),
+        pre_restart=False,
+    )
+    assert type(receipt_systemd) is M5CurrentExitFailedV1
+    assert str(receipt_systemd) == "m5_current_service_receipt_binding_failed"
     dirty = auto_m5_current_exit._translated_checkout_error_v1(
         M3CurrentExitErrorV1("m3_current_checkout_not_clean")
     )

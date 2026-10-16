@@ -23,6 +23,41 @@ from run import index_routines, load_catalog, validate_catalog
 
 
 class AutomationRoutineTests(unittest.TestCase):
+    def test_m5_service_activation_without_selection_never_mutates_unit(
+        self,
+    ) -> None:
+        """The service transition blocks before touching the fixed user unit."""
+        catalog = load_catalog(REPOSITORY_ROOT)
+        routine = catalog["AUTO-M5-SERVICE-ACTIVATE"]
+        self.assertEqual("operational_limited", routine["status"])
+        blockers = " ".join(routine["blockers"]).lower()
+        self.assertIn("live selector", blockers)
+        self.assertTrue("auto-deploy" in blockers or "general deploy" in blockers)
+        unit = Path.home() / ".config/systemd/user/agentmonitor-dashboard.service"
+
+        def identity() -> tuple[bool, int | None, int | None, bytes | None]:
+            try:
+                info = unit.lstat()
+                return True, info.st_ino, info.st_mtime_ns, unit.read_bytes()
+            except FileNotFoundError:
+                return False, None, None, None
+
+        before = identity()
+        result = subprocess.run(
+            [sys.executable, str(RUNNER), "AUTO-M5-SERVICE-ACTIVATE"],
+            cwd=REPOSITORY_ROOT,
+            env={"PATH": os.defpath},
+            capture_output=True,
+            text=True,
+            check=False,
+            timeout=15,
+        )
+
+        self.assertEqual(3, result.returncode, result.stdout + result.stderr)
+        self.assertNotIn("PASSED", result.stdout)
+        self.assertIn("M5 SERVICE ACTIVATION: BLOCKED", result.stdout)
+        self.assertEqual(before, identity())
+
     def test_m5_prerequisite_archive_without_selection_never_moves_files(
         self,
     ) -> None:
@@ -977,6 +1012,7 @@ class AutomationRoutineTests(unittest.TestCase):
                 "AUTO-M3-EXIT",
                 "AUTO-M4-EXIT",
                 "AUTO-M5-ARCHIVE-PREREQUISITES",
+                "AUTO-M5-SERVICE-ACTIVATE",
                 "AUTO-M5-OWNER-OUTCOMES",
                 "AUTO-M5-QUOTA-WITNESS",
                 "AUTO-M5-ALERT-WITNESS",

@@ -249,6 +249,75 @@ before running it. The command never initiates login, acknowledges or snoozes
 an alert, waits for a natural recovery, switches an agent account, or reads the
 default Codex profile.
 
+#### Activate the exact clean M5 service before collecting prerequisites
+
+The currently trusted persistent dashboard runtime is
+`77a3bad12a096a81587b94b8981ceee812b6445b`. Keep its extracted runtime and
+existing user-unit launch material intact as the rollback target. That service
+is suitable for ordinary dashboard use, but its extracted tree has no Git
+metadata, so Operations truthfully reports an unknown source revision. Do not
+collect or reuse M5 prerequisite files against it.
+
+Finish and commit the exact M5 implementation in its development branch first.
+Then make the stable owner-controlled service worktree immutable for this run by
+detaching it at that commit. Never detach a worktree that still contains
+uncommitted work:
+
+```bash
+revision="$(git rev-parse --verify HEAD)"
+test -z "$(git status --porcelain --untracked-files=all)"
+git switch --detach "$revision"
+test "$(git rev-parse --verify HEAD)" = "$revision"
+test -z "$(git status --porcelain --untracked-files=all)"
+if git symbolic-ref --quiet HEAD >/dev/null; then exit 1; fi
+```
+
+From that detached worktree, set the owner data root and authenticated
+shared-browser selectors described below. Select the currently running trusted
+service without manually transcribing its PID, then run the bounded transition:
+
+```bash
+export AGENTMONITOR_M5_SERVICE_PID="$(
+  systemctl --user show agentmonitor-dashboard.service \
+    --property MainPID --value
+)"
+python3 tools/automation/run.py AUTO-M5-SERVICE-ACTIVATE
+export AGENTMONITOR_M5_SERVICE_PID="$(
+  systemctl --user show agentmonitor-dashboard.service \
+    --property MainPID --value
+)"
+```
+
+The activation command builds and validates the candidate before stopping the
+trusted service. It preserves the same data root, `service.env`, database,
+loopback/LAN arguments, provider-tool path, cache location, and service
+hardening. The candidate changes `TimeoutStopSec` from the trusted unit's 30
+seconds to the approved 45-second application drain bound; rollback restores
+the exact prior 30-second unit value. The command privately journals the exact
+old unit and process identity, atomically selects the clean checkout, reloads
+the user manager, and starts the candidate. Success requires real HTTP
+readiness, authenticated built-browser access, exact PID/start/cwd/executable
+identity, unchanged complete public Registry state, and an Operations
+`source_revision` equal to the checkout's unchanged 40-hex `HEAD`.
+
+Any activation or verification failure automatically restores the exact prior
+unit, restarts the trusted `77a3bad12a096a81587b94b8981ceee812b6445b`
+runtime, and proves its real process and HTTP readiness before returning a
+normal Blocked or Failed result. A
+`m5_service_activation_rollback_failed` result means restoration could not be
+proven: stop M5 evidence collection, preserve the journal and both runtimes,
+and diagnose the user unit. Never edit the journal, unit backup, or trusted
+runtime to force another result.
+
+The coordinator never invokes a provider or reads, copies, or changes provider
+profiles. The selected AgentMonitor service may continue its already configured
+scheduled monitoring under the existing managed-profile policy. This command
+does not archive stale prerequisites and does not contribute an M5 completion
+pass. After it succeeds, verify the refreshed PID selector above is nonzero and
+use that same value for archive, owner-outcome, alert, quota, and exit work.
+Do not switch branches, commit, reset, merge, rebase, or edit the detached
+worktree during this sequence.
+
 Run it only against the already running authenticated loopback dashboard, with
 these selectors in the calling environment:
 
@@ -259,6 +328,17 @@ these selectors in the calling environment:
   loopback browser/service; and
 - `AGENTMONITOR_M5_SERVICE_PID`, selecting that exact dashboard process.
 
+Every M5 prerequisite command and `AUTO-M5-EXIT` revalidates that the resolved
+service worktree is still detached at the same committed 40-hex `HEAD`, its
+tracked and untracked status remains empty, the selected PID/start/cwd/executable
+still identifies that worktree, and Operations reports the same source
+revision. Each prerequisite performs this check before consuming earlier
+evidence and again before its own create-once write. Exit repeats it before its
+service restart, after all technical/browser/local lanes, and immediately
+before the final receipt. Any mismatch blocks without a success write. After a
+new commit, checkout, or service generation, archive the now-stale prerequisite
+set and collect it again in the documented order.
+
 Create the fixed `<owner-data-root>/m5-owner-outcomes.json` prerequisite with:
 
 ```bash
@@ -266,9 +346,11 @@ python3 tools/automation/run.py AUTO-M5-OWNER-OUTCOMES
 ```
 
 This command requires a controlling TTY and the owner data root, dashboard
-origin and selected service PID variables above; it does not need the browser
-CDP endpoint. It reads Codex accounts through the Registry's public query over
-the real owner database and performs no provider operation. At selection,
+origin, shared-browser CDP endpoint, and selected service PID variables above.
+The CDP connection is used only to reprove the running Operations source
+revision before the create-once write. The account selection itself reads
+Codex accounts through the Registry's public query over the real owner database
+and performs no provider operation. At selection,
 disposition, and confirmation checkpoints it displays each selected registry
 alias and opaque account ID with the fixed safe labels `vendor: OpenAI` and
 `provider: Codex`. These labels are not persisted. The command collects
@@ -545,6 +627,14 @@ sample. A missing working directory cannot provide positive representative
 agent evidence. The gate still rejects fewer than five valid rows and records `partial` or `complete`
 scan completeness in its sanitized receipt without retaining process IDs or
 paths.
+
+The gate supplies `AGENTMONITOR_M5_DETACHED_GIT_PREFLIGHT=1` only to its
+internal `AUTO-GIT-PREFLIGHT` commit-mode subprocess. Do not export that
+selector in the operator shell. It lets that one lane verify the already
+required detached checkout by an unchanged 40-hex `HEAD` plus empty tracked
+and untracked status. Ordinary `AUTO-GIT-PREFLIGHT` still requires a branch,
+and the selector blocks for an attached or dirty checkout and for push or
+release operations.
 
 On success it creates `.agentmonitor-local/m5-current-gate-receipt.json` with
 mode `0600`. It never replaces an existing receipt. The receipt contains the

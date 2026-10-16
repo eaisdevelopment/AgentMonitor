@@ -22,6 +22,7 @@ from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from itertools import pairwise
 from pathlib import Path
+from urllib.parse import urlparse
 
 ROOT = Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(ROOT / "backend/src"))
@@ -58,7 +59,7 @@ from agentmonitor.modules.capacity.application.events import ReadCapacityEventsV
 from agentmonitor.modules.capacity.application.queries import ListCapacityHistoryV1
 
 from tools.automation.implementations.auto_m3_current_exit import (
-    _clean_revision,
+    ServiceLaunchV1,
     _process_start_ticks,
     _read_service_launch,
 )
@@ -66,6 +67,15 @@ from tools.automation.implementations.m5_owner_outcomes import (
     OWNER_OUTCOMES_BASENAME,
     M5OwnerOutcomesErrorV1,
     read_owner_outcomes_file_v2,
+)
+from tools.automation.implementations.m5_service_activation import (
+    M5ServiceActivationErrorV1,
+    M5ServiceActivationFailedV1,
+    M5ServiceCandidateV1,
+    clean_detached_revision_v1,
+    revalidate_current_systemd_binding_v1,
+    select_current_systemd_binding_v1,
+    verify_current_service_revision_browser_v1,
 )
 
 ALERT_WITNESS_BASENAME = "m5-alert-witness.json"
@@ -98,6 +108,94 @@ _SHA256 = re.compile(r"[0-9a-f]{64}\Z")
 
 class M5CodexAlertWitnessErrorV1(ValueError):
     """One bounded reason; no identity, provider payload, or filesystem path."""
+
+
+def _revalidate_runtime_binding_v1(
+    candidate: M5ServiceCandidateV1,
+    *,
+    expected_revision: str,
+    selected_pid: int,
+    selected_start_time_ticks: int,
+    dashboard_origin: str,
+    dashboard_cdp_endpoint: str,
+    checkout_root: Path = ROOT,
+) -> None:
+    """Recheck Git, systemd and Operations immediately before witness creation."""
+
+    try:
+        if clean_detached_revision_v1(checkout_root) != expected_revision:
+            raise M5ServiceActivationErrorV1("m5_service_checkout_not_clean")
+        revalidate_current_systemd_binding_v1(
+            candidate,
+            selected_pid=selected_pid,
+            selected_start_time_ticks=selected_start_time_ticks,
+        )
+        verify_current_service_revision_browser_v1(
+            dashboard_origin=dashboard_origin,
+            dashboard_cdp_endpoint=dashboard_cdp_endpoint,
+            source_revision=expected_revision,
+            checkout_root=checkout_root,
+        )
+        revalidate_current_systemd_binding_v1(
+            candidate,
+            selected_pid=selected_pid,
+            selected_start_time_ticks=selected_start_time_ticks,
+        )
+    except (M5ServiceActivationErrorV1, M5ServiceActivationFailedV1):
+        raise M5CodexAlertWitnessErrorV1("m5_alert_witness_context_changed") from None
+
+
+def _select_runtime_binding_v1(
+    environment: Mapping[str, str], *, checkout_root: Path = ROOT
+) -> tuple[Path, str, str, int, int, ServiceLaunchV1, str, M5ServiceCandidateV1]:
+    """Bind one clean detached checkout to its exact systemd-owned service."""
+
+    try:
+        revision = clean_detached_revision_v1(checkout_root)
+    except (M5ServiceActivationErrorV1, M5ServiceActivationFailedV1):
+        raise M5CodexAlertWitnessErrorV1("m5_alert_witness_checkout_invalid") from None
+    try:
+        owner_root = Path(environment["AGENTMONITOR_TEST_OWNER_DATA_ROOT"])
+        endpoint = environment["AGENTMONITOR_TEST_DASHBOARD_CDP_ENDPOINT"]
+        origin = environment["AGENTMONITOR_TEST_DASHBOARD_ORIGIN"]
+        service_pid = int(environment["AGENTMONITOR_M5_SERVICE_PID"])
+        start_ticks = _process_start_ticks(service_pid)
+        launch = _read_service_launch(service_pid, origin)
+        candidate, _observation = select_current_systemd_binding_v1(
+            source_revision=revision,
+            data_root=owner_root,
+            selected_pid=service_pid,
+            selected_start_time_ticks=start_ticks,
+            checkout_root=checkout_root,
+        )
+        _revalidate_runtime_binding_v1(
+            candidate,
+            expected_revision=revision,
+            selected_pid=service_pid,
+            selected_start_time_ticks=start_ticks,
+            dashboard_origin=origin,
+            dashboard_cdp_endpoint=endpoint,
+            checkout_root=checkout_root,
+        )
+    except (
+        KeyError,
+        TypeError,
+        ValueError,
+        M5ServiceActivationFailedV1,
+    ):
+        raise M5CodexAlertWitnessErrorV1(
+            "m5_alert_witness_selection_required"
+        ) from None
+    return (
+        owner_root,
+        endpoint,
+        origin,
+        service_pid,
+        start_ticks,
+        launch,
+        revision,
+        candidate,
+    )
 
 
 @dataclass(frozen=True, slots=True)
@@ -1246,15 +1344,16 @@ def _write_create_once(path: Path, document: dict[str, object]) -> str:
 
 
 def create_alert_witness_v1(environment: Mapping[str, str]) -> str:
-    try:
-        owner_root = Path(environment["AGENTMONITOR_TEST_OWNER_DATA_ROOT"])
-        endpoint = environment["AGENTMONITOR_TEST_DASHBOARD_CDP_ENDPOINT"]
-        origin = environment["AGENTMONITOR_TEST_DASHBOARD_ORIGIN"]
-        service_pid = int(environment["AGENTMONITOR_M5_SERVICE_PID"])
-    except (KeyError, TypeError, ValueError):
-        raise M5CodexAlertWitnessErrorV1(
-            "m5_alert_witness_selection_required"
-        ) from None
+    (
+        owner_root,
+        endpoint,
+        origin,
+        service_pid,
+        start_ticks,
+        launch,
+        revision,
+        candidate,
+    ) = _select_runtime_binding_v1(environment)
     try:
         owner_metadata = owner_root.stat()
         owner_root_valid = (
@@ -1269,8 +1368,6 @@ def create_alert_witness_v1(environment: Mapping[str, str]) -> str:
     if not owner_root_valid:
         raise M5CodexAlertWitnessErrorV1("m5_alert_witness_owner_root_invalid")
     try:
-        from urllib.parse import urlparse
-
         if (
             urlparse(endpoint).hostname != "127.0.0.1"
             or urlparse(origin).hostname != "127.0.0.1"
@@ -1279,9 +1376,6 @@ def create_alert_witness_v1(environment: Mapping[str, str]) -> str:
             raise ValueError
     except ValueError:
         raise M5CodexAlertWitnessErrorV1("m5_alert_witness_loopback_required") from None
-    revision = _clean_revision()
-    start_ticks = _process_start_ticks(service_pid)
-    launch = _read_service_launch(service_pid, origin)
     service_started_at = _process_started_at(service_pid, start_ticks)
     if launch.data_root != owner_root:
         raise M5CodexAlertWitnessErrorV1("m5_alert_witness_service_mismatch")
@@ -1359,12 +1453,18 @@ def create_alert_witness_v1(environment: Mapping[str, str]) -> str:
         service_start_time_ticks=start_ticks,
     )
     if (
-        _process_start_ticks(service_pid) != start_ticks
-        or _process_started_at(service_pid, start_ticks) != service_started_at
+        _process_started_at(service_pid, start_ticks) != service_started_at
         or _read_service_launch(service_pid, origin) != launch
-        or _clean_revision() != revision
     ):
         raise M5CodexAlertWitnessErrorV1("m5_alert_witness_context_changed")
+    _revalidate_runtime_binding_v1(
+        candidate,
+        expected_revision=revision,
+        selected_pid=service_pid,
+        selected_start_time_ticks=start_ticks,
+        dashboard_origin=origin,
+        dashboard_cdp_endpoint=endpoint,
+    )
     recorded_at = datetime.now(UTC)
     final_lifecycle = inspect_codex_alert_lifecycle_v1(
         reference,
@@ -1448,6 +1548,14 @@ def create_alert_witness_v1(environment: Mapping[str, str]) -> str:
         "registry_digest_before": registry_before,
         "registry_digest_after": registry_after,
     }
+    _revalidate_runtime_binding_v1(
+        candidate,
+        expected_revision=revision,
+        selected_pid=service_pid,
+        selected_start_time_ticks=start_ticks,
+        dashboard_origin=origin,
+        dashboard_cdp_endpoint=endpoint,
+    )
     return _write_create_once(owner_root / ALERT_WITNESS_BASENAME, document)
 
 

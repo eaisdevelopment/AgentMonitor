@@ -35,6 +35,10 @@ from agentmonitor.modules.registry.application.accounts import (
     RegisterAccountV1,
 )
 
+from tools.automation._m5_test_git import (
+    attached_real_checkout_v1,
+    git_status_v1,
+)
 from tools.automation.implementations.m5_owner_outcomes import (
     OWNER_CONFIRMATION_VALUE,
     OWNER_OUTCOMES_BASENAME,
@@ -42,7 +46,9 @@ from tools.automation.implementations.m5_owner_outcomes import (
     M5OwnerOutcomesErrorV1,
     OwnerAccountSelectionV1,
     OwnerOutcomeV1,
+    _revalidate_runtime_binding_v1,
     _select_four_accounts,
+    _select_runtime_binding_v1,
     _unlink_created_inode_v1,
     _validate_private_parent_v1,
     build_owner_outcomes_document_v2,
@@ -51,9 +57,45 @@ from tools.automation.implementations.m5_owner_outcomes import (
     require_owner_confirmation_v1,
     write_owner_outcomes_v2,
 )
+from tools.automation.implementations.m5_service_activation import (
+    candidate_for_checkout_v1,
+)
 
 REVISION = "a" * 40
 CONFIRMED_AT = datetime(2026, 10, 7, 10, 0, tzinfo=UTC)
+
+
+def test_owner_selection_rejects_a_real_attached_checkout_before_runtime_io() -> None:
+    with attached_real_checkout_v1() as checkout:
+        before = git_status_v1(checkout)
+        with pytest.raises(
+            M5OwnerOutcomesErrorV1,
+            match="m5_owner_outcomes_checkout_invalid",
+        ):
+            _select_runtime_binding_v1({}, checkout_root=checkout)
+        assert before == git_status_v1(checkout) == ""
+
+
+def test_owner_prewrite_recheck_rejects_an_attached_checkout_before_io() -> None:
+    with attached_real_checkout_v1() as checkout:
+        candidate = candidate_for_checkout_v1(
+            source_revision=REVISION,
+            checkout_root=checkout,
+        )
+        with pytest.raises(
+            M5OwnerOutcomesErrorV1,
+            match="m5_owner_outcomes_context_changed",
+        ):
+            _revalidate_runtime_binding_v1(
+                candidate,
+                expected_revision=REVISION,
+                selected_pid=321,
+                selected_start_time_ticks=654,
+                dashboard_origin="http://127.0.0.1:43110",
+                dashboard_cdp_endpoint="http://127.0.0.1:9222",
+                checkout_root=checkout,
+            )
+        assert git_status_v1(checkout) == ""
 
 
 def _outcomes() -> tuple[OwnerOutcomeV1, ...]:
@@ -176,10 +218,13 @@ def test_account_selection_displays_only_the_four_selected_safe_rows(
     output = capsys.readouterr().out
     assert "Available non-archived" not in output
     for account in accounts:
-        assert output.count(
-            f"{account.alias} [vendor: OpenAI; provider: Codex; "
-            f"account ID: {account.account_id}]"
-        ) == 1
+        assert (
+            output.count(
+                f"{account.alias} [vendor: OpenAI; provider: Codex; "
+                f"account ID: {account.account_id}]"
+            )
+            == 1
+        )
 
 
 def test_real_migrated_registry_is_read_through_public_account_query(

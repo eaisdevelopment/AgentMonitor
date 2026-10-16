@@ -61,6 +61,54 @@ non-root Linux target and production artifacts. No fake service manager, mocked
 filesystem, in-memory database, seeded state, placeholder bundle, or
 unexecuted/skipped result can pass T5/T7; Blocked and Not Run remain non-Passed.
 
+## 2026-10-16 owner-approved bounded V1-M5 D01 exception
+
+This addendum is the sole exception to PLAN-DEP/D01's Draft implementation
+prohibition and exclusive native unit-lifecycle ownership. The active owner's
+objective, **fully implement M5 with our SDLC and runbook**, authorizes PLAN-INT
+to implement and execute only `AUTO-M5-SERVICE-ACTIVATE` under the approved
+[V1-M5 Codex slice plan 1.3.0](../../integration/m5-codex-slice-change.md).
+That focused plan is the detailed authority and test specification. This
+cross-reference resolves the ownership conflict before production code.
+
+The exception permits root-owned M5 automation and its tests to inspect,
+privately journal, atomically retarget, start, verify, and automatically restore
+the already installed fixed `agentmonitor-dashboard.service` on the owner's
+current Linux workstation. It is limited to a detached, clean, committed M5
+worktree and the pinned trusted rollback runtime
+`77a3bad12a096a81587b94b8981ceee812b6445b`. It preserves the existing data,
+configuration, database, network, provider-tool and hardening selections; only
+the candidate working directory, `PYTHONPATH`, backend Python path, and
+30-to-45-second stop-timeout correction may differ. Rollback restores the exact
+trusted unit, including its 30-second timeout, and proves the trusted service
+healthy.
+
+The final candidate worktree must have no symbolic branch reference. Activation
+and every subsequent M5 archive, owner-outcome, alert-witness, quota-witness and
+exit boundary revalidate its resolved root, detached state, clean tracked and
+untracked status, unchanged 40-hex `HEAD`, selected process identity, and
+matching Operations source revision before consuming or creating evidence. A
+change blocks; it never becomes an implicit new deployment revision.
+
+This exception does not approve or implement a release bundle, install, repair,
+upgrade, uninstall, generic rollback, arbitrary unit/PID action, installed
+layout, database activation, cleanup, or `AUTO-DEPLOY`. It grants PLAN-INT no
+write ownership under `packaging/linux-native/**` or
+`tooling/automation/deployment/**`, transfers no D01 contract ownership, and
+expires with this exact M5 transition/evidence scope. Every broader section,
+unchecked Definition of Ready item, pending approval row, scenario status, and
+the overall PLAN-DEP `0.2.0-draft` status remains unchanged.
+
+Contract impact is none. `CTR-DEP-001` remains a proposed PLAN-DEP/D01 contract
+with unchanged version, producer, consumers and meaning; the M5 routine neither
+publishes nor claims a `native-service-lifecycle.v1` receipt. No public API,
+database, event, configuration, provider, UI, generated-client, dependency,
+license, migration, or ADR change follows from this internal exception. The
+private M5 transition journal is neither a domain event nor a public deployment
+artifact. Passing the M5 activation routine is only prerequisite evidence and
+does not pass a D01 scenario, `AUTO-DEPLOY`, PLAN-DEP approval, or release
+readiness.
+
 ## 0. Authority, evidence state, and planning constraints
 
 The current authority is planning only. Every `DEP-*` scenario is `Not Run`. There is no release bundle, installer, deployment journal, user unit, installed database, canonical deployment command, or deployment evidence. The current checkout may not be a Git repository; that is a visible `Blocked` state for Git preflight, not permission to initialize or publish it.

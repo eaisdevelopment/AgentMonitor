@@ -33,9 +33,17 @@ from agentmonitor.modules.registry.application.accounts import ListAccountsV1
 from tools.automation.implementations.auto_m3_current_exit import (
     M3CurrentExitErrorV1,
     ServiceLaunchV1,
-    _clean_revision,
     _process_start_ticks,
     _read_service_launch,
+)
+from tools.automation.implementations.m5_service_activation import (
+    M5ServiceActivationErrorV1,
+    M5ServiceActivationFailedV1,
+    M5ServiceCandidateV1,
+    clean_detached_revision_v1,
+    revalidate_current_systemd_binding_v1,
+    select_current_systemd_binding_v1,
+    verify_current_service_revision_browser_v1,
 )
 
 CANONICAL_COMMAND = "python3 tools/automation/run.py AUTO-M5-OWNER-OUTCOMES"
@@ -662,6 +670,74 @@ def _selected_service(environment: Mapping[str, str]) -> SelectedOwnerServiceV1:
         raise M5OwnerOutcomesErrorV1("m5_owner_outcomes_service_invalid") from None
 
 
+def _revalidate_runtime_binding_v1(
+    candidate: M5ServiceCandidateV1,
+    *,
+    expected_revision: str,
+    selected_pid: int,
+    selected_start_time_ticks: int,
+    dashboard_origin: str,
+    dashboard_cdp_endpoint: str,
+    checkout_root: Path = ROOT,
+) -> None:
+    """Recheck Git, systemd and Operations immediately before a private write."""
+
+    try:
+        if clean_detached_revision_v1(checkout_root) != expected_revision:
+            raise M5ServiceActivationErrorV1("m5_service_checkout_not_clean")
+        revalidate_current_systemd_binding_v1(
+            candidate,
+            selected_pid=selected_pid,
+            selected_start_time_ticks=selected_start_time_ticks,
+        )
+        verify_current_service_revision_browser_v1(
+            dashboard_origin=dashboard_origin,
+            dashboard_cdp_endpoint=dashboard_cdp_endpoint,
+            source_revision=expected_revision,
+            checkout_root=checkout_root,
+        )
+        revalidate_current_systemd_binding_v1(
+            candidate,
+            selected_pid=selected_pid,
+            selected_start_time_ticks=selected_start_time_ticks,
+        )
+    except (M5ServiceActivationErrorV1, M5ServiceActivationFailedV1):
+        raise M5OwnerOutcomesErrorV1("m5_owner_outcomes_context_changed") from None
+
+
+def _select_runtime_binding_v1(
+    environment: Mapping[str, str], *, checkout_root: Path = ROOT
+) -> tuple[SelectedOwnerServiceV1, str, M5ServiceCandidateV1]:
+    """Bind one clean detached checkout to its exact systemd-owned service."""
+
+    try:
+        revision = clean_detached_revision_v1(checkout_root)
+    except (M5ServiceActivationErrorV1, M5ServiceActivationFailedV1):
+        raise M5OwnerOutcomesErrorV1("m5_owner_outcomes_checkout_invalid") from None
+    try:
+        service = _selected_service(environment)
+        endpoint = environment["AGENTMONITOR_TEST_DASHBOARD_CDP_ENDPOINT"]
+        candidate, _observation = select_current_systemd_binding_v1(
+            source_revision=revision,
+            data_root=service.launch.data_root,
+            selected_pid=service.pid,
+            selected_start_time_ticks=service.start_time_ticks,
+            checkout_root=checkout_root,
+        )
+        _revalidate_runtime_binding_v1(
+            candidate,
+            expected_revision=revision,
+            selected_pid=service.pid,
+            selected_start_time_ticks=service.start_time_ticks,
+            dashboard_origin=environment["AGENTMONITOR_TEST_DASHBOARD_ORIGIN"],
+            dashboard_cdp_endpoint=endpoint,
+            checkout_root=checkout_root,
+        )
+    except (KeyError, M5ServiceActivationErrorV1, M5ServiceActivationFailedV1):
+        raise M5OwnerOutcomesErrorV1("m5_owner_outcomes_service_invalid") from None
+    return service, revision, candidate
+
+
 def _read_tty_line(prompt: str, *, maximum: int = 512) -> str:
     print(prompt, end="", flush=True)
     value = sys.stdin.readline(maximum + 2)
@@ -759,8 +835,7 @@ def create_owner_outcomes_v2(environment: Mapping[str, str]) -> str:
 
     if not (sys.stdin.isatty() and sys.stdout.isatty() and sys.stderr.isatty()):
         raise M5OwnerOutcomesErrorV1("m5_owner_outcomes_controlling_tty_required")
-    service = _selected_service(environment)
-    revision = _clean_revision()
+    service, revision, candidate = _select_runtime_binding_v1(environment)
     path = service.launch.data_root / OWNER_OUTCOMES_BASENAME
     _validate_target(path)
     reference = DatabaseRefV1(
@@ -782,24 +857,20 @@ def create_owner_outcomes_v2(environment: Mapping[str, str]) -> str:
     )
     require_owner_confirmation_v1(confirmation)
     confirmed_at = datetime.now(UTC)
-    try:
-        if (
-            _clean_revision() != revision
-            or _process_start_ticks(service.pid) != service.start_time_ticks
-            or _read_service_launch(
-                service.pid, environment["AGENTMONITOR_TEST_DASHBOARD_ORIGIN"]
-            )
-            != service.launch
-        ):
-            raise M5OwnerOutcomesErrorV1("m5_owner_outcomes_context_changed")
-    except M3CurrentExitErrorV1:
-        raise M5OwnerOutcomesErrorV1("m5_owner_outcomes_context_changed") from None
     document = build_owner_outcomes_document_v2(
         implementation_revision=revision,
         service_pid=service.pid,
         service_start_time_ticks=service.start_time_ticks,
         owner_confirmed_at=confirmed_at,
         outcomes=outcomes,
+    )
+    _revalidate_runtime_binding_v1(
+        candidate,
+        expected_revision=revision,
+        selected_pid=service.pid,
+        selected_start_time_ticks=service.start_time_ticks,
+        dashboard_origin=environment["AGENTMONITOR_TEST_DASHBOARD_ORIGIN"],
+        dashboard_cdp_endpoint=environment["AGENTMONITOR_TEST_DASHBOARD_CDP_ENDPOINT"],
     )
     return write_owner_outcomes_v2(path, document)
 

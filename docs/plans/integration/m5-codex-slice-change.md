@@ -1,20 +1,24 @@
 # Change plan: executable V1-M5 Codex slice
 
 - Status: **Approved for root-owned V1-M5 implementation and live verification**.
-- Plan version: `1.2.0`; root integration review: 2026-10-11.
+- Plan version: `1.3.0`; root integration review: 2026-10-16.
 - Safety correction: exact-version review proved that authenticated app-server
   queries may perform Codex's automatic credential refresh. The approved
   managed-auth lifecycle therefore classifies those queries as
   `managed_profile_write`, and an empty/uninitialized managed root is rejected
   before any app-server child starts.
-- Owner: `PLAN-INT`, with A02 provider behavior owned under this bounded change.
+- Owner: `PLAN-INT`, with A02 provider behavior and the exact PLAN-DEP/D01
+  service-activation exception owned under this bounded change.
 - Parent plans:
   [V1-M5 milestone](../../superpowers/plans/2026-09-19-agentmonitor-v1-m5-codex-slice.md)
   and [A02 adapter](../adapters/codex/plan-v1.md).
 - Authority: the active owner objective, **fully implement M5 with our SDLC and
   runbook**. This focused approval supersedes the A02 Draft prohibition only
-  for the exact M5 scope below; the remaining A02 and OpenAI API lanes stay
-  Draft.
+  for the exact M5 scope below. It also supersedes PLAN-DEP/D01's Draft
+  implementation prohibition and exclusive native-service lifecycle assignment
+  only for `AUTO-M5-SERVICE-ACTIVATE` as specified in the 2026-10-16 addendum
+  below. The remaining A02, OpenAI API, PLAN-DEP/D01, and `AUTO-DEPLOY` lanes
+  stay Draft or Blocked as already recorded.
 - Stories: `ST-CDX-001..005`.
 - Requirements: `FR-ACC-001/004..006`, `FR-AUTH-001/002/004..006`,
   `FR-QUOTA-001..006`, `FR-COL-003..008`, `FR-HIST-001/002`,
@@ -236,7 +240,8 @@ manifest classifies identity, authentication-health, and quota queries as
 | 4 | `M5-CDX-COL-001..012`, `M5-CDX-CAP-001..008` | no Codex schedule or capacity history | provider-neutral route plus Codex collector | real SQLite admission/commit/history and one genuine managed-account quota read |
 | 5 | `M5-CDX-RUN-001..008` | Linux selector rejects Codex | exact executable selector and Codex process composition | five to six real same-user PID/start/executable observations; unresolved identity and unavailable state evidence remain visibly unresolved/unknown |
 | 6 | `M5-CDX-ALERT-001..006`, `M5-CDX-API-001..008`, `M5-CDX-UI-001..012` | service/browser expose no usable Codex vertical or alert lifecycle | composition, provider-neutral capacity alert delivery, health, presentation and generated artifacts if required | real server/database, genuine Codex capacity condition lifecycle, generated client, production build and shared Chrome browser |
-| 7 | `M5-CDX-GATE-001..014` | no fail-closed milestone command | register and implement `AUTO-M5-EXIT` | exact-revision four-account/process/browser/local-gate receipt with zero skips |
+| 7 | `M5-SVC-ACT-001..012` | the working persistent service runs from an extracted tree, so Operations cannot prove its Git revision and the M5 prerequisites cannot bind to it | register and implement the bounded `AUTO-M5-SERVICE-ACTIVATE` transition below | real user-service transition from the pinned trusted rollback runtime to the clean M5 checkout, exact source-revision/API/browser proof, and automatic restoration of the trusted runtime on every failed activation |
+| 8 | `M5-CDX-GATE-001..014` | no fail-closed milestone command | register and implement `AUTO-M5-EXIT` | exact-revision four-account/process/browser/local-gate receipt with zero skips |
 
 Each behavior records a meaningful Red before production Green. Pure tests may
 construct only closed domain values. Filesystem, subprocess, SQLite, HTTP,
@@ -307,6 +312,191 @@ The focused fail-closed browser command is also consumed by the M5 completion
 path. A bounded first API page remains visibly bounded by the existing
 `has_more` notice and cannot be described as a complete fleet query.
 
+## Approved exact-revision service activation addendum — 2026-10-16
+
+The active owner objective to finish M5 with the SDLC and runbook approves this
+bounded PLAN-INT operations increment before its production implementation.
+It closes one prerequisite gap in the already approved M5 completion design:
+the working persistent dashboard is served from an extracted runtime whose
+Operations inventory truthfully reports `source_revision` as unknown. The M5
+owner, quota, and alert prerequisites require an already running service whose
+process identity and reported source revision both match the clean checkout
+that will execute `AUTO-M5-EXIT`.
+
+`AUTO-M5-SERVICE-ACTIVATE` is the sole approved transition for that gap. It is
+a prerequisite coordinator, not an M5 completion command and not a general
+install, upgrade, release, or rollback implementation. `AUTO-M5-EXIT` remains
+the sole V1-M5 completion command. The general `AUTO-DEPLOY` lifecycle remains
+Blocked under PLAN-DEP.
+
+### Deployment ownership and contract impact
+
+PLAN-DEP/D01 normally owns native unit materialization, activation, installed
+service lifecycle, deployment journals, and rollback. The active owner's M5
+objective grants PLAN-INT one explicit exception to that exclusive ownership:
+the root-owned M5 automation and tests may inspect and atomically retarget the
+already installed fixed `agentmonitor-dashboard.service` only for the exact
+candidate/trusted-runtime transition in this addendum. The corresponding D01
+Draft plan cross-references and accepts this exception while retaining its
+Draft status and every broader prohibition.
+
+This exception does not implement or approve installation, repair, upgrade,
+uninstall, release-bundle activation, database activation, generic service
+control, arbitrary unit selection, installed-layout policy, or `AUTO-DEPLOY`.
+It grants no write ownership under D01's proposed packaging/deployment paths
+and cannot be reused by another milestone or target. The fixed service name,
+trusted runtime, candidate checkout, four permitted unit differences, private
+journal, real rollback exercise, and final M5 evidence sequence are closed
+inputs.
+
+No public contract changes. `CTR-DEP-001` remains proposed, produced solely by
+PLAN-DEP/D01, and unchanged; the M5 coordinator neither publishes nor claims a
+native-service lifecycle receipt through it. Existing API, Operations,
+Registry, configuration, database, provider, UI, event, and integration
+contract versions retain their meanings. There is no migration, public schema,
+configuration-key, dependency, license, generated-client, or ADR impact. The
+implementation is an internal root integration routine over the already
+installed fixed user unit, and its private journal is not a domain event or a
+public deployment artifact.
+
+### Selected and rollback runtimes
+
+- The candidate is the absolute Git worktree from which the command runs. It
+  must be detached at one committed 40-hex `HEAD`, outside temporary
+  directories, with no symbolic branch reference and a clean tracked and
+  untracked status. The command revalidates the same resolved worktree,
+  detached state, clean status and unchanged `HEAD` before preparation,
+  immediately before service mutation, and after readiness. Its backend Python
+  entry point, frontend build, and service process working directory remain
+  that one exact revision.
+- The currently working extracted runtime at revision
+  `77a3bad12a096a81587b94b8981ceee812b6445b` is the only trusted rollback
+  runtime for this transition. The coordinator must verify the existing user
+  service selects that runtime and a live same-user process before changing
+  service state. It never modifies, replaces, moves, or deletes that runtime.
+- The existing owner data root, `service.env`, database, loopback/LAN bind
+  arguments, provider-tool `PATH`, cache location, user-service security
+  settings, and restart policy are preserved exactly. Only the candidate
+  `WorkingDirectory`, `PYTHONPATH`, backend Python path, and `TimeoutStopSec`
+  may differ in the candidate unit. The trusted unit's 30-second stop timeout
+  is corrected to 45 seconds for the candidate so its service manager allows
+  the already approved 30-second provider operation, at-most-four-second owned
+  child termination, and local scheduling/SQLite cleanup to drain. Rollback
+  restores the trusted unit's exact original 30-second value. Secret values
+  are neither read into evidence nor printed.
+- The candidate worktree must be owner-controlled and stable across restart.
+  A linked, public, unresolved, attached, dirty, moving, or differently revised
+  root blocks before the trusted service is stopped.
+
+### Atomic transition and rollback
+
+Before stopping the trusted service, the coordinator builds the production
+frontend and completes every candidate-only check that can run without changing
+the service. It then validates and privately journals the exact current unit
+bytes, file identity and mode, trusted process PID/start identity, trusted
+runtime revision, candidate revision, and digests of the preserved launch
+fields. The journal and rollback unit copy are owner-only, bounded, fsynced,
+no-symlink files below the existing AgentMonitor data root. They contain no
+credential, cookie, account identity, provider payload, prompt, response, or
+source content.
+
+The unit update uses a same-directory temporary file, owner-only permissions,
+file and directory fsync, atomic replacement, and `systemctl --user
+daemon-reload`. The coordinator starts the candidate with the preserved
+configuration and waits for one bounded readiness interval. It accepts success
+only when all of these remain true at the same observation boundary:
+
+1. systemd reports one active candidate process owned by the current user;
+2. `/proc` independently confirms its PID/start identity, exact worktree cwd,
+   and the candidate checkout's backend Python launch path;
+3. the real loopback HTTP service is ready and the authenticated built browser
+   remains usable;
+4. the versioned Operations inventory reports an available 40-hex
+   `source_revision` equal to the candidate's unchanged clean `HEAD`;
+5. the existing database and complete public Registry digest are unchanged by
+   the transition itself; and
+6. the trusted rollback runtime and private rollback material remain present
+   and unchanged.
+
+Any validation, stop, unit-write, reload, start, readiness, browser, revision,
+Registry, or final recheck failure triggers rollback before the command
+returns. Rollback stops only the candidate process it owns, atomically restores
+the exact prior unit, reloads the user manager, restarts the pinned trusted
+runtime, and verifies its independent process identity and real HTTP readiness.
+The command reports Blocked or Failed only after the trusted runtime is proven
+restored. If restoration itself cannot be proven, it returns the distinct
+sanitized failure `m5_service_activation_rollback_failed` and preserves the
+journal and both runtime trees for diagnosis. An interrupted journal is never
+discarded or overwritten; the next invocation must first reconcile it to a
+proven trusted or proven candidate state.
+
+After success, the candidate user service remains selected and the command
+reports its non-secret PID for `AGENTMONITOR_M5_SERVICE_PID`. Automation may
+read that PID directly from the user manager; the owner is never asked to copy
+or transcribe process identifiers. Fresh M5 prerequisites are collected only
+after the candidate is proven active. Stale create-once prerequisites are then
+preserved through `AUTO-M5-ARCHIVE-PREREQUISITES` in the existing documented
+order.
+
+The detached checkout becomes immutable operational input for the rest of the
+M5 run. `AUTO-M5-ARCHIVE-PREREQUISITES`, `AUTO-M5-OWNER-OUTCOMES`,
+`AUTO-M5-ALERT-WITNESS`, `AUTO-M5-QUOTA-WITNESS`, and `AUTO-M5-EXIT` each
+revalidate the same resolved worktree, detached state, clean tracked and
+untracked status, unchanged committed `HEAD`, candidate process identity, and
+matching Operations source revision before using existing evidence and again
+before writing their own create-once artifact. `AUTO-M5-EXIT` repeats the check
+before restart, after its technical/browser/local lanes, and immediately before
+the final receipt. A checkout, branch, revision, status, service, or Operations
+change blocks without writing a success artifact. Evidence collected before a
+new detached revision or service generation is stale and follows the existing
+archive-and-recollect procedure.
+
+The existing `AUTO-GIT-PREFLIGHT` branch requirement remains unchanged for
+ordinary commit, push, and release use. While running its own local-gate lane,
+`AUTO-M5-EXIT` alone supplies the exact internal selector
+`AGENTMONITOR_M5_DETACHED_GIT_PREFLIGHT=1`. That selector is valid only for the
+commit preflight and replaces the ordinary branch assertion with proof that the
+exact checkout root has a detached `HEAD`, one stable lowercase 40-hex commit,
+and empty tracked and untracked status. An attached checkout, dirty checkout,
+moving or malformed revision, another selector value, or use with push or
+release blocks. Operators do not set this selector for prerequisite commands
+or general Git work.
+
+The coordinator itself never invokes Claude or Codex, reads or copies a
+provider profile, starts authentication, changes monitoring, alters Registry
+records, acknowledges alerts, changes quota history, or controls an agent
+process. Normal scheduled work performed by the selected AgentMonitor service
+continues under the existing managed-profile and collection contracts. The
+transition adds no public API or contract field, database table or migration,
+configuration setting, dependency, license, or ADR.
+
+### Test-first and live proof
+
+Production work is limited to the root-owned automation implementation,
+dispatcher/catalog registration, and corresponding documentation. Before that
+code, a Red must prove the absent coordinator cannot produce the required
+revision-bound running service. The Green suite must cover closed unit parsing,
+path and ownership rejection, attached/dirty/changing Git rejection, exact
+launch-field preservation, atomic journal and unit writes, process-race
+detection, readiness and revision mismatch, boundary-by-boundary detached HEAD
+revalidation, idempotent interruption recovery, and fail-closed rollback
+policy. Pure policy tests may construct only closed values; filesystem, Git,
+process, systemd, HTTP, browser, and service claims use their real boundaries.
+The M5 Git-preflight Green additionally uses real attached and detached Git
+worktrees to prove that the internal selector accepts only the clean stable
+detached commit while the ordinary branch requirement and push/release rules
+remain intact.
+
+The live Green uses the real AgentMonitor user service and data root on this
+workstation. It must show the trusted `77a3bad12a096a81587b94b8981ceee812b6445b`
+runtime healthy before transition, the candidate healthy with the exact clean
+source revision after transition, unchanged public Registry state, and the
+trusted service automatically restored after one real post-stop activation
+failure. A final successful activation then leaves the exact candidate running
+for fresh M5 prerequisites. A simulated service manager, fake HTTP server,
+placeholder revision, manually edited receipt, or untested rollback path is not
+credited.
+
 ## Stop conditions
 
 Stop the affected increment if the installed version or generated schema
@@ -350,9 +540,11 @@ writes its private create-once receipt. The gate must prove:
    identity and quota calls must prove zero default-profile access or writes
    and confine declared provider-controlled auth/runtime writes to the selected
    managed profile;
-7. the running service's Operations version inventory reports the exact clean
-   implementation revision selected by the gate, rather than trusting the
-   launch working directory or the checkout's later state;
+7. the service worktree remains detached at the exact committed revision, with
+   clean tracked and untracked state revalidated at every prerequisite/gate
+   boundary, and the running service's Operations version inventory reports
+   that revision rather than trusting the launch working directory or an
+   earlier checkout observation;
 8. required local technical, build, planning, quality, mutation,
    documentation, and Git-preflight lanes with zero skipped tests; and
 9. sanitized evidence containing no account identity, provider/profile path,

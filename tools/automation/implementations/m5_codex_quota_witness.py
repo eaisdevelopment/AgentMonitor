@@ -45,7 +45,7 @@ from agentmonitor.modules.registry.application.discovery import (
 from agentmonitor.modules.registry.application.organizations import ListOrganizationsV1
 
 from tools.automation.implementations.auto_m3_current_exit import (
-    _clean_revision,
+    ServiceLaunchV1,
     _process_start_ticks,
     _read_service_launch,
 )
@@ -53,6 +53,15 @@ from tools.automation.implementations.m5_owner_outcomes import (
     OWNER_OUTCOMES_BASENAME,
     M5OwnerOutcomesErrorV1,
     read_owner_outcomes_file_v2,
+)
+from tools.automation.implementations.m5_service_activation import (
+    M5ServiceActivationErrorV1,
+    M5ServiceActivationFailedV1,
+    M5ServiceCandidateV1,
+    clean_detached_revision_v1,
+    revalidate_current_systemd_binding_v1,
+    select_current_systemd_binding_v1,
+    verify_current_service_revision_browser_v1,
 )
 
 _OPAQUE = re.compile(r"[A-Za-z0-9_.:@/-]{1,128}\Z")
@@ -70,6 +79,94 @@ MAX_REGISTRY_PAGE_COUNT = 10_000
 
 class M5CodexQuotaWitnessErrorV1(ValueError):
     """One bounded quota-witness error without private observation values."""
+
+
+def _revalidate_runtime_binding_v1(
+    candidate: M5ServiceCandidateV1,
+    *,
+    expected_revision: str,
+    selected_pid: int,
+    selected_start_time_ticks: int,
+    dashboard_origin: str,
+    dashboard_cdp_endpoint: str,
+    checkout_root: Path = ROOT,
+) -> None:
+    """Recheck Git, systemd and Operations immediately before witness creation."""
+
+    try:
+        if clean_detached_revision_v1(checkout_root) != expected_revision:
+            raise M5ServiceActivationErrorV1("m5_service_checkout_not_clean")
+        revalidate_current_systemd_binding_v1(
+            candidate,
+            selected_pid=selected_pid,
+            selected_start_time_ticks=selected_start_time_ticks,
+        )
+        verify_current_service_revision_browser_v1(
+            dashboard_origin=dashboard_origin,
+            dashboard_cdp_endpoint=dashboard_cdp_endpoint,
+            source_revision=expected_revision,
+            checkout_root=checkout_root,
+        )
+        revalidate_current_systemd_binding_v1(
+            candidate,
+            selected_pid=selected_pid,
+            selected_start_time_ticks=selected_start_time_ticks,
+        )
+    except (M5ServiceActivationErrorV1, M5ServiceActivationFailedV1):
+        raise M5CodexQuotaWitnessErrorV1("m5_quota_witness_context_changed") from None
+
+
+def _select_runtime_binding_v1(
+    environment: Mapping[str, str], *, checkout_root: Path = ROOT
+) -> tuple[Path, str, str, int, int, ServiceLaunchV1, str, M5ServiceCandidateV1]:
+    """Bind one clean detached checkout to its exact systemd-owned service."""
+
+    try:
+        revision = clean_detached_revision_v1(checkout_root)
+    except (M5ServiceActivationErrorV1, M5ServiceActivationFailedV1):
+        raise M5CodexQuotaWitnessErrorV1("m5_quota_witness_checkout_invalid") from None
+    try:
+        owner_root = Path(environment["AGENTMONITOR_TEST_OWNER_DATA_ROOT"])
+        endpoint = environment["AGENTMONITOR_TEST_DASHBOARD_CDP_ENDPOINT"]
+        origin = environment["AGENTMONITOR_TEST_DASHBOARD_ORIGIN"]
+        service_pid = int(environment["AGENTMONITOR_M5_SERVICE_PID"])
+        service_ticks = _process_start_ticks(service_pid)
+        launch = _read_service_launch(service_pid, origin)
+        candidate, _observation = select_current_systemd_binding_v1(
+            source_revision=revision,
+            data_root=owner_root,
+            selected_pid=service_pid,
+            selected_start_time_ticks=service_ticks,
+            checkout_root=checkout_root,
+        )
+        _revalidate_runtime_binding_v1(
+            candidate,
+            expected_revision=revision,
+            selected_pid=service_pid,
+            selected_start_time_ticks=service_ticks,
+            dashboard_origin=origin,
+            dashboard_cdp_endpoint=endpoint,
+            checkout_root=checkout_root,
+        )
+    except (
+        KeyError,
+        TypeError,
+        ValueError,
+        M5ServiceActivationFailedV1,
+    ):
+        raise M5CodexQuotaWitnessErrorV1(
+            "m5_quota_witness_selection_required"
+        ) from None
+    return (
+        owner_root,
+        endpoint,
+        origin,
+        service_pid,
+        service_ticks,
+        launch,
+        revision,
+        candidate,
+    )
 
 
 @dataclass(frozen=True, slots=True)
@@ -1152,11 +1249,17 @@ def _write_create_once(path: Path, document: dict[str, object]) -> str:
 def create_quota_witness_v1(environment: Mapping[str, str]) -> str:
     """Collect an owner countersignature without performing a provider call."""
 
+    (
+        owner_root,
+        endpoint,
+        origin,
+        service_pid,
+        service_ticks,
+        launch,
+        revision,
+        candidate,
+    ) = _select_runtime_binding_v1(environment)
     try:
-        owner_root = Path(environment["AGENTMONITOR_TEST_OWNER_DATA_ROOT"])
-        endpoint = environment["AGENTMONITOR_TEST_DASHBOARD_CDP_ENDPOINT"]
-        origin = environment["AGENTMONITOR_TEST_DASHBOARD_ORIGIN"]
-        service_pid = int(environment["AGENTMONITOR_M5_SERVICE_PID"])
         owner_metadata = owner_root.lstat()
         if (
             not owner_root.is_absolute()
@@ -1174,9 +1277,6 @@ def create_quota_witness_v1(environment: Mapping[str, str]) -> str:
             "m5_quota_witness_selection_required"
         ) from None
     now = datetime.now(UTC)
-    revision = _clean_revision()
-    service_ticks = _process_start_ticks(service_pid)
-    launch = _read_service_launch(service_pid, origin)
     if launch.data_root != owner_root:
         raise M5CodexQuotaWitnessErrorV1("m5_quota_witness_service_mismatch")
     outcomes_path = owner_root / OWNER_OUTCOMES_BASENAME
@@ -1234,11 +1334,17 @@ def create_quota_witness_v1(environment: Mapping[str, str]) -> str:
     if (
         registry_before != registry_after
         or browser["registry_digest_before"] != browser["registry_digest_after"]
-        or _clean_revision() != revision
-        or _process_start_ticks(service_pid) != service_ticks
         or _read_service_launch(service_pid, origin) != launch
     ):
         raise M5CodexQuotaWitnessErrorV1("m5_quota_witness_context_changed")
+    _revalidate_runtime_binding_v1(
+        candidate,
+        expected_revision=revision,
+        selected_pid=service_pid,
+        selected_start_time_ticks=service_ticks,
+        dashboard_origin=origin,
+        dashboard_cdp_endpoint=endpoint,
+    )
     recorded_at = datetime.now(UTC)
     document: dict[str, object] = {
         "schema": QUOTA_WITNESS_SCHEMA,
@@ -1266,6 +1372,14 @@ def create_quota_witness_v1(environment: Mapping[str, str]) -> str:
         "browser_registry_digest_before": browser["registry_digest_before"],
         "browser_registry_digest_after": browser["registry_digest_after"],
     }
+    _revalidate_runtime_binding_v1(
+        candidate,
+        expected_revision=revision,
+        selected_pid=service_pid,
+        selected_start_time_ticks=service_ticks,
+        dashboard_origin=origin,
+        dashboard_cdp_endpoint=endpoint,
+    )
     return _write_create_once(owner_root / QUOTA_WITNESS_BASENAME, document)
 
 

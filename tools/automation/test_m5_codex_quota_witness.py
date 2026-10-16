@@ -29,10 +29,16 @@ from agentmonitor.modules.registry.application.accounts import (
     RegisterAccountV1,
 )
 
+from tools.automation._m5_test_git import (
+    attached_real_checkout_v1,
+    git_status_v1,
+)
 from tools.automation.implementations.m5_codex_quota_witness import (
     M5CodexQuotaWitnessErrorV1,
     _agent_records,
     _digest,
+    _revalidate_runtime_binding_v1,
+    _select_runtime_binding_v1,
     _unlink_created_witness_v1,
     _validate_created_witness_v1,
     _validate_private_parent_v1,
@@ -42,10 +48,46 @@ from tools.automation.implementations.m5_codex_quota_witness import (
     reconcile_quota_observations_v1,
     registry_graph_digest_v1,
 )
+from tools.automation.implementations.m5_service_activation import (
+    candidate_for_checkout_v1,
+)
 
 REVISION = "a" * 40
 DIGEST = "b" * 64
 ROOT = Path(__file__).resolve().parents[2]
+
+
+def test_quota_selection_rejects_a_real_attached_checkout_before_runtime_io() -> None:
+    with attached_real_checkout_v1() as checkout:
+        before = git_status_v1(checkout)
+        with pytest.raises(
+            M5CodexQuotaWitnessErrorV1,
+            match="m5_quota_witness_checkout_invalid",
+        ):
+            _select_runtime_binding_v1({}, checkout_root=checkout)
+        assert before == git_status_v1(checkout) == ""
+
+
+def test_quota_prewrite_recheck_rejects_an_attached_checkout_before_io() -> None:
+    with attached_real_checkout_v1() as checkout:
+        candidate = candidate_for_checkout_v1(
+            source_revision=REVISION,
+            checkout_root=checkout,
+        )
+        with pytest.raises(
+            M5CodexQuotaWitnessErrorV1,
+            match="m5_quota_witness_context_changed",
+        ):
+            _revalidate_runtime_binding_v1(
+                candidate,
+                expected_revision=REVISION,
+                selected_pid=321,
+                selected_start_time_ticks=654,
+                dashboard_origin="http://127.0.0.1:43110",
+                dashboard_cdp_endpoint="http://127.0.0.1:9222",
+                checkout_root=checkout,
+            )
+        assert git_status_v1(checkout) == ""
 
 
 def test_registry_graph_digest_pages_through_more_than_200_real_accounts(
