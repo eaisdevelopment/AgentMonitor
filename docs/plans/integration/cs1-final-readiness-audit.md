@@ -697,3 +697,24 @@ milestone state remain unchanged. This mechanical rebind records no live
 activation, rollback drill, M5 exit pass, or owner acceptance.
 
 Plan snapshot SHA-256: `f04fecc5d69ec19f10f02b078992885cabd90720386f92073cf6dcb71b9670c5`
+
+## 2026-10-16 M5 corrective-rollover and receipt-custody rebind
+
+The current snapshot binds approved M5 focused plan 1.4.0 and the bounded
+PLAN-DEP/D01 exception to the one exact correction for the completed
+`6bfa69dc13cc9e1ded9c6baa6e803cb99bc8c20b` service transition. It preserves
+the complete old transition evidence through an atomic owner-only archive,
+requires a typed rerun after restoring and proving the trusted service, and
+revalidates the sole completed archive before selecting the corrected detached
+revision.
+
+The same snapshot binds safe first-use creation of only the exact private M5
+receipt directory and the final descriptor-relative canonical-entry check for
+the retained receipt inode. The PLAN-DEP plan digest, its contract-adoption and
+parallel-ownership bindings, and the two automation controls changed. The
+other 19 canonical plan bodies, public contracts, approval flags, and milestone
+states remain unchanged. The historical `6bfa69d` rollback drill and activation
+passed; corrected rollover/reactivation and `AUTO-M5-EXIT` remain Not Run, so
+M5 remains Intermediate and its canonical gate state remains `not_run`.
+
+Plan snapshot SHA-256: `1716271928ec730f646bb2602b128cd99ba7e92ba7c5c8d4c470892f840cdac6`

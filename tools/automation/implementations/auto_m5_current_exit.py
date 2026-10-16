@@ -146,6 +146,7 @@ BROWSER_CHECKS = (
 STORY_TEST_PATHS = (
     "tools/git/test_preflight.py",
     "tools/automation/test_m5_prerequisite_archive.py",
+    "tools/automation/test_m5_completion_lock.py",
     "tools/automation/test_m5_current_exit.py",
     "tools/automation/test_m5_service_activation.py",
     "tools/automation/test_m5_owner_outcomes.py",
@@ -175,6 +176,7 @@ STORY_TEST_PATHS = (
     "backend/tests/integration/release/test_v1_m5_codex_slice.py",
 )
 STORY_AUTOMATION_TEST_IDS = (
+    "tools/automation/test_run.py::AutomationRoutineTests::test_m5_service_activation_rerun_is_not_reported_as_failure",
     "tools/automation/test_run.py::AutomationRoutineTests::test_m5_service_activation_without_selection_never_mutates_unit",
     "tools/automation/test_run.py::AutomationRoutineTests::test_m5_prerequisite_archive_without_selection_never_moves_files",
     "tools/automation/test_run.py::AutomationRoutineTests::test_m5_owner_outcomes_without_real_selectors_never_writes_file",
@@ -195,9 +197,9 @@ STORY_NODE_TEST_INVENTORY_SHA256 = (
 )
 STORY_BROWSER_SCENARIOS = ("account_beyond_page",)
 # Updated only from the exact collected inventory after intentional test changes.
-STORY_PYTEST_TEST_COUNT = 447
+STORY_PYTEST_TEST_COUNT = 467
 STORY_PYTEST_TEST_INVENTORY_SHA256 = (
-    "82e34e3c155faf2372dfb6f14504e3610720bbcb6294797f0660c991a7a6673c"
+    "9945fa963f0f003aa2732614d9266ae22268ac3d6b67c8f4c08233fc3df6756a"
 )
 STORY_ARTIFACTS = (
     "tools/git/preflight.py",
@@ -1055,6 +1057,26 @@ def _validate_created_receipt_inode_at_v1(
         or path_metadata.st_nlink != 1
     ):
         raise OSError
+
+
+def _validate_m5_current_final_custody_v1(
+    completion_lock: M5CompletionLockV1,
+    service_transition_lock: M5CompletionLockV1,
+    *,
+    directory_descriptor: int,
+    created_receipt: CreatedM5ReceiptV1,
+) -> None:
+    """Revalidate both guards and the canonical receipt entry before success."""
+
+    _validate_m5_current_completion_lock_v1(completion_lock)
+    _validate_m5_current_service_transition_lock_v1(service_transition_lock)
+    _validate_created_receipt_inode_at_v1(
+        directory_descriptor,
+        RECEIPT_BASENAME,
+        created_receipt.descriptor,
+        device=created_receipt.device,
+        inode=created_receipt.inode,
+    )
 
 
 def _invalidate_created_receipt_inode_v1(
@@ -2261,8 +2283,12 @@ def main() -> int:
             raise _translated_systemd_service_error_v1(
                 error, pre_restart=False
             ) from error
-        _validate_m5_current_completion_lock_v1(completion_lock)
-        _validate_m5_current_service_transition_lock_v1(service_transition_lock)
+        _validate_m5_current_final_custody_v1(
+            completion_lock,
+            service_transition_lock,
+            directory_descriptor=receipt_cleanup_descriptor,
+            created_receipt=created_receipt,
+        )
     except M5CurrentExitFailedV1 as error:
         result_code = 1
         result_message = f"M5 CURRENT EXIT: FAILED — {error}"

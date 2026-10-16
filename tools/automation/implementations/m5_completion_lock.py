@@ -12,6 +12,8 @@ from dataclasses import dataclass
 from pathlib import Path
 
 _GUARD_PREFIX = b"\0agentmonitor-m5-completion-v1-"
+_FIRST_USE_DIRECTORY_BASENAME = ".agentmonitor-local"
+_FIRST_USE_RECEIPT_BASENAME = "m5-current-gate-receipt.json"
 
 
 class M5CompletionLockErrorV1(ValueError):
@@ -95,6 +97,20 @@ def acquire_m5_completion_lock_v1(
     guard_descriptor = -1
     guard: socket.socket | None = None
     try:
+        if not final_receipt_path.is_absolute() or final_receipt_path.name in {
+            "",
+            ".",
+            "..",
+        }:
+            raise OSError
+        if (
+            final_receipt_path.parent.name == _FIRST_USE_DIRECTORY_BASENAME
+            and final_receipt_path.name == _FIRST_USE_RECEIPT_BASENAME
+        ):
+            try:
+                os.mkdir(final_receipt_path.parent, mode=0o700)
+            except FileExistsError:
+                pass
         directory_descriptor = os.open(
             final_receipt_path.parent,
             os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW | os.O_CLOEXEC,

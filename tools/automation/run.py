@@ -111,6 +111,18 @@ def validate_catalog(repository_root: Path, catalog: dict[str, dict]) -> list[st
     return violations
 
 
+def result_message(routine_id: str, status: str, returncode: int) -> str:
+    """Render one closed canonical routine outcome without misclassifying retries."""
+
+    if returncode == 0:
+        return f"{routine_id}: PASSED ({status})"
+    if routine_id == "AUTO-M5-SERVICE-ACTIVATE" and returncode == 5:
+        return f"{routine_id}: RERUN REQUIRED by corrective rollover"
+    if returncode == 3:
+        return f"{routine_id}: BLOCKED by real checkout/environment state"
+    return f"{routine_id}: FAILED (exit {returncode})"
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("routine", nargs="?")
@@ -163,12 +175,7 @@ def main(argv: list[str] | None = None) -> int:
     except OSError:
         print(f"{arguments.routine}: BLOCKED by missing or unusable local executable")
         return 3
-    if result.returncode == 0:
-        print(f"{arguments.routine}: PASSED ({routine['status']})")
-    elif result.returncode == 3:
-        print(f"{arguments.routine}: BLOCKED by real checkout/environment state")
-    else:
-        print(f"{arguments.routine}: FAILED (exit {result.returncode})")
+    print(result_message(arguments.routine, routine["status"], result.returncode))
     return result.returncode
 
 

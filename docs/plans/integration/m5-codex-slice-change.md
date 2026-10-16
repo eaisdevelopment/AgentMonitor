@@ -1,7 +1,7 @@
 # Change plan: executable V1-M5 Codex slice
 
 - Status: **Approved for root-owned V1-M5 implementation and live verification**.
-- Plan version: `1.3.0`; root integration review: 2026-10-16.
+- Plan version: `1.4.0`; root integration review: 2026-10-16.
 - Safety correction: exact-version review proved that authenticated app-server
   queries may perform Codex's automatic credential refresh. The approved
   managed-auth lifecycle therefore classifies those queries as
@@ -496,6 +496,67 @@ failure. A final successful activation then leaves the exact candidate running
 for fresh M5 prerequisites. A simulated service manager, fake HTTP server,
 placeholder revision, manually edited receipt, or untested rollback path is not
 credited.
+
+## Approved corrective activation rollover addendum — 2026-10-16
+
+The active owner objective to finish M5, together with the explicit authority
+for all system actions needed to do so, approves this bounded correction before
+its production implementation. The first real activation completed at clean
+revision `6bfa69dc13cc9e1ded9c6baa6e803cb99bc8c20b`. The immediately following
+canonical prerequisite archive then exposed two fail-closed gaps: a fresh
+detached worktree had no automated owner-only final-receipt directory, and the
+final M5 receipt path was not revalidated against its retained inode after the
+post-write service observation. Those findings invalidate M5 completion at the
+first candidate revision; they do not invalidate its successful rollback drill
+or authorize manual evidence deletion, unit editing, or a general upgrade.
+
+The existing `AUTO-M5-SERVICE-ACTIVATE` command gains one corrective rollover
+mode. It is available only when the fixed service is the exact clean detached
+`6bfa69dc13cc9e1ded9c6baa6e803cb99bc8c20b` candidate and the completed private
+activation receipt, journal, rollback unit, current systemd generation,
+authenticated Operations revision, pinned rollback runtime, database identity,
+and complete public Registry digest all validate together. Under the existing
+exclusive transition guard it restores and proves the pinned trusted
+`77a3bad12a096a81587b94b8981ceee812b6445b` runtime using the recorded rollback
+material. It then atomically renames the complete transition directory, without
+replacement and on the same filesystem, into an owner-only corrective archive
+whose name binds the prior revision and receipt digest; the directory and both
+parents are fsynced. It creates a fresh owner-only transition directory and
+returns a typed rerun-required result carrying no private data. Automation
+rereads the trusted systemd PID and invokes the same canonical activation
+command again for the new clean detached candidate. It never deletes, copies,
+edits, hard-links, or overwrites the prior activation artifacts.
+
+An interruption before proven rollback leaves the original transition set in
+place. An interruption after proven rollback but before the directory rename is
+reconciled from the same exact receipt and trusted service. The directory rename
+is the archive commit point: after it, a retry sees either the complete archived
+directory plus an absent fresh root, or the complete archive plus a valid fresh
+root. A target collision, cross-filesystem move, unsafe parent, changed inode,
+partial archive, mismatched service, dirty or moving checkout, changed Registry
+or database, or unprovable trusted runtime blocks without starting the new
+candidate. Rollback failure remains the distinct activation rollback failure.
+The old candidate worktree stays untouched and verifiable throughout recovery.
+
+The completion-lock acquisition also becomes the canonical first-use setup for
+its ignored `.agentmonitor-local` parent. It may create only that exact missing
+directory with mode `0700`, using one atomic `mkdir`; `EEXIST` continues through
+the existing owner, mode, resolved-path, descriptor-identity, and no-symlink
+checks. Any other error or unsafe existing object blocks. `AUTO-M5-EXIT` adds one
+final descriptor-relative proof that its canonical receipt entry is still the
+same owner-owned regular `0600`, single-link retained inode after the post-write
+service observation and both final lock validations. A mismatch enters the
+existing exact-inode cleanup and cannot produce a Passed result.
+
+This correction changes no public API, event, database, configuration,
+provider, UI, generated-client, dependency, license, or migration contract. It
+does not authorize another prior revision, arbitrary service, general upgrade,
+artifact garbage collection, `AUTO-DEPLOY`, or reuse outside this M5 recovery.
+Red/Green evidence must use real directories, descriptors, processes, Git,
+systemd, HTTP, and the authenticated shared browser at every external boundary.
+The live proof must show `6bfa69d` restored to the pinned runtime, the complete
+old transition directory preserved, and the corrected exact revision completing
+the original rollback drill before any M5 prerequisite is recollected.
 
 ## Stop conditions
 

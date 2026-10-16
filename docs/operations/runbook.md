@@ -309,6 +309,36 @@ proven: stop M5 evidence collection, preserve the journal and both runtimes,
 and diagnose the user unit. Never edit the journal, unit backup, or trusted
 runtime to force another result.
 
+One exact corrective rollover exists for the completed
+`6bfa69dc13cc9e1ded9c6baa6e803cb99bc8c20b` activation. When a newer detached
+candidate invokes the command while that exact candidate is active, the command
+validates the completed receipt, journal, rollback unit, clean old checkout,
+current service/browser revision, Registry digest, database identity, and
+retained trusted runtime before changing the service. It restores and proves
+the trusted runtime, revalidates those identities, and atomically moves the
+complete transition directory without replacement below
+`<owner-data-root>/m5-service-activation-corrective-archive/`. The archive
+name binds the old revision and activation-receipt digest; the moved directory
+and all three original evidence inodes and bytes are preserved. The command
+then creates a fresh owner-only transition directory and reports
+`m5_service_activation_rerun_required` with the new trusted service PID. The
+dispatcher exits with status `5` and prints
+`AUTO-M5-SERVICE-ACTIVATE: RERUN REQUIRED by corrective rollover`. This typed
+result records a completed restorative rollover; it is neither an activation
+pass nor an activation failure.
+
+After that result, refresh `AGENTMONITOR_M5_SERVICE_PID` from systemd and run
+the same canonical command once more from the unchanged corrected detached
+worktree. The second invocation performs the normal rollback drill and
+candidate activation. Before any new transition, it revalidates the sole
+completed corrective archive, including its name, owner, mode, exact three
+artifacts, artifact digests, old clean checkout, immutable rollback runtime,
+and prior activation receipt. A changed artifact, dirty or moving checkout,
+unexpected service revision, Registry/database change, absent, partial or
+multiple corrective archive, archive collision, or unsafe path blocks the
+operation. Do not move, copy, edit, or delete either transition directory by
+hand.
+
 The coordinator never invokes a provider or reads, copies, or changes provider
 profiles. The selected AgentMonitor service may continue its already configured
 scheduled monitoring under the existing managed-profile policy. This command
@@ -414,14 +444,16 @@ different owner-outcome context.
 
 Archive and `AUTO-M5-EXIT` use one checkout-global lock scope matching the
 shared `.agentmonitor-local/m5-current-gate-receipt.json` path, regardless of
-which owner data root is selected. The protocol opens and validates the
-resolved owner-owned `0700` receipt directory, takes a nonblocking exclusive
-lock on its directory descriptor, and binds a Linux abstract Unix socket whose
-kernel name is derived from the OS owner and canonical receipt path. The
-kernel-bound name cannot be renamed, unlinked, or replaced through the
-filesystem. Replacing even the complete receipt directory cannot let a second
-process enter while the first guard is held, and the first process detects the
-directory identity change before claiming success.
+which owner data root is selected. On first use, the protocol may create only
+that exact missing `.agentmonitor-local` directory with one atomic `mkdir` and
+mode `0700`; an existing object continues through the same owner, mode,
+resolved-path, no-symlink, and descriptor-identity checks. It then takes a
+nonblocking exclusive lock on the directory descriptor and binds a Linux
+abstract Unix socket whose kernel name is derived from the OS owner and
+canonical receipt path. The kernel-bound name cannot be renamed, unlinked, or
+replaced through the filesystem. Replacing even the complete receipt directory
+cannot let a second process enter while the first guard is held, and the first
+process detects the directory identity change before claiming success.
 
 Archive holds the guard from final-receipt preflight through every move,
 verification, fsync, and rollback. M5 exit acquires it before its first receipt
@@ -434,6 +466,9 @@ archive reports success.
 Exit creates and validates its final receipt relative to the directory
 descriptor held by the completion guard, and retains both that directory and
 the exact receipt inode through all final service and lock checks. Any
+successful path repeats a descriptor-relative check that the canonical entry
+still names that owner-owned regular `0600`, single-link retained inode after
+the post-write service observation and both final lock validations. Any
 post-write exception, including process interruption, first erases the exact
 created receipt bytes while both original guards remain held. Duplicate
 kernel-guard descriptors retain both abstract-socket names until any

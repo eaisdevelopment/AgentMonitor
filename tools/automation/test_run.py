@@ -19,10 +19,21 @@ RUNNER = REPOSITORY_ROOT / "tools/automation/run.py"
 CATALOG = REPOSITORY_ROOT / "tools/automation/routines.toml"
 sys.path.insert(0, str(RUNNER.parent))
 
+import run as automation_run
 from run import index_routines, load_catalog, validate_catalog
 
 
 class AutomationRoutineTests(unittest.TestCase):
+    def test_m5_service_activation_rerun_is_not_reported_as_failure(self) -> None:
+        self.assertEqual(
+            "AUTO-M5-SERVICE-ACTIVATE: RERUN REQUIRED by corrective rollover",
+            automation_run.result_message(
+                "AUTO-M5-SERVICE-ACTIVATE",
+                "operational_limited",
+                5,
+            ),
+        )
+
     def test_m5_service_activation_without_selection_never_mutates_unit(
         self,
     ) -> None:
@@ -251,9 +262,7 @@ class AutomationRoutineTests(unittest.TestCase):
 
         command = tool_test_command("tools.automation.test_run")
         self.assertEqual(str(BACKEND_PYTHON), command[0])
-        self.assertEqual(
-            ["-m", "unittest", "tools.automation.test_run"], command[1:]
-        )
+        self.assertEqual(["-m", "unittest", "tools.automation.test_run"], command[1:])
 
     def test_m2_local_evidence_does_not_claim_universal_historical_tdd(self) -> None:
         """A passing current gate cannot invent Reds for prior UI corrections."""

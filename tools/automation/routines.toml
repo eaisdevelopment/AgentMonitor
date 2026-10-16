@@ -240,7 +240,7 @@ blockers = []
 id = "AUTO-M5-SERVICE-ACTIVATE"
 owner = "PLAN-INT"
 status = "operational_limited"
-scope = "bounded owner-workstation transition from the pinned trusted dashboard runtime to this exact clean M5 Git revision under one exclusive service-transition guard, with authenticated source-revision proof, automatic byte-exact rollback, and a private activation/rollback receipt"
+scope = "bounded owner-workstation transition from the pinned trusted dashboard runtime to this exact clean M5 Git revision under one exclusive service-transition guard, with authenticated source-revision proof, automatic byte-exact rollback, a private activation/rollback receipt, and one exact evidence-preserving corrective rollover of completed revision 6bfa69dc13cc9e1ded9c6baa6e803cb99bc8c20b whose retained archive is revalidated before corrected activation"
 implementation_command = ["backend/.venv/bin/python", "-m", "tools.automation.implementations.m5_service_activation"]
 blockers = ["explicit live selectors and an authenticated shared browser are required for this workstation transition", "AUTO-DEPLOY and every general deployment lifecycle remain blocked"]
 
@@ -280,6 +280,6 @@ blockers = []
 id = "AUTO-M5-EXIT"
 owner = "PLAN-INT"
 status = "operational"
-scope = "bounded V1-M5 Codex slice at one clean running-service revision: consume the exact activation/rollback receipt under the shared service-transition guard, verify 0.160.0/schema/mapping admission, four private owner outcomes, fresh genuine quota/history, five to six independently verified external processes, recovered source-proven alert lifecycle, production browser, zero-skipped technical/local gates and private receipt"
+scope = "bounded V1-M5 Codex slice at one clean running-service revision: create only the exact missing owner-only local receipt directory on first use, consume the exact activation/rollback receipt under the shared service-transition guard, verify 0.160.0/schema/mapping admission, four private owner outcomes, fresh genuine quota/history, five to six independently verified external processes, recovered source-proven alert lifecycle, production browser and zero-skipped technical/local gates, then retain and revalidate the canonical private receipt inode after every final service and lock check"
 implementation_command = ["backend/.venv/bin/python", "-m", "tools.automation.implementations.auto_m5_current_exit"]
 blockers = []

@@ -498,12 +498,13 @@ def test_catalog_selects_exact_m5_gate_and_closed_lanes() -> None:
     assert auto_m5_current_exit.STORY_NODE_TEST_INVENTORY_SHA256 == (
         "556bfd17af977e243e3a9c6c9b1372382cb1eaacfc46dd5136af736c4c76b41b"
     )
-    assert auto_m5_current_exit.STORY_PYTEST_TEST_COUNT == 447
+    assert auto_m5_current_exit.STORY_PYTEST_TEST_COUNT == 467
     assert auto_m5_current_exit.STORY_PYTEST_TEST_INVENTORY_SHA256 == (
-        "82e34e3c155faf2372dfb6f14504e3610720bbcb6294797f0660c991a7a6673c"
+        "9945fa963f0f003aa2732614d9266ae22268ac3d6b67c8f4c08233fc3df6756a"
     )
     assert "tools/git/test_preflight.py" in STORY_TEST_PATHS
     assert STORY_AUTOMATION_TEST_IDS == (
+        "tools/automation/test_run.py::AutomationRoutineTests::test_m5_service_activation_rerun_is_not_reported_as_failure",
         "tools/automation/test_run.py::AutomationRoutineTests::test_m5_service_activation_without_selection_never_mutates_unit",
         "tools/automation/test_run.py::AutomationRoutineTests::test_m5_prerequisite_archive_without_selection_never_moves_files",
         "tools/automation/test_run.py::AutomationRoutineTests::test_m5_owner_outcomes_without_real_selectors_never_writes_file",
@@ -513,6 +514,7 @@ def test_catalog_selects_exact_m5_gate_and_closed_lanes() -> None:
         "tools/automation/test_run.py::AutomationRoutineTests::test_real_catalog_defines_every_mandatory_routine",
     )
     assert "tools/automation/test_m5_prerequisite_archive.py" in STORY_TEST_PATHS
+    assert "tools/automation/test_m5_completion_lock.py" in STORY_TEST_PATHS
     assert "tools/automation/test_m5_service_activation.py" in STORY_TEST_PATHS
     assert "tools/automation/test_m5_owner_outcomes.py" in STORY_TEST_PATHS
     assert "tools/automation/test_m5_codex_alert_witness.py" in STORY_TEST_PATHS
@@ -538,6 +540,7 @@ def test_catalog_selects_exact_m5_gate_and_closed_lanes() -> None:
         "tools/git/preflight.py",
         "tools/automation/_m5_test_git.py",
         "tools/automation/implementations/m5_completion_lock.py",
+        "tools/automation/test_m5_completion_lock.py",
         "tools/automation/implementations/m5_service_activation.py",
         "tools/automation/test_m5_service_activation.py",
         "tools/automation/implementations/m5_prerequisite_archive.py",
@@ -1485,10 +1488,73 @@ def test_failed_receipt_cleanup_runs_while_both_original_guards_are_held(
         )
         assert not path.exists()
         auto_m5_current_exit._validate_m5_current_completion_lock_v1(completion)
-        auto_m5_current_exit._validate_m5_current_service_transition_lock_v1(
-            transition
-        )
+        auto_m5_current_exit._validate_m5_current_service_transition_lock_v1(transition)
     finally:
+        os.close(receipt_descriptor)
+        os.close(cleanup_descriptor)
+        auto_m5_current_exit.release_m5_completion_lock_v1(completion)
+        release_m5_service_activation_lock_v1(transition)
+
+
+def test_final_receipt_custody_recheck_rejects_real_replacement(
+    tmp_path: Path,
+) -> None:
+    directory = tmp_path / "completion" / RECEIPT_DIRECTORY_NAME
+    directory.mkdir(mode=0o700, parents=True)
+    path = directory / RECEIPT_BASENAME
+    transition_root = tmp_path / "m5-service-activation"
+    completion = auto_m5_current_exit._acquire_m5_current_completion_lock_v1(path)
+    transition = acquire_m5_service_activation_lock_v1(transition_root)
+    cleanup_descriptor = os.dup(completion.directory_descriptor)
+    directory_metadata = os.fstat(cleanup_descriptor)
+    identity, receipt_descriptor = auto_m5_current_exit._write_private_receipt_at_v1(
+        path,
+        {"status": "passed"},
+        directory_descriptor=cleanup_descriptor,
+        directory_device=directory_metadata.st_dev,
+        directory_inode=directory_metadata.st_ino,
+        retain_descriptor=True,
+    )
+    created_receipt = auto_m5_current_exit.CreatedM5ReceiptV1(
+        descriptor=receipt_descriptor,
+        device=identity[0],
+        inode=identity[1],
+    )
+    displaced = directory / "displaced-created-inode"
+    replacement = b"replacement must survive failed receipt cleanup\n"
+    path.rename(displaced)
+    path.write_bytes(replacement)
+    path.chmod(0o600)
+    try:
+        auto_m5_current_exit._validate_m5_current_completion_lock_v1(completion)
+        auto_m5_current_exit._validate_m5_current_service_transition_lock_v1(transition)
+        with pytest.raises(OSError):
+            auto_m5_current_exit._validate_m5_current_final_custody_v1(
+                completion,
+                transition,
+                directory_descriptor=cleanup_descriptor,
+                created_receipt=created_receipt,
+            )
+        with pytest.raises(
+            M5CurrentExitFailedV1,
+            match="m5_current_receipt_cleanup_failed",
+        ):
+            auto_m5_current_exit._remove_failed_m5_current_receipt_while_locked_v1(
+                completion,
+                transition,
+                cleanup_descriptor,
+                receipt_descriptor,
+                directory_identity=(
+                    completion.directory_device,
+                    completion.directory_inode,
+                ),
+                receipt_identity=identity,
+            )
+        assert path.read_bytes() == replacement
+        assert displaced.read_bytes() == b""
+    finally:
+        path.unlink(missing_ok=True)
+        displaced.unlink(missing_ok=True)
         os.close(receipt_descriptor)
         os.close(cleanup_descriptor)
         auto_m5_current_exit.release_m5_completion_lock_v1(completion)
@@ -1560,15 +1626,13 @@ def test_postwrite_interruption_invalidates_exact_receipt(tmp_path: Path) -> Non
         os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW | os.O_CLOEXEC,
     )
     directory_metadata = os.fstat(directory_descriptor)
-    identity, receipt_descriptor = (
-        auto_m5_current_exit._write_private_receipt_at_v1(
-            path,
-            {"status": "passed"},
-            directory_descriptor=directory_descriptor,
-            directory_device=directory_metadata.st_dev,
-            directory_inode=directory_metadata.st_ino,
-            retain_descriptor=True,
-        )
+    identity, receipt_descriptor = auto_m5_current_exit._write_private_receipt_at_v1(
+        path,
+        {"status": "passed"},
+        directory_descriptor=directory_descriptor,
+        directory_device=directory_metadata.st_dev,
+        directory_inode=directory_metadata.st_ino,
+        retain_descriptor=True,
     )
     try:
         with pytest.raises(KeyboardInterrupt):

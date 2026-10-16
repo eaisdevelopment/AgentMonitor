@@ -67,7 +67,7 @@ This addendum is the sole exception to PLAN-DEP/D01's Draft implementation
 prohibition and exclusive native unit-lifecycle ownership. The active owner's
 objective, **fully implement M5 with our SDLC and runbook**, authorizes PLAN-INT
 to implement and execute only `AUTO-M5-SERVICE-ACTIVATE` under the approved
-[V1-M5 Codex slice plan 1.3.0](../../integration/m5-codex-slice-change.md).
+[V1-M5 Codex slice plan 1.4.0](../../integration/m5-codex-slice-change.md).
 That focused plan is the detailed authority and test specification. This
 cross-reference resolves the ownership conflict before production code.
 
@@ -82,6 +82,20 @@ the candidate working directory, `PYTHONPATH`, backend Python path, and
 30-to-45-second stop-timeout correction may differ. Rollback restores the exact
 trusted unit, including its 30-second timeout, and proves the trusted service
 healthy.
+
+Plan 1.4.0 also permits one exact corrective rollover after the completed
+`6bfa69dc13cc9e1ded9c6baa6e803cb99bc8c20b` activation exposed downstream
+completion-control gaps. Under the same exclusive transition guard, the
+command may validate that exact candidate and its completed journal, rollback
+unit, receipt, clean checkout, live service/browser revision, Registry,
+database and pinned runtime; restore and prove the pinned trusted service;
+then preserve the whole transition directory by Linux same-filesystem atomic
+no-replace rename into an owner-only revision-and-receipt-bound archive. It
+creates a fresh owner-only transition root and requires the canonical command
+to be rerun with the refreshed trusted PID for the corrected detached
+candidate. Retry validates a completed archive before proceeding. No other
+prior revision, evidence deletion, artifact replacement, general upgrade or
+deployment behavior is authorized.
 
 The final candidate worktree must have no symbolic branch reference. Activation
 and every subsequent M5 archive, owner-outcome, alert-witness, quota-witness and

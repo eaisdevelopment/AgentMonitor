@@ -26,10 +26,12 @@ Current program state:
   organizations, six fresh post-restart quota/history lineages, the guarded
   current-process witness, and every required technical, browser, and local
   quality lane with zero skips and zero registry mutations.
-- **V1-M5:** implementation is **Intermediate**. Local Codex and guarded
-  service-transition behavior is present, while the real activation/rollback,
-  clean exact-revision `AUTO-M5-EXIT`, live evidence, and owner acceptance are
-  **Not Run**.
+- **V1-M5:** implementation is **Intermediate**. The first real rollback drill
+  and activation passed at revision `6bfa69d`, then the prerequisite-archive
+  attempt and final-receipt review exposed fail-closed gaps. Corrective rollover
+  and reactivation for the corrected revision, the clean exact-revision
+  `AUTO-M5-EXIT`, remaining live evidence, and owner acceptance are **Not Run**;
+  the canonical gate state remains `not_run`.
 - **V1-M6 through V1-M8:** Planned; their canonical gates have not run.
 
 The approved [M3 scope correction](evidence/m3-scope-correction-2026-10-02.md)

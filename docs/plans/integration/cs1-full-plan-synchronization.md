@@ -729,3 +729,25 @@ meanings remain unchanged. This mechanical rebind claims no live activation,
 rollback drill, M5 exit pass, or owner acceptance.
 
 Plan snapshot SHA-256: `f04fecc5d69ec19f10f02b078992885cabd90720386f92073cf6dcb71b9670c5`
+
+## 2026-10-16 M5 corrective-rollover and receipt-custody rebind
+
+The synchronized snapshot now binds approved M5 focused plan 1.4.0 and the
+PLAN-DEP/D01 exception to one exact evidence-preserving rollover of the
+completed `6bfa69dc13cc9e1ded9c6baa6e803cb99bc8c20b` transition. The bounded
+command restores and proves the pinned trusted service, atomically archives the
+complete old transition evidence, creates a fresh private transition root,
+returns the typed rerun-required status, and revalidates the sole completed
+archive before corrected activation.
+
+The snapshot also binds first-use creation of only the exact owner-only M5
+receipt directory and final descriptor-relative proof that the canonical
+receipt entry still names the retained inode after every service and lock
+check. PLAN-DEP, its generated contract-adoption and reviewed ownership
+bindings, and the automation catalog and standard changed. The other 19
+canonical plan hashes and all public contract versions and meanings remain
+unchanged. The historical `6bfa69d` rollback drill and activation passed; the
+corrective rollover/reactivation and canonical `AUTO-M5-EXIT` are Not Run, and
+M5 remains Intermediate with canonical gate state `not_run`.
+
+Plan snapshot SHA-256: `1716271928ec730f646bb2602b128cd99ba7e92ba7c5c8d4c470892f840cdac6`

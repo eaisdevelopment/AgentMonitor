@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import argparse
+import ctypes
+import errno
 import hashlib
 import json
 import os
@@ -56,6 +58,9 @@ SYSTEMD_ANALYZE = Path("/usr/bin/systemd-analyze")
 GIT = Path("/usr/bin/git")
 NODE = Path("/usr/bin/node")
 TRANSITION_ROOT = DATA_ROOT / "state/m5-service-activation"
+CORRECTIVE_ARCHIVE_BASENAME = "m5-service-activation-corrective-archive"
+CORRECTIVE_ARCHIVE_ROOT = DATA_ROOT / CORRECTIVE_ARCHIVE_BASENAME
+CORRECTIVE_ROLLOVER_REVISION = "6bfa69dc13cc9e1ded9c6baa6e803cb99bc8c20b"
 ACTIVATION_JOURNAL_BASENAME = "activation-journal-v1.json"
 ACTIVATION_LOCK_BASENAME = "activation-lock-v1"
 JOURNAL_PATH = TRANSITION_ROOT / ACTIVATION_JOURNAL_BASENAME
@@ -69,6 +74,21 @@ MAX_ROLLBACK_RUNTIME_BYTES = 512 * 1024 * 1024
 MAX_ROLLBACK_RUNTIME_FILE_BYTES = 128 * 1024 * 1024
 _REVISION = re.compile(r"[0-9a-f]{40}\Z")
 _DIGEST = re.compile(r"[0-9a-f]{64}\Z")
+_RENAME_NOREPLACE = 1
+try:
+    _LIBC = ctypes.CDLL(None, use_errno=True)
+    _RENAMEAT2 = getattr(_LIBC, "renameat2", None)
+except OSError:
+    _RENAMEAT2 = None
+if _RENAMEAT2 is not None:
+    _RENAMEAT2.argtypes = (
+        ctypes.c_int,
+        ctypes.c_char_p,
+        ctypes.c_int,
+        ctypes.c_char_p,
+        ctypes.c_uint,
+    )
+    _RENAMEAT2.restype = ctypes.c_int
 
 
 class M5ServiceActivationErrorV1(ValueError):
@@ -81,6 +101,16 @@ class M5ServiceActivationFailedV1(RuntimeError):
 
 class M5ServiceActivationRollbackFailedV1(M5ServiceActivationFailedV1):
     """The trusted rollback service could not be proven restored."""
+
+
+class M5ServiceActivationRerunRequiredV1(M5ServiceActivationErrorV1):
+    """A corrective rollover restored trust and requires fresh live selectors."""
+
+    def __init__(self, trusted_service_pid: int) -> None:
+        if type(trusted_service_pid) is not int or trusted_service_pid <= 0:
+            raise M5ServiceActivationErrorV1("m5_service_activation_rerun_invalid")
+        super().__init__("m5_service_activation_rerun_required")
+        self.trusted_service_pid = trusted_service_pid
 
 
 class _M5ServiceRollbackDrillV1(M5ServiceActivationFailedV1):
@@ -201,6 +231,27 @@ class ValidatedM5ServiceActivationReceiptV1:
     journal_digest: str
     rollback_unit_digest: str
     rollback_runtime_digest: str
+    main_pid: int
+    main_pid_start_time_ticks: int
+
+
+@dataclass(frozen=True, slots=True)
+class _RetainedActivationArtifactV1:
+    basename: str
+    descriptor: int
+    identity: tuple[int, ...]
+    digest: str
+
+
+@dataclass(frozen=True, slots=True)
+class _RetainedCompletedActivationRolloverV1:
+    transition_root: Path
+    archive_parent: Path
+    archive_id: str
+    directory_descriptor: int
+    directory_device: int
+    directory_inode: int
+    artifacts: tuple[_RetainedActivationArtifactV1, ...]
 
 
 def _argv(checkout_root: Path, data_root: Path = DATA_ROOT) -> tuple[str, ...]:
@@ -484,6 +535,30 @@ def partial_artifact_recovery_decision_v1(
     return "complete_journal" if rollback_present else "complete_rollback_copy"
 
 
+def corrective_activation_rollover_decision_v1(
+    *,
+    candidate_revision: str,
+    completed_revision: str,
+    service_revision: str,
+) -> Literal["not_applicable", "rollback_candidate", "archive_restored", "blocked"]:
+    """Select only the one approved completed-activation correction."""
+
+    if not all(
+        isinstance(value, str) and _REVISION.fullmatch(value) is not None
+        for value in (candidate_revision, completed_revision, service_revision)
+    ):
+        return "blocked"
+    if candidate_revision == completed_revision:
+        return "not_applicable"
+    if completed_revision != CORRECTIVE_ROLLOVER_REVISION:
+        return "blocked"
+    if service_revision == CORRECTIVE_ROLLOVER_REVISION:
+        return "rollback_candidate"
+    if service_revision == PINNED_ROLLBACK_REVISION:
+        return "archive_restored"
+    return "blocked"
+
+
 def activation_transition_step_v1(
     phase: str,
     event: str,
@@ -582,6 +657,575 @@ def _stable_stat_identity(info: os.stat_result) -> tuple[int, ...]:
         info.st_mtime_ns,
         info.st_ctime_ns,
     )
+
+
+def _read_retained_artifact_digest_v1(
+    descriptor: int,
+    metadata: os.stat_result,
+) -> str:
+    os.lseek(descriptor, 0, os.SEEK_SET)
+    remaining = metadata.st_size
+    digest = hashlib.sha256()
+    while remaining:
+        chunk = os.read(descriptor, min(64 * 1024, remaining))
+        if not chunk:
+            raise OSError
+        digest.update(chunk)
+        remaining -= len(chunk)
+    if os.read(descriptor, 1):
+        raise OSError
+    return digest.hexdigest()
+
+
+def _validate_retained_activation_rollover_v1(
+    retained: _RetainedCompletedActivationRolloverV1,
+    *,
+    canonical_path_required: bool,
+) -> None:
+    directory = os.fstat(retained.directory_descriptor)
+    if (
+        not stat.S_ISDIR(directory.st_mode)
+        or directory.st_uid != os.getuid()
+        or stat.S_IMODE(directory.st_mode) != 0o700
+        or (directory.st_dev, directory.st_ino)
+        != (retained.directory_device, retained.directory_inode)
+        or set(os.listdir(retained.directory_descriptor))
+        != {artifact.basename for artifact in retained.artifacts}
+    ):
+        raise OSError
+    if canonical_path_required:
+        current = retained.transition_root.lstat()
+        if (current.st_dev, current.st_ino) != (
+            retained.directory_device,
+            retained.directory_inode,
+        ):
+            raise OSError
+    for artifact in retained.artifacts:
+        metadata = os.fstat(artifact.descriptor)
+        current = os.stat(
+            artifact.basename,
+            dir_fd=retained.directory_descriptor,
+            follow_symlinks=False,
+        )
+        if (
+            _stable_stat_identity(metadata) != artifact.identity
+            or _stable_stat_identity(current) != artifact.identity
+            or _read_retained_artifact_digest_v1(artifact.descriptor, metadata)
+            != artifact.digest
+            or _stable_stat_identity(os.fstat(artifact.descriptor)) != artifact.identity
+        ):
+            raise OSError
+
+
+def _require_retained_activation_rollover_v1(
+    retained: _RetainedCompletedActivationRolloverV1,
+    *,
+    canonical_path_required: bool,
+) -> None:
+    try:
+        _validate_retained_activation_rollover_v1(
+            retained,
+            canonical_path_required=canonical_path_required,
+        )
+    except OSError:
+        raise M5ServiceActivationErrorV1(
+            "m5_service_rollover_artifact_changed"
+        ) from None
+
+
+def _retain_completed_activation_rollover_v1(
+    *,
+    transition_root: Path,
+    archive_parent: Path,
+    prior_revision: str,
+    receipt_digest: str,
+    journal_digest: str,
+    rollback_unit_digest: str,
+) -> _RetainedCompletedActivationRolloverV1:
+    """Retain the exact complete activation directory across trusted rollback."""
+
+    directory_descriptor = -1
+    artifact_descriptors: list[int] = []
+    try:
+        archive_id = f"{prior_revision}-{receipt_digest}"
+        source_location = (
+            transition_root.name == TRANSITION_ROOT.name
+            and transition_root.parent.name == "state"
+            and archive_parent
+            == transition_root.parent.parent / CORRECTIVE_ARCHIVE_BASENAME
+        )
+        archived_location = (
+            transition_root.name == archive_id
+            and transition_root.parent == archive_parent
+            and archive_parent.name == CORRECTIVE_ARCHIVE_BASENAME
+        )
+        if (
+            not transition_root.is_absolute()
+            or not (source_location or archived_location)
+            or prior_revision != CORRECTIVE_ROLLOVER_REVISION
+            or _DIGEST.fullmatch(receipt_digest) is None
+            or _DIGEST.fullmatch(journal_digest) is None
+            or _DIGEST.fullmatch(rollback_unit_digest) is None
+            or transition_root.parent.is_symlink()
+            or transition_root.parent.resolve(strict=True) != transition_root.parent
+            or transition_root.is_symlink()
+            or transition_root.resolve(strict=True) != transition_root
+        ):
+            raise OSError
+        directory_descriptor = os.open(
+            transition_root,
+            os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW | os.O_CLOEXEC,
+        )
+        directory = os.fstat(directory_descriptor)
+        current_directory = transition_root.lstat()
+        expected_digests = {
+            ACTIVATION_JOURNAL_BASENAME: (journal_digest, MAX_JSON_BYTES),
+            ROLLBACK_UNIT_PATH.name: (rollback_unit_digest, MAX_UNIT_BYTES),
+            RECEIPT_PATH.name: (receipt_digest, MAX_JSON_BYTES),
+        }
+        if (
+            not stat.S_ISDIR(directory.st_mode)
+            or directory.st_uid != os.getuid()
+            or stat.S_IMODE(directory.st_mode) != 0o700
+            or (directory.st_dev, directory.st_ino)
+            != (current_directory.st_dev, current_directory.st_ino)
+            or set(os.listdir(directory_descriptor)) != set(expected_digests)
+        ):
+            raise OSError
+        artifacts: list[_RetainedActivationArtifactV1] = []
+        for basename in sorted(expected_digests):
+            expected_digest, maximum = expected_digests[basename]
+            descriptor = os.open(
+                basename,
+                os.O_RDONLY | os.O_NOFOLLOW | os.O_CLOEXEC,
+                dir_fd=directory_descriptor,
+            )
+            artifact_descriptors.append(descriptor)
+            metadata = os.fstat(descriptor)
+            current = os.stat(
+                basename,
+                dir_fd=directory_descriptor,
+                follow_symlinks=False,
+            )
+            identity = _stable_stat_identity(metadata)
+            if (
+                not stat.S_ISREG(metadata.st_mode)
+                or metadata.st_uid != os.getuid()
+                or stat.S_IMODE(metadata.st_mode) != 0o600
+                or metadata.st_nlink != 1
+                or metadata.st_dev != directory.st_dev
+                or not 1 <= metadata.st_size <= maximum
+                or _stable_stat_identity(current) != identity
+                or _read_retained_artifact_digest_v1(descriptor, metadata)
+                != expected_digest
+                or _stable_stat_identity(os.fstat(descriptor)) != identity
+            ):
+                raise OSError
+            artifacts.append(
+                _RetainedActivationArtifactV1(
+                    basename,
+                    descriptor,
+                    identity,
+                    expected_digest,
+                )
+            )
+        result = _RetainedCompletedActivationRolloverV1(
+            transition_root,
+            archive_parent,
+            archive_id,
+            directory_descriptor,
+            directory.st_dev,
+            directory.st_ino,
+            tuple(artifacts),
+        )
+        _validate_retained_activation_rollover_v1(
+            result,
+            canonical_path_required=True,
+        )
+        directory_descriptor = -1
+        artifact_descriptors.clear()
+        return result
+    except (OSError, TypeError, ValueError):
+        raise M5ServiceActivationErrorV1(
+            "m5_service_rollover_artifact_invalid"
+        ) from None
+    finally:
+        for descriptor in artifact_descriptors:
+            try:
+                os.close(descriptor)
+            except OSError:
+                pass
+        if directory_descriptor >= 0:
+            os.close(directory_descriptor)
+
+
+def _select_completed_activation_rollover_archive_v1(
+    *,
+    archive_parent: Path = CORRECTIVE_ARCHIVE_ROOT,
+) -> tuple[Path, str]:
+    """Select exactly one private, complete corrective archive directory."""
+
+    custody_descriptor = -1
+    archive_descriptor = -1
+    completed_descriptor = -1
+    try:
+        custody_root = archive_parent.parent
+        if (
+            not archive_parent.is_absolute()
+            or archive_parent.name != CORRECTIVE_ARCHIVE_BASENAME
+            or custody_root.is_symlink()
+            or custody_root.resolve(strict=True) != custody_root
+            or archive_parent.is_symlink()
+            or archive_parent.resolve(strict=True) != archive_parent
+        ):
+            raise OSError
+        custody_descriptor = os.open(
+            custody_root,
+            os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW | os.O_CLOEXEC,
+        )
+        custody = os.fstat(custody_descriptor)
+        custody_entry = custody_root.lstat()
+        archive_descriptor = os.open(
+            archive_parent.name,
+            os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW | os.O_CLOEXEC,
+            dir_fd=custody_descriptor,
+        )
+        archive = os.fstat(archive_descriptor)
+        archive_entry = os.stat(
+            archive_parent.name,
+            dir_fd=custody_descriptor,
+            follow_symlinks=False,
+        )
+        entries = os.listdir(archive_descriptor)
+        if len(entries) != 1:
+            raise OSError
+        match = re.fullmatch(
+            rf"({CORRECTIVE_ROLLOVER_REVISION})-([0-9a-f]{{64}})",
+            entries[0],
+        )
+        if (
+            match is None
+            or not stat.S_ISDIR(custody.st_mode)
+            or custody.st_uid != os.getuid()
+            or stat.S_IMODE(custody.st_mode) != 0o700
+            or (custody.st_dev, custody.st_ino)
+            != (custody_entry.st_dev, custody_entry.st_ino)
+            or not stat.S_ISDIR(archive.st_mode)
+            or archive.st_uid != os.getuid()
+            or stat.S_IMODE(archive.st_mode) != 0o700
+            or archive.st_dev != custody.st_dev
+            or (archive.st_dev, archive.st_ino)
+            != (archive_entry.st_dev, archive_entry.st_ino)
+        ):
+            raise OSError
+        completed_descriptor = os.open(
+            entries[0],
+            os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW | os.O_CLOEXEC,
+            dir_fd=archive_descriptor,
+        )
+        completed = os.fstat(completed_descriptor)
+        completed_entry = os.stat(
+            entries[0],
+            dir_fd=archive_descriptor,
+            follow_symlinks=False,
+        )
+        expected_artifacts = {
+            ACTIVATION_JOURNAL_BASENAME,
+            ROLLBACK_UNIT_PATH.name,
+            RECEIPT_PATH.name,
+        }
+        if (
+            not stat.S_ISDIR(completed.st_mode)
+            or completed.st_uid != os.getuid()
+            or stat.S_IMODE(completed.st_mode) != 0o700
+            or completed.st_dev != archive.st_dev
+            or (completed.st_dev, completed.st_ino)
+            != (completed_entry.st_dev, completed_entry.st_ino)
+            or set(os.listdir(completed_descriptor)) != expected_artifacts
+        ):
+            raise OSError
+        return archive_parent / entries[0], match.group(2)
+    except (OSError, TypeError, ValueError):
+        raise M5ServiceActivationErrorV1(
+            "m5_service_rollover_archive_invalid"
+        ) from None
+    finally:
+        for descriptor in (
+            completed_descriptor,
+            archive_descriptor,
+            custody_descriptor,
+        ):
+            if descriptor >= 0:
+                try:
+                    os.close(descriptor)
+                except OSError:
+                    pass
+
+
+def _close_completed_activation_rollover_v1(
+    retained: _RetainedCompletedActivationRolloverV1,
+) -> None:
+    """Close retained rollover custody without mutating its artifacts."""
+
+    for artifact in retained.artifacts:
+        try:
+            os.close(artifact.descriptor)
+        except OSError:
+            pass
+    try:
+        os.close(retained.directory_descriptor)
+    except OSError:
+        pass
+
+
+def _rename_activation_rollover_noreplace_v1(
+    source_name: str,
+    target_name: str,
+    *,
+    source_directory_descriptor: int,
+    target_directory_descriptor: int,
+) -> None:
+    if (
+        _RENAMEAT2 is None
+        or Path(source_name).name != source_name
+        or Path(target_name).name != target_name
+    ):
+        raise M5ServiceActivationErrorV1(
+            "m5_service_rollover_atomic_noreplace_unavailable"
+        )
+    ctypes.set_errno(0)
+    result = _RENAMEAT2(
+        source_directory_descriptor,
+        os.fsencode(source_name),
+        target_directory_descriptor,
+        os.fsencode(target_name),
+        _RENAME_NOREPLACE,
+    )
+    if result == 0:
+        return
+    error_number = ctypes.get_errno()
+    if error_number == errno.EEXIST:
+        raise FileExistsError(error_number, os.strerror(error_number), target_name)
+    if error_number in {
+        errno.EINVAL,
+        errno.ENOSYS,
+        errno.ENOTSUP,
+        errno.EOPNOTSUPP,
+    }:
+        raise M5ServiceActivationErrorV1(
+            "m5_service_rollover_atomic_noreplace_unavailable"
+        )
+    raise OSError(error_number, os.strerror(error_number), source_name)
+
+
+def _archive_completed_activation_rollover_v1(
+    retained: _RetainedCompletedActivationRolloverV1,
+) -> str:
+    """Commit one completed transition by an atomic whole-directory move."""
+
+    state_descriptor = -1
+    custody_descriptor = -1
+    archive_descriptor = -1
+    fresh_descriptor = -1
+    committed = False
+    try:
+        if (
+            retained.transition_root.name != TRANSITION_ROOT.name
+            or retained.transition_root.parent.name != "state"
+        ):
+            raise M5ServiceActivationErrorV1("m5_service_rollover_archive_invalid")
+        _require_retained_activation_rollover_v1(
+            retained,
+            canonical_path_required=True,
+        )
+        state_root = retained.transition_root.parent
+        custody_root = state_root.parent
+        state_descriptor = os.open(
+            state_root,
+            os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW | os.O_CLOEXEC,
+        )
+        state = os.fstat(state_descriptor)
+        current_state = state_root.lstat()
+        custody_descriptor = os.open(
+            custody_root,
+            os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW | os.O_CLOEXEC,
+        )
+        custody = os.fstat(custody_descriptor)
+        current_custody = custody_root.lstat()
+        if (
+            state_root.is_symlink()
+            or state_root.resolve(strict=True) != state_root
+            or not stat.S_ISDIR(state.st_mode)
+            or state.st_uid != os.getuid()
+            or (state.st_dev, state.st_ino)
+            != (current_state.st_dev, current_state.st_ino)
+            or state.st_dev != retained.directory_device
+            or custody_root.is_symlink()
+            or custody_root.resolve(strict=True) != custody_root
+            or not stat.S_ISDIR(custody.st_mode)
+            or custody.st_uid != os.getuid()
+            or stat.S_IMODE(custody.st_mode) != 0o700
+            or (custody.st_dev, custody.st_ino)
+            != (current_custody.st_dev, current_custody.st_ino)
+            or custody.st_dev != state.st_dev
+        ):
+            raise OSError
+        try:
+            os.mkdir(
+                retained.archive_parent.name,
+                0o700,
+                dir_fd=custody_descriptor,
+            )
+        except FileExistsError:
+            pass
+        archive_descriptor = os.open(
+            retained.archive_parent.name,
+            os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW | os.O_CLOEXEC,
+            dir_fd=custody_descriptor,
+        )
+        archive = os.fstat(archive_descriptor)
+        archive_entry = os.stat(
+            retained.archive_parent.name,
+            dir_fd=custody_descriptor,
+            follow_symlinks=False,
+        )
+        if (
+            not stat.S_ISDIR(archive.st_mode)
+            or archive.st_uid != os.getuid()
+            or stat.S_IMODE(archive.st_mode) != 0o700
+            or archive.st_dev != state.st_dev
+            or (archive.st_dev, archive.st_ino)
+            != (archive_entry.st_dev, archive_entry.st_ino)
+        ):
+            raise OSError
+        if os.listdir(archive_descriptor):
+            raise FileExistsError
+        _require_retained_activation_rollover_v1(
+            retained,
+            canonical_path_required=True,
+        )
+        source_entry = os.stat(
+            retained.transition_root.name,
+            dir_fd=state_descriptor,
+            follow_symlinks=False,
+        )
+        current_state_entry = os.stat(
+            state_root.name,
+            dir_fd=custody_descriptor,
+            follow_symlinks=False,
+        )
+        current_archive_entry = os.stat(
+            retained.archive_parent.name,
+            dir_fd=custody_descriptor,
+            follow_symlinks=False,
+        )
+        if (
+            (source_entry.st_dev, source_entry.st_ino)
+            != (retained.directory_device, retained.directory_inode)
+            or (current_state_entry.st_dev, current_state_entry.st_ino)
+            != (state.st_dev, state.st_ino)
+            or (current_archive_entry.st_dev, current_archive_entry.st_ino)
+            != (archive.st_dev, archive.st_ino)
+        ):
+            raise OSError
+        os.fsync(retained.directory_descriptor)
+        if os.listdir(archive_descriptor):
+            raise FileExistsError
+        _rename_activation_rollover_noreplace_v1(
+            retained.transition_root.name,
+            retained.archive_id,
+            source_directory_descriptor=state_descriptor,
+            target_directory_descriptor=archive_descriptor,
+        )
+        committed = True
+        archived_entry = os.stat(
+            retained.archive_id,
+            dir_fd=archive_descriptor,
+            follow_symlinks=False,
+        )
+        if (archived_entry.st_dev, archived_entry.st_ino) != (
+            retained.directory_device,
+            retained.directory_inode,
+        ) or set(os.listdir(archive_descriptor)) != {retained.archive_id}:
+            raise OSError
+        current_state_entry = os.stat(
+            state_root.name,
+            dir_fd=custody_descriptor,
+            follow_symlinks=False,
+        )
+        current_archive_entry = os.stat(
+            retained.archive_parent.name,
+            dir_fd=custody_descriptor,
+            follow_symlinks=False,
+        )
+        if (current_state_entry.st_dev, current_state_entry.st_ino) != (
+            state.st_dev,
+            state.st_ino,
+        ) or (current_archive_entry.st_dev, current_archive_entry.st_ino) != (
+            archive.st_dev,
+            archive.st_ino,
+        ):
+            raise OSError
+        _require_retained_activation_rollover_v1(
+            retained,
+            canonical_path_required=False,
+        )
+        os.fsync(retained.directory_descriptor)
+        os.fsync(archive_descriptor)
+        os.fsync(state_descriptor)
+        os.fsync(custody_descriptor)
+        os.mkdir(retained.transition_root.name, 0o700, dir_fd=state_descriptor)
+        fresh_descriptor = os.open(
+            retained.transition_root.name,
+            os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW | os.O_CLOEXEC,
+            dir_fd=state_descriptor,
+        )
+        fresh = os.fstat(fresh_descriptor)
+        fresh_entry = os.stat(
+            retained.transition_root.name,
+            dir_fd=state_descriptor,
+            follow_symlinks=False,
+        )
+        if (
+            not stat.S_ISDIR(fresh.st_mode)
+            or fresh.st_uid != os.getuid()
+            or stat.S_IMODE(fresh.st_mode) != 0o700
+            or fresh.st_dev != state.st_dev
+            or (fresh.st_dev, fresh.st_ino) != (fresh_entry.st_dev, fresh_entry.st_ino)
+            or os.listdir(fresh_descriptor)
+        ):
+            raise OSError
+        os.fsync(fresh_descriptor)
+        os.fsync(state_descriptor)
+        return retained.archive_id
+    except FileExistsError:
+        reason = (
+            "m5_service_rollover_archive_committed"
+            if committed
+            else "m5_service_rollover_archive_exists"
+        )
+        raise M5ServiceActivationErrorV1(reason) from None
+    except M5ServiceActivationErrorV1:
+        raise
+    except (OSError, TypeError, ValueError):
+        reason = (
+            "m5_service_rollover_archive_committed"
+            if committed
+            else "m5_service_rollover_archive_invalid"
+        )
+        raise M5ServiceActivationErrorV1(reason) from None
+    finally:
+        for descriptor in (
+            fresh_descriptor,
+            archive_descriptor,
+            custody_descriptor,
+            state_descriptor,
+        ):
+            if descriptor >= 0:
+                try:
+                    os.close(descriptor)
+                except OSError:
+                    pass
 
 
 def _runtime_regular_file_digest(
@@ -2226,18 +2870,21 @@ def _rollback_candidate_for_receipt_v1(
     )
 
 
-def validate_current_activation_receipt_v1(
+def _validate_completed_activation_material_v1(
     candidate: M5ServiceCandidateV1,
-    current: SystemdServiceObservationV1,
     *,
+    require_candidate_unit: bool,
     receipt_path: Path = RECEIPT_PATH,
     journal_path: Path = JOURNAL_PATH,
     rollback_unit_path: Path = ROLLBACK_UNIT_PATH,
     rollback_root: Path = ROLLBACK_ROOT,
 ) -> ValidatedM5ServiceActivationReceiptV1:
-    """Validate the current activation receipt and every rollback binding."""
+    """Validate immutable completed evidence before or after trusted rollback."""
 
     try:
+        if type(require_candidate_unit) is not bool:
+            raise TypeError
+        validate_service_candidate_v1(candidate)
         transition_root = receipt_path.parent
         root_info = transition_root.lstat()
         if (
@@ -2255,13 +2902,13 @@ def validate_current_activation_receipt_v1(
         ):
             raise OSError
 
-        validate_selected_systemd_service_v1(candidate, current)
-        _, candidate_unit_bytes = _safe_regular_file(
-            candidate.unit_path,
-            maximum=MAX_UNIT_BYTES,
-        )
-        if candidate_unit_bytes != candidate.unit_text.encode("utf-8"):
-            raise ValueError
+        if require_candidate_unit:
+            _, candidate_unit_bytes = _safe_regular_file(
+                candidate.unit_path,
+                maximum=MAX_UNIT_BYTES,
+            )
+            if candidate_unit_bytes != candidate.unit_text.encode("utf-8"):
+                raise ValueError
 
         _, receipt_payload = _safe_regular_file(
             receipt_path,
@@ -2325,6 +2972,8 @@ def validate_current_activation_receipt_v1(
             journal_digest=journal_digest,
             rollback_unit_digest=rollback_unit_digest,
             rollback_runtime_digest=rollback_runtime.tree_digest,
+            main_pid=int(receipt["main_pid"]),
+            main_pid_start_time_ticks=int(receipt["main_pid_start_time_ticks"]),
         )
     except (
         KeyError,
@@ -2335,6 +2984,31 @@ def validate_current_activation_receipt_v1(
         UnicodeError,
         ValueError,
     ):
+        raise M5ServiceActivationErrorV1("m5_service_receipt_invalid") from None
+
+
+def validate_current_activation_receipt_v1(
+    candidate: M5ServiceCandidateV1,
+    current: SystemdServiceObservationV1,
+    *,
+    receipt_path: Path = RECEIPT_PATH,
+    journal_path: Path = JOURNAL_PATH,
+    rollback_unit_path: Path = ROLLBACK_UNIT_PATH,
+    rollback_root: Path = ROLLBACK_ROOT,
+) -> ValidatedM5ServiceActivationReceiptV1:
+    """Validate the current activation receipt and every rollback binding."""
+
+    try:
+        validate_selected_systemd_service_v1(candidate, current)
+        return _validate_completed_activation_material_v1(
+            candidate,
+            require_candidate_unit=True,
+            receipt_path=receipt_path,
+            journal_path=journal_path,
+            rollback_unit_path=rollback_unit_path,
+            rollback_root=rollback_root,
+        )
+    except (M5ServiceActivationErrorV1, M5ServiceActivationFailedV1):
         raise M5ServiceActivationErrorV1("m5_service_receipt_invalid") from None
 
 
@@ -2722,6 +3396,500 @@ def _verify_transition_material(
         raise M5ServiceActivationFailedV1("m5_service_rollback_material_changed")
 
 
+def _observe_corrective_rollover_service_v1(
+    candidate: M5ServiceCandidateV1,
+    rollback: M5ServiceCandidateV1,
+) -> tuple[SystemdServiceObservationV1, str]:
+    """Observe only the approved prior candidate or its pinned rollback."""
+
+    try:
+        current = observe_selected_systemd_service_v1(candidate)
+        validate_selected_systemd_service_v1(candidate, current)
+        return current, candidate.source_revision
+    except (M5ServiceActivationErrorV1, M5ServiceActivationFailedV1):
+        pass
+    try:
+        current = observe_selected_systemd_service_v1(rollback)
+        validate_rollback_systemd_service_v1(rollback, current)
+        return current, PINNED_ROLLBACK_REVISION
+    except (M5ServiceActivationErrorV1, M5ServiceActivationFailedV1):
+        raise M5ServiceActivationErrorV1(
+            "m5_service_rollover_service_invalid"
+        ) from None
+
+
+def _corrective_rollover_retry_transition_state_v1(
+    activation_lock: M5CompletionLockV1,
+) -> Literal["fresh", "journal_only", "rollback_only", "prepared"]:
+    """Classify only safe artifacts from an interrupted corrected activation."""
+
+    validate_m5_service_activation_lock_v1(activation_lock)
+    descriptors: list[int] = []
+    allowed = {
+        ACTIVATION_JOURNAL_BASENAME: MAX_JSON_BYTES,
+        ROLLBACK_UNIT_PATH.name: MAX_UNIT_BYTES,
+    }
+    states: dict[
+        frozenset[str], Literal["fresh", "journal_only", "rollback_only", "prepared"]
+    ] = {
+        frozenset(): "fresh",
+        frozenset({ACTIVATION_JOURNAL_BASENAME}): "journal_only",
+        frozenset({ROLLBACK_UNIT_PATH.name}): "rollback_only",
+        frozenset(allowed): "prepared",
+    }
+    try:
+        entries = frozenset(os.listdir(activation_lock.directory_descriptor))
+        state = states.get(entries)
+        if state is None:
+            raise OSError
+        for basename in sorted(entries):
+            descriptor = os.open(
+                basename,
+                os.O_RDONLY | os.O_NOFOLLOW | os.O_CLOEXEC,
+                dir_fd=activation_lock.directory_descriptor,
+            )
+            descriptors.append(descriptor)
+            metadata = os.fstat(descriptor)
+            current = os.stat(
+                basename,
+                dir_fd=activation_lock.directory_descriptor,
+                follow_symlinks=False,
+            )
+            if (
+                not stat.S_ISREG(metadata.st_mode)
+                or metadata.st_uid != os.getuid()
+                or stat.S_IMODE(metadata.st_mode) != 0o600
+                or metadata.st_nlink != 1
+                or metadata.st_dev != activation_lock.directory_device
+                or not 1 <= metadata.st_size <= allowed[basename]
+                or _stable_stat_identity(current) != _stable_stat_identity(metadata)
+            ):
+                raise OSError
+        if frozenset(os.listdir(activation_lock.directory_descriptor)) != entries:
+            raise OSError
+        validate_m5_service_activation_lock_v1(activation_lock)
+        return state
+    except (OSError, TypeError, ValueError):
+        raise M5ServiceActivationErrorV1(
+            "m5_service_rollover_fresh_root_invalid"
+        ) from None
+    finally:
+        for descriptor in descriptors:
+            try:
+                os.close(descriptor)
+            except OSError:
+                pass
+
+
+def _observe_corrective_rollover_retry_transition_v1(
+    candidate: M5ServiceCandidateV1,
+    selectors: ActivationSelectorsV1,
+    state: Literal["fresh", "journal_only", "rollback_only", "prepared"],
+    rollback_from_archive: M5ServiceCandidateV1,
+) -> tuple[SystemdServiceObservationV1 | None, str | None, str]:
+    """Bind one safe fresh-root state to the exact current service transition."""
+
+    if state == "fresh":
+        current = observe_selected_systemd_service_v1(rollback_from_archive)
+        validate_rollback_systemd_service_v1(rollback_from_archive, current)
+        if current.main_pid != selectors.service_pid:
+            raise M5ServiceActivationErrorV1("m5_service_selection_changed")
+        return current, PINNED_ROLLBACK_REVISION, "rollback"
+
+    if state in {"journal_only", "rollback_only"}:
+        snapshot = _capture_unit_snapshot()
+        rollback = _rollback_candidate(snapshot)
+        current = observe_selected_systemd_service_v1(rollback)
+        validate_rollback_systemd_service_v1(rollback, current)
+        if current.main_pid != selectors.service_pid:
+            raise M5ServiceActivationErrorV1("m5_service_selection_changed")
+        if state == "rollback_only":
+            try:
+                _, backup = _safe_regular_file(
+                    ROLLBACK_UNIT_PATH,
+                    maximum=MAX_UNIT_BYTES,
+                )
+            except M5ServiceActivationErrorV1:
+                raise M5ServiceActivationErrorV1(
+                    "m5_service_transition_recovery_required"
+                ) from None
+            if backup != snapshot.content:
+                raise M5ServiceActivationErrorV1(
+                    "m5_service_transition_recovery_required"
+                )
+        else:
+            document = read_private_activation_journal_v1(JOURNAL_PATH)
+            expected = build_activation_journal_v1(
+                candidate,
+                rollback,
+                current,
+                snapshot,
+                phase="prepared",
+            )
+            if not activation_journal_material_matches_v1(document, expected):
+                raise M5ServiceActivationErrorV1(
+                    "m5_service_transition_recovery_required"
+                )
+        return current, PINNED_ROLLBACK_REVISION, "rollback"
+
+    existing = _existing_transition_snapshot(candidate)
+    if existing is None:
+        raise M5ServiceActivationErrorV1("m5_service_transition_recovery_required")
+    _snapshot, rollback, _document = existing
+    prepared_current, current_kind = _observe_known_transition_state(
+        candidate,
+        rollback,
+        receipt_present=False,
+    )
+    if prepared_current is None:
+        return None, None, current_kind
+    if prepared_current.main_pid != selectors.service_pid:
+        raise M5ServiceActivationErrorV1("m5_service_selection_changed")
+    service_revision = (
+        candidate.source_revision
+        if current_kind == "candidate"
+        else PINNED_ROLLBACK_REVISION
+    )
+    return prepared_current, service_revision, current_kind
+
+
+def _validate_completed_activation_rollover_archive_retry_v1(
+    selectors: ActivationSelectorsV1,
+    candidate: M5ServiceCandidateV1,
+    rollback_runtime_state: _RollbackRuntimeStateV1,
+    activation_lock: M5CompletionLockV1,
+) -> None:
+    """Reprove the committed corrective archive before a fresh activation."""
+
+    validate_m5_service_activation_lock_v1(activation_lock)
+    archived_root, receipt_digest = _select_completed_activation_rollover_archive_v1()
+    receipt_path = archived_root / RECEIPT_PATH.name
+    journal_path = archived_root / ACTIVATION_JOURNAL_BASENAME
+    rollback_unit_path = archived_root / ROLLBACK_UNIT_PATH.name
+    receipt_document = _load_json_artifact(receipt_path)
+    if receipt_document.get("candidate_revision") != CORRECTIVE_ROLLOVER_REVISION:
+        raise M5ServiceActivationErrorV1("m5_service_receipt_invalid")
+    prior_root_value = receipt_document.get("candidate_root")
+    if not isinstance(prior_root_value, str):
+        raise M5ServiceActivationErrorV1("m5_service_receipt_invalid")
+    prior_root = Path(prior_root_value)
+    if clean_detached_revision_v1(prior_root) != CORRECTIVE_ROLLOVER_REVISION:
+        raise M5ServiceActivationErrorV1("m5_service_rollover_checkout_invalid")
+    prior_candidate = candidate_for_checkout_v1(
+        source_revision=CORRECTIVE_ROLLOVER_REVISION,
+        checkout_root=prior_root,
+    )
+    completed = _validate_completed_activation_material_v1(
+        prior_candidate,
+        require_candidate_unit=False,
+        receipt_path=receipt_path,
+        journal_path=journal_path,
+        rollback_unit_path=rollback_unit_path,
+    )
+    if (
+        completed.digest != receipt_digest
+        or completed.rollback_runtime_digest != rollback_runtime_state.tree_digest
+    ):
+        raise M5ServiceActivationErrorV1("m5_service_receipt_invalid")
+    retained = _retain_completed_activation_rollover_v1(
+        transition_root=archived_root,
+        archive_parent=CORRECTIVE_ARCHIVE_ROOT,
+        prior_revision=CORRECTIVE_ROLLOVER_REVISION,
+        receipt_digest=completed.digest,
+        journal_digest=completed.journal_digest,
+        rollback_unit_digest=completed.rollback_unit_digest,
+    )
+    try:
+        rollback_unit_text = _render_unit(
+            ROLLBACK_ROOT,
+            data_root=DATA_ROOT,
+            timeout_stop_seconds=30,
+        )
+        rollback_candidate = _rollback_candidate_for_receipt_v1(
+            prior_candidate,
+            ROLLBACK_ROOT,
+            rollback_unit_text,
+        )
+        transition_state = _corrective_rollover_retry_transition_state_v1(
+            activation_lock
+        )
+        current, service_revision, current_kind = (
+            _observe_corrective_rollover_retry_transition_v1(
+                candidate,
+                selectors,
+                transition_state,
+                rollback_candidate,
+            )
+        )
+        browser = (
+            _browser_proof(
+                selectors,
+                revision=service_revision,
+                require_revision=True,
+            )
+            if service_revision is not None
+            else None
+        )
+        registry_digest = (
+            browser["registry_digest_before"] if browser is not None else None
+        )
+        database_state = _database_state(DATABASE_PATH)
+
+        _require_revision(candidate.source_revision)
+        require_clean_detached_revision_v1(
+            CORRECTIVE_ROLLOVER_REVISION,
+            root=prior_root,
+        )
+        _require_rollback_runtime_state(rollback_runtime_state)
+        _require_retained_activation_rollover_v1(
+            retained,
+            canonical_path_required=True,
+        )
+        selected_root_now, receipt_digest_now = (
+            _select_completed_activation_rollover_archive_v1()
+        )
+        if (
+            selected_root_now != archived_root
+            or receipt_digest_now != receipt_digest
+            or _validate_completed_activation_material_v1(
+                prior_candidate,
+                require_candidate_unit=False,
+                receipt_path=receipt_path,
+                journal_path=journal_path,
+                rollback_unit_path=rollback_unit_path,
+            )
+            != completed
+        ):
+            raise M5ServiceActivationErrorV1("m5_service_receipt_invalid")
+        transition_state_now = _corrective_rollover_retry_transition_state_v1(
+            activation_lock
+        )
+        current_now, service_revision_now, current_kind_now = (
+            _observe_corrective_rollover_retry_transition_v1(
+                candidate,
+                selectors,
+                transition_state_now,
+                rollback_candidate,
+            )
+        )
+        if (
+            transition_state_now != transition_state
+            or service_revision_now != service_revision
+            or current_kind_now != current_kind
+            or (current is None) != (current_now is None)
+            or (
+                current is not None
+                and current_now is not None
+                and (
+                    current_now.main_pid != current.main_pid
+                    or current_now.main_pid_start_time_ticks
+                    != current.main_pid_start_time_ticks
+                )
+            )
+        ):
+            raise M5ServiceActivationErrorV1("m5_service_selection_changed")
+        if service_revision is not None:
+            final_browser = _browser_proof(
+                selectors,
+                revision=service_revision,
+                require_revision=True,
+            )
+            if final_browser["registry_digest_before"] != registry_digest:
+                raise M5ServiceActivationFailedV1("m5_service_registry_changed")
+        if _database_state(DATABASE_PATH) != database_state:
+            raise M5ServiceActivationFailedV1("m5_service_database_changed")
+        validate_m5_service_activation_lock_v1(activation_lock)
+        if (
+            _corrective_rollover_retry_transition_state_v1(activation_lock)
+            != transition_state
+        ):
+            raise M5ServiceActivationErrorV1("m5_service_selection_changed")
+        _require_retained_activation_rollover_v1(
+            retained,
+            canonical_path_required=True,
+        )
+    finally:
+        _close_completed_activation_rollover_v1(retained)
+
+
+def _maybe_correct_completed_activation_rollover_v1(
+    selectors: ActivationSelectorsV1,
+    candidate: M5ServiceCandidateV1,
+    rollback_runtime_state: _RollbackRuntimeStateV1,
+    activation_lock: M5CompletionLockV1,
+) -> None:
+    """Restore and archive the one approved completed prior activation."""
+
+    if not _path_present(RECEIPT_PATH):
+        if _path_present(CORRECTIVE_ARCHIVE_ROOT):
+            _validate_completed_activation_rollover_archive_retry_v1(
+                selectors,
+                candidate,
+                rollback_runtime_state,
+                activation_lock,
+            )
+        return
+    receipt_document = _load_json_artifact(RECEIPT_PATH)
+    completed_revision = receipt_document.get("candidate_revision")
+    if completed_revision == candidate.source_revision:
+        return
+    if completed_revision != CORRECTIVE_ROLLOVER_REVISION:
+        raise M5ServiceActivationErrorV1("m5_service_transition_recovery_required")
+    prior_root_value = receipt_document.get("candidate_root")
+    if not isinstance(prior_root_value, str):
+        raise M5ServiceActivationErrorV1("m5_service_receipt_invalid")
+    prior_root = Path(prior_root_value)
+    if clean_detached_revision_v1(prior_root) != CORRECTIVE_ROLLOVER_REVISION:
+        raise M5ServiceActivationErrorV1("m5_service_rollover_checkout_invalid")
+    prior_candidate = candidate_for_checkout_v1(
+        source_revision=CORRECTIVE_ROLLOVER_REVISION,
+        checkout_root=prior_root,
+    )
+    completed = _validate_completed_activation_material_v1(
+        prior_candidate,
+        require_candidate_unit=False,
+    )
+    existing = _existing_transition_snapshot(prior_candidate)
+    if existing is None:
+        raise M5ServiceActivationErrorV1("m5_service_transition_recovery_required")
+    snapshot, rollback_candidate, _journal = existing
+    if completed.rollback_runtime_digest != rollback_runtime_state.tree_digest:
+        raise M5ServiceActivationErrorV1("m5_service_receipt_invalid")
+    retained = _retain_completed_activation_rollover_v1(
+        transition_root=TRANSITION_ROOT,
+        archive_parent=CORRECTIVE_ARCHIVE_ROOT,
+        prior_revision=CORRECTIVE_ROLLOVER_REVISION,
+        receipt_digest=completed.digest,
+        journal_digest=completed.journal_digest,
+        rollback_unit_digest=completed.rollback_unit_digest,
+    )
+    try:
+        current, service_revision = _observe_corrective_rollover_service_v1(
+            prior_candidate,
+            rollback_candidate,
+        )
+        decision = corrective_activation_rollover_decision_v1(
+            candidate_revision=candidate.source_revision,
+            completed_revision=completed.candidate_revision,
+            service_revision=service_revision,
+        )
+        if decision not in {"rollback_candidate", "archive_restored"}:
+            raise M5ServiceActivationErrorV1("m5_service_transition_recovery_required")
+        if current.main_pid != selectors.service_pid:
+            raise M5ServiceActivationErrorV1("m5_service_selection_changed")
+        if decision == "rollback_candidate":
+            current_receipt = validate_current_activation_receipt_v1(
+                prior_candidate,
+                current,
+            )
+            if (
+                current_receipt != completed
+                or completed.main_pid != current.main_pid
+                or completed.main_pid_start_time_ticks
+                != current.main_pid_start_time_ticks
+            ):
+                raise M5ServiceActivationErrorV1("m5_service_receipt_invalid")
+
+        initial_browser = _browser_proof(
+            selectors,
+            revision=service_revision,
+            require_revision=True,
+        )
+        registry_digest = initial_browser["registry_digest_before"]
+        database_state = _database_state(DATABASE_PATH)
+        _require_revision(candidate.source_revision)
+        require_clean_detached_revision_v1(
+            CORRECTIVE_ROLLOVER_REVISION,
+            root=prior_root,
+        )
+        _require_rollback_runtime_state(rollback_runtime_state)
+        current_now, service_revision_now = _observe_corrective_rollover_service_v1(
+            prior_candidate,
+            rollback_candidate,
+        )
+        if (
+            service_revision_now != service_revision
+            or current_now.main_pid != current.main_pid
+            or current_now.main_pid_start_time_ticks
+            != current.main_pid_start_time_ticks
+        ):
+            raise M5ServiceActivationErrorV1("m5_service_selection_changed")
+        material_now = _validate_completed_activation_material_v1(
+            prior_candidate,
+            require_candidate_unit=decision == "rollback_candidate",
+        )
+        if material_now != completed:
+            raise M5ServiceActivationErrorV1("m5_service_receipt_invalid")
+        _require_retained_activation_rollover_v1(
+            retained,
+            canonical_path_required=True,
+        )
+        validate_m5_service_activation_lock_v1(activation_lock)
+
+        if decision == "rollback_candidate":
+            restored = _rollback(
+                snapshot,
+                prior_candidate,
+                rollback_runtime_state,
+                selected_candidate=current_now,
+            )
+        else:
+            restored = current_now
+        validate_rollback_systemd_service_v1(rollback_candidate, restored)
+        _require_rollback_runtime_state(rollback_runtime_state)
+        restored_now = observe_selected_systemd_service_v1(rollback_candidate)
+        validate_rollback_systemd_service_v1(rollback_candidate, restored_now)
+        if (
+            restored_now.main_pid != restored.main_pid
+            or restored_now.main_pid_start_time_ticks
+            != restored.main_pid_start_time_ticks
+        ):
+            raise M5ServiceActivationErrorV1("m5_service_selection_changed")
+        rollback_browser = _browser_proof(
+            selectors,
+            revision=PINNED_ROLLBACK_REVISION,
+            require_revision=True,
+        )
+        if rollback_browser["registry_digest_before"] != registry_digest:
+            raise M5ServiceActivationFailedV1("m5_service_registry_changed")
+        if _database_state(DATABASE_PATH) != database_state:
+            raise M5ServiceActivationFailedV1("m5_service_database_changed")
+        _require_revision(candidate.source_revision)
+        require_clean_detached_revision_v1(
+            CORRECTIVE_ROLLOVER_REVISION,
+            root=prior_root,
+        )
+        final_material = _validate_completed_activation_material_v1(
+            prior_candidate,
+            require_candidate_unit=False,
+        )
+        if final_material != completed:
+            raise M5ServiceActivationErrorV1("m5_service_receipt_invalid")
+        _require_retained_activation_rollover_v1(
+            retained,
+            canonical_path_required=True,
+        )
+        validate_m5_service_activation_lock_v1(activation_lock)
+        _archive_completed_activation_rollover_v1(retained)
+        _require_rollback_runtime_state(rollback_runtime_state)
+        archived_service = observe_selected_systemd_service_v1(rollback_candidate)
+        validate_rollback_systemd_service_v1(
+            rollback_candidate,
+            archived_service,
+        )
+        if (
+            archived_service.main_pid != restored_now.main_pid
+            or archived_service.main_pid_start_time_ticks
+            != restored_now.main_pid_start_time_ticks
+        ):
+            raise M5ServiceActivationErrorV1("m5_service_selection_changed")
+        if _database_state(DATABASE_PATH) != database_state:
+            raise M5ServiceActivationFailedV1("m5_service_database_changed")
+        raise M5ServiceActivationRerunRequiredV1(archived_service.main_pid)
+    finally:
+        _close_completed_activation_rollover_v1(retained)
+
+
 def _activate_under_lock(
     selectors: ActivationSelectorsV1,
     activation_lock: M5CompletionLockV1,
@@ -2730,6 +3898,12 @@ def _activate_under_lock(
     rollback_runtime_state = _rollback_runtime_state()
     revision = clean_detached_revision_v1(ROOT)
     candidate = candidate_for_checkout_v1(source_revision=revision)
+    _maybe_correct_completed_activation_rollover_v1(
+        selectors,
+        candidate,
+        rollback_runtime_state,
+        activation_lock,
+    )
     _run_candidate_build(candidate)
     _require_revision(revision)
     _verify_unit_draft(candidate)
@@ -3054,6 +4228,12 @@ def main(arguments: list[str] | None = None) -> int:
             f"systemd; AGENTMONITOR_M5_SERVICE_PID={active.main_pid}"
         )
         return 0
+    except M5ServiceActivationRerunRequiredV1 as error:
+        print(
+            "M5 SERVICE ACTIVATION: RERUN REQUIRED — trusted rollback active; "
+            f"AGENTMONITOR_M5_SERVICE_PID={error.trusted_service_pid}"
+        )
+        return 5
     except M5ServiceActivationRollbackFailedV1 as error:
         print(f"M5 SERVICE ACTIVATION: FAILED — {error}")
         return 4
