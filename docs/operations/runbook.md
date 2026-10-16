@@ -318,6 +318,21 @@ use that same value for archive, owner-outcome, alert, quota, and exit work.
 Do not switch branches, commit, reset, merge, rebase, or edit the detached
 worktree during this sequence.
 
+Success leaves an owner-only activation journal, exact rollback-unit copy, and
+activation receipt below the fixed AgentMonitor transition directory. Preserve
+all three with the trusted rollback runtime. `AUTO-M5-EXIT` requires their
+canonical bytes, candidate and rollback revisions, rollback-runtime digest,
+and current systemd ownership to remain valid; a missing, stale, or changed
+artifact blocks completion. Never edit or replace these files to force the
+exit gate.
+
+The coordinator keeps the service-transition guard through its final receipt
+write and validation. A final guard custody or release failure removes the
+receipt created by that attempt and enters the same proven rollback policy.
+A partial create-once receipt is removed by exact inode identity; an unsafe or
+failed cleanup is reported explicitly, while a rollback failure keeps its
+distinct higher-priority result.
+
 Run it only against the already running authenticated loopback dashboard, with
 these selectors in the calling environment:
 
@@ -415,6 +430,26 @@ receipt creation, service recheck, and safe receipt cleanup. Contention, an
 unsafe receipt directory, a changed directory identity, or an unavailable
 kernel guard blocks the command. Do not start a fresh prerequisite writer until
 archive reports success.
+
+Exit creates and validates its final receipt relative to the directory
+descriptor held by the completion guard, and retains both that directory and
+the exact receipt inode through all final service and lock checks. Any
+post-write exception, including process interruption, first erases the exact
+created receipt bytes while both original guards remain held. Duplicate
+kernel-guard descriptors retain both abstract-socket names until any
+release-failure cleanup retry finishes. Cleanup unlinks the directory entry
+only when it is still the same owner-owned regular `0600`, single-link inode. A
+replacement is never removed, failed invalidation is explicit, and a cleanup
+failure cannot replace an earlier Blocked, Failed, interruption, or rollback
+failure result.
+
+Service activation and M5 exit also share a separate fixed service-transition
+guard below the owner-only activation directory. Exit acquires it before live
+service selection and holds it through its restart, final activation-receipt
+validation, completion-receipt write, and cleanup. This prevents activation or
+recovery from inspecting or changing the fixed user service concurrently with
+the completion gate. Guard contention or custody change blocks without a
+completion claim.
 
 Before the first rename it validates the resolved owner-owned `0700` data root
 and every existing fixed prerequisite as an owner-owned, regular, single-link,
@@ -600,13 +635,17 @@ Run:
 python3 tools/automation/run.py AUTO-M5-EXIT
 ```
 
-The command first validates all three exact private prerequisites and the
-current clean revision. Before the browser preflight, it runs the production
+The command first validates the current clean revision, holds both completion
+and service-transition guards, and requires the exact successful activation
+receipt plus its journal, rollback unit, rollback-runtime tree, candidate unit,
+and current systemd ownership. It then validates all three exact private
+prerequisites. Before the browser preflight, it runs the production
 managed-profile identity and quota operations under the real system `strace`,
 requires zero access or writes to the default Codex profile, and permits
 provider-controlled writes only below the selected managed profile. It binds
-only a sanitized containment digest and aggregate syscall counts to the final
-receipt, and requires the complete public Registry graph to remain unchanged.
+only the activation-receipt digest, a sanitized containment digest, and
+aggregate syscall counts to the final receipt, and requires the complete public
+Registry graph to remain unchanged.
 It then binds the owner-observed quota values to its read-only browser
 preflight, runs the canonical build, and restarts only the selected
 AgentMonitor service. It waits for fresh post-restart Codex quota/history
@@ -641,8 +680,9 @@ mode `0600`. It never replaces an existing receipt. The receipt contains the
 revision, exact admitted public versions and digests, aggregate outcome/process
 counts, the pre-restart `quota_history_value_set_digest`, the distinct
 `post_restart_history_value_set_digest`, the authenticated-containment digest
-and aggregate access/write counts, other sanitized evidence digests, test
-count, zero skips and every required lane. It contains no account identity,
+and aggregate access/write counts, the activation-receipt digest, other
+sanitized evidence digests, test count, zero skips and every required lane,
+including `service_activation`. It contains no account identity,
 alias, provider/profile path, process ID,
 credential, provider payload, prompt, response, source content or arbitrary
 environment value. Missing live prerequisites return **Blocked**; a failing

@@ -715,3 +715,17 @@ M5 prerequisite is current, `AUTO-M5-EXIT` passed, PLAN-DEP was approved, or M5
 was accepted.
 
 Plan snapshot SHA-256: `50e786deadb666da6ca21ef21a310f4d3c8b1d9ad344ee83a1ff3db4597cded5`
+
+## 2026-10-16 M5 transition serialization and receipt-binding control rebind
+
+The synchronized snapshot now records the reviewed M5 correction that holds
+one fixed service-transition guard across `AUTO-M5-EXIT`, consumes the exact
+successful activation and rollback-drill receipt, and binds its digest and
+lane into the final private receipt. The automation catalog and completion
+standard describe that bounded integration behavior. Only the
+`automation-routines` and `automation-standard` control digests and byte counts
+changed; all 20 canonical plan hashes and all public contract versions and
+meanings remain unchanged. This mechanical rebind claims no live activation,
+rollback drill, M5 exit pass, or owner acceptance.
+
+Plan snapshot SHA-256: `f04fecc5d69ec19f10f02b078992885cabd90720386f92073cf6dcb71b9670c5`

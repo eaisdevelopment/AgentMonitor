@@ -16,7 +16,7 @@ from collections.abc import Mapping
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
-from typing import cast
+from typing import NoReturn, cast
 
 from tools.automation.implementations.auto_m3_current_exit import (
     M3CurrentExitErrorV1,
@@ -58,11 +58,16 @@ from tools.automation.implementations.m5_service_activation import (
     M5ServiceActivationFailedV1,
     M5ServiceCandidateV1,
     SystemdServiceObservationV1,
+    ValidatedM5ServiceActivationReceiptV1,
+    acquire_m5_service_activation_lock_v1,
     clean_detached_revision_v1,
     observe_selected_systemd_service_v1,
+    release_m5_service_activation_lock_v1,
     restart_selected_systemd_service_v1,
     revalidate_current_systemd_binding_v1,
     select_current_systemd_binding_v1,
+    validate_current_activation_receipt_v1,
+    validate_m5_service_activation_lock_v1,
     validate_receipt_systemd_ownership_v1,
     verify_current_service_revision_browser_v1,
 )
@@ -91,6 +96,7 @@ CODEX_SCHEMA_BUNDLE_DIGEST = (
 )
 
 REQUIRED_LANES = (
+    "service_activation",
     "owner_outcomes",
     "alert_prerequisite",
     "exact_codex_admission",
@@ -189,9 +195,9 @@ STORY_NODE_TEST_INVENTORY_SHA256 = (
 )
 STORY_BROWSER_SCENARIOS = ("account_beyond_page",)
 # Updated only from the exact collected inventory after intentional test changes.
-STORY_PYTEST_TEST_COUNT = 423
+STORY_PYTEST_TEST_COUNT = 447
 STORY_PYTEST_TEST_INVENTORY_SHA256 = (
-    "854c6461e5f3510dbde908c0867cb56853754f58cad908deef73312ec5063a3a"
+    "82e34e3c155faf2372dfb6f14504e3610720bbcb6294797f0660c991a7a6673c"
 )
 STORY_ARTIFACTS = (
     "tools/git/preflight.py",
@@ -281,6 +287,15 @@ class M5CurrentExitFailedV1(M5CurrentExitErrorV1):
     """A required implemented M5 boundary failed."""
 
 
+@dataclass(frozen=True, slots=True)
+class CreatedM5ReceiptV1:
+    """An open handle to the exact final receipt inode created by this run."""
+
+    descriptor: int
+    device: int
+    inode: int
+
+
 def _translated_service_error_v1(
     error: M3CurrentExitErrorV1, *, pre_restart: bool
 ) -> M5CurrentExitErrorV1:
@@ -328,6 +343,97 @@ def _clean_m5_revision_v1() -> str:
         if str(error) == "m5_service_checkout_not_clean":
             raise M5CurrentExitErrorV1("m5_current_checkout_not_clean") from error
         raise M5CurrentExitFailedV1("m5_current_git_revision_failed") from error
+
+
+def _acquire_m5_current_service_transition_lock_v1(
+    transition_root: Path | None = None,
+) -> M5CompletionLockV1:
+    """Map the shared service transition lock into fail-closed M5 exit reasons."""
+
+    try:
+        if transition_root is None:
+            return acquire_m5_service_activation_lock_v1()
+        return acquire_m5_service_activation_lock_v1(transition_root)
+    except M5ServiceActivationErrorV1 as error:
+        reason = (
+            "m5_current_service_transition_busy"
+            if str(error) == "m5_service_activation_busy"
+            else "m5_current_service_transition_lock_invalid"
+        )
+        raise M5CurrentExitErrorV1(reason) from None
+
+
+def _validate_m5_current_service_transition_lock_v1(
+    lock: M5CompletionLockV1,
+) -> None:
+    try:
+        validate_m5_service_activation_lock_v1(lock)
+    except M5ServiceActivationErrorV1:
+        raise M5CurrentExitErrorV1(
+            "m5_current_service_transition_lock_changed"
+        ) from None
+
+
+def _release_m5_current_service_transition_lock_v1(
+    lock: M5CompletionLockV1,
+) -> M5CurrentExitFailedV1 | None:
+    """Release without allowing cleanup failure to escape the gate result."""
+
+    try:
+        release_m5_service_activation_lock_v1(lock)
+    except M5ServiceActivationErrorV1:
+        return M5CurrentExitFailedV1("m5_current_service_transition_release_failed")
+    return None
+
+
+def _select_m5_current_result_v1(
+    body_code: int | None,
+    body_message: str | None,
+    cleanup_errors: tuple[M5CurrentExitFailedV1, ...],
+) -> tuple[int | None, str | None]:
+    """Preserve a typed body result, otherwise report the first cleanup failure."""
+
+    if body_code is not None:
+        if body_code not in {1, 3} or not body_message:
+            raise M5CurrentExitFailedV1("m5_current_result_invalid")
+        return body_code, body_message
+    if body_message is not None:
+        raise M5CurrentExitFailedV1("m5_current_result_invalid")
+    if cleanup_errors:
+        return 1, f"M5 CURRENT EXIT: FAILED — {cleanup_errors[0]}"
+    return None, None
+
+
+def _m5_current_receipt_cleanup_required_v1(
+    *,
+    receipt_created: bool,
+    receipt_removed: bool,
+    result_code: int | None,
+    pending_base_exception: BaseException | None,
+    cleanup_errors: tuple[M5CurrentExitFailedV1, ...],
+) -> bool:
+    """Require invalidation for every unsuccessful or interrupted finalization."""
+
+    return (
+        receipt_created
+        and not receipt_removed
+        and (
+            result_code is not None
+            or pending_base_exception is not None
+            or bool(cleanup_errors)
+        )
+    )
+
+
+def _validate_activation_receipt_for_exit_v1(
+    candidate: M5ServiceCandidateV1,
+    current: SystemdServiceObservationV1 | None = None,
+) -> ValidatedM5ServiceActivationReceiptV1:
+    try:
+        observed = current or observe_selected_systemd_service_v1(candidate)
+        return validate_current_activation_receipt_v1(candidate, observed)
+    except M5ServiceActivationErrorV1:
+        raise M5CurrentExitErrorV1("m5_current_activation_receipt_invalid") from None
 
 
 @dataclass(frozen=True, slots=True)
@@ -697,6 +803,7 @@ def build_passed_receipt_v1(
     implementation_revision: str,
     started_at: datetime,
     completed_at: datetime,
+    activation_receipt_digest: str,
     owner_outcomes_digest: str,
     alert_witness_digest: str,
     quota_witness_digest: str,
@@ -725,6 +832,7 @@ def build_passed_receipt_v1(
     """Build a sanitized receipt only for the exact complete M5 lane set."""
 
     digests = (
+        activation_receipt_digest,
         owner_outcomes_digest,
         alert_witness_digest,
         quota_witness_digest,
@@ -799,6 +907,7 @@ def build_passed_receipt_v1(
         "schema_bundle_digest": CODEX_SCHEMA_BUNDLE_DIGEST,
         "mapping_id": CODEX_MAPPING_ID,
         "mapping_digest": CODEX_MAPPING_DIGEST,
+        "activation_receipt_digest": activation_receipt_digest,
         "owner_outcomes_digest": owner_outcomes_digest,
         "alert_witness_digest": alert_witness_digest,
         "quota_witness_digest": quota_witness_digest,
@@ -870,59 +979,246 @@ def _validate_m5_current_completion_lock_v1(lock: M5CompletionLockV1) -> None:
         raise M5CurrentExitErrorV1("m5_current_completion_lock_changed") from None
 
 
-def _unlink_created_receipt_inode_v1(path: Path, *, device: int, inode: int) -> None:
-    """Remove only the directory entry that still names our created inode."""
+def _duplicate_m5_current_guard_descriptors_v1(
+    completion_lock: M5CompletionLockV1,
+    service_transition_lock: M5CompletionLockV1,
+) -> tuple[int, int]:
+    """Retain both kernel guard names through post-release receipt cleanup."""
 
+    completion_guard = -1
+    transition_guard = -1
     try:
-        current = path.lstat()
-        if (current.st_dev, current.st_ino) != (device, inode):
-            return
-        path.unlink()
-        flags = os.O_RDONLY | os.O_DIRECTORY | os.O_CLOEXEC | os.O_NOFOLLOW
-        directory = os.open(path.parent, flags)
-        try:
-            os.fsync(directory)
-        finally:
-            os.close(directory)
+        completion_guard = os.dup(completion_lock.guard_descriptor)
+        os.set_inheritable(completion_guard, False)
+        transition_guard = os.dup(service_transition_lock.guard_descriptor)
+        os.set_inheritable(transition_guard, False)
+        return completion_guard, transition_guard
     except OSError:
-        pass
+        if completion_guard >= 0:
+            os.close(completion_guard)
+        if transition_guard >= 0:
+            os.close(transition_guard)
+        raise M5CurrentExitFailedV1("m5_current_guard_retention_failed") from None
 
 
-def _validate_created_receipt_inode_v1(
-    path: Path, descriptor: int, *, device: int, inode: int
+def _validate_receipt_directory_descriptor_v1(
+    path: Path,
+    directory_descriptor: int,
+    *,
+    device: int,
+    inode: int,
 ) -> None:
-    metadata = os.fstat(descriptor)
-    path_metadata = path.lstat()
+    """Prove one held directory descriptor still owns the canonical path."""
+
+    directory = os.fstat(directory_descriptor)
+    path_directory = path.parent.lstat()
     if (
-        not stat.S_ISREG(metadata.st_mode)
+        not path.is_absolute()
+        or path.name != RECEIPT_BASENAME
+        or path.parent.name != RECEIPT_DIRECTORY_NAME
+        or not stat.S_ISDIR(directory.st_mode)
+        or directory.st_uid != os.getuid()
+        or stat.S_IMODE(directory.st_mode) != 0o700
+        or (directory.st_dev, directory.st_ino) != (device, inode)
+        or (path_directory.st_dev, path_directory.st_ino) != (device, inode)
+    ):
+        raise OSError
+
+
+def _validate_created_receipt_inode_at_v1(
+    directory_descriptor: int,
+    basename: str,
+    descriptor: int,
+    *,
+    device: int,
+    inode: int,
+) -> None:
+    """Prove the open receipt and its held-directory entry are one private inode."""
+
+    metadata = os.fstat(descriptor)
+    path_metadata = os.stat(
+        basename,
+        dir_fd=directory_descriptor,
+        follow_symlinks=False,
+    )
+    if (
+        basename != RECEIPT_BASENAME
+        or not stat.S_ISREG(metadata.st_mode)
         or metadata.st_uid != os.getuid()
         or stat.S_IMODE(metadata.st_mode) != 0o600
         or metadata.st_nlink != 1
         or (metadata.st_dev, metadata.st_ino) != (device, inode)
         or (path_metadata.st_dev, path_metadata.st_ino) != (device, inode)
+        or not stat.S_ISREG(path_metadata.st_mode)
+        or path_metadata.st_uid != os.getuid()
+        or stat.S_IMODE(path_metadata.st_mode) != 0o600
+        or path_metadata.st_nlink != 1
     ):
         raise OSError
 
 
-def write_private_receipt_v1(
-    path: Path, receipt: Mapping[str, object]
-) -> tuple[int, int]:
-    """Create one owner-only result without following or replacing a path."""
+def _invalidate_created_receipt_inode_v1(
+    directory_descriptor: int,
+    basename: str,
+    descriptor: int,
+    *,
+    device: int,
+    inode: int,
+) -> bool:
+    """Erase our exact bytes, then remove only an entry still naming that inode."""
 
-    _validate_receipt_target_v1(path)
+    try:
+        metadata = os.fstat(descriptor)
+        if (
+            not stat.S_ISREG(metadata.st_mode)
+            or metadata.st_uid != os.getuid()
+            or (metadata.st_dev, metadata.st_ino) != (device, inode)
+        ):
+            return False
+        os.ftruncate(descriptor, 0)
+        os.fsync(descriptor)
+        try:
+            current = os.stat(
+                basename,
+                dir_fd=directory_descriptor,
+                follow_symlinks=False,
+            )
+        except FileNotFoundError:
+            os.fsync(directory_descriptor)
+            return True
+        if (current.st_dev, current.st_ino) != (device, inode):
+            os.fsync(directory_descriptor)
+            return True
+        os.unlink(basename, dir_fd=directory_descriptor)
+        os.fsync(directory_descriptor)
+        return True
+    except OSError:
+        return False
+
+
+def _remove_failed_m5_current_receipt_v1(
+    directory_descriptor: int,
+    receipt_descriptor: int,
+    *,
+    basename: str,
+    directory_device: int,
+    directory_inode: int,
+    device: int,
+    inode: int,
+) -> None:
+    """Invalidate our pass bytes and remove only its unchanged private entry."""
+
+    try:
+        directory = os.fstat(directory_descriptor)
+        receipt = os.fstat(receipt_descriptor)
+        if (
+            basename != RECEIPT_BASENAME
+            or not stat.S_ISDIR(directory.st_mode)
+            or directory.st_uid != os.getuid()
+            or (directory.st_dev, directory.st_ino)
+            != (directory_device, directory_inode)
+            or not stat.S_ISREG(receipt.st_mode)
+            or receipt.st_uid != os.getuid()
+            or (receipt.st_dev, receipt.st_ino) != (device, inode)
+            or type(device) is not int
+            or device < 0
+            or type(inode) is not int
+            or inode <= 0
+        ):
+            raise OSError
+        os.ftruncate(receipt_descriptor, 0)
+        os.fsync(receipt_descriptor)
+        try:
+            current = os.stat(
+                basename,
+                dir_fd=directory_descriptor,
+                follow_symlinks=False,
+            )
+        except FileNotFoundError:
+            raise OSError from None
+        if (
+            not stat.S_ISREG(current.st_mode)
+            or current.st_uid != os.getuid()
+            or stat.S_IMODE(current.st_mode) != 0o600
+            or current.st_nlink != 1
+            or (current.st_dev, current.st_ino) != (device, inode)
+        ):
+            raise OSError
+        os.unlink(basename, dir_fd=directory_descriptor)
+        os.fsync(directory_descriptor)
+        try:
+            remaining = os.stat(
+                basename,
+                dir_fd=directory_descriptor,
+                follow_symlinks=False,
+            )
+        except FileNotFoundError:
+            return
+        if (remaining.st_dev, remaining.st_ino) == (device, inode):
+            raise OSError
+    except OSError:
+        raise M5CurrentExitFailedV1("m5_current_receipt_cleanup_failed") from None
+
+
+def _remove_failed_m5_current_receipt_while_locked_v1(
+    completion_lock: M5CompletionLockV1,
+    service_transition_lock: M5CompletionLockV1,
+    directory_descriptor: int,
+    receipt_descriptor: int,
+    *,
+    directory_identity: tuple[int, int],
+    receipt_identity: tuple[int, int],
+) -> None:
+    """Invalidate a failed receipt before releasing either original guard."""
+
+    if (
+        completion_lock.guard_descriptor < 0
+        or service_transition_lock.guard_descriptor < 0
+    ):
+        raise M5CurrentExitFailedV1("m5_current_receipt_cleanup_failed")
+    _remove_failed_m5_current_receipt_v1(
+        directory_descriptor,
+        receipt_descriptor,
+        basename=RECEIPT_BASENAME,
+        directory_device=directory_identity[0],
+        directory_inode=directory_identity[1],
+        device=receipt_identity[0],
+        inode=receipt_identity[1],
+    )
+
+
+def _write_private_receipt_at_v1(
+    path: Path,
+    receipt: Mapping[str, object],
+    *,
+    directory_descriptor: int,
+    directory_device: int,
+    directory_inode: int,
+    retain_descriptor: bool,
+) -> tuple[tuple[int, int], int]:
+    """Create one owner-only result relative to a previously trusted directory."""
+
     payload = (json.dumps(receipt, indent=2, sort_keys=False) + "\n").encode("utf-8")
     descriptor = -1
     created_identity: tuple[int, int] | None = None
     try:
-        descriptor = os.open(
+        _validate_receipt_directory_descriptor_v1(
             path,
+            directory_descriptor,
+            device=directory_device,
+            inode=directory_inode,
+        )
+        descriptor = os.open(
+            path.name,
             os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW | os.O_CLOEXEC,
             0o600,
+            dir_fd=directory_descriptor,
         )
         metadata = os.fstat(descriptor)
         created_identity = (metadata.st_dev, metadata.st_ino)
-        _validate_created_receipt_inode_v1(
-            path,
+        _validate_created_receipt_inode_at_v1(
+            directory_descriptor,
+            path.name,
             descriptor,
             device=created_identity[0],
             inode=created_identity[1],
@@ -934,40 +1230,59 @@ def write_private_receipt_v1(
                 raise OSError
             position += written
         os.fsync(descriptor)
-        _validate_created_receipt_inode_v1(
-            path,
+        _validate_created_receipt_inode_at_v1(
+            directory_descriptor,
+            path.name,
             descriptor,
             device=created_identity[0],
             inode=created_identity[1],
         )
-        directory = os.open(
-            path.parent,
-            os.O_RDONLY | os.O_DIRECTORY | os.O_CLOEXEC | os.O_NOFOLLOW,
-        )
-        try:
-            os.fsync(directory)
-        finally:
-            os.close(directory)
-        _validate_created_receipt_inode_v1(
+        os.fsync(directory_descriptor)
+        _validate_receipt_directory_descriptor_v1(
             path,
+            directory_descriptor,
+            device=directory_device,
+            inode=directory_inode,
+        )
+        _validate_created_receipt_inode_at_v1(
+            directory_descriptor,
+            path.name,
             descriptor,
             device=created_identity[0],
             inode=created_identity[1],
         )
-        os.close(descriptor)
+        result_descriptor = descriptor if retain_descriptor else -1
+        if not retain_descriptor:
+            os.close(descriptor)
         descriptor = -1
-        return created_identity
+        return created_identity, result_descriptor
     except OSError:
-        if created_identity is not None:
-            _unlink_created_receipt_inode_v1(
-                path, device=created_identity[0], inode=created_identity[1]
+        if created_identity is not None and descriptor >= 0:
+            invalidated = _invalidate_created_receipt_inode_v1(
+                directory_descriptor,
+                path.name,
+                descriptor,
+                device=created_identity[0],
+                inode=created_identity[1],
             )
+            if not invalidated:
+                raise M5CurrentExitFailedV1(
+                    "m5_current_receipt_cleanup_failed"
+                ) from None
         raise M5CurrentExitFailedV1("m5_current_receipt_write_failed") from None
-    except BaseException:
-        if created_identity is not None:
-            _unlink_created_receipt_inode_v1(
-                path, device=created_identity[0], inode=created_identity[1]
+    except BaseException as error:
+        if created_identity is not None and descriptor >= 0:
+            invalidated = _invalidate_created_receipt_inode_v1(
+                directory_descriptor,
+                path.name,
+                descriptor,
+                device=created_identity[0],
+                inode=created_identity[1],
             )
+            if not invalidated:
+                raise M5CurrentExitFailedV1(
+                    "m5_current_receipt_cleanup_failed"
+                ) from error
         raise
     finally:
         if descriptor >= 0:
@@ -977,12 +1292,75 @@ def write_private_receipt_v1(
                 pass
 
 
+def write_private_receipt_v1(
+    path: Path, receipt: Mapping[str, object]
+) -> tuple[int, int]:
+    """Create one owner-only result without following or replacing a path."""
+
+    _validate_receipt_target_v1(path)
+    directory_descriptor = -1
+    try:
+        directory_descriptor = os.open(
+            path.parent,
+            os.O_RDONLY | os.O_DIRECTORY | os.O_CLOEXEC | os.O_NOFOLLOW,
+        )
+        directory = os.fstat(directory_descriptor)
+        created_identity, retained_descriptor = _write_private_receipt_at_v1(
+            path,
+            receipt,
+            directory_descriptor=directory_descriptor,
+            directory_device=directory.st_dev,
+            directory_inode=directory.st_ino,
+            retain_descriptor=False,
+        )
+        assert retained_descriptor == -1
+        return created_identity
+    except OSError:
+        raise M5CurrentExitFailedV1("m5_current_receipt_write_failed") from None
+    finally:
+        if directory_descriptor >= 0:
+            try:
+                os.close(directory_descriptor)
+            except OSError:
+                pass
+
+
+def _raise_after_created_m5_receipt_failure_v1(
+    error: BaseException,
+    *,
+    directory_descriptor: int,
+    basename: str,
+    receipt_descriptor: int,
+    receipt_identity: tuple[int, int],
+) -> NoReturn:
+    """Invalidate the exact post-write receipt, then preserve the primary error."""
+
+    invalidated = _invalidate_created_receipt_inode_v1(
+        directory_descriptor,
+        basename,
+        receipt_descriptor,
+        device=receipt_identity[0],
+        inode=receipt_identity[1],
+    )
+    try:
+        os.close(receipt_descriptor)
+    except OSError:
+        pass
+    if not invalidated:
+        raise M5CurrentExitFailedV1("m5_current_receipt_cleanup_failed") from error
+    raise error
+
+
 def write_verified_receipt_v1(
     candidate: M5ServiceCandidateV1,
     restarted: SystemdServiceObservationV1,
     path: Path,
     receipt: Mapping[str, object],
-) -> None:
+    *,
+    directory_descriptor: int,
+    directory_device: int,
+    directory_inode: int,
+) -> CreatedM5ReceiptV1:
     """Create the receipt only while systemd owns the restarted generation."""
 
     validate_receipt_systemd_ownership_v1(
@@ -991,7 +1369,14 @@ def write_verified_receipt_v1(
         restarted_start_time_ticks=restarted.main_pid_start_time_ticks,
         observation=observe_selected_systemd_service_v1(candidate),
     )
-    created_identity = write_private_receipt_v1(path, receipt)
+    created_identity, receipt_descriptor = _write_private_receipt_at_v1(
+        path,
+        receipt,
+        directory_descriptor=directory_descriptor,
+        directory_device=directory_device,
+        directory_inode=directory_inode,
+        retain_descriptor=True,
+    )
     try:
         validate_receipt_systemd_ownership_v1(
             candidate,
@@ -999,11 +1384,19 @@ def write_verified_receipt_v1(
             restarted_start_time_ticks=restarted.main_pid_start_time_ticks,
             observation=observe_selected_systemd_service_v1(candidate),
         )
-    except (M5ServiceActivationErrorV1, M5ServiceActivationFailedV1):
-        _unlink_created_receipt_inode_v1(
-            path, device=created_identity[0], inode=created_identity[1]
+    except BaseException as error:
+        _raise_after_created_m5_receipt_failure_v1(
+            error,
+            directory_descriptor=directory_descriptor,
+            basename=path.name,
+            receipt_descriptor=receipt_descriptor,
+            receipt_identity=created_identity,
         )
-        raise
+    return CreatedM5ReceiptV1(
+        descriptor=receipt_descriptor,
+        device=created_identity[0],
+        inode=created_identity[1],
+    )
 
 
 def _revalidate_runtime_binding_v1(
@@ -1224,7 +1617,10 @@ def _normalized_pytest_report_file_v1(value: object) -> str:
         normalized.startswith("../")
         or normalized == ".."
         or not normalized.endswith(".py")
-        or not normalized.startswith(("backend/tests/", "tools/automation/"))
+        or (
+            not normalized.startswith(("backend/tests/", "tools/automation/"))
+            and normalized != "tools/git/test_preflight.py"
+        )
     ):
         raise ValueError
     return normalized
@@ -1530,6 +1926,16 @@ def _read_current_quota_witness_v1(
 def main() -> int:
     service: SystemdServiceObservationV1 | None = None
     completion_lock: M5CompletionLockV1 | None = None
+    service_transition_lock: M5CompletionLockV1 | None = None
+    result_code: int | None = None
+    result_message: str | None = None
+    cleanup_errors: list[M5CurrentExitFailedV1] = []
+    created_receipt: CreatedM5ReceiptV1 | None = None
+    receipt_cleanup_descriptor = -1
+    receipt_directory_identity: tuple[int, int] | None = None
+    retained_completion_guard_descriptor = -1
+    retained_transition_guard_descriptor = -1
+    pending_base_exception: BaseException | None = None
     try:
         missing = tuple(path for path in STORY_ARTIFACTS if not (ROOT / path).exists())
         if missing:
@@ -1537,6 +1943,8 @@ def main() -> int:
         environment = os.environ.copy()
         environment["PYTHONPATH"] = str(ROOT / "backend/src")
         revision = _clean_m5_revision_v1()
+        service_transition_lock = _acquire_m5_current_service_transition_lock_v1()
+        _validate_m5_current_service_transition_lock_v1(service_transition_lock)
         selected_service = _validate_live_selection(
             environment, expected_revision=revision
         )
@@ -1547,6 +1955,10 @@ def main() -> int:
             raise M5CurrentExitFailedV1("m5_current_service_selection_invalid")
         completion_lock = _acquire_m5_current_completion_lock_v1(RECEIPT_PATH)
         _validate_receipt_target_v1(RECEIPT_PATH)
+        activation_receipt = _validate_activation_receipt_for_exit_v1(
+            candidate,
+            selected_systemd_service,
+        )
         outcomes_path = owner_root / OWNER_OUTCOMES_BASENAME
         quota_path = owner_root / QUOTA_WITNESS_BASENAME
         alert_path = owner_root / ALERT_WITNESS_BASENAME
@@ -1646,6 +2058,7 @@ def main() -> int:
         if preflight.get("registry_digest") != alert.registry_digest:
             raise M5CurrentExitErrorV1("m5_current_alert_registry_state_changed")
         lane_evidence: dict[str, str] = {
+            "service_activation": "rollback_drill_receipt_validated",
             "owner_outcomes": "four_owner_outcomes_validated",
             "alert_prerequisite": "codex_alert_receipt_validated",
             "exact_codex_admission": "codex_schema_mapping_no_default_access",
@@ -1668,6 +2081,7 @@ def main() -> int:
                 "AGENTMONITOR_TEST_DASHBOARD_CDP_ENDPOINT"
             ],
         )
+        _validate_m5_current_service_transition_lock_v1(service_transition_lock)
         try:
             service = restart_selected_systemd_service_v1(
                 candidate,
@@ -1772,6 +2186,7 @@ def main() -> int:
             implementation_revision=revision,
             started_at=started_at,
             completed_at=completed_at,
+            activation_receipt_digest=activation_receipt.digest,
             owner_outcomes_digest=outcomes.digest,
             alert_witness_digest=alert.digest,
             quota_witness_digest=quota.digest,
@@ -1813,18 +2228,44 @@ def main() -> int:
                 "AGENTMONITOR_TEST_DASHBOARD_CDP_ENDPOINT"
             ],
         )
+        _validate_m5_current_service_transition_lock_v1(service_transition_lock)
+        final_activation_receipt = _validate_activation_receipt_for_exit_v1(candidate)
+        if final_activation_receipt.digest != activation_receipt.digest:
+            raise M5CurrentExitErrorV1("m5_current_activation_receipt_changed")
         _validate_m5_current_completion_lock_v1(completion_lock)
         _validate_receipt_target_v1(RECEIPT_PATH)
         try:
-            write_verified_receipt_v1(candidate, service, RECEIPT_PATH, receipt)
+            receipt_cleanup_descriptor = os.dup(completion_lock.directory_descriptor)
+            os.set_inheritable(receipt_cleanup_descriptor, False)
+            receipt_directory_identity = (
+                completion_lock.directory_device,
+                completion_lock.directory_inode,
+            )
+            (
+                retained_completion_guard_descriptor,
+                retained_transition_guard_descriptor,
+            ) = _duplicate_m5_current_guard_descriptors_v1(
+                completion_lock,
+                service_transition_lock,
+            )
+            created_receipt = write_verified_receipt_v1(
+                candidate,
+                service,
+                RECEIPT_PATH,
+                receipt,
+                directory_descriptor=receipt_cleanup_descriptor,
+                directory_device=completion_lock.directory_device,
+                directory_inode=completion_lock.directory_inode,
+            )
         except (M5ServiceActivationErrorV1, M5ServiceActivationFailedV1) as error:
             raise _translated_systemd_service_error_v1(
                 error, pre_restart=False
             ) from error
         _validate_m5_current_completion_lock_v1(completion_lock)
+        _validate_m5_current_service_transition_lock_v1(service_transition_lock)
     except M5CurrentExitFailedV1 as error:
-        print(f"M5 CURRENT EXIT: FAILED — {error}")
-        return 1
+        result_code = 1
+        result_message = f"M5 CURRENT EXIT: FAILED — {error}"
     except (
         M5CurrentExitErrorV1,
         M5CodexQuotaWitnessErrorV1,
@@ -1832,8 +2273,8 @@ def main() -> int:
         M5CodexContainmentUnavailableV1,
         M3CurrentExitErrorV1,
     ) as error:
-        print(f"M5 CURRENT EXIT: BLOCKED — {error}")
-        return 3
+        result_code = 3
+        result_message = f"M5 CURRENT EXIT: BLOCKED — {error}"
     except (
         M5CodexAdmissionErrorV1,
         M5CodexContainmentErrorV1,
@@ -1841,11 +2282,120 @@ def main() -> int:
         subprocess.TimeoutExpired,
         ValueError,
     ):
-        print("M5 CURRENT EXIT: FAILED — execution_unavailable")
-        return 1
-    finally:
+        result_code = 1
+        result_message = "M5 CURRENT EXIT: FAILED — execution_unavailable"
+    except BaseException as error:
+        pending_base_exception = error
+
+    receipt_removed = False
+    pre_release_cleanup_required = _m5_current_receipt_cleanup_required_v1(
+        receipt_created=created_receipt is not None,
+        receipt_removed=receipt_removed,
+        result_code=result_code,
+        pending_base_exception=pending_base_exception,
+        cleanup_errors=(),
+    )
+    if pre_release_cleanup_required:
+        try:
+            assert created_receipt is not None
+            assert completion_lock is not None
+            assert service_transition_lock is not None
+            if receipt_cleanup_descriptor < 0 or receipt_directory_identity is None:
+                raise M5CurrentExitFailedV1("m5_current_receipt_cleanup_failed")
+            _remove_failed_m5_current_receipt_while_locked_v1(
+                completion_lock,
+                service_transition_lock,
+                receipt_cleanup_descriptor,
+                created_receipt.descriptor,
+                directory_identity=receipt_directory_identity,
+                receipt_identity=(created_receipt.device, created_receipt.inode),
+            )
+            receipt_removed = True
+        except M5CurrentExitFailedV1 as error:
+            cleanup_errors.append(error)
+        except BaseException as error:
+            if pending_base_exception is None:
+                pending_base_exception = error
+
+    try:
         if completion_lock is not None:
             release_m5_completion_lock_v1(completion_lock)
+    except OSError:
+        cleanup_errors.append(
+            M5CurrentExitFailedV1("m5_current_completion_lock_release_failed")
+        )
+    except BaseException as error:
+        if pending_base_exception is None:
+            pending_base_exception = error
+    try:
+        if service_transition_lock is not None:
+            transition_release_error = _release_m5_current_service_transition_lock_v1(
+                service_transition_lock
+            )
+            if transition_release_error is not None:
+                cleanup_errors.append(transition_release_error)
+    except BaseException as error:
+        if pending_base_exception is None:
+            pending_base_exception = error
+
+    post_release_cleanup_required = _m5_current_receipt_cleanup_required_v1(
+        receipt_created=created_receipt is not None,
+        receipt_removed=receipt_removed,
+        result_code=result_code,
+        pending_base_exception=pending_base_exception,
+        cleanup_errors=tuple(cleanup_errors),
+    )
+    try:
+        if post_release_cleanup_required:
+            assert created_receipt is not None
+            if receipt_cleanup_descriptor < 0 or receipt_directory_identity is None:
+                raise M5CurrentExitFailedV1("m5_current_receipt_cleanup_failed")
+            _remove_failed_m5_current_receipt_v1(
+                receipt_cleanup_descriptor,
+                created_receipt.descriptor,
+                basename=RECEIPT_BASENAME,
+                directory_device=receipt_directory_identity[0],
+                directory_inode=receipt_directory_identity[1],
+                device=created_receipt.device,
+                inode=created_receipt.inode,
+            )
+            receipt_removed = True
+    except M5CurrentExitFailedV1 as error:
+        cleanup_errors.append(error)
+    except BaseException as error:
+        if pending_base_exception is None:
+            pending_base_exception = error
+    finally:
+        if created_receipt is not None:
+            try:
+                os.close(created_receipt.descriptor)
+            except OSError:
+                pass
+        if receipt_cleanup_descriptor >= 0:
+            try:
+                os.close(receipt_cleanup_descriptor)
+            except OSError:
+                pass
+        for descriptor in (
+            retained_completion_guard_descriptor,
+            retained_transition_guard_descriptor,
+        ):
+            if descriptor >= 0:
+                try:
+                    os.close(descriptor)
+                except OSError:
+                    pass
+    if pending_base_exception is not None:
+        raise pending_base_exception
+    result_code, result_message = _select_m5_current_result_v1(
+        result_code,
+        result_message,
+        tuple(cleanup_errors),
+    )
+    if result_code is not None:
+        assert result_message is not None
+        print(result_message)
+        return result_code
     print(
         "M5 CURRENT EXIT: PASSED — exact Codex admission, four account outcomes, "
         "fresh quota history, representative processes, recovered alert, built browser "

@@ -22,6 +22,14 @@ from pathlib import Path
 from typing import Literal
 from urllib.parse import urlsplit
 
+from tools.automation.implementations.m5_completion_lock import (
+    M5CompletionLockErrorV1,
+    M5CompletionLockV1,
+    acquire_m5_completion_lock_v1,
+    release_m5_completion_lock_v1,
+    validate_m5_completion_lock_v1,
+)
+
 ROOT = Path(__file__).resolve().parents[3]
 SERVICE_NAME = "agentmonitor-dashboard.service"
 PINNED_ROLLBACK_REVISION = "77a3bad12a096a81587b94b8981ceee812b6445b"
@@ -49,6 +57,7 @@ GIT = Path("/usr/bin/git")
 NODE = Path("/usr/bin/node")
 TRANSITION_ROOT = DATA_ROOT / "state/m5-service-activation"
 ACTIVATION_JOURNAL_BASENAME = "activation-journal-v1.json"
+ACTIVATION_LOCK_BASENAME = "activation-lock-v1"
 JOURNAL_PATH = TRANSITION_ROOT / ACTIVATION_JOURNAL_BASENAME
 ROLLBACK_UNIT_PATH = TRANSITION_ROOT / "rollback-unit.service"
 RECEIPT_PATH = TRANSITION_ROOT / "activation-receipt.json"
@@ -180,6 +189,18 @@ class M5ServiceRevisionProofV1:
     implementation_revision: str
     service_source_revision: str
     registry_digest: str
+
+
+@dataclass(frozen=True, slots=True)
+class ValidatedM5ServiceActivationReceiptV1:
+    """Content-bound proof of the current activation and rollback material."""
+
+    digest: str
+    candidate_revision: str
+    rollback_revision: str
+    journal_digest: str
+    rollback_unit_digest: str
+    rollback_runtime_digest: str
 
 
 def _argv(checkout_root: Path, data_root: Path = DATA_ROOT) -> tuple[str, ...]:
@@ -473,7 +494,7 @@ def activation_transition_step_v1(
 
     if re.fullmatch(r"[a-z0-9_]{1,128}", original_failure) is None:
         raise M5ServiceActivationErrorV1("m5_service_transition_invalid")
-    if phase == "candidate_starting" and event == "failed":
+    if phase in {"candidate_starting", "candidate_finalizing"} and event == "failed":
         return ActivationTransitionDecisionV1(
             "rollback_verifying_runtime_before_stop",
             "verify_rollback_runtime",
@@ -1362,6 +1383,70 @@ def _selectors(environment: Mapping[str, str]) -> ActivationSelectorsV1:
     return ActivationSelectorsV1(root, origin, endpoint, int(pid_text))
 
 
+def _ensure_private_transition_root_v1(transition_root: Path) -> None:
+    """Create or revalidate the owner-only fixed transition custody root."""
+
+    try:
+        if not transition_root.is_absolute():
+            raise OSError
+        transition_root.mkdir(mode=0o700, parents=True, exist_ok=True)
+        info = transition_root.lstat()
+        if (
+            transition_root.is_symlink()
+            or transition_root.resolve(strict=True) != transition_root
+            or not stat.S_ISDIR(info.st_mode)
+            or info.st_uid != os.getuid()
+            or stat.S_IMODE(info.st_mode) != 0o700
+        ):
+            raise OSError
+    except OSError:
+        raise M5ServiceActivationErrorV1("m5_service_activation_lock_invalid") from None
+
+
+def acquire_m5_service_activation_lock_v1(
+    transition_root: Path = TRANSITION_ROOT,
+) -> M5CompletionLockV1:
+    """Acquire one nonblocking kernel guard for the fixed dashboard service."""
+
+    _ensure_private_transition_root_v1(transition_root)
+    try:
+        return acquire_m5_completion_lock_v1(transition_root / ACTIVATION_LOCK_BASENAME)
+    except M5CompletionLockErrorV1 as error:
+        reason = (
+            "m5_service_activation_busy"
+            if str(error) == "m5_completion_lock_busy"
+            else "m5_service_activation_lock_invalid"
+        )
+        raise M5ServiceActivationErrorV1(reason) from None
+
+
+def validate_m5_service_activation_lock_v1(lock: M5CompletionLockV1) -> None:
+    """Fail when the held kernel guard or its private custody root changed."""
+
+    try:
+        validate_m5_completion_lock_v1(lock)
+    except M5CompletionLockErrorV1:
+        raise M5ServiceActivationErrorV1("m5_service_activation_lock_changed") from None
+
+
+def release_m5_service_activation_lock_v1(lock: M5CompletionLockV1) -> None:
+    """Release the process-held service transition guard."""
+
+    try:
+        release_m5_completion_lock_v1(lock)
+    except OSError:
+        raise M5ServiceActivationErrorV1("m5_service_activation_lock_invalid") from None
+
+
+def select_m5_service_activation_result_v1(
+    body_error: BaseException | None,
+    cleanup_error: M5ServiceActivationErrorV1 | None,
+) -> BaseException | None:
+    """Preserve the transition result; use cleanup failure only without one."""
+
+    return body_error if body_error is not None else cleanup_error
+
+
 def _validate_owner_files() -> None:
     try:
         for path in (CONFIG_PATH, DATABASE_PATH):
@@ -1642,16 +1727,19 @@ def read_private_activation_journal_v1(path: Path) -> dict[str, object]:
     return value
 
 
-def _write_create_once(path: Path, content: bytes) -> None:
+def _write_create_once(path: Path, content: bytes) -> tuple[int, int]:
     if not 1 <= len(content) <= MAX_JSON_BYTES:
         raise M5ServiceActivationErrorV1("m5_service_artifact_invalid")
     descriptor = -1
+    created_identity: tuple[int, int] | None = None
     try:
         descriptor = os.open(
             path,
             os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, "O_NOFOLLOW", 0),
             0o600,
         )
+        metadata = os.fstat(descriptor)
+        created_identity = (metadata.st_dev, metadata.st_ino)
         os.fchmod(descriptor, 0o600)
         with os.fdopen(descriptor, "wb") as stream:
             descriptor = -1
@@ -1659,9 +1747,57 @@ def _write_create_once(path: Path, content: bytes) -> None:
             stream.flush()
             os.fsync(stream.fileno())
         _fsync_directory(path.parent)
+        current = path.lstat()
+        if (
+            not stat.S_ISREG(current.st_mode)
+            or current.st_uid != os.getuid()
+            or stat.S_IMODE(current.st_mode) != 0o600
+            or current.st_nlink != 1
+            or (current.st_dev, current.st_ino) != created_identity
+            or current.st_size != len(content)
+        ):
+            raise OSError
+        return created_identity
+    except BaseException:
+        if created_identity is not None:
+            _unlink_created_activation_receipt_v1(
+                path,
+                device=created_identity[0],
+                inode=created_identity[1],
+            )
+        raise
     finally:
         if descriptor >= 0:
             os.close(descriptor)
+
+
+def _unlink_created_activation_receipt_v1(
+    path: Path,
+    *,
+    device: int,
+    inode: int,
+) -> None:
+    """Remove only the canonical name that still identifies our receipt inode."""
+
+    try:
+        current = path.lstat()
+    except FileNotFoundError:
+        return
+    except OSError:
+        raise M5ServiceActivationFailedV1("m5_service_receipt_cleanup_failed") from None
+    if (
+        not stat.S_ISREG(current.st_mode)
+        or current.st_uid != os.getuid()
+        or stat.S_IMODE(current.st_mode) != 0o600
+        or current.st_nlink != 1
+        or (current.st_dev, current.st_ino) != (device, inode)
+    ):
+        raise M5ServiceActivationFailedV1("m5_service_receipt_cleanup_failed")
+    try:
+        path.unlink()
+        _fsync_directory(path.parent)
+    except OSError:
+        raise M5ServiceActivationFailedV1("m5_service_receipt_cleanup_failed") from None
 
 
 def _json_bytes(document: Mapping[str, object]) -> bytes:
@@ -1954,15 +2090,34 @@ def _recover_post_stop_failure(
     *,
     selected_candidate: SystemdServiceObservationV1 | None = None,
     resume_drill: bool = False,
+    failure_phase: Literal["candidate_starting", "candidate_finalizing"] = (
+        "candidate_starting"
+    ),
+    receipt_cleanup_error: M5ServiceActivationFailedV1 | None = None,
 ) -> SystemdServiceObservationV1:
     """Route both the live drill and unexpected failures through one rollback."""
 
+    original_failure = (
+        str(error)
+        if isinstance(error, (M5ServiceActivationErrorV1, M5ServiceActivationFailedV1))
+        and re.fullmatch(r"[a-z0-9_]{1,128}", str(error)) is not None
+        else "m5_service_activation_failed"
+    )
+    decision = activation_transition_step_v1(
+        failure_phase,
+        "failed",
+        original_failure=original_failure,
+    )
+    if decision.effect != "verify_rollback_runtime":
+        raise M5ServiceActivationFailedV1("m5_service_transition_invalid")
     restored = _rollback(
         snapshot,
         candidate,
         rollback_runtime_state,
         selected_candidate=selected_candidate,
     )
+    if receipt_cleanup_error is not None:
+        raise receipt_cleanup_error
     if resume_drill and isinstance(error, _M5ServiceRollbackDrillV1):
         return restored
     if isinstance(error, (M5ServiceActivationErrorV1, M5ServiceActivationFailedV1)):
@@ -2043,13 +2198,153 @@ def _validate_receipt(
         raise M5ServiceActivationErrorV1("m5_service_receipt_invalid")
 
 
+def _rollback_candidate_for_receipt_v1(
+    candidate: M5ServiceCandidateV1,
+    rollback_root: Path,
+    rollback_unit_text: str,
+) -> M5ServiceCandidateV1:
+    """Reconstruct the exact trusted launch whose bytes the receipt names."""
+
+    return M5ServiceCandidateV1(
+        unit_name=SERVICE_NAME,
+        unit_path=candidate.unit_path,
+        checkout_root=rollback_root,
+        source_revision=PINNED_ROLLBACK_REVISION,
+        executable=rollback_root / "backend/.venv/bin/python",
+        argv=_argv(rollback_root),
+        config_path=CONFIG_PATH,
+        data_root=DATA_ROOT,
+        environment=_environment(rollback_root),
+        after_units=("network-online.target",),
+        wants_units=("network-online.target",),
+        restart_policy="on-failure",
+        restart_delay_seconds=5,
+        timeout_stop_seconds=30,
+        umask="0077",
+        required_origins=REQUIRED_ORIGINS,
+        unit_text=rollback_unit_text,
+    )
+
+
+def validate_current_activation_receipt_v1(
+    candidate: M5ServiceCandidateV1,
+    current: SystemdServiceObservationV1,
+    *,
+    receipt_path: Path = RECEIPT_PATH,
+    journal_path: Path = JOURNAL_PATH,
+    rollback_unit_path: Path = ROLLBACK_UNIT_PATH,
+    rollback_root: Path = ROLLBACK_ROOT,
+) -> ValidatedM5ServiceActivationReceiptV1:
+    """Validate the current activation receipt and every rollback binding."""
+
+    try:
+        transition_root = receipt_path.parent
+        root_info = transition_root.lstat()
+        if (
+            not transition_root.is_absolute()
+            or transition_root.is_symlink()
+            or transition_root.resolve(strict=True) != transition_root
+            or not stat.S_ISDIR(root_info.st_mode)
+            or root_info.st_uid != os.getuid()
+            or stat.S_IMODE(root_info.st_mode) != 0o700
+            or receipt_path.name != RECEIPT_PATH.name
+            or journal_path.parent != transition_root
+            or journal_path.name != ACTIVATION_JOURNAL_BASENAME
+            or rollback_unit_path.parent != transition_root
+            or rollback_unit_path.name != ROLLBACK_UNIT_PATH.name
+        ):
+            raise OSError
+
+        validate_selected_systemd_service_v1(candidate, current)
+        _, candidate_unit_bytes = _safe_regular_file(
+            candidate.unit_path,
+            maximum=MAX_UNIT_BYTES,
+        )
+        if candidate_unit_bytes != candidate.unit_text.encode("utf-8"):
+            raise ValueError
+
+        _, receipt_payload = _safe_regular_file(
+            receipt_path,
+            maximum=MAX_JSON_BYTES,
+        )
+        receipt = json.loads(receipt_payload)
+        if not isinstance(receipt, dict):
+            raise TypeError
+        _validate_receipt(receipt, candidate)
+        if receipt_payload != _json_bytes(receipt):
+            raise ValueError
+
+        _, journal_payload = _safe_regular_file(
+            journal_path,
+            maximum=MAX_JSON_BYTES,
+        )
+        journal = json.loads(journal_payload)
+        if not isinstance(journal, dict):
+            raise TypeError
+        validate_activation_journal_v1(journal)
+        if journal_payload != _json_bytes(journal):
+            raise ValueError
+
+        _, rollback_unit_bytes = _safe_regular_file(
+            rollback_unit_path,
+            maximum=MAX_UNIT_BYTES,
+        )
+        rollback_unit_text = _render_unit(
+            rollback_root,
+            data_root=DATA_ROOT,
+            timeout_stop_seconds=30,
+        )
+        if rollback_unit_bytes != rollback_unit_text.encode("utf-8"):
+            raise ValueError
+        rollback = _rollback_candidate_for_receipt_v1(
+            candidate,
+            rollback_root,
+            rollback_unit_text,
+        )
+        rollback_runtime = _rollback_runtime_state(
+            rollback_root,
+            PINNED_ROLLBACK_REVISION,
+        )
+        rollback_unit_digest = hashlib.sha256(rollback_unit_bytes).hexdigest()
+        journal_digest = hashlib.sha256(journal_payload).hexdigest()
+        if (
+            journal["candidate_source_revision"] != candidate.source_revision
+            or journal["previous_source_revision"] != PINNED_ROLLBACK_REVISION
+            or journal["previous_unit_sha256"] != rollback_unit_digest
+            or journal["preserved_launch_sha256"]
+            != _preserved_launch_digest(candidate, rollback)
+            or receipt["rollback_unit_digest"] != rollback_unit_digest
+            or receipt["rollback_runtime_digest"] != rollback_runtime.tree_digest
+            or receipt["journal_digest"] != journal_digest
+        ):
+            raise ValueError
+        return ValidatedM5ServiceActivationReceiptV1(
+            digest=hashlib.sha256(receipt_payload).hexdigest(),
+            candidate_revision=candidate.source_revision,
+            rollback_revision=PINNED_ROLLBACK_REVISION,
+            journal_digest=journal_digest,
+            rollback_unit_digest=rollback_unit_digest,
+            rollback_runtime_digest=rollback_runtime.tree_digest,
+        )
+    except (
+        KeyError,
+        M5ServiceActivationErrorV1,
+        M5ServiceActivationFailedV1,
+        OSError,
+        TypeError,
+        UnicodeError,
+        ValueError,
+    ):
+        raise M5ServiceActivationErrorV1("m5_service_receipt_invalid") from None
+
+
 def _write_receipt(
     candidate: M5ServiceCandidateV1,
     active: SystemdServiceObservationV1,
     *,
     snapshot: UnitSnapshotV1,
     rollback_runtime_state: _RollbackRuntimeStateV1,
-) -> None:
+) -> tuple[int, int] | None:
     try:
         _, rollback_bytes = _safe_regular_file(
             ROLLBACK_UNIT_PATH,
@@ -2093,8 +2388,8 @@ def _write_receipt(
         comparable.pop("main_pid_start_time_ticks", None)
         if comparable != stable:
             raise M5ServiceActivationErrorV1("m5_service_receipt_invalid")
-        return
-    _write_create_once(RECEIPT_PATH, _json_bytes(document))
+        return None
+    return _write_create_once(RECEIPT_PATH, _json_bytes(document))
 
 
 def _verify_unit_draft(candidate: M5ServiceCandidateV1) -> None:
@@ -2427,7 +2722,10 @@ def _verify_transition_material(
         raise M5ServiceActivationFailedV1("m5_service_rollback_material_changed")
 
 
-def _activate(selectors: ActivationSelectorsV1) -> SystemdServiceObservationV1:
+def _activate_under_lock(
+    selectors: ActivationSelectorsV1,
+    activation_lock: M5CompletionLockV1,
+) -> SystemdServiceObservationV1:
     _validate_owner_files()
     rollback_runtime_state = _rollback_runtime_state()
     revision = clean_detached_revision_v1(ROOT)
@@ -2499,6 +2797,8 @@ def _activate(selectors: ActivationSelectorsV1) -> SystemdServiceObservationV1:
                 restarted_start_time_ticks=current.main_pid_start_time_ticks,
                 observation=observe_selected_systemd_service_v1(candidate),
             )
+            validate_m5_service_activation_lock_v1(activation_lock)
+            release_m5_service_activation_lock_v1(activation_lock)
             return current
         if decision != "restore_rollback":
             raise M5ServiceActivationErrorV1("m5_service_transition_recovery_required")
@@ -2534,7 +2834,12 @@ def _activate(selectors: ActivationSelectorsV1) -> SystemdServiceObservationV1:
         raise M5ServiceActivationErrorV1("m5_service_selection_changed")
 
     service_mutated = False
+    failure_phase: Literal["candidate_starting", "candidate_finalizing"] = (
+        "candidate_starting"
+    )
+    created_receipt_identity: tuple[int, int] | None = None
     try:
+        validate_m5_service_activation_lock_v1(activation_lock)
         _require_transition_stop_state(revision, rollback_runtime_state)
         service_mutated = True
         _systemctl_ok("stop", SERVICE_NAME, timeout=60)
@@ -2610,26 +2915,68 @@ def _activate(selectors: ActivationSelectorsV1) -> SystemdServiceObservationV1:
         if _database_state(DATABASE_PATH) != database_state:
             raise M5ServiceActivationFailedV1("m5_service_database_changed")
         _require_revision(revision)
-        _write_receipt(
+        failure_phase = "candidate_finalizing"
+        validate_m5_service_activation_lock_v1(activation_lock)
+        created_receipt_identity = _write_receipt(
             candidate,
             final_active,
             snapshot=snapshot,
             rollback_runtime_state=rollback_runtime_state,
         )
+        validate_m5_service_activation_lock_v1(activation_lock)
+        release_m5_service_activation_lock_v1(activation_lock)
         return final_active
     except (Exception, KeyboardInterrupt) as error:
+        receipt_cleanup_error: M5ServiceActivationFailedV1 | None = None
+        if created_receipt_identity is not None:
+            try:
+                _unlink_created_activation_receipt_v1(
+                    RECEIPT_PATH,
+                    device=created_receipt_identity[0],
+                    inode=created_receipt_identity[1],
+                )
+            except M5ServiceActivationFailedV1 as cleanup_error:
+                receipt_cleanup_error = cleanup_error
         if service_mutated:
             _recover_post_stop_failure(
                 error,
                 snapshot,
                 candidate,
                 rollback_runtime_state,
+                failure_phase=failure_phase,
+                receipt_cleanup_error=receipt_cleanup_error,
             )
+        if receipt_cleanup_error is not None:
+            raise receipt_cleanup_error from error
         if isinstance(error, KeyboardInterrupt):
             raise
         if isinstance(error, (M5ServiceActivationErrorV1, M5ServiceActivationFailedV1)):
             raise
         raise M5ServiceActivationFailedV1("m5_service_activation_failed") from None
+
+
+def _activate(selectors: ActivationSelectorsV1) -> SystemdServiceObservationV1:
+    """Serialize every inspection, recovery, mutation, and rollback attempt."""
+
+    activation_lock = acquire_m5_service_activation_lock_v1()
+    try:
+        validate_m5_service_activation_lock_v1(activation_lock)
+        return _activate_under_lock(selectors, activation_lock)
+    except BaseException as body_error:
+        cleanup_error: M5ServiceActivationErrorV1 | None = None
+        try:
+            release_m5_service_activation_lock_v1(activation_lock)
+        except M5ServiceActivationErrorV1 as error:
+            cleanup_error = error
+        selected_error = select_m5_service_activation_result_v1(
+            body_error,
+            cleanup_error,
+        )
+        if selected_error is body_error:
+            raise
+        if selected_error is None:
+            raise M5ServiceActivationFailedV1("m5_service_activation_failed") from None
+        raise selected_error from body_error
 
 
 def _status() -> tuple[bool, str]:

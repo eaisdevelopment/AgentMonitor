@@ -64,7 +64,10 @@ OLD_PID = 321
 OLD_START_TICKS = 654
 CURRENT_PID = 987
 CURRENT_START_TICKS = 765
-NOW = datetime(2026, 10, 8, 10, 10, tzinfo=UTC)
+# Anchor freshness-sensitive fixtures to the test run instead of a calendar date.
+# Truncate subsecond precision so serialized witness timestamps remain stable within
+# this module's archive calls while production code still enforces the real limits.
+NOW = datetime.now(UTC).replace(microsecond=0)
 DIGESTS = tuple(character * 64 for character in "cdef0123456789")
 
 

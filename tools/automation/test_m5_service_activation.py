@@ -6,6 +6,8 @@ import hashlib
 import importlib
 import json
 import os
+import resource
+import signal
 import stat
 import subprocess
 import tempfile
@@ -159,6 +161,246 @@ def _observation(
         source_revision=candidate.source_revision,
         ready_origins=candidate.required_origins,
     )
+
+
+def _activation_receipt_fixture(tmp_path: Path):
+    """Create exact private activation evidence on a real temporary filesystem."""
+
+    module = _module()
+    checkout_root = tmp_path / "candidate"
+    checkout_root.mkdir()
+    unit_root = tmp_path / "systemd"
+    unit_root.mkdir()
+    unit_path = unit_root / module.SERVICE_NAME
+    candidate = _candidate(
+        module,
+        checkout_root=checkout_root,
+        unit_path=unit_path,
+    )
+    unit_path.write_text(candidate.unit_text, encoding="utf-8")
+    unit_path.chmod(0o600)
+
+    rollback_root = tmp_path / module.PINNED_ROLLBACK_REVISION
+    executable_parent = rollback_root / "backend/.venv/bin"
+    executable_parent.mkdir(parents=True)
+    rollback_root.chmod(0o700)
+    (rollback_root / ".agentmonitor-runtime").write_text(
+        f"{module.PINNED_ROLLBACK_REVISION} {'1' * 64} {'2' * 64}\n",
+        encoding="ascii",
+    )
+    (rollback_root / ".agentmonitor-runtime").chmod(0o600)
+    (executable_parent / "python").symlink_to(Path("/usr/bin/python3"))
+    runtime_state = module._rollback_runtime_state(
+        rollback_root,
+        module.PINNED_ROLLBACK_REVISION,
+    )
+
+    transition_root = tmp_path / "m5-service-activation"
+    transition_root.mkdir(mode=0o700)
+    rollback_unit_path = transition_root / "rollback-unit.service"
+    rollback_text = module._render_unit(
+        rollback_root,
+        data_root=module.DATA_ROOT,
+        timeout_stop_seconds=30,
+    )
+    rollback_payload = rollback_text.encode("utf-8")
+    rollback_unit_path.write_bytes(rollback_payload)
+    rollback_unit_path.chmod(0o600)
+    rollback = replace(
+        candidate,
+        checkout_root=rollback_root,
+        source_revision=module.PINNED_ROLLBACK_REVISION,
+        executable=rollback_root / "backend/.venv/bin/python",
+        argv=module._argv(rollback_root),
+        environment=module._environment(rollback_root),
+        timeout_stop_seconds=30,
+        unit_text=rollback_text,
+    )
+    rollback_info = rollback_unit_path.stat()
+    journal = {
+        "schema": "agentmonitor.m5-service-activation-journal.v1",
+        "phase": "prepared",
+        "unit_name": module.SERVICE_NAME,
+        "previous_unit_sha256": hashlib.sha256(rollback_payload).hexdigest(),
+        "previous_unit_mode": 0o600,
+        "previous_unit_device": rollback_info.st_dev,
+        "previous_unit_inode": rollback_info.st_ino,
+        "previous_main_pid": 123,
+        "previous_main_pid_start_time_ticks": 456,
+        "previous_source_revision": module.PINNED_ROLLBACK_REVISION,
+        "candidate_source_revision": candidate.source_revision,
+        "preserved_launch_sha256": module._preserved_launch_digest(
+            candidate,
+            rollback,
+        ),
+    }
+    journal_path = transition_root / module.ACTIVATION_JOURNAL_BASENAME
+    journal_payload = module._json_bytes(journal)
+    journal_path.write_bytes(journal_payload)
+    journal_path.chmod(0o600)
+    receipt = {
+        "schema": "agentmonitor.m5-service-activation-receipt.v1",
+        "candidate_revision": candidate.source_revision,
+        "candidate_root": str(candidate.checkout_root),
+        "candidate_unit_digest": hashlib.sha256(
+            candidate.unit_text.encode("utf-8")
+        ).hexdigest(),
+        "rollback_revision": module.PINNED_ROLLBACK_REVISION,
+        "rollback_unit_digest": hashlib.sha256(rollback_payload).hexdigest(),
+        "rollback_runtime_digest": runtime_state.tree_digest,
+        "journal_digest": hashlib.sha256(journal_payload).hexdigest(),
+        "main_pid": 789,
+        "main_pid_start_time_ticks": 101112,
+        "rollback_proven": True,
+        "status": "active",
+    }
+    receipt_path = transition_root / "activation-receipt.json"
+    receipt_payload = module._json_bytes(receipt)
+    receipt_path.write_bytes(receipt_payload)
+    receipt_path.chmod(0o600)
+    return (
+        module,
+        candidate,
+        _observation(module, candidate),
+        receipt_path,
+        journal_path,
+        rollback_unit_path,
+        rollback_root,
+        receipt_payload,
+    )
+
+
+def test_current_activation_receipt_binds_live_candidate_and_rollback_material(
+    tmp_path: Path,
+) -> None:
+    (
+        module,
+        candidate,
+        current,
+        receipt_path,
+        journal_path,
+        rollback_unit_path,
+        rollback_root,
+        receipt_payload,
+    ) = _activation_receipt_fixture(tmp_path)
+
+    proof = module.validate_current_activation_receipt_v1(
+        candidate,
+        current,
+        receipt_path=receipt_path,
+        journal_path=journal_path,
+        rollback_unit_path=rollback_unit_path,
+        rollback_root=rollback_root,
+    )
+
+    assert proof.digest == hashlib.sha256(receipt_payload).hexdigest()
+    assert proof.candidate_revision == candidate.source_revision
+    assert proof.rollback_revision == module.PINNED_ROLLBACK_REVISION
+
+
+def test_current_activation_receipt_rejects_missing_receipt(tmp_path: Path) -> None:
+    fixture = _activation_receipt_fixture(tmp_path)
+    module, candidate, current, receipt_path, journal_path, unit_path, root, _ = fixture
+    receipt_path.unlink()
+
+    with pytest.raises(
+        module.M5ServiceActivationErrorV1,
+        match="m5_service_receipt_invalid",
+    ):
+        module.validate_current_activation_receipt_v1(
+            candidate,
+            current,
+            receipt_path=receipt_path,
+            journal_path=journal_path,
+            rollback_unit_path=unit_path,
+            rollback_root=root,
+        )
+
+
+def test_current_activation_receipt_rejects_stale_candidate_revision(
+    tmp_path: Path,
+) -> None:
+    fixture = _activation_receipt_fixture(tmp_path)
+    module, candidate, current, receipt_path, journal_path, unit_path, root, _ = fixture
+    document = json.loads(receipt_path.read_text(encoding="ascii"))
+    document["candidate_revision"] = PREVIOUS_REVISION
+    receipt_path.write_bytes(module._json_bytes(document))
+
+    with pytest.raises(
+        module.M5ServiceActivationErrorV1,
+        match="m5_service_receipt_invalid",
+    ):
+        module.validate_current_activation_receipt_v1(
+            candidate,
+            current,
+            receipt_path=receipt_path,
+            journal_path=journal_path,
+            rollback_unit_path=unit_path,
+            rollback_root=root,
+        )
+
+
+def test_current_activation_receipt_rejects_tampered_rollback_material(
+    tmp_path: Path,
+) -> None:
+    fixture = _activation_receipt_fixture(tmp_path)
+    module, candidate, current, receipt_path, journal_path, unit_path, root, _ = fixture
+    unit_path.write_text("tampered rollback unit\n", encoding="utf-8")
+    unit_path.chmod(0o600)
+
+    with pytest.raises(
+        module.M5ServiceActivationErrorV1,
+        match="m5_service_receipt_invalid",
+    ):
+        module.validate_current_activation_receipt_v1(
+            candidate,
+            current,
+            receipt_path=receipt_path,
+            journal_path=journal_path,
+            rollback_unit_path=unit_path,
+            rollback_root=root,
+        )
+
+
+def test_current_activation_receipt_rejects_tampered_journal(tmp_path: Path) -> None:
+    fixture = _activation_receipt_fixture(tmp_path)
+    module, candidate, current, receipt_path, journal_path, unit_path, root, _ = fixture
+    document = json.loads(journal_path.read_text(encoding="ascii"))
+    document["previous_main_pid"] += 1
+    journal_path.write_bytes(module._json_bytes(document))
+
+    with pytest.raises(
+        module.M5ServiceActivationErrorV1,
+        match="m5_service_receipt_invalid",
+    ):
+        module.validate_current_activation_receipt_v1(
+            candidate,
+            current,
+            receipt_path=receipt_path,
+            journal_path=journal_path,
+            rollback_unit_path=unit_path,
+            rollback_root=root,
+        )
+
+
+def test_current_activation_receipt_rejects_changed_systemd_ownership(
+    tmp_path: Path,
+) -> None:
+    fixture = _activation_receipt_fixture(tmp_path)
+    module, candidate, current, receipt_path, journal_path, unit_path, root, _ = fixture
+
+    with pytest.raises(
+        module.M5ServiceActivationErrorV1,
+        match="m5_service_receipt_invalid",
+    ):
+        module.validate_current_activation_receipt_v1(
+            candidate,
+            replace(current, process_working_directory=Path("/tmp/unrelated")),
+            receipt_path=receipt_path,
+            journal_path=journal_path,
+            rollback_unit_path=unit_path,
+            rollback_root=root,
+        )
 
 
 def test_selected_service_requires_exact_systemd_process_and_revision() -> None:
@@ -606,6 +848,168 @@ def test_activation_journal_uses_real_exclusive_create_and_fsync(
     assert "O_EXCL" in result.stderr
     assert result.stderr.count("fsync(") >= 2
     assert module.read_private_activation_journal_v1(path) == document
+
+
+def test_activation_lock_excludes_real_processes_and_detects_custody_change(
+    tmp_path: Path,
+) -> None:
+    """Only one process may inspect or mutate the fixed service transition."""
+
+    module = _module()
+    transition_root = tmp_path / "m5-service-activation"
+
+    def attempt_exit_code() -> int:
+        pid = os.fork()
+        if pid == 0:
+            lock = None
+            try:
+                lock = module.acquire_m5_service_activation_lock_v1(transition_root)
+                module.release_m5_service_activation_lock_v1(lock)
+                lock = None
+                os._exit(0)
+            except module.M5ServiceActivationErrorV1 as error:
+                os._exit(17 if str(error) == "m5_service_activation_busy" else 18)
+            except OSError:
+                os._exit(19)
+            finally:
+                if lock is not None:
+                    module.release_m5_service_activation_lock_v1(lock)
+        waited, status = os.waitpid(pid, 0)
+        assert waited == pid
+        return os.waitstatus_to_exitcode(status)
+
+    first = module.acquire_m5_service_activation_lock_v1(transition_root)
+    try:
+        module.validate_m5_service_activation_lock_v1(first)
+        assert attempt_exit_code() == 17
+
+        displaced = tmp_path / "displaced-m5-service-activation"
+        transition_root.rename(displaced)
+        transition_root.mkdir(mode=0o700)
+        assert attempt_exit_code() == 17
+        with pytest.raises(
+            module.M5ServiceActivationErrorV1,
+            match="m5_service_activation_lock_changed",
+        ):
+            module.validate_m5_service_activation_lock_v1(first)
+    finally:
+        module.release_m5_service_activation_lock_v1(first)
+
+    second = module.acquire_m5_service_activation_lock_v1(transition_root)
+    module.release_m5_service_activation_lock_v1(second)
+    transition_root.chmod(0o755)
+    with pytest.raises(
+        module.M5ServiceActivationErrorV1,
+        match="m5_service_activation_lock_invalid",
+    ):
+        module.acquire_m5_service_activation_lock_v1(transition_root)
+
+
+def test_final_activation_lock_custody_failure_enters_rollback_policy(
+    tmp_path: Path,
+) -> None:
+    """A lost final lock is an activation failure that starts exact rollback."""
+
+    module = _module()
+    transition_root = tmp_path / "m5-service-activation"
+    lock = module.acquire_m5_service_activation_lock_v1(transition_root)
+    try:
+        transition_root.rename(tmp_path / "displaced-m5-service-activation")
+        transition_root.mkdir(mode=0o700)
+        with pytest.raises(
+            module.M5ServiceActivationErrorV1,
+            match="m5_service_activation_lock_changed",
+        ) as caught:
+            module.validate_m5_service_activation_lock_v1(lock)
+
+        decision = module.activation_transition_step_v1(
+            "candidate_finalizing",
+            "failed",
+            original_failure=str(caught.value),
+        )
+        assert decision == module.ActivationTransitionDecisionV1(
+            "rollback_verifying_runtime_before_stop",
+            "verify_rollback_runtime",
+            None,
+        )
+    finally:
+        module.release_m5_service_activation_lock_v1(lock)
+
+
+def test_activation_lock_cleanup_cannot_override_rollback_failure(
+    tmp_path: Path,
+) -> None:
+    """The distinct rollback failure remains primary when lock release also fails."""
+
+    module = _module()
+    lock = module.acquire_m5_service_activation_lock_v1(
+        tmp_path / "m5-service-activation"
+    )
+    module.release_m5_service_activation_lock_v1(lock)
+    with pytest.raises(
+        module.M5ServiceActivationErrorV1,
+        match="m5_service_activation_lock_invalid",
+    ) as caught:
+        module.release_m5_service_activation_lock_v1(lock)
+
+    rollback_failure = module.M5ServiceActivationRollbackFailedV1(
+        "m5_service_activation_rollback_failed"
+    )
+    selected = module.select_m5_service_activation_result_v1(
+        rollback_failure,
+        caught.value,
+    )
+
+    assert selected is rollback_failure
+
+
+def test_partial_activation_receipt_write_failure_removes_created_artifact(
+    tmp_path: Path,
+) -> None:
+    """A real short-write failure cannot leave a create-once receipt pathname."""
+
+    module = _module()
+    receipt = tmp_path / "activation-receipt.json"
+    pid = os.fork()
+    if pid == 0:
+        signal.signal(signal.SIGXFSZ, signal.SIG_IGN)
+        resource.setrlimit(resource.RLIMIT_FSIZE, (1, 1))
+        try:
+            module._write_create_once(receipt, b"activation receipt\n")
+        except OSError:
+            os._exit(0 if not receipt.exists() else 31)
+        except BaseException:  # noqa: BLE001 - child maps every result to status.
+            os._exit(32)
+        os._exit(33)
+
+    waited, status = os.waitpid(pid, 0)
+    assert waited == pid
+    assert os.waitstatus_to_exitcode(status) == 0
+    assert not receipt.exists()
+
+
+def test_activation_receipt_cleanup_failure_is_typed_and_visible(
+    tmp_path: Path,
+) -> None:
+    """Failure to remove our exact receipt inode cannot be silently ignored."""
+
+    module = _module()
+    receipt = tmp_path / "activation-receipt.json"
+    device, inode = module._write_create_once(receipt, b"activation receipt\n")
+    tmp_path.chmod(0o500)
+    try:
+        with pytest.raises(
+            module.M5ServiceActivationFailedV1,
+            match="m5_service_receipt_cleanup_failed",
+        ):
+            module._unlink_created_activation_receipt_v1(
+                receipt,
+                device=device,
+                inode=inode,
+            )
+    finally:
+        tmp_path.chmod(0o700)
+        receipt.unlink(missing_ok=True)
 
 
 def test_interrupted_activation_policy_distinguishes_candidate_old_and_unknown() -> (

@@ -49,11 +49,15 @@ from tools.automation.implementations.auto_m5_current_exit import (
     M5CurrentExitErrorV1,
     M5CurrentExitFailedV1,
     SelectedServiceV1,
+    _acquire_m5_current_service_transition_lock_v1,
     _digest_values,
     _node_test_count_v1,
     _read_private_json_v1,
+    _release_m5_current_service_transition_lock_v1,
+    _remove_failed_m5_current_receipt_v1,
     _revalidate_runtime_binding_v1,
     _routine_environment_v1,
+    _select_m5_current_result_v1,
     _translated_systemd_service_error_v1,
     _validate_node_test_inventory_v1,
     _validate_pytest_report_inventory_v1,
@@ -72,7 +76,9 @@ from tools.automation.implementations.m5_codex_quota_witness import (
 from tools.automation.implementations.m5_service_activation import (
     M5ServiceActivationErrorV1,
     M5ServiceActivationFailedV1,
+    acquire_m5_service_activation_lock_v1,
     candidate_for_checkout_v1,
+    release_m5_service_activation_lock_v1,
 )
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -123,6 +129,58 @@ def test_only_m5_git_preflight_child_receives_detached_checkout_selector() -> No
     )
 
 
+def test_exit_maps_real_service_transition_lock_contention_to_blocked(
+    tmp_path: Path,
+) -> None:
+    transition_root = tmp_path / "m5-service-activation"
+    first = acquire_m5_service_activation_lock_v1(transition_root)
+    try:
+        with pytest.raises(
+            M5CurrentExitErrorV1,
+            match="m5_current_service_transition_busy",
+        ):
+            _acquire_m5_current_service_transition_lock_v1(transition_root)
+    finally:
+        release_m5_service_activation_lock_v1(first)
+
+
+def test_exit_maps_service_transition_lock_release_failure_to_typed_result(
+    tmp_path: Path,
+) -> None:
+    lock = acquire_m5_service_activation_lock_v1(tmp_path / "m5-service-activation")
+    release_m5_service_activation_lock_v1(lock)
+
+    error = _release_m5_current_service_transition_lock_v1(lock)
+
+    assert isinstance(error, M5CurrentExitFailedV1)
+    assert str(error) == "m5_current_service_transition_release_failed"
+
+
+def test_exit_result_preserves_body_outcome_and_first_cleanup_failure() -> None:
+    first = M5CurrentExitFailedV1("first_cleanup_failed")
+    second = M5CurrentExitFailedV1("second_cleanup_failed")
+
+    assert _select_m5_current_result_v1(
+        3,
+        "M5 CURRENT EXIT: BLOCKED — selected_input_changed",
+        (first, second),
+    ) == (3, "M5 CURRENT EXIT: BLOCKED — selected_input_changed")
+    assert _select_m5_current_result_v1(None, None, (first, second)) == (
+        1,
+        "M5 CURRENT EXIT: FAILED — first_cleanup_failed",
+    )
+
+
+def test_interruption_after_receipt_creation_requires_cleanup() -> None:
+    assert auto_m5_current_exit._m5_current_receipt_cleanup_required_v1(
+        receipt_created=True,
+        receipt_removed=False,
+        result_code=None,
+        pending_base_exception=KeyboardInterrupt(),
+        cleanup_errors=(),
+    )
+
+
 def _start_receipt_writer_and_stop_after_create(
     path: Path, receipt: dict[str, object]
 ) -> int:
@@ -132,8 +190,8 @@ def _start_receipt_writer_and_stop_after_create(
     if pid == 0:
         try:
             write_private_receipt_v1(path, receipt)
-        except M5CurrentExitFailedV1:
-            os._exit(23)
+        except M5CurrentExitFailedV1 as error:
+            os._exit(26 if str(error) == "m5_current_receipt_cleanup_failed" else 23)
         except M5CurrentExitErrorV1:
             os._exit(25)
         except BaseException:  # noqa: BLE001 - child must map every failure to status.
@@ -440,9 +498,9 @@ def test_catalog_selects_exact_m5_gate_and_closed_lanes() -> None:
     assert auto_m5_current_exit.STORY_NODE_TEST_INVENTORY_SHA256 == (
         "556bfd17af977e243e3a9c6c9b1372382cb1eaacfc46dd5136af736c4c76b41b"
     )
-    assert auto_m5_current_exit.STORY_PYTEST_TEST_COUNT == 423
+    assert auto_m5_current_exit.STORY_PYTEST_TEST_COUNT == 447
     assert auto_m5_current_exit.STORY_PYTEST_TEST_INVENTORY_SHA256 == (
-        "854c6461e5f3510dbde908c0867cb56853754f58cad908deef73312ec5063a3a"
+        "82e34e3c155faf2372dfb6f14504e3610720bbcb6294797f0660c991a7a6673c"
     )
     assert "tools/git/test_preflight.py" in STORY_TEST_PATHS
     assert STORY_AUTOMATION_TEST_IDS == (
@@ -717,6 +775,46 @@ ok 2 - beta
             report,
             expected_count=2,
             expected_digest=pytest_digest,
+        )
+
+
+def test_pytest_inventory_accepts_only_the_selected_git_preflight_file(
+    tmp_path: Path,
+) -> None:
+    report = tmp_path / "results.xml"
+    identifier = "tools/git/test_preflight.py::test_selected_preflight"
+    report.write_text(
+        """<?xml version="1.0" encoding="utf-8"?>
+<testsuites><testsuite tests="1" skipped="0">
+<testcase name="test_selected_preflight" file="tools/git/test_preflight.py" />
+</testsuite></testsuites>
+""",
+        encoding="utf-8",
+    )
+
+    assert _validate_pytest_report_inventory_v1(
+        report,
+        expected_count=1,
+        expected_digest=_digest_values([identifier]),
+    ) == (1, 0)
+
+    report.write_text(
+        report.read_text(encoding="utf-8").replace(
+            "tools/git/test_preflight.py",
+            "tools/git/test_unselected.py",
+        ),
+        encoding="utf-8",
+    )
+    with pytest.raises(
+        M5CurrentExitFailedV1,
+        match="m5_current_story_report_invalid",
+    ):
+        _validate_pytest_report_inventory_v1(
+            report,
+            expected_count=1,
+            expected_digest=_digest_values(
+                ["tools/git/test_unselected.py::test_selected_preflight"]
+            ),
         )
 
 
@@ -1160,6 +1258,7 @@ def test_m5_receipt_is_sanitized_exact_and_create_once() -> None:
         implementation_revision=REVISION,
         started_at=STARTED,
         completed_at=STARTED + timedelta(minutes=8),
+        activation_receipt_digest="3" * 64,
         owner_outcomes_digest=DIGEST_A,
         alert_witness_digest=DIGEST_B,
         quota_witness_digest="6" * 64,
@@ -1192,6 +1291,7 @@ def test_m5_receipt_is_sanitized_exact_and_create_once() -> None:
     assert receipt["process_count"] == 5
     assert receipt["process_scan_completeness"] == "partial"
     assert receipt["provider_version"] == CODEX_PROVIDER_VERSION
+    assert receipt["activation_receipt_digest"] == "3" * 64
     assert receipt["quota_witness_digest"] == "6" * 64
     assert receipt["quota_window_count"] == 4
     assert receipt["quota_history_value_set_digest"] == "4" * 64
@@ -1202,6 +1302,7 @@ def test_m5_receipt_is_sanitized_exact_and_create_once() -> None:
     assert receipt["containment_default_profile_access_count"] == 0
     assert receipt["containment_default_profile_write_count"] == 0
     assert "authenticated_containment" in REQUIRED_LANES
+    assert "service_activation" in REQUIRED_LANES
     assert QUOTA_WITNESS_BASENAME == "m5-quota-witness.json"
     assert "account-one" not in serialized
     assert "Private owner" not in serialized
@@ -1238,6 +1339,249 @@ def test_m5_receipt_keeps_exact_owner_only_mode_under_restrictive_umask() -> Non
         assert metadata.st_uid == os.getuid()
         assert stat.S_IMODE(metadata.st_mode) == 0o600
         assert metadata.st_nlink == 1
+
+
+def test_failed_gate_removes_own_receipt_after_directory_custody_change(
+    tmp_path: Path,
+) -> None:
+    directory = tmp_path / RECEIPT_DIRECTORY_NAME
+    directory.mkdir(mode=0o700)
+    path = directory / RECEIPT_BASENAME
+    lock = auto_m5_current_exit._acquire_m5_current_completion_lock_v1(path)
+    cleanup_descriptor = os.dup(lock.directory_descriptor)
+    identity = write_private_receipt_v1(path, {"status": "passed"})
+    receipt_descriptor = os.open(
+        RECEIPT_BASENAME,
+        os.O_RDWR | os.O_NOFOLLOW | os.O_CLOEXEC,
+        dir_fd=cleanup_descriptor,
+    )
+    displaced = tmp_path / "displaced-receipt-directory"
+    directory.rename(displaced)
+    directory.mkdir(mode=0o700)
+    try:
+        _remove_failed_m5_current_receipt_v1(
+            cleanup_descriptor,
+            receipt_descriptor,
+            basename=RECEIPT_BASENAME,
+            directory_device=lock.directory_device,
+            directory_inode=lock.directory_inode,
+            device=identity[0],
+            inode=identity[1],
+        )
+        assert not (displaced / RECEIPT_BASENAME).exists()
+        assert not path.exists()
+    finally:
+        os.close(receipt_descriptor)
+        os.close(cleanup_descriptor)
+        auto_m5_current_exit.release_m5_completion_lock_v1(lock)
+
+
+def test_release_failure_path_removes_created_pass_receipt(tmp_path: Path) -> None:
+    directory = tmp_path / RECEIPT_DIRECTORY_NAME
+    directory.mkdir(mode=0o700)
+    path = directory / RECEIPT_BASENAME
+    lock = auto_m5_current_exit._acquire_m5_current_completion_lock_v1(path)
+    cleanup_descriptor = os.dup(lock.directory_descriptor)
+    identity = write_private_receipt_v1(path, {"status": "passed"})
+    receipt_descriptor = os.open(
+        RECEIPT_BASENAME,
+        os.O_RDWR | os.O_NOFOLLOW | os.O_CLOEXEC,
+        dir_fd=cleanup_descriptor,
+    )
+    auto_m5_current_exit.release_m5_completion_lock_v1(lock)
+    try:
+        with pytest.raises(OSError):
+            auto_m5_current_exit.release_m5_completion_lock_v1(lock)
+        _remove_failed_m5_current_receipt_v1(
+            cleanup_descriptor,
+            receipt_descriptor,
+            basename=RECEIPT_BASENAME,
+            directory_device=lock.directory_device,
+            directory_inode=lock.directory_inode,
+            device=identity[0],
+            inode=identity[1],
+        )
+        assert not path.exists()
+    finally:
+        os.close(receipt_descriptor)
+        os.close(cleanup_descriptor)
+
+
+def test_failed_receipt_cleanup_invalidates_bytes_without_unlinking_changed_entry(
+    tmp_path: Path,
+) -> None:
+    for mutation in ("metadata", "replacement"):
+        directory = tmp_path / mutation / RECEIPT_DIRECTORY_NAME
+        directory.mkdir(mode=0o700, parents=True)
+        path = directory / RECEIPT_BASENAME
+        lock = auto_m5_current_exit._acquire_m5_current_completion_lock_v1(path)
+        cleanup_descriptor = os.dup(lock.directory_descriptor)
+        identity = write_private_receipt_v1(path, {"status": "passed"})
+        receipt_descriptor = os.open(
+            RECEIPT_BASENAME,
+            os.O_RDWR | os.O_NOFOLLOW | os.O_CLOEXEC,
+            dir_fd=cleanup_descriptor,
+        )
+        retained = directory / "retained-created-inode"
+        if mutation == "metadata":
+            os.link(path, retained)
+            path.chmod(0o640)
+        else:
+            path.rename(retained)
+            path.mkdir(mode=0o700)
+        try:
+            with pytest.raises(
+                M5CurrentExitFailedV1,
+                match="m5_current_receipt_cleanup_failed",
+            ):
+                _remove_failed_m5_current_receipt_v1(
+                    cleanup_descriptor,
+                    receipt_descriptor,
+                    basename=RECEIPT_BASENAME,
+                    directory_device=lock.directory_device,
+                    directory_inode=lock.directory_inode,
+                    device=identity[0],
+                    inode=identity[1],
+                )
+            assert retained.read_bytes() == b""
+            if mutation == "metadata":
+                assert path.read_bytes() == b""
+            else:
+                assert path.is_dir()
+        finally:
+            os.close(receipt_descriptor)
+            os.close(cleanup_descriptor)
+            auto_m5_current_exit.release_m5_completion_lock_v1(lock)
+
+
+def test_failed_receipt_cleanup_runs_while_both_original_guards_are_held(
+    tmp_path: Path,
+) -> None:
+    directory = tmp_path / "completion" / RECEIPT_DIRECTORY_NAME
+    directory.mkdir(mode=0o700, parents=True)
+    path = directory / RECEIPT_BASENAME
+    completion = auto_m5_current_exit._acquire_m5_current_completion_lock_v1(path)
+    transition = acquire_m5_service_activation_lock_v1(
+        tmp_path / "m5-service-activation"
+    )
+    cleanup_descriptor = os.dup(completion.directory_descriptor)
+    identity = write_private_receipt_v1(path, {"status": "passed"})
+    receipt_descriptor = os.open(
+        RECEIPT_BASENAME,
+        os.O_RDWR | os.O_NOFOLLOW | os.O_CLOEXEC,
+        dir_fd=cleanup_descriptor,
+    )
+    try:
+        auto_m5_current_exit._remove_failed_m5_current_receipt_while_locked_v1(
+            completion,
+            transition,
+            cleanup_descriptor,
+            receipt_descriptor,
+            directory_identity=(
+                completion.directory_device,
+                completion.directory_inode,
+            ),
+            receipt_identity=identity,
+        )
+        assert not path.exists()
+        auto_m5_current_exit._validate_m5_current_completion_lock_v1(completion)
+        auto_m5_current_exit._validate_m5_current_service_transition_lock_v1(
+            transition
+        )
+    finally:
+        os.close(receipt_descriptor)
+        os.close(cleanup_descriptor)
+        auto_m5_current_exit.release_m5_completion_lock_v1(completion)
+        release_m5_service_activation_lock_v1(transition)
+
+
+def test_retained_kernel_guards_serialize_cleanup_after_original_release(
+    tmp_path: Path,
+) -> None:
+    directory = tmp_path / "completion" / RECEIPT_DIRECTORY_NAME
+    directory.mkdir(mode=0o700, parents=True)
+    path = directory / RECEIPT_BASENAME
+    transition_root = tmp_path / "m5-service-activation"
+    completion = auto_m5_current_exit._acquire_m5_current_completion_lock_v1(path)
+    transition = acquire_m5_service_activation_lock_v1(transition_root)
+    retained = auto_m5_current_exit._duplicate_m5_current_guard_descriptors_v1(
+        completion,
+        transition,
+    )
+    auto_m5_current_exit.release_m5_completion_lock_v1(completion)
+    release_m5_service_activation_lock_v1(transition)
+    try:
+        with pytest.raises(
+            auto_m5_current_exit.M5CurrentExitErrorV1,
+            match="m5_current_completion_lock_unavailable",
+        ):
+            auto_m5_current_exit._acquire_m5_current_completion_lock_v1(path)
+        with pytest.raises(
+            M5ServiceActivationErrorV1,
+            match="m5_service_activation_busy",
+        ):
+            acquire_m5_service_activation_lock_v1(transition_root)
+    finally:
+        os.close(retained[0])
+        os.close(retained[1])
+
+    replacement_completion = (
+        auto_m5_current_exit._acquire_m5_current_completion_lock_v1(path)
+    )
+    replacement_transition = acquire_m5_service_activation_lock_v1(transition_root)
+    auto_m5_current_exit.release_m5_completion_lock_v1(replacement_completion)
+    release_m5_service_activation_lock_v1(replacement_transition)
+
+
+def test_writer_surfaces_failed_exact_inode_invalidation(tmp_path: Path) -> None:
+    directory = tmp_path / RECEIPT_DIRECTORY_NAME
+    directory.mkdir(mode=0o700)
+    path = directory / RECEIPT_BASENAME
+    receipt: dict[str, object] = {"padding": "x" * (64 * 1024 * 1024)}
+
+    pid = _start_receipt_writer_and_stop_after_create(path, receipt)
+    directory.chmod(0o500)
+    try:
+        exit_code = _resume_receipt_writer(pid)
+    finally:
+        directory.chmod(0o700)
+
+    assert exit_code == 26
+    assert path.read_bytes() == b""
+    path.unlink(missing_ok=True)
+
+
+def test_postwrite_interruption_invalidates_exact_receipt(tmp_path: Path) -> None:
+    directory = tmp_path / RECEIPT_DIRECTORY_NAME
+    directory.mkdir(mode=0o700)
+    path = directory / RECEIPT_BASENAME
+    directory_descriptor = os.open(
+        directory,
+        os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW | os.O_CLOEXEC,
+    )
+    directory_metadata = os.fstat(directory_descriptor)
+    identity, receipt_descriptor = (
+        auto_m5_current_exit._write_private_receipt_at_v1(
+            path,
+            {"status": "passed"},
+            directory_descriptor=directory_descriptor,
+            directory_device=directory_metadata.st_dev,
+            directory_inode=directory_metadata.st_ino,
+            retain_descriptor=True,
+        )
+    )
+    try:
+        with pytest.raises(KeyboardInterrupt):
+            auto_m5_current_exit._raise_after_created_m5_receipt_failure_v1(
+                KeyboardInterrupt(),
+                directory_descriptor=directory_descriptor,
+                basename=RECEIPT_BASENAME,
+                receipt_descriptor=receipt_descriptor,
+                receipt_identity=identity,
+            )
+        assert not path.exists()
+    finally:
+        os.close(directory_descriptor)
 
 
 def test_m5_receipt_rejects_a_hardlink_added_during_write() -> None:
@@ -1278,6 +1622,23 @@ def test_m5_receipt_never_unlinks_an_attacker_replacement() -> None:
         assert displaced_inode.exists()
 
 
+def test_m5_receipt_parent_swap_cleans_only_created_inode(tmp_path: Path) -> None:
+    directory = tmp_path / RECEIPT_DIRECTORY_NAME
+    directory.mkdir(mode=0o700)
+    path = directory / RECEIPT_BASENAME
+    receipt: dict[str, object] = {"padding": "x" * (64 * 1024 * 1024)}
+
+    pid = _start_receipt_writer_and_stop_after_create(path, receipt)
+    displaced = tmp_path / "displaced-receipt-directory"
+    directory.rename(displaced)
+    directory.mkdir(mode=0o700)
+    exit_code = _resume_receipt_writer(pid)
+
+    assert exit_code == 23
+    assert not (displaced / RECEIPT_BASENAME).exists()
+    assert not path.exists()
+
+
 def test_m5_receipt_rejects_missing_lane_and_nonrepresentative_process_count() -> None:
     lanes = _lane_evidence()
     lanes.pop("codex_browser")
@@ -1287,6 +1648,7 @@ def test_m5_receipt_rejects_missing_lane_and_nonrepresentative_process_count() -
                 implementation_revision=REVISION,
                 started_at=STARTED,
                 completed_at=STARTED,
+                activation_receipt_digest="3" * 64,
                 owner_outcomes_digest=DIGEST_A,
                 alert_witness_digest=DIGEST_B,
                 quota_witness_digest="6" * 64,

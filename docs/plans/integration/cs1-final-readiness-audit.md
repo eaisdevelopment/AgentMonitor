@@ -683,3 +683,17 @@ the two automation controls changed. Historical CS-1 conclusions and the other
 transition, M5 evidence, completion, PLAN-DEP approval, or acceptance result.
 
 Plan snapshot SHA-256: `50e786deadb666da6ca21ef21a310f4d3c8b1d9ad344ee83a1ff3db4597cded5`
+
+## 2026-10-16 M5 transition serialization and receipt-binding control rebind
+
+The current snapshot binds the reviewed M5 correction that serializes the
+bounded service transition with `AUTO-M5-EXIT`, requires the exact successful
+activation and rollback-drill receipt before final completion, and records its
+digest and lane in the private M5 receipt. The automation catalog and
+completion standard now state that bounded behavior. Only the
+`automation-routines` and `automation-standard` control digests and byte counts
+changed. The 20 canonical plan bodies, public contracts, approval flags, and
+milestone state remain unchanged. This mechanical rebind records no live
+activation, rollback drill, M5 exit pass, or owner acceptance.
+
+Plan snapshot SHA-256: `f04fecc5d69ec19f10f02b078992885cabd90720386f92073cf6dcb71b9670c5`

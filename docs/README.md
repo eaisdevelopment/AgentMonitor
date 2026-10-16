@@ -26,7 +26,11 @@ Current program state:
   organizations, six fresh post-restart quota/history lineages, the guarded
   current-process witness, and every required technical, browser, and local
   quality lane with zero skips and zero registry mutations.
-- **V1-M5 through V1-M8:** Planned; their canonical gates have not run.
+- **V1-M5:** implementation is **Intermediate**. Local Codex and guarded
+  service-transition behavior is present, while the real activation/rollback,
+  clean exact-revision `AUTO-M5-EXIT`, live evidence, and owner acceptance are
+  **Not Run**.
+- **V1-M6 through V1-M8:** Planned; their canonical gates have not run.
 
 The approved [M3 scope correction](evidence/m3-scope-correction-2026-10-02.md)
 moves fleet, other-provider, and release-wide outcomes to V1-M4 through V1-M8.
@@ -34,7 +38,7 @@ The [M3 current-gate receipt](evidence/m3-current-gate-receipt-2026-10-03.json)
 and owner disposition records close the blockers retained by the historical
 [M3 closure audit](evidence/m3-closure-audit-2026-10-01.md).
 Owner: Pavlo Sidelov <pavlo@sidelov.com>  
-Last substantive review: 2026-10-07
+Last substantive review: 2026-10-16
 
 This index is the entry point for product, architecture, engineering, and operations documentation. Requirements marked **Approved** reflect the project interview. Items marked **Discovery** require Milestone 0 evidence. Items marked **Deferred** are intentionally outside V1.
 
