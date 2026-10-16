@@ -579,6 +579,38 @@ def corrective_activation_rollover_decision_v1(
     return "blocked"
 
 
+def completed_activation_rollover_generation_v1(
+    *,
+    completed_revision: str,
+    service_revision: str,
+    receipt_main_pid: int,
+    receipt_start_time_ticks: int,
+    current_main_pid: int,
+    current_start_time_ticks: int,
+) -> Literal["receipt_generation", "restarted_generation", "blocked"]:
+    """Accept a proven same-revision systemd restart without rewriting evidence."""
+
+    process_values = (
+        receipt_main_pid,
+        receipt_start_time_ticks,
+        current_main_pid,
+        current_start_time_ticks,
+    )
+    if (
+        not isinstance(completed_revision, str)
+        or _REVISION.fullmatch(completed_revision) is None
+        or service_revision != completed_revision
+        or any(type(value) is not int or value <= 0 for value in process_values)
+    ):
+        return "blocked"
+    if (
+        receipt_main_pid == current_main_pid
+        and receipt_start_time_ticks == current_start_time_ticks
+    ):
+        return "receipt_generation"
+    return "restarted_generation"
+
+
 def corrective_rollover_browser_expectation_v1(
     *,
     service_revision: str,
@@ -3019,7 +3051,7 @@ def _rollback(
         validate_rollback_systemd_service_v1(rollback, restored)
         _require_rollback_runtime_state(rollback_runtime_state)
         return restored
-    except (Exception, KeyboardInterrupt):  # noqa: BLE001 - rollback is mandatory
+    except (Exception, KeyboardInterrupt):
         raise M5ServiceActivationRollbackFailedV1(
             "m5_service_activation_rollback_failed"
         ) from None
@@ -4288,9 +4320,15 @@ def _maybe_correct_completed_activation_rollover_v1(
             )
             if (
                 current_receipt != completed
-                or completed.main_pid != current.main_pid
-                or completed.main_pid_start_time_ticks
-                != current.main_pid_start_time_ticks
+                or completed_activation_rollover_generation_v1(
+                    completed_revision=completed.candidate_revision,
+                    service_revision=service_revision,
+                    receipt_main_pid=completed.main_pid,
+                    receipt_start_time_ticks=completed.main_pid_start_time_ticks,
+                    current_main_pid=current.main_pid,
+                    current_start_time_ticks=current.main_pid_start_time_ticks,
+                )
+                == "blocked"
             ):
                 raise M5ServiceActivationErrorV1("m5_service_receipt_invalid")
 

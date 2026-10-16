@@ -327,6 +327,14 @@ revisions before any service restoration, archive move, or transition-state
 write; a reserved candidate blocks without changing the existing service or
 evidence.
 
+An ordinary systemd or workstation restart can change the current dashboard
+PID/start identity after its completed activation receipt was created. Leave
+that immutable receipt unchanged. The rollover accepts the restarted process
+only when the current unit, executable, working directory, clean source
+revision, HTTP/browser proof, Registry, database, journal, rollback unit, and
+trusted runtime all still validate for the receipt's exact completed revision.
+Any other mismatch blocks before service or archive mutation.
+
 When a newer detached candidate invokes the command while either exact source
 candidate is active, the command validates the completed receipt, journal,
 rollback unit, clean source checkout, current service/browser revision,

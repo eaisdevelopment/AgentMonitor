@@ -668,6 +668,17 @@ or writing transition state. This preserves the sole permitted path into one
 new reviewed correction revision and prevents a prepared transition from being
 stranded on an ineligible candidate.
 
+The completed activation receipt retains the PID/start identity of the process
+that originally proved activation. A later ordinary systemd or workstation
+restart may produce a different PID/start identity for the same exact clean
+completed revision without rewriting that immutable receipt. Before rollover,
+the command independently validates the current same-user systemd process,
+unit bytes, executable, working directory, source revision, authenticated
+browser, Registry digest, database identity, journal, rollback unit, rollback
+runtime, and receipt material. A changed process generation is accepted only
+when all of those same-revision proofs agree; an unknown revision, unit, or
+runtime still blocks before mutation.
+
 Under the same exclusive transition guard, the command retains descriptors,
 inodes, modes, link counts and digests for the existing first archive and the
 current transition artifacts; restores and proves the pinned trusted service

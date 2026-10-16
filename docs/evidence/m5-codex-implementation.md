@@ -144,7 +144,7 @@ the clean-revision milestone gate.
 | `AC-PROC-001..004`, `M5-CDX-RUN-001..008` representative processes | Linux/platform/browser | Five to six real Codex processes outside the managed-profile subtree | Blocked | No current process witness | PID/start/executable reread, hierarchy/location, and unresolved or owner-confirmed association remain required. |
 | `AC-ALERT-002`, `M5-CDX-ALERT-001..006` live lifecycle | DB/API/browser/provider | Genuine Codex capacity condition, fresh opening, repeated delivery, owner action, later source-proven recovery | Blocked | No current alert witness | Local DB pagination and retained-history selection policy passed; the fresh `opened` or `reopened` occurrence has not completed the real browser/provider witness. |
 | Authenticated managed-profile syscall containment | Linux/provider/security | Real authenticated managed Codex profile and `strace` | Blocked | One truthful live-selector skip in the containment suite | Identity and quota operations must show provider access inside the selected root and zero default-profile access/write. |
-| `M5-SVC-ACT-001..012`, `AUTO-M5-SERVICE-ACTIVATE` | Operations/service transition | Real user systemd manager, trusted persistent runtime, clean stable Git worktree, real HTTP and authenticated browser | First rollover/activation Passed; second-rollover policy local Green | After the historical safe block, the canonical retry restored and proved the trusted runtime, atomically archived the completed `6bfa69d` transition, returned the typed rerun-required result, and then activated `0634451`. The approved second-rollover implementation passed all 43 activation tests and retains both fixed archive singletons fail closed. | This is activation prerequisite evidence, not `AUTO-M5-EXIT`. The live second rollover and corrected revision activation are Not Run. |
+| `M5-SVC-ACT-001..012`, `AUTO-M5-SERVICE-ACTIVATE` | Operations/service transition | Real user systemd manager, trusted persistent runtime, clean stable Git worktree, real HTTP and authenticated browser | First rollover/activation Passed; second-rollover live attempt Blocked safely; correction local Green | After the historical safe block, the canonical retry restored and proved the trusted runtime, atomically archived the completed `6bfa69d` transition, returned the typed rerun-required result, and then activated `0634451`. The first live second-rollover attempt made no mutation and blocked on an obsolete original-PID equality after reboot; the same frozen test node then went Red and the restart-generation correction passed all 43 activation tests. Both fixed archive singletons remain fail closed. | This is activation prerequisite evidence, not `AUTO-M5-EXIT`. The corrected live second rollover and new revision activation are Not Run. |
 | `M5-CDX-GATE-001..014`, canonical `AUTO-M5-EXIT` | Full local/live gate | Clean exact revision, selected running service, prerequisite receipts, all local gates with zero skips | Not Run | Exit receipt binding, transition locking, interruption-safe exact-inode receipt invalidation, cleanup-result handling, and the combined 175-test focused selection are local Green. No canonical `AUTO-M5-EXIT` execution or M5 completion receipt exists. | Must run after every corrected prerequisite is current, then pass as the last technical gate before owner review. |
 | macOS compatibility | Platform | Real macOS host | Blocked | No real Mac available | Outside Linux-first M5 acceptance; remains visible for V1. |
 
@@ -680,6 +680,17 @@ retained archive before each mutation, and admits only the enumerated fresh-root
 retry states. Its pre-mutation policy also rejects the trusted revision and
 both completed corrective revisions as a new rollover target; the frozen-node
 Red showed the pinned revision had incorrectly returned `rollback_candidate`.
+The first live second-rollover attempt then blocked safely with
+`m5_service_receipt_invalid`: after the workstation reboot, the immutable
+`0634451` receipt retained the original activation PID/start identity while
+systemd had restarted the exact same clean revision under a new process
+generation. Independent read-only post-block checks passed the unit, revision,
+journal, rollback, browser, Registry, and stable-database proofs. The existing
+frozen policy node went Red because no
+completed-rollover restart-generation policy existed. The correction preserves
+the original receipt, independently validates the current exact same-revision
+service, accepts either its original or a later positive PID/start generation,
+and rejects any revision or process-shape mismatch before mutation.
 The activation suite then passed `43` tests with the same node inventory, and
 the module boundary check is clean. `AUTO-QUALITY` and `AUTO-BUILD` pass. The generated OpenAPI
 client update changed source metadata only after the Capacity repository hash

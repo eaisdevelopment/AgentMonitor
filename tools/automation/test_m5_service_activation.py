@@ -857,6 +857,51 @@ def test_corrective_rollover_policy_is_exact_and_returns_typed_rerun() -> None:
     module = _module()
     new_revision = "c" * 40
 
+    generation_policy = getattr(
+        module,
+        "completed_activation_rollover_generation_v1",
+        None,
+    )
+    assert callable(generation_policy), "completed rollover restart policy is absent"
+    assert (
+        generation_policy(
+            completed_revision=module.SECOND_CORRECTIVE_ROLLOVER_REVISION,
+            service_revision=module.SECOND_CORRECTIVE_ROLLOVER_REVISION,
+            receipt_main_pid=2982335,
+            receipt_start_time_ticks=101,
+            current_main_pid=3609,
+            current_start_time_ticks=202,
+        )
+        == "restarted_generation"
+    )
+    assert (
+        generation_policy(
+            completed_revision=module.SECOND_CORRECTIVE_ROLLOVER_REVISION,
+            service_revision=module.SECOND_CORRECTIVE_ROLLOVER_REVISION,
+            receipt_main_pid=3609,
+            receipt_start_time_ticks=202,
+            current_main_pid=3609,
+            current_start_time_ticks=202,
+        )
+        == "receipt_generation"
+    )
+    for service_revision, current_pid in (
+        ("d" * 40, 3609),
+        ("bad", 3609),
+        (module.SECOND_CORRECTIVE_ROLLOVER_REVISION, 0),
+    ):
+        assert (
+            generation_policy(
+                completed_revision=module.SECOND_CORRECTIVE_ROLLOVER_REVISION,
+                service_revision=service_revision,
+                receipt_main_pid=2982335,
+                receipt_start_time_ticks=101,
+                current_main_pid=current_pid,
+                current_start_time_ticks=202,
+            )
+            == "blocked"
+        )
+
     assert (
         module.corrective_activation_rollover_decision_v1(
             candidate_revision=new_revision,
@@ -966,9 +1011,8 @@ def test_corrective_rollover_policy_is_exact_and_returns_typed_rerun() -> None:
         )
 
 
-def test_corrective_rollover_browser_expectation_uses_baseline_only_for_trusted_rollback() -> (
-    None
-):
+def test_corrective_rollover_browser_expectation_uses_baseline_only_for_trusted_rollback(  # noqa: E501
+) -> None:
     module = _module()
     candidate_revision = "c" * 40
 
@@ -1798,7 +1842,7 @@ def test_partial_activation_receipt_write_failure_removes_created_artifact(
             module._write_create_once(receipt, b"activation receipt\n")
         except OSError:
             os._exit(0 if not receipt.exists() else 31)
-        except BaseException:  # noqa: BLE001 - child maps every result to status.
+        except BaseException:
             os._exit(32)
         os._exit(33)
 
