@@ -43,6 +43,9 @@ from agentmonitor.contracts.events_v1 import DurableEventBatchV1, DurableEventV1
 from agentmonitor.modules.capacity.application.ports import (
     CapacityCommittedPayloadPolicyV1,
     ClassifyCapacityProjectionV1,
+    current_window_candidate_wins_v1,
+    current_window_lifecycle_semantic_v1,
+    omitted_current_window_keys_v1,
 )
 from sqlalchemy.engine import Connection, RowMapping
 from sqlalchemy.exc import SQLAlchemyError
@@ -356,7 +359,8 @@ def _current_windows(
             "d.window_definition_id=p.window_definition_id JOIN capacity_quota_observation AS o ON "
             "o.observation_id=p.current_observation_id JOIN capacity_observation_provenance AS v ON "
             "v.provenance_id=o.provenance_id WHERE p.projection_kind='quota' AND p.account_id=? AND "
-            "p.resource_id=? AND p.capability_id=? AND o.collected_at<=? ORDER BY d.native_window_key",
+            "p.resource_id=? AND p.capability_id=? AND d.lifecycle='active' AND "
+            "o.collected_at<=? ORDER BY d.native_window_key",
             (account_id.value, resource_id.value, capability_id, _utc_text(as_of)),
         )
         .mappings()
@@ -641,10 +645,12 @@ class SqliteCapacityRepositoryV1:
                         connection.exec_driver_sql(
                             "SELECT DISTINCT p.resource_id, p.capability_id FROM "
                             "capacity_current_projection p JOIN "
+                            "capacity_quota_window_definition d ON "
+                            "d.window_definition_id=p.window_definition_id JOIN "
                             "capacity_quota_observation o ON "
                             "o.observation_id=p.current_observation_id WHERE "
                             "p.projection_kind='quota' AND p.account_id=? AND "
-                            "o.collected_at<=? ORDER BY p.resource_id, "
+                            "d.lifecycle='active' AND o.collected_at<=? ORDER BY p.resource_id, "
                             "p.capability_id LIMIT 100",
                             (account_id.value, _utc_text(as_of)),
                         )
@@ -730,7 +736,7 @@ class SqliteCapacityRepositoryV1:
                             "ON o.observation_id=p.current_observation_id JOIN "
                             "capacity_observation_provenance AS v ON "
                             "v.provenance_id=o.provenance_id WHERE p.projection_kind='quota' "
-                            "AND p.account_id=? AND o.collected_at<=? AND (? IS NULL OR "
+                            "AND p.account_id=? AND d.lifecycle='active' AND o.collected_at<=? AND (? IS NULL OR "
                             "p.resource_id=?) AND (? IS NULL OR p.projection_id=?) AND (? IS NULL OR "
                             "(p.resource_id, d.native_window_key, p.projection_id) > ("
                             "SELECT p2.resource_id, d2.native_window_key, p2.projection_id FROM "
@@ -1072,6 +1078,98 @@ class SqliteCapacityRepositoryV1:
                 provenance.decision_reference,
             ),
         )
+        incoming_semantic = provenance.observed_at or provenance.collected_at
+        incoming_semantic_text = _utc_text(incoming_semantic)
+        if payload.completeness == "complete_scope":
+            scoped_current = (
+                connection.exec_driver_sql(
+                    "SELECT d.window_definition_id,d.provider_key,"
+                    "d.installation_id,d.account_id,d.resource_id,d.capability_id,"
+                    "d.native_window_key,d.identity_scheme_version,d.lifecycle,"
+                    "d.last_observed_at,"
+                    "o.observed_at,o.collected_at FROM "
+                    "capacity_current_projection p JOIN "
+                    "capacity_quota_window_definition d ON "
+                    "d.window_definition_id=p.window_definition_id JOIN "
+                    "capacity_quota_observation o ON "
+                    "o.observation_id=p.current_observation_id WHERE "
+                    "p.projection_kind='quota' AND p.provider_key=? AND "
+                    "p.installation_id=? AND p.account_id=? AND p.resource_id=? AND "
+                    "p.capability_id=? AND d.provider_key=? AND d.installation_id=? "
+                    "AND d.account_id=? AND d.resource_id=? AND d.capability_id=? "
+                    "AND d.identity_scheme_version=1 AND "
+                    "d.lifecycle IN ('active','not_observed_currently') "
+                    "ORDER BY d.native_window_key,p.projection_id",
+                    (
+                        payload.subject.provider_key,
+                        payload.subject.installation_id.value,
+                        payload.subject.account_id.value,
+                        payload.subject.resource_id.value,
+                        request.capability_id,
+                        payload.subject.provider_key,
+                        payload.subject.installation_id.value,
+                        payload.subject.account_id.value,
+                        payload.subject.resource_id.value,
+                        request.capability_id,
+                    ),
+                )
+                .mappings()
+                .all()
+            )
+            scoped_keys = tuple(str(row["native_window_key"]) for row in scoped_current)
+            if len(scoped_keys) != len(set(scoped_keys)):
+                raise CapacityRepositoryErrorV1("capacity_window_scope_conflict")
+            observed_keys = tuple(window.window_key for window in payload.windows)
+            for row in scoped_current:
+                projected_semantic = _utc_value(
+                    str(row["observed_at"] or row["collected_at"])
+                )
+                lifecycle_semantic = _utc_value(str(row["last_observed_at"]))
+                omitted = omitted_current_window_keys_v1(
+                    (str(row["native_window_key"]),),
+                    observed_keys,
+                    completeness=payload.completeness,
+                    current_lifecycle=row["lifecycle"],
+                    current_semantic_at=max(
+                        projected_semantic,
+                        lifecycle_semantic,
+                    ),
+                    incoming_semantic_at=incoming_semantic,
+                    identity_scheme_proven=row["identity_scheme_version"] == 1,
+                    current_scope=(
+                        str(row["provider_key"]),
+                        str(row["installation_id"]),
+                        str(row["account_id"]),
+                        str(row["resource_id"]),
+                        str(row["capability_id"]),
+                        int(row["identity_scheme_version"]),
+                    ),
+                    incoming_scope=(
+                        payload.subject.provider_key,
+                        payload.subject.installation_id.value,
+                        payload.subject.account_id.value,
+                        payload.subject.resource_id.value,
+                        request.capability_id,
+                        1,
+                    ),
+                )
+                if omitted:
+                    updated = connection.exec_driver_sql(
+                        "UPDATE capacity_quota_window_definition SET "
+                        "lifecycle='not_observed_currently',last_observed_at=?,"
+                        "updated_at=? WHERE "
+                        "window_definition_id=? AND "
+                        "lifecycle IN ('active','not_observed_currently')",
+                        (
+                            incoming_semantic_text,
+                            stored_text,
+                            row["window_definition_id"],
+                        ),
+                    )
+                    if updated.rowcount != 1:
+                        raise CapacityRepositoryErrorV1(
+                            "capacity_window_lifecycle_conflict"
+                        )
         observation_ids: list[OpaqueIdV1] = []
         projection_ids: list[str] = []
         for window in payload.windows:
@@ -1083,20 +1181,47 @@ class SqliteCapacityRepositoryV1:
                 ),
                 None,
             )
-            observed = provenance.observed_at or provenance.collected_at
-            observed_text = _utc_text(observed)
+            observed_text = incoming_semantic_text
             reset_text = (
                 _utc_text(window.reset_at) if window.reset_at is not None else None
             )
             safe_label_state = (
                 "available" if window.safe_label is not None else "unknown"
             )
+            projection_key = _stable_identifier(
+                "quota",
+                payload.subject.provider_key,
+                payload.subject.account_id.value,
+                payload.subject.resource_id.value,
+                request.capability_id,
+                window.window_key,
+                "quota_window",
+            )
+            projection_id = _stable_identifier("current", projection_key)
+            current = (
+                connection.exec_driver_sql(
+                    "SELECT p.current_observation_id, o.observed_at, o.collected_at, "
+                    "o.payload_digest FROM capacity_current_projection AS p JOIN "
+                    "capacity_quota_observation AS o ON "
+                    "o.observation_id=p.current_observation_id WHERE p.projection_key=?",
+                    (projection_key,),
+                )
+                .mappings()
+                .one_or_none()
+            )
+            current_semantic = (
+                _utc_value(str(current["observed_at"] or current["collected_at"]))
+                if current is not None
+                else None
+            )
             latest_definition = (
                 connection.exec_driver_sql(
-                    "SELECT * FROM capacity_quota_window_definition WHERE "
+                    "SELECT *,MAX(last_observed_at) OVER () AS "
+                    "lifecycle_semantic_at FROM "
+                    "capacity_quota_window_definition WHERE "
                     "provider_key=? AND resource_id=? AND capability_id=? AND "
-                    "identity_scheme_version=1 AND native_window_key=? ORDER BY "
-                    "definition_version DESC LIMIT 1",
+                    "identity_scheme_version=1 "
+                    "AND native_window_key=? ORDER BY definition_version DESC LIMIT 1",
                     (
                         payload.subject.provider_key,
                         payload.subject.resource_id.value,
@@ -1106,6 +1231,16 @@ class SqliteCapacityRepositoryV1:
                 )
                 .mappings()
                 .one_or_none()
+            )
+            definition_lifecycle_semantic = (
+                _utc_value(str(latest_definition["lifecycle_semantic_at"]))
+                if latest_definition is not None
+                else None
+            )
+            candidate_is_current = current_window_candidate_wins_v1(
+                current_semantic_at=current_semantic,
+                lifecycle_semantic_at=definition_lifecycle_semantic,
+                incoming_semantic_at=incoming_semantic,
             )
             same_semantics = latest_definition is not None and all(
                 (
@@ -1124,10 +1259,26 @@ class SqliteCapacityRepositoryV1:
             if same_semantics and latest_definition is not None:
                 window_definition_id = str(latest_definition["window_definition_id"])
                 definition_version = int(latest_definition["definition_version"])
+                last_observed_at = current_window_lifecycle_semantic_v1(
+                    definition_lifecycle_semantic,
+                    incoming_semantic,
+                )
+                if last_observed_at is None:
+                    raise CapacityRepositoryErrorV1(
+                        "capacity_window_lifecycle_conflict"
+                    )
                 connection.exec_driver_sql(
                     "UPDATE capacity_quota_window_definition SET "
-                    "last_observed_at=?, updated_at=? WHERE window_definition_id=?",
-                    (observed_text, stored_text, window_definition_id),
+                    "last_observed_at=?,lifecycle=?,updated_at=? WHERE "
+                    "window_definition_id=?",
+                    (
+                        _utc_text(last_observed_at),
+                        "active"
+                        if candidate_is_current
+                        else str(latest_definition["lifecycle"]),
+                        stored_text,
+                        window_definition_id,
+                    ),
                 )
             else:
                 definition_version = (
@@ -1143,6 +1294,15 @@ class SqliteCapacityRepositoryV1:
                     window.window_key,
                     str(definition_version),
                 )
+                definition_last_observed_at = current_window_lifecycle_semantic_v1(
+                    current_semantic,
+                    definition_lifecycle_semantic,
+                    incoming_semantic,
+                )
+                if definition_last_observed_at is None:
+                    raise CapacityRepositoryErrorV1(
+                        "capacity_window_lifecycle_conflict"
+                    )
                 connection.exec_driver_sql(
                     "INSERT INTO capacity_quota_window_definition "
                     "(window_definition_id, provider_key, installation_id, "
@@ -1153,7 +1313,7 @@ class SqliteCapacityRepositoryV1:
                     "renewal_semantic, reset_precision, timezone_precision, "
                     "provider_timezone, extension_schema_ref, first_observed_at, "
                     "last_observed_at, decision_reference, created_at, updated_at) "
-                    "VALUES (?, ?, ?, ?, ?, ?, 1, ?, ?, 'active', ?, ?, ?, ?, "
+                    "VALUES (?, ?, ?, ?, ?, ?, 1, ?, ?, ?, ?, ?, ?, ?, "
                     "NULL, NULL, ?, 'provider_native', ?, 'unknown', NULL, NULL, "
                     "?, ?, ?, ?, ?)",
                     (
@@ -1165,6 +1325,7 @@ class SqliteCapacityRepositoryV1:
                         request.capability_id,
                         window.window_key,
                         definition_version,
+                        "active" if candidate_is_current else "not_observed_currently",
                         window.safe_label,
                         safe_label_state,
                         window.semantic_role,
@@ -1172,7 +1333,7 @@ class SqliteCapacityRepositoryV1:
                         reset_text,
                         window.reset_precision,
                         observed_text,
-                        observed_text,
+                        _utc_text(definition_last_observed_at),
                         provenance.decision_reference,
                         stored_text,
                         stored_text,
@@ -1230,16 +1391,6 @@ class SqliteCapacityRepositoryV1:
                     "derivation_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL)",
                     (observation_id.value, metric_kind, *_field_values(field)),
                 )
-            projection_key = _stable_identifier(
-                "quota",
-                payload.subject.provider_key,
-                payload.subject.account_id.value,
-                payload.subject.resource_id.value,
-                request.capability_id,
-                window.window_key,
-                "quota_window",
-            )
-            projection_id = _stable_identifier("current", projection_key)
             projection_ids.append(projection_id)
             freshness_state = (
                 "stale"
@@ -1248,26 +1399,7 @@ class SqliteCapacityRepositoryV1:
                 if provenance.freshness_deadline is not None
                 else "freshness_unknown"
             )
-            current = (
-                connection.exec_driver_sql(
-                    "SELECT p.current_observation_id, o.observed_at, o.collected_at, "
-                    "o.payload_digest FROM capacity_current_projection AS p JOIN "
-                    "capacity_quota_observation AS o ON "
-                    "o.observation_id=p.current_observation_id WHERE p.projection_key=?",
-                    (projection_key,),
-                )
-                .mappings()
-                .one_or_none()
-            )
-            current_semantic = (
-                _utc_value(str(current["observed_at"] or current["collected_at"]))
-                if current is not None
-                else None
-            )
-            incoming_semantic = provenance.observed_at or provenance.collected_at
-            if current is None or (
-                current_semantic is not None and incoming_semantic > current_semantic
-            ):
+            if candidate_is_current:
                 connection.exec_driver_sql(
                     "INSERT INTO capacity_current_projection "
                     "(projection_id, projection_key, projection_kind, provider_key, "
@@ -1324,7 +1456,7 @@ class SqliteCapacityRepositoryV1:
                         stored_text,
                     ),
                 )
-            elif (
+            elif current is not None and (
                 current_semantic == incoming_semantic
                 and current["payload_digest"] != request.payload_digest
             ):

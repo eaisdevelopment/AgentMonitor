@@ -337,6 +337,7 @@ class SqliteCurrentCapacityRepositoryV1:
                             "JOIN capacity_quota_observation o ON o.observation_id=p.current_observation_id "
                             "JOIN capacity_quota_window_definition d ON d.window_definition_id=p.window_definition_id "
                             "WHERE f.snapshot_json IS NOT NULL AND f.account_id=? "
+                            "AND d.lifecycle='active' "
                             "AND (? IS NULL OR f.resource_id=?) AND (? IS NULL OR f.window_projection_id=?) "
                             "AND (? IS NULL OR f.window_projection_id>?) "
                             "ORDER BY f.window_projection_id LIMIT ?",
@@ -416,7 +417,10 @@ class SqliteCurrentCapacityRepositoryV1:
                         connection.exec_driver_sql(
                             "SELECT a.* FROM capacity_availability_current a JOIN capacity_current_projection p "
                             "ON a.signal_kind='capability' AND p.projection_id=a.source_subject_id "
-                            "AND p.record_version=a.source_generation WHERE a.account_id=? "
+                            "AND p.record_version=a.source_generation JOIN "
+                            "capacity_quota_window_definition d ON "
+                            "d.window_definition_id=p.window_definition_id AND "
+                            "d.lifecycle='active' WHERE a.account_id=? "
                             "AND (? IS NULL OR a.resource_id=?) AND (? IS NULL OR a.capability_id=?) "
                             "AND (? IS NULL OR a.signal_kind=?) AND (? IS NULL OR a.stream_id>?) "
                             "ORDER BY a.stream_id LIMIT ?",
@@ -521,7 +525,10 @@ class SqliteCurrentCapacityRepositoryV1:
                         connection.exec_driver_sql(
                             "SELECT p.projection_id,p.window_definition_id,p.account_id,p.resource_id,p.capability_id "
                             "FROM capacity_current_projection p JOIN capacity_quota_observation o "
-                            "ON o.observation_id=p.current_observation_id WHERE p.projection_kind='quota' "
+                            "ON o.observation_id=p.current_observation_id JOIN "
+                            "capacity_quota_window_definition d ON "
+                            "d.window_definition_id=p.window_definition_id WHERE "
+                            "p.projection_kind='quota' AND d.lifecycle='active' "
                             "AND o.collected_at<=? AND (? IS NULL OR p.projection_id>?) "
                             "ORDER BY p.projection_id LIMIT ?",
                             (_utc_text(as_of), after_key, after_key, limit + 1),
@@ -659,8 +666,12 @@ class SqliteCurrentCapacityRepositoryV1:
                     connection.exec_driver_sql("BEGIN IMMEDIATE")
                     source = (
                         connection.exec_driver_sql(
-                            "SELECT record_version,current_observation_id FROM capacity_current_projection "
-                            "WHERE projection_id=? AND projection_kind='quota'",
+                            "SELECT p.record_version,p.current_observation_id FROM "
+                            "capacity_current_projection p JOIN "
+                            "capacity_quota_window_definition d ON "
+                            "d.window_definition_id=p.window_definition_id WHERE "
+                            "p.projection_id=? AND p.projection_kind='quota' AND "
+                            "d.lifecycle='active'",
                             (window.window_id.value,),
                         )
                         .mappings()

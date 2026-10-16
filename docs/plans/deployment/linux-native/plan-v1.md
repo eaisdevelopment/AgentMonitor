@@ -67,7 +67,7 @@ This addendum is the sole exception to PLAN-DEP/D01's Draft implementation
 prohibition and exclusive native unit-lifecycle ownership. The active owner's
 objective, **fully implement M5 with our SDLC and runbook**, authorizes PLAN-INT
 to implement and execute only `AUTO-M5-SERVICE-ACTIVATE` under the approved
-[V1-M5 Codex slice plan 1.4.0](../../integration/m5-codex-slice-change.md).
+[V1-M5 Codex slice plan 1.5.0](../../integration/m5-codex-slice-change.md).
 That focused plan is the detailed authority and test specification. This
 cross-reference resolves the ownership conflict before production code.
 
@@ -96,6 +96,32 @@ to be rerun with the refreshed trusted PID for the corrected detached
 candidate. Retry validates a completed archive before proceeding. No other
 prior revision, evidence deletion, artifact replacement, general upgrade or
 deployment behavior is authorized.
+
+The linked M5 plan now contains the **owner-approved 1.5.0 correction dated
+2026-10-16**. This same bounded exception permits one second exact corrective
+rollover from clean detached
+revision `063445154bca0bf5ec43db94ba57c17fd193fd99` to the eventual reviewed
+correction commit. The command must first reprove and retain the completed
+first `6bfa69dc13cc9e1ded9c6baa6e803cb99bc8c20b` archive, restore and prove the
+pinned trusted `77a3bad12a096a81587b94b8981ceee812b6445b` runtime from the
+current transition material, and atomically archive the complete `0634451`
+transition into the separate fixed owner-only singleton namespace
+`m5-service-activation-corrective-archive-0634451` by a no-replace
+revision-and-receipt-bound rename. The existing first archive parent would
+remain an unchanged exact singleton. A retry must validate both independent
+revision-pinned singleton archives. An absent canonical transition root after
+the archive commit is accepted only for the existing guarded exact-root
+creation into empty `fresh`; an existing root must be exactly `fresh`,
+`journal_only`, `rollback_only`, or `prepared` before activating the new clean
+detached candidate through the existing rollback drill. Every other entry,
+count, or state blocks without cleanup or replacement.
+
+The owner's 2026-10-16 approval authorizes production implementation and this
+one exact service operation only through the focused plan's Red/Green/refactor,
+review, clean-candidate, and fail-closed preconditions. It adds no general
+deployment behavior: unexpected archive entries, changed first-archive
+custody, another prior revision, cleanup, repair, upgrade, or `AUTO-DEPLOY`
+remain outside the exception and fail closed.
 
 The final candidate worktree must have no symbolic branch reference. Activation
 and every subsequent M5 archive, owner-outcome, alert-witness, quota-witness and

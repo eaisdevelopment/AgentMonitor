@@ -2,7 +2,7 @@
 
 - Evidence ID: `M5-CDX-IMPLEMENTATION-2026-10-08`
 - Module/plan/increment: A02 Codex provider adapter and root-owned V1-M5
-  integration, approved focused plan version `1.4.0`, Stories
+  integration, approved focused plan version `1.5.0`, Stories
   `ST-CDX-001..005`.
 - Requirements/acceptance IDs:
   `FR-ACC-001/004..006`, `FR-AUTH-001/002/004..006`,
@@ -23,22 +23,28 @@
   `1.0.0-draft.2`; `codex-adapter.v1` adapter `1.0.2`; Codex
   subscription capability schema `1.0`; REST `/api/v1`; database head
   `v1_0707` unchanged.
-- Commit/worktree reference: retained quota-history pagination is committed at
-  `d7b8b9b6af9eabd584257919947d341f6df5fa93`; the alert occurrence retry is
-  carried by the revision containing this record. No clean revision has passed
-  the canonical M5 gate.
+- Commit/worktree reference: the first corrective archive and exact service
+  activation passed at `063445154bca0bf5ec43db94ba57c17fd193fd99`. The live
+  stale-window Red described below was observed against that running revision.
+  No clean revision has passed the canonical M5 gate.
 - Recorder/date: Codex integration record, 2026-10-08; retained-history retry
   update, 2026-10-09; exact-revision transition and concurrency update,
   2026-10-16.
-- Overall status: **Intermediate**. The canonical `AUTO-M5-EXIT` has not passed;
-  its preflight was **Blocked** and no completion receipt exists. Final owner
-  review is **Not Run**. This record is not milestone acceptance.
+- Overall status: **Intermediate**. Service activation and the current
+  four-outcome owner checkpoint passed for `0634451`, but the quota prerequisite
+  is Blocked by a real stale-window lineage Red. The approved lifecycle and
+  second-rollover corrections are local deterministic Green; the live second
+  rollover/activation and fresh collection are **Not Run**. The canonical
+  `AUTO-M5-EXIT` has not run, no completion receipt exists, and final owner
+  acceptance is **Not Run**. This record is not milestone acceptance.
 
 The primary production owner is A02 for provider behavior under
 `backend/src/agentmonitor/adapters/providers/codex/**`. Root integration owns
 composition, Registry/Collection/Capacity/Runtime/Alerting coordination, API,
-UI, automation, and live closure. The focused approved plan is
-[the executable V1-M5 Codex slice](../plans/integration/m5-codex-slice-change.md).
+UI, automation, and live closure. The focused approved scope is plan `1.5.0`;
+its [V1-M5 Codex slice](../plans/integration/m5-codex-slice-change.md) authorizes
+the complete-scope lifecycle correction and one exact evidence-preserving
+second rollover from `0634451`.
 
 ## Contract-impact assessment
 
@@ -88,6 +94,18 @@ UI, automation, and live closure. The focused approved plan is
   distinct durable run only after the full configured quota cadence; it does
   not perform an immediate retry or reclassify other internal failures. No
   collection, capacity, API, event, or persistence contract changes.
+- Live current-projection evidence exposed a missing implementation of the
+  existing `FR-QUOTA-001` / `M05-PURE-005` complete-scope window lifecycle
+  rule. The approved and locally implemented correction reuses the existing
+  `complete_scope`/`partial_scope` and
+  `active`/`not_observed_currently` meanings. It passed the 71-test Capacity
+  suite without a public contract or schema change. The existing definition
+  `last_observed_at` field carries the latest accepted presence or
+  complete-scope absence lifecycle observation time across definition versions;
+  immutable quota observations remain presence-only history. Pure tests cover
+  strict ordering, repeated newer absence, stale and newer reappearance,
+  retired no-op, out-of-order semantic changes, and exact scope isolation. A
+  fresh live collection against the corrected service is still Not Run.
 - No database table or migration was added. Real tests migrate fresh
   file-backed SQLite databases through the existing `v1_0707` head.
 - No production or development dependency was added.
@@ -120,13 +138,13 @@ the clean-revision milestone gate.
 | `AUTO-MUTATION` checkpoint | Critical pure-policy mutation | Canonical routine on the development checkout | Passed | `1708` mutants: `1698` killed, `10` independently accepted equivalent, `0` skipped | No non-equivalent survivor was admitted. This remains subject to the final clean-revision M5 gate. |
 | Quality, build, planning, documentation, and Git checkpoints | Static quality, generated artifacts/frontend build, repository validation, and local Git preflight | Canonical local routines on the development checkout | Passed | `AUTO-QUALITY`, `AUTO-BUILD`, `AUTO-PLAN-CHECK`, `AUTO-DOCS-CHECK`, and `AUTO-GIT-PREFLIGHT` exited zero | These individual checkpoints do not replace the unrun exact-revision `AUTO-M5-EXIT`. |
 | Full M5 Python story selection before live setup | Backend and automation Story scope | Real local boundaries plus explicit owner/provider selectors | Blocked | The prior 386-case development-checkout run returned `379 passed, 6 skipped, 1 failed`; the real-filesystem archive race file separately returned `15 passed`. The current pinned inventory is 468 cases with digest `0a11e798f8811b51d59bcd2babdabc1e0f6a738b5428d5fb1a04b699bea9b9c9`. | The exact current JUnit inventory validator accepted all 468 unique IDs and this digest, then returned the expected `m5_current_story_suite_skipped` because the local inventory run lacked the required owner/live selectors. The expanded inventory includes service activation and receipt binding, corrective rollover and retry, archive-parent singleton custody, rollback browser proof mode, first-use completion locking, detached Git preflight, prerequisite service/source binding, transition serialization, interruption-safe cleanup, and the exact Git test path. No full 468-case zero-skip live execution is credited yet. |
-| Full backend regression checkpoint | Backend regression | Real local test boundaries selected by the backend suite | Blocked | Historical pre-correction rerun: `10 failed, 1374 passed, 39 skipped` | Every reported failure was an explicit M4/LAN/M5 real-owner selector requirement. This historical result does not describe the corrected checkout. |
-| `AC-LIVE-002/004` four selected Codex outcomes and live identities | Provider/account | Four real owner-selected Codex accounts or explicit owner-unavailable outcomes | Blocked | A four-row owner outcome file passed operationally for base revision `d7b8b9b`; it cannot bind a later alert-correction revision. | The exact outcomes need revision/service rebinding after the correction is committed; this row does not claim provider verification for the future revision. |
-| `AC-LIVE-005`, `M5-CDX-COL/CAP` authoritative quota/history | Provider/DB/API/browser | Official Codex `/usage`, fresh scheduled observations, current and retained history | Blocked | One authenticated provider outcome normalized one primary window, but its capacity commit failed before persistence | Provenance admission and full-cadence interrupted-commit recovery are pure Green. A real retry must still prove commit, current/history lineage, exact whole percentages, reset precision, and at most 300-second skew. |
+| Canonical local regression checkpoint | Backend, API, browser, process and generated-client boundaries selected by `AUTO-TEST` | Real local processes, migrated SQLite, production HTTP, built frontend and installed Chrome | Passed for the routine's declared local scope | Corrected-checkout `AUTO-TEST`: `1361 passed, 37 skipped`; generated API/client check and all required production browser scenarios passed | The first run had one environmental failure because no running Claude process matched admitted version 2.1.289. A real isolated 2.1.289 MCP-server process made that exact HTTP/process test pass, and the complete rerun passed. The 37 owner/live/environment skips and separate M0/literal-24-hour/T5/T6/T7/hosted-CI statuses remain Not Run or Blocked and are not credited as passes. |
+| `AC-LIVE-002/004` four selected Codex outcomes and live identities | Provider/account | Four real owner-selected Codex accounts or explicit owner-unavailable outcomes | Passed for the current prerequisite | `AUTO-M5-OWNER-OUTCOMES` passed for the exact `0634451` service with four outcomes: three verified and one owner-unavailable. | This sanitized availability result contains no quota or acceptance claim. The approved second rollover will make it stale, so canonical archival and recollection are required after that transition. |
+| `AC-LIVE-005`, `M5-CDX-COL/CAP` authoritative quota/history | Provider/DB/API/browser | Official Codex `/usage`, fresh scheduled observations, current and retained history | Local correction Green; live retry Not Run | Against exact service `0634451`, the latest successful complete collection contained one current native window while the public current API retained two, including one prior-run lineage. The approved correction then passed all 71 Capacity tests. | `AUTO-M5-QUOTA-WITNESS` still blocks on the old running service. No fresh corrected-service collection, official `/usage` reconciliation, or quota receipt is claimed. |
 | `AC-PROC-001..004`, `M5-CDX-RUN-001..008` representative processes | Linux/platform/browser | Five to six real Codex processes outside the managed-profile subtree | Blocked | No current process witness | PID/start/executable reread, hierarchy/location, and unresolved or owner-confirmed association remain required. |
 | `AC-ALERT-002`, `M5-CDX-ALERT-001..006` live lifecycle | DB/API/browser/provider | Genuine Codex capacity condition, fresh opening, repeated delivery, owner action, later source-proven recovery | Blocked | No current alert witness | Local DB pagination and retained-history selection policy passed; the fresh `opened` or `reopened` occurrence has not completed the real browser/provider witness. |
 | Authenticated managed-profile syscall containment | Linux/provider/security | Real authenticated managed Codex profile and `strace` | Blocked | One truthful live-selector skip in the containment suite | Identity and quota operations must show provider access inside the selected root and zero default-profile access/write. |
-| `M5-SVC-ACT-001..012`, `AUTO-M5-SERVICE-ACTIVATE` | Operations/service transition | Real user systemd manager, trusted persistent runtime, clean stable Git worktree, real HTTP and authenticated browser | Local correction Green; historical `6bfa69d` live Passed; first corrective invocation Blocked after safe restore; archive rollover/reactivation Not Run | Initial Red: `16 failed, 1 passed`; later targeted Reds covered inactive interruption, partial-journal recovery, detached Git, Operations binding, rollback-runtime checkpoint order, concurrent activation, activation-receipt consumption, final-lock rollback, receipt cleanup, rollover custody, and rollback-browser proof mode. The first real rollback drill and activation passed at `6bfa69dc13cc9e1ded9c6baa6e803cb99bc8c20b`; the first corrective invocation restored trusted `77a3bad` and then blocked before archival, as described below. | The bounded command is cataloged as `operational_limited`. The corrected detached revision must complete the typed corrective rollover and a second successful activation before new M5 prerequisites are collected. |
+| `M5-SVC-ACT-001..012`, `AUTO-M5-SERVICE-ACTIVATE` | Operations/service transition | Real user systemd manager, trusted persistent runtime, clean stable Git worktree, real HTTP and authenticated browser | First rollover/activation Passed; second-rollover policy local Green | After the historical safe block, the canonical retry restored and proved the trusted runtime, atomically archived the completed `6bfa69d` transition, returned the typed rerun-required result, and then activated `0634451`. The approved second-rollover implementation passed all 43 activation tests and retains both fixed archive singletons fail closed. | This is activation prerequisite evidence, not `AUTO-M5-EXIT`. The live second rollover and corrected revision activation are Not Run. |
 | `M5-CDX-GATE-001..014`, canonical `AUTO-M5-EXIT` | Full local/live gate | Clean exact revision, selected running service, prerequisite receipts, all local gates with zero skips | Not Run | Exit receipt binding, transition locking, interruption-safe exact-inode receipt invalidation, cleanup-result handling, and the combined 175-test focused selection are local Green. No canonical `AUTO-M5-EXIT` execution or M5 completion receipt exists. | Must run after every corrected prerequisite is current, then pass as the last technical gate before owner review. |
 | macOS compatibility | Platform | Real macOS host | Blocked | No real Mac available | Outside Linux-first M5 acceptance; remains visible for V1. |
 
@@ -611,6 +629,76 @@ and `2/2` with successful identity collection runs; the next full browser run
 then passed for all three accounts and five windows. The blocked attempt is not
 credited as Green.
 
+### A complete collection left an omitted prior-run window current
+
+After the first corrective rollover and activation, the existing real-system
+scenario ran against exact service revision
+`063445154bca0bf5ec43db94ba57c17fd193fd99`:
+
+```bash
+PYTHONPATH=backend/src backend/.venv/bin/pytest -q --tb=short \
+  backend/tests/integration/capacity/test_codex_capacity_history.py::test_running_service_persisted_native_codex_windows_and_history
+```
+
+It failed at the current-lineage assertion. The latest successful
+`complete_scope` collection contained one current native window, while the
+versioned public current API retained two windows whose collection-run set
+included exactly one prior run. The immutable prior observation remains valid
+history; its continued presence in the current projection is the defect.
+`AUTO-M5-QUOTA-WITNESS` would therefore fail closed with
+`m5_quota_current_lineage_required`.
+
+This Red exposed missing implementation of the existing `FR-QUOTA-001` /
+`M05-PURE-005` rule: a strictly newer complete collection can establish that a
+previously current native window is not currently observed, while a partial or
+failed collection cannot. The owner approved plan 1.5.0 and the production
+correction is now local Green as recorded below. The second exact live service
+rollover, fresh collection, data correction through genuine observation, quota
+witness, and M5 completion are Not Run. No provider response, account
+identifier, quota value, credential, prompt, response, source content, or
+arbitrary environment value was retained in this public evidence.
+
+### Complete-scope lifecycle and second-rollover local Green
+
+The complete-scope implementation retires an omitted active native-window
+definition only when the incoming collection has proven identity, exact scope,
+and strictly newer semantic time. A later strictly newer complete absence
+advances an inactive definition's lifecycle watermark without inventing an
+observation, so a delayed older presence cannot reactivate it. Partial, failed,
+older, equal-time, retired, and unproven-identity inputs cannot change it; a
+later qualifying presence can reactivate it. Current account, window,
+forecast, availability, refresh, and compare-and-set reads require an active
+definition, while immutable history remains available. The frozen-node Red
+failed because the lifecycle-aware omission argument was absent; the corrected
+existing Capacity suite passed `71` tests.
+
+The bounded service-activation implementation adds only the approved exact
+second rollover from `063445154bca0bf5ec43db94ba57c17fd193fd99`. It preserves
+the first archive, uses the separate fixed
+`m5-service-activation-corrective-archive-0634451` singleton, revalidates every
+retained archive before each mutation, and admits only the enumerated fresh-root
+retry states. Its pre-mutation policy also rejects the trusted revision and
+both completed corrective revisions as a new rollover target; the frozen-node
+Red showed the pinned revision had incorrectly returned `rollback_candidate`.
+The activation suite then passed `43` tests with the same node inventory, and
+the module boundary check is clean. `AUTO-QUALITY` and `AUTO-BUILD` pass. The generated OpenAPI
+client update changed source metadata only after the Capacity repository hash
+changed: compatibility remained compatible, the schema SHA stayed unchanged,
+and the surface remains 67 operations. These deterministic Greens do not claim
+a live rollover, service activation, fresh provider collection, quota witness,
+or milestone gate pass.
+
+The corrected checkout's canonical `AUTO-TEST` rerun also passed its declared
+local boundary: `1361` backend tests passed, `37` explicit owner/live or
+environment selectors remained skipped, generated API/client compatibility
+passed, and every required production browser scenario passed. Its first run
+had one real-process precondition failure because the running workstation
+Claude sessions used 2.1.301 rather than admitted 2.1.289. The exact failed
+test passed with one temporary real 2.1.289 MCP-server process confined to a
+private temporary configuration root; the complete gate was then rerun once
+and passed. The test-owned process and root were stopped and removed after the
+gate. No provider call or default-profile change was used.
+
 ### Latest complete alert occurrence on retained history
 
 The alert-witness selector now validates the complete retained sequence and
@@ -825,10 +913,10 @@ result, or that the live selectors required by `AUTO-M5-EXIT` were available.
 | Production HTTP/generated client | Passed for focused account pagination and Codex API composition | Real loopback service, IAM/CSRF, versioned API, and generated client paths were exercised. `AUTO-BUILD` passed as an intermediate generated-artifact/build checkpoint; `AUTO-M5-EXIT` remains Not Run. |
 | Built Chrome UI | Passed for focused 201-account navigation | The production frontend and Chrome displayed and opened the account beyond page 200. Four-account identity/quota and alert-lifecycle browser witnesses remain Blocked. |
 | Linux process/filesystem | Passed for non-authenticated admission and containment policies | Real processes, file descriptors, pipes, files, links, and tracer admission were exercised. Five to six external Codex process observations and authenticated containment remain Blocked. |
-| Four live accounts | Blocked | A four-row owner outcome artifact passed operationally for base revision `d7b8b9b`, but its revision/service binding cannot satisfy the later alert-correction revision. |
-| Authoritative live quota/history | Blocked | One authenticated provider outcome normalized one primary window, then the Capacity commit failed on the now-corrected provenance grammar. The recovered interruption is now eligible only after full cadence. A fresh successful commit, official `/usage` reconciliation, and post-restart lineage witness remain required. |
+| Four live accounts | Passed for the current prerequisite | `AUTO-M5-OWNER-OUTCOMES` passed against the exact `0634451` service with four total outcomes: three verified and one owner-unavailable. It proves only the recorded availability outcomes and must be archived and recollected after any approved service rollover. |
+| Authoritative live quota/history | Blocked by live Red | The latest successful complete collection against `0634451` contained one current native window, while the public current API retained two and therefore one prior-run lineage. `AUTO-M5-QUOTA-WITNESS` would block on `m5_quota_current_lineage_required`; no quota receipt or official `/usage` reconciliation is claimed. |
 | Genuine capacity alert lifecycle | Blocked | Retained-history policy accepts a fresh `opened` or `reopened` occurrence without deleting older generations, but no current natural repeat, owner action, source-proven recovery, built-browser proof, and create-once alert witness has completed. |
-| Clean exact running revision | Historical `6bfa69d` activation Passed; corrected revision Not Run | The first activation produced its private service receipt, but no corrected exact revision has completed rollover/reactivation or produced the separate create-once `AUTO-M5-EXIT` receipt. |
+| Clean exact running revision | Exact `0634451` activation Passed | The first corrective rollover preserved the completed `6bfa69d` transition in its private archive, and the required rerun activated exact `0634451`. The separate create-once `AUTO-M5-EXIT` receipt does not exist. |
 
 The provider discovery basis is
 [Codex 0.160.0 discovery](m5-codex-0.160.0-discovery.md). The later
@@ -1153,6 +1241,26 @@ its branch requirement. The focused real-Git suite returned `5 passed in
 0.45s`; Ruff passed and mypy reported no issues in the two changed Git
 preflight files. This local Green does not claim the M5 live gate passed.
 
+The later canonical retry completed both required invocations. The first
+restored and proved the pinned trusted runtime, atomically moved the complete
+`6bfa69d` transition into the owner-only corrective archive, created the fresh
+transition root, and returned the typed rerun-required result. The second
+completed the real rollback drill and activated exact clean detached revision
+`063445154bca0bf5ec43db94ba57c17fd193fd99`. The selected systemd process,
+loopback and LAN HTTP, authenticated browser, exact Operations source revision,
+unchanged complete Registry, retained rollback runtime, archive singleton, and
+new owner-only transition artifacts all passed their stated checks. The
+separate prerequisite archive also passed for its stale predecessor artifact.
+
+`AUTO-M5-OWNER-OUTCOMES` subsequently passed against the same revision and
+service in sanitized aggregate form: four total outcomes, three verified and
+one owner-unavailable. The private artifact records the owner facts; this
+public evidence retains no aliases, opaque account IDs, private values, or
+artifact digest. It is not quota evidence or milestone acceptance. When the
+approved second rollover is executed, this revision/service-bound checkpoint
+becomes stale and must be preserved through the canonical prerequisite archive
+before a fresh owner-outcome run.
+
 ## Data and secret review
 
 This document contains no secret, provider response, account identity, private
@@ -1169,21 +1277,24 @@ startup; provider write semantics are declared honestly; the ten-minute login
 and service-drain bounds align; real SQLite/API/browser account pagination and
 real SQLite alert Registry pagination work beyond 200 records; and the local
 completion-prerequisite policies fail closed at their tested boundaries.
-One authenticated quota operation also reached a normalized primary window
-before exposing the corrected Capacity provenance grammar; its failed commit
-is not a live quota pass. The recovered interruption can now become eligible
-for a distinct run after full cadence, but that live retry has not passed.
+The first corrective archive, exact `0634451` service activation, and current
+four-outcome owner checkpoint have passed their bounded canonical routines.
+The subsequent genuine complete collection then exposed the current-projection
+defect: one omitted prior-run window remains public as current. This retained
+history is useful evidence. The owner-approved plan 1.5.0 correction is now
+local deterministic Green across 71 Capacity tests, 43 activation tests, and a
+clean module boundary check. No quota pass follows until the corrected revision
+is activated and a fresh genuine collection proves the current lineage.
 
 It does not prove V1-M5 complete. Before any completion or acceptance claim,
 the integration owner must:
 
-1. run the exact corrective `AUTO-M5-SERVICE-ACTIVATE` rollover from the
-   completed `6bfa69d` transition, refresh the selected trusted PID after its
-   typed status-5 result, and rerun the command successfully from the corrected
-   committed detached revision while retaining both the archive and trusted
-   rollback runtime;
-2. create the four-account owner outcome record using real accounts or explicit
-   owner-unavailable outcomes;
+1. commit and review the approved locally Green complete-scope lifecycle and
+   exact second-rollover correction, then execute the live second rollover and
+   activate its clean detached revision while preserving both the existing
+   archive and current transition evidence;
+2. canonically archive the now-current four-outcome checkpoint during that
+   rollover and recollect it against the newly selected revision and service;
 3. reconcile every verified account with official `/usage`, fresh collection,
    current API/DOM values, and retained history;
 4. verify five to six representative external Codex processes without account

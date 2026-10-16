@@ -1,9 +1,9 @@
 {
   "schema_version": "1.0.0",
   "record_type": "agentmonitor.v1_implementation_status",
-  "record_id": "V1-STATUS-2026-10-16-01",
-  "implementation_revision": "9dbb765531f05f2ae1e8174383cc0ff8b7cb8072",
-  "recorded_at": "2026-10-16T10:11:21Z",
+  "record_id": "V1-STATUS-2026-10-16-03",
+  "implementation_revision": "063445154bca0bf5ec43db94ba57c17fd193fd99",
+  "recorded_at": "2026-10-16T14:51:04Z",
   "planning_backlog": "docs/superpowers/plans/implementation-backlog.toml",
   "planning_backlog_sha256": "2e93367d304fda306776f8789db23c754798f6307277628f0565350d0dbb962e",
   "roadmap": "docs/roadmap.md",
@@ -83,7 +83,7 @@
       ],
       "delivery_state": "implemented",
       "canonical_gate_state": "passed",
-      "gate_binding": "current_implementation_revision",
+      "gate_binding": "historical_run",
       "gate_revision": "9dbb765531f05f2ae1e8174383cc0ff8b7cb8072",
       "acceptance_state": "accepted",
       "acceptance_scope": "full_milestone",
@@ -118,7 +118,7 @@
         "docs/evidence/m5-codex-read-side-effect-blocker.md",
         "docs/evidence/m5-codex-implementation.md"
       ],
-      "decision": "Codex implementation is Intermediate, with discovery, safety-correction, implementation, and local service-transition Red/Green evidence recorded. AUTO-M5-SERVICE-ACTIVATE is implemented as a bounded operational_limited PLAN-INT command under the explicit PLAN-DEP/D01 exception. Its first real rollback drill and activation passed at revision 6bfa69dc13cc9e1ded9c6baa6e803cb99bc8c20b; the following prerequisite-archive attempt and final-receipt review exposed fail-closed gaps. The first corrective invocation safely restored the trusted runtime and then blocked on a rollback-browser proof-mode defect before archive commit; the defect is corrected locally. Archive rollover and reactivation for the corrected revision, the clean exact-revision AUTO-M5-EXIT run, required remaining live fleet/quota/process/alert/containment evidence, and owner acceptance are Not Run. The canonical gate state remains not_run."
+      "decision": "Codex implementation is Intermediate, with discovery, safety correction, implementation, and service-transition evidence recorded. The first corrective rollover preserved the completed 6bfa69dc13cc9e1ded9c6baa6e803cb99bc8c20b transition, and the required rerun activated exact revision 063445154bca0bf5ec43db94ba57c17fd193fd99 with real systemd, HTTP, authenticated-browser, Registry, and rollback proof. AUTO-M5-OWNER-OUTCOMES then passed for that service with four total outcomes: three verified and one owner-unavailable. A real quota-history regression was Red because a latest complete one-window collection left one prior-run window in the public current set. The owner approved focused plan 1.5.0; its complete-scope lifecycle correction passed all 71 Capacity tests, its exact second-rollover implementation passed all 43 activation tests, and the module boundary check is clean. The live second rollover/activation, fresh corrected-service collection, refreshed owner prerequisites, required quota, process, alert, and containment evidence, clean exact-revision AUTO-M5-EXIT run, and owner acceptance remain Not Run or Blocked as recorded. The canonical gate state remains not_run."
     },
     {
       "milestone_id": "V1-M6",
@@ -454,7 +454,7 @@
         "docs/evidence/m5-codex-read-side-effect-blocker.md",
         "docs/evidence/m5-codex-implementation.md"
       ],
-      "decision": "Managed Codex connection, identity, and authentication-health implementation is present in the integration worktree. The required four selected real-account outcomes and owner-reviewed live verification remain unrecorded."
+      "decision": "Managed Codex connection, identity, and authentication-health implementation is present in the integration worktree. AUTO-M5-OWNER-OUTCOMES passed for the exact 063445154bca0bf5ec43db94ba57c17fd193fd99 service with four total outcomes: three verified and one owner-unavailable. This private checkpoint contains no quota or acceptance result and must be archived and recollected when the approved second service rollover is executed."
     },
     {
       "story_id": "ST-CDX-003",
@@ -466,7 +466,7 @@
         "docs/evidence/m5-codex-read-side-effect-blocker.md",
         "docs/evidence/m5-codex-implementation.md"
       ],
-      "decision": "Native Codex subscription mapping, collection, and capacity-history implementation is present in the integration worktree. Authenticated quota reconciliation and fresh scheduled history evidence remain unrecorded."
+      "decision": "Native Codex subscription mapping, collection, and capacity-history implementation is present in the integration worktree. A real regression against exact service 063445154bca0bf5ec43db94ba57c17fd193fd99 proved that a latest complete one-window collection left one prior-run window in the public current set. The owner-approved plan 1.5.0 complete-scope lifecycle correction passed all 71 Capacity tests and the module boundary check is clean. The live second rollover/activation, fresh corrected-service collection, AUTO-M5-QUOTA-WITNESS, and authenticated quota reconciliation remain Not Run or unrecorded."
     },
     {
       "story_id": "ST-CDX-004",
@@ -487,7 +487,7 @@
       "evidence_paths": [
         "docs/evidence/m5-codex-implementation.md"
       ],
-      "decision": "Codex HTTP, browser, health, alert, completion-gate, detached Git preflight, and bounded service-activation implementation are present in the integration worktree with local Red/Green evidence. The first real rollback drill and activation passed at revision 6bfa69dc13cc9e1ded9c6baa6e803cb99bc8c20b, after which archive and final-receipt gaps were found. The first corrective invocation restored the trusted runtime and blocked before archival on the now-corrected rollback-browser proof-mode defect. Archive rollover and reactivation for the corrected revision must run before fresh M5 prerequisites can bind to that service. The remaining built-browser/live witness set and clean exact-revision AUTO-M5-EXIT run remain Not Run."
+      "decision": "Codex HTTP, browser, health, alert, completion-gate, detached Git preflight, and bounded service-activation implementation are present in the integration worktree with local Red/Green evidence. The first corrective rollover archived the completed 6bfa69dc13cc9e1ded9c6baa6e803cb99bc8c20b transition, and the required rerun activated exact revision 063445154bca0bf5ec43db94ba57c17fd193fd99. The current owner-outcome checkpoint passed in sanitized aggregate form. After the later real stale-current-window Red, the owner-approved plan 1.5.0 lifecycle correction passed 71 Capacity tests and its exact second-rollover implementation passed 43 activation tests with a clean module boundary check. The live second rollover/activation, fresh collection, quota, process, alert, containment, clean exact-revision AUTO-M5-EXIT, and owner acceptance remain Blocked or Not Run."
     },
     {
       "story_id": "ST-OLL-001",

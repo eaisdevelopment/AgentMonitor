@@ -26,15 +26,22 @@ Current program state:
   organizations, six fresh post-restart quota/history lineages, the guarded
   current-process witness, and every required technical, browser, and local
   quality lane with zero skips and zero registry mutations.
-- **V1-M5:** implementation is **Intermediate**. The first real rollback drill
-  and activation passed at revision `6bfa69d`, then the prerequisite-archive
-  attempt and final-receipt review exposed fail-closed gaps. The first
-  corrective invocation safely restored the trusted runtime, then blocked on a
-  rollback-browser proof-mode defect before archiving evidence; that defect is
-  corrected locally. The archive rollover and reactivation for the corrected
-  revision, the clean exact-revision
-  `AUTO-M5-EXIT`, remaining live evidence, and owner acceptance are **Not Run**;
-  the canonical gate state remains `not_run`.
+- **V1-M5:** implementation is **Intermediate**. The first corrective rollover
+  preserved the completed `6bfa69d` transition in its private archive, and the
+  required rerun activated exact revision `0634451` with real systemd, HTTP,
+  authenticated-browser, Registry, and rollback evidence. A current four-row
+  owner-outcome checkpoint also passed in sanitized aggregate form: three
+  verified and one explicitly owner-unavailable. A later real quota-history
+  regression against that service is Red: the latest complete one-window
+  collection left one prior-run window in the public current set, so
+  `AUTO-M5-QUOTA-WITNESS` would block on
+  `m5_quota_current_lineage_required`. The owner approved focused plan 1.5.0,
+  and its complete-scope lifecycle correction and bounded second-rollover
+  implementation are local deterministic Green: the Capacity suite passed 71
+  tests, the activation suite passed 43 tests, and the module boundary check is
+  clean. The second live rollover/activation, fresh post-activation collection,
+  refreshed prerequisites, clean exact-revision `AUTO-M5-EXIT`, and owner
+  acceptance are **Not Run**; the canonical gate state remains `not_run`.
 - **V1-M6 through V1-M8:** Planned; their canonical gates have not run.
 
 The approved [M3 scope correction](evidence/m3-scope-correction-2026-10-02.md)

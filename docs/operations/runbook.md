@@ -309,18 +309,37 @@ proven: stop M5 evidence collection, preserve the journal and both runtimes,
 and diagnose the user unit. Never edit the journal, unit backup, or trusted
 runtime to force another result.
 
-One exact corrective rollover exists for the completed
-`6bfa69dc13cc9e1ded9c6baa6e803cb99bc8c20b` activation. When a newer detached
-candidate invokes the command while that exact candidate is active, the command
-validates the completed receipt, journal, rollback unit, clean old checkout,
-current service/browser revision, Registry digest, database identity, and
-retained trusted runtime before changing the service. It restores and proves
-the trusted runtime, revalidates those identities, and atomically moves the
-complete transition directory without replacement below
-`<owner-data-root>/m5-service-activation-corrective-archive/`. The archive
-name binds the old revision and activation-receipt digest; the moved directory
-and all three original evidence inodes and bytes are preserved. The command
-then creates a fresh owner-only transition directory and reports
+Exactly two revision-pinned corrective rollover modes are authorized. The
+first preserves the completed
+`6bfa69dc13cc9e1ded9c6baa6e803cb99bc8c20b` transition below
+`<owner-data-root>/m5-service-activation-corrective-archive/`. The second
+preserves the completed
+`063445154bca0bf5ec43db94ba57c17fd193fd99` transition below the distinct fixed
+singleton parent
+`<owner-data-root>/m5-service-activation-corrective-archive-0634451/`.
+Each archive entry name binds its source revision and activation-receipt
+digest. Neither mode accepts a different source revision, archive parent, or
+additional entry.
+
+The requested new candidate must differ from the pinned trusted revision and
+both completed corrective revisions above. The command checks those reserved
+revisions before any service restoration, archive move, or transition-state
+write; a reserved candidate blocks without changing the existing service or
+evidence.
+
+When a newer detached candidate invokes the command while either exact source
+candidate is active, the command validates the completed receipt, journal,
+rollback unit, clean source checkout, current service/browser revision,
+Registry digest, database identity, and retained trusted runtime before
+changing the service. The second mode also retains descriptors, inodes, modes,
+link counts, and digests for the first archive and revalidates that archive
+before every service or filesystem mutation. It restores and proves the
+trusted runtime, then atomically moves the complete current transition
+directory without replacement into its fixed owner-only singleton. Both
+archive parents and entries are fsynced and revalidated; all three source
+evidence inodes and bytes remain preserved.
+
+The command then creates a fresh owner-only transition directory and reports
 `m5_service_activation_rerun_required` with the new trusted service PID. The
 dispatcher exits with status `5` and prints
 `AUTO-M5-SERVICE-ACTIVATE: RERUN REQUIRED by corrective rollover`. This typed
@@ -329,15 +348,22 @@ pass nor an activation failure.
 
 After that result, refresh `AGENTMONITOR_M5_SERVICE_PID` from systemd and run
 the same canonical command once more from the unchanged corrected detached
-worktree. The second invocation performs the normal rollback drill and
-candidate activation. Before any new transition, it revalidates the sole
-completed corrective archive, including its name, owner, mode, exact three
-artifacts, artifact digests, old clean checkout, immutable rollback runtime,
-and prior activation receipt. A changed artifact, dirty or moving checkout,
-unexpected service revision, Registry/database change, absent, partial or
-multiple corrective archive, archive collision, or unsafe path blocks the
-operation. Do not move, copy, edit, or delete either transition directory by
-hand.
+worktree. The next invocation performs the normal rollback drill and candidate
+activation. Before any new transition, it revalidates every required completed
+corrective archive through its own revision-pinned singleton selector,
+including name, parent and entry identity, owner, mode, exact three artifacts,
+artifact digests, clean source checkout, immutable rollback runtime, and prior
+activation receipt.
+
+A retry after the second no-replace archive move accepts an absent canonical
+transition root, or an owner-only root in exactly one recovery state: empty
+`fresh`, `journal_only`, `rollback_only`, or `prepared` with the exact valid
+journal and rollback unit. The existing guarded root creation handles an absent
+root. Any other entry set or state blocks without cleanup or replacement. A
+changed retained archive, dirty or moving checkout, unexpected service
+revision, Registry/database change, absent, partial or multiple archive,
+archive collision, or unsafe path also blocks. Do not move, copy, edit, link,
+or delete a transition or corrective archive by hand.
 
 The coordinator never invokes a provider or reads, copies, or changes provider
 profiles. The selected AgentMonitor service may continue its already configured

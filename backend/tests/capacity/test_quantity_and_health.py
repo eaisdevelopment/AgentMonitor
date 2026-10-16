@@ -25,6 +25,7 @@ from agentmonitor.modules.capacity.application.commit import (
     CapacityCommitValidationErrorV1,
     validate_capacity_payload_digest,
 )
+from agentmonitor.modules.capacity.domain import current_projection
 from agentmonitor.modules.capacity.domain.health import (
     CapacityConstraintInputV1,
     classify_capacity_health,
@@ -240,7 +241,7 @@ def test_capacity_payload_digest_is_canonical_and_value_sensitive() -> None:
 
 
 def test_partial_quota_scope_requires_explicit_omission_codes() -> None:
-    """M05-PURE-006: partial never silently means complete native scope."""
+    """M05-PURE-005/006: only newer complete scope proves disappearance."""
     try:
         ProviderQuotaInputV1(
             subject=CapacitySubjectV1(
@@ -258,6 +259,206 @@ def test_partial_quota_scope_requires_explicit_omission_codes() -> None:
         assert error.code == "capacity_partial_omissions_required"
     else:
         raise AssertionError("partial capacity scope omitted no explicit reason")
+
+    current = ("base_model_inference:primary", "codex:primary")
+    observed = ("codex:primary",)
+    older = datetime(2026, 10, 16, 12, 0, tzinfo=UTC)
+    newer = older + timedelta(minutes=5)
+    same_scope = (
+        "claude",
+        "installation-one",
+        "account-one",
+        "resource-one",
+        "quota.read",
+        1,
+    )
+    policy = getattr(current_projection, "omitted_current_window_keys_v1", None)
+    assert callable(policy), "complete-scope window lifecycle policy is absent"
+
+    assert policy(
+        current,
+        observed,
+        completeness="complete_scope",
+        current_lifecycle="active",
+        current_semantic_at=older,
+        incoming_semantic_at=newer,
+        identity_scheme_proven=True,
+        current_scope=same_scope,
+        incoming_scope=same_scope,
+    ) == ("base_model_inference:primary",)
+    assert (
+        policy(
+            current,
+            observed,
+            completeness="partial_scope",
+            current_lifecycle="active",
+            current_semantic_at=older,
+            incoming_semantic_at=newer,
+            identity_scheme_proven=True,
+            current_scope=same_scope,
+            incoming_scope=same_scope,
+        )
+        == ()
+    )
+    candidate_wins = getattr(
+        current_projection,
+        "current_window_candidate_wins_v1",
+        None,
+    )
+    assert callable(candidate_wins), "window lifecycle watermark policy is absent"
+    omission_at = newer
+    repeated_absence = newer + timedelta(minutes=5)
+    between = older + timedelta(minutes=3)
+    after = newer + timedelta(minutes=1)
+    assert not candidate_wins(
+        current_semantic_at=older,
+        lifecycle_semantic_at=omission_at,
+        incoming_semantic_at=between,
+    )
+    assert not candidate_wins(
+        current_semantic_at=older,
+        lifecycle_semantic_at=omission_at,
+        incoming_semantic_at=omission_at,
+    )
+    assert candidate_wins(
+        current_semantic_at=older,
+        lifecycle_semantic_at=omission_at,
+        incoming_semantic_at=after,
+    )
+    assert candidate_wins(
+        current_semantic_at=None,
+        lifecycle_semantic_at=None,
+        incoming_semantic_at=older,
+    )
+    assert policy(
+        current,
+        observed,
+        completeness="complete_scope",
+        current_lifecycle="not_observed_currently",
+        current_semantic_at=omission_at,
+        incoming_semantic_at=repeated_absence,
+        identity_scheme_proven=True,
+        current_scope=same_scope,
+        incoming_scope=same_scope,
+    ) == ("base_model_inference:primary",)
+    assert not candidate_wins(
+        current_semantic_at=older,
+        lifecycle_semantic_at=repeated_absence,
+        incoming_semantic_at=newer + timedelta(minutes=2),
+    )
+    assert candidate_wins(
+        current_semantic_at=older,
+        lifecycle_semantic_at=repeated_absence,
+        incoming_semantic_at=repeated_absence + timedelta(minutes=1),
+    )
+    first_changed_semantics = older + timedelta(minutes=1)
+    assert not candidate_wins(
+        current_semantic_at=older,
+        lifecycle_semantic_at=omission_at,
+        incoming_semantic_at=first_changed_semantics,
+    )
+    lifecycle_watermark = getattr(
+        current_projection,
+        "current_window_lifecycle_semantic_v1",
+        None,
+    )
+    assert callable(lifecycle_watermark), "lifecycle watermark carry policy is absent"
+    carried_lifecycle_watermark = lifecycle_watermark(
+        omission_at,
+        first_changed_semantics,
+    )
+    assert carried_lifecycle_watermark == omission_at
+    second_changed_semantics = older + timedelta(minutes=2)
+    assert not candidate_wins(
+        current_semantic_at=older,
+        lifecycle_semantic_at=carried_lifecycle_watermark,
+        incoming_semantic_at=second_changed_semantics,
+    )
+    changed_scope = (*same_scope[:1], "installation-two", *same_scope[2:])
+    assert (
+        policy(
+            current,
+            observed,
+            completeness="complete_scope",
+            current_lifecycle="active",
+            current_semantic_at=older,
+            incoming_semantic_at=newer,
+            identity_scheme_proven=True,
+            current_scope=same_scope,
+            incoming_scope=changed_scope,
+        )
+        == ()
+    )
+    assert (
+        policy(
+            current,
+            observed,
+            completeness="complete_scope",
+            current_lifecycle="active",
+            current_semantic_at=newer,
+            incoming_semantic_at=older,
+            identity_scheme_proven=True,
+            current_scope=same_scope,
+            incoming_scope=same_scope,
+        )
+        == ()
+    )
+    assert (
+        policy(
+            current,
+            observed,
+            completeness="complete_scope",
+            current_lifecycle="active",
+            current_semantic_at=newer,
+            incoming_semantic_at=newer,
+            identity_scheme_proven=True,
+            current_scope=same_scope,
+            incoming_scope=same_scope,
+        )
+        == ()
+    )
+    assert (
+        policy(
+            current,
+            current,
+            completeness="complete_scope",
+            current_lifecycle="active",
+            current_semantic_at=older,
+            incoming_semantic_at=newer,
+            identity_scheme_proven=True,
+            current_scope=same_scope,
+            incoming_scope=same_scope,
+        )
+        == ()
+    )
+    assert (
+        policy(
+            current,
+            observed,
+            completeness="complete_scope",
+            current_lifecycle="retired",
+            current_semantic_at=older,
+            incoming_semantic_at=newer,
+            identity_scheme_proven=True,
+            current_scope=same_scope,
+            incoming_scope=same_scope,
+        )
+        == ()
+    )
+    assert (
+        policy(
+            current,
+            observed,
+            completeness="complete_scope",
+            current_lifecycle="active",
+            current_semantic_at=older,
+            incoming_semantic_at=newer,
+            identity_scheme_proven=False,
+            current_scope=same_scope,
+            incoming_scope=same_scope,
+        )
+        == ()
+    )
 
 
 def test_capacity_health_preserves_partial_and_unknown_semantics() -> None:

@@ -1,8 +1,60 @@
 """Pure source-evidence policy for M05 current capability availability."""
 
+from datetime import datetime
 from typing import Literal
 
 from agentmonitor.contracts.capacity_v1 import CapacityAvailabilityStateV1
+
+WindowIdentityScopeV1 = tuple[str, str, str, str, str, int]
+WindowLifecycleV1 = Literal["active", "not_observed_currently", "retired"]
+
+
+def omitted_current_window_keys_v1(
+    current_window_keys: tuple[str, ...],
+    observed_window_keys: tuple[str, ...],
+    *,
+    completeness: Literal["complete_scope", "partial_scope"],
+    current_lifecycle: WindowLifecycleV1,
+    current_semantic_at: datetime,
+    incoming_semantic_at: datetime,
+    identity_scheme_proven: bool,
+    current_scope: WindowIdentityScopeV1,
+    incoming_scope: WindowIdentityScopeV1,
+) -> tuple[str, ...]:
+    """Select absent keys only when one complete observation is strictly newer."""
+    if (
+        completeness != "complete_scope"
+        or current_lifecycle not in {"active", "not_observed_currently"}
+        or not identity_scheme_proven
+        or current_scope != incoming_scope
+        or incoming_semantic_at <= current_semantic_at
+    ):
+        return ()
+    return tuple(sorted(set(current_window_keys) - set(observed_window_keys)))
+
+
+def current_window_candidate_wins_v1(
+    *,
+    current_semantic_at: datetime | None,
+    lifecycle_semantic_at: datetime | None,
+    incoming_semantic_at: datetime,
+) -> bool:
+    """Advance presence only beyond both current and lifecycle watermarks."""
+
+    watermark = current_window_lifecycle_semantic_v1(
+        current_semantic_at,
+        lifecycle_semantic_at,
+    )
+    return watermark is None or incoming_semantic_at > watermark
+
+
+def current_window_lifecycle_semantic_v1(
+    *semantic_times: datetime | None,
+) -> datetime | None:
+    """Carry the newest presence or absence time across definition versions."""
+
+    known = tuple(value for value in semantic_times if value is not None)
+    return max(known) if known else None
 
 
 def classify_capability_availability_v1(

@@ -240,7 +240,7 @@ blockers = []
 id = "AUTO-M5-SERVICE-ACTIVATE"
 owner = "PLAN-INT"
 status = "operational_limited"
-scope = "bounded owner-workstation transition from the pinned trusted dashboard runtime to this exact clean M5 Git revision under one exclusive service-transition guard, with authenticated source-revision proof, automatic byte-exact rollback, a private activation/rollback receipt, and one exact evidence-preserving corrective rollover of completed revision 6bfa69dc13cc9e1ded9c6baa6e803cb99bc8c20b whose retained archive is revalidated before corrected activation"
+scope = "bounded owner-workstation transition from the pinned trusted dashboard runtime to this exact clean M5 Git revision under one exclusive service-transition guard, with authenticated source-revision proof, automatic byte-exact rollback, a private activation/rollback receipt, and two revision-pinned evidence-preserving corrective rollovers: completed revision 6bfa69dc13cc9e1ded9c6baa6e803cb99bc8c20b into its original fixed singleton and completed revision 063445154bca0bf5ec43db94ba57c17fd193fd99 into fixed singleton m5-service-activation-corrective-archive-0634451, with every earlier retained archive revalidated before each service or filesystem mutation"
 implementation_command = ["backend/.venv/bin/python", "-m", "tools.automation.implementations.m5_service_activation"]
 blockers = ["explicit live selectors and an authenticated shared browser are required for this workstation transition", "AUTO-DEPLOY and every general deployment lifecycle remain blocked"]
 

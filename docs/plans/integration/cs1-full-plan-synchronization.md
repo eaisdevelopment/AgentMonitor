@@ -751,3 +751,57 @@ corrective rollover/reactivation and canonical `AUTO-M5-EXIT` are Not Run, and
 M5 remains Intermediate with canonical gate state `not_run`.
 
 Plan snapshot SHA-256: `1716271928ec730f646bb2602b128cd99ba7e92ba7c5c8d4c470892f840cdac6`
+
+## 2026-10-16 approved M5 complete-scope lifecycle and second-rollover rebind
+
+The synchronized Draft snapshot now binds PLAN-DEP/D01 to the owner-approved
+M5 focused plan 1.5.0 addendum. The approved scope corrects the already
+specified M05 complete-scope native-window lifecycle after a real latest-run
+lineage failure, and permits one exact second evidence-preserving rollover into
+its own fixed singleton archive namespace from
+`063445154bca0bf5ec43db94ba57c17fd193fd99` while retaining the pinned trusted
+runtime and the completed first corrective archive.
+
+The owner's 2026-10-16 approval authorizes only the exact M05 correction and
+second rollover through the focused plan's Red/Green/refactor, review,
+clean-candidate, and fail-closed preconditions. This planning rebind does not
+claim implementation, database or service mutation, evidence replacement, or
+completion. PLAN-DEP remains Draft, `CTR-DEP-001` remains proposed with
+unchanged meaning, and M05's existing V1 contracts and database schema already
+express complete/partial scope and `not_observed_currently`. The automation
+catalog and completion standard remain on the implemented 1.4.0 behavior until
+the approved correction is implemented.
+
+Among synchronized baseline inputs, only the PLAN-DEP plan body, its generated
+contract-adoption digest, reviewed parallel-ownership digest, and this exact
+plan snapshot changed. The other 19 canonical plan bodies, all public contract
+versions, and approval flags remain
+unchanged. The completed first corrective rollover and activation of `0634451`
+are the real premise for this approved correction. Any separate sanitized
+checkpoint reconciliation remains independently controlled and must keep M5
+Intermediate, acceptance unrecorded, and `AUTO-M5-EXIT` Not Run until the
+canonical gate and owner acceptance actually pass.
+
+Plan snapshot SHA-256: `6711bef89419d379fb77695154749c20b211bca22a9c48a7281046243604f628`
+
+## 2026-10-16 M5 1.5.0 postimplementation control rebind
+
+The synchronized Draft snapshot now binds the owner-approved M5 focused plan
+1.5.0 to its implemented complete-scope native-window lifecycle policy and
+bounded exact second-rollover control. The existing Capacity suite passed 71
+tests, the service-activation suite passed 43 tests, and the module boundary
+check is clean. Those deterministic development-checkout Greens follow the
+retained real stale-lineage Red and do not assert a fresh provider collection,
+database correction, service transition, browser witness, or milestone result.
+
+The automation catalog and completion standard now describe the two exact
+revision-pinned rollovers, separate fixed singleton archives, and revalidation
+of every retained earlier archive before each mutation. M05 reuses its existing
+complete/partial scope and active/not-currently-observed meanings. No public
+contract version, schema, migration, dependency, provider write authority, or
+V1 read-mostly boundary changes. The live second rollover and activation,
+fresh corrected-service collection, refreshed prerequisites, and canonical
+`AUTO-M5-EXIT` remain Not Run. M5 remains Intermediate, acceptance remains
+unrecorded, and canonical gate state remains `not_run`.
+
+Plan snapshot SHA-256: `567510d4eeb9790b7614b4aeff971944e55cdae023efb6f69490c9ac976096ed`

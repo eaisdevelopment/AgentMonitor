@@ -1,12 +1,15 @@
 # M05 capacity module
 
 Status: **M4 capacity delivery implemented and its standalone milestone gate
-Passed**. The focused increments below publish current native metadata, the M05
-30%/15% health policy, revisioned scope coverage, pure burn/forecast derivations,
-current alert facts, and typed existing commit notice delivery. Their later
-real integration, post-upgrade migration, fleet, browser, and canonical results
-are recorded in the [M4 completion evidence](../evidence/m4-completion.md). Full
-M05 master-plan and V1 release acceptance are not claimed.
+Passed; the approved M5 complete-scope lifecycle correction is local
+deterministic Green**. The focused increments below publish current native
+metadata, the M05 30%/15% health policy, revisioned scope coverage, pure
+burn/forecast derivations, current alert facts, and typed existing commit
+notice delivery. Their later real integration, post-upgrade migration, fleet,
+browser, and canonical results are recorded in the
+[M4 completion evidence](../evidence/m4-completion.md). The corrected M5 service
+activation and fresh genuine complete collection are Not Run. Full M05
+master-plan and V1 release acceptance are not claimed.
 
 Owner: `PLAN-M05`
 Contracts: compatible `capacity.v1` extensions to
@@ -118,6 +121,37 @@ actual storage instant and remains distinct from provider `observed_at` and
 collector `collected_at`. Current projections advance by semantic observation
 time, not arrival order; an older observation remains history, and an equal-time
 different payload marks the projection conflicted.
+
+An accepted `complete_scope` snapshot also evaluates current-projection window
+keys whose definitions are `active` or `not_observed_currently` inside the
+exact provider, installation, account, resource, capability, and
+identity-scheme scope. An active key omitted by that snapshot changes to
+`not_observed_currently` only when the incoming semantic observation time is
+strictly newer than that key's current observation. `partial_scope`, failed,
+older, equal-time, cross-scope, or identity-unproven input cannot retire an
+omitted key. A matching key returns to `active` only when a later accepted
+observation wins the same strict-newer projection precedence.
+
+Each later strictly newer complete snapshot that continues to omit an already
+`not_observed_currently` key advances its lifecycle watermark without creating
+a quota observation. A delayed presence older than that latest absence cannot
+reactivate the key. `retired` definitions do not participate.
+
+For this internal lifecycle decision, a definition's `last_observed_at` is the
+semantic watermark of the latest accepted presence or complete-scope absence
+observation for that native key. `first_observed_at` remains the first genuine
+presence observation. Carrying the lifecycle watermark across semantic
+definition versions prevents an out-of-order reappearance from undoing a newer
+absence decision. This is definition lifecycle metadata; quota history remains
+the immutable genuine observation rows and is never synthesized from absence.
+
+Current window, account, health, forecast-refresh, availability, alert, API,
+and dashboard paths consume only active definitions. Inactive definitions and
+all of their immutable observations, measures, provenance, receipts, and event
+history remain available to history queries. The lifecycle update occurs in
+the existing commit transaction before current health, events, and the receipt
+are derived; no provider-shaped repair, synthetic replacement observation, or
+schema migration is involved.
 
 `ListQuotaWindowsV1`, `GetCapacityHealthV1`, `GetAccountCapacityV1`, and
 `GetCollectionCommitStatusV1` are provider-neutral query boundaries. Window,

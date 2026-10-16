@@ -505,9 +505,16 @@ def test_corrective_rollover_archives_complete_transition_by_atomic_inode_move(
             payloads[module.ROLLBACK_UNIT_PATH.name]
         ).hexdigest(),
     )
+    archived_retained = None
     try:
         archive_id = module._archive_completed_activation_rollover_v1(retained)
+        archived_retained = module._retain_archived_activation_rollover_after_commit_v1(
+            retained
+        )
+        module._require_preserved_activation_rollovers_v1((archived_retained,))
     finally:
+        if archived_retained is not None:
+            module._close_completed_activation_rollover_v1(archived_retained)
         module._close_completed_activation_rollover_v1(retained)
 
     assert archive_id == (f"{module.CORRECTIVE_ROLLOVER_REVISION}-{receipt_digest}")
@@ -523,6 +530,93 @@ def test_corrective_rollover_archives_complete_transition_by_atomic_inode_move(
         assert path.stat().st_nlink == 1
     assert transition_root.is_dir()
     assert stat.S_IMODE(transition_root.stat().st_mode) == 0o700
+    assert tuple(transition_root.iterdir()) == ()
+
+    first_parent_identity = (archive_parent.stat().st_dev, archive_parent.stat().st_ino)
+    first_archive_identities = {
+        path.name: (path.stat().st_dev, path.stat().st_ino)
+        for path in archived.iterdir()
+    }
+    first_retained = module._retain_completed_activation_rollover_v1(
+        transition_root=archived,
+        archive_parent=archive_parent,
+        prior_revision=module.CORRECTIVE_ROLLOVER_REVISION,
+        receipt_digest=receipt_digest,
+        journal_digest=hashlib.sha256(
+            payloads[module.ACTIVATION_JOURNAL_BASENAME]
+        ).hexdigest(),
+        rollback_unit_digest=hashlib.sha256(
+            payloads[module.ROLLBACK_UNIT_PATH.name]
+        ).hexdigest(),
+    )
+    second_payloads = {
+        basename: payload.replace(b"complete", b"second-complete")
+        for basename, payload in payloads.items()
+    }
+    second_identities: dict[str, tuple[int, int]] = {}
+    for basename, payload in second_payloads.items():
+        path = transition_root / basename
+        path.write_bytes(payload)
+        path.chmod(0o600)
+        second_identities[basename] = (path.stat().st_dev, path.stat().st_ino)
+    second_source_identity = (
+        transition_root.stat().st_dev,
+        transition_root.stat().st_ino,
+    )
+    second_receipt_digest = hashlib.sha256(
+        second_payloads[module.RECEIPT_PATH.name]
+    ).hexdigest()
+    second_archive_parent = tmp_path / module.SECOND_CORRECTIVE_ARCHIVE_BASENAME
+    second_retained = module._retain_completed_activation_rollover_v1(
+        transition_root=transition_root,
+        archive_parent=second_archive_parent,
+        prior_revision=module.SECOND_CORRECTIVE_ROLLOVER_REVISION,
+        receipt_digest=second_receipt_digest,
+        journal_digest=hashlib.sha256(
+            second_payloads[module.ACTIVATION_JOURNAL_BASENAME]
+        ).hexdigest(),
+        rollback_unit_digest=hashlib.sha256(
+            second_payloads[module.ROLLBACK_UNIT_PATH.name]
+        ).hexdigest(),
+    )
+    second_archived_retained = None
+    try:
+        second_archive_id = module._archive_completed_activation_rollover_v1(
+            second_retained,
+            preserved_rollovers=(first_retained,),
+        )
+        second_archived_retained = (
+            module._retain_archived_activation_rollover_after_commit_v1(second_retained)
+        )
+        module._require_preserved_activation_rollovers_v1(
+            (first_retained, second_archived_retained)
+        )
+    finally:
+        if second_archived_retained is not None:
+            module._close_completed_activation_rollover_v1(second_archived_retained)
+        module._close_completed_activation_rollover_v1(second_retained)
+        module._close_completed_activation_rollover_v1(first_retained)
+
+    second_archived = second_archive_parent / second_archive_id
+    assert second_archive_id == (
+        f"{module.SECOND_CORRECTIVE_ROLLOVER_REVISION}-{second_receipt_digest}"
+    )
+    assert (second_archived.stat().st_dev, second_archived.stat().st_ino) == (
+        second_source_identity
+    )
+    assert {path.name for path in archive_parent.iterdir()} == {archive_id}
+    assert (archive_parent.stat().st_dev, archive_parent.stat().st_ino) == (
+        first_parent_identity
+    )
+    for basename, identity in first_archive_identities.items():
+        assert (
+            (archived / basename).stat().st_dev,
+            (archived / basename).stat().st_ino,
+        ) == identity
+    for basename, payload in second_payloads.items():
+        path = second_archived / basename
+        assert path.read_bytes() == payload
+        assert (path.stat().st_dev, path.stat().st_ino) == second_identities[basename]
     assert tuple(transition_root.iterdir()) == ()
 
 
@@ -562,6 +656,84 @@ def test_corrective_rollover_rejects_changed_artifact_before_archive(
 
     assert transition_root.is_dir()
     assert not archive_parent.exists()
+
+    parent_case = tmp_path / "changed-archive-parent"
+    parent_case.mkdir(mode=0o700)
+    transition_root, archive_parent, payloads, _ = _corrective_rollover_artifacts(
+        module,
+        parent_case,
+    )
+    receipt_digest = hashlib.sha256(payloads[module.RECEIPT_PATH.name]).hexdigest()
+    first_retained = module._retain_completed_activation_rollover_v1(
+        transition_root=transition_root,
+        archive_parent=archive_parent,
+        prior_revision=module.CORRECTIVE_ROLLOVER_REVISION,
+        receipt_digest=receipt_digest,
+        journal_digest=hashlib.sha256(
+            payloads[module.ACTIVATION_JOURNAL_BASENAME]
+        ).hexdigest(),
+        rollback_unit_digest=hashlib.sha256(
+            payloads[module.ROLLBACK_UNIT_PATH.name]
+        ).hexdigest(),
+    )
+    try:
+        first_archive_id = module._archive_completed_activation_rollover_v1(
+            first_retained
+        )
+    finally:
+        module._close_completed_activation_rollover_v1(first_retained)
+    archived = archive_parent / first_archive_id
+    first_retained = module._retain_completed_activation_rollover_v1(
+        transition_root=archived,
+        archive_parent=archive_parent,
+        prior_revision=module.CORRECTIVE_ROLLOVER_REVISION,
+        receipt_digest=receipt_digest,
+        journal_digest=hashlib.sha256(
+            payloads[module.ACTIVATION_JOURNAL_BASENAME]
+        ).hexdigest(),
+        rollback_unit_digest=hashlib.sha256(
+            payloads[module.ROLLBACK_UNIT_PATH.name]
+        ).hexdigest(),
+    )
+    for basename, payload in payloads.items():
+        path = transition_root / basename
+        path.write_bytes(payload + b"second")
+        path.chmod(0o600)
+    second_receipt_digest = hashlib.sha256(
+        (transition_root / module.RECEIPT_PATH.name).read_bytes()
+    ).hexdigest()
+    second_archive_parent = parent_case / module.SECOND_CORRECTIVE_ARCHIVE_BASENAME
+    second_retained = module._retain_completed_activation_rollover_v1(
+        transition_root=transition_root,
+        archive_parent=second_archive_parent,
+        prior_revision=module.SECOND_CORRECTIVE_ROLLOVER_REVISION,
+        receipt_digest=second_receipt_digest,
+        journal_digest=hashlib.sha256(
+            (transition_root / module.ACTIVATION_JOURNAL_BASENAME).read_bytes()
+        ).hexdigest(),
+        rollback_unit_digest=hashlib.sha256(
+            (transition_root / module.ROLLBACK_UNIT_PATH.name).read_bytes()
+        ).hexdigest(),
+    )
+    displaced_parent = parent_case / "displaced-first-archive"
+    archive_parent.rename(displaced_parent)
+    archive_parent.mkdir(mode=0o700)
+    (displaced_parent / first_archive_id).rename(archive_parent / first_archive_id)
+    try:
+        with pytest.raises(
+            module.M5ServiceActivationErrorV1,
+            match="m5_service_rollover_artifact_changed",
+        ):
+            module._archive_completed_activation_rollover_v1(
+                second_retained,
+                preserved_rollovers=(first_retained,),
+            )
+    finally:
+        module._close_completed_activation_rollover_v1(second_retained)
+        module._close_completed_activation_rollover_v1(first_retained)
+
+    assert not second_archive_parent.exists()
+    assert {path.name for path in transition_root.iterdir()} == set(payloads)
 
 
 def test_corrective_rollover_never_replaces_existing_archive(tmp_path: Path) -> None:
@@ -703,6 +875,51 @@ def test_corrective_rollover_policy_is_exact_and_returns_typed_rerun() -> None:
     )
     assert (
         module.corrective_activation_rollover_decision_v1(
+            candidate_revision=new_revision,
+            completed_revision=module.SECOND_CORRECTIVE_ROLLOVER_REVISION,
+            service_revision=module.SECOND_CORRECTIVE_ROLLOVER_REVISION,
+        )
+        == "rollback_candidate"
+    )
+    assert (
+        module.corrective_activation_rollover_decision_v1(
+            candidate_revision=new_revision,
+            completed_revision=module.SECOND_CORRECTIVE_ROLLOVER_REVISION,
+            service_revision=module.PINNED_ROLLBACK_REVISION,
+        )
+        == "archive_restored"
+    )
+    for reserved_candidate, expected in (
+        (module.PINNED_ROLLBACK_REVISION, "blocked"),
+        (module.CORRECTIVE_ROLLOVER_REVISION, "blocked"),
+        (module.SECOND_CORRECTIVE_ROLLOVER_REVISION, "not_applicable"),
+    ):
+        assert (
+            module.corrective_activation_rollover_decision_v1(
+                candidate_revision=reserved_candidate,
+                completed_revision=module.SECOND_CORRECTIVE_ROLLOVER_REVISION,
+                service_revision=module.SECOND_CORRECTIVE_ROLLOVER_REVISION,
+            )
+            == expected
+        )
+    assert (
+        module.corrective_activation_rollover_decision_v1(
+            candidate_revision=module.PINNED_ROLLBACK_REVISION,
+            completed_revision=module.CORRECTIVE_ROLLOVER_REVISION,
+            service_revision=module.CORRECTIVE_ROLLOVER_REVISION,
+        )
+        == "blocked"
+    )
+    assert (
+        module.corrective_activation_rollover_decision_v1(
+            candidate_revision=module.SECOND_CORRECTIVE_ROLLOVER_REVISION,
+            completed_revision=module.CORRECTIVE_ROLLOVER_REVISION,
+            service_revision=module.CORRECTIVE_ROLLOVER_REVISION,
+        )
+        == "rollback_candidate"
+    )
+    assert (
+        module.corrective_activation_rollover_decision_v1(
             candidate_revision=module.CORRECTIVE_ROLLOVER_REVISION,
             completed_revision=module.CORRECTIVE_ROLLOVER_REVISION,
             service_revision=module.CORRECTIVE_ROLLOVER_REVISION,
@@ -725,6 +942,28 @@ def test_corrective_rollover_policy_is_exact_and_returns_typed_rerun() -> None:
     error = module.M5ServiceActivationRerunRequiredV1(4321)
     assert str(error) == "m5_service_activation_rerun_required"
     assert error.trusted_service_pid == 4321
+    assert (
+        module.corrective_rollover_rerun_decision_v1(
+            transition_state="prepared",
+            candidate_revision=new_revision,
+            journal_candidate_revision=new_revision,
+        )
+        == "rerun"
+    )
+    for transition_state, journal_revision in (
+        ("fresh", None),
+        ("journal_only", new_revision),
+        ("rollback_only", None),
+        ("prepared", "d" * 40),
+    ):
+        assert (
+            module.corrective_rollover_rerun_decision_v1(
+                transition_state=transition_state,
+                candidate_revision=new_revision,
+                journal_candidate_revision=journal_revision,
+            )
+            == "blocked"
+        )
 
 
 def test_corrective_rollover_browser_expectation_uses_baseline_only_for_trusted_rollback() -> (
@@ -786,6 +1025,7 @@ def test_corrective_rollover_retry_selects_one_complete_schema_bound_archive(
     selected_root, selected_digest = (
         module._select_completed_activation_rollover_archive_v1(
             archive_parent=archive_parent,
+            prior_revision=module.CORRECTIVE_ROLLOVER_REVISION,
         )
     )
     archived_proof = module._validate_completed_activation_material_v1(
@@ -815,6 +1055,54 @@ def test_corrective_rollover_retry_selects_one_complete_schema_bound_archive(
     assert selected_root == archived_root
     assert selected_digest == proof.digest
     assert archived_proof == proof
+    with pytest.raises(
+        module.M5ServiceActivationErrorV1,
+        match="m5_service_rollover_archive_invalid",
+    ):
+        module._select_completed_activation_rollover_archive_v1(
+            archive_parent=archive_parent,
+            prior_revision=module.SECOND_CORRECTIVE_ROLLOVER_REVISION,
+        )
+
+    second_case = tmp_path / "second-corrective-archive"
+    second_case.mkdir(mode=0o700)
+    second_fixture = _activation_receipt_fixture(
+        second_case,
+        revision=module.SECOND_CORRECTIVE_ROLLOVER_REVISION,
+    )
+    (
+        _,
+        second_candidate,
+        second_current,
+        second_receipt_path,
+        second_journal_path,
+        second_rollback_unit_path,
+        second_rollback_root,
+        _,
+    ) = second_fixture
+    second_proof = module.validate_current_activation_receipt_v1(
+        second_candidate,
+        second_current,
+        receipt_path=second_receipt_path,
+        journal_path=second_journal_path,
+        rollback_unit_path=second_rollback_unit_path,
+        rollback_root=second_rollback_root,
+    )
+    second_archive_parent = second_case / module.SECOND_CORRECTIVE_ARCHIVE_BASENAME
+    second_archive_parent.mkdir(mode=0o700)
+    second_archive_id = (
+        f"{module.SECOND_CORRECTIVE_ROLLOVER_REVISION}-{second_proof.digest}"
+    )
+    second_archived_root = second_archive_parent / second_archive_id
+    second_receipt_path.parent.rename(second_archived_root)
+    second_selected_root, second_selected_digest = (
+        module._select_completed_activation_rollover_archive_v1(
+            archive_parent=second_archive_parent,
+            prior_revision=module.SECOND_CORRECTIVE_ROLLOVER_REVISION,
+        )
+    )
+    assert second_selected_root == second_archived_root
+    assert second_selected_digest == second_proof.digest
 
 
 def test_corrective_rollover_retry_rejects_multiple_or_partial_archives(
@@ -822,6 +1110,23 @@ def test_corrective_rollover_retry_rejects_multiple_or_partial_archives(
 ) -> None:
     module = _module()
     tmp_path.chmod(0o700)
+    empty_second_archive = tmp_path / module.SECOND_CORRECTIVE_ARCHIVE_BASENAME
+    assert (
+        module._corrective_rollover_archive_parent_state_v1(
+            archive_parent=empty_second_archive,
+            prior_revision=module.SECOND_CORRECTIVE_ROLLOVER_REVISION,
+        )
+        == "absent"
+    )
+    empty_second_archive.mkdir(mode=0o700)
+    assert (
+        module._corrective_rollover_archive_parent_state_v1(
+            archive_parent=empty_second_archive,
+            prior_revision=module.SECOND_CORRECTIVE_ROLLOVER_REVISION,
+        )
+        == "empty"
+    )
+    empty_second_archive.rmdir()
     archive_parent = tmp_path / module.CORRECTIVE_ARCHIVE_BASENAME
     archive_parent.mkdir(mode=0o700)
     first = archive_parent / (f"{module.CORRECTIVE_ROLLOVER_REVISION}-{'1' * 64}")
@@ -832,6 +1137,7 @@ def test_corrective_rollover_retry_rejects_multiple_or_partial_archives(
     ):
         module._select_completed_activation_rollover_archive_v1(
             archive_parent=archive_parent,
+            prior_revision=module.CORRECTIVE_ROLLOVER_REVISION,
         )
 
     for basename in (
@@ -850,6 +1156,7 @@ def test_corrective_rollover_retry_rejects_multiple_or_partial_archives(
     ):
         module._select_completed_activation_rollover_archive_v1(
             archive_parent=archive_parent,
+            prior_revision=module.CORRECTIVE_ROLLOVER_REVISION,
         )
 
 
@@ -857,35 +1164,42 @@ def test_corrective_rollover_retry_accepts_post_journal_crash_root(
     tmp_path: Path,
 ) -> None:
     module = _module()
-    transition_root = tmp_path / "m5-service-activation"
-    transition_root.mkdir(mode=0o700)
-    activation_lock = module.acquire_m5_service_activation_lock_v1(transition_root)
-    try:
-        journal = transition_root / module.ACTIVATION_JOURNAL_BASENAME
-        rollback = transition_root / module.ROLLBACK_UNIT_PATH.name
-        candidate, rollback_candidate, _, snapshot, document = _journal_fixture(
-            module,
-            tmp_path / "systemd/user/agentmonitor-dashboard.service",
-        )
-        module.write_private_activation_journal_v1(journal, document)
-        module._write_create_once(rollback, snapshot.content)
-
-        transition_state = module._corrective_rollover_retry_transition_state_v1(
-            activation_lock
-        )
-        assert transition_state == "prepared"
-        assert (
-            module.activation_recovery_decision_v1(
-                candidate,
-                rollback_candidate,
-                _observation(module, candidate, main_pid=654),
-                journal_present=transition_state == "prepared",
-                receipt_present=False,
+    expected_states = ("fresh", "journal_only", "rollback_only", "prepared")
+    for expected_state in expected_states:
+        case_root = tmp_path / expected_state
+        case_root.mkdir(mode=0o700)
+        transition_root = case_root / "m5-service-activation"
+        transition_root.mkdir(mode=0o700)
+        activation_lock = module.acquire_m5_service_activation_lock_v1(transition_root)
+        try:
+            journal = transition_root / module.ACTIVATION_JOURNAL_BASENAME
+            rollback = transition_root / module.ROLLBACK_UNIT_PATH.name
+            candidate, rollback_candidate, _, snapshot, document = _journal_fixture(
+                module,
+                case_root / "systemd/user/agentmonitor-dashboard.service",
             )
-            == "restore_rollback"
-        )
-    finally:
-        module.release_m5_service_activation_lock_v1(activation_lock)
+            if expected_state in {"journal_only", "prepared"}:
+                module.write_private_activation_journal_v1(journal, document)
+            if expected_state in {"rollback_only", "prepared"}:
+                module._write_create_once(rollback, snapshot.content)
+
+            transition_state = module._corrective_rollover_retry_transition_state_v1(
+                activation_lock
+            )
+            assert transition_state == expected_state
+            if expected_state == "prepared":
+                assert (
+                    module.activation_recovery_decision_v1(
+                        candidate,
+                        rollback_candidate,
+                        _observation(module, candidate, main_pid=654),
+                        journal_present=True,
+                        receipt_present=False,
+                    )
+                    == "restore_rollback"
+                )
+        finally:
+            module.release_m5_service_activation_lock_v1(activation_lock)
 
 
 def test_corrective_rollover_retry_rejects_unexpected_fresh_root_content(

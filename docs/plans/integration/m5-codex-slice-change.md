@@ -1,7 +1,8 @@
 # Change plan: executable V1-M5 Codex slice
 
-- Status: **Approved for root-owned V1-M5 implementation and live verification**.
-- Plan version: `1.4.0`; root integration review: 2026-10-16.
+- Status: **Approved 1.5.0 for the root-owned M5 complete-scope lifecycle
+  correction and one exact second service rollover**.
+- Plan version: `1.5.0`; owner approval: 2026-10-16.
 - Safety correction: exact-version review proved that authenticated app-server
   queries may perform Codex's automatic credential refresh. The approved
   managed-auth lifecycle therefore classifies those queries as
@@ -13,12 +14,13 @@
   [V1-M5 milestone](../../superpowers/plans/2026-09-19-agentmonitor-v1-m5-codex-slice.md)
   and [A02 adapter](../adapters/codex/plan-v1.md).
 - Authority: the active owner objective, **fully implement M5 with our SDLC and
-  runbook**. This focused approval supersedes the A02 Draft prohibition only
-  for the exact M5 scope below. It also supersedes PLAN-DEP/D01's Draft
-  implementation prohibition and exclusive native-service lifecycle assignment
-  only for `AUTO-M5-SERVICE-ACTIVATE` as specified in the 2026-10-16 addendum
-  below. The remaining A02, OpenAI API, PLAN-DEP/D01, and `AUTO-DEPLOY` lanes
-  stay Draft or Blocked as already recorded.
+  runbook**, approved version 1.4.0 and its first corrective rollover. The
+  owner's explicit 2026-10-16 approval extends the same focused A02 and
+  PLAN-DEP/D01 exception only by the exact complete-scope lifecycle correction
+  and one second rollover from
+  `063445154bca0bf5ec43db94ba57c17fd193fd99` specified below. The remaining
+  A02, OpenAI API, PLAN-DEP/D01, and `AUTO-DEPLOY` lanes stay Draft or Blocked
+  as already recorded.
 - Stories: `ST-CDX-001..005`.
 - Requirements: `FR-ACC-001/004..006`, `FR-AUTH-001/002/004..006`,
   `FR-QUOTA-001..006`, `FR-COL-003..008`, `FR-HIST-001/002`,
@@ -557,6 +559,167 @@ systemd, HTTP, and the authenticated shared browser at every external boundary.
 The live proof must show `6bfa69d` restored to the pinned runtime, the complete
 old transition directory preserved, and the corrected exact revision completing
 the original rollback drill before any M5 prerequisite is recollected.
+
+## Approved complete-scope window lifecycle correction and second exact rollover — 2026-10-16
+
+**Status: Owner-approved on 2026-10-16. Production implementation and live
+verification are authorized only within the exact correction and rollover
+bounds below. Approval is not a completion claim; approved version 1.4.0 and
+its retained evidence remain unchanged.**
+
+### Current real-system evidence
+
+The live real-system scenario
+`backend/tests/integration/capacity/test_codex_capacity_history.py::test_running_service_persisted_native_codex_windows_and_history`
+failed against the running exact `063445154bca0bf5ec43db94ba57c17fd193fd99`
+service. The latest successful complete Codex collection contained one current
+native window, while the public API retained two current windows. The current
+window `collection_run_id` set therefore contained exactly one extra stale
+prior run ID. `AUTO-M5-QUOTA-WITNESS` would correctly block this state as
+`m5_quota_current_lineage_required`.
+
+This is a missing implementation of the already specified `FR-QUOTA-001` /
+`M05-PURE-005` rule in PLAN-M05: only an approved complete collection can prove
+that a previously current native window disappeared, and such a window becomes
+`not_observed_currently`; a partial or failed collection cannot do so. The
+finding changes no provider fact, requirement meaning, or public contract.
+
+### Approved behavior and ownership
+
+M05 remains the sole owner of capacity window definitions, lifecycle, current
+and health projections, immutable history, and the `capacity_*` tables.
+PLAN-INT owns the focused integration, completion automation, and the bounded
+PLAN-DEP/D01 service transition. Implementation authority is limited to M05
+domain/persistence code and tests, the root-owned M5 automation and tests, and
+the corresponding M05/M5 documentation and evidence.
+
+For an accepted `complete_scope` quota snapshot, M05 compares the exact set of
+incoming native window keys with current-projection keys whose definitions are
+`active` or `not_observed_currently`, only inside the same provider,
+installation, account, resource, capability, and identity-scheme scope. It
+reuses M05's existing per-key semantic observation precedence rather than
+introducing one batch-wide timestamp comparator. An active current key absent
+from the incoming set changes to
+`not_observed_currently` only when the complete snapshot's semantic time is
+strictly newer than that key's current observation. Equal-time conflict,
+out-of-order input, `partial_scope`, failed collection, changed scope, or an
+unproven identity scheme cannot change an omitted key's lifecycle.
+
+A later strictly newer complete snapshot that still omits an already
+`not_observed_currently` key advances only that definition's lifecycle
+watermark. This prevents a delayed presence observation between the two
+absence times from reactivating the key. It creates no quota observation or
+history row, and `retired` definitions are excluded.
+
+The lifecycle decision and persistence update occur in the existing M05 commit
+transaction before health, current condition, event, and receipt derivation.
+Every current-window, current-health, current-forecast refresh, capacity-alert
+condition, account, API, and dashboard read excludes definitions whose
+lifecycle is not `active`. Immutable observations, measures, provenance,
+history series, commit receipts, and event history remain available and
+unchanged. If the exact native key is later present in a newer accepted
+snapshot, its matching definition returns to `active` before it can become
+current; a semantic definition change still follows the existing definition
+version policy. No manual database repair or fabricated replacement row is
+permitted. The owner's existing database converges only through a fresh genuine
+complete provider collection processed by the corrected production path.
+
+This behavior uses the existing `complete_scope`/`partial_scope` contract and
+the existing `active`/`not_observed_currently` database lifecycle values. It
+adds no public API, event, provider, configuration, database schema, migration,
+generated-client, dependency, license, or ADR change. A contract-meaning or
+schema change discovered during Red/Green stops implementation and returns to
+review.
+
+### Test-first correction sequence
+
+| Step | Test/evidence ID | Expected Red | Minimal Green | Required proof |
+|---|---|---|---|---|
+| 1 | `M05-PURE-005` | complete-scope set difference policy is absent; partial omission or a repeated newer absence could leave an unsafe lifecycle watermark | one pure provider-neutral lifecycle decision over closed window keys, lifecycle, and completeness | constructed side-effect-free set cases prove exact complete omission, repeated-absence watermark advancement, stale and newer reappearance, partial no-op, retired no-op, scope isolation, strict-newer ordering, and equal-time conflict |
+| 2 | `M5-CDX-CAP-002..008` live regression | latest genuine complete run has one window while current reads retain one stale prior-run window | apply lifecycle and current-read filtering inside the existing atomic M05 commit path | the named real-system test passes after a fresh genuine complete Codex collection; current API windows all bind the latest run and immutable prior-window history remains queryable |
+| 3 | `M5-CDX-ALERT-001..006`, `M5-CDX-API-001..008`, `M5-CDX-UI-001..012` | derived health, alert condition, API, or built dashboard can still consume the inactive window | reuse the corrected M05 current set throughout existing provider-neutral readers | real SQLite, production HTTP and built shared Chrome agree on the active current set; complete Registry digest and mutation count remain unchanged |
+| 4 | `M5-SVC-ACT-013..020` | activation accepts only the first corrective archive and cannot preserve a second completed transition | extend the same canonical command by the one revision-pinned rollover below | real filesystem/Git/systemd/HTTP/browser tests prove two fixed exact singleton archive namespaces, interruption recovery, trusted rollback, corrected activation and no replacement |
+| 5 | `M5-CDX-GATE-001..014` | quota witness blocks `m5_quota_current_lineage_required` | no gate relaxation; recollect fresh revision/service-bound prerequisites | `AUTO-M5-QUOTA-WITNESS` and then `AUTO-M5-EXIT` pass on the corrected clean exact revision with zero skips |
+
+Pure tests may construct only the closed lifecycle inputs. SQLite, provider,
+HTTP, browser, Git, filesystem, process, and systemd claims use their real
+production boundaries. A naturally unavailable partial or reappearance case
+remains Blocked at the live boundary; the pure policy does not turn it into a
+live pass. The existing real failure is retained as Red evidence, and Green is
+not claimed until a newer genuine complete collection exercises the corrected
+service.
+
+### Approved one-time second service rollover
+
+After the correction is implemented through Red/Green/refactor, reviewed, and
+committed as one clean detached candidate, the existing
+`AUTO-M5-SERVICE-ACTIVATE` command may perform exactly one second corrective
+rollover. It is available only when the running service and complete canonical
+transition set both bind clean detached revision
+`063445154bca0bf5ec43db94ba57c17fd193fd99`, the pinned trusted rollback remains
+`77a3bad12a096a81587b94b8981ceee812b6445b`, and the already completed first
+`6bfa69dc13cc9e1ded9c6baa6e803cb99bc8c20b` corrective archive validates before
+every mutation boundary.
+
+The new candidate must be distinct from the pinned trusted revision and both
+named completed corrective revisions. The command rejects any of those three
+reserved revisions before restoring the trusted service, moving an archive,
+or writing transition state. This preserves the sole permitted path into one
+new reviewed correction revision and prevents a prepared transition from being
+stranded on an ineligible candidate.
+
+Under the same exclusive transition guard, the command retains descriptors,
+inodes, modes, link counts and digests for the existing first archive and the
+current transition artifacts; restores and proves the pinned trusted service
+using the current rollback unit; then moves the complete `0634451` transition
+directory by Linux same-filesystem atomic no-replace rename into the fixed
+owner-only singleton namespace
+`m5-service-activation-corrective-archive-0634451`. The existing
+`m5-service-activation-corrective-archive` parent remains an unchanged exact
+singleton for `6bfa69d`; the second parent is an exact singleton for `0634451`.
+Both retained directories and both parents are fsynced and revalidated. The
+command creates a fresh private transition root and returns the existing typed
+rerun-required result. Its next invocation validates each archive through its
+own revision-pinned singleton selector before activating only the new clean
+detached correction commit, including the already approved real rollback drill
+and final candidate restoration.
+
+An interruption before proven trusted rollback leaves the canonical transition
+set in place. An interruption after trusted rollback but before the second
+archive commit reconciles from that same set. After the no-replace rename, a
+retry first validates both exact singleton archives. If interruption occurred
+before fresh-root creation, only the absent canonical root is accepted and the
+existing guarded exact-root creation must produce the empty `fresh` state. An
+existing owner-only canonical root must be in one exact recovery state: `fresh`
+with no entries, `journal_only` with only the exact candidate-bound journal,
+`rollback_only` with only the exact trusted rollback unit, or `prepared` with
+exactly the valid journal and rollback unit bound to the candidate and trusted
+material. Any
+other preexisting archive entry, root entry, count, state, collision, partial
+set, cross-filesystem move, changed first-archive inode or digest, changed
+current evidence, dirty/moving checkout, Registry/database drift, unprovable
+trusted runtime, or service/browser revision mismatch blocks without cleanup
+or replacement and before a new candidate starts. Neither archive may be
+deleted, edited, copied, hard-linked, replaced, or garbage-collected.
+
+The second rollover extends only the existing private M5 prerequisite
+transition. It grants no general install, upgrade, repair, rollback, unit edit,
+provider/profile action, Registry mutation, process control, `AUTO-DEPLOY`, or
+PLAN-DEP approval. The current owner-outcome and any later prerequisites bound
+to revision `0634451` become stale after the service identity changes; they are
+preserved through `AUTO-M5-ARCHIVE-PREREQUISITES` and recollected through their
+canonical owner/live routines. No file is manually deleted or rebound.
+
+### Approved authority and completion boundary
+
+On 2026-10-16 the owner explicitly approved both parts of this addendum: the
+M05 complete-scope lifecycle correction and the one exact second rollover from
+`063445154bca0bf5ec43db94ba57c17fd193fd99`. Production implementation and the
+bounded live transition may proceed only through the test-first sequence,
+review, clean detached candidate, and fail-closed preconditions above. The
+approval does not itself change production, service, or evidence state.
+Completion still requires the unchanged canonical `AUTO-M5-EXIT` result and
+separate owner acceptance; plan approval is never a completion claim.
 
 ## Stop conditions
 

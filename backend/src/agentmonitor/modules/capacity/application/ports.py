@@ -10,6 +10,15 @@ from agentmonitor.contracts.capacity_v1 import (
     QuotaWindowViewV1,
 )
 from agentmonitor.contracts.common_v1 import OpaqueIdV1
+from agentmonitor.modules.capacity.domain.current_projection import (
+    current_window_candidate_wins_v1 as current_window_candidate_wins_v1,
+)
+from agentmonitor.modules.capacity.domain.current_projection import (
+    current_window_lifecycle_semantic_v1 as current_window_lifecycle_semantic_v1,
+)
+from agentmonitor.modules.capacity.domain.current_projection import (
+    omitted_current_window_keys_v1 as omitted_current_window_keys_v1,
+)
 from agentmonitor.modules.capacity.domain.events import (
     capacity_event_acknowledgement_v1,
     capacity_event_payload_digest_v1,
