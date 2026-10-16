@@ -119,14 +119,14 @@ the clean-revision milestone gate.
 | `AUTO-M3-TEST` dependency checkpoint | M3 contract and technical backend suites | Canonical routine on the development checkout | Passed | Two routine tests and `307` technical tests passed, zero skipped | Satisfies the local M3 dependency checkpoint; it does not establish an exact clean M5 revision. |
 | `AUTO-MUTATION` checkpoint | Critical pure-policy mutation | Canonical routine on the development checkout | Passed | `1708` mutants: `1698` killed, `10` independently accepted equivalent, `0` skipped | No non-equivalent survivor was admitted. This remains subject to the final clean-revision M5 gate. |
 | Quality, build, planning, documentation, and Git checkpoints | Static quality, generated artifacts/frontend build, repository validation, and local Git preflight | Canonical local routines on the development checkout | Passed | `AUTO-QUALITY`, `AUTO-BUILD`, `AUTO-PLAN-CHECK`, `AUTO-DOCS-CHECK`, and `AUTO-GIT-PREFLIGHT` exited zero | These individual checkpoints do not replace the unrun exact-revision `AUTO-M5-EXIT`. |
-| Full M5 Python story selection before live setup | Backend and automation Story scope | Real local boundaries plus explicit owner/provider selectors | Blocked | The prior 386-case development-checkout run returned `379 passed, 6 skipped, 1 failed`; the real-filesystem archive race file separately returned `15 passed`. The current pinned inventory is 467 cases with digest `9945fa963f0f003aa2732614d9266ae22268ac3d6b67c8f4c08233fc3df6756a`. | The exact current JUnit inventory validator accepted all 467 unique IDs and this digest, then returned the expected `m5_current_story_suite_skipped` because the local inventory run lacked the required owner/live selectors. The expanded inventory includes service activation and receipt binding, corrective rollover and retry, archive-parent singleton custody, first-use completion locking, detached Git preflight, prerequisite service/source binding, transition serialization, interruption-safe cleanup, and the exact Git test path. No full 467-case zero-skip live execution is credited yet. |
+| Full M5 Python story selection before live setup | Backend and automation Story scope | Real local boundaries plus explicit owner/provider selectors | Blocked | The prior 386-case development-checkout run returned `379 passed, 6 skipped, 1 failed`; the real-filesystem archive race file separately returned `15 passed`. The current pinned inventory is 468 cases with digest `0a11e798f8811b51d59bcd2babdabc1e0f6a738b5428d5fb1a04b699bea9b9c9`. | The exact current JUnit inventory validator accepted all 468 unique IDs and this digest, then returned the expected `m5_current_story_suite_skipped` because the local inventory run lacked the required owner/live selectors. The expanded inventory includes service activation and receipt binding, corrective rollover and retry, archive-parent singleton custody, rollback browser proof mode, first-use completion locking, detached Git preflight, prerequisite service/source binding, transition serialization, interruption-safe cleanup, and the exact Git test path. No full 468-case zero-skip live execution is credited yet. |
 | Full backend regression checkpoint | Backend regression | Real local test boundaries selected by the backend suite | Blocked | Historical pre-correction rerun: `10 failed, 1374 passed, 39 skipped` | Every reported failure was an explicit M4/LAN/M5 real-owner selector requirement. This historical result does not describe the corrected checkout. |
 | `AC-LIVE-002/004` four selected Codex outcomes and live identities | Provider/account | Four real owner-selected Codex accounts or explicit owner-unavailable outcomes | Blocked | A four-row owner outcome file passed operationally for base revision `d7b8b9b`; it cannot bind a later alert-correction revision. | The exact outcomes need revision/service rebinding after the correction is committed; this row does not claim provider verification for the future revision. |
 | `AC-LIVE-005`, `M5-CDX-COL/CAP` authoritative quota/history | Provider/DB/API/browser | Official Codex `/usage`, fresh scheduled observations, current and retained history | Blocked | One authenticated provider outcome normalized one primary window, but its capacity commit failed before persistence | Provenance admission and full-cadence interrupted-commit recovery are pure Green. A real retry must still prove commit, current/history lineage, exact whole percentages, reset precision, and at most 300-second skew. |
 | `AC-PROC-001..004`, `M5-CDX-RUN-001..008` representative processes | Linux/platform/browser | Five to six real Codex processes outside the managed-profile subtree | Blocked | No current process witness | PID/start/executable reread, hierarchy/location, and unresolved or owner-confirmed association remain required. |
 | `AC-ALERT-002`, `M5-CDX-ALERT-001..006` live lifecycle | DB/API/browser/provider | Genuine Codex capacity condition, fresh opening, repeated delivery, owner action, later source-proven recovery | Blocked | No current alert witness | Local DB pagination and retained-history selection policy passed; the fresh `opened` or `reopened` occurrence has not completed the real browser/provider witness. |
 | Authenticated managed-profile syscall containment | Linux/provider/security | Real authenticated managed Codex profile and `strace` | Blocked | One truthful live-selector skip in the containment suite | Identity and quota operations must show provider access inside the selected root and zero default-profile access/write. |
-| `M5-SVC-ACT-001..012`, `AUTO-M5-SERVICE-ACTIVATE` | Operations/service transition | Real user systemd manager, trusted persistent runtime, clean stable Git worktree, real HTTP and authenticated browser | Local correction Green; historical `6bfa69d` live Passed; corrected rollover/reactivation Not Run | Initial Red: `16 failed, 1 passed`; later targeted Reds covered inactive interruption, partial-journal recovery, detached Git, Operations binding, rollback-runtime checkpoint order, concurrent activation, activation-receipt consumption, final-lock rollback, and receipt cleanup. The first real rollback drill and activation passed at `6bfa69dc13cc9e1ded9c6baa6e803cb99bc8c20b`; the subsequent archive attempt and final-receipt review exposed the corrective gaps described below. | The bounded command is cataloged as `operational_limited`. The corrected detached revision must complete the typed corrective rollover and a second successful activation before new M5 prerequisites are collected. |
+| `M5-SVC-ACT-001..012`, `AUTO-M5-SERVICE-ACTIVATE` | Operations/service transition | Real user systemd manager, trusted persistent runtime, clean stable Git worktree, real HTTP and authenticated browser | Local correction Green; historical `6bfa69d` live Passed; first corrective invocation Blocked after safe restore; archive rollover/reactivation Not Run | Initial Red: `16 failed, 1 passed`; later targeted Reds covered inactive interruption, partial-journal recovery, detached Git, Operations binding, rollback-runtime checkpoint order, concurrent activation, activation-receipt consumption, final-lock rollback, receipt cleanup, rollover custody, and rollback-browser proof mode. The first real rollback drill and activation passed at `6bfa69dc13cc9e1ded9c6baa6e803cb99bc8c20b`; the first corrective invocation restored trusted `77a3bad` and then blocked before archival, as described below. | The bounded command is cataloged as `operational_limited`. The corrected detached revision must complete the typed corrective rollover and a second successful activation before new M5 prerequisites are collected. |
 | `M5-CDX-GATE-001..014`, canonical `AUTO-M5-EXIT` | Full local/live gate | Clean exact revision, selected running service, prerequisite receipts, all local gates with zero skips | Not Run | Exit receipt binding, transition locking, interruption-safe exact-inode receipt invalidation, cleanup-result handling, and the combined 175-test focused selection are local Green. No canonical `AUTO-M5-EXIT` execution or M5 completion receipt exists. | Must run after every corrected prerequisite is current, then pass as the last technical gate before owner review. |
 | macOS compatibility | Platform | Real macOS host | Blocked | No real Mac available | Outside Linux-first M5 acceptance; remains visible for V1. |
 
@@ -980,8 +980,8 @@ described below, the same combined selection returned `162 passed in 16.33s`.
 The later final-lock and receipt-custody corrections brought that selection to
 `170 passed in 49.19s`; the interruption-safe finalization corrections brought
 that focused checkpoint to 175 cases. The exact M5 story inventory is now
-467 cases with digest
-`9945fa963f0f003aa2732614d9266ae22268ac3d6b67c8f4c08233fc3df6756a`.
+468 cases with digest
+`0a11e798f8811b51d59bcd2babdabc1e0f6a738b5428d5fb1a04b699bea9b9c9`.
 Strict targeted mypy, Ruff, JavaScript syntax, documentation validation, and
 the read-only trusted-service status check passed. Those were the preactivation
 results at that checkpoint; no prerequisite was archived or recollected, no
@@ -1004,9 +1004,9 @@ Plan 1.4.0 and the correction implement one exact evidence-preserving rollover
 for that completed `6bfa69d` transition, safe first-use creation of only the
 approved private receipt directory, and the final descriptor-relative receipt
 entry check. The historical activation pass remains evidence of that exact
-revision only. The corrective rollover, its required status-5 rerun, and the
-corrected revision's activation are **Not Run** at this preactivation
-checkpoint. `AUTO-M5-EXIT` also remains **Not Run**.
+revision only. At that preactivation checkpoint the corrective rollover, its
+required status-5 rerun, and the corrected revision's activation were **Not
+Run**. `AUTO-M5-EXIT` remains **Not Run**.
 
 The corrective-rollover Red first returned four failures for the absent
 rollover behavior and one failure for the absent completed-material validator.
@@ -1026,6 +1026,23 @@ the move while leaving any preexisting entry and source unchanged. The full
 activation file then returned `42 passed`; targeted Ruff/format and strict
 production mypy passed, and no live service state was touched by these local
 checks.
+
+The first corrective-rollover invocation from clean revision `272e9e4`
+validated the completed prior transition and restored the pinned `77a3bad`
+runtime, then blocked with `m5_service_browser_unavailable` before archiving
+the old evidence. The dashboard remained active with loopback HTTP `200`, all
+three original private transition artifacts remained in place, and no
+corrective archive existed. Direct authenticated browser proof showed the
+cause: the extracted trusted runtime correctly exposes `source_revision` as
+unknown, while the correction had mistakenly requested candidate-mode exact
+revision proof after rollback. The proof-mode Red failed because the policy
+boundary did not exist. The Green selects exact revision proof for the prior
+Git candidate and baseline authenticated Registry proof for only the pinned
+extracted rollback runtime; exact rollback trust continues to come from the
+unit bytes, systemd process identity, and retained runtime digest. The full
+activation file returned `43 passed`, with targeted Ruff/format and strict
+production mypy Green. The restored state is safe for the canonical retry; no
+rollover archive or corrected activation pass is claimed at this checkpoint.
 
 Final review then exposed a same-service concurrency gap: once the private
 journal and rollback unit both existed, a second activation process could reuse
@@ -1106,11 +1123,11 @@ story selection required them. The focused regression first failed with
 `m5_current_story_report_invalid`; the narrow Green admits only that exact Git
 test path while continuing to reject neighboring `tools/git` files. The same
 test then passed. Independent parsing of the final canonical JUnit report
-confirmed 467 unique identifiers and the pinned digest above; the production
+confirmed 468 unique identifiers and the pinned digest above; the production
 inventory validator accepted both before returning the expected
 `m5_current_story_suite_skipped` for the no-selector local run. This is
 inventory evidence, not a live Story-suite pass. The inventory-producing run
-reported `460 passed, 6 skipped, 1 failed` with the admitted Claude and Codex
+reported `461 passed, 6 skipped, 1 failed` with the admitted Claude and Codex
 tool paths selected. The one failure was the intentionally absent M5 owner
 installation selector. None of the six owner-live skips is credited as a pass.
 

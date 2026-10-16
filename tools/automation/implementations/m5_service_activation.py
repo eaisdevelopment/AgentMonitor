@@ -559,6 +559,25 @@ def corrective_activation_rollover_decision_v1(
     return "blocked"
 
 
+def corrective_rollover_browser_expectation_v1(
+    *,
+    service_revision: str,
+    candidate_revision: str,
+) -> tuple[str, bool]:
+    """Select baseline proof only for the trusted extracted rollback runtime."""
+
+    if not all(
+        isinstance(value, str) and _REVISION.fullmatch(value) is not None
+        for value in (service_revision, candidate_revision)
+    ):
+        raise M5ServiceActivationErrorV1("m5_service_rollover_service_invalid")
+    if service_revision == PINNED_ROLLBACK_REVISION:
+        return service_revision, False
+    if service_revision == candidate_revision:
+        return service_revision, True
+    raise M5ServiceActivationErrorV1("m5_service_rollover_service_invalid")
+
+
 def activation_transition_step_v1(
     phase: str,
     event: str,
@@ -3621,15 +3640,19 @@ def _validate_completed_activation_rollover_archive_retry_v1(
                 rollback_candidate,
             )
         )
-        browser = (
-            _browser_proof(
-                selectors,
-                revision=service_revision,
-                require_revision=True,
+        browser: dict[str, object] | None = None
+        if service_revision is not None:
+            browser_revision, browser_requires_revision = (
+                corrective_rollover_browser_expectation_v1(
+                    service_revision=service_revision,
+                    candidate_revision=candidate.source_revision,
+                )
             )
-            if service_revision is not None
-            else None
-        )
+            browser = _browser_proof(
+                selectors,
+                revision=browser_revision,
+                require_revision=browser_requires_revision,
+            )
         registry_digest = (
             browser["registry_digest_before"] if browser is not None else None
         )
@@ -3689,10 +3712,16 @@ def _validate_completed_activation_rollover_archive_retry_v1(
         ):
             raise M5ServiceActivationErrorV1("m5_service_selection_changed")
         if service_revision is not None:
+            final_browser_revision, final_browser_requires_revision = (
+                corrective_rollover_browser_expectation_v1(
+                    service_revision=service_revision,
+                    candidate_revision=candidate.source_revision,
+                )
+            )
             final_browser = _browser_proof(
                 selectors,
-                revision=service_revision,
-                require_revision=True,
+                revision=final_browser_revision,
+                require_revision=final_browser_requires_revision,
             )
             if final_browser["registry_digest_before"] != registry_digest:
                 raise M5ServiceActivationFailedV1("m5_service_registry_changed")
@@ -3790,10 +3819,16 @@ def _maybe_correct_completed_activation_rollover_v1(
             ):
                 raise M5ServiceActivationErrorV1("m5_service_receipt_invalid")
 
+        initial_browser_revision, initial_browser_requires_revision = (
+            corrective_rollover_browser_expectation_v1(
+                service_revision=service_revision,
+                candidate_revision=prior_candidate.source_revision,
+            )
+        )
         initial_browser = _browser_proof(
             selectors,
-            revision=service_revision,
-            require_revision=True,
+            revision=initial_browser_revision,
+            require_revision=initial_browser_requires_revision,
         )
         registry_digest = initial_browser["registry_digest_before"]
         database_state = _database_state(DATABASE_PATH)
@@ -3845,10 +3880,16 @@ def _maybe_correct_completed_activation_rollover_v1(
             != restored.main_pid_start_time_ticks
         ):
             raise M5ServiceActivationErrorV1("m5_service_selection_changed")
+        rollback_browser_revision, rollback_browser_requires_revision = (
+            corrective_rollover_browser_expectation_v1(
+                service_revision=PINNED_ROLLBACK_REVISION,
+                candidate_revision=candidate.source_revision,
+            )
+        )
         rollback_browser = _browser_proof(
             selectors,
-            revision=PINNED_ROLLBACK_REVISION,
-            require_revision=True,
+            revision=rollback_browser_revision,
+            require_revision=rollback_browser_requires_revision,
         )
         if rollback_browser["registry_digest_before"] != registry_digest:
             raise M5ServiceActivationFailedV1("m5_service_registry_changed")

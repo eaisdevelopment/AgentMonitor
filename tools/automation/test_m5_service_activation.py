@@ -727,6 +727,30 @@ def test_corrective_rollover_policy_is_exact_and_returns_typed_rerun() -> None:
     assert error.trusted_service_pid == 4321
 
 
+def test_corrective_rollover_browser_expectation_uses_baseline_only_for_trusted_rollback() -> (
+    None
+):
+    module = _module()
+    candidate_revision = "c" * 40
+
+    assert module.corrective_rollover_browser_expectation_v1(
+        service_revision=module.PINNED_ROLLBACK_REVISION,
+        candidate_revision=candidate_revision,
+    ) == (module.PINNED_ROLLBACK_REVISION, False)
+    assert module.corrective_rollover_browser_expectation_v1(
+        service_revision=candidate_revision,
+        candidate_revision=candidate_revision,
+    ) == (candidate_revision, True)
+    with pytest.raises(
+        module.M5ServiceActivationErrorV1,
+        match="m5_service_rollover_service_invalid",
+    ):
+        module.corrective_rollover_browser_expectation_v1(
+            service_revision="d" * 40,
+            candidate_revision=candidate_revision,
+        )
+
+
 def test_corrective_rollover_retry_selects_one_complete_schema_bound_archive(
     tmp_path: Path,
 ) -> None:

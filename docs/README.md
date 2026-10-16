@@ -28,8 +28,11 @@ Current program state:
   quality lane with zero skips and zero registry mutations.
 - **V1-M5:** implementation is **Intermediate**. The first real rollback drill
   and activation passed at revision `6bfa69d`, then the prerequisite-archive
-  attempt and final-receipt review exposed fail-closed gaps. Corrective rollover
-  and reactivation for the corrected revision, the clean exact-revision
+  attempt and final-receipt review exposed fail-closed gaps. The first
+  corrective invocation safely restored the trusted runtime, then blocked on a
+  rollback-browser proof-mode defect before archiving evidence; that defect is
+  corrected locally. The archive rollover and reactivation for the corrected
+  revision, the clean exact-revision
   `AUTO-M5-EXIT`, remaining live evidence, and owner acceptance are **Not Run**;
   the canonical gate state remains `not_run`.
 - **V1-M6 through V1-M8:** Planned; their canonical gates have not run.
