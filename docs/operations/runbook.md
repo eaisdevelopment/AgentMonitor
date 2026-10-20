@@ -309,7 +309,7 @@ proven: stop M5 evidence collection, preserve the journal and both runtimes,
 and diagnose the user unit. Never edit the journal, unit backup, or trusted
 runtime to force another result.
 
-Exactly three revision-pinned corrective rollover modes are authorized. The
+Exactly four revision-pinned corrective rollover modes are authorized. The
 first preserves the completed
 `6bfa69dc13cc9e1ded9c6baa6e803cb99bc8c20b` transition below
 `<owner-data-root>/m5-service-activation-corrective-archive/`. The second
@@ -321,12 +321,16 @@ The third preserves the completed
 `6d6e1aa9d9b64d50e3f83d0f1686e6cff04b7c17` transition below the distinct fixed
 singleton parent
 `<owner-data-root>/m5-service-activation-corrective-archive-6d6e1aa/`.
+The fourth preserves the completed
+`e066d7e1ba0124f0454c07002ea7b2ad0817d6b9` transition below the distinct fixed
+singleton parent
+`<owner-data-root>/m5-service-activation-corrective-archive-e066d7e/`.
 Each archive entry name binds its source revision and activation-receipt
 digest. No mode accepts a different source revision, archive parent, or
 additional entry.
 
 The requested new candidate must differ from the pinned trusted revision and
-all three completed corrective revisions above. The command checks those reserved
+all four completed corrective revisions above. The command checks those reserved
 revisions before any service restoration, archive move, or transition-state
 write; a reserved candidate blocks without changing the existing service or
 evidence.
@@ -701,6 +705,13 @@ observations and delivery receipts, alert history, the built browser, service
 freshness and version inventory, and unchanged full public registry snapshots.
 The writer is read-only: it does not replay delivery or mutate the lifecycle.
 It creates the owner-only witness once and never replaces an existing witness.
+Its browser child opens one temporary page through the shared loopback CDP
+connection. After emitting the proof, it must close only that page and release
+its owned Playwright client transport so the child exits inside the writer's
+180-second bound. The owner's Chrome process, authenticated session, and
+pre-existing pages remain open. A child that emits proof but retains its CDP
+connection is still Blocked as `m5_alert_witness_browser_unavailable`; never
+use `process.exit()` or close Chrome to mask that resource-lifecycle failure.
 
 Run:
 

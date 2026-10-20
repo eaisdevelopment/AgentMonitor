@@ -1,8 +1,10 @@
-# P02 React dashboard — M2 identity shell and M3 observation views
+# P02 React dashboard — authenticated operational UI
 
 - Status: **M2 local identity shell accepted; M3 accepted for its approved
   one-account vertical; M4 dashboard delivery accepted through its
-  revision-bound six-account gate; not a V1 dashboard release**.
+  revision-bound six-account gate; M5 P02 plan 1.8.0 focused browser evidence
+  and the complete local `AUTO-TEST` passed while M5 remains Intermediate;
+  not a V1 dashboard release**.
 - Post-audit note: Story 5's historical Red-first exceptions are documented in
   the [M2 correction record](../evidence/m2-audit-fixes.md), which records the
   owner disposition and independent QA reacceptance. The separate
@@ -10,10 +12,10 @@
   idle-state integrity after 62 real seconds. Current milestone distinctions are
   recorded in the [V1 status overlay](../evidence/v1-implementation-status-v1.json).
 - Owner: P02 UI. Plan: [`PLAN-P02`](../plans/ui/react-dashboard/plan-v1.md), approved M2 slice [`ST-UI-001`](../superpowers/plans/2026-09-19-agentmonitor-v1-m2-authenticated-shell.md).
-- Consumes `CTR-UI-001`, `CTR-IAM-003/006/007`, and the M3 registry,
-  provider, collection, capacity, and runtime V1 contracts through the generated
-  V1 client. Publishes no backend contract, database table, migration,
-  configuration key, or provider adapter.
+- Consumes `CTR-UI-001`, `CTR-API-002`, `CTR-IAM-003/004/005/006/007`, and the
+  M3 registry, provider, collection, capacity, and runtime V1 contracts through
+  the generated V1 client. Publishes no backend contract, database table,
+  migration, configuration key, or provider adapter.
 
 ## Scope and ownership
 
@@ -62,6 +64,14 @@ npm --prefix frontend run typecheck
 npm --prefix frontend run build
 backend/.venv/bin/python frontend/tests/browser/p02/run_browser.py quick
 backend/.venv/bin/python frontend/tests/browser/p02/run_browser.py all
+backend/.venv/bin/python -m pytest --import-mode=importlib -q --tb=short \
+  frontend/tests/browser/p02/test_run_browser_policy.py
+backend/.venv/bin/python frontend/tests/browser/p02/run_browser.py responsive \
+  --repeat 30 --no-build
+backend/.venv/bin/python frontend/tests/browser/p02/run_browser.py revocation \
+  --repeat 30 --no-build
+backend/.venv/bin/python frontend/tests/browser/p02/run_browser.py \
+  password_change --repeat 30 --no-build
 ```
 
 `quick` runs the isolated real-browser development scenarios. `all` also waits
@@ -69,9 +79,11 @@ for an actual ≥61-second session activity touch before logout. The explicit
 `idle_expiry` scenario now observes the fixed 24-hour session deadline and is an
 owner-long-run check; the ordinary `all` gate proves 24-hour issuance in the
 production Chrome authentication scenario without claiming a full day elapsed.
-`--no-build` is available only when the caller has already built the exact
-source being tested. Neither command reads the operator `.env` or provider
-accounts. Historical M2 browser evidence remains in
+`--repeat` accepts only 1 through 30, creates a new isolated real server and
+browser scenario for every repetition, and stops at the first failure without
+retry. `--no-build` is available only when the caller has already built the
+exact source being tested. Neither command reads the operator `.env` or
+provider accounts. Historical M2 browser evidence remains in
 [`m2-st-ui-001.md`](../evidence/m2-st-ui-001.md); the current policy change is
 recorded in [`dashboard-session-24h.md`](../evidence/dashboard-session-24h.md).
 
@@ -281,3 +293,46 @@ cleared** and retains its warning threshold context; a record closed by a rule
 change says **Capacity alert closed** and explains that the configured rule is
 inactive. Severity, lifecycle, remaining value, threshold, and rule scope
 continue to come only from the V1 alert API.
+
+## M5 canonical-browser correction
+
+The owner-approved M5 plan 1.8.0 closes three P02 defects found by the required
+canonical browser lane. At 400 pixels and below, the header uses two rows so
+**Change password**, **Check session**, and **Sign out** remain fully inside a
+390-pixel viewport and keyboard reachable. The primary navigation retains its
+own horizontal scroll without creating document overflow.
+
+Revocation verification accepts only two secure outcomes after the real server
+revokes the secondary session: automatic arrival at **Sign in**, or one
+explicit **Check session** action followed by **Sign in**. Both paths prove the
+protected navigation is absent, reload remains signed out, and the primary
+session remains active.
+
+Password change uses the closed parent lifecycle `closed`, `draining`, `ready`,
+and `submitting`. Opening the flow advances the protected-feature generation,
+unmounts feature content, waits for effect cleanup to abort its reads, and
+fences late callbacks, including callbacks from an already-started header
+session check. Navigation, popstate, header session actions, and repeat submit
+remain inert until the flow closes. One submit permits exactly one preflight,
+one password PATCH, and at most one reconciliation GET. Only PATCH 204 followed
+by GET 200 installs the renewed session and success state. Only
+`dashboard_authentication_required` enters login; known noncommitted validation
+or conflict outcomes return to the ready form; missing or rejected CSRF uses
+the existing explicit proof renewal; an unknown mutation outcome locks the
+protected view for owner verification. Ready, Cancel, and successful close
+restore focus to their documented targets.
+
+The focused runner keeps the approved existing direct Node invocation and adds
+only the bounded repeat and closed output policy. Spawn, timeout, encoding, or
+unexpected output returns only `browser_output_invalid`. Its grammar admits the
+scenario's fixed pass line at exit zero or one allowlisted failure stage at the
+exact script failure exit one; process-level exit 2, 127, and signal exit -9
+remain invalid. It clears captured child output before returning and never
+propagates raw child text. The pure policy suite passed 65 tests.
+Responsive, revocation, and password change each passed 30 consecutive
+first-attempt isolated real-stack runs; the complete P02 `all`,
+`security_boundary`, and `hostile_resource` browser lanes also passed. These are
+local implementation results. After two transparently retained failed attempts,
+the complete `AUTO-TEST` passed its command, Argon2, backend, OpenAPI/client,
+production-build, foundation-browser, P02, security, and hostile-resource
+lanes. No `AUTO-M5-EXIT` or M5 completion is claimed.

@@ -136,8 +136,11 @@ Directories are created when an approved planning assignment begins. Drafts stat
 - [V1-M5 Codex slice](integration/m5-codex-slice-change.md): approved exact
   `0.160.0` managed-profile identity/quota, four-account fleet, five-to-six
   process, provider-neutral API/UI, and fail-closed milestone completion scope;
-  its 1.6.0 paginated-history verification and exact third-rollover amendment
-  is owner-approved; OpenAI API billing remains V1-M7.
+  its 1.8.0 amendment retains the 1.7.0 alert browser-proof termination fix and
+  exact fourth rollover while adding only the bounded P02 mobile-header,
+  revocation-oracle, and password-session-race corrections exposed by the
+  required canonical gate; implementation and live proof remain pending, and
+  OpenAI API billing remains V1-M7.
 - [Live agent account association](integration/live-agent-account-association-change.md):
   explicit manual confirmation, guarded current terminal details and private
   revisioned settings; the named owner-authorized live link/persistence gate Passed.

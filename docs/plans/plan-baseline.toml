@@ -140,8 +140,8 @@ bytes = 115016
 id = "PLAN-DEP"
 path = "docs/plans/deployment/linux-native/plan-v1.md"
 plan_version = "0.2.0-draft"
-sha256 = "83d3efe1365e9db9bc632bc71500842d73397dddeb5acef55f234bd2e8ebbc85"
-bytes = 145193
+sha256 = "544fafe90e0c43a5d0b0cbce69d15e2bd5f1b91ada5f6cb1f51835dce11c5905"
+bytes = 147158
 
 [[plans]]
 id = "PLAN-INT"
@@ -165,7 +165,7 @@ bytes = 58784
 [[controls]]
 id = "contract-adoption"
 path = "docs/plans/contract-adoption.toml"
-sha256 = "9c5555b542c5d13d836971f7d7368e69395c6bd29e412e4ea8fb8ce066c40c70"
+sha256 = "06df167963125072c1f5c4b4b80948b17acdf8a4cf4a3c84c00822c8bb7e9f4e"
 bytes = 16588
 
 [[controls]]
@@ -183,20 +183,20 @@ bytes = 75933
 [[controls]]
 id = "parallel-ownership"
 path = "docs/plans/parallel-ownership.toml"
-sha256 = "12ecfacb2f0f7756d54e984008f9c8926910e4b88358063127b38a127b02d75a"
+sha256 = "e84c83beee4ce24643c53048ae30b821a8343808854f4ed639be29193cadba67"
 bytes = 23073
 
 [[controls]]
 id = "automation-routines"
 path = "tools/automation/routines.toml"
-sha256 = "2874522c3e149d34b87a1fd5dd93581d1cd33a2917ecc40178dc5d3dfaee4b82"
-bytes = 14893
+sha256 = "93c8f2098ca6124e71e9f1cf2f1d0243c695d98d5836276ffc1ad51d0ad67c07"
+bytes = 15023
 
 [[controls]]
 id = "automation-standard"
 path = "docs/engineering/completion-and-automation-gates.md"
-sha256 = "73df17d428e0100a2534b927bcf1967ac81a2b34e55e78a06c33ca0e558fbfc9"
-bytes = 23218
+sha256 = "bb3618b5d4fb60cd5503649dbdb9f2a536f2517d70e4b0be1be4122444dabe99"
+bytes = 23260
 
 [[controls]]
 id = "m0-g0-approval"

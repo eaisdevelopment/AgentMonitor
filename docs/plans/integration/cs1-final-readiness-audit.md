@@ -799,3 +799,73 @@ set also binds the bounded three-rollover routine and automation-standard
 descriptions. M5 remains Intermediate and `AUTO-M5-EXIT` remains Not Run.
 
 Plan snapshot SHA-256: `4ecf1c391799cc14ddb39e8f33e3ac4620f5732b92a777c2841913514d745177`
+
+## 2026-10-20 approved M5 1.7.0 browser-proof termination rebind
+
+The current snapshot records the owner-approved M5 focused plan 1.7.0
+amendment and corresponding bounded PLAN-DEP/D01 scope. The third canonical
+rollover preserved the completed `6d6e1aa` transition and activated exact
+clean revision `e066d7e1ba0124f0454c07002ea7b2ad0817d6b9`. Refreshed owner
+outcomes and genuine collection/history lineage passed for that service.
+
+A later real alert lifecycle completed opening or reopening, repeat, owner
+action, recovery, API and built-browser presentation. The verifier emitted one
+valid browser-proof document but retained its owned Playwright CDP connection,
+so the Python writer reached its 180-second timeout, reported
+`m5_alert_witness_browser_unavailable`, and created no alert witness. The
+approved correction releases only that owned client connection after closing
+its temporary page; it must preserve the owner's Chrome process, authenticated
+session, pre-existing page, selected service tuple, zero-mutation result, and
+complete Registry digest. Forced process exit and Chrome closure are outside
+scope.
+
+Because the correction creates a new exact revision, the approval permits one
+fourth evidence-preserving rollover from completed `e066d7e` into one eventual
+reviewed clean commit. It requires the fixed
+`m5-service-activation-corrective-archive-e066d7e` singleton and the existing
+fail-closed ordered four-archive, Git, filesystem, systemd, HTTP, browser,
+Registry, database, and rollback proofs. No public contract, schema, migration,
+dependency, provider authority, product behavior, or general deployment scope
+changes.
+
+This planning/control rebind does not claim the browser correction, its Green,
+the clean candidate, the fourth live rollover, prerequisite archival and
+recollection, `AUTO-M5-ALERT-WITNESS`, `AUTO-M5-QUOTA-WITNESS`, or
+`AUTO-M5-EXIT` has passed. The synchronized control set binds the authorized
+four-rollover routine and automation-standard description. M5 remains
+Intermediate, acceptance remains unrecorded, and its canonical gate remains
+`not_run`.
+
+Plan snapshot SHA-256: `5bf56c21ef5c05ba7539bdd7fdd0a908231672e13ed762ab8e8365f3c0873b38`
+
+## 2026-10-20 approved M5 1.8.0 P02 canonical-browser rebind
+
+The current snapshot records the owner-approved M5 focused plan 1.8.0 and its
+bounded P02 exception. The 1.7 browser-client teardown itself is focused Green,
+but its required canonical browser lane exposed a real 390-pixel overflow, a
+revocation assertion racing secure automatic logout, and a confirmed
+password-flow race. In that password Red the real mutation returned 204 and the
+single renewed-session read returned 200 within one second, yet a stale
+previous-cookie Overview response left `/login` paired with protected content
+and removed the success panel through 120 seconds.
+
+The approved correction has a closed file and behavior boundary: contained
+mobile header controls with nav-only internal scroll; revocation proof accepting
+only visibly authenticated denial through automatic or one-click recovery; an
+acknowledged Overview cleanup/generation fence before the password form becomes
+interactive; inert controls and exactly one mutation during submission; typed
+success, denial, proof-renewal, and unknown-result outcomes; secret-local data;
+closed diagnostics; and a fail-first repeat runner with pure negative policy
+tests. It changes no public API/IAM/UI contract version, backend, database,
+provider adapter, configuration, dependency, license, migration, or ADR.
+
+The 1.8 approval retains the same not-yet-run fourth rollover from exact
+`e066d7e1ba0124f0454c07002ea7b2ad0817d6b9` and supersedes only 1.7's
+candidate-content restriction. Every archive, rollback, systemd, HTTP, browser,
+Registry, database, evidence-preservation, and stop condition remains binding;
+no fifth transition or general deployment authority is introduced. Planning is
+ready for this bounded implementation, while implementation Green, live
+transition, refreshed prerequisites, canonical exit, and owner acceptance
+remain Not Run. M5 therefore remains Intermediate with gate state `not_run`.
+
+Plan snapshot SHA-256: `51945b23d1906200e29627580ac37eaec0c6b15f47ce812fcb15d9a0f4ee6a8a`

@@ -67,7 +67,7 @@ This addendum is the sole exception to PLAN-DEP/D01's Draft implementation
 prohibition and exclusive native unit-lifecycle ownership. The active owner's
 objective, **fully implement M5 with our SDLC and runbook**, authorizes PLAN-INT
 to implement and execute only `AUTO-M5-SERVICE-ACTIVATE` under the approved
-[V1-M5 Codex slice plan 1.5.0](../../integration/m5-codex-slice-change.md).
+[V1-M5 Codex slice plan 1.8.0](../../integration/m5-codex-slice-change.md).
 That focused plan is the detailed authority and test specification. This
 cross-reference resolves the ownership conflict before production code.
 
@@ -134,6 +134,34 @@ closed ordered three-archive chain before every mutation. The approval is
 limited to the focused plan's Red/Green/refactor, independent review,
 clean-candidate, and fail-closed service preconditions and grants no general
 deployment authority.
+
+The linked M5 plan further contains the **owner-approved 1.7.0 amendment dated
+2026-10-20**. A real alert-browser proof against completed exact revision
+`e066d7e1ba0124f0454c07002ea7b2ad0817d6b9` emitted one valid proof document
+and then failed to terminate its owned Playwright CDP connection, so the
+read-only writer timed out and created no alert witness. The correction is
+limited to releasing that owned client connection without closing the owner's
+Chrome process, authenticated session, or pre-existing pages. Because the
+correction changes the exact revision required by the M5 gate, this exception
+permits one fourth evidence-preserving rollover from `e066d7e` into the
+eventual reviewed correction commit. It requires fixed owner-only singleton
+parent `m5-service-activation-corrective-archive-e066d7e` and revalidation of
+the closed ordered four-archive chain before every mutation. The correction,
+its tests, and the live fourth rollover remain Not Run until their exact
+test-first and fail-closed gates pass. This authority grants no general
+deployment, browser control, evidence replacement, or `AUTO-DEPLOY` scope.
+
+The linked M5 plan also contains the **owner-approved 1.8.0 amendment dated
+2026-10-20**. Canonical P02 browser verification after the 1.7 correction
+exposed a 390-pixel header overflow, a revocation proof race with valid
+automatic sign-out, and a password-change UI race between previous-cookie
+Overview reads and the renewed session. Version 1.8.0 authorizes only the
+enumerated P02 shell/style/browser-runner correction and its closed real-browser
+proof. It supersedes 1.7.0's fourth-candidate content restriction but retains
+the same single pending fourth rollover from `e066d7e`, the same fixed archive
+parent and four-archive validation, and every existing transition, rollback,
+browser-preservation, and stop condition. It adds no fifth rollover, native
+service behavior, general deployment authority, or `AUTO-DEPLOY` scope.
 
 The final candidate worktree must have no symbolic branch reference. Activation
 and every subsequent M5 archive, owner-outcome, alert-witness, quota-witness and

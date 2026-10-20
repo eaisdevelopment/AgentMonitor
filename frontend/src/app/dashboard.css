@@ -373,6 +373,10 @@ td { font-variant-numeric: tabular-nums; }
   .dashboard-nav { min-width: 0; max-width: 100vw; flex-wrap: nowrap; overflow-x: auto; gap: .3rem; }
   .dashboard-nav button { flex-shrink: 0; white-space: nowrap; }
 }
+@media (max-width: 400px) {
+  .dashboard-header { align-items: stretch; flex-direction: column; }
+  .header-actions { flex-wrap: wrap; justify-content: flex-start; }
+}
 
 .agent-heading-actions, .agent-link-actions { display: flex; align-items: center; flex-wrap: wrap; gap: .5rem; }
 .agent-link-actions { margin-top: .65rem; }

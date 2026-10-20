@@ -76,6 +76,124 @@ QUICK_SCENARIOS = (
     "monitoring_dashboard",
 )
 
+BROWSER_OUTPUT_INVALID = "browser_output_invalid"
+_CLOSED_OUTPUT_PASS_LINES = {
+    "responsive": (
+        "P02 RESPONSIVE BROWSER: PASSED — six viewports, reduced motion and focus"
+    ),
+    "revocation": "P02 REVOCATION BROWSER: PASSED",
+    "password_change": "P02 PASSWORD CHANGE BROWSER: PASSED",
+}
+_CLOSED_OUTPUT_FAILURE_STAGES = {
+    "responsive": frozenset(
+        {
+            "browser_launch",
+            "login_1920",
+            "login_1440",
+            "login_1280",
+            "login_1024",
+            "login_768",
+            "login_390",
+            "keyboard_sign_in",
+            "token_settings_1920",
+            "token_settings_1440",
+            "token_settings_1280",
+            "token_settings_1024",
+            "token_settings_768",
+            "token_settings_390",
+            "mobile_header_layout",
+            "mobile_header_keyboard",
+            "browser_close",
+        }
+    ),
+    "revocation": frozenset(
+        {
+            "browser_launch",
+            "two_real_sessions",
+            "revoke_other_session",
+            "revoked_recovery",
+            "revoked_nav_absent",
+            "revoked_reload",
+            "revoked_reload_sign_in",
+            "revoked_reload_nav_absent",
+            "primary_check_click",
+            "primary_active_text",
+            "browser_close",
+        }
+    ),
+    "password_change": frozenset(
+        {
+            "browser_launch",
+            "initial_login",
+            "password_open",
+            "password_draining",
+            "password_ready",
+            "password_cancel",
+            "password_submit",
+            "password_request_oracle",
+            "password_success",
+            "route_stable",
+            "password_rotated",
+            "old_credential_denied",
+            "new_credential_accepted",
+        }
+    ),
+}
+
+
+def parse_repeat_count(value: str) -> int:
+    """Return a bounded browser-run count without reflecting invalid input."""
+
+    try:
+        repeat = int(value)
+    except ValueError as error:
+        raise argparse.ArgumentTypeError(
+            "repeat_must_be_integer_1_through_30"
+        ) from error
+    if repeat < 1 or repeat > 30:
+        raise argparse.ArgumentTypeError("repeat_must_be_integer_1_through_30")
+    return repeat
+
+
+def should_run_browser_repetition(
+    repetition: int,
+    *,
+    repeat: int,
+    failed: bool,
+) -> bool:
+    """Permit only the bounded next repetition before the first failure."""
+
+    return not failed and 1 <= repeat <= 30 and 1 <= repetition <= repeat
+
+
+def sanitize_closed_browser_output(
+    scenario: str,
+    stdout: str,
+    stderr: str,
+    returncode: int,
+) -> tuple[str, ...]:
+    """Admit one exact safe child line or return only the stable reject code."""
+
+    pass_line = _CLOSED_OUTPUT_PASS_LINES.get(scenario)
+    failure_stages = _CLOSED_OUTPUT_FAILURE_STAGES.get(scenario)
+    if pass_line is None or failure_stages is None:
+        return (BROWSER_OUTPUT_INVALID,)
+
+    stdout_lines = tuple(stdout.splitlines())
+    stderr_lines = tuple(stderr.splitlines())
+    if returncode == 0:
+        if stdout_lines == (pass_line,) and not stderr_lines:
+            return stdout_lines
+        return (BROWSER_OUTPUT_INVALID,)
+
+    if returncode != 1 or stdout_lines or len(stderr_lines) != 1:
+        return (BROWSER_OUTPUT_INVALID,)
+    failure_prefix = pass_line.split(": PASSED", 1)[0] + ": FAILED — "
+    for stage in failure_stages:
+        if stderr_lines == (failure_prefix + stage,):
+            return stderr_lines
+    return (BROWSER_OUTPUT_INVALID,)
+
 
 async def run_scenario(scenario: str, *, initialized: bool = True) -> None:
     with tempfile.TemporaryDirectory(prefix="agentmonitor-p02-") as directory:
@@ -108,17 +226,42 @@ async def run_scenario(scenario: str, *, initialized: bool = True) -> None:
         )
         try:
             origin = await asyncio.wait_for(ready, timeout=8)
-            browser = await asyncio.to_thread(
-                subprocess.run,
-                ["node", str(Path(__file__).with_name(f"{scenario}.mjs")), origin],
-                input=credential,
-                cwd=ROOT,
-                capture_output=True,
-                text=True,
-                check=False,
-                timeout=86_550 if scenario == "idle_expiry" else 180,
-            )
+            try:
+                browser = await asyncio.to_thread(
+                    subprocess.run,
+                    [
+                        "node",
+                        str(Path(__file__).with_name(f"{scenario}.mjs")),
+                        origin,
+                    ],
+                    input=credential,
+                    cwd=ROOT,
+                    capture_output=True,
+                    text=True,
+                    check=False,
+                    timeout=86_550 if scenario == "idle_expiry" else 180,
+                )
+            except Exception:
+                if scenario in _CLOSED_OUTPUT_PASS_LINES:
+                    raise RuntimeError(BROWSER_OUTPUT_INVALID) from None
+                raise
+            if scenario in _CLOSED_OUTPUT_PASS_LINES:
+                safe_output = sanitize_closed_browser_output(
+                    scenario,
+                    browser.stdout,
+                    browser.stderr,
+                    browser.returncode,
+                )
+                browser.stdout = ""
+                browser.stderr = ""
+                if safe_output == (BROWSER_OUTPUT_INVALID,):
+                    raise RuntimeError(BROWSER_OUTPUT_INVALID)
+                display_output = safe_output[0]
+            else:
+                display_output = browser.stdout.strip()
             if browser.returncode != 0:
+                if scenario in _CLOSED_OUTPUT_PASS_LINES:
+                    raise RuntimeError("real_p02_browser_failed: " + display_output)
                 raise RuntimeError(
                     "real_p02_browser_failed: " + browser.stdout + browser.stderr
                 )
@@ -147,7 +290,7 @@ async def run_scenario(scenario: str, *, initialized: bool = True) -> None:
                     raise RuntimeError(
                         "hostile_resource_not_denied: " + browser.stdout.strip()
                     )
-            print(browser.stdout.strip())
+            print(display_output)
         finally:
             stop.set()
             await asyncio.wait_for(server, timeout=8)
@@ -157,6 +300,12 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("scenario", choices=sorted(SCENARIOS | {"quick", "all"}))
     parser.add_argument("--no-build", action="store_true")
+    parser.add_argument(
+        "--repeat",
+        type=parse_repeat_count,
+        default=1,
+        metavar="1..30",
+    )
     options = parser.parse_args()
     if not options.no_build:
         build = subprocess.run(
@@ -171,17 +320,39 @@ def main() -> int:
             print("P02 BROWSER: FAILED — production_build", file=sys.stderr)
             return 1
     selected = (
-        QUICK_SCENARIOS
-        + (("logout_after_touch",) if options.scenario == "all" else ())
+        QUICK_SCENARIOS + (("logout_after_touch",) if options.scenario == "all" else ())
         if options.scenario in {"quick", "all"}
         else (options.scenario,)
     )
     for position, scenario in enumerate(selected):
-        try:
-            asyncio.run(run_scenario(scenario, initialized=scenario != "setup"))
-        except (RuntimeError, TimeoutError) as error:
+        repetition = 1
+        failed = False
+        failure_code = ""
+        while should_run_browser_repetition(
+            repetition,
+            repeat=options.repeat,
+            failed=failed,
+        ):
+            try:
+                asyncio.run(run_scenario(scenario, initialized=scenario != "setup"))
+            except (RuntimeError, TimeoutError) as error:
+                failure_code = str(error)
+                failed = True
+                continue
+            repetition += 1
+        if failed:
+            repetition_label = (
+                f" repetition {repetition}/{options.repeat}"
+                if options.repeat > 1
+                else ""
+            )
             print(
-                "P02 BROWSER: FAILED — " + scenario + ": " + str(error), file=sys.stderr
+                "P02 BROWSER: FAILED — "
+                + scenario
+                + repetition_label
+                + ": "
+                + failure_code,
+                file=sys.stderr,
             )
             for remaining in selected[position + 1 :]:
                 print("P02 BROWSER: NOT RUN — " + remaining, file=sys.stderr)

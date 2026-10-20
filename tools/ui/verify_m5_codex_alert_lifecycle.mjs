@@ -15,6 +15,7 @@ const servicePid = Number(process.env.AGENTMONITOR_M5_SERVICE_PID);
 const serviceStart = Number(process.env.AGENTMONITOR_M5_SERVICE_START_TIME_TICKS);
 const accountId = process.env.AGENTMONITOR_TEST_CODEX_ACCOUNT_ID;
 const alertId = process.env.AGENTMONITOR_TEST_M5_ALERT_ID;
+let browser;
 let page;
 let stage = "prerequisites";
 
@@ -58,7 +59,7 @@ try {
     && /^[A-Za-z0-9_-]{1,128}$/.test(alertId),
   "alert_witness_selection_invalid");
 
-  const browser = await chromium.connectOverCDP(endpoint);
+  browser = await chromium.connectOverCDP(endpoint);
   const context = browser.contexts()[0];
   requireResult(context, "shared_owner_browser_required");
   page = await context.newPage();
@@ -191,5 +192,25 @@ try {
   console.error(`M5 CODEX ALERT: BLOCKED — ${stage}: ${reason}`);
   process.exitCode = 3;
 } finally {
-  if (page) await page.close();
+  let cleanupFailed = false;
+  if (page) {
+    try {
+      await page.close();
+    } catch {
+      cleanupFailed = true;
+    }
+  }
+  if (browser) {
+    try {
+      await browser.close();
+    } catch {
+      cleanupFailed = true;
+    }
+  }
+  if (cleanupFailed) {
+    console.error(
+      "M5 CODEX ALERT: BLOCKED — cleanup: codex_alert_browser_cleanup_failed",
+    );
+    process.exitCode = 3;
+  }
 }

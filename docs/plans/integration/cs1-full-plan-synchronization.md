@@ -833,3 +833,73 @@ canonical approval flag remain unchanged. M5 remains Intermediate, acceptance
 remains unrecorded, and `AUTO-M5-EXIT` remains Not Run.
 
 Plan snapshot SHA-256: `4ecf1c391799cc14ddb39e8f33e3ac4620f5732b92a777c2841913514d745177`
+
+## 2026-10-20 approved M5 1.7.0 browser-proof termination rebind
+
+The synchronized Draft snapshot now binds PLAN-DEP/D01 to the owner-approved
+M5 focused plan 1.7.0 amendment. The completed third rollover activated exact
+revision `e066d7e1ba0124f0454c07002ea7b2ad0817d6b9`; current owner outcomes and
+genuine collection/history evidence were recollected for that service. A
+subsequent genuine recovered alert reached one valid API/DOM/history/service/
+Registry browser proof, but its Node child retained the Playwright CDP client
+until the writer's 180-second timeout. `AUTO-M5-ALERT-WITNESS` therefore
+blocked as `m5_alert_witness_browser_unavailable` and wrote no witness.
+
+The approved scope changes only the verifier-owned client teardown and permits
+one exact fourth evidence-preserving rollover from completed `e066d7e`. The
+browser child must exit naturally after releasing its transport while the
+owner's Chrome process, authenticated session, pre-existing page, service
+identity, zero-mutation count, and Registry digest remain unchanged. The
+fourth transition preserves `e066d7e` below fixed singleton parent
+`m5-service-activation-corrective-archive-e066d7e` and revalidates the closed
+ordered four-archive chain before every mutation. General deployment and
+`AUTO-DEPLOY` remain unauthorized.
+
+Among synchronized baseline inputs, only the PLAN-DEP plan body, its generated
+contract-adoption digest, reviewed parallel-ownership digest, the bounded M5
+service-activation routine and automation-standard descriptions, and this
+exact plan snapshot changed. The other 19 canonical plan bodies, public
+contract versions and meanings, and canonical approval flags remain unchanged.
+The correction implementation and Green, clean candidate, live fourth
+rollover, refreshed prerequisites, canonical exit gate, and owner acceptance
+remain Not Run. M5 remains Intermediate and `AUTO-M5-EXIT` remains Not Run.
+
+Plan snapshot SHA-256: `5bf56c21ef5c05ba7539bdd7fdd0a908231672e13ed762ab8e8365f3c0873b38`
+
+## 2026-10-20 approved M5 1.8.0 P02 canonical-browser rebind
+
+The synchronized Draft snapshot now binds PLAN-DEP/D01 to owner-approved M5
+focused plan 1.8.0. Required canonical verification of the implemented 1.7
+browser-client teardown exposed two P02 product defects and one browser-oracle
+race: the 390-pixel header exceeded the document viewport by two pixels, valid
+automatic revocation recovery could remove **Check session** before the test
+clicked it, and a previous-cookie Overview read could expire the route while a
+successful password PATCH and renewed session GET restored only the protected
+shell. The exact password Red observed PATCH 204 and renewed GET 200 within one
+second, followed by stable `/login` plus protected content and no success state.
+
+The approved exception remains P02-owned and permits only the enumerated mobile
+header, revocation proof, password-flow exclusivity, and closed browser-runner
+policy. The password lifecycle uses an acknowledged feature-unmount barrier,
+obsolete-generation callback fence, inert navigation/session controls, one
+mutation, bounded reconciliation, typed fail-closed terminal outcomes, secret-
+local state, and explicit focus/route recovery. Thirty consecutive real-stack
+passes per affected scenario, the complete P02 lane, and every canonical local
+gate remain required; no retry or timeout widening can create Green.
+
+Version 1.8.0 supersedes only 1.7.0's fourth-candidate content restriction.
+The service remains exact `e066d7e1ba0124f0454c07002ea7b2ad0817d6b9`; the
+same single fourth rollover, fixed `m5-service-activation-corrective-archive-e066d7e`
+parent, ordered archive validation, rollback, browser preservation, and stop
+conditions remain binding. No fifth rollover, public contract version, schema,
+migration, dependency, provider authority, native service behavior, general
+deployment, or `AUTO-DEPLOY` scope is added.
+
+Among synchronized baseline inputs, only the PLAN-DEP plan body, its generated
+contract-adoption digest, reviewed parallel-ownership digest, and this exact
+plan snapshot changed. The other 19 canonical plan bodies, public contract
+versions and meanings, and canonical approval flags remain unchanged. M5 stays
+Intermediate; implementation Green, clean candidate, live fourth rollover,
+refreshed prerequisites, `AUTO-M5-EXIT`, and owner acceptance remain Not Run.
+
+Plan snapshot SHA-256: `51945b23d1906200e29627580ac37eaec0c6b15f47ce812fcb15d9a0f4ee6a8a`

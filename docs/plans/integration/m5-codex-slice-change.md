@@ -1,16 +1,20 @@
 # Change plan: executable V1-M5 Codex slice
 
-- Status: **Approved 1.6.0 for the root-owned M5 complete-scope lifecycle,
-  paginated history verification, and three exact evidence-preserving service
-  rollovers**.
-- Plan version: `1.6.0`; owner approval: 2026-10-16.
+- Status: **Approved 1.8.0 for the root-owned M5 complete-scope lifecycle,
+  paginated history verification, alert browser-proof termination correction,
+  four exact evidence-preserving service rollovers, and the bounded P02
+  canonical-browser correction**.
+- Plan version: `1.8.0`; owner approval: 2026-10-20.
 - Safety correction: exact-version review proved that authenticated app-server
   queries may perform Codex's automatic credential refresh. The approved
   managed-auth lifecycle therefore classifies those queries as
   `managed_profile_write`, and an empty/uninitialized managed root is rejected
   before any app-server child starts.
 - Owner: `PLAN-INT`, with A02 provider behavior and the exact PLAN-DEP/D01
-  service-activation exception owned under this bounded change.
+  service-activation exception owned under this bounded change. Approved 1.8.0
+  is the sole bounded exception to PLAN-P02's Draft implementation prohibition;
+  PLAN-P02 remains semantic owner and the root integration agent acts as the
+  P02 shell steward for only the enumerated files, with no concurrent writer.
 - Parent plans:
   [V1-M5 milestone](../../superpowers/plans/2026-09-19-agentmonitor-v1-m5-codex-slice.md)
   and [A02 adapter](../adapters/codex/plan-v1.md).
@@ -20,26 +24,34 @@
   PLAN-DEP/D01 exception only by the exact complete-scope lifecycle correction,
   the second rollover from `063445154bca0bf5ec43db94ba57c17fd193fd99`,
   the paginated live-history verification, and the third rollover from
-  `6d6e1aa9d9b64d50e3f83d0f1686e6cff04b7c17` specified below. The remaining
-  A02, OpenAI API, PLAN-DEP/D01, and `AUTO-DEPLOY` lanes stay Draft or Blocked
+  `6d6e1aa9d9b64d50e3f83d0f1686e6cff04b7c17` specified below. The owner's
+  explicit 2026-10-20 approval adds only the browser-proof termination
+  correction and fourth rollover from
+  `e066d7e1ba0124f0454c07002ea7b2ad0817d6b9` specified below. The owner's
+  explicit 2026-10-20 approval of version 1.8.0 adds only the bounded
+  P02 correction below and supersedes only 1.7.0's candidate-content
+  restriction. All remaining A02, OpenAI API, PLAN-DEP/D01, and `AUTO-DEPLOY`
+  lanes stay Draft or Blocked
   as already recorded.
 - Stories: `ST-CDX-001..005`.
 - Requirements: `FR-ACC-001/004..006`, `FR-AUTH-001/002/004..006`,
   `FR-QUOTA-001..006`, `FR-COL-003..008`, `FR-HIST-001/002`,
   `FR-DISC-001/003/004/006/008`, `FR-STATE-001/002`, `FR-SAFE-002`,
-  `FR-ALERT-002..006`, `FR-UI-001..006`, `NFR-API-001/002`,
+  `FR-ALERT-002..006`, `FR-UI-001..006`, `FR-IAM-001/003`,
+  `NFR-API-001/002`,
   `NFR-TEST-001/002`,
   `NFR-SEC-001`, `NFR-PRIV-001/002`, `NFR-RES-001`, `NFR-OBS-001`,
   `NFR-COMP-001`, and `NFR-DOC-001`.
 - Acceptance contributions: `AC-LIVE-002/004/005/007`,
   `AC-UI-002/005/006`, `AC-PROC-001..004`, `AC-HIST-001`,
   `AC-ALERT-002`, `AC-OPS-003/006`, and `AC-TEST-001..006` within
-  M5's Codex boundary.
+  M5's Codex boundary; approved 1.8.0 also contributes bounded
+  `AC-UI-001/003/004/005` and `AC-V1-005/007` evidence.
 - Contracts: compatible V1 use of `CTR-PROV-001..008`, `CTR-REG-001/002/004/
   005/006/009/010`, `CTR-COL-002/004/006/007`, `CTR-CAP-001/003/004/007`,
   `CTR-RUN-001/002/003/006/007`, `CTR-PLAT-001`, `CTR-OPS-004/006`,
   `CTR-ALERT-001..005`, `CTR-CAP-008/009`, `CTR-EVT-001`, `CTR-API-001`,
-  and `CTR-UI-001`.
+  `CTR-API-002`, `CTR-IAM-003/004/005`, and `CTR-UI-001`.
 
 ## Outcome
 
@@ -836,6 +848,329 @@ or profile operation, Registry or database mutation, agent control, or
 `AUTO-DEPLOY` authority. Production implementation may proceed only through
 the stated Red/Green/refactor, review, clean-candidate, and fail-closed live
 preconditions.
+
+## Approved alert browser-proof termination correction and fourth exact rollover — 2026-10-20
+
+**Status: Owner-approved 1.7.0 on 2026-10-20. Production implementation and
+the bounded live transition are authorized only within the exact correction
+and one-time rollover below. Approval is not a completion claim; version 1.6.0
+and its retained evidence remain unchanged.**
+
+### New real-system Red
+
+The current exact clean service revision
+`e066d7e1ba0124f0454c07002ea7b2ad0817d6b9` has a fresh genuine Codex alert
+lifecycle with opening, repeated-condition, owner-action, and recovery
+lineage. During `AUTO-M5-ALERT-WITNESS`, the real built-browser child
+`tools/ui/verify_m5_codex_alert_lifecycle.mjs` successfully emits exactly one
+valid `agentmonitor.m5-alert-browser-proof.v2` JSON document, closes its
+temporary page, and then remains alive because its Playwright CDP client is
+still connected. The Python `_browser_proof` boundary reaches its 180-second
+timeout, reports `m5_alert_witness_browser_unavailable`, and correctly writes
+no alert witness.
+
+This is a root-owned verification-process lifecycle defect. The alert,
+history, API, UI, service-revision, browser presentation, zero-mutation, and
+Registry proofs completed successfully before the hang. No provider, M07,
+Registry, Capacity, persistence, API, UI product, or public-contract behavior
+is changed by this finding.
+
+### Test-first correction boundary
+
+Production change is limited to
+`tools/ui/verify_m5_codex_alert_lifecycle.mjs` and the smallest directly owned
+automation tests. A focused Red must execute the exact script against the real
+authenticated shared Chrome, running service, database, and recovered alert;
+observe one schema-valid proof document; and prove that the child fails to
+exit within a bounded deadline. Source-text inspection, a fake CDP endpoint,
+constructed alert data, or a forced success after timeout cannot satisfy the
+Red.
+
+The minimal Green retains the connected browser handle and, after closing only
+the page created by this script, explicitly closes the Playwright CDP client
+connection so Node has no retained transport handle. It must preserve the
+script's existing error status and cleanup behavior when page or connection
+cleanup fails. It must not close, relaunch, log out, or otherwise control the
+owner's Chrome process, pre-existing contexts or pages, authenticated session,
+or any application/provider state. `process.exit()` and an ignored/unreferenced
+timer or socket are prohibited substitutes for releasing the owned client
+resource.
+
+Green requires the exact real child to emit one valid proof and exit zero well
+inside the parent timeout. Independent before/after evidence must prove the
+same Chrome PID/start identity and CDP endpoint remain live, the script-created
+page is gone, one pre-existing authenticated dashboard target remains open at
+the same URL, and a new CDP client can still use the authenticated dashboard,
+the selected service PID/start/revision remains unchanged, browser mutations
+remain zero, and the complete public Registry digest is unchanged. The Python
+writer must then consume that proof and create the fixed owner-only alert
+witness once. A retained timeout continues to fail closed as
+`m5_alert_witness_browser_unavailable` and cannot create a witness.
+
+This correction contributes `M5-CDX-ALERT-007` to `FR-ALERT-004/005`,
+`NFR-RES-001`, `AC-ALERT-002`, `AC-OPS-006`, and `AC-TEST-003/004`. It changes
+no public API, event, database, provider, UI, configuration, generated-client,
+dependency, license, migration, or ADR contract.
+
+### Approved one-time fourth service rollover
+
+The correction and its evidence must be committed, but the M5 service,
+Operations source revision, and immutable activation receipt currently bind
+exact revision `e066d7e1ba0124f0454c07002ea7b2ad0817d6b9`. Manual receipt
+editing, deletion, or rebinding remains prohibited. Version 1.7.0 therefore
+authorizes one exact fourth corrective rollover from that completed revision to
+one eventual reviewed clean candidate containing only this correction, its
+tests, the fourth-rollover extension, synchronized controls, documentation,
+and evidence in one commit.
+
+The existing `AUTO-M5-SERVICE-ACTIVATE` guard and two-stage transition remain
+the only transition path. Before mutation, it must validate the current
+`e066d7e` receipt, journal, rollback unit, clean detached checkout, exact
+same-user systemd and `/proc` identity, Operations revision, authenticated
+browser, Registry digest, database identity, pinned trusted rollback runtime,
+and the three fixed singleton archives for `6bfa69d`, `0634451`, and
+`6d6e1aa`. A later PID/start generation is accepted only by the existing
+same-revision restart policy.
+
+Under the existing exclusive guard, stage one proves the pinned trusted
+runtime, then preserves the complete `e066d7e` transition directory by Linux
+same-filesystem atomic no-replace rename into the fixed owner-only parent
+`m5-service-activation-corrective-archive-e066d7e`. Its sole child is bound to
+the full revision and activation-receipt digest. The command fsyncs both
+parents, creates one fresh owner-only transition root, and returns the existing
+typed rerun-required status 5. Stage two revalidates all four ordered archives
+and the prepared state, performs the existing real rollback drill, and
+activates only the new clean candidate. The candidate must differ from the
+pinned trusted revision and all four completed corrective revisions.
+
+Descriptors retain every earlier archive parent, directory, and artifact;
+owner, mode, link count, inode, and digest are revalidated before each
+filesystem or service mutation. Empty, partial, multiple, collided,
+cross-filesystem, changed, unknown, interrupted, or browser-unavailable states
+retain the existing fail-closed recovery and trusted-service restoration
+guarantees. No archive is discovered by recency, replaced, cleaned up, or
+generalized into deployment authority.
+
+### Fresh evidence and acceptance gates
+
+1. Extend the frozen activation tests first. Red must show that `e066d7e` is
+   reserved without a fourth-rollover policy. Green covers exact
+   candidate/reserved-revision policy, the fourth atomic inode move, four
+   ordered singleton archives, retry/interruption recovery, collision and
+   partial-state rejection, authenticated browser preservation, and restarted
+   same-revision service handling.
+2. Run the focused browser Red and Green above, the complete alert-witness
+   automation suite, the M5 UI policy suite, and the full activation suite.
+   Ruff/format, strict mypy, diff, documentation, planning, quality, build,
+   test, mutation, and Git preflight gates must pass on the clean candidate.
+3. Live activation stage one must return status 5 with the trusted service
+   proven active. Stage two must leave the exact clean candidate active with
+   matching HTTP, Operations revision, authenticated browser, Registry,
+   database, systemd, rollback, archive, journal, and receipt evidence. The
+   owner Chrome process and authenticated session must remain open throughout.
+4. Every create-once prerequisite bound to `e066d7e` becomes stale after the
+   transition. Preserve the existing set only through
+   `AUTO-M5-ARCHIVE-PREREQUISITES`, then recollect owner outcomes against the
+   candidate service. The lifecycle that exposed this Red remains retained
+   history but cannot satisfy the new service-bound witness. Create a fresh
+   post-service, post-owner-confirmation occurrence using only genuine
+   scheduled collections: opening or reopening, a distinct repeat, one owner
+   action, and a distinct source-proven recovery.
+5. `AUTO-M5-ALERT-WITNESS` must then pass once against that fresh lifecycle and
+   create its private witness without timing out or closing Chrome. Create the
+   short-lived quota witness afterward, immediately run `AUTO-M5-EXIT`, and
+   require its exact clean-revision receipt before any M5 completion claim.
+
+This approval adds no provider/profile operation, telemetry edit, Registry or
+database repair, agent control, general deployment, `AUTO-DEPLOY`, or broader
+PLAN-DEP/D01 authority. Production implementation and the fourth transition
+may proceed only through the exact test-first, review, clean-candidate,
+fail-closed transition, evidence, and completion boundaries above.
+
+## Approved P02 canonical-browser correction within the pending fourth rollover — 2026-10-20
+
+**Status: Owner-approved 1.8.0 on 2026-10-20. Production implementation is
+authorized only within the exact boundary below. Approved version 1.7.0 and
+all retained evidence remain unchanged.**
+
+### Real-system Reds discovered by the required 1.7 gate
+
+The approved 1.7 correction passed its focused real-browser proof, quality, and
+build lanes. The canonical `AUTO-TEST` gate and focused real-browser follow-up
+then exposed two P02 product defects and one P02 browser-oracle race against
+the production build and real local HTTP/IAM stack:
+
+1. At the required 390 by 844 viewport, `documentElement.clientWidth` and
+   `window.innerWidth` were 390 while `documentElement.scrollWidth` was 392.
+   The dashboard header occupied 390 pixels, but `.header-actions` and the
+   visible **Sign out** control ended at x=392. The primary navigation retained
+   its intentional internal horizontal scroll and was not the document
+   overflow source.
+2. After the real secondary browser session was revoked through the production
+   API, an already-running protected request could receive the resulting 401
+   and move that context to **Sign in** before the scenario clicked **Check
+   session**. The unconditional click then timed out even though automatic
+   revocation recovery had already reached the required secure state.
+3. Repeated real password-change runs reproduced an inconsistent shell after a
+   completed mutation: `PATCH /api/v1/session/password` returned 204 and the
+   renewed `GET /api/v1/session` returned 200 within one second, yet the safe
+   browser state remained at `/login` with the authenticated AgentMonitor shell
+   visible, no Sign-in heading, no busy button, and no success status through
+   120 seconds. An Overview read begun with the previous cookie had invoked the
+   current immediate expiry callback while the password panel concurrently
+   renewed the session. The expiry path cleared the route and password panel;
+   the later successful `onChanged` restored only the session object. This is a
+   product race, not a slow-password or widened-timeout case.
+
+These Reds contribute `UI-RESP-006`, `UI-AUTH-008`, and `UI-AUTH-009` to
+`FR-UI-001`, `FR-IAM-001/003`, `NFR-RES-001`, `NFR-SEC-001`,
+`NFR-PRIV-001/002`, `NFR-TEST-001/002`, `AC-UI-001/003/004/005`,
+`AC-V1-005/007`, and `AC-TEST-001/003`.
+
+### Exact correction boundary
+
+The approved production and browser-test scope is limited to:
+
+- `frontend/src/app/dashboard.css` and
+  `frontend/tests/browser/p02/responsive.mjs`: at 400 pixels and below, return
+  the existing dashboard header to its two-row mobile layout so both header
+  controls remain visible and keyboard reachable inside the viewport. Preserve
+  the compact row above that breakpoint and the navigation's internal scroll.
+  Hiding or truncating a control, globally masking overflow, or weakening any
+  of the six viewport assertions is prohibited.
+- `frontend/tests/browser/p02/revocation.mjs`: after the real server revocation,
+  accept exactly the two secure production outcomes—automatic arrival at
+  **Sign in**, or one explicit **Check session** action followed by **Sign in**.
+  If the one-time click loses its target during automatic recovery, that is
+  accepted only after **Sign in** is actually visible. Both branches must prove
+  protected navigation absent, reload still signed out, and the primary
+  session still active. Retrying, sleeping, widening the timeout, or accepting
+  any protected/unknown secondary state is prohibited.
+- `frontend/src/app/DashboardApp.tsx`,
+  `frontend/src/features/auth/PasswordChangePanel.tsx`, and
+  `frontend/tests/browser/p02/password_change.mjs`: implement a closed parent
+  lifecycle of `closed`, `draining`, `ready`, and `submitting`. Opening the
+  password flow synchronously advances a protected-feature generation and
+  enters `draining`, unmounts every protected feature page, fences callbacks
+  from the obsolete generation, and makes header/nav/session actions and
+  popstate route changes inert for every non-`closed` phase while
+  canonicalizing the browser URL and internal route to `/`. The bounded
+  draining view exposes an accessible preparation status. A
+  parent React effect may acknowledge `ready` only after the removed subtree's
+  effect cleanup has fired its existing AbortControllers; only then may the
+  password form mount and become interactive. The fence prevents a late
+  consumer of an already-started safe read from invoking expiry after that
+  barrier; it does not claim to cancel server-side read work.
+
+  Submitting advances to the exclusive `submitting` phase before any request.
+  The panel remains mounted while all protected feature pages, navigation,
+  **Check session**, **Sign out**, repeat submit, and route changes remain
+  inert. Exactly one preflight is allowed before mutation, exactly one password
+  PATCH is allowed per submit, and at most one post-dispatch session GET is
+  allowed; no PATCH retry is permitted. Success requires the exact ordered pair
+  of an observed PATCH 204 followed by that single GET 200. Only that pair may
+  install the returned session coherently, close the panel, return to `/`,
+  remount protected content under the current cookie, and present the success
+  status in the persistent shell. Only the typed
+  `dashboard_authentication_required` outcome enters login. The typed
+  `invalid_dashboard_credentials` outcome and other known noncommitted 4xx
+  outcomes return to `ready` with their existing generic safe message;
+  missing/rejected CSRF uses the existing proof-renewal path. After a transport
+  or other unknown PATCH outcome, one optional session GET may classify only
+  whether authentication remains active; a 200 never confirms the mutation or
+  permits success, and the protected view remains locked for owner
+  verification. A pre-mutation validation failure may return to `ready`. A
+  visible cancel/back action is available only in `ready` and closes the form
+  without mutation. Entering `ready` moves focus to the password heading or
+  current-password input. Cancel returns focus to the remounted **Change
+  password** control; successful close moves focus to the persistent success
+  status or remounted page heading.
+
+  Only this closed set of non-secret lifecycle phase and acknowledgement
+  signals crosses the new parent/component interface. Password values,
+  cookies, headers, bodies, and
+  error objects remain component/client local and never enter DashboardApp
+  state, browser storage, logs, diagnostics, evidence, or chat. Existing form
+  reset and credential privacy behavior remain binding. Global 401 suppression,
+  timeout/sleep barriers, mutation retries, cookie changes, or history repair
+  after an inconsistent state are prohibited.
+- `frontend/tests/browser/p02/run_browser.py`: its change is limited to a
+  bounded repeat option accepting only integers 1 through 30 so the same
+  isolated real-server/real-Chrome scenario can run an exact number of
+  consecutive times and fail on the first Red. For these
+  three scenarios it also validates child output against a closed safe-line
+  grammar and emits only a stable `browser_output_invalid` code for unexpected
+  stdout/stderr instead of propagating raw child text. It must not retry a
+  failed run or convert a failure into a pass.
+- `frontend/tests/browser/p02/test_run_browser_policy.py` (or the existing
+  canonical pure P02 policy-test path): add an I/O-free test for only the
+  runner's closed output and repeat policy. Constructed strings are permitted
+  at this pure boundary. Red/Green must prove allowlisted stage/pass lines are
+  accepted; nonpositive/out-of-bound repeat counts are rejected; and arbitrary
+  exception, full-URL, or secret-shaped text produces only
+  `browser_output_invalid` without retaining or returning the raw child text.
+
+The responsive proof must require both header-action rectangles fully inside
+the 390-pixel viewport and keyboard reachability while preserving nav-only
+horizontal scroll. The password browser proof must observe the real lifecycle
+and request ordering: the cleanup acknowledgement precedes form interactivity;
+no non-password feature-page request starts during `ready` or `submitting`;
+only the named preflight/PATCH/reconciliation sequence crosses that interval;
+the feature view is absent and shell controls are inert; exactly one PATCH is
+sent; the one post-PATCH session GET returns 200 before feature remount; and
+requests from the new protected-feature generation begin only after the phase
+is `closed` with the current session and `/` route installed. The route remains
+`/` with the protected shell and success status stable afterward. The proof
+also checks the draining status, ready focus target, Cancel focus restoration,
+success focus target, and URL/route coherence after blocked popstate.
+It retains the existing sign-out, old-password rejection, and new-password
+acceptance assertions and rejects any late expiry. All three modified browser
+scenarios limit committed failure output to stable stage codes and allowlisted
+method/path/status classes plus safe route/UI-state classifications. They must
+never emit credentials, cookies, headers, bodies, arbitrary exception text, or
+full URLs; the current temporary revocation diagnostic is replaced rather than
+retained.
+
+### Contracts, ownership, and verification
+
+P02 owns the React shell, styles, and browser scenarios. This correction uses
+existing compatible `CTR-API-002`, `CTR-IAM-003/004/005`, and `CTR-UI-001` V1
+behavior. It changes no API, OpenAPI, generated client, backend, database,
+provider adapter, configuration, dependency, license, migration, or ADR
+contract and adds no provider or Registry operation.
+
+After approval, planning control synchronization covers
+`docs/plans/README.md`, `docs/plans/deployment/linux-native/plan-v1.md`,
+`docs/plans/contract-adoption.toml`, `docs/plans/parallel-ownership.toml`,
+`docs/plans/plan-baseline.toml`,
+`docs/plans/integration/cs1-full-plan-synchronization.md`, and
+`docs/plans/integration/cs1-final-readiness-audit.md`. Implementation evidence
+then synchronizes `docs/modules/react-dashboard.md`,
+`docs/evidence/m5-codex-implementation.md`,
+`docs/evidence/v1-implementation-status-v1.json`, and `docs/README.md`.
+Requirement ownership, API/OpenAPI/client artifacts, backend and database
+contracts remain unchanged.
+
+Green requires 30 consecutive isolated real-server/real-built-Chrome passes for
+each of responsive, revocation, and password change through the bounded runner
+option (`run_browser.py <scenario> --repeat 30`, with `--no-build` permitted
+only after one successful production build), followed by the complete P02
+browser lane, `AUTO-QUALITY`, `AUTO-BUILD`, and the complete canonical
+`AUTO-TEST` with no retry-hidden pass. Timeouts, sleeps, retries, scenario
+deselection, or accepting an unknown state cannot satisfy Green. Documentation
+and evidence must synchronize the P02 module, M5 implementation status, plan
+hashes, and cross-plan snapshots before planning, documentation, mutation, and
+Git preflight gates run.
+
+The service still runs exact `e066d7e1ba0124f0454c07002ea7b2ad0817d6b9`, and
+the approved fourth rollover has not started. Version 1.8.0 folds
+these bounded P02 corrections into the same one eventual reviewed clean
+candidate and the same fourth rollover already authorized by 1.7.0. It does not
+authorize a fifth rollover, a second candidate activation, broader P02 work,
+or any relaxation of the M5 completion gate. Version 1.8.0 supersedes only
+1.7.0's candidate-content restriction that said the fourth-rollover candidate
+contained only the alert browser correction; every other 1.7 transition,
+evidence-preservation, rollback, stop, and safety condition remains binding.
 
 ## Stop conditions
 
