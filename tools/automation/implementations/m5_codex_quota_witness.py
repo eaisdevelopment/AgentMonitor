@@ -2,7 +2,7 @@
 
 The pure policy in this module compares safe whole-percent and reset facts.  The
 operational command is completed below the policy and never invokes Codex: the
-owner reads the official ``/usage`` view and enters only those safe facts.
+owner reads the official ``/status`` view and enters only those safe facts.
 """
 
 # This operator command inserts the checkout's backend source path before imports.
@@ -74,6 +74,11 @@ QUOTA_WITNESS_SCHEMA = "agentmonitor.m5-quota-witness.v1"
 BROWSER_PROOF_SCHEMA = "agentmonitor.m5-quota-browser-proof.v1"
 CODEX_PROVIDER_VERSION = "0.160.0"
 CODEX_RATE_LIMITS_SOURCE_ID = "codex.app-server.account-rate-limits-read.v2"
+OWNER_OBSERVATION_INSTRUCTION = (
+    "Open the official Codex /status view for each account below. "
+    "Enter only the displayed whole percentages and reset times; "
+    "do not paste output."
+)
 MAX_REGISTRY_PAGE_COUNT = 10_000
 
 
@@ -1036,11 +1041,7 @@ def _owner_observations(
 ) -> list[dict[str, object]]:
     if not sys.stdin.isatty() or not sys.stdout.isatty():
         raise M5CodexQuotaWitnessErrorV1("m5_quota_witness_interactive_owner_required")
-    print(
-        "Open the official Codex /usage view for each account below. "
-        "Enter only the displayed whole percentages and reset times; "
-        "do not paste output."
-    )
+    print(OWNER_OBSERVATION_INSTRUCTION)
     observations: list[dict[str, object]] = []
     for record in records:
         print(f"\nAccount: {record['alias']}")

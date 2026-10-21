@@ -33,6 +33,7 @@ from tools.automation._m5_test_git import (
     attached_real_checkout_v1,
     git_status_v1,
 )
+from tools.automation.implementations import m5_codex_quota_witness
 from tools.automation.implementations.m5_codex_quota_witness import (
     M5CodexQuotaWitnessErrorV1,
     _agent_records,
@@ -551,6 +552,11 @@ def test_browser_proof_rejects_booleans_for_integer_fields(field: str) -> None:
 
 
 def test_quota_browser_entrypoint_loads_the_locked_playwright_installation() -> None:
+    assert m5_codex_quota_witness.OWNER_OBSERVATION_INSTRUCTION == (
+        "Open the official Codex /status view for each account below. "
+        "Enter only the displayed whole percentages and reset times; "
+        "do not paste output."
+    )
     completed = subprocess.run(
         ["node", "tools/ui/verify_m5_codex_quota_reconciliation.mjs"],
         cwd=ROOT,
