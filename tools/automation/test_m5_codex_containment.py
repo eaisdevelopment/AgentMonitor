@@ -6,9 +6,11 @@ import errno
 import fcntl
 import hashlib
 import inspect
+import json
 import os
 import re
 import resource
+import signal
 import subprocess
 import tempfile
 import time
@@ -47,6 +49,81 @@ _LIVE_SELECTORS = (
 _TRACE_EXECUTABLE = Path("/opt/codex/bin/codex")
 _TRACE_MANAGED_ROOT = Path("/owner/profiles/codex/opaque")
 _TRACE_CHMOD_TARGET = _TRACE_MANAGED_ROOT / "runtime" / "prepared"
+
+
+def _driver_result_payload(state: str) -> bytes:
+    """Return one exact structural driver result without provider content."""
+
+    if state == "passed":
+        identity_count = 1
+        quota_count = 1
+        identity_digest: str | None = "a" * 64
+        bucket_count = 1
+        window_count = 1
+    elif state in {"failed", "unavailable"}:
+        identity_count = 0
+        quota_count = 0
+        identity_digest = None
+        bucket_count = 0
+        window_count = 0
+    else:
+        raise ValueError("closed driver state required")
+    return json.dumps(
+        {
+            "identity_binding_digest": identity_digest,
+            "identity_operation_count": identity_count,
+            "quota_bucket_count": bucket_count,
+            "quota_operation_count": quota_count,
+            "quota_window_count": window_count,
+            "schema": "agentmonitor.m5-codex-containment-result.v1",
+            "state": state,
+        },
+        separators=(",", ":"),
+        sort_keys=True,
+    ).encode("utf-8")
+
+
+def _write_all(descriptor: int, payload: bytes) -> None:
+    """Write structural test bytes through a real kernel descriptor."""
+
+    written = 0
+    while written < len(payload):
+        count = os.write(descriptor, payload[written:])
+        if count <= 0:
+            raise OSError
+        written += count
+
+
+def _start_input_drain_process(
+    input_descriptor: int,
+    *,
+    returncode: int,
+) -> subprocess.Popen[bytes]:
+    """Start a real child that drains one inherited pipe and exits exactly."""
+
+    return subprocess.Popen(
+        [
+            "/usr/bin/python3",
+            "-I",
+            "-c",
+            (
+                "import os,sys\n"
+                "fd=int(sys.argv[1])\n"
+                "while os.read(fd,65536): pass\n"
+                "raise SystemExit(int(sys.argv[2]))\n"
+            ),
+            str(input_descriptor),
+            str(returncode),
+        ],
+        cwd="/",
+        env={"LANG": "C.UTF-8"},
+        stdin=subprocess.DEVNULL,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+        pass_fds=(input_descriptor,),
+        shell=False,
+        start_new_session=True,
+    )
 
 
 def _two_operation_chmod_trace(
@@ -108,17 +185,19 @@ class M5CodexContainmentPolicyTests(unittest.TestCase):
             "both_in_identity_lineage": (2, 0),
         }
         for label, counts in cases.items():
-            with self.subTest(label=label):
-                with self.assertRaises(M5CodexContainmentErrorV1):
-                    evaluate_codex_trace_policy_v1(
-                        _two_operation_chmod_trace(
-                            identity_chmod_count=counts[0],
-                            quota_chmod_count=counts[1],
-                        ),
-                        provider_executable=_TRACE_EXECUTABLE,
-                        managed_profile_root=_TRACE_MANAGED_ROOT,
-                        default_codex_roots=(Path("/home/owner/.codex"),),
-                    )
+            with (
+                self.subTest(label=label),
+                self.assertRaises(M5CodexContainmentErrorV1),
+            ):
+                evaluate_codex_trace_policy_v1(
+                    _two_operation_chmod_trace(
+                        identity_chmod_count=counts[0],
+                        quota_chmod_count=counts[1],
+                    ),
+                    provider_executable=_TRACE_EXECUTABLE,
+                    managed_profile_root=_TRACE_MANAGED_ROOT,
+                    default_codex_roots=(Path("/home/owner/.codex"),),
+                )
 
     def test_provider_writes_inside_managed_profile_are_counted(self) -> None:
         """M5-CDX-GATE-001: exact child writes remain inside the selected root."""
@@ -533,6 +612,174 @@ class M5CodexContainmentPrerequisiteTests(unittest.TestCase):
 
 
 class M5CodexContainmentPrivateChannelTests(unittest.TestCase):
+    def _collect_prefilled_channels(
+        self,
+        *,
+        result_payload: bytes,
+        trace_payload: bytes,
+        returncode: int = 0,
+        break_input: bool = False,
+    ) -> tuple[int, bytes, bytes]:
+        """Collect bounded bytes from real pipes around one real child."""
+
+        input_reader, input_writer = _open_private_channel()
+        result_reader, result_writer = _open_private_channel()
+        trace_reader, trace_writer = _open_private_channel()
+        process: subprocess.Popen[bytes] | None = None
+        try:
+            _write_all(result_writer, result_payload)
+            os.close(result_writer)
+            result_writer = -1
+            _write_all(trace_writer, trace_payload)
+            os.close(trace_writer)
+            trace_writer = -1
+            if break_input:
+                os.close(input_reader)
+                input_reader = -1
+                process = subprocess.Popen(
+                    ["/usr/bin/true"],
+                    cwd="/",
+                    env={"LANG": "C.UTF-8"},
+                    stdin=subprocess.DEVNULL,
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL,
+                    shell=False,
+                    start_new_session=True,
+                )
+            else:
+                process = _start_input_drain_process(
+                    input_reader,
+                    returncode=returncode,
+                )
+                os.close(input_reader)
+                input_reader = -1
+            owned_input_writer = input_writer
+            input_writer = -1
+            return _collect_driver_channels(
+                process,
+                input_descriptor=owned_input_writer,
+                input_payload=b"selection",
+                result_descriptor=result_reader,
+                trace_descriptor=trace_reader,
+            )
+        finally:
+            if process is not None and process.poll() is None:
+                try:
+                    os.killpg(process.pid, signal.SIGKILL)
+                except OSError:
+                    pass
+                try:
+                    process.wait(timeout=5)
+                except subprocess.TimeoutExpired:
+                    pass
+            for descriptor in (
+                input_reader,
+                input_writer,
+                result_reader,
+                result_writer,
+                trace_reader,
+                trace_writer,
+            ):
+                if descriptor >= 0:
+                    try:
+                        os.close(descriptor)
+                    except OSError:
+                        pass
+
+    def _collect_child_generated_trace(
+        self,
+        *,
+        trace_size: int,
+    ) -> tuple[int, bytes, bytes]:
+        """Drain a child-generated trace that may exceed pipe capacity."""
+
+        input_reader, input_writer = _open_private_channel()
+        result_reader, result_writer = _open_private_channel()
+        trace_reader, trace_writer = _open_private_channel()
+        process: subprocess.Popen[bytes] | None = None
+        result_payload = _driver_result_payload("passed")
+        source = (
+            "import os,sys\n"
+            "input_fd,result_fd,trace_fd=map(int,sys.argv[1:4])\n"
+            "result=bytes.fromhex(sys.argv[4])\n"
+            "remaining=int(sys.argv[5])\n"
+            "while os.read(input_fd,65536): pass\n"
+            "os.write(result_fd,result)\n"
+            "os.close(result_fd)\n"
+            "chunk=b'T'*65536\n"
+            "try:\n"
+            "    while remaining:\n"
+            "        part=chunk[:min(remaining,len(chunk))]\n"
+            "        offset=0\n"
+            "        while offset < len(part):\n"
+            "            offset += os.write(trace_fd,part[offset:])\n"
+            "        remaining -= len(part)\n"
+            "except BrokenPipeError:\n"
+            "    pass\n"
+            "try: os.close(trace_fd)\n"
+            "except OSError: pass\n"
+        )
+        try:
+            process = subprocess.Popen(
+                [
+                    "/usr/bin/python3",
+                    "-I",
+                    "-c",
+                    source,
+                    str(input_reader),
+                    str(result_writer),
+                    str(trace_writer),
+                    result_payload.hex(),
+                    str(trace_size),
+                ],
+                cwd="/",
+                env={"LANG": "C.UTF-8"},
+                stdin=subprocess.DEVNULL,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                pass_fds=(input_reader, result_writer, trace_writer),
+                shell=False,
+                start_new_session=True,
+            )
+            os.close(input_reader)
+            input_reader = -1
+            os.close(result_writer)
+            result_writer = -1
+            os.close(trace_writer)
+            trace_writer = -1
+            owned_input_writer = input_writer
+            input_writer = -1
+            return _collect_driver_channels(
+                process,
+                input_descriptor=owned_input_writer,
+                input_payload=b"selection",
+                result_descriptor=result_reader,
+                trace_descriptor=trace_reader,
+            )
+        finally:
+            if process is not None and process.poll() is None:
+                try:
+                    os.killpg(process.pid, signal.SIGKILL)
+                except OSError:
+                    pass
+                try:
+                    process.wait(timeout=5)
+                except subprocess.TimeoutExpired:
+                    pass
+            for descriptor in (
+                input_reader,
+                input_writer,
+                result_reader,
+                result_writer,
+                trace_reader,
+                trace_writer,
+            ):
+                if descriptor >= 0:
+                    try:
+                        os.close(descriptor)
+                    except OSError:
+                        pass
+
     def test_empty_result_precedes_a_broken_input_channel(self) -> None:
         """M5-CDX-GATE-001: useful result EOF wins the closed precedence."""
 
@@ -592,6 +839,328 @@ class M5CodexContainmentPrivateChannelTests(unittest.TestCase):
                     except OSError:
                         pass
 
+    def test_oversized_result_precedes_an_empty_trace_channel(self) -> None:
+        """M5-CDX-GATE-001: result transport failure has closed precedence."""
+
+        with self.assertRaises(M5CodexContainmentErrorV1) as raised:
+            self._collect_prefilled_channels(
+                result_payload=b"R" * (4096 + 1),
+                trace_payload=b"",
+            )
+
+        self.assertEqual(
+            str(raised.exception),
+            "m5_codex_containment_result_channel_invalid",
+        )
+
+    def test_empty_trace_precedes_a_malformed_result_schema(self) -> None:
+        """M5-CDX-GATE-001: trace EOF precedes result schema validation."""
+
+        with self.assertRaises(M5CodexContainmentErrorV1) as raised:
+            self._collect_prefilled_channels(
+                result_payload=b"not-json",
+                trace_payload=b"",
+            )
+
+        self.assertEqual(
+            str(raised.exception),
+            "m5_codex_containment_trace_channel_empty",
+        )
+
+    def test_oversized_trace_has_a_trace_specific_failure(self) -> None:
+        """M5-CDX-GATE-001: trace overflow is bounded and classified."""
+
+        with self.assertRaises(M5CodexContainmentErrorV1) as raised:
+            self._collect_child_generated_trace(trace_size=(16 * 1024 * 1024) + 1)
+
+        self.assertEqual(
+            str(raised.exception),
+            "m5_codex_containment_trace_channel_invalid",
+        )
+
+    def test_malformed_result_schema_precedes_a_broken_input(self) -> None:
+        """M5-CDX-GATE-001: schema failure precedes the input outcome."""
+
+        with self.assertRaises(M5CodexContainmentErrorV1) as raised:
+            self._collect_prefilled_channels(
+                result_payload=b'{"schema":"wrong"}',
+                trace_payload=b"safe trace",
+                break_input=True,
+            )
+
+        self.assertEqual(
+            str(raised.exception),
+            "m5_codex_containment_result_invalid",
+        )
+
+    def test_result_schema_rejects_every_nonclosed_shape(self) -> None:
+        """M5-CDX-GATE-001: result parsing admits only the closed schema."""
+
+        extra_key = json.loads(_driver_result_payload("passed"))
+        extra_key["extra"] = True
+        nonzero_failure = json.loads(_driver_result_payload("failed"))
+        nonzero_failure["identity_operation_count"] = 1
+        cases = {
+            "invalid_utf8": b"\xff",
+            "non_object": b"[]",
+            "extra_key": json.dumps(extra_key).encode("utf-8"),
+            "nonzero_failure": json.dumps(nonzero_failure).encode("utf-8"),
+        }
+        for label, payload in cases.items():
+            with self.subTest(label=label):
+                with self.assertRaises(M5CodexContainmentErrorV1) as raised:
+                    self._collect_prefilled_channels(
+                        result_payload=payload,
+                        trace_payload=b"safe trace",
+                    )
+                self.assertEqual(
+                    str(raised.exception),
+                    "m5_codex_containment_result_invalid",
+                )
+
+    def test_broken_input_has_an_input_specific_failure(self) -> None:
+        """M5-CDX-GATE-001: a closed selector reader is reported exactly."""
+
+        with self.assertRaises(M5CodexContainmentErrorV1) as raised:
+            self._collect_prefilled_channels(
+                result_payload=_driver_result_payload("passed"),
+                trace_payload=b"safe trace",
+                break_input=True,
+            )
+
+        self.assertEqual(
+            str(raised.exception),
+            "m5_codex_containment_input_channel_invalid",
+        )
+
+    def test_driver_returncode_and_result_state_matrix_is_closed(self) -> None:
+        """M5-CDX-GATE-001: only three exact rc/state pairs are meaningful."""
+
+        cases = (
+            (
+                "unavailable",
+                3,
+                M5CodexContainmentUnavailableV1,
+                "m5_codex_containment_provider_unavailable",
+            ),
+            (
+                "failed",
+                2,
+                M5CodexContainmentErrorV1,
+                "m5_codex_containment_operation_failed",
+            ),
+            (
+                "failed",
+                0,
+                M5CodexContainmentErrorV1,
+                "m5_codex_containment_driver_status_invalid",
+            ),
+            (
+                "passed",
+                2,
+                M5CodexContainmentErrorV1,
+                "m5_codex_containment_driver_status_invalid",
+            ),
+            (
+                "passed",
+                3,
+                M5CodexContainmentErrorV1,
+                "m5_codex_containment_driver_status_invalid",
+            ),
+            (
+                "failed",
+                4,
+                M5CodexContainmentErrorV1,
+                "m5_codex_containment_driver_status_invalid",
+            ),
+        )
+        for state, returncode, error_type, code in cases:
+            with self.subTest(state=state, returncode=returncode):
+                with self.assertRaises(error_type) as raised:
+                    self._collect_prefilled_channels(
+                        result_payload=_driver_result_payload(state),
+                        trace_payload=b"safe trace",
+                        returncode=returncode,
+                    )
+                self.assertEqual(str(raised.exception), code)
+
+    def test_result_and_trace_can_finish_in_either_order(self) -> None:
+        """M5-CDX-GATE-001: channel settlement is completion-order independent."""
+
+        result_payload = _driver_result_payload("passed")
+        trace_payload = b"safe trace"
+        source = (
+            "import os,sys,time\n"
+            "input_fd,result_fd,trace_fd=map(int,sys.argv[1:4])\n"
+            "result=bytes.fromhex(sys.argv[4])\n"
+            "trace=bytes.fromhex(sys.argv[5])\n"
+            "order=sys.argv[6]\n"
+            "first=(result_fd,result) if order=='result' else (trace_fd,trace)\n"
+            "second=(trace_fd,trace) if order=='result' else (result_fd,result)\n"
+            "os.write(first[0],first[1]); os.close(first[0])\n"
+            "time.sleep(0.1)\n"
+            "os.write(second[0],second[1]); os.close(second[0])\n"
+            "while os.read(input_fd,65536): pass\n"
+        )
+        for order in ("result", "trace"):
+            with self.subTest(order=order):
+                input_reader, input_writer = _open_private_channel()
+                result_reader, result_writer = _open_private_channel()
+                trace_reader, trace_writer = _open_private_channel()
+                process: subprocess.Popen[bytes] | None = None
+                try:
+                    process = subprocess.Popen(
+                        [
+                            "/usr/bin/python3",
+                            "-I",
+                            "-c",
+                            source,
+                            str(input_reader),
+                            str(result_writer),
+                            str(trace_writer),
+                            result_payload.hex(),
+                            trace_payload.hex(),
+                            order,
+                        ],
+                        cwd="/",
+                        env={"LANG": "C.UTF-8"},
+                        stdin=subprocess.DEVNULL,
+                        stdout=subprocess.DEVNULL,
+                        stderr=subprocess.DEVNULL,
+                        pass_fds=(input_reader, result_writer, trace_writer),
+                        shell=False,
+                        start_new_session=True,
+                    )
+                    os.close(input_reader)
+                    input_reader = -1
+                    os.close(result_writer)
+                    result_writer = -1
+                    os.close(trace_writer)
+                    trace_writer = -1
+                    owned_input_writer = input_writer
+                    input_writer = -1
+
+                    returncode, observed_result, observed_trace = (
+                        _collect_driver_channels(
+                            process,
+                            input_descriptor=owned_input_writer,
+                            input_payload=b"selection",
+                            result_descriptor=result_reader,
+                            trace_descriptor=trace_reader,
+                        )
+                    )
+
+                    self.assertEqual(returncode, 0)
+                    self.assertEqual(observed_result, result_payload)
+                    self.assertEqual(observed_trace, trace_payload)
+                finally:
+                    if process is not None and process.poll() is None:
+                        try:
+                            os.killpg(process.pid, signal.SIGKILL)
+                        except OSError:
+                            pass
+                        try:
+                            process.wait(timeout=5)
+                        except subprocess.TimeoutExpired:
+                            pass
+                    for descriptor in (
+                        input_reader,
+                        input_writer,
+                        result_reader,
+                        result_writer,
+                        trace_reader,
+                        trace_writer,
+                    ):
+                        if descriptor >= 0:
+                            try:
+                                os.close(descriptor)
+                            except OSError:
+                                pass
+
+    def test_all_late_channels_share_one_five_second_deadline(self) -> None:
+        """M5-CDX-GATE-001: three late channels consume one bounded window."""
+
+        input_reader, input_writer = _open_private_channel()
+        result_reader, result_writer = _open_private_channel()
+        trace_reader, trace_writer = _open_private_channel()
+        process: subprocess.Popen[bytes] | None = None
+        started = 0.0
+        try:
+            capacity = fcntl.fcntl(input_writer, fcntl.F_SETPIPE_SZ, 4096)
+            input_payload = b"S" * (capacity + 1)
+            process = subprocess.Popen(
+                [
+                    "/usr/bin/python3",
+                    "-I",
+                    "-c",
+                    (
+                        "import os,time\n"
+                        "if os.fork()==0:\n"
+                        "    time.sleep(8)\n"
+                        "    os._exit(0)\n"
+                        "os._exit(0)\n"
+                    ),
+                ],
+                cwd="/",
+                env={"LANG": "C.UTF-8"},
+                stdin=subprocess.DEVNULL,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                pass_fds=(input_reader, result_writer, trace_writer),
+                shell=False,
+                start_new_session=True,
+            )
+            os.close(input_reader)
+            input_reader = -1
+            os.close(result_writer)
+            result_writer = -1
+            os.close(trace_writer)
+            trace_writer = -1
+            owned_input_writer = input_writer
+            input_writer = -1
+            started = time.monotonic()
+
+            with self.assertRaises(M5CodexContainmentErrorV1) as raised:
+                _collect_driver_channels(
+                    process,
+                    input_descriptor=owned_input_writer,
+                    input_payload=input_payload,
+                    result_descriptor=result_reader,
+                    trace_descriptor=trace_reader,
+                )
+
+            elapsed = time.monotonic() - started
+            self.assertEqual(
+                str(raised.exception),
+                "m5_codex_containment_result_channel_invalid",
+            )
+            self.assertGreaterEqual(elapsed, 4.5)
+            self.assertLess(elapsed, 7.5)
+        finally:
+            if process is not None:
+                try:
+                    os.killpg(process.pid, signal.SIGKILL)
+                except OSError:
+                    pass
+                if process.poll() is None:
+                    try:
+                        process.wait(timeout=5)
+                    except subprocess.TimeoutExpired:
+                        pass
+            for descriptor in (
+                input_reader,
+                input_writer,
+                result_reader,
+                result_writer,
+                trace_reader,
+                trace_writer,
+            ):
+                if descriptor >= 0:
+                    try:
+                        os.close(descriptor)
+                    except OSError:
+                        pass
+
     def test_private_channel_has_no_path_and_preserves_real_kernel_bytes(self) -> None:
         """M5-CDX-GATE-001: private transport is an inherited kernel channel."""
 
@@ -621,7 +1190,7 @@ class M5CodexContainmentPrivateChannelTests(unittest.TestCase):
         payload = (
             Path("/proc/cpuinfo").read_bytes() + Path("/proc/self/maps").read_bytes()
         )[:8192]
-        result_payload = Path("/proc/sys/kernel/random/boot_id").read_bytes()
+        result_payload = _driver_result_payload("passed")
         input_reader, input_writer = _open_private_channel()
         result_reader, result_writer = _open_private_channel()
         trace_reader, trace_writer = _open_private_channel()
@@ -978,7 +1547,9 @@ class M5CodexContainmentPrivateChannelTests(unittest.TestCase):
             self.assertTrue(callable(snapshot), "profile snapshot seam is required")
             self.assertTrue(callable(open_root), "pinned root seam is required")
             self.assertTrue(callable(open_target), "inode target seam is required")
-            self.assertTrue(callable(validate_target), "post-scan validator is required")
+            self.assertTrue(
+                callable(validate_target), "post-scan validator is required"
+            )
 
             before = snapshot(managed)
             root_descriptor, root_identity = open_root(managed)
