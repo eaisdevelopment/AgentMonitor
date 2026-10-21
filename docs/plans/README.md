@@ -139,8 +139,13 @@ Directories are created when an approved planning assignment begins. Drafts stat
   its 1.8.0 amendment retains the 1.7.0 alert browser-proof termination fix and
   exact fourth rollover while adding only the bounded P02 mobile-header,
   revocation-oracle, and password-session-race corrections exposed by the
-  required canonical gate; implementation and live proof remain pending, and
-  OpenAI API billing remains V1-M7.
+  required canonical gate. Approved 1.9.0 retains that completed fourth
+  rollover at exact `d81afab`, corrects only the quota witness's verified
+  browser-record to five-field policy projection, and authorizes one exact
+  fifth evidence-preserving rollover. The projection and fifth-rollover policy
+  are local Green; the fifth live transition, refreshed prerequisites,
+  `AUTO-M5-EXIT`, and owner acceptance remain Not Run. OpenAI API billing
+  remains V1-M7.
 - [Live agent account association](integration/live-agent-account-association-change.md):
   explicit manual confirmation, guarded current terminal details and private
   revisioned settings; the named owner-authorized live link/persistence gate Passed.

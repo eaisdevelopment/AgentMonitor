@@ -264,7 +264,7 @@ blockers = []
 id = "AUTO-M5-QUOTA-WITNESS"
 owner = "PLAN-INT"
 status = "operational"
-scope = "owner-assisted authoritative Codex /usage reconciliation for every verified M5 account, bound to exact API/history/DOM values, current collection lineage, unchanged Registry state, and the selected service's exact clean source revision"
+scope = "owner-assisted authoritative Codex /status reconciliation for every verified M5 account, bound to exact API/history/DOM values, current collection lineage, unchanged Registry state, and the selected service's exact clean source revision"
 implementation_command = ["backend/.venv/bin/python", "-m", "tools.automation.implementations.m5_codex_quota_witness"]
 blockers = []
 

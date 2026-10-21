@@ -1,15 +1,17 @@
 # M05 capacity module
 
 Status: **M4 capacity delivery implemented and its standalone milestone gate
-Passed; the approved M5 complete-scope lifecycle correction is local
+Passed; the focused M5 1.9 quota-witness policy projection is local
 deterministic Green**. The focused increments below publish current native
 metadata, the M05 30%/15% health policy, revisioned scope coverage, pure
 burn/forecast derivations, current alert facts, and typed existing commit
 notice delivery. Their later real integration, post-upgrade migration, fleet,
 browser, and canonical results are recorded in the
-[M4 completion evidence](../evidence/m4-completion.md). The corrected M5 service
-activation and fresh genuine complete collection are Not Run. Full M05
-master-plan and V1 release acceptance are not claimed.
+[M4 completion evidence](../evidence/m4-completion.md). The fourth M5 service
+rollover activated exact `d81afab`; its owner-outcome and alert witnesses are
+current, but the authoritative quota witness created no file after the real
+policy-shape Red. The approved fifth rollover and `AUTO-M5-EXIT` are Not Run.
+Full M05 master-plan and V1 release acceptance are not claimed.
 
 Owner: `PLAN-M05`
 Contracts: compatible `capacity.v1` extensions to
@@ -233,6 +235,26 @@ was migrated or provider profile modified in this assignment; testing used a
 private temporary SQLite backup of genuine owner data, removed afterward.
 
 ## Operations and incomplete acceptance
+
+### M5 quota-witness policy projection
+
+The real `AUTO-M5-QUOTA-WITNESS` attempt against exact `d81afab` completed its
+authenticated API, rendered DOM, retained-history, Registry, identity,
+collection-lineage, and zero-mutation checks. Final reconciliation then
+returned `m5_quota_witness_input_invalid` and created no private witness. The
+validated browser row carries `current_observation_id` solely to bind the
+current reading to immutable history, while the existing quota reconciliation
+policy admits exactly five provider-neutral quota fields.
+
+The approved 1.9 correction retains that opaque observation ID through the
+independently rebuilt browser/history digest, then returns the already
+validated five-field projection to quota policy. Its focused Red failed at the
+closed reconciliation boundary; Green passed the new shaping case and the two
+strict rejection variants, and the complete quota-witness file passed `27`
+tests. Ruff, format, and strict mypy also passed. No Capacity contract, public
+API, schema, migration, provider payload, dependency, persistence rule, or
+quota value semantics changed. The fifth service rollover is a separate
+revision-binding operation and remains locally Green but live Not Run.
 
 Writable startup requires the reviewed migration catalog, compatible schema,
 SQLite policy, integrity check, and foreign-key check. Receipt conflicts,

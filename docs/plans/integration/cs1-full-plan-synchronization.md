@@ -903,3 +903,42 @@ Intermediate; implementation Green, clean candidate, live fourth rollover,
 refreshed prerequisites, `AUTO-M5-EXIT`, and owner acceptance remain Not Run.
 
 Plan snapshot SHA-256: `51945b23d1906200e29627580ac37eaec0c6b15f47ce812fcb15d9a0f4ee6a8a`
+
+## 2026-10-21 approved M5 1.9.0 quota-projection rebind
+
+The synchronized Draft snapshot now binds PLAN-DEP/D01 to owner-approved M5
+focused plan 1.9.0. The completed fourth rollover preserved the `e066d7e`
+transition and activated exact clean detached revision
+`d81afab9e5b1c1dbdb690f390e77cee66eba5437`. Current owner outcomes,
+scheduled collection lineage, and the genuine alert witness passed for that
+service. The real quota-witness run completed authenticated API, DOM,
+retained-history, Registry, identity, lineage, and zero-mutation proof, then
+returned `m5_quota_witness_input_invalid` at the strict policy-record boundary
+and created no quota witness.
+
+The approved correction retains opaque `current_observation_id` through the
+browser/history digest and removes it only before the closed five-field quota
+reconciliation. Its focused cases and the complete 27-test quota-witness file
+are Green. The same approval adds one exact fifth evidence-preserving rollover
+from `d81afab` into fixed singleton parent
+`m5-service-activation-corrective-archive-d81afab`. The focused cases, all 43
+activation tests, dispatcher/catalog checks, static checks, and exhaustive
+73,728 transition plus 448 activation-decision comparisons are Green. The
+live fifth two-stage rollover remains Not Run.
+
+The current Codex operator surface is `/status`; the historical 2026-10-07
+discovery statement is retained with a dated correction, and the exact owner
+phrase `I CONFIRM CODEX USAGE` is unchanged. No public contract version,
+schema, migration, dependency, provider/scheduler behavior, UI/API behavior,
+or general deployment authority changed.
+
+Among synchronized baseline inputs, only the PLAN-DEP plan body, its generated
+contract-adoption digest, reviewed parallel-ownership digest, the bounded M5
+service-activation routine, the automation-standard description, and this
+exact plan snapshot changed. The other 19 canonical plan bodies and all
+canonical approval flags remain unchanged. M5 remains Intermediate;
+preactivation aggregate gates, the fifth live rollover, refreshed
+prerequisites, authoritative quota witness, `AUTO-M5-EXIT`, and owner
+acceptance remain Not Run.
+
+Plan snapshot SHA-256: `7e2540baa631414a0aa6647ce6d3b26385c0a00e52faa30d4739245e0bcd51a6`

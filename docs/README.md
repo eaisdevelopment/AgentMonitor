@@ -26,38 +26,24 @@ Current program state:
   organizations, six fresh post-restart quota/history lineages, the guarded
   current-process witness, and every required technical, browser, and local
   quality lane with zero skips and zero registry mutations.
-- **V1-M5:** implementation is **Intermediate**. Three corrective rollovers
-  preserve the completed `6bfa69d`, `0634451`, and `6d6e1aa` transitions in
-  fixed private archives, and the required rerun activated exact revision
-  `e066d7e` with real systemd, HTTP, authenticated-browser, Registry, database,
-  rollback, and receipt evidence. Refreshed owner outcomes, genuine
-  post-activation collections, and paginated current/history verification
-  passed for that service. A genuine alert then completed opening or reopening,
-  repeat, owner action, recovery, API, and browser presentation. Its browser
-  child emitted one valid proof but retained the CDP connection until the
-  180-second timeout, so `AUTO-M5-ALERT-WITNESS` blocked and wrote no witness.
-  The owner approved focused plan 1.8.0, which retains the bounded client
-  teardown and exact fourth rollover from `e066d7e` and adds the P02 mobile
-  header, revocation-oracle, password-session, and contained browser-runner
-  corrections. The runner policy passed 65 tests; each affected browser
-  scenario passed 30 consecutive first-attempt isolated runs; the complete P02
-  and two named security lanes passed; focused M5 automation passed 55 tests;
-  UI policy passed 16 tests; independent reviews were CLEAN; and
-  `AUTO-QUALITY` and `AUTO-BUILD` passed. Complete `AUTO-TEST` attempt one
-  retained a real Argon2 p95 failure of `0.27936251898063347` seconds at the
-  `0.25`-second ceiling under load average `32.08`; the focused low-contention
-  check then passed 2 tests. Attempt two passed 1361 backend tests but retained
-  a P02 `browser_output_invalid` failure from an out-of-scope systemd wrapper.
-  The scope audit restored the approved direct-child runner, rejected return
-  codes 2, 127, and -9, admitted a failure line only at exact code 1, and
-  received a CLEAN review.
-  The final `AUTO-TEST` passed operationally with 104 command tests, 2 Argon2
-  tests, `1361 passed, 37 skipped, 1 warning` backend, compatible 67-operation
-  OpenAPI, production build, 2 foundation browser tests, and the complete
-  P02/security/hostile-resource lanes. A clean candidate, live fourth rollover,
-  refreshed prerequisites, official quota, process and containment witnesses,
-  clean exact-revision `AUTO-M5-EXIT`, and owner acceptance are **Not Run**;
-  the canonical gate state remains `not_run`.
+- **V1-M5:** implementation is **Intermediate**. Four corrective rollovers
+  preserve the completed `6bfa69d`, `0634451`, `6d6e1aa`, and `e066d7e`
+  transitions in fixed private archives, and the fourth rerun activated exact
+  clean detached revision `d81afab` with real systemd, HTTP, authenticated
+  browser, Registry, database, rollback, and receipt proof. Owner outcomes,
+  fresh scheduled collection lineage, and a complete genuine alert lifecycle
+  plus `AUTO-M5-ALERT-WITNESS` are current for that service. The real
+  `AUTO-M5-QUOTA-WITNESS` attempt completed API, DOM, retained-history,
+  Registry, identity, lineage, and zero-mutation proof, then returned
+  `m5_quota_witness_input_invalid` at its strict five-field policy boundary and
+  created no file. Under owner-approved focused plan 1.9.0, the policy
+  projection correction passed the focused cases and all 27 quota-witness
+  tests; the fifth exact rollover policy passed all 43 activation tests plus
+  exhaustive transition and decision comparisons. The fifth live rollover,
+  refreshed revision-bound prerequisites, authoritative `/status` witness,
+  canonical process and containment evidence, clean exact-revision
+  `AUTO-M5-EXIT`, and owner acceptance are **Not Run**; the canonical gate
+  state remains `not_run`.
 - **V1-M6 through V1-M8:** Planned; their canonical gates have not run.
 
 The approved [M3 scope correction](evidence/m3-scope-correction-2026-10-02.md)
@@ -66,7 +52,7 @@ The [M3 current-gate receipt](evidence/m3-current-gate-receipt-2026-10-03.json)
 and owner disposition records close the blockers retained by the historical
 [M3 closure audit](evidence/m3-closure-audit-2026-10-01.md).
 Owner: Pavlo Sidelov <pavlo@sidelov.com>  
-Last substantive review: 2026-10-20
+Last substantive review: 2026-10-21
 
 This index is the entry point for product, architecture, engineering, and operations documentation. Requirements marked **Approved** reflect the project interview. Items marked **Discovery** require Milestone 0 evidence. Items marked **Deferred** are intentionally outside V1.
 

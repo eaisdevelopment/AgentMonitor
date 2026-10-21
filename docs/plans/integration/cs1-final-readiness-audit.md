@@ -869,3 +869,42 @@ transition, refreshed prerequisites, canonical exit, and owner acceptance
 remain Not Run. M5 therefore remains Intermediate with gate state `not_run`.
 
 Plan snapshot SHA-256: `51945b23d1906200e29627580ac37eaec0c6b15f47ce812fcb15d9a0f4ee6a8a`
+
+## 2026-10-21 approved M5 1.9.0 quota-projection readiness rebind
+
+The current snapshot records the owner-approved M5 focused plan 1.9.0 and its
+bounded PLAN-DEP/D01 fifth-rollover exception. The fourth canonical rollover
+already preserved `e066d7e` and activated exact clean detached `d81afab`.
+Current owner outcomes and the source-proven alert witness passed for that
+service. The real quota-witness attempt passed its authenticated API, DOM,
+history, Registry, identity, lineage, and zero-mutation boundaries, then
+failed closed as `m5_quota_witness_input_invalid` and created no witness.
+
+The defect was a private record-shape boundary: required opaque
+`current_observation_id` had completed browser/history binding but was still
+present when strict five-field quota policy ran. The approved implementation
+projects the already verified record only after independent history-digest
+validation. Focused Red/Green evidence and the complete 27-test quota-witness
+file are recorded. No quota values, freshness, owner confirmation, Registry,
+DOM, history, permission, or create-once condition was relaxed.
+
+The correction requires a new exact revision, so the approval permits one
+fifth evidence-preserving rollover from completed `d81afab` into fixed parent
+`m5-service-activation-corrective-archive-d81afab`, with the existing four
+archives retained as an unchanged ordered prefix. Four focused cases, all 43
+activation tests, dispatcher/catalog checks, static checks, and exhaustive
+73,728 transition plus 448 decision comparisons passed. This is local policy
+and custody evidence; neither live fifth invocation has run. No sixth
+rollover, public contract/schema, dependency, provider/scheduler operation,
+UI/API change, or general deployment authority is introduced.
+
+The synchronized controls also use the installed Codex 0.160 `/status` view
+for authoritative rate-limit readings while retaining the historical
+discovery statement and exact attestation phrase `I CONFIRM CODEX USAGE`.
+Planning is ready for the bounded correction. The aggregate preactivation
+gates, clean corrected candidate, fifth live transition, refreshed
+prerequisites, authoritative quota witness, canonical exit, and owner
+acceptance remain Not Run. M5 remains Intermediate with canonical gate state
+`not_run`.
+
+Plan snapshot SHA-256: `7e2540baa631414a0aa6647ce6d3b26385c0a00e52faa30d4739245e0bcd51a6`

@@ -67,7 +67,7 @@ This addendum is the sole exception to PLAN-DEP/D01's Draft implementation
 prohibition and exclusive native unit-lifecycle ownership. The active owner's
 objective, **fully implement M5 with our SDLC and runbook**, authorizes PLAN-INT
 to implement and execute only `AUTO-M5-SERVICE-ACTIVATE` under the approved
-[V1-M5 Codex slice plan 1.8.0](../../integration/m5-codex-slice-change.md).
+[V1-M5 Codex slice plan 1.9.0](../../integration/m5-codex-slice-change.md).
 That focused plan is the detailed authority and test specification. This
 cross-reference resolves the ownership conflict before production code.
 
@@ -162,6 +162,24 @@ the same single pending fourth rollover from `e066d7e`, the same fixed archive
 parent and four-archive validation, and every existing transition, rollback,
 browser-preservation, and stop condition. It adds no fifth rollover, native
 service behavior, general deployment authority, or `AUTO-DEPLOY` scope.
+
+The linked M5 plan now also contains the **owner-approved 1.9.0 amendment
+dated 2026-10-21**. The fourth canonical rollover preserved the completed
+`e066d7e1ba0124f0454c07002ea7b2ad0817d6b9` transition and activated exact
+clean detached revision `d81afab9e5b1c1dbdb690f390e77cee66eba5437`.
+The real quota-witness run completed its authenticated API, DOM, history,
+Registry, identity, collection-lineage, and zero-mutation proof, then rejected
+the six-field browser record at the closed five-field quota-policy boundary as
+`m5_quota_witness_input_invalid`; it created no witness. Version 1.9.0 permits
+only the test-first policy projection correction and one fifth
+evidence-preserving rollover from `d81afab` into the eventual reviewed clean
+candidate. It adds fixed owner-only singleton parent
+`m5-service-activation-corrective-archive-d81afab` and requires the earlier
+four archives as an unchanged ordered prefix before every mutation. All
+existing two-stage rerun, rollback, browser-preservation, evidence-custody,
+and stop conditions remain binding. It adds no sixth rollover, provider or
+scheduler behavior, native service capability, general deployment authority,
+or `AUTO-DEPLOY` scope.
 
 The final candidate worktree must have no symbolic branch reference. Activation
 and every subsequent M5 archive, owner-outcome, alert-witness, quota-witness and

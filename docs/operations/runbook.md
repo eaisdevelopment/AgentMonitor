@@ -244,7 +244,7 @@ from the documentation index.
 
 `AUTO-M5-EXIT` is the sole V1-M5 completion command. It is finite and
 noninteractive. The owner completes Codex browser authentication, the
-authoritative `/usage` reconciliation, and the real capacity-alert lifecycle
+authoritative `/status` reconciliation, and the real capacity-alert lifecycle
 before running it. The command never initiates login, acknowledges or snoozes
 an alert, waits for a natural recovery, switches an agent account, or reads the
 default Codex profile.
@@ -309,7 +309,7 @@ proven: stop M5 evidence collection, preserve the journal and both runtimes,
 and diagnose the user unit. Never edit the journal, unit backup, or trusted
 runtime to force another result.
 
-Exactly four revision-pinned corrective rollover modes are authorized. The
+Exactly five revision-pinned corrective rollover modes are authorized. The
 first preserves the completed
 `6bfa69dc13cc9e1ded9c6baa6e803cb99bc8c20b` transition below
 `<owner-data-root>/m5-service-activation-corrective-archive/`. The second
@@ -325,12 +325,16 @@ The fourth preserves the completed
 `e066d7e1ba0124f0454c07002ea7b2ad0817d6b9` transition below the distinct fixed
 singleton parent
 `<owner-data-root>/m5-service-activation-corrective-archive-e066d7e/`.
+The fifth preserves the completed
+`d81afab9e5b1c1dbdb690f390e77cee66eba5437` transition below the distinct fixed
+singleton parent
+`<owner-data-root>/m5-service-activation-corrective-archive-d81afab/`.
 Each archive entry name binds its source revision and activation-receipt
 digest. No mode accepts a different source revision, archive parent, or
 additional entry.
 
 The requested new candidate must differ from the pinned trusted revision and
-all four completed corrective revisions above. The command checks those reserved
+all five completed corrective revisions above. The command checks those reserved
 revisions before any service restoration, archive move, or transition-state
 write; a reserved candidate blocks without changing the existing service or
 evidence.
@@ -586,7 +590,7 @@ the complete public Registry graph before and after its checks and rejects an
 incomplete, changing, or over-200 account or organization graph.
 
 For every displayed private alias and quota window, open that account's
-official Codex `/usage` view and enter only:
+official Codex `/status` view and enter only:
 
 1. the displayed whole percentage left, from `0` through `100`;
 2. the displayed reset as a UTC RFC 3339 timestamp ending in `Z`, or `none`;
@@ -624,7 +628,10 @@ provider payloads, or content.
 The private browser proof keeps only the opaque current observation ID needed
 to bind each safe window row to retained history; it discards rendered display
 text. The Python writer independently rebuilds the same canonical history
-material and accepts `history_value_set_digest` only when it matches.
+material and accepts `history_value_set_digest` only when it matches. After
+that history binding succeeds, the writer removes `current_observation_id` and
+passes only the closed five provider-neutral quota fields into policy
+reconciliation.
 
 The fixed file is an owner-owned, regular, single-link, no-symlink `0600` file
 of at most 16 KiB below the resolved owner-owned `0700` root. The command

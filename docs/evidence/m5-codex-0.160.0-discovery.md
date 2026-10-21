@@ -32,6 +32,18 @@ The official OpenAI documentation establishes these current facts:
 No undocumented/private endpoint, browser cookie, traffic interception, or
 provider-file parser is selected.
 
+### 2026-10-21 operator-surface correction
+
+The dated 2026-10-07 source-review statement above is retained as historical
+discovery evidence. Direct inspection of the installed admitted Codex CLI
+`0.160.0` later established that its interactive `/status` view displays the
+current account rate-limit windows used for authoritative M5 reconciliation;
+`/usage` opens analytics or billing settings where available. Current M5
+operator instructions therefore use `/status`. This presentation correction
+does not change the admitted `account/rateLimits/read` app-server operation,
+schema digest, normalized provider contract, or the exact owner attestation
+phrase `I CONFIRM CODEX USAGE`.
+
 ## Real installed-system observations
 
 The exact executable returned a bounded `codex-cli 0.160.0` version banner and

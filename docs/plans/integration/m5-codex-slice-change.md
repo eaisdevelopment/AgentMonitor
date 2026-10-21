@@ -92,7 +92,7 @@ owner-outcome file and creates
 new page in the authenticated shared loopback browser proves each verified
 account's current identity, collection lineage, exact API, DOM and retained
 history quota values, and zero browser mutations. The owner reads only whole
-percentages and reset facts from each account's official Codex `/usage` view;
+percentages and reset facts from each account's official Codex `/status` view;
 the routine requires exact percentages and semantic roles, reset agreement at
 the displayed second/minute/hour/day precision, and at most 300 seconds between
 the provider observation and AgentMonitor collection. It records only counts
@@ -1281,7 +1281,7 @@ writes its private create-once receipt. The gate must prove:
    the fixed owner-only outcome file and bound by digest/count only;
 3. current genuine quota plus matching history lineage for every available
    monitored account, reconciled through `AUTO-M5-QUOTA-WITNESS` with Codex's
-   official `/usage` view at exact whole percentage, displayed reset precision,
+   official `/status` view at exact whole percentage, displayed reset precision,
    and at most 300 seconds of observation/collection skew;
 4. five to six representative real Codex processes outside AgentMonitor's
    managed-profile subtree, exact independently reread PID/start/executable
@@ -1316,7 +1316,7 @@ for `AUTO-M5-EXIT`. Broader cross-provider release acceptance remains a V1-M8
 contribution and is not credited by this gate.
 
 The gate is finite and noninteractive. Owner authentication, owner outcomes,
-authoritative `/usage` reconciliation, and the capacity-alert opening, action,
+authoritative `/status` reconciliation, and the capacity-alert opening, action,
 and recovery witness for the fresh occurrence happen beforehand through the
 running application
 and write bounded owner-only prerequisite receipts below the same data root.
