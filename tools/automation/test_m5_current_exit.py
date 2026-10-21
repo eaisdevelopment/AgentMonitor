@@ -498,9 +498,9 @@ def test_catalog_selects_exact_m5_gate_and_closed_lanes() -> None:
     assert auto_m5_current_exit.STORY_NODE_TEST_INVENTORY_SHA256 == (
         "556bfd17af977e243e3a9c6c9b1372382cb1eaacfc46dd5136af736c4c76b41b"
     )
-    assert auto_m5_current_exit.STORY_PYTEST_TEST_COUNT == 471
+    assert auto_m5_current_exit.STORY_PYTEST_TEST_COUNT == 478
     assert auto_m5_current_exit.STORY_PYTEST_TEST_INVENTORY_SHA256 == (
-        "72c3c66589deb0196fe32b7681fdfb83dc0ddc830cdf413ec2bbeaff4d4b05aa"
+        "ba070544ac4f8e7aabe53492b6afa91f74d8b1c149bd20134b7f19badfa0df9c"
     )
     assert "tools/git/test_preflight.py" in STORY_TEST_PATHS
     assert STORY_AUTOMATION_TEST_IDS == (
