@@ -1010,11 +1010,21 @@ def _validated_browser_records(
             or _digest(history_values) != proof["history_value_set_digest"]
         ):
             raise ValueError
+        owner_records = [
+            {
+                "account_id": record["account_id"],
+                "alias": record["alias"],
+                "collection_run_id": record["collection_run_id"],
+                "collected_at": record["collected_at"],
+                "windows": policy_record["windows"],
+            }
+            for record, policy_record in zip(records, policy_records, strict=True)
+        ]
         sanitized: dict[str, str | int] = {
             key: cast(str, proof[key]) for key in digest_keys
         }
         sanitized["window_count"] = proof["window_count"]
-        return records, sanitized
+        return owner_records, sanitized
     except (KeyError, TypeError, ValueError, M5CodexQuotaWitnessErrorV1):
         raise M5CodexQuotaWitnessErrorV1(
             "m5_quota_witness_browser_proof_invalid"

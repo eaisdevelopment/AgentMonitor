@@ -291,7 +291,9 @@ def test_reconciliation_is_closed_and_rejects_missing_or_duplicate_windows() -> 
         if mutation == "extra":
             owner[0]["extra"] = True
         elif mutation == "missing":
-            owner[0]["windows"].pop()  # type: ignore[union-attr]
+            owner_windows = owner[0]["windows"]
+            assert isinstance(owner_windows, list)
+            owner_windows.pop()
         elif mutation == "duplicate":
             owner[0]["windows"][1] = deepcopy(owner[0]["windows"][0])  # type: ignore[index]
         elif mutation == "fractional":
@@ -397,6 +399,73 @@ def test_browser_proof_binds_the_running_service_source_revision() -> None:
         )
 
 
+def test_validated_browser_records_are_closed_for_owner_reconciliation() -> None:
+    records, _sanitized = _validated_browser_records(
+        _browser_proof(),
+        revision=REVISION,
+        service_pid=321,
+        service_start_time_ticks=654,
+        verified_account_ids=frozenset({"account-one"}),
+        now=datetime(2026, 10, 7, 12, 5, tzinfo=UTC),
+    )
+    policy_records = [
+        {
+            "account_id": record["account_id"],
+            "collection_run_id": record["collection_run_id"],
+            "collected_at": record["collected_at"],
+            "windows": record["windows"],
+        }
+        for record in records
+    ]
+
+    reconciliation = reconcile_quota_observations_v1(policy_records, _owner_records())
+
+    assert reconciliation.account_count == 1
+    assert reconciliation.window_count == 2
+    for record in records:
+        windows = record["windows"]
+        assert isinstance(windows, list)
+        for window in windows:
+            assert isinstance(window, dict)
+            assert set(window) == {
+                "window_key",
+                "semantic_role",
+                "remaining_percent",
+                "reset_at",
+                "reset_precision",
+            }
+
+
+@pytest.mark.parametrize("mutation", ("missing_observation_id", "extra_field"))
+def test_browser_proof_window_schema_remains_closed(mutation: str) -> None:
+    proof = _browser_proof()
+    records = proof["records"]
+    assert isinstance(records, list)
+    record = records[0]
+    assert isinstance(record, dict)
+    windows = record["windows"]
+    assert isinstance(windows, list)
+    window = windows[0]
+    assert isinstance(window, dict)
+    if mutation == "missing_observation_id":
+        window.pop("current_observation_id")
+    else:
+        window["browser_only_extra"] = "unexpected"
+
+    with pytest.raises(
+        M5CodexQuotaWitnessErrorV1,
+        match="m5_quota_witness_browser_proof_invalid",
+    ):
+        _validated_browser_records(
+            proof,
+            revision=REVISION,
+            service_pid=321,
+            service_start_time_ticks=654,
+            verified_account_ids=frozenset({"account-one"}),
+            now=datetime(2026, 10, 7, 12, 5, tzinfo=UTC),
+        )
+
+
 @pytest.mark.parametrize("mutation", ("observation_id", "history_digest"))
 def test_browser_proof_recomputes_history_digest_from_current_observations(
     mutation: str,
@@ -442,17 +511,25 @@ def test_browser_proof_rejects_booleans_for_integer_fields(field: str) -> None:
     elif field == "service_start_time_ticks":
         service_start_time_ticks = 1
     elif field == "window_count":
-        record = proof["records"][0]  # type: ignore[index]
-        record["windows"] = record["windows"][:1]  # type: ignore[index]
+        proof_records = proof["records"]
+        assert isinstance(proof_records, list)
+        record = proof_records[0]
+        assert isinstance(record, dict)
+        record_windows = record["windows"]
+        assert isinstance(record_windows, list)
+        record["windows"] = record_windows[:1]
         policy_record = dict(record)
         policy_record.pop("alias")
+        policy_windows = policy_record["windows"]
+        assert isinstance(policy_windows, list)
         policy_record["windows"] = [
             {
                 key: value
                 for key, value in window.items()
                 if key != "current_observation_id"
             }
-            for window in policy_record["windows"]  # type: ignore[union-attr]
+            for window in policy_windows
+            if isinstance(window, dict)
         ]
         values, _indexed = _agent_records([policy_record])
         proof["quota_value_set_digest"] = _digest(values)
