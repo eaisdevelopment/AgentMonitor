@@ -3,8 +3,8 @@
 - Evidence ID: `M5-CDX-IMPLEMENTATION-2026-10-08`
 - Module/plan/increment: A02 Codex provider adapter, root-owned V1-M5
   integration, and managed-profile effective-containment correction under
-  approved focused plan version `1.10.0`, plus the pending draft 1.11.0 live-
-  containment correction, Stories `ST-CDX-001..005`.
+  approved focused plan versions `1.10.0` and `1.11.0`, Stories
+  `ST-CDX-001..005`.
 - Requirements/acceptance IDs:
   `FR-ACC-001/004..006`, `FR-AUTH-001/002/004..006`,
   `FR-QUOTA-001..006`, `FR-COL-003..008`, `FR-HIST-001/002`,
@@ -67,9 +67,9 @@
   successful provider app-server `chmod` calls inside the selected managed
   profile and none under default roots, but did not verify the path arguments
   through the closed mutator policy. Passing authenticated containment remains
-  pending. Draft plan 1.11.0 proposes the exact inode-bound proof and safe
-  channel diagnostics; it has no implementation authority until owner
-  approval. The fifth live rollover, refreshed prerequisites, authoritative
+  pending. Owner-approved plan 1.11.0 adds the exact inode-bound proof and safe
+  channel diagnostics; implementation is pending. The fifth live rollover,
+  refreshed prerequisites, authoritative
   `/status` witness, `AUTO-M5-EXIT`, and final owner acceptance are **Not Run**.
   This record is not milestone acceptance.
 
@@ -77,12 +77,12 @@ The primary production owner is A02 for provider behavior under
 `backend/src/agentmonitor/adapters/providers/codex/**`. Root integration owns
 composition, Registry/Collection/Capacity/Runtime/Alerting coordination, API,
 UI, automation, and live closure. P02 owns the React shell, styles, and browser
-runner correction. The focused approved scope is plan `1.10.0`;
+runner correction. The current focused approved scope is plan `1.11.0`;
 its [V1-M5 Codex slice](../plans/integration/m5-codex-slice-change.md) retains
 all earlier corrections and the completed fourth rollover while adding only
-effective containment for provider-created descendants below the private root
-chain. It folds that correction into the already approved, unrun fifth
-evidence-preserving rollover.
+the inode-bound idempotent `chmod(..., 0700)` proof and safe channel diagnostics
+after 1.10 effective containment. It folds that correction into the already
+approved, unrun fifth evidence-preserving rollover.
 
 ## Contract-impact assessment
 
@@ -175,10 +175,9 @@ evidence-preserving rollover.
   confinement, receipt schema, and public behavior remain unchanged. No public
   contract, API, UI, database, migration, provider adapter, configuration,
   dependency, license, or ADR changed.
-- Draft plan 1.11.0 proposes only private containment-verifier policy and safe
-  diagnostic changes for the observed inode-bound `chmod(..., 0700)` pattern.
-  It changes no public contract or provider operation and has no implementation
-  authority until owner approval.
+- Approved plan 1.11.0 changes only private containment-verifier policy and safe
+  diagnostic handling for the observed inode-bound `chmod(..., 0700)` pattern.
+  It changes no public contract or provider operation.
 - No database table or migration was added. Real tests migrate fresh
   file-backed SQLite databases through the existing `v1_0707` head.
 - No production or development dependency was added.
@@ -221,9 +220,9 @@ the clean-revision milestone gate.
 | `AC-LIVE-005`, `M5-CDX-COL/CAP` authoritative quota/history | Provider/DB/API/browser | Official Codex `/status`, fresh scheduled observations, current and retained history | Real witness Red; projection implementation Green | Current genuine lineage and all browser/API/history/Registry proofs completed against exact `d81afab`; final reconciliation returned `m5_quota_witness_input_invalid` and wrote no file. The focused correction and complete quota-witness file passed `27/27`. | The failure was the six-field browser/history record crossing the strict five-field quota-policy boundary. No authoritative witness pass is claimed. |
 | `AC-PROC-001..004`, `M5-CDX-RUN-001..008` representative processes | Linux/platform/browser | Five to six real Codex processes outside the managed-profile subtree | Available but canonical witness unrecorded | Six exact-version baseline Codex processes were alive during the d81 live work. | PID/start/executable reread, hierarchy/location, exclusion of managed children, and unresolved or owner-confirmed association remain required inside the canonical gate. |
 | `AC-ALERT-002`, `M5-CDX-ALERT-001..007` live lifecycle | DB/API/browser/provider | Genuine Codex capacity condition, fresh opening, repeated delivery, owner action, later source-proven recovery | Passed for the current d81 prerequisite | A fresh genuine lifecycle completed reopening, repeat, one owner acknowledgement, recovery, API/history/browser proof, and `AUTO-M5-ALERT-WITNESS` created the private current service-bound witness. | The witness is prerequisite evidence only and becomes stale after the approved fifth rollover. |
-| Authenticated managed-profile syscall containment | Linux/provider/security | Real authenticated managed Codex profile and `strace` | Failed against current `d81afab`; final candidate Not Run | Safe metadata and driver stages passed. Trace policy classified two successful provider app-server `chmod` calls inside the selected profile and zero default-root paths, then failed closed as `m5_codex_containment_path_mutator_unverifiable`. | No completion receipt was written. Draft 1.11 proposes the exact inode-bound `chmod(..., 0700)` proof and safe channel diagnostics; owner approval, passing containment, fifth activation, and the mandatory `AUTO-M5-EXIT` lane remain pending. |
+| Authenticated managed-profile syscall containment | Linux/provider/security | Real authenticated managed Codex profile and `strace` | Failed against current `d81afab`; final candidate Not Run | Safe metadata and driver stages passed. Trace policy classified two successful provider app-server `chmod` calls inside the selected profile and zero default-root paths, then failed closed as `m5_codex_containment_path_mutator_unverifiable`. | No completion receipt was written. Approved 1.11 adds the exact inode-bound `chmod(..., 0700)` proof and safe channel diagnostics; implementation, passing containment, fifth activation, and the mandatory `AUTO-M5-EXIT` lane remain pending. |
 | `M5-SVC-ACT-001..012`, `AUTO-M5-SERVICE-ACTIVATE` | Operations/service transition | Real user systemd manager, trusted persistent runtime, clean stable Git worktree, real HTTP and authenticated browser | First four rollover/activations Passed; fifth implementation local Green; live fifth Not Run | The fourth rollover preserved exact `e066d7e` and activated `d81afab`. Fifth-mode Red failed four focused cases because its constants were absent; Green passed those four, all `43` activation tests, Ruff/format/strict mypy, and exhaustive 73,728 transition plus 448 decision comparisons with zero mismatches. | This proves fifth-rollover policy and custody only. Its two live invocations target fixed parent `m5-service-activation-corrective-archive-d81afab` and remain Not Run. |
-| `M5-CDX-GATE-001..014`, canonical `AUTO-M5-EXIT` | Full local/live gate | Clean exact revision, selected running service, prerequisite receipts, all local gates with zero skips | Not Run | The quota projection, fifth-rollover policy, and focused 1.10 containment/current-exit cases are Green; the aggregate preactivation gates remain pending. Live mutator-path verification failed, draft 1.11 remains unapproved, no corrected candidate has completed the fifth live transition, and no final receipt exists. | Must run after an approved live-containment correction, the fifth rollover, and every refreshed prerequisite pass; only then can M5 completion be claimed. |
+| `M5-CDX-GATE-001..014`, canonical `AUTO-M5-EXIT` | Full local/live gate | Clean exact revision, selected running service, prerequisite receipts, all local gates with zero skips | Not Run | The quota projection, fifth-rollover policy, and focused 1.10 containment/current-exit cases are Green; the aggregate preactivation gates remain pending. Live mutator-path verification failed, approved 1.11 implementation is pending, no corrected candidate has completed the fifth live transition, and no final receipt exists. | Must run after the approved live-containment correction, the fifth rollover, and every refreshed prerequisite pass; only then can M5 completion be claimed. |
 | macOS compatibility | Platform | Real macOS host | Blocked | No real Mac available | Outside Linux-first M5 acceptance; remains visible for V1. |
 
 ## Red evidence
@@ -1118,9 +1117,9 @@ the attempt is **Failed**, creates no completion evidence, and cannot be
 treated as a containment pass. The first two attempts had already failed as
 `m5_codex_containment_private_channel_invalid` after an empty result channel;
 neither result is credited. The fifth service rollover remains **Not Run**.
-Draft plan 1.11.0 limits the proposed follow-up to inode-bound verification of
+Approved plan 1.11.0 limits the follow-up to inode-bound verification of
 the observed idempotent directory `chmod(..., 0700)` calls and distinct,
-sanitized private-channel failure classification. Owner approval is pending.
+sanitized private-channel failure classification. Implementation is pending.
 
 ### Latest complete alert occurrence on retained history
 
@@ -1354,7 +1353,7 @@ result, or that the live selectors required by `AUTO-M5-EXIT` were available.
 | File-backed SQLite/migration | Passed for focused persistence and pagination | Fresh databases used the real migration chain and production repositories/commands. No M5 migration was needed. |
 | Production HTTP/generated client | Passed for focused account pagination and Codex API composition | Real loopback service, IAM/CSRF, versioned API, and generated client paths were exercised. `AUTO-BUILD` passed as an intermediate generated-artifact/build checkpoint; `AUTO-M5-EXIT` remains Not Run. |
 | Built Chrome UI | Passed for d81 prerequisite browser proofs; final corrected-candidate witness pending | The production frontend, authenticated shared Chrome, API, DOM, and retained history supplied the current d81 owner, alert, and quota-witness checks. The quota writer failed after those browser proofs at the policy-shape boundary and wrote no file. |
-| Linux process/filesystem | Passed for four service rollovers; containment remains incomplete and Failed live | Real systemd, worktrees, files, links, guards, archive custody, browser, and rollback were exercised through exact d81 activation. All `30` focused 1.10 non-live containment cases, including both required bounds cases, passed locally. A real authenticated attempt then failed as `m5_codex_containment_path_mutator_unverifiable`; draft 1.11 proposes the inode-bound `chmod(..., 0700)` proof and safe channel diagnostics. No containment pass is recorded. |
+| Linux process/filesystem | Passed for four service rollovers; containment remains incomplete and Failed live | Real systemd, worktrees, files, links, guards, archive custody, browser, and rollback were exercised through exact d81 activation. All `30` focused 1.10 non-live containment cases, including both required bounds cases, passed locally. A real authenticated attempt then failed as `m5_codex_containment_path_mutator_unverifiable`; approved 1.11 adds the inode-bound `chmod(..., 0700)` proof and safe channel diagnostics. No containment pass is recorded. |
 | Four live accounts | Passed for the current d81 prerequisite | `AUTO-M5-OWNER-OUTCOMES` passed against exact `d81afab` with four outcomes: three verified and one owner-unavailable. It must be archived and recollected after the approved fifth rollover. |
 | Authoritative live quota/history | Current lineage and browser proof Passed; official witness Failed | The real d81 quota-witness attempt reconciled owner readings from Codex `/status` through current API/DOM/history and then returned `m5_quota_witness_input_invalid` at the policy projection. It wrote no witness. The focused correction passed all `27` quota-witness tests. |
 | Genuine capacity alert lifecycle | Passed for the current d81 prerequisite | A genuine reopening, repeat, owner acknowledgement, newer recovery, API, rendered history, exact service revision, zero mutations, unchanged Registry, and browser proof passed `AUTO-M5-ALERT-WITNESS`. It becomes stale after the fifth rollover. |
@@ -1476,9 +1475,9 @@ revision manifest:
   `tools/automation/implementations/auto_m5_current_exit.py`, and
   `tools/automation/test_m5_current_exit.py`. Required negative count/path
   coverage and the resulting 480-test Story inventory rebind are complete.
-- Draft plan 1.11.0 currently changes documentation only. Its proposed future
+- Approved plan 1.11.0 currently changes documentation only. Its authorized
   production/test files are the same private containment implementation and
-  test surfaces; no production change is present under that unapproved draft.
+  test surfaces; implementation is pending.
 - Tests:
   Codex adapter, Registry, Collection, Capacity, Alerting, API, Operations,
   Linux runtime, release, client, pure UI, and built-browser suites under
@@ -1780,13 +1779,13 @@ current-exit cases, and an exact `480`-test Story inventory. The remaining
 canonical preactivation aggregate has not run. The real containment attempt
 then failed closed on two
 idempotent in-profile directory `chmod(..., 0700)` calls whose path arguments
-are outside the approved 1.10 policy. Draft plan 1.11.0 proposes the narrow
-inode-bound proof and safe channel diagnostics; owner approval is pending.
+are outside the approved 1.10 policy. Approved plan 1.11.0 adds the narrow
+inode-bound proof and safe channel diagnostics; implementation is pending.
 Authenticated containment remains incomplete.
 
 Before any completion or acceptance claim, the integration owner must:
 
-1. approve and implement the focused 1.11 live-containment correction under
+1. implement the approved focused 1.11 live-containment correction under
    Red/Green TDD, rebind the exact Story inventory, and finish all preactivation
    gates on one reviewed clean detached candidate;
 2. run both fifth service-activation invocations, preserving the five fixed

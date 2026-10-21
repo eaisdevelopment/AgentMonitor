@@ -45,9 +45,9 @@ Current program state:
   metadata and driver checks, then failed closed as
   `m5_codex_containment_path_mutator_unverifiable` while classifying two
   idempotent provider `chmod(..., 0700)` calls on one preexisting in-profile
-  directory and none under default roots. Draft plan 1.11 proposes the exact
-  inode-bound proof and safe channel diagnostics; implementation awaits owner
-  approval. The aggregate preactivation gates and passing containment remain
+  directory and none under default roots. Owner-approved plan 1.11 adds the
+  exact inode-bound proof and safe channel diagnostics; implementation is in
+  progress. The aggregate preactivation gates and passing containment remain
   pending. The fifth live rollover, refreshed revision-bound prerequisites,
   authoritative `/status` witness, clean exact-revision `AUTO-M5-EXIT`, and
   owner acceptance are **Not Run**; the canonical gate state remains

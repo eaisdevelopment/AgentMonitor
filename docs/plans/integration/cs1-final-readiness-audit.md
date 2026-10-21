@@ -929,9 +929,9 @@ attempt against current `d81afab` passed
 safe metadata and driver stages, then failed closed as
 `m5_codex_containment_path_mutator_unverifiable`; two successful provider
 `chmod` calls were classified inside the selected profile and none under
-default roots, but their closed path-argument proof did not pass. Draft plan
-1.11 proposes the exact inode-bound proof and safe channel diagnostics; it
-awaits owner approval. This is a Failed containment result, not completion
+default roots, but their closed path-argument proof did not pass. Owner-approved
+plan 1.11 adds the exact inode-bound proof and safe channel diagnostics;
+implementation is pending. This is a Failed containment result, not completion
 evidence.
 
 The synchronized controls bind the updated PLAN-DEP body, generated contract

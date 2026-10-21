@@ -151,9 +151,9 @@ Directories are created when an approved planning assignment begins. Drafts stat
   non-live containment cases, `66/66` current-exit cases, and an exact
   `480`-test Story inventory. A real attempt then failed closed at
   `m5_codex_containment_path_mutator_unverifiable` on two idempotent
-  in-profile `chmod(..., 0700)` calls. Draft 1.11.0 proposes only the exact
-  inode-bound proof and safe channel diagnostics; implementation awaits owner
-  approval. The aggregate preactivation gates and passing containment remain
+  in-profile `chmod(..., 0700)` calls. Owner-approved 1.11.0 adds only the exact
+  inode-bound proof and safe channel diagnostics; implementation is in
+  progress. The aggregate preactivation gates and passing containment remain
   pending; the fifth live transition, refreshed prerequisites, `AUTO-M5-EXIT`,
   and owner acceptance remain Not Run. OpenAI API billing
   remains V1-M7.

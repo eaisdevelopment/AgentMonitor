@@ -1,9 +1,8 @@
 # Change plan: executable V1-M5 Codex slice
 
-- Status: **Draft 1.11.0 for one exact inode-bound provider `chmod`
+- Status: **Approved 1.11.0 for one exact inode-bound provider `chmod`
   correction folded into the approved but not-yet-run fifth rollover**.
-- Plan version: `1.11.0`; owner approval: **pending**. Approved 1.10.0 remains
-  the current implementation authority.
+- Plan version: `1.11.0`; owner approval: 2026-10-21.
 - Safety correction: exact-version review proved that authenticated app-server
   queries may perform Codex's automatic credential refresh. The approved
   managed-auth lifecycle therefore classifies those queries as
@@ -32,10 +31,10 @@
   restriction. The owner's explicit 2026-10-21 approval of version 1.9.0 adds
   only the quota-witness correction and fifth rollover specified below. The
   owner's explicit 2026-10-21 approval of version 1.10.0 adds only the
-  managed-profile effective-containment correction specified below. Draft
-  version 1.11.0 proposes only the exact inode-bound provider `chmod` and
-  private-channel diagnostic correction specified below; it is not
-  implementation authority until the owner approves it. All
+  managed-profile effective-containment correction specified below. The
+  owner's explicit 2026-10-21 approval of version 1.11.0 adds only the exact
+  inode-bound provider `chmod` and private-channel diagnostic correction
+  specified below. All
   remaining A02, OpenAI API, PLAN-DEP/D01, and
   `AUTO-DEPLOY` lanes stay Draft or Blocked as already recorded.
 - Stories: `ST-CDX-001..005`.
@@ -1385,13 +1384,11 @@ client, UI, or provider-payload impact. M5 remains Intermediate until the
 already specified fifth rollover, refreshed prerequisites, corrected quota
 witness, and `AUTO-M5-EXIT` all pass.
 
-## Draft inode-bound idempotent chmod correction — 2026-10-21
+## Approved inode-bound idempotent chmod correction — 2026-10-21
 
-**Status: Draft 1.11.0; owner approval pending. Approved 1.10.0 remains the
-current implementation authority. This draft proposes one automation-only
+**Status: Approved 1.11.0. This approval authorizes one automation-only
 correction folded into the already authorized, not-yet-run fifth rollover from
-`d81afab9e5b1c1dbdb690f390e77cee66eba5437`. It authorizes no implementation
-and no sixth rollover until the owner explicitly approves this version.**
+`d81afab9e5b1c1dbdb690f390e77cee66eba5437`. It authorizes no sixth rollover.**
 
 ### Real-system Red and observed boundary
 
@@ -1539,7 +1536,7 @@ substitution by a separate untraced same-UID process. A future multi-user or
 hostile-same-UID deployment requires a separately approved kernel-mediated
 isolation design.
 
-This draft adds no new provider call or authorized side effect, login, profile
+This correction adds no new provider call or authorized side effect, login, profile
 copy, default-profile access, dependency, OS sandbox, API, UI, database,
 migration, schema, public contract, scheduler behavior, service transition,
 process control, gate bypass, or broader deployment authority. Landlock cannot

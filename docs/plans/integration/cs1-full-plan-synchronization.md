@@ -964,9 +964,9 @@ The canonical preactivation aggregate remains pending. A real attempt against
 the unchanged `d81afab` service passed safe metadata and driver stages, then failed closed as
 `m5_codex_containment_path_mutator_unverifiable` after classifying two
 successful provider `chmod` calls inside the selected profile and none under
-default roots. Draft plan 1.11 proposes the exact inode-bound proof and safe
-channel diagnostics; it awaits owner approval. No live containment pass or
-receipt is claimed.
+default roots. Owner-approved plan 1.11 adds the exact inode-bound proof and
+safe channel diagnostics; implementation is pending. No live containment pass
+or receipt is claimed.
 
 Among synchronized baseline inputs, only the PLAN-DEP body, its generated
 contract-adoption digest, reviewed parallel-ownership digest, the bounded M5

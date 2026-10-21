@@ -1,7 +1,7 @@
 # Codex CLI adapter
 
-Status: **implemented through approved V1-M5 plan 1.10; draft 1.11
-inode-bound live-containment correction, passing live containment, and
+Status: **implemented through approved V1-M5 plan 1.10; approved 1.11
+inode-bound live-containment implementation, passing live containment, and
 `AUTO-M5-EXIT` are pending**.
 
 Owner: `PLAN-INT` for the focused M5 integration and A02 for provider behavior.
@@ -219,9 +219,9 @@ All `30` focused non-live cases include the plan-required entry-count and
 overlong-relative-path bounds; current-exit passes `66/66`, and the exact Story
 inventory is `480` tests. The canonical preactivation aggregate remains
 pending. The authenticated identity/quota trace also remains pending after a
-fail-closed live attempt. Draft plan 1.11 proposes the exact inode-bound
-`chmod(..., 0700)` proof and safe channel diagnostics; owner approval, the
-fifth service rollover, and `AUTO-M5-EXIT` are still required.
+fail-closed live attempt. Owner-approved plan 1.11 adds the exact inode-bound
+`chmod(..., 0700)` proof and safe channel diagnostics; implementation, the fifth
+service rollover, and `AUTO-M5-EXIT` are still required.
 
 The sole milestone completion command is:
 
