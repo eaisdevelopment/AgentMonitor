@@ -1,8 +1,10 @@
 # Change plan: executable V1-M5 Codex slice
 
-- Status: **Approved 1.11.0 for one exact inode-bound provider `chmod`
-  correction folded into the approved but not-yet-run fifth rollover**.
-- Plan version: `1.11.0`; owner approval: 2026-10-21.
+- Status: **Draft 1.12.0 for one trace-completeness correction; approved
+  1.11.0 implementation remains in progress and the already approved fifth
+  rollover remains unrun**.
+- Plan version: `1.12.0-draft`; owner approval pending. Version `1.11.0` was
+  approved on 2026-10-21.
 - Safety correction: exact-version review proved that authenticated app-server
   queries may perform Codex's automatic credential refresh. The approved
   managed-auth lifecycle therefore classifies those queries as
@@ -34,7 +36,9 @@
   managed-profile effective-containment correction specified below. The
   owner's explicit 2026-10-21 approval of version 1.11.0 adds only the exact
   inode-bound provider `chmod` and private-channel diagnostic correction
-  specified below. All
+  specified below. Draft version 1.12.0 proposes only the trace-completeness
+  correction specified below and grants no implementation authority until
+  owner approval. All
   remaining A02, OpenAI API, PLAN-DEP/D01, and
   `AUTO-DEPLOY` lanes stay Draft or Blocked as already recorded.
 - Stories: `ST-CDX-001..005`.
@@ -1575,6 +1579,105 @@ identity and quota operations, observe only the two allowlisted inode-bound
 writes confined to the selected profile, and pass inside `AUTO-M5-EXIT` with
 zero skips. M5 remains Intermediate until the final receipt exists and survives
 its canonical rereads.
+
+## Draft descriptor-metadata trace completeness correction — 2026-10-21
+
+**Status: Draft 1.12.0. Owner approval is required before the production
+selector or policy changes below. Approval would fold this correction into the
+already authorized, not-yet-run fifth rollover; it would not authorize a sixth
+rollover or any additional provider operation.**
+
+### Real-system Reds and closed boundary
+
+The 1.11 implementation review proved three ways that a provider process can
+change an owner-controlled file without producing a policy-visible mutator in
+the exact approved trace:
+
+- successful `fsetxattr` and `fremovexattr` calls on an `O_RDONLY` descriptor
+  were omitted by strace 6.8's `%file` category;
+- successful `ioctl(FS_IOC_SETFLAGS)` on an `O_RDONLY` descriptor changed the
+  private test inode's flags and change time, while `ioctl` was absent from the
+  selector; and
+- a private real `io_uring` probe created a new file through
+  `IORING_OP_OPENAT`, while the trace contained none of `io_uring_setup`,
+  `io_uring_enter`, `io_uring_register`, or the submitted open operation.
+
+Each probe used only a temporary owner-controlled test file and restored or
+removed its change. No default profile, provider profile, account, service,
+browser, or running agent was changed. The current focused suite therefore
+remains Red and no containment pass or completion receipt is claimed.
+
+The same review found and corrected, within approved 1.11 scope, exact child
+PID parsing, lexical and shared working-directory tracking, quoted-dirfd token
+spoofing, `CLONE_UNTRACED`, visible path xattrs, `lchown`, `futimesat`, global
+forbidden-mutator attribution, and duplicate JSON result members. Independent
+review found no remaining blocker in the private-channel precedence and
+deadline implementation, descriptor cleanup, process-group termination,
+inode-bound walk, or sanitized evidence shape. Those corrections do not make
+the selector Reds pass and remain intermediate until the complete gate passes.
+
+### Exact proposed correction
+
+Production changes remain limited to
+`tools/automation/implementations/m5_codex_containment.py`:
+
+- Replace the 1.11 trace selector by this exact expression:
+
+  ```text
+  trace=%file,%process,chdir,fchdir,fchmod,fchown,ftruncate,fallocate,fsetxattr,fremovexattr,ioctl,io_uring_setup,io_uring_enter,io_uring_register,clone,clone3,setns,unshare,chroot,pivot_root,mount,umount,umount2,open_tree,move_mount,fsopen,fsconfig,fsmount,fspick,mount_setattr
+  ```
+
+- Add this exact raw-argument qualifier to the selector probe and production
+  trace command so xattr values, ioctl buffers, and asynchronous-I/O
+  structures cannot enter the trace payload:
+
+  ```text
+  raw=fsetxattr,fremovexattr,ioctl,io_uring_setup,io_uring_enter,io_uring_register
+  ```
+
+- Classify the six raw calls globally and before path, ordinary-write, access,
+  or lineage-mutator accounting. An exact `-1 ERRNO (...)` result is a proven
+  no-effect call and is excluded from those later classifiers. Any successful
+  `fsetxattr`, `fremovexattr`, `ioctl`, `io_uring_setup`, `io_uring_enter`, or
+  `io_uring_register` call is rejected with one plan-fixed sanitized failure.
+  Ambiguous or malformed results fail closed as invalid trace. This preserves
+  normal failed terminal `ioctl` probes without permitting a successful ioctl
+  allowlist.
+- Keep the exact three provider operations, two inode-bound `chmod` allowance,
+  process-lineage rules, default-profile prohibition, generic write
+  confinement, private-channel precedence, filesystem proof, evidence schema,
+  and every service/revision/account binding unchanged.
+
+The verification write set remains
+`tools/automation/test_m5_codex_containment.py`, the inventory assertions in
+`tools/automation/test_m5_current_exit.py`, and only the exact count/digest
+constants in
+`tools/automation/implementations/auto_m5_current_exit.py`. Documentation may
+change only in the already authorized 1.11 locations and generated planning
+controls. There is no public contract, API, UI, database, migration,
+dependency, license, provider-payload, login, account, scheduler, or service
+behavior change.
+
+### Required Red, Green, and live proof
+
+The existing real tests are the Red: the old exact selector does not record
+the successful fd-xattr or inode-flag changes, and pure policy accepts the
+constructed successful inode-flag record. Green must use the installed
+root-owned strace and private temporary files to prove the new exact selector
+records `fsetxattr`, `fremovexattr`, and `ioctl`, records safe no-effect or
+private-temp `io_uring` activity, and exposes no test xattr value or ioctl
+buffer in the trace. Pure policy cases must prove every successful or
+ambiguous raw-call record fails closed, while exact failed raw calls are
+treated as no effect and do not create a false pass.
+
+The full focused containment and current-exit suites, Ruff, format, strict
+mypy, exact Story inventory rebind, complete canonical preactivation gates,
+and independent review are required. The safe authenticated containment rerun
+must then pass against the unchanged `d81afab` service with the pinned Codex
+0.160.0 executable. Only after that pass may the already authorized fifth
+activation proceed. The final clean exact-revision `AUTO-M5-EXIT` must include
+the same real containment test with zero skips. M5 remains Intermediate until
+that receipt exists and survives canonical rereads.
 
 ## Stop conditions
 
