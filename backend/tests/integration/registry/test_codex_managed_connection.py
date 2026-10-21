@@ -8,6 +8,7 @@ import sqlite3
 import stat
 import time
 import uuid
+from dataclasses import fields
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -55,6 +56,14 @@ def _database(tmp_path: Path) -> DatabaseRefV1:
     reference = DatabaseRefV1(tmp_path / "agentmonitor.db", tmp_path)
     migrate_to_head(reference)
     return reference
+
+
+def _without_registry_revision(value: object) -> tuple[tuple[str, object], ...]:
+    return tuple(
+        (field.name, getattr(value, field.name))
+        for field in fields(value)  # type: ignore[arg-type]
+        if field.name != "registry_revision"
+    )
 
 
 def _pending_codex(
@@ -315,8 +324,23 @@ def test_live_connected_profile_enrollment_is_idempotent_when_selected(
     after_second = repository.get_account(target)
     profiles = repository.list_monitoring_profiles(target)
     resources = repository.list_account_resources(target)
-    assert after_second == after_first
-    assert profiles == first_profiles and resources == first_resources
+    assert after_second is not None
+    assert after_second.registry_revision == after_first.registry_revision + 1
+    assert _without_registry_revision(after_second) == _without_registry_revision(
+        after_first
+    )
+    assert tuple(_without_registry_revision(item) for item in profiles) == tuple(
+        _without_registry_revision(item) for item in first_profiles
+    )
+    assert tuple(_without_registry_revision(item) for item in resources) == tuple(
+        _without_registry_revision(item) for item in first_resources
+    )
+    assert all(
+        item.registry_revision == after_second.registry_revision for item in profiles
+    )
+    assert all(
+        item.registry_revision == after_second.registry_revision for item in resources
+    )
     assert len(profiles) == len(resources) == 1
     assert profiles[0].management_state == "managed"
     assert not profiles[0].is_protected_default
