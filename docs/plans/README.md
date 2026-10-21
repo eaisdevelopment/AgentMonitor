@@ -142,8 +142,16 @@ Directories are created when an approved planning assignment begins. Drafts stat
   required canonical gate. Approved 1.9.0 retains that completed fourth
   rollover at exact `d81afab`, corrects only the quota witness's verified
   browser-record to five-field policy projection, and authorizes one exact
-  fifth evidence-preserving rollover. The projection and fifth-rollover policy
-  are local Green; the fifth live transition, refreshed prerequisites,
+  fifth evidence-preserving rollover. Approved 1.10.0 folds the effective
+  managed-profile containment correction into that same unrun fifth rollover:
+  four pinned owner-only roots enclose ordinary provider-created descendant
+  modes while links, nonregular entries, unsafe ownership/device/mode state,
+  traversal errors, and out-of-profile writes still fail closed. The currently
+  implemented local cases pass, but required negative entry-count and
+  path-length cases are missing and the Story inventory requires another
+  rebind. A real attempt also failed closed at
+  `m5_codex_containment_path_mutator_unverifiable`. Passing containment remains
+  pending; the fifth live transition, refreshed prerequisites,
   `AUTO-M5-EXIT`, and owner acceptance remain Not Run. OpenAI API billing
   remains V1-M7.
 - [Live agent account association](integration/live-agent-account-association-change.md):

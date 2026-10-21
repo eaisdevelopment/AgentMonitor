@@ -908,3 +908,34 @@ acceptance remain Not Run. M5 remains Intermediate with canonical gate state
 `not_run`.
 
 Plan snapshot SHA-256: `7e2540baa631414a0aa6647ce6d3b26385c0a00e52faa30d4739245e0bcd51a6`
+
+## 2026-10-21 approved M5 1.10.0 containment-readiness rebind
+
+The current snapshot records the owner-approved M5 focused plan 1.10.0 and its
+bounded PLAN-DEP/D01 relationship. The correction changes only how the private
+M5 verifier evaluates provider-created descendants below an exact pinned
+owner-only root chain. It retains descendant metadata in evidence and preserves
+the separate credential rule, link/type/ownership/device/special-bit/traversal/
+bound checks, zero default-profile access, selected-profile write confinement,
+and unchanged private receipt schema. It folds into the same not-yet-run fifth
+rollover and authorizes no sixth transition or general deployment behavior.
+
+The implemented cases pass `28` non-live tests, and interim commit `ae33540`
+binds `478` Story tests. Review found that plan-required negative entry-count
+and path-length cases are missing, so the local 1.10 proof and inventory rebind
+remain incomplete. A subsequent real attempt against current `d81afab` passed
+safe metadata and driver stages, then failed closed as
+`m5_codex_containment_path_mutator_unverifiable`; two successful provider
+`chmod` calls were classified inside the selected profile and none under
+default roots, but their closed path-argument proof did not pass. This is a
+Failed containment result, not completion evidence.
+
+The synchronized controls bind the updated PLAN-DEP body, generated contract
+adoption, reviewed ownership digest, M5 exit routine, and completion standard.
+All other canonical approval flags remain unchanged. Missing local bound tests,
+the final inventory rebind, and passing authenticated containment remain
+pending. The fifth live transition, refreshed prerequisites, authoritative
+quota witness, `AUTO-M5-EXIT`, and owner acceptance remain Not Run. M5 remains
+Intermediate with canonical gate state `not_run`.
+
+Plan snapshot SHA-256: `4214633ff01b6b8276b1c9bc34475e37b75c3e724162c35863e845cb72bc6ff7`

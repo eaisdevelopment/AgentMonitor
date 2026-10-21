@@ -1,7 +1,8 @@
 # Codex CLI adapter
 
-Status: **implemented for the approved V1-M5 slice; live fleet acceptance is
-pending `AUTO-M5-EXIT`**.
+Status: **implemented through the current partial V1-M5 1.10 correction;
+required bound coverage, passing live containment, and `AUTO-M5-EXIT` are
+pending**.
 
 Owner: `PLAN-INT` for the focused M5 integration and A02 for provider behavior.
 
@@ -88,6 +89,19 @@ Each record has a deterministic private managed root below
 inside that boundary and cannot be symlinks. Codex owns its credential file;
 AgentMonitor does not read it. The default Codex profile is never selected,
 read, moved, logged out, or rewritten.
+
+The M5 completion verifier treats containment by effective filesystem
+reachability. It pins and revalidates the owner data root, intermediate
+`profiles` root, `profiles/codex` provider root, and selected profile root as
+owner-owned `0700` directories before and after provider work. Ordinary modes
+on Codex-created nested regular files and directories are retained in the tree
+digest and are permitted only while those entries remain enclosed by the exact
+private root chain. Nested symlinks, nonregular objects, foreign ownership or
+devices, regular-file hard links, special permission bits, unsearchable
+directories, traversal errors, and bounded-count or path violations fail
+closed. The separate credential-store rule remains stricter: `auth.json` must
+stay an owner-owned, single-link regular file with no group or other permission
+bits. AgentMonitor never changes provider-created modes to make this proof pass.
 
 After login, the connection coordinator reads the managed profile identity,
 compares it with the owner-selected email, and enrolls the existing
@@ -200,6 +214,11 @@ tests exercise the installed CLI, bounded subprocesses, private empty managed
 roots, file SQLite, loopback HTTP, generated client, built UI, and Linux
 process observation. Owner-authenticated managed profiles and current native
 quota require the live owner selectors and are never replaced by fixtures.
+The implemented effective-containment cases pass their real-filesystem suite.
+Plan-required negative entry-count and path-length cases still need to be added
+and rebound into the Story inventory, so local proof is incomplete. The
+authenticated identity/quota trace also remains pending after a fail-closed
+live attempt and before the fifth service rollover and `AUTO-M5-EXIT`.
 
 The sole milestone completion command is:
 

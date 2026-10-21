@@ -1353,6 +1353,28 @@ operations, prove zero default-profile access/write and confinement of every
 declared write to the selected managed profile, and bind the resulting tree
 digests into the exact completion evidence. Skips cannot pass.
 
+The local correction is present in commits `1143d96` and `f4d4bf7`; commit
+`ae33540` provides an interim Story inventory of `478` Python tests and digest
+`ba070544ac4f8e7aabe53492b6afa91f74d8b1c149bd20134b7f19badfa0df9c`.
+The focused intermediate-root Red failed because a `0755` `profiles`
+directory was admitted; its two-test Green passed. The current non-live
+containment suite passed `28` tests, while the complete `29`-test file passed
+those same `28` and skipped the owner-selected authenticated case. That skip
+is not live evidence. Review then found that the plan-required negative
+entry-count and path-length cases are absent. Local 1.10 proof therefore
+remains incomplete, and the inventory must be rebound after those cases are
+added.
+
+A later real containment attempt against the still-running `d81afab` service
+passed its safe metadata and driver stages, then failed closed as
+`m5_codex_containment_path_mutator_unverifiable`. Trace classification found
+two successful provider app-server `chmod` calls, both inside the selected
+managed profile and none under default roots, but did not yet prove their path
+arguments through the closed mutator policy. It created no completion receipt
+and does not expand this approval. Passing authenticated containment remains
+pending after this Failed attempt; the fifth service rollover and
+`AUTO-M5-EXIT` remain Not Run.
+
 Documentation synchronization is limited to this plan, the Codex adapter
 boundary, M5 implementation evidence/status, operations wording where needed,
 the documentation indexes, and generated planning-control hashes. There is no

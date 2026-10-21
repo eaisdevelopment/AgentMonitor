@@ -737,6 +737,20 @@ provider-controlled writes only below the selected managed profile. It binds
 only the activation-receipt digest, a sanitized containment digest, and
 aggregate syscall counts to the final receipt, and requires the complete public
 Registry graph to remain unchanged.
+
+Managed-profile tree containment is evaluated through the enclosing private
+root chain. The owner data root, intermediate `profiles` root,
+`profiles/codex` root, and selected profile root must each remain the same
+owner-owned `0700` directory before and after provider work. Ordinary modes on
+nested provider-created files and directories do not require operator repair
+while the validated private ancestors make them unreachable to other users;
+their metadata still enters the before/after digests. `auth.json` retains its
+separate private-file rule. A symlink, nonregular entry, foreign owner/device,
+regular-file hard link, special bit, unsearchable directory, traversal error,
+changed root identity, or write outside the selected profile blocks the gate.
+Do not `chmod`, copy, relocate, or recreate provider state to satisfy this
+check.
+
 It then binds the owner-observed quota values to its read-only browser
 preflight, runs the canonical build, and restarts only the selected
 AgentMonitor service. It waits for fresh post-restart Codex quota/history

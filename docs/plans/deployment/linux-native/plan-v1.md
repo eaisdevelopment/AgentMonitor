@@ -67,7 +67,7 @@ This addendum is the sole exception to PLAN-DEP/D01's Draft implementation
 prohibition and exclusive native unit-lifecycle ownership. The active owner's
 objective, **fully implement M5 with our SDLC and runbook**, authorizes PLAN-INT
 to implement and execute only `AUTO-M5-SERVICE-ACTIVATE` under the approved
-[V1-M5 Codex slice plan 1.9.0](../../integration/m5-codex-slice-change.md).
+[V1-M5 Codex slice plan 1.10.0](../../integration/m5-codex-slice-change.md).
 That focused plan is the detailed authority and test specification. This
 cross-reference resolves the ownership conflict before production code.
 
@@ -180,6 +180,25 @@ existing two-stage rerun, rollback, browser-preservation, evidence-custody,
 and stop conditions remain binding. It adds no sixth rollover, provider or
 scheduler behavior, native service capability, general deployment authority,
 or `AUTO-DEPLOY` scope.
+
+The linked M5 plan further contains the **owner-approved 1.10.0 amendment
+dated 2026-10-21**. Required preactivation verification showed that Codex keeps
+ordinary provider-created plugin, cache, and runtime descendants inside exact
+owner-owned `0700` managed-profile roots while those descendants can carry
+ordinary group or other mode bits. Version 1.10.0 corrects only the completion
+verifier's effective-containment policy: it pins and revalidates the owner data,
+intermediate profiles, provider, and selected-profile roots; retains descendant
+metadata in its evidence digests; and continues to reject links, nonregular
+objects, foreign owner/device entries, special bits, unsearchable directories,
+walk errors, and writes outside the selected profile. The separate private
+`auth.json` rule remains unchanged.
+
+Version 1.10.0 supersedes only the fifth candidate-content restriction. It
+retains the same not-yet-run fifth rollover from `d81afab`, the same fixed
+five-archive custody model, and every rollback, browser-preservation,
+revision-binding, and stop condition. It authorizes no sixth rollover,
+provider-profile repair or mutation, native service capability, general
+deployment authority, or `AUTO-DEPLOY` scope.
 
 The final candidate worktree must have no symbolic branch reference. Activation
 and every subsequent M5 archive, owner-outcome, alert-witness, quota-witness and

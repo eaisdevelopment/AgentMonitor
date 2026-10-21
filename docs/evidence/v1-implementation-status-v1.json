@@ -2,8 +2,8 @@
   "schema_version": "1.0.0",
   "record_type": "agentmonitor.v1_implementation_status",
   "record_id": "V1-STATUS-2026-10-21-01",
-  "implementation_revision": "d4f4743a319ad740ab683a53e9e8afa7cc467059",
-  "recorded_at": "2026-10-21T11:34:36Z",
+  "implementation_revision": "ae335402e540c897c3f17802548728fc1efd4a34",
+  "recorded_at": "2026-10-21T13:03:24Z",
   "planning_backlog": "docs/superpowers/plans/implementation-backlog.toml",
   "planning_backlog_sha256": "2e93367d304fda306776f8789db23c754798f6307277628f0565350d0dbb962e",
   "roadmap": "docs/roadmap.md",
@@ -118,7 +118,7 @@
         "docs/evidence/m5-codex-read-side-effect-blocker.md",
         "docs/evidence/m5-codex-implementation.md"
       ],
-      "decision": "Codex implementation remains Intermediate. Four canonical corrective rollovers preserved the completed 6bfa69dc13cc9e1ded9c6baa6e803cb99bc8c20b, 063445154bca0bf5ec43db94ba57c17fd193fd99, 6d6e1aa9d9b64d50e3f83d0f1686e6cff04b7c17, and e066d7e1ba0124f0454c07002ea7b2ad0817d6b9 transitions in fixed private archives, and the fourth rerun activated exact clean detached revision d81afab9e5b1c1dbdb690f390e77cee66eba5437 with real systemd, HTTP, authenticated-browser, Registry, database, rollback, and receipt proof. Owner outcomes, scheduled collection lineage, and a source-proven alert lifecycle plus AUTO-M5-ALERT-WITNESS are current for that service. The real AUTO-M5-QUOTA-WITNESS attempt completed authenticated API, DOM, history, Registry, identity, lineage, and zero-mutation proof, then failed closed as m5_quota_witness_input_invalid at the six-field browser/history to five-field quota-policy boundary and wrote no file. Approved focused plan 1.9.0 retains current_observation_id for history binding and projects the verified record before policy reconciliation; its focused cases and all 27 quota-witness tests passed. The fifth-rollover policy passed four focused cases, all 43 activation tests, dispatcher/catalog checks, static checks, and exhaustive 73,728 transition plus 448 activation-decision comparisons with zero mismatches. The fifth live rollover, refreshed prerequisites, authoritative /status witness, canonical process and containment evidence, clean exact-revision AUTO-M5-EXIT, and owner acceptance remain Not Run. The canonical gate state remains not_run."
+      "decision": "Codex implementation remains Intermediate. Four canonical corrective rollovers preserved the completed 6bfa69dc13cc9e1ded9c6baa6e803cb99bc8c20b, 063445154bca0bf5ec43db94ba57c17fd193fd99, 6d6e1aa9d9b64d50e3f83d0f1686e6cff04b7c17, and e066d7e1ba0124f0454c07002ea7b2ad0817d6b9 transitions in fixed private archives, and the fourth rerun activated exact clean detached revision d81afab9e5b1c1dbdb690f390e77cee66eba5437 with real systemd, HTTP, authenticated-browser, Registry, database, rollback, and receipt proof. Current owner outcomes, scheduled collection lineage, and AUTO-M5-ALERT-WITNESS passed for that service. Plan 1.9 quota projection and fifth-rollover policy are local Green. Plan 1.10 effective containment passed its current 28 non-live cases, but required negative entry-count and path-length cases are absent and the interim 478-test Story inventory must be rebound. A real containment attempt against d81afab passed safe metadata and driver stages, then failed closed as m5_codex_containment_path_mutator_unverifiable after classifying two successful provider chmod calls inside the selected managed profile and none under default roots. The fifth live rollover, refreshed prerequisites, authoritative /status witness, clean exact-revision AUTO-M5-EXIT, and owner acceptance remain Not Run. The canonical gate state remains not_run."
     },
     {
       "milestone_id": "V1-M6",
@@ -442,7 +442,7 @@
         "docs/evidence/m5-codex-read-side-effect-blocker.md",
         "docs/evidence/m5-codex-implementation.md"
       ],
-      "decision": "The exact-version adapter, installation admission, managed-profile safety correction, and local policy checks are present. No provider contract changed in plan 1.9. Authenticated final-candidate syscall containment and the clean exact-revision M5 gate remain unrecorded."
+      "decision": "The exact-version adapter, installation admission, and managed-profile safety implementation are present. Plan 1.10 adds effective descendant containment below four pinned owner-only roots without changing the provider contract. Its current 28 non-live cases pass, but required negative entry-count/path-length coverage and the resulting Story inventory rebind remain pending. A real authenticated attempt failed closed as m5_codex_containment_path_mutator_unverifiable, so final-candidate syscall containment and the clean exact-revision M5 gate remain unrecorded."
     },
     {
       "story_id": "ST-CDX-002",
@@ -487,7 +487,7 @@
       "evidence_paths": [
         "docs/evidence/m5-codex-implementation.md"
       ],
-      "decision": "Codex HTTP, browser, health, alert, and completion-gate implementation is present. The fourth corrective rollover preserved e066d7e and activated exact d81afab with real service and browser proof. Current owner outcomes and AUTO-M5-ALERT-WITNESS passed for that service. The real quota-witness run reached final reconciliation and failed closed without a file. The plan 1.9 projection correction is Green across all 27 quota-witness tests, and the fifth exact rollover policy is Green across four focused cases, all 43 activation tests, dispatcher/catalog checks, and exhaustive transition/decision comparisons. The fifth live rollover into fixed parent m5-service-activation-corrective-archive-d81afab, refreshed prerequisites, authoritative quota, process and containment proof, clean exact-revision AUTO-M5-EXIT, and owner acceptance remain Not Run."
+      "decision": "Codex HTTP, browser, health, alert, and completion-gate implementation is present. The fourth corrective rollover preserved e066d7e and activated exact d81afab with real service and browser proof. Current owner outcomes and AUTO-M5-ALERT-WITNESS passed for that service. The plan 1.9 projection and fifth-rollover policies are local Green. The plan 1.10 effective-containment implementation passed its current 28 non-live cases, but required negative entry-count/path-length cases are missing and the interim 478-test inventory must be rebound. A real containment attempt failed closed as m5_codex_containment_path_mutator_unverifiable and wrote no completion receipt. Passing containment remains pending after that Failed attempt. The fifth live rollover, refreshed prerequisites, authoritative quota, canonical process witness, clean exact-revision AUTO-M5-EXIT, and owner acceptance remain Not Run. Canonical gate state remains not_run."
     },
     {
       "story_id": "ST-OLL-001",

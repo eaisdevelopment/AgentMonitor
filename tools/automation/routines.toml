@@ -280,6 +280,6 @@ blockers = []
 id = "AUTO-M5-EXIT"
 owner = "PLAN-INT"
 status = "operational"
-scope = "bounded V1-M5 Codex slice at one clean running-service revision: create only the exact missing owner-only local receipt directory on first use, consume the exact activation/rollback receipt under the shared service-transition guard, verify 0.160.0/schema/mapping admission, four private owner outcomes, fresh genuine quota/history, five to six independently verified external processes, recovered source-proven alert lifecycle, production browser and zero-skipped technical/local gates, then retain and revalidate the canonical private receipt inode after every final service and lock check"
+scope = "bounded V1-M5 Codex slice at one clean running-service revision: create only the exact missing owner-only local receipt directory on first use, consume the exact activation/rollback receipt under the shared service-transition guard, verify 0.160.0/schema/mapping admission, pinned owner-only managed-profile roots and effective descendant containment, four private owner outcomes, fresh genuine quota/history, five to six independently verified external processes, recovered source-proven alert lifecycle, production browser and zero-skipped technical/local gates, then retain and revalidate the canonical private receipt inode after every final service and lock check"
 implementation_command = ["backend/.venv/bin/python", "-m", "tools.automation.implementations.auto_m5_current_exit"]
 blockers = []

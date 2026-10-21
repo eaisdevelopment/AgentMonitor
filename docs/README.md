@@ -36,14 +36,20 @@ Current program state:
   `AUTO-M5-QUOTA-WITNESS` attempt completed API, DOM, retained-history,
   Registry, identity, lineage, and zero-mutation proof, then returned
   `m5_quota_witness_input_invalid` at its strict five-field policy boundary and
-  created no file. Under owner-approved focused plan 1.9.0, the policy
-  projection correction passed the focused cases and all 27 quota-witness
-  tests; the fifth exact rollover policy passed all 43 activation tests plus
-  exhaustive transition and decision comparisons. The fifth live rollover,
-  refreshed revision-bound prerequisites, authoritative `/status` witness,
-  canonical process and containment evidence, clean exact-revision
-  `AUTO-M5-EXIT`, and owner acceptance are **Not Run**; the canonical gate
-  state remains `not_run`.
+  created no file. The plan 1.9 quota-policy projection and fifth-rollover
+  policy are local Green. Owner-approved plan 1.10 corrects effective
+  containment for ordinary provider-created descendants below pinned private
+  roots. Its current `28` non-live tests passed, but required negative
+  entry-count and path-length cases remain absent; the interim `478`-test Story
+  inventory must be rebound after they are added. A subsequent real containment
+  attempt passed metadata and driver checks, then failed closed as
+  `m5_codex_containment_path_mutator_unverifiable` while classifying two
+  successful provider `chmod` calls inside the selected managed profile and
+  none under default roots. Passing containment is pending after that Failed
+  attempt. The fifth live rollover, refreshed revision-bound prerequisites,
+  authoritative `/status` witness, clean exact-revision `AUTO-M5-EXIT`, and
+  owner acceptance are **Not Run**; the canonical gate state remains
+  `not_run`.
 - **V1-M6 through V1-M8:** Planned; their canonical gates have not run.
 
 The approved [M3 scope correction](evidence/m3-scope-correction-2026-10-02.md)
