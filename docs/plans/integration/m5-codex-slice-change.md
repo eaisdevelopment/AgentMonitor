@@ -1,10 +1,8 @@
 # Change plan: executable V1-M5 Codex slice
 
-- Status: **Draft 1.10.0 for one managed-profile effective-containment
+- Status: **Approved 1.10.0 for one managed-profile effective-containment
   correction folded into the approved but not-yet-run fifth rollover**.
-  Approved 1.9.0 remains the current implementation authority until the owner
-  approves this focused addition.
-- Plan version: `1.10.0`; owner approval: pending.
+- Plan version: `1.10.0`; owner approval: 2026-10-21.
 - Safety correction: exact-version review proved that authenticated app-server
   queries may perform Codex's automatic credential refresh. The approved
   managed-auth lifecycle therefore classifies those queries as
@@ -31,8 +29,9 @@
   explicit 2026-10-20 approval of version 1.8.0 adds only the bounded
   P02 correction below and supersedes only 1.7.0's candidate-content
   restriction. The owner's explicit 2026-10-21 approval of version 1.9.0 adds
-  only the quota-witness correction and fifth rollover specified below. Draft
-  1.10.0 adds no implementation authority before explicit owner approval. All
+  only the quota-witness correction and fifth rollover specified below. The
+  owner's explicit 2026-10-21 approval of version 1.10.0 adds only the
+  managed-profile effective-containment correction specified below. All
   remaining A02, OpenAI API, PLAN-DEP/D01, and
   `AUTO-DEPLOY` lanes stay Draft or Blocked as already recorded.
 - Stories: `ST-CDX-001..005`.
@@ -1258,13 +1257,13 @@ behavior, provider login, provider mutation, default-profile access, telemetry
 edit, process control, `AUTO-DEPLOY`, OpenAI API billing, or broader
 PLAN-DEP/D01 authority.
 
-## Proposed managed-profile effective-containment correction — 2026-10-21
+## Approved managed-profile effective-containment correction — 2026-10-21
 
-**Status: Draft 1.10.0; owner approval is required before production gate code
-changes. Version 1.10.0 would supersede only 1.9.0's candidate-content
-restriction and fold this correction into the already authorized, not-yet-run
-fifth rollover from `d81afab9e5b1c1dbdb690f390e77cee66eba5437`. It would
-authorize no sixth rollover.**
+**Status: Owner-approved 1.10.0 on 2026-10-21. Version 1.10.0 supersedes only
+1.9.0's candidate-content restriction and folds this correction into the
+already authorized, not-yet-run fifth rollover from
+`d81afab9e5b1c1dbdb690f390e77cee66eba5437`. It authorizes no sixth
+rollover.**
 
 ### Real-system Reds discovered by the required 1.9 preactivation suite
 
@@ -1302,7 +1301,7 @@ Test-only Red/Green now compares aggregate fields without that global watermark
 and separately proves the one expected revision advance. This changes no
 Registry production behavior or contract.
 
-### Exact proposed correction boundary
+### Exact correction boundary
 
 Production change is limited to
 `tools/automation/implementations/m5_codex_containment.py`:
@@ -1327,7 +1326,7 @@ Production change is limited to
   access and writes, executable/runtime/service/revision binding, private
   channels, closed result schema, and create-once receipt behavior unchanged.
 
-This proposal authorizes no `chmod` or `chown`, profile read/copy/delete/move/
+This approval authorizes no `chmod` or `chown`, profile read/copy/delete/move/
 replacement, provider login or reauthentication, default-profile operation,
 Registry or database mutation, API, UI, scheduler, configuration, dependency,
 schema, migration, public-contract change, gate bypass, or sixth rollover.
