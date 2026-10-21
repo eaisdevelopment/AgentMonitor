@@ -200,6 +200,7 @@ class _TraceRecordV1:
 @dataclass(frozen=True, slots=True)
 class _SelectionV1:
     owner_data_root: Path
+    profiles_root: Path
     account_id: str
     managed_profiles_root: Path
     managed_profile_root: Path
@@ -293,6 +294,7 @@ def _validate_selection(
     profile = _normalized_absolute(
         managed_profile_root, "m5_codex_containment_selection_invalid"
     )
+    profiles_root = owner / "profiles"
     if (
         type(account_id) is not str
         or _ACCOUNT_ID.fullmatch(account_id) is None
@@ -307,6 +309,7 @@ def _validate_selection(
     ):
         raise M5CodexContainmentErrorV1("m5_codex_containment_selection_invalid")
     _private_directory(owner, "m5_codex_containment_selection_invalid")
+    _private_directory(profiles_root, "m5_codex_containment_selection_invalid")
     _private_directory(profiles, "m5_codex_containment_selection_invalid")
     _private_directory(profile, "m5_codex_containment_selection_invalid")
     observed_ticks = _process_start_ticks(service_pid)
@@ -314,6 +317,7 @@ def _validate_selection(
         raise M5CodexContainmentUnavailableV1("m5_codex_containment_service_mismatch")
     return _SelectionV1(
         owner,
+        profiles_root,
         account_id,
         profiles,
         profile,
@@ -1419,7 +1423,13 @@ def verify_codex_managed_profile_containment_v1(
         "m5_codex_containment_selection_invalid",
     )
     owner_identity = _inode_identity(owner_info)
-    profiles_identity = _inode_identity(
+    profiles_root_identity = _inode_identity(
+        _private_directory(
+            selection.profiles_root,
+            "m5_codex_containment_selection_invalid",
+        )
+    )
+    managed_profiles_identity = _inode_identity(
         _private_directory(
             selection.managed_profiles_root,
             "m5_codex_containment_selection_invalid",
@@ -1509,7 +1519,14 @@ def verify_codex_managed_profile_containment_v1(
                     "m5_codex_containment_selection_changed",
                 )
             )
-            or profiles_identity
+            or profiles_root_identity
+            != _inode_identity(
+                _private_directory(
+                    selection.profiles_root,
+                    "m5_codex_containment_selection_changed",
+                )
+            )
+            or managed_profiles_identity
             != _inode_identity(
                 _private_directory(
                     selection.managed_profiles_root,
@@ -1544,7 +1561,8 @@ def verify_codex_managed_profile_containment_v1(
             "owner_data_root": os.fspath(selection.owner_data_root),
             "managed_profile_root": os.fspath(selection.managed_profile_root),
             "owner_identity": owner_identity,
-            "managed_profiles_identity": profiles_identity,
+            "profiles_root_identity": profiles_root_identity,
+            "managed_profiles_identity": managed_profiles_identity,
             "managed_profile_identity": profile_identity,
             "identity_binding_digest": result["identity_binding_digest"],
             "profile_tree_before_digest": profile_tree_before,

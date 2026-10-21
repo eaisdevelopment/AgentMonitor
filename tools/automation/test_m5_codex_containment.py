@@ -332,6 +332,36 @@ class M5CodexContainmentPolicyTests(unittest.TestCase):
 
 
 class M5CodexContainmentPrerequisiteTests(unittest.TestCase):
+    def test_selection_rejects_nonprivate_intermediate_profiles_root(self) -> None:
+        """M5-CDX-GATE-001: every enclosing profile root remains private."""
+
+        with tempfile.TemporaryDirectory() as raw:
+            owner = Path(raw)
+            owner.chmod(0o700)
+            profiles_root = owner / "profiles"
+            profiles_root.mkdir(mode=0o755)
+            profiles_root.chmod(0o755)
+            provider_root = profiles_root / "codex"
+            provider_root.mkdir(mode=0o700)
+            account_id = "account-one"
+            managed = provider_root / hashlib.sha256(account_id.encode()).hexdigest()
+            managed.mkdir(mode=0o700)
+
+            with self.assertRaises(M5CodexContainmentErrorV1) as raised:
+                _validate_selection(
+                    owner_data_root=owner,
+                    account_id=account_id,
+                    managed_profiles_root=provider_root,
+                    managed_profile_root=managed,
+                    revision="a" * 40,
+                    service_pid=os.getpid(),
+                    service_start_time_ticks=_process_start_ticks(os.getpid()),
+                )
+
+            self.assertEqual(
+                str(raised.exception), "m5_codex_containment_selection_invalid"
+            )
+
     def test_external_signature_does_not_accept_an_identity_fingerprint(self) -> None:
         """M5-CDX-GATE-001: fresh identity binding stays inside traced work."""
 
@@ -344,8 +374,10 @@ class M5CodexContainmentPrerequisiteTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as raw:
             owner = Path(raw)
             owner.chmod(0o700)
-            profiles = owner / "profiles" / "codex"
-            profiles.mkdir(parents=True, mode=0o700)
+            profiles_root = owner / "profiles"
+            profiles_root.mkdir(mode=0o700)
+            profiles = profiles_root / "codex"
+            profiles.mkdir(mode=0o700)
             account_id = "account-one"
             managed = profiles / hashlib.sha256(account_id.encode()).hexdigest()
             managed.mkdir(mode=0o700)
