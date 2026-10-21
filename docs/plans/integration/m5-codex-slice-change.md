@@ -1,10 +1,8 @@
 # Change plan: executable V1-M5 Codex slice
 
-- Status: **Draft 1.9.0 for one quota-witness policy-projection correction and a
-  fifth exact evidence-preserving service rollover; version 1.8.0 remains the
-  latest owner-approved scope**.
-- Plan version: `1.9.0`; owner approval: pending. Version `1.8.0` was approved
-  on 2026-10-20.
+- Status: **Approved 1.9.0 for one quota-witness policy-projection correction
+  and a fifth exact evidence-preserving service rollover**.
+- Plan version: `1.9.0`; owner approval: 2026-10-21.
 - Safety correction: exact-version review proved that authenticated app-server
   queries may perform Codex's automatic credential refresh. The approved
   managed-auth lifecycle therefore classifies those queries as
@@ -30,9 +28,9 @@
   `e066d7e1ba0124f0454c07002ea7b2ad0817d6b9` specified below. The owner's
   explicit 2026-10-20 approval of version 1.8.0 adds only the bounded
   P02 correction below and supersedes only 1.7.0's candidate-content
-  restriction. Draft version 1.9.0 proposes only the quota-witness correction
-  and fifth rollover specified below; it has no production authority until
-  owner approval. All remaining A02, OpenAI API, PLAN-DEP/D01, and
+  restriction. The owner's explicit 2026-10-21 approval of version 1.9.0 adds
+  only the quota-witness correction and fifth rollover specified below. All
+  remaining A02, OpenAI API, PLAN-DEP/D01, and
   `AUTO-DEPLOY` lanes stay Draft or Blocked as already recorded.
 - Stories: `ST-CDX-001..005`.
 - Requirements: `FR-ACC-001/004..006`, `FR-AUTH-001/002/004..006`,
@@ -1173,11 +1171,11 @@ or any relaxation of the M5 completion gate. Version 1.8.0 supersedes only
 contained only the alert browser correction; every other 1.7 transition,
 evidence-preservation, rollback, stop, and safety condition remains binding.
 
-## Draft quota-witness policy-projection correction — 2026-10-21
+## Approved quota-witness policy-projection correction — 2026-10-21
 
-**Status: Draft 1.9.0. No production implementation or fifth service rollover
-is authorized until owner approval. Approved version 1.8.0 and its retained
-evidence remain unchanged.**
+**Status: Owner-approved 1.9.0 on 2026-10-21. Production implementation and one
+fifth service rollover are authorized only within the exact boundary below.
+Approved version 1.8.0 and its retained evidence remain unchanged.**
 
 ### Real-system Reds discovered by the required 1.8 completion gate
 
@@ -1190,7 +1188,8 @@ zero-mutation proof and accepted all four owner-entered quota windows. Final
 reconciliation returned `m5_quota_witness_input_invalid` and created no private
 file. A no-write diagnostic rerun located the rejection at
 `m5_codex_quota_witness.py:500`: the validated browser window intentionally
-contains the opaque browser-only `current_observation_id`, while the closed
+contains the opaque browser-proof/history-binding-only
+`current_observation_id`, while the closed
 quota policy record accepts exactly the five provider-neutral quota fields. The
 same function already builds the correct five-field policy projection for
 digest verification but returns the six-field browser record to the final
@@ -1202,7 +1201,7 @@ This Red contributes `M5-CDX-GATE-001..014`, `FR-QUOTA-001..006`,
 
 ### Exact correction boundary
 
-After approval, implementation is limited to all of the following:
+Implementation is limited to all of the following:
 
 - In `tools/automation/implementations/m5_codex_quota_witness.py`, return or
   rebuild the already verified five-field provider-neutral policy projection
@@ -1211,7 +1210,8 @@ After approval, implementation is limited to all of the following:
   after that digest is independently recomputed. No accepted value, freshness
   interval, owner confirmation, identity, Registry, DOM, history, mutation,
   permission, create-once, or revision/service binding is weakened.
-- Add pure Red/Green coverage proving the browser-only observation field is
+- Add pure Red/Green coverage proving the browser-proof/history-binding-only
+  observation field is
   required for history binding and absent from the closed reconciliation
   input; the complete validated browser record reconciles after shaping; extra
   non-browser fields remain rejected; and the existing private browser-proof
@@ -1249,11 +1249,11 @@ Codex status readings through `AUTO-M5-QUOTA-WITNESS`, and immediately run
 `AUTO-M5-EXIT`. M5 remains incomplete unless the exact clean-revision receipt
 is created and passes its final rereads.
 
-This draft adds no relaxation, bypass, fabricated collection, replacement of a
-create-once file, fifth-rollover execution, provider or scheduler behavior,
-provider login, provider mutation, default-profile access, telemetry edit,
-process control, `AUTO-DEPLOY`, OpenAI API billing, or broader PLAN-DEP/D01
-authority.
+This approval adds no relaxation, bypass, fabricated collection, replacement
+of a create-once file, sixth-rollover execution, provider or scheduler
+behavior, provider login, provider mutation, default-profile access, telemetry
+edit, process control, `AUTO-DEPLOY`, OpenAI API billing, or broader
+PLAN-DEP/D01 authority.
 
 ## Stop conditions
 
