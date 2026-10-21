@@ -11,9 +11,11 @@ import re
 import resource
 import subprocess
 import tempfile
+import time
 import unittest
 from pathlib import Path
 
+from tools.automation.implementations import m5_codex_containment as containment
 from tools.automation.implementations.m5_codex_containment import (
     M5CodexContainmentErrorV1,
     M5CodexContainmentEvidenceV1,
@@ -42,7 +44,82 @@ _LIVE_SELECTORS = (
 )
 
 
+_TRACE_EXECUTABLE = Path("/opt/codex/bin/codex")
+_TRACE_MANAGED_ROOT = Path("/owner/profiles/codex/opaque")
+_TRACE_CHMOD_TARGET = _TRACE_MANAGED_ROOT / "runtime" / "prepared"
+
+
+def _two_operation_chmod_trace(
+    *,
+    identity_chmod_count: int = 1,
+    quota_chmod_count: int = 1,
+) -> str:
+    """Build one closed, sequential provider trace with configurable chmods."""
+
+    lines = [
+        f'100 execve("{_TRACE_EXECUTABLE}", ["codex", "--version"], 0x0) = 0',
+        "100 exit_group(0) = ?",
+        f'200 execve("{_TRACE_EXECUTABLE}", ["codex", "app-server", "stdio://"], 0x0) = 0',
+        "200 clone(child_stack=NULL, flags=SIGCHLD) = 201",
+    ]
+    lines.extend(
+        f'201 chmod("{_TRACE_CHMOD_TARGET}", 0700) = 0'
+        for _ in range(identity_chmod_count)
+    )
+    lines.extend(
+        (
+            "201 exit_group(0) = ?",
+            "200 exit_group(0) = ?",
+            f'300 execve("{_TRACE_EXECUTABLE}", ["codex", "app-server", "stdio://"], 0x0) = 0',
+            "300 clone(child_stack=NULL, flags=SIGCHLD) = 301",
+        )
+    )
+    lines.extend(
+        f'301 chmod("{_TRACE_CHMOD_TARGET}", 0700) = 0'
+        for _ in range(quota_chmod_count)
+    )
+    lines.extend(("301 exit_group(0) = ?", "300 exit_group(0) = ?"))
+    return "\n".join(lines)
+
+
 class M5CodexContainmentPolicyTests(unittest.TestCase):
+    def test_exact_two_app_server_lineage_chmods_are_admitted(self) -> None:
+        """M5-CDX-GATE-001: one inode-bound chmod per operation is admitted."""
+
+        summary = evaluate_codex_trace_policy_v1(
+            _two_operation_chmod_trace(),
+            provider_executable=_TRACE_EXECUTABLE,
+            managed_profile_root=_TRACE_MANAGED_ROOT,
+            default_codex_roots=(Path("/home/owner/.codex"),),
+        )
+
+        self.assertEqual(summary.provider_execution_count, 3)
+        self.assertEqual(summary.provider_write_count, 2)
+        self.assertEqual(summary.default_profile_access_count, 0)
+        self.assertEqual(summary.default_profile_write_count, 0)
+
+    def test_chmod_cardinality_and_lineage_fail_closed(self) -> None:
+        """M5-CDX-GATE-001: the admitted chmod pattern is exact, not broad."""
+
+        cases = {
+            "zero": (0, 0),
+            "one": (1, 0),
+            "three": (2, 1),
+            "both_in_identity_lineage": (2, 0),
+        }
+        for label, counts in cases.items():
+            with self.subTest(label=label):
+                with self.assertRaises(M5CodexContainmentErrorV1):
+                    evaluate_codex_trace_policy_v1(
+                        _two_operation_chmod_trace(
+                            identity_chmod_count=counts[0],
+                            quota_chmod_count=counts[1],
+                        ),
+                        provider_executable=_TRACE_EXECUTABLE,
+                        managed_profile_root=_TRACE_MANAGED_ROOT,
+                        default_codex_roots=(Path("/home/owner/.codex"),),
+                    )
+
     def test_provider_writes_inside_managed_profile_are_counted(self) -> None:
         """M5-CDX-GATE-001: exact child writes remain inside the selected root."""
 
@@ -456,6 +533,65 @@ class M5CodexContainmentPrerequisiteTests(unittest.TestCase):
 
 
 class M5CodexContainmentPrivateChannelTests(unittest.TestCase):
+    def test_empty_result_precedes_a_broken_input_channel(self) -> None:
+        """M5-CDX-GATE-001: useful result EOF wins the closed precedence."""
+
+        input_reader, input_writer = _open_private_channel()
+        result_reader, result_writer = _open_private_channel()
+        trace_reader, trace_writer = _open_private_channel()
+        process: subprocess.Popen[bytes] | None = None
+        try:
+            os.close(input_reader)
+            input_reader = -1
+            os.close(result_writer)
+            result_writer = -1
+            _write_private_channel(trace_writer, b"safe trace", maximum=4096)
+            os.close(trace_writer)
+            trace_writer = -1
+            process = subprocess.Popen(
+                ["/usr/bin/true"],
+                cwd="/",
+                env={"LANG": "C.UTF-8"},
+                stdin=subprocess.DEVNULL,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                shell=False,
+                start_new_session=True,
+            )
+            owned_input_writer = input_writer
+            input_writer = -1
+
+            with self.assertRaises(M5CodexContainmentErrorV1) as raised:
+                _collect_driver_channels(
+                    process,
+                    input_descriptor=owned_input_writer,
+                    input_payload=b"selection",
+                    result_descriptor=result_reader,
+                    trace_descriptor=trace_reader,
+                )
+
+            self.assertEqual(
+                str(raised.exception),
+                "m5_codex_containment_result_channel_empty",
+            )
+        finally:
+            if process is not None and process.poll() is None:
+                process.kill()
+                process.wait(timeout=5)
+            for descriptor in (
+                input_reader,
+                input_writer,
+                result_reader,
+                result_writer,
+                trace_reader,
+                trace_writer,
+            ):
+                if descriptor >= 0:
+                    try:
+                        os.close(descriptor)
+                    except OSError:
+                        pass
+
     def test_private_channel_has_no_path_and_preserves_real_kernel_bytes(self) -> None:
         """M5-CDX-GATE-001: private transport is an inherited kernel channel."""
 
@@ -813,6 +949,65 @@ class M5CodexContainmentPrivateChannelTests(unittest.TestCase):
                     os.close(descriptors[index + 1])
                     os.rmdir(names[index], dir_fd=descriptors[index])
                 os.close(descriptors[0])
+
+    def test_inode_bound_chmod_target_stays_pinned_through_post_scan(self) -> None:
+        """M5-CDX-GATE-001: a real idempotent chmod is inode-bound."""
+
+        with tempfile.TemporaryDirectory() as raw:
+            root = Path(raw)
+            root.chmod(0o700)
+            managed = root / "managed"
+            managed.mkdir(mode=0o700)
+            runtime = managed / "runtime"
+            runtime.mkdir(mode=0o755)
+            target = runtime / "prepared"
+            target.mkdir(mode=0o700)
+
+            snapshot = getattr(containment, "_managed_profile_tree_snapshot", None)
+            open_root = getattr(containment, "_open_pinned_profile_root", None)
+            open_target = getattr(
+                containment,
+                "_open_inode_bound_chmod_target",
+                None,
+            )
+            validate_target = getattr(
+                containment,
+                "_validate_inode_bound_chmod",
+                None,
+            )
+            self.assertTrue(callable(snapshot), "profile snapshot seam is required")
+            self.assertTrue(callable(open_root), "pinned root seam is required")
+            self.assertTrue(callable(open_target), "inode target seam is required")
+            self.assertTrue(callable(validate_target), "post-scan validator is required")
+
+            before = snapshot(managed)
+            root_descriptor, root_identity = open_root(managed)
+            target_descriptor = -1
+            try:
+                before_ctime = target.stat().st_ctime_ns
+                for _ in range(10):
+                    os.chmod(target, 0o700)
+                    if target.stat().st_ctime_ns > before_ctime:
+                        break
+                    time.sleep(0.001)
+                self.assertGreater(target.stat().st_ctime_ns, before_ctime)
+                target_descriptor, walked = open_target(
+                    root_descriptor,
+                    ("runtime", "prepared"),
+                    before,
+                )
+                after = snapshot(managed, expected_root_identity=root_identity)
+                validate_target(
+                    target_descriptor,
+                    ("runtime", "prepared"),
+                    walked,
+                    before,
+                    after,
+                )
+            finally:
+                if target_descriptor >= 0:
+                    os.close(target_descriptor)
+                os.close(root_descriptor)
 
 
 class M5CodexContainmentLiveTests(unittest.TestCase):
