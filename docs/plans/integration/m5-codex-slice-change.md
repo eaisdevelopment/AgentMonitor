@@ -1,8 +1,10 @@
 # Change plan: executable V1-M5 Codex slice
 
-- Status: **Approved 1.9.0 for one quota-witness policy-projection correction
-  and a fifth exact evidence-preserving service rollover**.
-- Plan version: `1.9.0`; owner approval: 2026-10-21.
+- Status: **Draft 1.10.0 for one managed-profile effective-containment
+  correction folded into the approved but not-yet-run fifth rollover**.
+  Approved 1.9.0 remains the current implementation authority until the owner
+  approves this focused addition.
+- Plan version: `1.10.0`; owner approval: pending.
 - Safety correction: exact-version review proved that authenticated app-server
   queries may perform Codex's automatic credential refresh. The approved
   managed-auth lifecycle therefore classifies those queries as
@@ -29,7 +31,8 @@
   explicit 2026-10-20 approval of version 1.8.0 adds only the bounded
   P02 correction below and supersedes only 1.7.0's candidate-content
   restriction. The owner's explicit 2026-10-21 approval of version 1.9.0 adds
-  only the quota-witness correction and fifth rollover specified below. All
+  only the quota-witness correction and fifth rollover specified below. Draft
+  1.10.0 adds no implementation authority before explicit owner approval. All
   remaining A02, OpenAI API, PLAN-DEP/D01, and
   `AUTO-DEPLOY` lanes stay Draft or Blocked as already recorded.
 - Stories: `ST-CDX-001..005`.
@@ -1254,6 +1257,110 @@ of a create-once file, sixth-rollover execution, provider or scheduler
 behavior, provider login, provider mutation, default-profile access, telemetry
 edit, process control, `AUTO-DEPLOY`, OpenAI API billing, or broader
 PLAN-DEP/D01 authority.
+
+## Proposed managed-profile effective-containment correction — 2026-10-21
+
+**Status: Draft 1.10.0; owner approval is required before production gate code
+changes. Version 1.10.0 would supersede only 1.9.0's candidate-content
+restriction and fold this correction into the already authorized, not-yet-run
+fifth rollover from `d81afab9e5b1c1dbdb690f390e77cee66eba5437`. It would
+authorize no sixth rollover.**
+
+### Real-system Reds discovered by the required 1.9 preactivation suite
+
+The zero-skip M5 Story run reached the real managed-profile containment test
+and failed before provider execution with
+`m5_codex_containment_profile_tree_invalid`. Read-only metadata inspection of
+all three verified Codex profiles established the same real layout:
+
+- the owner data root, `profiles`, `profiles/codex`, and each selected profile
+  root are plain owner-owned directories with exact mode `0700`;
+- each `auth.json` is an owner-owned, single-link regular file with mode `0600`;
+- every descendant is a same-UID, same-device regular file or directory, with
+  no symlink, hardlink, nonregular type, special permission bit, or foreign
+  owner; and
+- Codex and its runtime create ordinary plugin, cache, and runtime entries with
+  modes `0444`, `0600`, `0644`, `0664`, `0700`, `0755`, or `0775`.
+
+The automation-only `_managed_profile_tree_digest` currently rejects every
+descendant with any group or other permission bit. That is stricter than the
+approved security boundary, which requires the enclosing managed roots to be
+owner-only and validates the credential store separately. An exact `0700`
+root prevents every other UID from traversing to a descendant regardless of a
+descendant's ordinary permission bits; mode `0600` also does not isolate a file
+from another process running as the same UID. Direct `chmod`, profile copying,
+profile replacement, or reauthentication would mutate provider state, would
+not durably match provider behavior, and is prohibited.
+
+The same run exposed one independent test-expectation defect in
+`test_live_connected_profile_enrollment_is_idempotent_when_selected`.
+The second enrollment intentionally reconciles the real Codex installation and
+therefore advances the global Registry snapshot watermark once while leaving
+the account, profile, resource, and aggregate record versions unchanged. The
+test incorrectly required exact equality including `registry_revision`.
+Test-only Red/Green now compares aggregate fields without that global watermark
+and separately proves the one expected revision advance. This changes no
+Registry production behavior or contract.
+
+### Exact proposed correction boundary
+
+Production change is limited to
+`tools/automation/implementations/m5_codex_containment.py`:
+
+- Define the tree check by effective enclosing-root containment. Keep the
+  owner data root, profiles root, provider root, and selected managed-profile
+  root exact owner-owned `0700` directories with no symlink and pinned inode,
+  and revalidate them after provider work.
+- Permit ordinary permission bits on nested provider-owned regular files and
+  directories only while they remain enclosed by those exact private roots.
+  Retain every nested mode in the pre-provider and post-provider evidence
+  digests.
+- Continue rejecting every nested symlink, nonregular type, foreign UID,
+  cross-device entry, regular-file hardlink, setuid/setgid/sticky bit,
+  over-limit count or path, or traversal error. Require each nested directory
+  to be owner-readable and owner-searchable, and make filesystem-walk errors
+  fail closed so an incomplete scan cannot pass.
+- Keep the production transport's `auth.json` rule unchanged: owner-owned,
+  single-link regular file, no group or other permission bits, and bounded
+  size, validated before and after provider use.
+- Keep real syscall tracing, provider-write confinement, zero default-profile
+  access and writes, executable/runtime/service/revision binding, private
+  channels, closed result schema, and create-once receipt behavior unchanged.
+
+This proposal authorizes no `chmod` or `chown`, profile read/copy/delete/move/
+replacement, provider login or reauthentication, default-profile operation,
+Registry or database mutation, API, UI, scheduler, configuration, dependency,
+schema, migration, public-contract change, gate bypass, or sixth rollover.
+
+### TDD, live proof, and synchronization
+
+Red adds real-filesystem coverage showing that an exact `0700` managed root
+containing representative provider-created `0755`/`0775` directories and
+`0444`/`0644`/`0664`/`0755` files is rejected by the current tree check. Green
+must prove that this tree produces a digest and that changing one permitted
+nested mode changes that digest. Negative real-filesystem cases must retain or
+add exact rejection of a nonprivate selected root, symlink, hardlink, FIFO or
+other nonregular entry, special permission bit, foreign device/owner where
+safe to exercise, owner-unsearchable directory, traversal error, and bounded
+count/path violations.
+
+Required local proof is the focused new Red/Green, complete containment suite,
+the corrected real enrollment test, Ruff, format, strict mypy, an explicit
+Story inventory rebind if added test identifiers change it, and every canonical
+1.9 preactivation gate. Read-only metadata validation must cover all three
+verified real managed roots. After the single fifth activation, the canonical
+live containment test and `AUTO-M5-EXIT` must invoke real identity and quota
+operations, prove zero default-profile access/write and confinement of every
+declared write to the selected managed profile, and bind the resulting tree
+digests into the exact completion evidence. Skips cannot pass.
+
+Documentation synchronization is limited to this plan, the Codex adapter
+boundary, M5 implementation evidence/status, operations wording where needed,
+the documentation indexes, and generated planning-control hashes. There is no
+public contract, ADR, database, migration, dependency, license, API, generated
+client, UI, or provider-payload impact. M5 remains Intermediate until the
+already specified fifth rollover, refreshed prerequisites, corrected quota
+witness, and `AUTO-M5-EXIT` all pass.
 
 ## Stop conditions
 
