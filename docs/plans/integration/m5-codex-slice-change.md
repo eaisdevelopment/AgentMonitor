@@ -1,10 +1,10 @@
 # Change plan: executable V1-M5 Codex slice
 
-- Status: **Approved 1.8.0 for the root-owned M5 complete-scope lifecycle,
-  paginated history verification, alert browser-proof termination correction,
-  four exact evidence-preserving service rollovers, and the bounded P02
-  canonical-browser correction**.
-- Plan version: `1.8.0`; owner approval: 2026-10-20.
+- Status: **Draft 1.9.0 for one quota-witness policy-projection correction and a
+  fifth exact evidence-preserving service rollover; version 1.8.0 remains the
+  latest owner-approved scope**.
+- Plan version: `1.9.0`; owner approval: pending. Version `1.8.0` was approved
+  on 2026-10-20.
 - Safety correction: exact-version review proved that authenticated app-server
   queries may perform Codex's automatic credential refresh. The approved
   managed-auth lifecycle therefore classifies those queries as
@@ -30,9 +30,10 @@
   `e066d7e1ba0124f0454c07002ea7b2ad0817d6b9` specified below. The owner's
   explicit 2026-10-20 approval of version 1.8.0 adds only the bounded
   P02 correction below and supersedes only 1.7.0's candidate-content
-  restriction. All remaining A02, OpenAI API, PLAN-DEP/D01, and `AUTO-DEPLOY`
-  lanes stay Draft or Blocked
-  as already recorded.
+  restriction. Draft version 1.9.0 proposes only the quota-witness correction
+  and fifth rollover specified below; it has no production authority until
+  owner approval. All remaining A02, OpenAI API, PLAN-DEP/D01, and
+  `AUTO-DEPLOY` lanes stay Draft or Blocked as already recorded.
 - Stories: `ST-CDX-001..005`.
 - Requirements: `FR-ACC-001/004..006`, `FR-AUTH-001/002/004..006`,
   `FR-QUOTA-001..006`, `FR-COL-003..008`, `FR-HIST-001/002`,
@@ -1171,6 +1172,88 @@ or any relaxation of the M5 completion gate. Version 1.8.0 supersedes only
 1.7.0's candidate-content restriction that said the fourth-rollover candidate
 contained only the alert browser correction; every other 1.7 transition,
 evidence-preservation, rollback, stop, and safety condition remains binding.
+
+## Draft quota-witness policy-projection correction — 2026-10-21
+
+**Status: Draft 1.9.0. No production implementation or fifth service rollover
+is authorized until owner approval. Approved version 1.8.0 and its retained
+evidence remain unchanged.**
+
+### Real-system Reds discovered by the required 1.8 completion gate
+
+The exact clean `d81afab9e5b1c1dbdb690f390e77cee66eba5437` candidate passed
+its focused and complete local gates, was activated through the approved fourth
+rollover, and retained a live authenticated browser plus the required external
+Codex process set. `AUTO-M5-QUOTA-WITNESS` then completed its real authenticated
+API, DOM, current history, Registry, identity, collection-lineage, and
+zero-mutation proof and accepted all four owner-entered quota windows. Final
+reconciliation returned `m5_quota_witness_input_invalid` and created no private
+file. A no-write diagnostic rerun located the rejection at
+`m5_codex_quota_witness.py:500`: the validated browser window intentionally
+contains the opaque browser-only `current_observation_id`, while the closed
+quota policy record accepts exactly the five provider-neutral quota fields. The
+same function already builds the correct five-field policy projection for
+digest verification but returns the six-field browser record to the final
+reconciliation path.
+
+This Red contributes `M5-CDX-GATE-001..014`, `FR-QUOTA-001..006`,
+`FR-HIST-001/002`, `NFR-TEST-001/002`, `AC-LIVE-005`, `AC-HIST-001`,
+`AC-OPS-003/006`, and `AC-TEST-001..006` within the existing M5 boundary.
+
+### Exact correction boundary
+
+After approval, implementation is limited to all of the following:
+
+- In `tools/automation/implementations/m5_codex_quota_witness.py`, return or
+  rebuild the already verified five-field provider-neutral policy projection
+  before final reconciliation. The opaque `current_observation_id` remains
+  mandatory input to the private browser/history digest and is removed only
+  after that digest is independently recomputed. No accepted value, freshness
+  interval, owner confirmation, identity, Registry, DOM, history, mutation,
+  permission, create-once, or revision/service binding is weakened.
+- Add pure Red/Green coverage proving the browser-only observation field is
+  required for history binding and absent from the closed reconciliation
+  input; the complete validated browser record reconciles after shaping; extra
+  non-browser fields remain rejected; and the existing private browser-proof
+  schema and digest stay unchanged.
+- Synchronize only the affected M5 plan, runbook, module/evidence/status,
+  automation registry, and planning-control documents. No API, OpenAPI,
+  database schema, Registry contract, provider payload contract, dependency,
+  UI behavior, default provider profile, agent control, or broader deployment
+  scope changes.
+
+### Fifth evidence-preserving rollover
+
+Because every M5 prerequisite and the running Operations inventory bind the
+exact source revision, the correction must produce one reviewed clean detached
+candidate and one fifth controlled rollover from
+`d81afab9e5b1c1dbdb690f390e77cee66eba5437`. Extend the frozen activation
+policy and tests by one exact fixed archive namespace
+`m5-service-activation-corrective-archive-d81afab`; require the four existing
+archives as an unchanged ordered prefix; atomically retain the complete `d81`
+activation directory by same-filesystem no-replace rename; fsync both parents;
+and preserve the existing two-stage status-5 rerun, rollback drill, authenticated
+browser, file identity, digest, collision, interruption, and trusted-service
+restoration rules. The new candidate must differ from the pinned rollback
+revision and all five archived corrective revisions. The transition is not
+general deployment authority.
+
+Before activation, Green requires the focused quota-witness and activation
+suites, then the complete canonical quality, build, test, mutation,
+documentation, planning, and Git
+preflight gates. After activation, archive the now stale create-once M5
+prerequisites through the existing canonical archive command, recreate owner
+outcomes from the already owner-confirmed four-account disposition, create one
+fresh genuine alert lifecycle and alert witness, reconcile fresh official
+Codex status readings through `AUTO-M5-QUOTA-WITNESS`, and immediately run
+`AUTO-M5-EXIT`. M5 remains incomplete unless the exact clean-revision receipt
+is created and passes its final rereads.
+
+This draft adds no relaxation, bypass, fabricated collection, replacement of a
+create-once file, fifth-rollover execution, provider or scheduler behavior,
+provider login, provider mutation, default-profile access, telemetry edit,
+process control, `AUTO-DEPLOY`, OpenAI API billing, or broader PLAN-DEP/D01
+authority.
 
 ## Stop conditions
 
