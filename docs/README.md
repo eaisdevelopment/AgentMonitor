@@ -39,14 +39,16 @@ Current program state:
   created no file. The plan 1.9 quota-policy projection and fifth-rollover
   policy are local Green. Owner-approved plan 1.10 corrects effective
   containment for ordinary provider-created descendants below pinned private
-  roots. Its current `28` non-live tests passed, but required negative
-  entry-count and path-length cases remain absent; the interim `478`-test Story
-  inventory must be rebound after they are added. A subsequent real containment
-  attempt passed metadata and driver checks, then failed closed as
+  roots. Its required real-filesystem bound cases now pass: the non-live
+  containment suite is `30/30`, current-exit is `66/66`, and the exact Story
+  inventory is `480` tests. A subsequent real containment attempt passed
+  metadata and driver checks, then failed closed as
   `m5_codex_containment_path_mutator_unverifiable` while classifying two
-  successful provider `chmod` calls inside the selected managed profile and
-  none under default roots. Passing containment is pending after that Failed
-  attempt. The fifth live rollover, refreshed revision-bound prerequisites,
+  idempotent provider `chmod(..., 0700)` calls on one preexisting in-profile
+  directory and none under default roots. Draft plan 1.11 proposes the exact
+  inode-bound proof and safe channel diagnostics; implementation awaits owner
+  approval. The aggregate preactivation gates and passing containment remain
+  pending. The fifth live rollover, refreshed revision-bound prerequisites,
   authoritative `/status` witness, clean exact-revision `AUTO-M5-EXIT`, and
   owner acceptance are **Not Run**; the canonical gate state remains
   `not_run`.
@@ -105,7 +107,7 @@ This index is the entry point for product, architecture, engineering, and operat
 - [M4 completion evidence](evidence/m4-completion.md): all six M4 Stories, installed migration, six distinct monitored identities, fresh post-restart lineage, browser verification, and owner-accepted revision-bound closure.
 - [M4 current-gate receipt](evidence/m4-current-gate-receipt-2026-10-07.json): sanitized create-once result for the exact accepted implementation revision.
 - [M4 owner countersignature](evidence/m4-owner-live-countersignature-2026-10-07.md): explicit acceptance of the complete approved M4 scope.
-- [Approved M5 Codex slice change](plans/integration/m5-codex-slice-change.md):
+- [M5 Codex slice change](plans/integration/m5-codex-slice-change.md):
   exact Codex 0.160.0 managed-profile, quota, process, API/UI, and completion-gate scope.
 - [Codex 0.160.0 discovery evidence](evidence/m5-codex-0.160.0-discovery.md):
   official-source, installed-schema, isolated app-server, and safe process findings that bind the M5 implementation.

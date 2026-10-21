@@ -955,23 +955,26 @@ digest and are accepted only through that effective private enclosure, while
 the credential-store rule and every link, type, owner/device, special-bit,
 traversal, bound, default-root, and write-confinement check stay fail closed.
 
-Commits `1143d96` and `f4d4bf7` implement the current policy. Its `28`
-non-live tests pass, but review found the plan-required negative entry-count
-and path-length cases absent. The current `478`-test Story inventory is
-therefore interim and must be rebound. A real attempt against the unchanged
-`d81afab` service passed safe metadata and driver stages, then failed closed as
+Commits `1143d96` and `f4d4bf7` implement the policy, and `d71b79c` adds both
+required real-filesystem bounds cases. The focused non-live suite passes
+`30/30`, current-exit passes `66/66`, and the exact Story inventory is `480`
+tests with digest
+`e90485d6866065f3149cf1285b5c18c665d26068de2da5c4c61862830bb56bf9`.
+The canonical preactivation aggregate remains pending. A real attempt against
+the unchanged `d81afab` service passed safe metadata and driver stages, then failed closed as
 `m5_codex_containment_path_mutator_unverifiable` after classifying two
 successful provider `chmod` calls inside the selected profile and none under
-default roots. No live containment pass or receipt is claimed.
+default roots. Draft plan 1.11 proposes the exact inode-bound proof and safe
+channel diagnostics; it awaits owner approval. No live containment pass or
+receipt is claimed.
 
 Among synchronized baseline inputs, only the PLAN-DEP body, its generated
 contract-adoption digest, reviewed parallel-ownership digest, the bounded M5
 exit routine, the automation-standard description, and this exact snapshot
 changed. The other 19 canonical plan bodies and all canonical approval flags
-remain unchanged. Required local containment cases, the resulting inventory
-rebind, and a passing authenticated containment result remain pending. The
-fifth live rollover, refreshed prerequisites, authoritative quota witness,
-`AUTO-M5-EXIT`, and owner acceptance remain Not Run. M5 remains Intermediate
-with canonical gate state `not_run`.
+remain unchanged. The aggregate preactivation gates, an approved and passing
+authenticated containment correction, the fifth live rollover, refreshed
+prerequisites, authoritative quota witness, `AUTO-M5-EXIT`, and owner acceptance
+remain Not Run. M5 remains Intermediate with canonical gate state `not_run`.
 
 Plan snapshot SHA-256: `4214633ff01b6b8276b1c9bc34475e37b75c3e724162c35863e845cb72bc6ff7`

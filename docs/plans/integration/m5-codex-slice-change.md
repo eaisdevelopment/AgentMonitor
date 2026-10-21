@@ -1,8 +1,9 @@
 # Change plan: executable V1-M5 Codex slice
 
-- Status: **Approved 1.10.0 for one managed-profile effective-containment
+- Status: **Draft 1.11.0 for one exact inode-bound provider `chmod`
   correction folded into the approved but not-yet-run fifth rollover**.
-- Plan version: `1.10.0`; owner approval: 2026-10-21.
+- Plan version: `1.11.0`; owner approval: **pending**. Approved 1.10.0 remains
+  the current implementation authority.
 - Safety correction: exact-version review proved that authenticated app-server
   queries may perform Codex's automatic credential refresh. The approved
   managed-auth lifecycle therefore classifies those queries as
@@ -31,7 +32,10 @@
   restriction. The owner's explicit 2026-10-21 approval of version 1.9.0 adds
   only the quota-witness correction and fifth rollover specified below. The
   owner's explicit 2026-10-21 approval of version 1.10.0 adds only the
-  managed-profile effective-containment correction specified below. All
+  managed-profile effective-containment correction specified below. Draft
+  version 1.11.0 proposes only the exact inode-bound provider `chmod` and
+  private-channel diagnostic correction specified below; it is not
+  implementation authority until the owner approves it. All
   remaining A02, OpenAI API, PLAN-DEP/D01, and
   `AUTO-DEPLOY` lanes stay Draft or Blocked as already recorded.
 - Stories: `ST-CDX-001..005`.
@@ -1353,17 +1357,15 @@ operations, prove zero default-profile access/write and confinement of every
 declared write to the selected managed profile, and bind the resulting tree
 digests into the exact completion evidence. Skips cannot pass.
 
-The local correction is present in commits `1143d96` and `f4d4bf7`; commit
-`ae33540` provides an interim Story inventory of `478` Python tests and digest
-`ba070544ac4f8e7aabe53492b6afa91f74d8b1c149bd20134b7f19badfa0df9c`.
+The local correction is present in commits `1143d96` and `f4d4bf7`. Commit
+`d71b79c` adds the required real-filesystem entry-count and overlong-relative-
+path cases and rebinds the Story inventory to `480` Python tests with digest
+`e90485d6866065f3149cf1285b5c18c665d26068de2da5c4c61862830bb56bf9`.
 The focused intermediate-root Red failed because a `0755` `profiles`
-directory was admitted; its two-test Green passed. The current non-live
-containment suite passed `28` tests, while the complete `29`-test file passed
-those same `28` and skipped the owner-selected authenticated case. That skip
-is not live evidence. Review then found that the plan-required negative
-entry-count and path-length cases are absent. Local 1.10 proof therefore
-remains incomplete, and the inventory must be rebound after those cases are
-added.
+directory was admitted; its two-test Green passed. The two bounds cases passed,
+the non-live containment suite passed `30` tests, the complete file passed
+those same `30` and skipped only the owner-selected authenticated case, and
+the current-exit suite passed `66` tests. That skip is not live evidence.
 
 A later real containment attempt against the still-running `d81afab` service
 passed its safe metadata and driver stages, then failed closed as
@@ -1382,6 +1384,200 @@ public contract, ADR, database, migration, dependency, license, API, generated
 client, UI, or provider-payload impact. M5 remains Intermediate until the
 already specified fifth rollover, refreshed prerequisites, corrected quota
 witness, and `AUTO-M5-EXIT` all pass.
+
+## Draft inode-bound idempotent chmod correction — 2026-10-21
+
+**Status: Draft 1.11.0; owner approval pending. Approved 1.10.0 remains the
+current implementation authority. This draft proposes one automation-only
+correction folded into the already authorized, not-yet-run fifth rollover from
+`d81afab9e5b1c1dbdb690f390e77cee66eba5437`. It authorizes no implementation
+and no sixth rollover until the owner explicitly approves this version.**
+
+### Real-system Red and observed boundary
+
+The required authenticated 1.10 live containment run reached both production
+Codex app-server operations and then failed closed as
+`m5_codex_containment_path_mutator_unverifiable`. Privacy-safe in-memory
+classification established exactly two successful plain `chmod` calls, one in
+each app-server operation lineage. Both requested literal mode `0700` on the
+same preexisting strict-descendant directory inside the selected managed
+profile. Before and after the run the target was mode `0700` and retained the
+same device, inode, owner, and directory type; its change time advanced.
+Neither call named a default-profile path. No raw trace, provider payload,
+private path, identity, or credential was retained.
+
+The current trace policy intentionally rejects all successful path-following
+mutators because `strace -yy` does not report a kernel-resolved target for
+plain `chmod`. Accepting a lexical in-root string alone would weaken the gate.
+Plan 1.10 also explicitly excluded a `chmod` policy change, so the real Red is
+outside its approval even though the provider operation itself is the already
+approved `managed_profile_write` lifecycle.
+
+Two earlier attempts returned
+`m5_codex_containment_private_channel_invalid` before a result payload was
+available. The current collector collapses missing, invalid, or late channel
+outcomes into that one code and can discard the other completed outcome. No
+retained artifact can distinguish the causes of those two attempts, so this
+plan makes no narrower historical claim.
+
+### Exact proposed correction boundary
+
+Production change remains limited to
+`tools/automation/implementations/m5_codex_containment.py`:
+
+- Before provider execution, keep one `O_PATH | O_DIRECTORY | O_NOFOLLOW |
+  O_CLOEXEC` descriptor for the selected managed-profile root and retain an
+  in-memory bounded directory identity table from the existing maximum-10,000-
+  entry, maximum-4,096-byte-relative-path tree walk. Do not open one descriptor
+  per tree entry.
+- Apply default-root detection and the existing generic access/write
+  confinement to every trace record before considering the narrow exception.
+  Parse `chmod` with a full-match argument grammar: exactly one quoted absolute
+  normalized path plus literal mode `0700`; substring or partial matches fail.
+- Require exactly two `chmod` records in the complete traced process tree,
+  both with syscall result exactly `0`: exactly one in each of the two
+  ordered, fixed-sequence-mapped app-server operation lineages, none in the
+  version lineage or unattributed processes. Require strict provider execution
+  order `(version, identity app-server, quota app-server)` with no overlap, and
+  bind descendants to that exact operation object. Both records must name the
+  same strict-descendant target. Any
+  additional, failed, differently shaped, differently targeted, or differently
+  moded `chmod` fails closed.
+- After trace extraction, walk that target from the already pinned profile root
+  one component at a time with descriptor-relative `O_PATH | O_DIRECTORY |
+  O_NOFOLLOW | O_CLOEXEC` opens. Revalidate every ancestor and the target
+  against the pre-execution table and the post-execution tree: owner UID,
+  device, inode, directory type, and path identity must match; the target must
+  be `0700` before and after. Use a rolling maximum of three descriptors for
+  this walk—the pinned root, current parent, and next child—and fail closed on
+  any open, close, metadata, identity, or resource error. Retain the final
+  target descriptor through the post-tree validation. A later change time is
+  required only as corroboration that metadata changed during the run; it is
+  not evidence that independently attributes both calls.
+- Replace the current trace selector with this exact admitted expression:
+
+  ```text
+  trace=%file,%process,chdir,fchdir,fchmod,fchown,ftruncate,fallocate,clone,clone3,setns,unshare,chroot,pivot_root,mount,umount,umount2,open_tree,move_mount,fsopen,fsconfig,fsmount,fspick,mount_setattr
+  ```
+
+  Before any provider child, invoke the exact root-owned tracer on validated
+  root-owned, non-writable `/usr/bin/true` and fail closed if the installed
+  tracer rejects the expression. Real Linux tests must issue deliberately
+  invalid, no-effect namespace syscalls and prove the selector records the
+  named calls; category names alone are not evidence of coverage. The current
+  installed strace 6.8 accepts this exact expression.
+- Reject any traced link, symlink, rename, unlink, mount, or other namespace
+  replacement affecting the target or an ancestor. Continue rejecting every
+  `chown`, `fchmod*`, `fchown*`, `truncate`, `utime*`, unresolved path/fd
+  mutator, default-root access/write, and out-of-profile write under the
+  existing policy. Reject `chroot`, `pivot_root`, all legacy and modern mount
+  operations, `setns`, successful `unshare(CLONE_NEWNS)`, and `clone`/`clone3`
+  creation of a mount namespace; any unknown operation that can change path-
+  resolution or mount-namespace context fails closed.
+- Keep the full before/after tree digest, four exact private enclosing roots,
+  `auth.json` metadata rule, service/revision/executable binding, and closed
+  evidence schema unchanged. The directory identity table, descriptors, path,
+  and target metadata remain in process only; only the existing digest and
+  aggregate counts may enter completion evidence. Every pin descriptor closes
+  in `finally` and none is inherited by or passed to the provider process.
+
+The verification-only write set is
+`tools/automation/test_m5_codex_containment.py`, the inventory assertions in
+`tools/automation/test_m5_current_exit.py`, and only the exact count/digest
+constants in
+`tools/automation/implementations/auto_m5_current_exit.py`. Documentation may
+change only in this plan, the Codex adapter boundary, M5 evidence/status,
+completion/runbook wording if the new safe codes require it, indexes, and
+generated planning controls. Any other production file or contract change is a
+stop condition and requires a new approved plan.
+
+The private-channel collector must settle input, result, and trace futures
+independently under one shared five-second monotonic deadline after driver exit
+or process-group termination, close every owned descriptor to unblock pending
+I/O, and never allow executor shutdown to wait without that bound. It then uses
+this first-match precedence.
+No raw exception, stderr, trace, path, provider output, or payload may cross
+the boundary:
+
+| Priority | Closed outcome | Classification |
+|---:|---|---|
+| 1 | Driver deadline, including failure to settle after process-group termination | `Unavailable: m5_codex_containment_driver_deadline_exceeded` |
+| 2 | Result EOF with zero bytes | `Failed: m5_codex_containment_result_channel_empty` |
+| 3 | Result oversize, read/descriptor failure, or late result future | `Failed: m5_codex_containment_result_channel_invalid` |
+| 4 | Trace EOF with zero bytes | `Failed: m5_codex_containment_trace_channel_empty` |
+| 5 | Trace oversize, read/descriptor failure, or late trace future | `Failed: m5_codex_containment_trace_channel_invalid` |
+| 6 | Result bytes are not the exact closed result schema | `Failed: m5_codex_containment_result_invalid` |
+| 7 | Input write/close/descriptor failure or late input future | `Failed: m5_codex_containment_input_channel_invalid` |
+| 8 | Return `3` plus exact `unavailable` result | `Unavailable: m5_codex_containment_provider_unavailable` |
+| 9 | Return `2` plus exact `failed` result | `Failed: m5_codex_containment_operation_failed` |
+| 10 | Return `0` plus exact `passed` result | Continue to UTF-8, trace-policy, filesystem, and evidence checks |
+| 11 | Any other return code/result-state pair | `Failed: m5_codex_containment_driver_status_invalid` |
+
+Every row remains non-passing except row 10 after all later checks pass.
+The exact `unavailable` and `failed` shapes have zero operation/bucket/window
+counts and a null identity digest. Result and trace channel outcomes plus exact
+result-schema validation precede input failure, so an early child exit with
+both empty result and broken input reports the useful result cause. The
+collector must still settle and close every channel. Trace UTF-8, grammar, and
+security policy are evaluated only after the exact row-10 `0`/`passed` pair;
+malformed UTF-8 and structurally invalid trace records then retain the existing
+`m5_codex_containment_trace_invalid` failure, and security-specific policy
+codes remain more specific. Rows 8 and 9 require a nonempty bounded trace
+channel but do not interpret its contents and can never create evidence.
+Missing output never passes, and a valid provider-unavailable result never
+becomes Failed solely because the provider did not complete all three
+successful executions.
+
+This narrow proof does not claim atomic isolation from a malicious process
+already running as the same Unix UID. V1's documented local single-user threat
+disposition already accepts that such a process can access or change the same
+owner-controlled files directly; the correction grants it no new capability.
+The root-anchored walk, identity table, post-tree scan, and complete traced
+provider process tree prevent a provider-controlled replacement within the
+admitted syscall model from passing. They do not exclude a transient
+substitution by a separate untraced same-UID process. A future multi-user or
+hostile-same-UID deployment requires a separately approved kernel-mediated
+isolation design.
+
+This draft adds no new provider call or authorized side effect, login, profile
+copy, default-profile access, dependency, OS sandbox, API, UI, database,
+migration, schema, public contract, scheduler behavior, service transition,
+process control, gate bypass, or broader deployment authority. Landlock cannot
+mediate `chmod`; Bubblewrap would add a separate executable, namespace
+topology, and security-advisory surface, so neither is proposed for this
+focused correction.
+
+### TDD and live proof
+
+Before production changes, Red must preserve the current real failure and add
+pure trace-policy plus real-filesystem tests for: the exact positive two-call
+pattern; zero, one, or three calls; two calls in one operation lineage;
+different targets; failed calls; wrong mode, type, owner, inode, device, root,
+relative path, `..`, default-root path, and parser suffix/prefix; target and
+ancestor replacement; version-lineage or unattributed calls; links, hard links,
+and every other mutator. The existing lexical `truncate` case must remain Red.
+Constructed trace strings prove only pure policy. Real filesystem tests must
+exercise the root-anchored descriptor walk, rolling descriptor cap, and
+pre/post identity validation.
+
+The channel Red must reproduce the current collapsed code. Green must use real
+anonymous pipes and real child processes to cover every row and precedence
+collision in the table, including EOF, oversize, malformed schema, read/write
+failure, rc `0/2/3/other`, deadline termination, and futures that finish in a
+different order. These tests retain no raw child data and use no mocks, fakes,
+stubs, recordings, or test-only production route.
+
+Required local proof is focused Red/Green, the complete containment/current-
+exit suites, Ruff, format, strict mypy, exact Story inventory rebind, and every
+canonical preactivation gate. Before activation, a safe authenticated rerun
+against the unchanged `d81afab` service must pass the corrected containment
+policy with no skip; this is development evidence, not the final receipt.
+After the single fifth activation, the exact live test must perform real
+identity and quota operations, observe only the two allowlisted inode-bound
+`0700` directory calls, prove zero default-profile access/write and all other
+writes confined to the selected profile, and pass inside `AUTO-M5-EXIT` with
+zero skips. M5 remains Intermediate until the final receipt exists and survives
+its canonical rereads.
 
 ## Stop conditions
 

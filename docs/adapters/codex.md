@@ -1,8 +1,8 @@
 # Codex CLI adapter
 
-Status: **implemented through the current partial V1-M5 1.10 correction;
-required bound coverage, passing live containment, and `AUTO-M5-EXIT` are
-pending**.
+Status: **implemented through approved V1-M5 plan 1.10; draft 1.11
+inode-bound live-containment correction, passing live containment, and
+`AUTO-M5-EXIT` are pending**.
 
 Owner: `PLAN-INT` for the focused M5 integration and A02 for provider behavior.
 
@@ -215,10 +215,13 @@ roots, file SQLite, loopback HTTP, generated client, built UI, and Linux
 process observation. Owner-authenticated managed profiles and current native
 quota require the live owner selectors and are never replaced by fixtures.
 The implemented effective-containment cases pass their real-filesystem suite.
-Plan-required negative entry-count and path-length cases still need to be added
-and rebound into the Story inventory, so local proof is incomplete. The
-authenticated identity/quota trace also remains pending after a fail-closed
-live attempt and before the fifth service rollover and `AUTO-M5-EXIT`.
+All `30` focused non-live cases include the plan-required entry-count and
+overlong-relative-path bounds; current-exit passes `66/66`, and the exact Story
+inventory is `480` tests. The canonical preactivation aggregate remains
+pending. The authenticated identity/quota trace also remains pending after a
+fail-closed live attempt. Draft plan 1.11 proposes the exact inode-bound
+`chmod(..., 0700)` proof and safe channel diagnostics; owner approval, the
+fifth service rollover, and `AUTO-M5-EXIT` are still required.
 
 The sole milestone completion command is:
 

@@ -920,21 +920,25 @@ bound checks, zero default-profile access, selected-profile write confinement,
 and unchanged private receipt schema. It folds into the same not-yet-run fifth
 rollover and authorizes no sixth transition or general deployment behavior.
 
-The implemented cases pass `28` non-live tests, and interim commit `ae33540`
-binds `478` Story tests. Review found that plan-required negative entry-count
-and path-length cases are missing, so the local 1.10 proof and inventory rebind
-remain incomplete. A subsequent real attempt against current `d81afab` passed
+Commit `d71b79c` completes both required real-filesystem bounds cases. The
+focused non-live suite passes `30/30`, current-exit passes `66/66`, and the
+exact Story inventory is `480` tests with digest
+`e90485d6866065f3149cf1285b5c18c665d26068de2da5c4c61862830bb56bf9`.
+The canonical preactivation aggregate remains pending. A subsequent real
+attempt against current `d81afab` passed
 safe metadata and driver stages, then failed closed as
 `m5_codex_containment_path_mutator_unverifiable`; two successful provider
 `chmod` calls were classified inside the selected profile and none under
-default roots, but their closed path-argument proof did not pass. This is a
-Failed containment result, not completion evidence.
+default roots, but their closed path-argument proof did not pass. Draft plan
+1.11 proposes the exact inode-bound proof and safe channel diagnostics; it
+awaits owner approval. This is a Failed containment result, not completion
+evidence.
 
 The synchronized controls bind the updated PLAN-DEP body, generated contract
 adoption, reviewed ownership digest, M5 exit routine, and completion standard.
-All other canonical approval flags remain unchanged. Missing local bound tests,
-the final inventory rebind, and passing authenticated containment remain
-pending. The fifth live transition, refreshed prerequisites, authoritative
+All other canonical approval flags remain unchanged. The aggregate
+preactivation gates, an approved and passing authenticated containment
+correction, the fifth live transition, refreshed prerequisites, authoritative
 quota witness, `AUTO-M5-EXIT`, and owner acceptance remain Not Run. M5 remains
 Intermediate with canonical gate state `not_run`.
 

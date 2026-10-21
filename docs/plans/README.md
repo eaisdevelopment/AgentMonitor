@@ -147,12 +147,15 @@ Directories are created when an approved planning assignment begins. Drafts stat
   four pinned owner-only roots enclose ordinary provider-created descendant
   modes while links, nonregular entries, unsafe ownership/device/mode state,
   traversal errors, and out-of-profile writes still fail closed. The currently
-  implemented local cases pass, but required negative entry-count and
-  path-length cases are missing and the Story inventory requires another
-  rebind. A real attempt also failed closed at
-  `m5_codex_containment_path_mutator_unverifiable`. Passing containment remains
-  pending; the fifth live transition, refreshed prerequisites,
-  `AUTO-M5-EXIT`, and owner acceptance remain Not Run. OpenAI API billing
+  required entry-count and path-length cases now pass, with `30/30`
+  non-live containment cases, `66/66` current-exit cases, and an exact
+  `480`-test Story inventory. A real attempt then failed closed at
+  `m5_codex_containment_path_mutator_unverifiable` on two idempotent
+  in-profile `chmod(..., 0700)` calls. Draft 1.11.0 proposes only the exact
+  inode-bound proof and safe channel diagnostics; implementation awaits owner
+  approval. The aggregate preactivation gates and passing containment remain
+  pending; the fifth live transition, refreshed prerequisites, `AUTO-M5-EXIT`,
+  and owner acceptance remain Not Run. OpenAI API billing
   remains V1-M7.
 - [Live agent account association](integration/live-agent-account-association-change.md):
   explicit manual confirmation, guarded current terminal details and private
