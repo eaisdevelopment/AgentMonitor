@@ -453,8 +453,12 @@ def _default_codex_roots(owner_data_root: Path) -> tuple[Path, ...]:
     return tuple(dict.fromkeys(roots))
 
 
+def _raise_walk_error(error: OSError) -> None:
+    raise error
+
+
 def _managed_profile_tree_digest(root: Path) -> str:
-    """Digest bounded metadata while rejecting links and non-private entries."""
+    """Digest bounded metadata enclosed by one exact owner-only root."""
 
     try:
         root_info = _private_directory(
@@ -467,6 +471,7 @@ def _managed_profile_tree_digest(root: Path) -> str:
         for current_raw, directory_names, file_names in os.walk(
             root,
             topdown=True,
+            onerror=_raise_walk_error,
             followlinks=False,
         ):
             directory_names.sort(key=os.fsencode)
@@ -484,12 +489,14 @@ def _managed_profile_tree_digest(root: Path) -> str:
                 metadata = path.lstat()
                 is_directory = stat.S_ISDIR(metadata.st_mode)
                 is_regular = stat.S_ISREG(metadata.st_mode)
+                mode = stat.S_IMODE(metadata.st_mode)
                 if (
                     stat.S_ISLNK(metadata.st_mode)
                     or (not is_directory and not is_regular)
                     or metadata.st_uid != os.getuid()
                     or metadata.st_dev != root_info.st_dev
-                    or stat.S_IMODE(metadata.st_mode) & 0o077
+                    or mode & 0o7000
+                    or (is_directory and mode & 0o500 != 0o500)
                     or (is_regular and metadata.st_nlink != 1)
                 ):
                     raise OSError
@@ -499,7 +506,7 @@ def _managed_profile_tree_digest(root: Path) -> str:
                         "kind": "directory" if is_directory else "file",
                         "device": metadata.st_dev,
                         "inode": metadata.st_ino,
-                        "mode": stat.S_IMODE(metadata.st_mode),
+                        "mode": mode,
                         "links": metadata.st_nlink,
                         "size": metadata.st_size,
                         "modified_ns": metadata.st_mtime_ns,

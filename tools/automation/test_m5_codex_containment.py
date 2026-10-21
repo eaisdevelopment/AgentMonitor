@@ -2,11 +2,13 @@
 
 from __future__ import annotations
 
+import errno
 import fcntl
 import hashlib
 import inspect
 import os
 import re
+import resource
 import subprocess
 import tempfile
 import unittest
@@ -572,6 +574,155 @@ class M5CodexContainmentPrivateChannelTests(unittest.TestCase):
             self.assertEqual(
                 str(raised.exception), "m5_codex_containment_profile_tree_invalid"
             )
+
+    def test_managed_profile_tree_accepts_enclosed_provider_modes(self) -> None:
+        """M5-CDX-GATE-001: private roots contain ordinary provider modes."""
+
+        with tempfile.TemporaryDirectory() as raw:
+            root = Path(raw)
+            root.chmod(0o700)
+            managed = root / "managed"
+            managed.mkdir(mode=0o700)
+            cache = managed / "cache"
+            cache.mkdir(mode=0o755)
+            plugins = managed / "plugins"
+            plugins.mkdir(mode=0o775)
+            files = {
+                managed / "read-only": 0o444,
+                managed / "owner-state": 0o600,
+                cache / "metadata": 0o644,
+                plugins / "shared-metadata": 0o664,
+                plugins / "launcher": 0o755,
+            }
+            for path, mode in files.items():
+                path.write_bytes(b"provider metadata")
+                path.chmod(mode)
+
+            before = _managed_profile_tree_digest(managed)
+            (cache / "metadata").chmod(0o664)
+            after = _managed_profile_tree_digest(managed)
+
+            self.assertRegex(before, _DIGEST)
+            self.assertRegex(after, _DIGEST)
+            self.assertNotEqual(before, after)
+
+    def test_managed_profile_tree_rejects_special_permission_bits(self) -> None:
+        """M5-CDX-GATE-001: special permission bits cannot enter evidence."""
+
+        for mode in (0o4600, 0o2600, 0o1600):
+            with tempfile.TemporaryDirectory() as raw:
+                root = Path(raw)
+                root.chmod(0o700)
+                managed = root / "managed"
+                managed.mkdir(mode=0o700)
+                state = managed / "state"
+                state.write_bytes(b"provider metadata")
+                state.chmod(mode)
+
+                with self.assertRaises(M5CodexContainmentErrorV1) as raised:
+                    _managed_profile_tree_digest(managed)
+
+                self.assertEqual(
+                    str(raised.exception),
+                    "m5_codex_containment_profile_tree_invalid",
+                )
+
+    def test_managed_profile_tree_rejects_a_real_fifo(self) -> None:
+        """M5-CDX-GATE-001: only regular files and directories are admitted."""
+
+        with tempfile.TemporaryDirectory() as raw:
+            root = Path(raw)
+            root.chmod(0o700)
+            managed = root / "managed"
+            managed.mkdir(mode=0o700)
+            os.mkfifo(managed / "channel", mode=0o600)
+
+            with self.assertRaises(M5CodexContainmentErrorV1) as raised:
+                _managed_profile_tree_digest(managed)
+
+            self.assertEqual(
+                str(raised.exception), "m5_codex_containment_profile_tree_invalid"
+            )
+
+    def test_managed_profile_tree_rejects_owner_unsearchable_directory(self) -> None:
+        """M5-CDX-GATE-001: every nested directory remains traversable."""
+
+        with tempfile.TemporaryDirectory() as raw:
+            root = Path(raw)
+            root.chmod(0o700)
+            managed = root / "managed"
+            managed.mkdir(mode=0o700)
+            blocked = managed / "blocked"
+            blocked.mkdir(mode=0o400)
+            try:
+                with self.assertRaises(M5CodexContainmentErrorV1) as raised:
+                    _managed_profile_tree_digest(managed)
+            finally:
+                blocked.chmod(0o700)
+
+            self.assertEqual(
+                str(raised.exception), "m5_codex_containment_profile_tree_invalid"
+            )
+
+    def test_managed_profile_tree_rejects_nonprivate_selected_root(self) -> None:
+        """M5-CDX-GATE-001: the selected enclosing root remains owner-only."""
+
+        with tempfile.TemporaryDirectory() as raw:
+            root = Path(raw)
+            root.chmod(0o700)
+            managed = root / "managed"
+            managed.mkdir(mode=0o755)
+
+            with self.assertRaises(M5CodexContainmentErrorV1) as raised:
+                _managed_profile_tree_digest(managed)
+
+            self.assertEqual(
+                str(raised.exception), "m5_codex_containment_profile_tree_invalid"
+            )
+
+    def test_managed_profile_tree_rejects_a_real_walk_error(self) -> None:
+        """M5-CDX-GATE-001: an incomplete filesystem walk fails closed."""
+
+        with tempfile.TemporaryDirectory() as raw:
+            root = Path(raw)
+            root.chmod(0o700)
+            managed = root / "managed"
+            managed.mkdir(mode=0o700)
+            state = managed / "state"
+            state.write_bytes(b"provider metadata")
+            state.chmod(0o600)
+            original_limit = resource.getrlimit(resource.RLIMIT_NOFILE)
+            constrained_limit = (
+                32
+                if original_limit[0] == resource.RLIM_INFINITY
+                else min(original_limit[0], 32)
+            )
+            descriptors: list[int] = []
+            exhausted_errno: int | None = None
+            outcome: str | None = None
+            try:
+                resource.setrlimit(
+                    resource.RLIMIT_NOFILE,
+                    (constrained_limit, original_limit[1]),
+                )
+                try:
+                    while True:
+                        descriptors.append(
+                            os.open("/dev/null", os.O_RDONLY | os.O_CLOEXEC)
+                        )
+                except OSError as error:
+                    exhausted_errno = error.errno
+                try:
+                    _managed_profile_tree_digest(managed)
+                except M5CodexContainmentErrorV1 as error:
+                    outcome = str(error)
+            finally:
+                for descriptor in descriptors:
+                    os.close(descriptor)
+                resource.setrlimit(resource.RLIMIT_NOFILE, original_limit)
+
+            self.assertEqual(exhausted_errno, errno.EMFILE)
+            self.assertEqual(outcome, "m5_codex_containment_profile_tree_invalid")
 
 
 class M5CodexContainmentLiveTests(unittest.TestCase):
