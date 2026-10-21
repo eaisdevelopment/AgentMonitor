@@ -756,6 +756,64 @@ class M5CodexContainmentPrivateChannelTests(unittest.TestCase):
             self.assertEqual(exhausted_errno, errno.EMFILE)
             self.assertEqual(outcome, "m5_codex_containment_profile_tree_invalid")
 
+    def test_managed_profile_tree_rejects_more_than_ten_thousand_entries(
+        self,
+    ) -> None:
+        """M5-CDX-GATE-001: an oversized real profile tree fails closed."""
+
+        with tempfile.TemporaryDirectory() as raw:
+            root = Path(raw)
+            root.chmod(0o700)
+            managed = root / "managed"
+            managed.mkdir(mode=0o700)
+            for index in range(10_001):
+                (managed / f"{index:05d}").touch(mode=0o600, exist_ok=False)
+
+            with self.assertRaises(M5CodexContainmentErrorV1) as raised:
+                _managed_profile_tree_digest(managed)
+
+            self.assertEqual(
+                str(raised.exception), "m5_codex_containment_profile_tree_invalid"
+            )
+
+    def test_managed_profile_tree_rejects_overlong_relative_path(self) -> None:
+        """M5-CDX-GATE-001: an overlong real relative path fails closed."""
+
+        with tempfile.TemporaryDirectory() as raw:
+            root = Path(raw)
+            root.chmod(0o700)
+            managed = root / "managed"
+            managed.mkdir(mode=0o700)
+            names: list[str] = []
+            descriptors = [
+                os.open(managed, os.O_RDONLY | os.O_DIRECTORY | os.O_CLOEXEC)
+            ]
+            try:
+                for index in range(17):
+                    name = f"{index:02d}" + ("x" * 239)
+                    os.mkdir(name, mode=0o700, dir_fd=descriptors[-1])
+                    descriptor = os.open(
+                        name,
+                        os.O_RDONLY | os.O_DIRECTORY | os.O_CLOEXEC,
+                        dir_fd=descriptors[-1],
+                    )
+                    names.append(name)
+                    descriptors.append(descriptor)
+
+                self.assertGreater(len(os.fsencode(Path(*names))), 4096)
+                with self.assertRaises(M5CodexContainmentErrorV1) as raised:
+                    _managed_profile_tree_digest(managed)
+
+                self.assertEqual(
+                    str(raised.exception),
+                    "m5_codex_containment_profile_tree_invalid",
+                )
+            finally:
+                for index in range(len(names) - 1, -1, -1):
+                    os.close(descriptors[index + 1])
+                    os.rmdir(names[index], dir_fd=descriptors[index])
+                os.close(descriptors[0])
+
 
 class M5CodexContainmentLiveTests(unittest.TestCase):
     def test_real_authenticated_identity_and_quota_are_contained(self) -> None:
