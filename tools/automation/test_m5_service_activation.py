@@ -481,10 +481,22 @@ def _corrective_rollover_artifacts(
     )
 
 
+def _assert_fifth_rollover_constants(module: ModuleType) -> None:
+    assert (
+        getattr(module, "FIFTH_CORRECTIVE_ROLLOVER_REVISION", None)
+        == "d81afab9e5b1c1dbdb690f390e77cee66eba5437"
+    )
+    assert (
+        getattr(module, "FIFTH_CORRECTIVE_ARCHIVE_BASENAME", None)
+        == "m5-service-activation-corrective-archive-d81afab"
+    )
+
+
 def test_corrective_rollover_archives_complete_transition_by_atomic_inode_move(
     tmp_path: Path,
 ) -> None:
     module = _module()
+    _assert_fifth_rollover_constants(module)
     transition_root, archive_parent, payloads, identities = (
         _corrective_rollover_artifacts(module, tmp_path)
     )
@@ -584,6 +596,8 @@ def test_corrective_rollover_archives_complete_transition_by_atomic_inode_move(
     third_archived_retained = None
     fourth_retained = None
     fourth_archived_retained = None
+    fifth_retained = None
+    fifth_archived_retained = None
     try:
         second_archive_id = module._archive_completed_activation_rollover_v1(
             second_retained,
@@ -702,7 +716,71 @@ def test_corrective_rollover_archives_complete_transition_by_atomic_inode_move(
                 fourth_archived_retained,
             )
         )
+        fourth_archived = fourth_archive_parent / fourth_archive_id
+        fourth_parent_identity = (
+            fourth_archive_parent.stat().st_dev,
+            fourth_archive_parent.stat().st_ino,
+        )
+        fourth_archive_identities = {
+            path.name: (path.stat().st_dev, path.stat().st_ino)
+            for path in fourth_archived.iterdir()
+        }
+        fifth_payloads = {
+            basename: payload.replace(b"fourth-complete", b"fifth-complete")
+            for basename, payload in fourth_payloads.items()
+        }
+        fifth_identities: dict[str, tuple[int, int]] = {}
+        for basename, payload in fifth_payloads.items():
+            path = transition_root / basename
+            path.write_bytes(payload)
+            path.chmod(0o600)
+            fifth_identities[basename] = (path.stat().st_dev, path.stat().st_ino)
+        fifth_source_identity = (
+            transition_root.stat().st_dev,
+            transition_root.stat().st_ino,
+        )
+        fifth_receipt_digest = hashlib.sha256(
+            fifth_payloads[module.RECEIPT_PATH.name]
+        ).hexdigest()
+        fifth_archive_parent = tmp_path / module.FIFTH_CORRECTIVE_ARCHIVE_BASENAME
+        fifth_retained = module._retain_completed_activation_rollover_v1(
+            transition_root=transition_root,
+            archive_parent=fifth_archive_parent,
+            prior_revision=module.FIFTH_CORRECTIVE_ROLLOVER_REVISION,
+            receipt_digest=fifth_receipt_digest,
+            journal_digest=hashlib.sha256(
+                fifth_payloads[module.ACTIVATION_JOURNAL_BASENAME]
+            ).hexdigest(),
+            rollback_unit_digest=hashlib.sha256(
+                fifth_payloads[module.ROLLBACK_UNIT_PATH.name]
+            ).hexdigest(),
+        )
+        fifth_archive_id = module._archive_completed_activation_rollover_v1(
+            fifth_retained,
+            preserved_rollovers=(
+                first_retained,
+                second_archived_retained,
+                third_archived_retained,
+                fourth_archived_retained,
+            ),
+        )
+        fifth_archived_retained = (
+            module._retain_archived_activation_rollover_after_commit_v1(fifth_retained)
+        )
+        module._require_preserved_activation_rollovers_v1(
+            (
+                first_retained,
+                second_archived_retained,
+                third_archived_retained,
+                fourth_archived_retained,
+                fifth_archived_retained,
+            )
+        )
     finally:
+        if fifth_archived_retained is not None:
+            module._close_completed_activation_rollover_v1(fifth_archived_retained)
+        if fifth_retained is not None:
+            module._close_completed_activation_rollover_v1(fifth_retained)
         if fourth_archived_retained is not None:
             module._close_completed_activation_rollover_v1(fourth_archived_retained)
         if fourth_retained is not None:
@@ -776,6 +854,26 @@ def test_corrective_rollover_archives_complete_transition_by_atomic_inode_move(
         path = fourth_archived / basename
         assert path.read_bytes() == payload
         assert (path.stat().st_dev, path.stat().st_ino) == fourth_identities[basename]
+    fifth_archived = fifth_archive_parent / fifth_archive_id
+    assert fifth_archive_id == (
+        f"{module.FIFTH_CORRECTIVE_ROLLOVER_REVISION}-{fifth_receipt_digest}"
+    )
+    assert (fifth_archived.stat().st_dev, fifth_archived.stat().st_ino) == (
+        fifth_source_identity
+    )
+    assert (
+        fourth_archive_parent.stat().st_dev,
+        fourth_archive_parent.stat().st_ino,
+    ) == fourth_parent_identity
+    for basename, identity in fourth_archive_identities.items():
+        assert (
+            (fourth_archived / basename).stat().st_dev,
+            (fourth_archived / basename).stat().st_ino,
+        ) == identity
+    for basename, payload in fifth_payloads.items():
+        path = fifth_archived / basename
+        assert path.read_bytes() == payload
+        assert (path.stat().st_dev, path.stat().st_ino) == fifth_identities[basename]
     assert tuple(transition_root.iterdir()) == ()
 
 
@@ -1014,6 +1112,7 @@ def test_corrective_rollover_rejects_non_private_custody_root(
 
 def test_corrective_rollover_policy_is_exact_and_returns_typed_rerun() -> None:
     module = _module()
+    _assert_fifth_rollover_constants(module)
     new_revision = "c" * 40
     assert (
         module.THIRD_CORRECTIVE_ROLLOVER_REVISION
@@ -1030,6 +1129,14 @@ def test_corrective_rollover_policy_is_exact_and_returns_typed_rerun() -> None:
     assert (
         module.FOURTH_CORRECTIVE_ARCHIVE_BASENAME
         == "m5-service-activation-corrective-archive-e066d7e"
+    )
+    assert (
+        module.FIFTH_CORRECTIVE_ROLLOVER_REVISION
+        == "d81afab9e5b1c1dbdb690f390e77cee66eba5437"
+    )
+    assert (
+        module.FIFTH_CORRECTIVE_ARCHIVE_BASENAME
+        == "m5-service-activation-corrective-archive-d81afab"
     )
     chain_policy = getattr(
         module,
@@ -1055,6 +1162,13 @@ def test_corrective_rollover_policy_is_exact_and_returns_typed_rerun() -> None:
         module.THIRD_CORRECTIVE_ROLLOVER_REVISION,
         module.FOURTH_CORRECTIVE_ROLLOVER_REVISION,
     )
+    assert chain_policy(module.FIFTH_CORRECTIVE_ROLLOVER_REVISION) == (
+        module.CORRECTIVE_ROLLOVER_REVISION,
+        module.SECOND_CORRECTIVE_ROLLOVER_REVISION,
+        module.THIRD_CORRECTIVE_ROLLOVER_REVISION,
+        module.FOURTH_CORRECTIVE_ROLLOVER_REVISION,
+        module.FIFTH_CORRECTIVE_ROLLOVER_REVISION,
+    )
     with pytest.raises(
         module.M5ServiceActivationErrorV1,
         match="m5_service_rollover_archive_invalid",
@@ -1067,11 +1181,12 @@ def test_corrective_rollover_policy_is_exact_and_returns_typed_rerun() -> None:
         None,
     )
     assert callable(transition_policy), "corrective rollover state policy is absent"
-    absent = ("absent", "absent", "absent", "absent")
-    first = ("complete", "absent", "absent", "absent")
-    second = ("complete", "complete", "absent", "absent")
-    third = ("complete", "complete", "complete", "absent")
-    fourth = ("complete", "complete", "complete", "complete")
+    absent = ("absent", "absent", "absent", "absent", "absent")
+    first = ("complete", "absent", "absent", "absent", "absent")
+    second = ("complete", "complete", "absent", "absent", "absent")
+    third = ("complete", "complete", "complete", "absent", "absent")
+    fourth = ("complete", "complete", "complete", "complete", "absent")
+    fifth = ("complete", "complete", "complete", "complete", "complete")
     assert transition_policy(
         receipt_revision=None,
         candidate_revision=new_revision,
@@ -1094,9 +1209,14 @@ def test_corrective_rollover_policy_is_exact_and_returns_typed_rerun() -> None:
             ("retry", module.THIRD_CORRECTIVE_ROLLOVER_REVISION),
         ),
         (
-            new_revision,
+            module.FIFTH_CORRECTIVE_ROLLOVER_REVISION,
             fourth,
             ("retry", module.FOURTH_CORRECTIVE_ROLLOVER_REVISION),
+        ),
+        (
+            new_revision,
+            fifth,
+            ("retry", module.FIFTH_CORRECTIVE_ROLLOVER_REVISION),
         ),
     ):
         assert (
@@ -1133,34 +1253,46 @@ def test_corrective_rollover_policy_is_exact_and_returns_typed_rerun() -> None:
             ("retain", module.THIRD_CORRECTIVE_ROLLOVER_REVISION),
         ),
         (
-            new_revision,
-            new_revision,
+            module.FIFTH_CORRECTIVE_ROLLOVER_REVISION,
+            module.FIFTH_CORRECTIVE_ROLLOVER_REVISION,
             fourth,
             ("retain", module.FOURTH_CORRECTIVE_ROLLOVER_REVISION),
         ),
         (
+            new_revision,
+            new_revision,
+            fifth,
+            ("retain", module.FIFTH_CORRECTIVE_ROLLOVER_REVISION),
+        ),
+        (
             module.CORRECTIVE_ROLLOVER_REVISION,
             module.SECOND_CORRECTIVE_ROLLOVER_REVISION,
-            ("empty", "absent", "absent", "absent"),
+            ("empty", "absent", "absent", "absent", "absent"),
             ("archive", module.CORRECTIVE_ROLLOVER_REVISION),
         ),
         (
             module.SECOND_CORRECTIVE_ROLLOVER_REVISION,
             module.THIRD_CORRECTIVE_ROLLOVER_REVISION,
-            ("complete", "empty", "absent", "absent"),
+            ("complete", "empty", "absent", "absent", "absent"),
             ("archive", module.SECOND_CORRECTIVE_ROLLOVER_REVISION),
         ),
         (
             module.THIRD_CORRECTIVE_ROLLOVER_REVISION,
             module.FOURTH_CORRECTIVE_ROLLOVER_REVISION,
-            ("complete", "complete", "empty", "absent"),
+            ("complete", "complete", "empty", "absent", "absent"),
             ("archive", module.THIRD_CORRECTIVE_ROLLOVER_REVISION),
         ),
         (
             module.FOURTH_CORRECTIVE_ROLLOVER_REVISION,
-            new_revision,
-            ("complete", "complete", "complete", "empty"),
+            module.FIFTH_CORRECTIVE_ROLLOVER_REVISION,
+            ("complete", "complete", "complete", "empty", "absent"),
             ("archive", module.FOURTH_CORRECTIVE_ROLLOVER_REVISION),
+        ),
+        (
+            module.FIFTH_CORRECTIVE_ROLLOVER_REVISION,
+            new_revision,
+            ("complete", "complete", "complete", "complete", "empty"),
+            ("archive", module.FIFTH_CORRECTIVE_ROLLOVER_REVISION),
         ),
     ):
         assert (
@@ -1172,19 +1304,32 @@ def test_corrective_rollover_policy_is_exact_and_returns_typed_rerun() -> None:
             == expected
         )
     blocked_cases = (
-        (None, module.CORRECTIVE_ROLLOVER_REVISION, fourth),
-        (None, module.SECOND_CORRECTIVE_ROLLOVER_REVISION, fourth),
-        (None, module.THIRD_CORRECTIVE_ROLLOVER_REVISION, fourth),
-        (None, module.FOURTH_CORRECTIVE_ROLLOVER_REVISION, fourth),
-        (None, new_revision, ("absent", "complete", "absent", "absent")),
-        (None, new_revision, ("complete", "empty", "absent", "absent")),
+        (None, module.CORRECTIVE_ROLLOVER_REVISION, fifth),
+        (None, module.SECOND_CORRECTIVE_ROLLOVER_REVISION, fifth),
+        (None, module.THIRD_CORRECTIVE_ROLLOVER_REVISION, fifth),
+        (None, module.FOURTH_CORRECTIVE_ROLLOVER_REVISION, fifth),
+        (None, module.FIFTH_CORRECTIVE_ROLLOVER_REVISION, fifth),
+        (
+            None,
+            new_revision,
+            ("absent", "complete", "absent", "absent", "absent"),
+        ),
+        (
+            None,
+            new_revision,
+            ("complete", "empty", "absent", "absent", "absent"),
+        ),
         (module.THIRD_CORRECTIVE_ROLLOVER_REVISION, new_revision, first),
         (
             new_revision,
             new_revision,
-            ("complete", "complete", "complete", "empty"),
+            ("complete", "complete", "complete", "complete", "empty"),
         ),
-        (new_revision, new_revision, ("complete", "invalid", "absent", "absent")),
+        (
+            new_revision,
+            new_revision,
+            ("complete", "complete", "complete", "invalid", "absent"),
+        ),
     )
     for receipt_revision, candidate_revision, states in blocked_cases:
         assert transition_policy(
@@ -1201,8 +1346,8 @@ def test_corrective_rollover_policy_is_exact_and_returns_typed_rerun() -> None:
     assert callable(generation_policy), "completed rollover restart policy is absent"
     assert (
         generation_policy(
-            completed_revision=module.FOURTH_CORRECTIVE_ROLLOVER_REVISION,
-            service_revision=module.FOURTH_CORRECTIVE_ROLLOVER_REVISION,
+            completed_revision=module.FIFTH_CORRECTIVE_ROLLOVER_REVISION,
+            service_revision=module.FIFTH_CORRECTIVE_ROLLOVER_REVISION,
             receipt_main_pid=2982335,
             receipt_start_time_ticks=101,
             current_main_pid=3609,
@@ -1288,7 +1433,7 @@ def test_corrective_rollover_policy_is_exact_and_returns_typed_rerun() -> None:
     )
     assert (
         module.corrective_activation_rollover_decision_v1(
-            candidate_revision=new_revision,
+            candidate_revision=module.FIFTH_CORRECTIVE_ROLLOVER_REVISION,
             completed_revision=module.FOURTH_CORRECTIVE_ROLLOVER_REVISION,
             service_revision=module.FOURTH_CORRECTIVE_ROLLOVER_REVISION,
         )
@@ -1296,8 +1441,24 @@ def test_corrective_rollover_policy_is_exact_and_returns_typed_rerun() -> None:
     )
     assert (
         module.corrective_activation_rollover_decision_v1(
-            candidate_revision=new_revision,
+            candidate_revision=module.FIFTH_CORRECTIVE_ROLLOVER_REVISION,
             completed_revision=module.FOURTH_CORRECTIVE_ROLLOVER_REVISION,
+            service_revision=module.PINNED_ROLLBACK_REVISION,
+        )
+        == "archive_restored"
+    )
+    assert (
+        module.corrective_activation_rollover_decision_v1(
+            candidate_revision=new_revision,
+            completed_revision=module.FIFTH_CORRECTIVE_ROLLOVER_REVISION,
+            service_revision=module.FIFTH_CORRECTIVE_ROLLOVER_REVISION,
+        )
+        == "rollback_candidate"
+    )
+    assert (
+        module.corrective_activation_rollover_decision_v1(
+            candidate_revision=new_revision,
+            completed_revision=module.FIFTH_CORRECTIVE_ROLLOVER_REVISION,
             service_revision=module.PINNED_ROLLBACK_REVISION,
         )
         == "archive_restored"
@@ -1312,6 +1473,22 @@ def test_corrective_rollover_policy_is_exact_and_returns_typed_rerun() -> None:
                 candidate_revision=reserved_candidate,
                 completed_revision=module.SECOND_CORRECTIVE_ROLLOVER_REVISION,
                 service_revision=module.SECOND_CORRECTIVE_ROLLOVER_REVISION,
+            )
+            == expected
+        )
+    for reserved_candidate, expected in (
+        (module.PINNED_ROLLBACK_REVISION, "blocked"),
+        (module.CORRECTIVE_ROLLOVER_REVISION, "blocked"),
+        (module.SECOND_CORRECTIVE_ROLLOVER_REVISION, "blocked"),
+        (module.THIRD_CORRECTIVE_ROLLOVER_REVISION, "blocked"),
+        (module.FOURTH_CORRECTIVE_ROLLOVER_REVISION, "blocked"),
+        (module.FIFTH_CORRECTIVE_ROLLOVER_REVISION, "not_applicable"),
+    ):
+        assert (
+            module.corrective_activation_rollover_decision_v1(
+                candidate_revision=reserved_candidate,
+                completed_revision=module.FIFTH_CORRECTIVE_ROLLOVER_REVISION,
+                service_revision=module.FIFTH_CORRECTIVE_ROLLOVER_REVISION,
             )
             == expected
         )
@@ -1369,13 +1546,26 @@ def test_corrective_rollover_policy_is_exact_and_returns_typed_rerun() -> None:
             module.CORRECTIVE_ROLLOVER_REVISION,
             module.FOURTH_CORRECTIVE_ROLLOVER_REVISION,
         ),
+        (
+            module.CORRECTIVE_ROLLOVER_REVISION,
+            module.FIFTH_CORRECTIVE_ROLLOVER_REVISION,
+        ),
         (module.CORRECTIVE_ROLLOVER_REVISION, new_revision),
         (
             module.SECOND_CORRECTIVE_ROLLOVER_REVISION,
             module.FOURTH_CORRECTIVE_ROLLOVER_REVISION,
         ),
+        (
+            module.SECOND_CORRECTIVE_ROLLOVER_REVISION,
+            module.FIFTH_CORRECTIVE_ROLLOVER_REVISION,
+        ),
         (module.SECOND_CORRECTIVE_ROLLOVER_REVISION, new_revision),
+        (
+            module.THIRD_CORRECTIVE_ROLLOVER_REVISION,
+            module.FIFTH_CORRECTIVE_ROLLOVER_REVISION,
+        ),
         (module.THIRD_CORRECTIVE_ROLLOVER_REVISION, new_revision),
+        (module.FOURTH_CORRECTIVE_ROLLOVER_REVISION, new_revision),
     ):
         assert (
             module.corrective_activation_rollover_decision_v1(
@@ -1459,6 +1649,7 @@ def test_corrective_rollover_browser_expectation_uses_baseline_only_for_trusted_
 def test_corrective_rollover_retry_selects_one_complete_schema_bound_archive(
     tmp_path: Path,
 ) -> None:
+    _assert_fifth_rollover_constants(_module())
     fixture = _activation_receipt_fixture(
         tmp_path,
         revision=_module().CORRECTIVE_ROLLOVER_REVISION,
@@ -1650,11 +1841,52 @@ def test_corrective_rollover_retry_selects_one_complete_schema_bound_archive(
     assert fourth_selected_root == fourth_archived_root
     assert fourth_selected_digest == fourth_proof.digest
 
+    fifth_case = tmp_path / "fifth-corrective-archive"
+    fifth_case.mkdir(mode=0o700)
+    fifth_fixture = _activation_receipt_fixture(
+        fifth_case,
+        revision=module.FIFTH_CORRECTIVE_ROLLOVER_REVISION,
+    )
+    (
+        _,
+        fifth_candidate,
+        fifth_current,
+        fifth_receipt_path,
+        fifth_journal_path,
+        fifth_rollback_unit_path,
+        fifth_rollback_root,
+        _,
+    ) = fifth_fixture
+    fifth_proof = module.validate_current_activation_receipt_v1(
+        fifth_candidate,
+        fifth_current,
+        receipt_path=fifth_receipt_path,
+        journal_path=fifth_journal_path,
+        rollback_unit_path=fifth_rollback_unit_path,
+        rollback_root=fifth_rollback_root,
+    )
+    fifth_archive_parent = fifth_case / module.FIFTH_CORRECTIVE_ARCHIVE_BASENAME
+    fifth_archive_parent.mkdir(mode=0o700)
+    fifth_archive_id = (
+        f"{module.FIFTH_CORRECTIVE_ROLLOVER_REVISION}-{fifth_proof.digest}"
+    )
+    fifth_archived_root = fifth_archive_parent / fifth_archive_id
+    fifth_receipt_path.parent.rename(fifth_archived_root)
+    fifth_selected_root, fifth_selected_digest = (
+        module._select_completed_activation_rollover_archive_v1(
+            archive_parent=fifth_archive_parent,
+            prior_revision=module.FIFTH_CORRECTIVE_ROLLOVER_REVISION,
+        )
+    )
+    assert fifth_selected_root == fifth_archived_root
+    assert fifth_selected_digest == fifth_proof.digest
+
 
 def test_corrective_rollover_retry_rejects_multiple_or_partial_archives(
     tmp_path: Path,
 ) -> None:
     module = _module()
+    _assert_fifth_rollover_constants(module)
     tmp_path.chmod(0o700)
     empty_second_archive = tmp_path / module.SECOND_CORRECTIVE_ARCHIVE_BASENAME
     assert (
@@ -1762,6 +1994,52 @@ def test_corrective_rollover_retry_rejects_multiple_or_partial_archives(
         module._corrective_rollover_archive_parent_state_v1(
             archive_parent=empty_fourth_archive,
             prior_revision=module.FOURTH_CORRECTIVE_ROLLOVER_REVISION,
+        )
+        == "invalid"
+    )
+    empty_fifth_archive = tmp_path / module.FIFTH_CORRECTIVE_ARCHIVE_BASENAME
+    assert (
+        module._corrective_rollover_archive_parent_state_v1(
+            archive_parent=empty_fifth_archive,
+            prior_revision=module.FIFTH_CORRECTIVE_ROLLOVER_REVISION,
+        )
+        == "absent"
+    )
+    empty_fifth_archive.mkdir(mode=0o700)
+    assert (
+        module._corrective_rollover_archive_parent_state_v1(
+            archive_parent=empty_fifth_archive,
+            prior_revision=module.FIFTH_CORRECTIVE_ROLLOVER_REVISION,
+        )
+        == "empty"
+    )
+    partial_fifth = empty_fifth_archive / (
+        f"{module.FIFTH_CORRECTIVE_ROLLOVER_REVISION}-{'7' * 64}"
+    )
+    partial_fifth.mkdir(mode=0o700)
+    assert (
+        module._corrective_rollover_archive_parent_state_v1(
+            archive_parent=empty_fifth_archive,
+            prior_revision=module.FIFTH_CORRECTIVE_ROLLOVER_REVISION,
+        )
+        == "complete"
+    )
+    with pytest.raises(
+        module.M5ServiceActivationErrorV1,
+        match="m5_service_rollover_archive_invalid",
+    ):
+        module._select_completed_activation_rollover_archive_v1(
+            archive_parent=empty_fifth_archive,
+            prior_revision=module.FIFTH_CORRECTIVE_ROLLOVER_REVISION,
+        )
+    second_fifth = empty_fifth_archive / (
+        f"{module.FIFTH_CORRECTIVE_ROLLOVER_REVISION}-{'8' * 64}"
+    )
+    second_fifth.mkdir(mode=0o700)
+    assert (
+        module._corrective_rollover_archive_parent_state_v1(
+            archive_parent=empty_fifth_archive,
+            prior_revision=module.FIFTH_CORRECTIVE_ROLLOVER_REVISION,
         )
         == "invalid"
     )
