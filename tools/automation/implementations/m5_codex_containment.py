@@ -87,6 +87,15 @@ _TRACE_FTRUNCATE_MISSING_PATH_V1 = re.compile(
 _TRACE_FTRUNCATE_FAILED_RESULT_V1 = re.compile(
     r"^-1 [A-Z][A-Z0-9_]{0,31} \([^()<>\\\x00-\x1f\x7f]{1,160}\)$"
 )
+_TRACE_DIRFD_ANNOTATION_PATH_V1 = r"[^<>\\\x00-\x1f\x7f]+"
+_TRACE_UNLINKAT_ARGUMENTS_V1 = re.compile(
+    rf"^(?P<dirfd>"
+    rf"(?:AT_FDCWD|(?:0|[1-9][0-9]{{0,5}}))"
+    rf"(?:<(?P<annotation>{_TRACE_DIRFD_ANNOTATION_PATH_V1})>)?"
+    rf"), (?P<path>{_TRACE_STRING_TOKEN_V1}), "
+    rf"(?P<flags>0|AT_REMOVEDIR)$"
+)
+_TRACE_NUMERIC_DIRFD_V1 = re.compile(r"(?:[3-9]|[1-9][0-9]{1,5})\Z")
 _TRACE_NONNEGATIVE_RESULT_V1 = re.compile(r"^(?:0|[1-9][0-9]*)$")
 _TRACE_DESCRIPTOR_RESULT_V1 = re.compile(r"^(?:0|[1-9][0-9]*)<[^>\r\n]+>$")
 _TRACE_FLAGS_V1 = re.compile(r"(?:^|[{,]\s*)flags=(?P<flags>[^,}]+)")
@@ -1972,7 +1981,84 @@ def _ftruncate_target_v1(record: _TraceRecordV1) -> Path | None:
     return target if success else None
 
 
+def _canonical_dirfd_annotation_v1(raw_path: str) -> Path:
+    if (
+        raw_path.endswith(" (deleted)")
+        or not raw_path.startswith("/")
+        or raw_path.startswith("//")
+        or os.path.normpath(raw_path) != raw_path
+    ):
+        raise M5CodexContainmentErrorV1("m5_codex_containment_trace_invalid")
+    path = Path(raw_path)
+    if not path.is_absolute():
+        raise M5CodexContainmentErrorV1("m5_codex_containment_trace_invalid")
+    return path
+
+
+def _unlinkat_target_v1(
+    record: _TraceRecordV1,
+    *,
+    working_root: Path,
+) -> Path:
+    """Resolve one exact unlinkat target using its kernel directory base."""
+
+    if record.call != "unlinkat":
+        raise M5CodexContainmentErrorV1("m5_codex_containment_trace_invalid")
+    match = _TRACE_UNLINKAT_ARGUMENTS_V1.fullmatch(record.arguments)
+    if match is None:
+        raise M5CodexContainmentErrorV1("m5_codex_containment_trace_invalid")
+    if (
+        record.result != "0"
+        and _TRACE_FTRUNCATE_FAILED_RESULT_V1.fullmatch(record.result) is None
+    ):
+        raise M5CodexContainmentErrorV1("m5_codex_containment_trace_invalid")
+    quoted = _TRACE_QUOTED.fullmatch(match.group("path"))
+    if quoted is None:
+        raise M5CodexContainmentErrorV1("m5_codex_containment_trace_invalid")
+    raw_target = _decode_trace_string(quoted.group(1))
+    if (
+        not raw_target
+        or any(ord(character) < 32 or ord(character) == 127 for character in raw_target)
+        or raw_target.startswith("//")
+        or any(component in {".", ".."} for component in raw_target.split("/"))
+        or os.path.normpath(raw_target) != raw_target
+    ):
+        raise M5CodexContainmentErrorV1("m5_codex_containment_trace_invalid")
+    raw_dirfd = match.group("dirfd")
+    annotation = match.group("annotation")
+    annotation_path = (
+        _canonical_dirfd_annotation_v1(annotation) if annotation is not None else None
+    )
+    target = Path(raw_target)
+    if target.is_absolute():
+        return target
+
+    if raw_dirfd == "AT_FDCWD":
+        base = working_root
+    elif raw_dirfd.startswith("AT_FDCWD<"):
+        if annotation_path is None:
+            raise M5CodexContainmentErrorV1("m5_codex_containment_trace_invalid")
+        base = annotation_path
+        if base != working_root:
+            raise M5CodexContainmentErrorV1("m5_codex_containment_trace_invalid")
+    else:
+        descriptor, separator, _ = raw_dirfd.partition("<")
+        if (
+            not separator
+            or annotation_path is None
+            or _TRACE_NUMERIC_DIRFD_V1.fullmatch(descriptor) is None
+        ):
+            raise M5CodexContainmentErrorV1("m5_codex_containment_trace_invalid")
+        base = annotation_path
+    candidate = Path(os.path.normpath(os.fspath(base / target)))
+    if not candidate.is_absolute():
+        raise M5CodexContainmentErrorV1("m5_codex_containment_trace_invalid")
+    return candidate
+
+
 def _trace_paths(record: _TraceRecordV1, *, working_root: Path) -> tuple[Path, ...]:
+    if record.call == "unlinkat":
+        return (_unlinkat_target_v1(record, working_root=working_root),)
     quoted = _quoted_arguments(record)
     if record.call in {"execve", "execveat"}:
         quoted = quoted[:1]

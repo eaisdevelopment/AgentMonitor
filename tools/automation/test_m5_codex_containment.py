@@ -1247,27 +1247,190 @@ class M5CodexContainmentPolicyTests(unittest.TestCase):
         self.assertEqual(str(raised.exception), "m5_codex_containment_trace_invalid")
 
     def test_numeric_dirfd_relative_write_fails_closed(self) -> None:
-        """M5-CDX-GATE-001: an unresolved dirfd cannot imply managed scope."""
+        """M5-CDX-GATE-001: an annotated dirfd governs relative unlink scope."""
 
         executable = Path("/opt/codex/bin/codex")
         managed = Path("/owner/profiles/codex/opaque")
-        trace = "\n".join(
-            (
-                _trace_version_exec(600, executable),
-                "600 exit_group(0) = ?",
-                _trace_app_server_exec(601, executable),
-                '601 openat(9</outside>, "escaped", O_WRONLY|O_CREAT, 0600) = 5</outside/escaped>',
-                _trace_app_server_exec(602, executable),
-            )
+        runtime = managed / "runtime"
+        anchor = f'201 chmod("{managed}/runtime/prepared", 0700) = 0'
+        confined_trace = _two_operation_chmod_trace().replace(
+            anchor,
+            f'{anchor}\n201 unlinkat(9<{runtime}>, "stale", 0) = 0',
+            1,
+        )
+        baseline = evaluate_codex_trace_policy_v1(
+            _two_operation_chmod_trace(),
+            provider_executable=_TRACE_EXECUTABLE,
+            managed_profile_root=managed,
+            default_codex_roots=(Path("/home/owner/.codex"),),
+        )
+        summary = evaluate_codex_trace_policy_v1(
+            confined_trace,
+            provider_executable=_TRACE_EXECUTABLE,
+            managed_profile_root=managed,
+            default_codex_roots=(Path("/home/owner/.codex"),),
+        )
+        self.assertEqual(
+            summary.provider_access_count,
+            baseline.provider_access_count + 1,
+        )
+        self.assertEqual(
+            summary.provider_write_count,
+            baseline.provider_write_count + 1,
+        )
+        for label, record in {
+            "tracked_cwd": 'unlinkat(AT_FDCWD, "runtime/stale", 0) = 0',
+            "absolute_ignores_numeric_dirfd": (
+                f'unlinkat(9, "{runtime}/stale", 0) = 0'
+            ),
+            "canonical_failed_result": (
+                f'unlinkat(9<{runtime}>, "missing", 0) = -1 ENOENT '
+                "(No such file or directory)"
+            ),
+        }.items():
+            with self.subTest(label=label):
+                trace = _two_operation_chmod_trace().replace(
+                    anchor,
+                    f"{anchor}\n201 {record}",
+                    1,
+                )
+                accepted = evaluate_codex_trace_policy_v1(
+                    trace,
+                    provider_executable=_TRACE_EXECUTABLE,
+                    managed_profile_root=managed,
+                    default_codex_roots=(Path("/home/owner/.codex"),),
+                )
+                self.assertEqual(
+                    accepted.provider_write_count,
+                    baseline.provider_write_count + 1,
+                )
+
+        escaped_trace = _two_operation_chmod_trace().replace(
+            anchor,
+            f'{anchor}\n201 unlinkat(9</outside>, "escaped", 0) = 0',
+            1,
         )
 
-        with self.assertRaises(M5CodexContainmentErrorV1):
+        with self.assertRaises(M5CodexContainmentErrorV1) as raised:
             evaluate_codex_trace_policy_v1(
-                trace,
+                escaped_trace,
                 provider_executable=executable,
                 managed_profile_root=managed,
                 default_codex_roots=(Path("/home/owner/.codex"),),
             )
+        self.assertEqual(
+            str(raised.exception),
+            "m5_codex_managed_profile_write_escape",
+        )
+        for label, record, code in (
+            (
+                "default_profile",
+                'unlinkat(9</home/owner/.codex>, "state", 0) = 0',
+                "m5_codex_default_profile_access_detected",
+            ),
+            (
+                "protected_target",
+                f'unlinkat(9<{runtime}>, "prepared", 0) = 0',
+                "m5_codex_containment_path_mutator_unverifiable",
+            ),
+        ):
+            with self.subTest(label=label):
+                trace = _two_operation_chmod_trace().replace(
+                    anchor,
+                    f"{anchor}\n201 {record}",
+                    1,
+                )
+                with self.assertRaises(M5CodexContainmentErrorV1) as rejected:
+                    evaluate_codex_trace_policy_v1(
+                        trace,
+                        provider_executable=_TRACE_EXECUTABLE,
+                        managed_profile_root=managed,
+                        default_codex_roots=(Path("/home/owner/.codex"),),
+                    )
+                self.assertEqual(str(rejected.exception), code)
+
+        invalid_records = {
+            "missing_annotation": 'unlinkat(9, "stale", 0) = 0',
+            "deleted_annotation": (f'unlinkat(9<{runtime} (deleted)>, "stale", 0) = 0'),
+            "relative_annotation": 'unlinkat(9<runtime>, "stale", 0) = 0',
+            "relative_annotation_absolute_target": (
+                f'unlinkat(9<runtime>, "{runtime}/stale", 0) = 0'
+            ),
+            "cwd_annotation_mismatch": (
+                'unlinkat(AT_FDCWD</outside>, "runtime/stale", 0) = 0'
+            ),
+            "double_slash_annotation": (
+                'unlinkat(9</owner//profiles/codex/opaque/runtime>, "stale", 0) = 0'
+            ),
+            "dotdot_annotation": (
+                "unlinkat(9</owner/profiles/codex/opaque/runtime/../runtime>, "
+                '"stale", 0) = 0'
+            ),
+            "escape_annotation": (
+                "unlinkat(9</owner/profiles/codex/opaque/runtime\\134name>, "
+                '"stale", 0) = 0'
+            ),
+            "descriptor_two": f'unlinkat(2<{runtime}>, "stale", 0) = 0',
+            "descriptor_overflow": (f'unlinkat(1000000<{runtime}>, "stale", 0) = 0'),
+            "descriptor_leading_zero": (f'unlinkat(09<{runtime}>, "stale", 0) = 0'),
+            "flag_suffix": f'unlinkat(9<{runtime}>, "stale", 0, 0) = 0',
+            "target_control": f'unlinkat(9<{runtime}>, "stale\\001name", 0) = 0',
+            "target_dot": f'unlinkat(9<{runtime}>, ".", 0) = 0',
+            "target_dotdot": f'unlinkat(9<{runtime}>, "..", 0) = 0',
+            "failed_target_dot": (
+                f'unlinkat(9<{runtime}>, ".", 0) = -1 EINVAL (Invalid argument)'
+            ),
+            "result_positive": f'unlinkat(9<{runtime}>, "stale", 0) = 1',
+            "result_unknown": f'unlinkat(9<{runtime}>, "stale", 0) = ?',
+            "result_restarted": (
+                f'unlinkat(9<{runtime}>, "stale", 0) = ? ERESTARTSYS '
+                "(To be restarted if SA_RESTART is set)"
+            ),
+            "result_prefix": (f'unlinkat(9<{runtime}>, "stale", 0) = leading 0'),
+            "result_suffix": (f'unlinkat(9<{runtime}>, "stale", 0) = 0 trailing'),
+            "failed_result_malformed": (
+                f'unlinkat(9<{runtime}>, "stale", 0) = -1 ENOENT'
+            ),
+        }
+        for label, record in invalid_records.items():
+            with self.subTest(label=label):
+                trace = _two_operation_chmod_trace().replace(
+                    anchor,
+                    f"{anchor}\n201 {record}",
+                    1,
+                )
+                with self.assertRaises(M5CodexContainmentErrorV1) as invalid:
+                    evaluate_codex_trace_policy_v1(
+                        trace,
+                        provider_executable=_TRACE_EXECUTABLE,
+                        managed_profile_root=managed,
+                        default_codex_roots=(Path("/home/owner/.codex"),),
+                    )
+                self.assertEqual(
+                    str(invalid.exception),
+                    "m5_codex_containment_trace_invalid",
+                )
+
+        unresolved_openat = _two_operation_chmod_trace().replace(
+            anchor,
+            (
+                f"{anchor}\n"
+                '201 openat(9</outside>, "escaped", O_WRONLY|O_CREAT, 0600) '
+                "= 5</outside/escaped>"
+            ),
+            1,
+        )
+        with self.assertRaises(M5CodexContainmentErrorV1) as unresolved:
+            evaluate_codex_trace_policy_v1(
+                unresolved_openat,
+                provider_executable=_TRACE_EXECUTABLE,
+                managed_profile_root=managed,
+                default_codex_roots=(Path("/home/owner/.codex"),),
+            )
+        self.assertEqual(
+            str(unresolved.exception),
+            "m5_codex_containment_trace_invalid",
+        )
 
     def test_resolved_writable_open_symlink_escape_fails_closed(self) -> None:
         """M5-CDX-GATE-001: resolved descriptor targets govern containment."""
@@ -1627,6 +1790,69 @@ class M5CodexContainmentPrerequisiteTests(unittest.TestCase):
                             str(raised.exception),
                             "m5_codex_containment_trace_invalid",
                         )
+
+    def test_real_strace_unlinkat_numeric_dirfd_is_resolved(self) -> None:
+        """M5-CDX-GATE-001: real -yy relative unlink has a canonical fd base."""
+
+        source = (
+            "import os,sys\n"
+            "root=sys.argv[1]\n"
+            "target=os.path.join(root,'state')\n"
+            "open(target,'xb').close()\n"
+            "fd=os.open(root,os.O_RDONLY|os.O_DIRECTORY|os.O_CLOEXEC)\n"
+            "os.unlink('state',dir_fd=fd)\n"
+            "os.close(fd)\n"
+        )
+        with tempfile.TemporaryDirectory() as raw:
+            root = Path(raw)
+            root.chmod(0o700)
+            trace_path = root / "trace"
+            process = subprocess.run(
+                [
+                    "/usr/bin/strace",
+                    "--kill-on-exit",
+                    "-f",
+                    "-yy",
+                    "-qq",
+                    "-s",
+                    "4096",
+                    "-e",
+                    "trace=unlinkat",
+                    "-e",
+                    "signal=none",
+                    "-o",
+                    os.fspath(trace_path),
+                    "--",
+                    "/usr/bin/python3",
+                    "-I",
+                    "-c",
+                    source,
+                    os.fspath(root),
+                ],
+                cwd=root,
+                env={"LANG": "C.UTF-8", "LC_ALL": "C.UTF-8"},
+                stdin=subprocess.DEVNULL,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                check=False,
+                timeout=10,
+            )
+            self.assertEqual(process.returncode, 0)
+            self.assertFalse((root / "state").exists())
+            lines = tuple(
+                line
+                for line in trace_path.read_text(encoding="utf-8").splitlines()
+                if " unlinkat(" in line
+            )
+            self.assertEqual(len(lines), 1)
+            record = containment._trace_records(lines[0])[0]
+            self.assertEqual(
+                containment._trace_paths(
+                    record,
+                    working_root=root / "unrelated",
+                ),
+                (root / "state",),
+            )
 
     def test_real_isolated_bind_mount_beneath_profile_fails_closed(self) -> None:
         """M5-CDX-GATE-001: a real same-filesystem bind alias is rejected."""
