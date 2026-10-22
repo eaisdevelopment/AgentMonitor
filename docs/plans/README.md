@@ -178,9 +178,19 @@ Directories are created when an approved planning assignment begins. Drafts stat
   with `87` local passes and one authenticated live-selector skip, `66` passing
   current-exit cases, and an exact `537`-identifier Story inventory with SHA-256
   `19d4244cfd50335839776af9b847af134eba0451c3dee2ad66d0daa9e321ec2d`.
-  Ruff lint/format and strict production mypy are Green. Current-revision
-  canonical preactivation and authenticated containment remain pending. The
-  fifth live transition, refreshed prerequisites,
+  Ruff lint/format and strict production mypy are Green. Clean revision
+  `842a4d4` then passed the complete canonical preactivation set. Its
+  authenticated containment run completed the real provider operations and
+  failed closed first on a no-effect descendant `mkdir(...)= -1 EEXIST`, whose
+  narrow correction remains inside 1.14. The feedback rerun failed closed on
+  Codex's additional literal `.lock` child: one exact root session `mkdir`, one
+  exact root `open` before alias creation, and one same-operation descendant
+  `unlinkat(..., 0)` interleaved among the four alias cleanups. Proposed plan
+  1.15.0 is Draft with
+  `owner_approved = false`; it would admit only that exact regular-file child
+  lifecycle, preserves every other containment boundary, and authorizes no
+  additional rollover. Authenticated containment has not passed. The fifth
+  live transition, refreshed prerequisites,
   `AUTO-M5-EXIT`, and owner acceptance remain Not Run. OpenAI API billing
   remains V1-M7.
 - [Live agent account association](integration/live-agent-account-association-change.md):

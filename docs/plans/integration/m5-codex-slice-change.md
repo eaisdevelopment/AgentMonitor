@@ -1,12 +1,15 @@
 # Change plan: executable V1-M5 Codex slice
 
-- Status: **Approved 1.14.0; implementation is authorized only for the exact
-  temporary Arg0 symlink lifecycle specified below. Current-revision
-  preactivation is Green, the real authenticated run supplies the Red, and
-  activation has not started.**
-- Plan version: `1.14.0`; owner approval: 2026-10-22. Version `1.13.0` remains
-  incorporated except where the exact Arg0 lifecycle below supersedes its
-  global successful-link rejection.
+- Status: **Draft 1.15.0; owner approval is pending and no 1.15 production
+  implementation is authorized. Owner-approved 1.14.0 remains the last
+  implementation authority. Its current-revision preactivation passed, but
+  the authenticated rerun has not passed: after the in-scope failed-`mkdir`
+  correction, the real trace exposed Codex's additional temporary Arg0
+  `.lock` child outside the 1.14 boundary. Activation has not started.**
+- Plan version: `1.15.0`; owner approval: **Not granted
+  (`owner_approved = false`)**. Version `1.14.0` remains incorporated and
+  approved except for the proposed `.lock` lifecycle extension below, which
+  requires explicit owner approval before implementation.
 - Safety correction: exact-version review proved that authenticated app-server
   queries may perform Codex's automatic credential refresh. The approved
   managed-auth lifecycle therefore classifies those queries as
@@ -44,6 +47,9 @@
   `ftruncate` correction specified below. The owner's explicit 2026-10-22
   approval of version 1.14.0 adds only the
   exact pinned Codex 0.160.0 temporary Arg0 symlink lifecycle specified below;
+  proposed version 1.15.0 would add only the exact literal `.lock` regular-file
+  child lifecycle specified below and grants no authority until the owner
+  explicitly approves it;
   all remaining A02, OpenAI API, PLAN-DEP/D01, and
   `AUTO-DEPLOY` lanes stay Draft or Blocked as already recorded.
 - Stories: `ST-CDX-001..005`.
@@ -2103,9 +2109,216 @@ mypy, and `git diff --check` pass. The exact Story inventory is `537` unique
 identifiers with SHA-256
 `19d4244cfd50335839776af9b847af134eba0451c3dee2ad66d0daa9e321ec2d`.
 Independent test and implementation reviews are clean after their findings
-were reproduced as Reds and corrected. The canonical clean-revision
-preactivation set and authenticated no-skip containment rerun remain pending,
-so this checkpoint is not M5 completion.
+were reproduced as Reds and corrected. At this local checkpoint the canonical
+clean-revision preactivation set and authenticated no-skip containment rerun
+remained pending; the subsequent results below supersede that status. This
+checkpoint is not M5 completion.
+
+## Proposed pinned Arg0 lock-child lifecycle correction — 2026-10-22
+
+**Status: Draft 1.15.0; `owner_approved = false`. This proposal has no
+production implementation authority. Owner-approved 1.14.0 remains the last
+approved boundary. If approved, 1.15.0 adds only the exact `.lock` lifecycle
+below to the already authorized, not-yet-run fifth rollover and authorizes no
+sixth rollover.**
+
+### Authenticated Red and exact provider behavior
+
+Clean revision `842a4d4da20b1286d4d68b03b46f88a9cd66504e` passed the
+complete canonical preactivation set: planning, documentation, build, quality,
+mutation, M3, `AUTO-TEST`, and local Git preflight were Green. Its first
+authenticated containment rerun completed the real provider work and failed
+closed at `m5_codex_containment_path_mutator_unverifiable` on a failed
+same-operation `mkdir(...)= -1 EEXIST (File exists)`. That record has no
+namespace effect, and its narrowly bounded correction remains inside the
+approved 1.14 lifecycle.
+
+The authenticated feedback rerun after that correction again completed the
+real provider work and returned the same fail-closed code. A privacy-safe
+in-memory classification identified the first remaining record as one
+successful cleanup of a literal `.lock` regular-file child directly beneath
+the identity operation's already admitted Arg0 session directory. The cleanup
+was `unlinkat` with an annotated directory descriptor resolving to that
+session, the literal single child component `.lock`, flags exactly `0`, and
+result exactly `0`. A traced descendant in the same identity operation invoked
+it after all four aliases were created, after three alias cleanups completed,
+before the fourth alias cleanup, and before descendant and root exit.
+
+The matching creation was one successful `open` by the identity operation's
+root process. Its path was the same absolute session child; flags were exactly
+`O_RDWR|O_CREAT|O_LARGEFILE|O_CLOEXEC`, mode exactly `0666`, and its successful
+descriptor result carried the same absolute-path annotation. The call
+completed before the first alias creation and before any cleanup. The bounded
+classification retained only these structural facts. A second bounded
+cardinality check confirmed that identity and quota each had exactly one such
+root `open` and one matching descendant `unlinkat`, with identical shapes and
+cleanup positions: after three alias cleanups and before the fourth. It
+also confirmed one structurally identical session creation per operation:
+exactly one successful complete root-process `mkdir` with the absolute session
+path, mode exactly `0777`, and result exactly `0`. Each `mkdir` completed before
+its `.lock` open was invoked. From that `mkdir` invocation through the `.lock`
+open completion, the only successful writes overlapping the interval were the
+equal-session `mkdir` and equal-child `open`. The classification retained no
+path, PID, identity, provider payload, credential, prompt, response, or source
+content, and the raw trace was discarded.
+
+The [official `rust-v0.160.0` Arg0 source](https://github.com/openai/codex/blob/rust-v0.160.0/codex-rs/arg0/src/lib.rs#L25-L43)
+defines `LOCK_FILENAME` as literal `.lock` and retains both the temporary
+directory and opened file in `Arg0PathEntryGuard`. Its
+[session and lock creation path](https://github.com/openai/codex/blob/rust-v0.160.0/codex-rs/arg0/src/lib.rs#L378-L390)
+creates the temporary session, opens its lock child with read, write, create,
+and no-truncate options, then calls `try_lock()`. The guard remains alive
+through the app-server async body and is dropped afterward. The current syscall
+selector observes the exact session creation, file creation/open, and cleanup
+lifecycle but does not select `flock` or `fcntl`. This amendment therefore
+makes no claim about advisory-lock acquisition and does not widen the selector
+or acceptance scope to prove it.
+
+Plan 1.14 admits only the four symlink children and their cleanup, followed by
+optional removal of an empty session directory. The real `.lock` cleanup is a
+fifth child mutation during that protected interval, so admitting it changes
+policy and requires owner approval rather than being treated as trace syntax.
+No authenticated containment run has passed for 1.14 or this draft amendment.
+
+### Exact proposed correction boundary
+
+Production change is limited to
+`tools/automation/implementations/m5_codex_containment.py`:
+
+- Require each exact identity and quota app-server operation to contain one
+  and only one literal `.lock` regular-file child directly beneath that
+  operation's single already admitted `tmp/arg0/codex-arg0[A-Za-z0-9]{6}`
+  session. Both operations must independently satisfy the complete lifecycle;
+  an observation from one operation cannot authorize or satisfy the other.
+- Require exactly one successful complete session-creation record per
+  operation: `mkdir("<absolute-session>", 0777) = 0` by that operation's root
+  PID. Its absolute canonical target must equal the one session parent shared
+  by the later `.lock` and four aliases. It must be invoked after operation
+  start, complete before `.lock` open invocation, and remain a complete record
+  rather than an unfinished/resumed pair. Exact zero proves that this session
+  path did not already exist when `mkdir` created it.
+- Admit the child creation only as one exact full-match `open` by that
+  operation's root PID, with one absolute canonical path equal to
+  `<session>/.lock`, flags exactly
+  `O_RDWR|O_CREAT|O_LARGEFILE|O_CLOEXEC`, mode exactly `0666`, and a successful
+  nonnegative descriptor result whose path annotation resolves exactly to the
+  same canonical child. The call must be invoked and completed after the
+  session `mkdir` completes and before its first alias creation. From the
+  session-creation invocation through `.lock` open completion, the only
+  successful writes that may overlap are the exact equal-session `mkdir` and
+  exact equal-child `open`. This closed interval proves a fresh session with no
+  preceding child or alternate creator and supplies the regular-file creation
+  proof despite `open` lacking `O_EXCL` and `O_NOFOLLOW`.
+- Reject a missing, failed, duplicate, relative, leading-double-slash,
+  malformed, alternate-name, wrong-session, wrong-mode, wrong-result,
+  descendant, other-operation, or non-root session `mkdir`; `mkdirat` or any
+  other creation call; a session creation invoked before operation start or
+  after `.lock` open; and an unfinished/resumed session creation. Reject every
+  additional successful write overlapping session-creation invocation through
+  `.lock` open completion, plus any failure-reporting namespace mutation whose
+  effect the existing policy cannot prove absent.
+- Reject `openat`, `openat2`, `creat`, any second open/create, a relative or
+  leading-double-slash path, another basename or case, another directory or
+  session, a nested child, missing or reordered flags, additional flags,
+  another mode, failed/unknown/malformed result, missing/mismatched/deleted
+  descriptor annotation, another PID or operation, and creation after any
+  alias creation or cleanup. Reject `.lock` creation by `mkdir`, `mknod`, hard
+  link, symlink, rename, or any other entry type or namespace operation.
+- Require exactly one matching successful cleanup
+  `unlinkat(<annotated-session-dirfd>, ".lock", 0) = 0`. The directory
+  descriptor must resolve exactly to the same session; the caller must be the
+  root or a traced descendant of the same operation; creation must complete
+  before cleanup is invoked; all four alias creations must complete before
+  cleanup is invoked; and cleanup must complete before that actor and the
+  operation root invoke exit. A different operation, unattributed process,
+  absolute or alternate child argument, unresolved or mismatched descriptor,
+  other flags/result, cleanup before create, duplicate cleanup, missing
+  cleanup, or cleanup after actor/root/operation close fails closed.
+- Permit the one `.lock` cleanup to interleave in any proven order among the
+  four already required alias cleanups because temporary-directory enumeration
+  order is filesystem dependent. Require all five child cleanups to complete
+  successfully before the existing optional exact session-directory
+  `rmdir`/`unlinkat(..., AT_REMOVEDIR)` may be invoked. Session removal before
+  any child cleanup, or a remaining child after removal, fails closed.
+- Extend the protected Arg0 interval from invocation of the exact session
+  `mkdir` through completion of all five child cleanups. During that interval
+  reject every unowned successful write, session or child movement,
+  replacement, exchange, additional link, write-through alias, any `.lock`
+  access beyond the one exact open and one exact cleanup unlink, and ancestor
+  mutation already forbidden by 1.14. Invocation and completion ordinals
+  remain authoritative across complete and unfinished/resumed records; lexical
+  path containment alone is insufficient.
+- Count the admitted session `mkdir`, `.lock` `open`, and `.lock` `unlinkat`
+  once each as managed provider access and write. Keep the bounded
+  post-operation symlink-free tree check, selected managed-root confinement,
+  executable/account/service identity, mount and inode protections,
+  default-profile prohibition, and every other 1.14 check unchanged. Keep the
+  closed evidence schema and digest-only sanitized output unchanged; neither
+  `.lock` nor any path, descriptor, PID, trace line, or provider value enters
+  evidence or logs.
+
+No provider method, API, UI, database, migration, scheduler, service unit,
+login, account, default profile, dependency, license, or running-agent behavior
+changes. There is no public or versioned contract change and no ADR or data
+migration. The amendment remains part of the already approved fifth
+evidence-preserving rollover and authorizes no additional activation.
+
+The verification write set is limited to
+`tools/automation/test_m5_codex_containment.py`, inventory assertions in
+`tools/automation/test_m5_current_exit.py`, and exact inventory constants in
+`tools/automation/implementations/auto_m5_current_exit.py`. Documentation may
+change only in the existing M5 plan, Codex adapter boundary, implementation
+evidence/status, runbook, plan indexes, and generated planning controls.
+
+### Required Red, Green, review, and live proof
+
+The authenticated
+`m5_codex_containment_path_mutator_unverifiable` result on the exact successful
+`.lock` cleanup is the real-system Red. The first focused policy test must
+reproduce that failure before production changes. Pure policy tests must then
+prove the exact session creation, one-plus-four child creation, and five-child
+cleanup lifecycle for both identity and quota, including `.lock` cleanup at
+every permitted position among the four alias cleanups.
+
+Negative cases must reject a missing, extra, duplicate, renamed, wrong-case,
+wrong-path, nested, nonregular, moved, replaced, or exchanged `.lock`; wrong
+call, PID, operation, lineage, flag set/order, mode, result, descriptor
+annotation, or chronology; missing, duplicate, wrong-call, wrong-path,
+wrong-mode, failed, foreign-lineage, pre-operation, post-open, or
+unfinished/resumed session creation; any additional successful write
+overlapping session-create invocation through lock-open completion, including a
+write invoked before session creation and resumed inside the interval or
+invoked inside it and resumed after lock-open completion; open before session
+creation completes or after alias creation; cleanup before open completion or
+before all alias creations; cleanup after actor/root exit; cleanup from another
+session or operation; duplicate or unresolved cleanup; session removal before
+any of the five child cleanups; and unfinished/resumed calls crossing operation
+or exit boundaries. Regression tests must retain all 1.14 rejections, including
+failed-reporting rename variants whose filesystem effect can be uncertain.
+
+A real owner-temporary-filesystem strace test must prove the exact complete
+Linux session `mkdir`, `open` flags/mode/successful descriptor annotation, and
+descriptor-resolved `unlinkat` grammar without retaining a path. A real tree
+test must prove that a remaining `.lock`, symlink, or other session child is
+rejected. These tests do not claim that `try_lock()` succeeded because its
+syscall is outside the unchanged selector.
+
+After focused Green, the complete containment and current-exit files, Ruff
+lint and format, strict production mypy, exact Story inventory rebind,
+`git diff --check`, and two independent adversarial reviews must pass. The
+standalone authenticated containment test should then run as a feedback gate
+with no skip against the unchanged d81 service and pinned Codex 0.160.0
+executable. Its pass must prove the complete exact lifecycle independently for
+both identity and quota.
+
+The correction must then be committed as one clean revision, and the full
+canonical preactivation set must pass on that exact revision. The standalone
+authenticated containment test must pass again with no skip against that exact
+revision before the already authorized two-invocation fifth activation begins.
+Fresh owner, alert, process, and quota evidence and exact-revision
+`AUTO-M5-EXIT` remain required afterward. Until all of those gates pass, M5,
+plan 1.15, live containment, activation, and owner acceptance remain Not Run or
+Failed as their actual results require.
 
 ## Stop conditions
 
