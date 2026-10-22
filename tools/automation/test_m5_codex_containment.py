@@ -1032,6 +1032,10 @@ class M5CodexContainmentPolicyTests(unittest.TestCase):
                     "RENAME_EXCHANGE) = 0"
                 ),
             ),
+            "failed_reported_rename_out_and_back": after_creates(
+                (f'200 rename("{alias}", "{moved}") = -1 EIO (Input/output error)'),
+                (f'200 rename("{moved}", "{alias}") = -1 EIO (Input/output error)'),
+            ),
             "session_parent_rename": after_creates(
                 f'200 rename("{session}", "{session}.moved") = 0',
             ),
@@ -1062,6 +1066,9 @@ class M5CodexContainmentPolicyTests(unittest.TestCase):
         expected = {
             "rename_out_and_back": "m5_codex_containment_path_mutator_unverifiable",
             "rename_exchange": "m5_codex_containment_path_mutator_unverifiable",
+            "failed_reported_rename_out_and_back": (
+                "m5_codex_containment_path_mutator_unverifiable"
+            ),
             "session_parent_rename": ("m5_codex_containment_path_mutator_unverifiable"),
             "hard_link_alias": "m5_codex_containment_link_operation_rejected",
             "symlinkat_extra": "m5_codex_managed_profile_write_escape",
@@ -1101,6 +1108,53 @@ class M5CodexContainmentPolicyTests(unittest.TestCase):
                         default_codex_roots=(Path("/home/owner/.codex"),),
                     )
                 self.assertEqual(str(raised.exception), expected[label])
+
+    def test_arg0_failed_descendant_mkdir_has_no_namespace_effect(self) -> None:
+        """M5-CDX-GATE-001: a failed owned mkdir is not a mutation."""
+
+        trace = _arg0_lifecycle_trace()
+        clone = "200 clone(child_stack=NULL, flags=SIGCHLD) = 201"
+        ancestor = _ARG0_IDENTITY_SESSION.parent
+        failed_mkdir = f'201 mkdir("{ancestor}", 0700) = -1 EEXIST (File exists)'
+        failed_trace = trace.replace(clone, f"{clone}\n{failed_mkdir}", 1)
+        baseline = evaluate_codex_trace_policy_v1(
+            trace,
+            provider_executable=_TRACE_EXECUTABLE,
+            managed_profile_root=_TRACE_MANAGED_ROOT,
+            default_codex_roots=(Path("/home/owner/.codex"),),
+        )
+
+        summary = evaluate_codex_trace_policy_v1(
+            failed_trace,
+            provider_executable=_TRACE_EXECUTABLE,
+            managed_profile_root=_TRACE_MANAGED_ROOT,
+            default_codex_roots=(Path("/home/owner/.codex"),),
+        )
+
+        self.assertEqual(
+            summary.provider_access_count,
+            baseline.provider_access_count + 1,
+        )
+        self.assertEqual(
+            summary.provider_write_count,
+            baseline.provider_write_count + 1,
+        )
+        successful_trace = failed_trace.replace(
+            " = -1 EEXIST (File exists)",
+            " = 0",
+            1,
+        )
+        with self.assertRaises(M5CodexContainmentErrorV1) as raised:
+            evaluate_codex_trace_policy_v1(
+                successful_trace,
+                provider_executable=_TRACE_EXECUTABLE,
+                managed_profile_root=_TRACE_MANAGED_ROOT,
+                default_codex_roots=(Path("/home/owner/.codex"),),
+            )
+        self.assertEqual(
+            str(raised.exception),
+            "m5_codex_containment_path_mutator_unverifiable",
+        )
 
     def test_descriptor_bound_ftruncate_is_counted_for_both_provider_reads(
         self,

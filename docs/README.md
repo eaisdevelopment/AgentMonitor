@@ -37,26 +37,25 @@ Current program state:
   Registry, identity, lineage, and zero-mutation proof, then returned
   `m5_quota_witness_input_invalid` at its strict five-field policy boundary and
   created no file. The plan 1.9 quota-policy projection and fifth-rollover
-  policy are local Green. Owner-approved plans 1.10 through 1.14 now have a
-  locally Green containment implementation for effective private roots,
-  inode-bound metadata, complete descriptor tracing, strict mount topology,
+  policy are local Green. Owner-approved plans 1.10 through 1.14 have a locally
+  Green containment implementation for effective private roots, inode-bound
+  metadata, complete descriptor tracing, strict mount topology,
   descriptor-bound `ftruncate`, numeric-dirfd `unlinkat` resolution,
-  pidfd-owned process-group cleanup, and the exact Codex 0.160.0 temporary
-  Arg0 symlink lifecycle. Identity and quota must each create the ordered
-  `apply_patch`, `applypatch`, `codex-linux-sandbox`, and
-  `codex-execve-wrapper` aliases and clean all four within their own operation.
-  The containment file reports `88` cases with `87` passed and one explicit
-  authenticated live-selector skip;
-  current-exit is `66/66`. The exact Story inventory is `537` identifiers with
-  SHA-256
-  `19d4244cfd50335839776af9b847af134eba0451c3dee2ad66d0daa9e321ec2d`.
-  Clean revision `a0f2dc1` passed preactivation, then its authenticated run
-  against the unchanged `d81afab` service completed both provider operations
-  and supplied the exact Red
-  `m5_codex_containment_link_operation_rejected`. The 1.14 implementation is
-  locally Green, including Ruff lint/format and strict production mypy. Its
-  authenticated rerun and current-revision canonical preactivation remain
-  pending. The fifth live
+  pidfd-owned process-group cleanup, and the exact four-alias Codex `0.160.0`
+  temporary Arg0 lifecycle. Clean revision `842a4d4` passed every preactivation
+  lane. Its first authenticated run completed identity and quota, then failed
+  closed on an exact same-operation descendant `mkdir(...)= -1 EEXIST`. The
+  narrow correction is local Red/Green with a failed-rename guard. The
+  containment file now reports `89` cases with `88` passed and one explicit
+  authenticated live-selector skip; current-exit is `66/66`. The exact Story
+  inventory is `538` identifiers with SHA-256
+  `3dcf68e402a40e7e48f46494d4e35778f9e4bb85a7a6cb0cb00183495bd64223`.
+  A second authenticated feedback run still failed closed. Safe diagnosis
+  found Codex's official regular `.lock` child: identity and quota each made
+  exactly one successful same-operation write-open before alias creation and
+  one matching `unlinkat(..., 0)` interleaved with alias cleanup. That
+  lifecycle is outside approved plan 1.14 and remains unimplemented, so
+  authenticated containment has no pass. The fifth live
   rollover, refreshed revision-bound prerequisites,
   authoritative `/status` witness, clean exact-revision `AUTO-M5-EXIT`, and
   owner acceptance are **Not Run**; the canonical gate state remains

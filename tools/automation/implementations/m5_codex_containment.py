@@ -2412,6 +2412,9 @@ def _validate_arg0_lifecycles_v1(
         final_cleanup_completion = max(
             classified_records[index][0].completed_at for index in cleanup_indexes
         )
+        first_cleanup_invocation = min(
+            classified_records[index][0].invoked_at for index in cleanup_indexes
+        )
         allowed_indexes = {
             *(creation.record_index for creation in creations),
             *cleanup_indexes,
@@ -2421,6 +2424,8 @@ def _validate_arg0_lifecycles_v1(
         for candidate_index, (candidate, paths, is_write, _) in enumerate(
             classified_records
         ):
+            candidate_operation = record_operations.get(candidate_index)
+            candidate_exit = pid_exit_records.get(candidate.pid)
             overlaps_operation = not (
                 candidate.completed_at < first_creation_invocation
                 or candidate.invoked_at > operation_close_completion
@@ -2429,10 +2434,26 @@ def _validate_arg0_lifecycles_v1(
                 overlaps_operation
                 and is_write
                 and _successful(candidate)
-                and record_operations.get(candidate_index) is None
+                and candidate_operation is None
             ):
                 code = link_error if candidate.call in _LINK_CALLS else mutation_error
                 raise M5CodexContainmentErrorV1(code)
+            failed_existing_arg0_mkdir = (
+                candidate.call == "mkdir"
+                and candidate.result == "-1 EEXIST (File exists)"
+                and candidate_operation == operation
+                and candidate.pid != operation.root_pid
+                and len(paths) == 1
+                and (paths[0] == session or paths[0] in session.parents)
+                and any(
+                    record.completed_at < candidate.invoked_at
+                    for record in creation_records
+                )
+                and candidate.completed_at < first_cleanup_invocation
+                and candidate.completed_at < exit_record.invoked_at
+                and candidate_exit is not None
+                and candidate.completed_at < candidate_exit.invoked_at
+            )
             if (
                 not is_write
                 or not paths
@@ -2442,14 +2463,14 @@ def _validate_arg0_lifecycles_v1(
                     for path in paths
                 )
                 or candidate_index in allowed_indexes
+                or failed_existing_arg0_mkdir
             ):
                 continue
             exact_parent_removal = False
-            candidate_exit = pid_exit_records.get(candidate.pid)
             if (
                 paths == (session,)
                 and candidate.result == "0"
-                and record_operations.get(candidate_index) == operation
+                and candidate_operation == operation
                 and candidate.invoked_at > final_cleanup_completion
                 and candidate.completed_at < exit_record.invoked_at
                 and candidate_exit is not None
