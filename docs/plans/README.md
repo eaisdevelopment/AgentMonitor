@@ -185,11 +185,10 @@ Directories are created when an approved planning assignment begins. Drafts stat
   narrow correction remains inside 1.14. The feedback rerun failed closed on
   Codex's additional literal `.lock` child: one exact root session `mkdir`, one
   exact root `open` before alias creation, and one same-operation descendant
-  `unlinkat(..., 0)` interleaved among the four alias cleanups. Proposed plan
-  1.15.0 is Draft with
-  `owner_approved = false`; it would admit only that exact regular-file child
-  lifecycle, preserves every other containment boundary, and authorizes no
-  additional rollover. Authenticated containment has not passed. The fifth
+  `unlinkat(..., 0)` interleaved among the four alias cleanups. Owner-approved
+  plan 1.15.0 admits only that exact session and regular-file child lifecycle,
+  preserves every other containment boundary, and authorizes no additional
+  rollover. Authenticated containment has not passed. The fifth
   live transition, refreshed prerequisites,
   `AUTO-M5-EXIT`, and owner acceptance remain Not Run. OpenAI API billing
   remains V1-M7.

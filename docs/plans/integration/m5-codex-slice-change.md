@@ -1,15 +1,11 @@
 # Change plan: executable V1-M5 Codex slice
 
-- Status: **Draft 1.15.0; owner approval is pending and no 1.15 production
-  implementation is authorized. Owner-approved 1.14.0 remains the last
-  implementation authority. Its current-revision preactivation passed, but
-  the authenticated rerun has not passed: after the in-scope failed-`mkdir`
-  correction, the real trace exposed Codex's additional temporary Arg0
-  `.lock` child outside the 1.14 boundary. Activation has not started.**
-- Plan version: `1.15.0`; owner approval: **Not granted
-  (`owner_approved = false`)**. Version `1.14.0` remains incorporated and
-  approved except for the proposed `.lock` lifecycle extension below, which
-  requires explicit owner approval before implementation.
+- Status: **Approved 1.15.0; implementation is authorized only for the exact
+  temporary Arg0 session and `.lock` lifecycle specified below. The
+  authenticated 1.14 rerun has not passed, and activation has not started.**
+- Plan version: `1.15.0`; owner approval: 2026-10-22. Version `1.14.0` remains
+  incorporated except where the exact session and `.lock` lifecycle below
+  extends its four-alias boundary.
 - Safety correction: exact-version review proved that authenticated app-server
   queries may perform Codex's automatic credential refresh. The approved
   managed-auth lifecycle therefore classifies those queries as
@@ -47,9 +43,9 @@
   `ftruncate` correction specified below. The owner's explicit 2026-10-22
   approval of version 1.14.0 adds only the
   exact pinned Codex 0.160.0 temporary Arg0 symlink lifecycle specified below;
-  proposed version 1.15.0 would add only the exact literal `.lock` regular-file
-  child lifecycle specified below and grants no authority until the owner
-  explicitly approves it;
+  the owner's explicit 2026-10-22 approval of version 1.15.0 adds only the
+  exact session creation and literal `.lock` regular-file child lifecycle
+  specified below;
   all remaining A02, OpenAI API, PLAN-DEP/D01, and
   `AUTO-DEPLOY` lanes stay Draft or Blocked as already recorded.
 - Stories: `ST-CDX-001..005`.
@@ -2114,13 +2110,11 @@ clean-revision preactivation set and authenticated no-skip containment rerun
 remained pending; the subsequent results below supersede that status. This
 checkpoint is not M5 completion.
 
-## Proposed pinned Arg0 lock-child lifecycle correction — 2026-10-22
+## Approved pinned Arg0 lock-child lifecycle correction — 2026-10-22
 
-**Status: Draft 1.15.0; `owner_approved = false`. This proposal has no
-production implementation authority. Owner-approved 1.14.0 remains the last
-approved boundary. If approved, 1.15.0 adds only the exact `.lock` lifecycle
-below to the already authorized, not-yet-run fifth rollover and authorizes no
-sixth rollover.**
+**Status: Owner-approved 1.15.0 on 2026-10-22. This approval adds only the exact
+session creation and `.lock` lifecycle below to the already authorized,
+not-yet-run fifth rollover and authorizes no sixth rollover.**
 
 ### Authenticated Red and exact provider behavior
 
