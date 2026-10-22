@@ -40,14 +40,18 @@ Current program state:
   policy are local Green. Owner-approved plans 1.10 through 1.13 now have a
   locally Green containment implementation for effective private roots,
   inode-bound metadata, complete descriptor tracing, strict mount topology,
-  descriptor-bound `ftruncate`, and pidfd-owned process-group cleanup. The
-  containment file reports `76` cases with `75` passed and one explicit
-  authenticated live-selector skip; current-exit is `66/66`. The exact Story
-  inventory is `525` identifiers with SHA-256
-  `99c3b5f579aac5091939209c8f3603f88a283bb3a4444dbdfa10f8f1d91de15f`.
-  The latest authenticated attempt remains Failed at the earlier
-  `m5_codex_containment_fd_write_unverifiable` boundary; the corrected live
-  rerun and aggregate preactivation gates remain pending. The fifth live
+  descriptor-bound `ftruncate`, numeric-dirfd `unlinkat` resolution, and
+  pidfd-owned process-group cleanup. The containment file reports `77` cases
+  with `76` passed and one explicit authenticated live-selector skip;
+  current-exit is `66/66`. The exact Story inventory is `526` identifiers with
+  SHA-256
+  `5b3c8dcbdcdff7303e7364417b6d7d5c6bd4efd3286fba48ba885bcf0bdd968e`.
+  Clean revision `87eb40d` passed preactivation, then its authenticated run
+  completed both provider operations and failed closed as
+  `m5_codex_containment_trace_invalid` on the installed strace numeric-dirfd
+  representation. Production-code commit `f1c2c2e` corrects that parser
+  boundary locally; its authenticated rerun and current-revision aggregate
+  preactivation gates remain pending. The fifth live
   rollover, refreshed revision-bound prerequisites,
   authoritative `/status` witness, clean exact-revision `AUTO-M5-EXIT`, and
   owner acceptance are **Not Run**; the canonical gate state remains

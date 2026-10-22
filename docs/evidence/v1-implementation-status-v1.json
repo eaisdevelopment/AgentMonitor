@@ -2,8 +2,8 @@
   "schema_version": "1.0.0",
   "record_type": "agentmonitor.v1_implementation_status",
   "record_id": "V1-STATUS-2026-10-22-01",
-  "implementation_revision": "d84359336871b115e365dba0576296c43f017a1d",
-  "recorded_at": "2026-10-22T11:42:01Z",
+  "implementation_revision": "f1c2c2e9a7f4434c49014646bff220273282603b",
+  "recorded_at": "2026-10-22T12:23:15Z",
   "planning_backlog": "docs/superpowers/plans/implementation-backlog.toml",
   "planning_backlog_sha256": "2e93367d304fda306776f8789db23c754798f6307277628f0565350d0dbb962e",
   "roadmap": "docs/roadmap.md",
@@ -118,7 +118,7 @@
         "docs/evidence/m5-codex-read-side-effect-blocker.md",
         "docs/evidence/m5-codex-implementation.md"
       ],
-      "decision": "Codex implementation remains Intermediate. Four corrective rollovers are preserved and the fourth activated exact clean detached revision d81afab9e5b1c1dbdb690f390e77cee66eba5437 with real service and browser proof; its owner outcomes, scheduled lineage, and alert witness passed. Owner-approved plans 1.10 through 1.13 now have a locally Green containment implementation for effective roots, inode-bound metadata, complete descriptor tracing, strict mount topology, descriptor-bound ftruncate, and pidfd-owned process-group cleanup. The containment file has 76 cases: 75 passed and the authenticated live-selector case was skipped; current-exit passed 66, and the exact 525-test inventory digest is 99c3b5f579aac5091939209c8f3603f88a283bb3a4444dbdfa10f8f1d91de15f. The latest real d81 attempt remains Failed as m5_codex_containment_fd_write_unverifiable on ten resolved in-profile ftruncate calls; the corrected authenticated rerun is Not Run. Canonical preactivation, fifth activation, refreshed prerequisites, authoritative /status reconciliation, AUTO-M5-EXIT, and owner acceptance remain Not Run. The canonical gate state remains not_run."
+      "decision": "Codex implementation remains Intermediate. Four corrective rollovers are preserved and the fourth activated exact clean detached revision d81afab9e5b1c1dbdb690f390e77cee66eba5437 with real service and browser proof; its owner outcomes, scheduled lineage, and alert witness passed. Owner-approved plans 1.10 through 1.13 plus the in-scope numeric-dirfd trace representation correction are locally Green. The containment file has 77 cases: 76 passed and the authenticated live-selector case was skipped; current-exit passed 66, and the exact 526-test inventory digest is 5b3c8dcbdcdff7303e7364417b6d7d5c6bd4efd3286fba48ba885bcf0bdd968e. Clean 87eb40d passed preactivation, then its real identity/quota containment run failed closed as m5_codex_containment_trace_invalid on numeric-dirfd unlinkat representation. Commit f1c2c2e corrects that boundary locally. Current-revision preactivation, corrected authenticated containment, fifth activation, refreshed prerequisites, authoritative /status reconciliation, AUTO-M5-EXIT, and owner acceptance remain Not Run. The canonical gate state remains not_run."
     },
     {
       "milestone_id": "V1-M6",
@@ -442,7 +442,7 @@
         "docs/evidence/m5-codex-read-side-effect-blocker.md",
         "docs/evidence/m5-codex-implementation.md"
       ],
-      "decision": "The exact-version adapter, installation admission, and managed-profile safety implementation are present. Plans 1.10 through 1.13 locally close effective-root, inode-bound metadata, complete trace, mount-topology, descriptor-bound ftruncate, and process-group cleanup boundaries without changing the provider contract. The containment file reports 75 local passes and one authenticated selector skip; current-exit reports 66 passes, and the exact 525-test inventory digest is 99c3b5f579aac5091939209c8f3603f88a283bb3a4444dbdfa10f8f1d91de15f. Corrected authenticated containment and the clean exact-revision M5 gate remain unrecorded."
+      "decision": "The exact-version adapter, installation admission, and managed-profile safety implementation are present. Plans 1.10 through 1.13 plus the in-scope numeric-dirfd trace correction locally close effective-root, inode-bound metadata, complete trace, mount-topology, descriptor-bound ftruncate, unlinkat representation, and process-group cleanup boundaries without changing the provider contract. The containment file reports 76 local passes and one authenticated selector skip; current-exit reports 66 passes, and the exact 526-test inventory digest is 5b3c8dcbdcdff7303e7364417b6d7d5c6bd4efd3286fba48ba885bcf0bdd968e. Current-revision authenticated containment and the clean exact-revision M5 gate remain unrecorded."
     },
     {
       "story_id": "ST-CDX-002",
@@ -487,7 +487,7 @@
       "evidence_paths": [
         "docs/evidence/m5-codex-implementation.md"
       ],
-      "decision": "Codex HTTP, browser, health, alert, and completion-gate implementation is present. The fourth corrective rollover activated exact d81afab and its current owner and alert prerequisites passed. Plan 1.13 containment is local Green: 75 local cases passed, one authenticated live-selector case was skipped, current-exit passed 66, and the exact 525-test inventory digest is 99c3b5f579aac5091939209c8f3603f88a283bb3a4444dbdfa10f8f1d91de15f. The latest authenticated attempt remains Failed at the earlier descriptor-write boundary; corrected authenticated containment, canonical preactivation, fifth activation, refreshed prerequisites, authoritative quota, canonical process witness, clean exact-revision AUTO-M5-EXIT, and owner acceptance remain Not Run. Canonical gate state remains not_run."
+      "decision": "Codex HTTP, browser, health, alert, and completion-gate implementation is present. The fourth corrective rollover activated exact d81afab and its current owner and alert prerequisites passed. Plan 1.13 plus its in-scope trace-representation correction are local Green: 76 local containment cases passed, one authenticated live-selector case was skipped, current-exit passed 66, and the exact 526-test inventory digest is 5b3c8dcbdcdff7303e7364417b6d7d5c6bd4efd3286fba48ba885bcf0bdd968e. Clean 87eb40d passed preactivation before the latest authenticated attempt failed closed on numeric-dirfd unlinkat representation; commit f1c2c2e corrects that boundary locally. Current-revision preactivation, corrected authenticated containment, fifth activation, refreshed prerequisites, authoritative quota, canonical process witness, clean exact-revision AUTO-M5-EXIT, and owner acceptance remain Not Run. Canonical gate state remains not_run."
     },
     {
       "story_id": "ST-OLL-001",

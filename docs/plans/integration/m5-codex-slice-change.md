@@ -1,8 +1,9 @@
 # Change plan: executable V1-M5 Codex slice
 
-- Status: **Approved 1.13.0; local implementation and focused verification are
-  Green, while canonical preactivation, authenticated containment, and the
-  already approved fifth rollover remain unrun**.
+- Status: **Approved 1.13.0; local implementation and focused verification,
+  including the authenticated-trace representation correction below, are
+  Green, while current-revision canonical preactivation, authenticated
+  containment, and the already approved fifth rollover remain unrun**.
 - Plan version: `1.13.0`; owner approval: 2026-10-22. Version `1.12.0` was
   approved on 2026-10-22 and is superseded only at the descriptor-bound
   `ftruncate` boundary specified below.
@@ -1804,10 +1805,10 @@ Production changes remain limited to
 namespace path rather than an inode identity. The new mount proof therefore
 excludes a pre-existing bind mount at or below the managed root before relying
 on that path. Together with the existing before/after tree scans, single-link
-regular-file rule, and rejection of traced link, rename, unlink, and namespace
-operations, this closes the descriptor-path boundary under the documented
-single-user threat model. The existing hostile-concurrent-same-UID limitation
-remains unchanged.
+regular-file rule, global link rejection, protected-target rename/unlink
+rejection, and namespace-operation rejection, this closes the descriptor-path
+boundary under the documented single-user threat model. The existing
+hostile-concurrent-same-UID limitation remains unchanged.
 
 The verification write set remains
 `tools/automation/test_m5_codex_containment.py`, inventory assertions in
@@ -1873,6 +1874,44 @@ These are provider-free implementation results. The complete canonical
 preactivation set, authenticated zero-skip containment against the unchanged
 d81 service, fifth activation, refreshed live prerequisites, `AUTO-M5-EXIT`,
 and owner acceptance remain Not Run.
+
+## Authenticated numeric-dirfd trace correction — 2026-10-22
+
+The complete preactivation set passed on clean revision `87eb40d`. The
+standalone authenticated containment run then completed the real identity and
+quota provider operations against the unchanged `d81afab` service before trace
+evaluation failed closed as `m5_codex_containment_trace_invalid`. Sanitized
+structural inspection identified one successful write-class `unlinkat` record
+with one quoted relative target, one required numeric directory descriptor
+annotated by `strace -yy`, and no `AT_FDCWD` token. No path, provider payload,
+identity, credential, prompt, or response was retained. A separate real
+owner-temporary-file probe reproduced the installed strace 6.8 form as
+`unlinkat(3<ABS>, "REL", 0) = 0`.
+
+This is a trace-representation defect in the already approved generic
+managed-profile write confinement. It adds no provider method, operation,
+side effect, contract, schema, dependency, or service transition and therefore
+does not create plan 1.14. The correction parses only exact `unlinkat`
+signatures. A relative target uses either literal `AT_FDCWD` with the tracked
+working directory or a decimal descriptor `3..999999` with one canonical
+absolute normalized annotation. Missing, deleted, relative, escaped,
+control-bearing, noncanonical, or ambiguous annotations and results fail
+closed. Default-profile and outside-profile targets retain their existing
+specific failures, and replacement of the inode-bound `chmod` target or an
+ancestor remains rejected. Other numeric-dirfd syscall signatures remain
+unresolved and fail closed.
+
+Red reproduced both the pure policy failure and the real temporary-filesystem
+trace failure. Green at production-code commit
+`f1c2c2e9a7f4434c49014646bff220273282603b` passes `77` containment cases:
+`76` local cases and one explicit authenticated-selector skip. Current-exit
+passes `66/66`; Ruff and format, strict production mypy, and `git diff --check`
+pass for the changed containment files. Two independent adversarial reviews
+are clean. The exact Story inventory is `526` unique identifiers with SHA-256
+`5b3c8dcbdcdff7303e7364417b6d7d5c6bd4efd3286fba48ba885bcf0bdd968e`;
+removing only the new real-strace test reproduces the prior `525` count and
+digest. Current-revision preactivation and the corrected authenticated rerun
+remain required before the already approved fifth activation.
 
 ## Stop conditions
 

@@ -762,6 +762,19 @@ unverifiable descriptor targets report
 proof reports `m5_codex_containment_mount_topology_unverifiable`. Every other
 successful descriptor-only mutator remains rejected.
 
+For `unlinkat`, an absolute quoted target is evaluated directly. A relative
+target is resolved only from literal `AT_FDCWD` plus the tracked working
+directory, or from an exact decimal descriptor `3..999999` with a canonical
+absolute normalized `strace -yy` annotation. Missing, deleted, relative,
+escaped, control-bearing, noncanonical, or ambiguous annotations and syscall
+results report `m5_codex_containment_trace_invalid`. A resolved default-profile
+target retains `m5_codex_default_profile_access_detected`; another target
+outside the selected profile retains `m5_codex_managed_profile_write_escape`;
+replacement of the inode-bound `chmod` target or one of its ancestors remains
+rejected. Any annotation present with an absolute target must still be
+structurally valid. No annotation, target path, or raw trace enters evidence or
+logs.
+
 The traced driver is bound by PID, start ticks, pidfd, process group, and
 session identity. Cleanup signals the complete AgentMonitor-owned new session
 before reaping its leader and shares the channel settlement deadline. Cleanup

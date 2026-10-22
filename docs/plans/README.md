@@ -159,11 +159,14 @@ Directories are created when an approved planning assignment begins. Drafts stat
   failed closed on ten descriptor-path-resolved `ftruncate` calls confined to
   the selected managed profile. Owner-approved 1.13.0 adds only that final
   descriptor-bound write and mount-topology proof to the same unrun fifth
-  rollover. Its local implementation reports `76` containment cases with `75`
-  passed and one authenticated selector skip, `66` passing current-exit cases,
-  and an exact `525`-test Story inventory with SHA-256
-  `99c3b5f579aac5091939209c8f3603f88a283bb3a4444dbdfa10f8f1d91de15f`.
-  Current preactivation and authenticated containment remain pending. The
+  rollover. The later authenticated trace exposed only strace 6.8's numeric
+  directory-descriptor representation for an already confined `unlinkat`;
+  commit `f1c2c2e` corrects that parser boundary without a new provider
+  operation or plan version. Local verification reports `77` containment cases
+  with `76` passed and one authenticated selector skip, `66` passing
+  current-exit cases, and an exact `526`-test Story inventory with SHA-256
+  `5b3c8dcbdcdff7303e7364417b6d7d5c6bd4efd3286fba48ba885bcf0bdd968e`.
+  Current-revision preactivation and authenticated containment remain pending. The
   fifth live transition, refreshed prerequisites,
   `AUTO-M5-EXIT`, and owner acceptance remain Not Run. OpenAI API billing
   remains V1-M7.
