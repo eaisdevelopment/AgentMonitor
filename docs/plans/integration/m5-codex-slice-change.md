@@ -1,11 +1,10 @@
 # Change plan: executable V1-M5 Codex slice
 
-- Status: **Approved 1.12.0 for one trace-completeness correction folded into
-  the approved but not-yet-run fifth rollover; local implementation is Green
-  and authenticated preactivation remains pending**.
-- Plan version: `1.12.0`; owner approval: 2026-10-22. Version `1.11.0` was
-  approved on 2026-10-21 and is superseded only at the trace-completeness
-  boundary specified below.
+- Status: **Draft 1.13.0 for one descriptor-bound `ftruncate` correction;
+  approved 1.12.0 implementation remains in progress and the already approved
+  fifth rollover remains unrun**.
+- Plan version: `1.13.0-draft`; owner approval pending. Version `1.12.0` was
+  approved on 2026-10-22.
 - Safety correction: exact-version review proved that authenticated app-server
   queries may perform Codex's automatic credential refresh. The approved
   managed-auth lifecycle therefore classifies those queries as
@@ -38,7 +37,9 @@
   owner's explicit 2026-10-21 approval of version 1.11.0 adds only the exact
   inode-bound provider `chmod` and private-channel diagnostic correction
   specified below. The owner's explicit 2026-10-22 approval of version 1.12.0
-  adds only the trace-completeness correction specified below. All
+  adds only the trace-completeness correction specified below. Draft version
+  1.13.0 proposes only the descriptor-bound `ftruncate` correction specified
+  below and grants no implementation authority until owner approval. All
   remaining A02, OpenAI API, PLAN-DEP/D01, and
   `AUTO-DEPLOY` lanes stay Draft or Blocked as already recorded.
 - Stories: `ST-CDX-001..005`.
@@ -1700,6 +1701,155 @@ SHA-256
 No service, browser, provider profile, account, or running agent was changed by
 this local checkpoint. Canonical preactivation and authenticated containment
 against the unchanged d81 service remain required before activation.
+
+## Draft descriptor-bound `ftruncate` correction — 2026-10-22
+
+**Status: Draft 1.13.0. Owner approval is required before changing the
+production fd-mutator policy. Approval would fold this correction into the
+already authorized, not-yet-run fifth rollover; it would not authorize a sixth
+rollover or any additional provider operation.**
+
+### Authenticated Reds and closed boundary
+
+The complete local preactivation set passed on clean revision `b64bbb5`,
+including build, planning, documentation, quality, mutation, Git preflight,
+`307` M3 technical tests, and `AUTO-TEST` with `1361` backend tests plus its
+real browser sequence. The first standalone authenticated containment rerun
+against the unchanged clean d81 service then failed closed at
+`m5_codex_containment_result_channel_empty`. A real descriptor Red proved that
+the private-channel parser admitted only single-digit descriptors beginning at
+three and descriptors whose first digit was three through nine, while an
+ordinary inherited descriptor such as `10` was rejected. The approved 1.11
+private-channel scope corrects that grammar to exact decimal descriptors
+`3..999999`; the focused Red and Green use real inherited kernel descriptors.
+
+With that channel correction, the same live test completed the real identity
+and quota operations and failed closed at
+`m5_codex_containment_fd_write_unverifiable`. Sanitized structural inspection
+of the same raw trace found exactly ten successful `ftruncate` records: five
+in identity lineage and five in quota lineage, across five distinct relative
+targets. Every descriptor had an strace `-yy` absolute normalized path inside
+the selected managed profile; the exact length argument was decimal `3`.
+There were no default-profile, outside, deleted, relative, malformed, or
+unresolved targets, no unattributed successful fd mutator, and no other
+successful fd-only mutator. All `284` observed raw `ioctl` records were exact
+failed no-effect terminal probes. No path, alias, provider payload, prompt,
+response, token, or credential value was retained or placed in evidence.
+
+These calls are the fd form of a managed-profile write already permitted for
+identity and quota. The 1.11 policy nevertheless rejects every successful
+fd-only mutator before it can apply managed-root confinement. That literal
+approved boundary cannot be widened without this amendment. The live test
+remains Failed and no containment, activation, or completion pass is claimed.
+
+### Exact proposed correction
+
+Production changes remain limited to
+`tools/automation/implementations/m5_codex_containment.py`:
+
+- Keep the exact 1.12 trace selector and raw qualifier unchanged.
+- Before the existing recursive pre-tree scan, and before releasing the
+  selected input to the traced driver, bind the check to the real Linux mount
+  namespace. Capture a bounded, strictly parsed
+  `/proc/self/mountinfo` plus the `(device, inode)` identity of
+  `/proc/self/ns/mnt`; after starting `strace`, while its driver is still
+  blocked on the private input channel, capture the same values through
+  `/proc/<strace-pid>` and require the namespace identity to match. Require
+  that the deepest mount covering the managed-profile root has the same mount
+  ID, parent ID, device, mount root, and mount point in both views, and that
+  neither view contains a mount point equal to or below the managed-profile
+  root. Repeat the self view after the driver exits but before the recursive
+  post-tree scan, and require the same namespace identity, covering mount, and
+  absence of nested mount points.
+  Missing, changing, oversized, duplicate, noncanonical, or malformed proc
+  data fails closed as
+  `m5_codex_containment_mount_topology_unverifiable`, without a path or raw
+  proc value in the error or evidence, before any `ftruncate` can be admitted.
+  Provider-created mount namespaces and mount operations remain covered and
+  rejected by the unchanged complete syscall trace.
+- Parse every `ftruncate`, including an exact failed call, only when its
+  arguments are exactly one decimal descriptor in `3..999999`, one
+  nonempty strace `-yy` descriptor-path annotation, and one nonnegative decimal
+  length in `0..9223372036854775807`, each with no leading zero except the
+  literal `0`. The path content must contain no CR, LF, NUL, angle bracket, or
+  backslash, must be absolute, and must be unchanged by lexical normalization.
+  Reject leading-double-slash, dot or `..` components, escaped,
+  suffix-bearing, prefix-bearing, and ambiguous forms as invalid trace. Treat
+  a syntactically identifiable missing or `(deleted)` descriptor annotation as
+  `m5_codex_containment_fd_write_unverifiable` because it cannot prove the
+  inode-bound target.
+- Admit that successful record only when its PID belongs to the identity or
+  quota provider lineage and the resolved descriptor path is within the exact
+  selected managed-profile root. Count it as one provider access and one
+  provider write under the existing generic managed-write confinement.
+  A valid path in a default Codex root fails under the existing
+  `m5_codex_default_profile_access_detected` policy; any other valid path
+  outside the managed root fails as
+  `m5_codex_managed_profile_write_escape`; a successful
+  unattributed or version-lineage call fails as
+  `m5_codex_containment_fd_write_unverifiable`.
+- After that complete argument validation, treat only an exact
+  `-1 ERRNO (...)` `ftruncate` result as no effect while retaining its record
+  for ended-PID and closed-operation chronology. Exact `0` is the only success;
+  every positive, restarted, unknown, suffix-bearing, prefix-bearing, or
+  otherwise malformed result is invalid trace.
+- Continue to reject successful `fchmod`, `fchown`, `fallocate`, fd xattrs,
+  every successful raw call, and every other fd-only mutator. Keep the two
+  inode-bound `chmod` allowance, root/tree snapshots, hard-link rejection,
+  default-profile prohibition, process rules, private-channel precedence,
+  evidence schema, service binding, account binding, and provider operations
+  unchanged.
+
+`ftruncate` acts on the open descriptor's inode, while strace `-yy` supplies a
+namespace path rather than an inode identity. The new mount proof therefore
+excludes a pre-existing bind mount at or below the managed root before relying
+on that path. Together with the existing before/after tree scans, single-link
+regular-file rule, and rejection of traced link, rename, unlink, and namespace
+operations, this closes the descriptor-path boundary under the documented
+single-user threat model. The existing hostile-concurrent-same-UID limitation
+remains unchanged.
+
+The verification write set remains
+`tools/automation/test_m5_codex_containment.py`, inventory assertions in
+`tools/automation/test_m5_current_exit.py`, and only the exact count/digest
+constants in
+`tools/automation/implementations/auto_m5_current_exit.py`. Documentation may
+change only in the already authorized M5 evidence/status/runbook locations and
+generated planning controls. There is no public contract, API, UI, database,
+migration, dependency, license, provider-payload, login, account, scheduler,
+or service behavior change.
+
+### Required Red, Green, review, and live proof
+
+The authenticated failures above and the real multidigit-descriptor case are
+the Reds. Pure policy tests must cover identity and quota admission plus
+unattributed, version, default-root, outside-root, relative, double-slash,
+`..`, deleted, missing-annotation, escape-bearing, control-bearing,
+delimiter-bearing, descriptor boundaries `0`, `1`, `2`, and `1000000`,
+leading-zero descriptor or length, length boundaries `0`,
+`9223372036854775807`, and `9223372036854775808`, negative length,
+positive/ambiguous/malformed result, suffix/prefix, failed-after-exit, and
+every still-forbidden fd mutator. A real temporary-file strace test must prove
+the exact `-yy` annotation for an ordinary private target and prove
+delimiter-like or escaped filename content fails closed without persisting its
+path. A real isolated user and mount namespace test must create an actual bind
+mount beneath a private temporary managed root and prove the mount check rejects
+it; a real `/proc` test must prove the ordinary current/traced namespace is
+accepted. Pure parser cases must cover bounded canonical mountinfo, namespace
+identity mismatch, covering-mount drift, nested file and directory mounts,
+missing or malformed proc data, and mountinfo escape and delimiter boundaries.
+The inherited-channel cases must cover a real open descriptor above nine plus
+closed, leading-zero, and out-of-range descriptor values.
+
+Green requires the complete containment and current-exit files, Ruff, format,
+strict mypy, exact Story inventory rebind, independent review, and the full
+canonical preactivation set on one clean revision. The standalone
+authenticated containment test must then pass, with no skip, against the
+unchanged d81 service and pinned Codex 0.160.0 executable. Only after that pass
+may the already authorized fifth activation proceed. The final clean
+exact-revision `AUTO-M5-EXIT` must include the same live case with zero skips.
+M5 remains Intermediate until its private completion receipt exists and
+survives canonical rereads.
 
 ## Stop conditions
 

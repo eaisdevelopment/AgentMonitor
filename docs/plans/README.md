@@ -156,11 +156,15 @@ Directories are created when an approved planning assignment begins. Drafts stat
   ioctl, and io_uring Reds found during the required 1.11 review. The local
   implementation now has `64` passing containment cases, `202` passing
   subtests, `66` passing current-exit cases, and an exact `514`-test Story
-  inventory; one authenticated containment case remains intentionally skipped
-  until it is bound to the unchanged d81 service. The aggregate preactivation
-  gates and passing authenticated containment remain pending; the fifth live
-  transition, refreshed prerequisites, `AUTO-M5-EXIT`, and owner acceptance
-  remain Not Run. OpenAI API billing remains V1-M7.
+  inventory. The full preactivation set passed at clean revision `b64bbb5`.
+  Authenticated containment against the unchanged d81 service then exposed and
+  locally corrected a multidigit inherited-descriptor parser defect before
+  failing closed on ten descriptor-path-resolved `ftruncate` calls confined to
+  the selected managed profile. Draft 1.13.0 proposes only that final
+  descriptor-bound write correction and has no implementation authority until
+  owner approval. The fifth live transition, refreshed prerequisites,
+  `AUTO-M5-EXIT`, and owner acceptance remain Not Run. OpenAI API billing
+  remains V1-M7.
 - [Live agent account association](integration/live-agent-account-association-change.md):
   explicit manual confirmation, guarded current terminal details and private
   revisioned settings; the named owner-authorized live link/persistence gate Passed.
