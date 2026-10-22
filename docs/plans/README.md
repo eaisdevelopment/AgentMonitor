@@ -153,9 +153,9 @@ Directories are created when an approved planning assignment begins. Drafts stat
   `m5_codex_containment_path_mutator_unverifiable` on two idempotent
   in-profile `chmod(..., 0700)` calls. Owner-approved 1.11.0 adds only the exact
   inode-bound proof and safe channel diagnostics; implementation is in
-  progress. Draft 1.12.0 proposes the narrow trace-completeness correction for
-  real fd-xattr, inode-flag ioctl, and io_uring Reds found during the required
-  1.11 review; it has no implementation authority until owner approval. The
+  progress. Owner-approved 1.12.0 adds the narrow trace-completeness correction
+  for real fd-xattr, inode-flag ioctl, and io_uring Reds found during the
+  required 1.11 review. The
   aggregate preactivation gates and passing containment remain
   pending; the fifth live transition, refreshed prerequisites, `AUTO-M5-EXIT`,
   and owner acceptance remain Not Run. OpenAI API billing

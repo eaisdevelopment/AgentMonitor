@@ -1,10 +1,10 @@
 # Change plan: executable V1-M5 Codex slice
 
-- Status: **Draft 1.12.0 for one trace-completeness correction; approved
-  1.11.0 implementation remains in progress and the already approved fifth
-  rollover remains unrun**.
-- Plan version: `1.12.0-draft`; owner approval pending. Version `1.11.0` was
-  approved on 2026-10-21.
+- Status: **Approved 1.12.0 for one trace-completeness correction folded into
+  the approved but not-yet-run fifth rollover**.
+- Plan version: `1.12.0`; owner approval: 2026-10-22. Version `1.11.0` was
+  approved on 2026-10-21 and is superseded only at the trace-completeness
+  boundary specified below.
 - Safety correction: exact-version review proved that authenticated app-server
   queries may perform Codex's automatic credential refresh. The approved
   managed-auth lifecycle therefore classifies those queries as
@@ -36,9 +36,8 @@
   managed-profile effective-containment correction specified below. The
   owner's explicit 2026-10-21 approval of version 1.11.0 adds only the exact
   inode-bound provider `chmod` and private-channel diagnostic correction
-  specified below. Draft version 1.12.0 proposes only the trace-completeness
-  correction specified below and grants no implementation authority until
-  owner approval. All
+  specified below. The owner's explicit 2026-10-22 approval of version 1.12.0
+  adds only the trace-completeness correction specified below. All
   remaining A02, OpenAI API, PLAN-DEP/D01, and
   `AUTO-DEPLOY` lanes stay Draft or Blocked as already recorded.
 - Stories: `ST-CDX-001..005`.
@@ -1580,12 +1579,11 @@ writes confined to the selected profile, and pass inside `AUTO-M5-EXIT` with
 zero skips. M5 remains Intermediate until the final receipt exists and survives
 its canonical rereads.
 
-## Draft descriptor-metadata trace completeness correction — 2026-10-21
+## Approved descriptor-metadata trace completeness correction — 2026-10-22
 
-**Status: Draft 1.12.0. Owner approval is required before the production
-selector or policy changes below. Approval would fold this correction into the
-already authorized, not-yet-run fifth rollover; it would not authorize a sixth
-rollover or any additional provider operation.**
+**Status: Approved 1.12.0 by the owner on 2026-10-22. This correction is folded
+into the already authorized, not-yet-run fifth rollover; it does not authorize
+a sixth rollover or any additional provider operation.**
 
 ### Real-system Reds and closed boundary
 
