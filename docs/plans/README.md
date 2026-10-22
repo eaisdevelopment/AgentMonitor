@@ -153,15 +153,17 @@ Directories are created when an approved planning assignment begins. Drafts stat
   in-profile `chmod(..., 0700)` calls. Owner-approved 1.11.0 adds only the exact
   inode-bound proof and safe channel diagnostics. Owner-approved 1.12.0 adds
   the narrow trace-completeness correction for real fd-xattr, inode-flag
-  ioctl, and io_uring Reds found during the required 1.11 review. The local
-  implementation now has `64` passing containment cases, `202` passing
-  subtests, `66` passing current-exit cases, and an exact `514`-test Story
-  inventory. The full preactivation set passed at clean revision `b64bbb5`.
-  Authenticated containment against the unchanged d81 service then exposed and
-  locally corrected a multidigit inherited-descriptor parser defect before
-  failing closed on ten descriptor-path-resolved `ftruncate` calls confined to
+  ioctl, and io_uring Reds found during the required 1.11 review. Historical
+  preactivation passed at clean revision `b64bbb5`; later authenticated
+  containment exposed a multidigit inherited-descriptor parser defect and then
+  failed closed on ten descriptor-path-resolved `ftruncate` calls confined to
   the selected managed profile. Owner-approved 1.13.0 adds only that final
-  descriptor-bound write correction to the same unrun fifth rollover. The
+  descriptor-bound write and mount-topology proof to the same unrun fifth
+  rollover. Its local implementation reports `76` containment cases with `75`
+  passed and one authenticated selector skip, `66` passing current-exit cases,
+  and an exact `525`-test Story inventory with SHA-256
+  `99c3b5f579aac5091939209c8f3603f88a283bb3a4444dbdfa10f8f1d91de15f`.
+  Current preactivation and authenticated containment remain pending. The
   fifth live transition, refreshed prerequisites,
   `AUTO-M5-EXIT`, and owner acceptance remain Not Run. OpenAI API billing
   remains V1-M7.

@@ -37,18 +37,18 @@ Current program state:
   Registry, identity, lineage, and zero-mutation proof, then returned
   `m5_quota_witness_input_invalid` at its strict five-field policy boundary and
   created no file. The plan 1.9 quota-policy projection and fifth-rollover
-  policy are local Green. Owner-approved plan 1.10 corrects effective
-  containment for ordinary provider-created descendants below pinned private
-  roots. Its required real-filesystem bound cases now pass: the non-live
-  containment suite is `30/30`, current-exit is `66/66`, and the exact Story
-  inventory is `480` tests. A subsequent real containment attempt passed
-  metadata and driver checks, then failed closed as
-  `m5_codex_containment_path_mutator_unverifiable` while classifying two
-  idempotent provider `chmod(..., 0700)` calls on one preexisting in-profile
-  directory and none under default roots. Owner-approved plan 1.11 adds the
-  exact inode-bound proof and safe channel diagnostics; implementation is in
-  progress. The aggregate preactivation gates and passing containment remain
-  pending. The fifth live rollover, refreshed revision-bound prerequisites,
+  policy are local Green. Owner-approved plans 1.10 through 1.13 now have a
+  locally Green containment implementation for effective private roots,
+  inode-bound metadata, complete descriptor tracing, strict mount topology,
+  descriptor-bound `ftruncate`, and pidfd-owned process-group cleanup. The
+  containment file reports `76` cases with `75` passed and one explicit
+  authenticated live-selector skip; current-exit is `66/66`. The exact Story
+  inventory is `525` identifiers with SHA-256
+  `99c3b5f579aac5091939209c8f3603f88a283bb3a4444dbdfa10f8f1d91de15f`.
+  The latest authenticated attempt remains Failed at the earlier
+  `m5_codex_containment_fd_write_unverifiable` boundary; the corrected live
+  rerun and aggregate preactivation gates remain pending. The fifth live
+  rollover, refreshed revision-bound prerequisites,
   authoritative `/status` witness, clean exact-revision `AUTO-M5-EXIT`, and
   owner acceptance are **Not Run**; the canonical gate state remains
   `not_run`.
@@ -60,7 +60,7 @@ The [M3 current-gate receipt](evidence/m3-current-gate-receipt-2026-10-03.json)
 and owner disposition records close the blockers retained by the historical
 [M3 closure audit](evidence/m3-closure-audit-2026-10-01.md).
 Owner: Pavlo Sidelov <pavlo@sidelov.com>  
-Last substantive review: 2026-10-21
+Last substantive review: 2026-10-22
 
 This index is the entry point for product, architecture, engineering, and operations documentation. Requirements marked **Approved** reflect the project interview. Items marked **Discovery** require Milestone 0 evidence. Items marked **Deferred** are intentionally outside V1.
 

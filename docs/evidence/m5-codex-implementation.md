@@ -3,7 +3,7 @@
 - Evidence ID: `M5-CDX-IMPLEMENTATION-2026-10-08`
 - Module/plan/increment: A02 Codex provider adapter, root-owned V1-M5
   integration, and managed-profile effective-containment correction under
-  approved focused plan versions `1.10.0` and `1.11.0`, Stories
+  approved focused plan versions `1.10.0` through `1.13.0`, Stories
   `ST-CDX-001..005`.
 - Requirements/acceptance IDs:
   `FR-ACC-001/004..006`, `FR-AUTH-001/002/004..006`,
@@ -36,13 +36,15 @@
   is commits `1143d964e72628f0b9060849098d60da213634f9` and
   `f4d4bf734e935ce6503b1aa8c81e950e4e875af2`; required bound coverage and the
   exact Story inventory rebind are commit
-  `d71b79c396ce9ad524bc1430425a0b788d93e08a`. No clean revision has passed the
-  canonical M5 gate.
+  `d71b79c396ce9ad524bc1430425a0b788d93e08a`. The plan 1.13 containment
+  implementation is commit `d84359336871b115e365dba0576296c43f017a1d`. No
+  clean revision has passed the canonical M5 gate.
 - Recorder/date: Codex integration record, 2026-10-08; retained-history retry
   update, 2026-10-09; exact-revision transition and concurrency update,
   2026-10-16; alert browser-proof termination and P02 canonical-browser
   updates, 2026-10-20; quota projection, fifth-rollover, and effective-
-  containment updates, 2026-10-21.
+  containment updates, 2026-10-21; descriptor metadata, mount topology,
+  descriptor-bound truncation, and process cleanup updates, 2026-10-22.
 - Overall status: **Intermediate**. The fourth corrective rollover preserved
   the earlier archive chain and activated exact `d81afab` with real service,
   HTTP, authenticated-browser, Registry, database, rollback, and receipt proof.
@@ -58,18 +60,18 @@
   quota-witness file passed `27` tests. The fifth-rollover policy passed its
   focused cases, the complete `43`-test activation file, and exhaustive 73,728
   transition and 448 activation-decision comparisons with zero mismatches. The
-  plan 1.10 containment implementation and its required entry-count and
-  overlong-relative-path cases passed `30/30`; current-exit passed `66/66`, and
-  the exact Story inventory is `480` tests. A subsequent real containment
-  attempt against the still-running `d81afab` service passed safe metadata and
-  driver checks, then failed closed as
-  `m5_codex_containment_path_mutator_unverifiable`. It classified two
-  successful provider app-server `chmod` calls inside the selected managed
-  profile and none under default roots, but did not verify the path arguments
-  through the closed mutator policy. Passing authenticated containment remains
-  pending. Owner-approved plan 1.11.0 adds the exact inode-bound proof and safe
-  channel diagnostics; implementation is pending. The fifth live rollover,
-  refreshed prerequisites, authoritative
+  plan 1.13 containment file passed `76` cases: `75` local cases and one
+  explicit authenticated live-selector skip. Current-exit passed `66/66`; the
+  exact Story inventory is `525` identifiers with SHA-256
+  `99c3b5f579aac5091939209c8f3603f88a283bb3a4444dbdfa10f8f1d91de15f`.
+  The local Green closes exact descriptor-bound `ftruncate` parsing and
+  counting, strict mount-table and PID/start-bound `/proc` proof, and
+  pidfd-owned whole-process-group cleanup under one settlement deadline. Two
+  independent reviews found no remaining 1.13 blocker. The latest real
+  containment attempt against `d81afab` remains the authenticated Red:
+  `m5_codex_containment_fd_write_unverifiable` on ten resolved in-profile
+  `ftruncate` calls. The corrected authenticated rerun, complete canonical
+  preactivation, fifth live rollover, refreshed prerequisites, authoritative
   `/status` witness, `AUTO-M5-EXIT`, and final owner acceptance are **Not Run**.
   This record is not milestone acceptance.
 
@@ -77,12 +79,13 @@ The primary production owner is A02 for provider behavior under
 `backend/src/agentmonitor/adapters/providers/codex/**`. Root integration owns
 composition, Registry/Collection/Capacity/Runtime/Alerting coordination, API,
 UI, automation, and live closure. P02 owns the React shell, styles, and browser
-runner correction. The current focused approved scope is plan `1.11.0`;
+runner correction. The current focused approved scope is plan `1.13.0`;
 its [V1-M5 Codex slice](../plans/integration/m5-codex-slice-change.md) retains
-all earlier corrections and the completed fourth rollover while adding only
-the inode-bound idempotent `chmod(..., 0700)` proof and safe channel diagnostics
-after 1.10 effective containment. It folds that correction into the already
-approved, unrun fifth evidence-preserving rollover.
+all earlier corrections and the completed fourth rollover. Plans 1.11 through
+1.13 add only the inode-bound `chmod(..., 0700)` proof, complete descriptor
+metadata trace, strict mount topology, descriptor-bound `ftruncate`, and safe
+channel/process cleanup. They remain folded into the already approved, unrun
+fifth evidence-preserving rollover.
 
 ## Contract-impact assessment
 
@@ -175,9 +178,13 @@ approved, unrun fifth evidence-preserving rollover.
   confinement, receipt schema, and public behavior remain unchanged. No public
   contract, API, UI, database, migration, provider adapter, configuration,
   dependency, license, or ADR changed.
-- Approved plan 1.11.0 changes only private containment-verifier policy and safe
-  diagnostic handling for the observed inode-bound `chmod(..., 0700)` pattern.
-  It changes no public contract or provider operation.
+- Approved plans 1.11.0 through 1.13.0 change only private
+  containment-verifier policy and diagnostics. They add inode-bound
+  `chmod(..., 0700)` proof, complete descriptor metadata tracing, strict mount
+  topology and traced-process identity proof, descriptor-bound `ftruncate`
+  classification, and pidfd-owned process-group cleanup. They change no public
+  contract, API, UI, database, migration, dependency, license, or provider
+  operation.
 - No database table or migration was added. Real tests migrate fresh
   file-backed SQLite databases through the existing `v1_0707` head.
 - No production or development dependency was added.
@@ -200,7 +207,7 @@ the clean-revision milestone gate.
 | `CTR-PROV-002/004`, Codex managed-login deadline | Pure contract/generated schema | Production contract and generated provider schema | Passed | Four focused tests, broader provider suite, mutation suite, schema check | Ten minutes accepted; 600,001 ms rejected. |
 | `M5-CDX-COL-013` shutdown drain | Real application lifecycle/process | Production application lifecycle and a real owned child | Passed | Focused shutdown and lifecycle runs | Service drain is 45 seconds, strictly above the 30-second operation plus four-second owned-child cleanup bound. |
 | Owner, quota, alert, and receipt prerequisite policies | Real filesystem plus pure closed-schema policy | Real files, modes, hard links, symlinks, inode substitution, kernel process behavior | Passed | Focused automation results below | These are prerequisite-policy Greens, not owner-authenticated live receipts. |
-| `M5-CDX-GATE-001` admission/containment policy | Linux/platform/provider | Real installed executable and schema; real OS pipes, file descriptors and process tracing | Intermediate; focused 1.10 containment/current-exit cases Passed | `31` unittest cases: `30` passed and one live-selector skip; the three non-live classes passed `30/30` | Required entry-count and overlong-relative-path cases passed on real filesystems. The skipped authenticated case is not Passed, and the separate real attempt below failed after the metadata and driver stages. |
+| `M5-CDX-GATE-001` admission/containment policy | Linux/platform/provider | Real installed executable and schema; real OS pipes, file descriptors, `/proc`, mount namespaces, and process tracing | Intermediate; plan 1.13 local implementation Green | Complete containment file: `76` cases, `75` passed and one authenticated live-selector skip; current-exit: `66/66` | Real inherited-descriptor, temporary-file, mountinfo, blocked-strace, isolated bind-mount, and exited-leader/live-descendant cases pass. The skipped authenticated case is not Passed. |
 | `M5-CDX-UI` account beyond first page | DB/API/browser | Real migrated file SQLite, production HTTP/API, generated client path, production frontend, Chrome | Passed | `account_beyond_page` browser scenario | This focused UI behavior passed: it creates 201 real account records, uses the visible **Load more accounts** control, and opens the last account through a generated detail GET. Other UI scenarios remain subject to the canonical gate. |
 | `M5-CDX-UI` mixed-provider Overview filter | API/built browser | Authenticated real owner service, genuine Claude and Codex Registry rows, production frontend, shared Chrome | Passed for the focused increment | `AUTO-DASHBOARD-PROVIDER-FILTER` and [Overview evidence](dashboard-density-and-quota-overview.md#mixed-provider-selection--2026-10-11) | Claude-only, Codex-only, all-provider reset, organization composition, keyboard use, manual/periodic refresh retention, 1920/1280/390 reflow, filtered counts, and zero mutations passed. This does not close the canonical M5 gate. |
 | `UI-RESP-006` contained mobile header | DB/API/built browser | Thirty fresh migrated SQLite databases, production HTTP and frontend, installed Chrome at 390 by 844 | Passed for the focused correction | `run_browser.py responsive --repeat 30 --no-build`: 30/30 first-attempt passes | Both header controls remained inside the viewport and keyboard reachable, with navigation-only internal scroll and no document overflow. |
@@ -213,16 +220,16 @@ the clean-revision milestone gate.
 | M5 Node story inventory | Pure UI/gate policy and source wiring | Production policy modules and browser entrypoint sources | Passed | `19 passed`, zero skipped | Includes configurable capacity-alert presentation and the alert and quota browser verifiers' use of shared complete page readers. This is a development-checkout result, not a live browser witness. |
 | `AUTO-M3-TEST` dependency checkpoint | M3 contract and technical backend suites | Canonical routine on the development checkout | Passed | Two routine tests and `307` technical tests passed, zero skipped | Satisfies the local M3 dependency checkpoint; it does not establish an exact clean M5 revision. |
 | `AUTO-MUTATION` checkpoint | Critical pure-policy mutation | Canonical routine on the development checkout | Passed | `1708` mutants: `1698` killed, `10` independently accepted equivalent, `0` skipped | No non-equivalent survivor was admitted. This remains subject to the final clean-revision M5 gate. |
-| Quality, build, planning, documentation, and Git checkpoints | Static quality, generated artifacts/frontend build, repository validation, and local Git preflight | Canonical local routines on the development checkout | Prior 1.8 lanes Passed; aggregate preactivation rerun pending | Plan 1.9 focused quota and activation suites plus the focused 1.10 containment/current-exit cases passed local checks, Ruff, format, strict mypy, and diff checks. | The complete preactivation routine set, clean-candidate Git preflight, and exact-revision `AUTO-M5-EXIT` are Not Run. |
-| Full M5 Python story selection before live setup | Backend and automation Story scope | Real local boundaries plus explicit owner/provider selectors | Blocked pending one zero-skip run | The final 1.10 inventory has `480` cases with digest `e90485d6866065f3149cf1285b5c18c665d26068de2da5c4c61862830bb56bf9`. The earlier 1.9 inventory run returned `464 passed, 6 skipped, 1 failed`; the later real-system attempt exposed the effective-containment Red. | Nine added policy cases are bound, including the two required bounds cases. No complete 480-case zero-skip execution is credited here. |
+| Quality, build, planning, documentation, and Git checkpoints | Static quality, generated artifacts/frontend build, repository validation, and local Git preflight | Canonical local routines on the development checkout | Focused 1.13 checks Passed; aggregate preactivation rerun pending | Ruff lint/format, strict production mypy, and `git diff --check` pass for the 1.13 candidate. | The complete preactivation routine set, clean-candidate Git preflight, and exact-revision `AUTO-M5-EXIT` are Not Run. |
+| Full M5 Python story selection before live setup | Backend and automation Story scope | Real local boundaries plus explicit owner/provider selectors | Inventory rebound; zero-skip Story run pending | The exact inventory is `525` unique test identifiers with digest `99c3b5f579aac5091939209c8f3603f88a283bb3a4444dbdfa10f8f1d91de15f`. | Collection proves scope only. The complete selected suite with live selectors and zero skips remains Not Run. |
 | Canonical local regression checkpoint | Backend, API, browser, process and generated-client boundaries selected by `AUTO-TEST` | Real local processes, migrated SQLite, production HTTP, built frontend and installed Chrome | Passed operationally on final attempt | Final `AUTO-TEST`: 104 command tests; 2 Argon2 tests; backend `1361 passed, 37 skipped, 1 warning`; OpenAPI compatible with 67 operations; production build; 2 foundation browser tests; complete P02, security and hostile-resource lanes | Attempt 1 retained the real loaded Argon2 failure. Attempt 2 passed all 1361 backend tests but failed revocation as `browser_output_invalid` because an out-of-scope systemd wrapper could not access the user bus in the gate's PATH/PYTHONPATH-only environment. The approved direct-child runner was restored and the complete final attempt passed. Skipped owner/live selectors remain non-passing outside this local routine's declared scope. |
 | `AC-LIVE-002/004` four selected Codex outcomes and live identities | Provider/account | Four real owner-selected Codex accounts or explicit owner-unavailable outcomes | Passed for the current d81 prerequisite | `AUTO-M5-OWNER-OUTCOMES` passed for exact `d81afab` with four outcomes: three verified and one owner-unavailable. | This sanitized availability result contains no quota or acceptance claim. The approved fifth rollover will make it stale, so canonical archival and recollection remain required after that transition. |
 | `AC-LIVE-005`, `M5-CDX-COL/CAP` authoritative quota/history | Provider/DB/API/browser | Official Codex `/status`, fresh scheduled observations, current and retained history | Real witness Red; projection implementation Green | Current genuine lineage and all browser/API/history/Registry proofs completed against exact `d81afab`; final reconciliation returned `m5_quota_witness_input_invalid` and wrote no file. The focused correction and complete quota-witness file passed `27/27`. | The failure was the six-field browser/history record crossing the strict five-field quota-policy boundary. No authoritative witness pass is claimed. |
 | `AC-PROC-001..004`, `M5-CDX-RUN-001..008` representative processes | Linux/platform/browser | Five to six real Codex processes outside the managed-profile subtree | Available but canonical witness unrecorded | Six exact-version baseline Codex processes were alive during the d81 live work. | PID/start/executable reread, hierarchy/location, exclusion of managed children, and unresolved or owner-confirmed association remain required inside the canonical gate. |
 | `AC-ALERT-002`, `M5-CDX-ALERT-001..007` live lifecycle | DB/API/browser/provider | Genuine Codex capacity condition, fresh opening, repeated delivery, owner action, later source-proven recovery | Passed for the current d81 prerequisite | A fresh genuine lifecycle completed reopening, repeat, one owner acknowledgement, recovery, API/history/browser proof, and `AUTO-M5-ALERT-WITNESS` created the private current service-bound witness. | The witness is prerequisite evidence only and becomes stale after the approved fifth rollover. |
-| Authenticated managed-profile syscall containment | Linux/provider/security | Real authenticated managed Codex profile and `strace` | Failed against current `d81afab`; final candidate Not Run | Safe metadata and driver stages passed. Trace policy classified two successful provider app-server `chmod` calls inside the selected profile and zero default-root paths, then failed closed as `m5_codex_containment_path_mutator_unverifiable`. | No completion receipt was written. Approved 1.11 adds the exact inode-bound `chmod(..., 0700)` proof and safe channel diagnostics; implementation, passing containment, fifth activation, and the mandatory `AUTO-M5-EXIT` lane remain pending. |
+| Authenticated managed-profile syscall containment | Linux/provider/security | Real authenticated managed Codex profile and `strace` | Latest d81 attempt Failed; corrected authenticated rerun Not Run | The latest live attempt failed closed as `m5_codex_containment_fd_write_unverifiable` on ten resolved in-profile `ftruncate` calls and wrote no receipt. Plan 1.13 local containment is Green with one explicit live-selector skip. | Passing zero-skip containment against unchanged d81, fifth activation, and `AUTO-M5-EXIT` remain pending. |
 | `M5-SVC-ACT-001..012`, `AUTO-M5-SERVICE-ACTIVATE` | Operations/service transition | Real user systemd manager, trusted persistent runtime, clean stable Git worktree, real HTTP and authenticated browser | First four rollover/activations Passed; fifth implementation local Green; live fifth Not Run | The fourth rollover preserved exact `e066d7e` and activated `d81afab`. Fifth-mode Red failed four focused cases because its constants were absent; Green passed those four, all `43` activation tests, Ruff/format/strict mypy, and exhaustive 73,728 transition plus 448 decision comparisons with zero mismatches. | This proves fifth-rollover policy and custody only. Its two live invocations target fixed parent `m5-service-activation-corrective-archive-d81afab` and remain Not Run. |
-| `M5-CDX-GATE-001..014`, canonical `AUTO-M5-EXIT` | Full local/live gate | Clean exact revision, selected running service, prerequisite receipts, all local gates with zero skips | Not Run | The quota projection, fifth-rollover policy, and focused 1.10 containment/current-exit cases are Green; the aggregate preactivation gates remain pending. Live mutator-path verification failed, approved 1.11 implementation is pending, no corrected candidate has completed the fifth live transition, and no final receipt exists. | Must run after the approved live-containment correction, the fifth rollover, and every refreshed prerequisite pass; only then can M5 completion be claimed. |
+| `M5-CDX-GATE-001..014`, canonical `AUTO-M5-EXIT` | Full local/live gate | Clean exact revision, selected running service, prerequisite receipts, all local gates with zero skips | Not Run | Quota projection, fifth-rollover policy, and focused plan 1.13 containment/current-exit checks are Green. Aggregate preactivation, corrected authenticated containment, fifth activation, and refreshed live prerequisites remain pending; no final receipt exists. | Must pass every remaining lane before M5 completion can be claimed. |
 | macOS compatibility | Platform | Real macOS host | Blocked | No real Mac available | Outside Linux-first M5 acceptance; remains visible for V1. |
 
 ## Red evidence
@@ -1119,7 +1126,9 @@ treated as a containment pass. The first two attempts had already failed as
 neither result is credited. The fifth service rollover remains **Not Run**.
 Approved plan 1.11.0 limits the follow-up to inode-bound verification of
 the observed idempotent directory `chmod(..., 0700)` calls and distinct,
-sanitized private-channel failure classification. Implementation is pending.
+sanitized private-channel failure classification. At that checkpoint its
+implementation was pending; the completed 1.11 through 1.13 local work is
+recorded below.
 
 ### Latest complete alert occurrence on retained history
 
@@ -1335,7 +1344,10 @@ result, or that the live selectors required by `AUTO-M5-EXIT` were available.
   to bounded inherited anonymous pipes, drains selector input after child
   launch, pins the managed-profile working directory by descriptor, evaluates
   pre-exec default-profile access globally, and closes provider attribution
-  when a PID exits.
+  when a PID exits. It now also validates complete mount topology across the
+  current and start-bound traced-process `/proc` views, confines exact
+  descriptor-bound `ftruncate`, and holds a pidfd-bound group leader until the
+  whole new session is signalled before reap under one settlement deadline.
 - Provider-schema generation, frontend type checking, Ruff, formatting, mypy,
   byte compilation, Node syntax checks, and scoped `git diff --check` have
   passed in the cited focused handoffs. The canonical build, mutation,
@@ -1353,7 +1365,7 @@ result, or that the live selectors required by `AUTO-M5-EXIT` were available.
 | File-backed SQLite/migration | Passed for focused persistence and pagination | Fresh databases used the real migration chain and production repositories/commands. No M5 migration was needed. |
 | Production HTTP/generated client | Passed for focused account pagination and Codex API composition | Real loopback service, IAM/CSRF, versioned API, and generated client paths were exercised. `AUTO-BUILD` passed as an intermediate generated-artifact/build checkpoint; `AUTO-M5-EXIT` remains Not Run. |
 | Built Chrome UI | Passed for d81 prerequisite browser proofs; final corrected-candidate witness pending | The production frontend, authenticated shared Chrome, API, DOM, and retained history supplied the current d81 owner, alert, and quota-witness checks. The quota writer failed after those browser proofs at the policy-shape boundary and wrote no file. |
-| Linux process/filesystem | Passed for four service rollovers; containment remains incomplete and Failed live | Real systemd, worktrees, files, links, guards, archive custody, browser, and rollback were exercised through exact d81 activation. All `30` focused 1.10 non-live containment cases, including both required bounds cases, passed locally. A real authenticated attempt then failed as `m5_codex_containment_path_mutator_unverifiable`; approved 1.11 adds the inode-bound `chmod(..., 0700)` proof and safe channel diagnostics. No containment pass is recorded. |
+| Linux process/filesystem | Passed for four service rollovers; corrected containment is local Green and remains Failed live | Real systemd, worktrees, files, links, guards, archive custody, browser, and rollback were exercised through exact d81 activation. Plan 1.13 passed `75` local containment cases plus `66` current-exit cases, including real mount, `/proc`, descriptor, and group-cleanup boundaries. The sole skipped containment case requires authenticated live selectors. The latest real attempt failed as `m5_codex_containment_fd_write_unverifiable`; no authenticated correction pass is recorded. |
 | Four live accounts | Passed for the current d81 prerequisite | `AUTO-M5-OWNER-OUTCOMES` passed against exact `d81afab` with four outcomes: three verified and one owner-unavailable. It must be archived and recollected after the approved fifth rollover. |
 | Authoritative live quota/history | Current lineage and browser proof Passed; official witness Failed | The real d81 quota-witness attempt reconciled owner readings from Codex `/status` through current API/DOM/history and then returned `m5_quota_witness_input_invalid` at the policy projection. It wrote no witness. The focused correction passed all `27` quota-witness tests. |
 | Genuine capacity alert lifecycle | Passed for the current d81 prerequisite | A genuine reopening, repeat, owner acknowledgement, newer recovery, API, rendered history, exact service revision, zero mutations, unchanged Registry, and browser proof passed `AUTO-M5-ALERT-WITNESS`. It becomes stale after the fifth rollover. |
@@ -1469,15 +1481,15 @@ revision manifest:
   `tools/automation/implementations/m5_service_activation.py`,
   `tools/automation/test_m5_service_activation.py`, and
   `tools/automation/routines.toml`.
-- Plan 1.10.0 focused correction:
+- Plan 1.10.0 through 1.13.0 focused corrections:
   `tools/automation/implementations/m5_codex_containment.py`,
   `tools/automation/test_m5_codex_containment.py`,
   `tools/automation/implementations/auto_m5_current_exit.py`, and
-  `tools/automation/test_m5_current_exit.py`. Required negative count/path
-  coverage and the resulting 480-test Story inventory rebind are complete.
-- Approved plan 1.11.0 currently changes documentation only. Its authorized
-  production/test files are the same private containment implementation and
-  test surfaces; implementation is pending.
+  `tools/automation/test_m5_current_exit.py`. Effective-root, inode-bound
+  metadata, complete trace, mount topology, descriptor-bound `ftruncate`, and
+  process-group cleanup coverage are local Green. The exact Story inventory is
+  `525` identifiers with SHA-256
+  `99c3b5f579aac5091939209c8f3603f88a283bb3a4444dbdfa10f8f1d91de15f`.
 - Tests:
   Codex adapter, Registry, Collection, Capacity, Alerting, API, Operations,
   Linux runtime, release, client, pure UI, and built-browser suites under
@@ -1777,6 +1789,28 @@ was changed during this local checkpoint. Canonical preactivation and the
 standalone authenticated containment case against the unchanged d81 service
 remain required before the fifth rollover.
 
+## Plan 1.13 local containment checkpoint
+
+Focused Reds exposed malformed or missing descriptor-result precedence,
+noncanonical and control-bearing mount rows, missing traced-process start
+binding, and an exited group leader with a live descendant. Green now parses
+and counts only exact descriptor-bound `ftruncate`; validates every mountinfo
+row with bounded pseudo roots only for `nsfs`; binds current and traced-driver
+`/proc` snapshots to PID/start identity; and owns the new-session leader by
+pidfd so its process group is signalled before reaping under the single shared
+settlement deadline. Real inherited-descriptor, temporary-file, `/proc`, bind-
+mount, and exited-leader/live-descendant cases cover those Linux boundaries.
+
+The complete containment file reports `Ran 76`, `OK (skipped=1)`; the sole
+skip is the authenticated live-selector case. Current-exit passes `66`; Ruff
+lint and format, strict production mypy, and `git diff --check` pass. Two
+independent final reviews are clean. The exact Story inventory is `525` unique
+identifiers with SHA-256
+`99c3b5f579aac5091939209c8f3603f88a283bb3a4444dbdfa10f8f1d91de15f`.
+No service, browser, provider profile, account, or running agent changed during
+this local checkpoint. Authenticated containment, canonical preactivation,
+fifth activation, refreshed witnesses, and `AUTO-M5-EXIT` remain Not Run.
+
 ## Data and secret review
 
 This document contains no secret, provider response, account identity, private
@@ -1791,7 +1825,8 @@ The cited evidence proves substantial M5 implementation progress through exact
 clean service revision `d81afab`: four evidence-preserving rollovers passed;
 owner outcomes, scheduled collection lineage, and the source-proven alert
 witness are current for that service; and six baseline external Codex processes
-remain available for the eventual canonical selection. The authoritative quota
+were observed during the d81 live work for the eventual canonical selection.
+The authoritative quota
 attempt reached and passed every live browser/API/history/Registry boundary
 before exposing the strict policy-projection defect. It created no quota
 witness.
@@ -1802,16 +1837,15 @@ semantics. Its focused and complete quota suites passed, and the exact fifth
 rollover policy passed the focused, complete, dispatcher, static, and
 exhaustive checks. Those local results do not complete M5.
 
-Owner-approved plan 1.10.0 corrected the false rejection of ordinary
-provider-created descendant modes beneath pinned owner-only roots. The real
-containment attempt then failed closed on two
-idempotent in-profile directory `chmod(..., 0700)` calls whose path arguments
-were outside the approved 1.10 policy. Approved plan 1.11.0 adds the narrow
-inode-bound proof and safe channel diagnostics, and approved plan 1.12.0 closes
-the trace-completeness boundary exposed during review. Their local
-implementation and exact `514`-test inventory rebind pass as recorded above.
-Authenticated containment and the canonical preactivation aggregate remain
-incomplete.
+Owner-approved plans 1.10.0 through 1.13.0 correct the effective-root,
+inode-bound metadata, trace-completeness, mount-topology, descriptor-bound
+`ftruncate`, and process-cleanup boundaries exposed by successive real and
+review Reds. Their local implementation passes `75` provider-free containment
+cases and `66` current-exit cases; the exact `525`-test inventory digest is
+`99c3b5f579aac5091939209c8f3603f88a283bb3a4444dbdfa10f8f1d91de15f`.
+The one skipped containment case is the authenticated live selector and is not
+credited as Passed. Authenticated containment and the canonical preactivation
+aggregate remain incomplete.
 
 Before any completion or acceptance claim, the integration owner must:
 

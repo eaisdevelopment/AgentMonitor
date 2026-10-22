@@ -751,6 +751,24 @@ changed root identity, or write outside the selected profile blocks the gate.
 Do not `chmod`, copy, relocate, or recreate provider state to satisfy this
 check.
 
+The containment verifier admits `ftruncate` only for an exact provider-lineage
+descriptor annotation whose normalized absolute path remains inside the
+selected managed profile, after current and traced-process mount topology is
+proved unchanged and contains no mount at or below that profile. It counts an
+admitted call as one provider access and one provider write. Missing, deleted,
+ambiguous, malformed, default-profile, and outside-profile targets fail closed;
+unverifiable descriptor targets report
+`m5_codex_containment_fd_write_unverifiable`, while missing or changing mount
+proof reports `m5_codex_containment_mount_topology_unverifiable`. Every other
+successful descriptor-only mutator remains rejected.
+
+The traced driver is bound by PID, start ticks, pidfd, process group, and
+session identity. Cleanup signals the complete AgentMonitor-owned new session
+before reaping its leader and shares the channel settlement deadline. Cleanup
+that cannot prove termination reports
+`m5_codex_containment_driver_deadline_exceeded`; do not signal or restart any
+ordinary Codex agent in response.
+
 It then binds the owner-observed quota values to its read-only browser
 preflight, runs the canonical build, and restarts only the selected
 AgentMonitor service. It waits for fresh post-restart Codex quota/history

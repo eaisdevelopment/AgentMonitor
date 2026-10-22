@@ -1,8 +1,8 @@
 # Change plan: executable V1-M5 Codex slice
 
-- Status: **Approved 1.13.0 for one descriptor-bound `ftruncate` correction;
-  implementation is in progress and the already approved fifth rollover
-  remains unrun**.
+- Status: **Approved 1.13.0; local implementation and focused verification are
+  Green, while canonical preactivation, authenticated containment, and the
+  already approved fifth rollover remain unrun**.
 - Plan version: `1.13.0`; owner approval: 2026-10-22. Version `1.12.0` was
   approved on 2026-10-22 and is superseded only at the descriptor-bound
   `ftruncate` boundary specified below.
@@ -1850,6 +1850,29 @@ may the already authorized fifth activation proceed. The final clean
 exact-revision `AUTO-M5-EXIT` must include the same live case with zero skips.
 M5 remains Intermediate until its private completion receipt exists and
 survives canonical rereads.
+
+### Local implementation checkpoint — 2026-10-22
+
+The 1.13 implementation now validates every mountinfo row, permits only
+canonical absolute roots or bounded `nsfs` namespace roots, binds the current
+and actual blocked `strace` process views to namespace, mount, PID, and start
+identity, and rejects any mount at or below the selected managed profile. It
+admits only the closed descriptor-bound `ftruncate` grammar and confines each
+successful provider-lineage target to the selected managed root. Process
+cleanup holds a pidfd-bound new-session leader until its whole process group is
+signalled, uses one shared settlement deadline, and then reaps the leader.
+
+The complete containment file passed `76` cases: `75` local cases passed and
+the one authenticated case was explicitly skipped because its live selectors
+were absent. The current-exit file passed `66` cases. Ruff lint and format,
+strict production mypy, and `git diff --check` passed. Two independent final
+reviews reported no remaining 1.13 blocker. The exact canonical Story
+inventory remains `525` unique identifiers with SHA-256
+`99c3b5f579aac5091939209c8f3603f88a283bb3a4444dbdfa10f8f1d91de15f`.
+These are provider-free implementation results. The complete canonical
+preactivation set, authenticated zero-skip containment against the unchanged
+d81 service, fifth activation, refreshed live prerequisites, `AUTO-M5-EXIT`,
+and owner acceptance remain Not Run.
 
 ## Stop conditions
 
