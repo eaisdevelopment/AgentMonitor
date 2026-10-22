@@ -1054,6 +1054,83 @@ class M5CodexContainmentPolicyTests(unittest.TestCase):
         self.assertEqual(summary.default_profile_access_count, 0)
         self.assertEqual(summary.default_profile_write_count, 0)
 
+    def test_successful_symlink_uses_only_link_path_for_profile_policy(
+        self,
+    ) -> None:
+        """M5-CDX-GATE-001: payload text cannot mask the global link rejection."""
+
+        managed = Path("/owner/profiles/codex/opaque")
+        executable = Path(
+            "/home/owner/.codex/packages/standalone/releases/0.160.0/bin/codex"
+        )
+        release_resource = executable.parent.parent / "codex-path" / "rg"
+        managed_link = managed / "temporary" / "rg"
+        anchor = f'201 chmod("{_TRACE_CHMOD_TARGET}", 0700) = 0'
+        baseline_trace = _two_operation_chmod_trace().replace(
+            os.fspath(_TRACE_EXECUTABLE),
+            os.fspath(executable),
+        )
+        trace = baseline_trace.replace(
+            anchor,
+            f'{anchor}\n201 symlink("{release_resource}", "{managed_link}") = 0',
+            1,
+        )
+        with self.assertRaises(M5CodexContainmentErrorV1) as raised:
+            evaluate_codex_trace_policy_v1(
+                trace,
+                provider_executable=executable,
+                managed_profile_root=managed,
+                default_codex_roots=(Path("/home/owner/.codex"),),
+            )
+
+        self.assertEqual(
+            str(raised.exception),
+            "m5_codex_containment_link_operation_rejected",
+        )
+
+    def test_failed_symlink_payload_is_not_counted_as_profile_access(self) -> None:
+        """M5-CDX-GATE-001: a symlink payload is data, not an accessed path."""
+
+        managed = Path("/owner/profiles/codex/opaque")
+        executable = Path(
+            "/home/owner/.codex/packages/standalone/releases/0.160.0/bin/codex"
+        )
+        release_resource = executable.parent.parent / "codex-path" / "rg"
+        managed_link = managed / "temporary" / "rg"
+        anchor = f'201 chmod("{_TRACE_CHMOD_TARGET}", 0700) = 0'
+        baseline_trace = _two_operation_chmod_trace().replace(
+            os.fspath(_TRACE_EXECUTABLE),
+            os.fspath(executable),
+        )
+        trace = baseline_trace.replace(
+            anchor,
+            (
+                f'{anchor}\n201 symlink("{release_resource}", "{managed_link}") '
+                "= -1 EEXIST (File exists)"
+            ),
+            1,
+        )
+        baseline = evaluate_codex_trace_policy_v1(
+            baseline_trace,
+            provider_executable=executable,
+            managed_profile_root=managed,
+            default_codex_roots=(Path("/home/owner/.codex"),),
+        )
+
+        summary = evaluate_codex_trace_policy_v1(
+            trace,
+            provider_executable=executable,
+            managed_profile_root=managed,
+            default_codex_roots=(Path("/home/owner/.codex"),),
+        )
+
+        self.assertEqual(
+            summary.provider_write_count,
+            baseline.provider_write_count + 1,
+        )
+        self.assertEqual(summary.default_profile_access_count, 0)
+        self.assertEqual(summary.default_profile_write_count, 0)
+
     def test_default_profile_read_fails_closed(self) -> None:
         """M5-CDX-GATE-001: even a metadata read of default auth is rejected."""
 

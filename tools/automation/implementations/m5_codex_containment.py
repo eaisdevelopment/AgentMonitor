@@ -95,6 +95,10 @@ _TRACE_UNLINKAT_ARGUMENTS_V1 = re.compile(
     rf"), (?P<path>{_TRACE_STRING_TOKEN_V1}), "
     rf"(?P<flags>0|AT_REMOVEDIR)$"
 )
+_TRACE_SYMLINK_ARGUMENTS_V1 = re.compile(
+    rf"^(?P<payload>{_TRACE_STRING_TOKEN_V1}), "
+    rf"(?P<linkpath>{_TRACE_STRING_TOKEN_V1})$"
+)
 _TRACE_NUMERIC_DIRFD_V1 = re.compile(r"(?:[3-9]|[1-9][0-9]{1,5})\Z")
 _TRACE_NONNEGATIVE_RESULT_V1 = re.compile(r"^(?:0|[1-9][0-9]*)$")
 _TRACE_DESCRIPTOR_RESULT_V1 = re.compile(r"^(?:0|[1-9][0-9]*)<[^>\r\n]+>$")
@@ -2056,9 +2060,47 @@ def _unlinkat_target_v1(
     return candidate
 
 
+def _symlink_link_path_v1(
+    record: _TraceRecordV1,
+    *,
+    working_root: Path,
+) -> Path:
+    """Resolve only the created link path; the first argument is payload data."""
+
+    if record.call != "symlink":
+        raise M5CodexContainmentErrorV1("m5_codex_containment_trace_invalid")
+    match = _TRACE_SYMLINK_ARGUMENTS_V1.fullmatch(record.arguments)
+    if match is None or (
+        record.result != "0"
+        and _TRACE_FTRUNCATE_FAILED_RESULT_V1.fullmatch(record.result) is None
+    ):
+        raise M5CodexContainmentErrorV1("m5_codex_containment_trace_invalid")
+    quoted = _TRACE_QUOTED.fullmatch(match.group("linkpath"))
+    if quoted is None:
+        raise M5CodexContainmentErrorV1("m5_codex_containment_trace_invalid")
+    raw_path = _decode_trace_string(quoted.group(1))
+    if (
+        not raw_path
+        or any(ord(character) < 32 or ord(character) == 127 for character in raw_path)
+        or raw_path.startswith("//")
+        or any(component in {".", ".."} for component in raw_path.split("/"))
+        or os.path.normpath(raw_path) != raw_path
+    ):
+        raise M5CodexContainmentErrorV1("m5_codex_containment_trace_invalid")
+    candidate = Path(raw_path)
+    if not candidate.is_absolute():
+        candidate = working_root / candidate
+    candidate = Path(os.path.normpath(os.fspath(candidate)))
+    if not candidate.is_absolute():
+        raise M5CodexContainmentErrorV1("m5_codex_containment_trace_invalid")
+    return candidate
+
+
 def _trace_paths(record: _TraceRecordV1, *, working_root: Path) -> tuple[Path, ...]:
     if record.call == "unlinkat":
         return (_unlinkat_target_v1(record, working_root=working_root),)
+    if record.call == "symlink":
+        return (_symlink_link_path_v1(record, working_root=working_root),)
     quoted = _quoted_arguments(record)
     if record.call in {"execve", "execveat"}:
         quoted = quoted[:1]
