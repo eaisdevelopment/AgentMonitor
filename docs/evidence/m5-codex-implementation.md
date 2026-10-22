@@ -1853,6 +1853,66 @@ digest. These local results do not pass authenticated containment. The full
 preactivation set and standalone authenticated run must execute again on the
 current clean candidate before activation.
 
+## Plan 1.14 Arg0 lifecycle Red and local implementation checkpoint
+
+Clean revision `a0f2dc16e2330c048d652845f20b2585bcf64c5e` passed the
+complete preactivation set. Its standalone authenticated containment run then
+completed real identity and quota operations against the unchanged `d81afab`
+service and failed closed as
+`m5_codex_containment_link_operation_rejected`. Privacy-safe classification
+proved that each operation's root PID created the same exact ordered aliases:
+
+1. `apply_patch`;
+2. `applypatch`;
+3. `codex-linux-sandbox`; and
+4. `codex-execve-wrapper`.
+
+Every link payload was the retained, inode-validated pinned Codex executable;
+each created path was below one canonical managed
+`tmp/arg0/codex-arg0XXXXXX` session; and every alias had a later matching
+successful cleanup. Identity and quota therefore produced four links each.
+The post-run managed tree contained no symlink, and the observation retained
+no path, payload, provider response, identity, credential, prompt, response,
+or source content. The authenticated failure and the first exact four-plus-four
+policy test supplied Red evidence for the approved 1.14 behavior.
+
+The local Green parses plain `symlink` direction exactly, records physical
+invocation and completion chronology for complete and unfinished/resumed
+syscalls, and admits only that four-alias lifecycle in each operation root.
+Every admitted link requires one same-operation cleanup before actual operation
+closure. Namespace movement or exchange remains forbidden from first creation
+invocation through closure, including while descendants remain live. Optional
+ordinary removal of an empty symlink-free session directory follows all four
+cleanups; every other link operation and every retained final-tree symlink
+still fails closed. The evidence schema and sanitized aggregate output are
+unchanged.
+
+Focused regression coverage includes grammar and cardinality, source and
+destination confinement including double-leading-slash rejection in syscall
+arguments and successful-open descriptor annotations, root and descendant
+lineage, operation overlap and reuse, cleanup matching and descriptor
+resolution, physical completion across
+exit and following-provider boundaries, namespace movement before the first
+creation completes and after a root exits, a cwd-dependent relative movement
+overlapping an unfinished `chdir` in the same tracked `CLONE_FS` group,
+unambiguous absolute and post-completion path use, optional directory removal,
+unowned overlapping writes through `/proc/*/root` lexical aliases, and a real
+owner-temporary-filesystem `strace -yy` direction/cleanup case. The
+complete containment file reports `Ran 88`, `OK (skipped=1)`: `87` local
+passes and the one authenticated live-selector skip. Current-exit passes
+`66/66`; Ruff lint and format and strict production mypy are Green. Exact
+provider-free inventory reports `537` unique Story identifiers with SHA-256
+`19d4244cfd50335839776af9b847af134eba0451c3dee2ad66d0daa9e321ec2d`.
+This is inventory evidence and does not claim a full Story-suite pass.
+
+No service, browser, Registry row, provider profile, default profile, account,
+or ordinary running agent changed during this local implementation checkpoint.
+The correction changes no public API or provider contract, database schema or
+migration, dependency or license surface, service configuration, or UI.
+Canonical preactivation on one current clean revision and the zero-skip
+authenticated containment rerun against the unchanged d81 service remain
+pending before fifth activation.
+
 ## Data and secret review
 
 This document contains no secret, provider response, account identity, private
@@ -1879,14 +1939,15 @@ semantics. Its focused and complete quota suites passed, and the exact fifth
 rollover policy passed the focused, complete, dispatcher, static, and
 exhaustive checks. Those local results do not complete M5.
 
-Owner-approved plans 1.10.0 through 1.13.0 correct the effective-root,
+Owner-approved plans 1.10.0 through 1.14.0 correct the effective-root,
 inode-bound metadata, trace-completeness, mount-topology, descriptor-bound
-`ftruncate`, and process-cleanup boundaries exposed by successive real and
-review Reds. The in-scope numeric-dirfd representation correction then resolves
-the real `unlinkat` form under the same generic managed-write confinement. The
-local implementation passes `76` provider-free containment cases and `66`
-current-exit cases; the exact `526`-test inventory digest is
-`5b3c8dcbdcdff7303e7364417b6d7d5c6bd4efd3286fba48ba885bcf0bdd968e`.
+`ftruncate`, process-cleanup, and exact pinned Arg0 lifecycle boundaries
+exposed by successive real and review Reds. The in-scope numeric-dirfd
+representation correction resolves the real `unlinkat` form under the same
+generic managed-write confinement. The local implementation passes `87`
+provider-free containment cases and `66` current-exit cases; the exact
+`537`-identifier Story inventory digest is
+`19d4244cfd50335839776af9b847af134eba0451c3dee2ad66d0daa9e321ec2d`.
 The one skipped containment case is the authenticated live selector and is not
 credited as Passed. Authenticated containment and current-revision canonical
 preactivation remain incomplete.

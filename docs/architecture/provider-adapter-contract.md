@@ -142,6 +142,38 @@ boundary and never enter the normalized contract.
 - Use a process group and a defined cancellation/timeout strategy.
 - Read-only collection commands must not modify provider configuration.
 
+### Managed-profile namespace containment
+
+- Successful link creation is rejected unless an approved exact-version
+  provider plan defines a closed lifecycle and the containment gate proves it.
+- For pinned Codex CLI `0.160.0`, each managed identity and quota app-server
+  root may create exactly one ordered set of `apply_patch`, `applypatch`,
+  `codex-linux-sandbox`, and `codex-execve-wrapper` symlinks beneath one
+  canonical `tmp/arg0/codex-arg0[A-Za-z0-9]{6}` session in the selected managed
+  profile. Double-leading-slash and every other noncanonical path spelling are
+  rejected before containment comparison, including separately decoded
+  successful-open descriptor annotations. Every payload must equal the
+  inode-validated pinned executable.
+- Each admitted alias requires one matching cleanup in the same provider
+  operation before actual operation closure. Namespace movement or exchange is
+  rejected from creation invocation through cleanup and closure; ordinary
+  removal of the empty session directory is permitted only after all four
+  aliases are clean.
+- A cwd-dependent relative path lookup fails closed when its
+  invocation/completion interval overlaps a successful unfinished `chdir` in
+  the same tracked `CLONE_FS` group. Absolute paths, descriptor-bound relative
+  cleanup, and relative lookups invoked after the `chdir` completes remain
+  admissible under their other containment rules.
+- A successful filesystem write without ownership in the selected provider
+  operation fails closed when its syscall interval overlaps the protected Arg0
+  operation. Lexical aliases through `/proc/*/root`, directory descriptors, or
+  another path spelling cannot bypass namespace or write-through protection.
+- Descendant-created, additional, reordered, retained, default-profile,
+  outside-profile, hard-link, `symlinkat`, and every other link lifecycle fail
+  closed. The exact provider-owned create/cleanup lifecycle is the only
+  admitted link lifecycle. This exception grants no access to the protected
+  default profile and changes no public adapter outcome or evidence schema.
+
 ## Capability matrix
 
 Milestone 0 produces one matrix row per provider/capability/source with:

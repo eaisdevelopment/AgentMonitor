@@ -1915,7 +1915,7 @@ removing only the new real-strace test reproduces the prior `525` count and
 digest. Current-revision preactivation and the corrected authenticated rerun
 remain required before the already approved fifth activation.
 
-## Proposed pinned Arg0 symlink lifecycle correction — 2026-10-22
+## Approved pinned Arg0 symlink lifecycle correction — 2026-10-22
 
 **Status: Owner-approved 1.14.0 on 2026-10-22. This approval authorizes only
 the successful symlink lifecycle below and remains folded into the already
@@ -2083,6 +2083,29 @@ pass may the already authorized two-invocation fifth activation begin. Fresh
 owner, alert, process, and quota evidence and the exact-revision
 `AUTO-M5-EXIT` remain required. This amendment is not M5 completion or owner
 acceptance.
+
+### Plan 1.14 local implementation checkpoint
+
+The unchanged d81 service supplied the real Red
+`m5_codex_containment_link_operation_rejected` after identity and quota both
+completed. The implementation now admits only the exact four ordered Arg0
+aliases for each operation and their same-operation cleanup. It preserves
+syscall invocation and completion chronology, rejects overlapping unfinished
+working-directory changes, rejects leading-double-slash path and successful
+open annotations, and fails closed on any successful unowned write overlapping
+the protected Arg0 lifecycle. These last checks prevent lexical aliases such as
+Linux proc-root paths from bypassing the inode-movement boundary.
+
+The provider-free containment file reports `88` cases: `87` pass and the one
+authenticated selector case is explicitly skipped and receives no completion
+credit. Current-exit passes `66/66`; Ruff check and format, strict production
+mypy, and `git diff --check` pass. The exact Story inventory is `537` unique
+identifiers with SHA-256
+`19d4244cfd50335839776af9b847af134eba0451c3dee2ad66d0daa9e321ec2d`.
+Independent test and implementation reviews are clean after their findings
+were reproduced as Reds and corrected. The canonical clean-revision
+preactivation set and authenticated no-skip containment rerun remain pending,
+so this checkpoint is not M5 completion.
 
 ## Stop conditions
 

@@ -37,21 +37,26 @@ Current program state:
   Registry, identity, lineage, and zero-mutation proof, then returned
   `m5_quota_witness_input_invalid` at its strict five-field policy boundary and
   created no file. The plan 1.9 quota-policy projection and fifth-rollover
-  policy are local Green. Owner-approved plans 1.10 through 1.13 now have a
+  policy are local Green. Owner-approved plans 1.10 through 1.14 now have a
   locally Green containment implementation for effective private roots,
   inode-bound metadata, complete descriptor tracing, strict mount topology,
-  descriptor-bound `ftruncate`, numeric-dirfd `unlinkat` resolution, and
-  pidfd-owned process-group cleanup. The containment file reports `77` cases
-  with `76` passed and one explicit authenticated live-selector skip;
-  current-exit is `66/66`. The exact Story inventory is `526` identifiers with
+  descriptor-bound `ftruncate`, numeric-dirfd `unlinkat` resolution,
+  pidfd-owned process-group cleanup, and the exact Codex 0.160.0 temporary
+  Arg0 symlink lifecycle. Identity and quota must each create the ordered
+  `apply_patch`, `applypatch`, `codex-linux-sandbox`, and
+  `codex-execve-wrapper` aliases and clean all four within their own operation.
+  The containment file reports `88` cases with `87` passed and one explicit
+  authenticated live-selector skip;
+  current-exit is `66/66`. The exact Story inventory is `537` identifiers with
   SHA-256
-  `5b3c8dcbdcdff7303e7364417b6d7d5c6bd4efd3286fba48ba885bcf0bdd968e`.
-  Clean revision `87eb40d` passed preactivation, then its authenticated run
-  completed both provider operations and failed closed as
-  `m5_codex_containment_trace_invalid` on the installed strace numeric-dirfd
-  representation. Production-code commit `f1c2c2e` corrects that parser
-  boundary locally; its authenticated rerun and current-revision aggregate
-  preactivation gates remain pending. The fifth live
+  `19d4244cfd50335839776af9b847af134eba0451c3dee2ad66d0daa9e321ec2d`.
+  Clean revision `a0f2dc1` passed preactivation, then its authenticated run
+  against the unchanged `d81afab` service completed both provider operations
+  and supplied the exact Red
+  `m5_codex_containment_link_operation_rejected`. The 1.14 implementation is
+  locally Green, including Ruff lint/format and strict production mypy. Its
+  authenticated rerun and current-revision canonical preactivation remain
+  pending. The fifth live
   rollover, refreshed revision-bound prerequisites,
   authoritative `/status` witness, clean exact-revision `AUTO-M5-EXIT`, and
   owner acceptance are **Not Run**; the canonical gate state remains

@@ -170,8 +170,16 @@ Directories are created when an approved planning assignment begins. Drafts stat
   authenticated run proved that pinned Codex 0.160.0 creates and removes an
   exact four-alias Arg0 symlink set in each managed identity/quota app-server
   lifecycle. Owner-approved 1.14.0 adds only that closed eight-record
-  admission to the already authorized, unrun fifth rollover.
-  Current-revision preactivation and authenticated containment remain pending. The
+  admission to the already authorized, unrun fifth rollover. The implementation
+  requires the ordered `apply_patch`, `applypatch`, `codex-linux-sandbox`, and
+  `codex-execve-wrapper` aliases in each operation, exact same-operation cleanup,
+  physical invocation/completion chronology, namespace immobility, and a
+  symlink-free final tree. Focused verification reports `88` containment cases
+  with `87` local passes and one authenticated live-selector skip, `66` passing
+  current-exit cases, and an exact `537`-identifier Story inventory with SHA-256
+  `19d4244cfd50335839776af9b847af134eba0451c3dee2ad66d0daa9e321ec2d`.
+  Ruff lint/format and strict production mypy are Green. Current-revision
+  canonical preactivation and authenticated containment remain pending. The
   fifth live transition, refreshed prerequisites,
   `AUTO-M5-EXIT`, and owner acceptance remain Not Run. OpenAI API billing
   remains V1-M7.

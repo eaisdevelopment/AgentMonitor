@@ -25,6 +25,7 @@ import threading
 import time
 from concurrent.futures import CancelledError, Future, ThreadPoolExecutor, wait
 from dataclasses import dataclass
+from itertools import pairwise
 from pathlib import Path
 from typing import TYPE_CHECKING, Final, Literal, cast
 
@@ -98,6 +99,13 @@ _TRACE_UNLINKAT_ARGUMENTS_V1 = re.compile(
 _TRACE_SYMLINK_ARGUMENTS_V1 = re.compile(
     rf"^(?P<payload>{_TRACE_STRING_TOKEN_V1}), "
     rf"(?P<linkpath>{_TRACE_STRING_TOKEN_V1})$"
+)
+_ARG0_SESSION_V1 = re.compile(r"codex-arg0[A-Za-z0-9]{6}\Z")
+_ARG0_ALIASES_V1: Final = (
+    "apply_patch",
+    "applypatch",
+    "codex-linux-sandbox",
+    "codex-execve-wrapper",
 )
 _TRACE_NUMERIC_DIRFD_V1 = re.compile(r"(?:[3-9]|[1-9][0-9]{1,5})\Z")
 _TRACE_NONNEGATIVE_RESULT_V1 = re.compile(r"^(?:0|[1-9][0-9]*)$")
@@ -343,6 +351,8 @@ class _TraceRecordV1:
     call: str
     arguments: str
     result: str
+    invoked_at: int
+    completed_at: int
 
 
 @dataclass(frozen=True, slots=True)
@@ -420,6 +430,15 @@ class _OperationV1:
     sequence: int
     kind: Literal["version", "identity", "quota"]
     root_pid: int
+
+
+@dataclass(frozen=True, slots=True)
+class _Arg0CreationV1:
+    operation: _OperationV1
+    record_index: int
+    path: Path
+    session: Path
+    alias: str
 
 
 @dataclass(frozen=True, slots=True)
@@ -1746,8 +1765,8 @@ def _trace_records(trace: str) -> tuple[_TraceRecordV1, ...]:
     if type(trace) is not str or not trace:
         raise M5CodexContainmentErrorV1("m5_codex_containment_trace_invalid")
     records: list[_TraceRecordV1 | None] = []
-    pending: dict[tuple[int, str], tuple[str, int]] = {}
-    for line in trace.splitlines():
+    pending: dict[tuple[int, str], tuple[str, int, int]] = {}
+    for line_ordinal, line in enumerate(trace.splitlines()):
         match = _TRACE_LINE.fullmatch(line)
         if match is not None:
             records.append(
@@ -1756,6 +1775,8 @@ def _trace_records(trace: str) -> tuple[_TraceRecordV1, ...]:
                     match.group("call"),
                     match.group("arguments"),
                     match.group("result"),
+                    line_ordinal,
+                    line_ordinal,
                 )
             )
             continue
@@ -1764,7 +1785,11 @@ def _trace_records(trace: str) -> tuple[_TraceRecordV1, ...]:
             key = (int(unfinished.group("pid")), unfinished.group("call"))
             if key in pending:
                 raise M5CodexContainmentErrorV1("m5_codex_containment_trace_invalid")
-            pending[key] = (unfinished.group("arguments"), len(records))
+            pending[key] = (
+                unfinished.group("arguments"),
+                len(records),
+                line_ordinal,
+            )
             records.append(None)
             continue
         resumed = _TRACE_RESUMED.fullmatch(line)
@@ -1774,12 +1799,14 @@ def _trace_records(trace: str) -> tuple[_TraceRecordV1, ...]:
         pending_record = pending.pop(key, None)
         if pending_record is None:
             raise M5CodexContainmentErrorV1("m5_codex_containment_trace_invalid")
-        first, index = pending_record
+        first, index, invoked_at = pending_record
         records[index] = _TraceRecordV1(
             key[0],
             key[1],
             first + resumed.group("arguments"),
             resumed.group("result"),
+            invoked_at,
+            line_ordinal,
         )
     if pending or any(record is None for record in records):
         raise M5CodexContainmentErrorV1("m5_codex_containment_trace_invalid")
@@ -2060,12 +2087,23 @@ def _unlinkat_target_v1(
     return candidate
 
 
-def _symlink_link_path_v1(
+def _unlinkat_flags_v1(record: _TraceRecordV1) -> str:
+    """Return the exact parsed unlinkat flags without exposing its path."""
+
+    if record.call != "unlinkat":
+        raise M5CodexContainmentErrorV1("m5_codex_containment_trace_invalid")
+    match = _TRACE_UNLINKAT_ARGUMENTS_V1.fullmatch(record.arguments)
+    if match is None:
+        raise M5CodexContainmentErrorV1("m5_codex_containment_trace_invalid")
+    return match.group("flags")
+
+
+def _symlink_arguments_v1(
     record: _TraceRecordV1,
     *,
     working_root: Path,
-) -> Path:
-    """Resolve only the created link path; the first argument is payload data."""
+) -> tuple[str, Path, bool]:
+    """Parse one plain symlink without treating its payload as an access."""
 
     if record.call != "symlink":
         raise M5CodexContainmentErrorV1("m5_codex_containment_trace_invalid")
@@ -2075,25 +2113,48 @@ def _symlink_link_path_v1(
         and _TRACE_FTRUNCATE_FAILED_RESULT_V1.fullmatch(record.result) is None
     ):
         raise M5CodexContainmentErrorV1("m5_codex_containment_trace_invalid")
-    quoted = _TRACE_QUOTED.fullmatch(match.group("linkpath"))
-    if quoted is None:
+    payload_token = _TRACE_QUOTED.fullmatch(match.group("payload"))
+    link_token = _TRACE_QUOTED.fullmatch(match.group("linkpath"))
+    if payload_token is None or link_token is None:
         raise M5CodexContainmentErrorV1("m5_codex_containment_trace_invalid")
-    raw_path = _decode_trace_string(quoted.group(1))
+    raw_payload = payload_token.group(1)
+    raw_path = link_token.group(1)
     if (
-        not raw_path
+        not raw_payload
+        or not raw_path
+        or "\\" in raw_payload
+        or "\\" in raw_path
+        or any(
+            ord(character) < 32 or ord(character) == 127 for character in raw_payload
+        )
         or any(ord(character) < 32 or ord(character) == 127 for character in raw_path)
+        or raw_payload.startswith("//")
         or raw_path.startswith("//")
+        or any(component in {".", ".."} for component in raw_payload.split("/"))
         or any(component in {".", ".."} for component in raw_path.split("/"))
+        or os.path.normpath(raw_payload) != raw_payload
         or os.path.normpath(raw_path) != raw_path
     ):
         raise M5CodexContainmentErrorV1("m5_codex_containment_trace_invalid")
+    payload = _decode_trace_string(raw_payload)
     candidate = Path(raw_path)
+    absolute = candidate.is_absolute()
     if not candidate.is_absolute():
         candidate = working_root / candidate
     candidate = Path(os.path.normpath(os.fspath(candidate)))
     if not candidate.is_absolute():
         raise M5CodexContainmentErrorV1("m5_codex_containment_trace_invalid")
-    return candidate
+    return payload, candidate, absolute
+
+
+def _symlink_link_path_v1(
+    record: _TraceRecordV1,
+    *,
+    working_root: Path,
+) -> Path:
+    """Resolve only the created link path; the first argument is payload data."""
+
+    return _symlink_arguments_v1(record, working_root=working_root)[1]
 
 
 def _trace_paths(record: _TraceRecordV1, *, working_root: Path) -> tuple[Path, ...]:
@@ -2119,6 +2180,8 @@ def _trace_paths(record: _TraceRecordV1, *, working_root: Path) -> tuple[Path, .
     for value in quoted:
         if not value:
             continue
+        if value.startswith("//"):
+            raise M5CodexContainmentErrorV1("m5_codex_containment_trace_invalid")
         candidate = Path(value)
         if not candidate.is_absolute():
             candidate = working_root / candidate
@@ -2128,13 +2191,39 @@ def _trace_paths(record: _TraceRecordV1, *, working_root: Path) -> tuple[Path, .
         if match is None:
             raise M5CodexContainmentErrorV1("m5_codex_containment_trace_invalid")
         resolved = _decode_trace_string(match.group("path"))
-        if resolved.endswith(" (deleted)"):
+        if resolved.endswith(" (deleted)") or resolved.startswith("//"):
             raise M5CodexContainmentErrorV1("m5_codex_containment_trace_invalid")
         resolved_path = Path(resolved)
         if not resolved_path.is_absolute():
             raise M5CodexContainmentErrorV1("m5_codex_containment_trace_invalid")
         candidates.append(Path(os.path.normpath(os.fspath(resolved_path))))
     return tuple(dict.fromkeys(candidates))
+
+
+def _trace_uses_relative_working_directory_v1(record: _TraceRecordV1) -> bool:
+    """Return whether one path lookup depends on the process working directory."""
+
+    if record.call == "unlinkat":
+        match = _TRACE_UNLINKAT_ARGUMENTS_V1.fullmatch(record.arguments)
+        if match is None:
+            raise M5CodexContainmentErrorV1("m5_codex_containment_trace_invalid")
+        quoted = _TRACE_QUOTED.fullmatch(match.group("path"))
+        if quoted is None:
+            raise M5CodexContainmentErrorV1("m5_codex_containment_trace_invalid")
+        target = Path(_decode_trace_string(quoted.group(1)))
+        return not target.is_absolute() and match.group("dirfd").startswith("AT_FDCWD")
+    if record.call == "symlink":
+        match = _TRACE_SYMLINK_ARGUMENTS_V1.fullmatch(record.arguments)
+        if match is None:
+            raise M5CodexContainmentErrorV1("m5_codex_containment_trace_invalid")
+        quoted = _TRACE_QUOTED.fullmatch(match.group("linkpath"))
+        if quoted is None:
+            raise M5CodexContainmentErrorV1("m5_codex_containment_trace_invalid")
+        return not Path(_decode_trace_string(quoted.group(1))).is_absolute()
+    quoted_values = _quoted_arguments(record)
+    if record.call in {"execve", "execveat"}:
+        quoted_values = quoted_values[:1]
+    return any(value and not Path(value).is_absolute() for value in quoted_values)
 
 
 def _trace_is_write(record: _TraceRecordV1) -> bool:
@@ -2156,6 +2245,272 @@ def _installation_release_root(executable: Path, default_root: Path) -> Path | N
     ):
         return None
     return default_root.joinpath(*parts[:4])
+
+
+def _validate_arg0_lifecycles_v1(
+    classified_records: list[tuple[_TraceRecordV1, tuple[Path, ...], bool, Path]],
+    *,
+    record_operations: dict[int, _OperationV1],
+    operations: list[_OperationV1],
+    operation_exec_records: dict[int, _TraceRecordV1],
+    root_exit_records: dict[int, _TraceRecordV1],
+    operation_pids: dict[int, frozenset[int]],
+    pid_exit_records: dict[int, _TraceRecordV1],
+    provider_executable: Path,
+    managed_profile_root: Path,
+) -> frozenset[int]:
+    """Admit only the pinned Codex Arg0 create-and-cleanup lifecycle."""
+
+    link_error = "m5_codex_containment_link_operation_rejected"
+    mutation_error = "m5_codex_containment_path_mutator_unverifiable"
+    creations_by_operation: dict[int, list[_Arg0CreationV1]] = {}
+    admitted_links: set[int] = set()
+
+    for record_index, (record, _, _, working_directory) in enumerate(
+        classified_records
+    ):
+        if record.call != "symlink":
+            continue
+        payload, path, absolute_path = _symlink_arguments_v1(
+            record,
+            working_root=working_directory,
+        )
+        operation = record_operations.get(record_index)
+        if (
+            record.result != "0"
+            or operation is None
+            or operation.kind not in {"identity", "quota"}
+            or record.pid != operation.root_pid
+            or payload != os.fspath(provider_executable)
+            or not Path(payload).is_absolute()
+            or not absolute_path
+        ):
+            raise M5CodexContainmentErrorV1(link_error)
+        try:
+            relative = path.relative_to(managed_profile_root)
+        except ValueError:
+            raise M5CodexContainmentErrorV1(link_error) from None
+        parts = relative.parts
+        if (
+            len(parts) != 4
+            or parts[:2] != ("tmp", "arg0")
+            or _ARG0_SESSION_V1.fullmatch(parts[2]) is None
+            or parts[3] not in _ARG0_ALIASES_V1
+        ):
+            raise M5CodexContainmentErrorV1(link_error)
+        session = managed_profile_root.joinpath(*parts[:3])
+        creations_by_operation.setdefault(operation.sequence, []).append(
+            _Arg0CreationV1(
+                operation,
+                record_index,
+                path,
+                session,
+                parts[3],
+            )
+        )
+        admitted_links.add(record_index)
+
+    arg0_operations = tuple(
+        operation for operation in operations if operation.kind in {"identity", "quota"}
+    )
+    if len(arg0_operations) != 2 or {
+        operation.kind for operation in arg0_operations
+    } != {"identity", "quota"}:
+        raise M5CodexContainmentErrorV1(link_error)
+
+    cleanup_by_operation: dict[int, set[int]] = {}
+    operation_close_completions: dict[int, int] = {}
+    for operation in operations:
+        owned_pids = operation_pids.get(operation.sequence)
+        exec_record = operation_exec_records.get(operation.sequence)
+        root_exit_record = root_exit_records.get(operation.sequence)
+        if (
+            not owned_pids
+            or exec_record is None
+            or root_exit_record is None
+            or exec_record.completed_at >= root_exit_record.invoked_at
+            or any(pid not in pid_exit_records for pid in owned_pids)
+        ):
+            raise M5CodexContainmentErrorV1("m5_codex_containment_trace_invalid")
+        operation_close_completions[operation.sequence] = max(
+            pid_exit_records[pid].completed_at for pid in owned_pids
+        )
+    for operation in arg0_operations:
+        creations = sorted(
+            creations_by_operation.get(operation.sequence, ()),
+            key=lambda creation: (
+                classified_records[creation.record_index][0].invoked_at
+            ),
+        )
+        if (
+            len(creations) != len(_ARG0_ALIASES_V1)
+            or tuple(creation.alias for creation in creations) != _ARG0_ALIASES_V1
+            or len({creation.path for creation in creations}) != len(_ARG0_ALIASES_V1)
+            or len({creation.session for creation in creations}) != 1
+        ):
+            raise M5CodexContainmentErrorV1(link_error)
+        exec_record = operation_exec_records.get(operation.sequence)
+        exit_record = root_exit_records.get(operation.sequence)
+        owned_pids = operation_pids.get(operation.sequence)
+        if exec_record is None or exit_record is None or not owned_pids:
+            raise M5CodexContainmentErrorV1(link_error)
+        operation_close_completion = operation_close_completions[operation.sequence]
+        creation_records = tuple(
+            classified_records[creation.record_index][0] for creation in creations
+        )
+        if (
+            exec_record.completed_at >= creation_records[0].invoked_at
+            or any(
+                earlier.completed_at >= later.invoked_at
+                for earlier, later in pairwise(creation_records)
+            )
+            or creation_records[-1].completed_at >= exit_record.invoked_at
+        ):
+            raise M5CodexContainmentErrorV1(link_error)
+
+        cleanup_indexes: set[int] = set()
+        for creation, creation_record in zip(
+            creations,
+            creation_records,
+            strict=True,
+        ):
+            candidates = tuple(
+                candidate_index
+                for candidate_index, (candidate, paths, _, _) in enumerate(
+                    classified_records
+                )
+                if (
+                    candidate.call == "unlinkat"
+                    and paths == (creation.path,)
+                    and record_operations.get(candidate_index) == operation
+                )
+            )
+            if len(candidates) != 1:
+                raise M5CodexContainmentErrorV1(link_error)
+            cleanup_index = candidates[0]
+            cleanup_record = classified_records[cleanup_index][0]
+            cleanup_exit = pid_exit_records.get(cleanup_record.pid)
+            if (
+                cleanup_record.result != "0"
+                or _unlinkat_flags_v1(cleanup_record) != "0"
+                or creation_record.completed_at >= cleanup_record.invoked_at
+                or cleanup_record.completed_at >= exit_record.invoked_at
+                or cleanup_exit is None
+                or cleanup_record.completed_at >= cleanup_exit.invoked_at
+            ):
+                raise M5CodexContainmentErrorV1(link_error)
+            cleanup_indexes.add(cleanup_index)
+        if len(cleanup_indexes) != len(_ARG0_ALIASES_V1):
+            raise M5CodexContainmentErrorV1(link_error)
+        if min(
+            classified_records[index][0].invoked_at for index in cleanup_indexes
+        ) <= max(record.completed_at for record in creation_records):
+            raise M5CodexContainmentErrorV1(link_error)
+        cleanup_by_operation[operation.sequence] = cleanup_indexes
+
+        first_creation_invocation = creation_records[0].invoked_at
+        final_cleanup_completion = max(
+            classified_records[index][0].completed_at for index in cleanup_indexes
+        )
+        allowed_indexes = {
+            *(creation.record_index for creation in creations),
+            *cleanup_indexes,
+        }
+        parent_removal_index: int | None = None
+        session = creations[0].session
+        for candidate_index, (candidate, paths, is_write, _) in enumerate(
+            classified_records
+        ):
+            overlaps_operation = not (
+                candidate.completed_at < first_creation_invocation
+                or candidate.invoked_at > operation_close_completion
+            )
+            if (
+                overlaps_operation
+                and is_write
+                and _successful(candidate)
+                and record_operations.get(candidate_index) is None
+            ):
+                code = link_error if candidate.call in _LINK_CALLS else mutation_error
+                raise M5CodexContainmentErrorV1(code)
+            if (
+                not is_write
+                or not paths
+                or not overlaps_operation
+                or not any(
+                    _is_within(path, session) or _is_within(session, path)
+                    for path in paths
+                )
+                or candidate_index in allowed_indexes
+            ):
+                continue
+            exact_parent_removal = False
+            candidate_exit = pid_exit_records.get(candidate.pid)
+            if (
+                paths == (session,)
+                and candidate.result == "0"
+                and record_operations.get(candidate_index) == operation
+                and candidate.invoked_at > final_cleanup_completion
+                and candidate.completed_at < exit_record.invoked_at
+                and candidate_exit is not None
+                and candidate.completed_at < candidate_exit.invoked_at
+            ):
+                if candidate.call == "unlinkat":
+                    exact_parent_removal = (
+                        _unlinkat_flags_v1(candidate) == "AT_REMOVEDIR"
+                    )
+                elif candidate.call == "rmdir":
+                    exact_parent_removal = candidate.arguments == f'"{session}"'
+            if exact_parent_removal and parent_removal_index is None:
+                parent_removal_index = candidate_index
+                continue
+            code = link_error if candidate.call in _LINK_CALLS else mutation_error
+            raise M5CodexContainmentErrorV1(code)
+
+    if set(creations_by_operation) != {
+        operation.sequence for operation in arg0_operations
+    }:
+        raise M5CodexContainmentErrorV1(link_error)
+    creation_keys = {
+        (creation.operation.sequence, creation.path)
+        for creations in creations_by_operation.values()
+        for creation in creations
+    }
+    created_paths = {path for _, path in creation_keys}
+    for record_index, (record, paths, _, _) in enumerate(classified_records):
+        if (
+            record.call != "unlinkat"
+            or len(paths) != 1
+            or paths[0] not in created_paths
+        ):
+            continue
+        cleanup_operation = record_operations.get(record_index)
+        if (
+            cleanup_operation is None
+            or (cleanup_operation.sequence, paths[0]) not in creation_keys
+        ):
+            raise M5CodexContainmentErrorV1(link_error)
+    if len(admitted_links) != 2 * len(_ARG0_ALIASES_V1):
+        raise M5CodexContainmentErrorV1(link_error)
+    if sum(len(indexes) for indexes in cleanup_by_operation.values()) != 2 * len(
+        _ARG0_ALIASES_V1
+    ):
+        raise M5CodexContainmentErrorV1(link_error)
+
+    for record_index, (record, _, _, _) in enumerate(classified_records):
+        if record.call in _LINK_CALLS and record_index not in admitted_links:
+            raise M5CodexContainmentErrorV1(link_error)
+
+    for previous, following in pairwise(operations):
+        following_exec = operation_exec_records.get(following.sequence)
+        if (
+            previous.sequence not in operation_close_completions
+            or following_exec is None
+            or operation_close_completions[previous.sequence]
+            >= following_exec.invoked_at
+        ):
+            raise M5CodexContainmentErrorV1("m5_codex_containment_trace_invalid")
+    return frozenset(admitted_links)
 
 
 def _evaluate_codex_trace_policy_v1(
@@ -2189,6 +2544,7 @@ def _evaluate_codex_trace_policy_v1(
     classified_records: list[tuple[_TraceRecordV1, tuple[Path, ...], bool, Path]] = []
     working_directory_groups: dict[int, int] = {}
     group_working_directories: dict[int, Path] = {}
+    unfinished_successful_chdirs: list[tuple[_TraceRecordV1, int]] = []
     target_replacement_records: list[tuple[_TraceRecordV1, tuple[Path, ...]]] = []
     for record in records:
         raw_no_effect = False
@@ -2295,6 +2651,10 @@ def _evaluate_codex_trace_policy_v1(
                 working_root=working_directory,
             )
             if changed_directory is not None:
+                if record.invoked_at != record.completed_at:
+                    unfinished_successful_chdirs.append(
+                        (record, working_directory_group)
+                    )
                 group_working_directories[working_directory_group] = changed_directory
         for candidate in paths:
             for default_root in defaults:
@@ -2315,6 +2675,20 @@ def _evaluate_codex_trace_policy_v1(
                 )
                 if not (release_read or release_ancestor_metadata):
                     default_accesses += 1
+    for chdir_record, working_directory_group in unfinished_successful_chdirs:
+        for record in records:
+            if (
+                record is chdir_record
+                or working_directory_groups.get(record.pid, record.pid)
+                != working_directory_group
+                or record.completed_at < chdir_record.invoked_at
+                or record.invoked_at > chdir_record.completed_at
+                or not _trace_uses_relative_working_directory_v1(record)
+            ):
+                continue
+            raise M5CodexContainmentErrorV1(
+                "m5_codex_containment_working_directory_escape"
+            )
     if default_accesses or default_writes:
         raise M5CodexContainmentErrorV1("m5_codex_default_profile_access_detected")
 
@@ -2330,6 +2704,10 @@ def _evaluate_codex_trace_policy_v1(
     closed_operations: set[int] = set()
     current_operation: _OperationV1 | None = None
     chmods: list[tuple[_OperationV1, tuple[str, ...], int]] = []
+    record_operations: dict[int, _OperationV1] = {}
+    operation_exec_records: dict[int, _TraceRecordV1] = {}
+    root_exit_records: dict[int, _TraceRecordV1] = {}
+    pid_exit_records: dict[int, _TraceRecordV1] = {}
     accesses = 0
     writes = 0
     for record_index, (
@@ -2379,6 +2757,7 @@ def _evaluate_codex_trace_policy_v1(
                 operations.append(started_operation)
                 owners[record.pid] = started_operation
                 thread_groups[record.pid] = record.pid
+                operation_exec_records[sequence] = record
                 current_operation = started_operation
                 exact_provider_exec = True
 
@@ -2387,6 +2766,8 @@ def _evaluate_codex_trace_policy_v1(
             raise M5CodexContainmentErrorV1("m5_codex_containment_trace_invalid")
         if record.pid in ended_pids:
             raise M5CodexContainmentErrorV1("m5_codex_containment_trace_invalid")
+        if operation is not None:
+            record_operations[record_index] = operation
         if record.call == "chmod":
             relative_parts = _parse_exact_chmod(
                 record,
@@ -2431,10 +2812,6 @@ def _evaluate_codex_trace_policy_v1(
             raise M5CodexContainmentErrorV1(
                 "m5_codex_containment_fd_write_unverifiable"
             )
-        if _successful(record) and record.call in _LINK_CALLS:
-            raise M5CodexContainmentErrorV1(
-                "m5_codex_containment_link_operation_rejected"
-            )
         if (
             _successful(record)
             and record.call in _PATH_FOLLOWING_MUTATORS
@@ -2458,20 +2835,29 @@ def _evaluate_codex_trace_policy_v1(
                 "m5_codex_containment_working_directory_escape"
             )
         if record.call in _EXIT_CALLS and _successful(record):
+            root_group = thread_groups.get(operation.root_pid, operation.root_pid)
+            record_group = thread_groups.get(record.pid, record.pid)
+            if record.pid == operation.root_pid or (
+                record.call == "exit_group" and record_group == root_group
+            ):
+                root_exit_records.setdefault(operation.sequence, record)
             if record.call == "exit_group":
                 group = thread_groups.get(record.pid, record.pid)
-                ended_pids.update(
+                affected_pids = tuple(
                     pid
                     for pid, owner in owners.items()
                     if owner == operation and thread_groups.get(pid, pid) == group
                 )
             else:
-                ended_pids.add(record.pid)
-            operation_pids = tuple(
+                affected_pids = (record.pid,)
+            for affected_pid in affected_pids:
+                pid_exit_records.setdefault(affected_pid, record)
+            ended_pids.update(affected_pids)
+            owned_operation_pids = tuple(
                 pid for pid, owner in owners.items() if owner == operation
             )
             if operation.root_pid in ended_pids and all(
-                pid in ended_pids for pid in operation_pids
+                pid in ended_pids for pid in owned_operation_pids
             ):
                 closed_operations.add(operation.sequence)
                 current_operation = None
@@ -2489,6 +2875,22 @@ def _evaluate_codex_trace_policy_v1(
         raise M5CodexContainmentErrorV1(
             "m5_codex_containment_path_mutator_unverifiable"
         )
+    operation_pids: dict[int, set[int]] = {}
+    for pid, operation in owners.items():
+        operation_pids.setdefault(operation.sequence, set()).add(pid)
+    _validate_arg0_lifecycles_v1(
+        classified_records,
+        record_operations=record_operations,
+        operations=operations,
+        operation_exec_records=operation_exec_records,
+        root_exit_records=root_exit_records,
+        operation_pids={
+            sequence: frozenset(pids) for sequence, pids in operation_pids.items()
+        },
+        pid_exit_records=pid_exit_records,
+        provider_executable=executable,
+        managed_profile_root=managed,
+    )
     admitted_target = managed.joinpath(*chmods[0][1])
     for replacement_record, paths in target_replacement_records:
         if any(

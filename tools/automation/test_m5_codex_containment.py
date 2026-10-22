@@ -68,6 +68,14 @@ _TRACE_APP_SERVER_ARGUMENTS = (
     "--listen",
     "stdio://",
 )
+_ARG0_ALIASES = (
+    "apply_patch",
+    "applypatch",
+    "codex-linux-sandbox",
+    "codex-execve-wrapper",
+)
+_ARG0_IDENTITY_SESSION = _TRACE_MANAGED_ROOT / "tmp" / "arg0" / "codex-arg0A1b2C3"
+_ARG0_QUOTA_SESSION = _TRACE_MANAGED_ROOT / "tmp" / "arg0" / "codex-arg0D4e5F6"
 
 
 def _trace_string(value: str) -> str:
@@ -169,6 +177,7 @@ def _two_operation_chmod_trace(
     *,
     identity_chmod_count: int = 1,
     quota_chmod_count: int = 1,
+    include_arg0: bool = True,
 ) -> str:
     """Build one closed, sequential provider trace with configurable chmods."""
 
@@ -195,7 +204,89 @@ def _two_operation_chmod_trace(
         for _ in range(quota_chmod_count)
     )
     lines.extend(("301 exit_group(0) = ?", "300 exit_group(0) = ?"))
-    return "\n".join(lines)
+    trace = "\n".join(lines)
+    return _add_arg0_lifecycle(trace) if include_arg0 else trace
+
+
+def _arg0_link_lines(pid: int, session: Path) -> tuple[str, ...]:
+    return tuple(
+        f'{pid} symlink("{_TRACE_EXECUTABLE}", "{session / alias}") = 0'
+        for alias in _ARG0_ALIASES
+    )
+
+
+def _arg0_cleanup_lines(
+    pid: int,
+    session: Path,
+    *,
+    aliases: tuple[str, ...] = _ARG0_ALIASES,
+) -> tuple[str, ...]:
+    return tuple(f'{pid} unlinkat(9<{session}>, "{alias}", 0) = 0' for alias in aliases)
+
+
+def _add_arg0_lifecycle(trace: str) -> str:
+    """Build the exact four-plus-four Codex 0.160 Arg0 lifecycle."""
+
+    identity_session = _ARG0_IDENTITY_SESSION
+    quota_session = _ARG0_QUOTA_SESSION
+    trace = trace.replace(
+        _trace_app_server_exec(200, _TRACE_EXECUTABLE),
+        "\n".join(
+            (
+                _trace_app_server_exec(200, _TRACE_EXECUTABLE),
+                *_arg0_link_lines(200, identity_session),
+            )
+        ),
+        1,
+    )
+    trace = trace.replace(
+        "201 exit_group(0) = ?",
+        "\n".join(
+            (
+                *_arg0_cleanup_lines(201, identity_session),
+                (
+                    f"201 unlinkat(8<{identity_session.parent}>, "
+                    f'"{identity_session.name}", AT_REMOVEDIR) = 0'
+                ),
+                "201 exit_group(0) = ?",
+            )
+        ),
+        1,
+    )
+    trace = trace.replace(
+        _trace_app_server_exec(300, _TRACE_EXECUTABLE),
+        "\n".join(
+            (
+                _trace_app_server_exec(300, _TRACE_EXECUTABLE),
+                *_arg0_link_lines(300, quota_session),
+            )
+        ),
+        1,
+    )
+    trace = trace.replace(
+        "301 exit_group(0) = ?\n300 exit_group(0) = ?",
+        "\n".join(
+            (
+                "301 exit_group(0) = ?",
+                *_arg0_cleanup_lines(
+                    300,
+                    quota_session,
+                    aliases=tuple(reversed(_ARG0_ALIASES)),
+                ),
+                (
+                    f"300 unlinkat(8<{quota_session.parent}>, "
+                    f'"{quota_session.name}", AT_REMOVEDIR) = 0'
+                ),
+                "300 exit_group(0) = ?",
+            )
+        ),
+        1,
+    )
+    return trace
+
+
+def _arg0_lifecycle_trace() -> str:
+    return _two_operation_chmod_trace()
 
 
 def _trace_with_ftruncates(
@@ -214,6 +305,803 @@ def _trace_with_ftruncates(
 
 
 class M5CodexContainmentPolicyTests(unittest.TestCase):
+    def test_exact_arg0_symlink_lifecycle_is_admitted_and_counted_once(
+        self,
+    ) -> None:
+        """M5-CDX-GATE-001: exact four-plus-four Arg0 links are bounded."""
+
+        executable = Path(
+            "/home/owner/.codex/packages/standalone/releases/0.160.0/bin/codex"
+        )
+        trace = _arg0_lifecycle_trace().replace(
+            os.fspath(_TRACE_EXECUTABLE),
+            os.fspath(executable),
+        )
+        without_parent_removals = "\n".join(
+            line for line in trace.splitlines() if "AT_REMOVEDIR" not in line
+        )
+        without_parents = evaluate_codex_trace_policy_v1(
+            without_parent_removals,
+            provider_executable=executable,
+            managed_profile_root=_TRACE_MANAGED_ROOT,
+            default_codex_roots=(Path("/home/owner/.codex"),),
+        )
+        summary = evaluate_codex_trace_policy_v1(
+            trace,
+            provider_executable=executable,
+            managed_profile_root=_TRACE_MANAGED_ROOT,
+            default_codex_roots=(Path("/home/owner/.codex"),),
+        )
+        rmdir_trace = trace.replace(
+            (
+                f"201 unlinkat(8<{_ARG0_IDENTITY_SESSION.parent}>, "
+                f'"{_ARG0_IDENTITY_SESSION.name}", AT_REMOVEDIR) = 0'
+            ),
+            f'201 rmdir("{_ARG0_IDENTITY_SESSION}") = 0',
+            1,
+        ).replace(
+            (
+                f"300 unlinkat(8<{_ARG0_QUOTA_SESSION.parent}>, "
+                f'"{_ARG0_QUOTA_SESSION.name}", AT_REMOVEDIR) = 0'
+            ),
+            f'300 rmdir("{_ARG0_QUOTA_SESSION}") = 0',
+            1,
+        )
+        rmdir_summary = evaluate_codex_trace_policy_v1(
+            rmdir_trace,
+            provider_executable=executable,
+            managed_profile_root=_TRACE_MANAGED_ROOT,
+            default_codex_roots=(Path("/home/owner/.codex"),),
+        )
+        reused_session_trace = trace.replace(
+            os.fspath(_ARG0_QUOTA_SESSION),
+            os.fspath(_ARG0_IDENTITY_SESSION),
+        )
+        reused_session_summary = evaluate_codex_trace_policy_v1(
+            reused_session_trace,
+            provider_executable=executable,
+            managed_profile_root=_TRACE_MANAGED_ROOT,
+            default_codex_roots=(Path("/home/owner/.codex"),),
+        )
+
+        self.assertEqual(summary.provider_execution_count, 3)
+        self.assertEqual(without_parents.provider_access_count, 21)
+        self.assertEqual(without_parents.provider_write_count, 18)
+        self.assertEqual(summary.provider_access_count, 23)
+        self.assertEqual(summary.provider_write_count, 20)
+        self.assertEqual(rmdir_summary, summary)
+        self.assertEqual(reused_session_summary, summary)
+        self.assertEqual(summary.default_profile_access_count, 0)
+        self.assertEqual(summary.default_profile_write_count, 0)
+        self.assertNotIn(os.fspath(executable), repr(summary))
+        self.assertNotIn(os.fspath(_ARG0_IDENTITY_SESSION), repr(summary))
+
+    def test_arg0_creation_shape_and_cardinality_fail_closed(self) -> None:
+        """M5-CDX-GATE-001: no create-shape variant widens Arg0 admission."""
+
+        trace = _arg0_lifecycle_trace()
+        source = os.fspath(_TRACE_EXECUTABLE)
+        session = _ARG0_IDENTITY_SESSION
+        first = f'200 symlink("{source}", "{session / _ARG0_ALIASES[0]}") = 0'
+        second = f'200 symlink("{source}", "{session / _ARG0_ALIASES[1]}") = 0'
+        cases = {
+            "missing": trace.replace(f"{first}\n", "", 1),
+            "extra": trace.replace(first, f"{first}\n{first}", 1),
+            "duplicate": trace.replace(second, first, 1),
+            "reordered": trace.replace(
+                f"{first}\n{second}",
+                f"{second}\n{first}",
+                1,
+            ),
+            "wrong_alias": trace.replace(
+                os.fspath(session / _ARG0_ALIASES[0]),
+                os.fspath(session / "apply-patch"),
+                1,
+            ),
+            "wrong_source": trace.replace(
+                first,
+                first.replace(source, "/opt/other/bin/codex", 1),
+                1,
+            ),
+            "other_release_source": trace.replace(
+                first,
+                first.replace(source, "/opt/codex/releases/0.159.0/bin/codex", 1),
+                1,
+            ),
+            "relative_source": trace.replace(
+                first,
+                first.replace(source, "codex", 1),
+                1,
+            ),
+            "empty_source": trace.replace(
+                first,
+                first.replace(f'"{source}"', '""', 1),
+                1,
+            ),
+            "escaped_source": trace.replace(
+                first,
+                first.replace(f'"{source}"', r'"\057opt/codex/bin/codex"', 1),
+                1,
+            ),
+            "control_source": trace.replace(
+                first,
+                first.replace(f'"{source}"', r'"/opt/codex\001/bin/codex"', 1),
+                1,
+            ),
+            "noncanonical_source": trace.replace(
+                first,
+                first.replace(source, "/opt/codex/../codex/bin/codex", 1),
+                1,
+            ),
+            "mixed_parent": trace.replace(
+                first,
+                first.replace("codex-arg0A1b2C3", "codex-arg0Z9y8X7", 1),
+                1,
+            ),
+            "malformed_session": trace.replace(
+                first,
+                first.replace("codex-arg0A1b2C3", "codex-arg0A1b2C_", 1),
+                1,
+            ),
+            "short_session": trace.replace(
+                os.fspath(session),
+                os.fspath(session.with_name("codex-arg0A1b2C")),
+            ),
+            "long_session": trace.replace(
+                os.fspath(session),
+                os.fspath(session.with_name("codex-arg0A1b2C3D")),
+            ),
+            "unicode_session": trace.replace(
+                first,
+                first.replace("codex-arg0A1b2C3", "codex-arg0A1b2Cé", 1),
+                1,
+            ),
+            "alternate_session_prefix": trace.replace(
+                first,
+                first.replace("codex-arg0A1b2C3", "Codex-arg0A1b2C3", 1),
+                1,
+            ),
+            "alternate_alias_case": trace.replace(
+                first,
+                first.replace("/apply_patch", "/Apply_patch", 1),
+                1,
+            ),
+            "relative_destination": trace.replace(
+                first,
+                first.replace(
+                    os.fspath(session / _ARG0_ALIASES[0]),
+                    f"tmp/arg0/{session.name}/{_ARG0_ALIASES[0]}",
+                    1,
+                ),
+                1,
+            ),
+            "default_destination": trace.replace(
+                first,
+                first.replace(
+                    os.fspath(session / _ARG0_ALIASES[0]),
+                    f"/home/owner/.codex/tmp/arg0/{session.name}/{_ARG0_ALIASES[0]}",
+                    1,
+                ),
+                1,
+            ),
+            "outside_destination": trace.replace(
+                first,
+                first.replace(
+                    os.fspath(session / _ARG0_ALIASES[0]),
+                    f"/tmp/{session.name}/{_ARG0_ALIASES[0]}",
+                    1,
+                ),
+                1,
+            ),
+            "dotdot_destination": trace.replace(
+                first,
+                first.replace("/tmp/arg0/", "/tmp/arg0/../arg0/", 1),
+                1,
+            ),
+            "dot_destination": trace.replace(
+                first,
+                first.replace("/tmp/arg0/", "/tmp/./arg0/", 1),
+                1,
+            ),
+            "double_slash_destination": trace.replace(
+                first,
+                first.replace('symlink("/opt', 'symlink("/opt', 1).replace(
+                    '", "/owner', '", "//owner', 1
+                ),
+                1,
+            ),
+            "empty_destination": trace.replace(
+                first,
+                first.replace(f'"{session / _ARG0_ALIASES[0]}"', '""', 1),
+                1,
+            ),
+            "escaped_destination": trace.replace(
+                first,
+                first.replace(
+                    f'"{session / _ARG0_ALIASES[0]}"',
+                    r'"\057owner/profiles/codex/opaque/tmp/arg0/codex-arg0A1b2C3/apply_patch"',
+                    1,
+                ),
+                1,
+            ),
+            "control_destination": trace.replace(
+                first,
+                first.replace("/apply_patch", r"/apply\001patch", 1),
+                1,
+            ),
+            "extra_destination_component": trace.replace(
+                first,
+                first.replace("/apply_patch", "/extra/apply_patch", 1),
+                1,
+            ),
+            "failed_result": trace.replace(
+                first,
+                first.replace(" = 0", " = -1 EEXIST (File exists)"),
+                1,
+            ),
+            "malformed_result": trace.replace(
+                first,
+                first.replace(" = 0", " = 0 trailing"),
+                1,
+            ),
+            "third_argument": trace.replace(
+                first,
+                first.replace(") = 0", ", 0) = 0"),
+                1,
+            ),
+            "argument_prefix": trace.replace(
+                first,
+                first.replace("symlink(", 'symlink("prefix", ', 1),
+                1,
+            ),
+            "truncated_token": trace.replace(
+                first,
+                first.replace(f'{_ARG0_ALIASES[0]}")', f"{_ARG0_ALIASES[0]})", 1),
+                1,
+            ),
+        }
+        for label, candidate in cases.items():
+            with (
+                self.subTest(label=label),
+                self.assertRaises(M5CodexContainmentErrorV1) as raised,
+            ):
+                evaluate_codex_trace_policy_v1(
+                    candidate,
+                    provider_executable=_TRACE_EXECUTABLE,
+                    managed_profile_root=_TRACE_MANAGED_ROOT,
+                    default_codex_roots=(Path("/home/owner/.codex"),),
+                )
+            self.assertIn(
+                str(raised.exception),
+                {
+                    "m5_codex_containment_link_operation_rejected",
+                    "m5_codex_containment_trace_invalid",
+                    "m5_codex_default_profile_access_detected",
+                    "m5_codex_managed_profile_write_escape",
+                },
+            )
+            self.assertNotIn(source, str(raised.exception))
+            self.assertNotIn(os.fspath(session), repr(raised.exception))
+
+    def test_arg0_creation_lineage_fail_closed(self) -> None:
+        """M5-CDX-GATE-001: only each app-server root creates its aliases."""
+
+        trace = _arg0_lifecycle_trace()
+        link = (
+            f'200 symlink("{_TRACE_EXECUTABLE}", '
+            f'"{_ARG0_IDENTITY_SESSION / _ARG0_ALIASES[0]}") = 0'
+        )
+        without_link = trace.replace(f"{link}\n", "", 1)
+        version_exit = "100 exit_group(0) = ?"
+        identity_exec = _trace_app_server_exec(200, _TRACE_EXECUTABLE)
+        identity_clone = "200 clone(child_stack=NULL, flags=SIGCHLD) = 201"
+        identity_exit = "200 exit_group(0) = ?"
+        cases = {
+            "version": without_link.replace(
+                version_exit,
+                f"{link.replace('200 symlink', '100 symlink', 1)}\n{version_exit}",
+                1,
+            ),
+            "unattributed": trace.replace(
+                link,
+                link.replace("200 symlink", "99 symlink", 1),
+                1,
+            ),
+            "pre_exec": without_link.replace(
+                identity_exec,
+                f"{link}\n{identity_exec}",
+                1,
+            ),
+            "descendant": without_link.replace(
+                identity_clone,
+                (f"{identity_clone}\n{link.replace('200 symlink', '201 symlink', 1)}"),
+                1,
+            ),
+            "post_exit": without_link.replace(
+                identity_exit,
+                f"{identity_exit}\n{link}",
+                1,
+            ),
+            "additional_provider": trace
+            + "\n"
+            + _trace_app_server_exec(400, _TRACE_EXECUTABLE),
+            "overlapping_provider": trace.replace(
+                identity_exit,
+                f"{_trace_app_server_exec(400, _TRACE_EXECUTABLE)}\n{identity_exit}",
+                1,
+            ),
+        }
+        expected = {
+            "version": "m5_codex_managed_profile_write_escape",
+            "unattributed": "m5_codex_containment_link_operation_rejected",
+            "pre_exec": "m5_codex_containment_link_operation_rejected",
+            "descendant": "m5_codex_containment_link_operation_rejected",
+            "post_exit": "m5_codex_containment_trace_invalid",
+            "additional_provider": "m5_codex_containment_trace_invalid",
+            "overlapping_provider": "m5_codex_containment_trace_invalid",
+        }
+        for label, candidate in cases.items():
+            with self.subTest(label=label):
+                with self.assertRaises(M5CodexContainmentErrorV1) as raised:
+                    evaluate_codex_trace_policy_v1(
+                        candidate,
+                        provider_executable=_TRACE_EXECUTABLE,
+                        managed_profile_root=_TRACE_MANAGED_ROOT,
+                        default_codex_roots=(Path("/home/owner/.codex"),),
+                    )
+                self.assertEqual(str(raised.exception), expected[label])
+
+    def test_arg0_cleanup_shape_cardinality_and_lineage_fail_closed(self) -> None:
+        """M5-CDX-GATE-001: every alias has one exact same-operation cleanup."""
+
+        trace = _arg0_lifecycle_trace()
+        session = _ARG0_IDENTITY_SESSION
+        alias = _ARG0_ALIASES[0]
+        cleanup = f'201 unlinkat(9<{session}>, "{alias}", 0) = 0'
+        link = f'200 symlink("{_TRACE_EXECUTABLE}", "{session / alias}") = 0'
+        parent = (
+            f'201 unlinkat(8<{session.parent}>, "{session.name}", AT_REMOVEDIR) = 0'
+        )
+        without_cleanup = trace.replace(f"{cleanup}\n", "", 1)
+        before_create = without_cleanup.replace(
+            link,
+            f"{cleanup.replace('201 unlinkat', '200 unlinkat', 1)}\n{link}",
+            1,
+        )
+        after_exit = without_cleanup.replace(
+            "200 exit_group(0) = ?",
+            (
+                "200 exit_group(0) = ?\n"
+                f"{cleanup.replace('201 unlinkat', '200 unlinkat', 1)}"
+            ),
+            1,
+        )
+        wrong_operation = without_cleanup.replace(
+            "300 exit_group(0) = ?",
+            (
+                f"{cleanup.replace('201 unlinkat', '300 unlinkat', 1)}\n"
+                "300 exit_group(0) = ?"
+            ),
+            1,
+        )
+        unattributed = trace.replace(
+            cleanup,
+            cleanup.replace("201 unlinkat", "99 unlinkat", 1),
+            1,
+        )
+        early_parent = trace.replace(f"{parent}\n", "", 1).replace(
+            cleanup,
+            f"{parent}\n{cleanup}",
+            1,
+        )
+        cases = {
+            "missing": without_cleanup,
+            "duplicate": trace.replace(cleanup, f"{cleanup}\n{cleanup}", 1),
+            "wrong_path": trace.replace(
+                cleanup,
+                cleanup.replace(f'"{alias}"', '"wrong"', 1),
+                1,
+            ),
+            "wrong_flags": trace.replace(
+                cleanup,
+                cleanup.replace(", 0) = 0", ", AT_REMOVEDIR) = 0"),
+                1,
+            ),
+            "failed_result": trace.replace(
+                cleanup,
+                cleanup.replace(" = 0", " = -1 ENOENT (No such file or directory)"),
+                1,
+            ),
+            "unresolved_dirfd": trace.replace(
+                cleanup,
+                cleanup.replace(f"9<{session}>", "9", 1),
+                1,
+            ),
+            "plain_unlink": trace.replace(
+                cleanup,
+                f'201 unlink("{session / alias}") = 0',
+                1,
+            ),
+            "before_create": before_create,
+            "after_exit": after_exit,
+            "wrong_operation": wrong_operation,
+            "unattributed": unattributed,
+            "parent_removal_too_early": early_parent,
+            "duplicate_parent_removal": trace.replace(parent, f"{parent}\n{parent}", 1),
+        }
+        expected = {
+            "missing": "m5_codex_containment_link_operation_rejected",
+            "duplicate": "m5_codex_containment_link_operation_rejected",
+            "wrong_path": "m5_codex_containment_link_operation_rejected",
+            "wrong_flags": "m5_codex_containment_link_operation_rejected",
+            "failed_result": "m5_codex_containment_link_operation_rejected",
+            "unresolved_dirfd": "m5_codex_containment_trace_invalid",
+            "plain_unlink": "m5_codex_containment_link_operation_rejected",
+            "before_create": "m5_codex_containment_link_operation_rejected",
+            "after_exit": "m5_codex_containment_trace_invalid",
+            "wrong_operation": "m5_codex_containment_link_operation_rejected",
+            "unattributed": "m5_codex_containment_link_operation_rejected",
+            "parent_removal_too_early": (
+                "m5_codex_containment_path_mutator_unverifiable"
+            ),
+            "duplicate_parent_removal": (
+                "m5_codex_containment_path_mutator_unverifiable"
+            ),
+        }
+        for label, candidate in cases.items():
+            with (
+                self.subTest(label=label),
+                self.assertRaises(M5CodexContainmentErrorV1) as raised,
+            ):
+                evaluate_codex_trace_policy_v1(
+                    candidate,
+                    provider_executable=_TRACE_EXECUTABLE,
+                    managed_profile_root=_TRACE_MANAGED_ROOT,
+                    default_codex_roots=(Path("/home/owner/.codex"),),
+                )
+            self.assertEqual(str(raised.exception), expected[label])
+
+    def test_arg0_unfinished_and_resumed_chronology_is_closed(self) -> None:
+        """M5-CDX-GATE-001: lifecycle order follows invocation and completion."""
+
+        trace = _arg0_lifecycle_trace()
+        session = _ARG0_IDENTITY_SESSION
+        alias = _ARG0_ALIASES[0]
+        link = f'200 symlink("{_TRACE_EXECUTABLE}", "{session / alias}") = 0'
+        final_link = (
+            f'200 symlink("{_TRACE_EXECUTABLE}", "{session / _ARG0_ALIASES[-1]}") = 0'
+        )
+        cleanup = f'201 unlinkat(9<{session}>, "{alias}", 0) = 0'
+        valid = trace.replace(
+            link,
+            link.removesuffix(") = 0")
+            + " <unfinished ...>\n200 <... symlink resumed>) = 0",
+            1,
+        ).replace(
+            cleanup,
+            cleanup.removesuffix(") = 0")
+            + " <unfinished ...>\n201 <... unlinkat resumed>) = 0",
+            1,
+        )
+        summary = evaluate_codex_trace_policy_v1(
+            valid,
+            provider_executable=_TRACE_EXECUTABLE,
+            managed_profile_root=_TRACE_MANAGED_ROOT,
+            default_codex_roots=(Path("/home/owner/.codex"),),
+        )
+        self.assertEqual(summary.provider_write_count, 20)
+
+        root_cleanup = cleanup.replace("201 unlinkat", "200 unlinkat", 1)
+        cleanup_before_create = trace.replace(f"{cleanup}\n", "", 1).replace(
+            link,
+            (
+                root_cleanup.removesuffix(") = 0")
+                + f" <unfinished ...>\n{link}\n"
+                + "200 <... unlinkat resumed>) = 0"
+            ),
+            1,
+        )
+        cleanup_after_exit = trace.replace(
+            cleanup,
+            cleanup.removesuffix(") = 0") + " <unfinished ...>",
+            1,
+        ).replace(
+            "200 exit_group(0) = ?",
+            "200 exit_group(0) = ?\n201 <... unlinkat resumed>) = 0",
+            1,
+        )
+        cleanup_before_create_completion = trace.replace(
+            f"{cleanup}\n",
+            "",
+            1,
+        ).replace(
+            link,
+            "\n".join(
+                (
+                    link.removesuffix(") = 0") + " <unfinished ...>",
+                    root_cleanup,
+                    "200 <... symlink resumed>) = 0",
+                )
+            ),
+            1,
+        )
+        parent = (
+            f'201 unlinkat(8<{session.parent}>, "{session.name}", AT_REMOVEDIR) = 0'
+        )
+        cleanup_after_executor_exit = (
+            trace.replace(
+                cleanup,
+                cleanup.removesuffix(") = 0") + " <unfinished ...>",
+                1,
+            )
+            .replace(f"{parent}\n", "", 1)
+            .replace(
+                "201 exit_group(0) = ?",
+                "\n".join(
+                    (
+                        "201 exit_group(0) = ?",
+                        "201 <... unlinkat resumed>) = 0",
+                        parent.replace("201 unlinkat", "200 unlinkat", 1),
+                    )
+                ),
+                1,
+            )
+        )
+        quota_exec = _trace_app_server_exec(300, _TRACE_EXECUTABLE)
+        link_across_operation = trace.replace(
+            final_link,
+            final_link.removesuffix(") = 0") + " <unfinished ...>",
+            1,
+        ).replace(
+            quota_exec,
+            f"{quota_exec}\n200 <... symlink resumed>) = 0",
+            1,
+        )
+        exit_across_next_operation = trace.replace(
+            "200 exit_group(0) = ?",
+            "200 exit_group(0 <unfinished ...>",
+            1,
+        ).replace(
+            _trace_app_server_exec(300, _TRACE_EXECUTABLE),
+            (
+                f"{_trace_app_server_exec(300, _TRACE_EXECUTABLE)}\n"
+                "200 <... exit_group resumed>) = ?"
+            ),
+            1,
+        )
+        version_exec = _trace_version_exec(100, _TRACE_EXECUTABLE)
+        version_exec_after_exit = trace.replace(
+            version_exec,
+            version_exec.removesuffix(") = 0") + " <unfinished ...>",
+            1,
+        ).replace(
+            "100 exit_group(0) = ?",
+            "100 exit_group(0) = ?\n100 <... execve resumed>) = 0",
+            1,
+        )
+        cases = {
+            "cleanup_invoked_before_create": cleanup_before_create,
+            "cleanup_invoked_before_create_completion": (
+                cleanup_before_create_completion
+            ),
+            "cleanup_completes_after_exit": cleanup_after_exit,
+            "cleanup_completes_after_executor_exit": cleanup_after_executor_exit,
+            "link_resumes_after_next_operation_begins": link_across_operation,
+            "operation_exit_completes_after_next_exec": exit_across_next_operation,
+            "provider_exec_completes_after_exit": version_exec_after_exit,
+        }
+        expected = {
+            "cleanup_invoked_before_create": (
+                "m5_codex_containment_link_operation_rejected"
+            ),
+            "cleanup_invoked_before_create_completion": (
+                "m5_codex_containment_link_operation_rejected"
+            ),
+            "cleanup_completes_after_exit": (
+                "m5_codex_containment_link_operation_rejected"
+            ),
+            "cleanup_completes_after_executor_exit": (
+                "m5_codex_containment_link_operation_rejected"
+            ),
+            "link_resumes_after_next_operation_begins": (
+                "m5_codex_containment_link_operation_rejected"
+            ),
+            "operation_exit_completes_after_next_exec": (
+                "m5_codex_containment_trace_invalid"
+            ),
+            "provider_exec_completes_after_exit": (
+                "m5_codex_containment_trace_invalid"
+            ),
+        }
+        for label, candidate in cases.items():
+            with (
+                self.subTest(label=label),
+                self.assertRaises(M5CodexContainmentErrorV1) as raised,
+            ):
+                evaluate_codex_trace_policy_v1(
+                    candidate,
+                    provider_executable=_TRACE_EXECUTABLE,
+                    managed_profile_root=_TRACE_MANAGED_ROOT,
+                    default_codex_roots=(Path("/home/owner/.codex"),),
+                )
+            self.assertEqual(str(raised.exception), expected[label])
+
+    def test_arg0_transient_namespace_movement_fails_closed(self) -> None:
+        """M5-CDX-GATE-001: a later clean tree cannot hide alias movement."""
+
+        trace = _arg0_lifecycle_trace()
+        session = _ARG0_IDENTITY_SESSION
+        alias = session / _ARG0_ALIASES[0]
+        last_link = (
+            f'200 symlink("{_TRACE_EXECUTABLE}", "{session / _ARG0_ALIASES[-1]}") = 0'
+        )
+
+        def after_creates(*records: str) -> str:
+            return trace.replace(
+                last_link,
+                "\n".join((last_link, *records)),
+                1,
+            )
+
+        moved = _TRACE_MANAGED_ROOT / "runtime" / "moved-arg0"
+        cleanup = f'201 unlinkat(9<{session}>, "{_ARG0_ALIASES[0]}", 0) = 0'
+        first_link = f'200 symlink("{_TRACE_EXECUTABLE}", "{alias}") = 0'
+        final_clean = after_creates(
+            f'200 rename("{alias}", "{moved}") = 0',
+        ).replace(
+            cleanup,
+            f'201 unlinkat(9<{moved.parent}>, "{moved.name}", 0) = 0',
+            1,
+        )
+        movement_after_root_exit = trace.replace(
+            first_link,
+            f"200 clone(child_stack=NULL, flags=SIGCHLD) = 202\n{first_link}",
+            1,
+        ).replace(
+            "200 exit_group(0) = ?",
+            "\n".join(
+                (
+                    "200 exit_group(0) = ?",
+                    f'202 rename("{session}", "{session}.moved") = 0',
+                    f'202 rename("{session}.moved", "{session}") = 0',
+                    "202 exit_group(0) = ?",
+                )
+            ),
+            1,
+        )
+        movement_before_first_completion = trace.replace(
+            first_link,
+            "\n".join(
+                (
+                    "200 clone(child_stack=NULL, flags=SIGCHLD) = 202",
+                    first_link.removesuffix(") = 0") + " <unfinished ...>",
+                    f'202 rename("{session}", "{session}.moved") = 0',
+                    f'202 rename("{session}.moved", "{session}") = 0',
+                    "202 exit_group(0) = ?",
+                    "200 <... symlink resumed>) = 0",
+                )
+            ),
+            1,
+        )
+        relative_movement_during_shared_chdir = after_creates(
+            "90 clone(child_stack=NULL, flags=CLONE_FS|SIGCHLD) = 91",
+            '90 chdir("/outside" <unfinished ...>',
+            (
+                f'91 rename("tmp/arg0/{session.name}/{_ARG0_ALIASES[0]}", '
+                '"runtime/moved") = 0'
+            ),
+            (
+                '91 rename("runtime/moved", '
+                f'"tmp/arg0/{session.name}/{_ARG0_ALIASES[0]}") = 0'
+            ),
+            "90 <... chdir resumed>) = 0",
+            "91 exit_group(0) = ?",
+            "90 exit_group(0) = ?",
+        )
+        double_slash_alias = f"//{os.fspath(alias).lstrip('/')}"
+        unattributed_double_slash_movement = after_creates(
+            f'90 rename("{double_slash_alias}", "{moved}") = 0',
+            f'90 rename("{moved}", "{double_slash_alias}") = 0',
+        )
+        unattributed_double_slash_open_result = after_creates(
+            (
+                '90 openat(AT_FDCWD, "/outside/opaque", O_WRONLY|O_TRUNC) '
+                f"= 5<{double_slash_alias}>"
+            ),
+        )
+        proc_root_alias = f"/proc/self/root{alias}"
+        unattributed_proc_root_movement = after_creates(
+            f'90 rename("{proc_root_alias}", "{moved}") = 0',
+            f'90 rename("{moved}", "{proc_root_alias}") = 0',
+        )
+        unattributed_proc_root_writable_open = after_creates(
+            (
+                f'90 openat(AT_FDCWD, "{proc_root_alias}", O_WRONLY|O_TRUNC) '
+                f"= 5<{_TRACE_EXECUTABLE}>"
+            ),
+        )
+        cases = {
+            "rename_out_and_back": after_creates(
+                f'200 rename("{alias}", "{moved}") = 0',
+                f'200 rename("{moved}", "{alias}") = 0',
+            ),
+            "rename_exchange": after_creates(
+                (
+                    f'200 renameat2(AT_FDCWD, "{alias}", AT_FDCWD, '
+                    f'"{_TRACE_MANAGED_ROOT / "runtime" / "other"}", '
+                    "RENAME_EXCHANGE) = 0"
+                ),
+            ),
+            "session_parent_rename": after_creates(
+                f'200 rename("{session}", "{session}.moved") = 0',
+            ),
+            "hard_link_alias": after_creates(
+                f'200 link("{alias}", "{moved}") = 0',
+            ),
+            "symlinkat_extra": after_creates(
+                f'200 symlinkat("{_TRACE_EXECUTABLE}", AT_FDCWD, "{moved}") = 0',
+            ),
+            "write_through_alias": after_creates(
+                f'200 openat(AT_FDCWD, "{alias}", O_WRONLY|O_TRUNC) = 9<{alias}>',
+            ),
+            "final_clean_tree_movement": final_clean,
+            "movement_after_root_exit": movement_after_root_exit,
+            "movement_before_first_completion": movement_before_first_completion,
+            "relative_movement_during_shared_chdir": (
+                relative_movement_during_shared_chdir
+            ),
+            "unattributed_double_slash_movement": (unattributed_double_slash_movement),
+            "unattributed_double_slash_open_result": (
+                unattributed_double_slash_open_result
+            ),
+            "unattributed_proc_root_movement": unattributed_proc_root_movement,
+            "unattributed_proc_root_writable_open": (
+                unattributed_proc_root_writable_open
+            ),
+        }
+        expected = {
+            "rename_out_and_back": "m5_codex_containment_path_mutator_unverifiable",
+            "rename_exchange": "m5_codex_containment_path_mutator_unverifiable",
+            "session_parent_rename": ("m5_codex_containment_path_mutator_unverifiable"),
+            "hard_link_alias": "m5_codex_containment_link_operation_rejected",
+            "symlinkat_extra": "m5_codex_managed_profile_write_escape",
+            "write_through_alias": ("m5_codex_containment_path_mutator_unverifiable"),
+            "final_clean_tree_movement": (
+                "m5_codex_containment_link_operation_rejected"
+            ),
+            "movement_after_root_exit": (
+                "m5_codex_containment_path_mutator_unverifiable"
+            ),
+            "movement_before_first_completion": (
+                "m5_codex_containment_path_mutator_unverifiable"
+            ),
+            "relative_movement_during_shared_chdir": (
+                "m5_codex_containment_working_directory_escape"
+            ),
+            "unattributed_double_slash_movement": (
+                "m5_codex_containment_trace_invalid"
+            ),
+            "unattributed_double_slash_open_result": (
+                "m5_codex_containment_trace_invalid"
+            ),
+            "unattributed_proc_root_movement": (
+                "m5_codex_containment_path_mutator_unverifiable"
+            ),
+            "unattributed_proc_root_writable_open": (
+                "m5_codex_containment_path_mutator_unverifiable"
+            ),
+        }
+        for label, candidate in cases.items():
+            with self.subTest(label=label):
+                with self.assertRaises(M5CodexContainmentErrorV1) as raised:
+                    evaluate_codex_trace_policy_v1(
+                        candidate,
+                        provider_executable=_TRACE_EXECUTABLE,
+                        managed_profile_root=_TRACE_MANAGED_ROOT,
+                        default_codex_roots=(Path("/home/owner/.codex"),),
+                    )
+                self.assertEqual(str(raised.exception), expected[label])
+
     def test_descriptor_bound_ftruncate_is_counted_for_both_provider_reads(
         self,
     ) -> None:
@@ -261,7 +1149,7 @@ class M5CodexContainmentPolicyTests(unittest.TestCase):
             managed_profile_root=_TRACE_MANAGED_ROOT,
             default_codex_roots=(Path("/home/owner/.codex"),),
         )
-        self.assertEqual(summary.provider_write_count, 2)
+        self.assertEqual(summary.provider_write_count, 20)
 
         after_exit = trace.replace(
             "200 exit_group(0) = ?",
@@ -424,7 +1312,7 @@ class M5CodexContainmentPolicyTests(unittest.TestCase):
         )
 
         self.assertEqual(summary.provider_execution_count, 3)
-        self.assertEqual(summary.provider_write_count, 2)
+        self.assertEqual(summary.provider_write_count, 20)
         self.assertEqual(summary.default_profile_access_count, 0)
         self.assertEqual(summary.default_profile_write_count, 0)
 
@@ -929,6 +1817,34 @@ class M5CodexContainmentPolicyTests(unittest.TestCase):
             "m5_codex_containment_working_directory_escape",
         )
 
+    def test_unfinished_shared_chdir_keeps_unambiguous_paths_valid(self) -> None:
+        """M5-CDX-GATE-001: absolute and post-completion paths stay provable."""
+
+        first_app_server = _trace_app_server_exec(200, _TRACE_EXECUTABLE)
+        trace = _two_operation_chmod_trace().replace(
+            first_app_server,
+            "90 clone(child_stack=NULL, flags=CLONE_FS|SIGCHLD) = 91\n"
+            '90 chdir("/outside" <unfinished ...>\n'
+            '91 stat("/outside/absolute", {st_mode=S_IFREG|0600}) = 0\n'
+            "90 <... chdir resumed>) = 0\n"
+            '91 stat("relative", {st_mode=S_IFREG|0600}) = 0\n'
+            "91 exit_group(0) = ?\n"
+            "90 exit_group(0) = ?\n"
+            f"{first_app_server}",
+            1,
+        )
+
+        summary = evaluate_codex_trace_policy_v1(
+            trace,
+            provider_executable=_TRACE_EXECUTABLE,
+            managed_profile_root=_TRACE_MANAGED_ROOT,
+            default_codex_roots=(Path("/home/owner/.codex"),),
+        )
+
+        self.assertEqual(summary.provider_execution_count, 3)
+        self.assertEqual(summary.default_profile_access_count, 0)
+        self.assertEqual(summary.default_profile_write_count, 0)
+
     def test_clone_untraced_is_rejected_before_process_lineage_can_escape(
         self,
     ) -> None:
@@ -1021,23 +1937,45 @@ class M5CodexContainmentPolicyTests(unittest.TestCase):
         executable = Path(
             "/home/owner/.codex/packages/standalone/releases/0.160.0/bin/codex"
         )
-        trace = "\n".join(
-            (
-                '100 execve("/usr/bin/python3", ["python3"], 0x0) = 0',
-                _trace_version_exec(101, executable),
-                f'101 openat(AT_FDCWD, "{executable}", O_RDONLY) = 3<{executable}>',
-                "101 exit_group(0) = ?",
-                _trace_app_server_exec(102, executable),
-                f'102 openat(AT_FDCWD, "{managed}/state.sqlite", O_RDWR|O_CREAT, 0600) = 4<{managed}/state.sqlite>',
-                "102 clone(child_stack=NULL, flags=SIGCHLD) = 103",
-                '103 mkdir("runtime", 0700) = 0',
-                f'103 chmod("{managed}/runtime/prepared", 0700) = 0',
-                "103 exit_group(0) = ?",
-                "102 exit_group(0) = ?",
-                _trace_app_server_exec(104, executable),
-                f'104 newfstatat(AT_FDCWD, "{managed}/auth.json", {{st_mode=S_IFREG|0600}}, 0) = 0',
-                f'104 chmod("{managed}/runtime/prepared", 0700) = 0',
-                "104 exit_group(0) = ?",
+        trace = _two_operation_chmod_trace().replace(
+            os.fspath(_TRACE_EXECUTABLE),
+            os.fspath(executable),
+        )
+        trace = (
+            trace.replace(
+                _trace_version_exec(100, executable),
+                "\n".join(
+                    (
+                        _trace_version_exec(100, executable),
+                        f'100 openat(AT_FDCWD, "{executable}", O_RDONLY) = 3<{executable}>',
+                    )
+                ),
+                1,
+            )
+            .replace(
+                _trace_app_server_exec(200, executable),
+                "\n".join(
+                    (
+                        _trace_app_server_exec(200, executable),
+                        f'200 openat(AT_FDCWD, "{managed}/state.sqlite", O_RDWR|O_CREAT, 0600) = 4<{managed}/state.sqlite>',
+                    )
+                ),
+                1,
+            )
+            .replace(
+                "200 clone(child_stack=NULL, flags=SIGCHLD) = 201",
+                '200 clone(child_stack=NULL, flags=SIGCHLD) = 201\n201 mkdir("runtime", 0700) = 0',
+                1,
+            )
+            .replace(
+                _trace_app_server_exec(300, executable),
+                "\n".join(
+                    (
+                        _trace_app_server_exec(300, executable),
+                        f'300 newfstatat(AT_FDCWD, "{managed}/auth.json", {{st_mode=S_IFREG|0600}}, 0) = 0',
+                    )
+                ),
+                1,
             )
         )
 
@@ -1049,7 +1987,7 @@ class M5CodexContainmentPolicyTests(unittest.TestCase):
         )
 
         self.assertEqual(summary.provider_execution_count, 3)
-        self.assertEqual(summary.provider_write_count, 4)
+        self.assertEqual(summary.provider_write_count, 22)
         self.assertGreaterEqual(summary.provider_access_count, 5)
         self.assertEqual(summary.default_profile_access_count, 0)
         self.assertEqual(summary.default_profile_write_count, 0)
@@ -1088,8 +2026,8 @@ class M5CodexContainmentPolicyTests(unittest.TestCase):
             "m5_codex_containment_link_operation_rejected",
         )
 
-    def test_failed_symlink_payload_is_not_counted_as_profile_access(self) -> None:
-        """M5-CDX-GATE-001: a symlink payload is data, not an accessed path."""
+    def test_failed_symlink_is_rejected_without_exposing_its_payload(self) -> None:
+        """M5-CDX-GATE-001: failed extra links fail closed and stay private."""
 
         managed = Path("/owner/profiles/codex/opaque")
         executable = Path(
@@ -1110,26 +2048,20 @@ class M5CodexContainmentPolicyTests(unittest.TestCase):
             ),
             1,
         )
-        baseline = evaluate_codex_trace_policy_v1(
-            baseline_trace,
-            provider_executable=executable,
-            managed_profile_root=managed,
-            default_codex_roots=(Path("/home/owner/.codex"),),
-        )
-
-        summary = evaluate_codex_trace_policy_v1(
-            trace,
-            provider_executable=executable,
-            managed_profile_root=managed,
-            default_codex_roots=(Path("/home/owner/.codex"),),
-        )
+        with self.assertRaises(M5CodexContainmentErrorV1) as raised:
+            evaluate_codex_trace_policy_v1(
+                trace,
+                provider_executable=executable,
+                managed_profile_root=managed,
+                default_codex_roots=(Path("/home/owner/.codex"),),
+            )
 
         self.assertEqual(
-            summary.provider_write_count,
-            baseline.provider_write_count + 1,
+            str(raised.exception),
+            "m5_codex_containment_link_operation_rejected",
         )
-        self.assertEqual(summary.default_profile_access_count, 0)
-        self.assertEqual(summary.default_profile_write_count, 0)
+        self.assertNotIn(os.fspath(release_resource), str(raised.exception))
+        self.assertNotIn(os.fspath(release_resource), repr(raised.exception))
 
     def test_default_profile_read_fails_closed(self) -> None:
         """M5-CDX-GATE-001: even a metadata read of default auth is rejected."""
@@ -1241,19 +2173,26 @@ class M5CodexContainmentPolicyTests(unittest.TestCase):
 
         executable = Path("/opt/codex/bin/codex")
         managed = Path("/owner/profiles/codex/opaque")
-        trace = "\n".join(
+        trace = _two_operation_chmod_trace().replace(
+            os.fspath(_TRACE_EXECUTABLE),
+            os.fspath(executable),
+        )
+        trace = trace.replace(
+            _trace_version_exec(100, executable),
             (
-                '400 openat(AT_FDCWD, "/owner/private/result.json", O_WRONLY|O_CREAT, 0600) = 3</owner/private/result.json>',
-                _trace_version_exec(401, executable),
-                "401 exit_group(0) = ?",
-                _trace_app_server_exec(402, executable),
-                f'402 openat(AT_FDCWD, "{managed}/state", O_RDWR|O_CREAT, 0600) = 4<{managed}/state>',
-                f'402 chmod("{managed}/runtime/prepared", 0700) = 0',
-                "402 exit_group(0) = ?",
-                _trace_app_server_exec(403, executable),
-                f'403 chmod("{managed}/runtime/prepared", 0700) = 0',
-                "403 exit_group(0) = ?",
-            )
+                '400 openat(AT_FDCWD, "/owner/private/result.json", '
+                "O_WRONLY|O_CREAT, 0600) = 3</owner/private/result.json>\n"
+                f"{_trace_version_exec(100, executable)}"
+            ),
+            1,
+        ).replace(
+            _trace_app_server_exec(200, executable),
+            (
+                f"{_trace_app_server_exec(200, executable)}\n"
+                f'200 openat(AT_FDCWD, "{managed}/state", O_RDWR|O_CREAT, '
+                f"0600) = 4<{managed}/state>"
+            ),
+            1,
         )
 
         summary = evaluate_codex_trace_policy_v1(
@@ -1263,28 +2202,37 @@ class M5CodexContainmentPolicyTests(unittest.TestCase):
             default_codex_roots=(Path("/home/owner/.codex"),),
         )
 
-        self.assertEqual(summary.provider_write_count, 3)
+        self.assertEqual(summary.provider_write_count, 21)
 
     def test_pre_exec_driver_filesystem_activity_is_not_attributed(self) -> None:
         """M5-CDX-GATE-001: a child becomes a provider only at exact exec."""
 
         executable = Path("/opt/codex/bin/codex")
         managed = Path("/owner/profiles/codex/opaque")
-        trace = "\n".join(
-            (
-                '500 chdir("/tmp/agentmonitor-codex-version") = 0',
-                '500 openat(AT_FDCWD, "/tmp/driver-state", O_WRONLY|O_CREAT, 0600) = 4</tmp/driver-state>',
-                _trace_version_exec(500, executable),
-                "500 exit_group(0) = ?",
-                f'501 chdir("{managed}") = 0',
-                _trace_app_server_exec(501, executable),
-                f'501 openat(AT_FDCWD, "{managed}/state", O_RDWR|O_CREAT, 0600) = 4<{managed}/state>',
-                f'501 chmod("{managed}/runtime/prepared", 0700) = 0',
-                "501 exit_group(0) = ?",
-                _trace_app_server_exec(502, executable),
-                f'502 chmod("{managed}/runtime/prepared", 0700) = 0',
-                "502 exit_group(0) = ?",
-            )
+        trace = _two_operation_chmod_trace().replace(
+            os.fspath(_TRACE_EXECUTABLE),
+            os.fspath(executable),
+        )
+        trace = trace.replace(
+            _trace_version_exec(100, executable),
+            "\n".join(
+                (
+                    '100 chdir("/tmp/agentmonitor-codex-version") = 0',
+                    '100 openat(AT_FDCWD, "/tmp/driver-state", O_WRONLY|O_CREAT, 0600) = 4</tmp/driver-state>',
+                    _trace_version_exec(100, executable),
+                )
+            ),
+            1,
+        ).replace(
+            _trace_app_server_exec(200, executable),
+            "\n".join(
+                (
+                    f'200 chdir("{managed}") = 0',
+                    _trace_app_server_exec(200, executable),
+                    f'200 openat(AT_FDCWD, "{managed}/state", O_RDWR|O_CREAT, 0600) = 4<{managed}/state>',
+                )
+            ),
+            1,
         )
 
         summary = evaluate_codex_trace_policy_v1(
@@ -1295,7 +2243,7 @@ class M5CodexContainmentPolicyTests(unittest.TestCase):
         )
 
         self.assertEqual(summary.provider_execution_count, 3)
-        self.assertEqual(summary.provider_write_count, 3)
+        self.assertEqual(summary.provider_write_count, 21)
 
     def test_exited_provider_pid_is_not_attributed_after_reuse(self) -> None:
         """M5-CDX-GATE-001: process exit closes its provider attribution epoch."""
@@ -1930,6 +2878,89 @@ class M5CodexContainmentPrerequisiteTests(unittest.TestCase):
                 ),
                 (root / "state",),
             )
+
+    def test_real_strace_symlink_direction_and_cleanup_are_exact(self) -> None:
+        """M5-CDX-GATE-001: Linux link payload and fd cleanup stay directional."""
+
+        source = (
+            "import os,sys\n"
+            "root=sys.argv[1]\n"
+            "payload=os.path.join(root,'payload')\n"
+            "alias=os.path.join(root,'alias')\n"
+            "open(payload,'xb').close()\n"
+            "os.symlink(payload,alias)\n"
+            "fd=os.open(root,os.O_RDONLY|os.O_DIRECTORY|os.O_CLOEXEC)\n"
+            "os.unlink('alias',dir_fd=fd)\n"
+            "os.close(fd)\n"
+        )
+        with tempfile.TemporaryDirectory() as raw:
+            root = Path(raw)
+            root.chmod(0o700)
+            trace_path = root / "trace"
+            process = subprocess.run(
+                [
+                    "/usr/bin/strace",
+                    "--kill-on-exit",
+                    "-f",
+                    "-yy",
+                    "-qq",
+                    "-s",
+                    "4096",
+                    "-e",
+                    "trace=symlink,unlinkat",
+                    "-e",
+                    "signal=none",
+                    "-o",
+                    os.fspath(trace_path),
+                    "--",
+                    "/usr/bin/python3",
+                    "-I",
+                    "-c",
+                    source,
+                    os.fspath(root),
+                ],
+                cwd=root,
+                env={"LANG": "C.UTF-8", "LC_ALL": "C.UTF-8"},
+                stdin=subprocess.DEVNULL,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                check=False,
+                timeout=10,
+            )
+            self.assertEqual(process.returncode, 0)
+            self.assertFalse((root / "alias").exists())
+            records = containment._trace_records(
+                "\n".join(
+                    line
+                    for line in trace_path.read_text(encoding="utf-8").splitlines()
+                    if " symlink(" in line or " unlinkat(" in line
+                )
+            )
+            self.assertEqual(
+                tuple(record.call for record in records), ("symlink", "unlinkat")
+            )
+            payload, created, absolute = containment._symlink_arguments_v1(
+                records[0],
+                working_root=root / "unrelated",
+            )
+            self.assertEqual(payload, os.fspath(root / "payload"))
+            self.assertEqual(created, root / "alias")
+            self.assertTrue(absolute)
+            self.assertEqual(
+                containment._trace_paths(
+                    records[0],
+                    working_root=root / "unrelated",
+                ),
+                (root / "alias",),
+            )
+            self.assertEqual(
+                containment._trace_paths(
+                    records[1],
+                    working_root=root / "unrelated",
+                ),
+                (root / "alias",),
+            )
+            self.assertEqual(containment._unlinkat_flags_v1(records[1]), "0")
 
     def test_real_isolated_bind_mount_beneath_profile_fails_closed(self) -> None:
         """M5-CDX-GATE-001: a real same-filesystem bind alias is rejected."""
@@ -3299,6 +4330,27 @@ class M5CodexContainmentPrivateChannelTests(unittest.TestCase):
             outside = root / "outside"
             outside.mkdir(mode=0o700)
             (managed / "redirect").symlink_to(outside, target_is_directory=True)
+
+            with self.assertRaises(M5CodexContainmentErrorV1) as raised:
+                _managed_profile_tree_digest(managed)
+
+            self.assertEqual(
+                str(raised.exception), "m5_codex_containment_profile_tree_invalid"
+            )
+
+    def test_managed_profile_tree_rejects_a_retained_arg0_alias(self) -> None:
+        """M5-CDX-GATE-001: an Arg0-shaped alias must be gone after cleanup."""
+
+        with tempfile.TemporaryDirectory() as raw:
+            root = Path(raw)
+            root.chmod(0o700)
+            managed = root / "managed"
+            session = managed / "tmp" / "arg0" / "codex-arg0A1b2C3"
+            session.mkdir(parents=True, mode=0o700)
+            payload = root / "codex"
+            payload.write_bytes(b"provider")
+            payload.chmod(0o700)
+            (session / "apply_patch").symlink_to(payload)
 
             with self.assertRaises(M5CodexContainmentErrorV1) as raised:
                 _managed_profile_tree_digest(managed)

@@ -197,9 +197,9 @@ STORY_NODE_TEST_INVENTORY_SHA256 = (
 )
 STORY_BROWSER_SCENARIOS = ("account_beyond_page",)
 # Updated only from the exact collected inventory after intentional test changes.
-STORY_PYTEST_TEST_COUNT = 526
+STORY_PYTEST_TEST_COUNT = 537
 STORY_PYTEST_TEST_INVENTORY_SHA256 = (
-    "5b3c8dcbdcdff7303e7364417b6d7d5c6bd4efd3286fba48ba885bcf0bdd968e"
+    "19d4244cfd50335839776af9b847af134eba0451c3dee2ad66d0daa9e321ec2d"
 )
 STORY_ARTIFACTS = (
     "tools/git/preflight.py",

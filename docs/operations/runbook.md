@@ -775,6 +775,39 @@ rejected. Any annotation present with an absolute target must still be
 structurally valid. No annotation, target path, or raw trace enters evidence or
 logs.
 
+Pinned Codex CLI `0.160.0` uses a bounded Arg0 setup inside each managed
+identity and quota app-server operation. The operation root must create exactly
+four successful plain symlinks in this order: `apply_patch`, `applypatch`,
+`codex-linux-sandbox`, and `codex-execve-wrapper`. All four must use the
+inode-validated pinned executable as payload and one canonical managed
+`tmp/arg0/codex-arg0XXXXXX` session parent. Each alias must then have exactly
+one successful same-operation `unlinkat` cleanup before the operation actually
+closes. Cleanup order among aliases is not significant; optional ordinary
+removal of the empty session directory is allowed only after all four cleanups.
+Double-leading-slash and every other noncanonical path spelling are rejected
+before containment comparison, including separately decoded successful-open
+descriptor annotations.
+
+Containment tracks syscall invocation and completion separately, including
+unfinished/resumed records and live descendants. It rejects namespace movement
+or exchange from the first link invocation through actual operation closure,
+as well as missing, duplicate, cross-operation, early, late, or unresolved
+cleanup. A cwd-dependent relative path lookup fails closed when its
+invocation/completion interval overlaps a successful unfinished `chdir` in the
+same tracked `CLONE_FS` group. Absolute paths, descriptor-bound relative
+cleanup, and relative lookups invoked after the `chdir` completes retain their
+ordinary containment checks. A successful filesystem write without ownership
+in the selected provider operation fails closed when its syscall interval
+overlaps the protected Arg0 operation. `/proc/*/root`, directory-descriptor,
+and other lexical aliases cannot bypass namespace or write-through protection.
+Any additional link, hard link, `symlinkat`, retained final-tree symlink,
+default-profile target, or outside-profile target remains a failure. The exact
+provider-owned create/cleanup lifecycle is the only admitted link lifecycle.
+Do not delete, rename, or repair Arg0 paths manually after a containment
+failure. Preserve the unchanged managed profile and resolve the exact provider
+version, chronology, or trace-shape failure before rerunning the gate. No path,
+alias, session component, payload, PID, or raw trace enters the receipt or log.
+
 The traced driver is bound by PID, start ticks, pidfd, process group, and
 session identity. Cleanup signals the complete AgentMonitor-owned new session
 before reaping its leader and shares the channel settlement deadline. Cleanup
