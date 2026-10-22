@@ -8,8 +8,10 @@ import hashlib
 import inspect
 import json
 import os
+import platform
 import re
 import resource
+import select
 import signal
 import subprocess
 import tempfile
@@ -49,6 +51,43 @@ _LIVE_SELECTORS = (
 _TRACE_EXECUTABLE = Path("/opt/codex/bin/codex")
 _TRACE_MANAGED_ROOT = Path("/owner/profiles/codex/opaque")
 _TRACE_CHMOD_TARGET = _TRACE_MANAGED_ROOT / "runtime" / "prepared"
+_TRACE_APP_SERVER_ARGUMENTS = (
+    "-c",
+    'cli_auth_credentials_store="file"',
+    "-c",
+    "analytics.enabled=false",
+    "-c",
+    'otel.exporter="none"',
+    "-c",
+    'otel.trace_exporter="none"',
+    "-c",
+    'otel.metrics_exporter="none"',
+    "-c",
+    "otel.log_user_prompt=false",
+    "app-server",
+    "--listen",
+    "stdio://",
+)
+
+
+def _trace_string(value: str) -> str:
+    return '"' + value.replace("\\", "\\\\").replace('"', '\\"') + '"'
+
+
+def _trace_exec(pid: int, executable: Path, arguments: tuple[str, ...]) -> str:
+    argv = (os.fspath(executable), *arguments)
+    return (
+        f"{pid} execve({_trace_string(os.fspath(executable))}, "
+        f"[{', '.join(_trace_string(value) for value in argv)}], 0x0) = 0"
+    )
+
+
+def _trace_version_exec(pid: int, executable: Path) -> str:
+    return _trace_exec(pid, executable, ("--version",))
+
+
+def _trace_app_server_exec(pid: int, executable: Path) -> str:
+    return _trace_exec(pid, executable, _TRACE_APP_SERVER_ARGUMENTS)
 
 
 def _driver_result_payload(state: str) -> bytes:
@@ -134,9 +173,9 @@ def _two_operation_chmod_trace(
     """Build one closed, sequential provider trace with configurable chmods."""
 
     lines = [
-        f'100 execve("{_TRACE_EXECUTABLE}", ["codex", "--version"], 0x0) = 0',
+        _trace_version_exec(100, _TRACE_EXECUTABLE),
         "100 exit_group(0) = ?",
-        f'200 execve("{_TRACE_EXECUTABLE}", ["codex", "app-server", "stdio://"], 0x0) = 0',
+        _trace_app_server_exec(200, _TRACE_EXECUTABLE),
         "200 clone(child_stack=NULL, flags=SIGCHLD) = 201",
     ]
     lines.extend(
@@ -147,7 +186,7 @@ def _two_operation_chmod_trace(
         (
             "201 exit_group(0) = ?",
             "200 exit_group(0) = ?",
-            f'300 execve("{_TRACE_EXECUTABLE}", ["codex", "app-server", "stdio://"], 0x0) = 0',
+            _trace_app_server_exec(300, _TRACE_EXECUTABLE),
             "300 clone(child_stack=NULL, flags=SIGCHLD) = 301",
         )
     )
@@ -199,6 +238,526 @@ class M5CodexContainmentPolicyTests(unittest.TestCase):
                     default_codex_roots=(Path("/home/owner/.codex"),),
                 )
 
+    def test_chmod_shape_target_and_operation_matrix_fails_closed(self) -> None:
+        """M5-CDX-GATE-001: no lexical or lineage variant widens chmod."""
+
+        exact = f'201 chmod("{_TRACE_CHMOD_TARGET}", 0700) = 0'
+        quota_exact = f'301 chmod("{_TRACE_CHMOD_TARGET}", 0700) = 0'
+        cases = {
+            "different_target": _two_operation_chmod_trace().replace(
+                quota_exact,
+                f'301 chmod("{_TRACE_MANAGED_ROOT}/runtime/other", 0700) = 0',
+            ),
+            "failed": _two_operation_chmod_trace().replace(
+                exact,
+                f'201 chmod("{_TRACE_CHMOD_TARGET}", 0700) = -1 EPERM (Operation not permitted)',
+            ),
+            "wrong_mode": _two_operation_chmod_trace().replace(
+                exact,
+                f'201 chmod("{_TRACE_CHMOD_TARGET}", 0600) = 0',
+            ),
+            "profile_root": _two_operation_chmod_trace().replace(
+                exact,
+                f'201 chmod("{_TRACE_MANAGED_ROOT}", 0700) = 0',
+            ),
+            "outside_root": _two_operation_chmod_trace().replace(
+                exact,
+                '201 chmod("/tmp/outside", 0700) = 0',
+            ),
+            "default_root": _two_operation_chmod_trace().replace(
+                exact,
+                '201 chmod("/home/owner/.codex/state", 0700) = 0',
+            ),
+            "relative": _two_operation_chmod_trace().replace(
+                exact,
+                '201 chmod("runtime/prepared", 0700) = 0',
+            ),
+            "dotdot": _two_operation_chmod_trace().replace(
+                exact,
+                f'201 chmod("{_TRACE_MANAGED_ROOT}/runtime/../prepared", 0700) = 0',
+            ),
+            "parser_suffix": _two_operation_chmod_trace().replace(
+                exact,
+                f'201 chmod("{_TRACE_CHMOD_TARGET}", 0700, 0) = 0',
+            ),
+            "parser_prefix": _two_operation_chmod_trace().replace(
+                exact,
+                f'201 chmod(AT_FDCWD, "{_TRACE_CHMOD_TARGET}", 0700) = 0',
+            ),
+            "version_lineage": _two_operation_chmod_trace(
+                identity_chmod_count=0
+            ).replace(
+                "100 exit_group(0) = ?",
+                f'100 chmod("{_TRACE_CHMOD_TARGET}", 0700) = 0\n100 exit_group(0) = ?',
+            ),
+            "unattributed": (
+                f'99 chmod("{_TRACE_CHMOD_TARGET}", 0700) = 0\n'
+                + _two_operation_chmod_trace(identity_chmod_count=0)
+            ),
+            "overlap": _two_operation_chmod_trace().replace(
+                "100 exit_group(0) = ?\n",
+                "",
+            ),
+            "descendant_overlap": _two_operation_chmod_trace().replace(
+                "201 exit_group(0) = ?\n",
+                "",
+            ),
+            "ambiguous_child_pid": _two_operation_chmod_trace().replace(
+                "200 clone(child_stack=NULL, flags=SIGCHLD) = 201",
+                "200 clone(child_stack=NULL, flags=SIGCHLD) = ?",
+            ),
+            "unattributed_target_rename": (
+                f'99 rename("{_TRACE_CHMOD_TARGET}", '
+                f'"{_TRACE_CHMOD_TARGET}.old") = 0\n' + _two_operation_chmod_trace()
+            ),
+            "version_argv_suffix": _two_operation_chmod_trace().replace(
+                _trace_version_exec(100, _TRACE_EXECUTABLE),
+                _trace_exec(100, _TRACE_EXECUTABLE, ("--version", "extra")),
+                1,
+            ),
+            "app_server_argv_suffix": _two_operation_chmod_trace().replace(
+                _trace_app_server_exec(200, _TRACE_EXECUTABLE),
+                _trace_exec(
+                    200,
+                    _TRACE_EXECUTABLE,
+                    (*_TRACE_APP_SERVER_ARGUMENTS, "extra"),
+                ),
+                1,
+            ),
+        }
+        for label, trace in cases.items():
+            with (
+                self.subTest(label=label),
+                self.assertRaises(M5CodexContainmentErrorV1),
+            ):
+                evaluate_codex_trace_policy_v1(
+                    trace,
+                    provider_executable=_TRACE_EXECUTABLE,
+                    managed_profile_root=_TRACE_MANAGED_ROOT,
+                    default_codex_roots=(Path("/home/owner/.codex"),),
+                )
+
+    def test_root_exit_group_closes_only_its_thread_descendants(self) -> None:
+        """M5-CDX-GATE-001: real provider threads need no individual exit."""
+
+        trace = (
+            _two_operation_chmod_trace()
+            .replace(
+                "200 clone(child_stack=NULL, flags=SIGCHLD) = 201",
+                (
+                    "200 clone(child_stack=NULL, "
+                    "flags=CLONE_VM|CLONE_THREAD|SIGCHLD) = 201"
+                ),
+            )
+            .replace(
+                "201 exit_group(0) = ?\n",
+                "",
+                1,
+            )
+            .replace(
+                "300 clone(child_stack=NULL, flags=SIGCHLD) = 301",
+                (
+                    "300 clone(child_stack=NULL, "
+                    "flags=CLONE_VM|CLONE_THREAD|SIGCHLD) = 301"
+                ),
+            )
+            .replace(
+                "301 exit_group(0) = ?\n",
+                "",
+                1,
+            )
+        )
+
+        summary = evaluate_codex_trace_policy_v1(
+            trace,
+            provider_executable=_TRACE_EXECUTABLE,
+            managed_profile_root=_TRACE_MANAGED_ROOT,
+            default_codex_roots=(Path("/home/owner/.codex"),),
+        )
+
+        self.assertEqual(summary.provider_execution_count, 3)
+
+    def test_namespace_and_other_mutators_fail_closed(self) -> None:
+        """M5-CDX-GATE-001: replacement and namespace syscalls never pass."""
+
+        target = os.fspath(_TRACE_CHMOD_TARGET)
+        ancestor = os.fspath(_TRACE_MANAGED_ROOT / "runtime")
+        operations = {
+            "link": f'link("{target}", "{target}.link") = 0',
+            "linkat": (
+                f'linkat(AT_FDCWD, "{target}", AT_FDCWD, "{target}.link", 0) = 0'
+            ),
+            "symlink": f'symlink("prepared", "{target}.link") = 0',
+            "symlinkat": (f'symlinkat("prepared", AT_FDCWD, "{target}.link") = 0'),
+            "rename": f'rename("{target}", "{target}.old") = 0',
+            "renameat": (
+                f'renameat(AT_FDCWD, "{ancestor}", AT_FDCWD, "{ancestor}.old") = 0'
+            ),
+            "renameat2": (
+                f'renameat2(AT_FDCWD, "{target}", AT_FDCWD, "{target}.old", 0) = 0'
+            ),
+            "unlink": f'unlink("{target}") = 0',
+            "unlinkat": f'unlinkat(AT_FDCWD, "{ancestor}", AT_REMOVEDIR) = 0',
+            "rmdir": f'rmdir("{ancestor}") = 0',
+            "chown": f'chown("{target}", 1000, 1000) = 0',
+            "lchown": f'lchown("{target}", 1000, 1000) = 0',
+            "fchmod": "fchmod(9, 0700) = 0",
+            "fchmodat": f'fchmodat(AT_FDCWD, "{target}", 0700) = 0',
+            "fchown": "fchown(9, 1000, 1000) = 0",
+            "ftruncate": "ftruncate(9, 0) = 0",
+            "truncate": f'truncate("{target}", 0) = 0',
+            "setxattr": (f'setxattr("{target}", "user.agentmonitor", "x", 1, 0) = 0'),
+            "lsetxattr": (f'lsetxattr("{target}", "user.agentmonitor", "x", 1, 0) = 0'),
+            "removexattr": f'removexattr("{target}", "user.agentmonitor") = 0',
+            "lremovexattr": (f'lremovexattr("{target}", "user.agentmonitor") = 0'),
+            "fsetxattr": 'fsetxattr(9, "user.agentmonitor", "x", 1, 0) = 0',
+            "fremovexattr": 'fremovexattr(9, "user.agentmonitor") = 0',
+            "futimesat": f'futimesat(AT_FDCWD, "{target}", NULL) = 0',
+            "ioctl_fs_setflags": ("ioctl(9, FS_IOC_SETFLAGS, [FS_NODUMP_FL]) = 0"),
+            "io_uring_setup": "io_uring_setup(8, 0x7f0000001000) = 9",
+            "io_uring_enter": ("io_uring_enter(9, 1, 1, 0, 0x7f0000002000, 8) = 1"),
+            "io_uring_register": ("io_uring_register(9, 0, 0x7f0000003000, 1) = 0"),
+            "utimensat": (f'utimensat(AT_FDCWD, "{target}", NULL, 0) = 0'),
+            "chroot": f'chroot("{ancestor}") = 0',
+            "pivot_root": f'pivot_root("{ancestor}", "{target}") = 0',
+            "mount": f'mount("none", "{ancestor}", "tmpfs", 0, NULL) = 0',
+            "umount": f'umount("{ancestor}") = 0',
+            "umount2": f'umount2("{ancestor}", 0) = 0',
+            "open_tree": f'open_tree(AT_FDCWD, "{ancestor}", 0) = 9',
+            "move_mount": (
+                f'move_mount(AT_FDCWD, "{ancestor}", AT_FDCWD, "{target}", 0) = 0'
+            ),
+            "fsopen": 'fsopen("tmpfs", 0) = 9',
+            "fsconfig": 'fsconfig(9, FSCONFIG_SET_STRING, "source", "none", 0) = 0',
+            "fsmount": "fsmount(9, 0, 0) = 10",
+            "fspick": f'fspick(AT_FDCWD, "{ancestor}", 0) = 9',
+            "mount_setattr": (f'mount_setattr(AT_FDCWD, "{ancestor}", 0, NULL, 0) = 0'),
+            "setns": "setns(9, CLONE_NEWNS) = 0",
+            "unshare": "unshare(CLONE_NEWNS) = 0",
+            "clone_newns": ("clone(child_stack=NULL, flags=CLONE_NEWNS|SIGCHLD) = 777"),
+            "clone3_newns": "clone3({flags=CLONE_NEWNS}, 88) = 777",
+        }
+        anchor = f'201 chmod("{_TRACE_CHMOD_TARGET}", 0700) = 0'
+        for label, operation in operations.items():
+            trace = _two_operation_chmod_trace().replace(
+                anchor,
+                f"{anchor}\n201 {operation}",
+            )
+            with (
+                self.subTest(label=label),
+                self.assertRaises(M5CodexContainmentErrorV1),
+            ):
+                evaluate_codex_trace_policy_v1(
+                    trace,
+                    provider_executable=_TRACE_EXECUTABLE,
+                    managed_profile_root=_TRACE_MANAGED_ROOT,
+                    default_codex_roots=(Path("/home/owner/.codex"),),
+                )
+
+    def test_raw_mutator_results_are_classified_globally(self) -> None:
+        """M5-CDX-GATE-001: raw calls have one exact global result policy."""
+
+        calls = {
+            "fsetxattr": "fsetxattr(0x9, 0x1, 0x2, 0x1, 0) {result}",
+            "fremovexattr": "fremovexattr(0x9, 0x1) {result}",
+            "ioctl": "ioctl(0x9, 0x40086602, 0x1) {result}",
+            "io_uring_setup": "io_uring_setup(0x8, 0x1) {result}",
+            "io_uring_enter": ("io_uring_enter(0x9, 0x1, 0x1, 0, 0x1, 0x8) {result}"),
+            "io_uring_register": ("io_uring_register(0x9, 0, 0x1, 0x1) {result}"),
+        }
+        first_exec = f'100 execve("{_TRACE_EXECUTABLE}"'
+        provider_anchor = f'201 chmod("{_TRACE_CHMOD_TARGET}", 0700) = 0'
+        for name, template in calls.items():
+            successful = template.format(result="= 0")
+            for scope in ("driver", "provider"):
+                with self.subTest(syscall=name, result="success", scope=scope):
+                    trace = _two_operation_chmod_trace()
+                    if scope == "driver":
+                        trace = trace.replace(
+                            first_exec,
+                            f"99 {successful}\n{first_exec}",
+                            1,
+                        )
+                    else:
+                        trace = trace.replace(
+                            provider_anchor,
+                            f"{provider_anchor}\n201 {successful}",
+                            1,
+                        )
+                    with self.assertRaises(M5CodexContainmentErrorV1) as raised:
+                        evaluate_codex_trace_policy_v1(
+                            trace,
+                            provider_executable=_TRACE_EXECUTABLE,
+                            managed_profile_root=_TRACE_MANAGED_ROOT,
+                            default_codex_roots=(Path("/home/owner/.codex"),),
+                        )
+                    self.assertEqual(
+                        str(raised.exception),
+                        "m5_codex_containment_fd_write_unverifiable",
+                    )
+
+            with self.subTest(syscall=name, result="exact_failure"):
+                failed = template.format(result="= -1 EBADF (Bad file descriptor)")
+                trace = _two_operation_chmod_trace().replace(
+                    provider_anchor,
+                    f"{provider_anchor}\n201 {failed}",
+                    1,
+                )
+                summary = evaluate_codex_trace_policy_v1(
+                    trace,
+                    provider_executable=_TRACE_EXECUTABLE,
+                    managed_profile_root=_TRACE_MANAGED_ROOT,
+                    default_codex_roots=(Path("/home/owner/.codex"),),
+                )
+                self.assertEqual(summary.provider_execution_count, 3)
+
+            with self.subTest(syscall=name, result="ambiguous"):
+                ambiguous = template.format(result="= ?")
+                trace = _two_operation_chmod_trace().replace(
+                    provider_anchor,
+                    f"{provider_anchor}\n201 {ambiguous}",
+                    1,
+                )
+                with self.assertRaises(M5CodexContainmentErrorV1) as raised:
+                    evaluate_codex_trace_policy_v1(
+                        trace,
+                        provider_executable=_TRACE_EXECUTABLE,
+                        managed_profile_root=_TRACE_MANAGED_ROOT,
+                        default_codex_roots=(Path("/home/owner/.codex"),),
+                    )
+                self.assertEqual(
+                    str(raised.exception),
+                    "m5_codex_containment_trace_invalid",
+                )
+
+    def test_unattributed_namespace_changes_fail_closed(self) -> None:
+        """M5-CDX-GATE-001: the trusted driver cannot change namespaces."""
+
+        first = f'100 execve("{_TRACE_EXECUTABLE}"'
+        cases = {
+            "mount": '99 mount("none", "/tmp", "tmpfs", 0, NULL) = 0',
+            "setns": "99 setns(9, CLONE_NEWNS) = 0",
+            "unshare": "99 unshare(CLONE_NEWNS) = 0",
+            "clone_newns": (
+                "99 clone(child_stack=NULL, flags=CLONE_NEWNS|SIGCHLD) = 98"
+            ),
+        }
+        for label, operation in cases.items():
+            with self.subTest(label=label):
+                trace = _two_operation_chmod_trace().replace(
+                    first,
+                    f"{operation}\n{first}",
+                    1,
+                )
+                with self.assertRaises(M5CodexContainmentErrorV1) as raised:
+                    evaluate_codex_trace_policy_v1(
+                        trace,
+                        provider_executable=_TRACE_EXECUTABLE,
+                        managed_profile_root=_TRACE_MANAGED_ROOT,
+                        default_codex_roots=(Path("/home/owner/.codex"),),
+                    )
+                self.assertEqual(
+                    str(raised.exception),
+                    "m5_codex_containment_namespace_operation_rejected",
+                )
+
+    def test_unattributed_links_touching_chmod_target_fail_closed(self) -> None:
+        """M5-CDX-GATE-001: driver links cannot replace target ancestry."""
+
+        target = os.fspath(_TRACE_CHMOD_TARGET)
+        ancestor = os.fspath(_TRACE_MANAGED_ROOT / "runtime")
+        first = f'100 execve("{_TRACE_EXECUTABLE}"'
+        cases = {
+            "hardlink_target": f'99 link("{target}", "{target}.alias") = 0',
+            "hardlink_ancestor": (f'99 link("{ancestor}", "{ancestor}.alias") = 0'),
+            "symlink_target": f'99 symlink("prepared", "{target}") = 0',
+            "symlink_ancestor": f'99 symlink("runtime", "{ancestor}") = 0',
+        }
+        for label, operation in cases.items():
+            with self.subTest(label=label):
+                trace = _two_operation_chmod_trace().replace(
+                    first,
+                    f"{operation}\n{first}",
+                    1,
+                )
+                with self.assertRaises(M5CodexContainmentErrorV1) as raised:
+                    evaluate_codex_trace_policy_v1(
+                        trace,
+                        provider_executable=_TRACE_EXECUTABLE,
+                        managed_profile_root=_TRACE_MANAGED_ROOT,
+                        default_codex_roots=(Path("/home/owner/.codex"),),
+                    )
+                self.assertEqual(
+                    str(raised.exception),
+                    "m5_codex_containment_link_operation_rejected",
+                )
+
+    def test_child_pid_result_requires_exact_positive_decimal(self) -> None:
+        """M5-CDX-GATE-001: clone results cannot contain parser ambiguity."""
+
+        exact = "200 clone(child_stack=NULL, flags=SIGCHLD) = 201"
+        cases = {
+            "trailing": f"{exact} trailing",
+            "prefix": exact.replace("= 201", "= child201"),
+            "zero": exact.replace("= 201", "= 0"),
+        }
+        for label, replacement in cases.items():
+            with self.subTest(label=label):
+                trace = _two_operation_chmod_trace().replace(exact, replacement, 1)
+                with self.assertRaises(M5CodexContainmentErrorV1) as raised:
+                    evaluate_codex_trace_policy_v1(
+                        trace,
+                        provider_executable=_TRACE_EXECUTABLE,
+                        managed_profile_root=_TRACE_MANAGED_ROOT,
+                        default_codex_roots=(Path("/home/owner/.codex"),),
+                    )
+                self.assertEqual(
+                    str(raised.exception),
+                    "m5_codex_containment_trace_invalid",
+                )
+
+    def test_chdir_requires_normalized_path_and_exact_success(self) -> None:
+        """M5-CDX-GATE-001: cwd evidence is lexical and result exact."""
+
+        first_app_server = _trace_app_server_exec(200, _TRACE_EXECUTABLE)
+        managed = os.fspath(_TRACE_MANAGED_ROOT)
+        cases = {
+            "dotdot": f'200 chdir("/escape/../{managed.removeprefix("/")}") = 0',
+            "double_slash": '200 chdir("/owner//profiles/codex/opaque") = 0',
+            "ambiguous_result": f'200 chdir("{managed}") = ?',
+        }
+        for label, chdir in cases.items():
+            with self.subTest(label=label):
+                trace = _two_operation_chmod_trace().replace(
+                    first_app_server,
+                    f"{chdir}\n{first_app_server}",
+                    1,
+                )
+                with self.assertRaises(M5CodexContainmentErrorV1) as raised:
+                    evaluate_codex_trace_policy_v1(
+                        trace,
+                        provider_executable=_TRACE_EXECUTABLE,
+                        managed_profile_root=_TRACE_MANAGED_ROOT,
+                        default_codex_roots=(Path("/home/owner/.codex"),),
+                    )
+                self.assertEqual(
+                    str(raised.exception),
+                    "m5_codex_containment_trace_invalid",
+                )
+
+    def test_clone_fs_child_chdir_changes_parent_cwd(self) -> None:
+        """M5-CDX-GATE-001: a shared child cwd applies to its parent."""
+
+        first_app_server = _trace_app_server_exec(200, _TRACE_EXECUTABLE)
+        trace = _two_operation_chmod_trace().replace(
+            first_app_server,
+            (
+                "200 clone(child_stack=NULL, flags=CLONE_FS|SIGCHLD) = 250\n"
+                '250 chdir("/tmp") = 0\n'
+                "250 exit_group(0) = ?\n"
+                f"{first_app_server}"
+            ),
+            1,
+        )
+
+        with self.assertRaises(M5CodexContainmentErrorV1) as raised:
+            evaluate_codex_trace_policy_v1(
+                trace,
+                provider_executable=_TRACE_EXECUTABLE,
+                managed_profile_root=_TRACE_MANAGED_ROOT,
+                default_codex_roots=(Path("/home/owner/.codex"),),
+            )
+
+        self.assertEqual(
+            str(raised.exception),
+            "m5_codex_containment_working_directory_escape",
+        )
+
+    def test_clone_untraced_is_rejected_before_process_lineage_can_escape(
+        self,
+    ) -> None:
+        """M5-CDX-GATE-001: every successful child remains in the trace."""
+
+        first = f'100 execve("{_TRACE_EXECUTABLE}"'
+        trace = _two_operation_chmod_trace().replace(
+            first,
+            f"99 clone(child_stack=NULL, flags=CLONE_UNTRACED|SIGCHLD) = 98\n{first}",
+            1,
+        )
+
+        with self.assertRaises(M5CodexContainmentErrorV1) as raised:
+            evaluate_codex_trace_policy_v1(
+                trace,
+                provider_executable=_TRACE_EXECUTABLE,
+                managed_profile_root=_TRACE_MANAGED_ROOT,
+                default_codex_roots=(Path("/home/owner/.codex"),),
+            )
+
+        self.assertEqual(
+            str(raised.exception),
+            "m5_codex_containment_trace_invalid",
+        )
+
+    def test_relative_at_path_cannot_spoof_the_directory_descriptor(self) -> None:
+        """M5-CDX-GATE-001: quoted AT_FDCWD text is never a dirfd token."""
+
+        chmod = f'201 chmod("{_TRACE_CHMOD_TARGET}", 0700) = 0'
+        trace = _two_operation_chmod_trace().replace(
+            chmod,
+            (
+                '201 openat(AT_FDCWD, "/tmp", O_RDONLY|O_DIRECTORY) = 9</tmp>\n'
+                '201 mkdirat(9</tmp>, "evil, AT_FDCWD,", 0700) = 0\n'
+                f"{chmod}"
+            ),
+            1,
+        )
+
+        with self.assertRaises(M5CodexContainmentErrorV1) as raised:
+            evaluate_codex_trace_policy_v1(
+                trace,
+                provider_executable=_TRACE_EXECUTABLE,
+                managed_profile_root=_TRACE_MANAGED_ROOT,
+                default_codex_roots=(Path("/home/owner/.codex"),),
+            )
+
+        self.assertEqual(
+            str(raised.exception),
+            "m5_codex_containment_trace_invalid",
+        )
+
+    def test_app_server_exec_after_driver_cwd_escape_fails_closed(self) -> None:
+        """M5-CDX-GATE-001: relative writes use the real inherited cwd."""
+
+        trace = (
+            _two_operation_chmod_trace()
+            .replace(
+                f'200 execve("{_TRACE_EXECUTABLE}"',
+                f'200 chdir("/tmp") = 0\n200 execve("{_TRACE_EXECUTABLE}"',
+                1,
+            )
+            .replace(
+                f'201 chmod("{_TRACE_CHMOD_TARGET}", 0700) = 0',
+                (
+                    '201 mkdir("escaped", 0700) = 0\n'
+                    f'201 chmod("{_TRACE_CHMOD_TARGET}", 0700) = 0'
+                ),
+                1,
+            )
+        )
+
+        with self.assertRaises(M5CodexContainmentErrorV1) as raised:
+            evaluate_codex_trace_policy_v1(
+                trace,
+                provider_executable=_TRACE_EXECUTABLE,
+                managed_profile_root=_TRACE_MANAGED_ROOT,
+                default_codex_roots=(Path("/home/owner/.codex"),),
+            )
+
+        self.assertEqual(
+            str(raised.exception),
+            "m5_codex_containment_working_directory_escape",
+        )
+
     def test_provider_writes_inside_managed_profile_are_counted(self) -> None:
         """M5-CDX-GATE-001: exact child writes remain inside the selected root."""
 
@@ -209,14 +768,20 @@ class M5CodexContainmentPolicyTests(unittest.TestCase):
         trace = "\n".join(
             (
                 '100 execve("/usr/bin/python3", ["python3"], 0x0) = 0',
-                f'101 execve("{executable}", ["codex", "--version"], 0x0) = 0',
+                _trace_version_exec(101, executable),
                 f'101 openat(AT_FDCWD, "{executable}", O_RDONLY) = 3<{executable}>',
-                f'102 execve("{executable}", ["codex", "app-server", "stdio://"], 0x0) = 0',
+                "101 exit_group(0) = ?",
+                _trace_app_server_exec(102, executable),
                 f'102 openat(AT_FDCWD, "{managed}/state.sqlite", O_RDWR|O_CREAT, 0600) = 4<{managed}/state.sqlite>',
                 "102 clone(child_stack=NULL, flags=SIGCHLD) = 103",
                 '103 mkdir("runtime", 0700) = 0',
-                f'104 execve("{executable}", ["codex", "app-server", "stdio://"], 0x0) = 0',
+                f'103 chmod("{managed}/runtime/prepared", 0700) = 0',
+                "103 exit_group(0) = ?",
+                "102 exit_group(0) = ?",
+                _trace_app_server_exec(104, executable),
                 f'104 newfstatat(AT_FDCWD, "{managed}/auth.json", {{st_mode=S_IFREG|0600}}, 0) = 0',
+                f'104 chmod("{managed}/runtime/prepared", 0700) = 0',
+                "104 exit_group(0) = ?",
             )
         )
 
@@ -228,7 +793,7 @@ class M5CodexContainmentPolicyTests(unittest.TestCase):
         )
 
         self.assertEqual(summary.provider_execution_count, 3)
-        self.assertEqual(summary.provider_write_count, 2)
+        self.assertEqual(summary.provider_write_count, 4)
         self.assertGreaterEqual(summary.provider_access_count, 5)
         self.assertEqual(summary.default_profile_access_count, 0)
         self.assertEqual(summary.default_profile_write_count, 0)
@@ -239,10 +804,10 @@ class M5CodexContainmentPolicyTests(unittest.TestCase):
         executable = Path("/opt/codex/bin/codex")
         trace = "\n".join(
             (
-                f'200 execve("{executable}", ["codex", "--version"], 0x0) = 0',
-                f'201 execve("{executable}", ["codex", "app-server", "stdio://"], 0x0) = 0',
+                _trace_version_exec(200, executable),
+                _trace_app_server_exec(201, executable),
                 '201 newfstatat(AT_FDCWD, "/home/owner/.codex/auth.json", {}, 0) = 0',
-                f'202 execve("{executable}", ["codex", "app-server", "stdio://"], 0x0) = 0',
+                _trace_app_server_exec(202, executable),
             )
         )
 
@@ -266,9 +831,9 @@ class M5CodexContainmentPolicyTests(unittest.TestCase):
         trace = "\n".join(
             (
                 '250 newfstatat(AT_FDCWD, "/home/owner/.codex/auth.json", {}, 0) = 0',
-                f'250 execve("{executable}", ["codex", "--version"], 0x0) = 0',
-                f'251 execve("{executable}", ["codex", "app-server", "stdio://"], 0x0) = 0',
-                f'252 execve("{executable}", ["codex", "app-server", "stdio://"], 0x0) = 0',
+                _trace_version_exec(250, executable),
+                _trace_app_server_exec(251, executable),
+                _trace_app_server_exec(252, executable),
             )
         )
 
@@ -293,11 +858,12 @@ class M5CodexContainmentPolicyTests(unittest.TestCase):
         executable = Path("/opt/codex/bin/codex")
         trace = "\n".join(
             (
-                f'300 execve("{executable}", ["codex", "--version"], 0x0) = 0',
-                f'301 execve("{executable}", ["codex", "app-server", "stdio://"], 0x0) = 0',
+                _trace_version_exec(300, executable),
+                "300 exit_group(0) = ?",
+                _trace_app_server_exec(301, executable),
                 "301 clone3({flags=CLONE_VM}, 88) = 302",
                 '302 openat(AT_FDCWD, "/tmp/codex-state", O_WRONLY|O_CREAT, 0600) = 5</tmp/codex-state>',
-                f'303 execve("{executable}", ["codex", "app-server", "stdio://"], 0x0) = 0',
+                _trace_app_server_exec(303, executable),
             )
         )
 
@@ -317,12 +883,13 @@ class M5CodexContainmentPolicyTests(unittest.TestCase):
         executable = Path("/opt/codex/bin/codex")
         trace = "\n".join(
             (
-                f'350 execve("{executable}", ["codex", "--version"], 0x0) = 0',
-                f'351 execve("{executable}", ["codex", "app-server", "stdio://"], 0x0) = 0',
+                _trace_version_exec(350, executable),
+                "350 exit_group(0) = ?",
+                _trace_app_server_exec(351, executable),
                 "351 clone(child_stack=NULL, flags=SIGCHLD <unfinished ...>",
                 '352 openat(AT_FDCWD, "/tmp/escaped", O_WRONLY|O_CREAT, 0600) = 5</tmp/escaped>',
                 "351 <... clone resumed>) = 352",
-                f'353 execve("{executable}", ["codex", "app-server", "stdio://"], 0x0) = 0',
+                _trace_app_server_exec(353, executable),
             )
         )
 
@@ -344,10 +911,15 @@ class M5CodexContainmentPolicyTests(unittest.TestCase):
         trace = "\n".join(
             (
                 '400 openat(AT_FDCWD, "/owner/private/result.json", O_WRONLY|O_CREAT, 0600) = 3</owner/private/result.json>',
-                f'401 execve("{executable}", ["codex", "--version"], 0x0) = 0',
-                f'402 execve("{executable}", ["codex", "app-server", "stdio://"], 0x0) = 0',
+                _trace_version_exec(401, executable),
+                "401 exit_group(0) = ?",
+                _trace_app_server_exec(402, executable),
                 f'402 openat(AT_FDCWD, "{managed}/state", O_RDWR|O_CREAT, 0600) = 4<{managed}/state>',
-                f'403 execve("{executable}", ["codex", "app-server", "stdio://"], 0x0) = 0',
+                f'402 chmod("{managed}/runtime/prepared", 0700) = 0',
+                "402 exit_group(0) = ?",
+                _trace_app_server_exec(403, executable),
+                f'403 chmod("{managed}/runtime/prepared", 0700) = 0',
+                "403 exit_group(0) = ?",
             )
         )
 
@@ -358,7 +930,7 @@ class M5CodexContainmentPolicyTests(unittest.TestCase):
             default_codex_roots=(Path("/home/owner/.codex"),),
         )
 
-        self.assertEqual(summary.provider_write_count, 1)
+        self.assertEqual(summary.provider_write_count, 3)
 
     def test_pre_exec_driver_filesystem_activity_is_not_attributed(self) -> None:
         """M5-CDX-GATE-001: a child becomes a provider only at exact exec."""
@@ -369,11 +941,16 @@ class M5CodexContainmentPolicyTests(unittest.TestCase):
             (
                 '500 chdir("/tmp/agentmonitor-codex-version") = 0',
                 '500 openat(AT_FDCWD, "/tmp/driver-state", O_WRONLY|O_CREAT, 0600) = 4</tmp/driver-state>',
-                f'500 execve("{executable}", ["codex", "--version"], 0x0) = 0',
-                '501 chdir("/owner/private-driver") = 0',
-                f'501 execve("{executable}", ["codex", "app-server", "stdio://"], 0x0) = 0',
+                _trace_version_exec(500, executable),
+                "500 exit_group(0) = ?",
+                f'501 chdir("{managed}") = 0',
+                _trace_app_server_exec(501, executable),
                 f'501 openat(AT_FDCWD, "{managed}/state", O_RDWR|O_CREAT, 0600) = 4<{managed}/state>',
-                f'502 execve("{executable}", ["codex", "app-server", "stdio://"], 0x0) = 0',
+                f'501 chmod("{managed}/runtime/prepared", 0700) = 0',
+                "501 exit_group(0) = ?",
+                _trace_app_server_exec(502, executable),
+                f'502 chmod("{managed}/runtime/prepared", 0700) = 0',
+                "502 exit_group(0) = ?",
             )
         )
 
@@ -385,7 +962,7 @@ class M5CodexContainmentPolicyTests(unittest.TestCase):
         )
 
         self.assertEqual(summary.provider_execution_count, 3)
-        self.assertEqual(summary.provider_write_count, 1)
+        self.assertEqual(summary.provider_write_count, 3)
 
     def test_exited_provider_pid_is_not_attributed_after_reuse(self) -> None:
         """M5-CDX-GATE-001: process exit closes its provider attribution epoch."""
@@ -394,24 +971,24 @@ class M5CodexContainmentPolicyTests(unittest.TestCase):
         managed = Path("/owner/profiles/codex/opaque")
         trace = "\n".join(
             (
-                f'550 execve("{executable}", ["codex", "--version"], 0x0) = 0',
+                _trace_version_exec(550, executable),
                 "550 exit_group(0) = ?",
-                f'551 execve("{executable}", ["codex", "app-server", "stdio://"], 0x0) = 0',
+                _trace_app_server_exec(551, executable),
                 "551 exit_group(0) = ?",
                 '551 openat(AT_FDCWD, "/tmp/reused-pid-state", O_WRONLY|O_CREAT, 0600) = 4</tmp/reused-pid-state>',
-                f'552 execve("{executable}", ["codex", "app-server", "stdio://"], 0x0) = 0',
+                _trace_app_server_exec(552, executable),
             )
         )
 
-        summary = evaluate_codex_trace_policy_v1(
-            trace,
-            provider_executable=executable,
-            managed_profile_root=managed,
-            default_codex_roots=(Path("/home/owner/.codex"),),
-        )
+        with self.assertRaises(M5CodexContainmentErrorV1) as raised:
+            evaluate_codex_trace_policy_v1(
+                trace,
+                provider_executable=executable,
+                managed_profile_root=managed,
+                default_codex_roots=(Path("/home/owner/.codex"),),
+            )
 
-        self.assertEqual(summary.provider_execution_count, 3)
-        self.assertEqual(summary.provider_write_count, 0)
+        self.assertEqual(str(raised.exception), "m5_codex_containment_trace_invalid")
 
     def test_numeric_dirfd_relative_write_fails_closed(self) -> None:
         """M5-CDX-GATE-001: an unresolved dirfd cannot imply managed scope."""
@@ -420,10 +997,11 @@ class M5CodexContainmentPolicyTests(unittest.TestCase):
         managed = Path("/owner/profiles/codex/opaque")
         trace = "\n".join(
             (
-                f'600 execve("{executable}", ["codex", "--version"], 0x0) = 0',
-                f'601 execve("{executable}", ["codex", "app-server", "stdio://"], 0x0) = 0',
+                _trace_version_exec(600, executable),
+                "600 exit_group(0) = ?",
+                _trace_app_server_exec(601, executable),
                 '601 openat(9</outside>, "escaped", O_WRONLY|O_CREAT, 0600) = 5</outside/escaped>',
-                f'602 execve("{executable}", ["codex", "app-server", "stdio://"], 0x0) = 0',
+                _trace_app_server_exec(602, executable),
             )
         )
 
@@ -442,10 +1020,11 @@ class M5CodexContainmentPolicyTests(unittest.TestCase):
         managed = Path("/owner/profiles/codex/opaque")
         trace = "\n".join(
             (
-                f'700 execve("{executable}", ["codex", "--version"], 0x0) = 0',
-                f'701 execve("{executable}", ["codex", "app-server", "stdio://"], 0x0) = 0',
+                _trace_version_exec(700, executable),
+                "700 exit_group(0) = ?",
+                _trace_app_server_exec(701, executable),
                 f'701 openat(AT_FDCWD</outside>, "{managed}/link/state", O_WRONLY|O_CREAT, 0600) = 5</outside/state>',
-                f'702 execve("{executable}", ["codex", "app-server", "stdio://"], 0x0) = 0',
+                _trace_app_server_exec(702, executable),
             )
         )
 
@@ -466,10 +1045,11 @@ class M5CodexContainmentPolicyTests(unittest.TestCase):
         managed = Path("/owner/profiles/codex/opaque")
         trace = "\n".join(
             (
-                f'750 execve("{executable}", ["codex", "--version"], 0x0) = 0',
-                f'751 execve("{executable}", ["codex", "app-server", "stdio://"], 0x0) = 0',
+                _trace_version_exec(750, executable),
+                "750 exit_group(0) = ?",
+                _trace_app_server_exec(751, executable),
                 f'751 truncate("{managed}/possible-link", 0) = 0',
-                f'752 execve("{executable}", ["codex", "app-server", "stdio://"], 0x0) = 0',
+                _trace_app_server_exec(752, executable),
             )
         )
 
@@ -488,6 +1068,295 @@ class M5CodexContainmentPolicyTests(unittest.TestCase):
 
 
 class M5CodexContainmentPrerequisiteTests(unittest.TestCase):
+    def test_containment_version_discovery_emits_no_unattributed_chmod(self) -> None:
+        """M5-CDX-GATE-001: the traced driver adds no setup chmod record."""
+
+        executable = _resolve_executable()
+        source = (
+            "from agentmonitor.adapters.providers.codex.installation "
+            "import CodexInstallationUnavailable\n"
+            "from tools.automation.implementations.m5_codex_containment "
+            "import _discover_containment_installation_v1\n"
+            "try:\n"
+            "    installation=_discover_containment_installation_v1()\n"
+            "except CodexInstallationUnavailable as error:\n"
+            "    assert str(error) == 'codex_version_unverified'\n"
+            "else:\n"
+            "    assert installation.provider_version == '0.160.0'\n"
+        )
+        with tempfile.TemporaryDirectory() as raw:
+            trace_path = Path(raw) / "trace"
+            process = subprocess.run(
+                [
+                    "/usr/bin/strace",
+                    "--kill-on-exit",
+                    "-f",
+                    "-qq",
+                    "-e",
+                    "trace=execve,chmod",
+                    "-e",
+                    "signal=none",
+                    "-o",
+                    os.fspath(trace_path),
+                    "--",
+                    os.fspath(containment._BACKEND_PYTHON),
+                    "-c",
+                    source,
+                ],
+                cwd=containment.ROOT,
+                env={
+                    "LANG": "C.UTF-8",
+                    "LC_ALL": "C.UTF-8",
+                    "PATH": os.pathsep.join(
+                        (
+                            os.fspath(executable.launcher_directory),
+                            "/usr/bin",
+                            "/bin",
+                        )
+                    ),
+                    "PYTHONDONTWRITEBYTECODE": "1",
+                    "PYTHONPATH": os.pathsep.join(
+                        (
+                            os.fspath(containment.ROOT),
+                            os.fspath(containment.BACKEND_SOURCE),
+                        )
+                    ),
+                },
+                stdin=subprocess.DEVNULL,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                check=False,
+                timeout=10,
+            )
+            observed = trace_path.read_text(encoding="utf-8")
+
+        self.assertEqual(process.returncode, 0)
+        self.assertNotIn(" chmod(", observed)
+        version_execs = tuple(
+            line
+            for line in observed.splitlines()
+            if f'execve("{executable.path}"' in line and '"--version"' in line
+        )
+        self.assertEqual(len(version_execs), 1)
+
+    def test_exact_selector_records_invalid_namespace_syscalls(self) -> None:
+        """M5-CDX-GATE-001: admitted strace observes every namespace seam."""
+
+        self.assertEqual(
+            (platform.system(), platform.machine()),
+            ("Linux", "x86_64"),
+        )
+        containment._validate_strace_selector_v1()
+        self.assertEqual(
+            containment._STRACE_SELECTOR_V1,
+            "trace=%file,%process,chdir,fchdir,fchmod,fchown,ftruncate,"
+            "fallocate,fsetxattr,fremovexattr,ioctl,io_uring_setup,"
+            "io_uring_enter,io_uring_register,clone,clone3,setns,unshare,"
+            "chroot,pivot_root,mount,umount,umount2,open_tree,move_mount,"
+            "fsopen,fsconfig,fsmount,fspick,mount_setattr",
+        )
+        self.assertEqual(
+            containment._STRACE_RAW_V1,
+            "raw=fsetxattr,fremovexattr,ioctl,io_uring_setup,io_uring_enter,"
+            "io_uring_register",
+        )
+        syscall_numbers = {
+            "io_uring_setup": (425, (0, 0)),
+            "io_uring_enter": (426, (-1, 0, 0, 0, 0, 0)),
+            "io_uring_register": (427, (-1, 0, 0, 0)),
+            "clone": (56, (-1, 0, 0, 0, 0)),
+            "pivot_root": (155, (0, 0)),
+            "chroot": (161, (0,)),
+            "mount": (165, (0, 0, 0, 0, 0)),
+            "umount2": (166, (0, 0)),
+            "unshare": (272, (-1,)),
+            "setns": (308, (-1, 0)),
+            "open_tree": (428, (-1, 0, 0)),
+            "move_mount": (429, (-1, 0, -1, 0, 0)),
+            "fsopen": (430, (0, 0)),
+            "fsconfig": (431, (-1, 0, 0, 0, 0)),
+            "fsmount": (432, (-1, 0, 0)),
+            "fspick": (433, (-1, 0, 0)),
+            "clone3": (435, (0, 0)),
+            "mount_setattr": (442, (-1, 0, 0, 0, 0)),
+        }
+        calls = repr(tuple(syscall_numbers.values()))
+        source = (
+            "import ctypes\n"
+            "libc=ctypes.CDLL(None,use_errno=True)\n"
+            f"calls={calls}\n"
+            "for number,arguments in calls:\n"
+            "    libc.syscall(number,*arguments)\n"
+        )
+        with tempfile.TemporaryDirectory() as raw:
+            trace_path = Path(raw) / "trace"
+            process = subprocess.run(
+                [
+                    "/usr/bin/strace",
+                    "--kill-on-exit",
+                    "-f",
+                    "-qq",
+                    "-e",
+                    containment._STRACE_SELECTOR_V1,
+                    "-e",
+                    containment._STRACE_RAW_V1,
+                    "-e",
+                    "signal=none",
+                    "-o",
+                    os.fspath(trace_path),
+                    "--",
+                    "/usr/bin/python3",
+                    "-I",
+                    "-c",
+                    source,
+                ],
+                cwd="/",
+                env={"LANG": "C.UTF-8", "LC_ALL": "C.UTF-8"},
+                stdin=subprocess.DEVNULL,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                check=False,
+                timeout=10,
+            )
+            self.assertEqual(process.returncode, 0)
+            observed = trace_path.read_text(encoding="utf-8")
+        for name in syscall_numbers:
+            with self.subTest(syscall=name):
+                matching = tuple(
+                    line for line in observed.splitlines() if f"{name}(" in line
+                )
+                self.assertTrue(matching)
+                self.assertTrue(all(" = -1 " in line for line in matching))
+        self.assertIn("umount", containment._STRACE_SELECTOR_V1.split(","))
+
+    def test_exact_selector_records_fd_metadata_mutators(self) -> None:
+        """M5-CDX-GATE-001: fd metadata writes cannot escape trace policy."""
+
+        xattr_name = "user.agentmonitor_private_name"
+        xattr_value = "PRIVATE_VALUE_1_12"
+        source = (
+            "import array,fcntl,os,sys\n"
+            "descriptor=os.open(sys.argv[1],os.O_RDONLY|os.O_CLOEXEC)\n"
+            "try:\n"
+            f"    os.setxattr(descriptor,{xattr_name!r},{xattr_value.encode()!r})\n"
+            f"    os.removexattr(descriptor,{xattr_name!r})\n"
+            "    flags=array.array('L',[0])\n"
+            "    fcntl.ioctl(descriptor,0x80086601,flags,True)\n"
+            "    original=flags[0]\n"
+            "    try:\n"
+            "        flags[0]=original|0x40\n"
+            "        fcntl.ioctl(descriptor,0x40086602,flags)\n"
+            "    finally:\n"
+            "        flags[0]=original\n"
+            "        fcntl.ioctl(descriptor,0x40086602,flags)\n"
+            "finally:\n"
+            "    os.close(descriptor)\n"
+        )
+        with tempfile.TemporaryDirectory() as raw:
+            root = Path(raw)
+            target = root / "target"
+            target.touch(mode=0o600)
+            script = root / "probe.py"
+            script.write_text(source, encoding="utf-8")
+            trace_path = root / "trace"
+            process = subprocess.run(
+                [
+                    "/usr/bin/strace",
+                    "--kill-on-exit",
+                    "-f",
+                    "-qq",
+                    "-e",
+                    containment._STRACE_SELECTOR_V1,
+                    "-e",
+                    containment._STRACE_RAW_V1,
+                    "-e",
+                    "signal=none",
+                    "-o",
+                    os.fspath(trace_path),
+                    "--",
+                    "/usr/bin/python3",
+                    "-I",
+                    os.fspath(script),
+                    os.fspath(target),
+                ],
+                cwd="/",
+                env={"LANG": "C.UTF-8", "LC_ALL": "C.UTF-8"},
+                stdin=subprocess.DEVNULL,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                check=False,
+                timeout=10,
+            )
+            self.assertEqual(process.returncode, 0)
+            observed = trace_path.read_text(encoding="utf-8")
+
+        for name, marker in (
+            ("fsetxattr", "fsetxattr("),
+            ("fremovexattr", "fremovexattr("),
+            ("ioctl_fs_setflags", "0x40086602"),
+        ):
+            with self.subTest(syscall=name):
+                self.assertIn(marker, observed)
+        self.assertNotIn(xattr_name, observed)
+        self.assertNotIn(xattr_value, observed)
+
+    def test_exact_selector_exposes_clone_untraced_flag(self) -> None:
+        """M5-CDX-GATE-001: an untraced child request is itself visible."""
+
+        source = (
+            "import ctypes,os,signal\n"
+            "libc=ctypes.CDLL(None,use_errno=True)\n"
+            "pid=libc.syscall(56,0x00800000|signal.SIGCHLD,0,0,0,0)\n"
+            "if pid == 0:\n"
+            "    os._exit(0)\n"
+            "if pid < 0:\n"
+            "    raise OSError(ctypes.get_errno(),'clone')\n"
+            "os.waitpid(pid,0)\n"
+        )
+        with tempfile.TemporaryDirectory() as raw:
+            trace_path = Path(raw) / "trace"
+            process = subprocess.run(
+                [
+                    "/usr/bin/strace",
+                    "--kill-on-exit",
+                    "-f",
+                    "-yy",
+                    "-qq",
+                    "-s",
+                    "4096",
+                    "-e",
+                    containment._STRACE_SELECTOR_V1,
+                    "-e",
+                    containment._STRACE_RAW_V1,
+                    "-e",
+                    "signal=none",
+                    "-o",
+                    os.fspath(trace_path),
+                    "--",
+                    "/usr/bin/python3",
+                    "-I",
+                    "-c",
+                    source,
+                ],
+                cwd="/",
+                env={"LANG": "C.UTF-8", "LC_ALL": "C.UTF-8"},
+                stdin=subprocess.DEVNULL,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                check=False,
+                timeout=10,
+            )
+            self.assertEqual(process.returncode, 0)
+            observed = trace_path.read_text(encoding="utf-8")
+
+        matching = tuple(
+            line
+            for line in observed.splitlines()
+            if "clone(" in line and "CLONE_UNTRACED" in line
+        )
+        self.assertEqual(len(matching), 1)
+        self.assertRegex(matching[0], r" = [1-9][0-9]*$")
+
     def test_selection_rejects_nonprivate_intermediate_profiles_root(self) -> None:
         """M5-CDX-GATE-001: every enclosing profile root remains private."""
 
@@ -900,11 +1769,13 @@ class M5CodexContainmentPrivateChannelTests(unittest.TestCase):
         extra_key["extra"] = True
         nonzero_failure = json.loads(_driver_result_payload("failed"))
         nonzero_failure["identity_operation_count"] = 1
+        passed_payload = _driver_result_payload("passed")
         cases = {
             "invalid_utf8": b"\xff",
             "non_object": b"[]",
             "extra_key": json.dumps(extra_key).encode("utf-8"),
             "nonzero_failure": json.dumps(nonzero_failure).encode("utf-8"),
+            "duplicate_key": b'{"schema":"wrong",' + passed_payload[1:],
         }
         for label, payload in cases.items():
             with self.subTest(label=label):
@@ -1161,6 +2032,122 @@ class M5CodexContainmentPrivateChannelTests(unittest.TestCase):
                     except OSError:
                         pass
 
+    def test_driver_deadline_kills_and_reaps_the_real_process_group(self) -> None:
+        """M5-CDX-GATE-001: row one wins on one short absolute deadline."""
+
+        input_reader, input_writer = _open_private_channel()
+        result_reader, result_writer = _open_private_channel()
+        trace_reader, trace_writer = _open_private_channel()
+        control_reader, control_writer = os.pipe2(os.O_CLOEXEC)
+        process: subprocess.Popen[bytes] | None = None
+        descendant_pidfd = -1
+        transferred = (-1, -1, -1)
+        started = 0.0
+        try:
+            source = (
+                "import os,sys,time\n"
+                "input_fd,result_fd,trace_fd,control_fd=map(int,sys.argv[1:5])\n"
+                "child=os.fork()\n"
+                "if child == 0:\n"
+                "    os.close(control_fd)\n"
+                "    time.sleep(30)\n"
+                "    os._exit(0)\n"
+                "os.write(control_fd,str(child).encode('ascii'))\n"
+                "os.close(control_fd)\n"
+                "time.sleep(30)\n"
+            )
+            process = subprocess.Popen(
+                [
+                    "/usr/bin/python3",
+                    "-I",
+                    "-c",
+                    source,
+                    str(input_reader),
+                    str(result_writer),
+                    str(trace_writer),
+                    str(control_writer),
+                ],
+                cwd="/",
+                env={"LANG": "C.UTF-8"},
+                stdin=subprocess.DEVNULL,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                pass_fds=(
+                    input_reader,
+                    result_writer,
+                    trace_writer,
+                    control_writer,
+                ),
+                shell=False,
+                start_new_session=True,
+            )
+            os.close(input_reader)
+            input_reader = -1
+            os.close(result_writer)
+            result_writer = -1
+            os.close(trace_writer)
+            trace_writer = -1
+            os.close(control_writer)
+            control_writer = -1
+            descendant_pid = int(os.read(control_reader, 32).decode("ascii"))
+            descendant_pidfd = os.pidfd_open(descendant_pid)
+            transferred = (input_writer, result_reader, trace_reader)
+            input_writer = result_reader = trace_reader = -1
+            started = time.monotonic()
+
+            with self.assertRaises(M5CodexContainmentUnavailableV1) as raised:
+                containment._collect_driver_channels_until(
+                    process,
+                    input_descriptor=transferred[0],
+                    input_payload=b"selection",
+                    result_descriptor=transferred[1],
+                    trace_descriptor=transferred[2],
+                    driver_deadline_monotonic=started + 0.2,
+                )
+
+            elapsed = time.monotonic() - started
+            self.assertEqual(
+                str(raised.exception),
+                "m5_codex_containment_driver_deadline_exceeded",
+            )
+            self.assertGreaterEqual(elapsed, 0.15)
+            self.assertLess(elapsed, 2.0)
+            self.assertIsNotNone(process.poll())
+            readable, _, _ = select.select([descendant_pidfd], [], [], 2.0)
+            self.assertEqual(readable, [descendant_pidfd])
+            for descriptor in transferred:
+                with self.assertRaises(OSError) as descriptor_error:
+                    os.fstat(descriptor)
+                self.assertEqual(descriptor_error.exception.errno, errno.EBADF)
+        finally:
+            if process is not None:
+                try:
+                    os.killpg(process.pid, signal.SIGKILL)
+                except OSError:
+                    pass
+                if process.poll() is None:
+                    try:
+                        process.wait(timeout=2)
+                    except subprocess.TimeoutExpired:
+                        pass
+            for descriptor in (
+                input_reader,
+                input_writer,
+                result_reader,
+                result_writer,
+                trace_reader,
+                trace_writer,
+                control_reader,
+                control_writer,
+                descendant_pidfd,
+                *transferred,
+            ):
+                if descriptor >= 0:
+                    try:
+                        os.close(descriptor)
+                    except OSError:
+                        pass
+
     def test_private_channel_has_no_path_and_preserves_real_kernel_bytes(self) -> None:
         """M5-CDX-GATE-001: private transport is an inherited kernel channel."""
 
@@ -1217,13 +2204,17 @@ class M5CodexContainmentPrivateChannelTests(unittest.TestCase):
             trace_writer = -1
             owned_input_writer = input_writer
             input_writer = -1
+            owned_result_reader = result_reader
+            result_reader = -1
+            owned_trace_reader = trace_reader
+            trace_reader = -1
 
             returncode, observed_result, observed_trace = _collect_driver_channels(
                 process,
                 input_descriptor=owned_input_writer,
                 input_payload=payload,
-                result_descriptor=result_reader,
-                trace_descriptor=trace_reader,
+                result_descriptor=owned_result_reader,
+                trace_descriptor=owned_trace_reader,
             )
 
             self.assertEqual(returncode, 0)
@@ -1579,6 +2570,190 @@ class M5CodexContainmentPrivateChannelTests(unittest.TestCase):
                 if target_descriptor >= 0:
                     os.close(target_descriptor)
                 os.close(root_descriptor)
+
+    def test_inode_bound_walk_rejects_real_path_replacement(self) -> None:
+        """M5-CDX-GATE-001: target, ancestor, symlink, and root swaps fail."""
+
+        snapshot = containment._managed_profile_tree_snapshot
+        open_root = containment._open_pinned_profile_root
+        open_target = containment._open_inode_bound_chmod_target
+        for replacement in ("target", "ancestor", "symlink", "root"):
+            with (
+                self.subTest(replacement=replacement),
+                tempfile.TemporaryDirectory() as raw,
+            ):
+                root = Path(raw)
+                root.chmod(0o700)
+                managed = root / "managed"
+                managed.mkdir(mode=0o700)
+                runtime = managed / "runtime"
+                runtime.mkdir(mode=0o755)
+                target = runtime / "prepared"
+                target.mkdir(mode=0o700)
+                before = snapshot(managed)
+                root_descriptor, root_identity = open_root(managed)
+                try:
+                    if replacement == "target":
+                        target.rename(runtime / "old-target")
+                        target.mkdir(mode=0o700)
+                    elif replacement == "ancestor":
+                        runtime.rename(managed / "old-runtime")
+                        runtime.mkdir(mode=0o755)
+                        target = runtime / "prepared"
+                        target.mkdir(mode=0o700)
+                    elif replacement == "symlink":
+                        target.rename(runtime / "old-target")
+                        target.symlink_to(
+                            runtime / "old-target", target_is_directory=True
+                        )
+                    else:
+                        managed.rename(root / "old-managed")
+                        managed.mkdir(mode=0o700)
+
+                    with self.assertRaises(M5CodexContainmentErrorV1):
+                        if replacement == "root":
+                            snapshot(
+                                managed,
+                                expected_root_identity=root_identity,
+                            )
+                        else:
+                            open_target(
+                                root_descriptor,
+                                ("runtime", "prepared"),
+                                before,
+                            )
+                finally:
+                    os.close(root_descriptor)
+
+    def test_inode_bound_post_validation_rejects_unchanged_or_wrong_metadata(
+        self,
+    ) -> None:
+        """M5-CDX-GATE-001: ctime, mode, owner, and device stay closed."""
+
+        snapshot = containment._managed_profile_tree_snapshot
+        open_root = containment._open_pinned_profile_root
+        open_target = containment._open_inode_bound_chmod_target
+        validate = containment._validate_inode_bound_chmod
+        for mutation in ("unchanged", "mode", "owner", "device"):
+            with self.subTest(mutation=mutation), tempfile.TemporaryDirectory() as raw:
+                root = Path(raw)
+                root.chmod(0o700)
+                managed = root / "managed"
+                managed.mkdir(mode=0o700)
+                runtime = managed / "runtime"
+                runtime.mkdir(mode=0o755)
+                target = runtime / "prepared"
+                target.mkdir(mode=0o700)
+                before = snapshot(managed)
+                root_descriptor, root_identity = open_root(managed)
+                target_descriptor = -1
+                try:
+                    if mutation == "mode":
+                        target.chmod(0o755)
+                        with self.assertRaises(M5CodexContainmentErrorV1):
+                            open_target(
+                                root_descriptor,
+                                ("runtime", "prepared"),
+                                before,
+                            )
+                        continue
+                    target_descriptor, walked = open_target(
+                        root_descriptor,
+                        ("runtime", "prepared"),
+                        before,
+                    )
+                    after = snapshot(
+                        managed,
+                        expected_root_identity=root_identity,
+                    )
+                    if mutation in {"owner", "device"}:
+                        system = Path("/proc" if mutation == "device" else "/").stat()
+                        identities = list(after.directories)
+                        selected = identities[-1]
+                        identity_type = type(selected)
+                        identities[-1] = identity_type(
+                            selected.relative_parts,
+                            system.st_dev if mutation == "device" else selected.device,
+                            selected.inode,
+                            system.st_uid
+                            if mutation == "owner"
+                            else selected.owner_uid,
+                            selected.mode,
+                            selected.changed_ns,
+                        )
+                        after = type(after)(after.digest, tuple(identities))
+                    with self.assertRaises(M5CodexContainmentErrorV1):
+                        validate(
+                            target_descriptor,
+                            ("runtime", "prepared"),
+                            walked,
+                            before,
+                            after,
+                        )
+                finally:
+                    if target_descriptor >= 0:
+                        os.close(target_descriptor)
+                    os.close(root_descriptor)
+
+    def test_inode_bound_walk_uses_rolling_descriptors_without_leaks(self) -> None:
+        """M5-CDX-GATE-001: a deep target needs only root/current/next fds."""
+
+        with tempfile.TemporaryDirectory() as raw:
+            root = Path(raw)
+            root.chmod(0o700)
+            managed = root / "managed"
+            managed.mkdir(mode=0o700)
+            parts = tuple(f"d{index:02d}" for index in range(40))
+            current = managed
+            for part in parts:
+                current /= part
+                current.mkdir(mode=0o700)
+            before = containment._managed_profile_tree_snapshot(managed)
+            root_descriptor, _identity = containment._open_pinned_profile_root(managed)
+            target_descriptor = -1
+            original_limit = resource.getrlimit(resource.RLIMIT_NOFILE)
+            baseline = len(os.listdir("/proc/self/fd"))
+            try:
+                constrained = (
+                    baseline + 3
+                    if original_limit[0] == resource.RLIM_INFINITY
+                    else min(original_limit[0], baseline + 3)
+                )
+                resource.setrlimit(
+                    resource.RLIMIT_NOFILE,
+                    (constrained, original_limit[1]),
+                )
+                target_descriptor, walked = containment._open_inode_bound_chmod_target(
+                    root_descriptor,
+                    parts,
+                    before,
+                )
+                self.assertEqual(len(walked), len(parts))
+                descriptor_flags = fcntl.fcntl(root_descriptor, fcntl.F_GETFD)
+                self.assertTrue(descriptor_flags & fcntl.FD_CLOEXEC)
+            finally:
+                resource.setrlimit(resource.RLIMIT_NOFILE, original_limit)
+                if target_descriptor >= 0:
+                    os.close(target_descriptor)
+                os.close(root_descriptor)
+            self.assertLessEqual(len(os.listdir("/proc/self/fd")), baseline - 1)
+
+    def test_pinned_descriptor_close_failure_is_sanitized(self) -> None:
+        """M5-CDX-GATE-001: pin resource failures cannot produce evidence."""
+
+        descriptor = os.open(
+            "/",
+            os.O_PATH | os.O_DIRECTORY | os.O_CLOEXEC,
+        )
+        os.close(descriptor)
+
+        with self.assertRaises(M5CodexContainmentErrorV1) as raised:
+            containment._close_pinned_descriptor_v1(descriptor)
+
+        self.assertEqual(
+            str(raised.exception),
+            "m5_codex_containment_path_mutator_unverifiable",
+        )
 
 
 class M5CodexContainmentLiveTests(unittest.TestCase):
