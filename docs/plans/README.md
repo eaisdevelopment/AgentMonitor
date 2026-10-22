@@ -169,8 +169,8 @@ Directories are created when an approved planning assignment begins. Drafts stat
   Clean revision `a0f2dc1` then passed the complete preactivation set. Its real
   authenticated run proved that pinned Codex 0.160.0 creates and removes an
   exact four-alias Arg0 symlink set in each managed identity/quota app-server
-  lifecycle. Draft 1.14.0 proposes only that closed eight-record admission;
-  approved 1.13.0 remains authoritative until explicit owner approval.
+  lifecycle. Owner-approved 1.14.0 adds only that closed eight-record
+  admission to the already authorized, unrun fifth rollover.
   Current-revision preactivation and authenticated containment remain pending. The
   fifth live transition, refreshed prerequisites,
   `AUTO-M5-EXIT`, and owner acceptance remain Not Run. OpenAI API billing

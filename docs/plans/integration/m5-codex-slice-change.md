@@ -1,12 +1,12 @@
 # Change plan: executable V1-M5 Codex slice
 
-- Status: **Draft 1.14.0 amendment awaiting owner approval; approved 1.13.0
-  remains the implementation authority. Current-revision preactivation is
-  Green, and the real authenticated run is Red at the exact temporary Arg0
-  symlink lifecycle specified below. Activation has not started.**
-- Plan version: `1.14.0-draft`; owner approval: pending. Version `1.13.0` was
-  approved on 2026-10-22 and remains authoritative until this amendment is
-  explicitly approved.
+- Status: **Approved 1.14.0; implementation is authorized only for the exact
+  temporary Arg0 symlink lifecycle specified below. Current-revision
+  preactivation is Green, the real authenticated run supplies the Red, and
+  activation has not started.**
+- Plan version: `1.14.0`; owner approval: 2026-10-22. Version `1.13.0` remains
+  incorporated except where the exact Arg0 lifecycle below supersedes its
+  global successful-link rejection.
 - Safety correction: exact-version review proved that authenticated app-server
   queries may perform Codex's automatic credential refresh. The approved
   managed-auth lifecycle therefore classifies those queries as
@@ -41,10 +41,10 @@
   specified below. The owner's explicit 2026-10-22 approval of version 1.12.0
   adds only the trace-completeness correction specified below. The owner's
   explicit 2026-10-22 approval of version 1.13.0 adds only the descriptor-bound
-  `ftruncate` correction specified below. Proposed version 1.14.0 adds only the
+  `ftruncate` correction specified below. The owner's explicit 2026-10-22
+  approval of version 1.14.0 adds only the
   exact pinned Codex 0.160.0 temporary Arg0 symlink lifecycle specified below;
-  it carries no implementation authority until explicit owner approval. All
-  remaining A02, OpenAI API, PLAN-DEP/D01, and
+  all remaining A02, OpenAI API, PLAN-DEP/D01, and
   `AUTO-DEPLOY` lanes stay Draft or Blocked as already recorded.
 - Stories: `ST-CDX-001..005`.
 - Requirements: `FR-ACC-001/004..006`, `FR-AUTH-001/002/004..006`,
@@ -1917,9 +1917,9 @@ remain required before the already approved fifth activation.
 
 ## Proposed pinned Arg0 symlink lifecycle correction — 2026-10-22
 
-**Status: Draft 1.14.0. Owner approval is required before the successful
-symlink admission below is implemented. Approved 1.13.0 continues to authorize
-only directional parsing that preserves global successful-link rejection.**
+**Status: Owner-approved 1.14.0 on 2026-10-22. This approval authorizes only
+the successful symlink lifecycle below and remains folded into the already
+authorized, not-yet-run fifth rollover; it authorizes no sixth rollover.**
 
 ### Authenticated Red and exact provider behavior
 
