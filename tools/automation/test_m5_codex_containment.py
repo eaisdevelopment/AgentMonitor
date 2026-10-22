@@ -1521,6 +1521,32 @@ class M5CodexContainmentPrerequisiteTests(unittest.TestCase):
 
 
 class M5CodexContainmentPrivateChannelTests(unittest.TestCase):
+    def test_inherited_channel_accepts_a_real_multidigit_descriptor(self) -> None:
+        """M5-CDX-GATE-001: ordinary inherited fds above nine remain usable."""
+
+        descriptors: list[int] = []
+        variable = containment._RESULT_FD_ENV
+        previous = os.environ.get(variable)
+        try:
+            while not descriptors or descriptors[-1] < 10:
+                descriptors.extend(os.pipe2(os.O_CLOEXEC))
+            selected = descriptors[-1]
+            os.environ[variable] = str(selected)
+
+            self.assertEqual(containment._inherited_descriptor(variable), selected)
+            for invalid in ("0", "2", "03", "1000000", "-1", ""):
+                with self.subTest(invalid=invalid):
+                    os.environ[variable] = invalid
+                    with self.assertRaises(M5CodexContainmentErrorV1):
+                        containment._inherited_descriptor(variable)
+        finally:
+            if previous is None:
+                os.environ.pop(variable, None)
+            else:
+                os.environ[variable] = previous
+            for descriptor in descriptors:
+                os.close(descriptor)
+
     def _collect_prefilled_channels(
         self,
         *,

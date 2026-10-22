@@ -2087,7 +2087,7 @@ def _write_driver_result(
 
 def _inherited_descriptor(name: str) -> int:
     raw = os.environ.get(name)
-    if raw is None or re.fullmatch(r"[3-9][0-9]{0,5}", raw) is None:
+    if raw is None or re.fullmatch(r"(?:[3-9]|[1-9][0-9]{1,5})", raw) is None:
         raise M5CodexContainmentErrorV1("m5_codex_containment_private_channel_invalid")
     descriptor = int(raw)
     try:
