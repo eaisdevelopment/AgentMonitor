@@ -14,6 +14,7 @@ import os
 import platform
 import pwd
 import re
+import select
 import shutil
 import signal
 import stat
@@ -74,6 +75,18 @@ _TRACE_CHMOD_ARGUMENTS_V1 = re.compile(
 )
 _TRACE_CHDIR_ARGUMENTS_V1 = re.compile(rf"^(?P<path>{_TRACE_STRING_TOKEN_V1})$")
 _TRACE_FAILED_RESULT_V1 = re.compile(r"^-1 [A-Z][A-Z0-9_]* \(.+\)$")
+_TRACE_FTRUNCATE_ARGUMENTS_V1 = re.compile(
+    r"^(?P<descriptor>(?:[3-9]|[1-9][0-9]{1,5}))"
+    r"<(?P<path>[^<>\\\x00\r\n]+)>, "
+    r"(?P<length>0|[1-9][0-9]{0,18})$"
+)
+_TRACE_FTRUNCATE_MISSING_PATH_V1 = re.compile(
+    r"^(?P<descriptor>(?:[3-9]|[1-9][0-9]{1,5})), "
+    r"(?P<length>0|[1-9][0-9]{0,18})$"
+)
+_TRACE_FTRUNCATE_FAILED_RESULT_V1 = re.compile(
+    r"^-1 [A-Z][A-Z0-9_]{0,31} \([^()<>\\\x00-\x1f\x7f]{1,160}\)$"
+)
 _TRACE_NONNEGATIVE_RESULT_V1 = re.compile(r"^(?:0|[1-9][0-9]*)$")
 _TRACE_DESCRIPTOR_RESULT_V1 = re.compile(r"^(?:0|[1-9][0-9]*)<[^>\r\n]+>$")
 _TRACE_FLAGS_V1 = re.compile(r"(?:^|[{,]\s*)flags=(?P<flags>[^,}]+)")
@@ -273,6 +286,12 @@ _PROVIDER_APP_SERVER_ARGUMENTS: Final = (
 _DRIVER_TIMEOUT_SECONDS: Final = 90
 _CHANNEL_SETTLEMENT_SECONDS: Final = 5.0
 _CHANNEL_POLL_SECONDS: Final = 0.01
+_PROC_MOUNTINFO_LIMIT_BYTES: Final = 1024 * 1024
+_PROC_MOUNTINFO_MAX_ROWS: Final = 4096
+_PROC_MOUNT_FIELD_LIMIT_BYTES: Final = 4096
+_PROC_MOUNTINFO_PSEUDO_ROOT_V1 = re.compile(
+    rb"[a-z][a-z0-9_-]{0,31}:\[[1-9][0-9]{0,19}\]\Z"
+)
 
 
 class M5CodexContainmentErrorV1(RuntimeError):
@@ -356,6 +375,34 @@ class _ProfileTreeSnapshotV1:
 
 
 @dataclass(frozen=True, slots=True)
+class _MountRecordV1:
+    mount_id: int
+    parent_id: int
+    device_major: int
+    device_minor: int
+    root: Path
+    mount_point: Path
+
+
+@dataclass(frozen=True, slots=True)
+class _MountInfoViewV1:
+    covering_mount: _MountRecordV1
+
+
+@dataclass(frozen=True, slots=True)
+class _MountTopologySnapshotV1:
+    namespace_identity: _InodeIdentityV1
+    covering_mount: _MountRecordV1
+
+
+@dataclass(slots=True)
+class _OwnedDriverProcessV1:
+    process: subprocess.Popen[bytes]
+    pidfd: int
+    start_time_ticks: int
+
+
+@dataclass(frozen=True, slots=True)
 class _OperationV1:
     sequence: int
     kind: Literal["version", "identity", "quota"]
@@ -393,6 +440,273 @@ def _normalized_absolute(path: Path, code: str) -> Path:
     if normalized != path or any(part == ".." for part in path.parts):
         raise M5CodexContainmentErrorV1(code)
     return normalized
+
+
+def _mount_topology_error() -> M5CodexContainmentErrorV1:
+    return M5CodexContainmentErrorV1("m5_codex_containment_mount_topology_unverifiable")
+
+
+def _decode_mountinfo_path_v1(
+    value: bytes,
+    *,
+    require_absolute: bool = True,
+) -> Path:
+    if type(value) is not bytes or not 1 <= len(value) <= _PROC_MOUNT_FIELD_LIMIT_BYTES:
+        raise ValueError
+    decoded = bytearray()
+    position = 0
+    escapes = {
+        b"040": 0x20,
+        b"011": 0x09,
+        b"012": 0x0A,
+        b"134": 0x5C,
+    }
+    while position < len(value):
+        current = value[position]
+        if current != 0x5C:
+            decoded.append(current)
+            position += 1
+            continue
+        token = value[position + 1 : position + 4]
+        replacement = escapes.get(token)
+        if replacement is None:
+            raise ValueError
+        decoded.append(replacement)
+        position += 4
+    raw = bytes(decoded)
+    if any(member < 0x20 or member == 0x7F for member in raw):
+        raise ValueError
+    if require_absolute and (
+        not raw.startswith(b"/")
+        or raw.startswith(b"//")
+        or os.path.normpath(raw) != raw
+    ):
+        raise ValueError
+    return Path(os.fsdecode(raw))
+
+
+def _canonical_mount_integer_v1(value: bytes, *, positive: bool) -> int:
+    expression = rb"[1-9][0-9]*" if positive else rb"(?:0|[1-9][0-9]*)"
+    if re.fullmatch(expression, value) is None:
+        raise ValueError
+    parsed = int(value)
+    if parsed > 2**31 - 1:
+        raise ValueError
+    return parsed
+
+
+def _decode_mountinfo_root_v1(value: bytes) -> Path:
+    """Accept canonical paths and bounded kernel namespace pseudo roots only."""
+
+    try:
+        return _decode_mountinfo_path_v1(value)
+    except ValueError:
+        pseudo_root = _decode_mountinfo_path_v1(value, require_absolute=False)
+        if _PROC_MOUNTINFO_PSEUDO_ROOT_V1.fullmatch(os.fsencode(pseudo_root)) is None:
+            raise ValueError from None
+        return pseudo_root
+
+
+def _parse_mountinfo_v1(
+    payload: bytes,
+    *,
+    managed_profile_root: Path,
+) -> _MountInfoViewV1:
+    """Parse one bounded Linux mount table and exclude profile aliases."""
+
+    try:
+        managed = _normalized_absolute(
+            managed_profile_root,
+            "m5_codex_containment_mount_topology_unverifiable",
+        )
+        if (
+            type(payload) is not bytes
+            or not 1 <= len(payload) <= _PROC_MOUNTINFO_LIMIT_BYTES
+            or not payload.endswith(b"\n")
+            or b"\r" in payload
+        ):
+            raise ValueError
+        lines = payload.splitlines()
+        if not 1 <= len(lines) <= _PROC_MOUNTINFO_MAX_ROWS:
+            raise ValueError
+        records: list[_MountRecordV1] = []
+        mount_ids: set[int] = set()
+        for line in lines:
+            if not line or any(member < 0x20 or member == 0x7F for member in line):
+                raise ValueError
+            fields = line.split(b" ")
+            if any(not field for field in fields) or fields.count(b"-") != 1:
+                raise ValueError
+            separator = fields.index(b"-")
+            before = fields[:separator]
+            after = fields[separator + 1 :]
+            if len(before) < 6 or len(after) != 3:
+                raise ValueError
+            mount_id = _canonical_mount_integer_v1(before[0], positive=True)
+            # The initial mount namespace can expose parent ID 0 for its
+            # hidden initramfs parent.  Preserve that canonical Linux value.
+            parent_id = _canonical_mount_integer_v1(before[1], positive=False)
+            device = before[2].split(b":")
+            if len(device) != 2:
+                raise ValueError
+            major = _canonical_mount_integer_v1(device[0], positive=False)
+            minor = _canonical_mount_integer_v1(device[1], positive=False)
+            root = _decode_mountinfo_root_v1(before[3])
+            mount_point = _decode_mountinfo_path_v1(before[4])
+            if (
+                (not root.is_absolute() and after[0] != b"nsfs")
+                or mount_id in mount_ids
+                or any(
+                    not 1 <= len(field) <= _PROC_MOUNT_FIELD_LIMIT_BYTES
+                    for field in (*before[5:], *after)
+                )
+            ):
+                raise ValueError
+            mount_ids.add(mount_id)
+            records.append(
+                _MountRecordV1(
+                    mount_id,
+                    parent_id,
+                    major,
+                    minor,
+                    root,
+                    mount_point,
+                )
+            )
+        covering: list[_MountRecordV1] = []
+        for record in records:
+            point = record.mount_point
+            if point == managed or managed in point.parents:
+                raise ValueError
+            if point in managed.parents:
+                covering.append(record)
+        if not covering:
+            raise ValueError
+        deepest = max(len(record.mount_point.parts) for record in covering)
+        candidates = tuple(
+            record for record in covering if len(record.mount_point.parts) == deepest
+        )
+        if len(candidates) != 1:
+            raise ValueError
+        selected = candidates[0]
+        if not selected.root.is_absolute() or os.path.normpath(
+            os.fspath(selected.root)
+        ) != os.fspath(selected.root):
+            raise ValueError
+        return _MountInfoViewV1(selected)
+    except (M5CodexContainmentErrorV1, OSError, TypeError, ValueError):
+        raise _mount_topology_error() from None
+
+
+def _read_bounded_proc_file_v1(path: Path) -> bytes:
+    descriptor = -1
+    try:
+        descriptor = os.open(path, os.O_RDONLY | os.O_CLOEXEC | os.O_NOFOLLOW)
+        metadata = os.fstat(descriptor)
+        if not stat.S_ISREG(metadata.st_mode):
+            raise OSError
+        chunks: list[bytes] = []
+        total = 0
+        while total <= _PROC_MOUNTINFO_LIMIT_BYTES:
+            chunk = os.read(
+                descriptor,
+                min(64 * 1024, _PROC_MOUNTINFO_LIMIT_BYTES + 1 - total),
+            )
+            if not chunk:
+                break
+            chunks.append(chunk)
+            total += len(chunk)
+        if not 1 <= total <= _PROC_MOUNTINFO_LIMIT_BYTES:
+            raise OSError
+        return b"".join(chunks)
+    except OSError:
+        raise _mount_topology_error() from None
+    finally:
+        if descriptor >= 0:
+            active_error = sys.exc_info()[0] is not None
+            try:
+                os.close(descriptor)
+            except OSError:
+                if not active_error:
+                    raise _mount_topology_error() from None
+
+
+def _mount_namespace_identity_v1(path: Path) -> _InodeIdentityV1:
+    try:
+        metadata = path.stat()
+        identity = _inode_identity(metadata)
+        if identity[0] <= 0 or identity[1] <= 0:
+            raise OSError
+        return identity
+    except OSError:
+        raise _mount_topology_error() from None
+
+
+def _mount_topology_snapshot_v1(
+    managed_profile_root: Path,
+    *,
+    process_id: int | None = None,
+    expected_process_start_time_ticks: int | None = None,
+) -> _MountTopologySnapshotV1:
+    """Capture the selected root's real mount view without retaining its table."""
+
+    pid = os.getpid() if process_id is None else process_id
+    if type(pid) is not int or not 1 <= pid <= 2**31 - 1:
+        raise _mount_topology_error()
+    if expected_process_start_time_ticks is not None and (
+        type(expected_process_start_time_ticks) is not int
+        or not 1 <= expected_process_start_time_ticks <= 2**63 - 1
+    ):
+        raise _mount_topology_error()
+    process_root = Path("/proc") / str(pid)
+    try:
+        if process_root.stat().st_uid != os.getuid():
+            raise OSError
+    except OSError:
+        raise _mount_topology_error() from None
+    try:
+        start_ticks_before = _process_start_ticks(pid)
+    except M5CodexContainmentUnavailableV1:
+        raise _mount_topology_error() from None
+    if (
+        expected_process_start_time_ticks is not None
+        and start_ticks_before != expected_process_start_time_ticks
+    ):
+        raise _mount_topology_error()
+    namespace_path = process_root / "ns" / "mnt"
+    before_identity = _mount_namespace_identity_v1(namespace_path)
+    payload = _read_bounded_proc_file_v1(process_root / "mountinfo")
+    after_identity = _mount_namespace_identity_v1(namespace_path)
+    try:
+        start_ticks_after = _process_start_ticks(pid)
+    except M5CodexContainmentUnavailableV1:
+        raise _mount_topology_error() from None
+    if (
+        before_identity != after_identity
+        or start_ticks_before != start_ticks_after
+        or (
+            expected_process_start_time_ticks is not None
+            and start_ticks_after != expected_process_start_time_ticks
+        )
+    ):
+        raise _mount_topology_error()
+    view = _parse_mountinfo_v1(
+        payload,
+        managed_profile_root=managed_profile_root,
+    )
+    return _MountTopologySnapshotV1(before_identity, view.covering_mount)
+
+
+def _require_same_mount_topology_v1(
+    expected: _MountTopologySnapshotV1,
+    observed: _MountTopologySnapshotV1,
+) -> None:
+    if (
+        type(expected) is not _MountTopologySnapshotV1
+        or type(observed) is not _MountTopologySnapshotV1
+        or observed != expected
+    ):
+        raise _mount_topology_error()
 
 
 def _private_directory(path: Path, code: str) -> os.stat_result:
@@ -1624,6 +1938,40 @@ def _mount_namespace_requested(record: _TraceRecordV1) -> bool:
     )
 
 
+def _ftruncate_target_v1(record: _TraceRecordV1) -> Path | None:
+    """Return one exact successful descriptor target or a proven no-effect."""
+
+    if record.call != "ftruncate":
+        raise M5CodexContainmentErrorV1("m5_codex_containment_trace_invalid")
+    match = _TRACE_FTRUNCATE_ARGUMENTS_V1.fullmatch(record.arguments)
+    if match is None:
+        if _TRACE_FTRUNCATE_MISSING_PATH_V1.fullmatch(record.arguments) is not None:
+            raise M5CodexContainmentErrorV1(
+                "m5_codex_containment_fd_write_unverifiable"
+            )
+        raise M5CodexContainmentErrorV1("m5_codex_containment_trace_invalid")
+    length = int(match.group("length"))
+    if length > 2**63 - 1:
+        raise M5CodexContainmentErrorV1("m5_codex_containment_trace_invalid")
+    raw_path = match.group("path")
+    if raw_path.endswith(" (deleted)"):
+        raise M5CodexContainmentErrorV1("m5_codex_containment_fd_write_unverifiable")
+    if (
+        not raw_path.startswith("/")
+        or raw_path.startswith("//")
+        or os.path.normpath(raw_path) != raw_path
+    ):
+        raise M5CodexContainmentErrorV1("m5_codex_containment_trace_invalid")
+    target = Path(raw_path)
+    if not target.is_absolute():
+        raise M5CodexContainmentErrorV1("m5_codex_containment_trace_invalid")
+    success = record.result == "0"
+    failed = _TRACE_FTRUNCATE_FAILED_RESULT_V1.fullmatch(record.result) is not None
+    if not success and not failed:
+        raise M5CodexContainmentErrorV1("m5_codex_containment_trace_invalid")
+    return target if success else None
+
+
 def _trace_paths(record: _TraceRecordV1, *, working_root: Path) -> tuple[Path, ...]:
     quoted = _quoted_arguments(record)
     if record.call in {"execve", "execveat"}:
@@ -1716,6 +2064,8 @@ def _evaluate_codex_trace_policy_v1(
     target_replacement_records: list[tuple[_TraceRecordV1, tuple[Path, ...]]] = []
     for record in records:
         raw_no_effect = False
+        ftruncate_target: Path | None = None
+        ftruncate_no_effect = False
         if record.call in _RAW_GLOBAL_CALLS:
             if _TRACE_FAILED_RESULT_V1.fullmatch(record.result) is not None:
                 raw_no_effect = True
@@ -1728,6 +2078,9 @@ def _evaluate_codex_trace_policy_v1(
                 )
             else:
                 raise M5CodexContainmentErrorV1("m5_codex_containment_trace_invalid")
+        if record.call == "ftruncate":
+            ftruncate_target = _ftruncate_target_v1(record)
+            ftruncate_no_effect = ftruncate_target is None
         working_directory_group = working_directory_groups.setdefault(
             record.pid,
             record.pid,
@@ -1736,12 +2089,16 @@ def _evaluate_codex_trace_policy_v1(
             working_directory_group,
             managed,
         )
-        paths = (
-            ()
-            if raw_no_effect
-            else _trace_paths(record, working_root=working_directory)
+        paths: tuple[Path, ...]
+        if ftruncate_target is not None:
+            paths = (ftruncate_target,)
+        elif raw_no_effect or ftruncate_no_effect:
+            paths = ()
+        else:
+            paths = _trace_paths(record, working_root=working_directory)
+        is_write = ftruncate_target is not None or (
+            not raw_no_effect and not ftruncate_no_effect and _trace_is_write(record)
         )
-        is_write = False if raw_no_effect else _trace_is_write(record)
         classified_records.append((record, paths, is_write, working_directory))
         if (
             _successful(record)
@@ -1769,7 +2126,11 @@ def _evaluate_codex_trace_policy_v1(
             raise M5CodexContainmentErrorV1(
                 "m5_codex_containment_working_directory_escape"
             )
-        if _successful(record) and record.call in _FD_ONLY_MUTATORS:
+        if (
+            _successful(record)
+            and record.call in _FD_ONLY_MUTATORS
+            and record.call != "ftruncate"
+        ):
             raise M5CodexContainmentErrorV1(
                 "m5_codex_containment_fd_write_unverifiable"
             )
@@ -1908,6 +2269,14 @@ def _evaluate_codex_trace_policy_v1(
                     "m5_codex_containment_path_mutator_unverifiable"
                 )
             chmods.append((operation, relative_parts, record_index))
+        if (
+            record.call == "ftruncate"
+            and paths
+            and (operation is None or operation.kind not in {"identity", "quota"})
+        ):
+            raise M5CodexContainmentErrorV1(
+                "m5_codex_containment_fd_write_unverifiable"
+            )
         if operation is None:
             continue
 
@@ -1926,7 +2295,11 @@ def _evaluate_codex_trace_policy_v1(
                 )
                 else child
             )
-        if _successful(record) and record.call in _FD_ONLY_MUTATORS:
+        if (
+            _successful(record)
+            and record.call in _FD_ONLY_MUTATORS
+            and record.call != "ftruncate"
+        ):
             raise M5CodexContainmentErrorV1(
                 "m5_codex_containment_fd_write_unverifiable"
             )
@@ -2425,7 +2798,7 @@ def _start_traced_driver(
     executable: _ExecutableV1,
     python_runtime: _PythonRuntimeV1,
     default_roots: tuple[Path, ...],
-) -> subprocess.Popen[bytes]:
+) -> _OwnedDriverProcessV1:
     environment = {
         _INPUT_FD_ENV: str(input_descriptor),
         _RESULT_FD_ENV: str(result_descriptor),
@@ -2467,7 +2840,7 @@ def _start_traced_driver(
         expected_identity=working_directory_identity,
     )
     try:
-        return _start_containment_process(
+        process = _start_containment_process(
             command,
             cwd=Path(f"/proc/self/fd/{directory_descriptor}"),
             environment=environment,
@@ -2478,6 +2851,7 @@ def _start_traced_driver(
                 directory_descriptor,
             ),
         )
+        return _bind_owned_driver_process_group_v1(process)
     finally:
         os.close(directory_descriptor)
 
@@ -2507,11 +2881,174 @@ def _start_containment_process(
         ) from None
 
 
-def _terminate_driver_process_group(process: subprocess.Popen[bytes]) -> None:
+def _bind_owned_driver_process_group_v1(
+    process: subprocess.Popen[bytes],
+) -> _OwnedDriverProcessV1:
+    """Bind one new-session child before any operation can reap its leader."""
+
+    pidfd = -1
+    group_bound = False
     try:
-        os.killpg(process.pid, signal.SIGKILL)
-    except OSError:
-        pass
+        if process.returncode is not None or not 1 <= process.pid <= 2**31 - 1:
+            raise OSError
+        pidfd = os.pidfd_open(process.pid, 0)
+        start_time_ticks = _process_start_ticks(process.pid)
+        if (
+            os.getpgid(process.pid) != process.pid
+            or os.getsid(process.pid) != process.pid
+        ):
+            raise OSError
+        group_bound = True
+        if (
+            process.returncode is not None
+            or _process_start_ticks(process.pid) != start_time_ticks
+        ):
+            raise OSError
+        return _OwnedDriverProcessV1(process, pidfd, start_time_ticks)
+    except (M5CodexContainmentErrorV1, AttributeError, OSError):
+        if group_bound:
+            try:
+                os.killpg(process.pid, signal.SIGKILL)
+            except OSError:
+                pass
+        else:
+            try:
+                process.kill()
+            except OSError:
+                pass
+        try:
+            process.wait(timeout=_CHANNEL_SETTLEMENT_SECONDS)
+        except (OSError, subprocess.TimeoutExpired):
+            pass
+        if pidfd >= 0:
+            try:
+                os.close(pidfd)
+            except OSError:
+                pass
+        raise M5CodexContainmentUnavailableV1(
+            "m5_codex_containment_driver_unavailable"
+        ) from None
+
+
+def _owned_driver_process_v1(
+    process: subprocess.Popen[bytes] | _OwnedDriverProcessV1,
+) -> _OwnedDriverProcessV1:
+    if isinstance(process, _OwnedDriverProcessV1):
+        return process
+    return _bind_owned_driver_process_group_v1(process)
+
+
+def _owned_driver_exit_observed_v1(
+    process: _OwnedDriverProcessV1,
+    *,
+    deadline_monotonic: float,
+) -> bool:
+    if type(process) is not _OwnedDriverProcessV1 or process.pidfd < 0:
+        raise M5CodexContainmentUnavailableV1(
+            "m5_codex_containment_driver_deadline_exceeded"
+        )
+    try:
+        readable, _, _ = select.select(
+            [process.pidfd],
+            [],
+            [],
+            max(0.0, deadline_monotonic - time.monotonic()),
+        )
+    except (OSError, ValueError):
+        raise M5CodexContainmentUnavailableV1(
+            "m5_codex_containment_driver_deadline_exceeded"
+        ) from None
+    return readable == [process.pidfd]
+
+
+def _signal_owned_driver_process_group_v1(
+    process: _OwnedDriverProcessV1,
+) -> None:
+    """Signal the bound group while its leader remains deliberately unreaped."""
+
+    if (
+        type(process) is not _OwnedDriverProcessV1
+        or process.pidfd < 0
+        or process.process.returncode is not None
+    ):
+        raise M5CodexContainmentUnavailableV1(
+            "m5_codex_containment_driver_deadline_exceeded"
+        )
+    try:
+        if (
+            _process_start_ticks(process.process.pid) != process.start_time_ticks
+            or os.getpgid(process.process.pid) != process.process.pid
+            or os.getsid(process.process.pid) != process.process.pid
+        ):
+            raise OSError
+        os.killpg(process.process.pid, signal.SIGKILL)
+    except ProcessLookupError:
+        if not _owned_driver_exit_observed_v1(
+            process,
+            deadline_monotonic=time.monotonic(),
+        ):
+            raise M5CodexContainmentUnavailableV1(
+                "m5_codex_containment_driver_deadline_exceeded"
+            ) from None
+    except (M5CodexContainmentErrorV1, OSError):
+        raise M5CodexContainmentUnavailableV1(
+            "m5_codex_containment_driver_deadline_exceeded"
+        ) from None
+
+
+def _terminate_and_reap_driver_process_group_v1(
+    process: subprocess.Popen[bytes] | _OwnedDriverProcessV1,
+    *,
+    deadline_monotonic: float | None = None,
+) -> None:
+    """Signal the bound group before reaping its leader, then close the pidfd."""
+
+    owned = _owned_driver_process_v1(process)
+    if owned.pidfd < 0:
+        if owned.process.returncode is None:
+            raise M5CodexContainmentUnavailableV1(
+                "m5_codex_containment_driver_deadline_exceeded"
+            )
+        return
+    failed = False
+    try:
+        try:
+            _signal_owned_driver_process_group_v1(owned)
+        except M5CodexContainmentUnavailableV1:
+            failed = True
+        deadline = (
+            time.monotonic() + _CHANNEL_SETTLEMENT_SECONDS
+            if deadline_monotonic is None
+            else deadline_monotonic
+        )
+        try:
+            exited = _owned_driver_exit_observed_v1(
+                owned,
+                deadline_monotonic=deadline,
+            )
+        except M5CodexContainmentUnavailableV1:
+            exited = False
+            failed = True
+        if not exited:
+            failed = True
+        else:
+            try:
+                owned.process.wait(
+                    timeout=max(0.0, deadline - time.monotonic()),
+                )
+            except (OSError, subprocess.TimeoutExpired):
+                failed = True
+    finally:
+        descriptor = owned.pidfd
+        owned.pidfd = -1
+        try:
+            os.close(descriptor)
+        except OSError:
+            failed = True
+    if failed or owned.process.returncode is None:
+        raise M5CodexContainmentUnavailableV1(
+            "m5_codex_containment_driver_deadline_exceeded"
+        ) from None
 
 
 def _input_future_outcome(
@@ -2598,7 +3135,7 @@ def _classify_driver_channels(
 
 
 def _collect_driver_channels_until(
-    process: subprocess.Popen[bytes],
+    process: subprocess.Popen[bytes] | _OwnedDriverProcessV1,
     *,
     input_descriptor: int,
     input_payload: bytes,
@@ -2608,6 +3145,7 @@ def _collect_driver_channels_until(
 ) -> tuple[int, bytes, bytes]:
     """Drain three channels under one driver and one settlement deadline."""
 
+    owned_process = _owned_driver_process_v1(process)
     settlement = _ChannelSettlementV1()
     input_channel = _OwnedPrivateChannelV1(input_descriptor)
     result_channel = _OwnedPrivateChannelV1(result_descriptor)
@@ -2647,26 +3185,37 @@ def _collect_driver_channels_until(
             )
         except (MemoryError, OSError, RuntimeError):
             submission_failed = True
-            _terminate_driver_process_group(process)
+            try:
+                _signal_owned_driver_process_group_v1(owned_process)
+            except M5CodexContainmentUnavailableV1:
+                driver_deadline_exceeded = True
 
         if not submission_failed:
             try:
-                returncode = process.wait(
-                    timeout=max(0.0, driver_deadline_monotonic - time.monotonic())
+                driver_exited = _owned_driver_exit_observed_v1(
+                    owned_process,
+                    deadline_monotonic=driver_deadline_monotonic,
                 )
-            except (OSError, subprocess.TimeoutExpired):
+            except M5CodexContainmentUnavailableV1:
+                driver_exited = False
+            if not driver_exited:
                 driver_deadline_exceeded = True
-                _terminate_driver_process_group(process)
+                try:
+                    _signal_owned_driver_process_group_v1(owned_process)
+                except M5CodexContainmentUnavailableV1:
+                    pass
 
         settlement_deadline = settlement.begin()
         if submission_failed or driver_deadline_exceeded:
             try:
-                returncode = process.wait(
-                    timeout=max(0.0, settlement_deadline - time.monotonic())
+                driver_exited = _owned_driver_exit_observed_v1(
+                    owned_process,
+                    deadline_monotonic=settlement_deadline,
                 )
-            except (OSError, subprocess.TimeoutExpired):
-                if driver_deadline_exceeded:
-                    driver_deadline_exceeded = True
+            except M5CodexContainmentUnavailableV1:
+                driver_exited = False
+            if not driver_exited:
+                driver_deadline_exceeded = True
 
         futures = {
             cast(Future[object], future)
@@ -2679,7 +3228,10 @@ def _collect_driver_channels_until(
         )
         late_futures.update(pending)
         if pending:
-            _terminate_driver_process_group(process)
+            try:
+                _signal_owned_driver_process_group_v1(owned_process)
+            except M5CodexContainmentUnavailableV1:
+                driver_deadline_exceeded = True
         settlement.cancel()
         input_channel.close()
         result_channel.close()
@@ -2709,6 +3261,16 @@ def _collect_driver_channels_until(
                 future.cancel()
         if executor is not None:
             executor.shutdown(wait=False, cancel_futures=True)
+        try:
+            _terminate_and_reap_driver_process_group_v1(
+                owned_process,
+                deadline_monotonic=settlement_deadline,
+            )
+        except M5CodexContainmentUnavailableV1:
+            driver_deadline_exceeded = True
+        observed_returncode = owned_process.process.returncode
+        if type(observed_returncode) is int:
+            returncode = observed_returncode
 
     return _classify_driver_channels(
         driver_deadline_exceeded=driver_deadline_exceeded,
@@ -2720,7 +3282,7 @@ def _collect_driver_channels_until(
 
 
 def _collect_driver_channels(
-    process: subprocess.Popen[bytes],
+    process: subprocess.Popen[bytes] | _OwnedDriverProcessV1,
     *,
     input_descriptor: int,
     input_payload: bytes,
@@ -2808,10 +3370,14 @@ def verify_codex_managed_profile_containment_v1(
     trace_writer = -1
     profile_root_descriptor = -1
     target_descriptor = -1
+    process: _OwnedDriverProcessV1 | None = None
     try:
         profile_root_descriptor, pinned_profile_identity = _open_pinned_profile_root(
             selection.managed_profile_root,
             expected_identity=profile_identity,
+        )
+        mount_topology_before = _mount_topology_snapshot_v1(
+            selection.managed_profile_root
         )
         profile_tree_before_snapshot = _managed_profile_tree_snapshot(
             selection.managed_profile_root,
@@ -2831,6 +3397,33 @@ def verify_codex_managed_profile_containment_v1(
             python_runtime=python_runtime,
             default_roots=default_roots,
         )
+        try:
+            driver_exited = _owned_driver_exit_observed_v1(
+                process,
+                deadline_monotonic=time.monotonic(),
+            )
+        except M5CodexContainmentUnavailableV1:
+            raise _mount_topology_error() from None
+        if driver_exited:
+            raise _mount_topology_error()
+        traced_mount_topology = _mount_topology_snapshot_v1(
+            selection.managed_profile_root,
+            process_id=process.process.pid,
+            expected_process_start_time_ticks=process.start_time_ticks,
+        )
+        try:
+            driver_exited = _owned_driver_exit_observed_v1(
+                process,
+                deadline_monotonic=time.monotonic(),
+            )
+        except M5CodexContainmentUnavailableV1:
+            raise _mount_topology_error() from None
+        if driver_exited:
+            raise _mount_topology_error()
+        _require_same_mount_topology_v1(
+            mount_topology_before,
+            traced_mount_topology,
+        )
         os.close(input_reader)
         input_reader = -1
         os.close(result_writer)
@@ -2849,6 +3442,13 @@ def verify_codex_managed_profile_containment_v1(
             input_payload=selection_payload,
             result_descriptor=owned_result_reader,
             trace_descriptor=owned_trace_reader,
+        )
+        mount_topology_after = _mount_topology_snapshot_v1(
+            selection.managed_profile_root
+        )
+        _require_same_mount_topology_v1(
+            mount_topology_before,
+            mount_topology_after,
         )
         result = _validated_driver_result(result_payload, returncode)
         try:
@@ -2965,6 +3565,12 @@ def verify_codex_managed_profile_containment_v1(
             default_profile_write_count=summary.default_profile_write_count,
         )
     finally:
+        cleanup_error: M5CodexContainmentUnavailableV1 | None = None
+        if process is not None:
+            try:
+                _terminate_and_reap_driver_process_group_v1(process)
+            except M5CodexContainmentUnavailableV1 as error:
+                cleanup_error = error
         for descriptor in (
             input_reader,
             input_writer,
@@ -2989,6 +3595,8 @@ def verify_codex_managed_profile_containment_v1(
             raise M5CodexContainmentErrorV1(
                 "m5_codex_containment_path_mutator_unverifiable"
             )
+        if cleanup_error is not None:
+            raise cleanup_error from None
 
 
 if __name__ == "__main__":

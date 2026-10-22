@@ -198,7 +198,221 @@ def _two_operation_chmod_trace(
     return "\n".join(lines)
 
 
+def _trace_with_ftruncates(
+    identity_record: str,
+    quota_record: str,
+) -> str:
+    """Insert one descriptor-bound record into each provider lineage."""
+
+    identity_anchor = f'201 chmod("{_TRACE_CHMOD_TARGET}", 0700) = 0'
+    quota_anchor = f'301 chmod("{_TRACE_CHMOD_TARGET}", 0700) = 0'
+    return (
+        _two_operation_chmod_trace()
+        .replace(identity_anchor, f"{identity_anchor}\n201 {identity_record}", 1)
+        .replace(quota_anchor, f"{quota_anchor}\n301 {quota_record}", 1)
+    )
+
+
 class M5CodexContainmentPolicyTests(unittest.TestCase):
+    def test_descriptor_bound_ftruncate_is_counted_for_both_provider_reads(
+        self,
+    ) -> None:
+        """M5-CDX-GATE-001: confined fd truncation is a provider write."""
+
+        identity_target = _TRACE_MANAGED_ROOT / "runtime" / "identity-state"
+        quota_target = _TRACE_MANAGED_ROOT / "runtime" / "quota-state"
+        trace = _trace_with_ftruncates(
+            f"ftruncate(10<{identity_target}>, 0) = 0",
+            f"ftruncate(999999<{quota_target}>, 9223372036854775807) = 0",
+        )
+
+        baseline = evaluate_codex_trace_policy_v1(
+            _two_operation_chmod_trace(),
+            provider_executable=_TRACE_EXECUTABLE,
+            managed_profile_root=_TRACE_MANAGED_ROOT,
+            default_codex_roots=(Path("/home/owner/.codex"),),
+        )
+        summary = evaluate_codex_trace_policy_v1(
+            trace,
+            provider_executable=_TRACE_EXECUTABLE,
+            managed_profile_root=_TRACE_MANAGED_ROOT,
+            default_codex_roots=(Path("/home/owner/.codex"),),
+        )
+
+        self.assertEqual(summary.provider_execution_count, 3)
+        self.assertEqual(
+            summary.provider_access_count,
+            baseline.provider_access_count + 2,
+        )
+        self.assertEqual(
+            summary.provider_write_count,
+            baseline.provider_write_count + 2,
+        )
+
+    def test_exact_failed_ftruncate_is_no_effect_but_keeps_chronology(self) -> None:
+        """M5-CDX-GATE-001: canonical failed fd calls remain ordered records."""
+
+        target = _TRACE_MANAGED_ROOT / "runtime" / "state"
+        failed = f"ftruncate(10<{target}>, 3) = -1 EPERM (Operation not permitted)"
+        trace = _trace_with_ftruncates(failed, failed)
+        summary = evaluate_codex_trace_policy_v1(
+            trace,
+            provider_executable=_TRACE_EXECUTABLE,
+            managed_profile_root=_TRACE_MANAGED_ROOT,
+            default_codex_roots=(Path("/home/owner/.codex"),),
+        )
+        self.assertEqual(summary.provider_write_count, 2)
+
+        after_exit = trace.replace(
+            "200 exit_group(0) = ?",
+            f"200 exit_group(0) = ?\n200 {failed}",
+            1,
+        )
+        with self.assertRaises(M5CodexContainmentErrorV1) as raised:
+            evaluate_codex_trace_policy_v1(
+                after_exit,
+                provider_executable=_TRACE_EXECUTABLE,
+                managed_profile_root=_TRACE_MANAGED_ROOT,
+                default_codex_roots=(Path("/home/owner/.codex"),),
+            )
+        self.assertEqual(str(raised.exception), "m5_codex_containment_trace_invalid")
+
+    def test_ftruncate_argument_and_result_grammar_fails_closed(self) -> None:
+        """M5-CDX-GATE-001: fd, target, length, and result are canonical."""
+
+        target = os.fspath(_TRACE_MANAGED_ROOT / "runtime" / "state")
+        exact = f"ftruncate(10<{target}>, 3) = 0"
+        cases = {
+            "descriptor_zero": f"ftruncate(0<{target}>, 3) = 0",
+            "descriptor_one": f"ftruncate(1<{target}>, 3) = 0",
+            "descriptor_two": f"ftruncate(2<{target}>, 3) = 0",
+            "descriptor_overflow": f"ftruncate(1000000<{target}>, 3) = 0",
+            "descriptor_leading_zero": f"ftruncate(010<{target}>, 3) = 0",
+            "length_leading_zero": f"ftruncate(10<{target}>, 03) = 0",
+            "length_negative": f"ftruncate(10<{target}>, -1) = 0",
+            "length_overflow": (f"ftruncate(10<{target}>, 9223372036854775808) = 0"),
+            "relative": "ftruncate(10<relative/state>, 3) = 0",
+            "double_slash": (
+                "ftruncate(10</owner//profiles/codex/opaque/state>, 3) = 0"
+            ),
+            "dotdot": (
+                "ftruncate(10</owner/profiles/codex/opaque/runtime/../state>, 3) = 0"
+            ),
+            "escape": (
+                r"ftruncate(10</owner/profiles/codex/opaque/state\134name>, 3) = 0"
+            ),
+            "delimiter": (
+                "ftruncate(10</owner/profiles/codex/opaque/state>name>, 3) = 0"
+            ),
+            "argument_prefix": (f"ftruncate(AT_FDCWD, 10<{target}>, 3) = 0"),
+            "argument_suffix": f"ftruncate(10<{target}>, 3, 0) = 0",
+            "control": (
+                "ftruncate(10</owner/profiles/codex/opaque/state\rname>, 3) = 0"
+            ),
+            "result_positive": f"ftruncate(10<{target}>, 3) = 1",
+            "result_unknown": f"ftruncate(10<{target}>, 3) = ?",
+            "result_restarted": (
+                f"ftruncate(10<{target}>, 3) = ? ERESTARTSYS "
+                "(To be restarted if SA_RESTART is set)"
+            ),
+            "result_prefix": f"ftruncate(10<{target}>, 3) = leading 0",
+            "result_suffix": f"ftruncate(10<{target}>, 3) = 0 trailing",
+            "failed_malformed_args": (
+                f"ftruncate(10<{target}>, 03) = -1 EPERM (Operation not permitted)"
+            ),
+            "failed_malformed_result": f"ftruncate(10<{target}>, 3) = -1 EPERM",
+        }
+        for label, record in cases.items():
+            with self.subTest(label=label):
+                trace = _trace_with_ftruncates(record, exact)
+                with self.assertRaises(M5CodexContainmentErrorV1) as raised:
+                    evaluate_codex_trace_policy_v1(
+                        trace,
+                        provider_executable=_TRACE_EXECUTABLE,
+                        managed_profile_root=_TRACE_MANAGED_ROOT,
+                        default_codex_roots=(Path("/home/owner/.codex"),),
+                    )
+                self.assertEqual(
+                    str(raised.exception),
+                    "m5_codex_containment_trace_invalid",
+                )
+
+    def test_ftruncate_unverifiable_and_escape_boundaries_are_specific(self) -> None:
+        """M5-CDX-GATE-001: scope failures retain sanitized exact causes."""
+
+        managed_target = _TRACE_MANAGED_ROOT / "runtime" / "state"
+        exact = f"ftruncate(10<{managed_target}>, 3) = 0"
+        cases = {
+            "missing_annotation": (
+                "ftruncate(10, 3) = 0",
+                "m5_codex_containment_fd_write_unverifiable",
+            ),
+            "deleted_annotation": (
+                f"ftruncate(10<{managed_target} (deleted)>, 3) = 0",
+                "m5_codex_containment_fd_write_unverifiable",
+            ),
+            "failed_missing_annotation": (
+                "ftruncate(10, 3) = -1 EBADF (Bad file descriptor)",
+                "m5_codex_containment_fd_write_unverifiable",
+            ),
+            "failed_deleted_annotation": (
+                f"ftruncate(10<{managed_target} (deleted)>, 3) = -1 EPERM (Operation not permitted)",
+                "m5_codex_containment_fd_write_unverifiable",
+            ),
+            "missing_annotation_with_malformed_result": (
+                "ftruncate(10, 3) = ?",
+                "m5_codex_containment_fd_write_unverifiable",
+            ),
+            "deleted_annotation_with_malformed_result": (
+                f"ftruncate(10<{managed_target} (deleted)>, 3) = ?",
+                "m5_codex_containment_fd_write_unverifiable",
+            ),
+            "default_root": (
+                "ftruncate(10</home/owner/.codex/state>, 3) = 0",
+                "m5_codex_default_profile_access_detected",
+            ),
+            "outside_root": (
+                "ftruncate(10</tmp/outside>, 3) = 0",
+                "m5_codex_managed_profile_write_escape",
+            ),
+        }
+        for label, (record, code) in cases.items():
+            with self.subTest(label=label):
+                trace = _trace_with_ftruncates(record, exact)
+                with self.assertRaises(M5CodexContainmentErrorV1) as raised:
+                    evaluate_codex_trace_policy_v1(
+                        trace,
+                        provider_executable=_TRACE_EXECUTABLE,
+                        managed_profile_root=_TRACE_MANAGED_ROOT,
+                        default_codex_roots=(Path("/home/owner/.codex"),),
+                    )
+                self.assertEqual(str(raised.exception), code)
+
+        first_exec = _trace_version_exec(100, _TRACE_EXECUTABLE)
+        unattributed = _two_operation_chmod_trace().replace(
+            first_exec,
+            f"99 {exact}\n{first_exec}",
+            1,
+        )
+        version = _two_operation_chmod_trace().replace(
+            "100 exit_group(0) = ?",
+            f"100 {exact}\n100 exit_group(0) = ?",
+            1,
+        )
+        for label, trace in {"unattributed": unattributed, "version": version}.items():
+            with self.subTest(label=label):
+                with self.assertRaises(M5CodexContainmentErrorV1) as raised:
+                    evaluate_codex_trace_policy_v1(
+                        trace,
+                        provider_executable=_TRACE_EXECUTABLE,
+                        managed_profile_root=_TRACE_MANAGED_ROOT,
+                        default_codex_roots=(Path("/home/owner/.codex"),),
+                    )
+                self.assertEqual(
+                    str(raised.exception),
+                    "m5_codex_containment_fd_write_unverifiable",
+                )
+
     def test_exact_two_app_server_lineage_chmods_are_admitted(self) -> None:
         """M5-CDX-GATE-001: one inode-bound chmod per operation is admitted."""
 
@@ -405,6 +619,7 @@ class M5CodexContainmentPolicyTests(unittest.TestCase):
             "fchmodat": f'fchmodat(AT_FDCWD, "{target}", 0700) = 0',
             "fchown": "fchown(9, 1000, 1000) = 0",
             "ftruncate": "ftruncate(9, 0) = 0",
+            "fallocate": "fallocate(9, 0, 0, 1) = 0",
             "truncate": f'truncate("{target}", 0) = 0',
             "setxattr": (f'setxattr("{target}", "user.agentmonitor", "x", 1, 0) = 0'),
             "lsetxattr": (f'lsetxattr("{target}", "user.agentmonitor", "x", 1, 0) = 0'),
@@ -443,16 +658,19 @@ class M5CodexContainmentPolicyTests(unittest.TestCase):
                 anchor,
                 f"{anchor}\n201 {operation}",
             )
-            with (
-                self.subTest(label=label),
-                self.assertRaises(M5CodexContainmentErrorV1),
-            ):
-                evaluate_codex_trace_policy_v1(
-                    trace,
-                    provider_executable=_TRACE_EXECUTABLE,
-                    managed_profile_root=_TRACE_MANAGED_ROOT,
-                    default_codex_roots=(Path("/home/owner/.codex"),),
-                )
+            with self.subTest(label=label):
+                with self.assertRaises(M5CodexContainmentErrorV1) as raised:
+                    evaluate_codex_trace_policy_v1(
+                        trace,
+                        provider_executable=_TRACE_EXECUTABLE,
+                        managed_profile_root=_TRACE_MANAGED_ROOT,
+                        default_codex_roots=(Path("/home/owner/.codex"),),
+                    )
+                if label == "fallocate":
+                    self.assertEqual(
+                        str(raised.exception),
+                        "m5_codex_containment_fd_write_unverifiable",
+                    )
 
     def test_raw_mutator_results_are_classified_globally(self) -> None:
         """M5-CDX-GATE-001: raw calls have one exact global result policy."""
@@ -1106,6 +1324,366 @@ class M5CodexContainmentPolicyTests(unittest.TestCase):
 
 
 class M5CodexContainmentPrerequisiteTests(unittest.TestCase):
+    def test_mountinfo_parser_rejects_nested_and_malformed_topology(self) -> None:
+        """M5-CDX-GATE-001: proc mount topology is strict and alias-free."""
+
+        managed = Path("/owner/profiles/codex/opaque")
+        valid = (
+            b"24 24 8:1 / / rw,relatime - ext4 /dev/root rw\n"
+            b"25 24 0:5 / /proc rw,nosuid - proc proc rw\n"
+            b"27 24 0:6 / /space\\040mount rw - tmpfs tmpfs rw\n"
+            b"28 24 0:7 mnt:[4026531841] /run/ns rw - nsfs nsfs rw\n"
+        )
+        view = containment._parse_mountinfo_v1(
+            valid,
+            managed_profile_root=managed,
+        )
+        self.assertEqual(view.covering_mount.mount_id, 24)
+        hidden_initramfs_parent = valid.replace(
+            b"24 24 8:1 / /",
+            b"24 0 8:1 / /",
+            1,
+        )
+        hidden_parent_view = containment._parse_mountinfo_v1(
+            hidden_initramfs_parent,
+            managed_profile_root=managed,
+        )
+        self.assertEqual(hidden_parent_view.covering_mount.parent_id, 0)
+
+        cases = {
+            "nested_directory_mount": valid
+            + b"26 24 8:1 /outside /owner/profiles/codex/opaque/runtime rw - ext4 /dev/root rw\n",
+            "nested_file_mount": valid
+            + b"26 24 8:1 /outside /owner/profiles/codex/opaque/state rw - ext4 /dev/root rw\n",
+            "selected_root_mount": valid
+            + b"26 24 8:1 /outside /owner/profiles/codex/opaque rw - ext4 /dev/root rw\n",
+            "duplicate_mount_id": valid + b"25 24 0:6 / /sys rw - sysfs sysfs rw\n",
+            "duplicate_covering_mountpoint": valid
+            + b"26 24 8:2 / / rw - ext4 /dev/other rw\n",
+            "bad_escape": (
+                b"24 24 8:1 / / rw - ext4 /dev/root rw\n"
+                b"26 24 8:1 /bad\\777 /outside rw - ext4 /dev/root rw\n"
+            ),
+            "relative_root": valid
+            + b"29 24 0:8 relative /outside rw - tmpfs tmpfs rw\n",
+            "noncanonical_root": valid
+            + b"29 24 0:8 /bad/../root /outside rw - tmpfs tmpfs rw\n",
+            "double_slash_root": valid
+            + b"29 24 0:8 //bad /outside rw - tmpfs tmpfs rw\n",
+            "malformed_pseudo_root": valid
+            + b"29 24 0:8 mnt:[0] /outside rw - nsfs nsfs rw\n",
+            "pseudo_root_wrong_filesystem": valid
+            + b"29 24 0:8 mnt:[4026531842] /outside rw - tmpfs tmpfs rw\n",
+            "control_in_mount_options": (
+                b"24 24 8:1 / / rw\tbad - ext4 /dev/root rw\n"
+            ),
+            "delete_in_super_options": (b"24 24 8:1 / / rw - ext4 /dev/root rw\x7f\n"),
+            "crlf_delimiter": b"24 24 8:1 / / rw - ext4 /dev/root rw\r\n",
+            "bare_cr_delimiter": (
+                b"24 24 8:1 / / rw - ext4 /dev/root rw\r"
+                b"25 24 0:5 / /proc rw - proc proc rw\n"
+            ),
+            "relative_mountpoint": b"24 24 8:1 / relative rw - ext4 /dev/root rw\n",
+            "missing_separator": b"24 24 8:1 / / rw ext4 /dev/root rw\n",
+            "empty": b"",
+            "no_covering_mount": (b"24 24 8:1 / /unrelated rw - ext4 /dev/root rw\n"),
+            "oversized": b"x" * (containment._PROC_MOUNTINFO_LIMIT_BYTES + 1),
+        }
+        for label, payload in cases.items():
+            with self.subTest(label=label):
+                with self.assertRaises(M5CodexContainmentErrorV1) as raised:
+                    containment._parse_mountinfo_v1(
+                        payload,
+                        managed_profile_root=managed,
+                    )
+                self.assertEqual(
+                    str(raised.exception),
+                    "m5_codex_containment_mount_topology_unverifiable",
+                )
+
+    def test_real_proc_mount_snapshot_matches_a_blocked_child(self) -> None:
+        """M5-CDX-GATE-001: the traced process inherits the proved namespace."""
+
+        input_reader, input_writer = _open_private_channel()
+        ready_reader, ready_writer = _open_private_channel()
+        process: subprocess.Popen[bytes] | None = None
+        owned: containment._OwnedDriverProcessV1 | None = None
+        tracee_pidfd = -1
+        try:
+            with tempfile.TemporaryDirectory() as raw:
+                managed = Path(raw) / "managed"
+                managed.mkdir(mode=0o700)
+                current = containment._mount_topology_snapshot_v1(managed)
+                source = (
+                    "import os,sys\n"
+                    "input_fd,ready_fd=map(int,sys.argv[1:3])\n"
+                    "os.write(ready_fd,str(os.getpid()).encode('ascii'))\n"
+                    "os.close(ready_fd)\n"
+                    "os.read(input_fd,1)\n"
+                )
+                process = _start_containment_process(
+                    [
+                        "/usr/bin/strace",
+                        "--kill-on-exit",
+                        "-f",
+                        "-qq",
+                        "-e",
+                        "trace=none",
+                        "-e",
+                        "signal=none",
+                        "-o",
+                        os.devnull,
+                        "--",
+                        "/usr/bin/python3",
+                        "-I",
+                        "-c",
+                        source,
+                        str(input_reader),
+                        str(ready_writer),
+                    ],
+                    cwd=managed,
+                    environment={
+                        "LANG": "C.UTF-8",
+                        "LC_ALL": "C.UTF-8",
+                        "PATH": "/usr/bin:/bin",
+                    },
+                    pass_fds=(input_reader, ready_writer),
+                )
+                owned = containment._bind_owned_driver_process_group_v1(process)
+                os.close(input_reader)
+                input_reader = -1
+                os.close(ready_writer)
+                ready_writer = -1
+
+                self.assertFalse(
+                    containment._owned_driver_exit_observed_v1(
+                        owned,
+                        deadline_monotonic=time.monotonic(),
+                    )
+                )
+                self.assertEqual(
+                    Path(f"/proc/{process.pid}/exe").resolve(strict=True),
+                    Path("/usr/bin/strace").resolve(strict=True),
+                )
+                readable, _, _ = select.select([ready_reader], [], [], 5.0)
+                self.assertEqual(readable, [ready_reader])
+                tracee_pid_bytes = os.read(ready_reader, 32)
+                self.assertRegex(tracee_pid_bytes, rb"[1-9][0-9]{0,9}\Z")
+                tracee_pid = int(tracee_pid_bytes)
+                tracee_pidfd = os.pidfd_open(tracee_pid, 0)
+                self.assertEqual(os.getpgid(tracee_pid), process.pid)
+                self.assertEqual(os.getsid(tracee_pid), process.pid)
+                tracee_exited, _, _ = select.select([tracee_pidfd], [], [], 0)
+                self.assertEqual(tracee_exited, [])
+
+                child = containment._mount_topology_snapshot_v1(
+                    managed,
+                    process_id=process.pid,
+                    expected_process_start_time_ticks=owned.start_time_ticks,
+                )
+                with self.assertRaises(M5CodexContainmentErrorV1) as raised:
+                    containment._mount_topology_snapshot_v1(
+                        managed,
+                        process_id=process.pid,
+                        expected_process_start_time_ticks=owned.start_time_ticks + 1,
+                    )
+                self.assertEqual(
+                    str(raised.exception),
+                    "m5_codex_containment_mount_topology_unverifiable",
+                )
+                self.assertEqual(child, current)
+
+                containment._terminate_and_reap_driver_process_group_v1(owned)
+                self.assertEqual(owned.pidfd, -1)
+                self.assertIsNotNone(process.returncode)
+                tracee_exited, _, _ = select.select([tracee_pidfd], [], [], 2.0)
+                self.assertEqual(tracee_exited, [tracee_pidfd])
+        finally:
+            if owned is not None and owned.pidfd >= 0:
+                containment._terminate_and_reap_driver_process_group_v1(owned)
+            elif process is not None and process.returncode is None:
+                try:
+                    os.killpg(process.pid, signal.SIGKILL)
+                except ProcessLookupError:
+                    pass
+                process.wait(timeout=5)
+            for descriptor in (
+                input_reader,
+                input_writer,
+                ready_reader,
+                ready_writer,
+                tracee_pidfd,
+            ):
+                if descriptor >= 0:
+                    try:
+                        os.close(descriptor)
+                    except OSError:
+                        pass
+
+    def test_mount_topology_identity_and_covering_mount_drift_fail_closed(
+        self,
+    ) -> None:
+        """M5-CDX-GATE-001: namespace and active covering mount stay fixed."""
+
+        with tempfile.TemporaryDirectory() as raw:
+            managed = Path(raw) / "managed"
+            managed.mkdir(mode=0o700)
+            current = containment._mount_topology_snapshot_v1(managed)
+        snapshot_type = type(current)
+        mount_type = type(current.covering_mount)
+        namespace_changed = snapshot_type(
+            (current.namespace_identity[0], current.namespace_identity[1] + 1),
+            current.covering_mount,
+        )
+        covering_changed = snapshot_type(
+            current.namespace_identity,
+            mount_type(
+                current.covering_mount.mount_id + 1,
+                current.covering_mount.parent_id,
+                current.covering_mount.device_major,
+                current.covering_mount.device_minor,
+                current.covering_mount.root,
+                current.covering_mount.mount_point,
+            ),
+        )
+        for label, observed in {
+            "namespace": namespace_changed,
+            "covering_mount": covering_changed,
+        }.items():
+            with self.subTest(label=label):
+                with self.assertRaises(M5CodexContainmentErrorV1) as raised:
+                    containment._require_same_mount_topology_v1(current, observed)
+                self.assertEqual(
+                    str(raised.exception),
+                    "m5_codex_containment_mount_topology_unverifiable",
+                )
+
+    def test_real_strace_ftruncate_annotation_is_strict(self) -> None:
+        """M5-CDX-GATE-001: real -yy targets pass only without delimiters."""
+
+        source = (
+            "import os,sys\n"
+            "fd=os.open(sys.argv[1],os.O_RDWR|os.O_CREAT|os.O_CLOEXEC,0o600)\n"
+            "os.write(fd,b'abc')\n"
+            "os.ftruncate(fd,3)\n"
+            "os.close(fd)\n"
+        )
+        with tempfile.TemporaryDirectory() as raw:
+            root = Path(raw)
+            root.chmod(0o700)
+            for label, target in {
+                "ordinary": root / "state",
+                "delimiter": root / "state>name",
+            }.items():
+                with self.subTest(label=label):
+                    trace_path = root / f"trace-{label}"
+                    process = subprocess.run(
+                        [
+                            "/usr/bin/strace",
+                            "--kill-on-exit",
+                            "-f",
+                            "-yy",
+                            "-qq",
+                            "-s",
+                            "4096",
+                            "-e",
+                            "trace=ftruncate",
+                            "-e",
+                            "signal=none",
+                            "-o",
+                            os.fspath(trace_path),
+                            "--",
+                            "/usr/bin/python3",
+                            "-I",
+                            "-c",
+                            source,
+                            os.fspath(target),
+                        ],
+                        cwd=root,
+                        env={"LANG": "C.UTF-8", "LC_ALL": "C.UTF-8"},
+                        stdin=subprocess.DEVNULL,
+                        stdout=subprocess.DEVNULL,
+                        stderr=subprocess.DEVNULL,
+                        check=False,
+                        timeout=10,
+                    )
+                    self.assertEqual(process.returncode, 0)
+                    lines = tuple(
+                        line
+                        for line in trace_path.read_text(encoding="utf-8").splitlines()
+                        if " ftruncate(" in line
+                    )
+                    self.assertEqual(len(lines), 1)
+                    record = containment._trace_records(lines[0])[0]
+                    if label == "ordinary":
+                        self.assertEqual(
+                            containment._ftruncate_target_v1(record),
+                            target,
+                        )
+                    else:
+                        with self.assertRaises(M5CodexContainmentErrorV1) as raised:
+                            containment._ftruncate_target_v1(record)
+                        self.assertEqual(
+                            str(raised.exception),
+                            "m5_codex_containment_trace_invalid",
+                        )
+
+    def test_real_isolated_bind_mount_beneath_profile_fails_closed(self) -> None:
+        """M5-CDX-GATE-001: a real same-filesystem bind alias is rejected."""
+
+        source = (
+            "import pathlib,subprocess,sys,tempfile\n"
+            "from tools.automation.implementations.m5_codex_containment "
+            "import M5CodexContainmentErrorV1,_mount_topology_snapshot_v1\n"
+            "with tempfile.TemporaryDirectory() as raw:\n"
+            " root=pathlib.Path(raw)\n"
+            " source=root/'outside'\n"
+            " managed=root/'managed'\n"
+            " target=managed/'nested'\n"
+            " source.mkdir(); managed.mkdir(); target.mkdir()\n"
+            " mounted=subprocess.run(['/usr/bin/mount','--bind',str(source),str(target)],stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL,check=False)\n"
+            " if mounted.returncode != 0: raise SystemExit(4)\n"
+            " outcome=6\n"
+            " try:\n"
+            "  try: _mount_topology_snapshot_v1(managed)\n"
+            "  except M5CodexContainmentErrorV1 as error:\n"
+            "   outcome=0 if str(error)=='m5_codex_containment_mount_topology_unverifiable' else 5\n"
+            " finally:\n"
+            "  unmounted=subprocess.run(['/usr/bin/umount',str(target)],stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL,check=False)\n"
+            " if unmounted.returncode != 0: raise SystemExit(7)\n"
+            " raise SystemExit(outcome)\n"
+        )
+        process = subprocess.run(
+            [
+                "/usr/bin/unshare",
+                "--user",
+                "--map-root-user",
+                "--mount",
+                "--fork",
+                "--",
+                os.fspath(containment._BACKEND_PYTHON),
+                "-c",
+                source,
+            ],
+            cwd=containment.ROOT,
+            env={
+                "LANG": "C.UTF-8",
+                "LC_ALL": "C.UTF-8",
+                "PATH": "/usr/bin:/bin",
+                "PYTHONDONTWRITEBYTECODE": "1",
+                "PYTHONPATH": os.pathsep.join(
+                    (os.fspath(containment.ROOT), os.fspath(containment.BACKEND_SOURCE))
+                ),
+            },
+            stdin=subprocess.DEVNULL,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            check=False,
+            timeout=10,
+        )
+
+        self.assertEqual(process.returncode, 0)
+
     def test_containment_version_discovery_emits_no_unattributed_chmod(self) -> None:
         """M5-CDX-GATE-001: the traced driver adds no setup chmod record."""
 
@@ -1534,6 +2112,11 @@ class M5CodexContainmentPrivateChannelTests(unittest.TestCase):
             os.environ[variable] = str(selected)
 
             self.assertEqual(containment._inherited_descriptor(variable), selected)
+            closed = descriptors.pop()
+            os.close(closed)
+            os.environ[variable] = str(closed)
+            with self.assertRaises(M5CodexContainmentErrorV1):
+                containment._inherited_descriptor(variable)
             for invalid in ("0", "2", "03", "1000000", "-1", ""):
                 with self.subTest(invalid=invalid):
                     os.environ[variable] = invalid
@@ -1546,6 +2129,78 @@ class M5CodexContainmentPrivateChannelTests(unittest.TestCase):
                 os.environ[variable] = previous
             for descriptor in descriptors:
                 os.close(descriptor)
+
+    def test_early_failure_terminates_and_reaps_the_real_driver_group(self) -> None:
+        """M5-CDX-GATE-001: pre-channel failure leaves no owned process alive."""
+
+        control_reader, control_writer = os.pipe2(os.O_CLOEXEC)
+        leader_pidfd = -1
+        descendant_pidfd = -1
+        process: subprocess.Popen[bytes] | None = None
+        try:
+            source = (
+                "import os,sys,time\n"
+                "control_fd=int(sys.argv[1])\n"
+                "child=os.fork()\n"
+                "if child == 0:\n"
+                " os.close(control_fd)\n"
+                " time.sleep(30)\n"
+                " os._exit(0)\n"
+                "os.write(control_fd,str(child).encode('ascii'))\n"
+                "os.close(control_fd)\n"
+                "os._exit(0)\n"
+            )
+            process = subprocess.Popen(
+                ["/usr/bin/python3", "-I", "-c", source, str(control_writer)],
+                cwd="/",
+                env={"LANG": "C.UTF-8"},
+                stdin=subprocess.DEVNULL,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                pass_fds=(control_writer,),
+                shell=False,
+                start_new_session=True,
+            )
+            os.close(control_writer)
+            control_writer = -1
+            leader_pidfd = os.pidfd_open(process.pid)
+            descendant_pid = int(os.read(control_reader, 32).decode("ascii"))
+            descendant_pidfd = os.pidfd_open(descendant_pid)
+            readable, _, _ = select.select([leader_pidfd], [], [], 2.0)
+            self.assertEqual(readable, [leader_pidfd])
+
+            containment._terminate_and_reap_driver_process_group_v1(
+                process,
+                deadline_monotonic=(
+                    time.monotonic() + containment._CHANNEL_SETTLEMENT_SECONDS
+                ),
+            )
+
+            self.assertIsNotNone(process.poll())
+            readable, _, _ = select.select([descendant_pidfd], [], [], 2.0)
+            self.assertEqual(readable, [descendant_pidfd])
+        finally:
+            if process is not None:
+                try:
+                    os.killpg(process.pid, signal.SIGKILL)
+                except OSError:
+                    pass
+                if process.poll() is None:
+                    try:
+                        process.wait(timeout=2)
+                    except subprocess.TimeoutExpired:
+                        pass
+            for descriptor in (
+                control_reader,
+                control_writer,
+                leader_pidfd,
+                descendant_pidfd,
+            ):
+                if descriptor >= 0:
+                    try:
+                        os.close(descriptor)
+                    except OSError:
+                        pass
 
     def _collect_prefilled_channels(
         self,
