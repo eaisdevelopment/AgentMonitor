@@ -1,10 +1,11 @@
 # Change plan: executable V1-M5 Codex slice
 
-- Status: **Draft 1.13.0 for one descriptor-bound `ftruncate` correction;
-  approved 1.12.0 implementation remains in progress and the already approved
-  fifth rollover remains unrun**.
-- Plan version: `1.13.0-draft`; owner approval pending. Version `1.12.0` was
-  approved on 2026-10-22.
+- Status: **Approved 1.13.0 for one descriptor-bound `ftruncate` correction;
+  implementation is in progress and the already approved fifth rollover
+  remains unrun**.
+- Plan version: `1.13.0`; owner approval: 2026-10-22. Version `1.12.0` was
+  approved on 2026-10-22 and is superseded only at the descriptor-bound
+  `ftruncate` boundary specified below.
 - Safety correction: exact-version review proved that authenticated app-server
   queries may perform Codex's automatic credential refresh. The approved
   managed-auth lifecycle therefore classifies those queries as
@@ -37,9 +38,9 @@
   owner's explicit 2026-10-21 approval of version 1.11.0 adds only the exact
   inode-bound provider `chmod` and private-channel diagnostic correction
   specified below. The owner's explicit 2026-10-22 approval of version 1.12.0
-  adds only the trace-completeness correction specified below. Draft version
-  1.13.0 proposes only the descriptor-bound `ftruncate` correction specified
-  below and grants no implementation authority until owner approval. All
+  adds only the trace-completeness correction specified below. The owner's
+  explicit 2026-10-22 approval of version 1.13.0 adds only the descriptor-bound
+  `ftruncate` correction specified below. All
   remaining A02, OpenAI API, PLAN-DEP/D01, and
   `AUTO-DEPLOY` lanes stay Draft or Blocked as already recorded.
 - Stories: `ST-CDX-001..005`.
@@ -1702,12 +1703,11 @@ No service, browser, provider profile, account, or running agent was changed by
 this local checkpoint. Canonical preactivation and authenticated containment
 against the unchanged d81 service remain required before activation.
 
-## Draft descriptor-bound `ftruncate` correction — 2026-10-22
+## Approved descriptor-bound `ftruncate` correction — 2026-10-22
 
-**Status: Draft 1.13.0. Owner approval is required before changing the
-production fd-mutator policy. Approval would fold this correction into the
-already authorized, not-yet-run fifth rollover; it would not authorize a sixth
-rollover or any additional provider operation.**
+**Status: Owner-approved 1.13.0 on 2026-10-22. This correction is folded into
+the already authorized, not-yet-run fifth rollover; it does not authorize a
+sixth rollover or any additional provider operation.**
 
 ### Authenticated Reds and closed boundary
 

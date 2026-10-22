@@ -160,9 +160,9 @@ Directories are created when an approved planning assignment begins. Drafts stat
   Authenticated containment against the unchanged d81 service then exposed and
   locally corrected a multidigit inherited-descriptor parser defect before
   failing closed on ten descriptor-path-resolved `ftruncate` calls confined to
-  the selected managed profile. Draft 1.13.0 proposes only that final
-  descriptor-bound write correction and has no implementation authority until
-  owner approval. The fifth live transition, refreshed prerequisites,
+  the selected managed profile. Owner-approved 1.13.0 adds only that final
+  descriptor-bound write correction to the same unrun fifth rollover. The
+  fifth live transition, refreshed prerequisites,
   `AUTO-M5-EXIT`, and owner acceptance remain Not Run. OpenAI API billing
   remains V1-M7.
 - [Live agent account association](integration/live-agent-account-association-change.md):
