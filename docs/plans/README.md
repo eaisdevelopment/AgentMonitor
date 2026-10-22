@@ -147,19 +147,20 @@ Directories are created when an approved planning assignment begins. Drafts stat
   four pinned owner-only roots enclose ordinary provider-created descendant
   modes while links, nonregular entries, unsafe ownership/device/mode state,
   traversal errors, and out-of-profile writes still fail closed. The currently
-  required entry-count and path-length cases now pass, with `30/30`
-  non-live containment cases, `66/66` current-exit cases, and an exact
-  `480`-test Story inventory. A real attempt then failed closed at
+  required entry-count and path-length cases now pass. A real attempt then
+  failed closed at
   `m5_codex_containment_path_mutator_unverifiable` on two idempotent
   in-profile `chmod(..., 0700)` calls. Owner-approved 1.11.0 adds only the exact
-  inode-bound proof and safe channel diagnostics; implementation is in
-  progress. Owner-approved 1.12.0 adds the narrow trace-completeness correction
-  for real fd-xattr, inode-flag ioctl, and io_uring Reds found during the
-  required 1.11 review. The
-  aggregate preactivation gates and passing containment remain
-  pending; the fifth live transition, refreshed prerequisites, `AUTO-M5-EXIT`,
-  and owner acceptance remain Not Run. OpenAI API billing
-  remains V1-M7.
+  inode-bound proof and safe channel diagnostics. Owner-approved 1.12.0 adds
+  the narrow trace-completeness correction for real fd-xattr, inode-flag
+  ioctl, and io_uring Reds found during the required 1.11 review. The local
+  implementation now has `64` passing containment cases, `202` passing
+  subtests, `66` passing current-exit cases, and an exact `514`-test Story
+  inventory; one authenticated containment case remains intentionally skipped
+  until it is bound to the unchanged d81 service. The aggregate preactivation
+  gates and passing authenticated containment remain pending; the fifth live
+  transition, refreshed prerequisites, `AUTO-M5-EXIT`, and owner acceptance
+  remain Not Run. OpenAI API billing remains V1-M7.
 - [Live agent account association](integration/live-agent-account-association-change.md):
   explicit manual confirmation, guarded current terminal details and private
   revisioned settings; the named owner-authorized live link/persistence gate Passed.

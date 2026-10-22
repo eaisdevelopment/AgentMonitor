@@ -1,7 +1,8 @@
 # Change plan: executable V1-M5 Codex slice
 
 - Status: **Approved 1.12.0 for one trace-completeness correction folded into
-  the approved but not-yet-run fifth rollover**.
+  the approved but not-yet-run fifth rollover; local implementation is Green
+  and authenticated preactivation remains pending**.
 - Plan version: `1.12.0`; owner approval: 2026-10-22. Version `1.11.0` was
   approved on 2026-10-21 and is superseded only at the trace-completeness
   boundary specified below.
@@ -1602,8 +1603,9 @@ the exact approved trace:
 
 Each probe used only a temporary owner-controlled test file and restored or
 removed its change. No default profile, provider profile, account, service,
-browser, or running agent was changed. The current focused suite therefore
-remains Red and no containment pass or completion receipt is claimed.
+browser, or running agent was changed. At plan approval the focused suite was
+therefore deliberately Red and no containment pass or completion receipt was
+claimed.
 
 The same review found and corrected, within approved 1.11 scope, exact child
 PID parsing, lexical and shared working-directory tracking, quoted-dirfd token
@@ -1676,6 +1678,28 @@ must then pass against the unchanged `d81afab` service with the pinned Codex
 activation proceed. The final clean exact-revision `AUTO-M5-EXIT` must include
 the same real containment test with zero skips. M5 remains Intermediate until
 that receipt exists and survives canonical rereads.
+
+### Local implementation checkpoint — 2026-10-22
+
+The exact selector and raw qualifier now cover all six calls in both the
+root-owned strace prerequisite probe and the production trace. Pure policy
+rejects successful calls globally, rejects malformed results as invalid, and
+retains exact failed calls as no effect without dropping process chronology.
+Real temporary-file proof records fd xattrs and inode-flag ioctl in raw numeric
+form without the private xattr name, value, or decoded ioctl buffer. Safe raw
+io_uring calls are visible to the selector.
+
+The complete local containment file passes `64` cases and `202` subtests; its
+one authenticated case is skipped only because the explicit live selectors
+are absent. The current-exit file passes `66` cases. Ruff lint, Ruff format,
+strict production mypy, and `git diff --check` pass. Independent review found
+and the implementation corrected strict-result and post-exit chronology gaps.
+The exact canonical Story inventory is now `514` unique test identifiers with
+SHA-256
+`fd9c6c87d07e1ab759a2a2db23c8d6cd3997d416687784e4c13525ac8e2cf1bd`.
+No service, browser, provider profile, account, or running agent was changed by
+this local checkpoint. Canonical preactivation and authenticated containment
+against the unchanged d81 service remain required before activation.
 
 ## Stop conditions
 

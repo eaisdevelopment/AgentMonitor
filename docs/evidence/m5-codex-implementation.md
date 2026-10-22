@@ -1747,6 +1747,36 @@ approved fourth rollover would make the revision/service-bound prerequisite
 stale and require the same canonical preservation and recollection workflow;
 the later completed d81 transition and refreshed evidence are recorded above.
 
+## Plan 1.11–1.12 local containment checkpoint
+
+The approved 1.11 implementation began with real and pure Reds for inode-bound
+provider `chmod`, child PID parsing, lexical and shared working directories,
+quoted-dirfd spoofing, `CLONE_UNTRACED`, global link and mutator attribution,
+private-channel outcomes, and duplicate JSON members. The approved 1.12 review
+then reproduced successful fd xattr, inode-flag ioctl, and io_uring mutations
+that the prior exact selector did not expose. All real probes used temporary
+owner-controlled files and restored or removed their changes.
+
+The Green uses the exact expanded root-owned strace selector and raw qualifier.
+It rejects all successful raw calls globally, treats only exact negative errno
+results as no effect, keeps those failed records in process chronology, and
+rejects malformed results. Real trace proof exposes neither the private xattr
+name/value nor decoded ioctl buffers. The complete containment file passed
+`64` cases and `202` subtests with one authenticated live case explicitly
+skipped because live selectors were absent. The current-exit file passed `66`
+cases. Ruff lint/format, strict production mypy, and diff checks passed.
+Independent review found and the implementation corrected the final raw-result
+grammar and post-exit chronology gaps.
+
+The canonical M5 Story inventory was collected without executing provider
+operations: `514/514` unique normalized identifiers, digest
+`fd9c6c87d07e1ab759a2a2db23c8d6cd3997d416687784e4c13525ac8e2cf1bd`,
+and no collection errors. This is inventory evidence, not a full live Story
+suite pass. No service, browser, provider profile, account, or running agent
+was changed during this local checkpoint. Canonical preactivation and the
+standalone authenticated containment case against the unchanged d81 service
+remain required before the fifth rollover.
+
 ## Data and secret review
 
 This document contains no secret, provider response, account identity, private
@@ -1772,22 +1802,21 @@ semantics. Its focused and complete quota suites passed, and the exact fifth
 rollover policy passed the focused, complete, dispatcher, static, and
 exhaustive checks. Those local results do not complete M5.
 
-Owner-approved plan 1.10.0 also corrects the false rejection of ordinary
-provider-created descendant modes beneath pinned owner-only roots. Its focused
-coverage now includes `30` passing non-live containment cases, `66` passing
-current-exit cases, and an exact `480`-test Story inventory. The remaining
-canonical preactivation aggregate has not run. The real containment attempt
-then failed closed on two
+Owner-approved plan 1.10.0 corrected the false rejection of ordinary
+provider-created descendant modes beneath pinned owner-only roots. The real
+containment attempt then failed closed on two
 idempotent in-profile directory `chmod(..., 0700)` calls whose path arguments
-are outside the approved 1.10 policy. Approved plan 1.11.0 adds the narrow
-inode-bound proof and safe channel diagnostics; implementation is pending.
-Authenticated containment remains incomplete.
+were outside the approved 1.10 policy. Approved plan 1.11.0 adds the narrow
+inode-bound proof and safe channel diagnostics, and approved plan 1.12.0 closes
+the trace-completeness boundary exposed during review. Their local
+implementation and exact `514`-test inventory rebind pass as recorded above.
+Authenticated containment and the canonical preactivation aggregate remain
+incomplete.
 
 Before any completion or acceptance claim, the integration owner must:
 
-1. implement the approved focused 1.11 live-containment correction under
-   Red/Green TDD, rebind the exact Story inventory, and finish all preactivation
-   gates on one reviewed clean detached candidate;
+1. finish all preactivation gates and the standalone authenticated containment
+   case on one reviewed clean candidate, then detach that exact revision;
 2. run both fifth service-activation invocations, preserving the five fixed
    transition archives and leaving the owner's authenticated Chrome open;
 3. archive the stale d81 prerequisites and recreate current owner outcomes,
