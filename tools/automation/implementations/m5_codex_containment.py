@@ -74,7 +74,8 @@ _TRACE_CHMOD_ARGUMENTS_V1 = re.compile(
 )
 _TRACE_CHDIR_ARGUMENTS_V1 = re.compile(rf"^(?P<path>{_TRACE_STRING_TOKEN_V1})$")
 _TRACE_FAILED_RESULT_V1 = re.compile(r"^-1 [A-Z][A-Z0-9_]* \(.+\)$")
-_TRACE_NONNEGATIVE_RESULT_V1 = re.compile(r"^(?:0|[1-9][0-9]*)(?:<[^>\r\n]*>)?$")
+_TRACE_NONNEGATIVE_RESULT_V1 = re.compile(r"^(?:0|[1-9][0-9]*)$")
+_TRACE_DESCRIPTOR_RESULT_V1 = re.compile(r"^(?:0|[1-9][0-9]*)<[^>\r\n]+>$")
 _TRACE_FLAGS_V1 = re.compile(r"(?:^|[{,]\s*)flags=(?P<flags>[^,}]+)")
 _WRITE_FLAGS = (
     "O_WRONLY",
@@ -1714,14 +1715,19 @@ def _evaluate_codex_trace_policy_v1(
     group_working_directories: dict[int, Path] = {}
     target_replacement_records: list[tuple[_TraceRecordV1, tuple[Path, ...]]] = []
     for record in records:
+        raw_no_effect = False
         if record.call in _RAW_GLOBAL_CALLS:
             if _TRACE_FAILED_RESULT_V1.fullmatch(record.result) is not None:
-                continue
-            if _TRACE_NONNEGATIVE_RESULT_V1.fullmatch(record.result) is not None:
+                raw_no_effect = True
+            elif _TRACE_NONNEGATIVE_RESULT_V1.fullmatch(record.result) is not None or (
+                record.call == "io_uring_setup"
+                and _TRACE_DESCRIPTOR_RESULT_V1.fullmatch(record.result) is not None
+            ):
                 raise M5CodexContainmentErrorV1(
                     "m5_codex_containment_fd_write_unverifiable"
                 )
-            raise M5CodexContainmentErrorV1("m5_codex_containment_trace_invalid")
+            else:
+                raise M5CodexContainmentErrorV1("m5_codex_containment_trace_invalid")
         working_directory_group = working_directory_groups.setdefault(
             record.pid,
             record.pid,
@@ -1730,8 +1736,12 @@ def _evaluate_codex_trace_policy_v1(
             working_directory_group,
             managed,
         )
-        paths = _trace_paths(record, working_root=working_directory)
-        is_write = _trace_is_write(record)
+        paths = (
+            ()
+            if raw_no_effect
+            else _trace_paths(record, working_root=working_directory)
+        )
+        is_write = False if raw_no_effect else _trace_is_write(record)
         classified_records.append((record, paths, is_write, working_directory))
         if (
             _successful(record)

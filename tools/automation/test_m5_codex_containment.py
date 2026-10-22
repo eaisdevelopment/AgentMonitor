@@ -467,34 +467,43 @@ class M5CodexContainmentPolicyTests(unittest.TestCase):
         }
         first_exec = f'100 execve("{_TRACE_EXECUTABLE}"'
         provider_anchor = f'201 chmod("{_TRACE_CHMOD_TARGET}", 0700) = 0'
+        closed_anchor = "200 exit_group(0) = ?"
         for name, template in calls.items():
-            successful = template.format(result="= 0")
-            for scope in ("driver", "provider"):
-                with self.subTest(syscall=name, result="success", scope=scope):
-                    trace = _two_operation_chmod_trace()
-                    if scope == "driver":
-                        trace = trace.replace(
-                            first_exec,
-                            f"99 {successful}\n{first_exec}",
-                            1,
+            successful_results = ["= 0", "= 1"]
+            if name == "io_uring_setup":
+                successful_results.append("= 9<anon_inode:[io_uring]>")
+            for successful_result in successful_results:
+                successful = template.format(result=successful_result)
+                for scope in ("driver", "provider"):
+                    with self.subTest(
+                        syscall=name,
+                        result=successful_result,
+                        scope=scope,
+                    ):
+                        trace = _two_operation_chmod_trace()
+                        if scope == "driver":
+                            trace = trace.replace(
+                                first_exec,
+                                f"99 {successful}\n{first_exec}",
+                                1,
+                            )
+                        else:
+                            trace = trace.replace(
+                                provider_anchor,
+                                f"{provider_anchor}\n201 {successful}",
+                                1,
+                            )
+                        with self.assertRaises(M5CodexContainmentErrorV1) as raised:
+                            evaluate_codex_trace_policy_v1(
+                                trace,
+                                provider_executable=_TRACE_EXECUTABLE,
+                                managed_profile_root=_TRACE_MANAGED_ROOT,
+                                default_codex_roots=(Path("/home/owner/.codex"),),
+                            )
+                        self.assertEqual(
+                            str(raised.exception),
+                            "m5_codex_containment_fd_write_unverifiable",
                         )
-                    else:
-                        trace = trace.replace(
-                            provider_anchor,
-                            f"{provider_anchor}\n201 {successful}",
-                            1,
-                        )
-                    with self.assertRaises(M5CodexContainmentErrorV1) as raised:
-                        evaluate_codex_trace_policy_v1(
-                            trace,
-                            provider_executable=_TRACE_EXECUTABLE,
-                            managed_profile_root=_TRACE_MANAGED_ROOT,
-                            default_codex_roots=(Path("/home/owner/.codex"),),
-                        )
-                    self.assertEqual(
-                        str(raised.exception),
-                        "m5_codex_containment_fd_write_unverifiable",
-                    )
 
             with self.subTest(syscall=name, result="exact_failure"):
                 failed = template.format(result="= -1 EBADF (Bad file descriptor)")
@@ -511,16 +520,15 @@ class M5CodexContainmentPolicyTests(unittest.TestCase):
                 )
                 self.assertEqual(summary.provider_execution_count, 3)
 
-            with self.subTest(syscall=name, result="ambiguous"):
-                ambiguous = template.format(result="= ?")
-                trace = _two_operation_chmod_trace().replace(
-                    provider_anchor,
-                    f"{provider_anchor}\n201 {ambiguous}",
+            with self.subTest(syscall=name, result="failed_after_exit"):
+                failed_after_exit = _two_operation_chmod_trace().replace(
+                    closed_anchor,
+                    f"{closed_anchor}\n200 {failed}",
                     1,
                 )
                 with self.assertRaises(M5CodexContainmentErrorV1) as raised:
                     evaluate_codex_trace_policy_v1(
-                        trace,
+                        failed_after_exit,
                         provider_executable=_TRACE_EXECUTABLE,
                         managed_profile_root=_TRACE_MANAGED_ROOT,
                         default_codex_roots=(Path("/home/owner/.codex"),),
@@ -529,6 +537,36 @@ class M5CodexContainmentPolicyTests(unittest.TestCase):
                     str(raised.exception),
                     "m5_codex_containment_trace_invalid",
                 )
+
+            malformed_results = [
+                "= ?",
+                "= 00",
+                "= +1",
+                "= 0 garbage",
+                "= 0<>",
+                "= -1 EBADF",
+            ]
+            if name != "io_uring_setup":
+                malformed_results.append("= 1<unexpected>")
+            for malformed_result in malformed_results:
+                with self.subTest(syscall=name, result=malformed_result):
+                    malformed = template.format(result=malformed_result)
+                    trace = _two_operation_chmod_trace().replace(
+                        provider_anchor,
+                        f"{provider_anchor}\n201 {malformed}",
+                        1,
+                    )
+                    with self.assertRaises(M5CodexContainmentErrorV1) as raised:
+                        evaluate_codex_trace_policy_v1(
+                            trace,
+                            provider_executable=_TRACE_EXECUTABLE,
+                            managed_profile_root=_TRACE_MANAGED_ROOT,
+                            default_codex_roots=(Path("/home/owner/.codex"),),
+                        )
+                    self.assertEqual(
+                        str(raised.exception),
+                        "m5_codex_containment_trace_invalid",
+                    )
 
     def test_unattributed_namespace_changes_fail_closed(self) -> None:
         """M5-CDX-GATE-001: the trusted driver cannot change namespaces."""
@@ -1299,6 +1337,8 @@ class M5CodexContainmentPrerequisiteTests(unittest.TestCase):
                 self.assertIn(marker, observed)
         self.assertNotIn(xattr_name, observed)
         self.assertNotIn(xattr_value, observed)
+        self.assertNotIn("FS_IOC_SETFLAGS", observed)
+        self.assertNotIn("FS_NODUMP_FL", observed)
 
     def test_exact_selector_exposes_clone_untraced_flag(self) -> None:
         """M5-CDX-GATE-001: an untraced child request is itself visible."""
