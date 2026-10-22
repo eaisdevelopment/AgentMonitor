@@ -14,6 +14,7 @@ import resource
 import select
 import signal
 import subprocess
+import sys
 import tempfile
 import time
 import unittest
@@ -76,6 +77,8 @@ _ARG0_ALIASES = (
 )
 _ARG0_IDENTITY_SESSION = _TRACE_MANAGED_ROOT / "tmp" / "arg0" / "codex-arg0A1b2C3"
 _ARG0_QUOTA_SESSION = _TRACE_MANAGED_ROOT / "tmp" / "arg0" / "codex-arg0D4e5F6"
+_ARG0_LOCK_NAME = ".lock"
+_ARG0_LOCK_FLAGS = "O_RDWR|O_CREAT|O_LARGEFILE|O_CLOEXEC"
 
 
 def _trace_string(value: str) -> str:
@@ -224,8 +227,20 @@ def _arg0_cleanup_lines(
     return tuple(f'{pid} unlinkat(9<{session}>, "{alias}", 0) = 0' for alias in aliases)
 
 
+def _arg0_session_and_lock_lines(pid: int, session: Path) -> tuple[str, str]:
+    lock = session / _ARG0_LOCK_NAME
+    return (
+        f'{pid} mkdir("{session}", 0777) = 0',
+        f'{pid} open("{lock}", {_ARG0_LOCK_FLAGS}, 0666) = 7<{lock}>',
+    )
+
+
+def _arg0_lock_cleanup_line(pid: int, session: Path) -> str:
+    return f'{pid} unlinkat(9<{session}>, "{_ARG0_LOCK_NAME}", 0) = 0'
+
+
 def _add_arg0_lifecycle(trace: str) -> str:
-    """Build the exact four-plus-four Codex 0.160 Arg0 lifecycle."""
+    """Build the exact session, lock, and four-alias Codex 0.160 lifecycle."""
 
     identity_session = _ARG0_IDENTITY_SESSION
     quota_session = _ARG0_QUOTA_SESSION
@@ -234,6 +249,7 @@ def _add_arg0_lifecycle(trace: str) -> str:
         "\n".join(
             (
                 _trace_app_server_exec(200, _TRACE_EXECUTABLE),
+                *_arg0_session_and_lock_lines(200, identity_session),
                 *_arg0_link_lines(200, identity_session),
             )
         ),
@@ -243,7 +259,9 @@ def _add_arg0_lifecycle(trace: str) -> str:
         "201 exit_group(0) = ?",
         "\n".join(
             (
-                *_arg0_cleanup_lines(201, identity_session),
+                *_arg0_cleanup_lines(201, identity_session)[:3],
+                _arg0_lock_cleanup_line(201, identity_session),
+                *_arg0_cleanup_lines(201, identity_session)[3:],
                 (
                     f"201 unlinkat(8<{identity_session.parent}>, "
                     f'"{identity_session.name}", AT_REMOVEDIR) = 0'
@@ -258,6 +276,7 @@ def _add_arg0_lifecycle(trace: str) -> str:
         "\n".join(
             (
                 _trace_app_server_exec(300, _TRACE_EXECUTABLE),
+                *_arg0_session_and_lock_lines(300, quota_session),
                 *_arg0_link_lines(300, quota_session),
             )
         ),
@@ -272,7 +291,13 @@ def _add_arg0_lifecycle(trace: str) -> str:
                     300,
                     quota_session,
                     aliases=tuple(reversed(_ARG0_ALIASES)),
-                ),
+                )[:3],
+                _arg0_lock_cleanup_line(300, quota_session),
+                *_arg0_cleanup_lines(
+                    300,
+                    quota_session,
+                    aliases=tuple(reversed(_ARG0_ALIASES)),
+                )[3:],
                 (
                     f"300 unlinkat(8<{quota_session.parent}>, "
                     f'"{quota_session.name}", AT_REMOVEDIR) = 0'
@@ -305,10 +330,44 @@ def _trace_with_ftruncates(
 
 
 class M5CodexContainmentPolicyTests(unittest.TestCase):
-    def test_exact_arg0_symlink_lifecycle_is_admitted_and_counted_once(
+    def test_arg0_pre_session_root_setup_precedes_protected_lifecycle(self) -> None:
+        """M5-CDX-GATE-001: root setup remains outside the session interval."""
+
+        trace = _arg0_lifecycle_trace()
+        arg0_root = _ARG0_IDENTITY_SESSION.parent
+        for root_pid, child_pid, session in (
+            (200, 201, _ARG0_IDENTITY_SESSION),
+            (300, 301, _ARG0_QUOTA_SESSION),
+        ):
+            old_chmod = f'{child_pid} chmod("{_TRACE_CHMOD_TARGET}", 0700) = 0'
+            session_mkdir = f'{root_pid} mkdir("{session}", 0777) = 0'
+            root_setup = "\n".join(
+                (
+                    f'{root_pid} mkdir("{arg0_root}", 0777) = -1 EEXIST (File exists)',
+                    f'{root_pid} chmod("{arg0_root}", 0700) = 0',
+                    session_mkdir,
+                )
+            )
+            trace = trace.replace(f"{old_chmod}\n", "", 1).replace(
+                session_mkdir,
+                root_setup,
+                1,
+            )
+
+        summary = evaluate_codex_trace_policy_v1(
+            trace,
+            provider_executable=_TRACE_EXECUTABLE,
+            managed_profile_root=_TRACE_MANAGED_ROOT,
+            default_codex_roots=(Path("/home/owner/.codex"),),
+        )
+
+        self.assertEqual(summary.provider_access_count, 31)
+        self.assertEqual(summary.provider_write_count, 28)
+
+    def test_exact_arg0_session_lock_and_alias_lifecycle_is_admitted_once(
         self,
     ) -> None:
-        """M5-CDX-GATE-001: exact four-plus-four Arg0 links are bounded."""
+        """M5-CDX-GATE-001: the exact Arg0 session lifecycle is bounded."""
 
         executable = Path(
             "/home/owner/.codex/packages/standalone/releases/0.160.0/bin/codex"
@@ -356,6 +415,9 @@ class M5CodexContainmentPolicyTests(unittest.TestCase):
         reused_session_trace = trace.replace(
             os.fspath(_ARG0_QUOTA_SESSION),
             os.fspath(_ARG0_IDENTITY_SESSION),
+        ).replace(
+            _ARG0_QUOTA_SESSION.name,
+            _ARG0_IDENTITY_SESSION.name,
         )
         reused_session_summary = evaluate_codex_trace_policy_v1(
             reused_session_trace,
@@ -365,16 +427,1485 @@ class M5CodexContainmentPolicyTests(unittest.TestCase):
         )
 
         self.assertEqual(summary.provider_execution_count, 3)
-        self.assertEqual(without_parents.provider_access_count, 21)
-        self.assertEqual(without_parents.provider_write_count, 18)
-        self.assertEqual(summary.provider_access_count, 23)
-        self.assertEqual(summary.provider_write_count, 20)
+        self.assertEqual(without_parents.provider_access_count, 27)
+        self.assertEqual(without_parents.provider_write_count, 24)
+        self.assertEqual(summary.provider_access_count, 29)
+        self.assertEqual(summary.provider_write_count, 26)
         self.assertEqual(rmdir_summary, summary)
         self.assertEqual(reused_session_summary, summary)
         self.assertEqual(summary.default_profile_access_count, 0)
         self.assertEqual(summary.default_profile_write_count, 0)
         self.assertNotIn(os.fspath(executable), repr(summary))
         self.assertNotIn(os.fspath(_ARG0_IDENTITY_SESSION), repr(summary))
+
+    def test_arg0_lock_cleanup_may_interleave_at_each_child_position(self) -> None:
+        """M5-CDX-GATE-001: filesystem child enumeration order stays neutral."""
+
+        trace = _arg0_lifecycle_trace()
+        session = _ARG0_IDENTITY_SESSION
+        lock_cleanup = _arg0_lock_cleanup_line(201, session)
+        aliases = _arg0_cleanup_lines(201, session)
+        without_lock = trace.replace(f"{lock_cleanup}\n", "", 1)
+        for position in range(len(aliases) + 1):
+            ordered = (*aliases[:position], lock_cleanup, *aliases[position:])
+            candidate = without_lock.replace(
+                "\n".join(aliases),
+                "\n".join(ordered),
+                1,
+            )
+            with self.subTest(position=position):
+                summary = evaluate_codex_trace_policy_v1(
+                    candidate,
+                    provider_executable=_TRACE_EXECUTABLE,
+                    managed_profile_root=_TRACE_MANAGED_ROOT,
+                    default_codex_roots=(Path("/home/owner/.codex"),),
+                )
+                self.assertEqual(summary.provider_write_count, 26)
+
+    def test_arg0_session_creation_shape_cardinality_and_chronology_close(
+        self,
+    ) -> None:
+        """M5-CDX-GATE-001: each operation freshly creates one exact session."""
+
+        trace = _arg0_lifecycle_trace()
+        session = _ARG0_IDENTITY_SESSION
+        mkdir = f'200 mkdir("{session}", 0777) = 0'
+        lock = session / _ARG0_LOCK_NAME
+        lock_open = f'200 open("{lock}", {_ARG0_LOCK_FLAGS}, 0666) = 7<{lock}>'
+        identity_exec = _trace_app_server_exec(200, _TRACE_EXECUTABLE)
+        first_link = _arg0_link_lines(200, session)[0]
+        sibling_session = session.with_name("codex-arg0Z9y8X7")
+        other_arg0_entry = session.parent / "other"
+        without_mkdir = trace.replace(f"{mkdir}\n", "", 1)
+        cases = {
+            "missing": without_mkdir,
+            "duplicate": trace.replace(mkdir, f"{mkdir}\n{mkdir}", 1),
+            "mkdirat": trace.replace(
+                mkdir,
+                f'mkdirat(AT_FDCWD, "{session}", 0777) = 0'.join(("200 ", "")),
+                1,
+            ),
+            "relative": trace.replace(
+                mkdir, mkdir.replace(f'"{session}"', f'"{session.name}"'), 1
+            ),
+            "leading_double_slash": trace.replace(
+                mkdir, mkdir.replace('"/owner', '"//owner'), 1
+            ),
+            "dot_path": trace.replace(
+                mkdir, mkdir.replace("/arg0/codex-", "/arg0/./codex-"), 1
+            ),
+            "dotdot_path": trace.replace(
+                mkdir, mkdir.replace("/arg0/codex-", "/arg0/other/../codex-"), 1
+            ),
+            "escaped_path": trace.replace(
+                mkdir,
+                mkdir.replace(
+                    f'"{session}"',
+                    r'"\057owner/profiles/codex/opaque/tmp/arg0/codex-arg0A1b2C3"',
+                ),
+                1,
+            ),
+            "control_path": trace.replace(
+                mkdir, mkdir.replace("/codex-arg0A1b2C3", r"/codex-arg0A1b2\001"), 1
+            ),
+            "wrong_session": trace.replace(
+                mkdir, mkdir.replace("codex-arg0A1b2C3", "codex-arg0Z9y8X7"), 1
+            ),
+            "wrong_mode": trace.replace(mkdir, mkdir.replace("0777", "0700"), 1),
+            "failed": trace.replace(
+                mkdir, mkdir.replace(" = 0", " = -1 EEXIST (File exists)"), 1
+            ),
+            "malformed_result": trace.replace(
+                mkdir, mkdir.replace(" = 0", " = 0 trailing"), 1
+            ),
+            "extra_argument": trace.replace(
+                mkdir, mkdir.replace(") = 0", ", 0) = 0"), 1
+            ),
+            "descendant": trace.replace(
+                mkdir, mkdir.replace("200 mkdir", "201 mkdir"), 1
+            ),
+            "descendant_duplicate_eexist": trace.replace(
+                first_link,
+                f'{first_link}\n201 mkdir("{session}", 0777) = -1 EEXIST (File exists)',
+                1,
+            ),
+            "foreign_operation": without_mkdir.replace(
+                _trace_app_server_exec(300, _TRACE_EXECUTABLE),
+                (
+                    f"{_trace_app_server_exec(300, _TRACE_EXECUTABLE)}\n"
+                    f"{mkdir.replace('200 mkdir', '300 mkdir', 1)}"
+                ),
+                1,
+            ),
+            "before_operation": without_mkdir.replace(
+                identity_exec, f"{mkdir}\n{identity_exec}", 1
+            ),
+            "after_lock": without_mkdir.replace(lock_open, f"{lock_open}\n{mkdir}", 1),
+            "after_alias": without_mkdir.replace(
+                first_link, f"{first_link}\n{mkdir}", 1
+            ),
+            "unfinished": trace.replace(
+                mkdir,
+                mkdir.removesuffix(") = 0")
+                + " <unfinished ...>\n200 <... mkdir resumed>) = 0",
+                1,
+            ),
+            "sibling_create_remove_during_freshness": trace.replace(
+                mkdir,
+                (
+                    f'{mkdir}\n200 mkdir("{sibling_session}", 0777) = 0\n'
+                    f'200 rmdir("{sibling_session}") = 0'
+                ),
+                1,
+            ),
+            "failed_wrong_session_during_freshness": trace.replace(
+                mkdir,
+                (
+                    f'{mkdir}\n200 mkdir("{sibling_session}", 0777) '
+                    "= -1 EEXIST (File exists)"
+                ),
+                1,
+            ),
+            "other_entry_create_remove_during_freshness": trace.replace(
+                mkdir,
+                (
+                    f'{mkdir}\n200 mkdir("{other_arg0_entry}", 0777) = 0\n'
+                    f'200 rmdir("{other_arg0_entry}") = 0'
+                ),
+                1,
+            ),
+            "exact_session_rmdir_during_freshness": trace.replace(
+                mkdir,
+                f'{mkdir}\n200 rmdir("{session}") = 0',
+                1,
+            ),
+            "failed_exact_session_rmdir_during_freshness": trace.replace(
+                mkdir,
+                (
+                    f'{mkdir}\n200 rmdir("{session}") '
+                    "= -1 ENOENT (No such file or directory)"
+                ),
+                1,
+            ),
+            "failed_exact_session_child_mkdir_during_freshness": trace.replace(
+                mkdir,
+                (
+                    f'{mkdir}\n200 mkdir("{session / "child"}", 0777) '
+                    "= -1 ENOENT (No such file or directory)"
+                ),
+                1,
+            ),
+            "failed_exact_session_rename_during_freshness": trace.replace(
+                mkdir,
+                (
+                    f'{mkdir}\n200 rename("{session}", "{session}.old") '
+                    "= -1 ENOENT (No such file or directory)"
+                ),
+                1,
+            ),
+        }
+        for label, candidate in cases.items():
+            with (
+                self.subTest(label=label),
+                self.assertRaises(M5CodexContainmentErrorV1),
+            ):
+                evaluate_codex_trace_policy_v1(
+                    candidate,
+                    provider_executable=_TRACE_EXECUTABLE,
+                    managed_profile_root=_TRACE_MANAGED_ROOT,
+                    default_codex_roots=(Path("/home/owner/.codex"),),
+                )
+
+    def test_arg0_lock_open_shape_cardinality_and_chronology_close(self) -> None:
+        """M5-CDX-GATE-001: only one exact root-created regular lock is admitted."""
+
+        trace = _arg0_lifecycle_trace()
+        session = _ARG0_IDENTITY_SESSION
+        lock = session / _ARG0_LOCK_NAME
+        opened = f'200 open("{lock}", {_ARG0_LOCK_FLAGS}, 0666) = 7<{lock}>'
+        first_link = _arg0_link_lines(200, session)[0]
+        without_open = trace.replace(f"{opened}\n", "", 1)
+        variants = {
+            "missing": without_open,
+            "duplicate": trace.replace(opened, f"{opened}\n{opened}", 1),
+            "openat": trace.replace(
+                opened, opened.replace('open("', 'openat(AT_FDCWD, "', 1), 1
+            ),
+            "creat": trace.replace(opened, f'200 creat("{lock}", 0666) = 7<{lock}>', 1),
+            "relative": trace.replace(
+                opened, opened.replace(f'"{lock}"', f'"{_ARG0_LOCK_NAME}"', 1), 1
+            ),
+            "leading_double_slash": trace.replace(
+                opened, opened.replace('"/owner', '"//owner', 1), 1
+            ),
+            "wrong_name": trace.replace(
+                opened, opened.replace("/.lock", "/lock", 1), 1
+            ),
+            "wrong_case": trace.replace(
+                opened, opened.replace("/.lock", "/.LOCK", 1), 1
+            ),
+            "nested": trace.replace(
+                opened, opened.replace("/.lock", "/nested/.lock", 1), 1
+            ),
+            "wrong_flags": trace.replace(
+                opened, opened.replace("O_RDWR", "O_WRONLY", 1), 1
+            ),
+            "reordered_flags": trace.replace(
+                opened,
+                opened.replace(
+                    _ARG0_LOCK_FLAGS, "O_CREAT|O_RDWR|O_LARGEFILE|O_CLOEXEC", 1
+                ),
+                1,
+            ),
+            "extra_flag": trace.replace(
+                opened, opened.replace("O_CLOEXEC", "O_CLOEXEC|O_EXCL", 1), 1
+            ),
+            "wrong_mode": trace.replace(opened, opened.replace("0666", "0600", 1), 1),
+            "failed": trace.replace(
+                opened, opened.replace(f"7<{lock}>", "-1 EACCES (Permission denied)"), 1
+            ),
+            "missing_annotation": trace.replace(
+                opened, opened.replace(f"7<{lock}>", "7"), 1
+            ),
+            "wrong_annotation": trace.replace(
+                opened, opened.replace(f"7<{lock}>", f"7<{session / 'other'}>"), 1
+            ),
+            "deleted_annotation": trace.replace(
+                opened, opened.replace(f"7<{lock}>", f"7<{lock} (deleted)>"), 1
+            ),
+            "descendant": trace.replace(
+                opened, opened.replace("200 open", "201 open", 1), 1
+            ),
+            "foreign_operation": without_open.replace(
+                _trace_app_server_exec(300, _TRACE_EXECUTABLE),
+                (
+                    f"{_trace_app_server_exec(300, _TRACE_EXECUTABLE)}\n"
+                    f"{opened.replace('200 open', '300 open', 1)}"
+                ),
+                1,
+            ),
+            "after_alias": without_open.replace(
+                first_link, f"{first_link}\n{opened}", 1
+            ),
+            "completion_after_alias": trace.replace(
+                opened,
+                opened.removesuffix(f") = 7<{lock}>") + " <unfinished ...>",
+                1,
+            ).replace(
+                first_link, f"{first_link}\n200 <... open resumed>) = 7<{lock}>", 1
+            ),
+            "open_while_mkdir_unfinished": trace.replace(
+                f'200 mkdir("{session}", 0777) = 0\n{opened}',
+                (
+                    f'200 mkdir("{session}", 0777 <unfinished ...>\n{opened}\n'
+                    "200 <... mkdir resumed>) = 0"
+                ),
+                1,
+            ),
+            "nonregular_mkdir": trace.replace(
+                opened, f'200 mkdir("{lock}", 0777) = 0', 1
+            ),
+            "nonregular_symlink": trace.replace(
+                opened, f'200 symlink("{_TRACE_EXECUTABLE}", "{lock}") = 0', 1
+            ),
+            "nonregular_mknod": trace.replace(
+                opened, f'200 mknod("{lock}", S_IFREG|0666) = 0', 1
+            ),
+        }
+        for label, candidate in variants.items():
+            with (
+                self.subTest(label=label),
+                self.assertRaises(M5CodexContainmentErrorV1),
+            ):
+                evaluate_codex_trace_policy_v1(
+                    candidate,
+                    provider_executable=_TRACE_EXECUTABLE,
+                    managed_profile_root=_TRACE_MANAGED_ROOT,
+                    default_codex_roots=(Path("/home/owner/.codex"),),
+                )
+
+    def test_arg0_lock_cleanup_shape_cardinality_lineage_and_order_close(self) -> None:
+        """M5-CDX-GATE-001: the created lock has one bounded owned cleanup."""
+
+        trace = _arg0_lifecycle_trace()
+        session = _ARG0_IDENTITY_SESSION
+        lock_cleanup = _arg0_lock_cleanup_line(201, session)
+        last_link = _arg0_link_lines(200, session)[-1]
+        parent = (
+            f'201 unlinkat(8<{session.parent}>, "{session.name}", AT_REMOVEDIR) = 0'
+        )
+        without_cleanup = trace.replace(f"{lock_cleanup}\n", "", 1)
+        cases = {
+            "missing": without_cleanup,
+            "duplicate": trace.replace(
+                lock_cleanup, f"{lock_cleanup}\n{lock_cleanup}", 1
+            ),
+            "wrong_name": trace.replace(
+                lock_cleanup, lock_cleanup.replace('".lock"', '"lock"'), 1
+            ),
+            "wrong_case": trace.replace(
+                lock_cleanup, lock_cleanup.replace('".lock"', '".LOCK"'), 1
+            ),
+            "nested": trace.replace(
+                lock_cleanup, lock_cleanup.replace('".lock"', '"nested/.lock"'), 1
+            ),
+            "absolute": trace.replace(
+                lock_cleanup,
+                lock_cleanup.replace('".lock"', f'"{session / _ARG0_LOCK_NAME}"'),
+                1,
+            ),
+            "wrong_flags": trace.replace(
+                lock_cleanup, lock_cleanup.replace(", 0) = 0", ", AT_REMOVEDIR) = 0"), 1
+            ),
+            "failed": trace.replace(
+                lock_cleanup,
+                lock_cleanup.replace(
+                    " = 0", " = -1 ENOENT (No such file or directory)"
+                ),
+                1,
+            ),
+            "unresolved_dirfd": trace.replace(
+                lock_cleanup, lock_cleanup.replace(f"9<{session}>", "9"), 1
+            ),
+            "descriptor_zero": trace.replace(
+                lock_cleanup,
+                lock_cleanup.replace(f"9<{session}>", f"0<{session}>", 1),
+                1,
+            ),
+            "descriptor_one": trace.replace(
+                lock_cleanup,
+                lock_cleanup.replace(f"9<{session}>", f"1<{session}>", 1),
+                1,
+            ),
+            "descriptor_two": trace.replace(
+                lock_cleanup,
+                lock_cleanup.replace(f"9<{session}>", f"2<{session}>", 1),
+                1,
+            ),
+            "descriptor_leading_zero": trace.replace(
+                lock_cleanup,
+                lock_cleanup.replace(f"9<{session}>", f"09<{session}>", 1),
+                1,
+            ),
+            "descriptor_overflow": trace.replace(
+                lock_cleanup,
+                lock_cleanup.replace(f"9<{session}>", f"1000000<{session}>", 1),
+                1,
+            ),
+            "at_fdcwd": trace.replace(
+                lock_cleanup,
+                lock_cleanup.replace(f"9<{session}>", f"AT_FDCWD<{session}>", 1),
+                1,
+            ),
+            "escaped_child": trace.replace(
+                lock_cleanup, lock_cleanup.replace('".lock"', r'"\056lock"'), 1
+            ),
+            "wrong_session": trace.replace(
+                lock_cleanup,
+                lock_cleanup.replace(f"9<{session}>", f"9<{_ARG0_QUOTA_SESSION}>"),
+                1,
+            ),
+            "unattributed": trace.replace(
+                lock_cleanup, lock_cleanup.replace("201 unlinkat", "99 unlinkat", 1), 1
+            ),
+            "foreign_operation": without_cleanup.replace(
+                "300 exit_group(0) = ?",
+                (
+                    f"{lock_cleanup.replace('201 unlinkat', '300 unlinkat', 1)}\n"
+                    "300 exit_group(0) = ?"
+                ),
+                1,
+            ),
+            "before_aliases_complete": without_cleanup.replace(
+                last_link,
+                (
+                    f"{lock_cleanup.replace('201 unlinkat', '200 unlinkat', 1)}\n"
+                    f"{last_link}"
+                ),
+                1,
+            ),
+            "session_removed_before_lock": trace.replace(f"{parent}\n", "", 1).replace(
+                lock_cleanup, f"{parent}\n{lock_cleanup}", 1
+            ),
+            "plain_unlink": trace.replace(
+                lock_cleanup, f'201 unlink("{session / _ARG0_LOCK_NAME}") = 0', 1
+            ),
+            "after_actor_exit": without_cleanup.replace(
+                "201 exit_group(0) = ?",
+                f"201 exit_group(0) = ?\n{lock_cleanup}",
+                1,
+            ),
+            "after_root_exit": without_cleanup.replace(
+                "200 exit_group(0) = ?",
+                (
+                    "200 exit_group(0) = ?\n"
+                    f"{lock_cleanup.replace('201 unlinkat', '200 unlinkat', 1)}"
+                ),
+                1,
+            ),
+            "completion_after_actor_exit": trace.replace(
+                lock_cleanup,
+                lock_cleanup.removesuffix(") = 0") + " <unfinished ...>",
+                1,
+            ).replace(
+                "201 exit_group(0) = ?",
+                "201 exit_group(0) = ?\n201 <... unlinkat resumed>) = 0",
+                1,
+            ),
+            "completion_after_root_exit": trace.replace(
+                lock_cleanup,
+                lock_cleanup.replace("201 unlinkat", "200 unlinkat", 1).removesuffix(
+                    ") = 0"
+                )
+                + " <unfinished ...>",
+                1,
+            ).replace(
+                "200 exit_group(0) = ?",
+                "200 exit_group(0) = ?\n200 <... unlinkat resumed>) = 0",
+                1,
+            ),
+            "second_failed_cleanup": trace.replace(
+                lock_cleanup,
+                (
+                    f"{lock_cleanup}\n"
+                    f"{
+                        lock_cleanup.replace(
+                            ' = 0', ' = -1 ENOENT (No such file or directory)'
+                        )
+                    }"
+                ),
+                1,
+            ),
+            "parent_invoked_before_cleanup_completion": trace.replace(
+                f"{parent}\n", "", 1
+            ).replace(
+                lock_cleanup,
+                (
+                    lock_cleanup.removesuffix(") = 0")
+                    + f" <unfinished ...>\n{parent}\n"
+                    + "201 <... unlinkat resumed>) = 0"
+                ),
+                1,
+            ),
+        }
+        for label, candidate in cases.items():
+            with (
+                self.subTest(label=label),
+                self.assertRaises(M5CodexContainmentErrorV1),
+            ):
+                evaluate_codex_trace_policy_v1(
+                    candidate,
+                    provider_executable=_TRACE_EXECUTABLE,
+                    managed_profile_root=_TRACE_MANAGED_ROOT,
+                    default_codex_roots=(Path("/home/owner/.codex"),),
+                )
+
+    def test_arg0_session_to_lock_open_interval_allows_no_other_write(self) -> None:
+        """M5-CDX-GATE-001: fresh-session proof has a closed write interval."""
+
+        trace = _arg0_lifecycle_trace()
+        session = _ARG0_IDENTITY_SESSION
+        mkdir = f'200 mkdir("{session}", 0777) = 0'
+        lock = session / _ARG0_LOCK_NAME
+        opened = f'200 open("{lock}", {_ARG0_LOCK_FLAGS}, 0666) = 7<{lock}>'
+        sibling_lock = session.with_name("codex-arg0Z9y8X7") / _ARG0_LOCK_NAME
+        other_operation_lock = _ARG0_QUOTA_SESSION / _ARG0_LOCK_NAME
+        relative_lock = lock.relative_to(_TRACE_MANAGED_ROOT)
+        proc_self_root_lock = Path(f"/proc/self/root{lock}")
+        proc_thread_root_lock = Path(f"/proc/thread-self/root{lock}")
+        proc_pid_root_lock = Path(f"/proc/200/root{lock}")
+        proc_other_pid_root_lock = Path(f"/proc/999/root{lock}")
+        proc_self_cwd_lock = Path("/proc/self/cwd") / relative_lock
+        proc_thread_cwd_lock = Path("/proc/thread-self/cwd") / relative_lock
+        proc_pid_cwd_lock = Path("/proc/200/cwd") / relative_lock
+        proc_other_pid_cwd_lock = Path("/proc/999/cwd") / relative_lock
+        proc_self_task_root_lock = Path(f"/proc/self/task/200/root{lock}")
+        proc_pid_task_root_lock = Path(f"/proc/200/task/200/root{lock}")
+        proc_fd_lock = Path("/proc/self/fd/9") / _ARG0_LOCK_NAME
+        dev_fd_lock = Path("/dev/fd/9") / _ARG0_LOCK_NAME
+        proc_root_parent_lock = Path(
+            f"/proc/self/root/../{os.fspath(lock).lstrip('/')}"
+        )
+        proc_self_lock_descriptor = Path("/proc/self/fd/7")
+        proc_thread_lock_descriptor = Path("/proc/thread-self/fd/7")
+        proc_pid_lock_descriptor = Path("/proc/200/fd/7")
+        proc_self_task_lock_descriptor = Path("/proc/self/task/200/fd/7")
+        proc_pid_task_lock_descriptor = Path("/proc/200/task/200/fd/7")
+        dev_lock_descriptor = Path("/dev/fd/7")
+        proc_root_proc_lock_descriptor = Path("/proc/self/root/proc/self/fd/7")
+        proc_root_dev_lock_descriptor = Path("/proc/self/root/dev/fd/7")
+        proc_task_root_proc_lock_descriptor = Path(
+            "/proc/self/task/200/root/proc/self/fd/7"
+        )
+        proc_pid_root_proc_lock_descriptor = Path("/proc/200/root/proc/200/fd/7")
+        proc_lock_descriptor_info = Path("/proc/self/fdinfo/7")
+        proc_lock_descriptor_leading_zero = Path("/proc/self/fd/07")
+        proc_lock_descriptor_raw_parent = "/proc/self/fd/7/.."
+        relative_proc_lock_descriptor = "../../../../proc/self/fd/7"
+        relative_dev_lock_descriptor = "../../../../dev/fd/7"
+        relative_proc_lock_descriptor_chain = "../../../../proc/self/fd/8/7"
+        proc_lock_descriptor_proc_dot = "/proc/./self/fd/7"
+        proc_lock_descriptor_actor_dot = "/proc/self/./fd/7"
+        proc_lock_descriptor_task_parent = "/proc/self/task/../fd/7"
+        dev_lock_descriptor_dev_dot = "/dev/./fd/7"
+        raw_lock_child = f"{lock}/child"
+        raw_lock_parent = f"{lock}/.."
+        raw_lock_parent_sibling = f"{lock}/../other"
+        raw_proc_root_lock_child = f"/proc/self/root{lock}/child"
+        descriptor_directory_open = (
+            '200 open("/proc/self/fd", O_RDONLY|O_DIRECTORY|O_CLOEXEC) '
+            "= 8</proc/200/fd>"
+        )
+        dev_directory_open = (
+            '200 open("/dev", O_RDONLY|O_DIRECTORY|O_CLOEXEC) = 8</dev>'
+        )
+        lock_cleanup = _arg0_lock_cleanup_line(201, session)
+        outside = _TRACE_MANAGED_ROOT / "runtime" / "unexpected"
+        overlapping_from_before = trace.replace(
+            mkdir,
+            f'200 mkdir("{outside}", 0700 <unfinished ...>\n{mkdir}',
+            1,
+        ).replace(opened, f"{opened}\n200 <... mkdir resumed>) = 0", 1)
+        overlapping_after_open = trace.replace(
+            mkdir,
+            f'{mkdir}\n200 mkdir("{outside}", 0700 <unfinished ...>',
+            1,
+        ).replace(opened, f"{opened}\n200 <... mkdir resumed>) = 0", 1)
+        overlapping_lock_descriptor_access = (
+            trace.replace(
+                _trace_app_server_exec(200, _TRACE_EXECUTABLE),
+                (
+                    f"{_trace_app_server_exec(200, _TRACE_EXECUTABLE)}\n"
+                    "200 clone(child_stack=NULL, "
+                    "flags=CLONE_VM|CLONE_FILES|SIGCHLD) = 202"
+                ),
+                1,
+            )
+            .replace(
+                opened,
+                (
+                    opened.removesuffix(f") = 7<{lock}>") + " <unfinished ...>\n"
+                    '202 newfstatat(AT_FDCWD, "/proc/200/fd/7", 0x0, 0) = 0\n'
+                    f"200 <... open resumed>) = 7<{lock}>"
+                ),
+                1,
+            )
+            .replace(
+                "200 exit_group(0) = ?",
+                "202 exit_group(0) = ?\n200 exit_group(0) = ?",
+                1,
+            )
+        )
+        cases = {
+            "complete_inside": trace.replace(
+                mkdir, f'{mkdir}\n200 mkdir("{outside}", 0700) = 0', 1
+            ),
+            "failed_namespace_inside": trace.replace(
+                mkdir,
+                (
+                    f'{mkdir}\n200 rename("{outside}", "{outside}.moved") '
+                    "= -1 EIO (Input/output error)"
+                ),
+                1,
+            ),
+            "failed_mkdir_inside": trace.replace(
+                mkdir,
+                f'{mkdir}\n200 mkdir("{outside}", 0700) = -1 EIO (Input/output error)',
+                1,
+            ),
+            "failed_mkdirat_inside": trace.replace(
+                mkdir,
+                (
+                    f'{mkdir}\n200 mkdirat(AT_FDCWD, "{outside}", 0700) '
+                    "= -1 EIO (Input/output error)"
+                ),
+                1,
+            ),
+            "failed_mknod_inside": trace.replace(
+                mkdir,
+                (
+                    f'{mkdir}\n200 mknod("{outside}", S_IFREG|0600) '
+                    "= -1 EIO (Input/output error)"
+                ),
+                1,
+            ),
+            "failed_mknodat_inside": trace.replace(
+                mkdir,
+                (
+                    f'{mkdir}\n200 mknodat(AT_FDCWD, "{outside}", '
+                    "S_IFREG|0600, 0) = -1 EIO (Input/output error)"
+                ),
+                1,
+            ),
+            "failed_open_create_inside": trace.replace(
+                mkdir,
+                (
+                    f'{mkdir}\n200 open("{outside}", O_WRONLY|O_CREAT|O_CLOEXEC, '
+                    "0600) = -1 EIO (Input/output error)"
+                ),
+                1,
+            ),
+            "failed_openat_create_inside": trace.replace(
+                mkdir,
+                (
+                    f'{mkdir}\n200 openat(AT_FDCWD, "{outside}", '
+                    "O_WRONLY|O_CREAT|O_CLOEXEC, 0600) = -1 EIO (Input/output error)"
+                ),
+                1,
+            ),
+            "failed_creat_inside": trace.replace(
+                mkdir,
+                f'{mkdir}\n200 creat("{outside}", 0600) = -1 EIO (Input/output error)',
+                1,
+            ),
+            "invoked_before": overlapping_from_before,
+            "completed_after": overlapping_after_open,
+            "descriptor_access_during_unfinished_lock_open": (
+                overlapping_lock_descriptor_access
+            ),
+            "extra_lock_read": trace.replace(
+                opened,
+                f'{opened}\n200 open("{lock}", O_RDONLY|O_CLOEXEC) = 8<{lock}>',
+                1,
+            ),
+            "raw_lock_child_metadata": trace.replace(
+                opened,
+                (
+                    f'{opened}\n200 newfstatat(AT_FDCWD, "{raw_lock_child}", '
+                    "0x0, 0) = -1 ENOTDIR (Not a directory)"
+                ),
+                1,
+            ),
+            "raw_lock_parent_metadata": trace.replace(
+                opened,
+                (
+                    f'{opened}\n200 newfstatat(AT_FDCWD, "{raw_lock_parent}", '
+                    "0x0, 0) = -1 ENOTDIR (Not a directory)"
+                ),
+                1,
+            ),
+            "raw_lock_parent_sibling_metadata": trace.replace(
+                opened,
+                (
+                    f'{opened}\n200 newfstatat(AT_FDCWD, "{raw_lock_parent_sibling}", '
+                    "0x0, 0) = -1 ENOTDIR (Not a directory)"
+                ),
+                1,
+            ),
+            "raw_proc_root_lock_child_metadata": trace.replace(
+                opened,
+                (
+                    f'{opened}\n200 newfstatat(AT_FDCWD, "{raw_proc_root_lock_child}", '
+                    "0x0, 0) = -1 ENOTDIR (Not a directory)"
+                ),
+                1,
+            ),
+            "sibling_lock_metadata": trace.replace(
+                opened,
+                (
+                    f'{opened}\n200 newfstatat(AT_FDCWD, "{sibling_lock}", '
+                    "0x0, 0) = -1 ENOENT (No such file or directory)"
+                ),
+                1,
+            ),
+            "sibling_lock_read": trace.replace(
+                opened,
+                (
+                    f'{opened}\n200 open("{sibling_lock}", O_RDONLY|O_CLOEXEC) '
+                    "= -1 ENOENT (No such file or directory)"
+                ),
+                1,
+            ),
+            "other_operation_lock_metadata": trace.replace(
+                opened,
+                (
+                    f'{opened}\n200 newfstatat(AT_FDCWD, "{other_operation_lock}", '
+                    "0x0, 0) = -1 ENOENT (No such file or directory)"
+                ),
+                1,
+            ),
+            "other_operation_lock_read": trace.replace(
+                opened,
+                (
+                    f'{opened}\n200 open("{other_operation_lock}", '
+                    "O_RDONLY|O_CLOEXEC) = -1 ENOENT (No such file or directory)"
+                ),
+                1,
+            ),
+            "proc_self_root_metadata_success": trace.replace(
+                opened,
+                (
+                    f'{opened}\n200 newfstatat(AT_FDCWD, "{proc_self_root_lock}", '
+                    "0x0, 0) = 0"
+                ),
+                1,
+            ),
+            "proc_self_root_metadata_failure": trace.replace(
+                opened,
+                (
+                    f'{opened}\n200 newfstatat(AT_FDCWD, "{proc_self_root_lock}", '
+                    "0x0, 0) = -1 ENOENT (No such file or directory)"
+                ),
+                1,
+            ),
+            "proc_self_root_read_success": trace.replace(
+                opened,
+                (
+                    f'{opened}\n200 open("{proc_self_root_lock}", O_RDONLY|O_CLOEXEC) '
+                    f"= 8<{proc_self_root_lock}>"
+                ),
+                1,
+            ),
+            "proc_self_root_read_failure": trace.replace(
+                opened,
+                (
+                    f'{opened}\n200 open("{proc_self_root_lock}", O_RDONLY|O_CLOEXEC) '
+                    "= -1 ENOENT (No such file or directory)"
+                ),
+                1,
+            ),
+            "proc_thread_root_metadata": trace.replace(
+                opened,
+                (
+                    f'{opened}\n200 newfstatat(AT_FDCWD, "{proc_thread_root_lock}", '
+                    "0x0, 0) = -1 ENOENT (No such file or directory)"
+                ),
+                1,
+            ),
+            "proc_pid_root_read": trace.replace(
+                opened,
+                (
+                    f'{opened}\n200 open("{proc_pid_root_lock}", O_RDONLY|O_CLOEXEC) '
+                    "= -1 ENOENT (No such file or directory)"
+                ),
+                1,
+            ),
+            "proc_self_cwd_metadata": trace.replace(
+                opened,
+                (
+                    f'{opened}\n200 newfstatat(AT_FDCWD, "{proc_self_cwd_lock}", '
+                    "0x0, 0) = -1 ENOENT (No such file or directory)"
+                ),
+                1,
+            ),
+            "proc_thread_cwd_read": trace.replace(
+                opened,
+                (
+                    f'{opened}\n200 open("{proc_thread_cwd_lock}", O_RDONLY|O_CLOEXEC) '
+                    "= -1 ENOENT (No such file or directory)"
+                ),
+                1,
+            ),
+            "proc_pid_cwd_read": trace.replace(
+                opened,
+                (
+                    f'{opened}\n200 open("{proc_pid_cwd_lock}", O_RDONLY|O_CLOEXEC) '
+                    "= -1 ENOENT (No such file or directory)"
+                ),
+                1,
+            ),
+            "proc_other_pid_root_read": trace.replace(
+                opened,
+                (
+                    f'{opened}\n200 open("{proc_other_pid_root_lock}", '
+                    "O_RDONLY|O_CLOEXEC) = -1 ENOENT (No such file or directory)"
+                ),
+                1,
+            ),
+            "proc_other_pid_cwd_read": trace.replace(
+                opened,
+                (
+                    f'{opened}\n200 open("{proc_other_pid_cwd_lock}", '
+                    "O_RDONLY|O_CLOEXEC) = -1 ENOENT (No such file or directory)"
+                ),
+                1,
+            ),
+            "proc_self_task_root_metadata": trace.replace(
+                opened,
+                (
+                    f'{opened}\n200 newfstatat(AT_FDCWD, "{proc_self_task_root_lock}", '
+                    "0x0, 0) = 0"
+                ),
+                1,
+            ),
+            "proc_pid_task_root_metadata": trace.replace(
+                opened,
+                (
+                    f'{opened}\n200 newfstatat(AT_FDCWD, "{proc_pid_task_root_lock}", '
+                    "0x0, 0) = 0"
+                ),
+                1,
+            ),
+            "proc_fd_metadata": trace.replace(
+                opened,
+                f'{opened}\n200 newfstatat(AT_FDCWD, "{proc_fd_lock}", 0x0, 0) = 0',
+                1,
+            ),
+            "dev_fd_metadata": trace.replace(
+                opened,
+                f'{opened}\n200 newfstatat(AT_FDCWD, "{dev_fd_lock}", 0x0, 0) = 0',
+                1,
+            ),
+            "proc_root_parent_metadata": trace.replace(
+                opened,
+                (
+                    f'{opened}\n200 newfstatat(AT_FDCWD, "{proc_root_parent_lock}", '
+                    "0x0, 0) = 0"
+                ),
+                1,
+            ),
+            "proc_self_lock_descriptor_metadata": trace.replace(
+                opened,
+                (
+                    f"{opened}\n200 newfstatat(AT_FDCWD, "
+                    f'"{proc_self_lock_descriptor}", 0x0, 0) = 0'
+                ),
+                1,
+            ),
+            "proc_thread_lock_descriptor_metadata": trace.replace(
+                opened,
+                (
+                    f"{opened}\n200 newfstatat(AT_FDCWD, "
+                    f'"{proc_thread_lock_descriptor}", 0x0, 0) = 0'
+                ),
+                1,
+            ),
+            "proc_pid_lock_descriptor_metadata": trace.replace(
+                opened,
+                (
+                    f"{opened}\n200 newfstatat(AT_FDCWD, "
+                    f'"{proc_pid_lock_descriptor}", 0x0, 0) = 0'
+                ),
+                1,
+            ),
+            "proc_self_task_lock_descriptor_metadata": trace.replace(
+                opened,
+                (
+                    f"{opened}\n200 newfstatat(AT_FDCWD, "
+                    f'"{proc_self_task_lock_descriptor}", 0x0, 0) = 0'
+                ),
+                1,
+            ),
+            "proc_pid_task_lock_descriptor_metadata": trace.replace(
+                opened,
+                (
+                    f"{opened}\n200 newfstatat(AT_FDCWD, "
+                    f'"{proc_pid_task_lock_descriptor}", 0x0, 0) = 0'
+                ),
+                1,
+            ),
+            "dev_lock_descriptor_metadata": trace.replace(
+                opened,
+                (
+                    f"{opened}\n200 newfstatat(AT_FDCWD, "
+                    f'"{dev_lock_descriptor}", 0x0, 0) = 0'
+                ),
+                1,
+            ),
+            "proc_root_proc_lock_descriptor_metadata": trace.replace(
+                opened,
+                (
+                    f"{opened}\n200 newfstatat(AT_FDCWD, "
+                    f'"{proc_root_proc_lock_descriptor}", 0x0, 0) = 0'
+                ),
+                1,
+            ),
+            "proc_root_dev_lock_descriptor_metadata": trace.replace(
+                opened,
+                (
+                    f"{opened}\n200 newfstatat(AT_FDCWD, "
+                    f'"{proc_root_dev_lock_descriptor}", 0x0, 0) = 0'
+                ),
+                1,
+            ),
+            "proc_task_root_proc_lock_descriptor_metadata": trace.replace(
+                opened,
+                (
+                    f"{opened}\n200 newfstatat(AT_FDCWD, "
+                    f'"{proc_task_root_proc_lock_descriptor}", 0x0, 0) = 0'
+                ),
+                1,
+            ),
+            "proc_pid_root_proc_lock_descriptor_metadata": trace.replace(
+                opened,
+                (
+                    f"{opened}\n200 newfstatat(AT_FDCWD, "
+                    f'"{proc_pid_root_proc_lock_descriptor}", 0x0, 0) = 0'
+                ),
+                1,
+            ),
+            "proc_lock_descriptor_info_metadata": trace.replace(
+                opened,
+                (
+                    f"{opened}\n200 newfstatat(AT_FDCWD, "
+                    f'"{proc_lock_descriptor_info}", 0x0, 0) = 0'
+                ),
+                1,
+            ),
+            "proc_lock_descriptor_leading_zero_metadata": trace.replace(
+                opened,
+                (
+                    f"{opened}\n200 newfstatat(AT_FDCWD, "
+                    f'"{proc_lock_descriptor_leading_zero}", 0x0, 0) = 0'
+                ),
+                1,
+            ),
+            "proc_lock_descriptor_raw_parent_metadata": trace.replace(
+                opened,
+                (
+                    f"{opened}\n200 newfstatat(AT_FDCWD, "
+                    f'"{proc_lock_descriptor_raw_parent}", 0x0, 0) = 0'
+                ),
+                1,
+            ),
+            "relative_proc_lock_descriptor_metadata": trace.replace(
+                opened,
+                (
+                    f"{opened}\n200 newfstatat(AT_FDCWD, "
+                    f'"{relative_proc_lock_descriptor}", 0x0, 0) = 0'
+                ),
+                1,
+            ),
+            "relative_dev_lock_descriptor_metadata": trace.replace(
+                opened,
+                (
+                    f"{opened}\n200 newfstatat(AT_FDCWD, "
+                    f'"{relative_dev_lock_descriptor}", 0x0, 0) = 0'
+                ),
+                1,
+            ),
+            "relative_proc_lock_descriptor_directory_chain": trace.replace(
+                opened,
+                (
+                    f"{opened}\n{descriptor_directory_open}\n"
+                    "200 newfstatat(AT_FDCWD, "
+                    f'"{relative_proc_lock_descriptor_chain}", '
+                    "0x0, 0) = 0"
+                ),
+                1,
+            ),
+            "proc_lock_descriptor_directory_chain": trace.replace(
+                opened,
+                (
+                    f"{opened}\n{descriptor_directory_open}\n"
+                    '200 newfstatat(AT_FDCWD, "/proc/self/fd/8/7", '
+                    "0x0, 0) = 0"
+                ),
+                1,
+            ),
+            "dev_lock_descriptor_directory_chain": trace.replace(
+                opened,
+                (
+                    f"{opened}\n{descriptor_directory_open}\n"
+                    '200 newfstatat(AT_FDCWD, "/dev/fd/8/7", 0x0, 0) = 0'
+                ),
+                1,
+            ),
+            **{
+                f"proc_lock_descriptor_directory_stdio_{name}": trace.replace(
+                    opened,
+                    (
+                        f"{opened.replace('= 7<', f'= {descriptor}<')}\n"
+                        f"{dev_directory_open}\n"
+                        f'200 newfstatat(AT_FDCWD, "/proc/self/fd/8/{name}", '
+                        "0x0, 0) = 0"
+                    ),
+                    1,
+                )
+                for descriptor, name in enumerate(("stdin", "stdout", "stderr"))
+            },
+            **{
+                f"dev_lock_descriptor_directory_stdio_{name}": trace.replace(
+                    opened,
+                    (
+                        f"{opened.replace('= 7<', f'= {descriptor}<')}\n"
+                        f"{dev_directory_open}\n"
+                        f'200 newfstatat(AT_FDCWD, "/dev/fd/8/{name}", '
+                        "0x0, 0) = 0"
+                    ),
+                    1,
+                )
+                for descriptor, name in enumerate(("stdin", "stdout", "stderr"))
+            },
+            "proc_lock_descriptor_proc_dot_metadata": trace.replace(
+                opened,
+                (
+                    f"{opened}\n200 newfstatat(AT_FDCWD, "
+                    f'"{proc_lock_descriptor_proc_dot}", 0x0, 0) = 0'
+                ),
+                1,
+            ),
+            "proc_lock_descriptor_actor_dot_metadata": trace.replace(
+                opened,
+                (
+                    f"{opened}\n200 newfstatat(AT_FDCWD, "
+                    f'"{proc_lock_descriptor_actor_dot}", 0x0, 0) = 0'
+                ),
+                1,
+            ),
+            "proc_lock_descriptor_task_parent_metadata": trace.replace(
+                opened,
+                (
+                    f"{opened}\n200 newfstatat(AT_FDCWD, "
+                    f'"{proc_lock_descriptor_task_parent}", 0x0, 0) = 0'
+                ),
+                1,
+            ),
+            "dev_lock_descriptor_dev_dot_metadata": trace.replace(
+                opened,
+                (
+                    f"{opened}\n200 newfstatat(AT_FDCWD, "
+                    f'"{dev_lock_descriptor_dev_dot}", 0x0, 0) = 0'
+                ),
+                1,
+            ),
+            "dev_stdin_lock_descriptor_metadata": trace.replace(
+                opened,
+                (
+                    f"{opened.replace('= 7<', '= 0<')}\n"
+                    '200 newfstatat(AT_FDCWD, "/dev/stdin", 0x0, 0) = 0'
+                ),
+                1,
+            ),
+            "dev_stdout_lock_descriptor_metadata": trace.replace(
+                opened,
+                (
+                    f"{opened.replace('= 7<', '= 1<')}\n"
+                    '200 newfstatat(AT_FDCWD, "/dev/stdout", 0x0, 0) = 0'
+                ),
+                1,
+            ),
+            "dev_stderr_lock_descriptor_metadata": trace.replace(
+                opened,
+                (
+                    f"{opened.replace('= 7<', '= 2<')}\n"
+                    '200 newfstatat(AT_FDCWD, "/dev/stderr", 0x0, 0) = 0'
+                ),
+                1,
+            ),
+            "lock_descriptor_newfstatat_empty_path": trace.replace(
+                opened,
+                (f'{opened}\n200 newfstatat(7<{lock}>, "", 0x0, AT_EMPTY_PATH) = 0'),
+                1,
+            ),
+            "lock_descriptor_statx_empty_path": trace.replace(
+                opened,
+                (
+                    f'{opened}\n200 statx(7<{lock}>, "", AT_EMPTY_PATH, '
+                    "STATX_BASIC_STATS, 0x0) = 0"
+                ),
+                1,
+            ),
+            "lock_descriptor_faccessat2_empty_path": trace.replace(
+                opened,
+                (f'{opened}\n200 faccessat2(7<{lock}>, "", F_OK, AT_EMPTY_PATH) = 0'),
+                1,
+            ),
+            "lock_descriptor_newfstatat_null_path": trace.replace(
+                opened,
+                (f"{opened}\n200 newfstatat(7<{lock}>, NULL, 0x0, AT_EMPTY_PATH) = 0"),
+                1,
+            ),
+            "lock_descriptor_statx_null_path": trace.replace(
+                opened,
+                (
+                    f"{opened}\n200 statx(7<{lock}>, NULL, AT_EMPTY_PATH, "
+                    "STATX_BASIC_STATS, 0x0) = 0"
+                ),
+                1,
+            ),
+            "lock_descriptor_readlinkat_empty_annotated": trace.replace(
+                opened,
+                (
+                    f'{opened}\n200 readlinkat(7<{lock}>, "", 0x0, 4096) '
+                    "= -1 EINVAL (Invalid argument)"
+                ),
+                1,
+            ),
+            "lock_descriptor_readlinkat_empty_unannotated": trace.replace(
+                opened,
+                (
+                    f'{opened}\n200 readlinkat(7, "", 0x0, 4096) '
+                    "= -1 EINVAL (Invalid argument)"
+                ),
+                1,
+            ),
+            "lock_annotation_over_other_descriptor_empty_path": trace.replace(
+                opened,
+                (f'{opened}\n200 newfstatat(8<{lock}>, "", 0x0, AT_EMPTY_PATH) = 0'),
+                1,
+            ),
+            "lock_annotation_over_other_descriptor_direct": trace.replace(
+                opened,
+                (
+                    f"{opened}\n200 fchmod(8<{lock}>, 0600) = -1 EPERM "
+                    "(Operation not permitted)"
+                ),
+                1,
+            ),
+            "lock_alias_annotation_over_other_descriptor": trace.replace(
+                opened,
+                (
+                    f"{opened}\n200 fchmod(8</proc/self/fd/7>, 0600) "
+                    "= -1 EPERM (Operation not permitted)"
+                ),
+                1,
+            ),
+            "deleted_lock_annotation_after_cleanup": trace.replace(
+                lock_cleanup,
+                (
+                    f"{lock_cleanup}\n200 fchmod(7<{lock} (deleted)>, 0600) "
+                    "= -1 EPERM (Operation not permitted)"
+                ),
+                1,
+            ),
+            "lock_metadata_during_freshness": trace.replace(
+                mkdir,
+                (
+                    f'{mkdir}\n200 newfstatat(AT_FDCWD, "{lock}", 0x0, 0) '
+                    "= -1 ENOENT (No such file or directory)"
+                ),
+                1,
+            ),
+            "lock_replacement": trace.replace(
+                opened, f'{opened}\n200 rename("{lock}", "{session / "moved"}") = 0', 1
+            ),
+            "lock_ftruncate": trace.replace(
+                opened, f"{opened}\n200 ftruncate(7<{lock}>, 0) = 0", 1
+            ),
+            "failed_lock_descriptor_ftruncate": trace.replace(
+                opened,
+                (
+                    f"{opened}\n200 ftruncate(7<{lock}>, 0) = -1 EPERM "
+                    "(Operation not permitted)"
+                ),
+                1,
+            ),
+            "failed_lock_descriptor_fchmod": trace.replace(
+                opened,
+                (
+                    f"{opened}\n200 fchmod(7<{lock}>, 0600) = -1 EPERM "
+                    "(Operation not permitted)"
+                ),
+                1,
+            ),
+            "failed_lock_descriptor_fchown": trace.replace(
+                opened,
+                (
+                    f"{opened}\n200 fchown(7<{lock}>, 1000, 1000) = -1 EPERM "
+                    "(Operation not permitted)"
+                ),
+                1,
+            ),
+            "failed_lock_descriptor_fallocate": trace.replace(
+                opened,
+                (
+                    f"{opened}\n200 fallocate(7<{lock}>, 0, 0, 1) = -1 EPERM "
+                    "(Operation not permitted)"
+                ),
+                1,
+            ),
+            "failed_lock_descriptor_fchdir": trace.replace(
+                opened,
+                (f"{opened}\n200 fchdir(7<{lock}>) = -1 ENOTDIR (Not a directory)"),
+                1,
+            ),
+            "failed_lock_descriptor_fsetxattr": trace.replace(
+                opened,
+                (
+                    f'{opened}\n200 fsetxattr(0x7, "user.agentmonitor", '
+                    '"x", 1, 0) = -1 EPERM (Operation not permitted)'
+                ),
+                1,
+            ),
+            "failed_lock_descriptor_fremovexattr": trace.replace(
+                opened,
+                (
+                    f'{opened}\n200 fremovexattr(0x7, "user.agentmonitor") '
+                    "= -1 EPERM (Operation not permitted)"
+                ),
+                1,
+            ),
+            "failed_lock_descriptor_ioctl": trace.replace(
+                opened,
+                (
+                    f"{opened}\n200 ioctl(0x7, 0x40086602, 0x0) = -1 EPERM "
+                    "(Operation not permitted)"
+                ),
+                1,
+            ),
+            "failed_lock_descriptor_io_uring_enter": trace.replace(
+                opened,
+                (
+                    f"{opened}\n200 io_uring_enter(0x7, 0x1, 0x1, 0x0, "
+                    "0x0, 0x0) = -1 EPERM (Operation not permitted)"
+                ),
+                1,
+            ),
+            "failed_lock_descriptor_io_uring_register": trace.replace(
+                opened,
+                (
+                    f"{opened}\n200 io_uring_register(0x7, 0x0, 0x0, 0x0) "
+                    "= -1 EPERM (Operation not permitted)"
+                ),
+                1,
+            ),
+            "failed_lock_descriptor_setns": trace.replace(
+                opened,
+                (
+                    f"{opened}\n200 setns(7<{lock}>, CLONE_NEWNS) = -1 EPERM "
+                    "(Operation not permitted)"
+                ),
+                1,
+            ),
+            "failed_lock_descriptor_fsconfig": trace.replace(
+                opened,
+                (
+                    f"{opened}\n200 fsconfig(7<{lock}>, FSCONFIG_SET_STRING, "
+                    '"source", "none", 0) = -1 EPERM (Operation not permitted)'
+                ),
+                1,
+            ),
+            "failed_lock_descriptor_fsmount": trace.replace(
+                opened,
+                (
+                    f"{opened}\n200 fsmount(7<{lock}>, 0, 0) = -1 EPERM "
+                    "(Operation not permitted)"
+                ),
+                1,
+            ),
+            "lock_descriptor_clone3_cgroup_annotation": trace.replace(
+                opened,
+                (
+                    f"{opened}\n200 clone3({{flags=CLONE_INTO_CGROUP, "
+                    f"exit_signal=SIGCHLD, cgroup=7<{lock}>}}, 88) = -1 EBADF "
+                    "(Bad file descriptor)"
+                ),
+                1,
+            ),
+            "lock_descriptor_clone3_cgroup_unannotated": trace.replace(
+                opened,
+                (
+                    f"{opened}\n200 clone3({{flags=CLONE_INTO_CGROUP, "
+                    "exit_signal=SIGCHLD, cgroup=7}, 88) = -1 EBADF "
+                    "(Bad file descriptor)"
+                ),
+                1,
+            ),
+            "lock_descriptor_mount_setattr_userns_annotation": trace.replace(
+                opened,
+                (
+                    f'{opened}\n200 mount_setattr(AT_FDCWD, "{_TRACE_MANAGED_ROOT}", '
+                    f"0, {{attr_set=MOUNT_ATTR_IDMAP, userns_fd=7<{lock}>}}, 32) "
+                    "= -1 EBADF (Bad file descriptor)"
+                ),
+                1,
+            ),
+            "lock_write_through": trace.replace(
+                opened,
+                (
+                    f'{opened}\n200 openat(AT_FDCWD, "{lock}", '
+                    f"O_WRONLY|O_TRUNC) = 8<{lock}>"
+                ),
+                1,
+            ),
+            "extra_sibling_session": trace.replace(
+                _arg0_link_lines(200, session)[0],
+                (
+                    f"{_arg0_link_lines(200, session)[0]}\n"
+                    f'200 mkdir("{session.with_name("codex-arg0Z9y8X7")}", 0777) = 0'
+                ),
+                1,
+            ),
+            "extra_sibling_crosses_final_cleanup": trace.replace(
+                _arg0_cleanup_lines(201, session)[-1],
+                (
+                    f'201 mkdir("{session.with_name("codex-arg0Z9y8X7")}", 0777 '
+                    "<unfinished ...>\n"
+                    f"{_arg0_cleanup_lines(201, session)[-1]}\n"
+                    "201 <... mkdir resumed>) = 0"
+                ),
+                1,
+            ),
+        }
+        for label, candidate in cases.items():
+            with (
+                self.subTest(label=label),
+                self.assertRaises(M5CodexContainmentErrorV1),
+            ):
+                evaluate_codex_trace_policy_v1(
+                    candidate,
+                    provider_executable=_TRACE_EXECUTABLE,
+                    managed_profile_root=_TRACE_MANAGED_ROOT,
+                    default_codex_roots=(Path("/home/owner/.codex"),),
+                )
+        evaluate_codex_trace_policy_v1(
+            trace.replace(
+                opened,
+                f'{opened}\n200 newfstatat(AT_FDCWD, "/proc/self/fd/8", 0x0, 0) = 0',
+                1,
+            ),
+            provider_executable=_TRACE_EXECUTABLE,
+            managed_profile_root=_TRACE_MANAGED_ROOT,
+            default_codex_roots=(Path("/home/owner/.codex"),),
+        )
+        evaluate_codex_trace_policy_v1(
+            trace.replace(
+                opened,
+                (
+                    f"{opened}\n{descriptor_directory_open}\n200 newfstatat("
+                    'AT_FDCWD, "../../../../proc/self/fd/8/9", 0x0, 0) '
+                    "= -1 ENOENT (No such file or directory)"
+                ),
+                1,
+            ),
+            provider_executable=_TRACE_EXECUTABLE,
+            managed_profile_root=_TRACE_MANAGED_ROOT,
+            default_codex_roots=(Path("/home/owner/.codex"),),
+        )
+        evaluate_codex_trace_policy_v1(
+            trace.replace(
+                opened,
+                (
+                    f"{opened.replace('= 7<', '= 0<')}\n{dev_directory_open}\n"
+                    '200 newfstatat(AT_FDCWD, "/proc/self/fd/8/stdout", '
+                    "0x0, 0) = 0"
+                ),
+                1,
+            ),
+            provider_executable=_TRACE_EXECUTABLE,
+            managed_profile_root=_TRACE_MANAGED_ROOT,
+            default_codex_roots=(Path("/home/owner/.codex"),),
+        )
+        evaluate_codex_trace_policy_v1(
+            trace.replace(
+                opened,
+                (
+                    f"{opened.replace('= 7<', '= 0<')}\n"
+                    '200 newfstatat(AT_FDCWD, "/dev/stdout", 0x0, 0) = 0'
+                ),
+                1,
+            ),
+            provider_executable=_TRACE_EXECUTABLE,
+            managed_profile_root=_TRACE_MANAGED_ROOT,
+            default_codex_roots=(Path("/home/owner/.codex"),),
+        )
+        evaluate_codex_trace_policy_v1(
+            trace.replace(
+                opened,
+                (
+                    f'{opened}\n200 newfstatat(8<{_TRACE_MANAGED_ROOT}>, "", '
+                    "0x0, AT_EMPTY_PATH) = 0"
+                ),
+                1,
+            ),
+            provider_executable=_TRACE_EXECUTABLE,
+            managed_profile_root=_TRACE_MANAGED_ROOT,
+            default_codex_roots=(Path("/home/owner/.codex"),),
+        )
+        for unrelated_descriptor_record in (
+            (f"200 newfstatat(8<{_TRACE_MANAGED_ROOT}>, NULL, 0x0, AT_EMPTY_PATH) = 0"),
+            (
+                f'200 readlinkat(8<{_TRACE_MANAGED_ROOT}>, "", 0x0, 4096) '
+                "= -1 EINVAL (Invalid argument)"
+            ),
+            '200 newfstatat(AT_FDCWD, "/proc/self/fd/08", 0x0, 0) = 0',
+            (
+                f"200 ftruncate(8<{_TRACE_MANAGED_ROOT}>, 0) = -1 EPERM "
+                "(Operation not permitted)"
+            ),
+            ("200 ioctl(0x8, 0x40086602, 0x0) = -1 EPERM (Operation not permitted)"),
+            (
+                "200 io_uring_enter(0x8, 0x1, 0x1, 0x0, 0x0, 0x0) "
+                "= -1 EPERM (Operation not permitted)"
+            ),
+            (
+                f"200 setns(8<{_TRACE_MANAGED_ROOT}>, CLONE_NEWNS) = -1 EPERM "
+                "(Operation not permitted)"
+            ),
+            (
+                "200 clone3({flags=CLONE_INTO_CGROUP, exit_signal=SIGCHLD, "
+                "cgroup=8}, 88) = -1 EBADF (Bad file descriptor)"
+            ),
+            (
+                "200 clone3({flags=SIGCHLD, exit_signal=SIGCHLD, cgroup=7}, "
+                "88) = -1 EINVAL (Invalid argument)"
+            ),
+            (
+                f'200 mount_setattr(AT_FDCWD, "{_TRACE_MANAGED_ROOT}", 0, '
+                f"{{attr_set=MOUNT_ATTR_IDMAP, userns_fd=8<{_TRACE_MANAGED_ROOT}>}}, "
+                "32) = -1 EBADF (Bad file descriptor)"
+            ),
+        ):
+            evaluate_codex_trace_policy_v1(
+                trace.replace(
+                    opened,
+                    f"{opened}\n{unrelated_descriptor_record}",
+                    1,
+                ),
+                provider_executable=_TRACE_EXECUTABLE,
+                managed_profile_root=_TRACE_MANAGED_ROOT,
+                default_codex_roots=(Path("/home/owner/.codex"),),
+            )
+        evaluate_codex_trace_policy_v1(
+            trace.replace(
+                opened,
+                (
+                    f"{opened}\n{descriptor_directory_open}\n"
+                    '200 newfstatat(AT_FDCWD, "/proc/self/fd/8/9", 0x0, 0) '
+                    "= -1 ENOENT (No such file or directory)"
+                ),
+                1,
+            ),
+            provider_executable=_TRACE_EXECUTABLE,
+            managed_profile_root=_TRACE_MANAGED_ROOT,
+            default_codex_roots=(Path("/home/owner/.codex"),),
+        )
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            real_lock = Path(temporary_directory) / _ARG0_LOCK_NAME
+            lock_descriptor = os.open(real_lock, os.O_RDWR | os.O_CREAT, 0o600)
+            directory_descriptor = os.open(
+                "/proc/self/fd",
+                os.O_RDONLY | os.O_DIRECTORY | os.O_CLOEXEC,
+            )
+            try:
+                lock_identity = os.fstat(lock_descriptor)
+                for prefix in ("/proc/self/fd", "/dev/fd"):
+                    chained_identity = os.stat(
+                        f"{prefix}/{directory_descriptor}/{lock_descriptor}"
+                    )
+                    self.assertEqual(
+                        (chained_identity.st_dev, chained_identity.st_ino),
+                        (lock_identity.st_dev, lock_identity.st_ino),
+                    )
+            finally:
+                os.close(directory_descriptor)
+                os.close(lock_descriptor)
+        proof = subprocess.run(
+            (
+                sys.executable,
+                "-c",
+                """
+import os
+import tempfile
+from pathlib import Path
+
+with tempfile.TemporaryDirectory() as temporary_directory:
+    lock = Path(temporary_directory) / ".lock"
+    lock_fd = os.open(lock, os.O_RDWR | os.O_CREAT, 0o600)
+    os.dup2(lock_fd, 0)
+    dev_fd = os.open("/dev", os.O_RDONLY | os.O_DIRECTORY | os.O_CLOEXEC)
+    expected = os.fstat(0)
+    for prefix in ("/proc/self/fd", "/dev/fd"):
+        observed = os.stat(f"{prefix}/{dev_fd}/stdin")
+        assert (observed.st_dev, observed.st_ino) == (expected.st_dev, expected.st_ino)
+""",
+            ),
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+        self.assertEqual(proof.returncode, 0, proof.stderr)
 
     def test_arg0_creation_shape_and_cardinality_fail_closed(self) -> None:
         """M5-CDX-GATE-001: no create-shape variant widens Arg0 admission."""
@@ -789,7 +2320,7 @@ class M5CodexContainmentPolicyTests(unittest.TestCase):
             managed_profile_root=_TRACE_MANAGED_ROOT,
             default_codex_roots=(Path("/home/owner/.codex"),),
         )
-        self.assertEqual(summary.provider_write_count, 20)
+        self.assertEqual(summary.provider_write_count, 26)
 
         root_cleanup = cleanup.replace("201 unlinkat", "200 unlinkat", 1)
         cleanup_before_create = trace.replace(f"{cleanup}\n", "", 1).replace(
@@ -1203,7 +2734,7 @@ class M5CodexContainmentPolicyTests(unittest.TestCase):
             managed_profile_root=_TRACE_MANAGED_ROOT,
             default_codex_roots=(Path("/home/owner/.codex"),),
         )
-        self.assertEqual(summary.provider_write_count, 20)
+        self.assertEqual(summary.provider_write_count, 26)
 
         after_exit = trace.replace(
             "200 exit_group(0) = ?",
@@ -1298,7 +2829,8 @@ class M5CodexContainmentPolicyTests(unittest.TestCase):
                 "m5_codex_containment_fd_write_unverifiable",
             ),
             "failed_deleted_annotation": (
-                f"ftruncate(10<{managed_target} (deleted)>, 3) = -1 EPERM (Operation not permitted)",
+                f"ftruncate(10<{managed_target} (deleted)>, 3) = -1 EPERM "
+                "(Operation not permitted)",
                 "m5_codex_containment_fd_write_unverifiable",
             ),
             "missing_annotation_with_malformed_result": (
@@ -1366,7 +2898,7 @@ class M5CodexContainmentPolicyTests(unittest.TestCase):
         )
 
         self.assertEqual(summary.provider_execution_count, 3)
-        self.assertEqual(summary.provider_write_count, 20)
+        self.assertEqual(summary.provider_write_count, 26)
         self.assertEqual(summary.default_profile_access_count, 0)
         self.assertEqual(summary.default_profile_write_count, 0)
 
@@ -1406,7 +2938,8 @@ class M5CodexContainmentPolicyTests(unittest.TestCase):
             ),
             "failed": _two_operation_chmod_trace().replace(
                 exact,
-                f'201 chmod("{_TRACE_CHMOD_TARGET}", 0700) = -1 EPERM (Operation not permitted)',
+                f'201 chmod("{_TRACE_CHMOD_TARGET}", 0700) = -1 EPERM '
+                "(Operation not permitted)",
             ),
             "wrong_mode": _two_operation_chmod_trace().replace(
                 exact,
@@ -2001,7 +3534,8 @@ class M5CodexContainmentPolicyTests(unittest.TestCase):
                 "\n".join(
                     (
                         _trace_version_exec(100, executable),
-                        f'100 openat(AT_FDCWD, "{executable}", O_RDONLY) = 3<{executable}>',
+                        f'100 openat(AT_FDCWD, "{executable}", O_RDONLY) '
+                        f"= 3<{executable}>",
                     )
                 ),
                 1,
@@ -2011,14 +3545,16 @@ class M5CodexContainmentPolicyTests(unittest.TestCase):
                 "\n".join(
                     (
                         _trace_app_server_exec(200, executable),
-                        f'200 openat(AT_FDCWD, "{managed}/state.sqlite", O_RDWR|O_CREAT, 0600) = 4<{managed}/state.sqlite>',
+                        f'200 openat(AT_FDCWD, "{managed}/state.sqlite", '
+                        f"O_RDWR|O_CREAT, 0600) = 4<{managed}/state.sqlite>",
                     )
                 ),
                 1,
             )
             .replace(
                 "200 clone(child_stack=NULL, flags=SIGCHLD) = 201",
-                '200 clone(child_stack=NULL, flags=SIGCHLD) = 201\n201 mkdir("runtime", 0700) = 0',
+                "200 clone(child_stack=NULL, flags=SIGCHLD) = 201\n"
+                '201 mkdir("runtime", 0700) = 0',
                 1,
             )
             .replace(
@@ -2026,7 +3562,8 @@ class M5CodexContainmentPolicyTests(unittest.TestCase):
                 "\n".join(
                     (
                         _trace_app_server_exec(300, executable),
-                        f'300 newfstatat(AT_FDCWD, "{managed}/auth.json", {{st_mode=S_IFREG|0600}}, 0) = 0',
+                        f'300 newfstatat(AT_FDCWD, "{managed}/auth.json", '
+                        "{st_mode=S_IFREG|0600}, 0) = 0",
                     )
                 ),
                 1,
@@ -2041,7 +3578,7 @@ class M5CodexContainmentPolicyTests(unittest.TestCase):
         )
 
         self.assertEqual(summary.provider_execution_count, 3)
-        self.assertEqual(summary.provider_write_count, 22)
+        self.assertEqual(summary.provider_write_count, 28)
         self.assertGreaterEqual(summary.provider_access_count, 5)
         self.assertEqual(summary.default_profile_access_count, 0)
         self.assertEqual(summary.default_profile_write_count, 0)
@@ -2181,7 +3718,8 @@ class M5CodexContainmentPolicyTests(unittest.TestCase):
                 "300 exit_group(0) = ?",
                 _trace_app_server_exec(301, executable),
                 "301 clone3({flags=CLONE_VM}, 88) = 302",
-                '302 openat(AT_FDCWD, "/tmp/codex-state", O_WRONLY|O_CREAT, 0600) = 5</tmp/codex-state>',
+                '302 openat(AT_FDCWD, "/tmp/codex-state", '
+                "O_WRONLY|O_CREAT, 0600) = 5</tmp/codex-state>",
                 _trace_app_server_exec(303, executable),
             )
         )
@@ -2206,7 +3744,8 @@ class M5CodexContainmentPolicyTests(unittest.TestCase):
                 "350 exit_group(0) = ?",
                 _trace_app_server_exec(351, executable),
                 "351 clone(child_stack=NULL, flags=SIGCHLD <unfinished ...>",
-                '352 openat(AT_FDCWD, "/tmp/escaped", O_WRONLY|O_CREAT, 0600) = 5</tmp/escaped>',
+                '352 openat(AT_FDCWD, "/tmp/escaped", O_WRONLY|O_CREAT, '
+                "0600) = 5</tmp/escaped>",
                 "351 <... clone resumed>) = 352",
                 _trace_app_server_exec(353, executable),
             )
@@ -2256,7 +3795,7 @@ class M5CodexContainmentPolicyTests(unittest.TestCase):
             default_codex_roots=(Path("/home/owner/.codex"),),
         )
 
-        self.assertEqual(summary.provider_write_count, 21)
+        self.assertEqual(summary.provider_write_count, 27)
 
     def test_pre_exec_driver_filesystem_activity_is_not_attributed(self) -> None:
         """M5-CDX-GATE-001: a child becomes a provider only at exact exec."""
@@ -2272,7 +3811,8 @@ class M5CodexContainmentPolicyTests(unittest.TestCase):
             "\n".join(
                 (
                     '100 chdir("/tmp/agentmonitor-codex-version") = 0',
-                    '100 openat(AT_FDCWD, "/tmp/driver-state", O_WRONLY|O_CREAT, 0600) = 4</tmp/driver-state>',
+                    '100 openat(AT_FDCWD, "/tmp/driver-state", '
+                    "O_WRONLY|O_CREAT, 0600) = 4</tmp/driver-state>",
                     _trace_version_exec(100, executable),
                 )
             ),
@@ -2283,7 +3823,8 @@ class M5CodexContainmentPolicyTests(unittest.TestCase):
                 (
                     f'200 chdir("{managed}") = 0',
                     _trace_app_server_exec(200, executable),
-                    f'200 openat(AT_FDCWD, "{managed}/state", O_RDWR|O_CREAT, 0600) = 4<{managed}/state>',
+                    f'200 openat(AT_FDCWD, "{managed}/state", '
+                    f"O_RDWR|O_CREAT, 0600) = 4<{managed}/state>",
                 )
             ),
             1,
@@ -2297,7 +3838,7 @@ class M5CodexContainmentPolicyTests(unittest.TestCase):
         )
 
         self.assertEqual(summary.provider_execution_count, 3)
-        self.assertEqual(summary.provider_write_count, 21)
+        self.assertEqual(summary.provider_write_count, 27)
 
     def test_exited_provider_pid_is_not_attributed_after_reuse(self) -> None:
         """M5-CDX-GATE-001: process exit closes its provider attribution epoch."""
@@ -2310,7 +3851,8 @@ class M5CodexContainmentPolicyTests(unittest.TestCase):
                 "550 exit_group(0) = ?",
                 _trace_app_server_exec(551, executable),
                 "551 exit_group(0) = ?",
-                '551 openat(AT_FDCWD, "/tmp/reused-pid-state", O_WRONLY|O_CREAT, 0600) = 4</tmp/reused-pid-state>',
+                '551 openat(AT_FDCWD, "/tmp/reused-pid-state", '
+                "O_WRONLY|O_CREAT, 0600) = 4</tmp/reused-pid-state>",
                 _trace_app_server_exec(552, executable),
             )
         )
@@ -2521,7 +4063,8 @@ class M5CodexContainmentPolicyTests(unittest.TestCase):
                 _trace_version_exec(700, executable),
                 "700 exit_group(0) = ?",
                 _trace_app_server_exec(701, executable),
-                f'701 openat(AT_FDCWD</outside>, "{managed}/link/state", O_WRONLY|O_CREAT, 0600) = 5</outside/state>',
+                f'701 openat(AT_FDCWD</outside>, "{managed}/link/state", '
+                "O_WRONLY|O_CREAT, 0600) = 5</outside/state>",
                 _trace_app_server_exec(702, executable),
             )
         )
@@ -2594,11 +4137,14 @@ class M5CodexContainmentPrerequisiteTests(unittest.TestCase):
 
         cases = {
             "nested_directory_mount": valid
-            + b"26 24 8:1 /outside /owner/profiles/codex/opaque/runtime rw - ext4 /dev/root rw\n",
+            + b"26 24 8:1 /outside /owner/profiles/codex/opaque/runtime rw "
+            b"- ext4 /dev/root rw\n",
             "nested_file_mount": valid
-            + b"26 24 8:1 /outside /owner/profiles/codex/opaque/state rw - ext4 /dev/root rw\n",
+            + b"26 24 8:1 /outside /owner/profiles/codex/opaque/state rw "
+            b"- ext4 /dev/root rw\n",
             "selected_root_mount": valid
-            + b"26 24 8:1 /outside /owner/profiles/codex/opaque rw - ext4 /dev/root rw\n",
+            + b"26 24 8:1 /outside /owner/profiles/codex/opaque rw "
+            b"- ext4 /dev/root rw\n",
             "duplicate_mount_id": valid + b"25 24 0:6 / /sys rw - sysfs sysfs rw\n",
             "duplicate_covering_mountpoint": valid
             + b"26 24 8:2 / / rw - ext4 /dev/other rw\n",
@@ -2933,6 +4479,86 @@ class M5CodexContainmentPrerequisiteTests(unittest.TestCase):
                 (root / "state",),
             )
 
+    def test_real_strace_arg0_session_lock_lifecycle_has_exact_grammar(self) -> None:
+        """M5-CDX-GATE-001: Linux exposes the pinned session and lock shape."""
+
+        source = (
+            "import ctypes,os,sys\n"
+            "libc=ctypes.CDLL(None,use_errno=True)\n"
+            "session=os.fsencode(sys.argv[1]+'/codex-arg0A1b2C3')\n"
+            "lock=session+b'/.lock'\n"
+            "assert libc.syscall(83,ctypes.c_char_p(session),0o777)==0\n"
+            "fd=libc.syscall(2,ctypes.c_char_p(lock),2|64|0x8000|0x80000,0o666)\n"
+            "assert fd>=0\n"
+            "os.close(fd)\n"
+            "dirfd=os.open(os.fsdecode(session),os.O_RDONLY|os.O_DIRECTORY|os.O_CLOEXEC)\n"
+            "assert libc.syscall(263,dirfd,ctypes.c_char_p(b'.lock'),0)==0\n"
+            "os.close(dirfd)\n"
+            "os.rmdir(os.fsdecode(session))\n"
+        )
+        with tempfile.TemporaryDirectory() as raw:
+            root = Path(raw)
+            root.chmod(0o700)
+            trace_path = root / "trace"
+            session = root / "codex-arg0A1b2C3"
+            lock = session / _ARG0_LOCK_NAME
+            process = subprocess.run(
+                [
+                    "/usr/bin/strace",
+                    "--kill-on-exit",
+                    "-f",
+                    "-yy",
+                    "-qq",
+                    "-s",
+                    "4096",
+                    "-e",
+                    "trace=mkdir,open,unlinkat",
+                    "-e",
+                    "signal=none",
+                    "-o",
+                    os.fspath(trace_path),
+                    "--",
+                    "/usr/bin/python3",
+                    "-I",
+                    "-c",
+                    source,
+                    os.fspath(root),
+                ],
+                cwd=root,
+                env={"LANG": "C.UTF-8", "LC_ALL": "C.UTF-8"},
+                stdin=subprocess.DEVNULL,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                check=False,
+                timeout=10,
+            )
+            self.assertEqual(process.returncode, 0)
+            records = containment._trace_records(
+                "\n".join(
+                    line
+                    for line in trace_path.read_text(encoding="utf-8").splitlines()
+                    if os.fspath(session) in line or '".lock"' in line
+                )
+            )
+            self.assertEqual(
+                tuple(record.call for record in records),
+                ("mkdir", "open", "unlinkat"),
+            )
+            self.assertEqual(records[0].arguments, f'"{session}", 0777')
+            self.assertEqual(records[0].result, "0")
+            self.assertEqual(
+                records[1].arguments,
+                f'"{lock}", {_ARG0_LOCK_FLAGS}, 0666',
+            )
+            self.assertRegex(
+                records[1].result, rf"^[0-9]+<{re.escape(os.fspath(lock))}>$"
+            )
+            self.assertEqual(
+                containment._trace_paths(records[2], working_root=root / "other"),
+                (lock,),
+            )
+            self.assertEqual(containment._unlinkat_flags_v1(records[2]), "0")
+
     def test_real_strace_symlink_direction_and_cleanup_are_exact(self) -> None:
         """M5-CDX-GATE-001: Linux link payload and fd cleanup stay directional."""
 
@@ -3029,15 +4655,20 @@ class M5CodexContainmentPrerequisiteTests(unittest.TestCase):
             " managed=root/'managed'\n"
             " target=managed/'nested'\n"
             " source.mkdir(); managed.mkdir(); target.mkdir()\n"
-            " mounted=subprocess.run(['/usr/bin/mount','--bind',str(source),str(target)],stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL,check=False)\n"
+            " mounted=subprocess.run(['/usr/bin/mount','--bind',str(source),"
+            "str(target)],stdout=subprocess.DEVNULL,"
+            "stderr=subprocess.DEVNULL,check=False)\n"
             " if mounted.returncode != 0: raise SystemExit(4)\n"
             " outcome=6\n"
             " try:\n"
             "  try: _mount_topology_snapshot_v1(managed)\n"
             "  except M5CodexContainmentErrorV1 as error:\n"
-            "   outcome=0 if str(error)=='m5_codex_containment_mount_topology_unverifiable' else 5\n"
+            "   outcome=0 if str(error)=="
+            "'m5_codex_containment_mount_topology_unverifiable' else 5\n"
             " finally:\n"
-            "  unmounted=subprocess.run(['/usr/bin/umount',str(target)],stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL,check=False)\n"
+            "  unmounted=subprocess.run(['/usr/bin/umount',str(target)],"
+            "stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL,"
+            "check=False)\n"
             " if unmounted.returncode != 0: raise SystemExit(7)\n"
             " raise SystemExit(outcome)\n"
         )
@@ -4413,6 +6044,51 @@ class M5CodexContainmentPrivateChannelTests(unittest.TestCase):
                 str(raised.exception), "m5_codex_containment_profile_tree_invalid"
             )
 
+    def test_managed_profile_tree_rejects_retained_arg0_regular_children(self) -> None:
+        """M5-CDX-GATE-001: no lock or other session child survives cleanup."""
+
+        for child in (_ARG0_LOCK_NAME, "unexpected"):
+            with self.subTest(child=child), tempfile.TemporaryDirectory() as raw:
+                root = Path(raw)
+                root.chmod(0o700)
+                managed = root / "managed"
+                managed.mkdir(mode=0o700)
+                before = containment._managed_profile_tree_snapshot(managed)
+                session = managed / "tmp" / "arg0" / "codex-arg0A1b2C3"
+                session.mkdir(parents=True, mode=0o700)
+                (session / child).write_bytes(b"")
+                (session / child).chmod(0o600)
+                after = containment._managed_profile_tree_snapshot(managed)
+
+                with self.assertRaises(M5CodexContainmentErrorV1) as raised:
+                    containment._validate_no_new_arg0_children_v1(before, after)
+
+                self.assertEqual(
+                    str(raised.exception),
+                    "m5_codex_containment_profile_tree_invalid",
+                )
+
+    def test_managed_profile_tree_allows_preexisting_or_empty_arg0_sessions(
+        self,
+    ) -> None:
+        """M5-CDX-GATE-001: optional empty cleanup and stale state stay scoped."""
+
+        with tempfile.TemporaryDirectory() as raw:
+            root = Path(raw)
+            root.chmod(0o700)
+            managed = root / "managed"
+            managed.mkdir(mode=0o700)
+            stale = managed / "tmp" / "arg0" / "codex-arg0A1b2C3"
+            stale.mkdir(parents=True, mode=0o700)
+            (stale / "preexisting").write_bytes(b"")
+            (stale / "preexisting").chmod(0o600)
+            before = containment._managed_profile_tree_snapshot(managed)
+            empty = stale.with_name("codex-arg0D4e5F6")
+            empty.mkdir(mode=0o700)
+            after = containment._managed_profile_tree_snapshot(managed)
+
+            containment._validate_no_new_arg0_children_v1(before, after)
+
     def test_managed_profile_tree_rejects_a_real_hardlink(self) -> None:
         """M5-CDX-GATE-001: a managed file cannot alias an outside inode."""
 
@@ -4811,7 +6487,11 @@ class M5CodexContainmentPrivateChannelTests(unittest.TestCase):
                             selected.mode,
                             selected.changed_ns,
                         )
-                        after = type(after)(after.digest, tuple(identities))
+                        after = type(after)(
+                            after.digest,
+                            tuple(identities),
+                            after.arg0_child_path_digests,
+                        )
                     with self.assertRaises(M5CodexContainmentErrorV1):
                         validate(
                             target_descriptor,

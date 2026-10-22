@@ -776,23 +776,33 @@ structurally valid. No annotation, target path, or raw trace enters evidence or
 logs.
 
 Pinned Codex CLI `0.160.0` uses a bounded Arg0 setup inside each managed
-identity and quota app-server operation. The operation root must create exactly
-four successful plain symlinks in this order: `apply_patch`, `applypatch`,
-`codex-linux-sandbox`, and `codex-execve-wrapper`. All four must use the
-inode-validated pinned executable as payload and one canonical managed
-`tmp/arg0/codex-arg0XXXXXX` session parent. Each alias must then have exactly
-one successful same-operation `unlinkat` cleanup before the operation actually
-closes. Cleanup order among aliases is not significant; optional ordinary
-removal of the empty session directory is allowed only after all four cleanups.
-Double-leading-slash and every other noncanonical path spelling are rejected
-before containment comparison, including separately decoded successful-open
-descriptor annotations.
+identity and quota app-server operation. Before the protected session
+lifecycle, its root may attempt `mkdir(arg0_root, 0777)`, receive `EEXIST`, and
+complete the already admitted inode-bound `chmod(arg0_root, 0700)`. These calls
+remain ordinarily confined and must complete before the exact session
+creation; they do not satisfy a session or child requirement.
+
+The operation root must then create one canonical managed
+`tmp/arg0/codex-arg0XXXXXX` session with `mkdir(..., 0777) = 0`, open its one
+regular `.lock` child with
+`O_RDWR|O_CREAT|O_LARGEFILE|O_CLOEXEC` and mode `0666`, and create exactly four
+successful plain symlinks in this order: `apply_patch`, `applypatch`,
+`codex-linux-sandbox`, and `codex-execve-wrapper`. All four aliases must use the
+inode-validated pinned executable as payload. The lock and aliases must each
+have exactly one successful same-operation `unlinkat` cleanup before the
+operation actually closes. Cleanup order among the five children is not
+significant; optional ordinary removal of the empty session directory is
+allowed only after all five cleanups. Double-leading-slash and every other
+noncanonical path spelling are rejected before containment comparison,
+including separately decoded successful-open descriptor annotations.
 
 Containment tracks syscall invocation and completion separately, including
-unfinished/resumed records and live descendants. It rejects namespace movement
-or exchange from the first link invocation through actual operation closure,
-as well as missing, duplicate, cross-operation, early, late, or unresolved
-cleanup. A cwd-dependent relative path lookup fails closed when its
+unfinished/resumed records and live descendants. Its two broad Arg0 guards run
+from exact session-`mkdir` invocation through completion of the final
+fifth-child cleanup; records invoked in or crossing the interval stay guarded.
+It rejects namespace movement or exchange throughout that interval, as well as
+missing, duplicate, cross-operation, early, late, or unresolved cleanup. A
+cwd-dependent relative path lookup fails closed when its
 invocation/completion interval overlaps a successful unfinished `chdir` in the
 same tracked `CLONE_FS` group. Absolute paths, descriptor-bound relative
 cleanup, and relative lookups invoked after the `chdir` completes retain their

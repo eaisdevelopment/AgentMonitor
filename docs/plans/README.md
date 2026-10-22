@@ -188,8 +188,19 @@ Directories are created when an approved planning assignment begins. Drafts stat
   `unlinkat(..., 0)` interleaved among the four alias cleanups. Owner-approved
   plan 1.15.0 admits only that exact session and regular-file child lifecycle,
   preserves every other containment boundary, and authorizes no additional
-  rollover. Authenticated containment has not passed. The fifth
-  live transition, refreshed prerequisites,
+  rollover. Its initial offline checkpoint passed `96` cases plus one
+  uncredited live-selector skip across `552` subtests and two independent
+  reviews. The first authenticated 1.15 run failed closed because broad Arg0
+  guards incorrectly began before official pre-session root setup. A focused
+  Red moved those two guards to the approved session-`mkdir` through
+  fifth-child-cleanup interval. The corrected suite passes `97` cases plus one
+  uncredited skip across `558` subtests; current-exit passes `66/66`, and the
+  exact `547`-identifier inventory digest is
+  `3a97e0103ae4ba3390d10567c9130821abaa7a5a7e9640cf0091bc56a49b6a0c`.
+  The focused post-correction official-source and code reviews are CLEAN, and
+  authenticated feedback rerun passed zero-skip against unchanged d81 with
+  pinned Codex `0.160.0`. A clean exact-revision preactivation and rerun, the
+  fifth live transition, refreshed prerequisites,
   `AUTO-M5-EXIT`, and owner acceptance remain Not Run. OpenAI API billing
   remains V1-M7.
 - [Live agent account association](integration/live-agent-account-association-change.md):

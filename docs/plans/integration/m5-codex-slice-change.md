@@ -2,7 +2,9 @@
 
 - Status: **Approved 1.15.0; implementation is authorized only for the exact
   temporary Arg0 session and `.lock` lifecycle specified below. The
-  authenticated 1.14 rerun has not passed, and activation has not started.**
+  first authenticated 1.15 feedback run failed closed, its interval-scoping
+  correction passed a second authenticated feedback run, and activation has
+  not started.**
 - Plan version: `1.15.0`; owner approval: 2026-10-22. Version `1.14.0` remains
   incorporated except where the exact session and `.lock` lifecycle below
   extends its four-alias boundary.
@@ -2172,7 +2174,7 @@ Plan 1.14 admits only the four symlink children and their cleanup, followed by
 optional removal of an empty session directory. The real `.lock` cleanup is a
 fifth child mutation during that protected interval, so admitting it changes
 policy and requires owner approval rather than being treated as trace syntax.
-No authenticated containment run has passed for 1.14 or this draft amendment.
+At approval, no authenticated containment run had passed for 1.14 or 1.15.
 
 ### Exact proposed correction boundary
 
@@ -2313,6 +2315,49 @@ Fresh owner, alert, process, and quota evidence and exact-revision
 `AUTO-M5-EXIT` remain required afterward. Until all of those gates pass, M5,
 plan 1.15, live containment, activation, and owner acceptance remain Not Run or
 Failed as their actual results require.
+
+### Plan 1.15 implementation feedback checkpoint
+
+The first frozen implementation checkpoint passed `96` provider-free
+containment cases, with one authenticated live-selector case explicitly
+skipped and receiving no completion credit, across `552` subtests. Current-exit
+passed `66/66`; Ruff lint and format, strict production mypy, and
+`git diff --check` were Green. Two independent pre-live reviews were CLEAN
+after their findings had first been reproduced as Reds and corrected.
+
+The first authenticated 1.15 feedback run used the unchanged d81 service and
+the pinned Codex `0.160.0` executable. Both provider operations reached the
+line guard, which failed closed because the implementation's broad Arg0 guards
+began at app-server execution. A privacy-safe in-memory classification retained
+only structural facts: before each operation's exact session creation, the
+official implementation attempted `mkdir(arg0_root, 0777)`, received
+`EEXIST`, and then completed the already approved
+`chmod(arg0_root, 0700)`. It retained no path, PID, account identity, provider
+payload, credential, prompt, response, source content, or raw trace.
+
+The focused policy test first failed on that exact official pre-session setup.
+The correction leaves both calls under ordinary confinement and changes only
+the two broad Arg0 guards: each now begins at the exact session `mkdir`
+invocation and ends after the final fifth-child cleanup completes. Negative
+records invoked in or crossing that interval remain rejected; the valid
+pre-session root setup completes before it and receives no new lifecycle
+exception.
+
+After the correction, the complete containment file passed `97` provider-free
+cases, with the one uncredited live-selector skip, across `558` subtests.
+Current-exit remained `66/66`; Ruff lint and format, strict production mypy,
+and `git diff --check` were Green. The exact Story inventory is `547` unique
+identifiers with SHA-256
+`3a97e0103ae4ba3390d10567c9130821abaa7a5a7e9640cf0091bc56a49b6a0c`.
+The focused post-correction official-source and code reviews were CLEAN.
+
+The second authenticated feedback run then passed with zero skips: `1 passed
+in 3.79s` against the unchanged d81 service and pinned Codex `0.160.0`. This is
+feedback against the working implementation. The correction still must be
+committed as one clean revision, the complete preactivation set and standalone
+authenticated test must pass again on that exact revision, and the fifth
+activation plus refreshed prerequisites and `AUTO-M5-EXIT` remain required.
+This checkpoint is not activation, milestone completion, or owner acceptance.
 
 ## Stop conditions
 

@@ -37,26 +37,26 @@ Current program state:
   Registry, identity, lineage, and zero-mutation proof, then returned
   `m5_quota_witness_input_invalid` at its strict five-field policy boundary and
   created no file. The plan 1.9 quota-policy projection and fifth-rollover
-  policy are local Green. Owner-approved plans 1.10 through 1.14 have a locally
+  policy are local Green. Owner-approved plans 1.10 through 1.15 have a locally
   Green containment implementation for effective private roots, inode-bound
   metadata, complete descriptor tracing, strict mount topology,
   descriptor-bound `ftruncate`, numeric-dirfd `unlinkat` resolution,
-  pidfd-owned process-group cleanup, and the exact four-alias Codex `0.160.0`
-  temporary Arg0 lifecycle. Clean revision `842a4d4` passed every preactivation
-  lane. Its first authenticated run completed identity and quota, then failed
-  closed on an exact same-operation descendant `mkdir(...)= -1 EEXIST`. The
-  narrow correction is local Red/Green with a failed-rename guard. The
-  containment file now reports `89` cases with `88` passed and one explicit
-  authenticated live-selector skip; current-exit is `66/66`. The exact Story
-  inventory is `538` identifiers with SHA-256
-  `3dcf68e402a40e7e48f46494d4e35778f9e4bb85a7a6cb0cb00183495bd64223`.
-  A second authenticated feedback run still failed closed. Safe diagnosis
-  found Codex's official regular `.lock` child: identity and quota each made
-  exactly one successful same-operation write-open before alias creation and
-  one matching `unlinkat(..., 0)` interleaved with alias cleanup. That
-  lifecycle is outside approved plan 1.14 and remains unimplemented, so
-  authenticated containment has no pass. The fifth live
-  rollover, refreshed revision-bound prerequisites,
+  pidfd-owned process-group cleanup, and the exact Codex `0.160.0` temporary
+  Arg0 session, `.lock`, and four-alias lifecycle. Clean revision `842a4d4`
+  passed every preactivation lane before its authenticated feedback exposed
+  the remaining Arg0 shapes. Plan 1.15's initial offline checkpoint passed
+  `96` cases plus one uncredited live-selector skip across `552` subtests. Its
+  first authenticated run failed closed because two broad guards incorrectly
+  included official pre-session Arg0-root setup. The focused Red and
+  interval-scoping correction now pass `97` cases plus one uncredited skip
+  across `558` subtests and `66/66` current-exit cases. The exact Story
+  inventory is `547` identifiers with SHA-256
+  `3a97e0103ae4ba3390d10567c9130821abaa7a5a7e9640cf0091bc56a49b6a0c`.
+  Two independent pre-live reviews and both focused post-correction reviews
+  are CLEAN. The authenticated feedback rerun passed
+  with zero skips against unchanged d81 and pinned Codex `0.160.0`. This is a
+  working-copy feedback result. A clean exact-revision preactivation and
+  authenticated rerun, the fifth live rollover, refreshed revision-bound prerequisites,
   authoritative `/status` witness, clean exact-revision `AUTO-M5-EXIT`, and
   owner acceptance are **Not Run**; the canonical gate state remains
   `not_run`.

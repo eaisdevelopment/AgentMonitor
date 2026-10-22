@@ -107,10 +107,29 @@ _ARG0_ALIASES_V1: Final = (
     "codex-linux-sandbox",
     "codex-execve-wrapper",
 )
+_ARG0_LOCK_NAME_V1: Final = ".lock"
+_ARG0_LOCK_FLAGS_V1: Final = "O_RDWR|O_CREAT|O_LARGEFILE|O_CLOEXEC"
 _TRACE_NUMERIC_DIRFD_V1 = re.compile(r"(?:[3-9]|[1-9][0-9]{1,5})\Z")
 _TRACE_NONNEGATIVE_RESULT_V1 = re.compile(r"^(?:0|[1-9][0-9]*)$")
 _TRACE_DESCRIPTOR_RESULT_V1 = re.compile(r"^(?:0|[1-9][0-9]*)<[^>\r\n]+>$")
 _TRACE_FLAGS_V1 = re.compile(r"(?:^|[{,]\s*)flags=(?P<flags>[^,}]+)")
+_TRACE_EMPTY_PATH_DESCRIPTOR_V1 = re.compile(
+    r"^(?P<descriptor>0|[1-9][0-9]*)(?:<[^<>\\\x00\r\n]+>)?, "
+    r'(?P<path>""|NULL), (?P<rest>.+)$'
+)
+_TRACE_FIRST_DESCRIPTOR_V1 = re.compile(
+    r"^(?P<descriptor>(?:0|[1-9][0-9]*|0[xX][0-9a-fA-F]+))"
+    r"(?:<(?P<annotation>[^<>\\\x00\r\n]+)>)?(?:,|$)"
+)
+_TRACE_DESCRIPTOR_ANNOTATION_V1 = re.compile(
+    r"(?:^|[,(=]\s*)(?:0|[1-9][0-9]*|0[xX][0-9a-fA-F]+)"
+    r"<(?P<annotation>[^<>\\\x00\r\n]+)>"
+)
+_TRACE_CLONE3_CGROUP_V1 = re.compile(
+    r"(?:^|[{,]\s*)cgroup="
+    r"(?P<descriptor>(?:0|[1-9][0-9]*|0[xX][0-9a-fA-F]+))"
+    r"(?:<[^<>\\\x00\r\n]+>)?(?=[,}])"
+)
 _WRITE_FLAGS = (
     "O_WRONLY",
     "O_RDWR",
@@ -177,6 +196,7 @@ _METADATA_CALLS = frozenset(
 _CHILD_CALLS = frozenset({"clone", "clone3", "fork", "vfork"})
 _EXIT_CALLS = frozenset({"exit", "exit_group"})
 _OPEN_CALLS = frozenset({"creat", "open", "openat", "openat2"})
+_NAMESPACE_CREATION_CALLS = frozenset({"creat", "mkdir", "mkdirat", "mknod", "mknodat"})
 _DIRFD_COUNTS = {
     "execveat": 1,
     "faccessat": 1,
@@ -272,6 +292,17 @@ _RAW_GLOBAL_CALLS = frozenset(
         "io_uring_setup",
     }
 )
+_DIRECT_DESCRIPTOR_CALLS_V1 = _FD_ONLY_MUTATORS | frozenset(
+    {
+        "fchdir",
+        "fsconfig",
+        "fsmount",
+        "ioctl",
+        "io_uring_enter",
+        "io_uring_register",
+        "setns",
+    }
+)
 _STRACE_SELECTOR_V1: Final = (
     "trace=%file,%process,chdir,fchdir,fchmod,fchown,ftruncate,fallocate,"
     "fsetxattr,fremovexattr,ioctl,io_uring_setup,io_uring_enter,"
@@ -286,6 +317,7 @@ _TRUE = Path("/usr/bin/true")
 _CLONE_FS: Final = 0x00000200
 _CLONE_NEWNS: Final = 0x00020000
 _CLONE_THREAD: Final = 0x00010000
+_CLONE_INTO_CGROUP: Final = 0x200000000
 _CLONE_UNTRACED: Final = 0x00800000
 _PROVIDER_APP_SERVER_ARGUMENTS: Final = (
     "-c",
@@ -395,6 +427,7 @@ class _DirectoryIdentityV1:
 class _ProfileTreeSnapshotV1:
     digest: str
     directories: tuple[_DirectoryIdentityV1, ...]
+    arg0_child_path_digests: frozenset[str]
 
 
 @dataclass(frozen=True, slots=True)
@@ -463,6 +496,170 @@ type _InodeIdentityV1 = tuple[int, int]
 
 def _is_within(candidate: Path, parent: Path) -> bool:
     return candidate == parent or parent in candidate.parents
+
+
+def _proc_actor_is_owned_v1(
+    actor: str,
+    *,
+    accessor_pid: int,
+    owned_pids: frozenset[int],
+) -> bool:
+    if actor in {"self", "thread-self"}:
+        return accessor_pid in owned_pids
+    return re.fullmatch(r"[1-9][0-9]*", actor) is not None and int(actor) in owned_pids
+
+
+def _is_owned_descriptor_alias_v1(
+    candidate: str,
+    *,
+    descriptor: str,
+    accessor_pid: int,
+    owned_pids: frozenset[int],
+) -> bool:
+    descriptor_number = int(descriptor)
+
+    def descriptor_matches(value: str) -> bool:
+        return re.fullmatch(r"[0-9]+", value) is not None and (
+            value.lstrip("0") or "0"
+        ) == str(descriptor_number)
+
+    stdio_descriptors = {"stdin": 0, "stdout": 1, "stderr": 2}
+
+    def descriptor_reference_matches(value: str) -> bool:
+        return descriptor_matches(value) or (
+            stdio_descriptors.get(value) == descriptor_number
+        )
+
+    if not candidate.startswith("/"):
+        return False
+    candidates = tuple(dict.fromkeys((candidate, os.path.normpath(candidate))))
+    for path_value in candidates:
+        parts = tuple(part for part in path_value.split("/") if part)
+        for index, part in enumerate(parts):
+            if part == "dev" and index + 1 < len(parts):
+                following = parts[index + 1]
+                if (
+                    following == "fd"
+                    and any(
+                        descriptor_reference_matches(value)
+                        for value in parts[index + 2 :]
+                    )
+                    and accessor_pid in owned_pids
+                ):
+                    return True
+                if (
+                    stdio_descriptors.get(following) == descriptor_number
+                    and accessor_pid in owned_pids
+                ):
+                    return True
+            if part != "proc" or index + 3 >= len(parts):
+                continue
+            actor = parts[index + 1]
+            if not _proc_actor_is_owned_v1(
+                actor,
+                accessor_pid=accessor_pid,
+                owned_pids=owned_pids,
+            ):
+                continue
+            position = index + 2
+            if parts[position] == "task":
+                if position + 3 >= len(parts) or not _proc_actor_is_owned_v1(
+                    parts[position + 1],
+                    accessor_pid=accessor_pid,
+                    owned_pids=owned_pids,
+                ):
+                    continue
+                position += 2
+            if parts[position] in {"fd", "fdinfo"} and any(
+                descriptor_reference_matches(value) for value in parts[position + 1 :]
+            ):
+                return True
+    return False
+
+
+def _descriptor_value_matches_v1(value: str, *, descriptor: str) -> bool:
+    try:
+        return int(value, 0) == int(descriptor)
+    except ValueError:
+        return False
+
+
+def _uses_direct_descriptor_v1(
+    record: _TraceRecordV1,
+    *,
+    descriptor: str,
+) -> bool:
+    if record.call not in _DIRECT_DESCRIPTOR_CALLS_V1:
+        return False
+    match = _TRACE_FIRST_DESCRIPTOR_V1.match(record.arguments)
+    return match is not None and _descriptor_value_matches_v1(
+        match.group("descriptor"),
+        descriptor=descriptor,
+    )
+
+
+def _descriptor_annotations_v1(record: _TraceRecordV1) -> tuple[str, ...]:
+    quoted_spans = tuple(
+        (match.start(), match.end())
+        for match in _TRACE_QUOTED.finditer(record.arguments)
+    )
+    return tuple(
+        dict.fromkeys(
+            match.group("annotation")
+            for match in _TRACE_DESCRIPTOR_ANNOTATION_V1.finditer(record.arguments)
+            if not any(
+                start <= match.start("annotation") < end for start, end in quoted_spans
+            )
+        )
+    )
+
+
+def _uses_clone3_cgroup_descriptor_v1(
+    record: _TraceRecordV1,
+    *,
+    descriptor: str,
+) -> bool:
+    if record.call != "clone3" or not _clone_flag_requested(
+        record,
+        name="CLONE_INTO_CGROUP",
+        value=_CLONE_INTO_CGROUP,
+    ):
+        return False
+    matches = tuple(_TRACE_CLONE3_CGROUP_V1.finditer(record.arguments))
+    if len(matches) != 1:
+        raise M5CodexContainmentErrorV1("m5_codex_containment_trace_invalid")
+    return _descriptor_value_matches_v1(
+        matches[0].group("descriptor"),
+        descriptor=descriptor,
+    )
+
+
+def _path_has_lock_component_v1(candidate: str) -> bool:
+    return any(
+        component == _ARG0_LOCK_NAME_V1
+        or component.startswith(f"{_ARG0_LOCK_NAME_V1} (")
+        for component in candidate.split("/")
+    )
+
+
+def _uses_descriptor_empty_path_v1(
+    record: _TraceRecordV1,
+    *,
+    descriptor: str,
+) -> bool:
+    match = _TRACE_EMPTY_PATH_DESCRIPTOR_V1.fullmatch(record.arguments)
+    return (
+        match is not None
+        and match.group("descriptor") == descriptor
+        and (
+            (record.call == "readlinkat" and match.group("path") == '""')
+            or re.search(
+                r"(?<![A-Z0-9_])AT_EMPTY_PATH(?![A-Z0-9_])",
+                match.group("rest"),
+            )
+            is not None
+        )
+    )
 
 
 def _normalized_absolute(path: Path, code: str) -> Path:
@@ -1068,6 +1265,7 @@ def _managed_profile_tree_snapshot(
             raise OSError
         records: list[dict[str, object]] = []
         directories = [_directory_identity((), root_info)]
+        arg0_child_path_digests: set[str] = set()
         entry_count = 0
         for current_raw, directory_names, file_names in os.walk(
             root,
@@ -1085,8 +1283,16 @@ def _managed_profile_tree_snapshot(
                 path = current / name
                 relative = path.relative_to(root)
                 encoded_relative = os.fsencode(relative)
+                relative_parts = relative.parts
                 if not encoded_relative or len(encoded_relative) > 4096:
                     raise OSError
+                path_digest = hashlib.sha256(encoded_relative).hexdigest()
+                if (
+                    len(relative_parts) >= 4
+                    and relative_parts[:2] == ("tmp", "arg0")
+                    and _ARG0_SESSION_V1.fullmatch(relative_parts[2]) is not None
+                ):
+                    arg0_child_path_digests.add(path_digest)
                 metadata = path.lstat()
                 is_directory = stat.S_ISDIR(metadata.st_mode)
                 is_regular = stat.S_ISREG(metadata.st_mode)
@@ -1103,7 +1309,7 @@ def _managed_profile_tree_snapshot(
                     raise OSError
                 records.append(
                     {
-                        "path_digest": hashlib.sha256(encoded_relative).hexdigest(),
+                        "path_digest": path_digest,
                         "kind": "directory" if is_directory else "file",
                         "device": metadata.st_dev,
                         "inode": metadata.st_ino,
@@ -1136,7 +1342,11 @@ def _managed_profile_tree_snapshot(
                 }
             )
         ).hexdigest()
-        return _ProfileTreeSnapshotV1(digest, tuple(directories))
+        return _ProfileTreeSnapshotV1(
+            digest,
+            tuple(directories),
+            frozenset(arg0_child_path_digests),
+        )
     except (OSError, RuntimeError, ValueError):
         raise M5CodexContainmentErrorV1(
             "m5_codex_containment_profile_tree_invalid"
@@ -1147,6 +1357,20 @@ def _managed_profile_tree_digest(root: Path) -> str:
     """Digest bounded metadata enclosed by one exact owner-only root."""
 
     return _managed_profile_tree_snapshot(root).digest
+
+
+def _validate_no_new_arg0_children_v1(
+    before: _ProfileTreeSnapshotV1,
+    after: _ProfileTreeSnapshotV1,
+) -> None:
+    """Reject an Arg0 child retained by the observed provider operations."""
+
+    if (
+        not isinstance(before, _ProfileTreeSnapshotV1)
+        or not isinstance(after, _ProfileTreeSnapshotV1)
+        or not after.arg0_child_path_digests.issubset(before.arg0_child_path_digests)
+    ):
+        raise M5CodexContainmentErrorV1("m5_codex_containment_profile_tree_invalid")
 
 
 def _inode_identity(info: os.stat_result) -> _InodeIdentityV1:
@@ -1819,6 +2043,31 @@ def _quoted_arguments(record: _TraceRecordV1) -> tuple[str, ...]:
     )
 
 
+def _raw_trace_path_values_v1(record: _TraceRecordV1) -> tuple[str, ...]:
+    values = _quoted_arguments(record)
+    if record.call in {"symlink", "symlinkat"}:
+        values = values[-1:]
+    elif record.call in {
+        "link",
+        "linkat",
+        "mount",
+        "move_mount",
+        "pivot_root",
+        "rename",
+        "renameat",
+        "renameat2",
+    }:
+        values = values[:2]
+    else:
+        values = values[:1]
+    if record.call in _OPEN_CALLS and _successful(record):
+        match = _TRACE_RESULT_DESCRIPTOR.fullmatch(record.result)
+        if match is None:
+            raise M5CodexContainmentErrorV1("m5_codex_containment_trace_invalid")
+        values = (*values, _decode_trace_string(match.group("path")))
+    return tuple(dict.fromkeys(value for value in values if value))
+
+
 def _successful(record: _TraceRecordV1) -> bool:
     return not record.result.startswith("-1 ")
 
@@ -2358,8 +2607,64 @@ def _validate_arg0_lifecycles_v1(
         creation_records = tuple(
             classified_records[creation.record_index][0] for creation in creations
         )
+        session = creations[0].session
+        lock_path = session / _ARG0_LOCK_NAME_V1
+        session_mkdir_candidates = tuple(
+            candidate_index
+            for candidate_index, (candidate, paths, _, _) in enumerate(
+                classified_records
+            )
+            if (
+                candidate.call == "mkdir"
+                and paths == (session,)
+                and record_operations.get(candidate_index) == operation
+            )
+        )
+        if len(session_mkdir_candidates) != 1:
+            raise M5CodexContainmentErrorV1(mutation_error)
+        session_mkdir_index = session_mkdir_candidates[0]
+        session_mkdir_record = classified_records[session_mkdir_index][0]
         if (
-            exec_record.completed_at >= creation_records[0].invoked_at
+            session_mkdir_record.pid != operation.root_pid
+            or session_mkdir_record.arguments != f'"{session}", 0777'
+            or session_mkdir_record.result != "0"
+            or session_mkdir_record.invoked_at != session_mkdir_record.completed_at
+        ):
+            raise M5CodexContainmentErrorV1(mutation_error)
+
+        lock_open_candidates = tuple(
+            candidate_index
+            for candidate_index, (candidate, paths, _, _) in enumerate(
+                classified_records
+            )
+            if (
+                candidate.call == "open"
+                and paths == (lock_path,)
+                and record_operations.get(candidate_index) == operation
+            )
+        )
+        if len(lock_open_candidates) != 1:
+            raise M5CodexContainmentErrorV1(mutation_error)
+        lock_open_index = lock_open_candidates[0]
+        lock_open_record = classified_records[lock_open_index][0]
+        lock_descriptor = _TRACE_RESULT_DESCRIPTOR.fullmatch(lock_open_record.result)
+        if (
+            lock_open_record.pid != operation.root_pid
+            or lock_open_record.arguments
+            != f'"{lock_path}", {_ARG0_LOCK_FLAGS_V1}, 0666'
+            or lock_descriptor is None
+            or _TRACE_NONNEGATIVE_RESULT_V1.fullmatch(
+                lock_open_record.result.partition("<")[0]
+            )
+            is None
+            or lock_descriptor.group("path") != os.fspath(lock_path)
+        ):
+            raise M5CodexContainmentErrorV1(mutation_error)
+        lock_descriptor_number = lock_open_record.result.partition("<")[0]
+        if (
+            exec_record.completed_at >= session_mkdir_record.invoked_at
+            or session_mkdir_record.completed_at >= lock_open_record.invoked_at
+            or lock_open_record.completed_at >= creation_records[0].invoked_at
             or any(
                 earlier.completed_at >= later.invoked_at
                 for earlier, later in pairwise(creation_records)
@@ -2406,9 +2711,48 @@ def _validate_arg0_lifecycles_v1(
             classified_records[index][0].invoked_at for index in cleanup_indexes
         ) <= max(record.completed_at for record in creation_records):
             raise M5CodexContainmentErrorV1(link_error)
+        lock_cleanup_candidates = tuple(
+            candidate_index
+            for candidate_index, (candidate, paths, _, _) in enumerate(
+                classified_records
+            )
+            if (
+                candidate.call == "unlinkat"
+                and paths == (lock_path,)
+                and record_operations.get(candidate_index) == operation
+            )
+        )
+        if len(lock_cleanup_candidates) != 1:
+            raise M5CodexContainmentErrorV1(mutation_error)
+        lock_cleanup_index = lock_cleanup_candidates[0]
+        lock_cleanup_record = classified_records[lock_cleanup_index][0]
+        lock_cleanup_match = _TRACE_UNLINKAT_ARGUMENTS_V1.fullmatch(
+            lock_cleanup_record.arguments
+        )
+        lock_cleanup_exit = pid_exit_records.get(lock_cleanup_record.pid)
+        if (
+            lock_cleanup_match is None
+            or lock_cleanup_match.group("path") != f'"{_ARG0_LOCK_NAME_V1}"'
+            or lock_cleanup_match.group("annotation") != os.fspath(session)
+            or _TRACE_NUMERIC_DIRFD_V1.fullmatch(
+                lock_cleanup_match.group("dirfd").partition("<")[0]
+            )
+            is None
+            or lock_cleanup_match.group("flags") != "0"
+            or lock_cleanup_record.result != "0"
+            or lock_cleanup_record.pid not in owned_pids
+            or lock_open_record.completed_at >= lock_cleanup_record.invoked_at
+            or max(record.completed_at for record in creation_records)
+            >= lock_cleanup_record.invoked_at
+            or lock_cleanup_record.completed_at >= exit_record.invoked_at
+            or lock_cleanup_exit is None
+            or lock_cleanup_record.completed_at >= lock_cleanup_exit.invoked_at
+        ):
+            raise M5CodexContainmentErrorV1(mutation_error)
+        cleanup_indexes.add(lock_cleanup_index)
         cleanup_by_operation[operation.sequence] = cleanup_indexes
 
-        first_creation_invocation = creation_records[0].invoked_at
+        first_creation_invocation = session_mkdir_record.invoked_at
         final_cleanup_completion = max(
             classified_records[index][0].completed_at for index in cleanup_indexes
         )
@@ -2416,19 +2760,31 @@ def _validate_arg0_lifecycles_v1(
             classified_records[index][0].invoked_at for index in cleanup_indexes
         )
         allowed_indexes = {
+            session_mkdir_index,
+            lock_open_index,
             *(creation.record_index for creation in creations),
             *cleanup_indexes,
         }
+        arg0_root = managed_profile_root / "tmp" / "arg0"
         parent_removal_index: int | None = None
-        session = creations[0].session
         for candidate_index, (candidate, paths, is_write, _) in enumerate(
             classified_records
         ):
+            raw_path_values = _raw_trace_path_values_v1(candidate)
+            descriptor_annotations = _descriptor_annotations_v1(candidate)
             candidate_operation = record_operations.get(candidate_index)
             candidate_exit = pid_exit_records.get(candidate.pid)
             overlaps_operation = not (
                 candidate.completed_at < first_creation_invocation
                 or candidate.invoked_at > operation_close_completion
+            )
+            overlaps_protected_arg0_interval = not (
+                candidate.completed_at < session_mkdir_record.invoked_at
+                or candidate.invoked_at > final_cleanup_completion
+            )
+            overlaps_fresh_session_interval = not (
+                candidate.completed_at < session_mkdir_record.invoked_at
+                or candidate.invoked_at > lock_open_record.completed_at
             )
             if (
                 overlaps_operation
@@ -2438,13 +2794,110 @@ def _validate_arg0_lifecycles_v1(
             ):
                 code = link_error if candidate.call in _LINK_CALLS else mutation_error
                 raise M5CodexContainmentErrorV1(code)
+            if (
+                overlaps_fresh_session_interval
+                and is_write
+                and _successful(candidate)
+                and candidate_index not in {session_mkdir_index, lock_open_index}
+            ):
+                code = link_error if candidate.call in _LINK_CALLS else mutation_error
+                raise M5CodexContainmentErrorV1(code)
+            if (
+                overlaps_fresh_session_interval
+                and (
+                    candidate.call
+                    in (
+                        _TARGET_NAMESPACE_CALLS
+                        | _LINK_CALLS
+                        | _NAMESPACE_CREATION_CALLS
+                    )
+                    or (
+                        candidate.call in _OPEN_CALLS
+                        and "O_CREAT" in candidate.arguments
+                    )
+                )
+                and not _successful(candidate)
+                and candidate_index not in allowed_indexes
+            ):
+                code = link_error if candidate.call in _LINK_CALLS else mutation_error
+                raise M5CodexContainmentErrorV1(code)
+            if (
+                overlaps_protected_arg0_interval
+                and candidate_index not in allowed_indexes
+                and (
+                    any(path.name == _ARG0_LOCK_NAME_V1 for path in paths)
+                    or any(
+                        _path_has_lock_component_v1(raw_path)
+                        for raw_path in raw_path_values
+                    )
+                    or any(
+                        _path_has_lock_component_v1(annotation)
+                        for annotation in descriptor_annotations
+                    )
+                    or (
+                        candidate.completed_at >= lock_open_record.invoked_at
+                        and (
+                            any(
+                                _is_owned_descriptor_alias_v1(
+                                    raw_path,
+                                    descriptor=lock_descriptor_number,
+                                    accessor_pid=candidate.pid,
+                                    owned_pids=owned_pids,
+                                )
+                                for raw_path in raw_path_values
+                            )
+                            or any(
+                                _is_owned_descriptor_alias_v1(
+                                    os.fspath(path),
+                                    descriptor=lock_descriptor_number,
+                                    accessor_pid=candidate.pid,
+                                    owned_pids=owned_pids,
+                                )
+                                for path in paths
+                            )
+                            or any(
+                                _is_owned_descriptor_alias_v1(
+                                    annotation,
+                                    descriptor=lock_descriptor_number,
+                                    accessor_pid=candidate.pid,
+                                    owned_pids=owned_pids,
+                                )
+                                for annotation in descriptor_annotations
+                            )
+                            or (
+                                candidate.pid in owned_pids
+                                and (
+                                    _uses_direct_descriptor_v1(
+                                        candidate,
+                                        descriptor=lock_descriptor_number,
+                                    )
+                                    or _uses_clone3_cgroup_descriptor_v1(
+                                        candidate,
+                                        descriptor=lock_descriptor_number,
+                                    )
+                                )
+                            )
+                        )
+                    )
+                    or (
+                        candidate.pid in owned_pids
+                        and candidate.completed_at >= lock_open_record.invoked_at
+                        and _uses_descriptor_empty_path_v1(
+                            candidate,
+                            descriptor=lock_descriptor_number,
+                        )
+                    )
+                )
+            ):
+                code = link_error if candidate.call in _LINK_CALLS else mutation_error
+                raise M5CodexContainmentErrorV1(code)
             failed_existing_arg0_mkdir = (
                 candidate.call == "mkdir"
                 and candidate.result == "-1 EEXIST (File exists)"
                 and candidate_operation == operation
                 and candidate.pid != operation.root_pid
                 and len(paths) == 1
-                and (paths[0] == session or paths[0] in session.parents)
+                and paths[0] in session.parents
                 and any(
                     record.completed_at < candidate.invoked_at
                     for record in creation_records
@@ -2454,6 +2907,15 @@ def _validate_arg0_lifecycles_v1(
                 and candidate_exit is not None
                 and candidate.completed_at < candidate_exit.invoked_at
             )
+            if (
+                overlaps_protected_arg0_interval
+                and is_write
+                and candidate_index not in allowed_indexes
+                and not failed_existing_arg0_mkdir
+                and any(_is_within(path, arg0_root) for path in paths)
+            ):
+                code = link_error if candidate.call in _LINK_CALLS else mutation_error
+                raise M5CodexContainmentErrorV1(code)
             if (
                 not is_write
                 or not paths
@@ -2511,10 +2973,33 @@ def _validate_arg0_lifecycles_v1(
             or (cleanup_operation.sequence, paths[0]) not in creation_keys
         ):
             raise M5CodexContainmentErrorV1(link_error)
+    lock_keys: set[tuple[int, Path]] = set()
+    for operation in arg0_operations:
+        operation_creations = creations_by_operation.get(operation.sequence)
+        if not operation_creations:
+            raise M5CodexContainmentErrorV1(mutation_error)
+        lock_keys.add(
+            (
+                operation.sequence,
+                operation_creations[0].session / _ARG0_LOCK_NAME_V1,
+            )
+        )
+    if len(lock_keys) != len(arg0_operations):
+        raise M5CodexContainmentErrorV1(mutation_error)
+    lock_paths = {path for _, path in lock_keys}
+    for record_index, (record, paths, _, _) in enumerate(classified_records):
+        if record.call != "unlinkat" or len(paths) != 1 or paths[0] not in lock_paths:
+            continue
+        cleanup_operation = record_operations.get(record_index)
+        if (
+            cleanup_operation is None
+            or (cleanup_operation.sequence, paths[0]) not in lock_keys
+        ):
+            raise M5CodexContainmentErrorV1(mutation_error)
     if len(admitted_links) != 2 * len(_ARG0_ALIASES_V1):
         raise M5CodexContainmentErrorV1(link_error)
-    if sum(len(indexes) for indexes in cleanup_by_operation.values()) != 2 * len(
-        _ARG0_ALIASES_V1
+    if sum(len(indexes) for indexes in cleanup_by_operation.values()) != 2 * (
+        len(_ARG0_ALIASES_V1) + 1
     ):
         raise M5CodexContainmentErrorV1(link_error)
 
@@ -4023,6 +4508,10 @@ def verify_codex_managed_profile_containment_v1(
         profile_tree_after_snapshot = _managed_profile_tree_snapshot(
             selection.managed_profile_root,
             expected_root_identity=pinned_profile_identity,
+        )
+        _validate_no_new_arg0_children_v1(
+            profile_tree_before_snapshot,
+            profile_tree_after_snapshot,
         )
         _validate_inode_bound_chmod(
             target_descriptor,

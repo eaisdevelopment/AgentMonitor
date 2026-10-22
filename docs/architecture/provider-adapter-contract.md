@@ -147,18 +147,25 @@ boundary and never enter the normalized contract.
 - Successful link creation is rejected unless an approved exact-version
   provider plan defines a closed lifecycle and the containment gate proves it.
 - For pinned Codex CLI `0.160.0`, each managed identity and quota app-server
-  root may create exactly one ordered set of `apply_patch`, `applypatch`,
-  `codex-linux-sandbox`, and `codex-execve-wrapper` symlinks beneath one
-  canonical `tmp/arg0/codex-arg0[A-Za-z0-9]{6}` session in the selected managed
-  profile. Double-leading-slash and every other noncanonical path spelling are
-  rejected before containment comparison, including separately decoded
-  successful-open descriptor annotations. Every payload must equal the
-  inode-validated pinned executable.
-- Each admitted alias requires one matching cleanup in the same provider
-  operation before actual operation closure. Namespace movement or exchange is
-  rejected from creation invocation through cleanup and closure; ordinary
-  removal of the empty session directory is permitted only after all four
-  aliases are clean.
+  root may complete the official pre-session Arg0-root setup under ordinary
+  confinement: `mkdir(arg0_root, 0777)` may report `EEXIST`, followed by the
+  already admitted inode-bound `chmod(arg0_root, 0700)`. Both calls must finish
+  before the exact session creation and do not satisfy any lifecycle record.
+- Each operation must then create exactly one canonical
+  `tmp/arg0/codex-arg0[A-Za-z0-9]{6}` session, open exactly one regular `.lock`
+  child with the approved flags and mode, and create exactly one ordered set of
+  `apply_patch`, `applypatch`, `codex-linux-sandbox`, and
+  `codex-execve-wrapper` symlinks. Double-leading-slash and every other
+  noncanonical path spelling are rejected before containment comparison,
+  including separately decoded successful-open descriptor annotations. Every
+  alias payload must equal the inode-validated pinned executable.
+- The lock child and each admitted alias require one matching cleanup in the
+  same provider operation before actual operation closure. Their cleanup order
+  is filesystem-neutral. The two broad namespace/write guards cover exactly
+  session-creation invocation through final fifth-child cleanup completion;
+  records invoked in or crossing that interval remain guarded. Namespace
+  movement or exchange is rejected throughout it; ordinary removal of the
+  empty session directory is permitted only after all five children are clean.
 - A cwd-dependent relative path lookup fails closed when its
   invocation/completion interval overlaps a successful unfinished `chdir` in
   the same tracked `CLONE_FS` group. Absolute paths, descriptor-bound relative
