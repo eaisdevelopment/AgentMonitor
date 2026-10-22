@@ -1,12 +1,12 @@
 # Change plan: executable V1-M5 Codex slice
 
-- Status: **Approved 1.13.0; local implementation and focused verification,
-  including the authenticated-trace representation correction below, are
-  Green, while current-revision canonical preactivation, authenticated
-  containment, and the already approved fifth rollover remain unrun**.
-- Plan version: `1.13.0`; owner approval: 2026-10-22. Version `1.12.0` was
-  approved on 2026-10-22 and is superseded only at the descriptor-bound
-  `ftruncate` boundary specified below.
+- Status: **Draft 1.14.0 amendment awaiting owner approval; approved 1.13.0
+  remains the implementation authority. Current-revision preactivation is
+  Green, and the real authenticated run is Red at the exact temporary Arg0
+  symlink lifecycle specified below. Activation has not started.**
+- Plan version: `1.14.0-draft`; owner approval: pending. Version `1.13.0` was
+  approved on 2026-10-22 and remains authoritative until this amendment is
+  explicitly approved.
 - Safety correction: exact-version review proved that authenticated app-server
   queries may perform Codex's automatic credential refresh. The approved
   managed-auth lifecycle therefore classifies those queries as
@@ -41,7 +41,9 @@
   specified below. The owner's explicit 2026-10-22 approval of version 1.12.0
   adds only the trace-completeness correction specified below. The owner's
   explicit 2026-10-22 approval of version 1.13.0 adds only the descriptor-bound
-  `ftruncate` correction specified below. All
+  `ftruncate` correction specified below. Proposed version 1.14.0 adds only the
+  exact pinned Codex 0.160.0 temporary Arg0 symlink lifecycle specified below;
+  it carries no implementation authority until explicit owner approval. All
   remaining A02, OpenAI API, PLAN-DEP/D01, and
   `AUTO-DEPLOY` lanes stay Draft or Blocked as already recorded.
 - Stories: `ST-CDX-001..005`.
@@ -1912,6 +1914,175 @@ are clean. The exact Story inventory is `526` unique identifiers with SHA-256
 removing only the new real-strace test reproduces the prior `525` count and
 digest. Current-revision preactivation and the corrected authenticated rerun
 remain required before the already approved fifth activation.
+
+## Proposed pinned Arg0 symlink lifecycle correction — 2026-10-22
+
+**Status: Draft 1.14.0. Owner approval is required before the successful
+symlink admission below is implemented. Approved 1.13.0 continues to authorize
+only directional parsing that preserves global successful-link rejection.**
+
+### Authenticated Red and exact provider behavior
+
+The complete canonical preactivation set passed on clean revision
+`a0f2dc16e2330c048d652845f20b2585bcf64c5e`: planning, documentation, build,
+quality, mutation, M3, `AUTO-TEST`, and local Git preflight were Green. The
+standalone authenticated containment test then completed the real identity and
+quota operations against the unchanged d81 service before failing closed as
+`m5_codex_default_profile_access_detected`.
+
+Privacy-safe in-memory classification found eight successful plain `symlink`
+records. All eight first arguments were absolute strings in the pinned Codex
+installation release; all eight created-link paths were absolute paths inside
+the selected managed profile. Directional parsing then proved that the first
+argument was payload text and the second was the created path. Its focused Red
+and Green preserve the approved global-link rule, and the same real run now
+fails at the more precise `m5_codex_containment_link_operation_rejected`.
+There was no access to default account, configuration, or runtime state and no
+default-root write; only the already allowed pinned installation reads were
+observed.
+
+A second bounded live classification, retaining no path or provider payload,
+proved the exact lifecycle: four successful links in the identity root process
+and four in the quota root process; every payload equalled the retained pinned
+provider executable; each operation created exactly the closed four-alias set
+below beneath one managed session parent; and every created path had a later
+matching successful cleanup unlink. The bounded post-run managed-tree scan
+succeeded and therefore found no retained symlink. It did not require the full
+tree digest to remain equal because the already approved managed-auth
+lifecycle may update ordinary managed-profile state.
+
+The [official `rust-v0.160.0` Arg0 implementation](https://github.com/openai/codex/blob/rust-v0.160.0/codex-rs/arg0/src/lib.rs#L214-L452)
+corroborates this result. Before the app-server async body begins, Arg0 creates
+a temporary directory below managed `CODEX_HOME/tmp/arg0`, obtains the current
+executable, creates four aliases, retains the temporary-directory guard for the
+app-server lifetime, and removes the directory when the body returns. The
+pinned `tempfile 3.27.0` name has literal prefix `codex-arg0` plus exactly six
+ASCII alphanumeric characters. Linux creation order is:
+
+1. `apply_patch`;
+2. `applypatch`;
+3. `codex-linux-sandbox`;
+4. `codex-execve-wrapper`.
+
+Cleanup enumeration order is filesystem dependent and is not an accepted
+ordering signal. The reviewed official app-server and configuration
+documentation exposes no supported switch that removes this setup. Moving
+temporary state elsewhere would change the provider environment and would not
+prove the production managed-profile boundary.
+
+Plan 1.13 explicitly retains global link rejection. Admitting these eight real
+successful calls therefore changes policy and cannot be treated as another
+trace-format correction.
+
+### Exact proposed correction boundary
+
+Production change is limited to
+`tools/automation/implementations/m5_codex_containment.py`:
+
+- Parse plain `symlink` with an exact full-match two-string grammar and exact
+  result grammar. The first argument is opaque link payload text and is never
+  classified as a filesystem access or write by the syscall. The second
+  argument is the created path and remains a managed-profile access, write,
+  and namespace-replacement target. Empty, truncated, escaped, control-bearing,
+  noncanonical, suffix-bearing, prefix-bearing, ambiguous, or malformed forms
+  fail closed without exposing either string.
+- Admit successful plain `symlink` only in the root PID of each of the exact
+  ordered identity and quota app-server operations. Descendant, version,
+  pre-provider, post-operation, overlapping, or additional provider processes
+  cannot use the exception.
+- Require exactly four successful records per operation, in the fixed creation
+  order above. Each payload must equal the already retained, inode-validated
+  provider executable exactly. Merely being inside its installation release
+  is insufficient.
+- Require every created path to be an absolute canonical strict descendant of
+  the selected managed profile with exactly these four relative components:
+  literal `tmp`, literal `arg0`, exact
+  `codex-arg0[A-Za-z0-9]{6}`, and the corresponding alias basename. All four
+  paths for one operation must have the same session parent and unique alias.
+  No dot, `..`, leading-double-slash, separator-bearing component, control
+  byte, alternate case, alternate alias, additional component, or second
+  session parent is accepted.
+- Require one matching successful cleanup `unlinkat` for every admitted
+  created path. The cleanup PID must belong to the same identity or quota
+  operation lineage as that link; either its root or a traced descendant may
+  perform cleanup. Preserve syscall invocation and successful-completion order
+  separately across complete and `<unfinished ...>`/`<... resumed>` records.
+  Each link must complete successfully before its cleanup is invoked or
+  completes, and cleanup must complete before that operation invokes
+  `exit`/`exit_group`. Invocation position alone is insufficient. Reject an
+  unresolved or ambiguous interleaving, but accept any proven cleanup order
+  among the four aliases. A cleanup from another operation or unattributed
+  process, before create, after operation close, against a different path,
+  missing, duplicate, or unresolved through its directory descriptor fails
+  closed. The existing numeric-dirfd parser and managed-root confinement apply
+  unchanged.
+- From each successful creation through its matching cleanup, reject every
+  namespace operation that names an admitted alias path or its session parent,
+  or that can move or exchange the link inode, except that alias's one exact
+  cleanup `unlinkat` and ordinary removal of the now symlink-free session
+  directory after all four alias cleanups. In particular, reject `rename`,
+  `renameat`, `renameat2`, `RENAME_EXCHANGE`, link, unlink, or parent movement,
+  even when every lexical path remains inside the selected managed profile.
+- Require the existing bounded post-operation tree snapshot to remain
+  symlink-free. The selected profile root, its private enclosing roots, the
+  inode-bound `chmod` target and its ancestors, mount topology, auth-store
+  metadata, service identity, executable identity, and account identity retain
+  all existing checks. The existing concurrent-hostile-same-UID limitation is
+  unchanged.
+- Continue rejecting every hard link, `symlinkat`, any plain symlink outside
+  this exact eight-record lifecycle, and every link that names a default or
+  outside created path or affects the protected target or an ancestor. The
+  exception grants no read or write under the default Codex profile. Resolved
+  writable opens, fd mutators, namespace operations, and all other path
+  mutations retain their existing fail-closed policies.
+- Count each admitted record once as a managed provider access and write. Keep
+  the closed evidence schema and digest-only sanitized output unchanged; no
+  path, alias, session component, PID, raw trace, provider payload, identity,
+  credential, prompt, response, or source content enters evidence or logs.
+
+No provider method, API, UI, database, migration, scheduler, service
+transition, dependency, license, login, account, default profile, or running
+agent behavior changes. This amendment remains folded into the already
+authorized, not-yet-run fifth rollover and authorizes no sixth rollover.
+
+The verification write set is limited to
+`tools/automation/test_m5_codex_containment.py`, inventory assertions in
+`tools/automation/test_m5_current_exit.py`, and the exact inventory constants
+in `tools/automation/implementations/auto_m5_current_exit.py`. Documentation
+may change only in the existing M5 plan, Codex adapter boundary, implementation
+evidence/status, runbook, plan indexes, and generated planning controls.
+
+### Required Red, Green, review, and live proof
+
+The authenticated `m5_codex_containment_link_operation_rejected` result is the
+real Red. Pure policy tests must prove the exact four-plus-four admission and
+reject missing, extra, duplicate, reordered, wrong-alias, wrong-source,
+other-release-source, relative-source, mixed-parent, malformed-session,
+relative-destination, default-destination, outside-destination,
+version/unattributed/descendant lineage, successful hard-link or `symlinkat`,
+failed or malformed result, cleanup-before-create, cleanup-after-exit,
+wrong-operation or unattributed cleanup, missing/duplicate/wrong/unresolved
+cleanup, cleanup invoked before create but resumed after, cleanup invoked
+before exit but resumed after exit, symlink unfinished/resumed across operation
+boundaries, alias rename out and back, alias `RENAME_EXCHANGE`, session-parent
+rename, final-clean-tree movement, and protected-target or ancestor replacement
+cases. Exception text and evidence representations must contain no payload or
+path.
+
+A real owner-temporary-filesystem strace test must prove Linux plain-symlink
+argument direction and descriptor-annotated cleanup without retaining its
+path. A real tree test must prove a remaining symlink is rejected. The complete
+containment and current-exit files, Ruff lint and format, strict production
+mypy, exact Story inventory rebind, `git diff --check`, and two independent
+adversarial reviews must pass.
+
+The full canonical preactivation set must then pass on one new clean revision.
+The standalone authenticated containment test must pass with no skip against
+the unchanged d81 service and pinned Codex 0.160.0 executable. Only after that
+pass may the already authorized two-invocation fifth activation begin. Fresh
+owner, alert, process, and quota evidence and the exact-revision
+`AUTO-M5-EXIT` remain required. This amendment is not M5 completion or owner
+acceptance.
 
 ## Stop conditions
 
