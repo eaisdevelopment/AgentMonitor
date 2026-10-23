@@ -309,7 +309,7 @@ proven: stop M5 evidence collection, preserve the journal and both runtimes,
 and diagnose the user unit. Never edit the journal, unit backup, or trusted
 runtime to force another result.
 
-Exactly six revision-pinned corrective rollover modes are authorized. The
+Exactly seven revision-pinned corrective rollover modes are authorized. The
 first preserves the completed
 `6bfa69dc13cc9e1ded9c6baa6e803cb99bc8c20b` transition below
 `<owner-data-root>/m5-service-activation-corrective-archive/`. The second
@@ -333,12 +333,16 @@ The sixth preserves the completed
 `8cc683d946b58f5eb72955e08a520195582e1a28` transition below the distinct fixed
 singleton parent
 `<owner-data-root>/m5-service-activation-corrective-archive-8cc683d/`.
+The seventh preserves the completed
+`35f50d8c4865505a9112d8aef7ea788f425ae658` transition below the distinct fixed
+singleton parent
+`<owner-data-root>/m5-service-activation-corrective-archive-35f50d8/`.
 Each archive entry name binds its source revision and activation-receipt
 digest. No mode accepts a different source revision, archive parent, or
 additional entry.
 
 The requested new candidate must differ from the pinned trusted revision and
-all six completed corrective revisions above. The command checks those reserved
+all seven completed corrective revisions above. The command checks those reserved
 revisions before any service restoration, archive move, or transition-state
 write; a reserved candidate blocks without changing the existing service or
 evidence.

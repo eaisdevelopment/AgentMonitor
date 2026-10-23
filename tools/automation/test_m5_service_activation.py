@@ -494,7 +494,7 @@ def _assert_fifth_rollover_constants(module: ModuleType) -> None:
 
 def test_sixth_corrective_rollover_is_exact_and_final() -> None:
     module = _module()
-    next_reviewed_revision = "c" * 40
+    next_reviewed_revision = module.SEVENTH_CORRECTIVE_ROLLOVER_REVISION
     expected_prefix = (
         module.CORRECTIVE_ROLLOVER_REVISION,
         module.SECOND_CORRECTIVE_ROLLOVER_REVISION,
@@ -512,6 +512,7 @@ def test_sixth_corrective_rollover_is_exact_and_final() -> None:
     assert module.CORRECTIVE_ROLLOVER_REVISIONS == (
         *expected_prefix,
         module.SIXTH_CORRECTIVE_ROLLOVER_REVISION,
+        module.SEVENTH_CORRECTIVE_ROLLOVER_REVISION,
     )
     assert module._corrective_rollover_chain_revisions_v1(
         module.SIXTH_CORRECTIVE_ROLLOVER_REVISION
@@ -523,8 +524,8 @@ def test_sixth_corrective_rollover_is_exact_and_final() -> None:
         == module.SIXTH_CORRECTIVE_ARCHIVE_BASENAME
     )
 
-    complete_prefix = ("complete",) * 5 + ("empty",)
-    complete_chain = ("complete",) * 6
+    complete_prefix = ("complete",) * 5 + ("empty", "absent")
+    complete_chain = ("complete",) * 6 + ("absent",)
     assert module.corrective_rollover_transition_policy_v1(
         receipt_revision=module.SIXTH_CORRECTIVE_ROLLOVER_REVISION,
         candidate_revision=next_reviewed_revision,
@@ -541,9 +542,9 @@ def test_sixth_corrective_rollover_is_exact_and_final() -> None:
         archive_states=complete_chain,
     ) == ("retain", module.SIXTH_CORRECTIVE_ROLLOVER_REVISION)
     assert module.corrective_rollover_transition_policy_v1(
-        receipt_revision=next_reviewed_revision,
-        candidate_revision="d" * 40,
-        archive_states=complete_chain,
+        receipt_revision=module.SIXTH_CORRECTIVE_ROLLOVER_REVISION,
+        candidate_revision="c" * 40,
+        archive_states=complete_prefix,
     ) == ("blocked", None)
     assert (
         module.corrective_activation_rollover_decision_v1(
@@ -580,8 +581,103 @@ def test_sixth_corrective_rollover_is_exact_and_final() -> None:
         )
 
 
-def test_sixth_archive_preserves_the_exact_five_archive_prefix(tmp_path: Path) -> None:
+def test_seventh_corrective_rollover_is_exact_and_final() -> None:
     module = _module()
+    next_reviewed_revision = "c" * 40
+    expected_prefix = (
+        module.CORRECTIVE_ROLLOVER_REVISION,
+        module.SECOND_CORRECTIVE_ROLLOVER_REVISION,
+        module.THIRD_CORRECTIVE_ROLLOVER_REVISION,
+        module.FOURTH_CORRECTIVE_ROLLOVER_REVISION,
+        module.FIFTH_CORRECTIVE_ROLLOVER_REVISION,
+        module.SIXTH_CORRECTIVE_ROLLOVER_REVISION,
+    )
+
+    assert getattr(module, "SEVENTH_CORRECTIVE_ROLLOVER_REVISION", None) == (
+        "35f50d8c4865505a9112d8aef7ea788f425ae658"
+    )
+    assert getattr(module, "SEVENTH_CORRECTIVE_ARCHIVE_BASENAME", None) == (
+        "m5-service-activation-corrective-archive-35f50d8"
+    )
+    assert module.CORRECTIVE_ROLLOVER_REVISIONS == (
+        *expected_prefix,
+        module.SEVENTH_CORRECTIVE_ROLLOVER_REVISION,
+    )
+    assert module._corrective_rollover_chain_revisions_v1(
+        module.SEVENTH_CORRECTIVE_ROLLOVER_REVISION
+    ) == (*expected_prefix, module.SEVENTH_CORRECTIVE_ROLLOVER_REVISION)
+    assert (
+        module._corrective_rollover_archive_basename_v1(
+            module.SEVENTH_CORRECTIVE_ROLLOVER_REVISION
+        )
+        == module.SEVENTH_CORRECTIVE_ARCHIVE_BASENAME
+    )
+
+    complete_prefix = ("complete",) * 6 + ("empty",)
+    complete_chain = ("complete",) * 7
+    assert module.corrective_rollover_transition_policy_v1(
+        receipt_revision=module.SEVENTH_CORRECTIVE_ROLLOVER_REVISION,
+        candidate_revision=next_reviewed_revision,
+        archive_states=complete_prefix,
+    ) == ("archive", module.SEVENTH_CORRECTIVE_ROLLOVER_REVISION)
+    assert module.corrective_rollover_transition_policy_v1(
+        receipt_revision=None,
+        candidate_revision=next_reviewed_revision,
+        archive_states=complete_chain,
+    ) == ("retry", module.SEVENTH_CORRECTIVE_ROLLOVER_REVISION)
+    assert module.corrective_rollover_transition_policy_v1(
+        receipt_revision=next_reviewed_revision,
+        candidate_revision=next_reviewed_revision,
+        archive_states=complete_chain,
+    ) == ("retain", module.SEVENTH_CORRECTIVE_ROLLOVER_REVISION)
+    assert module.corrective_rollover_transition_policy_v1(
+        receipt_revision=next_reviewed_revision,
+        candidate_revision="d" * 40,
+        archive_states=complete_chain,
+    ) == ("blocked", None)
+    assert (
+        module.corrective_activation_rollover_decision_v1(
+            candidate_revision=module.SEVENTH_CORRECTIVE_ROLLOVER_REVISION,
+            completed_revision=module.SIXTH_CORRECTIVE_ROLLOVER_REVISION,
+            service_revision=module.SIXTH_CORRECTIVE_ROLLOVER_REVISION,
+        )
+        == "rollback_candidate"
+    )
+    assert (
+        module.corrective_activation_rollover_decision_v1(
+            candidate_revision=next_reviewed_revision,
+            completed_revision=module.SEVENTH_CORRECTIVE_ROLLOVER_REVISION,
+            service_revision=module.SEVENTH_CORRECTIVE_ROLLOVER_REVISION,
+        )
+        == "rollback_candidate"
+    )
+    for reserved_revision in (
+        *expected_prefix,
+        module.SEVENTH_CORRECTIVE_ROLLOVER_REVISION,
+    ):
+        expected = (
+            "not_applicable"
+            if reserved_revision == module.SEVENTH_CORRECTIVE_ROLLOVER_REVISION
+            else "blocked"
+        )
+        assert (
+            module.corrective_activation_rollover_decision_v1(
+                candidate_revision=reserved_revision,
+                completed_revision=module.SEVENTH_CORRECTIVE_ROLLOVER_REVISION,
+                service_revision=module.SEVENTH_CORRECTIVE_ROLLOVER_REVISION,
+            )
+            == expected
+        )
+
+
+def _assert_archive_chain_preserves_exact_prefix(
+    module: ModuleType,
+    tmp_path: Path,
+    *,
+    revisions: tuple[str, ...],
+    final_revision: str,
+    final_archive_basename: str,
+) -> None:
     tmp_path.chmod(0o700)
     state_root = tmp_path / "state"
     state_root.mkdir(mode=0o700)
@@ -590,7 +686,7 @@ def test_sixth_archive_preserves_the_exact_five_archive_prefix(tmp_path: Path) -
     retained_archives = []
     archive_identities: list[tuple[int, int]] = []
     try:
-        for index, revision in enumerate(module.CORRECTIVE_ROLLOVER_REVISIONS):
+        for index, revision in enumerate(revisions):
             payloads = {
                 module.ACTIVATION_JOURNAL_BASENAME: (
                     f'{{"journal":"generation-{index}"}}\n'.encode()
@@ -644,16 +740,34 @@ def test_sixth_archive_preserves_the_exact_five_archive_prefix(tmp_path: Path) -
             ] == archive_identities
             assert tuple(transition_root.iterdir()) == ()
 
-        assert len(retained_archives) == 6
-        assert retained_archives[-1].archive_id.startswith(
-            f"{module.SIXTH_CORRECTIVE_ROLLOVER_REVISION}-"
-        )
-        assert retained_archives[-1].archive_parent.name == (
-            module.SIXTH_CORRECTIVE_ARCHIVE_BASENAME
-        )
+        assert len(retained_archives) == len(revisions)
+        assert retained_archives[-1].archive_id.startswith(f"{final_revision}-")
+        assert retained_archives[-1].archive_parent.name == final_archive_basename
     finally:
         for retained in reversed(retained_archives):
             module._close_completed_activation_rollover_v1(retained)
+
+
+def test_sixth_archive_preserves_the_exact_five_archive_prefix(tmp_path: Path) -> None:
+    module = _module()
+    _assert_archive_chain_preserves_exact_prefix(
+        module,
+        tmp_path,
+        revisions=module.CORRECTIVE_ROLLOVER_REVISIONS[:6],
+        final_revision=module.SIXTH_CORRECTIVE_ROLLOVER_REVISION,
+        final_archive_basename=module.SIXTH_CORRECTIVE_ARCHIVE_BASENAME,
+    )
+
+
+def test_seventh_archive_preserves_the_exact_six_archive_prefix(tmp_path: Path) -> None:
+    module = _module()
+    _assert_archive_chain_preserves_exact_prefix(
+        module,
+        tmp_path,
+        revisions=module.CORRECTIVE_ROLLOVER_REVISIONS,
+        final_revision=module.SEVENTH_CORRECTIVE_ROLLOVER_REVISION,
+        final_archive_basename=module.SEVENTH_CORRECTIVE_ARCHIVE_BASENAME,
+    )
 
 
 def test_corrective_rollover_archives_complete_transition_by_atomic_inode_move(
@@ -1285,6 +1399,7 @@ def test_corrective_rollover_policy_is_exact_and_returns_typed_rerun() -> None:
         "e066d7e1ba0124f0454c07002ea7b2ad0817d6b9",
         "d81afab9e5b1c1dbdb690f390e77cee66eba5437",
         "8cc683d946b58f5eb72955e08a520195582e1a28",
+        "35f50d8c4865505a9112d8aef7ea788f425ae658",
     )
     assert tuple(
         module._corrective_rollover_archive_basename_v1(revision)
@@ -1296,6 +1411,7 @@ def test_corrective_rollover_policy_is_exact_and_returns_typed_rerun() -> None:
         module.FOURTH_CORRECTIVE_ARCHIVE_BASENAME,
         module.FIFTH_CORRECTIVE_ARCHIVE_BASENAME,
         module.SIXTH_CORRECTIVE_ARCHIVE_BASENAME,
+        module.SEVENTH_CORRECTIVE_ARCHIVE_BASENAME,
     )
 
     chain_policy = module._corrective_rollover_chain_revisions_v1
@@ -1367,12 +1483,12 @@ def test_corrective_rollover_policy_is_exact_and_returns_typed_rerun() -> None:
     ) == ("retain", revisions[-1])
 
     blocked_transition_cases = (
-        (None, new_revision, ("absent",) * 5),
-        (None, new_revision, ("complete", "absent") + ("absent",) * 4),
-        (None, new_revision, ("complete", "empty") + ("absent",) * 4),
+        (None, new_revision, ("absent",) * (len(revisions) - 1)),
+        (None, new_revision, ("complete", "absent") + ("absent",) * 5),
+        (None, new_revision, ("complete", "empty") + ("absent",) * 5),
         (revisions[2], new_revision, stable_prefix(1)),
-        (new_revision, new_revision, ("complete",) * 5 + ("empty",)),
-        (new_revision, new_revision, ("complete",) * 5 + ("invalid",)),
+        (new_revision, new_revision, ("complete",) * 6 + ("empty",)),
+        (new_revision, new_revision, ("complete",) * 6 + ("invalid",)),
     )
     for receipt_revision, candidate_revision, states in blocked_transition_cases:
         assert transition_policy(

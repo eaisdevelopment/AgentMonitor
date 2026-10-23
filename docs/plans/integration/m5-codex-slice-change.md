@@ -1,11 +1,12 @@
 # Change plan: executable V1-M5 Codex slice
 
-- Status: **Owner-approved 1.16.0 on 2026-10-23. Approved 1.15.0 is
+- Status: **Owner-approved 1.17.0 on 2026-10-23. Owner-approved 1.16.0 is
   implemented and active at clean revision
-  `8cc683d946b58f5eb72955e08a520195582e1a28`. Its required live alert-witness
-  run exposed the two bounded blockers specified below and created no
-  witness.**
-- Plan version: owner-approved `1.16.0`; approved version `1.15.0` remains
+  `35f50d8c4865505a9112d8aef7ea788f425ae658`. Its refreshed owner, alert,
+  and quota prerequisites passed, but `AUTO-M5-EXIT` failed on the bounded
+  artifact-selector defect specified below and created no completion
+  receipt.**
+- Plan version: owner-approved `1.17.0`; approved version `1.16.0` remains
   incorporated unchanged.
 - Safety correction: exact-version review proved that authenticated app-server
   queries may perform Codex's automatic credential refresh. The approved
@@ -51,7 +52,11 @@
   specified below. The owner's explicit 2026-10-23 approval of version 1.16.0
   supersedes only the earlier statement that 1.8.0 is the sole PLAN-P02
   exception and adds only the enumerated PLAN-M05, PLAN-P02, witness, and
-  sixth-rollover scope below;
+  sixth-rollover scope below. The owner's explicit 2026-10-23 approval of
+  version 1.17.0 adds only the exact pytest-node artifact correction, one
+  seventh evidence-preserving rollover from
+  `35f50d8c4865505a9112d8aef7ea788f425ae658`, refreshed service-bound
+  prerequisites, and one corrected `AUTO-M5-EXIT` rerun specified below;
   all remaining A02, OpenAI API, PLAN-DEP/D01, and
   `AUTO-DEPLOY` lanes stay Draft or Blocked as already recorded.
 - Stories: `ST-CDX-001..005`.
@@ -2514,7 +2519,7 @@ cursor, or non-progressing sequence fails closed. The complete rendered count,
 order, and digest must equal the API oracle. The proof remains read-only and
 requires zero dashboard mutations.
 
-### Authorized files after approval
+### Authorized files
 
 Production and integration code is limited to:
 
@@ -2685,6 +2690,215 @@ containment rerun, sixth rollover, refreshed owner and alert lifecycle,
 `AUTO-M5-EXIT`, and owner acceptance remain required in that order. Until
 their actual boundaries pass, M5 remains **Intermediate** with canonical gate
 state `not_run`.
+
+## Approved AUTO-M5-EXIT artifact-selector correction — 2026-10-23
+
+**Status: Owner-approved 1.17.0 on 2026-10-23.**
+
+Plan 1.17.0 incorporates owner-approved 1.16.0 unchanged and authorizes only one
+completion-automation correction, its focused Red/Green regression, and one
+exact evidence-preserving rollover from the currently active revision
+`35f50d8c4865505a9112d8aef7ea788f425ae658`. It does not reopen any M5
+product, provider, API, UI, persistence, quota, alert, or process behavior.
+
+### Current exact-revision evidence
+
+The sixth rollover activated clean revision
+`35f50d8c4865505a9112d8aef7ea788f425ae658`. Fresh service-bound owner
+outcomes, the genuine Codex alert lifecycle and alert witness, and the official
+`/status` quota reconciliation and quota witness passed for that exact service.
+They do not constitute milestone completion.
+
+`AUTO-M5-EXIT` then failed before its technical suite with
+`m5_current_story_artifact_missing` and created no completion receipt. The
+static Story artifact tuple contains the intentional exact pytest selector
+`backend/tests/integration/capacity/test_m4_event_delivery.py::test_acknowledged_event_evidence_selector_bounds_fail_closed`.
+The selected source file exists, but the gate passes the complete node ID to
+`Path.exists()`, which treats the `::test_...` suffix as part of the filesystem
+name and therefore reports a false missing artifact. This is an automation
+defect, not evidence that the source file or selected test is missing. The
+failed invocation gives no pass credit to the downstream lanes it did not run.
+
+Because the correction creates a new implementation revision, the existing
+activation receipt and all revision/service-bound prerequisites cannot be
+reused. One exact seventh rollover and a complete prerequisite refresh are
+therefore required before the corrected gate can run.
+
+### Requirement and scenario binding
+
+- `M5-CDX-GATE-015` verifies that the canonical gate resolves an exact pytest
+  node ID to its source file only for the static artifact-presence check while
+  preserving that complete node ID for pytest execution and inventory. It
+  contributes `NFR-TEST-001/002`, `NFR-RES-001`, `NFR-COMP-001`, and
+  `AC-TEST-001/003/006`.
+- `M5-SVC-ACT-022` verifies the exact seventh archive and activation from
+  revision `35f50d8c4865505a9112d8aef7ea788f425ae658`. It contributes
+  `NFR-RES-001`, `NFR-TEST-001/002`, and `AC-TEST-001/003/006` without
+  creating general deployment authority.
+
+Neither scenario may be marked Passed until its named boundary runs against
+the clean corrected revision and real owner service state.
+
+### Exact artifact-selector correction
+
+Add one bounded helper to the existing M5 exit implementation that receives
+the repository root and static Story artifact entries and returns the entries
+whose source artifacts are missing. For an entry containing a pytest node
+separator, the helper must use only the nonempty path before the first `::` for
+the filesystem existence check. An entry without `::` is checked unchanged.
+The original entry, including its complete node suffix, remains in
+`STORY_ARTIFACTS` and `STORY_TEST_PATHS` and remains the selector passed to
+pytest and included in the exact Story inventory.
+
+An absent source file must still return the original entry as missing and
+produce the unchanged `m5_current_story_artifact_missing` failure. The helper
+must not turn the node selection into a whole-file test selection, skip the
+selected test, make a missing artifact optional, inspect test source content,
+or accept a path derived from runtime/user input.
+
+Before changing the implementation, the focused regression must be run Red:
+an existing temporary source plus `test_selected.py::test_selected` is
+misclassified by the current direct existence check, or the new helper is
+absent. Green must prove that the exact node selector resolves to the existing
+source, a missing selected source remains missing, and ordinary non-node
+artifacts retain their existing behavior. The complete current-exit test file
+must then pass. The Python Story inventory count and digest may be rebound only
+from the exact collected inventory after adding these tests; no test may be
+removed, renamed, skipped, or excluded to recover the prior digest.
+
+### Authorized files
+
+Implementation and focused verification are limited to:
+
+- `tools/automation/implementations/auto_m5_current_exit.py`;
+- `tools/automation/test_m5_current_exit.py`;
+- `tools/automation/implementations/m5_service_activation.py`;
+- `tools/automation/test_m5_service_activation.py`; and
+- `tools/automation/routines.toml`, only for truthful seven-rollover scope
+  wording;
+- `docs/plans/plan-baseline.toml`, only as the deterministic synchronized
+  snapshot generated after that catalog wording changes;
+- `docs/plans/integration/cs1-final-readiness-audit.md` and
+  `docs/plans/integration/cs1-full-plan-synchronization.md`, only for their
+  append-only binding to that exact regenerated snapshot;
+- `docs/evidence/m5-codex-implementation.md`, `docs/operations/runbook.md`,
+  `docs/README.md`, and `docs/evidence/v1-implementation-status-v1.json`, only
+  to reconcile their M5 status with the verified 1.16 live outcome, failed
+  exit, and local 1.17 evidence.
+
+This amendment initially changed only this plan. Verified
+implementation outcomes may additionally update the existing M5 implementation
+evidence, operations runbook status, primary documentation index, and
+implementation-status overlay without widening behavior. No other
+production, test, generated, contract, migration, dependency, or documentation
+file is authorized by 1.17.0. The baseline snapshot is generated by the
+existing renderer and carries no independent behavior or authority.
+
+### Contract, security, privacy, data, and dependency impact
+
+The correction is internal completion automation. It changes no public or
+module contract, REST/OpenAPI schema, generated client, private receipt schema,
+database schema, migration, retention rule, provider adapter, provider call,
+authentication flow, quota meaning, alert lifecycle, Registry behavior,
+browser behavior, or running-agent behavior. It adds no dependency and needs
+no licence, SBOM, notice, ADR, compatibility, backup, or data migration change.
+
+The artifact helper reads filesystem metadata for repository-owned static
+paths only. It must not read source content, arbitrary environment values,
+provider/profile state, account identity, credentials, prompts, responses, or
+raw live evidence. Existing secret, ownership, symlink, clean-checkout,
+revision, and receipt protections remain unchanged.
+
+### Approved seventh evidence-preserving rollover
+
+After focused and complete preactivation Green on one new clean detached
+revision, one seventh corrective rollover is approved from exact active
+revision `35f50d8c4865505a9112d8aef7ea788f425ae658` into fixed singleton
+namespace `m5-service-activation-corrective-archive-35f50d8`. The activation
+policy must append that revision as the seventh and final approved rollover,
+require the six existing archives as an unchanged ordered prefix, and reserve
+every completed revision from candidate selection.
+
+The first canonical activation invocation must validate the complete current
+transition, exact service/browser revision, clean detached checkout, Registry
+and database identity, rollback runtime, and all six prior archives. Under the
+existing exclusive guard it must restore the trusted rollback service,
+atomically move the complete transition directory without replacement into
+the seventh archive, fsync both parents, and return the existing status-5 rerun
+result. The second invocation must revalidate all seven archives and the
+prepared corrected candidate before the unchanged rollback drill and
+activation. Existing descriptor, inode, digest, ownership, mode, link-count,
+collision, interruption, retry, and trusted-restoration protections remain
+unchanged. Partial, multiple, unknown, replaced, linked, colliding,
+skipped-prefix, dirty-checkout, wrong-service, or wrong-revision state must
+block without cleanup or replacement.
+
+After activation, the canonical prerequisite archive must remove only the
+stale revision/service-bound prerequisite files under its existing policy. A
+new four-account owner outcome, one new genuine opening or reopening, distinct
+repeat, owner action and source-proven recovery, a new
+`AUTO-M5-ALERT-WITNESS`, and a new official `/status` reconciliation plus
+`AUTO-M5-QUOTA-WITNESS` must bind to the corrected revision and selected
+service. `AUTO-M5-EXIT` must then rerun immediately and execute its complete
+process, browser, technical, planning, quality, mutation, documentation, and
+Git-preflight lanes before it may write its create-once receipt. No prerequisite
+or completion result bound to revision `35f50d8c4865505a9112d8aef7ea788f425ae658`
+may be copied, edited, or credited to the corrected revision.
+
+### Required verification and exclusions
+
+Focused Green must include the artifact-helper regression, complete
+current-exit tests, exact seventh-rollover activation tests, dispatcher tests,
+Ruff lint/format, strict mypy, `git diff --check`, and the exact rebound Story
+inventory. The full canonical preactivation set and zero-skip authenticated
+containment must pass on the clean corrected revision before activation. The
+two real activation invocations, refreshed prerequisites, and complete
+`AUTO-M5-EXIT` must then pass in that order. The owner reviews the resulting
+receipt before the existing separate M5 acceptance step.
+
+This amendment authorizes no gate relaxation, whole-file replacement for the
+exact pytest node selector, eighth rollover, general deployment, receipt or
+witness rewrite, prerequisite reuse, provider call/login/profile mutation,
+default-profile access, running-agent control, fabricated/replayed/edited
+telemetry, product behavior, new test scope beyond the focused regression and
+seventh-rollover policy, contract/schema/migration/dependency change, M6, M7,
+M8, release, OpenAI API billing, or macOS acceptance.
+
+### Plan 1.17 local implementation checkpoint
+
+The approved 1.17 correction is locally implemented but not yet committed or
+activated. The artifact-helper Red failed for the expected absent helper;
+Green passes its three exact cases. The seventh-rollover Red failed for the
+expected absent exact revision; Green passes the complete activation and
+dispatcher selection. The combined current-exit, activation, and dispatcher
+selection passes `119` tests. Existing sixth-rollover test IDs remain intact,
+separate seventh scenarios were added, and independent review is CLEAN.
+
+The exact Python Story inventory now contains `562` identifiers with SHA-256
+`4ca56497a7fdaa1e80c7c01a3ee1e41c2029288966b1fe969790606fad0cbb7b`.
+`AUTO-PLAN-CHECK`, `AUTO-DOCS-CHECK`, `AUTO-BUILD`, and `AUTO-QUALITY` pass.
+The first `AUTO-MUTATION` attempt truthfully failed before mutation analysis
+because the caller's default `codex` resolved to unadmitted `0.163.0`; the
+unchanged rerun with the approved pinned `0.160.0` path passed all `1,708`
+mutants with `1,698` killed, `10` accepted equivalents, and no unaccepted
+survivor. `AUTO-M3-TEST` passes `307` tests. `AUTO-TEST` passes `104`
+automation tests, two Argon2 cases, `1,362` backend tests with `40` declared
+external-live skips, and every required production-browser scenario. The
+literal 24-hour elapsed, owner-local M0, hosted, and separate T5/T6/T7 lanes
+retain their existing truthful Not Run or Blocked classifications and receive
+no M5 credit.
+
+The active service and its three private prerequisites remain bound to
+`35f50d8c4865505a9112d8aef7ea788f425ae658`; they receive no credit for the
+new candidate. A clean committed revision, exact detached Git preflight,
+standalone authenticated containment, the two-stage seventh rollover,
+prerequisite archive and refresh, corrected `AUTO-M5-EXIT`, and separate owner
+acceptance remain required.
+
+M5 remains **Intermediate**. The latest canonical result is `failed` on
+`35f50d8`; the corrected candidate is `not_run`. Completion still requires the
+seventh rollover on one clean revision, all refreshed live prerequisites, a
+passing `AUTO-M5-EXIT` receipt, and separate owner acceptance.
 
 ## Stop conditions
 

@@ -26,29 +26,25 @@ Current program state:
   organizations, six fresh post-restart quota/history lineages, the guarded
   current-process witness, and every required technical, browser, and local
   quality lane with zero skips and zero registry mutations.
-- **V1-M5:** implementation is **Intermediate**. Approved plan 1.15 is active
-  at clean detached revision `8cc683d`. Its complete preactivation set,
-  zero-skip authenticated Codex `0.160.0` containment rerun, exact fifth
-  evidence-preserving service rollover, fresh four-account owner outcomes, and
-  genuine post-confirmation alert opening, distinct repeat, owner
-  acknowledgement, and recovery all passed. `AUTO-M5-ALERT-WITNESS` created no
-  witness: the first run exposed a quadratic whole-outbox acknowledgement
-  lookup at more than 36,000 real capacity events, and the unchanged rerun
-  failed closed because the versioned API returned all 192 selected-alert
-  history entries while the built UI rendered only the first 100. Owner-
-  approved plan 1.16 is limited to a bounded three-event acknowledgement lookup,
-  complete cursor-paginated Alerts history, and one exact sixth corrective
-  rollover from `8cc683d`. Its bounded query, UI pagination, witness policy,
-  and sixth-rollover policy are locally Green; owner-scale lookup returned two
-  passes in `9.64s`, UI policy passed `17/17`, activation passed `45`,
-  current-exit passed `66`, and dispatcher passed `3`. Backend, UI, and
-  activation reviews are CLEAN. The exact Python Story inventory is `557`
-  identifiers with SHA-256
-  `f9bf5d58f37032239377741a8ab74f96c220348cf5cad46323c47e6c71682035`.
-  The active service is still `8cc683d`.
-  Authenticated complete-history proof, the sixth rollover, refreshed alert
-  and quota witnesses, `AUTO-M5-EXIT`, and milestone owner acceptance remain
-  **Not Run**; the canonical gate state remains `not_run`.
+- **V1-M5:** implementation is **Intermediate**. The active service remains the
+  plan-1.16 clean detached revision `35f50d8`. Its sixth evidence-preserving rollover,
+  four-account owner outcome, complete authenticated alert-history proof,
+  source-proven alert witness, and official `/status` quota witness passed.
+  `AUTO-M5-EXIT` then failed immediately as
+  `m5_current_story_artifact_missing` because one intentional pytest node ID was
+  checked as a literal filename; it created no completion receipt. Owner-
+  approved plan 1.17 corrects only that static artifact check and authorizes one
+  exact seventh rollover from `35f50d8`. Both focused Reds failed as expected;
+  current-exit passes `69`, activation `47`, dispatcher `3`, and the combined
+  selection `119`. The exact Python Story inventory is `562` identifiers with
+  SHA-256
+  `4ca56497a7fdaa1e80c7c01a3ee1e41c2029288966b1fe969790606fad0cbb7b`.
+  Planning, documentation, build, quality, pinned mutation, M3 regression, and
+  the full local test gate pass; independent review is CLEAN. Clean committed
+  Git preflight, corrected-candidate containment, the seventh rollover,
+  refreshed prerequisites, a passing `AUTO-M5-EXIT`, and milestone owner
+  acceptance remain required. The latest canonical result is `failed` on
+  `35f50d8`; the corrected candidate is `not_run`.
 - **V1-M6 through V1-M8:** Planned; their canonical gates have not run.
 
 The approved [M3 scope correction](evidence/m3-scope-correction-2026-10-02.md)

@@ -969,3 +969,24 @@ alert and quota witnesses, `AUTO-M5-EXIT`, and owner acceptance remain absent
 or Not Run. M5 remains Intermediate with canonical gate state `not_run`.
 
 Plan snapshot SHA-256: `d56f6e27de1bf918a2b27d99fe2287900312dbd63036ea3418c5a40d9216fe09`
+
+## 2026-10-23 approved M5 1.17.0 artifact-selector readiness rebind
+
+The synchronized Draft snapshot now binds the automation catalog to the
+owner-approved focused M5 plan 1.17.0 correction. The static Story artifact
+check, exact seventh-rollover policy, and their focused tests are locally
+Green and independently reviewed CLEAN. The exact Python Story inventory is
+`562` identifiers with SHA-256
+`4ca56497a7fdaa1e80c7c01a3ee1e41c2029288966b1fe969790606fad0cbb7b`.
+
+Only the `automation-routines` control changed among canonical synchronized
+inputs. The 20 canonical plan bodies, public contract versions and meanings,
+the other eight controls, and canonical approval flags remain unchanged. The
+active service remains exact revision
+`35f50d8c4865505a9112d8aef7ea788f425ae658`; its failed exit created no
+completion receipt. Clean-candidate preactivation, the seventh rollover,
+refreshed prerequisites, corrected `AUTO-M5-EXIT`, and owner acceptance remain
+Not Run. M5 remains Intermediate: the latest canonical gate state is `failed`
+on `35f50d8`, while the corrected candidate is `not_run`.
+
+Plan snapshot SHA-256: `abdcd4baaca4a5bb080ff0d536c729cea8a3ce6ed96473fd7741300a7b9ecbaa`

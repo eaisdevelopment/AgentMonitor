@@ -200,9 +200,9 @@ STORY_NODE_TEST_INVENTORY_SHA256 = (
 )
 STORY_BROWSER_SCENARIOS = ("account_beyond_page",)
 # Updated only from the exact collected inventory after intentional test changes.
-STORY_PYTEST_TEST_COUNT = 557
+STORY_PYTEST_TEST_COUNT = 562
 STORY_PYTEST_TEST_INVENTORY_SHA256 = (
-    "f9bf5d58f37032239377741a8ab74f96c220348cf5cad46323c47e6c71682035"
+    "4ca56497a7fdaa1e80c7c01a3ee1e41c2029288966b1fe969790606fad0cbb7b"
 )
 STORY_ARTIFACTS = (
     "tools/git/preflight.py",
@@ -299,6 +299,19 @@ class CreatedM5ReceiptV1:
     descriptor: int
     device: int
     inode: int
+
+
+def _missing_story_artifacts_v1(
+    root: Path, artifacts: tuple[str, ...]
+) -> tuple[str, ...]:
+    """Return static selectors whose source artifacts are absent."""
+
+    missing: list[str] = []
+    for artifact in artifacts:
+        source_path = artifact.partition("::")[0]
+        if not source_path or not (root / source_path).exists():
+            missing.append(artifact)
+    return tuple(missing)
 
 
 def _translated_service_error_v1(
@@ -1962,7 +1975,7 @@ def main() -> int:
     retained_transition_guard_descriptor = -1
     pending_base_exception: BaseException | None = None
     try:
-        missing = tuple(path for path in STORY_ARTIFACTS if not (ROOT / path).exists())
+        missing = _missing_story_artifacts_v1(ROOT, STORY_ARTIFACTS)
         if missing:
             raise M5CurrentExitFailedV1("m5_current_story_artifact_missing")
         environment = os.environ.copy()

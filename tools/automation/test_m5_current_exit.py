@@ -443,10 +443,10 @@ def test_catalog_selects_exact_m5_gate_and_closed_lanes() -> None:
     routine = next(item for item in catalog["routines"] if item["id"] == "AUTO-M5-EXIT")
 
     assert activation["status"] == "operational_limited"
-    assert "six revision-pinned" in activation["scope"]
-    assert "8cc683d946b58f5eb72955e08a520195582e1a28" in activation["scope"]
-    assert "m5-service-activation-corrective-archive-8cc683d" in activation["scope"]
-    assert "seven revision-pinned" not in activation["scope"]
+    assert "seven revision-pinned" in activation["scope"]
+    assert "35f50d8c4865505a9112d8aef7ea788f425ae658" in activation["scope"]
+    assert "m5-service-activation-corrective-archive-35f50d8" in activation["scope"]
+    assert "no eighth rollover" in activation["scope"]
     assert archive["status"] == "operational"
     assert archive["implementation_command"] == [
         "backend/.venv/bin/python",
@@ -507,9 +507,9 @@ def test_catalog_selects_exact_m5_gate_and_closed_lanes() -> None:
     assert auto_m5_current_exit.STORY_NODE_TEST_INVENTORY_SHA256 == (
         "ac6afb5a290f5bf5940581ef13db21acccce947f3d40f97b498b57189f2db7e7"
     )
-    assert auto_m5_current_exit.STORY_PYTEST_TEST_COUNT == 557
+    assert auto_m5_current_exit.STORY_PYTEST_TEST_COUNT == 562
     assert auto_m5_current_exit.STORY_PYTEST_TEST_INVENTORY_SHA256 == (
-        "f9bf5d58f37032239377741a8ab74f96c220348cf5cad46323c47e6c71682035"
+        "4ca56497a7fdaa1e80c7c01a3ee1e41c2029288966b1fe969790606fad0cbb7b"
     )
     assert "tools/git/test_preflight.py" in STORY_TEST_PATHS
     assert STORY_AUTOMATION_TEST_IDS == (
@@ -636,6 +636,29 @@ def test_catalog_selects_exact_m5_gate_and_closed_lanes() -> None:
         )
         assert type(git_failed) is M5CurrentExitFailedV1
         assert str(git_failed) == "m5_current_git_revision_failed"
+
+
+def test_story_artifact_check_resolves_pytest_node_id_to_source_file() -> None:
+    selector = (
+        "backend/tests/integration/capacity/test_m4_event_delivery.py::"
+        "test_acknowledged_event_evidence_selector_bounds_fail_closed"
+    )
+
+    assert auto_m5_current_exit._missing_story_artifacts_v1(ROOT, (selector,)) == ()
+
+
+def test_story_artifact_check_keeps_missing_node_source_fail_closed() -> None:
+    selector = "backend/tests/missing_story_source.py::test_missing_story"
+
+    assert auto_m5_current_exit._missing_story_artifacts_v1(ROOT, (selector,)) == (
+        selector,
+    )
+
+
+def test_story_artifact_check_preserves_ordinary_artifact_behavior() -> None:
+    artifact = "tools/git/preflight.py"
+
+    assert auto_m5_current_exit._missing_story_artifacts_v1(ROOT, (artifact,)) == ()
 
 
 def test_gate_admission_constants_match_the_codex_manifest() -> None:
