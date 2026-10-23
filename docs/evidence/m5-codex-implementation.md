@@ -27,24 +27,12 @@
   `1.0.0-draft.2`; `codex-adapter.v1` adapter `1.0.2`; Codex
   subscription capability schema `1.0`; REST `/api/v1`; database head
   `v1_0707` unchanged.
-- Commit/worktree reference: the first four corrective archives passed, and
-  exact service activation passed at
-  `d81afab9e5b1c1dbdb690f390e77cee66eba5437`. The real quota-witness Red was
-  observed against that service. The focused projection correction is commit
-  `1e4b9cd3fcaa68ad091480af365694eef9c40722`; the fifth-rollover policy is
-  commit `d4f4743a319ad740ab683a53e9e8afa7cc467059`. Effective-containment policy
-  is commits `1143d964e72628f0b9060849098d60da213634f9` and
-  `f4d4bf734e935ce6503b1aa8c81e950e4e875af2`; required bound coverage and the
-  exact Story inventory rebind are commit
-  `d71b79c396ce9ad524bc1430425a0b788d93e08a`. The plan 1.13 containment
-  implementation is commit `d84359336871b115e365dba0576296c43f017a1d`, and
-  its in-scope numeric-dirfd trace representation correction is commit
-  `f1c2c2e9a7f4434c49014646bff220273282603b`. Clean plan 1.14 checkpoint
-  `842a4d4da20b1286d4d68b03b46f88a9cd66504e` passed the complete
-  preactivation set before its authenticated containment run exposed further
-  real Arg0 behavior. Plan 1.15 is owner-approved; its current implementation
-  is a working-copy feedback checkpoint and has no clean implementation
-  revision yet. No clean revision has passed the canonical M5 gate.
+- Commit/worktree reference: approved plan 1.15 implementation commit
+  `8cc683d946b58f5eb72955e08a520195582e1a28` passed the complete
+  preactivation set and zero-skip authenticated Codex `0.160.0` containment
+  rerun. Its two-stage fifth corrective activation passed and made that clean
+  detached revision the receipt-bound live service. No clean revision has yet
+  passed the canonical M5 completion gate.
 - Recorder/date: Codex integration record, 2026-10-08; retained-history retry
   update, 2026-10-09; exact-revision transition and concurrency update,
   2026-10-16; alert browser-proof termination and P02 canonical-browser
@@ -52,68 +40,43 @@
   containment updates, 2026-10-21; descriptor metadata, mount topology,
   descriptor-bound truncation, numeric-dirfd trace representation, process
   cleanup, Arg0 alias and lock-child lifecycles, and authenticated Arg0
-  follow-up updates, 2026-10-22.
-- Overall status: **Intermediate**. The fourth corrective rollover preserved
-  the earlier archive chain and activated exact `d81afab` with real service,
-  HTTP, authenticated-browser, Registry, database, rollback, and receipt proof.
-  Owner outcomes, genuine scheduled collection lineage, and a complete source-
-  proven alert lifecycle plus `AUTO-M5-ALERT-WITNESS` are current for that
-  service. The real `AUTO-M5-QUOTA-WITNESS` attempt completed its authenticated
-  API, DOM, retained-history, Registry, identity, collection-lineage, and zero-
-  mutation proof and accepted all four owner-entered quota windows. Final
-  reconciliation returned `m5_quota_witness_input_invalid` and created no
-  private file. Approved plan 1.9.0 keeps `current_observation_id` for browser
-  and history binding, then projects the verified record to the closed five
-  provider-neutral fields before quota policy. Focused Green and the complete
-  quota-witness file passed `27` tests. The fifth-rollover policy passed its
-  focused cases, the complete `43`-test activation file, and exhaustive 73,728
-  transition and 448 activation-decision comparisons with zero mismatches. The
-  clean plan 1.14 checkpoint `842a4d4` passed the full preactivation set. Its
-  two authenticated feedback attempts exposed, in order, a no-effect
-  same-operation descendant `mkdir(...)= -1 EEXIST` and the official Codex
-  `0.160.0` Arg0 session plus regular `.lock` child lifecycle. Plan 1.15's
-  initial frozen implementation then passed `96` provider-free cases plus one
-  explicit uncredited authenticated live-selector skip across `552` subtests,
-  `66/66` current-exit cases, Ruff lint and format, strict production mypy, and
-  `git diff --check`. Two independent pre-live reviews were CLEAN.
+  follow-up updates, 2026-10-22; exact 1.15 preactivation, activation, fresh
+  owner/alert prerequisites, and alert-witness failure update, 2026-10-23.
+- Overall status: **Intermediate**. Clean revision `8cc683d` passed the full
+  preactivation set, including `104` automation tests, two Argon2 tests,
+  `1361` backend passes with only `37` gate-declared skips, the browser suites,
+  and every required canonical preactivation routine. The standalone
+  authenticated containment rerun then passed `1 passed in 4.03s` with zero
+  skips against pinned Codex `0.160.0`. The two-stage fifth activation passed
+  with real service, HTTP, authenticated browser, Registry, database,
+  rollback, and receipt proof.
 
-  The first authenticated 1.15 run against unchanged service `d81afab` and
-  pinned Codex `0.160.0` failed closed at the line guard. Privacy-safe
-  in-memory classification retained only the structural fact that official
-  pre-session root setup performs
-  `mkdir(arg0_root, 0777) = -1 EEXIST` followed by the already approved
-  `chmod(arg0_root, 0700)`. A focused test first failed on that exact shape.
-  The correction scopes the two broad Arg0 guards from exact session-`mkdir`
-  invocation through final fifth-child cleanup completion; negative records
-  invoked in or crossing that interval still fail closed.
+  Fresh revision/service-bound owner outcomes then passed with four total
+  records: three verified and one owner-unavailable. A genuine
+  post-confirmation Codex alert opening, distinct repeat, owner
+  acknowledgement, and recovery also passed. `AUTO-M5-ALERT-WITNESS` created
+  no witness. Its first read-only run exposed a quadratic complete-outbox
+  acknowledgement lookup over more than `36,000` real capacity events. The
+  unchanged canonical rerun completed the database proof, then failed closed
+  as `selected_alert_history_not_rendered`, surfaced as
+  `m5_alert_witness_browser_unavailable`: the versioned API returned all `192`
+  selected-alert history entries while the built Alerts page rendered `100`.
 
-  The corrected containment file passes `97` provider-free cases plus one
-  uncredited live-selector skip across `558` subtests. Current-exit passes
-  `66/66`; Ruff lint and format, strict production mypy, and
-  `git diff --check` are Green. The exact Story inventory is `547` identifiers
-  with SHA-256
-  `3a97e0103ae4ba3390d10567c9130821abaa7a5a7e9640cf0091bc56a49b6a0c`.
-  The focused post-correction official-source and code reviews were CLEAN. The
-  authenticated feedback rerun passed with zero skips: `1 passed in 3.79s`
-  against the unchanged service and pinned executable. This remains
-  working-copy feedback; current-revision preactivation and authenticated
-  rerun, fifth live rollover, refreshed prerequisites, authoritative `/status`
-  witness, `AUTO-M5-EXIT`, and final owner acceptance are **Not Run**. This
-  record is not milestone acceptance.
+  Proposed plan 1.16.0 is pending owner approval. It is limited to a bounded
+  exact-ID acknowledged-event query, complete cursor-paginated Alerts history
+  and browser proof, and one exact sixth evidence-preserving rollover from
+  `8cc683d`. No current alert witness, quota witness, or M5 completion receipt
+  exists. `AUTO-M5-QUOTA-WITNESS`, `AUTO-M5-EXIT`, and final owner acceptance
+  are **Not Run**. This record is not milestone acceptance.
 
 The primary production owner is A02 for provider behavior under
 `backend/src/agentmonitor/adapters/providers/codex/**`. Root integration owns
 composition, Registry/Collection/Capacity/Runtime/Alerting coordination, API,
 UI, automation, and live closure. P02 owns the React shell, styles, and browser
-runner correction. The current focused approved scope is plan `1.15.0`;
-its [V1-M5 Codex slice](../plans/integration/m5-codex-slice-change.md) retains
-all earlier corrections and the completed fourth rollover. Plans 1.11 through
-1.15 add only the inode-bound `chmod(..., 0700)` proof, complete descriptor
-metadata trace, strict mount topology, descriptor-bound `ftruncate`, safe
-channel/process cleanup, and the exact temporary Arg0 session, `.lock`, and
-four-alias lifecycle.
-They remain folded into the already approved, unrun fifth
-evidence-preserving rollover.
+runner correction. The current approved scope is plan `1.15.0`; its
+[V1-M5 Codex slice](../plans/integration/m5-codex-slice-change.md) retains all
+earlier corrections and the completed fifth rollover. Proposed plan `1.16.0`
+adds no authority until explicit owner approval.
 
 ## Contract-impact assessment
 
@@ -255,16 +218,16 @@ the clean-revision milestone gate.
 | M5 Node story inventory | Pure UI/gate policy and source wiring | Production policy modules and browser entrypoint sources | Passed | `19 passed`, zero skipped | Includes configurable capacity-alert presentation and the alert and quota browser verifiers' use of shared complete page readers. This is a development-checkout result, not a live browser witness. |
 | `AUTO-M3-TEST` dependency checkpoint | M3 contract and technical backend suites | Canonical routine on the development checkout | Passed | Two routine tests and `307` technical tests passed, zero skipped | Satisfies the local M3 dependency checkpoint; it does not establish an exact clean M5 revision. |
 | `AUTO-MUTATION` checkpoint | Critical pure-policy mutation | Canonical routine on the development checkout | Passed | `1708` mutants: `1698` killed, `10` independently accepted equivalent, `0` skipped | No non-equivalent survivor was admitted. This remains subject to the final clean-revision M5 gate. |
-| Quality, build, planning, documentation, and Git checkpoints | Static quality, generated artifacts/frontend build, repository validation, and local Git preflight | Canonical local routines on the development checkout | Clean `842a4d4` preactivation Passed; plan 1.15 focused checks Green | Clean revision `842a4d4` passed planning, documentation, build, quality, mutation, M3 regression, full local test, and Git preflight. The current working implementation passes Ruff lint/format, strict production mypy, and `git diff --check`; two pre-live reviews and both focused post-correction reviews were CLEAN. | The complete preactivation routine set must rerun after committing plan 1.15; exact-revision `AUTO-M5-EXIT` remains Not Run. |
+| Quality, build, planning, documentation, and Git checkpoints | Static quality, generated artifacts/frontend build, repository validation, and local Git preflight | Canonical local routines on the exact candidate | Passed on clean `8cc683d` | Planning, documentation, build, quality, mutation, M3 regression, full local test, and Git preflight all passed on the exact clean candidate; focused independent reviews were CLEAN. | Exact-revision `AUTO-M5-EXIT` remains Not Run. |
 | Full M5 Python story selection before live setup | Backend and automation Story scope | Real local boundaries plus explicit owner/provider selectors | Inventory rebound; zero-skip Story run pending | The exact inventory is `547` unique test identifiers with digest `3a97e0103ae4ba3390d10567c9130821abaa7a5a7e9640cf0091bc56a49b6a0c`. | Collection proves scope only. The complete selected suite with live selectors and zero skips remains Not Run. |
 | Canonical local regression checkpoint | Backend, API, browser, process and generated-client boundaries selected by `AUTO-TEST` | Real local processes, migrated SQLite, production HTTP, built frontend and installed Chrome | Passed operationally on final attempt | Final `AUTO-TEST`: 104 command tests; 2 Argon2 tests; backend `1361 passed, 37 skipped, 1 warning`; OpenAPI compatible with 67 operations; production build; 2 foundation browser tests; complete P02, security and hostile-resource lanes | Attempt 1 retained the real loaded Argon2 failure. Attempt 2 passed all 1361 backend tests but failed revocation as `browser_output_invalid` because an out-of-scope systemd wrapper could not access the user bus in the gate's PATH/PYTHONPATH-only environment. The approved direct-child runner was restored and the complete final attempt passed. Skipped owner/live selectors remain non-passing outside this local routine's declared scope. |
-| `AC-LIVE-002/004` four selected Codex outcomes and live identities | Provider/account | Four real owner-selected Codex accounts or explicit owner-unavailable outcomes | Passed for the current d81 prerequisite | `AUTO-M5-OWNER-OUTCOMES` passed for exact `d81afab` with four outcomes: three verified and one owner-unavailable. | This sanitized availability result contains no quota or acceptance claim. The approved fifth rollover will make it stale, so canonical archival and recollection remain required after that transition. |
-| `AC-LIVE-005`, `M5-CDX-COL/CAP` authoritative quota/history | Provider/DB/API/browser | Official Codex `/status`, fresh scheduled observations, current and retained history | Real witness Red; projection implementation Green | Current genuine lineage and all browser/API/history/Registry proofs completed against exact `d81afab`; final reconciliation returned `m5_quota_witness_input_invalid` and wrote no file. The focused correction and complete quota-witness file passed `27/27`. | The failure was the six-field browser/history record crossing the strict five-field quota-policy boundary. No authoritative witness pass is claimed. |
-| `AC-PROC-001..004`, `M5-CDX-RUN-001..008` representative processes | Linux/platform/browser | Five to six real Codex processes outside the managed-profile subtree | Available but canonical witness unrecorded | Six exact-version baseline Codex processes were alive during the d81 live work. | PID/start/executable reread, hierarchy/location, exclusion of managed children, and unresolved or owner-confirmed association remain required inside the canonical gate. |
-| `AC-ALERT-002`, `M5-CDX-ALERT-001..007` live lifecycle | DB/API/browser/provider | Genuine Codex capacity condition, fresh opening, repeated delivery, owner action, later source-proven recovery | Passed for the current d81 prerequisite | A fresh genuine lifecycle completed reopening, repeat, one owner acknowledgement, recovery, API/history/browser proof, and `AUTO-M5-ALERT-WITNESS` created the private current service-bound witness. | The witness is prerequisite evidence only and becomes stale after the approved fifth rollover. |
-| Authenticated managed-profile syscall containment | Linux/provider/security | Real authenticated managed Codex profile and `strace` | Plan 1.15 feedback Passed; exact clean-revision rerun Not Run | The first 1.15 run failed closed at the line guard on official pre-session Arg0-root setup. After the focused Red and interval correction, the rerun against unchanged d81 and pinned Codex `0.160.0` returned `1 passed in 3.79s` with zero skips. No completion receipt was written. | The passing result is feedback against the working implementation. Clean-revision preactivation and authenticated rerun, fifth activation, and `AUTO-M5-EXIT` remain pending. |
-| `M5-SVC-ACT-001..012`, `AUTO-M5-SERVICE-ACTIVATE` | Operations/service transition | Real user systemd manager, trusted persistent runtime, clean stable Git worktree, real HTTP and authenticated browser | First four rollover/activations Passed; fifth implementation local Green; live fifth Not Run | The fourth rollover preserved exact `e066d7e` and activated `d81afab`. Fifth-mode Red failed four focused cases because its constants were absent; Green passed those four, all `43` activation tests, Ruff/format/strict mypy, and exhaustive 73,728 transition plus 448 decision comparisons with zero mismatches. | This proves fifth-rollover policy and custody only. Its two live invocations target fixed parent `m5-service-activation-corrective-archive-d81afab` and remain Not Run. |
-| `M5-CDX-GATE-001..014`, canonical `AUTO-M5-EXIT` | Full local/live gate | Clean exact revision, selected running service, prerequisite receipts, all local gates with zero skips | Not Run | Plan 1.15 is local Green and has one zero-skip authenticated feedback pass against unchanged d81. The correction is not yet a committed, clean, preactivated revision; fifth activation and refreshed live prerequisites remain pending, and no final receipt exists. | Must pass every remaining lane before M5 completion can be claimed. |
+| `AC-LIVE-002/004` four selected Codex outcomes and live identities | Provider/account | Four real owner-selected Codex accounts or explicit owner-unavailable outcomes | Passed for the current `8cc683d` prerequisite | `AUTO-M5-OWNER-OUTCOMES` passed with four outcomes: three verified and one owner-unavailable. | This sanitized availability result contains no quota or acceptance claim and becomes stale after any sixth rollover. |
+| `AC-LIVE-005`, `M5-CDX-COL/CAP` authoritative quota/history | Provider/DB/API/browser | Official Codex `/status`, fresh scheduled observations, current and retained history | Current witness Not Run | The earlier d81 witness failure and its projection correction remain historical Green evidence. No revision-bound `8cc683d` quota witness was created. | Fresh authoritative `/status`, collection, API/DOM, and retained-history reconciliation remains required after the proposed sixth rollover. |
+| `AC-PROC-001..004`, `M5-CDX-RUN-001..008` representative processes | Linux/platform/browser | Five to six real Codex processes outside the managed-profile subtree | Historical availability; current canonical witness unrecorded | Six exact-version baseline Codex processes were alive during earlier d81 live work. | Current PID/start/executable reread, hierarchy/location, managed-child exclusion, and unresolved or owner-confirmed association remain required. |
+| `AC-ALERT-002`, `M5-CDX-ALERT-001..007` live lifecycle | DB/API/browser/provider | Genuine Codex capacity condition, fresh opening, repeated delivery, owner action, later source-proven recovery | Lifecycle Passed; canonical witness Failed | A current `8cc683d` opening, repeat, owner acknowledgement, and recovery passed. `AUTO-M5-ALERT-WITNESS` created no file: the first run exposed quadratic source-event proof and the unchanged rerun failed as `selected_alert_history_not_rendered`, surfaced as `m5_alert_witness_browser_unavailable`, with API `192` versus DOM `100`. | Proposed 1.16 corrects only the targeted lookup and complete UI history pagination; a fresh witness remains required after activation. |
+| Authenticated managed-profile syscall containment | Linux/provider/security | Real authenticated managed Codex profile and `strace` | Passed on exact clean revision | After complete preactivation, the standalone rerun against exact `8cc683d` and pinned Codex `0.160.0` returned `1 passed in 4.03s` with zero skips. | This is required live evidence but does not replace `AUTO-M5-EXIT`. |
+| `M5-SVC-ACT-001..012`, `AUTO-M5-SERVICE-ACTIVATE` | Operations/service transition | Real user systemd manager, trusted persistent runtime, clean stable Git worktree, real HTTP and authenticated browser | First five corrective rollover/activations Passed | The fifth two-invocation transition preserved the prior archive chain and activated exact `8cc683d` with service, browser, Registry, database, rollback, and receipt proof. | Proposed 1.16 authorizes no sixth transition unless explicitly approved; no seventh rollover is proposed. |
+| `M5-CDX-GATE-001..014`, canonical `AUTO-M5-EXIT` | Full local/live gate | Clean exact revision, selected running service, prerequisite receipts, all local gates with zero skips | Not Run | Exact `8cc683d` preactivation, authenticated containment, fifth activation, owner outcomes, and alert lifecycle passed, but no alert witness, quota witness, or final receipt exists. | Must pass every remaining lane before M5 completion can be claimed. |
 | macOS compatibility | Platform | Real macOS host | Blocked | No real Mac available | Outside Linux-first M5 acceptance; remains visible for V1. |
 
 ## Red evidence
@@ -1158,7 +1121,8 @@ path arguments did not yet satisfy the verifier's closed mutator-path proof, so
 the attempt is **Failed**, creates no completion evidence, and cannot be
 treated as a containment pass. The first two attempts had already failed as
 `m5_codex_containment_private_channel_invalid` after an empty result channel;
-neither result is credited. The fifth service rollover remains **Not Run**.
+neither result is credited. At that checkpoint the fifth service rollover was
+**Not Run**.
 Approved plan 1.11.0 limits the follow-up to inode-bound verification of
 the observed idempotent directory `chmod(..., 0700)` calls and distinct,
 sanitized private-channel failure classification. At that checkpoint its
@@ -1388,9 +1352,9 @@ result, or that the live selectors required by `AUTO-M5-EXIT` were available.
   passed in the cited focused handoffs. The canonical build, mutation,
   documentation, planning, and M3 dependency routines also passed as
   development-checkout checkpoints. Plan 1.8.0 `AUTO-QUALITY`, `AUTO-BUILD`,
-  and the final complete `AUTO-TEST` passed. Its clean-candidate Git preflight
-  is Not Run. The complete required routine set has not passed on one clean M5
-  revision, and `AUTO-M5-EXIT` remains outside the evidence recorded here.
+  and the final complete `AUTO-TEST` passed. The complete preactivation routine
+  set later passed on exact clean revision `8cc683d`; `AUTO-M5-EXIT` remains
+  outside the evidence recorded here.
 
 ## Real-system evidence
 
@@ -1399,12 +1363,12 @@ result, or that the live selectors required by `AUTO-M5-EXIT` were available.
 | Exact installed provider | Passed for installation/admission and empty-root safety | Exact Codex CLI `0.160.0`, installed schema, and local executable were used. The committed config-schema digest is recorded in the discovery/correction evidence. No authenticated quota claim is made. |
 | File-backed SQLite/migration | Passed for focused persistence and pagination | Fresh databases used the real migration chain and production repositories/commands. No M5 migration was needed. |
 | Production HTTP/generated client | Passed for focused account pagination and Codex API composition | Real loopback service, IAM/CSRF, versioned API, and generated client paths were exercised. `AUTO-BUILD` passed as an intermediate generated-artifact/build checkpoint; `AUTO-M5-EXIT` remains Not Run. |
-| Built Chrome UI | Passed for d81 prerequisite browser proofs; final corrected-candidate witness pending | The production frontend, authenticated shared Chrome, API, DOM, and retained history supplied the current d81 owner, alert, and quota-witness checks. The quota writer failed after those browser proofs at the policy-shape boundary and wrote no file. |
-| Linux process/filesystem | Passed for four service rollovers; corrected containment is local Green and remains Failed live | Real systemd, worktrees, files, links, guards, archive custody, browser, and rollback were exercised through exact d81 activation. Plan 1.13 plus the in-scope trace-representation correction pass `76` local containment cases plus `66` current-exit cases, including real mount, `/proc`, descriptor, numeric-dirfd unlink, and group-cleanup boundaries. The sole skipped containment case requires authenticated live selectors. The latest real attempt failed as `m5_codex_containment_trace_invalid`; no authenticated correction pass is recorded. |
-| Four live accounts | Passed for the current d81 prerequisite | `AUTO-M5-OWNER-OUTCOMES` passed against exact `d81afab` with four outcomes: three verified and one owner-unavailable. It must be archived and recollected after the approved fifth rollover. |
-| Authoritative live quota/history | Current lineage and browser proof Passed; official witness Failed | The real d81 quota-witness attempt reconciled owner readings from Codex `/status` through current API/DOM/history and then returned `m5_quota_witness_input_invalid` at the policy projection. It wrote no witness. The focused correction passed all `27` quota-witness tests. |
-| Genuine capacity alert lifecycle | Passed for the current d81 prerequisite | A genuine reopening, repeat, owner acknowledgement, newer recovery, API, rendered history, exact service revision, zero mutations, unchanged Registry, and browser proof passed `AUTO-M5-ALERT-WITNESS`. It becomes stale after the fifth rollover. |
-| Clean exact running revision | Exact `d81afab` activation Passed | The first four corrective rollovers preserved completed `6bfa69d`, `0634451`, `6d6e1aa`, and `e066d7e` transitions in fixed private archives, and the fourth rerun activated exact `d81afab`. The fifth-rollover implementation is local Green; both live fifth invocations and the separate `AUTO-M5-EXIT` receipt remain Not Run. |
+| Built Chrome UI | Current service Passed; complete alert-history proof Failed | The production frontend and authenticated shared Chrome remain healthy on exact `8cc683d`. The alert witness API oracle returned `192` retained entries while the built Alerts page rendered `100`, so the proof failed closed and wrote no witness. |
+| Linux process/filesystem | Five service rollovers and exact authenticated containment Passed | Real systemd, worktrees, guards, archive custody, browser, rollback, mount, `/proc`, descriptor, and process-group boundaries were exercised. The standalone exact-revision Codex `0.160.0` containment rerun passed with zero skips. |
+| Four live accounts | Passed for the current `8cc683d` prerequisite | `AUTO-M5-OWNER-OUTCOMES` passed with four outcomes: three verified and one owner-unavailable. It becomes stale after any approved sixth rollover. |
+| Authoritative live quota/history | Current witness Not Run | The earlier d81 quota-policy failure and its Green correction remain historical. A revision-bound `8cc683d` quota witness does not exist and must be refreshed after the proposed sixth activation. |
+| Genuine capacity alert lifecycle | Current lifecycle Passed; alert witness Failed | Opening, distinct repeat, owner acknowledgement, and source-proven recovery passed on `8cc683d`. The writer then exposed quadratic source lookup; its unchanged rerun reached the browser and failed with API `192` versus DOM `100`. No alert witness exists. |
+| Clean exact running revision | Exact `8cc683d` activation Passed | Five corrective rollovers are preserved in fixed private archives, and the fifth rerun activated exact `8cc683d`. Proposed 1.16 is pending approval for one exact sixth rollover; `AUTO-M5-EXIT` remains Not Run. |
 
 The provider discovery basis is
 [Codex 0.160.0 discovery](m5-codex-0.160.0-discovery.md). The later
@@ -1843,8 +1807,9 @@ independent final reviews are clean. The exact Story inventory is `525` unique
 identifiers with SHA-256
 `99c3b5f579aac5091939209c8f3603f88a283bb3a4444dbdfa10f8f1d91de15f`.
 No service, browser, provider profile, account, or running agent changed during
-this local checkpoint. Authenticated containment, canonical preactivation,
-fifth activation, refreshed witnesses, and `AUTO-M5-EXIT` remain Not Run.
+this local checkpoint. At that checkpoint authenticated containment, canonical
+preactivation, fifth activation, refreshed witnesses, and `AUTO-M5-EXIT` were
+Not Run.
 
 ## Plan 1.13 authenticated dirfd trace Red and local correction
 
@@ -2041,6 +2006,35 @@ this feedback boundary. It does not bind a committed clean candidate, activate
 the fifth service revision, refresh service-bound prerequisites, create the
 quota or final completion receipt, or accept M5.
 
+## Plan 1.15 exact-revision activation and alert-witness failure
+
+The final plan 1.15 implementation was committed as exact clean revision
+`8cc683d946b58f5eb72955e08a520195582e1a28`. Its complete preactivation set
+passed, and the standalone authenticated containment rerun returned
+`1 passed in 4.03s` with zero skips against pinned Codex `0.160.0`. The
+two-stage fifth corrective activation then passed and made that revision the
+receipt-bound live service. The dashboard returned HTTP 200.
+
+Fresh service-bound `AUTO-M5-OWNER-OUTCOMES` passed with three verified records
+and one owner-unavailable record. A genuine post-confirmation alert opening,
+distinct repeat, owner acknowledgement, and recovery also passed.
+
+The first read-only `AUTO-M5-ALERT-WITNESS` run exposed a quadratic source-event
+proof: the complete capacity outbox exceeded `36,000` events, and receipt JSON
+was scanned for every decoded event. It remained CPU-active for more than
+eleven minutes and was interrupted before create-once output; no witness file
+existed afterward. The unchanged canonical rerun completed the database proof
+and reached the browser, then failed closed as
+`selected_alert_history_not_rendered`, surfaced as
+`m5_alert_witness_browser_unavailable`. The versioned API returned all `192`
+selected-alert history entries while the built page rendered only `100`. No
+alert witness or completion receipt was created.
+
+Proposed plan 1.16.0 contains only the bounded exact-ID acknowledged-event
+lookup, complete cursor-paginated Alerts history and browser proof, and one
+exact sixth evidence-preserving rollover. It has no implementation authority
+until explicit owner approval.
+
 ## Data and secret review
 
 This document contains no secret, provider response, account identity, private
@@ -2051,62 +2045,40 @@ represented here only by sanitized result counts or public digests.
 
 ## Conclusion and residual gaps
 
-The cited evidence proves substantial M5 implementation progress through exact
-clean service revision `d81afab`: four evidence-preserving rollovers passed;
-owner outcomes, scheduled collection lineage, and the source-proven alert
-witness are current for that service; and six baseline external Codex processes
-were observed during the d81 live work for the eventual canonical selection.
-The authoritative quota
-attempt reached and passed every live browser/API/history/Registry boundary
-before exposing the strict policy-projection defect. It created no quota
-witness.
+The approved plan 1.15 implementation is active at exact clean revision
+`8cc683d946b58f5eb72955e08a520195582e1a28`. Complete preactivation,
+zero-skip authenticated containment, the fifth evidence-preserving rollover,
+fresh four-account owner outcomes, and a genuine current alert lifecycle all
+passed. This establishes substantial implementation and operational progress;
+it does not establish M5 completion.
 
-Owner-approved plan 1.9.0 corrects that one boundary without changing any
-provider, API, database, UI, schema, dependency, persistence, or quota
-semantics. Its focused and complete quota suites passed, and the exact fifth
-rollover policy passed the focused, complete, dispatcher, static, and
-exhaustive checks. Those local results do not complete M5.
-
-Owner-approved plans 1.10.0 through 1.15.0 correct the effective-root,
-inode-bound metadata, trace-completeness, mount-topology, descriptor-bound
-`ftruncate`, process-cleanup, and exact pinned Arg0 session, `.lock`, and alias
-lifecycle boundaries
-exposed by successive real and review Reds. The in-scope numeric-dirfd
-representation correction resolves the real `unlinkat` form under the same
-generic managed-write confinement. Clean `842a4d4` passed the complete
-preactivation set. Its first authenticated feedback run exposed one exact
-same-operation descendant `mkdir(...)= -1 EEXIST`; the narrow Red/Green
-correction retains a failed-rename guard. A second run exposed the official
-regular `.lock` child and session lifecycle, which plan 1.15 now implements.
-The first 1.15 authenticated run failed closed on official pre-session
-Arg0-root setup because two guards were too broad. The focused Red and interval
-correction now pass `97` provider-free cases plus one uncredited live-selector
-skip across `558` subtests and `66` current-exit cases; the exact
-`547`-identifier Story inventory digest is
-`3a97e0103ae4ba3390d10567c9130821abaa7a5a7e9640cf0091bc56a49b6a0c`.
-The corrected authenticated feedback rerun passed `1 passed in 3.79s` with
-zero skips against unchanged d81 and pinned Codex `0.160.0`. This is a
-working-copy feedback pass; no clean exact-revision preactivation, activation,
-or M5 completion is claimed.
+No current alert witness, quota witness, or M5 completion receipt exists. The
+alert-witness attempt exposed two bounded implementation defects: quadratic
+whole-outbox acknowledgement lookup and single-page Alerts rendering. Proposed
+plan 1.16.0 addresses only those defects and the exact rollover needed to bind
+new evidence to the corrected revision. It remains unapproved and
+unimplemented.
 
 Before any completion or acceptance claim, the integration owner must:
 
-1. finish review, commit one clean 1.15 candidate, pass all preactivation gates
-   and the standalone authenticated containment case again on that exact
-   revision, and detach it;
-2. run both fifth service-activation invocations, preserving the five fixed
-   transition archives and leaving the owner's authenticated Chrome open;
-3. archive the stale d81 prerequisites and recreate current owner outcomes,
-   scheduled lineage, genuine alert lifecycle, and alert witness for the new
-   service;
-4. reconcile every verified account with fresh official Codex `/status`,
+1. obtain explicit owner approval for plan 1.16.0;
+2. implement its exact bounded lookup, paginated UI/browser proof, and sixth
+   activation policy through Red, Green, refactor, full canonical preactivation,
+   and independent review on one clean candidate;
+3. perform exactly one two-stage sixth rollover from `8cc683d`, preserving and
+   revalidating all five existing archives;
+4. archive the stale service-bound prerequisites and recreate current owner
+   outcomes and one genuine alert opening or reopening, repeat, owner action,
+   and source-proven recovery;
+5. pass `AUTO-M5-ALERT-WITNESS` and create its private revision-bound witness;
+6. reconcile every verified account with fresh official Codex `/status`,
    current collection, API/DOM values, and retained history through corrected
    `AUTO-M5-QUOTA-WITNESS`;
-5. verify five to six representative external Codex processes without account
+7. verify five to six representative external Codex processes without account
    guessing or process control;
-6. run authenticated syscall containment for identity and quota with zero
+8. run authenticated syscall containment for identity and quota with zero
    default-profile access or write; and
-7. run `python3 tools/automation/run.py AUTO-M5-EXIT` with zero skips, retain
+9. run `python3 tools/automation/run.py AUTO-M5-EXIT` with zero skips, retain
    its private create-once exact-revision receipt, and present that exact result
    for owner review.
 

@@ -1,13 +1,13 @@
 # Change plan: executable V1-M5 Codex slice
 
-- Status: **Approved 1.15.0; implementation is authorized only for the exact
-  temporary Arg0 session and `.lock` lifecycle specified below. The
-  first authenticated 1.15 feedback run failed closed, its interval-scoping
-  correction passed a second authenticated feedback run, and activation has
-  not started.**
-- Plan version: `1.15.0`; owner approval: 2026-10-22. Version `1.14.0` remains
-  incorporated except where the exact session and `.lock` lifecycle below
-  extends its four-alias boundary.
+- Status: **Proposed 1.16.0; production implementation and a sixth live
+  rollover remain prohibited until explicit owner approval. Approved 1.15.0
+  is implemented and active at clean revision
+  `8cc683d946b58f5eb72955e08a520195582e1a28`. Its required live alert-witness
+  run exposed the two bounded blockers specified below and created no
+  witness.**
+- Plan version: proposed `1.16.0`; owner approval: pending. Approved version
+  `1.15.0` remains incorporated unchanged.
 - Safety correction: exact-version review proved that authenticated app-server
   queries may perform Codex's automatic credential refresh. The approved
   managed-auth lifecycle therefore classifies those queries as
@@ -15,9 +15,12 @@
   before any app-server child starts.
 - Owner: `PLAN-INT`, with A02 provider behavior and the exact PLAN-DEP/D01
   service-activation exception owned under this bounded change. Approved 1.8.0
-  is the sole bounded exception to PLAN-P02's Draft implementation prohibition;
-  PLAN-P02 remains semantic owner and the root integration agent acts as the
-  P02 shell steward for only the enumerated files, with no concurrent writer.
+  remains the sole active exception to PLAN-P02's Draft implementation
+  prohibition. Explicit owner approval of proposed 1.16.0 would add one
+  bounded exception for only the enumerated PLAN-M05 and PLAN-P02 files below;
+  those plans remain semantic owners, and the root integration agent acts as
+  their file steward with no concurrent writer. Until that approval, PLAN-M05
+  and PLAN-P02 production implementation remains prohibited.
 - Parent plans:
   [V1-M5 milestone](../../superpowers/plans/2026-09-19-agentmonitor-v1-m5-codex-slice.md)
   and [A02 adapter](../adapters/codex/plan-v1.md).
@@ -47,7 +50,11 @@
   exact pinned Codex 0.160.0 temporary Arg0 symlink lifecycle specified below;
   the owner's explicit 2026-10-22 approval of version 1.15.0 adds only the
   exact session creation and literal `.lock` regular-file child lifecycle
-  specified below;
+  specified below. Proposed version 1.16.0 has no implementation or rollover
+  authority until explicit owner approval; that approval would supersede only
+  the earlier statement that 1.8.0 is the sole PLAN-P02 exception and would
+  add only the enumerated PLAN-M05, PLAN-P02, witness, and sixth-rollover scope
+  below;
   all remaining A02, OpenAI API, PLAN-DEP/D01, and
   `AUTO-DEPLOY` lanes stay Draft or Blocked as already recorded.
 - Stories: `ST-CDX-001..005`.
@@ -55,7 +62,7 @@
   `FR-QUOTA-001..006`, `FR-COL-003..008`, `FR-HIST-001/002`,
   `FR-DISC-001/003/004/006/008`, `FR-STATE-001/002`, `FR-SAFE-002`,
   `FR-ALERT-002..006`, `FR-UI-001..006`, `FR-IAM-001/003`,
-  `NFR-API-001/002`,
+  `NFR-API-001/002`, `NFR-ARCH-002`,
   `NFR-TEST-001/002`,
   `NFR-SEC-001`, `NFR-PRIV-001/002`, `NFR-RES-001`, `NFR-OBS-001`,
   `NFR-COMP-001`, and `NFR-DOC-001`.
@@ -2358,6 +2365,277 @@ committed as one clean revision, the complete preactivation set and standalone
 authenticated test must pass again on that exact revision, and the fifth
 activation plus refreshed prerequisites and `AUTO-M5-EXIT` remain required.
 This checkpoint is not activation, milestone completion, or owner acceptance.
+
+## Proposed bounded alert-witness scale correction — 2026-10-23
+
+**Status: Proposed 1.16.0. Implementation and live rollover remain prohibited
+until explicit owner approval.**
+
+Plan 1.16.0 incorporates approved 1.15.0 and changes only the two real-system
+failures below plus one exact sixth corrective rollover from
+`8cc683d946b58f5eb72955e08a520195582e1a28`.
+
+### Current real-system evidence
+
+The fifth rollover activated clean revision
+`8cc683d946b58f5eb72955e08a520195582e1a28`. Its complete preactivation set,
+zero-skip authenticated containment rerun, two-stage service transition, fresh
+four-account owner outcome, and a genuine post-confirmation Codex alert
+opening, repeated delivery, owner acknowledgement, and recovery all passed.
+The dashboard remained HTTP 200 on the exact receipt-bound service.
+
+`AUTO-M5-ALERT-WITNESS` then exposed two independent defects:
+
+1. The writer searched the complete capacity outbox for three source event
+   IDs. At the observed snapshot the owner database held more than `36,000`
+   capacity events and matching commit receipts. Every decoded event performed
+   an unindexed `json_each` scan of the receipt set, making this path
+   quadratic. A bounded read-only run remained CPU active for more than eleven
+   minutes, had performed hundreds of gigabytes of logical reads, and was
+   interrupted before create-once output. No witness file existed.
+2. The next unchanged canonical run completed that database proof and reached
+   the authenticated browser. The versioned API returned all `192` retained
+   entries for the selected recovered alert, while the built Alerts page
+   requested and rendered only its first `100`. The proof failed closed as
+   `selected_alert_history_not_rendered`, surfaced as
+   `m5_alert_witness_browser_unavailable`, and again created no witness.
+
+Read-only inspection also found real alert histories beyond one 200-entry
+page. Changing only the current `100` limit to `200` would therefore preserve
+silent truncation and is outside this proposal.
+
+### Requirement and scenario binding
+
+- `M5-CDX-ALERT-008` adds and verifies the exact-ID acknowledged-event read
+  for `FR-ALERT-004/005`, `AC-ALERT-002`, `NFR-ARCH-002`,
+  `NFR-TEST-001/002`, and `AC-TEST-001/003/006`.
+- `M5-CDX-UI-013` defines and verifies complete alert-history pagination for
+  `FR-HIST-002`, `FR-ALERT-005`, `FR-UI-002/005`, `AC-ALERT-002`,
+  `AC-UI-002/005`, and `AC-TEST-001/003/006`.
+- `M5-CDX-UI-014` is the authenticated built-browser equality and
+  zero-mutation proof for the same requirements and acceptance criteria.
+- `M5-SVC-ACT-021` is the exact sixth archive/activation scenario contributing
+  `NFR-RES-001`, `NFR-TEST-001/002`, and `AC-TEST-001/003/006` without
+  expanding general deployment authority.
+
+Their implementation evidence is appended to
+`docs/evidence/m5-codex-implementation.md`; none of these scenario IDs can be
+marked Passed until its named real boundary executes on the clean candidate.
+
+### Exact correction boundary
+
+#### Bounded acknowledged-capacity-event lookup
+
+Add the compatible internal M05 facade `ReadAcknowledgedCapacityEventsV1` under
+`CTR-CAP-004`. Its repository port is
+`CapacityEventEvidenceRepositoryV1.read_acknowledged_capacity_events`, and its
+immutable result is `AcknowledgedCapacityEventV1`, containing the existing
+typed `DurableEventV1[CapacityCommittedNoticeV1]`,
+`acknowledgement_receipt_id: OpaqueIdV1`, and `acknowledged_at: datetime`.
+`CTR-EVT-001` event and delivery semantics are consumed unchanged; this
+proposal does not publish or revise a PLAN-INT event contract.
+
+The facade accepts one consumer key matching the existing
+`[A-Za-z0-9_.-]{1,64}` grammar, one input-ordered tuple of between one and 200
+unique `OpaqueIdV1` event IDs, and one aware UTC `as_of` value. It returns one
+result per selector in the caller's exact order. Its closed
+`CapacityEventEvidenceErrorV1.code` vocabulary is:
+
+- `capacity_event_evidence_selector_invalid` for an invalid consumer, empty,
+  duplicated, over-200, malformed selector tuple, or invalid `as_of`;
+- `capacity_event_evidence_event_missing` when any selected event is absent;
+- `capacity_event_evidence_delivery_unacknowledged` when its exact consumer
+  delivery is absent or not acknowledged; and
+- `capacity_event_evidence_invalid` for a wrong event type, incomplete or
+  future acknowledgement proof, duplicate/conflicting row, or digest mismatch.
+
+The M5 witness maps `capacity_event_evidence_selector_invalid` and
+`capacity_event_evidence_invalid` to its existing
+`m5_alert_witness_source_event_invalid`, maps
+`capacity_event_evidence_event_missing` to
+`m5_alert_witness_source_event_missing`, and maps
+`capacity_event_evidence_delivery_unacknowledged` to
+`m5_alert_witness_source_event_unacknowledged`. It adds no evidence schema or
+public error.
+
+The SQLite implementation must perform one bounded parameterized selection
+that resolves `capacity_event_outbox` through its event-ID primary key and
+`capacity_event_delivery` through its composite `(event_id, consumer_key)`
+primary key. Every selected row must be an available
+`capacity.committed.v1` event with an acknowledged delivery, non-null proof,
+acknowledgement no later than `as_of`, and acknowledgement payload digest equal
+to the independently decoded event digest. Empty, duplicated, over-200,
+missing, partial, future, conflicting, malformed, or differently typed
+evidence fails closed. Only selected events are decoded; event order,
+delivery, replay, acknowledgement, and payload semantics do not change.
+
+For the live witness the selector count is exactly three, the repository may
+execute one bounded selection and decode exactly three rows, and
+`read_capacity_events` pagination is prohibited. Existing producer-version
+resolution may scan `capacity_commit_receipt`/`json_each` at most once for each
+of those three selected events; it must never run once per outbox event.
+`EXPLAIN QUERY PLAN` must show indexed lookup for both the outbox and delivery
+tables. Against the current owner database at its observed
+greater-than-36,000-event scale, the exact three-event repository call must
+finish within 30 monotonic seconds; timeout, a scan of either indexed table, a
+fourth decoded event, more than three producer-version resolutions, or any
+whole-outbox traversal fails the focused gate.
+
+The M5 alert witness must replace its full-outbox source lookup and three
+full-outbox acknowledgement scans with one targeted query for exactly the
+distinct opening, repeated, and recovery source event IDs and fixed consumer
+`m07-alert-capacity-v1`. For each stage it must also use M07's existing
+published capacity-event receipt lookup and prove equal event ID,
+acknowledgement receipt ID, acknowledgement/processed time, and payload
+digest. Query results remain in memory. Only the existing sanitized digests
+enter the private witness; its schema does not change.
+
+#### Complete cursor-paginated history in the built Alerts UI
+
+Keep the existing `/api/v1/alerts/{alert_id}/history` contract and 200-row
+maximum page size. The generated-client wrapper must accept an optional cursor
+and request at most 200 entries. The Alerts page must retain the first page,
+show a card-scoped **Load more history** control when `has_more` is true,
+request exactly the returned cursor, and append entries in API order without
+discarding prior entries.
+
+A pure pagination policy must reject missing, empty, control-character,
+repeated, or mismatched cursors; terminal pages that retain a cursor;
+duplicate event IDs or aggregate sequences; another alert ID; and
+non-progressing chronology. Cursor length remains the existing API bound of
+one through 1,024 characters. Entries must be strictly ordered by
+`aggregate_sequence ASC`, matching M07. A later invalid or unavailable page
+preserves the already rendered history and presents a visible error. It never
+guesses that the history is complete.
+
+The M5 browser proof must use an all-page API oracle bounded to 200 pages of
+200 entries, at most 40,000 unique entries and 199 progressing cursor
+transitions after the first page. It validates terminal cursor state and the
+unique ascending sequence, then uses only the selected card's history control
+for at most 199 clicks until the UI reaches the same terminal sequence. A
+nonterminal 200th page, 40,001st entry, over-1,024-character cursor, repeated
+cursor, or non-progressing sequence fails closed. The complete rendered count,
+order, and digest must equal the API oracle. The proof remains read-only and
+requires zero dashboard mutations.
+
+### Authorized files after approval
+
+Production and integration code is limited to:
+
+- `backend/src/agentmonitor/modules/capacity/application/events.py`;
+- `backend/src/agentmonitor/modules/capacity/application/queries.py`;
+- `backend/src/agentmonitor/adapters/persistence/capacity/sqlite/repository.py`;
+- `tools/automation/implementations/m5_codex_alert_witness.py`;
+- `frontend/src/shared/api/client.ts`;
+- `frontend/src/shared/api/alertHistoryPagination.ts`;
+- `frontend/src/features/alerts/AlertsPage.tsx`;
+- `tools/ui/m5_registry_pages.mjs`;
+- `tools/ui/verify_m5_codex_alert_lifecycle.mjs`;
+- `tools/automation/implementations/m5_service_activation.py`;
+- `tools/automation/routines.toml`, limited to truthful sixth-rollover catalog
+  wording.
+
+Verification and inventory changes are limited to:
+
+- `backend/tests/integration/capacity/test_m4_event_delivery.py`;
+- `backend/tests/integration/alerting/test_codex_capacity_lifecycle.py`;
+- `tools/automation/test_m5_codex_alert_witness.py`;
+- `frontend/tests/pure/alert-history-pagination.mjs`;
+- `tools/ui/test_m5_codex_policy.mjs`;
+- `tools/automation/test_m5_service_activation.py`;
+- `tools/automation/test_m5_current_exit.py`; and
+- `tools/automation/implementations/auto_m5_current_exit.py`.
+
+Documentation is limited to this plan, implementation evidence, operations
+runbook, affected module/adapter pages, documentation indexes, and generated
+planning controls. Any additional production file requires a new approved
+amendment.
+
+### Contract, security, and data impact
+
+- `CTR-CAP-004` receives one compatible additive M05 internal read query.
+  `CTR-EVT-001` is consumed with unchanged event and delivery semantics.
+  `CTR-ALERT-001..005`, REST/OpenAPI fields, generated client schema, private
+  witness schemas, and completion receipt schemas do not change.
+- Database schema, migration chain, retention, scheduler, alert thresholds,
+  provider adapter, provider calls, authentication, collection, quota
+  semantics, Registry, and provider profiles do not change.
+- No dependency, lockfile, SBOM, notice, licence, compatibility migration, or
+  ADR change is required.
+- No account identity, provider/profile path, provider payload, prompt,
+  response, credential, arbitrary database row, or raw browser material may
+  enter logs or evidence.
+
+### Required Red, Green, and review evidence
+
+The retained real Reds are the quadratic owner-database run and the exact
+`192` API versus `100` DOM mismatch. Before production changes, focused tests
+must also fail because the public M05 boundary cannot read acknowledged events
+by exact ID, the pagination policy is absent, and the activation policy does
+not reserve `8cc683d` as a sixth rollover revision.
+
+Green must prove on real migrated file-backed SQLite that selector bounds fail
+closed; three genuine lifecycle IDs return exactly three input-ordered events
+despite decoys; missing or partial delivery proof fails closed; M05 and M07
+receipt IDs, times, and payload digests agree; and SQLite query-plan evidence
+uses the outbox event-ID and delivery composite primary keys. A real
+owner-database scale check must complete without whole-outbox event decoding.
+
+Pure pagination Green covers 192 terminal entries, exactly 200 terminal
+entries, 201 entries across two pages, cursor failures, duplicate IDs or
+sequences, wrong alert IDs, and non-progressing order. The production build
+and authenticated shared browser must render every selected history entry in
+API order and perform zero mutations.
+
+The complete affected backend, frontend, witness, browser-policy, activation,
+and current-exit suites; Ruff lint/format; strict mypy; frontend typecheck and
+build; API compatibility; documentation; planning; mutation; Git preflight;
+exact Story inventory; and standalone zero-skip authenticated containment must
+all pass on one clean candidate. Independent M05 contract/performance, P02
+browser, activation-safety, and security/privacy reviews must be clean.
+
+### Proposed sixth evidence-preserving rollover
+
+One sixth corrective rollover is proposed from exact revision
+`8cc683d946b58f5eb72955e08a520195582e1a28` into fixed namespace
+`m5-service-activation-corrective-archive-8cc683d`. The activation policy must
+append `8cc683d` as the sixth and final approved rollover revision, require the
+five existing archives as an unchanged ordered prefix, and reserve every
+completed revision from candidate selection.
+
+The first canonical invocation must validate the complete current transition,
+exact service/browser revision, clean detached checkout, Registry and database
+identity, rollback runtime, and all five archives. Under the existing
+exclusive guard it restores the trusted rollback service, atomically moves the
+complete transition directory without replacement into the sixth archive,
+fsyncs both parents, and returns the existing status-5 rerun result. The second
+invocation must revalidate all six archives and the prepared candidate before
+the existing rollback drill and activation. Descriptor, inode, digest,
+ownership, mode, link-count, collision, interruption, retry, and trusted
+restoration protections remain unchanged. Partial, multiple, unknown,
+replaced, linked, colliding, skipped-prefix, dirty-checkout, wrong-service, or
+wrong-revision states block without cleanup or replacement.
+
+After activation, the canonical sequence remains: archive stale prerequisites;
+create a new service-bound four-account owner outcome; complete one fresh
+genuine opening or reopening, distinct repeat, one owner action, and distinct
+source-proven recovery; pass `AUTO-M5-ALERT-WITNESS`; refresh genuine quota,
+process, and browser evidence; pass `AUTO-M5-QUOTA-WITNESS`; and immediately
+pass `AUTO-M5-EXIT`.
+
+### Explicit exclusions
+
+This proposal authorizes no seventh rollover, general deployment, event or
+history deletion, receipt rewrite, history truncation, retention change,
+server page-limit increase, hardcoded live counts or identities, migration,
+new index, REST/OpenAPI schema change, provider call/login/profile mutation,
+default-profile access, running-agent control, fabricated/replayed/edited
+telemetry, scheduler or provider behavior change, dependency change, M6, M7,
+M8, release, OpenAI API billing, or macOS acceptance.
+
+M5 remains **Intermediate** until this proposal is approved and implemented,
+the sixth rollover and refreshed live prerequisites pass, `AUTO-M5-EXIT`
+passes, and the owner separately accepts the milestone.
 
 ## Stop conditions
 

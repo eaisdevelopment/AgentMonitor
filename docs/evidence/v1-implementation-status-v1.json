@@ -1,9 +1,9 @@
 {
   "schema_version": "1.0.0",
   "record_type": "agentmonitor.v1_implementation_status",
-  "record_id": "V1-STATUS-2026-10-22-01",
-  "implementation_revision": "f1c2c2e9a7f4434c49014646bff220273282603b",
-  "recorded_at": "2026-10-22T12:23:15Z",
+  "record_id": "V1-STATUS-2026-10-23-01",
+  "implementation_revision": "8cc683d946b58f5eb72955e08a520195582e1a28",
+  "recorded_at": "2026-10-23T11:54:09Z",
   "planning_backlog": "docs/superpowers/plans/implementation-backlog.toml",
   "planning_backlog_sha256": "2e93367d304fda306776f8789db23c754798f6307277628f0565350d0dbb962e",
   "roadmap": "docs/roadmap.md",
@@ -118,7 +118,7 @@
         "docs/evidence/m5-codex-read-side-effect-blocker.md",
         "docs/evidence/m5-codex-implementation.md"
       ],
-      "decision": "Codex implementation remains Intermediate. Four corrective rollovers are preserved and the fourth activated exact clean detached revision d81afab9e5b1c1dbdb690f390e77cee66eba5437 with real service and browser proof; its owner outcomes, scheduled lineage, and alert witness passed. Owner-approved plans 1.10 through 1.13 plus the in-scope numeric-dirfd trace representation correction are locally Green. The containment file has 77 cases: 76 passed and the authenticated live-selector case was skipped; current-exit passed 66, and the exact 526-test inventory digest is 5b3c8dcbdcdff7303e7364417b6d7d5c6bd4efd3286fba48ba885bcf0bdd968e. Clean 87eb40d passed preactivation, then its real identity/quota containment run failed closed as m5_codex_containment_trace_invalid on numeric-dirfd unlinkat representation. Commit f1c2c2e corrects that boundary locally. Current-revision preactivation, corrected authenticated containment, fifth activation, refreshed prerequisites, authoritative /status reconciliation, AUTO-M5-EXIT, and owner acceptance remain Not Run. The canonical gate state remains not_run."
+      "decision": "Codex implementation remains Intermediate. Approved plan 1.15 passed the complete preactivation set and zero-skip authenticated containment, and the fifth corrective rollover activated exact clean detached revision 8cc683d946b58f5eb72955e08a520195582e1a28. Fresh four-account owner outcomes and a genuine post-confirmation alert opening, repeat, owner acknowledgement, and recovery passed. AUTO-M5-ALERT-WITNESS created no file: one run exposed a quadratic whole-outbox lookup over more than 36,000 real events, and the unchanged rerun failed closed because the API returned 192 selected-alert history entries while the built UI rendered 100. Proposed plan 1.16 is pending owner approval and is limited to a bounded exact-ID acknowledged-event lookup, complete cursor-paginated Alerts history, and one exact sixth evidence-preserving rollover. The current alert witness, quota witness, AUTO-M5-EXIT receipt, and owner acceptance remain absent or Not Run. The canonical gate state remains not_run."
     },
     {
       "milestone_id": "V1-M6",
@@ -442,7 +442,7 @@
         "docs/evidence/m5-codex-read-side-effect-blocker.md",
         "docs/evidence/m5-codex-implementation.md"
       ],
-      "decision": "The exact-version adapter, installation admission, and managed-profile safety implementation are present. Plans 1.10 through 1.13 plus the in-scope numeric-dirfd trace correction locally close effective-root, inode-bound metadata, complete trace, mount-topology, descriptor-bound ftruncate, unlinkat representation, and process-group cleanup boundaries without changing the provider contract. The containment file reports 76 local passes and one authenticated selector skip; current-exit reports 66 passes, and the exact 526-test inventory digest is 5b3c8dcbdcdff7303e7364417b6d7d5c6bd4efd3286fba48ba885bcf0bdd968e. Current-revision authenticated containment and the clean exact-revision M5 gate remain unrecorded."
+      "decision": "The exact-version adapter, installation admission, and managed-profile safety implementation are present through approved plan 1.15. Clean revision 8cc683d946b58f5eb72955e08a520195582e1a28 passed the complete preactivation set and the authenticated Codex 0.160.0 containment case with zero skips before the fifth corrective activation. The clean exact-revision M5 completion gate remains Not Run."
     },
     {
       "story_id": "ST-CDX-002",
@@ -454,7 +454,7 @@
         "docs/evidence/m5-codex-read-side-effect-blocker.md",
         "docs/evidence/m5-codex-implementation.md"
       ],
-      "decision": "Managed Codex connection, identity, and authentication-health implementation is present. AUTO-M5-OWNER-OUTCOMES passed for exact d81afab9e5b1c1dbdb690f390e77cee66eba5437 with four outcomes: three verified and one owner-unavailable. This private checkpoint contains no quota or acceptance result and must be archived and recollected after the approved fifth service rollover changes the revision and service."
+      "decision": "Managed Codex connection, identity, and authentication-health implementation is present. AUTO-M5-OWNER-OUTCOMES passed for exact active revision 8cc683d946b58f5eb72955e08a520195582e1a28 with four outcomes: three verified and one owner-unavailable. This private checkpoint contains no quota or milestone acceptance result and will become stale after any approved sixth rollover."
     },
     {
       "story_id": "ST-CDX-003",
@@ -466,7 +466,7 @@
         "docs/evidence/m5-codex-read-side-effect-blocker.md",
         "docs/evidence/m5-codex-implementation.md"
       ],
-      "decision": "Native Codex subscription mapping, collection, and capacity-history implementation is present. Current genuine scheduled lineage and authenticated API/DOM/history proof passed against exact d81afab9e5b1c1dbdb690f390e77cee66eba5437. The real quota witness then rejected the six-field browser/history record at the strict five-field policy boundary as m5_quota_witness_input_invalid and wrote no file. The approved projection correction passed its focused cases and all 27 quota-witness tests. Authoritative /status reconciliation remains unrecorded until the corrected candidate is activated and fresh lineage is collected."
+      "decision": "Native Codex subscription mapping, collection, and capacity-history implementation is present. The earlier quota-policy projection correction is included in active revision 8cc683d946b58f5eb72955e08a520195582e1a28, but a current revision-bound authoritative /status reconciliation and AUTO-M5-QUOTA-WITNESS file have not been created. They remain required after the proposed sixth activation."
     },
     {
       "story_id": "ST-CDX-004",
@@ -477,7 +477,7 @@
         "docs/evidence/m5-codex-0.160.0-discovery.md",
         "docs/evidence/m5-codex-implementation.md"
       ],
-      "decision": "Codex process discovery and guarded association implementation is present. Six exact-version baseline Codex processes were alive during the d81 live work, but the canonical five-to-six process selection, independent PID/start/executable reread, safe presentation, and association witness remain unrecorded."
+      "decision": "Codex process discovery and guarded association implementation is present. Six exact-version baseline Codex processes were observed during earlier live work, but a current revision-bound canonical five-to-six process selection, independent PID/start/executable reread, safe presentation, and association witness remain unrecorded."
     },
     {
       "story_id": "ST-CDX-005",
@@ -487,7 +487,7 @@
       "evidence_paths": [
         "docs/evidence/m5-codex-implementation.md"
       ],
-      "decision": "Codex HTTP, browser, health, alert, and completion-gate implementation is present. The fourth corrective rollover activated exact d81afab and its current owner and alert prerequisites passed. Plan 1.13 plus its in-scope trace-representation correction are local Green: 76 local containment cases passed, one authenticated live-selector case was skipped, current-exit passed 66, and the exact 526-test inventory digest is 5b3c8dcbdcdff7303e7364417b6d7d5c6bd4efd3286fba48ba885bcf0bdd968e. Clean 87eb40d passed preactivation before the latest authenticated attempt failed closed on numeric-dirfd unlinkat representation; commit f1c2c2e corrects that boundary locally. Current-revision preactivation, corrected authenticated containment, fifth activation, refreshed prerequisites, authoritative quota, canonical process witness, clean exact-revision AUTO-M5-EXIT, and owner acceptance remain Not Run. Canonical gate state remains not_run."
+      "decision": "Codex HTTP, browser, health, alert, and completion-gate implementation is present through approved plan 1.15 at active clean revision 8cc683d946b58f5eb72955e08a520195582e1a28. Its fifth corrective transition and fresh owner and alert lifecycle prerequisites passed. AUTO-M5-ALERT-WITNESS created no file because the source-event proof scales quadratically and the built Alerts page rendered only 100 of 192 API history entries. Proposed plan 1.16 is pending owner approval for those two bounded corrections and one exact sixth rollover. Current alert and quota witnesses, canonical process proof, AUTO-M5-EXIT, and owner acceptance remain absent or Not Run; canonical gate state remains not_run."
     },
     {
       "story_id": "ST-OLL-001",

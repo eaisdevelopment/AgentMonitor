@@ -26,40 +26,21 @@ Current program state:
   organizations, six fresh post-restart quota/history lineages, the guarded
   current-process witness, and every required technical, browser, and local
   quality lane with zero skips and zero registry mutations.
-- **V1-M5:** implementation is **Intermediate**. Four corrective rollovers
-  preserve the completed `6bfa69d`, `0634451`, `6d6e1aa`, and `e066d7e`
-  transitions in fixed private archives, and the fourth rerun activated exact
-  clean detached revision `d81afab` with real systemd, HTTP, authenticated
-  browser, Registry, database, rollback, and receipt proof. Owner outcomes,
-  fresh scheduled collection lineage, and a complete genuine alert lifecycle
-  plus `AUTO-M5-ALERT-WITNESS` are current for that service. The real
-  `AUTO-M5-QUOTA-WITNESS` attempt completed API, DOM, retained-history,
-  Registry, identity, lineage, and zero-mutation proof, then returned
-  `m5_quota_witness_input_invalid` at its strict five-field policy boundary and
-  created no file. The plan 1.9 quota-policy projection and fifth-rollover
-  policy are local Green. Owner-approved plans 1.10 through 1.15 have a locally
-  Green containment implementation for effective private roots, inode-bound
-  metadata, complete descriptor tracing, strict mount topology,
-  descriptor-bound `ftruncate`, numeric-dirfd `unlinkat` resolution,
-  pidfd-owned process-group cleanup, and the exact Codex `0.160.0` temporary
-  Arg0 session, `.lock`, and four-alias lifecycle. Clean revision `842a4d4`
-  passed every preactivation lane before its authenticated feedback exposed
-  the remaining Arg0 shapes. Plan 1.15's initial offline checkpoint passed
-  `96` cases plus one uncredited live-selector skip across `552` subtests. Its
-  first authenticated run failed closed because two broad guards incorrectly
-  included official pre-session Arg0-root setup. The focused Red and
-  interval-scoping correction now pass `97` cases plus one uncredited skip
-  across `558` subtests and `66/66` current-exit cases. The exact Story
-  inventory is `547` identifiers with SHA-256
-  `3a97e0103ae4ba3390d10567c9130821abaa7a5a7e9640cf0091bc56a49b6a0c`.
-  Two independent pre-live reviews and both focused post-correction reviews
-  are CLEAN. The authenticated feedback rerun passed
-  with zero skips against unchanged d81 and pinned Codex `0.160.0`. This is a
-  working-copy feedback result. A clean exact-revision preactivation and
-  authenticated rerun, the fifth live rollover, refreshed revision-bound prerequisites,
-  authoritative `/status` witness, clean exact-revision `AUTO-M5-EXIT`, and
-  owner acceptance are **Not Run**; the canonical gate state remains
-  `not_run`.
+- **V1-M5:** implementation is **Intermediate**. Approved plan 1.15 is active
+  at clean detached revision `8cc683d`. Its complete preactivation set,
+  zero-skip authenticated Codex `0.160.0` containment rerun, exact fifth
+  evidence-preserving service rollover, fresh four-account owner outcomes, and
+  genuine post-confirmation alert opening, distinct repeat, owner
+  acknowledgement, and recovery all passed. `AUTO-M5-ALERT-WITNESS` created no
+  witness: the first run exposed a quadratic whole-outbox acknowledgement
+  lookup at more than 36,000 real capacity events, and the unchanged rerun
+  failed closed because the versioned API returned all 192 selected-alert
+  history entries while the built UI rendered only the first 100. Proposed
+  plan 1.16 is limited to a bounded three-event acknowledgement lookup,
+  complete cursor-paginated Alerts history, and one exact sixth corrective
+  rollover from `8cc683d`. Production implementation remains prohibited until
+  owner approval. `AUTO-M5-QUOTA-WITNESS`, `AUTO-M5-EXIT`, and milestone owner
+  acceptance remain **Not Run**; the canonical gate state remains `not_run`.
 - **V1-M6 through V1-M8:** Planned; their canonical gates have not run.
 
 The approved [M3 scope correction](evidence/m3-scope-correction-2026-10-02.md)
@@ -68,7 +49,7 @@ The [M3 current-gate receipt](evidence/m3-current-gate-receipt-2026-10-03.json)
 and owner disposition records close the blockers retained by the historical
 [M3 closure audit](evidence/m3-closure-audit-2026-10-01.md).
 Owner: Pavlo Sidelov <pavlo@sidelov.com>  
-Last substantive review: 2026-10-22
+Last substantive review: 2026-10-23
 
 This index is the entry point for product, architecture, engineering, and operations documentation. Requirements marked **Approved** reflect the project interview. Items marked **Discovery** require Milestone 0 evidence. Items marked **Deferred** are intentionally outside V1.
 

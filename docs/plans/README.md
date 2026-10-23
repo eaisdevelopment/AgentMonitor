@@ -197,12 +197,21 @@ Directories are created when an approved planning assignment begins. Drafts stat
   uncredited skip across `558` subtests; current-exit passes `66/66`, and the
   exact `547`-identifier inventory digest is
   `3a97e0103ae4ba3390d10567c9130821abaa7a5a7e9640cf0091bc56a49b6a0c`.
-  The focused post-correction official-source and code reviews are CLEAN, and
-  authenticated feedback rerun passed zero-skip against unchanged d81 with
-  pinned Codex `0.160.0`. A clean exact-revision preactivation and rerun, the
-  fifth live transition, refreshed prerequisites,
-  `AUTO-M5-EXIT`, and owner acceptance remain Not Run. OpenAI API billing
-  remains V1-M7.
+  The focused post-correction official-source and code reviews were CLEAN, and
+  the authenticated feedback rerun passed zero-skip against unchanged d81
+  with pinned Codex `0.160.0`. Clean revision `8cc683d` then passed the full
+  preactivation set and exact authenticated rerun. Its two-stage fifth
+  transition, fresh four-account owner outcomes, and genuine post-confirmation
+  alert opening, distinct repeat, owner acknowledgement, and recovery passed.
+  `AUTO-M5-ALERT-WITNESS` created no witness: one run exposed a quadratic
+  whole-outbox acknowledgement lookup at more than 36,000 real events, and the
+  unchanged canonical rerun failed closed because the API returned all 192
+  selected-alert history entries while the built UI rendered only 100.
+  Proposed plan 1.16.0 is limited to a bounded three-event acknowledgement
+  lookup, complete cursor-paginated Alerts history, and one exact sixth
+  evidence-preserving rollover from `8cc683d`; implementation remains
+  prohibited until owner approval. `AUTO-M5-QUOTA-WITNESS`, `AUTO-M5-EXIT`,
+  and owner acceptance remain Not Run. OpenAI API billing remains V1-M7.
 - [Live agent account association](integration/live-agent-account-association-change.md):
   explicit manual confirmation, guarded current terminal details and private
   revisioned settings; the named owner-authorized live link/persistence gate Passed.
