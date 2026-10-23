@@ -55,7 +55,11 @@ from agentmonitor.modules.alerting.application.queries import (
     ListAlertHistoryV1,
     ListAlertsV1,
 )
-from agentmonitor.modules.capacity.application.events import ReadCapacityEventsV1
+from agentmonitor.modules.capacity.application.events import (
+    AcknowledgedCapacityEventV1,
+    CapacityEventEvidenceErrorV1,
+    ReadAcknowledgedCapacityEventsV1,
+)
 from agentmonitor.modules.capacity.application.queries import ListCapacityHistoryV1
 
 from tools.automation.implementations.auto_m3_current_exit import (
@@ -108,6 +112,25 @@ _SHA256 = re.compile(r"[0-9a-f]{64}\Z")
 
 class M5CodexAlertWitnessErrorV1(ValueError):
     """One bounded reason; no identity, provider payload, or filesystem path."""
+
+
+def capacity_event_evidence_witness_code_v1(
+    error: CapacityEventEvidenceErrorV1,
+) -> str:
+    """Map M05's closed evidence failures to the existing witness vocabulary."""
+
+    return {
+        "capacity_event_evidence_selector_invalid": (
+            "m5_alert_witness_source_event_invalid"
+        ),
+        "capacity_event_evidence_event_missing": (
+            "m5_alert_witness_source_event_missing"
+        ),
+        "capacity_event_evidence_delivery_unacknowledged": (
+            "m5_alert_witness_source_event_unacknowledged"
+        ),
+        "capacity_event_evidence_invalid": "m5_alert_witness_source_event_invalid",
+    }[error.code]
 
 
 def _revalidate_runtime_binding_v1(
@@ -527,52 +550,25 @@ def _candidate_alerts(
     )
 
 
-def _events_by_id(
+def _acknowledged_events_by_id(
     repository: SqliteCapacityRepositoryV1,
-    event_ids: frozenset[OpaqueIdV1],
+    event_ids: tuple[OpaqueIdV1, ...],
     *,
     as_of: datetime,
-) -> dict[OpaqueIdV1, DurableEventV1[CapacityCommittedNoticeV1]]:
-    reader = ReadCapacityEventsV1(repository)
-    after: str | None = None
-    selected: dict[OpaqueIdV1, DurableEventV1[CapacityCommittedNoticeV1]] = {}
-    for _ in range(512):
-        page = reader("m5-alert-witness-readonly", after, as_of, 200)
-        if page.availability.state != "available":
-            break
-        for event in page.events:
-            if event.envelope.event_id in event_ids:
-                selected[event.envelope.event_id] = event
-        if len(selected) == len(event_ids):
-            return selected
-        if page.next_cursor is None or page.next_cursor == after:
-            break
-        after = page.next_cursor
-    raise M5CodexAlertWitnessErrorV1("m5_alert_witness_source_event_missing")
+) -> tuple[AcknowledgedCapacityEventV1, ...]:
+    """Read exactly one bounded, input-ordered M05 acknowledgement selection."""
 
-
-def _require_event_already_acknowledged(
-    repository: SqliteCapacityRepositoryV1,
-    event_id: OpaqueIdV1,
-    *,
-    as_of: datetime,
-) -> None:
-    """Prove the alert consumer already acknowledged this persisted event."""
-
-    reader = ReadCapacityEventsV1(repository)
-    after: str | None = None
-    for _ in range(512):
-        page = reader("m07-alert-capacity-v1", after, as_of, 200)
-        if page.availability.state != "available":
-            break
-        if any(item.envelope.event_id == event_id for item in page.events):
-            raise M5CodexAlertWitnessErrorV1(
-                "m5_alert_witness_source_event_unacknowledged"
-            )
-        if page.next_cursor is None or page.next_cursor == after:
-            return
-        after = page.next_cursor
-    raise M5CodexAlertWitnessErrorV1("m5_alert_witness_delivery_state_incomplete")
+    try:
+        selected = ReadAcknowledgedCapacityEventsV1(repository)(
+            "m07-alert-capacity-v1", event_ids, as_of
+        )
+    except CapacityEventEvidenceErrorV1 as error:
+        raise M5CodexAlertWitnessErrorV1(
+            capacity_event_evidence_witness_code_v1(error)
+        ) from None
+    if tuple(item.event.envelope.event_id for item in selected) != event_ids:
+        raise M5CodexAlertWitnessErrorV1("m5_alert_witness_source_event_invalid")
+    return selected
 
 
 def _next_source_observation_cursor_v1(
@@ -814,7 +810,7 @@ def _source_delivery_receipt_digest(
     stages: tuple[
         tuple[
             str,
-            DurableEventV1[CapacityCommittedNoticeV1],
+            AcknowledgedCapacityEventV1,
             AlertHistoryEntryV1,
         ],
         ...,
@@ -822,13 +818,18 @@ def _source_delivery_receipt_digest(
 ) -> str:
     material: list[list[object]] = []
     generations: list[int] = []
-    for stage, event, transition in stages:
+    for stage, evidence, transition in stages:
+        event = evidence.event
+        # M07's published lookup rejects a persisted receipt whose payload digest
+        # differs from this independently decoded M05 event.
         receipt: AlertSignalReceiptV1 | None = repository.lookup_capacity_event(event)
         if (
             receipt is None
             or receipt.event_id != event.envelope.event_id
+            or receipt.receipt_id != evidence.acknowledgement_receipt_id
             or receipt.disposition != "applied"
             or alert_id not in receipt.alert_ids
+            or receipt.processed_at != evidence.acknowledged_at
             or receipt.processed_at != transition.occurred_at
         ):
             raise M5CodexAlertWitnessErrorV1(
@@ -843,6 +844,7 @@ def _source_delivery_receipt_digest(
                 receipt.disposition,
                 receipt.source_generation,
                 _utc_text(receipt.processed_at),
+                event.payload_digest,
                 sorted(item.value for item in receipt.alert_ids),
             ]
         )
@@ -911,6 +913,8 @@ def inspect_codex_alert_lifecycle_v1(
 ) -> CodexAlertLifecycleV1:
     """Bind one recovered alert to distinct open, repeat, and recovery events."""
 
+    if type(prove_deduplication) is not bool:
+        raise M5CodexAlertWitnessErrorV1("m5_alert_witness_source_event_invalid")
     alerts = SqliteAlertActionRepositoryV1(reference)
     candidates = _candidate_alerts(alerts, account_id, as_of=as_of)
     if alert_id is not None:
@@ -947,20 +951,19 @@ def inspect_codex_alert_lifecycle_v1(
     assert selected.opened.source_event_id is not None
     assert selected.repeated.source_event_id is not None
     assert selected.recovered.source_event_id is not None
-    events = _events_by_id(
+    acknowledged = _acknowledged_events_by_id(
         capacity,
-        frozenset(
-            (
-                selected.opened.source_event_id,
-                selected.repeated.source_event_id,
-                selected.recovered.source_event_id,
-            )
+        (
+            selected.opened.source_event_id,
+            selected.repeated.source_event_id,
+            selected.recovered.source_event_id,
         ),
         as_of=as_of,
     )
-    opening_event = events[selected.opened.source_event_id]
-    repeated_event = events[selected.repeated.source_event_id]
-    recovery_event = events[selected.recovered.source_event_id]
+    opening_evidence, repeated_evidence, recovery_evidence = acknowledged
+    opening_event = opening_evidence.event
+    repeated_event = repeated_evidence.event
+    recovery_event = recovery_evidence.event
     source_events = (opening_event, repeated_event, recovery_event)
     if (
         any(
@@ -987,18 +990,18 @@ def inspect_codex_alert_lifecycle_v1(
     ):
         raise M5CodexAlertWitnessErrorV1("m5_alert_witness_source_event_invalid")
     history_digest = _digest(_history_material(history))
-    if prove_deduplication:
-        for event in source_events:
-            _require_event_already_acknowledged(
-                capacity, event.envelope.event_id, as_of=as_of
-            )
     stage_events = (
         ("opening", opening_event, selected.opened),
         ("repeated", repeated_event, selected.repeated),
         ("recovery", recovery_event, selected.recovered),
     )
+    stage_evidence = (
+        ("opening", opening_evidence, selected.opened),
+        ("repeated", repeated_evidence, selected.repeated),
+        ("recovery", recovery_evidence, selected.recovered),
+    )
     source_delivery_receipt_digest = _source_delivery_receipt_digest(
-        alerts, alert.alert_id, stage_events
+        alerts, alert.alert_id, stage_evidence
     )
     source_event_digest = _digest(
         [

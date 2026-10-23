@@ -159,6 +159,8 @@ STORY_TEST_PATHS = (
     "backend/tests/adapters/providers/codex",
     "backend/tests/integration/api/test_codex_dashboard_composition.py",
     "backend/tests/integration/capacity/test_codex_capacity_history.py",
+    "backend/tests/integration/capacity/test_m4_event_delivery.py::"
+    "test_acknowledged_event_evidence_selector_bounds_fail_closed",
     "backend/tests/integration/collection_control/test_codex_composition.py",
     "backend/tests/integration/collection_control/test_codex_dashboard_collection.py",
     "backend/tests/integration/registry/test_codex_managed_connection.py",
@@ -187,19 +189,20 @@ STORY_AUTOMATION_TEST_IDS = (
 )
 STORY_NODE_TEST_PATHS = (
     "tools/ui/test_m5_codex_policy.mjs",
+    "frontend/tests/pure/alert-history-pagination.mjs",
     "frontend/tests/pure/alert-presentation.mjs",
     "frontend/tests/pure/provider-account-presentation.mjs",
     "frontend/tests/pure/quota-reset-presentation.mjs",
 )
-STORY_NODE_TEST_COUNT = 19
+STORY_NODE_TEST_COUNT = 21
 STORY_NODE_TEST_INVENTORY_SHA256 = (
-    "556bfd17af977e243e3a9c6c9b1372382cb1eaacfc46dd5136af736c4c76b41b"
+    "ac6afb5a290f5bf5940581ef13db21acccce947f3d40f97b498b57189f2db7e7"
 )
 STORY_BROWSER_SCENARIOS = ("account_beyond_page",)
 # Updated only from the exact collected inventory after intentional test changes.
-STORY_PYTEST_TEST_COUNT = 547
+STORY_PYTEST_TEST_COUNT = 557
 STORY_PYTEST_TEST_INVENTORY_SHA256 = (
-    "3a97e0103ae4ba3390d10567c9130821abaa7a5a7e9640cf0091bc56a49b6a0c"
+    "f9bf5d58f37032239377741a8ab74f96c220348cf5cad46323c47e6c71682035"
 )
 STORY_ARTIFACTS = (
     "tools/git/preflight.py",

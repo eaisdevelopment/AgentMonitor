@@ -38,9 +38,17 @@ Current program state:
   history entries while the built UI rendered only the first 100. Owner-
   approved plan 1.16 is limited to a bounded three-event acknowledgement lookup,
   complete cursor-paginated Alerts history, and one exact sixth corrective
-  rollover from `8cc683d`. `AUTO-M5-QUOTA-WITNESS`, `AUTO-M5-EXIT`, and
-  milestone owner acceptance remain **Not Run**; the canonical gate state
-  remains `not_run`.
+  rollover from `8cc683d`. Its bounded query, UI pagination, witness policy,
+  and sixth-rollover policy are locally Green; owner-scale lookup returned two
+  passes in `9.64s`, UI policy passed `17/17`, activation passed `45`,
+  current-exit passed `66`, and dispatcher passed `3`. Backend, UI, and
+  activation reviews are CLEAN. The exact Python Story inventory is `557`
+  identifiers with SHA-256
+  `f9bf5d58f37032239377741a8ab74f96c220348cf5cad46323c47e6c71682035`.
+  The active service is still `8cc683d`.
+  Authenticated complete-history proof, the sixth rollover, refreshed alert
+  and quota witnesses, `AUTO-M5-EXIT`, and milestone owner acceptance remain
+  **Not Run**; the canonical gate state remains `not_run`.
 - **V1-M6 through V1-M8:** Planned; their canonical gates have not run.
 
 The approved [M3 scope correction](evidence/m3-scope-correction-2026-10-02.md)

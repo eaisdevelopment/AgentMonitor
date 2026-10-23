@@ -293,6 +293,41 @@ def _event_query_valid(consumer_key: str, after_cursor: str | None, limit: int) 
     return sequence
 
 
+_ACKNOWLEDGED_CAPACITY_EVENT_EVIDENCE_SQL = (
+    "WITH selected AS ("
+    "SELECT CAST(j.key AS INTEGER) AS selector_ordinal, "
+    "CAST(j.value AS TEXT) AS selected_event_id FROM json_each(?) AS j"
+    ") SELECT selected.selector_ordinal, selected.selected_event_id, e.*, "
+    "d.event_id AS delivery_event_id, d.consumer_key AS delivery_consumer_key, "
+    "d.state AS delivery_state, d.acknowledged_at AS delivery_acknowledged_at, "
+    "d.ack_receipt_id AS delivery_ack_receipt_id, "
+    "d.ack_payload_digest AS delivery_ack_payload_digest "
+    "FROM selected LEFT JOIN capacity_event_outbox AS e "
+    "ON e.event_id=selected.selected_event_id "
+    "LEFT JOIN capacity_event_delivery AS d "
+    "ON d.event_id=e.event_id AND d.consumer_key=? "
+    "ORDER BY selected.selector_ordinal"
+)
+
+
+def _event_evidence_query_valid(
+    consumer_key: str,
+    event_ids: tuple[OpaqueIdV1, ...],
+    as_of: datetime,
+) -> None:
+    if (
+        type(consumer_key) is not str
+        or re.fullmatch(r"[A-Za-z0-9_.-]{1,64}", consumer_key) is None
+        or type(event_ids) is not tuple
+        or not 1 <= len(event_ids) <= 200
+        or any(not isinstance(event_id, OpaqueIdV1) for event_id in event_ids)
+        or len(set(event_ids)) != len(event_ids)
+        or not isinstance(as_of, datetime)
+        or as_of.utcoffset() != timedelta(0)
+    ):
+        raise CapacityRepositoryErrorV1("capacity_event_evidence_selector_invalid")
+
+
 def _event_record(
     connection: Connection, row: RowMapping
 ) -> DurableEventV1[CapacityCommittedNoticeV1]:
@@ -489,6 +524,119 @@ class SqliteCapacityRepositoryV1:
             raise
         except (SqlitePolicyError, SQLAlchemyError, ValueError, TypeError, KeyError):
             raise CapacityRepositoryErrorV1("capacity_event_read_unavailable") from None
+
+    def read_acknowledged_capacity_events(
+        self,
+        consumer_key: str,
+        event_ids: tuple[OpaqueIdV1, ...],
+        as_of: datetime,
+    ) -> tuple[
+        tuple[DurableEventV1[CapacityCommittedNoticeV1], OpaqueIdV1, datetime], ...
+    ]:
+        """Resolve only selected events and their exact durable delivery proof."""
+
+        _event_evidence_query_valid(consumer_key, event_ids, as_of)
+        selector_json = json.dumps(
+            [event_id.value for event_id in event_ids],
+            ensure_ascii=True,
+            separators=(",", ":"),
+        )
+        try:
+            with open_sqlite_database(
+                self._database_ref, "runtime_read_only"
+            ) as handle:
+                with handle.connect() as connection:
+                    if not _delivery_has_proof_columns(connection):
+                        raise CapacityRepositoryErrorV1(
+                            "capacity_event_evidence_invalid"
+                        )
+                    rows = (
+                        connection.exec_driver_sql(
+                            _ACKNOWLEDGED_CAPACITY_EVENT_EVIDENCE_SQL,
+                            (selector_json, consumer_key),
+                        )
+                        .mappings()
+                        .all()
+                    )
+                    if len(rows) != len(event_ids):
+                        raise CapacityRepositoryErrorV1(
+                            "capacity_event_evidence_invalid"
+                        )
+                    results: list[
+                        tuple[
+                            DurableEventV1[CapacityCommittedNoticeV1],
+                            OpaqueIdV1,
+                            datetime,
+                        ]
+                    ] = []
+                    for ordinal, (expected_id, row) in enumerate(
+                        zip(event_ids, rows, strict=True)
+                    ):
+                        if (
+                            row["selector_ordinal"] != ordinal
+                            or row["selected_event_id"] != expected_id.value
+                        ):
+                            raise CapacityRepositoryErrorV1(
+                                "capacity_event_evidence_invalid"
+                            )
+                        if row["event_id"] is None:
+                            raise CapacityRepositoryErrorV1(
+                                "capacity_event_evidence_event_missing"
+                            )
+                        if (
+                            row["delivery_event_id"] is None
+                            or row["delivery_state"] != "acknowledged"
+                        ):
+                            raise CapacityRepositoryErrorV1(
+                                "capacity_event_evidence_delivery_unacknowledged"
+                            )
+                        if (
+                            row["event_id"] != expected_id.value
+                            or row["delivery_event_id"] != expected_id.value
+                            or row["delivery_consumer_key"] != consumer_key
+                            or row["event_type"] != "capacity.committed.v1"
+                            or row["event_schema"] != "capacity.committed.v1"
+                            or row["delivery_acknowledged_at"] is None
+                            or row["delivery_ack_receipt_id"] is None
+                            or row["delivery_ack_payload_digest"] is None
+                        ):
+                            raise CapacityRepositoryErrorV1(
+                                "capacity_event_evidence_invalid"
+                            )
+                        event = _event_record(connection, row)
+                        acknowledged_at = _utc_value(
+                            str(row["delivery_acknowledged_at"])
+                        )
+                        if (
+                            _utc_value(str(row["available_at"])) > as_of
+                            or acknowledged_at > as_of
+                            or acknowledged_at < event.envelope.recorded_at
+                            or row["delivery_ack_payload_digest"]
+                            != event.payload_digest
+                        ):
+                            raise CapacityRepositoryErrorV1(
+                                "capacity_event_evidence_invalid"
+                            )
+                        results.append(
+                            (
+                                event,
+                                OpaqueIdV1(str(row["delivery_ack_receipt_id"])),
+                                acknowledged_at,
+                            )
+                        )
+            return tuple(results)
+        except CapacityRepositoryErrorV1 as error:
+            if error.code.startswith("capacity_event_evidence_"):
+                raise
+            raise CapacityRepositoryErrorV1("capacity_event_evidence_invalid") from None
+        except (
+            SqlitePolicyError,
+            SQLAlchemyError,
+            ValueError,
+            TypeError,
+            KeyError,
+        ):
+            raise CapacityRepositoryErrorV1("capacity_event_evidence_invalid") from None
 
     def acknowledge_capacity_event(
         self,

@@ -6,7 +6,10 @@ import {
   isExactServiceRevisionV1,
   publicRegistryDigestV1,
 } from "./m5_codex_policy.mjs";
-import { readAllRegistryItemsV1 } from "./m5_registry_pages.mjs";
+import {
+  readAllAlertHistoryV1,
+  readAllRegistryItemsV1,
+} from "./m5_registry_pages.mjs";
 
 const endpoint = process.env.AGENTMONITOR_TEST_DASHBOARD_CDP_ENDPOINT;
 const origin = process.env.AGENTMONITOR_TEST_DASHBOARD_ORIGIN;
@@ -105,8 +108,8 @@ try {
     && target.lifecycle === "recovered" && target.recovered_at !== null
     && Number.isInteger(target.record_version) && target.record_version > 0,
   "selected_codex_alert_not_recovered");
-  const history = await read(`/api/v1/alerts/${encodeURIComponent(alertId)}/history?limit=200`);
-  requireResult(history.availability.state === "available" && !history.page.has_more
+  const history = await readAllAlertHistoryV1(read, alertId);
+  requireResult(history.availability.state === "available"
     && history.items.some(item => ["opened", "reopened"].includes(item.transition))
     && history.items.some(item => item.transition === "repeated")
     && history.items.some(item => ["acknowledged", "snoozed"].includes(item.transition))
@@ -135,13 +138,67 @@ try {
   await card.getByText("Details and history", { exact: true }).click();
   const renderedHistory = card.locator("ol li");
   await renderedHistory.first().waitFor({ timeout: 15_000 });
+  let historyClicks = 0;
+  while (await renderedHistory.count() < history.items.length) {
+    requireResult(historyClicks < 199, "selected_alert_history_not_rendered");
+    const moreHistory = card.getByRole("button", {
+      name: "Load more history",
+      exact: true,
+    });
+    requireResult(await moreHistory.count() === 1,
+      "selected_alert_history_not_rendered");
+    const previousCount = await renderedHistory.count();
+    const [response] = await Promise.all([
+      page.waitForResponse(candidate => {
+        const url = new URL(candidate.url());
+        return url.origin === origin
+          && url.pathname === `/api/v1/alerts/${encodeURIComponent(alertId)}/history`
+          && candidate.request().method() === "GET";
+      }),
+      moreHistory.click(),
+    ]);
+    requireResult(response.ok(), "selected_alert_history_not_rendered");
+    await page.waitForFunction(
+      ({ selectedAlertId, count }) => {
+        const cardElement = [...document.querySelectorAll(".alert-card")]
+          .find(candidate => candidate.querySelector(
+            `li[data-alert-id="${CSS.escape(selectedAlertId)}"]`,
+          ));
+        return cardElement !== undefined
+          && cardElement.querySelectorAll("ol li").length > count;
+      },
+      { selectedAlertId: alertId, count: previousCount },
+      { timeout: 15_000 },
+    );
+    historyClicks += 1;
+  }
   requireResult(await renderedHistory.count() === history.items.length,
     "selected_alert_history_not_rendered");
-  for (let index = 0; index < history.items.length; index += 1) {
-    const text = await renderedHistory.nth(index).textContent();
-    requireResult(text.includes(history.items[index].transition.replaceAll("_", " ")),
-      "selected_alert_history_not_rendered");
-  }
+  requireResult(await card.getByRole("button", {
+    name: "Load more history",
+    exact: true,
+  }).count() === 0, "selected_alert_history_not_rendered");
+  const renderedItems = await renderedHistory.evaluateAll(elements => elements.map(element => ({
+    event_id: element.dataset.eventId,
+    alert_id: element.dataset.alertId,
+    aggregate_sequence: Number(element.dataset.aggregateSequence),
+    transition: element.dataset.transition,
+    occurred_at: element.dataset.occurredAt,
+    previous_lifecycle: element.dataset.previousLifecycle || null,
+    current_lifecycle: element.dataset.currentLifecycle,
+    previous_severity: element.dataset.previousSeverity || null,
+    current_severity: element.dataset.currentSeverity,
+    reason_code: element.dataset.reasonCode,
+    source_event_id: element.dataset.sourceEventId || null,
+  })));
+  requireResult(renderedItems.every((item, index) =>
+    item.event_id === history.items[index].event_id
+      && item.alert_id === alertId
+      && item.aggregate_sequence === history.items[index].aggregate_sequence),
+  "selected_alert_history_not_rendered");
+  const expectedHistoryDigest = sha256(historyMaterial(history.items));
+  requireResult(sha256(historyMaterial(renderedItems)) === expectedHistoryDigest,
+    "selected_alert_history_not_rendered");
 
   stage = "service_revision";
   const [liveness, versions] = await Promise.all([
@@ -178,7 +235,7 @@ try {
     presented_at: presentedAt.toISOString(),
     browser_presented: true,
     alert_record_version: target.record_version,
-    history_digest: sha256(historyMaterial(history.items)),
+    history_digest: expectedHistoryDigest,
     service_checked_at: serviceCheckedAt.toISOString(),
     service_versions_digest: sha256(versions),
     registry_digest_scope: "all-public-registry-fields-v1",

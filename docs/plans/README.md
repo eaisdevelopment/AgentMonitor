@@ -209,9 +209,16 @@ Directories are created when an approved planning assignment begins. Drafts stat
   selected-alert history entries while the built UI rendered only 100.
   Owner-approved plan 1.16.0 is limited to a bounded three-event acknowledgement
   lookup, complete cursor-paginated Alerts history, and one exact sixth
-  evidence-preserving rollover from `8cc683d`. `AUTO-M5-QUOTA-WITNESS`,
-  `AUTO-M5-EXIT`, and owner acceptance remain Not Run. OpenAI API billing
-  remains V1-M7.
+  evidence-preserving rollover from `8cc683d`. Its focused implementation is
+  local Green: the owner-scale query returned `2 passed in 9.64s`, UI policy
+  passed `17/17` with typecheck/build, activation passed `45`, current-exit
+  passed `66`, and dispatcher passed `3`. Backend, UI, and activation reviews
+  are CLEAN. The exact Python Story inventory is `557` identifiers with
+  SHA-256
+  `f9bf5d58f37032239377741a8ab74f96c220348cf5cad46323c47e6c71682035`.
+  The active service remains `8cc683d`; authenticated complete-history
+  proof, the live sixth rollover, refreshed witnesses, `AUTO-M5-EXIT`, and
+  owner acceptance are Not Run. OpenAI API billing remains V1-M7.
 - [Live agent account association](integration/live-agent-account-association-change.md):
   explicit manual confirmation, guarded current terminal details and private
   revisioned settings; the named owner-authorized live link/persistence gate Passed.

@@ -1,10 +1,14 @@
 import { useCallback, useEffect, useState } from "react";
 
 import {
+  appendAlertHistoryPageV1,
+  type AlertHistoryPaginationStateV1,
+} from "../../shared/api/alertHistoryPagination";
+import {
   alerts, CsrfUnavailableError, registry,
   type AccountViewV1, type AlertCommandWireV1,
-  type AlertHistoryPageV1, type AlertNotificationCountsWireV1,
-  type AlertNotificationPageV1, type AlertWireV1, type ClientResult,
+  type AlertNotificationCountsWireV1, type AlertNotificationPageV1,
+  type AlertWireV1, type ClientResult,
   type OrganizationViewV1,
 } from "../../shared/api/client";
 import { alertPresentation } from "./alertPresentation";
@@ -17,6 +21,15 @@ type ReadyState = Readonly<{
   accounts: readonly AccountViewV1[];
 }>;
 type PageState = ReadyState | Readonly<{ kind: "loading" | "error" }>;
+type AlertHistoryState =
+  | Readonly<{ kind: "loading" }>
+  | Readonly<{ kind: "error"; message: string }>
+  | Readonly<{
+      kind: "ready";
+      pagination: AlertHistoryPaginationStateV1;
+      loadingMore: boolean;
+      error: string | null;
+    }>;
 
 function accountName(alert: AlertWireV1, accounts: readonly AccountViewV1[]): string {
   if (alert.account_id === null) return "Account unresolved";
@@ -37,7 +50,7 @@ export function AlertsPage({
 }>) {
   const [selectedOrganization, setSelectedOrganization] = useState("");
   const [state, setState] = useState<PageState>({ kind: "loading" });
-  const [history, setHistory] = useState<Readonly<Record<string, AlertHistoryPageV1>>>({});
+  const [histories, setHistories] = useState<Readonly<Record<string, AlertHistoryState>>>({});
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
 
@@ -99,14 +112,102 @@ export function AlertsPage({
   }
 
   async function loadHistory(alertId: string) {
-    if (history[alertId] !== undefined) return;
+    if (histories[alertId] !== undefined) return;
+    setHistories((current) => ({
+      ...current,
+      [alertId]: current[alertId] ?? { kind: "loading" },
+    }));
     try {
       const result = await alerts.history(alertId);
-      if (result.ok) setHistory((current) => ({ ...current, [alertId]: result.data }));
-      else if (result.problem.code === "dashboard_authentication_required") onExpired();
-      else setMessage("Alert history could not be loaded.");
+      if (!result.ok) {
+        if (result.problem.code === "dashboard_authentication_required") onExpired();
+        else setHistories((current) => ({
+          ...current,
+          [alertId]: { kind: "error", message: "Alert history could not be loaded." },
+        }));
+        return;
+      }
+      const decision = appendAlertHistoryPageV1(null, result.data, { alertId, cursor: null });
+      if (!decision.ok) {
+        setHistories((current) => ({
+          ...current,
+          [alertId]: { kind: "error", message: "Alert history was incomplete." },
+        }));
+        return;
+      }
+      setHistories((current) => ({
+        ...current,
+        [alertId]: {
+          kind: "ready",
+          pagination: decision.state,
+          loadingMore: false,
+          error: null,
+        },
+      }));
     } catch {
-      setMessage("Alert history could not be loaded.");
+      setHistories((current) => ({
+        ...current,
+        [alertId]: { kind: "error", message: "Alert history could not be loaded." },
+      }));
+    }
+  }
+
+  async function loadMoreHistory(alertId: string) {
+    const selected = histories[alertId];
+    if (selected?.kind !== "ready" || selected.loadingMore || selected.pagination.terminal
+        || selected.pagination.nextCursor === null) return;
+    const cursor = selected.pagination.nextCursor;
+    setHistories((current) => ({
+      ...current,
+      [alertId]: { ...selected, loadingMore: true, error: null },
+    }));
+    try {
+      const result = await alerts.history(alertId, cursor);
+      if (!result.ok) {
+        if (result.problem.code === "dashboard_authentication_required") onExpired();
+        else setHistories((current) => ({
+          ...current,
+          [alertId]: {
+            ...selected,
+            loadingMore: false,
+            error: "More alert history could not be loaded. Earlier history remains available.",
+          },
+        }));
+        return;
+      }
+      const decision = appendAlertHistoryPageV1(selected.pagination, result.data, {
+        alertId,
+        cursor,
+      });
+      if (!decision.ok) {
+        setHistories((current) => ({
+          ...current,
+          [alertId]: {
+            ...selected,
+            loadingMore: false,
+            error: "More alert history was incomplete. Earlier history remains available.",
+          },
+        }));
+        return;
+      }
+      setHistories((current) => ({
+        ...current,
+        [alertId]: {
+          kind: "ready",
+          pagination: decision.state,
+          loadingMore: false,
+          error: null,
+        },
+      }));
+    } catch {
+      setHistories((current) => ({
+        ...current,
+        [alertId]: {
+          ...selected,
+          loadingMore: false,
+          error: "More alert history could not be loaded. Earlier history remains available.",
+        },
+      }));
     }
   }
 
@@ -156,7 +257,7 @@ export function AlertsPage({
         <ul className="alert-list">{items.map(({ alert, rank }) => {
           const account = accountName(alert, state.accounts);
           const presentation = alertPresentation(alert);
-          const alertHistory = history[alert.alert_id];
+          const alertHistory = histories[alert.alert_id];
           const snoozed = alert.snoozed_until !== null && new Date(alert.snoozed_until).getTime() > Date.now();
           return <li key={alert.alert_id} className={`alert-card alert-rank-${rank}`}>
             <div className="alert-card-heading"><div>
@@ -185,9 +286,35 @@ export function AlertsPage({
                 <div><dt>Rule scope</dt><dd>{alert.rule_scope_kind}{alert.rule_scope_id ? ` · ${alert.rule_scope_id}` : ""}</dd></div>
               </dl>
               <h3>History</h3>
-              {alertHistory === undefined ? <p role="status">Loading history…</p> :
-                <ol>{alertHistory.items.map((entry) =>
-                  <li key={entry.event_id}>{entry.transition.replaceAll("_", " ")} · <time dateTime={entry.occurred_at}>{time(entry.occurred_at)}</time></li>)}</ol>}
+              {alertHistory === undefined || alertHistory.kind === "loading"
+                ? <p role="status">Loading history…</p>
+                : alertHistory.kind === "error"
+                  ? <p role="alert">{alertHistory.message}</p>
+                  : <>
+                    <ol>{alertHistory.pagination.entries.map((entry) =>
+                      <li
+                        key={entry.event_id}
+                        data-event-id={entry.event_id}
+                        data-alert-id={entry.alert_id}
+                        data-aggregate-sequence={entry.aggregate_sequence}
+                        data-transition={entry.transition}
+                        data-occurred-at={entry.occurred_at}
+                        data-previous-lifecycle={entry.previous_lifecycle ?? ""}
+                        data-current-lifecycle={entry.current_lifecycle}
+                        data-previous-severity={entry.previous_severity ?? ""}
+                        data-current-severity={entry.current_severity}
+                        data-reason-code={entry.reason_code}
+                        data-source-event-id={entry.source_event_id ?? ""}
+                      >{entry.transition.replaceAll("_", " ")} · <time dateTime={entry.occurred_at}>{time(entry.occurred_at)}</time></li>)}</ol>
+                    {alertHistory.error && <p role="alert">{alertHistory.error}</p>}
+                    {!alertHistory.pagination.terminal &&
+                      <button
+                        type="button"
+                        disabled={alertHistory.loadingMore}
+                        onClick={() => { void loadMoreHistory(alert.alert_id); }}
+                      >Load more history</button>}
+                    {alertHistory.loadingMore && <p role="status">Loading more history…</p>}
+                  </>}
             </details>
           </li>;
         })}</ul>}

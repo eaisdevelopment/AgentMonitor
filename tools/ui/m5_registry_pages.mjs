@@ -2,6 +2,9 @@
 
 const PAGE_LIMIT = 200;
 const MAX_PAGE_COUNT = 10_000;
+const ALERT_HISTORY_MAX_PAGE_COUNT = 200;
+const ALERT_HISTORY_MAX_ENTRY_COUNT = 40_000;
+const CONTROL_CHARACTERS = /[\u0000-\u001f\u007f-\u009f]/u;
 
 async function readAllAvailablePagesV1(read, path, errorScope) {
   if (typeof read !== "function"
@@ -59,6 +62,166 @@ async function readAllAvailablePagesV1(read, path, errorScope) {
 export async function readAllRegistryItemsV1(read, path) {
   const document = await readAllAvailablePagesV1(read, path, "registry");
   return document.items;
+}
+
+const boundedText = (value, maximum) => typeof value === "string"
+  && value.length > 0
+  && [...value].length <= maximum
+  && !CONTROL_CHARACTERS.test(value);
+
+const validAlertHistoryEntry = (entry, alertId) => entry !== null
+  && typeof entry === "object"
+  && !Array.isArray(entry)
+  && boundedText(entry.event_id, 128)
+  && entry.alert_id === alertId
+  && Number.isSafeInteger(entry.aggregate_sequence)
+  && entry.aggregate_sequence > 0;
+
+const validAlertHistoryState = state => {
+  if (state === null
+      || typeof state !== "object"
+      || Array.isArray(state)
+      || !boundedText(state.alertId, 128)
+      || !Array.isArray(state.entries)
+      || state.entries.length < 1
+      || state.entries.length > ALERT_HISTORY_MAX_ENTRY_COUNT
+      || !Number.isSafeInteger(state.pageCount)
+      || state.pageCount < 1
+      || state.pageCount > ALERT_HISTORY_MAX_PAGE_COUNT
+      || !Array.isArray(state.seenCursors)
+      || state.seenCursors.length > ALERT_HISTORY_MAX_PAGE_COUNT - 1
+      || new Set(state.seenCursors).size !== state.seenCursors.length
+      || state.seenCursors.some(cursor => !boundedText(cursor, 1024))
+      || state.terminal !== (state.nextCursor === null)
+      || (!state.terminal && state.seenCursors.at(-1) !== state.nextCursor)) {
+    return false;
+  }
+  const eventIds = new Set();
+  const sequences = new Set();
+  let previousSequence = 0;
+  for (const entry of state.entries) {
+    if (!validAlertHistoryEntry(entry, state.alertId)
+        || eventIds.has(entry.event_id)
+        || sequences.has(entry.aggregate_sequence)
+        || entry.aggregate_sequence <= previousSequence) {
+      return false;
+    }
+    eventIds.add(entry.event_id);
+    sequences.add(entry.aggregate_sequence);
+    previousSequence = entry.aggregate_sequence;
+  }
+  return true;
+};
+
+/** Validate and append one alert-history page without inferring completion. */
+export function advanceAlertHistoryPageV1(current, document, selection) {
+  if (selection === null
+      || typeof selection !== "object"
+      || Array.isArray(selection)
+      || !boundedText(selection.alertId, 128)
+      || !(selection.cursor === null || boundedText(selection.cursor, 1024))
+      || (current === null && selection.cursor !== null)
+      || (current !== null
+        && (!validAlertHistoryState(current)
+          || current.alertId !== selection.alertId
+          || current.terminal
+          || selection.cursor !== current.nextCursor))) {
+    throw new Error("alert_history_page_selection_invalid");
+  }
+  if (document === null
+      || typeof document !== "object"
+      || Array.isArray(document)
+      || document.availability?.state !== "available"
+      || !Array.isArray(document.items)
+      || document.items.length < 1
+      || document.items.length > PAGE_LIMIT
+      || document.page === null
+      || typeof document.page !== "object"
+      || Array.isArray(document.page)
+      || document.page.limit !== PAGE_LIMIT
+      || typeof document.page.has_more !== "boolean") {
+    throw new Error("alert_history_page_invalid");
+  }
+
+  const retained = current?.entries ?? [];
+  const eventIds = new Set(retained.map(entry => entry.event_id));
+  const sequences = new Set(retained.map(entry => entry.aggregate_sequence));
+  let previousSequence = retained.at(-1)?.aggregate_sequence ?? 0;
+  for (const entry of document.items) {
+    if (!validAlertHistoryEntry(entry, selection.alertId)
+        || eventIds.has(entry.event_id)
+        || sequences.has(entry.aggregate_sequence)
+        || entry.aggregate_sequence <= previousSequence) {
+      throw new Error("alert_history_page_incomplete");
+    }
+    eventIds.add(entry.event_id);
+    sequences.add(entry.aggregate_sequence);
+    previousSequence = entry.aggregate_sequence;
+  }
+
+  const pageCount = (current?.pageCount ?? 0) + 1;
+  const entryCount = retained.length + document.items.length;
+  if (pageCount > ALERT_HISTORY_MAX_PAGE_COUNT
+      || entryCount > ALERT_HISTORY_MAX_ENTRY_COUNT) {
+    throw new Error("alert_history_page_incomplete");
+  }
+
+  const nextCursor = document.page.next_cursor;
+  const seenCursors = current?.seenCursors ?? [];
+  if (!document.page.has_more) {
+    if (nextCursor !== null) throw new Error("alert_history_page_invalid");
+    return Object.freeze({
+      alertId: selection.alertId,
+      entries: Object.freeze([...retained, ...document.items]),
+      nextCursor: null,
+      pageCount,
+      seenCursors: Object.freeze([...seenCursors]),
+      terminal: true,
+    });
+  }
+  if (pageCount >= ALERT_HISTORY_MAX_PAGE_COUNT
+      || !boundedText(nextCursor, 1024)
+      || nextCursor === selection.cursor
+      || seenCursors.includes(nextCursor)) {
+    throw new Error("alert_history_page_incomplete");
+  }
+  return Object.freeze({
+    alertId: selection.alertId,
+    entries: Object.freeze([...retained, ...document.items]),
+    nextCursor,
+    pageCount,
+    seenCursors: Object.freeze([...seenCursors, nextCursor]),
+    terminal: false,
+  });
+}
+
+/** Read at most 200 complete 200-row pages for one selected alert. */
+export async function readAllAlertHistoryV1(read, alertId) {
+  if (typeof read !== "function" || !boundedText(alertId, 128)
+      || !/^[A-Za-z0-9_-]+$/u.test(alertId)) {
+    throw new Error("alert_history_page_selection_invalid");
+  }
+  let state = null;
+  let cursor = null;
+  let availability = null;
+  for (let pageIndex = 0; pageIndex < ALERT_HISTORY_MAX_PAGE_COUNT; pageIndex += 1) {
+    const cursorParameter = cursor === null
+      ? ""
+      : `&cursor=${encodeURIComponent(cursor)}`;
+    const document = await read(
+      `/api/v1/alerts/${encodeURIComponent(alertId)}/history?limit=${PAGE_LIMIT}${cursorParameter}`,
+    );
+    state = advanceAlertHistoryPageV1(state, document, { alertId, cursor });
+    availability ??= document.availability;
+    if (state.terminal) {
+      return Object.freeze({
+        availability: Object.freeze({ ...availability }),
+        items: state.entries,
+      });
+    }
+    cursor = state.nextCursor;
+  }
+  throw new Error("alert_history_page_incomplete");
 }
 
 export function advanceCapacityHistoryPageV1(document, selection, state) {

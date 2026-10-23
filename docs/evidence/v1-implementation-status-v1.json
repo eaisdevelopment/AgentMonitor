@@ -1,9 +1,9 @@
 {
   "schema_version": "1.0.0",
   "record_type": "agentmonitor.v1_implementation_status",
-  "record_id": "V1-STATUS-2026-10-23-01",
+  "record_id": "V1-STATUS-2026-10-23-02",
   "implementation_revision": "8cc683d946b58f5eb72955e08a520195582e1a28",
-  "recorded_at": "2026-10-23T11:54:09Z",
+  "recorded_at": "2026-10-23T12:41:59Z",
   "planning_backlog": "docs/superpowers/plans/implementation-backlog.toml",
   "planning_backlog_sha256": "2e93367d304fda306776f8789db23c754798f6307277628f0565350d0dbb962e",
   "roadmap": "docs/roadmap.md",
@@ -118,7 +118,7 @@
         "docs/evidence/m5-codex-read-side-effect-blocker.md",
         "docs/evidence/m5-codex-implementation.md"
       ],
-      "decision": "Codex implementation remains Intermediate. Approved plan 1.15 passed the complete preactivation set and zero-skip authenticated containment, and the fifth corrective rollover activated exact clean detached revision 8cc683d946b58f5eb72955e08a520195582e1a28. Fresh four-account owner outcomes and a genuine post-confirmation alert opening, repeat, owner acknowledgement, and recovery passed. AUTO-M5-ALERT-WITNESS created no file: one run exposed a quadratic whole-outbox lookup over more than 36,000 real events, and the unchanged rerun failed closed because the API returned 192 selected-alert history entries while the built UI rendered 100. Owner-approved plan 1.16 is limited to a bounded exact-ID acknowledged-event lookup, complete cursor-paginated Alerts history, and one exact sixth evidence-preserving rollover. The current alert witness, quota witness, AUTO-M5-EXIT receipt, and owner acceptance remain absent or Not Run. The canonical gate state remains not_run."
+      "decision": "Codex implementation remains Intermediate. Approved plan 1.15 passed the complete preactivation set and zero-skip authenticated containment, and the fifth corrective rollover activated exact clean detached revision 8cc683d946b58f5eb72955e08a520195582e1a28. Fresh four-account owner outcomes and a genuine post-confirmation alert opening, repeat, owner acknowledgement, and recovery passed. AUTO-M5-ALERT-WITNESS created no file: one run exposed a quadratic whole-outbox lookup over more than 36,000 real events, and the unchanged rerun failed closed because the API returned 192 selected-alert history entries while the built UI rendered 100. Owner-approved plan 1.16 is locally implemented for the bounded exact-ID acknowledged-event query, complete cursor-paginated Alerts history, and exact sixth rollover policy. Owner-scale lookup first returned two passes in 9.64 seconds; final owner-bound review returned three passes in 12.96 seconds and the focused cross-binding case passed in 7.37 seconds. UI policy passed 17/17 with typecheck and build; activation passed 45, current-exit 66, and dispatcher 3. Backend, UI, and activation reviews are clean. The Python Story inventory contains 557 identifiers with SHA-256 f9bf5d58f37032239377741a8ab74f96c220348cf5cad46323c47e6c71682035. The active service remains 8cc683d. The corrected authenticated browser proof, sixth rollover, alert witness, quota witness, AUTO-M5-EXIT receipt, and owner acceptance remain absent or Not Run. The canonical gate state remains not_run."
     },
     {
       "milestone_id": "V1-M6",
@@ -466,7 +466,7 @@
         "docs/evidence/m5-codex-read-side-effect-blocker.md",
         "docs/evidence/m5-codex-implementation.md"
       ],
-      "decision": "Native Codex subscription mapping, collection, and capacity-history implementation is present. The earlier quota-policy projection correction is included in active revision 8cc683d946b58f5eb72955e08a520195582e1a28, but a current revision-bound authoritative /status reconciliation and AUTO-M5-QUOTA-WITNESS file have not been created. They remain required after the proposed sixth activation."
+      "decision": "Native Codex subscription mapping, collection, and capacity-history implementation is present. Plan 1.16 locally adds the compatible exact-ID acknowledged-event read; its owner-scale query first returned two passes in 9.64 seconds over more than 36,000 events. Review found no production defect, added exact-200 acceptance and receipt ID, acknowledgement-time, and payload-digest cross-binding regressions, and concluded clean after the final owner-bound three-pass run in 12.96 seconds and focused cross-binding pass in 7.37 seconds. Clean-candidate verification remains pending. The active service is still 8cc683d946b58f5eb72955e08a520195582e1a28. A current revision-bound authoritative /status reconciliation and AUTO-M5-QUOTA-WITNESS file have not been created and remain required after the sixth activation."
     },
     {
       "story_id": "ST-CDX-004",
@@ -487,7 +487,7 @@
       "evidence_paths": [
         "docs/evidence/m5-codex-implementation.md"
       ],
-      "decision": "Codex HTTP, browser, health, alert, and completion-gate implementation is present through approved plan 1.15 at active clean revision 8cc683d946b58f5eb72955e08a520195582e1a28. Its fifth corrective transition and fresh owner and alert lifecycle prerequisites passed. AUTO-M5-ALERT-WITNESS created no file because the source-event proof scales quadratically and the built Alerts page rendered only 100 of 192 API history entries. Owner-approved plan 1.16 permits only those two bounded corrections and one exact sixth rollover. Current alert and quota witnesses, canonical process proof, AUTO-M5-EXIT, and owner acceptance remain absent or Not Run; canonical gate state remains not_run."
+      "decision": "Codex HTTP, browser, health, alert, and completion-gate implementation is present through approved plan 1.15 at active clean revision 8cc683d946b58f5eb72955e08a520195582e1a28. Its fifth corrective transition and fresh owner and alert lifecycle prerequisites passed. AUTO-M5-ALERT-WITNESS created no file because the source-event proof scaled quadratically and the built Alerts page rendered only 100 of 192 API history entries. Plan 1.16 locally implements the bounded query, complete cursor-paginated Alerts UI and browser policy, and exact sixth-rollover policy. UI policy passed 17/17 with typecheck/build; activation passed 45, current-exit 66, and dispatcher 3; backend, UI, and activation reviews are clean. The Python Story inventory contains 557 identifiers with SHA-256 f9bf5d58f37032239377741a8ab74f96c220348cf5cad46323c47e6c71682035. Authenticated M5-CDX-UI-014, live M5-SVC-ACT-021, current alert and quota witnesses, canonical process proof, AUTO-M5-EXIT, and owner acceptance remain absent or Not Run; canonical gate state remains not_run."
     },
     {
       "story_id": "ST-OLL-001",

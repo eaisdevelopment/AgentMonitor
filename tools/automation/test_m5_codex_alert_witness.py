@@ -24,6 +24,7 @@ from tools.automation.implementations.m5_codex_alert_witness import (
     _validate_browser_proof,
     _validate_created_witness_v1,
     _write_create_once,
+    capacity_event_evidence_witness_code_v1,
 )
 from tools.automation.implementations.m5_service_activation import (
     candidate_for_checkout_v1,
@@ -79,6 +80,38 @@ def test_source_observation_pagination_requires_a_terminal_page() -> None:
             match="m5_alert_witness_source_observation_incomplete",
         ):
             advance(has_more=True, next_key=next_key, after=after)
+
+
+@pytest.mark.parametrize(
+    ("capacity_code", "witness_code"),
+    (
+        (
+            "capacity_event_evidence_selector_invalid",
+            "m5_alert_witness_source_event_invalid",
+        ),
+        (
+            "capacity_event_evidence_invalid",
+            "m5_alert_witness_source_event_invalid",
+        ),
+        (
+            "capacity_event_evidence_event_missing",
+            "m5_alert_witness_source_event_missing",
+        ),
+        (
+            "capacity_event_evidence_delivery_unacknowledged",
+            "m5_alert_witness_source_event_unacknowledged",
+        ),
+    ),
+)
+def test_capacity_event_evidence_errors_map_to_closed_witness_codes(
+    capacity_code: str,
+    witness_code: str,
+) -> None:
+    error = m5_codex_alert_witness.CapacityEventEvidenceErrorV1(
+        capacity_code  # type: ignore[arg-type]
+    )
+
+    assert capacity_event_evidence_witness_code_v1(error) == witness_code
 
 
 @dataclass(frozen=True, slots=True)

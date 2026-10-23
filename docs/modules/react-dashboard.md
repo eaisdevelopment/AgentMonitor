@@ -2,9 +2,10 @@
 
 - Status: **M2 local identity shell accepted; M3 accepted for its approved
   one-account vertical; M4 dashboard delivery accepted through its
-  revision-bound six-account gate; M5 P02 plan 1.8.0 focused browser evidence
-  and the complete local `AUTO-TEST` passed while M5 remains Intermediate;
-  not a V1 dashboard release**.
+  revision-bound six-account gate; M5 P02 plan 1.8.0 browser evidence passed,
+  and plan 1.16 complete alert-history pagination is local Green while its
+  authenticated browser proof remains Not Run; M5 remains Intermediate and
+  this is not a V1 dashboard release**.
 - Post-audit note: Story 5's historical Red-first exceptions are documented in
   the [M2 correction record](../evidence/m2-audit-fixes.md), which records the
   owner disposition and independent QA reacceptance. The separate
@@ -293,6 +294,33 @@ cleared** and retains its warning threshold context; a record closed by a rule
 change says **Capacity alert closed** and explains that the configured rule is
 inactive. Severity, lifecycle, remaining value, threshold, and rule scope
 continue to come only from the V1 alert API.
+
+## M5 complete alert-history pagination
+
+The plan 1.16 Alerts view requests the existing V1 history endpoint at its
+200-entry maximum and retains every validated page already loaded for a card.
+When `has_more` is true, that card exposes **Load more history** and requests
+exactly the API's opaque cursor. A valid next page appends in API order without
+discarding earlier rows. A later unavailable or invalid page leaves those rows
+visible, presents an error on the same card, and never claims that history is
+complete.
+
+The shared pagination policy requires a cursor of 1 through 1,024 characters
+without controls, a new cursor on each nonterminal transition, a null terminal
+cursor, one unchanged alert ID, unique event IDs and aggregate sequences, and
+strictly increasing `aggregate_sequence`. Missing, empty, repeated, changed,
+or overlong cursors; duplicate or wrong-alert entries; nonprogressing order;
+and a terminal page with a cursor fail closed.
+
+The M5 browser verifier builds an all-page API oracle with at most 200 pages,
+40,000 unique entries, and 199 transitions after the first page. It then drives
+only the selected card's visible control until the DOM reaches the same
+terminal count, order, and digest, while requiring zero dashboard mutations.
+The missing pagination module and missing production-policy wiring supplied the
+expected Reds. Local Green covers 192 and 200 terminal entries and 201 entries
+across two pages; the M5 UI policy file passes `17/17`, frontend typecheck and
+the production build pass, and independent UI review is CLEAN. The active
+service remains `8cc683d`; authenticated scenario `M5-CDX-UI-014` is Not Run.
 
 ## M5 canonical-browser correction
 

@@ -1,13 +1,22 @@
 """Actual event/committed-consumer-receipt verification; never seed a receipt."""
 
+import json
 import os
 from collections.abc import Iterator
 from datetime import UTC, datetime
 from pathlib import Path
+from typing import cast
 
 import pytest
-from agentmonitor.adapters.persistence._shared.sqlite.core.policy import DatabaseRefV1
+from agentmonitor.adapters.persistence._shared.sqlite.core.policy import (
+    DatabaseRefV1,
+    open_sqlite_database,
+)
+from agentmonitor.adapters.persistence._shared.sqlite.schema.compatibility import (
+    migrate_to_head,
+)
 from agentmonitor.adapters.persistence.capacity.sqlite.repository import (
+    _ACKNOWLEDGED_CAPACITY_EVENT_EVIDENCE_SQL,
     CapacityRepositoryErrorV1,
     SqliteCapacityRepositoryV1,
 )
@@ -16,6 +25,8 @@ from agentmonitor.contracts.common_v1 import OpaqueIdV1
 from agentmonitor.contracts.events_v1 import DurableEventV1
 from agentmonitor.modules.capacity.application.queries import (
     AcknowledgeCapacityEventV1,
+    CapacityEventEvidenceErrorV1,
+    ReadAcknowledgedCapacityEventsV1,
     ReadCapacityEventsV1,
 )
 
@@ -96,3 +107,85 @@ def test_actual_consumer_ack_is_exact_idempotent_and_survives_reopen() -> None:
         event.envelope.event_id == event_id
         for event in _events(reopened, "m4-capacity-ack-observer", as_of)
     ), "acknowledgement must preserve the actual outbox record"
+
+    acknowledged = ReadAcknowledgedCapacityEventsV1(reopened)(
+        consumer,
+        (event_id,),
+        as_of,
+    )
+    assert len(acknowledged) == 1
+    assert acknowledged[0].event == observed
+    assert acknowledged[0].acknowledgement_receipt_id == receipt_id
+    assert acknowledged[0].acknowledged_at <= as_of
+
+
+def test_acknowledged_event_evidence_selector_bounds_fail_closed(
+    tmp_path: Path,
+) -> None:
+    """M5-CDX-ALERT-008: the compatible M05 query has closed selectors."""
+
+    reference = DatabaseRefV1(tmp_path / "agentmonitor.db", tmp_path)
+    migrate_to_head(reference)
+    reader = ReadAcknowledgedCapacityEventsV1(SqliteCapacityRepositoryV1(reference))
+    as_of = datetime.now(UTC)
+    first = OpaqueIdV1("event-one")
+    invalid: tuple[tuple[object, object, object], ...] = (
+        ("bad consumer", (first,), as_of),
+        ("consumer", (), as_of),
+        ("consumer", (first, first), as_of),
+        (
+            "consumer",
+            tuple(OpaqueIdV1(f"event-{index}") for index in range(201)),
+            as_of,
+        ),
+        ("consumer", [first], as_of),
+        ("consumer", ("event-one",), as_of),
+        ("consumer", (first,), datetime.now()),
+    )
+
+    for consumer, event_ids, selected_as_of in invalid:
+        with pytest.raises(CapacityEventEvidenceErrorV1) as raised:
+            reader(
+                cast(str, consumer),
+                cast(tuple[OpaqueIdV1, ...], event_ids),
+                cast(datetime, selected_as_of),
+            )
+        assert raised.value.code == "capacity_event_evidence_selector_invalid"
+
+    with pytest.raises(CapacityEventEvidenceErrorV1) as missing:
+        reader("consumer", (first,), as_of)
+    assert missing.value.code == "capacity_event_evidence_event_missing"
+
+    opaque = OpaqueIdV1("opaque selector / " + "x" * 80)
+    with pytest.raises(CapacityEventEvidenceErrorV1) as opaque_missing:
+        reader("consumer", (opaque,), as_of)
+    assert opaque_missing.value.code == "capacity_event_evidence_event_missing"
+
+    exact_limit = tuple(
+        OpaqueIdV1(f"opaque selector {index} / " + "x" * 80) for index in range(200)
+    )
+    with pytest.raises(CapacityEventEvidenceErrorV1) as limit_missing:
+        reader("consumer", exact_limit, as_of)
+    assert limit_missing.value.code == "capacity_event_evidence_event_missing"
+
+    with open_sqlite_database(reference, "runtime_read_only") as handle:
+        with handle.connect() as connection:
+            plan = tuple(
+                str(row[3])
+                for row in connection.exec_driver_sql(
+                    "EXPLAIN QUERY PLAN " + _ACKNOWLEDGED_CAPACITY_EVENT_EVIDENCE_SQL,
+                    (
+                        json.dumps([first.value], separators=(",", ":")),
+                        "consumer",
+                    ),
+                ).all()
+            )
+    assert any(
+        "SEARCH e USING INDEX sqlite_autoindex_capacity_event_outbox_1" in step
+        for step in plan
+    )
+    assert any(
+        "SEARCH d USING INDEX sqlite_autoindex_capacity_event_delivery_1" in step
+        for step in plan
+    )
+    assert all("SCAN e" not in step and "SCAN d" not in step for step in plan)

@@ -978,3 +978,30 @@ prerequisites, authoritative quota witness, `AUTO-M5-EXIT`, and owner acceptance
 remain Not Run. M5 remains Intermediate with canonical gate state `not_run`.
 
 Plan snapshot SHA-256: `4214633ff01b6b8276b1c9bc34475e37b75c3e724162c35863e845cb72bc6ff7`
+
+## 2026-10-23 approved M5 1.16.0 alert-witness scale rebind
+
+The synchronized Draft snapshot now binds the automation catalog to the
+owner-approved M5 focused plan 1.16.0 correction. The bounded exact-ID
+acknowledged-event query, complete cursor-paginated Alerts history, browser
+policy, and exact sixth-rollover policy are locally Green. Independent
+backend, UI, and activation reviews are CLEAN. The exact Python Story
+inventory contains `557` identifiers with SHA-256
+`f9bf5d58f37032239377741a8ab74f96c220348cf5cad46323c47e6c71682035`;
+the exact Node inventory contains `21` identifiers with SHA-256
+`ac6afb5a290f5bf5940581ef13db21acccce947f3d40f97b498b57189f2db7e7`.
+
+Among synchronized baseline inputs, only the `automation-routines` control
+changed. The 20 canonical plan bodies, public contract versions and meanings,
+the other eight controls, and every canonical approval flag remain unchanged.
+The snapshot continues to describe the synchronized Draft program rather than
+milestone or release acceptance.
+
+The active receipt-bound service remains exact clean revision
+`8cc683d946b58f5eb72955e08a520195582e1a28`. Authenticated
+`M5-CDX-UI-014`, live `M5-SVC-ACT-021`, refreshed owner and alert lifecycle,
+alert and quota witnesses, canonical process proof, `AUTO-M5-EXIT`, and owner
+acceptance remain absent or Not Run. M5 remains Intermediate with canonical
+gate state `not_run`.
+
+Plan snapshot SHA-256: `d56f6e27de1bf918a2b27d99fe2287900312dbd63036ea3418c5a40d9216fe09`

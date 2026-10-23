@@ -400,8 +400,14 @@ export const alerts = Object.freeze({
     apiClient.alert_get_notification_counts_v1({
       query: scope ? { scope_kind: scope.kind, scope_id: scope.id } : {}, signal,
     }),
-  history: (alertId: string, signal?: AbortSignal): Promise<ClientResult<AlertHistoryPageV1>> =>
-    apiClient.alert_list_history_v1({ path: { alert_id: alertId }, query: { limit: 100 }, signal }),
+  history: (
+    alertId: string, cursor?: string, signal?: AbortSignal,
+  ): Promise<ClientResult<AlertHistoryPageV1>> =>
+    apiClient.alert_list_history_v1({
+      path: { alert_id: alertId },
+      query: { limit: 200, ...(cursor === undefined ? {} : { cursor }) },
+      signal,
+    }),
   acknowledge: (alert: AlertWireV1): Promise<ClientResult<AlertCommandWireV1>> =>
     apiClient.alert_acknowledge_v1({
       path: { alert_id: alert.alert_id },

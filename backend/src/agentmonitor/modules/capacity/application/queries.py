@@ -44,6 +44,18 @@ from agentmonitor.modules.capacity.application.events import (
     AcknowledgeCapacityEventV1 as AcknowledgeCapacityEventV1,
 )
 from agentmonitor.modules.capacity.application.events import (
+    AcknowledgedCapacityEventV1 as AcknowledgedCapacityEventV1,
+)
+from agentmonitor.modules.capacity.application.events import (
+    CapacityEventEvidenceErrorV1 as CapacityEventEvidenceErrorV1,
+)
+from agentmonitor.modules.capacity.application.events import (
+    CapacityEventEvidenceRepositoryV1 as CapacityEventEvidenceRepositoryV1,
+)
+from agentmonitor.modules.capacity.application.events import (
+    ReadAcknowledgedCapacityEventsV1 as ReadAcknowledgedCapacityEventsV1,
+)
+from agentmonitor.modules.capacity.application.events import (
     ReadCapacityEventsV1 as ReadCapacityEventsV1,
 )
 from agentmonitor.modules.capacity.domain.aggregation import (

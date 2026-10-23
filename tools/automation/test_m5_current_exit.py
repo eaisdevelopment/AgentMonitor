@@ -426,6 +426,9 @@ def _quota_document(recorded_at: datetime) -> dict[str, object]:
 
 def test_catalog_selects_exact_m5_gate_and_closed_lanes() -> None:
     catalog = tomllib.loads((ROOT / "tools/automation/routines.toml").read_text())
+    activation = next(
+        item for item in catalog["routines"] if item["id"] == "AUTO-M5-SERVICE-ACTIVATE"
+    )
     archive = next(
         item
         for item in catalog["routines"]
@@ -439,6 +442,11 @@ def test_catalog_selects_exact_m5_gate_and_closed_lanes() -> None:
     )
     routine = next(item for item in catalog["routines"] if item["id"] == "AUTO-M5-EXIT")
 
+    assert activation["status"] == "operational_limited"
+    assert "six revision-pinned" in activation["scope"]
+    assert "8cc683d946b58f5eb72955e08a520195582e1a28" in activation["scope"]
+    assert "m5-service-activation-corrective-archive-8cc683d" in activation["scope"]
+    assert "seven revision-pinned" not in activation["scope"]
     assert archive["status"] == "operational"
     assert archive["implementation_command"] == [
         "backend/.venv/bin/python",
@@ -490,17 +498,18 @@ def test_catalog_selects_exact_m5_gate_and_closed_lanes() -> None:
     )
     assert STORY_NODE_TEST_PATHS == (
         "tools/ui/test_m5_codex_policy.mjs",
+        "frontend/tests/pure/alert-history-pagination.mjs",
         "frontend/tests/pure/alert-presentation.mjs",
         "frontend/tests/pure/provider-account-presentation.mjs",
         "frontend/tests/pure/quota-reset-presentation.mjs",
     )
-    assert auto_m5_current_exit.STORY_NODE_TEST_COUNT == 19
+    assert auto_m5_current_exit.STORY_NODE_TEST_COUNT == 21
     assert auto_m5_current_exit.STORY_NODE_TEST_INVENTORY_SHA256 == (
-        "556bfd17af977e243e3a9c6c9b1372382cb1eaacfc46dd5136af736c4c76b41b"
+        "ac6afb5a290f5bf5940581ef13db21acccce947f3d40f97b498b57189f2db7e7"
     )
-    assert auto_m5_current_exit.STORY_PYTEST_TEST_COUNT == 547
+    assert auto_m5_current_exit.STORY_PYTEST_TEST_COUNT == 557
     assert auto_m5_current_exit.STORY_PYTEST_TEST_INVENTORY_SHA256 == (
-        "3a97e0103ae4ba3390d10567c9130821abaa7a5a7e9640cf0091bc56a49b6a0c"
+        "f9bf5d58f37032239377741a8ab74f96c220348cf5cad46323c47e6c71682035"
     )
     assert "tools/git/test_preflight.py" in STORY_TEST_PATHS
     assert STORY_AUTOMATION_TEST_IDS == (
@@ -528,6 +537,14 @@ def test_catalog_selects_exact_m5_gate_and_closed_lanes() -> None:
         STORY_TEST_PATHS
     )
     assert "backend/tests/integration/provider_system/test_compatibility.py" in (
+        STORY_TEST_PATHS
+    )
+    event_evidence_test = (
+        "backend/tests/integration/capacity/test_m4_event_delivery.py::"
+        "test_acknowledged_event_evidence_selector_bounds_fail_closed"
+    )
+    assert event_evidence_test in STORY_TEST_PATHS
+    assert "backend/tests/integration/capacity/test_m4_event_delivery.py" not in (
         STORY_TEST_PATHS
     )
     assert {

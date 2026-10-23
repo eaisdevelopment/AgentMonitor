@@ -2363,7 +2363,7 @@ authenticated test must pass again on that exact revision, and the fifth
 activation plus refreshed prerequisites and `AUTO-M5-EXIT` remain required.
 This checkpoint is not activation, milestone completion, or owner acceptance.
 
-## Proposed bounded alert-witness scale correction — 2026-10-23
+## Approved bounded alert-witness scale correction — 2026-10-23
 
 **Status: Owner-approved 1.16.0 on 2026-10-23.**
 
@@ -2398,7 +2398,7 @@ The dashboard remained HTTP 200 on the exact receipt-bound service.
 
 Read-only inspection also found real alert histories beyond one 200-entry
 page. Changing only the current `100` limit to `200` would therefore preserve
-silent truncation and is outside this proposal.
+silent truncation and is outside this approved correction.
 
 ### Requirement and scenario binding
 
@@ -2429,7 +2429,7 @@ immutable result is `AcknowledgedCapacityEventV1`, containing the existing
 typed `DurableEventV1[CapacityCommittedNoticeV1]`,
 `acknowledgement_receipt_id: OpaqueIdV1`, and `acknowledged_at: datetime`.
 `CTR-EVT-001` event and delivery semantics are consumed unchanged; this
-proposal does not publish or revise a PLAN-INT event contract.
+approved correction does not publish or revise a PLAN-INT event contract.
 
 The facade accepts one consumer key matching the existing
 `[A-Za-z0-9_.-]{1,64}` grammar, one input-ordered tuple of between one and 200
@@ -2590,9 +2590,9 @@ exact Story inventory; and standalone zero-skip authenticated containment must
 all pass on one clean candidate. Independent M05 contract/performance, P02
 browser, activation-safety, and security/privacy reviews must be clean.
 
-### Proposed sixth evidence-preserving rollover
+### Approved sixth evidence-preserving rollover
 
-One sixth corrective rollover is proposed from exact revision
+One sixth corrective rollover is approved from exact revision
 `8cc683d946b58f5eb72955e08a520195582e1a28` into fixed namespace
 `m5-service-activation-corrective-archive-8cc683d`. The activation policy must
 append `8cc683d` as the sixth and final approved rollover revision, require the
@@ -2621,7 +2621,7 @@ pass `AUTO-M5-EXIT`.
 
 ### Explicit exclusions
 
-This proposal authorizes no seventh rollover, general deployment, event or
+This correction authorizes no seventh rollover, general deployment, event or
 history deletion, receipt rewrite, history truncation, retention change,
 server page-limit increase, hardcoded live counts or identities, migration,
 new index, REST/OpenAPI schema change, provider call/login/profile mutation,
@@ -2632,6 +2632,59 @@ M8, release, OpenAI API billing, or macOS acceptance.
 M5 remains **Intermediate** until this approved correction is implemented, the
 sixth rollover and refreshed live prerequisites pass, `AUTO-M5-EXIT` passes,
 and the owner separately accepts the milestone.
+
+### Plan 1.16 local implementation checkpoint
+
+The approved production correction is locally implemented and reviewed in the
+development worktree. This checkpoint is preactivation evidence only: the
+receipt-bound service remains exact clean revision
+`8cc683d946b58f5eb72955e08a520195582e1a28`, and no 1.16 live witness,
+rollover, completion receipt, or acceptance result is claimed.
+
+The M05 work began with the expected absent-boundary import Red. Independent
+review then found that the first selector validation imposed an unapproved
+64-character token restriction on `OpaqueIdV1`; its focused Red was corrected
+without widening the approved 1-to-200 tuple or consumer-key grammar. Real
+owner-database scale verification at more than 36,000 capacity events returned
+`2 passed in 9.64s`, including an exact three-event indexed lookup below the
+30-second bound and no whole-outbox traversal. Independent review found no
+production defect and closed two test gaps: exact-200 selector acceptance and
+receipt ID, acknowledgement-time, and payload-digest cross-binding, with all
+three targeted mutations first Red. The final owner-bound run returned
+`3 passed in 12.96s`, and the focused cross-binding run returned `1 passed in
+7.37s`. The focused Capacity result is `1 passed` plus one pre-existing owner-
+live skip that receives no pass credit; the alert-witness policy file passes
+`16` tests, and the lifecycle pure selection passes `6` tests. Independent
+backend review is CLEAN.
+
+The UI first failed because the pagination module and its policy export were
+absent. Green covers terminal histories of 192 and 200 entries and a 201-entry
+two-page history, plus the approved cursor, identity, ordering, duplicate, and
+partial-failure rules. The M5 UI policy suite passes `17/17`; frontend typecheck
+and the production build pass. Independent UI review is CLEAN. This local
+result does not pass `M5-CDX-UI-014`: the authenticated shared-browser
+all-page equality and zero-mutation proof remains Not Run.
+
+Activation tests first failed because the exact sixth source revision,
+six-rollover catalog wording, and rebound Story inventory were absent. Green
+passes `45` activation tests, `66` current-exit tests, and `3` dispatcher
+tests. The Node inventory contains `21` identifiers with SHA-256
+`ac6afb5a290f5bf5940581ef13db21acccce947f3d40f97b498b57189f2db7e7`.
+The Python inventory contains `557` identifiers with SHA-256
+`f9bf5d58f37032239377741a8ab74f96c220348cf5cad46323c47e6c71682035`;
+its exact 10-ID 1.16 delta reproduces the prior `547` inventory and digest
+`3a97e0103ae4ba3390d10567c9130821abaa7a5a7e9640cf0091bc56a49b6a0c`
+when removed. Its event-delivery selection names only the new exact query node,
+so the M5 gate does not require unrelated opt-in M4 receipt selectors.
+Independent activation review is CLEAN. These results do not pass
+`M5-SVC-ACT-021`; both live canonical invocations remain Not Run.
+
+The complete exact-revision preactivation set, standalone authenticated
+containment rerun, sixth rollover, refreshed owner and alert lifecycle,
+`AUTO-M5-ALERT-WITNESS`, `AUTO-M5-QUOTA-WITNESS`, canonical process proof,
+`AUTO-M5-EXIT`, and owner acceptance remain required in that order. Until
+their actual boundaries pass, M5 remains **Intermediate** with canonical gate
+state `not_run`.
 
 ## Stop conditions
 

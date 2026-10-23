@@ -4,6 +4,7 @@ import hashlib
 import json
 import os
 import sqlite3
+import time
 import uuid
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
@@ -16,7 +17,14 @@ from agentmonitor.adapters.persistence._shared.sqlite.core.policy import (
 from agentmonitor.adapters.persistence._shared.sqlite.schema.compatibility import (
     migrate_to_head,
 )
+from agentmonitor.adapters.persistence.alerting.sqlite.actions import (
+    SqliteAlertActionRepositoryV1,
+)
+from agentmonitor.adapters.persistence.alerting.sqlite.capacity_consumer import (
+    AlertCapacityRepositoryErrorV1,
+)
 from agentmonitor.adapters.persistence.capacity.sqlite.repository import (
+    _ACKNOWLEDGED_CAPACITY_EVENT_EVIDENCE_SQL,
     SqliteCapacityRepositoryV1,
 )
 from agentmonitor.adapters.persistence.registry.sqlite.repository import (
@@ -45,7 +53,11 @@ from agentmonitor.contracts.registry_v1 import (
     ConfirmProviderIdentityFingerprintCommandV1,
     PrivateProfileLocatorRefV1,
 )
-from agentmonitor.modules.capacity.application.events import ReadCapacityEventsV1
+from agentmonitor.modules.capacity.application.events import (
+    CapacityEventEvidenceErrorV1,
+    ReadAcknowledgedCapacityEventsV1,
+    ReadCapacityEventsV1,
+)
 from agentmonitor.modules.provider_system.application.gateway import (
     get_manifest_fingerprint_v1,
 )
@@ -679,6 +691,242 @@ def test_genuine_codex_alert_deduplicates_owner_action_and_recovers(
     assert lifecycle.alert.decision.source.event_id == (
         lifecycle.recovery_event.envelope.event_id
     )
+
+
+def test_genuine_codex_acknowledgement_evidence_is_bounded_and_cross_bound() -> None:
+    """M5-CDX-ALERT-008: three exact M05 proofs agree with M07 receipts."""
+
+    reference, account_id, _root = _owner_selection()
+    lifecycle = _lifecycle(reference, account_id, prove_deduplication=False)
+    selected_ids = (
+        lifecycle.recovery_event.envelope.event_id,
+        lifecycle.opening_event.envelope.event_id,
+        lifecycle.repeated_event.envelope.event_id,
+    )
+    started = time.monotonic()
+    acknowledged = ReadAcknowledgedCapacityEventsV1(
+        SqliteCapacityRepositoryV1(reference)
+    )("m07-alert-capacity-v1", selected_ids, datetime.now(UTC))
+    elapsed = time.monotonic() - started
+
+    assert elapsed < 30
+    assert tuple(item.event.envelope.event_id for item in acknowledged) == selected_ids
+    alert_repository = SqliteAlertActionRepositoryV1(reference)
+    for item in acknowledged:
+        receipt = alert_repository.lookup_capacity_event(item.event)
+        assert receipt is not None
+        assert receipt.event_id == item.event.envelope.event_id
+        assert receipt.receipt_id == item.acknowledgement_receipt_id
+        assert receipt.processed_at == item.acknowledged_at
+
+    selector = json.dumps(
+        [item.value for item in selected_ids],
+        ensure_ascii=True,
+        separators=(",", ":"),
+    )
+    with open_sqlite_database(reference, "runtime_read_only") as handle:
+        with handle.connect() as connection:
+            outbox_count = int(
+                connection.exec_driver_sql(
+                    "SELECT count(*) FROM capacity_event_outbox"
+                ).scalar_one()
+            )
+            plan = tuple(
+                str(row[3])
+                for row in connection.exec_driver_sql(
+                    "EXPLAIN QUERY PLAN " + _ACKNOWLEDGED_CAPACITY_EVENT_EVIDENCE_SQL,
+                    (selector, "m07-alert-capacity-v1"),
+                ).all()
+            )
+    assert outbox_count > 36_000
+    assert any(
+        "SEARCH e USING INDEX sqlite_autoindex_capacity_event_outbox_1" in step
+        for step in plan
+    )
+    assert any(
+        "SEARCH d USING INDEX sqlite_autoindex_capacity_event_delivery_1" in step
+        for step in plan
+    )
+    assert all("SCAN e" not in step and "SCAN d" not in step for step in plan)
+
+
+def test_genuine_codex_acknowledgement_evidence_rejects_missing_or_partial_proof(
+    tmp_path: Path,
+) -> None:
+    """M5-CDX-ALERT-008: absent and incomplete delivery proof fail closed."""
+
+    owner, account_id, root = _owner_selection()
+    lifecycle = _lifecycle(owner, account_id, prove_deduplication=False)
+    selected_ids = (
+        lifecycle.opening_event.envelope.event_id,
+        lifecycle.repeated_event.envelope.event_id,
+        lifecycle.recovery_event.envelope.event_id,
+    )
+    as_of = datetime.now(UTC)
+
+    missing_root = tmp_path / "missing"
+    missing_root.mkdir()
+    missing_root.chmod(0o700)
+    missing = _copy_owner_database(root / "agentmonitor.db", missing_root)
+    with open_sqlite_database(missing, "runtime_read_write") as handle:
+        with handle.connect() as connection:
+            connection.exec_driver_sql("BEGIN IMMEDIATE")
+            connection.exec_driver_sql(
+                "DELETE FROM capacity_event_delivery WHERE event_id=? "
+                "AND consumer_key='m07-alert-capacity-v1'",
+                (selected_ids[0].value,),
+            )
+            connection.commit()
+    with pytest.raises(CapacityEventEvidenceErrorV1) as absent:
+        ReadAcknowledgedCapacityEventsV1(SqliteCapacityRepositoryV1(missing))(
+            "m07-alert-capacity-v1", selected_ids, as_of
+        )
+    assert absent.value.code == "capacity_event_evidence_delivery_unacknowledged"
+
+    partial_root = tmp_path / "partial"
+    partial_root.mkdir()
+    partial_root.chmod(0o700)
+    partial = _copy_owner_database(root / "agentmonitor.db", partial_root)
+    with open_sqlite_database(partial, "runtime_read_write") as handle:
+        with handle.connect() as connection:
+            connection.exec_driver_sql("BEGIN IMMEDIATE")
+            connection.exec_driver_sql(
+                "UPDATE capacity_event_delivery SET ack_receipt_id=NULL, "
+                "ack_payload_digest=NULL WHERE event_id=? "
+                "AND consumer_key='m07-alert-capacity-v1'",
+                (selected_ids[0].value,),
+            )
+            connection.commit()
+    with pytest.raises(CapacityEventEvidenceErrorV1) as incomplete:
+        ReadAcknowledgedCapacityEventsV1(SqliteCapacityRepositoryV1(partial))(
+            "m07-alert-capacity-v1", selected_ids, as_of
+        )
+    assert incomplete.value.code == "capacity_event_evidence_invalid"
+
+    digest_root = tmp_path / "digest"
+    digest_root.mkdir()
+    digest_root.chmod(0o700)
+    digest_conflict = _copy_owner_database(root / "agentmonitor.db", digest_root)
+    actual_digest = lifecycle.opening_event.payload_digest
+    wrong_digest = actual_digest[:-1] + ("0" if actual_digest[-1] != "0" else "1")
+    with open_sqlite_database(digest_conflict, "runtime_read_write") as handle:
+        with handle.connect() as connection:
+            connection.exec_driver_sql("BEGIN IMMEDIATE")
+            connection.exec_driver_sql(
+                "UPDATE capacity_event_delivery SET ack_payload_digest=? "
+                "WHERE event_id=? AND consumer_key='m07-alert-capacity-v1'",
+                (wrong_digest, selected_ids[0].value),
+            )
+            connection.commit()
+    with pytest.raises(CapacityEventEvidenceErrorV1) as digest_mismatch:
+        ReadAcknowledgedCapacityEventsV1(SqliteCapacityRepositoryV1(digest_conflict))(
+            "m07-alert-capacity-v1", selected_ids, as_of
+        )
+    assert digest_mismatch.value.code == "capacity_event_evidence_invalid"
+
+    future_root = tmp_path / "future"
+    future_root.mkdir()
+    future_root.chmod(0o700)
+    future = _copy_owner_database(root / "agentmonitor.db", future_root)
+    future_acknowledgement = (
+        (as_of + timedelta(seconds=1))
+        .isoformat(timespec="microseconds")
+        .replace("+00:00", "Z")
+    )
+    with open_sqlite_database(future, "runtime_read_write") as handle:
+        with handle.connect() as connection:
+            connection.exec_driver_sql("BEGIN IMMEDIATE")
+            connection.exec_driver_sql(
+                "UPDATE capacity_event_delivery SET acknowledged_at=? "
+                "WHERE event_id=? AND consumer_key='m07-alert-capacity-v1'",
+                (future_acknowledgement, selected_ids[0].value),
+            )
+            connection.commit()
+    with pytest.raises(CapacityEventEvidenceErrorV1) as future_proof:
+        ReadAcknowledgedCapacityEventsV1(SqliteCapacityRepositoryV1(future))(
+            "m07-alert-capacity-v1", selected_ids, as_of
+        )
+    assert future_proof.value.code == "capacity_event_evidence_invalid"
+
+
+def test_genuine_codex_delivery_receipt_cross_binding_rejects_each_mismatch(
+    tmp_path: Path,
+) -> None:
+    """M5-CDX-ALERT-008: M05 and M07 receipt proofs must agree exactly."""
+
+    owner, account_id, root = _owner_selection()
+    lifecycle = _lifecycle(owner, account_id, prove_deduplication=False)
+    event_id = lifecycle.opening_event.envelope.event_id
+
+    def copied_reference(name: str) -> DatabaseRefV1:
+        copied_root = tmp_path / name
+        copied_root.mkdir()
+        copied_root.chmod(0o700)
+        return _copy_owner_database(root / "agentmonitor.db", copied_root)
+
+    def inspect(reference: DatabaseRefV1) -> None:
+        inspect_codex_alert_lifecycle_v1(
+            reference,
+            account_id,
+            alert_id=lifecycle.alert.alert_id,
+            as_of=datetime.now(UTC),
+            prove_deduplication=False,
+        )
+
+    receipt_mismatch = copied_reference("receipt-mismatch")
+    with open_sqlite_database(receipt_mismatch, "runtime_read_write") as handle:
+        with handle.connect() as connection:
+            connection.exec_driver_sql("BEGIN IMMEDIATE")
+            connection.exec_driver_sql(
+                "UPDATE capacity_event_delivery SET ack_receipt_id=? "
+                "WHERE event_id=? AND consumer_key='m07-alert-capacity-v1'",
+                ("mismatched-m05-ack-receipt", event_id.value),
+            )
+            connection.commit()
+    with pytest.raises(
+        M5CodexAlertWitnessErrorV1,
+        match="m5_alert_witness_delivery_receipt_missing",
+    ):
+        inspect(receipt_mismatch)
+
+    time_mismatch = copied_reference("time-mismatch")
+    shifted_acknowledgement = (
+        (lifecycle.opened.occurred_at + timedelta(microseconds=1))
+        .isoformat(timespec="microseconds")
+        .replace("+00:00", "Z")
+    )
+    with open_sqlite_database(time_mismatch, "runtime_read_write") as handle:
+        with handle.connect() as connection:
+            connection.exec_driver_sql("BEGIN IMMEDIATE")
+            connection.exec_driver_sql(
+                "UPDATE capacity_event_delivery SET acknowledged_at=? "
+                "WHERE event_id=? AND consumer_key='m07-alert-capacity-v1'",
+                (shifted_acknowledgement, event_id.value),
+            )
+            connection.commit()
+    with pytest.raises(
+        M5CodexAlertWitnessErrorV1,
+        match="m5_alert_witness_delivery_receipt_missing",
+    ):
+        inspect(time_mismatch)
+
+    digest_mismatch = copied_reference("m07-digest-mismatch")
+    actual_digest = lifecycle.opening_event.payload_digest
+    wrong_digest = actual_digest[:-1] + ("0" if actual_digest[-1] != "0" else "1")
+    with open_sqlite_database(digest_mismatch, "runtime_read_write") as handle:
+        with handle.connect() as connection:
+            connection.exec_driver_sql("BEGIN IMMEDIATE")
+            connection.exec_driver_sql(
+                "UPDATE alert_event_receipt SET payload_digest=? "
+                "WHERE producer_key='capacity' AND event_id=?",
+                (wrong_digest, event_id.value),
+            )
+            connection.commit()
+    with pytest.raises(
+        AlertCapacityRepositoryErrorV1,
+        match="alert_capacity_event_digest_conflict",
+    ):
+        inspect(digest_mismatch)
 
 
 def test_private_alert_witness_matches_the_persisted_codex_lifecycle() -> None:

@@ -17,7 +17,9 @@ import {
   validateOwnerOutcomesV1,
 } from "./m5_codex_policy.mjs";
 import {
+  advanceAlertHistoryPageV1,
   advanceCapacityHistoryPageV1,
+  readAllAlertHistoryV1,
   readAllRegistryItemsV1,
 } from "./m5_registry_pages.mjs";
 
@@ -154,6 +156,11 @@ test("live entrypoint wires independent executable proofs into the witness", () 
   assert.match(source, /throw new VerificationError\("owner_outcomes_changed", true\)/);
   assert.doesNotMatch(source, /for \(let pageIndex = 0; pageIndex < 64;/);
   assert.match(alertSource, /readAllRegistryItemsV1/);
+  assert.match(alertSource, /readAllAlertHistoryV1/);
+  assert.match(
+    alertSource,
+    /getByRole\("button", \{[\s\S]*?name: "Load more history",[\s\S]*?exact: true,[\s\S]*?\}\)/,
+  );
   assert.doesNotMatch(alertSource, /for \(let pageIndex = 0; pageIndex < 64;/);
   assert.match(quotaSource, /readAllCapacityHistoryV1\(read,/);
   assert.match(quotaSource, /\.usage-allowance \.allowance-card\[data-window-key\]/);
@@ -184,6 +191,61 @@ test("live entrypoint wires independent executable proofs into the witness", () 
     /const historyRange = Object\.freeze\(\{[\s\S]*?from: initialRequest\.from,[\s\S]*?before: initialRequest\.before,/,
   );
   assert.match(quotaSource, /m5_quota_history_render_incomplete/);
+});
+
+test("alert history page policy retains complete strict ascending history", () => {
+  const alertId = "alert-one";
+  const entry = sequence => ({
+    alert_id: alertId,
+    event_id: `event-${sequence}`,
+    aggregate_sequence: sequence,
+  });
+  const page = (items, hasMore = false, nextCursor = null) => ({
+    availability: { state: "available" },
+    items,
+    page: { limit: 200, has_more: hasMore, next_cursor: nextCursor },
+  });
+  const first = advanceAlertHistoryPageV1(
+    null,
+    page(Array.from({ length: 200 }, (_, index) => entry(index + 1)), true, "next-page"),
+    { alertId, cursor: null },
+  );
+  assert.equal(first.terminal, false);
+  assert.equal(first.entries.length, 200);
+  assert.equal(first.nextCursor, "next-page");
+  const terminal = advanceAlertHistoryPageV1(
+    first,
+    page([entry(201)]),
+    { alertId, cursor: "next-page" },
+  );
+  assert.equal(terminal.terminal, true);
+  assert.equal(terminal.entries.length, 201);
+  assert.deepEqual(
+    terminal.entries.map(item => item.aggregate_sequence),
+    Array.from({ length: 201 }, (_, index) => index + 1),
+  );
+
+  for (const invalid of [
+    page([entry(1)], false, "terminal-cursor"),
+    page([entry(1)], true, "bad\ncursor"),
+    page([{ ...entry(1), alert_id: "another-alert" }]),
+    page([entry(2), entry(1)]),
+    page([entry(1), { ...entry(2), event_id: "event-1" }]),
+    page([entry(1), { ...entry(1), event_id: "event-two" }]),
+  ]) {
+    assert.throws(
+      () => advanceAlertHistoryPageV1(null, invalid, { alertId, cursor: null }),
+      /alert_history_page_(?:invalid|incomplete)/,
+    );
+  }
+  assert.throws(
+    () => advanceAlertHistoryPageV1(first, page([entry(201)]), {
+      alertId,
+      cursor: "wrong-page",
+    }),
+    /alert_history_page_selection_invalid/,
+  );
+  assert.equal(typeof readAllAlertHistoryV1, "function");
 });
 
 test("registry pagination requires every available page and a progressing cursor", async () => {

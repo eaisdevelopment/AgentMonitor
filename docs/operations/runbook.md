@@ -309,7 +309,7 @@ proven: stop M5 evidence collection, preserve the journal and both runtimes,
 and diagnose the user unit. Never edit the journal, unit backup, or trusted
 runtime to force another result.
 
-Exactly five revision-pinned corrective rollover modes are authorized. The
+Exactly six revision-pinned corrective rollover modes are authorized. The
 first preserves the completed
 `6bfa69dc13cc9e1ded9c6baa6e803cb99bc8c20b` transition below
 `<owner-data-root>/m5-service-activation-corrective-archive/`. The second
@@ -329,12 +329,16 @@ The fifth preserves the completed
 `d81afab9e5b1c1dbdb690f390e77cee66eba5437` transition below the distinct fixed
 singleton parent
 `<owner-data-root>/m5-service-activation-corrective-archive-d81afab/`.
+The sixth preserves the completed
+`8cc683d946b58f5eb72955e08a520195582e1a28` transition below the distinct fixed
+singleton parent
+`<owner-data-root>/m5-service-activation-corrective-archive-8cc683d/`.
 Each archive entry name binds its source revision and activation-receipt
 digest. No mode accepts a different source revision, archive parent, or
 additional entry.
 
 The requested new candidate must differ from the pinned trusted revision and
-all five completed corrective revisions above. The command checks those reserved
+all six completed corrective revisions above. The command checks those reserved
 revisions before any service restoration, archive move, or transition-state
 write; a reserved candidate blocks without changing the existing service or
 evidence.
@@ -690,8 +694,10 @@ Create the real lifecycle in this order:
    newer genuine reading above 0% must recover the same alert. If the real
    reading is 0%, select another verified account or wait for a real provider
    reset; never edit telemetry to manufacture recovery.
-5. Confirm the alert card says **recovered** and its history shows the latest
-   opening, repeated condition, owner action, and recovery in that order.
+5. Confirm the alert card says **recovered**. Use the card's **Load more
+   history** control until it is no longer offered, then confirm the history
+   shows the latest opening, repeated condition, owner action, and recovery in
+   that order.
    Leave both rules and all alert history intact until the M5 exit gate
    succeeds.
 
@@ -710,6 +716,22 @@ that the owner action has an authenticated command receipt, and that a third
 distinct genuine event recovered the alert. It validates exact per-stage
 observations and delivery receipts, alert history, the built browser, service
 freshness and version inventory, and unchanged full public registry snapshots.
+The source proof uses one M05 query for exactly the three distinct event IDs and
+consumer `m07-alert-capacity-v1`; it cross-checks each result against M07's
+published receipt by event ID, acknowledgement receipt and time, processed
+time, and payload digest. The query must use the outbox and delivery primary
+keys, decode only those three events, and finish within 30 seconds against the
+current owner database without whole-outbox traversal.
+
+The browser child reads the unchanged history API in pages of 200, accepting at
+most 200 pages, 40,000 unique entries, and 199 cursor transitions after the
+first page. It then uses only the selected card's **Load more history** control
+until the UI reaches terminal state. API and DOM count, ascending sequence,
+order, and digest must agree exactly, and dashboard mutation count must remain
+zero. A repeated, missing, invalid, or overlong cursor; duplicate or wrong-alert
+entry; nonprogressing order; partial terminal state; or bound excess blocks the
+witness while preserving existing application history.
+
 The writer is read-only: it does not replay delivery or mutate the lifecycle.
 It creates the owner-only witness once and never replaces an existing witness.
 Its browser child opens one temporary page through the shared loopback CDP

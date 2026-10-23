@@ -1,9 +1,9 @@
 # Codex CLI adapter
 
-Status: **implemented in the working copy through approved V1-M5 plan 1.15;
-authenticated feedback passes against the unchanged service, while clean
-exact-revision preactivation and containment, the fifth service rollover, and
-`AUTO-M5-EXIT` are pending**.
+Status: **implemented through approved V1-M5 plan 1.15 at active clean service
+revision `8cc683d`; plan 1.16's local integration correction changes no Codex
+provider behavior, while its clean-revision preactivation, sixth rollover,
+refreshed witnesses, and `AUTO-M5-EXIT` remain pending**.
 
 Owner: `PLAN-INT` for the focused M5 integration and A02 for provider behavior.
 
@@ -221,14 +221,19 @@ uncredited authenticated-selector skip across `558` subtests. It includes the
 plan-required tree bounds, inode-bound `chmod`, descriptor-bound `ftruncate`,
 mount and process proof, numeric-dirfd `unlinkat`, and the exact Arg0 session,
 regular `.lock`, four-alias, and five-child cleanup lifecycle. Current-exit
-passes `66/66`, and the exact Story inventory is `547` tests with SHA-256
+passes `66/66`, and the exact plan 1.15 Story inventory was `547` tests with
+SHA-256
 `3a97e0103ae4ba3390d10567c9130821abaa7a5a7e9640cf0091bc56a49b6a0c`.
 The first authenticated 1.15 run failed closed because two broad Arg0 guards
 started before official pre-session root setup. Their focused Red and
 interval-scoping correction are Green, and the authenticated feedback rerun
 passed zero-skip against the unchanged d81 service with pinned Codex `0.160.0`.
-Current clean-revision preactivation and authenticated rerun, the fifth service
-rollover, and `AUTO-M5-EXIT` are still required.
+Clean revision `8cc683d` later passed the complete preactivation set, the
+standalone authenticated containment rerun, and the fifth service rollover.
+The locally implemented 1.16 exact-event and UI pagination changes do not touch
+this adapter, its admitted tuple, provider operations, or profile policy. The
+corrected clean candidate, sixth rollover, refreshed witnesses, and
+`AUTO-M5-EXIT` are still required.
 
 The sole milestone completion command is:
 

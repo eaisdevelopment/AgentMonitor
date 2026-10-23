@@ -1,16 +1,18 @@
 # M05 capacity module
 
 Status: **M4 capacity delivery implemented and its standalone milestone gate
-Passed; the focused M5 1.9 quota-witness policy projection is local
-deterministic Green**. The focused increments below publish current native
-metadata, the M05 30%/15% health policy, revisioned scope coverage, pure
+Passed; the focused M5 1.16 exact acknowledged-event query is local Green with
+a CLEAN backend review and awaits clean-candidate verification**. The focused
+increments below publish current native metadata, the M05 30%/15% health
+policy, revisioned scope coverage, pure
 burn/forecast derivations, current alert facts, and typed existing commit
 notice delivery. Their later real integration, post-upgrade migration, fleet,
 browser, and canonical results are recorded in the
-[M4 completion evidence](../evidence/m4-completion.md). The fourth M5 service
-rollover activated exact `d81afab`; its owner-outcome and alert witnesses are
-current, but the authoritative quota witness created no file after the real
-policy-shape Red. The approved fifth rollover and `AUTO-M5-EXIT` are Not Run.
+[M4 completion evidence](../evidence/m4-completion.md). The fifth M5 service
+rollover activated exact `8cc683d`; its owner outcome and genuine alert
+lifecycle passed, but the alert witness created no file after the real scale
+and UI-history Reds. The sixth rollover, refreshed witnesses, and
+`AUTO-M5-EXIT` are Not Run.
 Full M05 master-plan and V1 release acceptance are not claimed.
 
 Owner: `PLAN-M05`
@@ -108,6 +110,32 @@ idempotent; different proof conflicts. No other module's tables are read. The
 caller must have committed its receipt before acknowledgement. Since that port
 does not supply consumer build version, a new delivery records explicit Unknown
 consumer version; historical known versions are retained.
+
+`ReadAcknowledgedCapacityEventsV1` is a compatible additive internal query
+under `CTR-CAP-004`. It accepts one valid consumer key, one input-ordered tuple
+of between one and 200 unique `OpaqueIdV1` event IDs, and an aware UTC
+`as_of`. It returns the existing typed `capacity.committed.v1` events with the
+exact acknowledgement receipt ID and time in caller order. It does not narrow
+the existing opaque-ID grammar.
+
+The closed failures distinguish an invalid selector, a missing event, an
+unacknowledged delivery, and invalid evidence. Invalid evidence includes wrong
+event type, incomplete or future acknowledgement, duplicate/conflicting rows,
+or payload-digest disagreement. Event order, replay, acknowledgement, and
+delivery semantics remain those of `CTR-EVT-001`.
+
+The SQLite repository performs one bounded parameterized selection through the
+outbox event-ID primary key and delivery `(event_id, consumer_key)` primary key.
+Only selected events are decoded; historical producer-version resolution runs
+at most once for each selected event. Real owner-database verification at more
+than 36,000 events first returned `2 passed in 9.64s`, including the exact
+three-event query below the 30-second bound without whole-outbox traversal.
+After review added exact-200 acceptance and receipt ID, acknowledgement-time,
+and payload-digest cross-binding regressions, the final owner-bound run returned
+`3 passed in 12.96s`; the focused cross-binding run returned `1 passed in
+7.37s`. The focused Capacity result is `1 passed` with one pre-existing owner-
+live skip that is not credited. Independent backend review is CLEAN;
+clean-candidate verification and the live M5 alert witness remain pending.
 
 ## Commit and projection behavior
 
@@ -253,8 +281,10 @@ closed reconciliation boundary; Green passed the new shaping case and the two
 strict rejection variants, and the complete quota-witness file passed `27`
 tests. Ruff, format, and strict mypy also passed. No Capacity contract, public
 API, schema, migration, provider payload, dependency, persistence rule, or
-quota value semantics changed. The fifth service rollover is a separate
-revision-binding operation and remains locally Green but live Not Run.
+quota value semantics changed. The historical fifth service rollover
+subsequently passed at exact `8cc683d`. The approved 1.16 query correction and
+sixth-rollover policy are locally Green; their clean-revision activation and
+live witnesses remain Not Run.
 
 Writable startup requires the reviewed migration catalog, compatible schema,
 SQLite policy, integrity check, and foreign-key check. Receipt conflicts,
@@ -265,8 +295,8 @@ The following are **Blocked / Not Run**, not Passed:
 
 - fresh post-0703 provider-to-M04-to-M05 classified commit/receipt replay and
   persisted default-policy inspection in this M4 assignment;
-- nonempty exact delivery acknowledgement/reopen with an actual committed
-  consumer receipt, pending root's integrated dispatcher proof;
+- the corrected exact three-event evidence read inside a fresh, service-bound
+  `AUTO-M5-ALERT-WITNESS`, pending clean activation and genuine lifecycle;
 - naturally observed numeric forecast with a trustworthy native reset segment
   and uncertainty bounds; the current source does not supply those facts;
 - later budget, retention, export, API, browser, scale, backup, and
