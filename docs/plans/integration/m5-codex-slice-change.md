@@ -1,13 +1,12 @@
 # Change plan: executable V1-M5 Codex slice
 
-- Status: **Proposed 1.16.0; production implementation and a sixth live
-  rollover remain prohibited until explicit owner approval. Approved 1.15.0
-  is implemented and active at clean revision
+- Status: **Owner-approved 1.16.0 on 2026-10-23. Approved 1.15.0 is
+  implemented and active at clean revision
   `8cc683d946b58f5eb72955e08a520195582e1a28`. Its required live alert-witness
   run exposed the two bounded blockers specified below and created no
   witness.**
-- Plan version: proposed `1.16.0`; owner approval: pending. Approved version
-  `1.15.0` remains incorporated unchanged.
+- Plan version: owner-approved `1.16.0`; approved version `1.15.0` remains
+  incorporated unchanged.
 - Safety correction: exact-version review proved that authenticated app-server
   queries may perform Codex's automatic credential refresh. The approved
   managed-auth lifecycle therefore classifies those queries as
@@ -15,12 +14,11 @@
   before any app-server child starts.
 - Owner: `PLAN-INT`, with A02 provider behavior and the exact PLAN-DEP/D01
   service-activation exception owned under this bounded change. Approved 1.8.0
-  remains the sole active exception to PLAN-P02's Draft implementation
-  prohibition. Explicit owner approval of proposed 1.16.0 would add one
+  was the sole active exception to PLAN-P02's Draft implementation
+  prohibition before 1.16.0. The owner's explicit 2026-10-23 approval adds one
   bounded exception for only the enumerated PLAN-M05 and PLAN-P02 files below;
   those plans remain semantic owners, and the root integration agent acts as
-  their file steward with no concurrent writer. Until that approval, PLAN-M05
-  and PLAN-P02 production implementation remains prohibited.
+  their file steward with no concurrent writer.
 - Parent plans:
   [V1-M5 milestone](../../superpowers/plans/2026-09-19-agentmonitor-v1-m5-codex-slice.md)
   and [A02 adapter](../adapters/codex/plan-v1.md).
@@ -50,11 +48,10 @@
   exact pinned Codex 0.160.0 temporary Arg0 symlink lifecycle specified below;
   the owner's explicit 2026-10-22 approval of version 1.15.0 adds only the
   exact session creation and literal `.lock` regular-file child lifecycle
-  specified below. Proposed version 1.16.0 has no implementation or rollover
-  authority until explicit owner approval; that approval would supersede only
-  the earlier statement that 1.8.0 is the sole PLAN-P02 exception and would
-  add only the enumerated PLAN-M05, PLAN-P02, witness, and sixth-rollover scope
-  below;
+  specified below. The owner's explicit 2026-10-23 approval of version 1.16.0
+  supersedes only the earlier statement that 1.8.0 is the sole PLAN-P02
+  exception and adds only the enumerated PLAN-M05, PLAN-P02, witness, and
+  sixth-rollover scope below;
   all remaining A02, OpenAI API, PLAN-DEP/D01, and
   `AUTO-DEPLOY` lanes stay Draft or Blocked as already recorded.
 - Stories: `ST-CDX-001..005`.
@@ -2368,8 +2365,7 @@ This checkpoint is not activation, milestone completion, or owner acceptance.
 
 ## Proposed bounded alert-witness scale correction — 2026-10-23
 
-**Status: Proposed 1.16.0. Implementation and live rollover remain prohibited
-until explicit owner approval.**
+**Status: Owner-approved 1.16.0 on 2026-10-23.**
 
 Plan 1.16.0 incorporates approved 1.15.0 and changes only the two real-system
 failures below plus one exact sixth corrective rollover from
@@ -2633,9 +2629,9 @@ default-profile access, running-agent control, fabricated/replayed/edited
 telemetry, scheduler or provider behavior change, dependency change, M6, M7,
 M8, release, OpenAI API billing, or macOS acceptance.
 
-M5 remains **Intermediate** until this proposal is approved and implemented,
-the sixth rollover and refreshed live prerequisites pass, `AUTO-M5-EXIT`
-passes, and the owner separately accepts the milestone.
+M5 remains **Intermediate** until this approved correction is implemented, the
+sixth rollover and refreshed live prerequisites pass, `AUTO-M5-EXIT` passes,
+and the owner separately accepts the milestone.
 
 ## Stop conditions
 

@@ -35,12 +35,12 @@ Current program state:
   witness: the first run exposed a quadratic whole-outbox acknowledgement
   lookup at more than 36,000 real capacity events, and the unchanged rerun
   failed closed because the versioned API returned all 192 selected-alert
-  history entries while the built UI rendered only the first 100. Proposed
-  plan 1.16 is limited to a bounded three-event acknowledgement lookup,
+  history entries while the built UI rendered only the first 100. Owner-
+  approved plan 1.16 is limited to a bounded three-event acknowledgement lookup,
   complete cursor-paginated Alerts history, and one exact sixth corrective
-  rollover from `8cc683d`. Production implementation remains prohibited until
-  owner approval. `AUTO-M5-QUOTA-WITNESS`, `AUTO-M5-EXIT`, and milestone owner
-  acceptance remain **Not Run**; the canonical gate state remains `not_run`.
+  rollover from `8cc683d`. `AUTO-M5-QUOTA-WITNESS`, `AUTO-M5-EXIT`, and
+  milestone owner acceptance remain **Not Run**; the canonical gate state
+  remains `not_run`.
 - **V1-M6 through V1-M8:** Planned; their canonical gates have not run.
 
 The approved [M3 scope correction](evidence/m3-scope-correction-2026-10-02.md)

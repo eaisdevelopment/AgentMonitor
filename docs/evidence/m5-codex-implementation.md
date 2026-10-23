@@ -62,7 +62,7 @@
   `m5_alert_witness_browser_unavailable`: the versioned API returned all `192`
   selected-alert history entries while the built Alerts page rendered `100`.
 
-  Proposed plan 1.16.0 is pending owner approval. It is limited to a bounded
+  Owner-approved plan 1.16.0 is limited to a bounded
   exact-ID acknowledged-event query, complete cursor-paginated Alerts history
   and browser proof, and one exact sixth evidence-preserving rollover from
   `8cc683d`. No current alert witness, quota witness, or M5 completion receipt
@@ -73,10 +73,10 @@ The primary production owner is A02 for provider behavior under
 `backend/src/agentmonitor/adapters/providers/codex/**`. Root integration owns
 composition, Registry/Collection/Capacity/Runtime/Alerting coordination, API,
 UI, automation, and live closure. P02 owns the React shell, styles, and browser
-runner correction. The current approved scope is plan `1.15.0`; its
+runner correction. The current approved scope is plan `1.16.0`; its
 [V1-M5 Codex slice](../plans/integration/m5-codex-slice-change.md) retains all
-earlier corrections and the completed fifth rollover. Proposed plan `1.16.0`
-adds no authority until explicit owner approval.
+earlier corrections and the completed fifth rollover. The owner's explicit
+2026-10-23 approval adds only the enumerated bounded 1.16 correction.
 
 ## Contract-impact assessment
 
@@ -224,9 +224,9 @@ the clean-revision milestone gate.
 | `AC-LIVE-002/004` four selected Codex outcomes and live identities | Provider/account | Four real owner-selected Codex accounts or explicit owner-unavailable outcomes | Passed for the current `8cc683d` prerequisite | `AUTO-M5-OWNER-OUTCOMES` passed with four outcomes: three verified and one owner-unavailable. | This sanitized availability result contains no quota or acceptance claim and becomes stale after any sixth rollover. |
 | `AC-LIVE-005`, `M5-CDX-COL/CAP` authoritative quota/history | Provider/DB/API/browser | Official Codex `/status`, fresh scheduled observations, current and retained history | Current witness Not Run | The earlier d81 witness failure and its projection correction remain historical Green evidence. No revision-bound `8cc683d` quota witness was created. | Fresh authoritative `/status`, collection, API/DOM, and retained-history reconciliation remains required after the proposed sixth rollover. |
 | `AC-PROC-001..004`, `M5-CDX-RUN-001..008` representative processes | Linux/platform/browser | Five to six real Codex processes outside the managed-profile subtree | Historical availability; current canonical witness unrecorded | Six exact-version baseline Codex processes were alive during earlier d81 live work. | Current PID/start/executable reread, hierarchy/location, managed-child exclusion, and unresolved or owner-confirmed association remain required. |
-| `AC-ALERT-002`, `M5-CDX-ALERT-001..007` live lifecycle | DB/API/browser/provider | Genuine Codex capacity condition, fresh opening, repeated delivery, owner action, later source-proven recovery | Lifecycle Passed; canonical witness Failed | A current `8cc683d` opening, repeat, owner acknowledgement, and recovery passed. `AUTO-M5-ALERT-WITNESS` created no file: the first run exposed quadratic source-event proof and the unchanged rerun failed as `selected_alert_history_not_rendered`, surfaced as `m5_alert_witness_browser_unavailable`, with API `192` versus DOM `100`. | Proposed 1.16 corrects only the targeted lookup and complete UI history pagination; a fresh witness remains required after activation. |
+| `AC-ALERT-002`, `M5-CDX-ALERT-001..007` live lifecycle | DB/API/browser/provider | Genuine Codex capacity condition, fresh opening, repeated delivery, owner action, later source-proven recovery | Lifecycle Passed; canonical witness Failed | A current `8cc683d` opening, repeat, owner acknowledgement, and recovery passed. `AUTO-M5-ALERT-WITNESS` created no file: the first run exposed quadratic source-event proof and the unchanged rerun failed as `selected_alert_history_not_rendered`, surfaced as `m5_alert_witness_browser_unavailable`, with API `192` versus DOM `100`. | Approved 1.16 corrects only the targeted lookup and complete UI history pagination; a fresh witness remains required after activation. |
 | Authenticated managed-profile syscall containment | Linux/provider/security | Real authenticated managed Codex profile and `strace` | Passed on exact clean revision | After complete preactivation, the standalone rerun against exact `8cc683d` and pinned Codex `0.160.0` returned `1 passed in 4.03s` with zero skips. | This is required live evidence but does not replace `AUTO-M5-EXIT`. |
-| `M5-SVC-ACT-001..012`, `AUTO-M5-SERVICE-ACTIVATE` | Operations/service transition | Real user systemd manager, trusted persistent runtime, clean stable Git worktree, real HTTP and authenticated browser | First five corrective rollover/activations Passed | The fifth two-invocation transition preserved the prior archive chain and activated exact `8cc683d` with service, browser, Registry, database, rollback, and receipt proof. | Proposed 1.16 authorizes no sixth transition unless explicitly approved; no seventh rollover is proposed. |
+| `M5-SVC-ACT-001..012`, `AUTO-M5-SERVICE-ACTIVATE` | Operations/service transition | Real user systemd manager, trusted persistent runtime, clean stable Git worktree, real HTTP and authenticated browser | First five corrective rollover/activations Passed | The fifth two-invocation transition preserved the prior archive chain and activated exact `8cc683d` with service, browser, Registry, database, rollback, and receipt proof. | Owner-approved 1.16 authorizes exactly one sixth transition; no seventh rollover is approved. |
 | `M5-CDX-GATE-001..014`, canonical `AUTO-M5-EXIT` | Full local/live gate | Clean exact revision, selected running service, prerequisite receipts, all local gates with zero skips | Not Run | Exact `8cc683d` preactivation, authenticated containment, fifth activation, owner outcomes, and alert lifecycle passed, but no alert witness, quota witness, or final receipt exists. | Must pass every remaining lane before M5 completion can be claimed. |
 | macOS compatibility | Platform | Real macOS host | Blocked | No real Mac available | Outside Linux-first M5 acceptance; remains visible for V1. |
 
@@ -1368,7 +1368,7 @@ result, or that the live selectors required by `AUTO-M5-EXIT` were available.
 | Four live accounts | Passed for the current `8cc683d` prerequisite | `AUTO-M5-OWNER-OUTCOMES` passed with four outcomes: three verified and one owner-unavailable. It becomes stale after any approved sixth rollover. |
 | Authoritative live quota/history | Current witness Not Run | The earlier d81 quota-policy failure and its Green correction remain historical. A revision-bound `8cc683d` quota witness does not exist and must be refreshed after the proposed sixth activation. |
 | Genuine capacity alert lifecycle | Current lifecycle Passed; alert witness Failed | Opening, distinct repeat, owner acknowledgement, and source-proven recovery passed on `8cc683d`. The writer then exposed quadratic source lookup; its unchanged rerun reached the browser and failed with API `192` versus DOM `100`. No alert witness exists. |
-| Clean exact running revision | Exact `8cc683d` activation Passed | Five corrective rollovers are preserved in fixed private archives, and the fifth rerun activated exact `8cc683d`. Proposed 1.16 is pending approval for one exact sixth rollover; `AUTO-M5-EXIT` remains Not Run. |
+| Clean exact running revision | Exact `8cc683d` activation Passed | Five corrective rollovers are preserved in fixed private archives, and the fifth rerun activated exact `8cc683d`. Owner-approved 1.16 permits one exact sixth rollover; `AUTO-M5-EXIT` remains Not Run. |
 
 The provider discovery basis is
 [Codex 0.160.0 discovery](m5-codex-0.160.0-discovery.md). The later
@@ -2030,10 +2030,9 @@ and reached the browser, then failed closed as
 selected-alert history entries while the built page rendered only `100`. No
 alert witness or completion receipt was created.
 
-Proposed plan 1.16.0 contains only the bounded exact-ID acknowledged-event
+Owner-approved plan 1.16.0 contains only the bounded exact-ID acknowledged-event
 lookup, complete cursor-paginated Alerts history and browser proof, and one
-exact sixth evidence-preserving rollover. It has no implementation authority
-until explicit owner approval.
+exact sixth evidence-preserving rollover.
 
 ## Data and secret review
 
@@ -2054,31 +2053,30 @@ it does not establish M5 completion.
 
 No current alert witness, quota witness, or M5 completion receipt exists. The
 alert-witness attempt exposed two bounded implementation defects: quadratic
-whole-outbox acknowledgement lookup and single-page Alerts rendering. Proposed
-plan 1.16.0 addresses only those defects and the exact rollover needed to bind
-new evidence to the corrected revision. It remains unapproved and
-unimplemented.
+whole-outbox acknowledgement lookup and single-page Alerts rendering. Owner-
+approved plan 1.16.0 addresses only those defects and the exact rollover needed
+to bind new evidence to the corrected revision. It remains unimplemented.
 
 Before any completion or acceptance claim, the integration owner must:
 
-1. obtain explicit owner approval for plan 1.16.0;
-2. implement its exact bounded lookup, paginated UI/browser proof, and sixth
+1. implement plan 1.16.0's exact bounded lookup, paginated UI/browser proof,
+   and sixth
    activation policy through Red, Green, refactor, full canonical preactivation,
    and independent review on one clean candidate;
-3. perform exactly one two-stage sixth rollover from `8cc683d`, preserving and
+2. perform exactly one two-stage sixth rollover from `8cc683d`, preserving and
    revalidating all five existing archives;
-4. archive the stale service-bound prerequisites and recreate current owner
+3. archive the stale service-bound prerequisites and recreate current owner
    outcomes and one genuine alert opening or reopening, repeat, owner action,
    and source-proven recovery;
-5. pass `AUTO-M5-ALERT-WITNESS` and create its private revision-bound witness;
-6. reconcile every verified account with fresh official Codex `/status`,
+4. pass `AUTO-M5-ALERT-WITNESS` and create its private revision-bound witness;
+5. reconcile every verified account with fresh official Codex `/status`,
    current collection, API/DOM values, and retained history through corrected
    `AUTO-M5-QUOTA-WITNESS`;
-7. verify five to six representative external Codex processes without account
+6. verify five to six representative external Codex processes without account
    guessing or process control;
-8. run authenticated syscall containment for identity and quota with zero
+7. run authenticated syscall containment for identity and quota with zero
    default-profile access or write; and
-9. run `python3 tools/automation/run.py AUTO-M5-EXIT` with zero skips, retain
+8. run `python3 tools/automation/run.py AUTO-M5-EXIT` with zero skips, retain
    its private create-once exact-revision receipt, and present that exact result
    for owner review.
 

@@ -207,11 +207,11 @@ Directories are created when an approved planning assignment begins. Drafts stat
   whole-outbox acknowledgement lookup at more than 36,000 real events, and the
   unchanged canonical rerun failed closed because the API returned all 192
   selected-alert history entries while the built UI rendered only 100.
-  Proposed plan 1.16.0 is limited to a bounded three-event acknowledgement
+  Owner-approved plan 1.16.0 is limited to a bounded three-event acknowledgement
   lookup, complete cursor-paginated Alerts history, and one exact sixth
-  evidence-preserving rollover from `8cc683d`; implementation remains
-  prohibited until owner approval. `AUTO-M5-QUOTA-WITNESS`, `AUTO-M5-EXIT`,
-  and owner acceptance remain Not Run. OpenAI API billing remains V1-M7.
+  evidence-preserving rollover from `8cc683d`. `AUTO-M5-QUOTA-WITNESS`,
+  `AUTO-M5-EXIT`, and owner acceptance remain Not Run. OpenAI API billing
+  remains V1-M7.
 - [Live agent account association](integration/live-agent-account-association-change.md):
   explicit manual confirmation, guarded current terminal details and private
   revisioned settings; the named owner-authorized live link/persistence gate Passed.
