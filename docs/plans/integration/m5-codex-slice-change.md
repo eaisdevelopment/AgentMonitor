@@ -1,13 +1,16 @@
 # Change plan: executable V1-M5 Codex slice
 
-- Status: **Owner-approved 1.17.0 on 2026-10-23. Owner-approved 1.16.0 is
-  implemented and active at clean revision
-  `35f50d8c4865505a9112d8aef7ea788f425ae658`. Its refreshed owner, alert,
-  and quota prerequisites passed, but `AUTO-M5-EXIT` failed on the bounded
-  artifact-selector defect specified below and created no completion
-  receipt.**
-- Plan version: owner-approved `1.17.0`; approved version `1.16.0` remains
-  incorporated unchanged.
+- Status: **Owner-approved 1.20.0 is locally implemented with owner-approved
+  1.19.0 and 1.18.0 in one combined, unactivated candidate. Focused Green,
+  the exact zero-skip Story inventory, authenticated containment, and the
+  local preactivation routines through `AUTO-TEST` pass. Detached clean-revision
+  Git preflight, the single eighth activation, refreshed live prerequisites,
+  `AUTO-M5-EXIT`, and owner acceptance remain Not Run. The active clean
+  service remains revision
+  `1ada84f71e827bb4f7ea966462a6cf51d050e9af`. No activated combined revision,
+  quota witness, M5 receipt, or completion claim is credited.**
+- Plan version: owner-approved `1.20.0`; owner-approved `1.19.0` and `1.18.0`
+  remain incorporated unchanged.
 - Safety correction: exact-version review proved that authenticated app-server
   queries may perform Codex's automatic credential refresh. The approved
   managed-auth lifecycle therefore classifies those queries as
@@ -59,6 +62,26 @@
   prerequisites, and one corrected `AUTO-M5-EXIT` rerun specified below;
   all remaining A02, OpenAI API, PLAN-DEP/D01, and
   `AUTO-DEPLOY` lanes stay Draft or Blocked as already recorded.
+  The owner's explicit 2026-10-24 approval of version 1.18.0 adds only the
+  exact full-unused-window reset relation,
+  its focused tests, the exact Story inventory rebind, one eighth
+  evidence-preserving rollover from
+  `1ada84f71e827bb4f7ea966462a6cf51d050e9af`, refreshed
+  revision/service-bound prerequisites, and one complete `AUTO-M5-EXIT`
+  rerun. It supersedes only 1.17.0's prohibitions on quota-policy and quota-test
+  changes and an eighth rollover; every other 1.17.0 boundary remains binding.
+  The owner's explicit 2026-10-25 approval of version 1.19.0 adds only the
+  exact pinned-pytest JUnit
+  identity/outcome distinction, its focused tests, and the final zero-skip
+  inventory binding. It retains 1.18.0's single pending eighth rollover from
+  `1ada84f71e827bb4f7ea966462a6cf51d050e9af`; it adds no ninth rollover or
+  second candidate transition. It supersedes only 1.18.0's restriction of
+  `auto_m5_current_exit.py` changes to the count/digest constants.
+  The owner's explicit 2026-10-25 approval of version 1.20.0 adds only
+  deterministic real-filesystem modes to two
+  existing selected test fixtures, their focused Red/Green proof, and the
+  final zero-skip Story inventory binding. It changes no production behavior
+  and retains the same single pending eighth rollover.
 - Stories: `ST-CDX-001..005`.
 - Requirements: `FR-ACC-001/004..006`, `FR-AUTH-001/002/004..006`,
   `FR-QUOTA-001..006`, `FR-COL-003..008`, `FR-HIST-001/002`,
@@ -120,9 +143,15 @@ new page in the authenticated shared loopback browser proves each verified
 account's current identity, collection lineage, exact API, DOM and retained
 history quota values, and zero browser mutations. The owner reads only whole
 percentages and reset facts from each account's official Codex `/status` view;
-the routine requires exact percentages and semantic roles, reset agreement at
-the displayed second/minute/hour/day precision, and at most 300 seconds between
-the provider observation and AgentMonitor collection. It records only counts
+the routine requires exact account/window membership, semantic roles, whole
+percentages, and at most 300 seconds between the provider observation and
+AgentMonitor collection. Resets must match at the displayed
+second/minute/hour/day precision. Only when two readings are exactly `100%`,
+both resets are present, the AgentMonitor reset is exact, and the owner
+observation follows collection by 1--300 seconds may the displayed owner reset
+instead overlap the reset's one-for-one forward movement during that bounded
+interval. Non-100, fixed, null, imprecise, missing/extra-window, and otherwise
+unexplained reset cases retain the strict rule. The routine records only counts
 and digests in the closed `agentmonitor.m5-quota-witness.v1` schema.
 
 The quota witness binds its owner confirmation, clean revision, an equal
@@ -2900,6 +2929,700 @@ M5 remains **Intermediate**. The latest canonical result is `failed` on
 seventh rollover on one clean revision, all refreshed live prerequisites, a
 passing `AUTO-M5-EXIT` receipt, and separate owner acceptance.
 
+## Approved full-unused rolling-reset reconciliation and eighth exact rollover — 2026-10-24
+
+**Status: Owner-approved 1.18.0 on 2026-10-24.**
+
+Plan 1.18.0 incorporates owner-approved 1.17.0 unchanged and authorizes only one
+correction to the private `AUTO-M5-QUOTA-WITNESS` reconciliation policy, its
+focused Red/Green coverage and exact Story inventory rebind, and one
+evidence-preserving rollover from the currently active clean revision
+`1ada84f71e827bb4f7ea966462a6cf51d050e9af`. It does not reopen provider
+collection, quota meaning, API, UI, persistence, alert, process,
+authentication, or managed-profile behavior.
+
+### Current real-system evidence
+
+The seventh rollover activated clean detached revision
+`1ada84f71e827bb4f7ea966462a6cf51d050e9af`; the selected systemd service and
+authenticated shared browser report that revision. Fresh owner outcomes and
+the source-proven alert lifecycle/witness passed for that service. They do not
+constitute M5 completion.
+
+Fresh owner-observed Codex 0.160.0 `/status` evidence showed naturally unused
+windows at exactly `100%` remaining. Thirty-five five-hour observations and
+two weekly streams of thirty-five and thirty-six observations retained stable
+native horizons near 17,999 and 604,799 seconds while each absolute reset moved
+with the later collection. Reset movement tracked collection movement within
+1.037 seconds. A naturally non-full weekly stream retained one fixed reset
+across nine observations. One genuine account exposed only its weekly window
+and no five-hour window. No missing window may be synthesized.
+
+The existing pure policy compares only absolute reset buckets. A sanitized
+reproduction with collection and owner observation six minutes apart, both
+values `100%`, and both weekly reset timestamps advanced by the same six
+minutes returns `m5_quota_witness_reconciliation_mismatch`. That is a false
+mismatch between two consistent rolling observations. Broad reset tolerance
+would weaken fixed-window evidence and is not proposed.
+
+### Requirement and scenario binding
+
+- `M5-CDX-GATE-016` verifies the closed fixed-or-rolling reset relation for the
+  owner-observed Codex quota witness. It contributes `FR-QUOTA-001..006`,
+  `FR-HIST-001/002`, `AC-LIVE-005`, `AC-HIST-001`, `AC-OPS-003/006`,
+  `NFR-TEST-001/002`, `NFR-RES-001`, and `AC-TEST-001/003/006`.
+- `M5-SVC-ACT-023` verifies the exact eighth archive and activation from
+  revision `1ada84f71e827bb4f7ea966462a6cf51d050e9af`. It contributes
+  `NFR-RES-001`, `NFR-TEST-001/002`, and `AC-TEST-001/003/006` without
+  creating general deployment authority.
+
+Neither scenario may be marked Passed until its named boundary runs on the
+clean corrected revision and the real owner service state.
+
+### Exact reconciliation correction
+
+Preserve exact account/window-set equality, window keys, semantic roles, whole
+percentages, reset nullness, display-precision validation, and the existing
+300-second observation/collection bound. Preserve the fixed relation first:
+two absent resets match, and two present resets match only when their absolute
+timestamps occupy the same owner-displayed second, minute, hour, or day bucket.
+
+Only when that fixed relation fails may one window use the rolling relation.
+The rolling relation passes only when every condition below is true:
+
+1. AgentMonitor and the owner both report exactly `100` percent remaining;
+2. both reset timestamps are present;
+3. AgentMonitor's retained reset precision is exactly `exact`, rather than
+   `rounded`, `range`, `estimated`, or `unknown`;
+4. AgentMonitor's exact reset is strictly future relative to collection;
+5. the owner observation follows collection by 1--300 seconds; and
+6. the half-open owner reset interval implied by its displayed precision
+   overlaps the interval from AgentMonitor's exact reset through that reset
+   advanced by the observation delay, and their intersection contains a point
+   strictly after the owner observation.
+
+Condition 6 proves that the official reset could have moved one-for-one at
+some point between the two bounded observations. It is not an arbitrary
+`+/- 300 seconds` reset tolerance. A non-100 window always requires the
+existing absolute reset match. A fixed reset at any percentage continues
+through the existing absolute relation. A full window whose reset does not
+either match absolutely or fall within the exact bounded rolling interval
+fails with the unchanged `m5_quota_witness_reconciliation_mismatch` code.
+Negative, zero, or excessive observation skew, a past/equal AgentMonitor reset,
+an overlap wholly at or before owner observation, a displayed bucket outside
+the rolling interval, non-exact source precision, null mismatch,
+missing or extra windows, duplicate windows, fractional percentages, changed
+roles/keys, or unknown display precision remain rejected.
+
+`_agent_records` already validates and serializes `reset_precision`; the
+correction retains that existing value in `_AgentQuotaWindowV1` solely for the
+rolling guard. Canonical digest input and the private witness schema do not
+change.
+
+The correction compares only windows already present in both closed sets. It
+must not invent, rename, drop, or infer a five-hour, weekly, primary, or
+secondary window; hardcode a provider duration, account, alias, window key, or
+live value; invoke Codex; reread a provider profile; or change the owner
+attestation phrase. An account for which the admitted source and official view
+expose only one weekly window remains a one-window account in this witness.
+
+### Test-first sequence
+
+Before implementation, add a pure regression whose AgentMonitor and owner
+observations are within 300 seconds, both report `100%`, and whose reset moves
+inside the bounded interval across a displayed bucket. It must fail Red under
+1.17 with `m5_quota_witness_reconciliation_mismatch` because the absolute
+buckets differ.
+
+Green must prove all of the following:
+
+- valid full-window movement passes at second and minute precision, plus
+  hour/day boundary cases with the documented half-open interval behavior;
+- an unchanged fixed reset passes through the existing absolute relation for
+  both `100%` and non-100 values;
+- a non-100 reset shifted across the displayed bucket by the observation delay
+  fails, while the existing displayed-precision equality remains unchanged;
+- a full reset bucket entirely before or after the bounded rolling interval
+  fails;
+- negative and zero observation deltas cannot use the rolling branch, the exact
+  300-second boundary passes, and 301 seconds fails;
+- an AgentMonitor reset that is not future at collection, an intersection with
+  no point after owner observation, and `rounded`, `range`, `estimated`, or
+  unknown AgentMonitor reset precision cannot use the rolling branch;
+- null/present mismatch, missing/extra/duplicate windows, and a synthesized
+  five-hour window remain rejected; and
+- canonical value and owner-observation digests plus
+  `agentmonitor.m5-quota-witness.v1` parsing remain unchanged.
+
+Existing tests remain named and present; focused cases are additive. Run the
+focused Red, focused Green, the complete quota-witness file, complete
+current-exit and activation files, and dispatcher tests. Recollect the exact
+Python Story inventory and update its count/digest only from the real
+collection; no test may be removed, renamed, skipped, or excluded to preserve
+the old value.
+
+### Authorized files
+
+Implementation and focused verification are limited to:
+
+- `tools/automation/implementations/m5_codex_quota_witness.py`;
+- `tools/automation/test_m5_codex_quota_witness.py`;
+- `tools/automation/implementations/auto_m5_current_exit.py` and
+  `tools/automation/test_m5_current_exit.py`, only for the exact collected
+  Story inventory count/digest and its assertions;
+- `tools/automation/implementations/m5_service_activation.py`;
+- `tools/automation/test_m5_service_activation.py`;
+- `tools/automation/routines.toml`, only for truthful eight-rollover and
+  reconciliation wording;
+- `docs/engineering/completion-and-automation-gates.md`, only for truthful
+  eight-rollover wording and the exact fixed-or-full-rolling reconciliation
+  rule;
+- this plan and `docs/plans/plan-baseline.toml`, with the baseline generated
+  only by the existing renderer;
+- `docs/plans/integration/cs1-final-readiness-audit.md` and
+  `docs/plans/integration/cs1-full-plan-synchronization.md`, only for
+  append-only binding to the regenerated snapshot; and
+- `docs/evidence/m5-codex-implementation.md`, `docs/operations/runbook.md`,
+  `docs/README.md`, and `docs/evidence/v1-implementation-status-v1.json`, only
+  to record the real 1.17 outcome, this correction, and later verified 1.18
+  results.
+
+No other production, test, generated, contract, migration, dependency, or
+documentation file is authorized. If implementation proves another file or
+contract is required, stop and amend/reapprove the plan.
+
+### Contract, security, privacy, data, and dependency impact
+
+The correction is internal completion-evidence policy.
+`CTR-CAP-001/003/004/007`, provider contracts, REST/OpenAPI, generated client,
+database schema, migrations, retention, Registry, browser rendering, quota
+collection, scheduler, alert lifecycle, and private witness/receipt schemas do
+not change. No ADR or compatibility migration is required.
+
+The command remains provider-read-free and application-read-only. It stores
+only existing counts and digests in the create-once owner-only file. It must
+not persist or log aliases, account identities, entered percentages/resets,
+profile paths, provider payloads, prompts, responses, credentials, or raw
+browser material. No dependency, lockfile, SBOM, notice, or licence change is
+authorized.
+
+### Approved eighth evidence-preserving rollover
+
+Because implementation changes the clean revision, no revision/service-bound
+1.17 activation receipt, owner outcome, alert witness, quota observation,
+process evidence, or completion result may be copied, edited, or credited to
+the corrected candidate.
+
+After owner approval and complete preactivation Green on one new clean detached
+revision, permit one eighth corrective rollover from exact revision
+`1ada84f71e827bb4f7ea966462a6cf51d050e9af` into fixed singleton namespace
+`m5-service-activation-corrective-archive-1ada84f`. Append that revision as the
+eighth and final approved rollover, require the seven existing archives as an
+unchanged ordered prefix, and reserve every completed revision from candidate
+selection.
+
+The first canonical activation invocation must validate the complete current
+transition, exact service/browser revision, clean detached checkout,
+Registry/database identity, rollback runtime, and all seven prior archives.
+Under the existing exclusive guard it restores the trusted rollback service,
+atomically moves the complete transition directory without replacement into
+the eighth archive, fsyncs both parents, and returns the existing status-5
+rerun result. The second invocation revalidates all eight archives and the
+corrected candidate before the unchanged rollback drill and activation.
+Existing descriptor, inode, digest, ownership, mode, link-count, collision,
+interruption, retry, and trusted-restoration protections remain unchanged.
+Partial, multiple, unknown, replaced, linked, colliding, skipped-prefix,
+dirty-checkout, wrong-service, or wrong-revision state blocks without cleanup
+or replacement.
+
+After activation, run the canonical prerequisite archive, create a new
+four-account owner outcome, complete a new genuine opening/reopening, distinct
+repeat, one owner action and distinct source-proven recovery, pass a new
+`AUTO-M5-ALERT-WITNESS`, obtain fresh scheduled quota lineage, and run the
+corrected `AUTO-M5-QUOTA-WITNESS`. Live quota evidence must naturally exercise
+at least one bounded rolling `100%` window and one strict non-100 fixed reset
+if those genuine conditions remain available; an unavailable required
+condition is Blocked and is never manufactured. Refresh the five-to-six
+process proof and immediately run `AUTO-M5-EXIT` while the 15-minute quota
+witness is current.
+
+### Completion and exclusions
+
+Before activation, require focused tests, complete affected suites, exact
+Story inventory, Ruff lint/format, strict mypy, frontend typecheck/build, API
+compatibility, `AUTO-PLAN-CHECK`, `AUTO-DOCS-CHECK`, `AUTO-BUILD`,
+`AUTO-QUALITY`, `AUTO-MUTATION`, `AUTO-M3-TEST`, `AUTO-TEST`, detached
+`AUTO-GIT-PREFLIGHT`, zero-skip authenticated containment, `git diff --check`,
+and clean independent policy, activation-safety, test-integrity, and
+security/privacy reviews. After activation, both real activation invocations,
+every refreshed prerequisite, and complete `AUTO-M5-EXIT` must pass before a
+receipt can be reviewed for separate owner acceptance.
+
+This amendment authorizes no arbitrary reset tolerance, omitted-window
+substitution, hardcoded duration/value/account, ninth rollover, general
+deployment, witness/receipt rewrite, prerequisite reuse,
+fabricated/replayed/edited telemetry, provider call/login/profile mutation,
+default-profile access, running-agent control, public
+contract/schema/migration/dependency change, M6, M7, M8, release, OpenAI API
+billing, or macOS acceptance. M5 remains **Intermediate** until the corrected
+exact-revision gate passes and the owner separately accepts it.
+
+## Approved pytest 9.1.1 JUnit identity/outcome correction within the pending eighth rollover — 2026-10-25
+
+**Status: Owner-approved 1.19.0 on 2026-10-25.**
+
+Plan 1.19.0 incorporates owner-approved 1.18.0 unchanged and authorizes only one
+correction to the private `AUTO-M5-EXIT` Story-report validator, its focused
+Red/Green coverage, and a final exact inventory binding from one successful
+zero-skip run. The 1.18 quota policy, tests, eighth-rollover implementation,
+documentation, and synchronization changes remain part of the same uncommitted
+candidate.
+
+This amendment creates no additional service rollover. After complete Green,
+the combined 1.18 and 1.19 changes form one clean revision and use the single
+already approved eighth rollover from active revision
+`1ada84f71e827bb4f7ea966462a6cf51d050e9af`.
+
+### Current exact-tool evidence
+
+The locked development dependency and executing environment both use pytest
+`9.1.1`.
+
+A real minimal pytest 9.1.1 invocation over one `unittest.TestCase` method
+containing three successful `subTest` blocks reports one passed parent and
+three passed subtests in the terminal, one `<testcase>` identity in JUnit, and
+`<testsuite tests="4" failures="0" errors="0" skipped="0">`. Pytest therefore
+uses the JUnit `tests` attribute for executed outcomes while emitting one
+`<testcase>` identity for the parent node. The current
+`_validate_pytest_report_inventory_v1` incorrectly requires the declared
+outcome count to equal the number of emitted parent identities.
+
+The exact selected M5 Story run exposed the same shape:
+
+- `588` unique emitted `<testcase>` identities;
+- provisional identity digest
+  `77f4ab235b47c36520352a7de048c08eba90bd708e6b5cb20277e27b75890bf8`;
+- `1,146` declared outcomes, including `558` successful subtest outcomes; and
+- zero skipped outcomes.
+
+The direct harness run itself finished with `585` passed and `3` failed parent
+tests. It is not completion evidence, and its measured counts and digest remain
+provisional until the exact selected suite passes with zero failures and zero
+skips.
+
+The three failures were separate from JUnit parsing: current managed-profile
+containment state, a required service-start binding omitted by the direct
+harness, and private copied-database mode under the caller's shell umask. This
+amendment does not reinterpret those failures as passing and authorizes no
+behavior change for them. They must be rerun with the exact canonical service
+binding, managed-profile prerequisites, private execution environment, pinned
+provider-tool path, and complete M5 selectors. If any reproduces under that
+canonical environment, stop and amend the plan from the new Red.
+
+### Requirement and scenario binding
+
+`M5-CDX-GATE-017` verifies that the pinned pytest 9.1.1 report validator binds
+the exact selected parent identities and the exact executed outcome count
+without confusing successful subtests with additional parent identities. It
+contributes `NFR-TEST-001/002`, `NFR-RES-001`, `AC-OPS-003/006`, and
+`AC-TEST-001/003/006`.
+
+The scenario remains Not Run until its focused boundary and the complete
+selected Story suite pass on the clean combined candidate.
+
+### Exact validator correction
+
+Preserve the existing normalized repository-relative file policy, nonempty
+bounded test names, unique parent identity set, exact identity count, exact
+identity digest, selected Story paths, selected automation IDs, zero-skip
+plugin, subprocess success requirement, timeout, and fail-closed error
+vocabulary.
+
+Separate two exact values that pytest 9.1.1 represents differently:
+
+1. **Parent identity inventory:** the number and digest of emitted `<testcase>`
+   file/name pairs.
+2. **Executed outcome inventory:** the `<testsuite tests>` count, including
+   successful `subTest` outcomes that pytest does not emit as separate
+   `<testcase>` elements.
+
+Add one explicit expected declared-outcome constant beside the existing
+expected parent count and digest. The final values may be bound only from one
+successful zero-failure, zero-error, zero-skip execution of the exact selected
+Story command. The current measurements of `588` parent identities, digest
+`77f4ab235b47c36520352a7de048c08eba90bd708e6b5cb20277e27b75890bf8`, and
+`1,146` declared outcomes must be revalidated by that successful run before
+they receive Green credit.
+
+For the pinned pytest report shape, require exactly one direct `<testsuite>`
+below the `<testsuites>` root and no nested or additional suite. Require its
+`tests`, `failures`, `errors`, and `skipped` attributes to be present, decimal,
+nonnegative integers. The declared outcome count must equal the exact bound
+expected-outcome constant and must not be smaller than the emitted parent
+count. Failures, errors, and skips must each equal zero. A `<failure>`,
+`<error>`, or `<skipped>` result element must also fail closed.
+
+Continue to require every emitted parent identity to be valid, unique, and
+part of the exact count/digest. Do not derive identities from suite totals,
+terminal prose, subtest labels, arbitrary XML text, or caller-supplied paths.
+
+Preserve the validator's existing top-level Story-count meaning for callers by
+returning the emitted parent-identity count and skip count. The separately
+bound declared-outcome count is validation evidence and does not inflate the
+receipt's top-level test count. This correction changes only internal
+completion-evidence validation; it does not change a public, module, witness,
+receipt, API, provider, database, or UI contract.
+
+### Test-first sequence
+
+Before production implementation, add a regression generated by the real
+pinned pytest 9.1.1 executable: one temporary `unittest` parent with successful
+subtests must produce one parent identity and multiple declared outcomes. The
+current validator must fail Red with `m5_current_story_inventory_invalid`.
+
+Green must prove:
+
+- the exact pinned-pytest subtest report passes with one parent identity and
+  the separately bound declared outcomes;
+- a report without subtests passes when its exact parent and outcome counts are
+  equal;
+- the final real Story report passes only with its exact separately bound
+  parent count, parent digest, and declared outcome count;
+- changing the declared outcome count while preserving parent identities
+  fails;
+- changing, adding, removing, or duplicating a parent identity fails;
+- multiple, missing, or nested suites fail;
+- malformed, missing, negative, or nondecimal count attributes fail;
+- any declared failure, error, or skip fails;
+- any `<failure>`, `<error>`, or `<skipped>` result element fails;
+- an invalid, absolute, traversing, unselected, overlong, or NUL-bearing
+  file/name value fails;
+- the no-skip plugin and subprocess nonzero-exit behavior remain unchanged;
+  and
+- no selected test, parameterization, subtest, path, or automation ID is
+  removed, renamed, skipped, filtered, or excluded to obtain Green.
+
+Run the focused Red, focused Green, the complete current-exit test file,
+complete quota-witness and activation files, affected dispatcher tests, and
+the exact selected Story command. Recollect the final constants only from the
+successful zero-failure and zero-skip report.
+
+### Authorized files
+
+Implementation and focused verification are limited to:
+
+- `tools/automation/implementations/auto_m5_current_exit.py`;
+- `tools/automation/test_m5_current_exit.py`;
+- this plan; and
+- `docs/evidence/m5-codex-implementation.md`,
+  `docs/operations/runbook.md`, `docs/README.md`, and
+  `docs/evidence/v1-implementation-status-v1.json`, only to record the verified
+  combined 1.18/1.19 result and later live outcome.
+
+Owner-approved 1.18.0's already authorized files remain available solely for
+completing and documenting their approved changes. No provider, API, UI,
+persistence, contract, migration, dependency, lockfile, activation-policy,
+witness-schema, receipt-schema, or other test file is authorized by 1.19.0.
+
+If the exact canonical rerun proves that any of the three direct-harness
+failures is a code defect rather than missing or invalid environment state,
+stop and amend/reapprove the plan before changing its owning file.
+
+### Contract, security, privacy, data, and dependency impact
+
+This is an internal fail-closed test-evidence correction. It parses only the
+bounded temporary JUnit file already produced by the selected local test
+process. It adds no provider call, profile access, account data, process
+control, network access, secret, database access, retained raw report, or new
+dependency.
+
+Only aggregate counts and the existing SHA-256 identity digest enter
+completion evidence. Test names remain bounded repository test identifiers.
+No prompt, response, provider payload, account identity, profile path,
+credential, arbitrary environment value, source content, or raw live evidence
+may be persisted or logged.
+
+No public/module contract, API/OpenAPI schema, generated client, database
+schema, migration, retention rule, compatibility promise, SBOM, notice,
+licence record, ADR, backup, or restore change is required.
+
+### Single pending eighth rollover
+
+Plan 1.18.0's eighth-rollover authority remains unchanged. No 1.18 candidate
+has been committed or activated, so the 1.19 correction must be included in
+the same clean candidate revision.
+
+After all combined preactivation checks pass, the first canonical activation
+invocation archives completed active revision
+`1ada84f71e827bb4f7ea966462a6cf51d050e9af` into
+`m5-service-activation-corrective-archive-1ada84f` and returns the existing
+status-5 rerun result. The second invocation activates the one combined
+corrected candidate after revalidating all eight archives and the trusted
+rollback runtime.
+
+No intermediate 1.18 revision may be activated, archived, or treated as a
+separate rollover. No ninth rollover is authorized.
+
+After activation, refresh owner outcomes, the genuine alert lifecycle/witness,
+official `/status` quota evidence/witness, and process proof once for the
+combined revision and service. Then run complete `AUTO-M5-EXIT` while the
+quota witness remains current.
+
+### Required verification and exclusions
+
+Before commit and activation require:
+
+- focused and complete affected tests;
+- the exact successful parent-identity/outcome inventory;
+- Ruff lint/format and strict mypy;
+- `git diff --check`;
+- `AUTO-PLAN-CHECK`, `AUTO-DOCS-CHECK`, `AUTO-BUILD`, `AUTO-QUALITY`,
+  `AUTO-MUTATION`, `AUTO-M3-TEST`, and `AUTO-TEST`;
+- detached `AUTO-GIT-PREFLIGHT`;
+- zero-skip authenticated containment; and
+- independent test-integrity, policy, activation-safety, and security/privacy
+  review.
+
+Use the approved pinned Codex 0.160.0 path for every provider-sensitive gate.
+The three direct-harness failures must either pass under the exact canonical
+prerequisites or produce a new explicit Red and stop condition.
+
+This amendment authorizes no relaxed or ignored suite total; arbitrary
+`declared >= emitted` acceptance; removal, flattening, suppression, or
+rewriting of subtests; terminal-output parsing; test deletion or skip;
+fabricated XML; dependency/plugin change; ninth rollover; general deployment;
+prerequisite reuse; witness/receipt rewrite; provider call/login/profile
+mutation; default-profile access; running-agent control; public
+contract/schema/migration change; M6, M7, M8, release, OpenAI API billing, or
+macOS acceptance.
+
+M5 remains **Intermediate** until the combined clean revision is activated,
+every refreshed prerequisite passes, `AUTO-M5-EXIT` writes its create-once
+receipt, and the owner separately accepts that exact receipt.
+
+## Owner-approved deterministic private-fixture correction within the pending eighth rollover — 2026-10-25
+
+**Status: Owner-approved 1.20.0 on 2026-10-25. Test implementation is
+authorized only within the exact scope below; no production behavior change is
+authorized.**
+
+Plan 1.20.0 incorporates owner-approved 1.18.0 and 1.19.0 unchanged and
+authorizes only two existing real-filesystem test fixtures to establish their
+intended modes independently of the caller's process `umask`. It adds no
+production behavior, new test node, service rollover, or provider operation.
+After approval and Green, all combined 1.18--1.20 changes form one candidate
+for the single pending eighth rollover from
+`1ada84f71e827bb4f7ea966462a6cf51d050e9af`; no ninth rollover is authorized.
+
+### Current exact evidence
+
+The exact selected Story run used pinned pytest `9.1.1` and reported `596`
+passed parent tests, `558` successful subtests, and two failed parent tests.
+Its provisional report contained `598` emitted parent identities and `1,156`
+declared outcomes. Because the run was not zero-failure, those values and its
+identity digest are not final inventory bindings.
+
+The two failures have one bounded fixture cause:
+
+1. The real owner-database enrollment test copies the selected database through
+   `sqlite3.Connection.backup` into an absent disposable file. SQLite creates
+   that file from mode `0666`; the workstation's ordinary `0002` umask leaves
+   mode `0664`. Production `DatabaseRefV1` correctly rejects anything other
+   than an owner-owned, single-link regular `0600` database. The disposable
+   test fixture failed to establish the production precondition.
+2. A whole-suite `0077` umask is not a valid correction. It also changes an
+   intentional `mkdir(mode=0o755)` hostile managed-root fixture to `0700`, so
+   the negative containment test no longer constructs the unsafe root it
+   claims to reject.
+
+The separate authenticated containment failure is not part of this proposed
+code change. After the owner exited the final stale `/status` session, a
+privacy-safe in-memory rerun retained no trace or path and emitted only closed
+structural facts: the unchanged policy accepted exactly ten successful,
+canonical, selected-managed-profile `ftruncate` calls, no successful other
+descriptor mutator, and no default-root annotation. The complete verification
+passed. The exact unmodified pytest node then passed with zero skips (`1 passed
+in 2.70s`) under ordinary `0002` umask. No containment production-policy change
+is justified or authorized. A later recurrence of
+`m5_codex_containment_fd_write_unverifiable` stops the gate and requires a new
+evidence-specific amendment rather than a retry-hidden pass.
+
+### Requirement and scenario binding
+
+`M5-CDX-GATE-018` verifies deterministic private and deliberately nonprivate
+real-filesystem fixtures for `M5-CDX-REG-004..006`, `M5-CDX-GATE-001`,
+`NFR-TEST-001/002`, `NFR-SEC-001`, `NFR-PRIV-001/002`,
+`AC-OPS-003/006`, and `AC-TEST-001/003/006`.
+
+The local scenario is Passed: both focused tests pass under both named umasks
+and the exact selected Story suite passes with zero failures, errors, and
+skips. This is preactivation evidence only. The earlier failed run remains Red
+evidence and is never relabelled Passed.
+
+### Exact test-only correction
+
+In the existing owner-selected live enrollment test, create the disposable
+`agentmonitor.db` target before copying any owner data. Use direct POSIX
+`os.open` with `O_CREAT | O_EXCL | O_RDWR | O_CLOEXEC` and requested mode
+`0600`, immediately apply `os.fchmod(..., 0o600)`, and close the descriptor in
+`finally`. Then run the unchanged real SQLite backup into that already-existing
+private file. Before constructing `DatabaseRefV1`, require `lstat` to prove an
+owner-owned, single-link regular file with exact mode `0600`. Any creation,
+permission, close, backup, type, owner, link-count, or post-copy mode failure
+must fail the test; no owner database bytes may first enter a group-readable
+inode.
+
+Do not use a global or process-local `umask` as the fixture control, repair the
+mode only after backup, weaken `DatabaseRefV1`, initialize a replacement schema,
+copy through shell utilities, or alter the owner database. The existing backup
+remains a real SQLite backup and the existing before/after owner Registry
+equality remains mandatory.
+
+In the existing nonprivate-selected-root negative containment test, explicitly
+apply and verify mode `0755` to the disposable selected root after `mkdir` and
+before invoking the production tree check. This test-only setup guarantees the
+hostile root remains hostile even under a restrictive caller umask. It must not
+change the production tree policy or any real managed profile.
+
+Both corrections modify existing test parents only. No test, parameterization,
+subtest, selector, assertion, path, or automation ID may be removed, renamed,
+skipped, filtered, or excluded. Final Story parent count, parent digest, and
+declared-outcome count may be rebound only from one successful exact zero-skip
+run under the 1.19 report validator.
+
+### Test-first sequence
+
+The retained Reds are:
+
+- under shell-scoped umask `0002`, the selected real enrollment test creates a
+  `0664` disposable database and fails the exact production permission policy;
+  and
+- under shell-scoped umask `0077`, the nonprivate-root negative test receives
+  `0700` from `mkdir` and fails to observe the expected rejection.
+
+Green must prove:
+
+- the selected real enrollment test passes under both `0002` and `0077`, the
+  disposable copied database is always exact `0600`, real identity and
+  idempotent enrollment execute, and the owner Registry remains unchanged;
+- the nonprivate-root negative test passes under both `0002` and `0077`, and
+  the root is exact `0755` at the production-check boundary;
+- the exact unmodified authenticated containment node passes once with zero
+  skips, pinned Codex `0.160.0`, the selected service binding, and ordinary
+  `0002` umask; and
+- the complete selected Story command then passes with zero failures, errors,
+  and skips without a whole-suite umask override.
+
+### Verified local implementation evidence
+
+Both retained Reds reproduced before the fixture correction. Under shell-scoped
+`umask 0002`, the selected real enrollment test failed with
+`database_permissions_unsafe`; under shell-scoped `umask 0077`, the hostile
+managed-root test failed because no containment error was raised.
+
+After the two test-only changes, the pair passes under both named umasks (`2`
+passes per run). The complete two affected files pass `106` parents and `558`
+subtests. The exact unmodified authenticated containment node passes with the
+pinned Codex `0.160.0`, active service revision/PID/start binding, ordinary
+`0002` umask, and zero skips (`1 passed in 3.69s`). Independent test-integrity
+and security/privacy review both returned GO with no blocker.
+
+One direct Story attempt then truthfully failed three environment-dependent
+parents and reported six prohibited skips: this detached worktree lacked its
+locked Playwright installation, resolved the workstation's unreviewed Claude
+version instead of the admitted `2.1.289`, and selected a verified Codex
+account different from the retained alert witness. No code was changed for
+those results. After restoring the ignored locked dependencies, pinning both
+provider tools, and selecting the witness-bound verified account, all four
+focused nodes passed and the unchanged exact Story command passed `598`
+parents and `558` subtests.
+
+Independent combined review then found two in-scope fail-closed defects. A
+syntactically valid rolling-reset observation near year 9999 escaped as
+`OverflowError`, and a genuine pytest `<skipped>` result child reached the
+generic inventory-invalid code instead of the preserved suite-skipped code.
+Each new regression failed Red with that exact behavior. Green bounds all
+rolling datetime arithmetic so overflow returns the existing reconciliation
+mismatch, and classifies a genuine skip child as
+`m5_current_story_suite_skipped` while failures and errors remain inventory
+invalid. The complete quota-witness and current-exit files then pass `131`
+tests.
+
+Because those two regressions add parents, the final-code Story command was
+recollected rather than arithmetically adjusted. Its pytest `9.1.1` JUnit
+report contains exactly `600` unique direct parent identities, `1,158`
+declared outcomes, zero errors, zero failures, zero skips, and parent-identity
+SHA-256
+`ad0b77bd19a52f0b0ff29958963414e6836882a659096d7f291cafb7368e4b3e`.
+The production validator accepts that final report as `(600, 0)`, and the
+complete current-exit file passes `80` tests after binding those constants. The exact
+Node inventory passes `21/21`, and the authenticated real-API/file-SQLite
+`account_beyond_page` browser scenario passes.
+
+Canonical local preactivation results are: synchronized planning, documentation,
+build, quality with strict mypy over `372` source files and zero boundary
+violations, all `1,708` mutation cases with no non-equivalent survivor,
+`AUTO-M3-TEST` `307` passes, and `AUTO-TEST` with `104` automation tests, `2`
+locked M0-runtime tests, `1,362` backend passes plus its separately declared
+`40` opt-in skips, and all required production-browser lanes. The first
+`AUTO-TEST` invocation stopped only because the detached worktree lacked the
+ignored locked M0 runtime; the unchanged rerun passed after that runtime was
+made available. Planning, documentation, build, quality, mutation, M3, and
+`AUTO-TEST` all passed again after the independent-review corrections on the
+final candidate bytes. These local results do not substitute for detached
+clean-revision Git preflight, activation, refreshed live evidence, the canonical M5
+receipt, or owner acceptance.
+
+After focused Green, run the complete affected files, Ruff lint/format, strict
+mypy where applicable, `git diff --check`, dispatcher/catalog tests, and every
+combined 1.18/1.19 preactivation gate. Recollect final JUnit inventory constants
+only from that successful exact Story report. Independent test-integrity and
+security/privacy review must confirm that the correction neither weakens the
+production permission policy nor reads, persists, or emits owner database
+content.
+
+### Authorized files and impacts
+
+Test implementation is limited to:
+
+- `backend/tests/integration/registry/test_codex_managed_connection.py`;
+- `tools/automation/test_m5_codex_containment.py`; and
+- `tools/automation/implementations/auto_m5_current_exit.py` plus
+  `tools/automation/test_m5_current_exit.py`, only for the final exact Story
+  parent count, parent digest, declared-outcome count, and their assertions if
+  those values change.
+
+Planning and verified-result documentation is limited to this plan,
+`docs/plans/plan-baseline.toml`, append-only CS1 snapshot bindings,
+`docs/evidence/m5-codex-implementation.md`, `docs/operations/runbook.md`,
+`docs/README.md`, and `docs/evidence/v1-implementation-status-v1.json`.
+The baseline is generated only by the existing renderer. No containment,
+persistence, provider, Registry, API, UI, quota, alert, activation, witness, or
+receipt production file is authorized by 1.20.0.
+
+This correction preserves the existing exact `0600` SQLite contract and exact
+containment rejection. It changes no public/module/provider contract,
+REST/OpenAPI schema, generated client, database schema, migration, retention,
+backup, configuration, dependency, lockfile, SBOM, notice, licence, ADR,
+provider profile, service, account, telemetry, or running-agent behavior.
+
+### Activation and exclusions
+
+After all combined preactivation checks pass, the one clean combined revision
+uses only the already approved eighth two-invocation rollover. All earlier
+revision/service-bound prerequisites are archived and recollected once through
+their canonical commands, followed by one complete `AUTO-M5-EXIT` while the
+quota witness is current. Plan approval is not activation, completion, or M5
+acceptance.
+
+This amendment authorizes no production permission relaxation, global umask,
+post-copy exposure, owner-database mutation, fabricated database, containment
+policy change, ignored or retried live failure, ninth rollover, general
+deployment, witness/receipt rewrite, prerequisite reuse, provider login or
+profile mutation, default-profile access, running-agent control, contract,
+schema, migration, dependency change, M6, M7, M8, release, OpenAI API billing,
+or macOS acceptance.
+
 ## Stop conditions
 
 Stop the affected increment if the installed version or generated schema
@@ -2926,8 +3649,11 @@ writes its private create-once receipt. The gate must prove:
    the fixed owner-only outcome file and bound by digest/count only;
 3. current genuine quota plus matching history lineage for every available
    monitored account, reconciled through `AUTO-M5-QUOTA-WITNESS` with Codex's
-   official `/status` view at exact whole percentage, displayed reset precision,
-   and at most 300 seconds of observation/collection skew;
+   official `/status` view at exact account/window membership, semantic roles,
+   whole percentages, displayed reset precision, and at most 300 seconds of
+   observation/collection skew; resets match absolutely unless two exact
+   `100%` readings satisfy the bounded one-for-one rolling relation specified
+   by plan 1.18.0;
 4. five to six representative real Codex processes outside AgentMonitor's
    managed-profile subtree, exact independently reread PID/start/executable
    identity, safe hierarchy/location presentation, and truthful unresolved or

@@ -200,9 +200,10 @@ STORY_NODE_TEST_INVENTORY_SHA256 = (
 )
 STORY_BROWSER_SCENARIOS = ("account_beyond_page",)
 # Updated only from the exact collected inventory after intentional test changes.
-STORY_PYTEST_TEST_COUNT = 562
+STORY_PYTEST_TEST_COUNT = 600
+STORY_PYTEST_DECLARED_TEST_COUNT = 1_158
 STORY_PYTEST_TEST_INVENTORY_SHA256 = (
-    "4ca56497a7fdaa1e80c7c01a3ee1e41c2029288966b1fe969790606fad0cbb7b"
+    "ad0b77bd19a52f0b0ff29958963414e6836882a659096d7f291cafb7368e4b3e"
 )
 STORY_ARTIFACTS = (
     "tools/git/preflight.py",
@@ -1650,6 +1651,8 @@ def _normalized_pytest_report_file_v1(value: object) -> str:
         or value.startswith("/")
     ):
         raise ValueError
+    if any(component in {".", ".."} for component in value.split("/")):
+        raise ValueError
     normalized = posixpath.normpath(value)
     if (
         normalized.startswith("../")
@@ -1664,23 +1667,62 @@ def _normalized_pytest_report_file_v1(value: object) -> str:
     return normalized
 
 
+def _selected_pytest_report_file_v1(value: object) -> str:
+    normalized = _normalized_pytest_report_file_v1(value)
+    for selector in (*STORY_TEST_PATHS, *STORY_AUTOMATION_TEST_IDS):
+        selected_path = selector.split("::", maxsplit=1)[0].rstrip("/")
+        if selected_path.endswith(".py"):
+            if normalized == selected_path:
+                return normalized
+        elif normalized.startswith(selected_path + "/"):
+            return normalized
+    raise ValueError
+
+
+def _junit_nonnegative_count_v1(value: object) -> int:
+    if type(value) is not str or re.fullmatch(r"(?:0|[1-9][0-9]{0,9})", value) is None:
+        raise ValueError
+    return int(value)
+
+
 def _validate_pytest_report_inventory_v1(
     report: Path,
     *,
     expected_count: int = STORY_PYTEST_TEST_COUNT,
+    expected_declared_count: int = STORY_PYTEST_DECLARED_TEST_COUNT,
     expected_digest: str = STORY_PYTEST_TEST_INVENTORY_SHA256,
 ) -> tuple[int, int]:
-    """Require the final JUnit report to name the exact selected M5 cases."""
+    """Require exact selected parents and parent-plus-subtest outcomes."""
 
     try:
         document = ET.parse(report).getroot()
-        suites = tuple(document.iter("testsuite"))
-        cases = tuple(document.iter("testcase"))
-        declared_count = sum(int(suite.get("tests", "-1")) for suite in suites)
-        skip_count = sum(int(suite.get("skipped", "-1")) for suite in suites)
+        root_children = tuple(document)
+        if (
+            document.tag != "testsuites"
+            or len(root_children) != 1
+            or root_children[0].tag != "testsuite"
+        ):
+            raise ValueError
+        suite = root_children[0]
+        if tuple(document.iter("testsuite")) != (suite,):
+            raise ValueError
+        cases = tuple(suite.iter("testcase"))
+        direct_cases = tuple(child for child in suite if child.tag == "testcase")
+        if cases != direct_cases:
+            raise ValueError
+        declared_count = _junit_nonnegative_count_v1(suite.get("tests"))
+        error_count = _junit_nonnegative_count_v1(suite.get("errors"))
+        failure_count = _junit_nonnegative_count_v1(suite.get("failures"))
+        skip_count = _junit_nonnegative_count_v1(suite.get("skipped"))
+        failure_elements = tuple(
+            element
+            for result_tag in ("error", "failure")
+            for element in document.iter(result_tag)
+        )
+        skipped_elements = tuple(document.iter("skipped"))
         identifiers = tuple(
             sorted(
-                _normalized_pytest_report_file_v1(case.get("file"))
+                _selected_pytest_report_file_v1(case.get("file"))
                 + "::"
                 + cast(str, case.get("name"))
                 for case in cases
@@ -1695,20 +1737,25 @@ def _validate_pytest_report_inventory_v1(
     except (OSError, TypeError, ValueError, ET.ParseError):
         raise M5CurrentExitFailedV1("m5_current_story_report_invalid") from None
     if (
-        not suites
-        or type(expected_count) is not int
+        type(expected_count) is not int
         or expected_count < 1
+        or type(expected_declared_count) is not int
+        or expected_declared_count < expected_count
         or _SHA256.fullmatch(expected_digest) is None
         or len(identifiers) != len(cases)
-        or declared_count != len(cases)
+        or declared_count < len(cases)
         or len(set(identifiers)) != len(identifiers)
-        or declared_count != expected_count
+        or len(cases) != expected_count
+        or declared_count != expected_declared_count
         or _digest_values(identifiers) != expected_digest
+        or error_count
+        or failure_count
+        or failure_elements
     ):
         raise M5CurrentExitFailedV1("m5_current_story_inventory_invalid")
-    if skip_count:
+    if skip_count or skipped_elements:
         raise M5CurrentExitFailedV1("m5_current_story_suite_skipped")
-    return declared_count, skip_count
+    return len(cases), skip_count
 
 
 def _run_story_suite(environment: Mapping[str, str]) -> int:

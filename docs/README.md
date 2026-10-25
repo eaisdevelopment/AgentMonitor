@@ -26,25 +26,23 @@ Current program state:
   organizations, six fresh post-restart quota/history lineages, the guarded
   current-process witness, and every required technical, browser, and local
   quality lane with zero skips and zero registry mutations.
-- **V1-M5:** implementation is **Intermediate**. The active service remains the
-  plan-1.16 clean detached revision `35f50d8`. Its sixth evidence-preserving rollover,
-  four-account owner outcome, complete authenticated alert-history proof,
-  source-proven alert witness, and official `/status` quota witness passed.
-  `AUTO-M5-EXIT` then failed immediately as
-  `m5_current_story_artifact_missing` because one intentional pytest node ID was
-  checked as a literal filename; it created no completion receipt. Owner-
-  approved plan 1.17 corrects only that static artifact check and authorizes one
-  exact seventh rollover from `35f50d8`. Both focused Reds failed as expected;
-  current-exit passes `69`, activation `47`, dispatcher `3`, and the combined
-  selection `119`. The exact Python Story inventory is `562` identifiers with
+- **V1-M5:** implementation is **Intermediate**. The active service is the
+  plan-1.17 clean detached revision `1ada84f` after the successful seventh
+  evidence-preserving rollover. Current four-account owner outcomes and a
+  source-proven alert lifecycle/witness passed for that service. Real official
+  `/status` evidence then exposed the bounded full-unused rolling-reset defect
+  addressed by owner-approved plan 1.18. Owner-approved plans 1.19 and 1.20
+  add the fail-closed pytest JUnit parent/outcome correction and deterministic
+  private filesystem fixtures in the same unactivated candidate. The final
+  exact Story report passes `600` parents and `558` subtests, binds `1,158`
+  declared outcomes with zero errors/failures/skips, and has parent-identity
   SHA-256
-  `4ca56497a7fdaa1e80c7c01a3ee1e41c2029288966b1fe969790606fad0cbb7b`.
-  Planning, documentation, build, quality, pinned mutation, M3 regression, and
-  the full local test gate pass; independent review is CLEAN. Clean committed
-  Git preflight, corrected-candidate containment, the seventh rollover,
-  refreshed prerequisites, a passing `AUTO-M5-EXIT`, and milestone owner
-  acceptance remain required. The latest canonical result is `failed` on
-  `35f50d8`; the corrected candidate is `not_run`.
+  `ad0b77bd19a52f0b0ff29958963414e6836882a659096d7f291cafb7368e4b3e`.
+  Authenticated containment and every required local preactivation routine
+  pass on the final candidate bytes. The combined revision must pass detached Git
+  preflight, the single approved eighth rollover, refreshed owner/alert/quota/
+  process evidence, a passing `AUTO-M5-EXIT` receipt, and milestone owner
+  acceptance remain required. No ninth rollover or completion is claimed.
 - **V1-M6 through V1-M8:** Planned; their canonical gates have not run.
 
 The approved [M3 scope correction](evidence/m3-scope-correction-2026-10-02.md)
@@ -53,7 +51,7 @@ The [M3 current-gate receipt](evidence/m3-current-gate-receipt-2026-10-03.json)
 and owner disposition records close the blockers retained by the historical
 [M3 closure audit](evidence/m3-closure-audit-2026-10-01.md).
 Owner: Pavlo Sidelov <pavlo@sidelov.com>  
-Last substantive review: 2026-10-23
+Last substantive review: 2026-10-25
 
 This index is the entry point for product, architecture, engineering, and operations documentation. Requirements marked **Approved** reflect the project interview. Items marked **Discovery** require Milestone 0 evidence. Items marked **Deferred** are intentionally outside V1.
 

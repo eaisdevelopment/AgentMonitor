@@ -175,6 +175,55 @@ def _owner_records() -> list[dict[str, object]]:
     ]
 
 
+def _weekly_only_agentmonitor_records(
+    *,
+    remaining_percent: int = 100,
+    collected_at: str = "2026-10-24T08:00:00Z",
+    reset_at: str = "2026-10-31T08:00:17Z",
+    reset_precision: str = "exact",
+) -> list[dict[str, object]]:
+    return [
+        {
+            "account_id": "weekly-only-account",
+            "collection_run_id": "weekly-only-run",
+            "collected_at": collected_at,
+            "windows": [
+                {
+                    "window_key": "codex:secondary",
+                    "semantic_role": "secondary",
+                    "remaining_percent": remaining_percent,
+                    "reset_at": reset_at,
+                    "reset_precision": reset_precision,
+                }
+            ],
+        }
+    ]
+
+
+def _weekly_only_owner_records(
+    *,
+    remaining_percent: int = 100,
+    observed_at: str = "2026-10-24T08:03:00Z",
+    reset_at: str = "2026-10-31T08:03:00Z",
+    display_precision: str = "minute",
+) -> list[dict[str, object]]:
+    return [
+        {
+            "account_id": "weekly-only-account",
+            "observed_at": observed_at,
+            "windows": [
+                {
+                    "window_key": "codex:secondary",
+                    "semantic_role": "secondary",
+                    "remaining_percent": remaining_percent,
+                    "reset_at": reset_at,
+                    "reset_display_precision": display_precision,
+                }
+            ],
+        }
+    ]
+
+
 def _witness_document() -> dict[str, object]:
     return {
         "schema": "agentmonitor.m5-quota-witness.v1",
@@ -283,6 +332,296 @@ def test_reconciliation_requires_exact_percent_reset_scope_and_five_minute_skew(
             match="m5_quota_witness_reconciliation_mismatch",
         ):
             reconcile_quota_observations_v1(_agentmonitor_records(), owner)
+
+
+@pytest.mark.parametrize(
+    ("agent_reset", "owner_reset", "display_precision", "observed_at"),
+    (
+        (
+            "2026-10-31T08:00:17Z",
+            "2026-10-31T08:03:17Z",
+            "second",
+            "2026-10-24T08:03:00Z",
+        ),
+        (
+            "2026-10-31T08:00:17Z",
+            "2026-10-31T08:03:00Z",
+            "minute",
+            "2026-10-24T08:03:00Z",
+        ),
+        (
+            "2026-10-31T07:59:17Z",
+            "2026-10-31T08:00:00Z",
+            "hour",
+            "2026-10-24T08:03:00Z",
+        ),
+        (
+            "2026-10-30T23:59:17Z",
+            "2026-10-31T00:00:00Z",
+            "day",
+            "2026-10-24T08:03:00Z",
+        ),
+        (
+            "2026-10-31T08:00:17Z",
+            "2026-10-31T08:05:00Z",
+            "minute",
+            "2026-10-24T08:05:00Z",
+        ),
+    ),
+)
+def test_reconciliation_accepts_exact_full_window_reset_movement(
+    agent_reset: str,
+    owner_reset: str,
+    display_precision: str,
+    observed_at: str,
+) -> None:
+    result = reconcile_quota_observations_v1(
+        _weekly_only_agentmonitor_records(reset_at=agent_reset),
+        _weekly_only_owner_records(
+            observed_at=observed_at,
+            reset_at=owner_reset,
+            display_precision=display_precision,
+        ),
+    )
+
+    assert result.account_count == 1
+    assert result.window_count == 1
+
+
+def test_rolling_reset_preserves_half_open_owner_bucket_boundaries() -> None:
+    with pytest.raises(
+        M5CodexQuotaWitnessErrorV1,
+        match="m5_quota_witness_reconciliation_mismatch",
+    ):
+        reconcile_quota_observations_v1(
+            _weekly_only_agentmonitor_records(
+                reset_at="2026-10-31T08:01:00Z",
+            ),
+            _weekly_only_owner_records(
+                observed_at="2026-10-24T08:01:00Z",
+                reset_at="2026-10-31T08:00:00Z",
+            ),
+        )
+
+    result = reconcile_quota_observations_v1(
+        _weekly_only_agentmonitor_records(
+            reset_at="2026-10-31T08:00:30Z",
+        ),
+        _weekly_only_owner_records(
+            observed_at="2026-10-24T08:01:00Z",
+            reset_at="2026-10-31T08:01:30Z",
+            display_precision="second",
+        ),
+    )
+
+    assert result.window_count == 1
+
+
+def test_rolling_reset_rejects_maximum_datetime_interval_overflow_closed() -> None:
+    cases = (
+        (
+            "9999-12-31T23:54:00Z",
+            "9999-12-31T23:58:00Z",
+            "9999-12-31T23:55:00Z",
+            "9999-12-31T23:59:59Z",
+        ),
+        (
+            "9999-12-31T23:55:00Z",
+            "9999-12-31T23:59:30Z",
+            "9999-12-31T23:56:00Z",
+            "9999-12-31T23:59:00Z",
+        ),
+    )
+    for collected_at, agent_reset, observed_at, owner_reset in cases:
+        with pytest.raises(
+            M5CodexQuotaWitnessErrorV1,
+            match="m5_quota_witness_reconciliation_mismatch",
+        ):
+            reconcile_quota_observations_v1(
+                _weekly_only_agentmonitor_records(
+                    collected_at=collected_at,
+                    reset_at=agent_reset,
+                ),
+                _weekly_only_owner_records(
+                    observed_at=observed_at,
+                    reset_at=owner_reset,
+                    display_precision="second",
+                ),
+            )
+
+
+def test_agent_record_retains_reset_precision_for_full_window_policy() -> None:
+    _values, indexed = _agent_records(_weekly_only_agentmonitor_records())
+
+    assert indexed[("weekly-only-account", "codex:secondary")].reset_precision == (
+        "exact"
+    )
+
+
+def test_internal_reset_precision_retention_preserves_canonical_digests() -> None:
+    agent_values, _agent = _agent_records(_weekly_only_agentmonitor_records())
+    owner_values, _owner = m5_codex_quota_witness._owner_records(
+        _weekly_only_owner_records()
+    )
+
+    assert _digest(agent_values) == (
+        "823bfc9f9cd9991fb5aafe2b291e818d70eed5d10ae01dfcc79a00f4d2609dab"
+    )
+    assert _digest(owner_values) == (
+        "a14b09a411e4a4f92b0967e15656659ae959448cf100e00e3f33c3b9b172928e"
+    )
+
+
+def test_reconciliation_preserves_a_weekly_only_closed_window_set() -> None:
+    agent = _weekly_only_agentmonitor_records()
+    owner = _weekly_only_owner_records(reset_at="2026-10-31T08:00:00Z")
+
+    result = reconcile_quota_observations_v1(agent, owner)
+
+    assert result.window_count == 1
+    owner_windows = owner[0]["windows"]
+    assert isinstance(owner_windows, list)
+    owner_windows.append(
+        {
+            "window_key": "codex:primary",
+            "semantic_role": "primary",
+            "remaining_percent": 100,
+            "reset_at": "2026-10-24T13:00:00Z",
+            "reset_display_precision": "minute",
+        }
+    )
+    with pytest.raises(
+        M5CodexQuotaWitnessErrorV1,
+        match="m5_quota_witness_reconciliation_mismatch",
+    ):
+        reconcile_quota_observations_v1(agent, owner)
+
+
+@pytest.mark.parametrize(
+    ("agent_percent", "owner_percent", "observed_at", "owner_reset", "precision"),
+    (
+        (93, 93, "2026-10-24T08:03:00Z", "2026-10-31T08:03:00Z", "exact"),
+        (100, 100, "2026-10-24T08:03:00Z", "2026-10-31T07:59:00Z", "exact"),
+        (100, 100, "2026-10-24T08:03:00Z", "2026-10-31T08:04:00Z", "exact"),
+        (100, 100, "2026-10-24T07:59:00Z", "2026-10-31T07:59:00Z", "exact"),
+        (100, 100, "2026-10-24T08:05:01Z", "2026-10-31T08:05:00Z", "exact"),
+        (100, 100, "2026-10-24T08:03:00Z", "2026-10-31T08:03:00Z", "rounded"),
+        (100, 100, "2026-10-24T08:03:00Z", "2026-10-31T08:03:00Z", "range"),
+        (100, 100, "2026-10-24T08:03:00Z", "2026-10-31T08:03:00Z", "estimated"),
+    ),
+)
+def test_reconciliation_rejects_unexplained_or_inexact_reset_movement(
+    agent_percent: int,
+    owner_percent: int,
+    observed_at: str,
+    owner_reset: str,
+    precision: str,
+) -> None:
+    with pytest.raises(
+        M5CodexQuotaWitnessErrorV1,
+        match="m5_quota_witness_reconciliation_mismatch",
+    ):
+        reconcile_quota_observations_v1(
+            _weekly_only_agentmonitor_records(
+                remaining_percent=agent_percent,
+                reset_precision=precision,
+            ),
+            _weekly_only_owner_records(
+                remaining_percent=owner_percent,
+                observed_at=observed_at,
+                reset_at=owner_reset,
+            ),
+        )
+
+
+@pytest.mark.parametrize(
+    ("collected_at", "agent_reset", "observed_at", "owner_reset"),
+    (
+        (
+            "2026-10-24T08:00:00Z",
+            "2026-10-31T08:00:17Z",
+            "2026-10-24T08:00:00Z",
+            "2026-10-31T08:01:00Z",
+        ),
+        (
+            "2026-10-24T08:00:00Z",
+            "2026-10-24T08:00:00Z",
+            "2026-10-24T08:03:00Z",
+            "2026-10-24T08:03:00Z",
+        ),
+        (
+            "2026-10-24T08:00:00Z",
+            "2026-10-24T08:01:17Z",
+            "2026-10-24T08:03:00Z",
+            "2026-10-24T08:02:00Z",
+        ),
+    ),
+)
+def test_rolling_reset_requires_positive_skew_and_future_reset_evidence(
+    collected_at: str,
+    agent_reset: str,
+    observed_at: str,
+    owner_reset: str,
+) -> None:
+    with pytest.raises(
+        M5CodexQuotaWitnessErrorV1,
+        match="m5_quota_witness_reconciliation_mismatch",
+    ):
+        reconcile_quota_observations_v1(
+            _weekly_only_agentmonitor_records(
+                collected_at=collected_at,
+                reset_at=agent_reset,
+            ),
+            _weekly_only_owner_records(
+                observed_at=observed_at,
+                reset_at=owner_reset,
+            ),
+        )
+
+
+def test_non_full_reset_uses_displayed_bucket_equality_without_movement() -> None:
+    result = reconcile_quota_observations_v1(
+        _weekly_only_agentmonitor_records(
+            remaining_percent=93,
+            reset_at="2026-10-31T08:00:17Z",
+        ),
+        _weekly_only_owner_records(
+            remaining_percent=93,
+            reset_at="2026-10-31T08:00:59Z",
+        ),
+    )
+
+    assert result.window_count == 1
+
+    with pytest.raises(
+        M5CodexQuotaWitnessErrorV1,
+        match="m5_quota_witness_reconciliation_mismatch",
+    ):
+        reconcile_quota_observations_v1(
+            _weekly_only_agentmonitor_records(
+                remaining_percent=93,
+                reset_at="2026-10-31T08:00:17Z",
+            ),
+            _weekly_only_owner_records(
+                remaining_percent=93,
+                reset_at="2026-10-31T08:03:00Z",
+            ),
+        )
+
+
+@pytest.mark.parametrize("remaining_percent", (100, 93))
+def test_reconciliation_keeps_fixed_reset_matching_for_any_percentage(
+    remaining_percent: int,
+) -> None:
+    result = reconcile_quota_observations_v1(
+        _weekly_only_agentmonitor_records(remaining_percent=remaining_percent),
+        _weekly_only_owner_records(
+            remaining_percent=remaining_percent,
+            reset_at="2026-10-31T08:00:00Z",
+        ),
+    )
+
+    assert result.window_count == 1
 
 
 def test_reconciliation_is_closed_and_rejects_missing_or_duplicate_windows() -> None:

@@ -990,3 +990,32 @@ Not Run. M5 remains Intermediate: the latest canonical gate state is `failed`
 on `35f50d8`, while the corrected candidate is `not_run`.
 
 Plan snapshot SHA-256: `abdcd4baaca4a5bb080ff0d536c729cea8a3ce6ed96473fd7741300a7b9ecbaa`
+
+## 2026-10-24 approved M5 1.18.0 rolling-reset readiness rebind
+
+The current synchronized Draft snapshot records the owner-approved focused M5
+plan 1.18.0 correction. The private quota-witness policy retains exact window
+membership, semantic roles, whole percentages, fixed-reset matching, source
+precision, and the 300-second bound. It adds only the fail-closed full-unused
+rolling relation proven by real Codex 0.160.0 history; missing five-hour or
+other windows remain absent. Focused Red/Green evidence and the complete
+50-test quota-witness file are Green.
+
+The same approval adds the exact eighth evidence-preserving rollover from
+completed revision `1ada84f71e827bb4f7ea966462a6cf51d050e9af` into fixed
+singleton `m5-service-activation-corrective-archive-1ada84f`. The focused
+eighth-rollover cases are Green and the seven retained archives remain the
+required unchanged prefix. This is local implementation evidence; neither live
+eighth invocation has run.
+
+Only the `automation-routines` and `automation-standard` controls changed
+among synchronized baseline inputs. The 20 canonical plan bodies, public
+contract versions and meanings, the other seven controls, and canonical
+approval flags remain unchanged. The active service remains exact clean
+revision `1ada84f`; its current owner and alert prerequisites do not provide a
+quota witness or completion receipt for a future corrected revision. Complete
+preactivation, the eighth rollover, refreshed prerequisites,
+`AUTO-M5-QUOTA-WITNESS`, `AUTO-M5-EXIT`, and owner acceptance remain Not Run.
+M5 remains Intermediate.
+
+Plan snapshot SHA-256: `37409cd3a15d25d211cffcac55183a2d1f765656fc7cd5070e749a22f0366a8d`

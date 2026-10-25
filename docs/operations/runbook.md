@@ -309,7 +309,7 @@ proven: stop M5 evidence collection, preserve the journal and both runtimes,
 and diagnose the user unit. Never edit the journal, unit backup, or trusted
 runtime to force another result.
 
-Exactly seven revision-pinned corrective rollover modes are authorized. The
+Exactly eight revision-pinned corrective rollover modes are authorized. The
 first preserves the completed
 `6bfa69dc13cc9e1ded9c6baa6e803cb99bc8c20b` transition below
 `<owner-data-root>/m5-service-activation-corrective-archive/`. The second
@@ -337,15 +337,20 @@ The seventh preserves the completed
 `35f50d8c4865505a9112d8aef7ea788f425ae658` transition below the distinct fixed
 singleton parent
 `<owner-data-root>/m5-service-activation-corrective-archive-35f50d8/`.
+The eighth preserves the completed
+`1ada84f71e827bb4f7ea966462a6cf51d050e9af` transition below the distinct fixed
+singleton parent
+`<owner-data-root>/m5-service-activation-corrective-archive-1ada84f/`.
 Each archive entry name binds its source revision and activation-receipt
 digest. No mode accepts a different source revision, archive parent, or
 additional entry.
 
 The requested new candidate must differ from the pinned trusted revision and
-all seven completed corrective revisions above. The command checks those reserved
-revisions before any service restoration, archive move, or transition-state
-write; a reserved candidate blocks without changing the existing service or
-evidence.
+all eight completed corrective revisions above. The command checks those
+reserved revisions before any service restoration, archive move, or
+transition-state write; a reserved candidate blocks without changing the
+existing service or evidence. No ninth rollover or general deployment
+authority is granted.
 
 An ordinary systemd or workstation restart can change the current dashboard
 PID/start identity after its completed activation receipt was created. Leave
@@ -606,12 +611,20 @@ official Codex `/status` view and enter only:
    `hour`, or `day`.
 
 Do not paste provider output, credentials, prompts, responses, or account
-content. The whole percentage and semantic role must match AgentMonitor
-exactly, a reset must match at the stated display precision, and the owner
-observation must be within 300 seconds of the corresponding collection. Finish
-by typing the exact phrase `I CONFIRM CODEX USAGE`. A missing window, extra
-window, fractional percentage, mismatch, stale collection, or wrong phrase
-blocks the writer without producing a witness.
+content. Account/window membership, semantic roles, and whole percentages must
+match AgentMonitor exactly; the command never creates a missing five-hour,
+weekly, primary, or secondary window. A reset first must match at the stated
+display precision. Only when that direct match fails may a window use the
+full-unused rolling rule, and only when both readings are exactly `100%`, both
+resets are present, AgentMonitor's reset is exact and future at collection, and
+the owner observation follows collection by 1--300 seconds. The half-open
+owner reset bucket at its stated precision must overlap the interval from the
+exact AgentMonitor reset through that reset advanced by the observation delay,
+and their intersection must contain a point after owner observation. Every
+non-100, null, imprecise, missing/extra-window, stale, or otherwise unexplained
+case keeps the strict rule and blocks. Finish by typing the exact phrase
+`I CONFIRM CODEX USAGE`; a fractional percentage, mismatch, or wrong phrase
+also blocks the writer without producing a witness.
 
 The result uses the closed schema `agentmonitor.m5-quota-witness.v1`. Its exact
 top-level fields are `schema`, `implementation_revision`, `service_pid`,

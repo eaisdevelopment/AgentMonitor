@@ -1025,3 +1025,30 @@ acceptance remain Not Run. M5 remains Intermediate: the latest canonical gate
 state is `failed` on `35f50d8`, while the corrected candidate is `not_run`.
 
 Plan snapshot SHA-256: `abdcd4baaca4a5bb080ff0d536c729cea8a3ce6ed96473fd7741300a7b9ecbaa`
+
+## 2026-10-24 approved M5 1.18.0 rolling-reset rebind
+
+The synchronized Draft snapshot now binds the automation catalog and
+completion standard to owner-approved focused M5 plan 1.18.0. The private
+quota-witness policy preserves exact membership, roles, whole percentages,
+fixed resets, source precision, and freshness while admitting only the proven
+bounded movement of an exact reset when both readings remain at `100%`.
+Weekly-only observations remain weekly-only. Focused Red/Green evidence and
+the complete 50-test quota-witness file are Green.
+
+The approved eighth rollover binds completed revision
+`1ada84f71e827bb4f7ea966462a6cf51d050e9af` to fixed singleton
+`m5-service-activation-corrective-archive-1ada84f`, with all seven earlier
+archives as the unchanged required prefix. Focused rollover cases are Green;
+the two canonical live invocations remain Not Run and no ninth rollover or
+general deployment authority is introduced.
+
+Among synchronized baseline inputs, only the `automation-routines` and
+`automation-standard` controls changed. The 20 canonical plan bodies, public
+contract versions and meanings, the other seven controls, and every canonical
+approval flag remain unchanged. The active service remains exact clean
+revision `1ada84f`. Complete preactivation, a clean corrected candidate, the
+eighth live rollover, refreshed owner/alert/quota/process prerequisites,
+`AUTO-M5-EXIT`, and owner acceptance remain Not Run. M5 remains Intermediate.
+
+Plan snapshot SHA-256: `37409cd3a15d25d211cffcac55183a2d1f765656fc7cd5070e749a22f0366a8d`

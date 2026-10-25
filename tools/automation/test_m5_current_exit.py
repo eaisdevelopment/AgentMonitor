@@ -6,10 +6,12 @@ import json
 import os
 import signal
 import stat
+import subprocess
 import sys
 import tempfile
 import time
 import tomllib
+import xml.etree.ElementTree as ET
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from types import SimpleNamespace
@@ -443,10 +445,12 @@ def test_catalog_selects_exact_m5_gate_and_closed_lanes() -> None:
     routine = next(item for item in catalog["routines"] if item["id"] == "AUTO-M5-EXIT")
 
     assert activation["status"] == "operational_limited"
-    assert "seven revision-pinned" in activation["scope"]
+    assert "eight revision-pinned" in activation["scope"]
     assert "35f50d8c4865505a9112d8aef7ea788f425ae658" in activation["scope"]
     assert "m5-service-activation-corrective-archive-35f50d8" in activation["scope"]
-    assert "no eighth rollover" in activation["scope"]
+    assert "1ada84f71e827bb4f7ea966462a6cf51d050e9af" in activation["scope"]
+    assert "m5-service-activation-corrective-archive-1ada84f" in activation["scope"]
+    assert "no ninth rollover" in activation["scope"]
     assert archive["status"] == "operational"
     assert archive["implementation_command"] == [
         "backend/.venv/bin/python",
@@ -507,9 +511,10 @@ def test_catalog_selects_exact_m5_gate_and_closed_lanes() -> None:
     assert auto_m5_current_exit.STORY_NODE_TEST_INVENTORY_SHA256 == (
         "ac6afb5a290f5bf5940581ef13db21acccce947f3d40f97b498b57189f2db7e7"
     )
-    assert auto_m5_current_exit.STORY_PYTEST_TEST_COUNT == 562
+    assert auto_m5_current_exit.STORY_PYTEST_TEST_COUNT == 600
+    assert auto_m5_current_exit.STORY_PYTEST_DECLARED_TEST_COUNT == 1_158
     assert auto_m5_current_exit.STORY_PYTEST_TEST_INVENTORY_SHA256 == (
-        "4ca56497a7fdaa1e80c7c01a3ee1e41c2029288966b1fe969790606fad0cbb7b"
+        "ad0b77bd19a52f0b0ff29958963414e6836882a659096d7f291cafb7368e4b3e"
     )
     assert "tools/git/test_preflight.py" in STORY_TEST_PATHS
     assert STORY_AUTOMATION_TEST_IDS == (
@@ -772,24 +777,28 @@ ok 2 - beta
     report = tmp_path / "results.xml"
     report.write_text(
         """<?xml version="1.0" encoding="utf-8"?>
-<testsuites><testsuite tests="2" skipped="0">
+<testsuites><testsuite tests="2" errors="0" failures="0" skipped="0">
 <testcase name="test_alpha"
- file="tools/automation/test_alpha.py" />
+ file="tools/automation/test_m5_current_exit.py" />
 <testcase name="test_beta[value]"
- file="backend/tests/example.py" />
+ file="backend/tests/contracts/providers/codex/test_subscription_quota_schema.py" />
 </testsuite></testsuites>
 """,
         encoding="utf-8",
     )
     pytest_digest = _digest_values(
         [
-            "backend/tests/example.py::test_beta[value]",
-            "tools/automation/test_alpha.py::test_alpha",
+            (
+                "backend/tests/contracts/providers/codex/"
+                "test_subscription_quota_schema.py::test_beta[value]"
+            ),
+            "tools/automation/test_m5_current_exit.py::test_alpha",
         ]
     )
     assert _validate_pytest_report_inventory_v1(
         report,
         expected_count=2,
+        expected_declared_count=2,
         expected_digest=pytest_digest,
     ) == (2, 0)
     report.write_text(
@@ -800,6 +809,7 @@ ok 2 - beta
         _validate_pytest_report_inventory_v1(
             report,
             expected_count=2,
+            expected_declared_count=2,
             expected_digest=pytest_digest,
         )
     report.write_text(
@@ -817,6 +827,7 @@ ok 2 - beta
         _validate_pytest_report_inventory_v1(
             report,
             expected_count=2,
+            expected_declared_count=2,
             expected_digest=pytest_digest,
         )
 
@@ -828,7 +839,7 @@ def test_pytest_inventory_accepts_only_the_selected_git_preflight_file(
     identifier = "tools/git/test_preflight.py::test_selected_preflight"
     report.write_text(
         """<?xml version="1.0" encoding="utf-8"?>
-<testsuites><testsuite tests="1" skipped="0">
+<testsuites><testsuite tests="1" errors="0" failures="0" skipped="0">
 <testcase name="test_selected_preflight" file="tools/git/test_preflight.py" />
 </testsuite></testsuites>
 """,
@@ -838,6 +849,7 @@ def test_pytest_inventory_accepts_only_the_selected_git_preflight_file(
     assert _validate_pytest_report_inventory_v1(
         report,
         expected_count=1,
+        expected_declared_count=1,
         expected_digest=_digest_values([identifier]),
     ) == (1, 0)
 
@@ -855,9 +867,393 @@ def test_pytest_inventory_accepts_only_the_selected_git_preflight_file(
         _validate_pytest_report_inventory_v1(
             report,
             expected_count=1,
+            expected_declared_count=1,
             expected_digest=_digest_values(
                 ["tools/git/test_unselected.py::test_selected_preflight"]
             ),
+        )
+
+
+def _write_single_case_junit(
+    path: Path,
+    *,
+    attributes: dict[str, str],
+    result_child: str = "",
+) -> None:
+    rendered_attributes = " ".join(
+        f'{key}="{value}"' for key, value in attributes.items()
+    )
+    path.write_text(
+        '<?xml version="1.0" encoding="utf-8"?>\n'
+        '<testsuites name="pytest tests">'
+        f'<testsuite name="pytest" {rendered_attributes}>'
+        '<testcase name="test_parent" '
+        'file="tools/automation/test_m5_current_exit.py">'
+        f"{result_child}</testcase>"
+        "</testsuite></testsuites>\n",
+        encoding="utf-8",
+    )
+
+
+def test_pytest_inventory_accepts_real_pinned_successful_subtests(
+    tmp_path: Path,
+) -> None:
+    assert pytest.__version__ == "9.1.1"
+    report = tmp_path / "real-subtests.xml"
+    selected_test_id = (
+        "tools/automation/test_m5_codex_containment.py::"
+        "M5CodexContainmentPolicyTests::"
+        "test_arg0_lock_cleanup_may_interleave_at_each_child_position"
+    )
+    result = subprocess.run(
+        (
+            sys.executable,
+            "-m",
+            "pytest",
+            "-q",
+            "-p",
+            "no:cacheprovider",
+            "-o",
+            "junit_family=legacy",
+            f"--junitxml={report}",
+            selected_test_id,
+        ),
+        cwd=ROOT,
+        env={"PATH": "/usr/bin:/bin", "PYTHONDONTWRITEBYTECODE": "1"},
+        capture_output=True,
+        text=True,
+        check=False,
+        timeout=30,
+    )
+    assert result.returncode == 0, result.stdout + result.stderr
+
+    document = ET.parse(report)
+    suites = tuple(document.getroot().iter("testsuite"))
+    cases = tuple(document.getroot().iter("testcase"))
+    assert len(suites) == 1
+    assert suites[0].get("tests") == "6"
+    assert suites[0].get("errors") == "0"
+    assert suites[0].get("failures") == "0"
+    assert suites[0].get("skipped") == "0"
+    assert len(cases) == 1
+
+    identifier = (
+        "tools/automation/test_m5_codex_containment.py::"
+        "test_arg0_lock_cleanup_may_interleave_at_each_child_position"
+    )
+    parent_count, skip_count = _validate_pytest_report_inventory_v1(
+        report,
+        expected_count=1,
+        expected_declared_count=6,
+        expected_digest=_digest_values([identifier]),
+    )
+    assert parent_count == 1
+    assert parent_count != 6
+    assert skip_count == 0
+
+
+def test_pytest_inventory_accepts_exact_parent_and_subtest_bounds(
+    tmp_path: Path,
+) -> None:
+    report = tmp_path / "exact-subtest-count.xml"
+    _write_single_case_junit(
+        report,
+        attributes={"tests": "4", "errors": "0", "failures": "0", "skipped": "0"},
+    )
+
+    identifier = "tools/automation/test_m5_current_exit.py::test_parent"
+    assert _validate_pytest_report_inventory_v1(
+        report,
+        expected_count=1,
+        expected_declared_count=4,
+        expected_digest=_digest_values([identifier]),
+    ) == (1, 0)
+
+
+def test_pytest_inventory_rejects_wrong_declared_subtest_count(
+    tmp_path: Path,
+) -> None:
+    identifier = "tools/automation/test_m5_current_exit.py::test_parent"
+    for declared in ("3", "5"):
+        report = tmp_path / f"wrong-declared-{declared}.xml"
+        _write_single_case_junit(
+            report,
+            attributes={
+                "tests": declared,
+                "errors": "0",
+                "failures": "0",
+                "skipped": "0",
+            },
+        )
+        with pytest.raises(
+            M5CurrentExitFailedV1,
+            match="m5_current_story_inventory_invalid",
+        ):
+            _validate_pytest_report_inventory_v1(
+                report,
+                expected_count=1,
+                expected_declared_count=4,
+                expected_digest=_digest_values([identifier]),
+            )
+
+
+def test_pytest_inventory_rejects_malformed_or_negative_suite_counts(
+    tmp_path: Path,
+) -> None:
+    identifier = "tools/automation/test_m5_current_exit.py::test_parent"
+    baseline = {"tests": "4", "errors": "0", "failures": "0", "skipped": "0"}
+    for field in baseline:
+        for invalid in (None, "invalid", "-1", "+4", " 4", "4 ", "٤"):
+            attributes = dict(baseline)
+            if invalid is None:
+                del attributes[field]
+            else:
+                attributes[field] = invalid
+            report = tmp_path / f"malformed-{field}-{invalid}.xml"
+            _write_single_case_junit(report, attributes=attributes)
+            with pytest.raises(M5CurrentExitFailedV1):
+                _validate_pytest_report_inventory_v1(
+                    report,
+                    expected_count=1,
+                    expected_declared_count=4,
+                    expected_digest=_digest_values([identifier]),
+                )
+
+
+def test_pytest_inventory_rejects_declared_error_failure_or_skip(
+    tmp_path: Path,
+) -> None:
+    identifier = "tools/automation/test_m5_current_exit.py::test_parent"
+    baseline = {"tests": "4", "errors": "0", "failures": "0", "skipped": "0"}
+    for field in ("errors", "failures", "skipped"):
+        attributes = dict(baseline)
+        attributes[field] = "1"
+        report = tmp_path / f"nonzero-{field}.xml"
+        _write_single_case_junit(report, attributes=attributes)
+        with pytest.raises(M5CurrentExitFailedV1):
+            _validate_pytest_report_inventory_v1(
+                report,
+                expected_count=1,
+                expected_declared_count=4,
+                expected_digest=_digest_values([identifier]),
+            )
+
+
+def test_pytest_inventory_rejects_result_children_with_zero_suite_counts(
+    tmp_path: Path,
+) -> None:
+    identifier = "tools/automation/test_m5_current_exit.py::test_parent"
+    attributes = {"tests": "4", "errors": "0", "failures": "0", "skipped": "0"}
+    for result_tag in ("error", "failure", "skipped"):
+        report = tmp_path / f"result-child-{result_tag}.xml"
+        _write_single_case_junit(
+            report,
+            attributes=attributes,
+            result_child=f'<{result_tag} message="unexpected" />',
+        )
+        with pytest.raises(M5CurrentExitFailedV1):
+            _validate_pytest_report_inventory_v1(
+                report,
+                expected_count=1,
+                expected_declared_count=4,
+                expected_digest=_digest_values([identifier]),
+            )
+
+
+def test_pytest_inventory_classifies_a_real_skip_child_as_suite_skipped(
+    tmp_path: Path,
+) -> None:
+    report = tmp_path / "real-skip.xml"
+    _write_single_case_junit(
+        report,
+        attributes={"tests": "1", "errors": "0", "failures": "0", "skipped": "1"},
+        result_child='<skipped type="pytest.skip" message="not run" />',
+    )
+    identifier = "tools/automation/test_m5_current_exit.py::test_parent"
+
+    with pytest.raises(
+        M5CurrentExitFailedV1,
+        match="m5_current_story_suite_skipped",
+    ):
+        _validate_pytest_report_inventory_v1(
+            report,
+            expected_count=1,
+            expected_declared_count=1,
+            expected_digest=_digest_values([identifier]),
+        )
+
+
+def test_pytest_inventory_rejects_multiple_nested_or_missing_suites(
+    tmp_path: Path,
+) -> None:
+    identifiers = [
+        (
+            "backend/tests/contracts/providers/codex/"
+            "test_subscription_quota_schema.py::test_beta"
+        ),
+        "tools/automation/test_m5_current_exit.py::test_alpha",
+    ]
+    common = 'errors="0" failures="0" skipped="0"'
+    documents = {
+        "multiple": (
+            f'<testsuites><testsuite tests="1" {common}>'
+            '<testcase name="test_alpha" '
+            'file="tools/automation/test_m5_current_exit.py" />'
+            f'</testsuite><testsuite tests="1" {common}>'
+            '<testcase name="test_beta" file="backend/tests/contracts/providers/'
+            'codex/test_subscription_quota_schema.py" />'
+            "</testsuite></testsuites>"
+        ),
+        "nested": (
+            f'<testsuites><testsuite tests="1" {common}>'
+            '<testcase name="test_alpha" '
+            'file="tools/automation/test_m5_current_exit.py" />'
+            f'<testsuite tests="1" {common}>'
+            '<testcase name="test_beta" file="backend/tests/contracts/providers/'
+            'codex/test_subscription_quota_schema.py" />'
+            "</testsuite></testsuite></testsuites>"
+        ),
+        "missing": (
+            "<testsuites>"
+            '<testcase name="test_alpha" '
+            'file="tools/automation/test_m5_current_exit.py" />'
+            '<testcase name="test_beta" file="backend/tests/contracts/providers/'
+            'codex/test_subscription_quota_schema.py" />'
+            "</testsuites>"
+        ),
+        "wrong-root": (
+            f'<testsuite tests="2" {common}>'
+            '<testcase name="test_alpha" '
+            'file="tools/automation/test_m5_current_exit.py" />'
+            '<testcase name="test_beta" file="backend/tests/contracts/providers/'
+            'codex/test_subscription_quota_schema.py" />'
+            "</testsuite>"
+        ),
+    }
+    for topology, payload in documents.items():
+        report = tmp_path / f"{topology}-suite.xml"
+        report.write_text(payload, encoding="utf-8")
+        with pytest.raises(M5CurrentExitFailedV1):
+            _validate_pytest_report_inventory_v1(
+                report,
+                expected_count=2,
+                expected_declared_count=2,
+                expected_digest=_digest_values(identifiers),
+            )
+
+
+def test_pytest_inventory_rejects_parent_add_remove_or_duplicate(
+    tmp_path: Path,
+) -> None:
+    expected_identifiers = [
+        (
+            "backend/tests/contracts/providers/codex/"
+            "test_subscription_quota_schema.py::test_beta"
+        ),
+        "tools/automation/test_m5_current_exit.py::test_alpha",
+    ]
+    cases = {
+        "added": (
+            '<testcase name="test_alpha" '
+            'file="tools/automation/test_m5_current_exit.py" />'
+            '<testcase name="test_beta" file="backend/tests/contracts/providers/'
+            'codex/test_subscription_quota_schema.py" />'
+            '<testcase name="test_gamma" file="backend/tests/contracts/providers/'
+            'codex/test_subscription_quota_schema.py" />'
+        ),
+        "removed": (
+            '<testcase name="test_alpha" '
+            'file="tools/automation/test_m5_current_exit.py" />'
+        ),
+        "duplicated": (
+            '<testcase name="test_alpha" '
+            'file="tools/automation/test_m5_current_exit.py" />'
+            '<testcase name="test_alpha" '
+            'file="tools/automation/test_m5_current_exit.py" />'
+        ),
+    }
+    for mutation, rendered_cases in cases.items():
+        report = tmp_path / f"parent-{mutation}.xml"
+        report.write_text(
+            '<testsuites><testsuite tests="2" errors="0" failures="0" '
+            f'skipped="0">{rendered_cases}</testsuite></testsuites>',
+            encoding="utf-8",
+        )
+        with pytest.raises(
+            M5CurrentExitFailedV1,
+            match="m5_current_story_inventory_invalid",
+        ):
+            _validate_pytest_report_inventory_v1(
+                report,
+                expected_count=2,
+                expected_declared_count=2,
+                expected_digest=_digest_values(expected_identifiers),
+            )
+
+
+def test_pytest_inventory_rejects_invalid_file_and_name_values(
+    tmp_path: Path,
+) -> None:
+    canonical_identifier = "tools/automation/test_m5_current_exit.py::test_parent"
+    invalid_identities = {
+        "absolute-file": (
+            "/tools/automation/test_m5_current_exit.py",
+            "test_parent",
+        ),
+        "traversing-file": (
+            "tools/automation/../automation/test_m5_current_exit.py",
+            "test_parent",
+        ),
+        "overlong-file": ("tools/automation/" + "a" * 493 + ".py", "test_parent"),
+        "nul-file": ("tools/automation/test_\x00alpha.py", "test_parent"),
+        "overlong-name": (
+            "tools/automation/test_m5_current_exit.py",
+            "n" * 2_049,
+        ),
+        "nul-name": (
+            "tools/automation/test_m5_current_exit.py",
+            "test_\x00parent",
+        ),
+    }
+    for label, (file_value, name_value) in invalid_identities.items():
+        report = tmp_path / f"invalid-{label}.xml"
+        report.write_text(
+            '<testsuites><testsuite tests="1" errors="0" failures="0" skipped="0">'
+            f'<testcase name="{name_value}" file="{file_value}" />'
+            "</testsuite></testsuites>",
+            encoding="utf-8",
+        )
+        with pytest.raises(M5CurrentExitFailedV1):
+            _validate_pytest_report_inventory_v1(
+                report,
+                expected_count=1,
+                expected_declared_count=1,
+                expected_digest=_digest_values([canonical_identifier]),
+            )
+
+
+def test_pytest_inventory_rejects_syntactically_valid_unselected_file(
+    tmp_path: Path,
+) -> None:
+    report = tmp_path / "unselected-automation-file.xml"
+    _write_single_case_junit(
+        report,
+        attributes={"tests": "1", "errors": "0", "failures": "0", "skipped": "0"},
+    )
+    report.write_text(
+        report.read_text(encoding="utf-8").replace(
+            "tools/automation/test_m5_current_exit.py",
+            "tools/automation/test_unselected.py",
+        ),
+        encoding="utf-8",
+    )
+    identifier = "tools/automation/test_unselected.py::test_parent"
+    with pytest.raises(M5CurrentExitFailedV1):
+        _validate_pytest_report_inventory_v1(
+            report,
+            expected_count=1,
+            expected_declared_count=1,
+            expected_digest=_digest_values([identifier]),
         )
 
 

@@ -281,11 +281,25 @@ def test_live_connected_profile_enrollment_is_idempotent_when_selected(
         owner_repository.list_provider_installations("codex"),
     )
     copied_path = tmp_path / "agentmonitor.db"
+    copied_descriptor = os.open(
+        copied_path,
+        os.O_CREAT | os.O_EXCL | os.O_RDWR | os.O_CLOEXEC,
+        0o600,
+    )
+    try:
+        os.fchmod(copied_descriptor, 0o600)
+    finally:
+        os.close(copied_descriptor)
     with sqlite3.connect(
         f"file:{data_root / 'agentmonitor.db'}?mode=ro", uri=True
     ) as source:
         with sqlite3.connect(copied_path) as copied:
             source.backup(copied)
+    copied_info = copied_path.lstat()
+    assert stat.S_ISREG(copied_info.st_mode)
+    assert copied_info.st_uid == os.getuid()
+    assert copied_info.st_nlink == 1
+    assert stat.S_IMODE(copied_info.st_mode) == 0o600
     reference = DatabaseRefV1(copied_path, tmp_path)
     repository = SqliteRegistryRepositoryV1(reference)
     installation = discover_default_installation()

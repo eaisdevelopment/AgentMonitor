@@ -13,6 +13,7 @@ import re
 import resource
 import select
 import signal
+import stat
 import subprocess
 import sys
 import tempfile
@@ -6206,6 +6207,8 @@ class M5CodexContainmentPrivateChannelTests(unittest.TestCase):
             root.chmod(0o700)
             managed = root / "managed"
             managed.mkdir(mode=0o755)
+            managed.chmod(0o755)
+            self.assertEqual(stat.S_IMODE(managed.lstat().st_mode), 0o755)
 
             with self.assertRaises(M5CodexContainmentErrorV1) as raised:
                 _managed_profile_tree_digest(managed)

@@ -205,6 +205,7 @@ class _AgentQuotaWindowV1:
     semantic_role: str
     remaining_percent: int
     reset_at: datetime | None
+    reset_precision: str
     collected_at: datetime
 
 
@@ -471,6 +472,62 @@ def _reset_bucket(value: datetime, precision: str) -> str:
     raise M5CodexQuotaWitnessErrorV1("m5_quota_witness_input_invalid")
 
 
+def _reset_display_interval(
+    value: datetime,
+    precision: str,
+) -> tuple[datetime, datetime]:
+    if precision == "second":
+        start = value.replace(microsecond=0)
+        width = timedelta(seconds=1)
+    elif precision == "minute":
+        start = value.replace(second=0, microsecond=0)
+        width = timedelta(minutes=1)
+    elif precision == "hour":
+        start = value.replace(minute=0, second=0, microsecond=0)
+        width = timedelta(hours=1)
+    elif precision == "day":
+        start = value.replace(hour=0, minute=0, second=0, microsecond=0)
+        width = timedelta(days=1)
+    else:
+        raise M5CodexQuotaWitnessErrorV1("m5_quota_witness_input_invalid")
+    return start, start + width
+
+
+def _rolling_full_reset_matches(
+    agent_window: _AgentQuotaWindowV1,
+    owner_window: _OwnerQuotaWindowV1,
+    *,
+    maximum_skew_seconds: int,
+) -> bool:
+    agent_reset = agent_window.reset_at
+    owner_reset = owner_window.reset_at
+    observation_delay = owner_window.observed_at - agent_window.collected_at
+    delay_seconds = observation_delay.total_seconds()
+    if (
+        agent_window.remaining_percent != 100
+        or owner_window.remaining_percent != 100
+        or agent_reset is None
+        or owner_reset is None
+        or agent_window.reset_precision != "exact"
+        or not 0 < delay_seconds <= maximum_skew_seconds
+        or agent_reset <= agent_window.collected_at
+    ):
+        return False
+
+    try:
+        owner_start, owner_end = _reset_display_interval(
+            owner_reset,
+            owner_window.display_precision,
+        )
+        rolling_end = agent_reset + observation_delay
+        earliest = max(agent_reset, owner_start)
+        if earliest <= owner_window.observed_at:
+            earliest = owner_window.observed_at + timedelta(microseconds=1)
+    except OverflowError:
+        return False
+    return earliest <= rolling_end and earliest < owner_end
+
+
 def _agent_records(
     records: object,
 ) -> tuple[list[list[object]], dict[tuple[str, str], _AgentQuotaWindowV1]]:
@@ -523,6 +580,7 @@ def _agent_records(
                 semantic_role=semantic_role,
                 remaining_percent=remaining_percent,
                 reset_at=reset_at,
+                reset_precision=reset_precision,
                 collected_at=collected_at,
             )
             canonical.append(
@@ -621,19 +679,25 @@ def reconcile_quota_observations_v1(
         raise M5CodexQuotaWitnessErrorV1("m5_quota_witness_reconciliation_mismatch")
     for key, agent_window in agent.items():
         owner_window = owner[key]
+        observation_skew = abs(
+            (owner_window.observed_at - agent_window.collected_at).total_seconds()
+        )
         reset_matches = agent_window.reset_at is None and owner_window.reset_at is None
         if agent_window.reset_at is not None and owner_window.reset_at is not None:
             reset_matches = _reset_bucket(
                 agent_window.reset_at, owner_window.display_precision
             ) == _reset_bucket(owner_window.reset_at, owner_window.display_precision)
+            if not reset_matches:
+                reset_matches = _rolling_full_reset_matches(
+                    agent_window,
+                    owner_window,
+                    maximum_skew_seconds=maximum_skew_seconds,
+                )
         if (
             owner_window.semantic_role != agent_window.semantic_role
             or owner_window.remaining_percent != agent_window.remaining_percent
             or not reset_matches
-            or abs(
-                (owner_window.observed_at - agent_window.collected_at).total_seconds()
-            )
-            > maximum_skew_seconds
+            or observation_skew > maximum_skew_seconds
         ):
             raise M5CodexQuotaWitnessErrorV1("m5_quota_witness_reconciliation_mismatch")
     account_count = len({key[0] for key in agent})

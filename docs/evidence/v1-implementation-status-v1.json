@@ -1,9 +1,9 @@
 {
   "schema_version": "1.0.0",
   "record_type": "agentmonitor.v1_implementation_status",
-  "record_id": "V1-STATUS-2026-10-23-03",
-  "implementation_revision": "35f50d8c4865505a9112d8aef7ea788f425ae658",
-  "recorded_at": "2026-10-23T16:02:47Z",
+  "record_id": "V1-STATUS-2026-10-25-01",
+  "implementation_revision": "1ada84f71e827bb4f7ea966462a6cf51d050e9af",
+  "recorded_at": "2026-10-25T16:50:00Z",
   "planning_backlog": "docs/superpowers/plans/implementation-backlog.toml",
   "planning_backlog_sha256": "2e93367d304fda306776f8789db23c754798f6307277628f0565350d0dbb962e",
   "roadmap": "docs/roadmap.md",
@@ -118,7 +118,7 @@
         "docs/evidence/m5-codex-read-side-effect-blocker.md",
         "docs/evidence/m5-codex-implementation.md"
       ],
-      "decision": "Codex implementation remains Intermediate. Approved plan 1.16 passed its complete preactivation and authenticated containment, and the sixth corrective rollover activated exact clean detached revision 35f50d8c4865505a9112d8aef7ea788f425ae658. Fresh four-account owner outcomes, a genuine source-proven alert opening/reopening, repeat, owner acknowledgement and recovery, complete authenticated alert-history equality, AUTO-M5-ALERT-WITNESS, and the official /status quota witness passed. AUTO-M5-EXIT then failed immediately as m5_current_story_artifact_missing because one intentional pytest node ID was checked as a literal filename; it created no completion receipt. Owner-approved plan 1.17 corrects only that artifact check and authorizes one exact seventh rollover from 35f50d8. Focused current-exit, activation and dispatcher tests pass 69, 47 and 3 respectively; the combined selection passes 119. The exact Python Story inventory contains 562 identifiers with SHA-256 4ca56497a7fdaa1e80c7c01a3ee1e41c2029288966b1fe969790606fad0cbb7b. Planning, documentation, build, quality, pinned mutation, M3 regression and the full local test gate pass; independent review is clean. Clean committed Git preflight, corrected-candidate containment, the seventh rollover, refreshed prerequisites, a passing AUTO-M5-EXIT receipt and owner acceptance remain required. The latest canonical gate state is failed."
+      "decision": "Codex implementation remains Intermediate. The successful seventh corrective rollover activated exact clean detached revision 1ada84f71e827bb4f7ea966462a6cf51d050e9af; current four-account owner outcomes and source-proven alert evidence passed for that service. Real official /status evidence exposed the bounded full-unused rolling-reset defect addressed by owner-approved plan 1.18. Owner-approved plans 1.19 and 1.20 add the pinned-pytest JUnit parent/outcome correction and deterministic private filesystem fixtures in the same unactivated candidate. The final exact Story report passes 600 parents and 558 subtests, binds 1158 outcomes with zero failures, errors or skips, and has parent-identity SHA-256 ad0b77bd19a52f0b0ff29958963414e6836882a659096d7f291cafb7368e4b3e. Authenticated containment and focused reviews pass. Detached clean-revision Git preflight, the single eighth rollover, refreshed owner, alert, quota and process prerequisites, a passing AUTO-M5-EXIT receipt and owner acceptance remain required. No ninth rollover or completion is claimed; the historical canonical gate state remains failed with no receipt."
     },
     {
       "milestone_id": "V1-M6",
@@ -442,7 +442,7 @@
         "docs/evidence/m5-codex-read-side-effect-blocker.md",
         "docs/evidence/m5-codex-implementation.md"
       ],
-      "decision": "The exact-version adapter, installation admission and managed-profile safety implementation are present through approved plan 1.17. Exact active revision 35f50d8c4865505a9112d8aef7ea788f425ae658 passed authenticated Codex 0.160.0 containment before its sixth activation. Corrected-candidate containment and the clean exact-revision completion gate remain required."
+      "decision": "The exact-version adapter, installation admission and managed-profile safety implementation are present through approved plan 1.20. The unchanged authenticated Codex 0.160.0 containment node passes with zero skips against active revision 1ada84f71e827bb4f7ea966462a6cf51d050e9af. Post-eighth-rollover containment inside the clean exact-revision completion gate remains required."
     },
     {
       "story_id": "ST-CDX-002",
@@ -454,7 +454,7 @@
         "docs/evidence/m5-codex-read-side-effect-blocker.md",
         "docs/evidence/m5-codex-implementation.md"
       ],
-      "decision": "Managed Codex connection, identity and authentication-health implementation is present. AUTO-M5-OWNER-OUTCOMES passed for active revision 35f50d8c4865505a9112d8aef7ea788f425ae658 with four outcomes: three verified and one owner-unavailable. This prerequisite becomes stale after the approved seventh rollover and must be recreated; it contains no milestone acceptance result."
+      "decision": "Managed Codex connection, identity and authentication-health implementation is present. AUTO-M5-OWNER-OUTCOMES passed for active revision 1ada84f71e827bb4f7ea966462a6cf51d050e9af with four outcomes: three verified and one owner-unavailable. This prerequisite becomes stale after the approved eighth rollover and must be recreated; it contains no milestone acceptance result."
     },
     {
       "story_id": "ST-CDX-003",
@@ -466,7 +466,7 @@
         "docs/evidence/m5-codex-read-side-effect-blocker.md",
         "docs/evidence/m5-codex-implementation.md"
       ],
-      "decision": "Native Codex subscription mapping, collection and capacity-history implementation is present. Plan 1.16 added the bounded exact-ID acknowledged-event read and passed owner-scale review. Active revision 35f50d8c4865505a9112d8aef7ea788f425ae658 passed current official /status reconciliation and AUTO-M5-QUOTA-WITNESS. Its short-lived witness cannot be reused after the seventh rollover; a corrected-candidate witness remains required."
+      "decision": "Native Codex subscription mapping, collection and capacity-history implementation is present. Real official /status evidence on active revision 1ada84f71e827bb4f7ea966462a6cf51d050e9af exposed full-unused reset movement. Approved plan 1.18 now admits only exact bounded 100-percent rolling movement and fails maximum-datetime arithmetic closed. The quota-witness file passes 51 tests, but a fresh post-eighth-rollover live witness remains required."
     },
     {
       "story_id": "ST-CDX-004",
@@ -477,7 +477,7 @@
         "docs/evidence/m5-codex-0.160.0-discovery.md",
         "docs/evidence/m5-codex-implementation.md"
       ],
-      "decision": "Codex process discovery and guarded association implementation is present. Six exact-version baseline processes were observed during earlier live work, but the canonical corrected-candidate five-to-six process selection, independent PID/start/executable reread, safe presentation and association witness remain required inside AUTO-M5-EXIT."
+      "decision": "Codex process discovery and guarded association implementation is present. Six exact-version baseline processes were observed during earlier live work, but the combined-candidate five-to-six process selection, independent PID/start/executable reread, safe presentation and association witness remain required after the eighth rollover inside AUTO-M5-EXIT."
     },
     {
       "story_id": "ST-CDX-005",
@@ -487,7 +487,7 @@
       "evidence_paths": [
         "docs/evidence/m5-codex-implementation.md"
       ],
-      "decision": "Codex HTTP, browser, health, alert and completion-gate implementation is present through owner-approved plan 1.17. Active revision 35f50d8c4865505a9112d8aef7ea788f425ae658 passed the sixth rollover, complete authenticated alert history, source-proven alert witness and quota witness. AUTO-M5-EXIT then failed on the static pytest-node artifact check and wrote no receipt. The correction and exact seventh-rollover policy are locally Green: current-exit 69, activation 47, dispatcher 3, combined 119; the exact 562-test Story inventory digest is 4ca56497a7fdaa1e80c7c01a3ee1e41c2029288966b1fe969790606fad0cbb7b. Clean committed preflight, corrected-candidate containment, live seventh rollover, refreshed witnesses, a passing AUTO-M5-EXIT and owner acceptance remain required."
+      "decision": "Codex HTTP, browser, health, alert and completion-gate implementation is present through owner-approved plan 1.20. Active revision 1ada84f71e827bb4f7ea966462a6cf51d050e9af passed the seventh rollover and current owner and alert prerequisites. The combined 1.18--1.20 candidate has current-exit 80, quota-witness 51 and a final exact Story inventory of 600 parents, 1158 outcomes and digest ad0b77bd19a52f0b0ff29958963414e6836882a659096d7f291cafb7368e4b3e with zero skips. Detached clean-revision Git preflight, the live eighth rollover, refreshed witnesses and process proof, a passing AUTO-M5-EXIT receipt and owner acceptance remain required."
     },
     {
       "story_id": "ST-OLL-001",
