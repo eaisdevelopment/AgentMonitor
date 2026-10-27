@@ -1019,3 +1019,15 @@ preactivation, the eighth rollover, refreshed prerequisites,
 M5 remains Intermediate.
 
 Plan snapshot SHA-256: `37409cd3a15d25d211cffcac55183a2d1f765656fc7cd5070e749a22f0366a8d`
+
+## 2026-10-27 approved M5 timeout recovery rebind
+
+The owner approved [focused 1.21.0](m5-timeout-recovery-change.md), including
+scheduled recovery after a retained timeout and one ninth rollover from
+`468a937d796efcb7ff1785a749789f07a3322abc`. Only automation catalog and
+completion-standard controls change in the synchronized Draft baseline.
+Canonical plan bodies, other controls and approval flags remain unchanged.
+The active eighth revision has a passing owner/alert witness but a blocked
+quota prerequisite; candidate activation and M5 completion remain Not Run.
+
+Plan snapshot SHA-256: `02c3719d98084c2d43c33d4f1b007eba2087e7d883e762637db70183a97f1266`

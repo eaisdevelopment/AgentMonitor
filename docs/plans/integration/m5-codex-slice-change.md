@@ -1,5 +1,12 @@
 # Change plan: executable V1-M5 Codex slice
 
+Current amendment: [owner-approved 1.21.0 timeout recovery and deployment](m5-timeout-recovery-change.md)
+supersedes the production/ninth-rollover exclusions below only for its named
+scope. Revision `468a937d796efcb7ff1785a749789f07a3322abc` is active after
+the eighth rollover; its fresh owner and alert prerequisites passed. Its quota
+prerequisite is Blocked by a retained timeout preventing future scheduled runs.
+The 1.20 checkpoint below is preserved as preactivation history.
+
 - Status: **Owner-approved 1.20.0 is locally implemented with owner-approved
   1.19.0 and 1.18.0 in one combined, unactivated candidate. Focused Green,
   the exact zero-skip Story inventory, authenticated containment, and the

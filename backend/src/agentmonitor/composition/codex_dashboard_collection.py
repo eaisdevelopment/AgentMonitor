@@ -87,7 +87,9 @@ def _quota_minimum_interval_ms() -> int:
 def _is_transient_failure(code: str | None) -> bool:
     if code is None:
         return False
-    if code == "collection_commit_interrupted":
+    # An expired operation is never retried; a new scheduled observation may
+    # run after the full cadence, with its own durable admission and deadline.
+    if code in {"collection_commit_interrupted", "codex_app_server_deadline_exceeded"}:
         return True
     state, retry = classify_codex_app_server_failure_v1(code)
     return state == "provider_unavailable" and retry.disposition == "after_delay"

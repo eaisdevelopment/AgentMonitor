@@ -309,7 +309,7 @@ proven: stop M5 evidence collection, preserve the journal and both runtimes,
 and diagnose the user unit. Never edit the journal, unit backup, or trusted
 runtime to force another result.
 
-Exactly eight revision-pinned corrective rollover modes are authorized. The
+Exactly nine revision-pinned corrective rollover modes are authorized. The
 first preserves the completed
 `6bfa69dc13cc9e1ded9c6baa6e803cb99bc8c20b` transition below
 `<owner-data-root>/m5-service-activation-corrective-archive/`. The second
@@ -341,15 +341,18 @@ The eighth preserves the completed
 `1ada84f71e827bb4f7ea966462a6cf51d050e9af` transition below the distinct fixed
 singleton parent
 `<owner-data-root>/m5-service-activation-corrective-archive-1ada84f/`.
+The ninth preserves completed revision
+`468a937d796efcb7ff1785a749789f07a3322abc` below
+`<owner-data-root>/m5-service-activation-corrective-archive-468a937/`.
 Each archive entry name binds its source revision and activation-receipt
 digest. No mode accepts a different source revision, archive parent, or
 additional entry.
 
 The requested new candidate must differ from the pinned trusted revision and
-all eight completed corrective revisions above. The command checks those
+all nine completed corrective revisions above. The command checks those
 reserved revisions before any service restoration, archive move, or
 transition-state write; a reserved candidate blocks without changing the
-existing service or evidence. No ninth rollover or general deployment
+existing service or evidence. No tenth rollover or general deployment
 authority is granted.
 
 An ordinary systemd or workstation restart can change the current dashboard

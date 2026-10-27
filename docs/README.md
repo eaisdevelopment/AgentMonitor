@@ -26,23 +26,15 @@ Current program state:
   organizations, six fresh post-restart quota/history lineages, the guarded
   current-process witness, and every required technical, browser, and local
   quality lane with zero skips and zero registry mutations.
-- **V1-M5:** implementation is **Intermediate**. The active service is the
-  plan-1.17 clean detached revision `1ada84f` after the successful seventh
-  evidence-preserving rollover. Current four-account owner outcomes and a
-  source-proven alert lifecycle/witness passed for that service. Real official
-  `/status` evidence then exposed the bounded full-unused rolling-reset defect
-  addressed by owner-approved plan 1.18. Owner-approved plans 1.19 and 1.20
-  add the fail-closed pytest JUnit parent/outcome correction and deterministic
-  private filesystem fixtures in the same unactivated candidate. The final
-  exact Story report passes `600` parents and `558` subtests, binds `1,158`
-  declared outcomes with zero errors/failures/skips, and has parent-identity
-  SHA-256
-  `ad0b77bd19a52f0b0ff29958963414e6836882a659096d7f291cafb7368e4b3e`.
-  Authenticated containment and every required local preactivation routine
-  pass on the final candidate bytes. The combined revision must pass detached Git
-  preflight, the single approved eighth rollover, refreshed owner/alert/quota/
-  process evidence, a passing `AUTO-M5-EXIT` receipt, and milestone owner
-  acceptance remain required. No ninth rollover or completion is claimed.
+- **V1-M5:** implementation is **Intermediate**. Plans 1.18–1.20 are deployed
+  at clean detached revision `468a937` after the eighth evidence-preserving
+  rollover. Four-account owner outcomes and the real alert lifecycle witness
+  passed on that service. The quota check exposed an account stranded after
+  a collection timeout. Owner-approved [plan 1.21](plans/integration/m5-timeout-recovery-change.md)
+  restores scheduled checks after the full five-minute cadence and authorizes
+  one ninth deployment. Its isolated candidate is under verification; deployment,
+  fresh account recovery, current prerequisite evidence, `AUTO-M5-EXIT`, and
+  milestone owner acceptance remain required. No M5 completion is claimed.
 - **V1-M6 through V1-M8:** Planned; their canonical gates have not run.
 
 The approved [M3 scope correction](evidence/m3-scope-correction-2026-10-02.md)
@@ -51,7 +43,7 @@ The [M3 current-gate receipt](evidence/m3-current-gate-receipt-2026-10-03.json)
 and owner disposition records close the blockers retained by the historical
 [M3 closure audit](evidence/m3-closure-audit-2026-10-01.md).
 Owner: Pavlo Sidelov <pavlo@sidelov.com>  
-Last substantive review: 2026-10-25
+Last substantive review: 2026-10-27
 
 This index is the entry point for product, architecture, engineering, and operations documentation. Requirements marked **Approved** reflect the project interview. Items marked **Discovery** require Milestone 0 evidence. Items marked **Deferred** are intentionally outside V1.
 

@@ -159,6 +159,15 @@ is three provider request units in one five-minute account/source window with no
 automatic provider retry. A run may terminate after fewer requests, but no
 second run can exceed the reserved bound.
 
+An expired operation remains failed and is never retried in place. Following
+the [approved timeout recovery](../plans/integration/m5-timeout-recovery-change.md),
+the scheduler permits a distinct future observation after the full five-minute
+cadence when the latest run ended with `codex_app_server_deadline_exceeded`.
+This applies across service restarts using the retained last attempt time.
+Authentication, identity, version, malformed-data and unknown failures keep
+their existing blocking behavior. Existing cleanup and request bounds apply
+to each operation.
+
 ## API and dashboard
 
 The provider-neutral identity resource is

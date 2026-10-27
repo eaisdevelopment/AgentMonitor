@@ -1,9 +1,56 @@
 # Test evidence: V1-M5 Codex implementation
 
+## 2026-10-27: timeout recovery, plan 1.21
+
+The eighth activation deployed plans 1.18–1.20 at `468a937`. Four explicit
+owner outcomes and the source-bound open/repeat/acknowledge/recover alert
+witness passed. The read-only quota prerequisite then blocked with
+`current_codex_lineage: m5_quota_current_lineage_required`: one enabled
+account's last successful reading was 2026-10-25 22:00 UTC, followed by
+`codex_app_server_deadline_exceeded` at 22:05 UTC and no subsequent run.
+Other accounts continued collecting. History and profile data were retained.
+
+Requirements FR-COL-001/003, NFR-RES-001 and AC-LIVE-005 are covered by
+M5-CDX-COL-014: the composition scheduler admits a distinct new run after
+300 seconds following that exact failure. The expired operation, adapter retry
+advice, deadlines, identity checks and security exclusions remain unchanged.
+M5-SVC-ACT-024 covers the approved ninth activation from `468a937`, preserving
+the eight-archive prefix, no-replace storage and rollback checks.
+
+**Red:** the new timeout regression and two ninth-activation regressions all
+failed before production edits (3 failed, 6.45 seconds). The timeout was
+incorrectly ineligible; the revision and archive topology were not admitted.
+**Focused Green:** the collection-action, activation, provider-security and
+real SQLite collection files passed together (77 tests, 7.34 seconds) with
+the pinned provider executables. An initial run using the ambient executable
+failed `codex_version_unverified`; it is not passing or behavioral Red evidence.
+The broader first run exposed stale catalog/type assertions and missing live
+selectors; its failures and skipped containment check are not credited.
+
+The production frontend build, static quality checks, synchronized planning,
+21 frontend policy tests and real browser `account_beyond_page` scenario pass.
+The exact Story suite passed 603 parents and 558 subtests in 220.54 seconds,
+with zero failures/errors/skips. Its 1,161 declared outcomes and parent-identity
+SHA-256 `117bc52d6eb06fd6c444d26356d4cb0aa045fdb8ac332c8dd8abeef6f00b9e45`
+passed the fail-closed report validator; the canonical inventory is rebound to
+that report. Live authenticated containment passed within this suite.
+Documentation validation passed across 234 Markdown files. Deployment and M5
+completion are not established by these local checks; activation has not yet run
+at this preactivation evidence checkpoint.
+
+Contracts remain compatible V1 (CTR-COL-002/004/006/007,
+CTR-PROV-002/004); REST `/api/v1`, database `v1_0707` and adapter versions
+are unchanged. No migration, dependency, license, credential, default-profile
+or running-agent change. Changed paths are the collection composition and its
+pure regression, activation/inventory automation and tests, routine catalog,
+planning snapshot/bindings, runbook, adapter guide and current evidence/index.
+
+## Retained implementation history
+
 - Evidence ID: `M5-CDX-IMPLEMENTATION-2026-10-08`
 - Module/plan/increment: A02 Codex provider adapter, root-owned V1-M5
   integration, and managed-profile effective-containment correction under
-  approved focused plan versions `1.10.0` through `1.20.0`, Stories
+  approved focused plan versions `1.10.0` through `1.21.0`, Stories
   `ST-CDX-001..005`.
 - Requirements/acceptance IDs:
   `FR-ACC-001/004..006`, `FR-AUTH-001/002/004..006`,
@@ -27,13 +74,12 @@
   `1.0.0-draft.2`; `codex-adapter.v1` adapter `1.0.2`; Codex
   subscription capability schema `1.0`; REST `/api/v1`; database head
   `v1_0707` unchanged.
-- Commit/worktree reference: approved plan 1.17 implementation commit
-  `1ada84f71e827bb4f7ea966462a6cf51d050e9af` is the clean detached,
-  receipt-bound live service after the seventh rollover. The combined
-  owner-approved 1.18--1.20 candidate is locally implemented in the detached
-  `m5-moving-reset-plan` worktree and remains unactivated. Its clean revision
-  must pass detached Git preflight before activation; no revision has passed
-  the canonical M5 completion gate.
+- Commit/worktree reference: approved plans 1.18–1.20 are deployed at
+  `468a937d796efcb7ff1785a749789f07a3322abc`, the clean detached receipt-bound
+  live service after the eighth rollover. The owner-approved 1.21 timeout
+  recovery candidate is isolated in `m5-timeout-recovery` for verification
+  before its ninth activation. No revision has passed the canonical M5
+  completion gate. Earlier dated sections retain historical evidence.
 - Recorder/date: Codex integration record, 2026-10-08; retained-history retry
   update, 2026-10-09; exact-revision transition and concurrency update,
   2026-10-16; alert browser-proof termination and P02 canonical-browser

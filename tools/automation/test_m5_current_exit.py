@@ -445,12 +445,14 @@ def test_catalog_selects_exact_m5_gate_and_closed_lanes() -> None:
     routine = next(item for item in catalog["routines"] if item["id"] == "AUTO-M5-EXIT")
 
     assert activation["status"] == "operational_limited"
-    assert "eight revision-pinned" in activation["scope"]
+    assert "nine revision-pinned" in activation["scope"]
     assert "35f50d8c4865505a9112d8aef7ea788f425ae658" in activation["scope"]
     assert "m5-service-activation-corrective-archive-35f50d8" in activation["scope"]
     assert "1ada84f71e827bb4f7ea966462a6cf51d050e9af" in activation["scope"]
     assert "m5-service-activation-corrective-archive-1ada84f" in activation["scope"]
-    assert "no ninth rollover" in activation["scope"]
+    assert "468a937d796efcb7ff1785a749789f07a3322abc" in activation["scope"]
+    assert "m5-service-activation-corrective-archive-468a937" in activation["scope"]
+    assert "no tenth rollover" in activation["scope"]
     assert archive["status"] == "operational"
     assert archive["implementation_command"] == [
         "backend/.venv/bin/python",
@@ -511,10 +513,10 @@ def test_catalog_selects_exact_m5_gate_and_closed_lanes() -> None:
     assert auto_m5_current_exit.STORY_NODE_TEST_INVENTORY_SHA256 == (
         "ac6afb5a290f5bf5940581ef13db21acccce947f3d40f97b498b57189f2db7e7"
     )
-    assert auto_m5_current_exit.STORY_PYTEST_TEST_COUNT == 600
-    assert auto_m5_current_exit.STORY_PYTEST_DECLARED_TEST_COUNT == 1_158
+    assert auto_m5_current_exit.STORY_PYTEST_TEST_COUNT == 603
+    assert auto_m5_current_exit.STORY_PYTEST_DECLARED_TEST_COUNT == 1_161
     assert auto_m5_current_exit.STORY_PYTEST_TEST_INVENTORY_SHA256 == (
-        "ad0b77bd19a52f0b0ff29958963414e6836882a659096d7f291cafb7368e4b3e"
+        "117bc52d6eb06fd6c444d26356d4cb0aa045fdb8ac332c8dd8abeef6f00b9e45"
     )
     assert "tools/git/test_preflight.py" in STORY_TEST_PATHS
     assert STORY_AUTOMATION_TEST_IDS == (
