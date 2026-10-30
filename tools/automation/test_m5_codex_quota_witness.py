@@ -834,6 +834,54 @@ def test_historical_witness_keeps_its_source_and_rejects_future_evidence() -> No
             parse(changed, **arguments)
 
 
+def test_stale_quota_witness_is_archived_without_removing_owner_evidence(
+    tmp_path: Path,
+) -> None:
+    root = tmp_path / "owner"
+    root.mkdir(mode=0o700)
+    witness = root / "m5-quota-witness.json"
+    witness.write_text(json.dumps(_witness_document()), encoding="utf-8")
+    witness.chmod(0o600)
+    owner = root / "m5-owner-outcomes.json"
+    owner.write_text("owner evidence", encoding="utf-8")
+    owner.chmod(0o600)
+    m5_codex_quota_witness.archive_stale_quota_witness_v1(
+        root,
+        expected_revision="c" * 40,
+        service_pid=100,
+        service_start_time_ticks=200,
+        owner_outcomes_digest=DIGEST,
+        verified_account_count=1,
+        now=datetime(2026, 10, 7, 12, 5, tzinfo=UTC),
+    )
+    assert not witness.exists()
+    assert owner.read_text(encoding="utf-8") == "owner evidence"
+    archives = list((root / ".m5-quota-witness-archive").iterdir())
+    assert (
+        len(archives) == 1
+        and json.loads(archives[0].read_text()) == _witness_document()
+    )
+
+
+def test_current_quota_witness_cannot_be_archived(tmp_path: Path) -> None:
+    root = tmp_path / "owner"
+    root.mkdir(mode=0o700)
+    witness = root / "m5-quota-witness.json"
+    witness.write_text(json.dumps(_witness_document()), encoding="utf-8")
+    witness.chmod(0o600)
+    with pytest.raises(M5CodexQuotaWitnessErrorV1):
+        m5_codex_quota_witness.archive_stale_quota_witness_v1(
+            root,
+            expected_revision=REVISION,
+            service_pid=321,
+            service_start_time_ticks=654,
+            owner_outcomes_digest=DIGEST,
+            verified_account_count=1,
+            now=datetime(2026, 10, 7, 12, 5, tzinfo=UTC),
+        )
+    assert witness.exists()
+
+
 @pytest.mark.parametrize(
     "field",
     ("service_pid", "service_start_time_ticks", "account_count", "window_count"),

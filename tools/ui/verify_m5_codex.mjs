@@ -553,8 +553,11 @@ try {
       await activity.waitFor({ timeout: 15_000 });
       requireResult((await activity.locator('[data-label="State"]').textContent())
         .includes("Monitoring on"), "codex_monitoring_state_missing");
-      requireResult(await activity.locator(".workspace-reading").count() > 0,
-        "codex_quota_missing");
+      try {
+        await activity.locator(".workspace-reading").first().waitFor({ timeout: 15_000 });
+      } catch {
+        throw new VerificationError("codex_quota_missing");
+      }
       await page.locator("details.quota-technical > summary").click();
       const provenanceRows = page.locator("details.quota-technical .quota-provenance");
       await provenanceRows.first().waitFor({ timeout: 15_000 });
@@ -584,14 +587,18 @@ try {
         "codex_process_api_not_rendered");
       await page.getByRole("heading", { name: "Agents using this account", exact: true })
         .waitFor({ timeout: 15_000 });
+      await page.locator("section.live-processes [role=status]")
+        .filter({ hasText: "Reading running" }).waitFor({ state: "hidden", timeout: 15_000 });
+      const unlinked = page.locator("details[data-unlinked-agents]");
+      if (await unlinked.count() > 0) await unlinked.locator(":scope > summary").click();
       for (const row of await page.locator("tr[data-association-key]").all()) {
         const key = await row.getAttribute("data-association-key");
         const process = representativeByKey.get(key);
         if (!process) continue;
         const stateCell = row.locator('[data-label="State"]');
-        requireResult(await stateCell.getByText("Running", {
-          exact: true,
-        }).count() === 1
+        const runningState = stateCell.locator(".activity-running");
+        requireResult(await runningState.count() === 1
+          && (await runningState.textContent()).replace(/^[●\s]+/u, "") === "Running"
           && await stateCell.getByText("Activity unknown", {
             exact: true,
           }).count() === 1, "codex_process_state_not_rendered");
@@ -624,6 +631,8 @@ try {
     await page.goto(`${origin}/collectors`);
     await page.getByRole("heading", { name: "Collection runs", exact: true })
       .waitFor({ timeout: 15_000 });
+    await page.locator("[data-collection-run=true]")
+      .filter({ hasText: "codex · subscription.quota" }).first().waitFor({ timeout: 15_000 });
     requireResult(await page.locator("[data-collection-run=true]")
       .filter({ hasText: "codex · subscription.quota" }).count() > 0,
     "codex_collection_history_not_rendered");
@@ -633,6 +642,7 @@ try {
     await page.getByRole("heading", { name: "Providers", exact: true })
       .waitFor({ timeout: 15_000 });
     const codexCard = page.locator(".provider-card").filter({ hasText: "codex" });
+    await codexCard.waitFor({ timeout: 15_000 });
     requireResult(await codexCard.count() === 1
       && await codexCard.getByText(codexAdmissionV1.provider_version, {
         exact: false,

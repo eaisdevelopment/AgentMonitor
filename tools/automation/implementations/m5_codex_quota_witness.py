@@ -1547,6 +1547,99 @@ def _unlink_created_witness_v1(
         pass
 
 
+def archive_stale_quota_witness_v1(
+    root: Path,
+    *,
+    expected_revision: str,
+    service_pid: int,
+    service_start_time_ticks: int,
+    owner_outcomes_digest: str,
+    verified_account_count: int,
+    now: datetime,
+) -> None:
+    """Preserve a validated obsolete quota witness while retaining owner evidence."""
+    path = root / QUOTA_WITNESS_BASENAME
+    if not path.exists():
+        return
+    try:
+        file_metadata = path.lstat()
+        if (
+            not stat.S_ISREG(file_metadata.st_mode)
+            or file_metadata.st_uid != os.getuid()
+            or stat.S_IMODE(file_metadata.st_mode) != 0o600
+            or file_metadata.st_nlink != 1
+            or file_metadata.st_size > 16384
+        ):
+            raise ValueError
+        document = json.loads(path.read_text(encoding="utf-8"))
+        recorded = _timestamp(document["recorded_at"])
+        if recorded > now:
+            raise ValueError
+        prior_revision = document["implementation_revision"]
+        prior_pid = document["service_pid"]
+        prior_ticks = document["service_start_time_ticks"]
+        old = read_quota_witness_v1(
+            path,
+            expected_revision=prior_revision,
+            service_pid=prior_pid,
+            service_start_time_ticks=prior_ticks,
+            owner_outcomes_digest=owner_outcomes_digest,
+            verified_account_count=verified_account_count,
+            now=recorded,
+        )
+        if (prior_revision, prior_pid, prior_ticks) == (
+            expected_revision,
+            service_pid,
+            service_start_time_ticks,
+        ) and now - recorded <= timedelta(minutes=15):
+            raise ValueError
+        archive = root / ".m5-quota-witness-archive"
+        archive.mkdir(mode=0o700, exist_ok=True)
+        metadata = archive.lstat()
+        if (
+            not stat.S_ISDIR(metadata.st_mode)
+            or metadata.st_uid != os.getuid()
+            or stat.S_IMODE(metadata.st_mode) != 0o700
+            or archive.resolve() != archive
+        ):
+            raise ValueError
+        target = archive / (old.digest + ".json")
+        os.link(path, target, follow_symlinks=False)
+        try:
+            source_metadata = path.lstat()
+            target_metadata = target.lstat()
+            if (
+                not stat.S_ISREG(source_metadata.st_mode)
+                or (source_metadata.st_dev, source_metadata.st_ino)
+                != (target_metadata.st_dev, target_metadata.st_ino)
+                or (source_metadata.st_dev, source_metadata.st_ino)
+                != (file_metadata.st_dev, file_metadata.st_ino)
+            ):
+                raise ValueError
+            os.unlink(path)
+            for directory in (root, archive):
+                directory_fd = os.open(
+                    directory, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW
+                )
+                try:
+                    os.fsync(directory_fd)
+                finally:
+                    os.close(directory_fd)
+        except (OSError, ValueError):
+            if path.exists():
+                os.unlink(target)
+            raise
+    except (
+        OSError,
+        KeyError,
+        TypeError,
+        ValueError,
+        json.JSONDecodeError,
+        M5CodexQuotaWitnessErrorV1,
+    ):
+        raise M5CodexQuotaWitnessErrorV1("m5_quota_witness_archive_invalid") from None
+
+
 def _write_create_once(path: Path, document: dict[str, object]) -> str:
     payload = (
         json.dumps(document, ensure_ascii=True, indent=2, sort_keys=True) + "\n"
@@ -1904,6 +1997,15 @@ def create_quota_witness_v1(environment: Mapping[str, str]) -> str:
         selected_start_time_ticks=service_ticks,
         dashboard_origin=origin,
         dashboard_cdp_endpoint=endpoint,
+    )
+    archive_stale_quota_witness_v1(
+        owner_root,
+        expected_revision=revision,
+        service_pid=service_pid,
+        service_start_time_ticks=service_ticks,
+        owner_outcomes_digest=outcomes_digest,
+        verified_account_count=len(outcomes.verified_account_ids),
+        now=recorded_at,
     )
     return _write_create_once(owner_root / QUOTA_WITNESS_BASENAME, document)
 
