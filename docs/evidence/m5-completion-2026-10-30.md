@@ -5,7 +5,7 @@
 [gate receipt](m5-current-gate-receipt-2026-10-30.json) is the authoritative
 technical result for that revision. Its SHA-256 is
 `a1c6f7c0ca90cd1f46fd87d57d383766a7aceafeae0b4e1838ab4e345dd6c929`.
-Formal owner acceptance of M5 has not been recorded.
+The owner accepted M5; see the [acceptance record](m5-owner-acceptance-2026-10-30.md).
 
 The check covered four owner-selected Codex registry outcomes: three accounts
 verified and current, and one owner-recorded unavailable because its
@@ -39,6 +39,5 @@ This is the bounded M5 Codex slice under the approved M5 plan and its
 contracts. The final corrections affected the M5 completion automation and
 browser checks, not provider authentication, schema or database migration.
 No dependencies were added. Provider credentials and default profiles were not
-read or modified. The implementation and technical gate passed; the remaining
-milestone decision is the owner's review and acceptance. M6–M8 and a complete
+read or modified. The implementation and technical gate passed; the owner reviewed and accepted the milestone. M6–M8 and a complete
 V1 release are outside this result.

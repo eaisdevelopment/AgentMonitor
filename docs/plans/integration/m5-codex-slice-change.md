@@ -3,7 +3,7 @@
 **Current result, 30 October 2026:** the bounded M5 gate passed on deployed
 revision `ab1408bce04fcb4e56c7fb57c62f4e34ba8a191a`. See the
 [completion record](../../evidence/m5-completion-2026-10-30.md). The dated
-checkpoints below are historical; formal owner acceptance remains unrecorded.
+checkpoints below are historical; the owner accepted M5 on 30 October 2026.
 
 Current amendment: [owner-approved 1.21.0 timeout recovery and deployment](m5-timeout-recovery-change.md)
 supersedes the production/ninth-rollover exclusions below only for its named

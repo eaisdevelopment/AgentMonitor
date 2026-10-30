@@ -31,7 +31,8 @@ Current program state:
   three verified accounts, one owner-recorded unavailable account, five
   representative processes, the recovered alert lifecycle, and the required
   browser and technical checks. The [completion record](evidence/m5-completion-2026-10-30.md)
-  explains the evidence. Formal owner acceptance remains unrecorded.
+  explains the evidence. The owner accepted M5 on 30 October 2026; see the
+  [acceptance record](evidence/m5-owner-acceptance-2026-10-30.md).
 - **V1-M6 through V1-M8:** Planned; their canonical gates have not run.
 
 The approved [M3 scope correction](evidence/m3-scope-correction-2026-10-02.md)

@@ -108,9 +108,9 @@
       "canonical_gate_state": "passed",
       "gate_binding": "historical_run",
       "gate_revision": "ab1408bce04fcb4e56c7fb57c62f4e34ba8a191a",
-      "acceptance_state": "not_recorded",
-      "acceptance_scope": "none",
-      "acceptance_decision_path": null,
+      "acceptance_state": "accepted",
+      "acceptance_scope": "full_milestone",
+      "acceptance_decision_path": "docs/evidence/m5-owner-acceptance-2026-10-30.md",
       "dependency_state": "satisfied",
       "unresolved_dependency_ids": [],
       "evidence_paths": [
@@ -118,9 +118,10 @@
         "docs/evidence/m5-codex-read-side-effect-blocker.md",
         "docs/evidence/m5-codex-implementation.md",
         "docs/evidence/m5-current-gate-receipt-2026-10-30.json",
-        "docs/evidence/m5-completion-2026-10-30.md"
+        "docs/evidence/m5-completion-2026-10-30.md",
+        "docs/evidence/m5-owner-acceptance-2026-10-30.md"
       ],
-      "decision": "AUTO-M5-EXIT passed on the clean deployed revision. Three Codex accounts were verified and one was owner-recorded unavailable; five representative processes and the recovered alert lifecycle were verified. Two prior owner screenshots were reconciled with retained historical readings, separately from current fleet checks. Formal milestone owner acceptance remains unrecorded."
+      "decision": "AUTO-M5-EXIT passed on clean deployed revision ab1408bce04fcb4e56c7fb57c62f4e34ba8a191a. The owner reviewed the scope and explicitly accepted the passed M5 result. Three accounts were verified and one was owner-recorded unavailable; five representative processes and the recovered alert lifecycle were verified. Process scanning was partial; historical screenshot comparisons were separate from current checks."
     },
     {
       "milestone_id": "V1-M6",
@@ -176,7 +177,6 @@
       "acceptance_decision_path": null,
       "dependency_state": "unresolved",
       "unresolved_dependency_ids": [
-        "V1-M5",
         "V1-M6",
         "V1-M7"
       ],
@@ -445,7 +445,7 @@
         "docs/evidence/m5-codex-implementation.md",
         "docs/evidence/m5-current-gate-receipt-2026-10-30.json"
       ],
-      "decision": "Implemented and verified by the bounded M5 gate on revision ab1408bce04fcb4e56c7fb57c62f4e34ba8a191a; formal milestone owner acceptance remains unrecorded."
+      "decision": "Implemented and verified by the bounded M5 gate on revision ab1408bce04fcb4e56c7fb57c62f4e34ba8a191a; the owner accepted M5 on 30 October 2026."
     },
     {
       "story_id": "ST-CDX-002",
@@ -458,7 +458,7 @@
         "docs/evidence/m5-codex-implementation.md",
         "docs/evidence/m5-current-gate-receipt-2026-10-30.json"
       ],
-      "decision": "Implemented and verified by the bounded M5 gate on revision ab1408bce04fcb4e56c7fb57c62f4e34ba8a191a; formal milestone owner acceptance remains unrecorded."
+      "decision": "Implemented and verified by the bounded M5 gate on revision ab1408bce04fcb4e56c7fb57c62f4e34ba8a191a; the owner accepted M5 on 30 October 2026."
     },
     {
       "story_id": "ST-CDX-003",
@@ -471,7 +471,7 @@
         "docs/evidence/m5-codex-implementation.md",
         "docs/evidence/m5-current-gate-receipt-2026-10-30.json"
       ],
-      "decision": "Implemented and verified by the bounded M5 gate on revision ab1408bce04fcb4e56c7fb57c62f4e34ba8a191a; formal milestone owner acceptance remains unrecorded."
+      "decision": "Implemented and verified by the bounded M5 gate on revision ab1408bce04fcb4e56c7fb57c62f4e34ba8a191a; the owner accepted M5 on 30 October 2026."
     },
     {
       "story_id": "ST-CDX-004",
@@ -483,7 +483,7 @@
         "docs/evidence/m5-codex-implementation.md",
         "docs/evidence/m5-current-gate-receipt-2026-10-30.json"
       ],
-      "decision": "Implemented and verified by the bounded M5 gate on revision ab1408bce04fcb4e56c7fb57c62f4e34ba8a191a; formal milestone owner acceptance remains unrecorded."
+      "decision": "Implemented and verified by the bounded M5 gate on revision ab1408bce04fcb4e56c7fb57c62f4e34ba8a191a; the owner accepted M5 on 30 October 2026."
     },
     {
       "story_id": "ST-CDX-005",
@@ -494,7 +494,7 @@
         "docs/evidence/m5-codex-implementation.md",
         "docs/evidence/m5-current-gate-receipt-2026-10-30.json"
       ],
-      "decision": "Implemented and verified by the bounded M5 gate on revision ab1408bce04fcb4e56c7fb57c62f4e34ba8a191a; formal milestone owner acceptance remains unrecorded."
+      "decision": "Implemented and verified by the bounded M5 gate on revision ab1408bce04fcb4e56c7fb57c62f4e34ba8a191a; the owner accepted M5 on 30 October 2026."
     },
     {
       "story_id": "ST-OLL-001",

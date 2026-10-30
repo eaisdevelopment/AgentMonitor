@@ -3,7 +3,7 @@
 **Current result, 30 October 2026:** `AUTO-M5-EXIT` passed on revision
 `ab1408bce04fcb4e56c7fb57c62f4e34ba8a191a`. The
 [completion record](m5-completion-2026-10-30.md) and its receipt supersede
-earlier status statements below; owner acceptance remains unrecorded.
+earlier status statements below; the owner accepted M5 on 30 October 2026.
 
 ## 2026-10-27: timeout recovery, plan 1.21
 

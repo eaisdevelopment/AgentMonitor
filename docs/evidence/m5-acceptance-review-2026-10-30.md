@@ -1,7 +1,7 @@
 # M5 acceptance review — 30 October 2026
 
-**Decision: pending owner review.** This document is a review draft and does
-not record owner acceptance.
+**Decision: accepted.** The owner reviewed the scope and passed result; the
+[acceptance record](m5-owner-acceptance-2026-10-30.md) records the decision.
 
 The proposed decision is to accept the bounded M5 Codex milestone for the
 implementation revision `ab1408bce04fcb4e56c7fb57c62f4e34ba8a191a`, on which
@@ -17,5 +17,4 @@ against historical readings; current readings were independently checked.
 
 Acceptance of M5 would not accept the remaining milestones or the complete V1
 release. No additional login, screenshot, or alert acknowledgement is needed
-for this review. A decision has not yet been supplied and must not be inferred
-from earlier implementation approvals or the request to complete M5.
+for this review. The decision was supplied after this scope and result were presented.
