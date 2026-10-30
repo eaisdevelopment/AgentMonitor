@@ -202,10 +202,10 @@ STORY_NODE_TEST_INVENTORY_SHA256 = (
 )
 STORY_BROWSER_SCENARIOS = ("account_beyond_page",)
 # Updated only from the exact collected inventory after intentional test changes.
-STORY_PYTEST_TEST_COUNT = 622
-STORY_PYTEST_DECLARED_TEST_COUNT = 1_180
+STORY_PYTEST_TEST_COUNT = 623
+STORY_PYTEST_DECLARED_TEST_COUNT = 1_181
 STORY_PYTEST_TEST_INVENTORY_SHA256 = (
-    "a8424169b70c3a6fe18d62d7b6b0b0b36e6fc2d87f91efcfbe2931522b99c3c4"
+    "fa361b5bbc45635a4f0450537b2863f40222570e076cba84394ebf06391bc71a"
 )
 STORY_ARTIFACTS = (
     "tools/git/preflight.py",
@@ -1968,9 +1968,6 @@ def _validate_authoritative_quota_preflight_v1(
     if (
         preflight.get("verified_count") != quota.account_count
         or preflight.get("identity_set_digest") != quota.identity_set_digest
-        or preflight.get("collection_run_set_digest") != quota.collection_run_set_digest
-        or preflight.get("quota_value_set_digest") != quota.quota_value_set_digest
-        or preflight.get("history_value_set_digest") != quota.history_value_set_digest
     ):
         raise M5CurrentExitErrorV1("m5_current_authoritative_quota_mismatch")
 

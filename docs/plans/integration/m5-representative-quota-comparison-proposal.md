@@ -89,7 +89,9 @@ quota, rendered UI and history proof, and the final gate must pass normally.
 This owner direction replaces the previous plan's requirement to ask the
 owner to repeat the two official-view observations immediately before exit.
 
-The live preflight remains bound to its exact current quota and history. After
+The live preflight verifies its own exact current quota and history and remains
+bound to the independently checked quota witness by account identity. A new
+scheduled poll between the witness and preflight is allowed. After
 the service restart, the browser verifies the newly collected values and
 resets against the account page and retained provider history for the same
 identities. Values can change between those two checks: for example, a fully

@@ -532,10 +532,10 @@ def test_catalog_selects_exact_m5_gate_and_closed_lanes() -> None:
     assert auto_m5_current_exit.STORY_NODE_TEST_INVENTORY_SHA256 == (
         "50e092d299b2f13bcf0a9cac6cbe1ed43a59bd49e944c2c305b85481233e1ef5"
     )
-    assert auto_m5_current_exit.STORY_PYTEST_TEST_COUNT == 622
-    assert auto_m5_current_exit.STORY_PYTEST_DECLARED_TEST_COUNT == 1_180
+    assert auto_m5_current_exit.STORY_PYTEST_TEST_COUNT == 623
+    assert auto_m5_current_exit.STORY_PYTEST_DECLARED_TEST_COUNT == 1_181
     assert auto_m5_current_exit.STORY_PYTEST_TEST_INVENTORY_SHA256 == (
-        "a8424169b70c3a6fe18d62d7b6b0b0b36e6fc2d87f91efcfbe2931522b99c3c4"
+        "fa361b5bbc45635a4f0450537b2863f40222570e076cba84394ebf06391bc71a"
     )
     assert "tools/git/test_preflight.py" in STORY_TEST_PATHS
     assert STORY_AUTOMATION_TEST_IDS == (
@@ -1664,7 +1664,7 @@ def test_quota_witness_is_rejected_at_the_receipt_completion_time(
         )
 
 
-def test_authoritative_quota_binds_preflight_and_post_restart_values() -> None:
+def test_authoritative_quota_binds_preflight_and_post_restart_identity() -> None:
     quota = _quota_witness()
     validate_authoritative_quota_v1(quota, _preflight(), _witness())
 
@@ -1672,18 +1672,6 @@ def test_authoritative_quota_binds_preflight_and_post_restart_values() -> None:
         (
             "preflight",
             "identity_set_digest",
-            DIGEST_A,
-            "m5_current_authoritative_quota_mismatch",
-        ),
-        (
-            "preflight",
-            "collection_run_set_digest",
-            DIGEST_A,
-            "m5_current_authoritative_quota_mismatch",
-        ),
-        (
-            "preflight",
-            "quota_value_set_digest",
             DIGEST_A,
             "m5_current_authoritative_quota_mismatch",
         ),
@@ -1710,7 +1698,7 @@ def test_post_restart_accepts_new_live_values_with_fresh_matching_identity() -> 
     validate_authoritative_quota_v1(quota, preflight, witness)
 
 
-def test_authoritative_quota_binds_recomputed_browser_history_to_preflight() -> None:
+def test_preflight_accepts_a_new_independently_verified_collection() -> None:
     quota = SimpleNamespace(
         account_count=2,
         identity_set_digest=DIGEST_B,
@@ -1721,10 +1709,9 @@ def test_authoritative_quota_binds_recomputed_browser_history_to_preflight() -> 
     preflight = _preflight()
     preflight["history_value_set_digest"] = DIGEST_A
 
-    with pytest.raises(
-        M5CurrentExitErrorV1, match="m5_current_authoritative_quota_mismatch"
-    ):
-        validate_authoritative_quota_v1(quota, preflight, _witness())  # type: ignore[arg-type]
+    preflight["collection_run_set_digest"] = DIGEST_A
+    preflight["quota_value_set_digest"] = DIGEST_A
+    validate_authoritative_quota_v1(quota, preflight, _witness())  # type: ignore[arg-type]
 
 
 def test_m5_receipt_is_sanitized_exact_and_create_once() -> None:
