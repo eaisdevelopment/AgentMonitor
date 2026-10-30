@@ -202,10 +202,10 @@ STORY_NODE_TEST_INVENTORY_SHA256 = (
 )
 STORY_BROWSER_SCENARIOS = ("account_beyond_page",)
 # Updated only from the exact collected inventory after intentional test changes.
-STORY_PYTEST_TEST_COUNT = 620
-STORY_PYTEST_DECLARED_TEST_COUNT = 1_178
+STORY_PYTEST_TEST_COUNT = 622
+STORY_PYTEST_DECLARED_TEST_COUNT = 1_180
 STORY_PYTEST_TEST_INVENTORY_SHA256 = (
-    "4e20036992faba521bdb965bee8700fc96d2c99cc1ab7d15b44431ff739146e3"
+    "a8424169b70c3a6fe18d62d7b6b0b0b36e6fc2d87f91efcfbe2931522b99c3c4"
 )
 STORY_ARTIFACTS = (
     "tools/git/preflight.py",
@@ -1939,8 +1939,6 @@ def validate_codex_transition_v1(
         raise M5CurrentExitErrorV1("m5_current_fleet_metadata_changed")
     if witness.get("identity_set_digest") != preflight.get("identity_set_digest"):
         raise M5CurrentExitErrorV1("m5_current_fleet_identity_changed")
-    if witness.get("quota_value_set_digest") != preflight.get("quota_value_set_digest"):
-        raise M5CurrentExitErrorV1("m5_current_authoritative_quota_changed")
     if witness.get("registry_digest") != preflight.get("registry_digest"):
         raise M5CurrentExitErrorV1("m5_current_registry_changed")
     if witness.get("collection_run_set_digest") == preflight.get(
@@ -1997,13 +1995,12 @@ def validate_authoritative_quota_v1(
     preflight: Mapping[str, object],
     witness: Mapping[str, object],
 ) -> None:
-    """Bind owner-observed provider values to both browser gate phases."""
+    """Bind the owner comparison to preflight and identity to the fresh reading."""
 
     _validate_authoritative_quota_preflight_v1(quota, preflight)
     if (
         witness.get("verified_count") != quota.account_count
         or witness.get("identity_set_digest") != quota.identity_set_digest
-        or witness.get("quota_value_set_digest") != quota.quota_value_set_digest
     ):
         raise M5CurrentExitErrorV1("m5_current_authoritative_quota_changed")
 

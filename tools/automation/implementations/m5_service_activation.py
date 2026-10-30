@@ -111,6 +111,11 @@ FIFTEENTH_CORRECTIVE_ARCHIVE_BASENAME = (
 )
 FIFTEENTH_CORRECTIVE_ARCHIVE_ROOT = DATA_ROOT / FIFTEENTH_CORRECTIVE_ARCHIVE_BASENAME
 FIFTEENTH_CORRECTIVE_ROLLOVER_REVISION = "91b84b1007337255774fe9068e806aff0a3ccdda"
+SIXTEENTH_CORRECTIVE_ARCHIVE_BASENAME = (
+    "m5-service-activation-corrective-archive-a4a9800"
+)
+SIXTEENTH_CORRECTIVE_ARCHIVE_ROOT = DATA_ROOT / SIXTEENTH_CORRECTIVE_ARCHIVE_BASENAME
+SIXTEENTH_CORRECTIVE_ROLLOVER_REVISION = "a4a980049706d548b5b60d9436f680cacb5f9812"
 CORRECTIVE_ROLLOVER_REVISIONS = (
     CORRECTIVE_ROLLOVER_REVISION,
     SECOND_CORRECTIVE_ROLLOVER_REVISION,
@@ -127,6 +132,7 @@ CORRECTIVE_ROLLOVER_REVISIONS = (
     THIRTEENTH_CORRECTIVE_ROLLOVER_REVISION,
     FOURTEENTH_CORRECTIVE_ROLLOVER_REVISION,
     FIFTEENTH_CORRECTIVE_ROLLOVER_REVISION,
+    SIXTEENTH_CORRECTIVE_ROLLOVER_REVISION,
 )
 ACTIVATION_JOURNAL_BASENAME = "activation-journal-v1.json"
 ACTIVATION_LOCK_BASENAME = "activation-lock-v1"
@@ -744,6 +750,8 @@ def _corrective_rollover_archive_basename_v1(prior_revision: str) -> str:
         return FOURTEENTH_CORRECTIVE_ARCHIVE_BASENAME
     if prior_revision == FIFTEENTH_CORRECTIVE_ROLLOVER_REVISION:
         return FIFTEENTH_CORRECTIVE_ARCHIVE_BASENAME
+    if prior_revision == SIXTEENTH_CORRECTIVE_ROLLOVER_REVISION:
+        return SIXTEENTH_CORRECTIVE_ARCHIVE_BASENAME
     raise M5ServiceActivationErrorV1("m5_service_rollover_archive_invalid")
 
 
@@ -4415,6 +4423,10 @@ def _maybe_correct_completed_activation_rollover_v1(
         archive_parent=FIFTEENTH_CORRECTIVE_ARCHIVE_ROOT,
         prior_revision=FIFTEENTH_CORRECTIVE_ROLLOVER_REVISION,
     )
+    sixteenth_archive_state = _corrective_rollover_archive_parent_state_v1(
+        archive_parent=SIXTEENTH_CORRECTIVE_ARCHIVE_ROOT,
+        prior_revision=SIXTEENTH_CORRECTIVE_ROLLOVER_REVISION,
+    )
     receipt_document: dict[str, object] | None = None
     receipt_revision: str | None = None
     if _path_present(RECEIPT_PATH):
@@ -4442,6 +4454,7 @@ def _maybe_correct_completed_activation_rollover_v1(
             thirteenth_archive_state,
             fourteenth_archive_state,
             fifteenth_archive_state,
+            sixteenth_archive_state,
         ),
     )
     if transition_action == "blocked":

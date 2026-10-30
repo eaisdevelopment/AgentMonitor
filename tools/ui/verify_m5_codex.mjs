@@ -558,6 +558,26 @@ try {
       } catch {
         throw new VerificationError("codex_quota_missing");
       }
+      const renderedWindows = activity.locator(".workspace-reading");
+      requireResult(await renderedWindows.count() > 0
+        && await renderedWindows.count() <= item.quotaWindows.length,
+      "codex_quota_window_count_mismatch");
+      for (const row of await renderedWindows.all()) {
+        let exactMatch = false;
+        for (const window of item.quotaWindows) {
+          if (await row.getAttribute("data-window-key") === window.windowKey
+              && await row.getAttribute("data-semantic-role") === window.semanticRole
+              && (await row.locator("strong").textContent())?.trim() === `${window.remainingPercent}%`) {
+            const reset = row.locator(".quota-reset");
+            const time = reset.locator("time");
+            const timestamp = await time.count() === 0 ? null
+              : Math.floor(Date.parse(await time.getAttribute("datetime")) / 1000);
+            exactMatch = timestamp === window.resetEpoch
+              && await reset.getAttribute("data-reset-precision") === window.resetPrecision;
+          }
+        }
+        requireResult(exactMatch, "codex_quota_value_not_rendered");
+      }
       await page.locator("details.quota-technical > summary").click();
       const provenanceRows = page.locator("details.quota-technical .quota-provenance");
       await provenanceRows.first().waitFor({ timeout: 15_000 });

@@ -532,10 +532,10 @@ def test_catalog_selects_exact_m5_gate_and_closed_lanes() -> None:
     assert auto_m5_current_exit.STORY_NODE_TEST_INVENTORY_SHA256 == (
         "50e092d299b2f13bcf0a9cac6cbe1ed43a59bd49e944c2c305b85481233e1ef5"
     )
-    assert auto_m5_current_exit.STORY_PYTEST_TEST_COUNT == 620
-    assert auto_m5_current_exit.STORY_PYTEST_DECLARED_TEST_COUNT == 1_178
+    assert auto_m5_current_exit.STORY_PYTEST_TEST_COUNT == 622
+    assert auto_m5_current_exit.STORY_PYTEST_DECLARED_TEST_COUNT == 1_180
     assert auto_m5_current_exit.STORY_PYTEST_TEST_INVENTORY_SHA256 == (
-        "4e20036992faba521bdb965bee8700fc96d2c99cc1ab7d15b44431ff739146e3"
+        "a8424169b70c3a6fe18d62d7b6b0b0b36e6fc2d87f91efcfbe2931522b99c3c4"
     )
     assert "tools/git/test_preflight.py" in STORY_TEST_PATHS
     assert STORY_AUTOMATION_TEST_IDS == (
@@ -1689,7 +1689,7 @@ def test_authoritative_quota_binds_preflight_and_post_restart_values() -> None:
         ),
         (
             "witness",
-            "quota_value_set_digest",
+            "identity_set_digest",
             DIGEST_A,
             "m5_current_authoritative_quota_changed",
         ),
@@ -1699,6 +1699,15 @@ def test_authoritative_quota_binds_preflight_and_post_restart_values() -> None:
         (preflight if phase == "preflight" else witness)[field] = value
         with pytest.raises(M5CurrentExitErrorV1, match=reason):
             validate_authoritative_quota_v1(quota, preflight, witness)
+
+
+def test_post_restart_accepts_new_live_values_with_fresh_matching_identity() -> None:
+    quota = _quota_witness()
+    preflight = _preflight()
+    witness = _witness()
+    witness["quota_value_set_digest"] = DIGEST_A
+    validate_codex_transition_v1(preflight, witness, expected_revision=REVISION)
+    validate_authoritative_quota_v1(quota, preflight, witness)
 
 
 def test_authoritative_quota_binds_recomputed_browser_history_to_preflight() -> None:
