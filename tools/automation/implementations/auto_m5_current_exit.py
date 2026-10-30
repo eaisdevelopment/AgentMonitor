@@ -13,7 +13,7 @@ import sys
 import tempfile
 import xml.etree.ElementTree as ET
 from collections.abc import Mapping
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import NoReturn, cast
@@ -48,6 +48,7 @@ from tools.automation.implementations.m5_completion_lock import (
     release_m5_completion_lock_v1,
     validate_m5_completion_lock_v1,
 )
+from tools.automation.implementations.m5_evidence_migration import prove_predecessor_v1
 from tools.automation.implementations.m5_owner_outcomes import (
     OWNER_OUTCOMES_BASENAME,
     M5OwnerOutcomesErrorV1,
@@ -194,9 +195,9 @@ STORY_NODE_TEST_PATHS = (
     "frontend/tests/pure/provider-account-presentation.mjs",
     "frontend/tests/pure/quota-reset-presentation.mjs",
 )
-STORY_NODE_TEST_COUNT = 22
+STORY_NODE_TEST_COUNT = 23
 STORY_NODE_TEST_INVENTORY_SHA256 = (
-    "923e3b8d81324f0aa3982b6ad6a71fa6cd257a7a43932a21e22e4a7ff426457c"
+    "d368d1501e88be0b4527e7dcef4940724e1ce08c6db0aaff499d3074afbec717"
 )
 STORY_BROWSER_SCENARIOS = ("account_beyond_page",)
 # Updated only from the exact collected inventory after intentional test changes.
@@ -223,6 +224,8 @@ STORY_ARTIFACTS = (
     "tools/automation/test_m5_codex_containment.py",
     "tools/automation/implementations/m5_codex_quota_witness.py",
     "tools/automation/test_m5_codex_quota_witness.py",
+    "tools/automation/implementations/m5_evidence_migration.py",
+    "tools/automation/test_m5_evidence_migration.py",
     "tools/automation/test_run.py",
     "tools/ui/m5_codex_policy.mjs",
     "tools/ui/m5_representative_policy.mjs",
@@ -2048,10 +2051,40 @@ def main() -> int:
         outcomes_path = owner_root / OWNER_OUTCOMES_BASENAME
         quota_path = owner_root / QUOTA_WITNESS_BASENAME
         alert_path = owner_root / ALERT_WITNESS_BASENAME
+        try:
+            source_outcomes, _ = read_owner_outcomes_file_v2(
+                outcomes_path, now=datetime.now(UTC)
+            )
+        except M5OwnerOutcomesErrorV1:
+            raise M5CurrentExitErrorV1("m5_current_owner_outcomes_invalid") from None
+        evidence_revision = source_outcomes.implementation_revision
+        evidence_service = selected_service
+        if (
+            evidence_revision,
+            source_outcomes.service_pid,
+            source_outcomes.service_start_time_ticks,
+        ) != (revision, selected_service.pid, selected_service.start_time_ticks):
+            try:
+                prove_predecessor_v1(
+                    root=ROOT,
+                    current_revision=revision,
+                    old_revision=evidence_revision,
+                    old_pid=source_outcomes.service_pid,
+                    old_start=source_outcomes.service_start_time_ticks,
+                )
+            except ValueError:
+                raise M5CurrentExitErrorV1(
+                    "m5_current_owner_outcomes_invalid"
+                ) from None
+            evidence_service = replace(
+                selected_service,
+                pid=source_outcomes.service_pid,
+                start_time_ticks=source_outcomes.service_start_time_ticks,
+            )
         outcomes = read_owner_outcomes_v1(
             outcomes_path,
-            expected_revision=revision,
-            selected_service=selected_service,
+            expected_revision=evidence_revision,
+            selected_service=evidence_service,
             now=datetime.now(UTC),
         )
         primary_account = outcomes.primary_verified_account_id
@@ -2068,18 +2101,19 @@ def main() -> int:
         )
         alert = read_alert_witness_v1(
             alert_path,
-            expected_revision=revision,
-            selected_service=selected_service,
+            expected_revision=evidence_revision,
+            selected_service=evidence_service,
             verified_account_ids=outcomes.verified_account_ids,
             now=datetime.now(UTC),
         )
         environment["AGENTMONITOR_TEST_M5_OWNER_OUTCOMES"] = str(outcomes_path)
         environment["AGENTMONITOR_TEST_M5_QUOTA_WITNESS"] = str(quota_path)
         environment["AGENTMONITOR_TEST_M5_ALERT_WITNESS"] = str(alert_path)
-        environment["AGENTMONITOR_M5_OWNER_IMPLEMENTATION_REVISION"] = revision
-        environment["AGENTMONITOR_M5_OWNER_SERVICE_PID"] = str(selected_service.pid)
+        environment["AGENTMONITOR_M5_OWNER_IMPLEMENTATION_REVISION"] = evidence_revision
+        environment["AGENTMONITOR_M5_SERVICE_IMPLEMENTATION_REVISION"] = revision
+        environment["AGENTMONITOR_M5_OWNER_SERVICE_PID"] = str(evidence_service.pid)
         environment["AGENTMONITOR_M5_OWNER_SERVICE_START_TIME_TICKS"] = str(
-            selected_service.start_time_ticks
+            evidence_service.start_time_ticks
         )
         environment["AGENTMONITOR_TEST_CODEX_ACCOUNT_ID"] = primary_account
         environment["AGENTMONITOR_TEST_CODEX_MANAGED_ACCOUNT_ID"] = primary_account
@@ -2236,18 +2270,31 @@ def main() -> int:
                 "AGENTMONITOR_TEST_DASHBOARD_CDP_ENDPOINT"
             ],
         )
+        if evidence_service != selected_service:
+            try:
+                prove_predecessor_v1(
+                    root=ROOT,
+                    current_revision=revision,
+                    old_revision=evidence_revision,
+                    old_pid=evidence_service.pid,
+                    old_start=evidence_service.start_time_ticks,
+                )
+            except ValueError:
+                raise M5CurrentExitErrorV1(
+                    "m5_current_owner_outcomes_invalid"
+                ) from None
         final_outcomes = read_owner_outcomes_v1(
             outcomes_path,
-            expected_revision=revision,
-            selected_service=selected_service,
+            expected_revision=evidence_revision,
+            selected_service=evidence_service,
             now=datetime.now(UTC),
         )
         if final_outcomes.digest != outcomes.digest:
             raise M5CurrentExitErrorV1("m5_current_owner_outcomes_changed")
         final_alert = read_alert_witness_v1(
             alert_path,
-            expected_revision=revision,
-            selected_service=selected_service,
+            expected_revision=evidence_revision,
+            selected_service=evidence_service,
             verified_account_ids=outcomes.verified_account_ids,
             now=datetime.now(UTC),
         )

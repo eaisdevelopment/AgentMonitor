@@ -309,7 +309,7 @@ proven: stop M5 evidence collection, preserve the journal and both runtimes,
 and diagnose the user unit. Never edit the journal, unit backup, or trusted
 runtime to force another result.
 
-Exactly ten revision-pinned corrective rollover modes are authorized. The
+Exactly eleven revision-pinned corrective rollover modes are authorized. The
 first preserves the completed
 `6bfa69dc13cc9e1ded9c6baa6e803cb99bc8c20b` transition below
 `<owner-data-root>/m5-service-activation-corrective-archive/`. The second
@@ -347,15 +347,25 @@ The ninth preserves completed revision
 The tenth preserves completed revision
 `10a7bc0db09997d92e62fb5c5e8ea7d5b85866cb` below
 `<owner-data-root>/m5-service-activation-corrective-archive-10a7bc0/`.
+The eleventh preserves completed revision
+`04f8bcdb1adaa4bc5352794c3bc65bcfb7137348` below
+`<owner-data-root>/m5-service-activation-corrective-archive-04f8bcd/`.
 Each archive entry name binds its source revision and activation-receipt
 digest. No mode accepts a different source revision, archive parent, or
 additional entry.
 
 The requested new candidate must differ from the pinned trusted revision and
-all ten completed corrective revisions above. The command checks those
+all eleven completed corrective revisions above. The command checks those
 reserved revisions before any service restoration, archive move, or
 transition-state write; a reserved candidate blocks without changing the
 existing service or evidence. This authorizes no general deployment mode.
+
+The previously recorded owner outcomes and alert witness may remain bound to
+`10a7bc0` only when the gate verifies their exact PID/start against its retained
+activation receipt and verifies no tracked application source or dependency
+inputs changed between that predecessor and the current revision. It
+validates their original timestamps and digests and checks the current service
+independently. It does not create a new owner action or rewrite either witness.
 
 An ordinary systemd or workstation restart can change the current dashboard
 PID/start identity after its completed activation receipt was created. Leave

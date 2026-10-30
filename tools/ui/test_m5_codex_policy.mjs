@@ -1,5 +1,11 @@
 import test from "node:test";
-import { selectRepresentativeOutcomesV1 } from "./m5_representative_policy.mjs";
+import { selectRepresentativeOutcomesV1, selectServiceRevisionV1 } from "./m5_representative_policy.mjs";
+
+test("service proof uses current revision independently of retained owner evidence", () => {
+  if (selectServiceRevisionV1("a".repeat(40), "b".repeat(40)) !== "b".repeat(40)) throw Error("wrong current revision");
+  if (selectServiceRevisionV1("a".repeat(40), undefined) !== "a".repeat(40)) throw Error("wrong default revision");
+  if (selectServiceRevisionV1("a".repeat(40), "invalid") !== null) throw Error("invalid revision accepted");
+});
 
 test("representative sample requires monitored real accounts and selected overlap", () => {
   const selected = [{account_id:"one", disposition:"verified", alias:"one"}];

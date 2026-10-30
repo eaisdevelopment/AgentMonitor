@@ -516,6 +516,7 @@ def test_sixth_corrective_rollover_is_exact_and_final() -> None:
         module.EIGHTH_CORRECTIVE_ROLLOVER_REVISION,
         module.NINTH_CORRECTIVE_ROLLOVER_REVISION,
         module.TENTH_CORRECTIVE_ROLLOVER_REVISION,
+        module.ELEVENTH_CORRECTIVE_ROLLOVER_REVISION,
     )
     assert module._corrective_rollover_chain_revisions_v1(
         module.SIXTH_CORRECTIVE_ROLLOVER_REVISION
@@ -527,14 +528,8 @@ def test_sixth_corrective_rollover_is_exact_and_final() -> None:
         == module.SIXTH_CORRECTIVE_ARCHIVE_BASENAME
     )
 
-    complete_prefix = ("complete",) * 5 + (
-        "empty",
-        "absent",
-        "absent",
-        "absent",
-        "absent",
-    )
-    complete_chain = ("complete",) * 6 + ("absent", "absent", "absent", "absent")
+    complete_prefix = ("complete",) * 5 + ("empty",) + ("absent",) * 5
+    complete_chain = ("complete",) * 6 + ("absent",) * 5
     assert module.corrective_rollover_transition_policy_v1(
         receipt_revision=module.SIXTH_CORRECTIVE_ROLLOVER_REVISION,
         candidate_revision=next_reviewed_revision,
@@ -614,6 +609,7 @@ def test_seventh_corrective_rollover_is_exact_and_final() -> None:
         module.EIGHTH_CORRECTIVE_ROLLOVER_REVISION,
         module.NINTH_CORRECTIVE_ROLLOVER_REVISION,
         module.TENTH_CORRECTIVE_ROLLOVER_REVISION,
+        module.ELEVENTH_CORRECTIVE_ROLLOVER_REVISION,
     )
     assert module._corrective_rollover_chain_revisions_v1(
         module.SEVENTH_CORRECTIVE_ROLLOVER_REVISION
@@ -625,8 +621,8 @@ def test_seventh_corrective_rollover_is_exact_and_final() -> None:
         == module.SEVENTH_CORRECTIVE_ARCHIVE_BASENAME
     )
 
-    complete_prefix = ("complete",) * 6 + ("empty", "absent", "absent", "absent")
-    complete_chain = ("complete",) * 7 + ("absent", "absent", "absent")
+    complete_prefix = ("complete",) * 6 + ("empty",) + ("absent",) * 4
+    complete_chain = ("complete",) * 7 + ("absent",) * 4
     assert module.corrective_rollover_transition_policy_v1(
         receipt_revision=module.SEVENTH_CORRECTIVE_ROLLOVER_REVISION,
         candidate_revision=next_reviewed_revision,
@@ -717,8 +713,8 @@ def test_eighth_corrective_rollover_is_exact_and_final() -> None:
         == module.EIGHTH_CORRECTIVE_ARCHIVE_BASENAME
     )
 
-    complete_prefix = ("complete",) * 7 + ("empty", "absent", "absent")
-    complete_chain = ("complete",) * 8 + ("absent", "absent")
+    complete_prefix = ("complete",) * 7 + ("empty",) + ("absent",) * 3
+    complete_chain = ("complete",) * 8 + ("absent",) * 3
     assert module.corrective_rollover_transition_policy_v1(
         receipt_revision=module.EIGHTH_CORRECTIVE_ROLLOVER_REVISION,
         candidate_revision=next_reviewed_revision,
@@ -921,18 +917,18 @@ def test_ninth_rollover_admits_only_the_approved_source_and_complete_prefix() ->
     """M5-SVC-ACT-024: preserve eight archives and permit one exact rollover."""
     module = _module()
     source = "468a937d796efcb7ff1785a749789f07a3322abc"
-    assert module.CORRECTIVE_ROLLOVER_REVISIONS[-2] == source
-    assert len(module.CORRECTIVE_ROLLOVER_REVISIONS) == 10
+    assert module.CORRECTIVE_ROLLOVER_REVISIONS[8] == source
+    assert len(module.CORRECTIVE_ROLLOVER_REVISIONS) == 11
     assert module._corrective_rollover_archive_basename_v1(source) == (
         "m5-service-activation-corrective-archive-468a937"
     )
     policy = module.corrective_rollover_transition_policy_v1
-    prefix = ("complete",) * 8 + ("absent", "absent")
+    prefix = ("complete",) * 8 + ("absent",) * 3
     candidate = module.TENTH_CORRECTIVE_ROLLOVER_REVISION
     assert policy(
         receipt_revision=source, candidate_revision=candidate, archive_states=prefix
     ) == ("archive", source)
-    full = ("complete",) * 9 + ("absent",)
+    full = ("complete",) * 9 + ("absent",) * 2
     assert policy(
         receipt_revision=None, candidate_revision=candidate, archive_states=full
     ) == ("retry", source)
@@ -955,26 +951,39 @@ def test_ninth_rollover_admits_only_the_approved_source_and_complete_prefix() ->
         assert policy(
             receipt_revision=source,
             candidate_revision=candidate,
-            archive_states=("complete",) * 8 + (state, "absent"),
+            archive_states=("complete",) * 8 + (state, "absent", "absent"),
         ) == ("blocked", None)
 
 
 def test_representative_candidate_preserves_the_current_activation_chain() -> None:
     module = _module()
     source = "10a7bc0db09997d92e62fb5c5e8ea7d5b85866cb"
-    assert module.CORRECTIVE_ROLLOVER_REVISIONS[-1] == source
-    prefix = ("complete",) * 9 + ("absent",)
+    assert module.CORRECTIVE_ROLLOVER_REVISIONS[-2] == source
+    prefix = ("complete",) * 9 + ("absent", "absent")
     assert module.corrective_rollover_transition_policy_v1(
-        receipt_revision=source, candidate_revision="c" * 40, archive_states=prefix
+        receipt_revision=source,
+        candidate_revision=module.ELEVENTH_CORRECTIVE_ROLLOVER_REVISION,
+        archive_states=prefix,
     ) == ("archive", source)
     for index in range(9):
         damaged = list(prefix)
         damaged[index] = "absent"
         assert module.corrective_rollover_transition_policy_v1(
             receipt_revision=source,
-            candidate_revision="c" * 40,
+            candidate_revision=module.ELEVENTH_CORRECTIVE_ROLLOVER_REVISION,
             archive_states=tuple(damaged),
         ) == ("blocked", None)
+
+
+def test_migrating_candidate_preserves_the_representative_activation() -> None:
+    module = _module()
+    source = "04f8bcdb1adaa4bc5352794c3bc65bcfb7137348"
+    assert module.CORRECTIVE_ROLLOVER_REVISIONS[-1] == source
+    assert module.corrective_rollover_transition_policy_v1(
+        receipt_revision=source,
+        candidate_revision="c" * 40,
+        archive_states=("complete",) * 10 + ("absent",),
+    ) == ("archive", source)
 
 
 def test_ninth_archive_preserves_the_exact_eight_archive_prefix(tmp_path: Path) -> None:
@@ -1625,6 +1634,7 @@ def test_corrective_rollover_policy_is_exact_and_returns_typed_rerun() -> None:
         "1ada84f71e827bb4f7ea966462a6cf51d050e9af",
         "468a937d796efcb7ff1785a749789f07a3322abc",
         "10a7bc0db09997d92e62fb5c5e8ea7d5b85866cb",
+        "04f8bcdb1adaa4bc5352794c3bc65bcfb7137348",
     )
     assert tuple(
         module._corrective_rollover_archive_basename_v1(revision)
@@ -1640,6 +1650,7 @@ def test_corrective_rollover_policy_is_exact_and_returns_typed_rerun() -> None:
         module.EIGHTH_CORRECTIVE_ARCHIVE_BASENAME,
         module.NINTH_CORRECTIVE_ARCHIVE_BASENAME,
         module.TENTH_CORRECTIVE_ARCHIVE_BASENAME,
+        module.ELEVENTH_CORRECTIVE_ARCHIVE_BASENAME,
     )
 
     chain_policy = module._corrective_rollover_chain_revisions_v1

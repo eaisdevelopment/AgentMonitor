@@ -22,8 +22,26 @@ current official comparisons and owner acceptance have not passed.
   source revision because it was outside the closed rollover chain. A failing
   pure policy test established that result; the exact source was added as the
   next rollover with all earlier archives still required. The activation,
-  quota and exit test suites subsequently passed 187 tests. Actual activation
-  and evidence migration have not yet run.
+  quota and exit test suites subsequently passed 187 tests. At that point,
+  actual activation and evidence migration had not yet run.
+- The `04f8bcd` candidate was subsequently activated and the dashboard returned
+  HTTP 200. Its first M5 exit attempt blocked on the predecessor-bound owner
+  evidence. Read-only validation of all ten preserved activation archives
+  confirmed the predecessor receipt's process identity matches the original
+  owner confirmation; the original alert witness also validates against that
+  predecessor. Tracked application source and dependency inputs are unchanged.
+  A live browser preflight using that original confirmation and the new service
+  revision passed four outcomes, three current histories and five processes.
+  The migration implementation, its deployment and the complete exit gate
+  remain subject to their own verification; no new owner action is claimed.
+- The migration policy now checks the original owner process and revision
+  against the fully retained predecessor activation chain and rejects changed
+  tracked application or dependency inputs. It preserves the original owner
+  and alert bindings and validates the current service independently. The
+  separate current-service and predecessor-owner browser preflight passed
+  against the running `04f8bcd` service. A focused migration policy test
+  failed before implementation and passed afterward. The migration has not
+  been deployed or accepted by the full M5 exit gate.
 - Security/privacy: only safe account selectors and quota metadata are used;
   no credential, provider profile or running agent is read or changed. No new
   dependency, license, database migration or public contract is introduced.

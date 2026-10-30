@@ -1,4 +1,9 @@
 /** Pure selection policy; live identity and lineage must be verified separately. */
+export function selectServiceRevisionV1(ownerRevision, currentRevision) {
+  const value = currentRevision ?? ownerRevision;
+  return typeof value === "string" && /^[0-9a-f]{40}$/.test(value) ? value : null;
+}
+
 export function selectRepresentativeOutcomesV1(verified, accounts, ids) {
   if (!Array.isArray(verified) || !(accounts instanceof Map) || !Array.isArray(ids)
       || ids.length !== 2 || new Set(ids).size !== 2

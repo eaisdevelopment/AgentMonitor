@@ -37,12 +37,14 @@ import {
   readAllCapacityHistoryV1,
   readAllRegistryItemsV1,
 } from "./m5_registry_pages.mjs";
+import { selectServiceRevisionV1 } from "./m5_representative_policy.mjs";
 
 const endpoint = process.env.AGENTMONITOR_TEST_DASHBOARD_CDP_ENDPOINT;
 const origin = process.env.AGENTMONITOR_TEST_DASHBOARD_ORIGIN;
 const outcomesPath = process.env.AGENTMONITOR_TEST_M5_OWNER_OUTCOMES;
 const ownerRoot = process.env.AGENTMONITOR_TEST_OWNER_DATA_ROOT;
 const ownerRevision = process.env.AGENTMONITOR_M5_OWNER_IMPLEMENTATION_REVISION;
+const serviceRevision = selectServiceRevisionV1(ownerRevision, process.env.AGENTMONITOR_M5_SERVICE_IMPLEMENTATION_REVISION);
 const ownerServicePid = Number(process.env.AGENTMONITOR_M5_OWNER_SERVICE_PID);
 const ownerServiceStartTicks = Number(
   process.env.AGENTMONITOR_M5_OWNER_SERVICE_START_TIME_TICKS,
@@ -277,7 +279,7 @@ const readIndependentProcessProof = async selectedProcess => {
 };
 
 try {
-  requireLive(endpoint && origin && outcomesPath && ownerRoot && ownerRevision,
+  requireLive(endpoint && origin && outcomesPath && ownerRoot && ownerRevision && serviceRevision,
     "explicit_m5_owner_selection_required");
   requireLive(preflightOnly || typeof serviceStartedAt === "string"
     && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/.test(serviceStartedAt),
@@ -338,7 +340,7 @@ try {
     read("/api/v1/operations/health"),
     read("/api/v1/operations/versions"),
   ]);
-  requireResult(isExactServiceRevisionV1(versions, ownerRevision),
+  requireResult(isExactServiceRevisionV1(versions, serviceRevision),
     "running_service_revision_mismatch");
   requireResult(capabilities.provider_key === "codex"
     && capabilities.adapter_id === codexAdmissionV1.adapter_id
@@ -521,7 +523,7 @@ try {
   let witness = buildCodexWitnessV1(ownerDocument, records, representativeProcesses, {
     event,
     registryDigest,
-    serviceRevision: ownerRevision,
+    serviceRevision,
     providerHealth: "healthy",
     mutations,
     processScanTruncated: currentLocations.truncated === true,

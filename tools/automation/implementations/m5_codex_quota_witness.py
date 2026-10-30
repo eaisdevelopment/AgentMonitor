@@ -49,6 +49,7 @@ from tools.automation.implementations.auto_m3_current_exit import (
     _process_start_ticks,
     _read_service_launch,
 )
+from tools.automation.implementations.m5_evidence_migration import prove_predecessor_v1
 from tools.automation.implementations.m5_owner_outcomes import (
     OWNER_OUTCOMES_BASENAME,
     M5OwnerOutcomesErrorV1,
@@ -1464,13 +1465,25 @@ def create_quota_witness_v1(environment: Mapping[str, str]) -> str:
         raise M5CodexQuotaWitnessErrorV1(
             "m5_quota_witness_owner_outcomes_invalid"
         ) from None
-    if (
-        outcomes.implementation_revision != revision
-        or outcomes.service_pid != service_pid
-        or outcomes.service_start_time_ticks != service_ticks
-        or not outcomes.verified_account_ids
-    ):
+    if not outcomes.verified_account_ids:
         raise M5CodexQuotaWitnessErrorV1("m5_quota_witness_owner_outcomes_mismatch")
+    if (
+        outcomes.implementation_revision,
+        outcomes.service_pid,
+        outcomes.service_start_time_ticks,
+    ) != (revision, service_pid, service_ticks):
+        try:
+            prove_predecessor_v1(
+                root=ROOT,
+                current_revision=revision,
+                old_revision=outcomes.implementation_revision,
+                old_pid=outcomes.service_pid,
+                old_start=outcomes.service_start_time_ticks,
+            )
+        except ValueError:
+            raise M5CodexQuotaWitnessErrorV1(
+                "m5_quota_witness_owner_outcomes_mismatch"
+            ) from None
     reference = DatabaseRefV1(owner_root / "agentmonitor.db", owner_root)
     registry_before = registry_graph_digest_v1(reference)
     proof = _browser_proof(
