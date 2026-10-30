@@ -309,7 +309,7 @@ proven: stop M5 evidence collection, preserve the journal and both runtimes,
 and diagnose the user unit. Never edit the journal, unit backup, or trusted
 runtime to force another result.
 
-Exactly eleven revision-pinned corrective rollover modes are authorized. The
+Exactly twelve revision-pinned corrective rollover modes are authorized. The
 first preserves the completed
 `6bfa69dc13cc9e1ded9c6baa6e803cb99bc8c20b` transition below
 `<owner-data-root>/m5-service-activation-corrective-archive/`. The second
@@ -350,20 +350,24 @@ The tenth preserves completed revision
 The eleventh preserves completed revision
 `04f8bcdb1adaa4bc5352794c3bc65bcfb7137348` below
 `<owner-data-root>/m5-service-activation-corrective-archive-04f8bcd/`.
+The twelfth preserves completed revision
+`c271d47ef6c7fe20a3ac05bca0a0c63429bc9cdb` below
+`<owner-data-root>/m5-service-activation-corrective-archive-c271d47/`.
 Each archive entry name binds its source revision and activation-receipt
 digest. No mode accepts a different source revision, archive parent, or
 additional entry.
 
 The requested new candidate must differ from the pinned trusted revision and
-all eleven completed corrective revisions above. The command checks those
+all twelve completed corrective revisions above. The command checks those
 reserved revisions before any service restoration, archive move, or
 transition-state write; a reserved candidate blocks without changing the
 existing service or evidence. This authorizes no general deployment mode.
 
 The previously recorded owner outcomes and alert witness may remain bound to
 `10a7bc0` only when the gate verifies their exact PID/start against its retained
-activation receipt and verifies no tracked application source or dependency
-inputs changed between that predecessor and the current revision. It
+activation receipt and permits tracked application changes only to the exact
+digest-reviewed account history range selector, with no dependency input changes
+between that predecessor and the current revision. It
 validates their original timestamps and digests and checks the current service
 independently. It does not create a new owner action or rewrite either witness.
 

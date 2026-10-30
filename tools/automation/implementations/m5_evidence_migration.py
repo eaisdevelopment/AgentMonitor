@@ -1,5 +1,6 @@
 """Fail-closed predecessor binding for already recorded M5 evidence."""
 
+import hashlib
 import re
 import subprocess
 from pathlib import Path
@@ -7,6 +8,22 @@ from pathlib import Path
 from tools.automation.implementations import m5_service_activation as activation
 
 PREDECESSOR_REVISION = "10a7bc0db09997d92e62fb5c5e8ea7d5b85866cb"
+REVIEWED_HISTORY_VIEW = "frontend/src/features/command/CapacityPanel.tsx"
+REVIEWED_HISTORY_VIEW_SHA256 = (
+    "e120b0d4d9a1ad1fedeb7d24fb47e9c60d57023b8aa4f89d9cff52987e066b97"
+)
+
+
+def reviewed_paths_v1(paths: list[str], history_digest: str | None) -> bool:
+    """Allow automation, docs and the exact reviewed history view only."""
+    return all(
+        path.startswith(("docs/", "tools/automation/", "tools/ui/"))
+        or (
+            path == REVIEWED_HISTORY_VIEW
+            and history_digest == REVIEWED_HISTORY_VIEW_SHA256
+        )
+        for path in paths
+    )
 
 
 def validate_predecessor_binding_v1(
@@ -69,10 +86,17 @@ def prove_predecessor_v1(
             .split("\0")
         )
         changed = [path for path in diff if path]
-        application_changed = any(
-            not path.startswith(("docs/", "tools/automation/", "tools/ui/"))
-            for path in changed
-        )
+        history_digest = None
+        if REVIEWED_HISTORY_VIEW in changed:
+            history_blob = subprocess.run(
+                ["/usr/bin/git", "show", f"{current_revision}:{REVIEWED_HISTORY_VIEW}"],
+                cwd=root,
+                capture_output=True,
+                check=True,
+                timeout=10,
+            ).stdout
+            history_digest = hashlib.sha256(history_blob).hexdigest()
+        application_changed = not reviewed_paths_v1(changed, history_digest)
         archives = activation._retain_activation_rollover_archive_chain_v1(
             PREDECESSOR_REVISION, activation._rollback_runtime_state()
         )

@@ -280,7 +280,7 @@ def _browser_proof() -> dict[str, object]:
         key=lambda row: json.dumps(row, ensure_ascii=True, separators=(",", ":")),
     )
     return {
-        "schema": "agentmonitor.m5-quota-browser-proof.v1",
+        "schema": "agentmonitor.m5-quota-browser-proof.v2",
         "implementation_revision": REVISION,
         "service_source_revision": REVISION,
         "service_pid": 321,

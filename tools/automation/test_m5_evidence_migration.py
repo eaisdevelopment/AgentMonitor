@@ -25,3 +25,13 @@ def test_migration_requires_exact_provenance_and_unchanged_application() -> None
     ):
         with pytest.raises(ValueError):
             validate(**(kwargs | change))
+
+
+def test_only_reviewed_history_view_change_is_eligible() -> None:
+    policy = m5_evidence_migration.reviewed_paths_v1
+    approved = m5_evidence_migration.REVIEWED_HISTORY_VIEW_SHA256
+    path = "frontend/src/features/command/CapacityPanel.tsx"
+    assert policy(["docs/example.md", path], approved)
+    assert not policy(["backend/src/other.py"], approved)
+    assert not policy([path], "0" * 64)
+    assert not policy(["frontend/src/app/other.tsx"], approved)

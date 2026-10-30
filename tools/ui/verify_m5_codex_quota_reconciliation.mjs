@@ -3,7 +3,7 @@
 import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { chromium } from "../../frontend/node_modules/@playwright/test/index.mjs";
-import { selectRepresentativeOutcomesV1 } from "./m5_representative_policy.mjs";
+import { selectRepresentativeOutcomesV1, registryIdentityFieldsV1 } from "./m5_representative_policy.mjs";
 
 import {
   canonicalCodexHistoryMaterialV1,
@@ -84,6 +84,7 @@ const registryMaterial = async (read, accounts, organizations, installations) =>
       read(`/api/v1/accounts/${encodeURIComponent(account.account_id)}/connection`),
       read(`/api/v1/accounts/${encodeURIComponent(account.account_id)}/provider-identity`),
     ]);
+    const identityFields = registryIdentityFieldsV1(identity);
     return [
       account.account_id, account.provider_key, account.friendly_name,
       account.organization_id, account.lifecycle, account.monitoring_preference,
@@ -91,12 +92,9 @@ const registryMaterial = async (read, accounts, organizations, installations) =>
       account.record_version, account.registry_revision,
       connection.state, connection.reason_code, connection.can_connect,
       connection.can_cancel, connection.attempt_id, connection.record_version,
-      identity.state, identity.provider_key, identity.provider_version,
-      identity.identity_source_id, identity.profile_protection,
-      identity.collection_run_id,
-      identity.email === null ? null : sha256(identity.email.normalize("NFKC").toLowerCase()),
-      identity.provider_organization === null ? null
-        : sha256(identity.provider_organization.normalize("NFKC")),
+      ...identityFields.slice(0, 5),
+      identityFields[5] === null ? null : sha256(identityFields[5].normalize("NFKC").toLowerCase()),
+      identityFields[6] === null ? null : sha256(identityFields[6].normalize("NFKC")),
     ];
   }));
   return [
@@ -179,8 +177,10 @@ const historyRequestSelection = (
 const historyResponseDocument = async response => {
   try {
     return await response.json();
-  } catch {
-    throw new VerificationError("m5_quota_history_page_invalid");
+  } catch (error) {
+    const reason = error instanceof Error && /^capacity_history_page_(invalid|incomplete)$/.test(error.message)
+      ? error.message : "unknown";
+    throw new VerificationError(`m5_quota_history_page_invalid_${reason}`);
   }
 };
 
@@ -227,16 +227,15 @@ const readAllRenderedHistoryPages = async ({
       name: "Load next history page",
       exact: true,
     });
-    if (noteText.includes("No additional pages remain for this 365-day range.")) {
+    if (/No additional pages remain for this \d+-day range\./.test(noteText)) {
       requireResult(initialDecision.terminal && expectedCursor === null
         && await loadNext.count() === 0,
         "m5_quota_history_render_incomplete");
       return observationIds;
     }
     requireResult(!initialDecision.terminal && expectedCursor !== null
-      && noteText.includes(
-      "Additional pages remain for this 365-day range.",
-    ) && await loadNext.count() === 1,
+      && /Additional pages remain for this \d+-day range\./.test(noteText)
+      && await loadNext.count() === 1,
     "m5_quota_history_render_incomplete");
 
     const responsePromise = page.waitForResponse(response => {
@@ -264,8 +263,10 @@ const readAllRenderedHistoryPages = async ({
         seenCursors: [...issuedCursors],
         seenObservationIds: observationIds,
       });
-    } catch {
-      throw new VerificationError("m5_quota_history_page_invalid");
+    } catch (error) {
+      const reason = error instanceof Error && /^capacity_history_page_(invalid|incomplete)$/.test(error.message)
+        ? error.message : "unknown";
+      throw new VerificationError(`m5_quota_history_page_invalid_${reason}`);
     }
     requireResult(decision.terminal || decision.observationIds.length > 0,
       "m5_quota_history_render_incomplete");
@@ -281,10 +282,12 @@ const readAllRenderedHistoryPages = async ({
       return count === expectedCount
         && status.includes(`from ${expectedPageCount} bounded pages.`);
     }, { expectedCount: expectedIds.length, expectedPageCount: pageCount });
-    const nextIds = await renderedHistoryObservationIds(historyDetails, chart);
-    requireResult(JSON.stringify(nextIds) === JSON.stringify(expectedIds),
+    const appendedIds = await historyDetails.locator(
+      'table[aria-label="Capacity history exact values"] .history-observation-id',
+    ).evaluateAll((items, start) => items.slice(start).map(item => item.textContent.trim()), observationIds.length);
+    requireResult(JSON.stringify(appendedIds) === JSON.stringify(decision.observationIds),
       "m5_quota_history_render_incomplete");
-    observationIds = nextIds;
+    observationIds = expectedIds;
     requestedCursors.add(requestedCursor);
     expectedCursor = decision.nextCursor;
     if (expectedCursor !== null) issuedCursors.add(expectedCursor);
@@ -292,15 +295,15 @@ const readAllRenderedHistoryPages = async ({
 
     const updatedNote = await note.innerText();
     if (decision.terminal) {
-      requireResult(updatedNote.includes(
-        "No additional pages remain for this 365-day range.",
-      ) && await loadNext.count() === 0,
+      requireResult(/No additional pages remain for this \d+-day range\./.test(updatedNote)
+        && await loadNext.count() === 0,
       "m5_quota_history_render_incomplete");
+      requireResult(JSON.stringify(await renderedHistoryObservationIds(historyDetails, chart))
+        === JSON.stringify(observationIds), "m5_quota_history_render_incomplete");
       return observationIds;
     }
-    requireResult(updatedNote.includes(
-      "Additional pages remain for this 365-day range.",
-    ) && await loadNext.count() === 1,
+    requireResult(/Additional pages remain for this \d+-day range\./.test(updatedNote)
+      && await loadNext.count() === 1,
     "m5_quota_history_render_incomplete");
   }
   throw new VerificationError("m5_quota_history_render_incomplete");
@@ -426,14 +429,6 @@ try {
   const rendered = [];
   const historyRendered = [];
   for (const record of records) {
-    const initialHistoryResponse = page.waitForResponse(response => {
-      const url = new URL(response.url());
-      return url.origin === origin
-        && url.pathname === "/api/v1/capacity/history"
-        && url.searchParams.get("subject_id") === record.account_id
-        && !url.searchParams.has("cursor")
-        && response.request().method() === "GET";
-    }, { timeout: 15_000 });
     await page.goto(`${origin}/accounts/${encodeURIComponent(record.account_id)}`);
     await page.getByRole("table", { name: "Account activity", exact: true })
       .waitFor({ timeout: 15_000 });
@@ -463,8 +458,27 @@ try {
       rendered.push({ account_id: record.account_id, ...matches[0],
         remaining_percent: window.remaining_percent });
     }
+  }
+  // Check every current display before the potentially long history paging.
+  // Each recorded observation is then independently proved in retained history.
+  for (const record of records) {
+    const initialHistoryResponse = page.waitForResponse(response => {
+      const url = new URL(response.url());
+      return url.origin === origin
+        && url.pathname === "/api/v1/capacity/history"
+        && url.searchParams.get("subject_id") === record.account_id
+        && !url.searchParams.has("cursor")
+        && response.request().method() === "GET";
+    }, { timeout: 15_000 });
+    await page.goto(`${origin}/accounts/${encodeURIComponent(record.account_id)}`);
+    await page.getByRole("table", { name: "Account activity", exact: true })
+      .waitFor({ timeout: 15_000 });
     const historyDetails = page.locator("details.quota-history");
     await historyDetails.locator("summary").evaluate(element => element.click());
+    const range = historyDetails.getByRole("combobox", { name: "History range", exact: true });
+    requireResult(await range.count() === 1 && await range.inputValue() === "1"
+      && await range.locator('option[value="365"]').count() === 1,
+    "m5_quota_history_range_unavailable");
     const chart = page.getByRole("img", { name: "Capacity history trend", exact: true });
     await chart.waitFor({ timeout: 15_000 });
     const chartIds = new Set(await readAllRenderedHistoryPages({
@@ -517,7 +531,7 @@ try {
       window),
   }));
   const proof = {
-    schema: "agentmonitor.m5-quota-browser-proof.v1",
+    schema: "agentmonitor.m5-quota-browser-proof.v2",
     implementation_revision: revision,
     service_source_revision: revision,
     service_pid: servicePid,

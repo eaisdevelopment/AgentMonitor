@@ -42,6 +42,17 @@ current official comparisons and owner acceptance have not passed.
   against the running `04f8bcd` service. A focused migration policy test
   failed before implementation and passed afterward. The migration has not
   been deployed or accepted by the full M5 exit gate.
+- The existing 365-day account-history view required thousands of retained
+  rows to be paged before reaching current observations, exceeding the
+  witness's 300-second browser bound. The live pre-change browser lacked a
+  range control. The updated P02 view defaults to 24 hours and retains a
+  selectable 365-day range. A real-data preview confirmed the recent chart
+  and full-year selection; the unchanged full history verification then
+  passed for two sampled accounts (three windows) and the three-account
+  selected fleet (four windows), both with zero mutations, in roughly 15 and
+  30 seconds respectively. These preview checks are not a built-service or
+  final-gate pass. The history view is the sole permitted application-source
+  change in predecessor migration, bound to its exact reviewed SHA-256.
 - Security/privacy: only safe account selectors and quota metadata are used;
   no credential, provider profile or running agent is read or changed. No new
   dependency, license, database migration or public contract is introduced.

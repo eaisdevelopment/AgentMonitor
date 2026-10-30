@@ -1,5 +1,13 @@
 import test from "node:test";
-import { selectRepresentativeOutcomesV1, selectServiceRevisionV1 } from "./m5_representative_policy.mjs";
+import { selectRepresentativeOutcomesV1, selectServiceRevisionV1, registryIdentityFieldsV1 } from "./m5_representative_policy.mjs";
+
+test("registry identity comparison ignores scheduled run but retains identity changes", () => {
+  const identity = {state:"verified",provider_key:"codex",provider_version:"1",identity_source_id:"source",profile_protection:"managed",collection_run_id:"run1",email:"one",provider_organization:"org"};
+  const a = registryIdentityFieldsV1(identity);
+  const b = registryIdentityFieldsV1({...identity,collection_run_id:"run2"});
+  const c = registryIdentityFieldsV1({...identity,email:"different"});
+  if (JSON.stringify(a) !== JSON.stringify(b) || JSON.stringify(a) === JSON.stringify(c)) throw Error("incorrect registry identity fields");
+});
 
 test("service proof uses current revision independently of retained owner evidence", () => {
   if (selectServiceRevisionV1("a".repeat(40), "b".repeat(40)) !== "b".repeat(40)) throw Error("wrong current revision");

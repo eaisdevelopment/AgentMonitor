@@ -1,4 +1,10 @@
 /** Pure selection policy; live identity and lineage must be verified separately. */
+export function registryIdentityFieldsV1(identity) {
+  return [identity.state, identity.provider_key, identity.provider_version,
+    identity.identity_source_id, identity.profile_protection,
+    identity.email, identity.provider_organization];
+}
+
 export function selectServiceRevisionV1(ownerRevision, currentRevision) {
   const value = currentRevision ?? ownerRevision;
   return typeof value === "string" && /^[0-9a-f]{40}$/.test(value) ? value : null;

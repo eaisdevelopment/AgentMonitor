@@ -58,3 +58,17 @@ rolling forward. This does not authorize arbitrary sources or replacement of
 retained artifacts. The existing historical owner and alert witnesses retain
 their original bindings; a new candidate requires an independently validated
 migration or new evidence.
+
+## History usability correction
+
+The real fleet check revealed that the account history view loads the oldest
+page of a full year, requiring thousands of rows to reach a recent reading.
+The approved P02 account-workspace plan requires accessible real history and
+preserved chart/table pagination. Keep the full 365-day option and add a
+visible bounded range selector, initially showing 24 hours, so recent real
+readings can be inspected promptly. No backend API, retained data, account or
+provider behavior changes. Check the actual browser against real API data and
+verify both the recent view and the full-year option. The predecessor-evidence
+proof may accept only the exact reviewed history-view source digest in addition
+to documentation and automation changes; the original alert and owner
+evidence remains bound to its original activation and is never rewritten.

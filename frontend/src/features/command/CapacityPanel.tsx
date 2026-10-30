@@ -64,12 +64,14 @@ function CapacityHistory({
   pageMessage,
   loadingMore,
   onLoadMore,
+  rangeDays,
 }: Readonly<{
   pages: readonly CapacityHistoryPageV1[] | null;
   message: string | null;
   pageMessage: string | null;
   loadingMore: boolean;
   onLoadMore: () => void;
+  rangeDays: number;
 }>) {
   if (pages === null || pages.length === 0) return (
     <section className="history-panel" aria-labelledby="capacity-history-title">
@@ -103,7 +105,7 @@ function CapacityHistory({
   return (
     <section className="history-panel" aria-labelledby="capacity-history-title">
       <div className="panel-heading">
-        <div><p className="panel-code">365-DAY BOUNDED RANGE</p><h3 id="capacity-history-title">Capacity history</h3></div>
+        <div><p className="panel-code">{rangeDays}-DAY BOUNDED RANGE</p><h3 id="capacity-history-title">Capacity history</h3></div>
         <span className={`state-chip state-${history.availability.state}`}>{history.availability.state}</span>
       </div>
       {items.length === 0 ? (
@@ -149,9 +151,9 @@ function CapacityHistory({
       <p className="pagination-note" role="status">
         Showing {items.length} retained {items.length === 1 ? "observation" : "observations"} from {pages.length} bounded {pages.length === 1 ? "page" : "pages"}.{" "}
         {continuation.kind === "available"
-          ? "Additional pages remain for this 365-day range."
+          ? `Additional pages remain for this ${rangeDays}-day range.`
           : continuation.kind === "complete"
-            ? "No additional pages remain for this 365-day range."
+            ? `No additional pages remain for this ${rangeDays}-day range.`
             : "The service reported additional history without a usable continuation cursor."}
       </p>
       {continuation.kind === "available" && (
@@ -169,6 +171,8 @@ export function CapacityPanel({
   onExpired,
 }: Readonly<{ accountId: string; onExpired: () => void }>) {
   const [state, setState] = useState<CapacityState>({ kind: "loading" });
+  const [rangeDays, setRangeDays] = useState(1);
+  const [historyExpanded, setHistoryExpanded] = useState(false);
   const historyPageController = useRef<AbortController | null>(null);
 
   const load = useCallback(async (signal?: AbortSignal) => {
@@ -179,7 +183,7 @@ export function CapacityPanel({
       const now = Date.now();
       const historyQuery: CapacityHistoryQuery = {
         accountId,
-        rangeFrom: new Date(now - (365 * 24 * 60 * 60 * 1000)).toISOString(),
+        rangeFrom: new Date(now - (rangeDays * 24 * 60 * 60 * 1000)).toISOString(),
         before: new Date(now).toISOString(),
         metric: "remaining_ratio",
         seriesKind: "poll_snapshot",
@@ -221,7 +225,7 @@ export function CapacityPanel({
       if (error instanceof DOMException && error.name === "AbortError") return;
       setState({ kind: "error", message: "The local capacity service is unavailable." });
     }
-  }, [accountId, onExpired]);
+  }, [accountId, onExpired, rangeDays]);
 
   const refreshCurrent = useCallback(async (signal: AbortSignal) => {
     try {
@@ -444,14 +448,23 @@ export function CapacityPanel({
       )}
       {state.quotas.page.has_more && <p className="pagination-note" role="status">More quota windows are available beyond this page.</p>}
       </details>
-      <details className="account-secondary quota-history">
+      <details className="account-secondary quota-history" open={historyExpanded} onToggle={(event) => setHistoryExpanded(event.currentTarget.open)}>
       <summary>Usage history <span>Previous allowance readings</span></summary>
+      <label>History range{" "}
+        <select aria-label="History range" value={rangeDays} onChange={(event) => setRangeDays(Number(event.target.value))}>
+          <option value={1}>Last 24 hours</option>
+          <option value={7}>Last 7 days</option>
+          <option value={30}>Last 30 days</option>
+          <option value={365}>Last 365 days</option>
+        </select>
+      </label>
       <CapacityHistory
         pages={state.historyPages}
         message={state.historyMessage}
         pageMessage={state.historyPageMessage}
         loadingMore={state.historyLoadingMore}
         onLoadMore={() => { void loadMoreHistory(); }}
+        rangeDays={rangeDays}
       />
       </details>
     </section>
