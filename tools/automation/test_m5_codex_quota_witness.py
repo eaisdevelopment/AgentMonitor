@@ -754,6 +754,8 @@ def test_representative_witness_distinguishes_fleet_and_sample() -> None:
     parsed = parse(document, **arguments)
     assert parsed.account_count == 3
     assert parsed.digest == _digest(document)
+    assert parsed.sample_account_count == 2
+    assert parsed.sample_window_count == 2
     for field, value in (
         ("sample_account_count", 1),
         ("sample_selected_count", 0),

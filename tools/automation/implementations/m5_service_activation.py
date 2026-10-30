@@ -96,6 +96,11 @@ ELEVENTH_CORRECTIVE_ROLLOVER_REVISION = "04f8bcdb1adaa4bc5352794c3bc65bcfb713734
 TWELFTH_CORRECTIVE_ARCHIVE_BASENAME = "m5-service-activation-corrective-archive-c271d47"
 TWELFTH_CORRECTIVE_ARCHIVE_ROOT = DATA_ROOT / TWELFTH_CORRECTIVE_ARCHIVE_BASENAME
 TWELFTH_CORRECTIVE_ROLLOVER_REVISION = "c271d47ef6c7fe20a3ac05bca0a0c63429bc9cdb"
+THIRTEENTH_CORRECTIVE_ARCHIVE_BASENAME = (
+    "m5-service-activation-corrective-archive-9db4c3d"
+)
+THIRTEENTH_CORRECTIVE_ARCHIVE_ROOT = DATA_ROOT / THIRTEENTH_CORRECTIVE_ARCHIVE_BASENAME
+THIRTEENTH_CORRECTIVE_ROLLOVER_REVISION = "9db4c3d7add4da16a46b88b6c46bb23ed7855883"
 CORRECTIVE_ROLLOVER_REVISIONS = (
     CORRECTIVE_ROLLOVER_REVISION,
     SECOND_CORRECTIVE_ROLLOVER_REVISION,
@@ -109,6 +114,7 @@ CORRECTIVE_ROLLOVER_REVISIONS = (
     TENTH_CORRECTIVE_ROLLOVER_REVISION,
     ELEVENTH_CORRECTIVE_ROLLOVER_REVISION,
     TWELFTH_CORRECTIVE_ROLLOVER_REVISION,
+    THIRTEENTH_CORRECTIVE_ROLLOVER_REVISION,
 )
 ACTIVATION_JOURNAL_BASENAME = "activation-journal-v1.json"
 ACTIVATION_LOCK_BASENAME = "activation-lock-v1"
@@ -720,6 +726,8 @@ def _corrective_rollover_archive_basename_v1(prior_revision: str) -> str:
         return ELEVENTH_CORRECTIVE_ARCHIVE_BASENAME
     if prior_revision == TWELFTH_CORRECTIVE_ROLLOVER_REVISION:
         return TWELFTH_CORRECTIVE_ARCHIVE_BASENAME
+    if prior_revision == THIRTEENTH_CORRECTIVE_ROLLOVER_REVISION:
+        return THIRTEENTH_CORRECTIVE_ARCHIVE_BASENAME
     raise M5ServiceActivationErrorV1("m5_service_rollover_archive_invalid")
 
 
@@ -4379,6 +4387,10 @@ def _maybe_correct_completed_activation_rollover_v1(
         archive_parent=TWELFTH_CORRECTIVE_ARCHIVE_ROOT,
         prior_revision=TWELFTH_CORRECTIVE_ROLLOVER_REVISION,
     )
+    thirteenth_archive_state = _corrective_rollover_archive_parent_state_v1(
+        archive_parent=THIRTEENTH_CORRECTIVE_ARCHIVE_ROOT,
+        prior_revision=THIRTEENTH_CORRECTIVE_ROLLOVER_REVISION,
+    )
     receipt_document: dict[str, object] | None = None
     receipt_revision: str | None = None
     if _path_present(RECEIPT_PATH):
@@ -4403,6 +4415,7 @@ def _maybe_correct_completed_activation_rollover_v1(
             tenth_archive_state,
             eleventh_archive_state,
             twelfth_archive_state,
+            thirteenth_archive_state,
         ),
     )
     if transition_action == "blocked":

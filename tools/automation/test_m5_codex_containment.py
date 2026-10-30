@@ -6585,16 +6585,27 @@ class M5CodexContainmentLiveTests(unittest.TestCase):
             / hashlib.sha256(account_id.encode("utf-8")).hexdigest()
         )
 
+        from tools.automation.implementations.m5_evidence_migration import (
+            current_service_binding_v1,
+        )
+
+        revision, service_pid, service_ticks = current_service_binding_v1(
+            os.environ,
+            (
+                os.environ["AGENTMONITOR_M5_OWNER_IMPLEMENTATION_REVISION"],
+                int(os.environ["AGENTMONITOR_M5_OWNER_SERVICE_PID"]),
+                int(os.environ["AGENTMONITOR_M5_OWNER_SERVICE_START_TIME_TICKS"]),
+            ),
+        )
+
         evidence = verify_codex_managed_profile_containment_v1(
             owner_data_root=owner_root,
             account_id=account_id,
             managed_profiles_root=managed_profiles_root,
             managed_profile_root=managed_profile_root,
-            revision=os.environ["AGENTMONITOR_M5_OWNER_IMPLEMENTATION_REVISION"],
-            service_pid=int(os.environ["AGENTMONITOR_M5_OWNER_SERVICE_PID"]),
-            service_start_time_ticks=int(
-                os.environ["AGENTMONITOR_M5_OWNER_SERVICE_START_TIME_TICKS"]
-            ),
+            revision=revision,
+            service_pid=service_pid,
+            service_start_time_ticks=service_ticks,
         )
 
         self.assertIsInstance(evidence, M5CodexContainmentEvidenceV1)

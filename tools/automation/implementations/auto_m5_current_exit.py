@@ -149,6 +149,7 @@ STORY_TEST_PATHS = (
     "tools/automation/test_m5_prerequisite_archive.py",
     "tools/automation/test_m5_completion_lock.py",
     "tools/automation/test_m5_current_exit.py",
+    "tools/automation/test_m5_evidence_migration.py",
     "tools/automation/test_m5_service_activation.py",
     "tools/automation/test_m5_owner_outcomes.py",
     "tools/automation/test_m5_codex_alert_witness.py",
@@ -201,10 +202,10 @@ STORY_NODE_TEST_INVENTORY_SHA256 = (
 )
 STORY_BROWSER_SCENARIOS = ("account_beyond_page",)
 # Updated only from the exact collected inventory after intentional test changes.
-STORY_PYTEST_TEST_COUNT = 603
-STORY_PYTEST_DECLARED_TEST_COUNT = 1_161
+STORY_PYTEST_TEST_COUNT = 614
+STORY_PYTEST_DECLARED_TEST_COUNT = 1_172
 STORY_PYTEST_TEST_INVENTORY_SHA256 = (
-    "117bc52d6eb06fd6c444d26356d4cb0aa045fdb8ac332c8dd8abeef6f00b9e45"
+    "8f0d2a16b897a6d94e5abd42a10228793f225dcf6925fefd755064ea9b53f88a"
 )
 STORY_ARTIFACTS = (
     "tools/git/preflight.py",
@@ -515,6 +516,7 @@ class AlertWitnessV1:
     digest: str
     owner_action: str
     registry_digest: str
+    account_id: str = field(repr=False)
 
 
 def _utc_text(value: datetime) -> str:
@@ -816,6 +818,7 @@ def read_alert_witness_v1(
             digest=digest,
             owner_action=document["owner_action"],
             registry_digest=document["registry_digest_after"],
+            account_id=document["account_id"],
         )
     except (KeyError, TypeError, ValueError):
         raise M5CurrentExitErrorV1("m5_current_alert_witness_invalid") from None
@@ -1973,6 +1976,18 @@ def _validate_authoritative_quota_preflight_v1(
         raise M5CurrentExitErrorV1("m5_current_authoritative_quota_mismatch")
 
 
+def quota_reconciliation_lane_v1(quota: ValidatedQuotaWitnessV1) -> str:
+    """Report sample coverage without claiming all fleet windows were compared."""
+    if quota.sample_account_count is None and quota.sample_window_count is None:
+        return f"codex_windows_{quota.window_count}_owner_reconciled"
+    if quota.sample_account_count is None or quota.sample_window_count is None:
+        raise M5CurrentExitErrorV1("m5_current_quota_witness_invalid")
+    return (
+        f"codex_fleet_windows_{quota.window_count}_sample_accounts_"
+        f"{quota.sample_account_count}_sample_windows_{quota.sample_window_count}_owner_reconciled"
+    )
+
+
 def validate_authoritative_quota_v1(
     quota: ValidatedQuotaWitnessV1,
     preflight: Mapping[str, object],
@@ -2106,6 +2121,7 @@ def main() -> int:
             verified_account_ids=outcomes.verified_account_ids,
             now=datetime.now(UTC),
         )
+        primary_account = alert.account_id
         environment["AGENTMONITOR_TEST_M5_OWNER_OUTCOMES"] = str(outcomes_path)
         environment["AGENTMONITOR_TEST_M5_QUOTA_WITNESS"] = str(quota_path)
         environment["AGENTMONITOR_TEST_M5_ALERT_WITNESS"] = str(alert_path)
@@ -2183,9 +2199,7 @@ def main() -> int:
             "alert_prerequisite": "codex_alert_receipt_validated",
             "exact_codex_admission": "codex_schema_mapping_no_default_access",
             "authenticated_containment": "codex_identity_quota_trace_confined",
-            "authoritative_quota_reconciliation": (
-                f"codex_windows_{quota.window_count}_owner_reconciled"
-            ),
+            "authoritative_quota_reconciliation": quota_reconciliation_lane_v1(quota),
         }
         for lane, routine in PRE_SERVICE_ROUTINES:
             _run_routine(routine, environment)
@@ -2212,6 +2226,10 @@ def main() -> int:
                 error, pre_restart=True
             ) from error
         service_started_at = datetime.now(UTC)
+        environment["AGENTMONITOR_M5_CURRENT_SERVICE_PID"] = str(service.main_pid)
+        environment["AGENTMONITOR_M5_CURRENT_SERVICE_START_TIME_TICKS"] = str(
+            service.main_pid_start_time_ticks
+        )
         environment["AGENTMONITOR_M5_SERVICE_STARTED_AT"] = (
             service_started_at.isoformat(timespec="milliseconds").replace("+00:00", "Z")
         )

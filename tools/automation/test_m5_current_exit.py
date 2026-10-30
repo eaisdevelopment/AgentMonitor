@@ -397,6 +397,21 @@ def _quota_witness() -> ValidatedQuotaWitnessV1:
     )
 
 
+def test_quota_receipt_distinguishes_full_fleet_from_sample() -> None:
+    from dataclasses import replace
+
+    fleet = _quota_witness()
+    sample = replace(fleet, sample_account_count=2, sample_window_count=3)
+    assert (
+        auto_m5_current_exit.quota_reconciliation_lane_v1(fleet)
+        == "codex_windows_4_owner_reconciled"
+    )
+    assert (
+        auto_m5_current_exit.quota_reconciliation_lane_v1(sample)
+        == "codex_fleet_windows_4_sample_accounts_2_sample_windows_3_owner_reconciled"
+    )
+
+
 def _quota_document(recorded_at: datetime) -> dict[str, object]:
     return {
         "schema": "agentmonitor.m5-quota-witness.v1",
@@ -513,10 +528,10 @@ def test_catalog_selects_exact_m5_gate_and_closed_lanes() -> None:
     assert auto_m5_current_exit.STORY_NODE_TEST_INVENTORY_SHA256 == (
         "50e092d299b2f13bcf0a9cac6cbe1ed43a59bd49e944c2c305b85481233e1ef5"
     )
-    assert auto_m5_current_exit.STORY_PYTEST_TEST_COUNT == 603
-    assert auto_m5_current_exit.STORY_PYTEST_DECLARED_TEST_COUNT == 1_161
+    assert auto_m5_current_exit.STORY_PYTEST_TEST_COUNT == 614
+    assert auto_m5_current_exit.STORY_PYTEST_DECLARED_TEST_COUNT == 1_172
     assert auto_m5_current_exit.STORY_PYTEST_TEST_INVENTORY_SHA256 == (
-        "117bc52d6eb06fd6c444d26356d4cb0aa045fdb8ac332c8dd8abeef6f00b9e45"
+        "8f0d2a16b897a6d94e5abd42a10228793f225dcf6925fefd755064ea9b53f88a"
     )
     assert "tools/git/test_preflight.py" in STORY_TEST_PATHS
     assert STORY_AUTOMATION_TEST_IDS == (
@@ -558,6 +573,7 @@ def test_catalog_selects_exact_m5_gate_and_closed_lanes() -> None:
         "backend/tests/integration/api/test_openapi_policy.py",
         "backend/tests/integration/api/test_operations_routes.py",
         "backend/tests/operations/pure/test_diagnostic_policy.py",
+        "tools/automation/test_m5_evidence_migration.py",
     }.issubset(STORY_TEST_PATHS)
     assert auto_m5_current_exit.DEPENDENCY_ROUTINES == ("AUTO-M3-TEST",)
     assert {
@@ -1440,6 +1456,7 @@ def test_alert_witness_binds_revision_service_lineage_and_owner_action() -> None
         assert len(witness.digest) == 64
         assert witness.owner_action == "acknowledged"
         assert witness.registry_digest == DIGEST_E
+        assert witness.account_id == "account-one"
 
         changed = _alert_witness()
         changed["registry_digest_after"] = DIGEST_A

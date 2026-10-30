@@ -199,6 +199,8 @@ class ValidatedQuotaWitnessV1:
     history_value_set_digest: str
     owner_observation_digest: str
     registry_graph_digest: str
+    sample_account_count: int | None = None
+    sample_window_count: int | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -289,7 +291,12 @@ def parse_quota_witness_document_v2(
         verified_account_count=verified_account_count,
         now=now,
     )
-    return replace(parsed, digest=_digest(document))
+    return replace(
+        parsed,
+        digest=_digest(document),
+        sample_account_count=count,
+        sample_window_count=windows,
+    )
 
 
 def parse_quota_witness_document_v1(
@@ -504,6 +511,8 @@ def read_quota_witness_v1(
         history_value_set_digest=parsed.history_value_set_digest,
         owner_observation_digest=parsed.owner_observation_digest,
         registry_graph_digest=parsed.registry_graph_digest,
+        sample_account_count=parsed.sample_account_count,
+        sample_window_count=parsed.sample_window_count,
     )
 
 

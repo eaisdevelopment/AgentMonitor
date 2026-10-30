@@ -3,6 +3,7 @@
 import hashlib
 import re
 import subprocess
+from collections.abc import Mapping
 from pathlib import Path
 
 from tools.automation.implementations import m5_service_activation as activation
@@ -12,6 +13,32 @@ REVIEWED_HISTORY_VIEW = "frontend/src/features/command/CapacityPanel.tsx"
 REVIEWED_HISTORY_VIEW_SHA256 = (
     "e120b0d4d9a1ad1fedeb7d24fb47e9c60d57023b8aa4f89d9cff52987e066b97"
 )
+
+
+def current_service_binding_v1(
+    environment: Mapping[str, str], previous: tuple[str, int, int]
+) -> tuple[str, int, int]:
+    keys = (
+        "AGENTMONITOR_M5_SERVICE_IMPLEMENTATION_REVISION",
+        "AGENTMONITOR_M5_CURRENT_SERVICE_PID",
+        "AGENTMONITOR_M5_CURRENT_SERVICE_START_TIME_TICKS",
+    )
+    supplied = tuple(environment.get(key) for key in keys)
+    if all(value is None for value in supplied):
+        return previous
+    if any(value is None for value in supplied):
+        raise ValueError("m5_current_service_selectors_invalid")
+    revision, pid, start = supplied
+    if (
+        not isinstance(revision, str)
+        or re.fullmatch(r"[0-9a-f]{40}", revision) is None
+        or not isinstance(pid, str)
+        or re.fullmatch(r"[1-9][0-9]*", pid) is None
+        or not isinstance(start, str)
+        or re.fullmatch(r"[1-9][0-9]*", start) is None
+    ):
+        raise ValueError("m5_current_service_selectors_invalid")
+    return revision, int(pid), int(start)
 
 
 def reviewed_paths_v1(paths: list[str], history_digest: str | None) -> bool:

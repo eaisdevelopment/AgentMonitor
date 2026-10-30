@@ -35,3 +35,17 @@ def test_only_reviewed_history_view_change_is_eligible() -> None:
     assert not policy(["backend/src/other.py"], approved)
     assert not policy([path], "0" * 64)
     assert not policy(["frontend/src/app/other.tsx"], approved)
+
+
+def test_current_service_selectors_are_atomic() -> None:
+    select = m5_evidence_migration.current_service_binding_v1
+    previous = ("a" * 40, 12, 34)
+    assert select({}, previous) == previous
+    current = {
+        "AGENTMONITOR_M5_SERVICE_IMPLEMENTATION_REVISION": "b" * 40,
+        "AGENTMONITOR_M5_CURRENT_SERVICE_PID": "56",
+        "AGENTMONITOR_M5_CURRENT_SERVICE_START_TIME_TICKS": "78",
+    }
+    assert select(current, previous) == ("b" * 40, 56, 78)
+    with pytest.raises(ValueError):
+        select({"AGENTMONITOR_M5_CURRENT_SERVICE_PID": "56"}, previous)

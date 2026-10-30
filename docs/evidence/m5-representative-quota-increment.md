@@ -53,6 +53,21 @@ current official comparisons and owner acceptance have not passed.
   30 seconds respectively. These preview checks are not a built-service or
   final-gate pass. The history view is the sole permitted application-source
   change in predecessor migration, bound to its exact reviewed SHA-256.
+- The deployed `9db4c3d` dashboard showed the 24-hour chart and retained the
+  selectable full-year range. Its selected-fleet and sample browser checks
+  passed on genuine data after identity receipts refreshed. `AUTO-M3-TEST`
+  passed 307 tests and `AUTO-MUTATION` passed. The exact current story
+  inventory contains 614 parent tests and 558 subtests. One full diagnostic
+  run passed all of them with no skips; two prior full runs failed in the
+  real containment check with `m5_codex_containment_fd_write_unverifiable`.
+  A sanitized diagnostic classified the rejected operation as `fchmod` on a
+  managed-profile file. Isolated containment passed repeatedly. Its
+  intermittent cause remains unresolved; no containment policy was weakened.
+- A gate correction uses the alert's verified account for the alert lifecycle
+  tests, independently selects the current service for the containment test,
+  records sampled coverage accurately, and binds the gate to the updated exact
+  test inventory. Red/green tests cover these corrections. They are not yet
+  deployed, and the canonical final gate has not passed.
 - Security/privacy: only safe account selectors and quota metadata are used;
   no credential, provider profile or running agent is read or changed. No new
   dependency, license, database migration or public contract is introduced.
