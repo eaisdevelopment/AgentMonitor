@@ -201,6 +201,7 @@ class ValidatedQuotaWitnessV1:
     registry_graph_digest: str
     sample_account_count: int | None = None
     sample_window_count: int | None = None
+    sample_source: str | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -297,6 +298,58 @@ def parse_quota_witness_document_v2(
         sample_account_count=count,
         sample_window_count=windows,
     )
+
+
+def parse_quota_witness_document_v3(
+    document: object,
+    *,
+    expected_revision: str,
+    service_pid: int,
+    service_start_time_ticks: int,
+    owner_outcomes_digest: str,
+    verified_account_count: int,
+    now: datetime,
+) -> ValidatedQuotaWitnessV1:
+    """Validate a current fleet proof with explicitly historical screenshot samples."""
+    extra = {
+        "historical_source_digest",
+        "historical_file_mtime_start",
+        "historical_file_mtime_end",
+    }
+    try:
+        if type(document) is not dict or not extra.issubset(document):
+            raise ValueError
+        start = _timestamp(document["historical_file_mtime_start"])
+        end = _timestamp(document["historical_file_mtime_end"])
+        if (
+            document.get("schema") != "agentmonitor.m5-quota-witness.v3"
+            or document.get("owner_confirmation") != "user_submitted_screenshots"
+            or type(document["historical_source_digest"]) is not str
+            or _SHA256.fullmatch(document["historical_source_digest"]) is None
+            or start > end
+            or end > now
+            or now - start > timedelta(days=8)
+        ):
+            raise ValueError
+        projected = {key: value for key, value in document.items() if key not in extra}
+        projected["schema"] = "agentmonitor.m5-quota-witness.v2"
+        projected["owner_confirmation"] = "interactive_terminal"
+        parsed = parse_quota_witness_document_v2(
+            projected,
+            expected_revision=expected_revision,
+            service_pid=service_pid,
+            service_start_time_ticks=service_start_time_ticks,
+            owner_outcomes_digest=owner_outcomes_digest,
+            verified_account_count=verified_account_count,
+            now=now,
+        )
+        return replace(
+            parsed,
+            digest=_digest(document),
+            sample_source="historical_user_screenshots",
+        )
+    except (KeyError, TypeError, ValueError, M5CodexQuotaWitnessErrorV1):
+        raise M5CodexQuotaWitnessErrorV1("m5_quota_witness_invalid") from None
 
 
 def parse_quota_witness_document_v1(
@@ -487,7 +540,10 @@ def read_quota_witness_v1(
         if parent_descriptor >= 0:
             os.close(parent_descriptor)
     parse_document = (
-        parse_quota_witness_document_v2
+        parse_quota_witness_document_v3
+        if type(document) is dict
+        and document.get("schema") == "agentmonitor.m5-quota-witness.v3"
+        else parse_quota_witness_document_v2
         if type(document) is dict
         and document.get("schema") == "agentmonitor.m5-quota-witness.v2"
         else parse_quota_witness_document_v1
@@ -513,6 +569,7 @@ def read_quota_witness_v1(
         registry_graph_digest=parsed.registry_graph_digest,
         sample_account_count=parsed.sample_account_count,
         sample_window_count=parsed.sample_window_count,
+        sample_source=parsed.sample_source,
     )
 
 
@@ -771,6 +828,20 @@ def reconcile_representative_quota_v1(
     return reconcile_quota_observations_v1(agentmonitor_records, owner_records)
 
 
+def reconcile_historical_sample_v1(
+    historical_records: object,
+    submitted_observations: object,
+    *,
+    selected_account_ids: frozenset[str],
+) -> QuotaReconciliationV1:
+    """Compare submitted observations to their historical readings."""
+    return reconcile_representative_quota_v1(
+        historical_records,
+        submitted_observations,
+        selected_account_ids=selected_account_ids,
+    )
+
+
 def reconcile_quota_observations_v1(
     agentmonitor_records: object,
     owner_records: object,
@@ -1021,6 +1092,147 @@ def _browser_proof(
     if len(documents) != 1:
         raise M5CodexQuotaWitnessErrorV1("m5_quota_witness_browser_proof_missing")
     return documents[0]
+
+
+def _historical_screenshot_evidence_v1(
+    *,
+    path: Path,
+    owner_root: Path,
+    endpoint: str,
+    origin: str,
+    selected_ids: frozenset[str],
+    sample_ids: frozenset[str],
+) -> tuple[QuotaReconciliationV1, str, str, str]:
+    """Read owner-selected screenshot transcriptions and verify retained API history.
+
+    File modification time is a submission proxy, not a claimed capture time.
+    Screenshot bytes and provider identity are never retained in the witness.
+    """
+    try:
+        if path.parent != owner_root or path.resolve(strict=True) != path:
+            raise ValueError
+        metadata = path.lstat()
+        if (
+            not stat.S_ISREG(metadata.st_mode)
+            or metadata.st_uid != os.getuid()
+            or stat.S_IMODE(metadata.st_mode) != 0o600
+            or metadata.st_nlink != 1
+            or metadata.st_size > 16384
+        ):
+            raise ValueError
+        facts = json.loads(path.read_text(encoding="utf-8"))
+        if type(facts) is not list or len(facts) != 2:
+            raise ValueError
+        browser_facts: list[dict[str, object]] = []
+        observations: list[dict[str, object]] = []
+        source_material: list[dict[str, object]] = []
+        for fact in facts:
+            if type(fact) is not dict or set(fact) != {
+                "account_id",
+                "email",
+                "image_path",
+                "windows",
+            }:
+                raise ValueError
+            account = _token(fact["account_id"])
+            if (
+                type(fact["email"]) is not str
+                or not fact["email"]
+                or type(fact["image_path"]) is not str
+                or type(fact["windows"]) is not list
+            ):
+                raise ValueError
+            image_path = Path(fact["image_path"])
+            descriptor = os.open(image_path, os.O_RDONLY | os.O_NOFOLLOW | os.O_CLOEXEC)
+            try:
+                image_stat = os.fstat(descriptor)
+                if (
+                    not stat.S_ISREG(image_stat.st_mode)
+                    or image_stat.st_uid != os.getuid()
+                    or image_stat.st_size > 10_000_000
+                    or image_stat.st_size < 8
+                ):
+                    raise ValueError
+                with os.fdopen(descriptor, "rb", closefd=False) as image:
+                    image_bytes = image.read()
+                if not image_bytes.startswith(b"\x89PNG\r\n\x1a\n"):
+                    raise ValueError
+                mtime = (
+                    datetime.fromtimestamp(image_stat.st_mtime, UTC)
+                    .isoformat(timespec="seconds")
+                    .replace("+00:00", "Z")
+                )
+                if datetime.fromtimestamp(image_stat.st_mtime, UTC) > datetime.now(UTC):
+                    raise ValueError
+                image_digest = hashlib.sha256(image_bytes).hexdigest()
+            finally:
+                os.close(descriptor)
+            browser_facts.append(
+                {
+                    "account_id": account,
+                    "email": fact["email"],
+                    "file_mtime": mtime,
+                    "windows": fact["windows"],
+                }
+            )
+            observations.append(
+                {
+                    "account_id": account,
+                    "observed_at": mtime,
+                    "windows": fact["windows"],
+                }
+            )
+            source_material.append(
+                {
+                    "account_id": account,
+                    "image_sha256": image_digest,
+                    "file_mtime": mtime,
+                }
+            )
+        if frozenset(item["account_id"] for item in browser_facts) != sample_ids:
+            raise ValueError
+        if len({item["image_sha256"] for item in source_material}) != 2:
+            raise ValueError
+        result = subprocess.run(
+            ["node", "tools/ui/verify_m5_historical_quota.mjs"],
+            cwd=ROOT,
+            env={
+                "PATH": os.environ.get("PATH", "/usr/bin:/bin"),
+                "AGENTMONITOR_TEST_DASHBOARD_CDP_ENDPOINT": endpoint,
+                "AGENTMONITOR_TEST_DASHBOARD_ORIGIN": origin,
+            },
+            input=json.dumps(browser_facts),
+            capture_output=True,
+            text=True,
+            check=False,
+            timeout=120,
+        )
+        if result.returncode != 0:
+            raise ValueError
+        records = json.loads(result.stdout)
+        comparison = reconcile_historical_sample_v1(
+            records, observations, selected_account_ids=selected_ids
+        )
+        times = sorted(cast(str, item["file_mtime"]) for item in source_material)
+        return (
+            comparison,
+            _digest(
+                sorted(source_material, key=lambda item: cast(str, item["account_id"]))
+            ),
+            times[0],
+            times[-1],
+        )
+    except (
+        OSError,
+        TypeError,
+        ValueError,
+        json.JSONDecodeError,
+        subprocess.TimeoutExpired,
+        M5CodexQuotaWitnessErrorV1,
+    ):
+        raise M5CodexQuotaWitnessErrorV1(
+            "m5_quota_historical_evidence_invalid"
+        ) from None
 
 
 def _validated_browser_records(
@@ -1543,7 +1755,22 @@ def create_quota_witness_v1(environment: Mapping[str, str]) -> str:
             != browser["registry_digest_after"]
         ):
             raise M5CodexQuotaWitnessErrorV1("m5_quota_witness_context_changed")
-    owner_observations = _owner_observations(sample_records)
+    historical_path = environment.get("AGENTMONITOR_M5_HISTORICAL_SCREENSHOTS")
+    historical: tuple[QuotaReconciliationV1, str, str, str] | None = None
+    if historical_path is not None:
+        if sample_ids is None:
+            raise M5CodexQuotaWitnessErrorV1("m5_quota_witness_sample_invalid")
+        historical = _historical_screenshot_evidence_v1(
+            path=Path(historical_path),
+            owner_root=owner_root,
+            endpoint=endpoint,
+            origin=origin,
+            selected_ids=outcomes.verified_account_ids,
+            sample_ids=sample_ids,
+        )
+        owner_observations = None
+    else:
+        owner_observations = _owner_observations(sample_records)
     policy_records = [
         {
             "account_id": record["account_id"],
@@ -1568,12 +1795,16 @@ def create_quota_witness_v1(environment: Mapping[str, str]) -> str:
             }
             for record in sample_records
         ]
-        sample_reconciliation = reconcile_representative_quota_v1(
-            sample_policy,
-            owner_observations,
-            selected_account_ids=outcomes.verified_account_ids,
+        sample_reconciliation = (
+            historical[0]
+            if historical is not None
+            else reconcile_representative_quota_v1(
+                sample_policy,
+                owner_observations,
+                selected_account_ids=outcomes.verified_account_ids,
+            )
         )
-        if (
+        if historical is None and (
             sample_reconciliation.value_set_digest
             != sample_browser["quota_value_set_digest"]
             or sample_reconciliation.collection_run_set_digest
@@ -1654,6 +1885,16 @@ def create_quota_witness_v1(environment: Mapping[str, str]) -> str:
                 "sample_identity_set_digest": sample_browser["identity_set_digest"],
                 "sample_value_set_digest": sample_reconciliation.value_set_digest,
                 "sample_browser_proof_digest": _digest(sample_proof),
+            }
+        )
+    if historical is not None:
+        document.update(
+            {
+                "schema": "agentmonitor.m5-quota-witness.v3",
+                "owner_confirmation": "user_submitted_screenshots",
+                "historical_source_digest": historical[1],
+                "historical_file_mtime_start": historical[2],
+                "historical_file_mtime_end": historical[3],
             }
         )
     _revalidate_runtime_binding_v1(

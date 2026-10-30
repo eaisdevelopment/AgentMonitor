@@ -72,3 +72,19 @@ verify both the recent view and the full-year option. The predecessor-evidence
 proof may accept only the exact reviewed history-view source digest in addition
 to documentation and automation changes; the original alert and owner
 evidence remains bound to its original activation and is never rewritten.
+
+## Owner direction: retain the two supplied comparisons
+
+On 2026-10-30 the owner explicitly directed us to use the two `/status`
+screenshots already supplied and not repeat account checks. Treat each image
+as a user-submitted historical observation, not as a current reading. Match
+its account, windows, percentages and displayed reset precision to genuine
+retained API history near the image file's modification time, a submission
+proxy rather than a verified capture time. Bind the source image
+by digest without copying its contents or persisting credentials or provider
+payloads. Retain the file modification time and accurately label the
+comparison as historical; never claim the owner typed a new terminal
+confirmation. The selected fleet still requires independent current identity,
+quota, rendered UI and history proof, and the final gate must pass normally.
+This owner direction replaces the previous plan's requirement to ask the
+owner to repeat the two official-view observations immediately before exit.

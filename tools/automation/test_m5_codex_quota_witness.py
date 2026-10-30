@@ -375,6 +375,31 @@ def test_sample_selector_requires_two_distinct_accounts_and_selected_member() ->
             select(invalid, frozenset({"account-one"}))
 
 
+def test_historical_sample_reconciles_observed_windows_without_using_current_values() -> (
+    None
+):
+    from copy import deepcopy
+
+    historic = _agentmonitor_records()
+    supplied = _owner_records()
+    second = deepcopy(historic[0])
+    second["account_id"] = "account-two"
+    second["collection_run_id"] = "run-two"
+    historic.append(second)
+    second_owner = deepcopy(supplied[0])
+    second_owner["account_id"] = "account-two"
+    supplied.append(second_owner)
+    compare = m5_codex_quota_witness.reconcile_historical_sample_v1
+    result = compare(
+        historic, supplied, selected_account_ids=frozenset({"account-one"})
+    )
+    assert result.account_count == 2
+    assert result.window_count == 4
+    supplied[1]["windows"][0]["remaining_percent"] = 17
+    with pytest.raises(M5CodexQuotaWitnessErrorV1):
+        compare(historic, supplied, selected_account_ids=frozenset({"account-one"}))
+
+
 @pytest.mark.parametrize(
     ("agent_reset", "owner_reset", "display_precision", "observed_at"),
     (
@@ -762,6 +787,46 @@ def test_representative_witness_distinguishes_fleet_and_sample() -> None:
         ("sample_window_count", 1),
         ("sample_identity_set_digest", "bad"),
         ("sample_browser_proof_digest", "bad"),
+    ):
+        changed = dict(document)
+        changed[field] = value
+        with pytest.raises(M5CodexQuotaWitnessErrorV1):
+            parse(changed, **arguments)
+
+
+def test_historical_witness_keeps_its_source_and_rejects_future_evidence() -> None:
+    document = _witness_document()
+    document.update(
+        {
+            "schema": "agentmonitor.m5-quota-witness.v3",
+            "owner_confirmation": "user_submitted_screenshots",
+            "account_count": 3,
+            "window_count": 4,
+            "sample_account_count": 2,
+            "sample_window_count": 3,
+            "sample_selected_count": 1,
+            "sample_identity_set_digest": "4" * 64,
+            "sample_value_set_digest": "5" * 64,
+            "sample_browser_proof_digest": "6" * 64,
+            "historical_source_digest": "7" * 64,
+            "historical_file_mtime_start": "2026-10-07T12:00:00Z",
+            "historical_file_mtime_end": "2026-10-07T12:03:00Z",
+        }
+    )
+    arguments = {
+        "expected_revision": REVISION,
+        "service_pid": 321,
+        "service_start_time_ticks": 654,
+        "owner_outcomes_digest": DIGEST,
+        "verified_account_count": 3,
+        "now": datetime(2026, 10, 7, 12, 5, tzinfo=UTC),
+    }
+    parse = m5_codex_quota_witness.parse_quota_witness_document_v3
+    assert parse(document, **arguments).sample_source == "historical_user_screenshots"
+    for field, value in (
+        ("owner_confirmation", "interactive_terminal"),
+        ("historical_source_digest", "bad"),
+        ("historical_file_mtime_end", "2026-10-07T13:00:00Z"),
     ):
         changed = dict(document)
         changed[field] = value

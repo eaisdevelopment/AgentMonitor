@@ -202,10 +202,10 @@ STORY_NODE_TEST_INVENTORY_SHA256 = (
 )
 STORY_BROWSER_SCENARIOS = ("account_beyond_page",)
 # Updated only from the exact collected inventory after intentional test changes.
-STORY_PYTEST_TEST_COUNT = 614
-STORY_PYTEST_DECLARED_TEST_COUNT = 1_172
+STORY_PYTEST_TEST_COUNT = 617
+STORY_PYTEST_DECLARED_TEST_COUNT = 1_175
 STORY_PYTEST_TEST_INVENTORY_SHA256 = (
-    "8f0d2a16b897a6d94e5abd42a10228793f225dcf6925fefd755064ea9b53f88a"
+    "c2ba8a4d380c1014de408fcba85f55ef06651e776da958b3ebb272b82182472f"
 )
 STORY_ARTIFACTS = (
     "tools/git/preflight.py",
@@ -235,6 +235,7 @@ STORY_ARTIFACTS = (
     "tools/ui/verify_m5_service_revision.mjs",
     "tools/ui/verify_m5_codex_alert_lifecycle.mjs",
     "tools/ui/verify_m5_codex_quota_reconciliation.mjs",
+    "tools/ui/verify_m5_historical_quota.mjs",
     "tools/ui/verify_dashboard_provider_filter.mjs",
     "tools/ui/m5_registry_pages.mjs",
     "frontend/tests/browser/p02/run_browser.py",
@@ -1982,9 +1983,12 @@ def quota_reconciliation_lane_v1(quota: ValidatedQuotaWitnessV1) -> str:
         return f"codex_windows_{quota.window_count}_owner_reconciled"
     if quota.sample_account_count is None or quota.sample_window_count is None:
         raise M5CurrentExitErrorV1("m5_current_quota_witness_invalid")
+    if quota.sample_source not in (None, "historical_user_screenshots"):
+        raise M5CurrentExitErrorV1("m5_current_quota_witness_invalid")
+    source = quota.sample_source or "owner_reconciled"
     return (
         f"codex_fleet_windows_{quota.window_count}_sample_accounts_"
-        f"{quota.sample_account_count}_sample_windows_{quota.sample_window_count}_owner_reconciled"
+        f"{quota.sample_account_count}_sample_windows_{quota.sample_window_count}_{source}"
     )
 
 

@@ -410,6 +410,10 @@ def test_quota_receipt_distinguishes_full_fleet_from_sample() -> None:
         auto_m5_current_exit.quota_reconciliation_lane_v1(sample)
         == "codex_fleet_windows_4_sample_accounts_2_sample_windows_3_owner_reconciled"
     )
+    historical = replace(sample, sample_source="historical_user_screenshots")
+    assert auto_m5_current_exit.quota_reconciliation_lane_v1(historical) == (
+        "codex_fleet_windows_4_sample_accounts_2_sample_windows_3_historical_user_screenshots"
+    )
 
 
 def _quota_document(recorded_at: datetime) -> dict[str, object]:
@@ -528,10 +532,10 @@ def test_catalog_selects_exact_m5_gate_and_closed_lanes() -> None:
     assert auto_m5_current_exit.STORY_NODE_TEST_INVENTORY_SHA256 == (
         "50e092d299b2f13bcf0a9cac6cbe1ed43a59bd49e944c2c305b85481233e1ef5"
     )
-    assert auto_m5_current_exit.STORY_PYTEST_TEST_COUNT == 614
-    assert auto_m5_current_exit.STORY_PYTEST_DECLARED_TEST_COUNT == 1_172
+    assert auto_m5_current_exit.STORY_PYTEST_TEST_COUNT == 617
+    assert auto_m5_current_exit.STORY_PYTEST_DECLARED_TEST_COUNT == 1_175
     assert auto_m5_current_exit.STORY_PYTEST_TEST_INVENTORY_SHA256 == (
-        "8f0d2a16b897a6d94e5abd42a10228793f225dcf6925fefd755064ea9b53f88a"
+        "c2ba8a4d380c1014de408fcba85f55ef06651e776da958b3ebb272b82182472f"
     )
     assert "tools/git/test_preflight.py" in STORY_TEST_PATHS
     assert STORY_AUTOMATION_TEST_IDS == (
