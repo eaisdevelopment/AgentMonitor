@@ -85,6 +85,9 @@ EIGHTH_CORRECTIVE_ROLLOVER_REVISION = "1ada84f71e827bb4f7ea966462a6cf51d050e9af"
 NINTH_CORRECTIVE_ARCHIVE_BASENAME = "m5-service-activation-corrective-archive-468a937"
 NINTH_CORRECTIVE_ARCHIVE_ROOT = DATA_ROOT / NINTH_CORRECTIVE_ARCHIVE_BASENAME
 NINTH_CORRECTIVE_ROLLOVER_REVISION = "468a937d796efcb7ff1785a749789f07a3322abc"
+TENTH_CORRECTIVE_ARCHIVE_BASENAME = "m5-service-activation-corrective-archive-10a7bc0"
+TENTH_CORRECTIVE_ARCHIVE_ROOT = DATA_ROOT / TENTH_CORRECTIVE_ARCHIVE_BASENAME
+TENTH_CORRECTIVE_ROLLOVER_REVISION = "10a7bc0db09997d92e62fb5c5e8ea7d5b85866cb"
 CORRECTIVE_ROLLOVER_REVISIONS = (
     CORRECTIVE_ROLLOVER_REVISION,
     SECOND_CORRECTIVE_ROLLOVER_REVISION,
@@ -95,6 +98,7 @@ CORRECTIVE_ROLLOVER_REVISIONS = (
     SEVENTH_CORRECTIVE_ROLLOVER_REVISION,
     EIGHTH_CORRECTIVE_ROLLOVER_REVISION,
     NINTH_CORRECTIVE_ROLLOVER_REVISION,
+    TENTH_CORRECTIVE_ROLLOVER_REVISION,
 )
 ACTIVATION_JOURNAL_BASENAME = "activation-journal-v1.json"
 ACTIVATION_LOCK_BASENAME = "activation-lock-v1"
@@ -700,6 +704,8 @@ def _corrective_rollover_archive_basename_v1(prior_revision: str) -> str:
         return EIGHTH_CORRECTIVE_ARCHIVE_BASENAME
     if prior_revision == NINTH_CORRECTIVE_ROLLOVER_REVISION:
         return NINTH_CORRECTIVE_ARCHIVE_BASENAME
+    if prior_revision == TENTH_CORRECTIVE_ROLLOVER_REVISION:
+        return TENTH_CORRECTIVE_ARCHIVE_BASENAME
     raise M5ServiceActivationErrorV1("m5_service_rollover_archive_invalid")
 
 
@@ -721,7 +727,7 @@ def corrective_rollover_transition_policy_v1(
     *,
     receipt_revision: str | None,
     candidate_revision: str,
-    archive_states: tuple[str, str, str, str, str, str, str, str, str],
+    archive_states: tuple[str, ...],
 ) -> tuple[Literal["none", "retain", "archive", "retry", "blocked"], str | None]:
     """Require one exact archive prefix for the approved rollover sequence."""
 
@@ -4347,6 +4353,10 @@ def _maybe_correct_completed_activation_rollover_v1(
         archive_parent=NINTH_CORRECTIVE_ARCHIVE_ROOT,
         prior_revision=NINTH_CORRECTIVE_ROLLOVER_REVISION,
     )
+    tenth_archive_state = _corrective_rollover_archive_parent_state_v1(
+        archive_parent=TENTH_CORRECTIVE_ARCHIVE_ROOT,
+        prior_revision=TENTH_CORRECTIVE_ROLLOVER_REVISION,
+    )
     receipt_document: dict[str, object] | None = None
     receipt_revision: str | None = None
     if _path_present(RECEIPT_PATH):
@@ -4368,6 +4378,7 @@ def _maybe_correct_completed_activation_rollover_v1(
             seventh_archive_state,
             eighth_archive_state,
             ninth_archive_state,
+            tenth_archive_state,
         ),
     )
     if transition_action == "blocked":

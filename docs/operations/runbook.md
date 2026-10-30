@@ -309,7 +309,7 @@ proven: stop M5 evidence collection, preserve the journal and both runtimes,
 and diagnose the user unit. Never edit the journal, unit backup, or trusted
 runtime to force another result.
 
-Exactly nine revision-pinned corrective rollover modes are authorized. The
+Exactly ten revision-pinned corrective rollover modes are authorized. The
 first preserves the completed
 `6bfa69dc13cc9e1ded9c6baa6e803cb99bc8c20b` transition below
 `<owner-data-root>/m5-service-activation-corrective-archive/`. The second
@@ -344,16 +344,18 @@ singleton parent
 The ninth preserves completed revision
 `468a937d796efcb7ff1785a749789f07a3322abc` below
 `<owner-data-root>/m5-service-activation-corrective-archive-468a937/`.
+The tenth preserves completed revision
+`10a7bc0db09997d92e62fb5c5e8ea7d5b85866cb` below
+`<owner-data-root>/m5-service-activation-corrective-archive-10a7bc0/`.
 Each archive entry name binds its source revision and activation-receipt
 digest. No mode accepts a different source revision, archive parent, or
 additional entry.
 
 The requested new candidate must differ from the pinned trusted revision and
-all nine completed corrective revisions above. The command checks those
+all ten completed corrective revisions above. The command checks those
 reserved revisions before any service restoration, archive move, or
 transition-state write; a reserved candidate blocks without changing the
-existing service or evidence. No tenth rollover or general deployment
-authority is granted.
+existing service or evidence. This authorizes no general deployment mode.
 
 An ordinary systemd or workstation restart can change the current dashboard
 PID/start identity after its completed activation receipt was created. Leave

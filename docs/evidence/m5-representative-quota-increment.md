@@ -18,6 +18,12 @@ current official comparisons and owner acceptance have not passed.
   witness was created by this check.
 - Quality: `AUTO-QUALITY`, `AUTO-DOCS-CHECK` and `AUTO-PLAN-CHECK` passed on
   the candidate; hosted, release and final-gate checks were not run.
+- Deployment preparation: the activation policy initially rejected the current
+  source revision because it was outside the closed rollover chain. A failing
+  pure policy test established that result; the exact source was added as the
+  next rollover with all earlier archives still required. The activation,
+  quota and exit test suites subsequently passed 187 tests. Actual activation
+  and evidence migration have not yet run.
 - Security/privacy: only safe account selectors and quota metadata are used;
   no credential, provider profile or running agent is read or changed. No new
   dependency, license, database migration or public contract is introduced.

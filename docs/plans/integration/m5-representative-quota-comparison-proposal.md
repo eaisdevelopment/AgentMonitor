@@ -50,3 +50,11 @@ original files and prove an explicit migration from the old revision and
 service to the new one, or repeat the affected live checks if an honest
 migration cannot be established. Do not simply relax revision or service
 binding. No provider profile or running agent is changed by this proposal.
+
+The current activation chain ends with revision `468a937`; the running
+candidate `10a7bc0` must be admitted as the next specific source so the
+canonical activation can preserve the complete prior archive prefix before
+rolling forward. This does not authorize arbitrary sources or replacement of
+retained artifacts. The existing historical owner and alert witnesses retain
+their original bindings; a new candidate requires an independently validated
+migration or new evidence.
