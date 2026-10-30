@@ -334,6 +334,47 @@ def test_reconciliation_requires_exact_percent_reset_scope_and_five_minute_skew(
             reconcile_quota_observations_v1(_agentmonitor_records(), owner)
 
 
+def test_representative_reconciliation_requires_two_accounts_and_selected_membership() -> (
+    None
+):
+    import copy
+
+    agent = _agentmonitor_records()
+    owner = _owner_records()
+    second_agent = copy.deepcopy(agent[0])
+    second_owner = copy.deepcopy(owner[0])
+    second_agent["account_id"] = "account-two"
+    second_agent["collection_run_id"] = "run-two"
+    second_owner["account_id"] = "account-two"
+    agent.append(second_agent)
+    owner.append(second_owner)
+    reconcile = m5_codex_quota_witness.reconcile_representative_quota_v1
+    result = reconcile(agent, owner, selected_account_ids=frozenset({"account-one"}))
+    assert result.account_count == 2
+    with pytest.raises(M5CodexQuotaWitnessErrorV1):
+        reconcile(agent[:1], owner[:1], selected_account_ids=frozenset({"account-one"}))
+    with pytest.raises(M5CodexQuotaWitnessErrorV1):
+        reconcile(agent, owner, selected_account_ids=frozenset({"other"}))
+    second_owner["windows"][0]["remaining_percent"] = 17
+    with pytest.raises(M5CodexQuotaWitnessErrorV1):
+        reconcile(agent, owner, selected_account_ids=frozenset({"account-one"}))
+
+
+def test_sample_selector_requires_two_distinct_accounts_and_selected_member() -> None:
+    select = m5_codex_quota_witness.select_representative_accounts_v1
+    assert select("account-one account-two", frozenset({"account-one"})) == frozenset(
+        {"account-one", "account-two"}
+    )
+    for invalid in (
+        "account-one",
+        "account-one account-one",
+        "account-two account-three",
+        "account-one invalid/id",
+    ):
+        with pytest.raises(M5CodexQuotaWitnessErrorV1):
+            select(invalid, frozenset({"account-one"}))
+
+
 @pytest.mark.parametrize(
     ("agent_reset", "owner_reset", "display_precision", "observed_at"),
     (
@@ -684,6 +725,46 @@ def test_private_witness_policy_binds_revision_service_outcomes_and_freshness() 
                 verified_account_count=1,
                 now=now,
             )
+
+
+def test_representative_witness_distinguishes_fleet_and_sample() -> None:
+    document = _witness_document()
+    document.update(
+        {
+            "schema": "agentmonitor.m5-quota-witness.v2",
+            "account_count": 3,
+            "window_count": 4,
+            "sample_account_count": 2,
+            "sample_window_count": 2,
+            "sample_selected_count": 1,
+            "sample_identity_set_digest": "4" * 64,
+            "sample_value_set_digest": "5" * 64,
+            "sample_browser_proof_digest": "6" * 64,
+        }
+    )
+    arguments = {
+        "expected_revision": REVISION,
+        "service_pid": 321,
+        "service_start_time_ticks": 654,
+        "owner_outcomes_digest": DIGEST,
+        "verified_account_count": 3,
+        "now": datetime(2026, 10, 7, 12, 5, tzinfo=UTC),
+    }
+    parse = m5_codex_quota_witness.parse_quota_witness_document_v2
+    parsed = parse(document, **arguments)
+    assert parsed.account_count == 3
+    assert parsed.digest == _digest(document)
+    for field, value in (
+        ("sample_account_count", 1),
+        ("sample_selected_count", 0),
+        ("sample_window_count", 1),
+        ("sample_identity_set_digest", "bad"),
+        ("sample_browser_proof_digest", "bad"),
+    ):
+        changed = dict(document)
+        changed[field] = value
+        with pytest.raises(M5CodexQuotaWitnessErrorV1):
+            parse(changed, **arguments)
 
 
 @pytest.mark.parametrize(

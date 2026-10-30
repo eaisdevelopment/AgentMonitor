@@ -1,4 +1,14 @@
 import test from "node:test";
+import { selectRepresentativeOutcomesV1 } from "./m5_representative_policy.mjs";
+
+test("representative sample requires monitored real accounts and selected overlap", () => {
+  const selected = [{account_id:"one", disposition:"verified", alias:"one"}];
+  const accounts = new Map([["one", {account_id:"one", provider_key:"codex", lifecycle:"active", is_effective_monitoring_enabled:true, friendly_name:"one"}], ["two", {account_id:"two", provider_key:"codex", lifecycle:"active", is_effective_monitoring_enabled:true, friendly_name:"two"}]]);
+  if (selectRepresentativeOutcomesV1(selected, accounts, ["one", "two"]).length !== 2) throw Error("wrong sample");
+  for (const ids of [["one", "one"], ["two", "missing"], ["one", "missing"]]) {
+    if (selectRepresentativeOutcomesV1(selected, accounts, ids) !== null) throw Error("invalid sample accepted");
+  }
+});
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 

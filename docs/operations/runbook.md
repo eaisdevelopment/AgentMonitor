@@ -605,7 +605,7 @@ browser makes no POST, PUT, PATCH, or DELETE request. The command also hashes
 the complete public Registry graph before and after its checks and rejects an
 incomplete, changing, or over-200 account or organization graph.
 
-For every displayed private alias and quota window, open that account's
+For the original v1 witness, for every displayed private alias and quota window, open that account's
 official Codex `/status` view and enter only:
 
 1. the displayed whole percentage left, from `0` through `100`;
@@ -628,6 +628,18 @@ non-100, null, imprecise, missing/extra-window, stale, or otherwise unexplained
 case keeps the strict rule and blocks. Finish by typing the exact phrase
 `I CONFIRM CODEX USAGE`; a fractional percentage, mismatch, or wrong phrase
 also blocks the writer without producing a witness.
+
+For the owner-approved representative comparison, set
+`AGENTMONITOR_M5_SAMPLE_ACCOUNT_IDS` to two distinct registry account IDs
+separated by one space before starting the same command. At least one must be
+among the verified selected outcomes; both must be active monitored Codex
+accounts with distinct verified live identities. The browser still proves
+identity, current quota, rendered values and retained history for every verified
+selected account. It separately proves the two sample accounts and asks the
+owner for official `/status` observations only for those two. The v2 witness
+records separate fleet and sample counts and digests. A sample comparison does
+not claim an independent official comparison of unsampled accounts. The same
+precision, freshness, owner confirmation and create-once rules apply.
 
 The result uses the closed schema `agentmonitor.m5-quota-witness.v1`. Its exact
 top-level fields are `schema`, `implementation_revision`, `service_pid`,

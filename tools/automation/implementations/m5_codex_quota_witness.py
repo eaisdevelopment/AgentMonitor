@@ -18,7 +18,7 @@ import stat
 import subprocess
 import sys
 from collections.abc import Mapping
-from dataclasses import dataclass, is_dataclass
+from dataclasses import dataclass, is_dataclass, replace
 from dataclasses import fields as dataclass_fields
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
@@ -235,6 +235,62 @@ def _timestamp(value: object) -> datetime:
     return parsed.astimezone(UTC)
 
 
+def parse_quota_witness_document_v2(
+    document: object,
+    *,
+    expected_revision: str,
+    service_pid: int,
+    service_start_time_ticks: int,
+    owner_outcomes_digest: str,
+    verified_account_count: int,
+    now: datetime,
+) -> ValidatedQuotaWitnessV1:
+    """Validate separate fleet coverage and representative comparison evidence."""
+    extra = {
+        "sample_account_count",
+        "sample_window_count",
+        "sample_selected_count",
+        "sample_identity_set_digest",
+        "sample_value_set_digest",
+        "sample_browser_proof_digest",
+    }
+    if type(document) is not dict or not extra.issubset(document):
+        raise M5CodexQuotaWitnessErrorV1("m5_quota_witness_invalid")
+    count = document["sample_account_count"]
+    windows = document["sample_window_count"]
+    selected = document["sample_selected_count"]
+    if (
+        document.get("schema") != "agentmonitor.m5-quota-witness.v2"
+        or type(count) is not int
+        or count < 2
+        or type(windows) is not int
+        or windows < count
+        or type(selected) is not int
+        or not 1 <= selected <= min(count, verified_account_count)
+        or any(
+            type(document[key]) is not str or _SHA256.fullmatch(document[key]) is None
+            for key in (
+                "sample_identity_set_digest",
+                "sample_value_set_digest",
+                "sample_browser_proof_digest",
+            )
+        )
+    ):
+        raise M5CodexQuotaWitnessErrorV1("m5_quota_witness_invalid")
+    original = {key: value for key, value in document.items() if key not in extra}
+    original["schema"] = QUOTA_WITNESS_SCHEMA
+    parsed = parse_quota_witness_document_v1(
+        original,
+        expected_revision=expected_revision,
+        service_pid=service_pid,
+        service_start_time_ticks=service_start_time_ticks,
+        owner_outcomes_digest=owner_outcomes_digest,
+        verified_account_count=verified_account_count,
+        now=now,
+    )
+    return replace(parsed, digest=_digest(document))
+
+
 def parse_quota_witness_document_v1(
     document: object,
     *,
@@ -422,7 +478,13 @@ def read_quota_witness_v1(
             os.close(descriptor)
         if parent_descriptor >= 0:
             os.close(parent_descriptor)
-    parsed = parse_quota_witness_document_v1(
+    parse_document = (
+        parse_quota_witness_document_v2
+        if type(document) is dict
+        and document.get("schema") == "agentmonitor.m5-quota-witness.v2"
+        else parse_quota_witness_document_v1
+    )
+    parsed = parse_document(
         document,
         expected_revision=expected_revision,
         service_pid=service_pid,
@@ -663,6 +725,42 @@ def _owner_records(
     return sorted(canonical), indexed
 
 
+def select_representative_accounts_v1(
+    value: str, selected: frozenset[str]
+) -> frozenset[str]:
+    """Validate two explicit distinct sample IDs with selected-fleet overlap."""
+    if type(value) is not str or not isinstance(selected, frozenset) or not selected:
+        raise M5CodexQuotaWitnessErrorV1("m5_quota_witness_sample_invalid")
+    identifiers = value.split()
+    if len(identifiers) != 2:
+        raise M5CodexQuotaWitnessErrorV1("m5_quota_witness_sample_invalid")
+    if any(
+        re.fullmatch(r"[A-Za-z0-9_-]{1,128}", identifier) is None
+        for identifier in identifiers
+    ):
+        raise M5CodexQuotaWitnessErrorV1("m5_quota_witness_sample_invalid")
+    accounts = frozenset(identifiers)
+    if len(accounts) != 2 or not accounts.intersection(selected):
+        raise M5CodexQuotaWitnessErrorV1("m5_quota_witness_sample_invalid")
+    return accounts
+
+
+def reconcile_representative_quota_v1(
+    agentmonitor_records: object,
+    owner_records: object,
+    *,
+    selected_account_ids: frozenset[str],
+) -> QuotaReconciliationV1:
+    """Reconcile a minimum two-account sample containing a selected account."""
+    if not isinstance(selected_account_ids, frozenset) or not selected_account_ids:
+        raise M5CodexQuotaWitnessErrorV1("m5_quota_witness_input_invalid")
+    _, agent = _agent_records(agentmonitor_records)
+    accounts = {key[0] for key in agent}
+    if len(accounts) < 2 or not accounts.intersection(selected_account_ids):
+        raise M5CodexQuotaWitnessErrorV1("m5_quota_witness_sample_invalid")
+    return reconcile_quota_observations_v1(agentmonitor_records, owner_records)
+
+
 def reconcile_quota_observations_v1(
     agentmonitor_records: object,
     owner_records: object,
@@ -868,6 +966,7 @@ def _browser_proof(
     revision: str,
     service_pid: int,
     service_start_time_ticks: int,
+    sample_account_ids: frozenset[str] | None = None,
 ) -> dict[str, object]:
     environment = {
         "PATH": os.environ.get("PATH", "/usr/bin:/bin"),
@@ -878,6 +977,10 @@ def _browser_proof(
         "AGENTMONITOR_M5_SERVICE_PID": str(service_pid),
         "AGENTMONITOR_M5_SERVICE_START_TIME_TICKS": str(service_start_time_ticks),
     }
+    if sample_account_ids is not None:
+        environment["AGENTMONITOR_M5_SAMPLE_ACCOUNT_IDS"] = " ".join(
+            sorted(sample_account_ids)
+        )
     try:
         result = subprocess.run(
             ["node", "tools/ui/verify_m5_codex_quota_reconciliation.mjs"],
@@ -1386,7 +1489,39 @@ def create_quota_witness_v1(environment: Mapping[str, str]) -> str:
         verified_account_ids=outcomes.verified_account_ids,
         now=datetime.now(UTC),
     )
-    owner_observations = _owner_observations(records)
+    sample_selector = environment.get("AGENTMONITOR_M5_SAMPLE_ACCOUNT_IDS")
+    sample_records = records
+    sample_browser = browser
+    sample_ids: frozenset[str] | None = None
+    if sample_selector is not None:
+        sample_ids = select_representative_accounts_v1(
+            sample_selector, outcomes.verified_account_ids
+        )
+        sample_proof = _browser_proof(
+            endpoint=endpoint,
+            origin=origin,
+            outcomes_path=outcomes_path,
+            revision=revision,
+            service_pid=service_pid,
+            service_start_time_ticks=service_ticks,
+            sample_account_ids=sample_ids,
+        )
+        sample_records, sample_browser = _validated_browser_records(
+            sample_proof,
+            revision=revision,
+            service_pid=service_pid,
+            service_start_time_ticks=service_ticks,
+            verified_account_ids=sample_ids,
+            now=datetime.now(UTC),
+        )
+        if (
+            sample_browser["registry_digest_before"]
+            != browser["registry_digest_before"]
+            or sample_browser["registry_digest_after"]
+            != browser["registry_digest_after"]
+        ):
+            raise M5CodexQuotaWitnessErrorV1("m5_quota_witness_context_changed")
+    owner_observations = _owner_observations(sample_records)
     policy_records = [
         {
             "account_id": record["account_id"],
@@ -1396,7 +1531,45 @@ def create_quota_witness_v1(environment: Mapping[str, str]) -> str:
         }
         for record in records
     ]
-    reconciliation = reconcile_quota_observations_v1(policy_records, owner_observations)
+    if sample_ids is None:
+        reconciliation = reconcile_quota_observations_v1(
+            policy_records, owner_observations
+        )
+        sample_reconciliation = reconciliation
+    else:
+        sample_policy = [
+            {
+                "account_id": record["account_id"],
+                "collection_run_id": record["collection_run_id"],
+                "collected_at": record["collected_at"],
+                "windows": record["windows"],
+            }
+            for record in sample_records
+        ]
+        sample_reconciliation = reconcile_representative_quota_v1(
+            sample_policy,
+            owner_observations,
+            selected_account_ids=outcomes.verified_account_ids,
+        )
+        if (
+            sample_reconciliation.value_set_digest
+            != sample_browser["quota_value_set_digest"]
+            or sample_reconciliation.collection_run_set_digest
+            != sample_browser["collection_run_set_digest"]
+        ):
+            raise M5CodexQuotaWitnessErrorV1("m5_quota_witness_reconciliation_mismatch")
+        fleet_values, _ = _agent_records(policy_records)
+        reconciliation = QuotaReconciliationV1(
+            account_count=len(records),
+            window_count=cast(int, browser["window_count"]),
+            value_set_digest=_digest(fleet_values),
+            collection_run_set_digest=_digest(
+                sorted(
+                    [[r["account_id"], r["collection_run_id"]] for r in policy_records]
+                )
+            ),
+            owner_observation_digest=sample_reconciliation.owner_observation_digest,
+        )
     if (
         reconciliation.account_count != len(outcomes.verified_account_ids)
         or reconciliation.window_count != browser["window_count"]
@@ -1447,6 +1620,20 @@ def create_quota_witness_v1(environment: Mapping[str, str]) -> str:
         "browser_registry_digest_before": browser["registry_digest_before"],
         "browser_registry_digest_after": browser["registry_digest_after"],
     }
+    if sample_ids is not None:
+        document.update(
+            {
+                "schema": "agentmonitor.m5-quota-witness.v2",
+                "sample_account_count": sample_reconciliation.account_count,
+                "sample_window_count": sample_reconciliation.window_count,
+                "sample_selected_count": len(
+                    sample_ids & outcomes.verified_account_ids
+                ),
+                "sample_identity_set_digest": sample_browser["identity_set_digest"],
+                "sample_value_set_digest": sample_reconciliation.value_set_digest,
+                "sample_browser_proof_digest": _digest(sample_proof),
+            }
+        )
     _revalidate_runtime_binding_v1(
         candidate,
         expected_revision=revision,

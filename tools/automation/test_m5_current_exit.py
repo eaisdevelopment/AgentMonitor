@@ -509,9 +509,9 @@ def test_catalog_selects_exact_m5_gate_and_closed_lanes() -> None:
         "frontend/tests/pure/provider-account-presentation.mjs",
         "frontend/tests/pure/quota-reset-presentation.mjs",
     )
-    assert auto_m5_current_exit.STORY_NODE_TEST_COUNT == 21
+    assert auto_m5_current_exit.STORY_NODE_TEST_COUNT == 22
     assert auto_m5_current_exit.STORY_NODE_TEST_INVENTORY_SHA256 == (
-        "ac6afb5a290f5bf5940581ef13db21acccce947f3d40f97b498b57189f2db7e7"
+        "923e3b8d81324f0aa3982b6ad6a71fa6cd257a7a43932a21e22e4a7ff426457c"
     )
     assert auto_m5_current_exit.STORY_PYTEST_TEST_COUNT == 603
     assert auto_m5_current_exit.STORY_PYTEST_DECLARED_TEST_COUNT == 1_161
@@ -584,6 +584,7 @@ def test_catalog_selects_exact_m5_gate_and_closed_lanes() -> None:
         "tools/automation/test_run.py",
         "tools/ui/verify_m5_service_revision.mjs",
         "tools/ui/verify_m5_codex_quota_reconciliation.mjs",
+        "tools/ui/m5_representative_policy.mjs",
         "tools/ui/verify_m5_codex_alert_lifecycle.mjs",
         "tools/ui/verify_dashboard_provider_filter.mjs",
         "frontend/tests/browser/p02/run_browser.py",

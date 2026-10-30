@@ -194,9 +194,9 @@ STORY_NODE_TEST_PATHS = (
     "frontend/tests/pure/provider-account-presentation.mjs",
     "frontend/tests/pure/quota-reset-presentation.mjs",
 )
-STORY_NODE_TEST_COUNT = 21
+STORY_NODE_TEST_COUNT = 22
 STORY_NODE_TEST_INVENTORY_SHA256 = (
-    "ac6afb5a290f5bf5940581ef13db21acccce947f3d40f97b498b57189f2db7e7"
+    "923e3b8d81324f0aa3982b6ad6a71fa6cd257a7a43932a21e22e4a7ff426457c"
 )
 STORY_BROWSER_SCENARIOS = ("account_beyond_page",)
 # Updated only from the exact collected inventory after intentional test changes.
@@ -225,6 +225,7 @@ STORY_ARTIFACTS = (
     "tools/automation/test_m5_codex_quota_witness.py",
     "tools/automation/test_run.py",
     "tools/ui/m5_codex_policy.mjs",
+    "tools/ui/m5_representative_policy.mjs",
     *STORY_NODE_TEST_PATHS,
     "tools/ui/verify_m5_codex.mjs",
     "tools/ui/verify_m5_service_revision.mjs",

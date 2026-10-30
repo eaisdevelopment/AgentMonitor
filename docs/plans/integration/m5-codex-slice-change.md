@@ -3654,13 +3654,15 @@ writes its private create-once receipt. The gate must prove:
 2. four selected real Codex account outcomes with distinct verified identities,
    or explicit owner-unavailable rows permitted by `AC-LIVE-002`, loaded from
    the fixed owner-only outcome file and bound by digest/count only;
-3. current genuine quota plus matching history lineage for every available
-   monitored account, reconciled through `AUTO-M5-QUOTA-WITNESS` with Codex's
-   official `/status` view at exact account/window membership, semantic roles,
+3. current genuine quota plus matching history lineage for every verified
+   selected account, and a representative comparison of two distinct monitored
+   accounts through `AUTO-M5-QUOTA-WITNESS` with Codex's official `/status`
+   view at exact account/window membership, semantic roles,
    whole percentages, displayed reset precision, and at most 300 seconds of
    observation/collection skew; resets match absolutely unless two exact
    `100%` readings satisfy the bounded one-for-one rolling relation specified
-   by plan 1.18.0;
+   by plan 1.18.0. The owner-approved [representative comparison plan](m5-representative-quota-comparison-proposal.md)
+   defines the sample and explicitly limits the claim for unsampled accounts;
 4. five to six representative real Codex processes outside AgentMonitor's
    managed-profile subtree, exact independently reread PID/start/executable
    identity, safe hierarchy/location presentation, and truthful unresolved or

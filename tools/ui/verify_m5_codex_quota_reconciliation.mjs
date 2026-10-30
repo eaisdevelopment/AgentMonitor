@@ -3,6 +3,7 @@
 import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { chromium } from "../../frontend/node_modules/@playwright/test/index.mjs";
+import { selectRepresentativeOutcomesV1 } from "./m5_representative_policy.mjs";
 
 import {
   canonicalCodexHistoryMaterialV1,
@@ -355,13 +356,17 @@ try {
     "m5_quota_service_revision_mismatch");
   const registryBefore = sha256(await registryMaterial(read, ...baseRegistry));
   const accounts = new Map(baseRegistry[0].map(item => [item.account_id, item]));
+  const requestedSample = process.env.AGENTMONITOR_M5_SAMPLE_ACCOUNT_IDS;
+  const proofAccounts = requestedSample === undefined ? verified
+    : selectRepresentativeOutcomesV1(verified, accounts, requestedSample.split(" "));
+  requireResult(proofAccounts !== null, "m5_quota_sample_selection_invalid");
 
   stage = "current_codex_lineage";
   const now = new Date();
   const from = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
   const records = [];
   const identityKeys = [];
-  for (const outcome of verified) {
+  for (const outcome of proofAccounts) {
     const account = accounts.get(outcome.account_id);
     requireResult(account?.provider_key === "codex" && account.lifecycle === "active"
       && account.is_effective_monitoring_enabled,
@@ -414,7 +419,7 @@ try {
       windows: normalizedWindows,
     });
   }
-  requireResult(new Set(identityKeys).size === verified.length,
+  requireResult(new Set(identityKeys).size === proofAccounts.length,
     "m5_quota_distinct_identities_required");
 
   stage = "built_quota_and_history";
