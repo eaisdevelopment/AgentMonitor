@@ -436,9 +436,9 @@ export function DashboardApp() {
         data-password-lifecycle={passwordLifecycle}
         data-session-action={headerSessionAction}
       >
-        <ProductPromotion />
         <header className="dashboard-header">
           <div><p className="eyebrow">Local operations console</p><span className="brand">AgentMonitor</span></div>
+          <ProductPromotion />
           <div className="header-actions">
             <button type="button" className="quiet-button" disabled={passwordFlowOpen || headerSessionActionOpen} onClick={() => { void checkSession(); }}>{headerSessionAction === "checking" ? "Checking…" : "Check session"}</button>
             <button type="button" className="quiet-button" disabled={passwordFlowOpen || headerSessionActionOpen} onClick={() => { void logout(); }}>{headerSessionAction === "logging-out" ? "Signing out…" : "Sign out"}</button>

@@ -48,3 +48,9 @@ real dashboard and retain the existing product-link checks.
 The owner clarified that top means above the application header, not merely
 the first item within Overview. Place the promotion before that header on
 the authenticated dashboard and verify its actual screen position.
+
+## Owner-directed header placement
+
+The owner requested the promotion between the AgentMonitor name and the
+Check session and Sign out controls. Use a compact header layout and wrap
+the promotion on narrow screens.

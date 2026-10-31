@@ -464,3 +464,21 @@ td { font-variant-numeric: tabular-nums; }
 .dashboard-company-footer { margin: 1.5rem 0 .5rem; padding: 1rem 0; border-top: 1px solid #30434a; color: #9ab0b5; font-size: .78rem; }
 .dashboard-company-footer a { color: #b8e9d4; text-decoration: none; }
 .dashboard-company-footer a:hover { text-decoration: underline; }
+
+.dashboard-header .product-promotion { flex: 1 1 24rem; max-width: 42rem; min-width: 0; padding: .45rem .8rem; gap: .6rem; }
+.dashboard-header .product-promotion h2 { display: inline; margin: 0 .6rem 0 0; font-size: .85rem; }
+.dashboard-header .product-promotion p.panel-code { display: inline; margin: 0 .55rem 0 0; font-size: .62rem; }
+.dashboard-header .product-promotion p:not(.panel-code) { display: inline; margin: 0 .6rem 0 0; font-size: .75rem; }
+.dashboard-header .product-promotion a { white-space: nowrap; font-size: .75rem; }
+.dashboard-header .product-promotion-controls { gap: .2rem; }
+.dashboard-header .product-promotion-controls button { padding: .2rem .35rem; }
+@media (max-width: 800px) { .dashboard-header { flex-wrap: wrap; } .dashboard-header .product-promotion { order: 3; flex-basis: 100%; max-width: none; } }
+@media (max-width: 800px) {
+  .dashboard-header .product-promotion { width: 100%; min-width: 0; max-width: 100%; flex: 1 1 100%; overflow-wrap: anywhere; }
+  .dashboard-header .product-promotion > div:first-child { min-width: 0; }
+  .dashboard-header .product-promotion-controls { flex-wrap: wrap; }
+}
+@media (max-width: 600px) {
+  .dashboard-header { flex-wrap: nowrap; }
+  .dashboard-header .product-promotion { flex: 0 1 auto; }
+}
