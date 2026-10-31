@@ -1,0 +1,93 @@
+{
+  "schema_version": "1.0.0",
+  "record_type": "agentmonitor.m4_current_gate_receipt",
+  "receipt_id": "M4-CURRENT-GATE-20261007T131859Z",
+  "milestone_id": "V1-M4",
+  "command_id": "AUTO-M4-EXIT",
+  "command": "python3 tools/automation/run.py AUTO-M4-EXIT",
+  "implementation_revision": "9dbb765531f05f2ae1e8174383cc0ff8b7cb8072",
+  "started_at": "2026-10-07T13:14:31Z",
+  "completed_at": "2026-10-07T13:18:59Z",
+  "status": "passed",
+  "exit_code": 0,
+  "skips": [],
+  "test_count": 302,
+  "account_count": 6,
+  "organization_count": 2,
+  "distinct_identity_count": 6,
+  "owner_outcomes_digest": "6a65f8e1ad6112a5e5d036d38a95356c8d6eac24183c99485ff8934575dccdd8",
+  "fleet_metadata_digest": "f2a6a4382495256ecad2c2fba4abc44c405c7cdfbbaa39662bed6bb4dbe1cacf",
+  "identity_set_digest": "15fa5159ffd36bed52274787ce02e86dbbc64e66f3ca88057ad2f38813fa74e0",
+  "required_lanes": [
+    {
+      "lane_id": "fleet_preflight",
+      "status": "passed",
+      "evidence": "six_distinct_registered_identities_verified"
+    },
+    {
+      "lane_id": "build",
+      "status": "passed",
+      "evidence": "auto-build_passed"
+    },
+    {
+      "lane_id": "revision_bound_service",
+      "status": "passed",
+      "evidence": "service_restarted_from_clean_head"
+    },
+    {
+      "lane_id": "technical_suite",
+      "status": "passed",
+      "evidence": "auto_m3_test_and_pytest_302_passed_zero_skips"
+    },
+    {
+      "lane_id": "fleet_browser",
+      "status": "passed",
+      "evidence": "fleet_browser_passed"
+    },
+    {
+      "lane_id": "alerts_browser",
+      "status": "passed",
+      "evidence": "alerts_browser_passed"
+    },
+    {
+      "lane_id": "operations_browser",
+      "status": "passed",
+      "evidence": "operations_browser_passed"
+    },
+    {
+      "lane_id": "registry_unchanged",
+      "status": "passed",
+      "evidence": "pre_post_fleet_digest_matched"
+    },
+    {
+      "lane_id": "fresh_fleet_lineage",
+      "status": "passed",
+      "evidence": "six_post_restart_runs_with_history"
+    },
+    {
+      "lane_id": "planning",
+      "status": "passed",
+      "evidence": "auto-plan-check_passed"
+    },
+    {
+      "lane_id": "quality",
+      "status": "passed",
+      "evidence": "auto-quality_passed"
+    },
+    {
+      "lane_id": "mutation",
+      "status": "passed",
+      "evidence": "auto-mutation_passed"
+    },
+    {
+      "lane_id": "documentation",
+      "status": "passed",
+      "evidence": "auto-docs-check_passed"
+    },
+    {
+      "lane_id": "git_preflight",
+      "status": "passed",
+      "evidence": "auto-git-preflight_passed"
+    }
+  ]
+}

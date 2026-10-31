@@ -1,0 +1,32 @@
+{
+  "record_type": "M03ContractBundleV1",
+  "schema_version": "1.0",
+  "bundle_id": "M3-CTR-PROV-002-BUNDLE-001",
+  "contract_id": "CTR-PROV-002",
+  "contract_version": "1.0.0",
+  "status": "current",
+  "normative_artifacts": [
+    {
+      "path": "docs/plans/contract-baseline.toml",
+      "sha256": "38766851fdc968001d408c3968a3a7bc1677fca7ba96fa81e8ce162a852e0a7e"
+    },
+    {
+      "path": "docs/plans/modules/m03-provider-system/plan-v1.md",
+      "sha256": "852823439c40c922432d6f218452171f442ddf79a0b7a3bfcd188e23fdf5072c"
+    },
+    {
+      "path": "backend/src/agentmonitor/contracts/common_provenance_v1.py",
+      "sha256": "b25530b1c0a671350717486ef4c03cd813778e0dc7948103da48792cb8e7d271"
+    },
+    {
+      "path": "backend/src/agentmonitor/contracts/provider_system_v1.py",
+      "sha256": "7416d02996df4c7ea90cc1089d4d607af3915af851969cec6212475413f602dc"
+    }
+  ],
+  "schema_artifact_status": "current",
+  "schema_artifact": {
+    "path": "contracts/provider-system/capability-manifest-v1.schema.json",
+    "sha256": "d86958cb4f2c3805fee5bed51a6c590810ccf33e270c50371274308d07603466"
+  },
+  "blocking_reason": null
+}

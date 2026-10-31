@@ -1,0 +1,302 @@
+{
+  "schema_version": "1.0.0",
+  "record_type": "agentmonitor.milestone_acceptance_status",
+  "record_id": "M3-ACCEPTANCE-2026-09-24-01",
+  "milestone_id": "V1-M3",
+  "lifecycle": "superseded",
+  "overall_status": "blocked",
+  "assessed_revision": "6b1edfc4a1ed1ac2c64692ec0d790b34b21ae7b8",
+  "recorded_at": "2026-09-24T12:00:00Z",
+  "status_documents": [
+    "docs/README.md",
+    "docs/evidence/m3-local-foundation-handoff.md"
+  ],
+  "evidence": [
+    {
+      "evidence_id": "E-M3-HANDOFF",
+      "path": "docs/evidence/m3-local-foundation-handoff.md",
+      "sha256": "341397aeccaa1a186ed5a4c7fa4dcf533167629c9fd29688c81fccfa119aad9d"
+    },
+    {
+      "evidence_id": "E-M3-VERTICAL",
+      "path": "docs/evidence/m3-owner-confirmed-claude-vertical.md",
+      "sha256": "0fcaa9c5abed9735d1f2a1ea42b894b312a9a8d4ebff25bf6f9b0e4343942f42"
+    },
+    {
+      "evidence_id": "E-M3-CLAUDE-LIVE",
+      "path": "docs/evidence/m3-claude-live-unblock.md",
+      "sha256": "75ef67b2b795c4032f0416f8b0a0c7c34ff0c542c41b89e8ab260ddf72fb1050"
+    },
+    {
+      "evidence_id": "E-M3-RUNTIME",
+      "path": "docs/evidence/m3-st-obs-002.md",
+      "sha256": "2ba6d30de5fed6fd2ea638999b2090c9e1f651a14d1f0a315dc0126ef36a9194"
+    },
+    {
+      "evidence_id": "E-M3-P01",
+      "path": "docs/evidence/m3-st-obs-003-p01.md",
+      "sha256": "f58df718c044c786066cadbc7d8797b0f2f715e2ee672e6baa22166b243b8dbf"
+    },
+    {
+      "evidence_id": "E-M3-P02",
+      "path": "docs/evidence/m3-st-obs-003-p02.md",
+      "sha256": "62457d21bd313282d793d84daaf991e775a9f7754d00a75f12bf166dc0f7c425"
+    },
+    {
+      "evidence_id": "E-M3-BROWSER-RUNNER",
+      "path": "docs/evidence/m3-authenticated-dashboard-runner.md",
+      "sha256": "36850d33ca4688a4b27d9dafeebc2709ef02e9d19759983c50a82def5506a868"
+    },
+    {
+      "evidence_id": "E-M3-FIX-001-002",
+      "path": "docs/evidence/m3-fix-001-002-handoff.md",
+      "sha256": "2a6d19c9ca15ca4f42770b380f7e097086478d8febe397dbe26e89e218811576"
+    },
+    {
+      "evidence_id": "E-M3-FIX-003",
+      "path": "docs/evidence/m3-fix-003-exit-gate.md",
+      "sha256": "4939ed3a1445a3b9154a960fbec81def596f070826daba2331461161523ac608"
+    },
+    {
+      "evidence_id": "E-M3-FIX-004",
+      "path": "docs/evidence/m3-fix-004-fingerprint-binding.md",
+      "sha256": "1cff6d220b9bcf8f1c2f76ce9c27b6ee9fb6c0f97b7846cd590b2057c72f7650"
+    },
+    {
+      "evidence_id": "E-M3-OTEL-TARGETED-PROBE",
+      "path": "docs/evidence/m3-claude-otel-targeted-probe.md",
+      "sha256": "bb72ea6f5467737465ba1af107d3b07411785970e48dfa5d2ccb164951f7dd29"
+    },
+    {
+      "evidence_id": "E-M3-FIX-006",
+      "path": "docs/evidence/m3-fix-006-mutation-gate.md",
+      "sha256": "c6938e7ac565e2944c298fedb6aca6e0cfff37632af9c7d34c9e347f013217d8"
+    },
+    {
+      "evidence_id": "E-M3-FIX-009",
+      "path": "docs/evidence/m3-fix-009-history-pagination.md",
+      "sha256": "b2a79915ee58517baf31b426026d102d71babdf1348316391cb6da736b4c9b23"
+    },
+    {
+      "evidence_id": "E-M3-FIX-010",
+      "path": "docs/evidence/m3-fix-010-session-tree.md",
+      "sha256": "9ff0227162c3ce74fc08db3c73ebe3ccb099ca9404517ad0e7be8e0bb23b65a9"
+    }
+  ],
+  "commands": [
+    {
+      "command_id": "AUTO-M3-EXIT",
+      "command": "python3 tools/automation/run.py AUTO-M3-EXIT",
+      "status": "not_run",
+      "exit_code": null,
+      "skips": [
+        "AC-TEST-001 M3 deviation has no owner disposition",
+        "AC-TEST-005 mutation gate is absent",
+        "AC-PROC-002 representative multi-provider hierarchy is unavailable",
+        "AC-PROC-005 natural ten-minute stall and wait scenario is unavailable"
+      ],
+      "evidence_ids": [
+        "E-M3-HANDOFF",
+        "E-M3-VERTICAL",
+        "E-M3-RUNTIME"
+      ]
+    },
+    {
+      "command_id": "AUTO-M3-LIVE",
+      "command": "python3 tools/automation/run.py AUTO-M3-LIVE",
+      "status": "passed",
+      "exit_code": 0,
+      "skips": [],
+      "evidence_ids": [
+        "E-M3-VERTICAL"
+      ]
+    },
+    {
+      "command_id": "AUTO-TEST-HISTORICAL-FOUNDATION",
+      "command": "python3 tools/automation/run.py AUTO-TEST",
+      "status": "failed",
+      "exit_code": 1,
+      "skips": [
+        "three real Registry scenarios",
+        "one real Collection scenario",
+        "one real Capacity scenario"
+      ],
+      "evidence_ids": [
+        "E-M3-HANDOFF"
+      ]
+    }
+  ],
+  "criteria": [
+    {
+      "criterion_id": "AC-V1-001",
+      "status": "blocked",
+      "evidence_ids": ["E-M3-HANDOFF"],
+      "decision": "Audit repairs and outstanding criteria are not yet reconciled into complete M3 traceability."
+    },
+    {
+      "criterion_id": "AC-V1-002",
+      "status": "blocked",
+      "evidence_ids": ["E-M3-HANDOFF", "E-M3-RUNTIME"],
+      "decision": "The selected M3 scope still has evidence-blocked live and test-plan gates."
+    },
+    {
+      "criterion_id": "AC-V1-005",
+      "status": "blocked",
+      "evidence_ids": ["E-M3-HANDOFF"],
+      "decision": "The M3 audit retains unresolved acceptance findings."
+    },
+    {
+      "criterion_id": "AC-V1-006",
+      "status": "blocked",
+      "evidence_ids": ["E-M3-HANDOFF"],
+      "decision": "Documentation structure passes do not prove all release documentation complete."
+    },
+    {
+      "criterion_id": "AC-V1-007",
+      "status": "blocked",
+      "evidence_ids": ["E-M3-HANDOFF"],
+      "decision": "Full release artifact, backup, diagnostic, and hosted secret review remains outstanding."
+    },
+    {
+      "criterion_id": "AC-V1-008",
+      "status": "passed",
+      "evidence_ids": ["E-M3-HANDOFF", "E-M3-P02", "E-M3-RUNTIME"],
+      "decision": "The M3 evidence records real boundaries and explicitly separates unavailable scenarios without simulated telemetry."
+    },
+    {
+      "criterion_id": "AC-UI-002",
+      "status": "passed",
+      "evidence_ids": ["E-M3-VERTICAL", "E-M3-P02"],
+      "decision": "The real authenticated Claude dashboard rendered populated quota and runtime metadata without placeholder telemetry."
+    },
+    {
+      "criterion_id": "AC-UI-003",
+      "status": "passed",
+      "evidence_ids": ["E-M3-VERTICAL", "E-M3-P02"],
+      "decision": "The recorded production-browser run covered desktop, zoom-equivalent, and mobile viewports."
+    },
+    {
+      "criterion_id": "AC-UI-006",
+      "status": "passed",
+      "evidence_ids": ["E-M3-VERTICAL", "E-M3-P01", "E-M3-P02"],
+      "decision": "The populated API and browser path exposed the recorded source, time, freshness, and provenance fields."
+    },
+    {
+      "criterion_id": "AC-LIVE-001",
+      "status": "blocked",
+      "evidence_ids": ["E-M3-VERTICAL"],
+      "decision": "One owner-confirmed Claude account is proven; the six intended accounts are not enrolled or owner-dispositioned."
+    },
+    {
+      "criterion_id": "AC-LIVE-004",
+      "status": "blocked",
+      "evidence_ids": ["E-M3-CLAUDE-LIVE", "E-M3-VERTICAL"],
+      "decision": "One Claude lane is proven; the acceptance criterion covers every provider adapter."
+    },
+    {
+      "criterion_id": "AC-LIVE-005",
+      "status": "passed",
+      "evidence_ids": ["E-M3-CLAUDE-LIVE", "E-M3-VERTICAL"],
+      "decision": "The recorded Claude quota observation was reconciled through the provider-backed live path."
+    },
+    {
+      "criterion_id": "AC-PROC-001",
+      "status": "passed",
+      "evidence_ids": ["E-M3-RUNTIME", "E-M3-VERTICAL"],
+      "decision": "The real Linux process observation remained read-only and preserved the launch workflow."
+    },
+    {
+      "criterion_id": "AC-PROC-002",
+      "status": "blocked",
+      "evidence_ids": ["E-M3-RUNTIME", "E-M3-VERTICAL"],
+      "decision": "Representative parent/subagent trees for Claude, Codex, and Ollama are not all available."
+    },
+    {
+      "criterion_id": "AC-PROC-003",
+      "status": "blocked",
+      "evidence_ids": ["E-M3-RUNTIME", "E-M3-VERTICAL"],
+      "decision": "An actually ambiguous live mapping requiring the complete manual-confirmation workflow did not occur."
+    },
+    {
+      "criterion_id": "AC-PROC-004",
+      "status": "passed",
+      "evidence_ids": ["E-M3-RUNTIME", "E-M3-VERTICAL"],
+      "decision": "The recorded schema, persistence, and artifact review retained metadata-only allowlisted fields."
+    },
+    {
+      "criterion_id": "AC-PROC-005",
+      "status": "not_run",
+      "evidence_ids": ["E-M3-RUNTIME", "E-M3-VERTICAL"],
+      "decision": "A natural ten-minute stall plus observable user or permission wait was unavailable and was not simulated."
+    },
+    {
+      "criterion_id": "AC-HIST-001",
+      "status": "passed",
+      "evidence_ids": ["E-M3-VERTICAL"],
+      "decision": "A real observation reached persisted history and the production browser chart."
+    },
+    {
+      "criterion_id": "AC-TEST-001",
+      "status": "blocked",
+      "evidence_ids": ["E-M3-HANDOFF", "E-M3-P01", "E-M3-P02"],
+      "decision": "Older M3 corrections lack exact historical Reds and no M3-specific owner deviation disposition is recorded."
+    },
+    {
+      "criterion_id": "AC-TEST-002",
+      "status": "passed",
+      "evidence_ids": ["E-M3-HANDOFF", "E-M3-P02", "E-M3-RUNTIME"],
+      "decision": "The recorded source and test-integrity reviews found no prohibited external-boundary test substitute."
+    },
+    {
+      "criterion_id": "AC-TEST-003",
+      "status": "blocked",
+      "evidence_ids": ["E-M3-HANDOFF", "E-M3-VERTICAL"],
+      "decision": "Individual local and live suites passed, but no complete revision-bound M3 exit result exists."
+    },
+    {
+      "criterion_id": "AC-TEST-004",
+      "status": "blocked",
+      "evidence_ids": ["E-M3-CLAUDE-LIVE", "E-M3-VERTICAL"],
+      "decision": "The repository lacks a complete criterion-level countersignature for all selected live scenarios."
+    },
+    {
+      "criterion_id": "AC-TEST-005",
+      "status": "not_run",
+      "evidence_ids": ["E-M3-HANDOFF"],
+      "decision": "No admitted mutation tool, target score, executable result, or survivor report exists."
+    },
+    {
+      "criterion_id": "AC-TEST-006",
+      "status": "blocked",
+      "evidence_ids": ["E-M3-HANDOFF", "E-M3-RUNTIME"],
+      "decision": "This record separates unavailable scenarios, but the complete revision-bound M3 exit pipeline has not passed."
+    }
+  ],
+  "reviewer_decisions": [
+    {
+      "decision_id": "M3-AUDIT-STATUS-2026-09-24",
+      "status": "blocked",
+      "decision": "V1-M3 is not accepted until every selected criterion has executable evidence or an explicit approved disposition.",
+      "evidence_ids": ["E-M3-HANDOFF", "E-M3-VERTICAL", "E-M3-RUNTIME"]
+    },
+    {
+      "decision_id": "M3-TDD-DEVIATION-2026-09-24",
+      "status": "blocked",
+      "decision": "The historical M3 Red-evidence gap remains pending an explicit M3 owner disposition and is not a pass.",
+      "evidence_ids": ["E-M3-HANDOFF", "E-M3-P01", "E-M3-P02"]
+    },
+    {
+      "decision_id": "M3-MUTATION-2026-09-24",
+      "status": "not_run",
+      "decision": "AC-TEST-005 remains Not Run until an admitted mutation gate executes and its survivor report is retained.",
+      "evidence_ids": ["E-M3-HANDOFF"]
+    }
+  ],
+  "supersedes": [
+    {
+      "path": "docs/evidence/m3-local-foundation-handoff.md",
+      "prior_status": "passed",
+      "scope": "Supersedes milestone-level acceptance conclusions only; all historical commands, outcomes, and evidence remain preserved."
+    }
+  ]
+}

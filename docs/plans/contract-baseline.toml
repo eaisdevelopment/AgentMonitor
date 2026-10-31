@@ -1,0 +1,1171 @@
+schema_version = "1.0"
+baseline_version = "0.2.0"
+status = "draft_aligned"
+owner = "integration_steward"
+source_audit = "CAA-2026-09-18-01"
+source_audit_path = "docs/plans/integration/contract-alignment-audit.md"
+contract_version_policy = "Every contract in this Draft proposes version 1.0.0."
+contract_count = 97
+owner_approved = false
+implementation_authorized = false
+synchronized = false
+approved = false
+live_verified = false
+allowed_maturities = ["proposed_aligned", "evidence_blocked"]
+checklist_semantics = "A true checklist value means the dimension is explicitly carried into Draft alignment under the conventions below and must be specialized or explicitly marked not applicable during producer-consumer review. It does not mean Synchronized, Approved, Implemented, or live verified."
+
+[aligned_conventions]
+field_state_null = "Missing, null, unknown, unsupported, unavailable, not_applicable, withheld_or_denied, stale, unresolved, and exact zero are distinct; every schema specializes the applicable states."
+units_time = "Exact quantities use versioned exact representations and explicit units; timestamps are aware UTC with a canonical API and persistence spelling; elapsed durations are integer milliseconds unless an explicitly suffixed field defines another unit."
+auth = "Dashboard authentication, provider reauthentication health, and provider-account identity mismatch are distinct; every command/query declares principal permission and provider-profile authority where applicable."
+side_effects = "Queries are side-effect free except explicitly documented bounded touches; every command and boundary declares permitted writes, external effects, deadlines, cancellation, and prohibited effects."
+idempotency = "Commands declare replay scope, canonical request fingerprint, concurrency/version behavior, receipt retention, and one-time-secret non-replay rules where applicable."
+events = "Events use the common envelope plus producer sequence, atomic outbox, consumer receipt/checkpoint, at-least-once deduplication, replay, incompatible-major rejection, and explicit recovery evidence where applicable."
+retention = "Each persistent record, event, receipt, job, artifact, projection, backup, and evidence reference declares retention, exemption, purge authority, and export/recovery dependency."
+errors = "Every boundary uses typed, allowlisted, sanitized errors; unavailable, unsupported, authentication, authorization, conflict, deadline, incompatibility, and internal failure are not collapsed."
+compatibility = "Semantic producer and all consumers review version meaning; breaking nullability, unit, time, auth, event, identifier, persistence, or side-effect changes require a new major and the mandated migration or ADR."
+
+[event_topology]
+id = "CTR-EVT-TOPOLOGY-001"
+status = "draft_aligned"
+model = "module_owned_transactional_outboxes"
+semantic_governor = "PLAN-INT"
+persistence_mechanism_owner = "PLAN-DB"
+producer_row_owner = "producing_module"
+consumer_receipt_owner = "consuming_module"
+dispatcher_access = "published_module_event_storage_ports_only"
+central_event_table = false
+cross_module_table_access = false
+owner_approved = false
+implementation_authorized = false
+producer_outbox_tables = [
+  { plan = "PLAN-M02", table = "reg_event_outbox" },
+  { plan = "PLAN-M03", table = "provider_system_event_outbox" },
+  { plan = "PLAN-M04", table = "collection_event_outbox" },
+  { plan = "PLAN-M05", table = "capacity_event_outbox" },
+  { plan = "PLAN-M06", table = "runtime_event_outbox" },
+  { plan = "PLAN-M07", table = "alert_event_outbox" },
+  { plan = "PLAN-M08", table = "ops_event_outbox" },
+]
+producer_delivery_table_rule = "A producer that tracks delivery attempts owns <module-prefix>event_delivery in the same migration namespace; delivery rows are not consumer processing receipts."
+consumer_receipt_table_rule = "A consuming module owns its deduplication receipt and stream checkpoint under its own table prefix and commits them atomically with its domain effect and any resulting producer outbox append."
+dispatcher_rule = "PLAN-DB implements reusable claim/delivery persistence mechanics; the dispatcher reaches rows only through published per-module event-storage ports and never through cross-module SQL."
+transaction_rule = "A domain mutation and its producer outbox append commit or roll back together; consumer outage cannot roll back a committed producer mutation."
+retention_rule = "Pending outbox rows, delivery work, consumer receipts, and checkpoints remain protected until their synchronized terminal and replay-retention conditions are satisfied."
+
+[[resolutions]]
+id = "CAA-C01"
+status = "owner_approval_required_before_implementation"
+decision = "Full plan and contract synchronization, the semantic planning gate, and explicit owner approval of the exact plan and contract baseline must precede any W0 production-code or test implementation. Later CS gates are implementation integration checkpoints and cannot retroactively authorize earlier work."
+owner_approved = false
+implementation_authorized = false
+
+[[resolutions]]
+id = "CAA-C02"
+status = "accepted_alignment_direction"
+decision = "Reserve dashboard_authentication_required for dashboard HTTP 401 and session recovery. Reserve provider_reauthentication_required for provider authentication state. Map them to distinct HTTP statuses and UI flows; provider failure must never clear the dashboard session."
+owner_approved = false
+implementation_authorized = false
+
+[[resolutions]]
+id = "CAA-C03"
+status = "accepted_alignment_direction"
+decision = "Use reauthentication_required as the canonical normalized provider authentication state. Any operation-specific provider outcome must have an explicit versioned mapping; changing an existing enum requires compatibility treatment."
+owner_approved = false
+implementation_authorized = false
+
+[[resolutions]]
+id = "CAA-C04"
+status = "accepted_alignment_direction"
+decision = "Every idempotent operation declares replay_policy. Normal operations may replay a safe result; one-time-secret operations return one_time_secret_not_replayable with safe resource metadata and never cache or replay plaintext."
+owner_approved = false
+implementation_authorized = false
+
+[[resolutions]]
+id = "CAA-C05"
+status = "accepted_alignment_direction"
+decision = "PLAN-M06 is the sole semantic producer of ProcessInspectionPortV1. PLAN-A04-LINUX and PLAN-A04-MAC implement it and may propose extensions only through PLAN-M06 contract review."
+owner_approved = false
+implementation_authorized = false
+
+[[resolutions]]
+id = "CAA-C06"
+status = "accepted_alignment_direction"
+decision = "CTR-PLAT-001 has one platform-neutral semantic producer. Linux and macOS are implementations or versioned extensions; one ID may not independently mean linux-platform.v1 and macos-platform.v1."
+owner_approved = false
+implementation_authorized = false
+
+[[resolutions]]
+id = "CAA-C07"
+status = "accepted_alignment_direction"
+decision = "PLAN-P01 owns API semantics and source schemas, PLAN-FND owns the generator mechanism, PLAN-INT is the sole generated-artifact writer per wave, and PLAN-P02 owns generated-client wrapper consumption."
+owner_approved = false
+implementation_authorized = false
+
+[[resolutions]]
+id = "CAA-C08"
+status = "accepted_alignment_direction"
+decision = "Use separate typed phases and receipts for PLAN-DEP artifact and unit activation, PLAN-DB database activation, and PLAN-M08 restore authority and workflow. Rollback targets must remain distinct."
+owner_approved = false
+implementation_authorized = false
+
+[[resolutions]]
+id = "CAA-C09"
+status = "accepted_alignment_direction"
+decision = "PLAN-M08 owns application maintenance intent and state. PLAN-DEP owns fenced service quiescence execution and its receipt. Competing maintenance state machines are prohibited."
+owner_approved = false
+implementation_authorized = false
+
+[[resolutions]]
+id = "CAA-C10"
+status = "accepted_alignment_direction"
+decision = "PLAN-M08 readiness consumes a narrow non-composite service-state receipt. PLAN-DEP composite status may consume PLAN-M08 readiness, never the reverse; liveness remains cycle-free."
+owner_approved = false
+implementation_authorized = false
+
+[[resolutions]]
+id = "CAA-C11"
+status = "accepted_alignment_direction"
+decision = "PLAN-M05 owns normalized capacity-health classification. PLAN-M07 owns alert activation thresholds, including the 30 percent and 15 percent defaults, and precedence. PLAN-M07 consumes PLAN-M05 and never supplies policy back to it."
+owner_approved = false
+implementation_authorized = false
+
+[[resolutions]]
+id = "CAA-C12"
+status = "accepted_alignment_direction"
+decision = "PLAN-P01 consumes provider capability and compatibility query ports plus the PLAN-M02 reauthentication application workflow only. It does not consume provider invocation gateways or adapter internals."
+owner_approved = false
+implementation_authorized = false
+
+[[resolutions]]
+id = "CAA-C13"
+status = "accepted_alignment_direction"
+decision = "Use the exact NFR-PERF-001 subjects: at least 100 registered accounts and 200 simultaneously discovered processes. AgentMonitor-owned production-path records may measure internal mechanics but do not prove provider support; no seeded accounts, processes, or telemetry are permitted, and absent real scale remains Blocked unless the requirement is formally changed."
+owner_approved = false
+implementation_authorized = false
+
+[[resolutions]]
+id = "CAA-C14"
+status = "accepted_alignment_direction"
+decision = "Use one persistence adapter layout, backend/src/agentmonitor/adapters/persistence/<module>/sqlite/, across all plans and enforce it through import and ownership checks."
+owner_approved = false
+implementation_authorized = false
+
+[[resolutions]]
+id = "CAA-C15"
+status = "accepted_alignment_direction"
+decision = "CTR-FND-001 freezes one contract package and file convention before parallel scaffolding; consumers may not add private compatibility re-exports."
+owner_approved = false
+implementation_authorized = false
+
+[[resolutions]]
+id = "CAA-C16"
+status = "accepted_alignment_direction"
+decision = "Provider extension contracts use one producer-owned versioned namespace governed by PLAN-M03; domain modules may not import provider adapter packages."
+owner_approved = false
+implementation_authorized = false
+
+[[resolutions]]
+id = "CAA-C17"
+status = "accepted_alignment_direction"
+decision = "PLAN-A01 owns the Anthropic API integration lane, PLAN-A02 owns the OpenAI API integration lane, and PLAN-A03 owns the supported Ollama API integration lane. Milestone 0 decides capability maturity, not lane ownership."
+owner_approved = false
+implementation_authorized = false
+
+# Common technical, configuration, and schema contracts
+
+[[contracts]]
+id = "CTR-COMMON-001"
+name = "OpaqueIdV1"
+version = "1.0.0"
+producer = "PLAN-FND"
+consumers = ["PLAN-M01", "PLAN-M02", "PLAN-M03", "PLAN-M04", "PLAN-M05", "PLAN-M06", "PLAN-M07", "PLAN-M08", "PLAN-A01", "PLAN-A02", "PLAN-A03", "PLAN-A04-LINUX", "PLAN-A04-MAC", "PLAN-P01", "PLAN-P02", "PLAN-DB", "PLAN-DEP", "PLAN-INT"]
+maturity = "proposed_aligned"
+decision_reference = "CAA-2026-09-18-01 sections 5.1 and 9"
+checklist = { field_state_null = true, units_time = true, auth = true, side_effects = true, idempotency = true, events = true, retention = true, errors = true, compatibility = true }
+
+[[contracts]]
+id = "CTR-COMMON-002"
+name = "TimestampAndDurationV1"
+version = "1.0.0"
+producer = "PLAN-FND"
+consumers = ["PLAN-M01", "PLAN-M02", "PLAN-M03", "PLAN-M04", "PLAN-M05", "PLAN-M06", "PLAN-M07", "PLAN-M08", "PLAN-A01", "PLAN-A02", "PLAN-A03", "PLAN-A04-LINUX", "PLAN-A04-MAC", "PLAN-P01", "PLAN-P02", "PLAN-DB", "PLAN-DEP", "PLAN-INT"]
+maturity = "proposed_aligned"
+decision_reference = "CAA-2026-09-18-01 sections 5.1 and 9.3"
+checklist = { field_state_null = true, units_time = true, auth = true, side_effects = true, idempotency = true, events = true, retention = true, errors = true, compatibility = true }
+
+[[contracts]]
+id = "CTR-COMMON-003"
+name = "ExactQuantityV1"
+version = "1.0.0"
+producer = "PLAN-FND"
+consumers = ["PLAN-M05", "PLAN-M07", "PLAN-A01", "PLAN-A02", "PLAN-P01", "PLAN-P02", "PLAN-DB"]
+maturity = "proposed_aligned"
+decision_reference = "CAA-2026-09-18-01 sections 5.1 and 9.2"
+checklist = { field_state_null = true, units_time = true, auth = true, side_effects = true, idempotency = true, events = true, retention = true, errors = true, compatibility = true }
+
+[[contracts]]
+id = "CTR-COMMON-004"
+name = "ObservationProvenanceV1"
+version = "1.0.0"
+producer = "PLAN-M03"
+consumers = ["PLAN-FND", "PLAN-M04", "PLAN-M05", "PLAN-M06", "PLAN-M07", "PLAN-M08", "PLAN-A01", "PLAN-A02", "PLAN-A03", "PLAN-A04-LINUX", "PLAN-A04-MAC", "PLAN-P01", "PLAN-P02"]
+maturity = "evidence_blocked"
+decision_reference = "CAA-2026-09-18-01 sections 5.1, 8, and 11.1"
+checklist = { field_state_null = true, units_time = true, auth = true, side_effects = true, idempotency = true, events = true, retention = true, errors = true, compatibility = true }
+
+[[contracts]]
+id = "CTR-COMMON-005"
+name = "SafeProblemV1"
+version = "1.0.0"
+producer = "PLAN-P01"
+consumers = ["PLAN-P02", "PLAN-INT"]
+maturity = "proposed_aligned"
+decision_reference = "CAA-2026-09-18-01 sections 5.1, 7 CAA-C02, and 9.4"
+checklist = { field_state_null = true, units_time = true, auth = true, side_effects = true, idempotency = true, events = true, retention = true, errors = true, compatibility = true }
+
+[[contracts]]
+id = "CTR-COMMON-006"
+name = "EventEnvelopeV1"
+version = "1.0.0"
+producer = "PLAN-FND"
+consumers = ["PLAN-M02", "PLAN-M03", "PLAN-M04", "PLAN-M05", "PLAN-M06", "PLAN-M07", "PLAN-M08", "PLAN-DB", "PLAN-INT"]
+maturity = "proposed_aligned"
+decision_reference = "CAA-2026-09-18-01 sections 5.1 and 9.6; specialized by CTR-EVT-001"
+checklist = { field_state_null = true, units_time = true, auth = true, side_effects = true, idempotency = true, events = true, retention = true, errors = true, compatibility = true }
+
+[[contracts]]
+id = "CTR-COMMON-007"
+name = "FieldAvailabilityV1"
+version = "1.0.0"
+producer = "PLAN-FND"
+consumers = ["PLAN-INT", "PLAN-M01", "PLAN-M02", "PLAN-M03", "PLAN-M04", "PLAN-M05", "PLAN-M06", "PLAN-M07", "PLAN-M08", "PLAN-A01", "PLAN-A02", "PLAN-A03", "PLAN-A04-LINUX", "PLAN-A04-MAC", "PLAN-P01", "PLAN-P02", "PLAN-DB"]
+maturity = "proposed_aligned"
+decision_reference = "CAA-2026-09-18-01 sections 6 and 9.1"
+checklist = { field_state_null = true, units_time = true, auth = true, side_effects = true, idempotency = true, events = true, retention = true, errors = true, compatibility = true }
+
+[[contracts]]
+id = "CTR-CONFIG-001"
+name = "ConfigurationRegistryV1"
+version = "1.0.0"
+producer = "PLAN-FND"
+consumers = ["PLAN-M01", "PLAN-M02", "PLAN-M03", "PLAN-M04", "PLAN-M05", "PLAN-M06", "PLAN-M07", "PLAN-M08", "PLAN-A01", "PLAN-A02", "PLAN-A03", "PLAN-A04-LINUX", "PLAN-A04-MAC", "PLAN-P01", "PLAN-P02", "PLAN-DB", "PLAN-DEP", "PLAN-INT"]
+maturity = "proposed_aligned"
+decision_reference = "CAA-2026-09-18-01 sections 5.1 and 12.2"
+checklist = { field_state_null = true, units_time = true, auth = true, side_effects = true, idempotency = true, events = true, retention = true, errors = true, compatibility = true }
+
+[[contracts]]
+id = "CTR-DB-001"
+name = "SchemaCompatibilityV1"
+version = "1.0.0"
+producer = "PLAN-DB"
+consumers = ["PLAN-FND", "PLAN-M05", "PLAN-M06", "PLAN-M08", "PLAN-DEP", "PLAN-INT"]
+maturity = "proposed_aligned"
+decision_reference = "CAA-2026-09-18-01 sections 5.1 and 12.1"
+checklist = { field_state_null = true, units_time = true, auth = true, side_effects = true, idempotency = true, events = true, retention = true, errors = true, compatibility = true }
+
+# Foundation contracts
+
+[[contracts]]
+id = "CTR-FND-001"
+name = "RepositoryLayoutAndOwnershipManifestV1"
+version = "1.0.0"
+producer = "PLAN-FND"
+consumers = ["PLAN-M01", "PLAN-M02", "PLAN-M03", "PLAN-M04", "PLAN-M05", "PLAN-M06", "PLAN-M07", "PLAN-M08", "PLAN-A01", "PLAN-A02", "PLAN-A03", "PLAN-A04-LINUX", "PLAN-A04-MAC", "PLAN-P01", "PLAN-P02", "PLAN-DB", "PLAN-DEP", "PLAN-INT"]
+maturity = "proposed_aligned"
+decision_reference = "CAA-2026-09-18-01 sections 5.2, 7 CAA-C14 through CAA-C16, and 12"
+checklist = { field_state_null = true, units_time = true, auth = true, side_effects = true, idempotency = true, events = true, retention = true, errors = true, compatibility = true }
+
+[[contracts]]
+id = "CTR-FND-002"
+name = "ApplicationFactoryV1"
+version = "1.0.0"
+producer = "PLAN-FND"
+consumers = ["PLAN-M08", "PLAN-P01", "PLAN-DEP", "PLAN-INT"]
+maturity = "proposed_aligned"
+decision_reference = "CAA-2026-09-18-01 section 5.2"
+checklist = { field_state_null = true, units_time = true, auth = true, side_effects = true, idempotency = true, events = true, retention = true, errors = true, compatibility = true }
+
+[[contracts]]
+id = "CTR-FND-003"
+name = "BootstrapConfigurationV1"
+version = "1.0.0"
+producer = "PLAN-FND"
+consumers = ["PLAN-M01", "PLAN-M02", "PLAN-M03", "PLAN-M04", "PLAN-M05", "PLAN-M06", "PLAN-M07", "PLAN-M08", "PLAN-A01", "PLAN-A02", "PLAN-A03", "PLAN-A04-LINUX", "PLAN-A04-MAC", "PLAN-P01", "PLAN-P02", "PLAN-DB", "PLAN-DEP"]
+maturity = "proposed_aligned"
+decision_reference = "CAA-2026-09-18-01 sections 5.2 and 12.2"
+checklist = { field_state_null = true, units_time = true, auth = true, side_effects = true, idempotency = true, events = true, retention = true, errors = true, compatibility = true }
+
+[[contracts]]
+id = "CTR-FND-004"
+name = "CorrelationContextAndSafeLogEventV1"
+version = "1.0.0"
+producer = "PLAN-FND"
+consumers = ["PLAN-M01", "PLAN-M02", "PLAN-M03", "PLAN-M04", "PLAN-M05", "PLAN-M06", "PLAN-M07", "PLAN-M08", "PLAN-A01", "PLAN-A02", "PLAN-A03", "PLAN-A04-LINUX", "PLAN-A04-MAC", "PLAN-P01", "PLAN-P02", "PLAN-DB", "PLAN-DEP", "PLAN-INT"]
+maturity = "proposed_aligned"
+decision_reference = "CAA-2026-09-18-01 section 5.2"
+checklist = { field_state_null = true, units_time = true, auth = true, side_effects = true, idempotency = true, events = true, retention = true, errors = true, compatibility = true }
+
+[[contracts]]
+id = "CTR-FND-005"
+name = "OpenApiArtifactAndGeneratedClientPipelineV1"
+version = "1.0.0"
+producer = "PLAN-FND"
+consumers = ["PLAN-P01", "PLAN-P02", "PLAN-DEP", "PLAN-INT"]
+maturity = "proposed_aligned"
+decision_reference = "CAA-2026-09-18-01 sections 5.2 and 7 CAA-C07"
+checklist = { field_state_null = true, units_time = true, auth = true, side_effects = true, idempotency = true, events = true, retention = true, errors = true, compatibility = true }
+
+[[contracts]]
+id = "CTR-FND-006"
+name = "MigrationMetadataV1"
+version = "1.0.0"
+producer = "PLAN-FND"
+consumers = ["PLAN-M01", "PLAN-M02", "PLAN-M03", "PLAN-M04", "PLAN-M05", "PLAN-M06", "PLAN-M07", "PLAN-M08", "PLAN-DB", "PLAN-DEP", "PLAN-INT"]
+maturity = "proposed_aligned"
+decision_reference = "CAA-2026-09-18-01 sections 5.2 and 12.1"
+checklist = { field_state_null = true, units_time = true, auth = true, side_effects = true, idempotency = true, events = true, retention = true, errors = true, compatibility = true }
+
+[[contracts]]
+id = "CTR-FND-007"
+name = "BuildMetadataV1"
+version = "1.0.0"
+producer = "PLAN-FND"
+consumers = ["PLAN-M08", "PLAN-A04-LINUX", "PLAN-P01", "PLAN-P02", "PLAN-DEP", "PLAN-INT"]
+maturity = "proposed_aligned"
+decision_reference = "CAA-2026-09-18-01 sections 5.2 and 12.3"
+checklist = { field_state_null = true, units_time = true, auth = true, side_effects = true, idempotency = true, events = true, retention = true, errors = true, compatibility = true }
+
+[[contracts]]
+id = "CTR-FND-008"
+name = "TestEvidenceSummaryV1"
+version = "1.0.0"
+producer = "PLAN-FND"
+consumers = ["PLAN-M0-DISCOVERY", "PLAN-M01", "PLAN-M02", "PLAN-M03", "PLAN-M04", "PLAN-M05", "PLAN-M06", "PLAN-M07", "PLAN-M08", "PLAN-A01", "PLAN-A02", "PLAN-A03", "PLAN-A04-LINUX", "PLAN-A04-MAC", "PLAN-P01", "PLAN-P02", "PLAN-DB", "PLAN-DEP", "PLAN-INT"]
+maturity = "proposed_aligned"
+decision_reference = "CAA-2026-09-18-01 sections 5.2, 14, and 15"
+checklist = { field_state_null = true, units_time = true, auth = true, side_effects = true, idempotency = true, events = true, retention = true, errors = true, compatibility = true }
+
+# Identity and access contracts
+
+[[contracts]]
+id = "CTR-IAM-001"
+name = "PrincipalAndPermissionV1"
+version = "1.0.0"
+producer = "PLAN-M01"
+consumers = ["PLAN-M02", "PLAN-M04", "PLAN-M05", "PLAN-M06", "PLAN-M07", "PLAN-M08", "PLAN-P01", "PLAN-P02"]
+maturity = "proposed_aligned"
+decision_reference = "CAA-2026-09-18-01 sections 5.3 and 9.4"
+checklist = { field_state_null = true, units_time = true, auth = true, side_effects = true, idempotency = true, events = true, retention = true, errors = true, compatibility = true }
+
+[[contracts]]
+id = "CTR-IAM-002"
+name = "AuthorizationDecisionV1"
+version = "1.0.0"
+producer = "PLAN-M01"
+consumers = ["PLAN-M02", "PLAN-M04", "PLAN-M06", "PLAN-M07", "PLAN-M08", "PLAN-P01"]
+maturity = "proposed_aligned"
+decision_reference = "CAA-2026-09-18-01 sections 5.3 and 9.4"
+checklist = { field_state_null = true, units_time = true, auth = true, side_effects = true, idempotency = true, events = true, retention = true, errors = true, compatibility = true }
+
+[[contracts]]
+id = "CTR-IAM-003"
+name = "BrowserSessionAndCsrfV1"
+version = "1.0.0"
+producer = "PLAN-M01"
+consumers = ["PLAN-P01", "PLAN-P02"]
+maturity = "proposed_aligned"
+decision_reference = "CAA-2026-09-18-01 sections 5.3, 7 CAA-C02, and 9.4"
+checklist = { field_state_null = true, units_time = true, auth = true, side_effects = true, idempotency = true, events = true, retention = true, errors = true, compatibility = true }
+
+[[contracts]]
+id = "CTR-IAM-004"
+name = "AdministratorAuthenticationAndRecoveryV1"
+version = "1.0.0"
+producer = "PLAN-M01"
+consumers = ["PLAN-P01", "PLAN-P02", "PLAN-DEP", "PLAN-M08"]
+maturity = "proposed_aligned"
+decision_reference = "CAA-2026-09-18-01 sections 5.3 and 9.4"
+checklist = { field_state_null = true, units_time = true, auth = true, side_effects = true, idempotency = true, events = true, retention = true, errors = true, compatibility = true }
+
+[[contracts]]
+id = "CTR-IAM-005"
+name = "SessionQueryAndRevocationV1"
+version = "1.0.0"
+producer = "PLAN-M01"
+consumers = ["PLAN-P01", "PLAN-P02", "PLAN-M08"]
+maturity = "proposed_aligned"
+decision_reference = "CAA-2026-09-18-01 sections 5.3 and 9.5"
+checklist = { field_state_null = true, units_time = true, auth = true, side_effects = true, idempotency = true, events = true, retention = true, errors = true, compatibility = true }
+
+[[contracts]]
+id = "CTR-IAM-006"
+name = "ApiTokenLifecycleV1"
+version = "1.0.0"
+producer = "PLAN-M01"
+consumers = ["PLAN-P01", "PLAN-P02"]
+maturity = "proposed_aligned"
+decision_reference = "CAA-2026-09-18-01 sections 5.3, 7 CAA-C04, and 9.5"
+checklist = { field_state_null = true, units_time = true, auth = true, side_effects = true, idempotency = true, events = true, retention = true, errors = true, compatibility = true }
+
+[[contracts]]
+id = "CTR-IAM-007"
+name = "CredentialIssueAndSafeSummaryV1"
+version = "1.0.0"
+producer = "PLAN-M01"
+consumers = ["PLAN-P01", "PLAN-P02"]
+maturity = "proposed_aligned"
+decision_reference = "CAA-2026-09-18-01 sections 5.3 and 7 CAA-C04"
+checklist = { field_state_null = true, units_time = true, auth = true, side_effects = true, idempotency = true, events = true, retention = true, errors = true, compatibility = true }
+
+[[contracts]]
+id = "CTR-IAM-008"
+name = "IamSecurityEventRetentionAndRestoreV1"
+version = "1.0.0"
+producer = "PLAN-M01"
+consumers = ["PLAN-M08", "PLAN-P01", "PLAN-DB", "PLAN-DEP", "PLAN-INT"]
+maturity = "proposed_aligned"
+decision_reference = "CAA-2026-09-18-01 sections 5.3, 9.7, and 11.1"
+checklist = { field_state_null = true, units_time = true, auth = true, side_effects = true, idempotency = true, events = true, retention = true, errors = true, compatibility = true }
+
+# Registry contracts
+
+[[contracts]]
+id = "CTR-REG-001"
+name = "OrganizationViewV1"
+version = "1.0.0"
+producer = "PLAN-M02"
+consumers = ["PLAN-M05", "PLAN-M06", "PLAN-M07", "PLAN-M08", "PLAN-P01", "PLAN-P02"]
+maturity = "proposed_aligned"
+decision_reference = "CAA-2026-09-18-01 sections 5.4 and 9.1"
+checklist = { field_state_null = true, units_time = true, auth = true, side_effects = true, idempotency = true, events = true, retention = true, errors = true, compatibility = true }
+
+[[contracts]]
+id = "CTR-REG-002"
+name = "AccountViewV1"
+version = "1.0.0"
+producer = "PLAN-M02"
+consumers = ["PLAN-FND", "PLAN-M04", "PLAN-M05", "PLAN-M06", "PLAN-M07", "PLAN-M08", "PLAN-P01", "PLAN-P02"]
+maturity = "evidence_blocked"
+decision_reference = "CAA-2026-09-18-01 sections 5.4 and 8"
+checklist = { field_state_null = true, units_time = true, auth = true, side_effects = true, idempotency = true, events = true, retention = true, errors = true, compatibility = true }
+
+[[contracts]]
+id = "CTR-REG-003"
+name = "MonitoringProfileViewV1"
+version = "1.0.0"
+producer = "PLAN-M02"
+consumers = ["PLAN-FND", "PLAN-M03", "PLAN-M04", "PLAN-A01", "PLAN-A02", "PLAN-A03", "PLAN-A04-LINUX", "PLAN-P01", "PLAN-P02"]
+maturity = "evidence_blocked"
+decision_reference = "CAA-2026-09-18-01 sections 5.4, 8, and 9.4"
+checklist = { field_state_null = true, units_time = true, auth = true, side_effects = true, idempotency = true, events = true, retention = true, errors = true, compatibility = true }
+
+[[contracts]]
+id = "CTR-REG-004"
+name = "ProviderInstallationViewV1"
+version = "1.0.0"
+producer = "PLAN-M02"
+consumers = ["PLAN-M03", "PLAN-M04", "PLAN-M06", "PLAN-M08", "PLAN-A01", "PLAN-A02", "PLAN-A03", "PLAN-A04-LINUX", "PLAN-A04-MAC", "PLAN-P01", "PLAN-P02"]
+maturity = "evidence_blocked"
+decision_reference = "CAA-2026-09-18-01 sections 5.4 and 8"
+checklist = { field_state_null = true, units_time = true, auth = true, side_effects = true, idempotency = true, events = true, retention = true, errors = true, compatibility = true }
+
+[[contracts]]
+id = "CTR-REG-005"
+name = "AccountResourceViewV1"
+version = "1.0.0"
+producer = "PLAN-M02"
+consumers = ["PLAN-FND", "PLAN-M04", "PLAN-M05", "PLAN-M07", "PLAN-A03", "PLAN-P01", "PLAN-P02"]
+maturity = "evidence_blocked"
+decision_reference = "CAA-2026-09-18-01 sections 5.4 and 8"
+checklist = { field_state_null = true, units_time = true, auth = true, side_effects = true, idempotency = true, events = true, retention = true, errors = true, compatibility = true }
+
+[[contracts]]
+id = "CTR-REG-006"
+name = "IdentityCorrelationDecisionV1"
+version = "1.0.0"
+producer = "PLAN-M02"
+consumers = ["PLAN-FND", "PLAN-M06", "PLAN-A01", "PLAN-A02", "PLAN-A03", "PLAN-P01", "PLAN-P02"]
+maturity = "evidence_blocked"
+decision_reference = "CAA-2026-09-18-01 sections 5.4, 8, and 10"
+checklist = { field_state_null = true, units_time = true, auth = true, side_effects = true, idempotency = true, events = true, retention = true, errors = true, compatibility = true }
+
+[[contracts]]
+id = "CTR-REG-007"
+name = "RegistryChangedV1"
+version = "1.0.0"
+producer = "PLAN-M02"
+consumers = ["PLAN-M04", "PLAN-M05", "PLAN-M06", "PLAN-M07", "PLAN-M08"]
+maturity = "proposed_aligned"
+decision_reference = "CAA-2026-09-18-01 sections 5.4 and 9.6"
+checklist = { field_state_null = true, units_time = true, auth = true, side_effects = true, idempotency = true, events = true, retention = true, errors = true, compatibility = true }
+
+[[contracts]]
+id = "CTR-REG-008"
+name = "ReauthenticationRequestWorkflowV1"
+version = "1.0.0"
+producer = "PLAN-M02"
+consumers = ["PLAN-M03", "PLAN-M04", "PLAN-M07", "PLAN-A01", "PLAN-A02", "PLAN-A03", "PLAN-P01", "PLAN-P02", "PLAN-M08"]
+maturity = "evidence_blocked"
+decision_reference = "CAA-2026-09-18-01 sections 6, 7 CAA-C12, and 9.4"
+checklist = { field_state_null = true, units_time = true, auth = true, side_effects = true, idempotency = true, events = true, retention = true, errors = true, compatibility = true }
+
+[[contracts]]
+id = "CTR-REG-009"
+name = "AlertScopeAndSubjectQueryV1"
+version = "1.0.0"
+producer = "PLAN-M02"
+consumers = ["PLAN-M08", "PLAN-M05", "PLAN-M07", "PLAN-P01"]
+maturity = "proposed_aligned"
+decision_reference = "CAA-2026-09-18-01 sections 6 and 11.2"
+checklist = { field_state_null = true, units_time = true, auth = true, side_effects = true, idempotency = true, events = true, retention = true, errors = true, compatibility = true }
+
+[[contracts]]
+id = "CTR-REG-010"
+name = "AuthenticationHealthChangedV1"
+version = "1.0.0"
+producer = "PLAN-M02"
+consumers = ["PLAN-M04", "PLAN-M05", "PLAN-M07", "PLAN-M08", "PLAN-P01", "PLAN-P02"]
+maturity = "evidence_blocked"
+decision_reference = "CAA-2026-09-18-01 sections 6, 7 CAA-C02 and CAA-C03, and 9.4"
+checklist = { field_state_null = true, units_time = true, auth = true, side_effects = true, idempotency = true, events = true, retention = true, errors = true, compatibility = true }
+
+# Provider-system contracts
+
+[[contracts]]
+id = "CTR-PROV-001"
+name = "ProviderAdapterV1"
+version = "1.0.0"
+producer = "PLAN-M03"
+consumers = ["PLAN-A01", "PLAN-A02", "PLAN-A03", "PLAN-M04", "PLAN-INT"]
+maturity = "evidence_blocked"
+decision_reference = "CAA-2026-09-18-01 sections 5.5, 8, and 13"
+checklist = { field_state_null = true, units_time = true, auth = true, side_effects = true, idempotency = true, events = true, retention = true, errors = true, compatibility = true }
+
+[[contracts]]
+id = "CTR-PROV-002"
+name = "CapabilityManifestV1"
+version = "1.0.0"
+producer = "PLAN-M03"
+consumers = ["PLAN-M02", "PLAN-M05", "PLAN-A01", "PLAN-A02", "PLAN-A03", "PLAN-A04-LINUX", "PLAN-A04-MAC", "PLAN-M04", "PLAN-M06", "PLAN-M08", "PLAN-P01", "PLAN-P02"]
+maturity = "evidence_blocked"
+decision_reference = "CAA-2026-09-18-01 sections 5.5 and 8"
+checklist = { field_state_null = true, units_time = true, auth = true, side_effects = true, idempotency = true, events = true, retention = true, errors = true, compatibility = true }
+
+[[contracts]]
+id = "CTR-PROV-003"
+name = "ProviderSourceV1"
+version = "1.0.0"
+producer = "PLAN-M03"
+consumers = ["PLAN-A01", "PLAN-A02", "PLAN-A03", "PLAN-M04", "PLAN-M05", "PLAN-M06", "PLAN-A04-LINUX", "PLAN-A04-MAC"]
+maturity = "evidence_blocked"
+decision_reference = "CAA-2026-09-18-01 sections 5.5 and 8"
+checklist = { field_state_null = true, units_time = true, auth = true, side_effects = true, idempotency = true, events = true, retention = true, errors = true, compatibility = true }
+
+[[contracts]]
+id = "CTR-PROV-004"
+name = "CollectionOutcomeV1"
+version = "1.0.0"
+producer = "PLAN-M03"
+consumers = ["PLAN-FND", "PLAN-A01", "PLAN-A02", "PLAN-A03", "PLAN-M04", "PLAN-M05", "PLAN-M06"]
+maturity = "evidence_blocked"
+decision_reference = "CAA-2026-09-18-01 sections 5.5, 8, and 9.1"
+checklist = { field_state_null = true, units_time = true, auth = true, side_effects = true, idempotency = true, events = true, retention = true, errors = true, compatibility = true }
+
+[[contracts]]
+id = "CTR-PROV-005"
+name = "DiscoveryOutcomeV1"
+version = "1.0.0"
+producer = "PLAN-M03"
+consumers = ["PLAN-A01", "PLAN-A02", "PLAN-A03", "PLAN-FND", "PLAN-M02", "PLAN-M08", "PLAN-P01"]
+maturity = "evidence_blocked"
+decision_reference = "CAA-2026-09-18-01 sections 5.5 and 8"
+checklist = { field_state_null = true, units_time = true, auth = true, side_effects = true, idempotency = true, events = true, retention = true, errors = true, compatibility = true }
+
+[[contracts]]
+id = "CTR-PROV-006"
+name = "AuthHealthOutcomeV1"
+version = "1.0.0"
+producer = "PLAN-M03"
+consumers = ["PLAN-A01", "PLAN-A02", "PLAN-A03", "PLAN-M02", "PLAN-M04", "PLAN-M07", "PLAN-P02"]
+maturity = "evidence_blocked"
+decision_reference = "CAA-2026-09-18-01 sections 5.5, 7 CAA-C02 and CAA-C03, and 9.4"
+checklist = { field_state_null = true, units_time = true, auth = true, side_effects = true, idempotency = true, events = true, retention = true, errors = true, compatibility = true }
+
+[[contracts]]
+id = "CTR-PROV-007"
+name = "ReauthFlowV1"
+version = "1.0.0"
+producer = "PLAN-M03"
+consumers = ["PLAN-FND", "PLAN-A01", "PLAN-A02", "PLAN-A03", "PLAN-M02", "PLAN-P01", "PLAN-P02"]
+maturity = "evidence_blocked"
+decision_reference = "CAA-2026-09-18-01 sections 5.5, 6 CTR-REG-008, and 9.4; owner-approved claude-managed-account-connection-change dashboard increment"
+checklist = { field_state_null = true, units_time = true, auth = true, side_effects = true, idempotency = true, events = true, retention = true, errors = true, compatibility = true }
+
+[[contracts]]
+id = "CTR-PROV-008"
+name = "ProviderExtensionSchemasV1"
+version = "1.0.0"
+producer = "PLAN-M03"
+consumers = ["PLAN-FND", "PLAN-A01", "PLAN-A02", "PLAN-A03", "PLAN-M05", "PLAN-M06", "PLAN-P02"]
+maturity = "evidence_blocked"
+decision_reference = "CAA-2026-09-18-01 sections 5.5, 7 CAA-C16, and 8"
+checklist = { field_state_null = true, units_time = true, auth = true, side_effects = true, idempotency = true, events = true, retention = true, errors = true, compatibility = true }
+
+# Collection-control contracts
+
+[[contracts]]
+id = "CTR-COL-001"
+name = "CollectionRequestV1"
+version = "1.0.0"
+producer = "PLAN-M04"
+consumers = ["PLAN-P01", "PLAN-M08", "PLAN-INT"]
+maturity = "proposed_aligned"
+decision_reference = "CAA-2026-09-18-01 sections 5.6 and 9.5"
+checklist = { field_state_null = true, units_time = true, auth = true, side_effects = true, idempotency = true, events = true, retention = true, errors = true, compatibility = true }
+
+[[contracts]]
+id = "CTR-COL-002"
+name = "CollectionRunViewV1"
+version = "1.0.0"
+producer = "PLAN-M04"
+consumers = ["PLAN-FND", "PLAN-M05", "PLAN-M06", "PLAN-M07", "PLAN-M08", "PLAN-A01", "PLAN-A02", "PLAN-P01", "PLAN-P02"]
+maturity = "proposed_aligned"
+decision_reference = "CAA-2026-09-18-01 sections 5.6 and 9.1"
+checklist = { field_state_null = true, units_time = true, auth = true, side_effects = true, idempotency = true, events = true, retention = true, errors = true, compatibility = true }
+
+[[contracts]]
+id = "CTR-COL-003"
+name = "CollectionCompletedV1"
+version = "1.0.0"
+producer = "PLAN-M04"
+consumers = ["PLAN-M05", "PLAN-M06", "PLAN-M07", "PLAN-M08"]
+maturity = "proposed_aligned"
+decision_reference = "CAA-2026-09-18-01 sections 5.6, 6 CTR-COL-006, and 9.6"
+checklist = { field_state_null = true, units_time = true, auth = true, side_effects = true, idempotency = true, events = true, retention = true, errors = true, compatibility = true }
+
+[[contracts]]
+id = "CTR-COL-004"
+name = "CollectionFailedV1"
+version = "1.0.0"
+producer = "PLAN-M04"
+consumers = ["PLAN-FND", "PLAN-M05", "PLAN-M07", "PLAN-M08"]
+maturity = "proposed_aligned"
+decision_reference = "CAA-2026-09-18-01 sections 5.6 and 9.6"
+checklist = { field_state_null = true, units_time = true, auth = true, side_effects = true, idempotency = true, events = true, retention = true, errors = true, compatibility = true }
+
+[[contracts]]
+id = "CTR-COL-005"
+name = "CollectorHealthV1"
+version = "1.0.0"
+producer = "PLAN-M04"
+consumers = ["PLAN-M07", "PLAN-M08", "PLAN-P01", "PLAN-P02"]
+maturity = "proposed_aligned"
+decision_reference = "CAA-2026-09-18-01 sections 5.6 and 6 CTR-COL-007"
+checklist = { field_state_null = true, units_time = true, auth = true, side_effects = true, idempotency = true, events = true, retention = true, errors = true, compatibility = true }
+
+[[contracts]]
+id = "CTR-COL-006"
+name = "CollectionOutcomeCommitPortV1"
+version = "1.0.0"
+producer = "PLAN-M04"
+consumers = ["PLAN-FND", "PLAN-M05", "PLAN-M06", "PLAN-P01", "PLAN-INT"]
+maturity = "proposed_aligned"
+decision_reference = "CAA-2026-09-18-01 sections 6 and 11.2"
+checklist = { field_state_null = true, units_time = true, auth = true, side_effects = true, idempotency = true, events = true, retention = true, errors = true, compatibility = true }
+
+[[contracts]]
+id = "CTR-COL-007"
+name = "CollectorHealthChangedAndCurrentAlertInputsV1"
+version = "1.0.0"
+producer = "PLAN-M04"
+consumers = ["PLAN-M05", "PLAN-M07", "PLAN-M08"]
+maturity = "proposed_aligned"
+decision_reference = "CAA-2026-09-18-01 sections 6 and 9.6"
+checklist = { field_state_null = true, units_time = true, auth = true, side_effects = true, idempotency = true, events = true, retention = true, errors = true, compatibility = true }
+
+# Capacity contracts
+
+[[contracts]]
+id = "CTR-CAP-001"
+name = "QuotaWindowViewV1"
+version = "1.0.0"
+producer = "PLAN-M05"
+consumers = ["PLAN-FND", "PLAN-M07", "PLAN-M08", "PLAN-A01", "PLAN-A02", "PLAN-A03", "PLAN-P01", "PLAN-P02"]
+maturity = "evidence_blocked"
+decision_reference = "CAA-2026-09-18-01 sections 5.7, 8, and 9.2"
+checklist = { field_state_null = true, units_time = true, auth = true, side_effects = true, idempotency = true, events = true, retention = true, errors = true, compatibility = true }
+
+[[contracts]]
+id = "CTR-CAP-002"
+name = "BudgetViewV1"
+version = "1.0.0"
+producer = "PLAN-M05"
+consumers = ["PLAN-M07", "PLAN-M08", "PLAN-A01", "PLAN-A02", "PLAN-A03", "PLAN-P01", "PLAN-P02"]
+maturity = "evidence_blocked"
+decision_reference = "CAA-2026-09-18-01 sections 5.7, 8, and 9.2"
+checklist = { field_state_null = true, units_time = true, auth = true, side_effects = true, idempotency = true, events = true, retention = true, errors = true, compatibility = true }
+
+[[contracts]]
+id = "CTR-CAP-003"
+name = "CapacityHealthViewV1"
+version = "1.0.0"
+producer = "PLAN-M05"
+consumers = ["PLAN-FND", "PLAN-M07", "PLAN-M08", "PLAN-P01", "PLAN-P02"]
+maturity = "evidence_blocked"
+decision_reference = "CAA-2026-09-18-01 sections 5.7 and 7 CAA-C11"
+checklist = { field_state_null = true, units_time = true, auth = true, side_effects = true, idempotency = true, events = true, retention = true, errors = true, compatibility = true }
+
+[[contracts]]
+id = "CTR-CAP-004"
+name = "CapacityObservationRecordedV1"
+version = "1.0.0"
+producer = "PLAN-M05"
+consumers = ["PLAN-FND", "PLAN-M07", "PLAN-M08"]
+maturity = "evidence_blocked"
+decision_reference = "CAA-2026-09-18-01 sections 5.7 and 9.6"
+checklist = { field_state_null = true, units_time = true, auth = true, side_effects = true, idempotency = true, events = true, retention = true, errors = true, compatibility = true }
+
+[[contracts]]
+id = "CTR-CAP-005"
+name = "CapacityHealthChangedV1"
+version = "1.0.0"
+producer = "PLAN-M05"
+consumers = ["PLAN-M07", "PLAN-M08"]
+maturity = "evidence_blocked"
+decision_reference = "CAA-2026-09-18-01 sections 5.7 and 9.6"
+checklist = { field_state_null = true, units_time = true, auth = true, side_effects = true, idempotency = true, events = true, retention = true, errors = true, compatibility = true }
+
+[[contracts]]
+id = "CTR-CAP-006"
+name = "CapacityHistoryQueryV1"
+version = "1.0.0"
+producer = "PLAN-M05"
+consumers = ["PLAN-M08", "PLAN-P01", "PLAN-P02"]
+maturity = "evidence_blocked"
+decision_reference = "CAA-2026-09-18-01 sections 5.7 and 9.7"
+checklist = { field_state_null = true, units_time = true, auth = true, side_effects = true, idempotency = true, events = true, retention = true, errors = true, compatibility = true }
+
+[[contracts]]
+id = "CTR-CAP-007"
+name = "CapacityForecastV1"
+version = "1.0.0"
+producer = "PLAN-M05"
+consumers = ["PLAN-M07", "PLAN-M08", "PLAN-P01", "PLAN-P02"]
+maturity = "evidence_blocked"
+decision_reference = "CAA-2026-09-18-01 sections 5.7, 6 CTR-CAP-008, and 8"
+checklist = { field_state_null = true, units_time = true, auth = true, side_effects = true, idempotency = true, events = true, retention = true, errors = true, compatibility = true }
+
+[[contracts]]
+id = "CTR-CAP-008"
+name = "CapacityForecastChangedV1"
+version = "1.0.0"
+producer = "PLAN-M05"
+consumers = ["PLAN-M07", "PLAN-M08"]
+maturity = "evidence_blocked"
+decision_reference = "CAA-2026-09-18-01 sections 6 and 9.6"
+checklist = { field_state_null = true, units_time = true, auth = true, side_effects = true, idempotency = true, events = true, retention = true, errors = true, compatibility = true }
+
+[[contracts]]
+id = "CTR-CAP-009"
+name = "CapacityAvailabilityChangedV1"
+version = "1.0.0"
+producer = "PLAN-M05"
+consumers = ["PLAN-M07", "PLAN-M08"]
+maturity = "evidence_blocked"
+decision_reference = "CAA-2026-09-18-01 sections 6 and 9.6"
+checklist = { field_state_null = true, units_time = true, auth = true, side_effects = true, idempotency = true, events = true, retention = true, errors = true, compatibility = true }
+
+# Runtime-observation contracts
+
+[[contracts]]
+id = "CTR-RUN-001"
+name = "AgentProcessViewV1"
+version = "1.0.0"
+producer = "PLAN-M06"
+consumers = ["PLAN-FND", "PLAN-M07", "PLAN-M08", "PLAN-A01", "PLAN-A04-LINUX", "PLAN-A04-MAC", "PLAN-P01", "PLAN-P02"]
+maturity = "evidence_blocked"
+decision_reference = "CAA-2026-09-18-01 sections 5.8 and 8"
+checklist = { field_state_null = true, units_time = true, auth = true, side_effects = true, idempotency = true, events = true, retention = true, errors = true, compatibility = true }
+
+[[contracts]]
+id = "CTR-RUN-002"
+name = "AgentSessionViewV1"
+version = "1.0.0"
+producer = "PLAN-M06"
+consumers = ["PLAN-FND", "PLAN-M07", "PLAN-M08", "PLAN-A01", "PLAN-A02", "PLAN-A03", "PLAN-P01", "PLAN-P02"]
+maturity = "evidence_blocked"
+decision_reference = "CAA-2026-09-18-01 sections 5.8 and 8"
+checklist = { field_state_null = true, units_time = true, auth = true, side_effects = true, idempotency = true, events = true, retention = true, errors = true, compatibility = true }
+
+[[contracts]]
+id = "CTR-RUN-003"
+name = "SessionTreeViewV1"
+version = "1.0.0"
+producer = "PLAN-M06"
+consumers = ["PLAN-A04-MAC", "PLAN-P01", "PLAN-P02"]
+maturity = "evidence_blocked"
+decision_reference = "CAA-2026-09-18-01 sections 5.8 and 8"
+checklist = { field_state_null = true, units_time = true, auth = true, side_effects = true, idempotency = true, events = true, retention = true, errors = true, compatibility = true }
+
+[[contracts]]
+id = "CTR-RUN-004"
+name = "RuntimeStateChangedV1"
+version = "1.0.0"
+producer = "PLAN-M06"
+consumers = ["PLAN-M04", "PLAN-M07", "PLAN-M08"]
+maturity = "evidence_blocked"
+decision_reference = "CAA-2026-09-18-01 sections 5.8 and 9.6"
+checklist = { field_state_null = true, units_time = true, auth = true, side_effects = true, idempotency = true, events = true, retention = true, errors = true, compatibility = true }
+
+[[contracts]]
+id = "CTR-RUN-005"
+name = "PossibleStallDetectedV1"
+version = "1.0.0"
+producer = "PLAN-M06"
+consumers = ["PLAN-M07", "PLAN-M08"]
+maturity = "evidence_blocked"
+decision_reference = "CAA-2026-09-18-01 sections 5.8 and 8"
+checklist = { field_state_null = true, units_time = true, auth = true, side_effects = true, idempotency = true, events = true, retention = true, errors = true, compatibility = true }
+
+[[contracts]]
+id = "CTR-RUN-006"
+name = "ProcessInspectionPortV1"
+version = "1.0.0"
+producer = "PLAN-M06"
+consumers = ["PLAN-FND", "PLAN-A04-LINUX", "PLAN-A04-MAC", "PLAN-P01", "PLAN-INT"]
+maturity = "evidence_blocked"
+decision_reference = "CAA-2026-09-18-01 sections 5.8 and 7 CAA-C05"
+checklist = { field_state_null = true, units_time = true, auth = true, side_effects = true, idempotency = true, events = true, retention = true, errors = true, compatibility = true }
+
+[[contracts]]
+id = "CTR-RUN-007"
+name = "SessionCorrelationDecisionV1"
+version = "1.0.0"
+producer = "PLAN-M06"
+consumers = ["PLAN-FND", "PLAN-M02", "PLAN-A01", "PLAN-A02", "PLAN-A03", "PLAN-P01", "PLAN-P02"]
+maturity = "evidence_blocked"
+decision_reference = "CAA-2026-09-18-01 sections 5.8, 8, and 10"
+checklist = { field_state_null = true, units_time = true, auth = true, side_effects = true, idempotency = true, events = true, retention = true, errors = true, compatibility = true }
+
+# Alerting contracts
+
+[[contracts]]
+id = "CTR-ALERT-001"
+name = "AlertRuleViewAndResolutionV1"
+version = "1.0.0"
+producer = "PLAN-M07"
+consumers = ["PLAN-M08", "PLAN-P01", "PLAN-P02"]
+maturity = "proposed_aligned"
+decision_reference = "CAA-2026-09-18-01 sections 5.9 and 7 CAA-C11"
+checklist = { field_state_null = true, units_time = true, auth = true, side_effects = true, idempotency = true, events = true, retention = true, errors = true, compatibility = true }
+
+[[contracts]]
+id = "CTR-ALERT-002"
+name = "AlertViewAndHistoryV1"
+version = "1.0.0"
+producer = "PLAN-M07"
+consumers = ["PLAN-FND", "PLAN-M08", "PLAN-P01", "PLAN-P02"]
+maturity = "proposed_aligned"
+decision_reference = "CAA-2026-09-18-01 sections 5.9 and 9.7"
+checklist = { field_state_null = true, units_time = true, auth = true, side_effects = true, idempotency = true, events = true, retention = true, errors = true, compatibility = true }
+
+[[contracts]]
+id = "CTR-ALERT-003"
+name = "AlertOpenedV1"
+version = "1.0.0"
+producer = "PLAN-M07"
+consumers = ["PLAN-M08", "PLAN-P01"]
+maturity = "proposed_aligned"
+decision_reference = "CAA-2026-09-18-01 sections 5.9, 6 CTR-EVT-001, and 9.6"
+checklist = { field_state_null = true, units_time = true, auth = true, side_effects = true, idempotency = true, events = true, retention = true, errors = true, compatibility = true }
+
+[[contracts]]
+id = "CTR-ALERT-004"
+name = "AlertStateChangedV1"
+version = "1.0.0"
+producer = "PLAN-M07"
+consumers = ["PLAN-M08", "PLAN-P01", "PLAN-P02"]
+maturity = "proposed_aligned"
+decision_reference = "CAA-2026-09-18-01 sections 5.9, 6 CTR-EVT-001, and 9.6"
+checklist = { field_state_null = true, units_time = true, auth = true, side_effects = true, idempotency = true, events = true, retention = true, errors = true, compatibility = true }
+
+[[contracts]]
+id = "CTR-ALERT-005"
+name = "DashboardNotificationQueryV1"
+version = "1.0.0"
+producer = "PLAN-M07"
+consumers = ["PLAN-M08", "PLAN-P01", "PLAN-P02"]
+maturity = "proposed_aligned"
+decision_reference = "CAA-2026-09-18-01 section 5.9"
+checklist = { field_state_null = true, units_time = true, auth = true, side_effects = true, idempotency = true, events = true, retention = true, errors = true, compatibility = true }
+
+# Operations contracts
+
+[[contracts]]
+id = "CTR-OPS-001"
+name = "HealthViewV1"
+version = "1.0.0"
+producer = "PLAN-M08"
+consumers = ["PLAN-FND", "PLAN-INT", "PLAN-P01", "PLAN-P02", "PLAN-DEP"]
+maturity = "proposed_aligned"
+decision_reference = "CAA-2026-09-18-01 sections 5.10 and 10"
+checklist = { field_state_null = true, units_time = true, auth = true, side_effects = true, idempotency = true, events = true, retention = true, errors = true, compatibility = true }
+
+[[contracts]]
+id = "CTR-OPS-002"
+name = "ReadinessViewV1"
+version = "1.0.0"
+producer = "PLAN-M08"
+consumers = ["PLAN-P01", "PLAN-P02", "PLAN-DEP", "PLAN-INT"]
+maturity = "proposed_aligned"
+decision_reference = "CAA-2026-09-18-01 sections 5.10 and 7 CAA-C10"
+checklist = { field_state_null = true, units_time = true, auth = true, side_effects = true, idempotency = true, events = true, retention = true, errors = true, compatibility = true }
+
+[[contracts]]
+id = "CTR-OPS-003"
+name = "BackupViewV1"
+version = "1.0.0"
+producer = "PLAN-M08"
+consumers = ["PLAN-P01", "PLAN-P02", "PLAN-DB", "PLAN-DEP", "PLAN-INT"]
+maturity = "proposed_aligned"
+decision_reference = "CAA-2026-09-18-01 sections 5.10 and 9.7"
+checklist = { field_state_null = true, units_time = true, auth = true, side_effects = true, idempotency = true, events = true, retention = true, errors = true, compatibility = true }
+
+[[contracts]]
+id = "CTR-OPS-004"
+name = "DiagnosticSummaryV1"
+version = "1.0.0"
+producer = "PLAN-M08"
+consumers = ["PLAN-FND", "PLAN-P01", "PLAN-P02", "PLAN-INT"]
+maturity = "proposed_aligned"
+decision_reference = "CAA-2026-09-18-01 sections 5.10 and 11.2"
+checklist = { field_state_null = true, units_time = true, auth = true, side_effects = true, idempotency = true, events = true, retention = true, errors = true, compatibility = true }
+
+[[contracts]]
+id = "CTR-OPS-005"
+name = "ExportJobViewV1"
+version = "1.0.0"
+producer = "PLAN-M08"
+consumers = ["PLAN-M05", "PLAN-P01", "PLAN-P02", "PLAN-INT"]
+maturity = "proposed_aligned"
+decision_reference = "CAA-2026-09-18-01 sections 5.10, 6 CTR-OPS-007, and 9.7"
+checklist = { field_state_null = true, units_time = true, auth = true, side_effects = true, idempotency = true, events = true, retention = true, errors = true, compatibility = true }
+
+[[contracts]]
+id = "CTR-OPS-006"
+name = "ComponentHealthPortV1"
+version = "1.0.0"
+producer = "PLAN-M08"
+consumers = ["PLAN-FND", "PLAN-INT", "PLAN-M01", "PLAN-M02", "PLAN-M03", "PLAN-M04", "PLAN-M05", "PLAN-M06", "PLAN-M07", "PLAN-A01", "PLAN-A02", "PLAN-A03", "PLAN-A04-LINUX", "PLAN-A04-MAC", "PLAN-DB", "PLAN-DEP"]
+maturity = "proposed_aligned"
+decision_reference = "CAA-2026-09-18-01 sections 5.10, 10, and 11.1"
+checklist = { field_state_null = true, units_time = true, auth = true, side_effects = true, idempotency = true, events = true, retention = true, errors = true, compatibility = true }
+
+[[contracts]]
+id = "CTR-OPS-007"
+name = "RetentionExportAndConsistencyParticipantV1"
+version = "1.0.0"
+producer = "PLAN-M08"
+consumers = ["PLAN-M01", "PLAN-M02", "PLAN-M03", "PLAN-M04", "PLAN-M05", "PLAN-M06", "PLAN-M07", "PLAN-DB", "PLAN-DEP", "PLAN-INT"]
+maturity = "proposed_aligned"
+decision_reference = "CAA-2026-09-18-01 sections 6, 9.7, and 11.2"
+checklist = { field_state_null = true, units_time = true, auth = true, side_effects = true, idempotency = true, events = true, retention = true, errors = true, compatibility = true }
+
+# Transport, UI, persistence, deployment, and platform contracts
+
+[[contracts]]
+id = "CTR-API-001"
+name = "AgentMonitorOpenApiV1"
+version = "1.0.0"
+producer = "PLAN-P01"
+consumers = ["PLAN-P02", "PLAN-DEP", "PLAN-INT"]
+maturity = "proposed_aligned"
+decision_reference = "CAA-2026-09-18-01 sections 5.11, 7 CAA-C12, and 9"
+checklist = { field_state_null = true, units_time = true, auth = true, side_effects = true, idempotency = true, events = true, retention = true, errors = true, compatibility = true }
+
+[[contracts]]
+id = "CTR-API-002"
+name = "BrowserSessionAndCsrfTransportV1"
+version = "1.0.0"
+producer = "PLAN-P01"
+consumers = ["PLAN-P02", "PLAN-INT"]
+maturity = "proposed_aligned"
+decision_reference = "CAA-2026-09-18-01 sections 5.11, 7 CAA-C02, and 9.4"
+checklist = { field_state_null = true, units_time = true, auth = true, side_effects = true, idempotency = true, events = true, retention = true, errors = true, compatibility = true }
+
+[[contracts]]
+id = "CTR-API-003"
+name = "BearerAuthenticationSchemeV1"
+version = "1.0.0"
+producer = "PLAN-P01"
+consumers = ["PLAN-P02", "PLAN-INT"]
+maturity = "proposed_aligned"
+decision_reference = "CAA-2026-09-18-01 sections 5.11 and 9.4"
+checklist = { field_state_null = true, units_time = true, auth = true, side_effects = true, idempotency = true, events = true, retention = true, errors = true, compatibility = true }
+
+[[contracts]]
+id = "CTR-UI-001"
+name = "GeneratedTypeScriptClientBoundaryV1"
+version = "1.0.0"
+producer = "PLAN-P01"
+consumers = ["PLAN-FND", "PLAN-P02", "PLAN-DEP", "PLAN-INT"]
+maturity = "proposed_aligned"
+decision_reference = "CAA-2026-09-18-01 sections 5.11 and 7 CAA-C07"
+checklist = { field_state_null = true, units_time = true, auth = true, side_effects = true, idempotency = true, events = true, retention = true, errors = true, compatibility = true }
+
+[[contracts]]
+id = "CTR-DB-002"
+name = "RepositoryAndUnitOfWorkTechnicalFamilyV1"
+version = "1.0.0"
+producer = "PLAN-DB"
+consumers = ["PLAN-M01", "PLAN-M02", "PLAN-M03", "PLAN-M04", "PLAN-M05", "PLAN-M06", "PLAN-M07", "PLAN-M08"]
+maturity = "proposed_aligned"
+decision_reference = "CAA-2026-09-18-01 sections 5.11 and 11.1; domain modules retain semantic ownership of their specialized ports"
+checklist = { field_state_null = true, units_time = true, auth = true, side_effects = true, idempotency = true, events = true, retention = true, errors = true, compatibility = true }
+
+[[contracts]]
+id = "CTR-DB-003"
+name = "DatabaseSnapshotActivationV1"
+version = "1.0.0"
+producer = "PLAN-DB"
+consumers = ["PLAN-M01", "PLAN-M08", "PLAN-DEP", "PLAN-INT"]
+maturity = "proposed_aligned"
+decision_reference = "CAA-2026-09-18-01 sections 6 and 7 CAA-C08 through CAA-C10"
+checklist = { field_state_null = true, units_time = true, auth = true, side_effects = true, idempotency = true, events = true, retention = true, errors = true, compatibility = true }
+
+[[contracts]]
+id = "CTR-DEP-001"
+name = "NativeServiceLifecycleV1"
+version = "1.0.0"
+producer = "PLAN-DEP"
+consumers = ["PLAN-M08", "PLAN-A04-LINUX", "PLAN-A04-MAC", "PLAN-DB", "PLAN-P01", "PLAN-P02", "PLAN-INT"]
+maturity = "proposed_aligned"
+decision_reference = "CAA-2026-09-18-01 sections 5.11 and 7 CAA-C08 through CAA-C10"
+checklist = { field_state_null = true, units_time = true, auth = true, side_effects = true, idempotency = true, events = true, retention = true, errors = true, compatibility = true }
+
+[[contracts]]
+id = "CTR-PLAT-001"
+name = "PortablePlatformPrimitivesV1"
+version = "1.0.0"
+producer = "PLAN-FND"
+consumers = ["PLAN-M06", "PLAN-M08", "PLAN-A04-LINUX", "PLAN-A04-MAC", "PLAN-DB", "PLAN-DEP"]
+maturity = "evidence_blocked"
+decision_reference = "CAA-2026-09-18-01 sections 5.11 and 7 CAA-C06"
+checklist = { field_state_null = true, units_time = true, auth = true, side_effects = true, idempotency = true, events = true, retention = true, errors = true, compatibility = true }
+
+# Integration and release evidence contracts
+
+[[contracts]]
+id = "CTR-INT-001"
+name = "GateResultV1"
+version = "1.0.0"
+producer = "PLAN-INT"
+consumers = ["PLAN-FND", "PLAN-M0-DISCOVERY", "PLAN-M01", "PLAN-M02", "PLAN-M03", "PLAN-M04", "PLAN-M05", "PLAN-M06", "PLAN-M07", "PLAN-M08", "PLAN-A01", "PLAN-A02", "PLAN-A03", "PLAN-A04-LINUX", "PLAN-A04-MAC", "PLAN-P01", "PLAN-P02", "PLAN-DB", "PLAN-DEP"]
+maturity = "proposed_aligned"
+decision_reference = "CAA-2026-09-18-01 sections 6, 15, and 17"
+checklist = { field_state_null = true, units_time = true, auth = true, side_effects = true, idempotency = true, events = true, retention = true, errors = true, compatibility = true }
+
+[[contracts]]
+id = "CTR-INT-002"
+name = "EvidenceReferenceV1"
+version = "1.0.0"
+producer = "PLAN-INT"
+consumers = ["PLAN-FND", "PLAN-M0-DISCOVERY", "PLAN-M01", "PLAN-M02", "PLAN-M03", "PLAN-M04", "PLAN-M05", "PLAN-M06", "PLAN-M07", "PLAN-M08", "PLAN-A01", "PLAN-A02", "PLAN-A03", "PLAN-A04-LINUX", "PLAN-A04-MAC", "PLAN-P01", "PLAN-P02", "PLAN-DB", "PLAN-DEP"]
+maturity = "proposed_aligned"
+decision_reference = "CAA-2026-09-18-01 sections 6, 14, and 15"
+checklist = { field_state_null = true, units_time = true, auth = true, side_effects = true, idempotency = true, events = true, retention = true, errors = true, compatibility = true }
+
+[[contracts]]
+id = "CTR-INT-003"
+name = "ContractBaselineV1"
+version = "1.0.0"
+producer = "PLAN-INT"
+consumers = ["PLAN-FND", "PLAN-M01", "PLAN-M02", "PLAN-M03", "PLAN-M04", "PLAN-M05", "PLAN-M06", "PLAN-M07", "PLAN-M08", "PLAN-A01", "PLAN-A02", "PLAN-A03", "PLAN-A04-LINUX", "PLAN-A04-MAC", "PLAN-P01", "PLAN-P02", "PLAN-DB", "PLAN-DEP"]
+maturity = "proposed_aligned"
+decision_reference = "CAA-2026-09-18-01 sections 6, 15, and 17"
+checklist = { field_state_null = true, units_time = true, auth = true, side_effects = true, idempotency = true, events = true, retention = true, errors = true, compatibility = true }
+
+[[contracts]]
+id = "CTR-INT-004"
+name = "ReleaseCandidateManifestV1"
+version = "1.0.0"
+producer = "PLAN-INT"
+consumers = ["PLAN-FND", "PLAN-M08", "PLAN-DB", "PLAN-DEP"]
+maturity = "proposed_aligned"
+decision_reference = "CAA-2026-09-18-01 sections 6 and 12.3"
+checklist = { field_state_null = true, units_time = true, auth = true, side_effects = true, idempotency = true, events = true, retention = true, errors = true, compatibility = true }
+
+[[contracts]]
+id = "CTR-INT-005"
+name = "AcceptanceEvidenceIndexV1"
+version = "1.0.0"
+producer = "PLAN-INT"
+consumers = ["PLAN-FND", "PLAN-M0-DISCOVERY", "PLAN-M01", "PLAN-M02", "PLAN-M03", "PLAN-M04", "PLAN-M05", "PLAN-M06", "PLAN-M07", "PLAN-M08", "PLAN-A01", "PLAN-A02", "PLAN-A03", "PLAN-A04-LINUX", "PLAN-A04-MAC", "PLAN-P01", "PLAN-P02", "PLAN-DB", "PLAN-DEP"]
+maturity = "proposed_aligned"
+decision_reference = "CAA-2026-09-18-01 sections 6, 14, and 17"
+checklist = { field_state_null = true, units_time = true, auth = true, side_effects = true, idempotency = true, events = true, retention = true, errors = true, compatibility = true }
+
+[[contracts]]
+id = "CTR-INT-006"
+name = "AutomationRoutineResultV1"
+version = "1.0.0"
+producer = "PLAN-INT"
+consumers = ["PLAN-FND", "PLAN-M0-DISCOVERY", "PLAN-M01", "PLAN-M02", "PLAN-M03", "PLAN-M04", "PLAN-M05", "PLAN-M06", "PLAN-M07", "PLAN-M08", "PLAN-A01", "PLAN-A02", "PLAN-A03", "PLAN-A04-LINUX", "PLAN-A04-MAC", "PLAN-P01", "PLAN-P02", "PLAN-DB", "PLAN-DEP"]
+maturity = "proposed_aligned"
+decision_reference = "CAA-2026-09-18-01 sections 6 and 15"
+checklist = { field_state_null = true, units_time = true, auth = true, side_effects = true, idempotency = true, events = true, retention = true, errors = true, compatibility = true }
+
+# Cross-cutting event and external-boundary contracts
+
+[[contracts]]
+id = "CTR-EVT-001"
+name = "DurableEventDeliveryReceiptAndReplayV1"
+version = "1.0.0"
+producer = "PLAN-INT"
+consumers = ["PLAN-FND", "PLAN-M02", "PLAN-M03", "PLAN-M04", "PLAN-M05", "PLAN-M06", "PLAN-M07", "PLAN-M08", "PLAN-DB"]
+maturity = "proposed_aligned"
+decision_reference = "CAA-2026-09-18-01 sections 6, 9.6, and 10"
+checklist = { field_state_null = true, units_time = true, auth = true, side_effects = true, idempotency = true, events = true, retention = true, errors = true, compatibility = true }
+
+[[contracts]]
+id = "CTR-BOUNDARY-001"
+name = "SafeSubprocessExecutionV1"
+version = "1.0.0"
+producer = "PLAN-FND"
+consumers = ["PLAN-M03", "PLAN-A01", "PLAN-A02", "PLAN-A03", "PLAN-A04-LINUX", "PLAN-A04-MAC", "PLAN-DEP"]
+maturity = "proposed_aligned"
+decision_reference = "CAA-2026-09-18-01 sections 6 and 11.2"
+checklist = { field_state_null = true, units_time = true, auth = true, side_effects = true, idempotency = true, events = true, retention = true, errors = true, compatibility = true }
+
+[[contracts]]
+id = "CTR-BOUNDARY-002"
+name = "SafeProviderHttpExecutionV1"
+version = "1.0.0"
+producer = "PLAN-M03"
+consumers = ["PLAN-A01", "PLAN-A02", "PLAN-A03", "PLAN-M04"]
+maturity = "evidence_blocked"
+decision_reference = "CAA-2026-09-18-01 sections 6, 8, and 11.2"
+checklist = { field_state_null = true, units_time = true, auth = true, side_effects = true, idempotency = true, events = true, retention = true, errors = true, compatibility = true }
+
+[[contracts]]
+id = "CTR-BOUNDARY-003"
+name = "ApprovedRootAndFileReadV1"
+version = "1.0.0"
+producer = "PLAN-FND"
+consumers = ["PLAN-A01", "PLAN-A02", "PLAN-A03", "PLAN-A04-LINUX", "PLAN-A04-MAC", "PLAN-M06", "PLAN-M08", "PLAN-DB", "PLAN-DEP"]
+maturity = "proposed_aligned"
+decision_reference = "CAA-2026-09-18-01 sections 6 and 11.2"
+checklist = { field_state_null = true, units_time = true, auth = true, side_effects = true, idempotency = true, events = true, retention = true, errors = true, compatibility = true }
+
+# Application composition contract
+
+[[contracts]]
+id = "CTR-APP-001"
+name = "DashboardOverviewV1"
+version = "1.0.0"
+producer = "PLAN-M08"
+consumers = ["PLAN-P01", "PLAN-P02", "PLAN-INT"]
+maturity = "proposed_aligned"
+decision_reference = "CAA-2026-09-18-01 sections 6, 10, and 11.2"
+checklist = { field_state_null = true, units_time = true, auth = true, side_effects = true, idempotency = true, events = true, retention = true, errors = true, compatibility = true }

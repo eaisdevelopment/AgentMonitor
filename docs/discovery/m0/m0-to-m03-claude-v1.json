@@ -1,0 +1,188 @@
+{
+  "record_type": "M0ToM03CapabilityMappingV1",
+  "schema_version": "1.0",
+  "mapping_id": "M0-M03-CLAUDE-001",
+  "mapping_version": "1.0.0",
+  "status": "approved",
+  "scope": {
+    "provider_key": "claude",
+    "product": "Claude Code",
+    "provider_version": "2.1.282",
+    "platform": {
+      "operating_system": "Linux",
+      "architecture": "x86_64"
+    },
+    "plan_class": "Claude Max",
+    "profile_ref": "REF-M0-CLAUDE-PROFILE-001"
+  },
+  "schema_binding": {
+    "bundle_path": "docs/discovery/m0/m3-handoff-schema-bundle-v1.json",
+    "bundle_sha256": "b10018ea137c2570dc705325b65cf674a22dd8cd4c1434030cd1b9d3df7201c7"
+  },
+  "contract_binding": {
+    "contract_id": "CTR-PROV-002",
+    "contract_version": "1.0.0",
+    "bundle_path": "docs/discovery/m0/m3-ctr-prov-002-contract-bundle-v1.json",
+    "bundle_sha256": "bb0c5f3a1106d73a5059d3061562bc2fb8ef56685bed116e075d83dbfc8c02b1",
+    "schema_artifact_status": "current",
+    "schema_sha256": "d86958cb4f2c3805fee5bed51a6c590810ccf33e270c50371274308d07603466"
+  },
+  "capabilities": [
+    {
+      "capability_id": "subscription.quota",
+      "decision": "supported",
+      "availability": "available",
+      "source_id": "claude.usage.ax-screen-reader.v1",
+      "operation_id": "claude.usage.tui.v1",
+      "scenario_ids": [
+        "M0-CLA-003",
+        "M0-CLA-004",
+        "M0-CLA-010",
+        "M0-COM-007"
+      ],
+      "evidence_refs": [
+        "REF-M0-CLA-USAGE-STRUCTURE-001",
+        "REF-M0-CLA-NETWORK-BOUNDS-001",
+        "REF-M0-CLA-USAGE-SIDE-EFFECTS-001"
+      ],
+      "allowed_fields": [
+        "window_label",
+        "percent_used",
+        "reset_display",
+        "model_scope",
+        "usage_credits_enabled",
+        "provider_version",
+        "observed_at",
+        "collected_at",
+        "availability"
+      ],
+      "network_bounds": {
+        "status": "verified",
+        "allowed_hosts": ["api.anthropic.com:443"],
+        "redirect_policy": "deny",
+        "max_cli_invocations": 1,
+        "max_tls_connections": 32,
+        "max_total_upstream_bytes": 4194304,
+        "max_total_downstream_bytes": 4194304,
+        "http_request_count_observable": false,
+        "deadline_seconds": 30,
+        "minimum_interval_seconds": 300,
+        "automatic_retry_count": 0,
+        "cost_policy": "no_model_prompt_or_inference_authorized",
+        "evidence_ref": "REF-M0-CLA-NETWORK-BOUNDS-001"
+      },
+      "render_policy": {
+        "refresh_mode": "incremental",
+        "terminal_marker": "Usage credits",
+        "accepted_render": "latest_complete_set_immediately_preceding_terminal_marker",
+        "window_cardinality": "one_value_per_normalized_window",
+        "duplicates_across_refreshes": "allowed",
+        "conflicting_duplicates_within_final_render": "fail_closed",
+        "missing_terminal_marker_or_deadline": "fail_closed"
+      },
+      "implementation_boundary": "M3 must implement and live-verify an admitted equivalent exact-host bounded transport before adapter Green"
+    },
+    {
+      "capability_id": "local.process.observation",
+      "decision": "supported",
+      "availability": "available",
+      "source_id": "linux.proc.process.v1",
+      "operation_id": "linux.proc.claude-process.v1",
+      "scenario_ids": [
+        "M0-LNX-001",
+        "M0-LNX-002",
+        "M0-LNX-004",
+        "M0-LNX-006",
+        "M0-LNX-011",
+        "M0-LNX-012",
+        "M0-LNX-013"
+      ],
+      "evidence_refs": [
+        "REF-M0-LNX-PROCESS-STRUCTURE-001",
+        "REF-M0-LNX-PROCESS-SIDE-EFFECTS-001"
+      ],
+      "allowed_fields": [
+        "executable_identity",
+        "pid",
+        "parent_pid",
+        "same_uid",
+        "kernel_state",
+        "start_time_ticks",
+        "user_cpu_ticks",
+        "system_cpu_ticks",
+        "resident_pages",
+        "thread_count",
+        "observed_at"
+      ],
+      "process_identity": ["pid", "start_time_ticks"]
+    },
+    {
+      "capability_id": "local.process.account_correlation",
+      "decision": "supported",
+      "availability": "available",
+      "source_id": "claude.otel.metrics.http-json.v1",
+      "operation_id": "claude.otel.owner-terminal.v1",
+      "scenario_ids": ["M0-CLA-008", "M0-LNX-007", "M0-LNX-012"],
+      "evidence_refs": [
+        "REF-M0-CLAUDE-OTEL-TARGETED-PROBE-001"
+      ],
+      "correlation_outcome": "automatic_matched",
+      "targeted_profile_probe_status": "Passed",
+      "mapping_ref": "M0-M03-CLAUDE-OTEL-001",
+      "required_evidence": "satisfied by the authenticated official metrics-only OTLP lane, exact Linux launch identity, and explicit owner-confirmed fingerprint binding"
+    }
+  ],
+  "normalized_outcomes": {
+    "compatibility": {
+      "unknown_or_out_of_range_version": "provider_version_unverified"
+    },
+    "operation": {
+      "version_drift": "unverified_provider_version",
+      "provider_authentication_signal": "reauthentication_required",
+      "provider_authorization_signal": "authorization_insufficient"
+    },
+    "identity_mismatch": {
+      "outer_outcome": "success",
+      "typed_identity_result": "wrong_account_detected"
+    }
+  },
+  "required_provenance": [
+    "source_id",
+    "provider_version",
+    "observed_at",
+    "collected_at",
+    "availability",
+    "freshness",
+    "precision",
+    "confidence"
+  ],
+  "prohibited_inputs_and_outputs": [
+    "credential",
+    "email",
+    "profile_path",
+    "process_environment",
+    "command_line",
+    "process_memory",
+    "terminal_content",
+    "prompt",
+    "response",
+    "tool_activity",
+    "source_content",
+    "raw_provider_output"
+  ],
+  "fail_closed_on": [
+    "artifact_digest_mismatch",
+    "unverified_provider_version",
+    "login_or_consent_prompt",
+    "profile_write_possible",
+    "unexpected_host_or_redirect",
+    "network_budget_exceeded",
+    "unknown_output_field",
+    "missing_terminal_marker",
+    "incomplete_final_render",
+    "conflicting_duplicate_window_in_final_render",
+    "missing_provenance",
+    "deadline",
+    "weak_account_correlation"
+  ]
+}

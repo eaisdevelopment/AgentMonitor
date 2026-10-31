@@ -1,0 +1,77 @@
+{
+  "schema_version": "1.0.0",
+  "record_type": "agentmonitor.m3_current_gate_receipt",
+  "receipt_id": "M3-CURRENT-GATE-20261003T095057Z",
+  "milestone_id": "V1-M3",
+  "command_id": "AUTO-M3-EXIT",
+  "command": "python3 tools/automation/run.py AUTO-M3-EXIT",
+  "implementation_revision": "b0113bba2e330bb63cc2d1d6f4c266e879ab3ffe",
+  "started_at": "2026-10-03T09:45:52Z",
+  "completed_at": "2026-10-03T09:50:57Z",
+  "status": "passed",
+  "exit_code": 0,
+  "skips": [],
+  "selected_account_digest": "91ecd25656410c02afef60932e11c6b1b5952b47cd2d1579b2b09ae0a5a73c34",
+  "required_lanes": [
+    {
+      "lane_id": "selected_account_preflight",
+      "status": "passed",
+      "evidence": "browser_api_account_verified"
+    },
+    {
+      "lane_id": "fresh_quota_lineage",
+      "status": "passed",
+      "evidence": "run_sha256:ad20b5dbb59560afdb172871750b21f2f00d9d3cd3ea96f7c04ce467b3f13ba2"
+    },
+    {
+      "lane_id": "registry_unchanged",
+      "status": "passed",
+      "evidence": "browser_get_only_registry_unchanged"
+    },
+    {
+      "lane_id": "revision_bound_service",
+      "status": "passed",
+      "evidence": "service_restarted_from_clean_head"
+    },
+    {
+      "lane_id": "current_browser",
+      "status": "passed",
+      "evidence": "visible_shared_chrome_passed"
+    },
+    {
+      "lane_id": "runtime_regression",
+      "status": "passed",
+      "evidence": "runtime_query:available"
+    },
+    {
+      "lane_id": "technical_suite",
+      "status": "passed",
+      "evidence": "auto-m3-test_passed"
+    },
+    {
+      "lane_id": "quality",
+      "status": "passed",
+      "evidence": "auto-quality_passed"
+    },
+    {
+      "lane_id": "build",
+      "status": "passed",
+      "evidence": "auto-build_passed"
+    },
+    {
+      "lane_id": "mutation",
+      "status": "passed",
+      "evidence": "auto-mutation_passed"
+    },
+    {
+      "lane_id": "documentation",
+      "status": "passed",
+      "evidence": "auto-docs-check_passed"
+    },
+    {
+      "lane_id": "git_preflight",
+      "status": "passed",
+      "evidence": "auto-git-preflight_passed"
+    }
+  ]
+}

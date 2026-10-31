@@ -1,0 +1,545 @@
+{
+  "$defs": {
+    "AdapterDescriptorV1": {
+      "$comment": "Adapter identity invariants are enforced by AdapterDescriptorV1.",
+      "additionalProperties": false,
+      "properties": {
+        "adapter_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "type": "string"
+        },
+        "adapter_version": {
+          "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$",
+          "type": "string"
+        },
+        "build_identity": {
+          "maxLength": 128,
+          "minLength": 1,
+          "type": "string"
+        },
+        "protocol_versions": {
+          "$ref": "#/$defs/ProtocolVersionRangeV1"
+        },
+        "provider_key": {
+          "maxLength": 128,
+          "minLength": 1,
+          "type": "string"
+        }
+      },
+      "required": [
+        "adapter_id",
+        "adapter_version",
+        "provider_key",
+        "protocol_versions",
+        "build_identity"
+      ],
+      "type": "object"
+    },
+    "CapabilityDeclarationV1": {
+      "$comment": "Cross-field scope, decision, and evidence invariants require Python validation.",
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "else": {
+            "properties": {
+              "output_schema": {
+                "type": "null"
+              },
+              "port_type": {
+                "type": "null"
+              },
+              "sources": {
+                "items": {
+                  "$ref": "#/$defs/ProviderSourceV1"
+                },
+                "maxItems": 0,
+                "minItems": 0,
+                "type": "array",
+                "uniqueItems": true
+              }
+            }
+          },
+          "if": {
+            "properties": {
+              "decision": {
+                "enum": [
+                  "supported",
+                  "experimental"
+                ]
+              }
+            },
+            "required": [
+              "decision"
+            ]
+          },
+          "then": {
+            "properties": {
+              "output_schema": {
+                "maxLength": 128,
+                "minLength": 1,
+                "type": "string"
+              },
+              "port_type": {
+                "maxLength": 128,
+                "minLength": 1,
+                "type": "string"
+              },
+              "sources": {
+                "items": {
+                  "$ref": "#/$defs/ProviderSourceV1"
+                },
+                "maxItems": 64,
+                "minItems": 1,
+                "type": "array",
+                "uniqueItems": true
+              }
+            }
+          }
+        }
+      ],
+      "properties": {
+        "capability_id": {
+          "pattern": "^[a-z][a-z0-9]*(?:\\.[a-z][a-z0-9]*){1,5}$",
+          "type": "string"
+        },
+        "constraints": {
+          "$ref": "#/$defs/CollectionConstraintV1"
+        },
+        "decision": {
+          "enum": [
+            "supported",
+            "experimental",
+            "deferred",
+            "unsupported",
+            "unknown"
+          ]
+        },
+        "evidence_reference": {
+          "maxLength": 128,
+          "minLength": 1,
+          "type": "string"
+        },
+        "output_schema": {
+          "anyOf": [
+            {
+              "maxLength": 128,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "platforms": {
+          "items": {
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          },
+          "maxItems": 64,
+          "minItems": 1,
+          "type": "array",
+          "uniqueItems": true
+        },
+        "port_type": {
+          "anyOf": [
+            {
+              "maxLength": 128,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "provider_version_rule": {
+          "$ref": "#/$defs/ProviderVersionRuleV1"
+        },
+        "reason_code": {
+          "maxLength": 128,
+          "minLength": 1,
+          "type": "string"
+        },
+        "schema_versions": {
+          "$ref": "#/$defs/CapabilitySchemaRangeV1"
+        },
+        "side_effect_class": {
+          "enum": [
+            "read_only",
+            "managed_profile_write",
+            "unknown"
+          ]
+        },
+        "sources": {
+          "items": {
+            "$ref": "#/$defs/ProviderSourceV1"
+          },
+          "maxItems": 64,
+          "minItems": 0,
+          "type": "array",
+          "uniqueItems": true
+        },
+        "stability": {
+          "enum": [
+            "documented",
+            "supported",
+            "local_undocumented",
+            "experimental",
+            "unknown"
+          ]
+        }
+      },
+      "required": [
+        "capability_id",
+        "schema_versions",
+        "decision",
+        "stability",
+        "reason_code",
+        "evidence_reference",
+        "port_type",
+        "output_schema",
+        "sources",
+        "provider_version_rule",
+        "constraints",
+        "side_effect_class",
+        "platforms"
+      ],
+      "type": "object"
+    },
+    "CapabilityManifestV1": {
+      "$comment": "Provider scope, uniqueness, and exact M0 binding require Python validation.",
+      "additionalProperties": false,
+      "properties": {
+        "declarations": {
+          "items": {
+            "$ref": "#/$defs/CapabilityDeclarationV1"
+          },
+          "maxItems": 64,
+          "minItems": 1,
+          "type": "array",
+          "uniqueItems": true
+        },
+        "descriptor": {
+          "$ref": "#/$defs/AdapterDescriptorV1"
+        },
+        "m0_mapping_digest": {
+          "pattern": "^[0-9a-f]{64}$",
+          "type": "string"
+        },
+        "m0_mapping_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "type": "string"
+        },
+        "m0_mapping_version": {
+          "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$",
+          "type": "string"
+        },
+        "manifest_schema_version": {
+          "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$",
+          "type": "string"
+        }
+      },
+      "required": [
+        "descriptor",
+        "manifest_schema_version",
+        "declarations",
+        "m0_mapping_id",
+        "m0_mapping_version",
+        "m0_mapping_digest"
+      ],
+      "type": "object"
+    },
+    "CapabilitySchemaRangeV1": {
+      "$comment": "Range ordering and same-major policy are semantic invariants.",
+      "additionalProperties": false,
+      "properties": {
+        "maximum": {
+          "$ref": "#/$defs/CapabilitySchemaVersionV1"
+        },
+        "minimum": {
+          "$ref": "#/$defs/CapabilitySchemaVersionV1"
+        }
+      },
+      "required": [
+        "minimum",
+        "maximum"
+      ],
+      "type": "object"
+    },
+    "CapabilitySchemaVersionV1": {
+      "$comment": "Major/minor relationship is enforced by the V1 Python contract.",
+      "additionalProperties": false,
+      "properties": {
+        "major": {
+          "minimum": 1,
+          "type": "integer"
+        },
+        "minor": {
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "major",
+        "minor"
+      ],
+      "type": "object"
+    },
+    "CollectionConstraintV1": {
+      "$comment": "Count/availability pairing is enforced by CollectionConstraintV1.",
+      "additionalProperties": false,
+      "properties": {
+        "automatic_retry_count": {
+          "maximum": 10,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "deadline_ms": {
+          "maximum": 600000,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "maximum_concurrency": {
+          "maximum": 64,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "minimum_interval_ms": {
+          "minimum": 0,
+          "type": "integer"
+        },
+        "provider_request_count": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "provider_request_count_availability": {
+          "$ref": "#/$defs/FieldAvailabilityV1"
+        }
+      },
+      "required": [
+        "deadline_ms",
+        "minimum_interval_ms",
+        "maximum_concurrency",
+        "automatic_retry_count",
+        "provider_request_count",
+        "provider_request_count_availability"
+      ],
+      "type": "object"
+    },
+    "FieldAvailabilityV1": {
+      "$comment": "CTR-COMMON-007 V1 Python invariants remain normative.",
+      "additionalProperties": false,
+      "properties": {
+        "state": {
+          "enum": [
+            "available",
+            "missing",
+            "null",
+            "unknown",
+            "unsupported",
+            "unavailable",
+            "not_applicable",
+            "withheld_or_denied",
+            "stale",
+            "unresolved"
+          ]
+        }
+      },
+      "required": [
+        "state"
+      ],
+      "type": "object"
+    },
+    "ProtocolVersionRangeV1": {
+      "$comment": "Protocol ordering and compatible-major policy are semantic invariants.",
+      "additionalProperties": false,
+      "properties": {
+        "maximum": {
+          "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$",
+          "type": "string"
+        },
+        "minimum": {
+          "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$",
+          "type": "string"
+        }
+      },
+      "required": [
+        "minimum",
+        "maximum"
+      ],
+      "type": "object"
+    },
+    "ProviderSourceV1": {
+      "$comment": "Source/provider/capability and experimental pairing are semantic invariants.",
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "else": {
+            "properties": {
+              "is_experimental": {
+                "const": false
+              }
+            }
+          },
+          "if": {
+            "properties": {
+              "source_class": {
+                "const": "experimental_private_or_browser"
+              }
+            },
+            "required": [
+              "source_class"
+            ]
+          },
+          "then": {
+            "properties": {
+              "is_experimental": {
+                "const": true
+              }
+            }
+          }
+        }
+      ],
+      "properties": {
+        "capability_id": {
+          "pattern": "^[a-z][a-z0-9]*(?:\\.[a-z][a-z0-9]*){1,5}$",
+          "type": "string"
+        },
+        "credential_role": {
+          "maxLength": 128,
+          "minLength": 1,
+          "type": "string"
+        },
+        "evidence_reference": {
+          "maxLength": 128,
+          "minLength": 1,
+          "type": "string"
+        },
+        "is_experimental": {
+          "type": "boolean"
+        },
+        "mechanism_version": {
+          "maxLength": 128,
+          "minLength": 1,
+          "type": "string"
+        },
+        "provider_key": {
+          "maxLength": 128,
+          "minLength": 1,
+          "type": "string"
+        },
+        "side_effect_class": {
+          "enum": [
+            "read_only",
+            "managed_profile_write",
+            "unknown"
+          ]
+        },
+        "source_class": {
+          "enum": [
+            "documented_api",
+            "supported_cli",
+            "approved_local_metadata",
+            "experimental_private_or_browser"
+          ]
+        },
+        "source_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "type": "string"
+        },
+        "stability": {
+          "enum": [
+            "documented",
+            "supported",
+            "local_undocumented",
+            "experimental",
+            "unknown"
+          ]
+        }
+      },
+      "required": [
+        "source_id",
+        "provider_key",
+        "capability_id",
+        "source_class",
+        "stability",
+        "mechanism_version",
+        "credential_role",
+        "side_effect_class",
+        "evidence_reference",
+        "is_experimental"
+      ],
+      "type": "object"
+    },
+    "ProviderVersionRuleV1": {
+      "$comment": "Exact membership and scheme-specific parsing are semantic invariants.",
+      "additionalProperties": false,
+      "properties": {
+        "rule_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "type": "string"
+        },
+        "scheme": {
+          "enum": [
+            "opaque_exact",
+            "semantic_exact",
+            "date_exact"
+          ]
+        },
+        "verified_versions": {
+          "items": {
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          },
+          "maxItems": 64,
+          "minItems": 1,
+          "type": "array",
+          "uniqueItems": true
+        }
+      },
+      "required": [
+        "rule_id",
+        "scheme",
+        "verified_versions"
+      ],
+      "type": "object"
+    }
+  },
+  "$id": "urn:agentmonitor:contract:provider-system:capability-manifest:v1",
+  "$ref": "#/$defs/CapabilityManifestV1",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "Closed structural schema for CTR-PROV-002 V1. The published Python contract remains authoritative for cross-field semantic invariants.",
+  "title": "AgentMonitor CapabilityManifestV1",
+  "x-agentmonitor-contract": {
+    "contractId": "CTR-PROV-002",
+    "contractVersion": "1.0.0",
+    "pythonType": "agentmonitor.contracts.provider_system_v1.CapabilityManifestV1",
+    "semanticAuthority": "CapabilityManifestV1 and nested V1 __post_init__ invariants",
+    "validationOrder": [
+      "validate this structural schema",
+      "construct the published Python V1 contract",
+      "apply approved M0 mapping and runtime compatibility policy"
+    ]
+  },
+  "x-agentmonitor-semantic-invariants": [
+    "range ordering and compatible protocol/schema majors",
+    "cross-field declaration decision consistency",
+    "provider/capability/source scope equality and uniqueness",
+    "provider request count and availability pairing",
+    "exact approved M0 mapping digest equality"
+  ]
+}

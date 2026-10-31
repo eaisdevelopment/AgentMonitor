@@ -1,0 +1,204 @@
+{
+  "schema_version": "2.0.0",
+  "record_type": "agentmonitor.milestone_acceptance_status",
+  "record_id": "M3-ACCEPTANCE-2026-10-02-01",
+  "milestone_id": "V1-M3",
+  "lifecycle": "superseded",
+  "overall_status": "blocked",
+  "assessed_revision": "c97e2ba58ca6f2017517f780ab4e112dee44f3b0",
+  "recorded_at": "2026-10-02T14:44:41Z",
+  "status_documents": [
+    "docs/README.md"
+  ],
+  "evidence": [
+    {
+      "evidence_id": "E-M3-SCOPE",
+      "path": "docs/evidence/m3-scope-correction-2026-10-02.md",
+      "sha256": "7b4c0fcd46a47e0827c03da3973f08243b23c1c398dca4fe42e3388795f0067b"
+    },
+    {
+      "evidence_id": "E-M3-CLOSURE-AUDIT",
+      "path": "docs/evidence/m3-closure-audit-2026-10-01.md",
+      "sha256": "1df9086f2ab0344b55d1b7e79df8203c0206bc88ad5fafc0cb4b94ea6d844ccb"
+    },
+    {
+      "evidence_id": "E-M3-HISTORICAL-EXIT",
+      "path": "docs/evidence/m3-local-release-gate-decision.md",
+      "sha256": "afaf1e432ff8584cfcc7eda255e171b93c99912577ac9945ab663f9d805769d5"
+    },
+    {
+      "evidence_id": "E-M3-VERTICAL",
+      "path": "docs/evidence/m3-owner-confirmed-claude-vertical.md",
+      "sha256": "0fcaa9c5abed9735d1f2a1ea42b894b312a9a8d4ebff25bf6f9b0e4343942f42"
+    },
+    {
+      "evidence_id": "E-M3-CLAUDE-LIVE",
+      "path": "docs/evidence/m3-claude-live-unblock.md",
+      "sha256": "75ef67b2b795c4032f0416f8b0a0c7c34ff0c542c41b89e8ab260ddf72fb1050"
+    },
+    {
+      "evidence_id": "E-M3-RUNTIME",
+      "path": "docs/evidence/m3-st-obs-002.md",
+      "sha256": "2ba6d30de5fed6fd2ea638999b2090c9e1f651a14d1f0a315dc0126ef36a9194"
+    },
+    {
+      "evidence_id": "E-M3-P01",
+      "path": "docs/evidence/m3-st-obs-003-p01.md",
+      "sha256": "f58df718c044c786066cadbc7d8797b0f2f715e2ee672e6baa22166b243b8dbf"
+    },
+    {
+      "evidence_id": "E-M3-P02",
+      "path": "docs/evidence/m3-st-obs-003-p02.md",
+      "sha256": "62457d21bd313282d793d84daaf991e775a9f7754d00a75f12bf166dc0f7c425"
+    },
+    {
+      "evidence_id": "E-M3-MUTATION",
+      "path": "docs/evidence/m3-fix-006-mutation-gate.md",
+      "sha256": "c6938e7ac565e2944c298fedb6aca6e0cfff37632af9c7d34c9e347f013217d8"
+    }
+  ],
+  "commands": [
+    {
+      "command_id": "AUTO-M3-EXIT",
+      "command": "python3 tools/automation/run.py AUTO-M3-EXIT",
+      "status": "blocked",
+      "exit_code": null,
+      "skips": [
+        "historical command is unsafe against the post-M4 owner database",
+        "read-only successor gate has not been implemented or run against the current revision",
+        "current dashboard browser witness has not run",
+        "owner countersignature and historical M3 TDD disposition remain outstanding"
+      ],
+      "evidence_ids": [
+        "E-M3-CLOSURE-AUDIT"
+      ]
+    },
+    {
+      "command_id": "AUTO-M3-EXIT-2026-09-25-HISTORICAL",
+      "command": "python3 tools/automation/run.py AUTO-M3-EXIT",
+      "status": "passed",
+      "exit_code": 0,
+      "skips": [],
+      "evidence_ids": [
+        "E-M3-HISTORICAL-EXIT"
+      ]
+    },
+    {
+      "command_id": "AUTO-MUTATION-2026-09-25-HISTORICAL",
+      "command": "python3 tools/automation/run.py AUTO-MUTATION",
+      "status": "passed",
+      "exit_code": 0,
+      "skips": [],
+      "evidence_ids": [
+        "E-M3-MUTATION"
+      ]
+    }
+  ],
+  "criteria": [
+    {
+      "criterion_id": "AC-M3-001",
+      "status": "passed",
+      "evidence_ids": [
+        "E-M3-CLAUDE-LIVE",
+        "E-M3-VERTICAL"
+      ],
+      "decision": "The approved Claude/Linux/source tuple passed the M03 protocol and compatibility boundary for the selected real account."
+    },
+    {
+      "criterion_id": "AC-M3-002",
+      "status": "passed",
+      "evidence_ids": [
+        "E-M3-VERTICAL"
+      ],
+      "decision": "The owner-confirmed account has one durable M02 identity, profile, and resource graph in real SQLite."
+    },
+    {
+      "criterion_id": "AC-M3-003",
+      "status": "passed",
+      "evidence_ids": [
+        "E-M3-CLAUDE-LIVE",
+        "E-M3-VERTICAL"
+      ],
+      "decision": "A genuine read-only Claude subscription quota observation was reconciled for the selected account."
+    },
+    {
+      "criterion_id": "AC-M3-004",
+      "status": "passed",
+      "evidence_ids": [
+        "E-M3-VERTICAL",
+        "E-M3-HISTORICAL-EXIT"
+      ],
+      "decision": "The real quota lane committed through M04 into M05 history and provenance with replay protection."
+    },
+    {
+      "criterion_id": "AC-M3-005",
+      "status": "passed",
+      "evidence_ids": [
+        "E-M3-RUNTIME",
+        "E-M3-VERTICAL"
+      ],
+      "decision": "A real Linux Claude process and owner-terminal session were linked through their M04 run and persisted through the M06 durable receipt/observation path for the same account using metadata-only lineage."
+    },
+    {
+      "criterion_id": "AC-M3-006",
+      "status": "passed",
+      "evidence_ids": [
+        "E-M3-P01",
+        "E-M3-P02",
+        "E-M3-HISTORICAL-EXIT"
+      ],
+      "decision": "The authenticated API, generated client, and visible built browser rendered the selected account quota, runtime, history, and provenance in the historical M3 technical run."
+    },
+    {
+      "criterion_id": "AC-M3-007",
+      "status": "blocked",
+      "evidence_ids": [
+        "E-M3-SCOPE",
+        "E-M3-CLOSURE-AUDIT",
+        "E-M3-HISTORICAL-EXIT",
+        "E-M3-MUTATION"
+      ],
+      "decision": "Historical technical and mutation gates passed, but no safe current-revision successor gate, current browser witness, owner countersignature, or explicit historical TDD disposition exists yet."
+    }
+  ],
+  "reviewer_decisions": [
+    {
+      "decision_id": "M3-SCOPE-2026-10-02",
+      "status": "passed",
+      "decision": "The owner approved one real Claude vertical as the M3 boundary and assigned later-provider and release outcomes to M4 through M8.",
+      "evidence_ids": [
+        "E-M3-SCOPE"
+      ]
+    },
+    {
+      "decision_id": "M3-CURRENT-GATE-2026-10-02",
+      "status": "blocked",
+      "decision": "The historical gate must not run against the post-M4 owner database; a read-only successor gate and current browser witness remain required.",
+      "evidence_ids": [
+        "E-M3-CLOSURE-AUDIT"
+      ]
+    },
+    {
+      "decision_id": "M3-HISTORICAL-TDD-2026-10-02",
+      "status": "blocked",
+      "decision": "The bounded historical M3 Red-first gap still requires an explicit owner disposition and is not accepted by this scope correction.",
+      "evidence_ids": [
+        "E-M3-CLOSURE-AUDIT",
+        "E-M3-P01",
+        "E-M3-P02"
+      ]
+    }
+  ],
+  "supersedes": [],
+  "scope_decision": {
+    "path": "docs/evidence/m3-scope-correction-2026-10-02.md",
+    "sha256": "7b4c0fcd46a47e0827c03da3973f08243b23c1c398dca4fe42e3388795f0067b",
+    "scope_kind": "m3_one_account_claude_vertical"
+  },
+  "supersedes_record": {
+    "path": "docs/evidence/v1-m3-acceptance-status-v1.json",
+    "record_id": "M3-ACCEPTANCE-2026-09-24-01",
+    "sha256": "ff40162231e1af00798828fb4694d64748fc1d125a40b0baa80d70596aa7248a",
+    "prior_status": "blocked"
+  }
+}

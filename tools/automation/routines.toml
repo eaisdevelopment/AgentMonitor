@@ -1,0 +1,285 @@
+schema_version = "1.0"
+catalog_version = "0.2.0-draft"
+status = "codified_fail_closed"
+owner_approved = false
+implementation_authorized = false
+
+[[routines]]
+id = "AUTO-PLAN-CHECK"
+owner = "PLAN-INT"
+status = "operational"
+scope = "20-plan synchronized Draft baseline"
+implementation_command = ["python3", "tools/planning/validate_plans.py", "--stage", "synchronized"]
+blockers = []
+
+[[routines]]
+id = "AUTO-M0-G0"
+owner = "PLAN-M0-DISCOVERY"
+status = "operational"
+scope = "exact restricted G0 plan approval; no provider, account, process, profile, or evidence-root access"
+implementation_command = ["python3", "tools/discovery/m0_gate.py"]
+blockers = []
+
+[[routines]]
+id = "AUTO-M0-G1-CONTRACT"
+owner = "PLAN-M0-DISCOVERY"
+status = "operational"
+scope = "repository-only structural validation of the bounded Draft M0 G1 specification, schema, templates, and indexes; no G1 completion or live-boundary claim"
+implementation_command = ["python3", "-m", "unittest", "tools.discovery.test_m0_g1_contract"]
+blockers = []
+
+[[routines]]
+id = "AUTO-M0-G1-FINALIZE"
+owner = "PLAN-M0-DISCOVERY"
+status = "operational"
+scope = "interactive owner approval of one fixed custody control record, the verified E1 scanner admission, and the exact current G1 bundle"
+implementation_command = [".venv-m0-g1/bin/python", "tools/discovery/m0_g1_approve.py"]
+blockers = []
+
+[[routines]]
+id = "AUTO-M0-G1-EXIT"
+owner = "PLAN-M0-DISCOVERY"
+status = "operational"
+scope = "sole G1 approval gate over the exact minimal controls, real custody, scanner admission, and reviewer decisions"
+implementation_command = [".venv-m0-g1/bin/python", "tools/discovery/m0_g1_exit.py"]
+blockers = []
+
+[[routines]]
+id = "AUTO-M0-PREFLIGHT"
+owner = "PLAN-M0-DISCOVERY"
+status = "blocked"
+scope = "exact-digest, detached role-approved per-run M0-GATE-PREFLIGHT validation for exact reviewed discovery operations"
+implementation_command = []
+blockers = ["G1 external evidence custody selected by owner", "approved operation and assertion packet schema", "Red-Green-refactor preflight validator implementation"]
+
+[[routines]]
+id = "AUTO-M0-POSTFLIGHT"
+owner = "PLAN-M0-DISCOVERY"
+status = "blocked"
+scope = "immutable M0 run-result, per-assertion evidence, side-effect reconciliation, and derived scenario status"
+implementation_command = []
+blockers = ["approved G1 schema", "real approved operation packet and run result", "Red-Green-refactor validator implementation"]
+
+[[routines]]
+id = "AUTO-M0-LEDGER"
+owner = "PLAN-M0-DISCOVERY"
+status = "blocked"
+scope = "generated complete M0 scenario ledger with unique status and exact-scope evidence"
+implementation_command = []
+blockers = ["approved G1 schema", "AUTO-M0-POSTFLIGHT", "real scenario outcomes", "Red-Green-refactor ledger validator implementation"]
+
+[[routines]]
+id = "AUTO-DOCS-CHECK"
+owner = "PLAN-FND"
+status = "operational"
+scope = "Markdown links, identifiers, metadata, generated references, and routing"
+implementation_command = ["python3", "tools/docs/check.py"]
+blockers = []
+
+[[routines]]
+id = "AUTO-TEST"
+owner = "PLAN-FND"
+status = "operational"
+scope = "V1-M2 backend, generated contract/client, M1/M2 real-browser suites, and fixed 24-hour session issuance; literal 24-hour elapsed expiry, T5/T6/T7, and hosted CI remain separate"
+implementation_command = ["python3", "tools/automation/implementations/auto_test.py"]
+blockers = []
+
+[[routines]]
+id = "AUTO-M3-TEST"
+owner = "PLAN-INT"
+status = "operational"
+scope = "V1-M3 contract and technical backend boundaries; M01's literal 24-hour wall-clock session-expiry browser routine remains separate"
+implementation_command = ["python3", "tools/automation/implementations/auto_m3_test.py"]
+blockers = []
+
+[[routines]]
+id = "AUTO-M3-LIVE"
+owner = "PLAN-INT"
+status = "operational"
+scope = "V1-M3 real owner SQLite, authenticated loopback service, generated-client production browser, and populated Claude reconciliation"
+implementation_command = ["backend/.venv/bin/python", "tools/automation/implementations/auto_m3_live.py"]
+blockers = []
+
+[[routines]]
+id = "AUTO-M3-EXIT"
+owner = "PLAN-INT"
+status = "operational"
+scope = "V1-M3 clean-revision build and dashboard restart, read-only selected-account identity, fresh scheduled Claude quota lineage, account-scoped runtime regression, authenticated production browser, and complete local gates"
+implementation_command = ["backend/.venv/bin/python", "tools/automation/implementations/auto_m3_current_exit.py"]
+blockers = []
+
+[[routines]]
+id = "AUTO-MUTATION"
+owner = "PLAN-FND"
+status = "operational"
+scope = "V1-M3 M05/M06 and V1-M5 Codex parser, mapper, admission, and closed-schema security critical pure-policy mutation gate with zero non-equivalent survivors"
+implementation_command = ["backend/.venv/bin/python", "tools/automation/implementations/auto_mutation.py"]
+blockers = []
+
+[[routines]]
+id = "AUTO-QUALITY"
+owner = "PLAN-FND"
+status = "operational"
+scope = "V1-M1 static quality, boundary, generated-artifact, lockfile, and dependency-admission checks"
+implementation_command = ["python3", "tools/automation/implementations/auto_quality.py"]
+blockers = []
+
+[[routines]]
+id = "AUTO-GIT-PREFLIGHT"
+owner = "PLAN-FND"
+status = "operational_limited"
+scope = "local commit preflight: Git worktree/root/branch, configured identity, tracked .env absence, readable status"
+implementation_command = ["python3", "tools/git/preflight.py"]
+blockers = ["push/release remote and upstream readiness requires explicit --operation push or release; default local commit does not claim it"]
+
+[[routines]]
+id = "AUTO-CLAUDE-POLL"
+owner = "PLAN-M04"
+status = "operational_limited"
+scope = "one enabled real Claude default profile: service-owned collection, metadata preservation, source interval across restart, empty SQLite restart"
+implementation_command = ["python3", "tools/automation/implementations/auto_claude_poll.py"]
+blockers = ["requires explicit owner test data root and stopped service before start; proves one profile only, not six-account enrollment or provider email identity"]
+
+[[routines]]
+id = "AUTO-CLAUDE-MANAGED"
+owner = "PLAN-M02"
+status = "operational_limited"
+scope = "one selected real managed Claude account: isolated identity, explicit registry enrollment, current quota, separate account cadence, and authenticated shared-browser V1 lineage"
+implementation_command = ["python3", "tools/automation/implementations/auto_claude_managed.py"]
+blockers = ["requires explicit real owner data root, managed account ID, authenticated dashboard CDP endpoint/origin, owner-completed official sign-in, and service-collected quota; excludes full M4 acceptance"]
+
+[[routines]]
+id = "AUTO-CLAUDE-CONNECT"
+owner = "PLAN-M02"
+status = "operational_limited"
+scope = "one selected owner-completed dashboard Claude connection: real HTTP protections, native child lifetime, built browser controls, exact managed identity, and service quota"
+implementation_command = ["python3", "tools/automation/implementations/auto_claude_connect.py"]
+blockers = ["owner must click Connect Claude and complete official browser sign-in; explicit managed account and authenticated shared dashboard selectors required; never starts authentication and excludes full M4 acceptance"]
+
+[[routines]]
+id = "AUTO-DASHBOARD-PROVIDER-FILTER"
+owner = "PLAN-P02"
+status = "operational_limited"
+scope = "production build and authenticated real mixed-provider Overview: Claude-only, Codex-only, all-provider reset, organization composition, refresh retention, responsive layout and zero mutations"
+implementation_command = ["python3", "tools/automation/implementations/auto_dashboard_provider_filter.py"]
+blockers = ["requires an authenticated shared loopback Chrome dashboard containing genuine nonarchived Claude and Codex Registry accounts; complete-fleet filtering beyond the bounded account page remains outside this focused gate"]
+
+[[routines]]
+id = "AUTO-BUILD"
+owner = "PLAN-FND"
+status = "operational"
+scope = "V1-M1 locked input validation, deterministic OpenAPI/client check, and production frontend build"
+implementation_command = ["python3", "tools/automation/implementations/auto_build.py"]
+blockers = []
+
+[[routines]]
+id = "AUTO-LAN-DASHBOARD"
+owner = "PLAN-P01"
+status = "operational_limited"
+scope = "owner-selected private IPv4 interface/subnet: real dual sockets, IAM HTTP protections and built Chrome sign-in/admin navigation"
+implementation_command = ["python3", "tools/automation/implementations/auto_lan_dashboard.py"]
+blockers = ["explicit real LAN interface/subnet and exact frontend build required; second-computer reachability and TLS/Internet/multi-user hosting are outside this bounded gate"]
+
+[[routines]]
+id = "AUTO-MIGRATE"
+owner = "PLAN-DB"
+status = "operational_limited"
+scope = "explicit offline v1_0603 to v1_0707 M4 schema upgrade with verified private pre-migration backup"
+implementation_command = ["backend/.venv/bin/python", "tools/automation/implementations/auto_migrate.py"]
+blockers = ["installed owner upgrade, service activation/restricted start, broader backup/restore and other source revisions remain separate"]
+
+[[routines]]
+id = "AUTO-DEPLOY"
+owner = "PLAN-DEP"
+status = "blocked"
+scope = "native Linux user-service install, upgrade, preflight, and rollback"
+implementation_command = []
+blockers = ["PLAN-DEP approval and deployable artifacts"]
+
+[[routines]]
+id = "AUTO-BACKUP"
+owner = "PLAN-M08"
+status = "blocked"
+scope = "checksum and integrity verified retention-classified backup"
+implementation_command = []
+blockers = ["PLAN-M08 and PLAN-DB approval and real database"]
+
+[[routines]]
+id = "AUTO-RESTORE"
+owner = "PLAN-M08"
+status = "blocked"
+scope = "isolated restore, schema/integrity validation, and security-state rotation"
+implementation_command = []
+blockers = ["PLAN-M08 and PLAN-DB approval and real backup artifact"]
+
+[[routines]]
+id = "AUTO-RELEASE"
+owner = "PLAN-INT"
+status = "blocked"
+scope = "release gates, artifacts, SBOM/notices/evidence/notes, and rollback"
+implementation_command = []
+blockers = ["all release prerequisites and real T1..T7 evidence"]
+
+[[routines]]
+id = "AUTO-ACCOUNT-AGENTS"
+owner = "PLAN-M06"
+status = "operational_limited"
+scope = "real owner-selected Claude terminal account link: HTTP denials, generated client/build, guarded OS view, private settings reopen and read-only shared Chrome"
+implementation_command = ["python3", "tools/automation/implementations/auto_account_agents.py"]
+blockers = ["explicit real dashboard/account/PID/data root and owner-completed account confirmation required; automatic retrospective identity and full M4/M06 acceptance remain outside this bounded gate"]
+
+[[routines]]
+id = "AUTO-M4-EXIT"
+owner = "PLAN-INT"
+status = "operational"
+scope = "all six V1-M4 stories at one clean revision: exact dashboard restart, six distinct administrator-matched identities with fresh quota/history lineage, zero-skipped real suites, production fleet/Overview/alert/diagnostic browsers, local quality gates and private receipt"
+implementation_command = ["backend/.venv/bin/python", "-m", "tools.automation.implementations.auto_m4_current_exit"]
+blockers = []
+
+[[routines]]
+id = "AUTO-M5-SERVICE-ACTIVATE"
+owner = "PLAN-INT"
+status = "operational_limited"
+scope = "bounded owner-workstation transition from the pinned trusted dashboard runtime to this exact clean M5 Git revision under one exclusive service-transition guard, with authenticated source-revision proof, automatic byte-exact rollback, a private activation/rollback receipt, and nine revision-pinned evidence-preserving corrective rollovers: completed revision 6bfa69dc13cc9e1ded9c6baa6e803cb99bc8c20b into its original fixed singleton, completed revision 063445154bca0bf5ec43db94ba57c17fd193fd99 into fixed singleton m5-service-activation-corrective-archive-0634451, completed revision 6d6e1aa9d9b64d50e3f83d0f1686e6cff04b7c17 into fixed singleton m5-service-activation-corrective-archive-6d6e1aa, completed revision e066d7e1ba0124f0454c07002ea7b2ad0817d6b9 into fixed singleton m5-service-activation-corrective-archive-e066d7e, completed revision d81afab9e5b1c1dbdb690f390e77cee66eba5437 into fixed singleton m5-service-activation-corrective-archive-d81afab, completed revision 8cc683d946b58f5eb72955e08a520195582e1a28 into fixed singleton m5-service-activation-corrective-archive-8cc683d, completed revision 35f50d8c4865505a9112d8aef7ea788f425ae658 into fixed singleton m5-service-activation-corrective-archive-35f50d8, completed revision 1ada84f71e827bb4f7ea966462a6cf51d050e9af into fixed singleton m5-service-activation-corrective-archive-1ada84f, and completed revision 468a937d796efcb7ff1785a749789f07a3322abc into fixed singleton m5-service-activation-corrective-archive-468a937, with every earlier retained archive revalidated before each service or filesystem mutation; no tenth rollover or general deployment authority is granted"
+implementation_command = ["backend/.venv/bin/python", "-m", "tools.automation.implementations.m5_service_activation"]
+blockers = ["explicit live selectors and an authenticated shared browser are required for this workstation transition", "AUTO-DEPLOY and every general deployment lifecycle remain blocked"]
+
+[[routines]]
+id = "AUTO-M5-ARCHIVE-PREREQUISITES"
+owner = "PLAN-INT"
+status = "operational"
+scope = "fail-closed preservation of one stale M5 create-once prerequisite set in a private same-filesystem revision-and-digest archive before fresh owner evidence is collected"
+implementation_command = ["backend/.venv/bin/python", "-m", "tools.automation.implementations.m5_prerequisite_archive"]
+blockers = []
+
+[[routines]]
+id = "AUTO-M5-OWNER-OUTCOMES"
+owner = "PLAN-INT"
+status = "operational"
+scope = "interactive four-account M5 owner attestation from the real Codex registry, bound to one clean revision and selected pre-gate service, written once as a private owner-only file"
+implementation_command = ["backend/.venv/bin/python", "-m", "tools.automation.implementations.m5_owner_outcomes"]
+blockers = []
+
+[[routines]]
+id = "AUTO-M5-QUOTA-WITNESS"
+owner = "PLAN-INT"
+status = "operational"
+scope = "owner-assisted authoritative Codex /status reconciliation for every verified M5 account, bound to exact API/history/DOM values, current collection lineage, unchanged Registry state, and the selected service's exact clean source revision"
+implementation_command = ["backend/.venv/bin/python", "-m", "tools.automation.implementations.m5_codex_quota_witness"]
+blockers = []
+
+[[routines]]
+id = "AUTO-M5-ALERT-WITNESS"
+owner = "PLAN-INT"
+status = "operational"
+scope = "one selected genuine Codex capacity alert: distinct persisted open and repeated active-condition deliveries, owner dashboard acknowledge or snooze, a third newer source-proven recovery delivery, built-browser and service/version proof, unchanged full public registry snapshots, and create-once private M5 witness"
+implementation_command = ["backend/.venv/bin/python", "-m", "tools.automation.implementations.m5_codex_alert_witness"]
+blockers = []
+
+[[routines]]
+id = "AUTO-M5-EXIT"
+owner = "PLAN-INT"
+status = "operational"
+scope = "bounded V1-M5 Codex slice at one clean running-service revision: create only the exact missing owner-only local receipt directory on first use, consume the exact activation/rollback receipt under the shared service-transition guard, verify 0.160.0/schema/mapping admission, pinned owner-only managed-profile roots and effective descendant containment, four private owner outcomes, fresh genuine quota/history, five to six independently verified external processes, recovered source-proven alert lifecycle, production browser and zero-skipped technical/local gates, then retain and revalidate the canonical private receipt inode after every final service and lock check"
+implementation_command = ["backend/.venv/bin/python", "-m", "tools.automation.implementations.auto_m5_current_exit"]
+blockers = []

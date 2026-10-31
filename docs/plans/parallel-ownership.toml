@@ -1,0 +1,374 @@
+schema_version = "1.1"
+baseline_version = "0.2.0-draft"
+status = "draft_aligned"
+authority = "CS-1 producer/consumer review; owner approval still required"
+
+[rules]
+cross_module_imports = "published_contracts_only"
+cross_module_table_access = "forbidden"
+generated_outputs_hand_edited = false
+migration_heads = 1
+live_resource_assignment = "required_before_T5_T6_T7"
+shared_writer_assignment = "required_before_each_parallel_wave"
+write_paths = "complete nonshared repository write surface for code, tests, documentation, and sanitized evidence"
+plan_sha256_binding = "any plan-byte change invalidates that unit allocation until reviewed and rebound"
+unlisted_repository_paths = "locked until added to one exclusive write set or one shared-writer allocation"
+
+[[units]]
+id = "PLAN-M0-DISCOVERY"
+plan = "docs/plans/discovery/m0-execution-plan.md"
+plan_sha256 = "6db9f5c048c6b3bf74c86b39e0388222766937f907a47a14e51a323cd3719192"
+write_paths = ["tools/discovery/**", "docs/discovery/**"]
+contract_families = []
+table_prefixes = []
+migration_slots = []
+configuration_namespace = "none"
+depends_on = []
+parallel_after_approval = ["PLAN-FND", "PLAN-M01"]
+live_boundary = "owner-approved read-only provider/platform discovery; one alias reservation at a time"
+
+[[units]]
+id = "PLAN-FND"
+plan = "docs/plans/foundation/plan-v1.md"
+plan_sha256 = "7b11133c435d5c35652fe6a12cc58fb817e60124a90f20b7cc916a704fd52e3b"
+write_paths = ["backend/src/agentmonitor/foundation/**", "frontend/src/foundation/**", "tooling/foundation/**", "backend/tests/foundation/**", "backend/tests/integration/foundation/**", "frontend/tests/foundation/**", "frontend/tests/browser/foundation/**", "docs/modules/foundation.md"]
+contract_families = ["CTR-COMMON", "CTR-FND", "CTR-CONFIG mechanism", "CTR-BOUNDARY technical policy"]
+table_prefixes = []
+migration_slots = ["v1_0000 only when a real foundation schema is required"]
+configuration_namespace = "AGENTMONITOR_ technical bootstrap keys; module keys remain module-owned"
+depends_on = []
+parallel_after_approval = ["PLAN-M0-DISCOVERY", "PLAN-M01"]
+live_boundary = "real toolchain, checkout, loopback service, browser, and hosted CI only"
+
+[[units]]
+id = "PLAN-M01"
+plan = "docs/plans/modules/m01-identity-access/plan-v1.md"
+plan_sha256 = "514848b5344dbdde821a5b55d27c905b13f0029c46553ac55adcae3f36c7e036"
+write_paths = ["backend/src/agentmonitor/modules/identity_access/**", "backend/src/agentmonitor/adapters/identity_access/**", "backend/src/agentmonitor/adapters/persistence/identity_access/sqlite/**", "backend/tests/identity_access/**", "backend/tests/integration/identity_access/**", "docs/modules/identity-access.md", "docs/test-evidence/identity-access/**"]
+contract_families = ["CTR-IAM"]
+table_prefixes = ["iam_"]
+migration_slots = ["v1_0100..v1_0199"]
+configuration_namespace = "AGENTMONITOR_IAM_"
+depends_on = ["PLAN-FND"]
+parallel_after_approval = ["PLAN-M02", "PLAN-P02"]
+live_boundary = "real SQLite, loopback HTTP, built browser; operator bootstrap/recovery checkpoint"
+
+[[units]]
+id = "PLAN-M02"
+plan = "docs/plans/modules/m02-registry/plan-v1.md"
+plan_sha256 = "3e429a88f829d7f5e747debd08f395ef8565c79f58534d235396cff742496434"
+write_paths = ["backend/src/agentmonitor/modules/registry/**", "backend/src/agentmonitor/adapters/persistence/registry/sqlite/**", "backend/tests/registry/**", "backend/tests/integration/registry/**", "docs/modules/registry.md", "docs/test-evidence/registry/**"]
+contract_families = ["CTR-REG"]
+table_prefixes = ["reg_"]
+migration_slots = ["v1_0200..v1_0299"]
+configuration_namespace = "AGENTMONITOR_REGISTRY_"
+depends_on = ["PLAN-M0-DISCOVERY", "PLAN-FND"]
+parallel_after_approval = ["PLAN-M01", "PLAN-M03", "PLAN-M05", "PLAN-M06"]
+live_boundary = "owner-confirmed account/profile/resource identities; no guessed association"
+
+[[units]]
+id = "PLAN-M03"
+plan = "docs/plans/modules/m03-provider-system/plan-v1.md"
+plan_sha256 = "852823439c40c922432d6f218452171f442ddf79a0b7a3bfcd188e23fdf5072c"
+write_paths = ["backend/src/agentmonitor/modules/provider_system/**", "backend/src/agentmonitor/adapters/persistence/provider_system/sqlite/**", "backend/tests/provider_system/**", "backend/tests/integration/provider_system/**", "docs/modules/provider-system.md", "docs/test-evidence/provider-system/**"]
+contract_families = ["CTR-PROV"]
+table_prefixes = ["provider_system_"]
+migration_slots = ["v1_0300..v1_0399"]
+configuration_namespace = "AGENTMONITOR_PROVIDER_SYSTEM_"
+depends_on = ["PLAN-M0-DISCOVERY", "PLAN-FND"]
+parallel_after_approval = ["PLAN-A01", "PLAN-A02", "PLAN-A03"]
+live_boundary = "contract conformance uses real provider adapters/accounts; no generic fake adapter"
+
+[[units]]
+id = "PLAN-M04"
+plan = "docs/plans/modules/m04-collection-control/plan-v1.md"
+plan_sha256 = "356d9df90146c4be3da7aed621ac7186826fba2fceb3ee53623ba51910bd11e1"
+write_paths = ["backend/src/agentmonitor/modules/collection_control/**", "backend/src/agentmonitor/adapters/persistence/collection_control/sqlite/**", "backend/tests/collection_control/**", "backend/tests/integration/collection_control/**", "docs/modules/collection-control.md", "docs/test-evidence/collection-control/**"]
+contract_families = ["CTR-COL"]
+table_prefixes = ["collection_"]
+migration_slots = ["v1_0400..v1_0499", "v1_0706 (approved M4 collector current-condition allocation)"]
+configuration_namespace = "AGENTMONITOR_COLLECTION_"
+depends_on = ["PLAN-FND", "PLAN-M02", "PLAN-M03"]
+parallel_after_approval = ["PLAN-M05", "PLAN-M06"]
+live_boundary = "one provider/account/capability reservation per live schedule test"
+
+[[units]]
+id = "PLAN-M05"
+plan = "docs/plans/modules/m05-capacity/plan-v1.md"
+plan_sha256 = "5905874061a9991bcc4e5ff5b90ae30f073fd15fbf0d75fcbe3393878782ede0"
+write_paths = ["backend/src/agentmonitor/modules/capacity/**", "backend/src/agentmonitor/adapters/persistence/capacity/sqlite/**", "backend/tests/capacity/**", "backend/tests/integration/capacity/**", "docs/modules/capacity.md", "docs/test-evidence/capacity/**"]
+contract_families = ["CTR-CAP"]
+table_prefixes = ["capacity_"]
+migration_slots = ["v1_0500..v1_0599", "v1_0703..v1_0704 (approved M4 capacity metadata/delivery allocations)", "v1_0707 (approved M4 durable forecast/availability allocation)"]
+configuration_namespace = "AGENTMONITOR_CAPACITY_"
+depends_on = ["PLAN-FND", "PLAN-M02", "PLAN-M03"]
+parallel_after_approval = ["PLAN-M04", "PLAN-M06", "PLAN-M07"]
+live_boundary = "real quota/budget observations reconciled to official provider surfaces"
+
+[[units]]
+id = "PLAN-M06"
+plan = "docs/plans/modules/m06-runtime-observation/plan-v1.md"
+plan_sha256 = "b06cc3f7e6a4fbb900d52aadc70d62cbc5eff9e88a296196cd552dd8e1f45fbb"
+write_paths = ["backend/src/agentmonitor/modules/runtime_observation/**", "backend/src/agentmonitor/adapters/persistence/runtime_observation/sqlite/**", "backend/src/agentmonitor/adapters/persistence/runtime_observation/settings/**", "backend/tests/runtime_observation/**", "docs/modules/runtime-observation.md", "docs/contracts/runtime-observation-v1.md", "docs/operations/runtime-observation.md"]
+contract_families = ["CTR-RUN"]
+table_prefixes = ["runtime_"]
+migration_slots = ["v1_0600..v1_0699"]
+configuration_namespace = "AGENTMONITOR_RUNTIME_"
+depends_on = ["PLAN-M0-DISCOVERY", "PLAN-FND", "PLAN-M02", "PLAN-M03"]
+parallel_after_approval = ["PLAN-M04", "PLAN-M05", "PLAN-M07", "PLAN-A04-LINUX"]
+live_boundary = "real naturally running processes/sessions; PID and profile reservations required"
+
+[[units]]
+id = "PLAN-M07"
+plan = "docs/plans/modules/m07-alerting/plan-v1.md"
+plan_sha256 = "9998744dd614c39bb3c7c7568a1b008c0c9b67f09a558fef822a5a51eca91a89"
+write_paths = ["backend/src/agentmonitor/modules/alerting/**", "backend/src/agentmonitor/adapters/persistence/alerting/sqlite/**", "backend/tests/alerting/**", "backend/tests/integration/alerting/**", "docs/modules/alerting.md", "docs/test-evidence/alerting/**"]
+contract_families = ["CTR-ALERT"]
+table_prefixes = ["alert_"]
+migration_slots = ["v1_0700..v1_0702", "v1_0705 (approved M4 rule guards)", "v1_0708..v1_0799 (unallocated remainder)"]
+configuration_namespace = "AGENTMONITOR_ALERTING_"
+depends_on = ["PLAN-FND", "PLAN-M02", "PLAN-M04", "PLAN-M05", "PLAN-M06"]
+parallel_after_approval = ["PLAN-M08", "PLAN-P02"]
+live_boundary = "natural threshold/auth/stale/stall/recovery inputs; unavailable states remain Blocked"
+
+[[units]]
+id = "PLAN-M08"
+plan = "docs/plans/modules/m08-operations/plan-v1.md"
+plan_sha256 = "01add2e929d4a1d84ca201081d259585d5755ea8a5de747a59390afce1b41d69"
+write_paths = ["backend/src/agentmonitor/modules/operations/**", "backend/src/agentmonitor/adapters/persistence/operations/sqlite/**", "backend/src/agentmonitor/adapters/operations/**", "backend/tests/operations/**", "backend/tests/integration/operations/**", "docs/modules/operations.md", "docs/contracts/operations-v1.md", "docs/operations/backup-recovery.md", "docs/operations/diagnostics-exports.md", "docs/test-evidence/operations/**"]
+contract_families = ["CTR-OPS", "CTR-APP-001 overview projection"]
+table_prefixes = ["ops_"]
+migration_slots = ["v1_0800..v1_0899"]
+configuration_namespace = "AGENTMONITOR_OPERATIONS_"
+depends_on = ["PLAN-FND", "PLAN-M01", "PLAN-M02", "PLAN-M03", "PLAN-M04", "PLAN-M05", "PLAN-M06", "PLAN-M07"]
+parallel_after_approval = ["PLAN-DB", "PLAN-DEP", "PLAN-P01", "PLAN-P02"]
+live_boundary = "real database/filesystem/service backup, restore, export, and diagnostics"
+
+[[units]]
+id = "PLAN-A01"
+plan = "docs/plans/adapters/claude/plan-v1.md"
+plan_sha256 = "c136c4125dc8c2cf0f4bad6929bb9307eadfc12f4599b24a965d09ad80cb13e0"
+write_paths = ["backend/src/agentmonitor/adapters/providers/claude/**", "backend/tests/adapters/providers/claude/**", "backend/tests/live/claude/**", "docs/adapters/claude.md", "docs/provider-capabilities/claude/**", "docs/test-evidence/claude/**"]
+contract_semantic_paths = ["backend/src/agentmonitor/contracts/providers/claude/<capability>/v1/**"]
+contract_families = ["CTR-PROV implementation", "Claude extension schemas"]
+table_prefixes = []
+migration_slots = []
+configuration_namespace = "AGENTMONITOR_CLAUDE_"
+depends_on = ["PLAN-M0-DISCOVERY", "PLAN-FND", "PLAN-M03"]
+parallel_after_approval = ["PLAN-A02", "PLAN-A03"]
+live_boundary = "assigned Claude aliases and Anthropic billing accounts; one owner checkpoint per auth flow"
+
+[[units]]
+id = "PLAN-A02"
+plan = "docs/plans/adapters/codex/plan-v1.md"
+plan_sha256 = "81c0e07ac59922dff608a386a6f7066396496d53a3ca1feef8933f807d78d823"
+write_paths = ["backend/src/agentmonitor/adapters/providers/codex/**", "backend/tests/adapters/providers/codex/**", "docs/adapters/codex.md", "docs/test-evidence/codex/**"]
+contract_semantic_paths = ["backend/src/agentmonitor/contracts/providers/codex/<capability>/v1/**"]
+contract_families = ["CTR-PROV implementation", "Codex extension schemas"]
+table_prefixes = []
+migration_slots = []
+configuration_namespace = "AGENTMONITOR_CODEX_"
+depends_on = ["PLAN-M0-DISCOVERY", "PLAN-FND", "PLAN-M03"]
+parallel_after_approval = ["PLAN-A01", "PLAN-A03"]
+live_boundary = "assigned Codex aliases and OpenAI billing accounts; default profile immutable"
+
+[[units]]
+id = "PLAN-A03"
+plan = "docs/plans/adapters/ollama/plan-v1.md"
+plan_sha256 = "0832be9c44953a86c7e1ef69b0a6fd8de38990bafcbab3e85d4369b32a6dface"
+write_paths = ["backend/src/agentmonitor/adapters/providers/ollama/**", "backend/tests/adapters/providers/ollama/**", "backend/tests/live/ollama/**", "docs/adapters/ollama.md", "docs/provider-capabilities/ollama/**", "docs/test-evidence/ollama/**"]
+contract_semantic_paths = ["backend/src/agentmonitor/contracts/providers/ollama/<capability>/v1/**"]
+contract_families = ["CTR-PROV implementation", "Ollama extension schemas"]
+table_prefixes = []
+migration_slots = []
+configuration_namespace = "AGENTMONITOR_OLLAMA_"
+depends_on = ["PLAN-M0-DISCOVERY", "PLAN-FND", "PLAN-M03"]
+parallel_after_approval = ["PLAN-A01", "PLAN-A02"]
+live_boundary = "assigned Ollama local/cloud/API resources; local/cloud pools remain distinct"
+
+[[units]]
+id = "PLAN-A04-LINUX"
+plan = "docs/plans/platform/linux/plan-v1.md"
+plan_sha256 = "163466660ac1e5efcf9103602971a5e67a1ae751a441e3dcd8fd55e7343bd8b2"
+write_paths = ["backend/src/agentmonitor/adapters/platform/linux/**", "backend/tests/platform/linux/**", "docs/modules/platform/linux.md", "docs/operations/linux-platform-diagnostics.md", "docs/reference/linux-platform-compatibility.md"]
+contract_families = ["CTR-RUN-006 implementation", "CTR-PLAT-001 implementation", "CTR-DEP-001 constraint consumption; no implementation"]
+table_prefixes = []
+migration_slots = []
+configuration_namespace = "AGENTMONITOR_PLATFORM_LINUX_"
+depends_on = ["PLAN-M0-DISCOVERY", "PLAN-FND", "PLAN-M06"]
+parallel_after_approval = ["PLAN-A01", "PLAN-A02", "PLAN-A03"]
+live_boundary = "real non-root Linux process/filesystem/systemd user environment"
+
+[[units]]
+id = "PLAN-A04-MAC"
+plan = "docs/plans/platform/macos/plan-v1.md"
+plan_sha256 = "df45ec120f9e3f0e09600358402a778c51585c79c9e9f322e694a2f982b07fb0"
+write_paths = ["backend/src/agentmonitor/adapters/platform/macos/**", "backend/tests/platform/macos/**", "docs/platform/macos.md", "docs/contracts/platform-macos-v1.md", "docs/operations/macos.md"]
+contract_families = ["CTR-RUN-006 implementation", "CTR-PLAT-001 implementation", "CTR-DEP-001 constraint consumption; no implementation"]
+table_prefixes = []
+migration_slots = []
+configuration_namespace = "AGENTMONITOR_PLATFORM_MACOS_"
+depends_on = ["PLAN-FND", "PLAN-M06"]
+parallel_after_approval = []
+live_boundary = "real macOS only; currently Blocked and never substituted by Linux/emulation"
+
+[[units]]
+id = "PLAN-P01"
+plan = "docs/plans/api/fastapi-boundary/plan-v1.md"
+plan_sha256 = "346f5677a64a7db5a40386bdd96be56dd858010335f008648c15bd7bced6b0fd"
+write_paths = ["backend/src/agentmonitor/api/**", "backend/tests/api/**", "backend/tests/contract/api/**", "backend/tests/integration/api/**", "docs/api/http-boundary.md", "docs/api/resources/**", "docs/test-evidence/api/**"]
+contract_families = ["CTR-API", "CTR-COMMON-005 API semantics"]
+table_prefixes = []
+migration_slots = []
+configuration_namespace = "AGENTMONITOR_API_"
+depends_on = ["PLAN-FND", "PLAN-M01", "PLAN-M02", "PLAN-M03", "PLAN-M04", "PLAN-M05", "PLAN-M06", "PLAN-M07", "PLAN-M08"]
+parallel_after_approval = ["PLAN-P02"]
+live_boundary = "real loopback FastAPI socket; no direct repositories/providers/platform calls"
+
+[[units]]
+id = "PLAN-P02"
+plan = "docs/plans/ui/react-dashboard/plan-v1.md"
+plan_sha256 = "bb8db08c7ab509c7876a093a0182dd660e99ab4f4dc0f755e3219fd0b8b2c9ae"
+write_paths = ["frontend/src/features/**", "frontend/tests/browser/p02/**", "frontend/tests/accessibility/p02/**", "frontend/tests/visual/p02/**", "frontend/tests/pure/p02/**", "docs/modules/react-dashboard.md", "docs/user/dashboard.md", "docs/user/accessibility.md"]
+contract_families = ["CTR-UI wrapper consumption"]
+table_prefixes = []
+migration_slots = []
+configuration_namespace = "AGENTMONITOR_UI_BUILD_ non-secret build settings only"
+depends_on = ["PLAN-FND", "PLAN-P01"]
+parallel_after_approval = []
+live_boundary = "real built browser and running API; no DOM-only evidence or sample telemetry"
+
+[[units]]
+id = "PLAN-DB"
+plan = "docs/plans/persistence/sqlite/plan-v1.md"
+plan_sha256 = "2a9a609c65c877cb6a8c5f42f272b002b3ea0991b002b1c7f0aa0821ce478562"
+write_paths = ["backend/src/agentmonitor/adapters/persistence/_shared/sqlite/**", "backend/tests/persistence/sqlite/**", "docs/modules/persistence-sqlite.md", "docs/contracts/database-v1.md", "docs/operations/database-migrations.md", "docs/test-evidence/persistence-sqlite/**"]
+contract_families = ["CTR-DB implementation", "domain repository/UoW implementations"]
+table_prefixes = ["physical policy only; business prefixes remain M01..M08-owned"]
+migration_slots = []
+configuration_namespace = "AGENTMONITOR_PERSISTENCE_"
+depends_on = ["PLAN-FND", "PLAN-M01", "PLAN-M02", "PLAN-M03", "PLAN-M04", "PLAN-M05", "PLAN-M06", "PLAN-M07", "PLAN-M08"]
+parallel_after_approval = []
+live_boundary = "real file-backed SQLite and real migrations; never in-memory substitution"
+
+[[units]]
+id = "PLAN-DEP"
+plan = "docs/plans/deployment/linux-native/plan-v1.md"
+plan_sha256 = "00725b945b9080efb50b43badf259a618971991282e146c8bf0dccac025c5179"
+write_paths = ["packaging/linux-native/**", "tooling/automation/deployment/**", "backend/tests/deployment/linux_native/**", "docs/modules/deployment-linux-native.md", "docs/operations/install-linux.md", "docs/operations/upgrade-linux.md", "docs/operations/uninstall-linux.md", "docs/operations/deployment-recovery-linux.md", "docs/contracts/native-service-lifecycle-v1.md"]
+contract_families = ["CTR-DEP"]
+table_prefixes = []
+migration_slots = []
+configuration_namespace = "AGENTMONITOR_DEPLOYMENT_ plus approved XDG locations"
+depends_on = ["PLAN-FND", "PLAN-M08", "PLAN-A04-LINUX", "PLAN-P01", "PLAN-P02", "PLAN-DB"]
+parallel_after_approval = []
+live_boundary = "real non-root target Linux user service; installation requires separate authority"
+
+[[units]]
+id = "PLAN-INT"
+plan = "docs/plans/integration/v1-plan.md"
+plan_sha256 = "14b6239b65adcddb05281ee88fe1be53f0511f1936b60b3a6574d9e4091fc22c"
+write_paths = ["tooling/automation/integration/**", "tooling/automation/release/**", "backend/tests/integration/release/**", "frontend/tests/browser/release/**", "docs/releases/**"]
+contract_families = ["CTR-INT", "CTR-EVT infrastructure governance"]
+table_prefixes = []
+migration_slots = ["allocates only; PLAN-DB writes chain"]
+configuration_namespace = "AGENTMONITOR_INTEGRATION_ tooling only"
+depends_on = ["PLAN-M0-DISCOVERY", "PLAN-FND", "PLAN-M01", "PLAN-M02", "PLAN-M03", "PLAN-M04", "PLAN-M05", "PLAN-M06", "PLAN-M07", "PLAN-M08", "PLAN-A01", "PLAN-A02", "PLAN-A03", "PLAN-A04-LINUX", "PLAN-A04-MAC", "PLAN-P01", "PLAN-P02", "PLAN-DB", "PLAN-DEP"]
+parallel_after_approval = []
+live_boundary = "aggregates exact T1..T7 evidence without converting Blocked/Not Run to Passed"
+
+[[shared_writers]]
+artifact = "root backend/frontend dependency manifests and lockfiles"
+paths = ["backend/pyproject.toml", "backend/uv.lock", "frontend/package.json", "frontend/package-lock.json"]
+semantic_owner = "PLAN-FND"
+wave_writer = "foundation steward"
+
+[[shared_writers]]
+artifact = "composition root and module/router registration"
+paths = ["backend/src/agentmonitor/composition/**"]
+semantic_owner = "PLAN-FND mechanism; P01 route semantics"
+wave_writer = "integration-assigned composition steward"
+
+[[shared_writers]]
+artifact = "central contract index and contract baseline"
+paths = ["backend/src/agentmonitor/contracts/index.py", "backend/src/agentmonitor/contracts/baseline.json", "backend/src/agentmonitor/contracts/common_v1.py", "backend/src/agentmonitor/contracts/configuration_v1.py", "backend/src/agentmonitor/contracts/foundation_v1.py", "backend/src/agentmonitor/contracts/platform_v1.py", "backend/src/agentmonitor/contracts/boundary_v1.py", "backend/src/agentmonitor/contracts/identity_access_v1.py", "backend/src/agentmonitor/contracts/registry_v1.py", "backend/src/agentmonitor/contracts/provider_system_v1.py", "backend/src/agentmonitor/contracts/common_provenance_v1.py", "backend/src/agentmonitor/contracts/collection_control_v1.py", "backend/src/agentmonitor/contracts/capacity_v1.py", "backend/src/agentmonitor/contracts/common_quantity_v1.py", "backend/src/agentmonitor/contracts/runtime_observation_v1.py", "backend/src/agentmonitor/contracts/alerting_v1.py", "backend/src/agentmonitor/contracts/operations_v1.py", "backend/src/agentmonitor/contracts/database_v1.py", "backend/src/agentmonitor/contracts/deployment_v1.py", "backend/src/agentmonitor/contracts/integration_v1.py", "backend/src/agentmonitor/contracts/events_v1.py", "backend/src/agentmonitor/contracts/api_v1.py", "backend/src/agentmonitor/contracts/ui_v1.py"]
+semantic_owner = "individual contract producers"
+wave_writer = "integration contract steward"
+
+[[shared_writers]]
+artifact = "central contract-test registration"
+paths = ["backend/tests/contract/registry.py"]
+semantic_owner = "individual contract producers"
+wave_writer = "integration contract steward"
+
+[[shared_writers]]
+artifact = "provider extension contracts under backend/src/agentmonitor/contracts/providers/**"
+paths = ["backend/src/agentmonitor/contracts/providers/**"]
+semantic_owner = "PLAN-M03 namespace governance with PLAN-A01/A02/A03 provider semantics"
+wave_writer = "integration contract steward"
+
+[[shared_writers]]
+artifact = "configuration registry"
+paths = ["backend/src/agentmonitor/config/registry.py"]
+semantic_owner = "each key-owning plan"
+wave_writer = "foundation/configuration steward"
+
+[[shared_writers]]
+artifact = "migration catalog, head, and Alembic environment"
+paths = ["backend/migrations/**"]
+semantic_owner = "PLAN-DB; business DDL remains module-owned"
+wave_writer = "migration steward"
+
+[[shared_writers]]
+artifact = "CTR-EVT registry, dispatcher composition, and event-storage port registration"
+paths = ["backend/src/agentmonitor/events/**"]
+semantic_owner = "PLAN-INT governs semantics; PLAN-DB implements shared mechanics; producing and consuming modules own their rows"
+wave_writer = "integration-assigned event infrastructure steward"
+
+[[shared_writers]]
+artifact = "OpenAPI source and compatibility baseline"
+paths = ["contracts/openapi/agentmonitor-v1.json"]
+semantic_owner = "PLAN-P01"
+wave_writer = "integration-assigned API artifact steward"
+
+[[shared_writers]]
+artifact = "generated TypeScript client"
+paths = ["frontend/src/generated/api/**"]
+semantic_owner = "PLAN-P01 schema plus PLAN-FND generator mechanism"
+wave_writer = "integration-assigned generated-artifact steward"
+
+[[shared_writers]]
+artifact = "frontend shell, route map, and design tokens"
+paths = ["frontend/src/app/**", "frontend/src/shared/**"]
+semantic_owner = "PLAN-P02"
+wave_writer = "P02 shell steward"
+
+[[shared_writers]]
+artifact = "build/version manifest, SBOM, and notices"
+paths = ["artifacts/release/**"]
+semantic_owner = "PLAN-INT release; PLAN-FND mechanism"
+wave_writer = "release steward"
+
+[[shared_writers]]
+artifact = "canonical command/automation registry"
+paths = ["tools/automation/**", "tooling/automation/run.py", "tooling/automation/git/**", "tooling/automation/build/**", "tooling/automation/database/**"]
+semantic_owner = "PLAN-FND mechanism; routine owners supply commands"
+wave_writer = "automation steward"
+
+[[shared_writers]]
+artifact = "root repository and frontend build metadata"
+paths = ["README.md", "LICENSE", ".gitignore", ".python-version", ".node-version", "backend/src/agentmonitor/__init__.py", "frontend/vite.config.ts", "frontend/tsconfig.json", "frontend/tsconfig.app.json", "frontend/tsconfig.node.json"]
+semantic_owner = "PLAN-FND"
+wave_writer = "foundation steward"
+
+[[shared_writers]]
+artifact = "CI configuration"
+paths = [".gitlab-ci.yml", ".gitlab/**"]
+semantic_owner = "PLAN-FND"
+wave_writer = "CI steward"
+
+[[shared_writers]]
+artifact = "planning registry, traceability, risks, ADR index, and approval records"
+paths = ["docs/plans/**", "docs/traceability.md", "docs/risk-register.md", "docs/decisions/**"]
+semantic_owner = "integration/root steward"
+wave_writer = "root steward"

@@ -1,0 +1,77 @@
+{
+  "record_type": "M0ScopedEvidenceIndexV1",
+  "schema_version": "1.0",
+  "evidence_id": "M0-M3-CLAUDE-EVIDENCE-001",
+  "scope_ref": "M0-M03-CLAUDE-001",
+  "custody": "external-owner-controlled",
+  "repository_content": "sanitized-structural-status-and-opaque-references-only",
+  "scenarios": [
+    {"scenario_id": "M0-COM-002", "status": "Passed", "evidence_ref": "REF-M0-ENVIRONMENT-SCOPE-001"},
+    {"scenario_id": "M0-COM-003", "status": "Passed", "evidence_ref": "REF-M0-CLAUDE-VERSION-001"},
+    {"scenario_id": "M0-COM-005", "status": "Passed", "evidence_ref": "REF-M0-CLAUDE-OFFICIAL-SOURCES-001"},
+    {"scenario_id": "M0-COM-007", "status": "Passed", "evidence_ref": "REF-M0-SCOPED-SIDE-EFFECTS-001"},
+    {"scenario_id": "M0-CLA-001", "status": "Passed", "evidence_ref": "REF-M0-CLAUDE-OFFICIAL-SOURCES-001"},
+    {"scenario_id": "M0-CLA-002", "status": "Passed", "evidence_ref": "REF-M0-CLAUDE-VERSION-001"},
+    {"scenario_id": "M0-CLA-003", "status": "Passed", "evidence_ref": "REF-M0-CLA-USAGE-STRUCTURE-001"},
+    {"scenario_id": "M0-CLA-004", "status": "Passed", "evidence_ref": "REF-M0-CLA-NETWORK-BOUNDS-001"},
+    {"scenario_id": "M0-CLA-008", "status": "Passed", "evidence_ref": "REF-M0-CLAUDE-OTEL-TARGETED-PROBE-001"},
+    {"scenario_id": "M0-CLA-010", "status": "Passed", "evidence_ref": "REF-M0-CLA-CAPABILITY-DECISIONS-001"},
+    {"scenario_id": "M0-LNX-001", "status": "Passed", "evidence_ref": "REF-M0-LNX-SOURCE-REVIEW-001"},
+    {"scenario_id": "M0-LNX-002", "status": "Passed", "evidence_ref": "REF-M0-LNX-PROCESS-STRUCTURE-001"},
+    {"scenario_id": "M0-LNX-004", "status": "Passed", "evidence_ref": "REF-M0-LNX-PROCESS-IDENTITY-001"},
+    {"scenario_id": "M0-LNX-006", "status": "Passed", "evidence_ref": "REF-M0-LNX-PROCESS-FIELDS-001"},
+    {"scenario_id": "M0-LNX-007", "status": "Passed", "evidence_ref": "REF-M0-CLAUDE-OTEL-TARGETED-PROBE-001"},
+    {"scenario_id": "M0-LNX-011", "status": "Passed", "evidence_ref": "REF-M0-LNX-PROHIBITED-SOURCES-001"},
+    {"scenario_id": "M0-LNX-012", "status": "Passed", "evidence_ref": "REF-M0-LNX-PROCESS-SIDE-EFFECTS-001"},
+    {"scenario_id": "M0-LNX-013", "status": "Passed", "evidence_ref": "REF-M0-LNX-CAPABILITY-DECISIONS-001"}
+  ],
+  "side_effect_reconciliations": [
+    {
+      "lane": "quota_source",
+      "scenario_id": "M0-COM-007",
+      "status": "Passed",
+      "evidence_ref": "REF-M0-CLA-USAGE-SIDE-EFFECTS-001",
+      "checks": [
+        "provider_profile_read_only",
+        "provider_profile_write_denied",
+        "unexpected_hosts_denied",
+        "redirects_denied",
+        "running_agents_not_targeted",
+        "provider_state_mutation_not_observed"
+      ]
+    },
+    {
+      "lane": "process_observation",
+      "scenario_id": "M0-LNX-012",
+      "status": "Passed",
+      "evidence_ref": "REF-M0-LNX-PROCESS-SIDE-EFFECTS-001",
+      "checks": [
+        "no_process_input",
+        "no_process_signal",
+        "no_process_restart",
+        "no_process_attach",
+        "no_provider_file_mutation",
+        "prohibited_sources_not_read"
+      ]
+    },
+    {
+      "lane": "targeted_profile_probe",
+      "scenario_id": "M0-CLA-008",
+      "status": "Passed",
+      "evidence_ref": "REF-M0-CLAUDE-OTEL-TARGETED-PROBE-001",
+      "checks": [
+        "metrics_signal_only",
+        "authenticated_private_loopback_receiver",
+        "exact_launch_process_identity",
+        "owner_confirmed_account_binding",
+        "raw_provider_identity_discarded",
+        "raw_payload_not_retained",
+        "provider_profile_unchanged",
+        "running_process_not_controlled"
+      ]
+    }
+  ],
+  "dynamic_values_retained": false,
+  "raw_provider_output_retained": false,
+  "prohibited_content_retained": false
+}

@@ -1,0 +1,35 @@
+# Glossary
+
+- **Account:** Stable internal representation of one provider identity. It may own multiple resources/profiles/projects.
+- **Account resource:** Independently limited or billed provider pool such as a subscription, API organization, API project, or credit balance.
+- **Adapter:** Provider-, platform-, persistence-, or delivery-specific implementation of a published port.
+- **Agent:** A top-level coding-agent session/process observed by AgentMonitor.
+- **Authoritative:** Value obtained from the provider's official source whose semantics are documented for that value.
+- **Blocked test:** Required real test that could not run because its real prerequisite was unavailable. Not a pass.
+- **Capability:** Versioned provider operation/data family declared in an adapter manifest.
+- **Collection run:** One attempt to obtain a capability for a subject from a specific source.
+- **Constrained:** Normalized account health indicating usable capacity with a significant limiting window.
+- **Contract:** Versioned public surface between API clients, modules, events, adapters, or persisted schemas.
+- **Default profile:** Provider profile used by the owner's normal CLI workflow. Protected from AgentMonitor mutations.
+- **Derived:** Value computed by AgentMonitor from identified observations and method/version.
+- **Experimental source:** Explicitly opted-in unstable/undocumented browser/private interface, isolated and visibly labeled.
+- **Freshness:** Whether an observation is still valid for current-state presentation under its source policy.
+- **Heuristic:** Inference from indirect evidence; never presented as authoritative.
+- **Managed profile:** Provider profile created/enrolled for AgentMonitor through an official authentication flow.
+- **Mission-control view:** Responsive information-dense global dashboard, not a claim of real-time control.
+- **Mock/fake/stub:** Test substitute for production boundary behavior. Prohibited by project testing policy.
+- **Normalized health:** Cross-provider classification—Available, Constrained, Critical, Exhausted, Authentication Required, or Unknown—derived without hiding raw provider limits.
+- **Observation:** Immutable fact collected at a recorded time with source/provenance.
+- **Organization/group:** User-managed grouping for accounts such as Org1 and Org2; not necessarily identical to provider legal organizations.
+- **Operational metadata:** Safe identity/status/timing/count/resource data excluding prompts, responses, tool content, source code, arbitrary environment values, and credentials.
+- **Outbox:** Persisted mechanism for reliable at-least-once internal event delivery after state changes.
+- **Precision:** Exact, rounded, range, estimated, or unknown quality of a value/time.
+- **Profile reference:** Opaque pointer to provider-managed authentication/configuration state; never credential contents.
+- **Provider-reported:** Value emitted by provider software/service but not necessarily an authoritative billing fact.
+- **Provenance:** Source, versions, timing, stability, precision, confidence, and derivation data attached to an observation.
+- **Re-authentication:** Official provider flow that renews/replaces credentials for the same registered account profile.
+- **Session:** Provider conversation/task identity associated with one or more processes over time.
+- **Stale:** Last known observation remains visible but is older than its freshness policy.
+- **Subagent:** Child agent/session/process represented under a parent with aggregate parent status.
+- **Unsupported:** Provider/capability has no safe approved collection mechanism in the verified environment.
+- **V1 read-mostly:** May collect/configure/acknowledge/reauth/export but may not control running agent processes.

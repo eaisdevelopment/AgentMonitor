@@ -1,0 +1,32 @@
+{
+  "name": "agentmonitor-frontend",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "packageManager": "npm@10.9.9",
+  "engines": {
+    "node": "22.23.3",
+    "npm": "10.9.9"
+  },
+  "scarfSettings": {
+    "enabled": false
+  },
+  "scripts": {
+    "typecheck": "tsc --project tsconfig.node.json && tsc --project tsconfig.app.json",
+    "build": "vite build"
+  },
+  "dependencies": {
+    "react": "19.3.0",
+    "react-dom": "19.3.0"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.63.0",
+    "@scarf/scarf": "1.4.0",
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
+    "@vitejs/plugin-react": "6.1.1",
+    "swagger-ui-dist": "5.33.0",
+    "typescript": "7.0.2",
+    "vite": "8.3.0"
+  }
+}

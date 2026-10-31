@@ -1,0 +1,50 @@
+# Secrets and local configuration
+.env
+.env.*
+!.env.example
+
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+coverage.xml
+htmlcov/
+.venv/
+.venv-m0-g1/
+dist/
+build/
+*.egg-info/
+
+# JavaScript
+node_modules/
+.vite/
+coverage/
+playwright-report/
+test-results/
+.ci-tools/
+
+# AgentMonitor runtime data
+*.db
+*.db-shm
+*.db-wal
+backups/
+logs/
+exports/
+diagnostics/
+live-evidence/
+.agentmonitor-local/
+
+# Editors and operating systems
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+.#*
+
+# Local scratch files
+tmp/
+temp/
+/.superpowers/

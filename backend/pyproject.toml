@@ -1,0 +1,75 @@
+[project]
+name = "agentmonitor-backend"
+version = "0.0.0"
+requires-python = ">=3.12.3,<3.13"
+dependencies = [
+  "fastapi==0.141.1",
+  "uvicorn==0.53.0",
+  "pydantic==2.13.5",
+  "SQLAlchemy==2.0.54",
+  "alembic==1.20.0",
+  "argon2-cffi==25.1.0",
+]
+
+[dependency-groups]
+dev = [
+  "pytest==9.1.1",
+  "ruff==0.16.8",
+  "mypy==2.3.1",
+  "mutmut==3.8.0",
+]
+
+[tool.uv]
+package = false
+constraint-dependencies = [
+  "argon2-cffi-bindings==26.1.0",
+  "cffi==2.1.1",
+  "pycparser==3.0",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src", ".."]
+addopts = "--strict-config --strict-markers"
+
+[tool.ruff]
+target-version = "py312"
+line-length = 88
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+
+[tool.mutmut]
+source_paths = ["src/agentmonitor"]
+only_mutate = [
+  "src/agentmonitor/modules/capacity/domain/health.py",
+  "src/agentmonitor/modules/runtime_observation/application/correlation.py",
+  "src/agentmonitor/modules/runtime_observation/application/state.py",
+  "src/agentmonitor/adapters/providers/codex/authentication/identity.py",
+  "src/agentmonitor/adapters/providers/codex/manifest.py",
+  "src/agentmonitor/adapters/providers/codex/subscription/mapper.py",
+  "src/agentmonitor/adapters/providers/codex/subscription/schema.py",
+  "src/agentmonitor/adapters/providers/codex/subscription/source.py",
+]
+pytest_add_cli_args = ["-q", "-p", "no:cacheprovider"]
+pytest_add_cli_args_test_selection = [
+  "tests/capacity/test_quantity_and_health.py",
+  "tests/runtime_observation/test_contracts.py",
+  "tests/runtime_observation/test_runtime_state_policy.py",
+  "tests/adapters/providers/codex/test_identity_parser.py",
+  "tests/adapters/providers/codex/test_manifest.py",
+  "tests/adapters/providers/codex/test_security_policy.py",
+  "tests/adapters/providers/codex/test_subscription_source_parser.py",
+  "tests/adapters/providers/codex/test_critical_mutation_policies.py",
+  "tests/adapters/providers/codex/unit/test_subscription_mapper.py",
+  "tests/mutation/test_m3_critical_mutation_policies.py",
+  "tests/mutation/test_m5_codex_mutation_policies.py",
+]
+mutate_only_covered_lines = true
+process_isolation = "fork"
+use_git_change_detection = false
+on_dependency_change = "rerun"

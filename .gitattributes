@@ -1,0 +1,4 @@
+# Preserve exact upstream notice bytes verified by tools/automation/docs_assets.py.
+backend/src/agentmonitor/api/assets/docs/redoc/LICENSE whitespace=-trailing-space,-blank-at-eof
+backend/src/agentmonitor/api/assets/docs/swagger/swagger-ui-bundle.js.LICENSE.txt whitespace=-trailing-space
+backend/src/agentmonitor/api/assets/docs/swagger/swagger-ui-standalone-preset.js.LICENSE.txt whitespace=-trailing-space

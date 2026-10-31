@@ -1,0 +1,153 @@
+"""Fail-closed predecessor binding for already recorded M5 evidence."""
+
+import hashlib
+import re
+import subprocess
+from collections.abc import Mapping
+from pathlib import Path
+
+from tools.automation.implementations import m5_service_activation as activation
+
+PREDECESSOR_REVISION = "10a7bc0db09997d92e62fb5c5e8ea7d5b85866cb"
+REVIEWED_HISTORY_VIEW = "frontend/src/features/command/CapacityPanel.tsx"
+REVIEWED_HISTORY_VIEW_SHA256 = (
+    "e120b0d4d9a1ad1fedeb7d24fb47e9c60d57023b8aa4f89d9cff52987e066b97"
+)
+
+
+def current_service_binding_v1(
+    environment: Mapping[str, str], previous: tuple[str, int, int]
+) -> tuple[str, int, int]:
+    keys = (
+        "AGENTMONITOR_M5_SERVICE_IMPLEMENTATION_REVISION",
+        "AGENTMONITOR_M5_CURRENT_SERVICE_PID",
+        "AGENTMONITOR_M5_CURRENT_SERVICE_START_TIME_TICKS",
+    )
+    supplied = tuple(environment.get(key) for key in keys)
+    if all(value is None for value in supplied):
+        return previous
+    if any(value is None for value in supplied):
+        raise ValueError("m5_current_service_selectors_invalid")
+    revision, pid, start = supplied
+    if (
+        not isinstance(revision, str)
+        or re.fullmatch(r"[0-9a-f]{40}", revision) is None
+        or not isinstance(pid, str)
+        or re.fullmatch(r"[1-9][0-9]*", pid) is None
+        or not isinstance(start, str)
+        or re.fullmatch(r"[1-9][0-9]*", start) is None
+    ):
+        raise ValueError("m5_current_service_selectors_invalid")
+    return revision, int(pid), int(start)
+
+
+def reviewed_paths_v1(paths: list[str], history_digest: str | None) -> bool:
+    """Allow automation, docs and the exact reviewed history view only."""
+    return all(
+        path.startswith(("docs/", "tools/automation/", "tools/ui/"))
+        or (
+            path == REVIEWED_HISTORY_VIEW
+            and history_digest == REVIEWED_HISTORY_VIEW_SHA256
+        )
+        for path in paths
+    )
+
+
+def validate_predecessor_binding_v1(
+    *,
+    old_revision: str,
+    archived_revision: str,
+    old_pid: int,
+    archived_pid: int,
+    old_start: int,
+    archived_start: int,
+    application_changed: bool,
+) -> None:
+    """Require the evidence to match its activation and unchanged app source."""
+    if (
+        not isinstance(old_revision, str)
+        or re.fullmatch(r"[0-9a-f]{40}", old_revision) is None
+        or old_revision != archived_revision
+        or type(old_pid) is not int
+        or old_pid <= 1
+        or old_pid != archived_pid
+        or type(old_start) is not int
+        or old_start <= 0
+        or old_start != archived_start
+        or application_changed is not False
+    ):
+        raise ValueError("m5_evidence_predecessor_invalid")
+
+
+def prove_predecessor_v1(
+    *,
+    root: Path,
+    current_revision: str,
+    old_revision: str,
+    old_pid: int,
+    old_start: int,
+) -> None:
+    """Prove retained activation, exact old process, and unchanged app sources."""
+    if old_revision != PREDECESSOR_REVISION or not re.fullmatch(
+        r"[0-9a-f]{40}", current_revision
+    ):
+        raise ValueError("m5_evidence_predecessor_invalid")
+    try:
+        diff = (
+            subprocess.run(
+                [
+                    "/usr/bin/git",
+                    "diff",
+                    "--name-only",
+                    "-z",
+                    old_revision,
+                    current_revision,
+                    "--",
+                ],
+                cwd=root,
+                capture_output=True,
+                check=True,
+                timeout=10,
+            )
+            .stdout.decode("utf-8")
+            .split("\0")
+        )
+        changed = [path for path in diff if path]
+        history_digest = None
+        if REVIEWED_HISTORY_VIEW in changed:
+            history_blob = subprocess.run(
+                ["/usr/bin/git", "show", f"{current_revision}:{REVIEWED_HISTORY_VIEW}"],
+                cwd=root,
+                capture_output=True,
+                check=True,
+                timeout=10,
+            ).stdout
+            history_digest = hashlib.sha256(history_blob).hexdigest()
+        application_changed = not reviewed_paths_v1(changed, history_digest)
+        archives = activation._retain_activation_rollover_archive_chain_v1(
+            PREDECESSOR_REVISION, activation._rollback_runtime_state()
+        )
+        try:
+            receipt = archives[-1].completed
+            validate_predecessor_binding_v1(
+                old_revision=old_revision,
+                archived_revision=receipt.candidate_revision,
+                old_pid=old_pid,
+                archived_pid=receipt.main_pid,
+                old_start=old_start,
+                archived_start=receipt.main_pid_start_time_ticks,
+                application_changed=application_changed,
+            )
+            activation._require_preserved_activation_rollovers_v1(
+                tuple(a.retained for a in archives)
+            )
+        finally:
+            activation._close_activation_rollover_archive_chain_v1(archives)
+    except (
+        OSError,
+        UnicodeError,
+        subprocess.SubprocessError,
+        activation.M5ServiceActivationErrorV1,
+        activation.M5ServiceActivationFailedV1,
+    ) as error:
+        raise ValueError("m5_evidence_predecessor_invalid") from error

@@ -1,0 +1,1420 @@
+schema_version = "1.0"
+baseline_version = "0.1.0-draft"
+baseline_date = "2026-09-18"
+status = "draft_exact_ownership"
+owner = "Pavlo Sidelov <pavlo@sidelov.com>"
+owner_approved = false
+implementation_authorized = false
+source_audit = "REQ-COV-2026-09-18-01"
+source_audit_path = "docs/plans/integration/requirement-coverage-audit.md"
+requirements_source = "docs/product/requirements.md"
+acceptance_source = "docs/product/v1-acceptance-criteria.md"
+planning_catalog_source = "docs/plans/planning-catalog.toml"
+planning_catalog_schema_version = "1.0"
+contract_baseline_source = "docs/plans/contract-baseline.toml"
+contract_baseline_version = "0.2.0"
+entry_count = 154
+non_deferred_count = 147
+deferred_count = 7
+
+[semantics]
+primary_plan = "Exactly one accountable planning and evidence-closure owner; this does not transfer another module's domain, table, or artifact ownership."
+supporting_plans = "Exact current planning-catalog IDs whose contracts, implementation boundaries, or evidence contribute to the requirement."
+contract_ids = "Exact current contract-baseline IDs; an entry is a planning citation and does not imply synchronized, approved, implemented, or live-verified status."
+scenario_ids = "Exact scenarios defined in the current 20-plan corpus; an entry is planned evidence and does not imply execution or a Passed result."
+evidence_boundaries = "Required evidence classes use T1 pure, T2 real file-backed SQLite, T3 real loopback HTTP, T4 built UI in a real browser, T5 real OS/process/service, T6 real provider/account, T7 real installed lifecycle, and docs for documentation or policy evidence."
+deferred = "POST-V1 entries have an explicit fail-closed V1 guard and intentionally have no V1 contract, scenario, supporting-plan, or evidence-boundary assignment."
+test_integrity = "No scenario citation is evidence that a test ran. Mocks, fakes, stubs, emulators, recorded provider responses, demo accounts, seeded telemetry, and placeholder provider values remain prohibited."
+
+[[requirements]]
+requirement_id = "FR-ORG-001"
+status = "approved"
+primary_plan = "PLAN-M02"
+supporting_plans = ["PLAN-P01", "PLAN-P02", "PLAN-DB", "PLAN-INT"]
+contract_ids = ["CTR-REG-001", "CTR-API-001", "CTR-DB-002"]
+scenario_ids = ["M02-PURE-001", "M02-PURE-002", "M02-PURE-003", "M02-PURE-004", "M02-DB-001", "M02-DB-002", "M02-DB-003", "M02-DB-004", "M02-DB-005", "M02-DB-006", "M02-HTTP-001", "M02-HTTP-002", "M02-HTTP-003", "M02-BROWSER-001"]
+evidence_boundaries = ["T1", "T2", "T3", "T4"]
+
+[[requirements]]
+requirement_id = "FR-ORG-002"
+status = "approved"
+primary_plan = "PLAN-M02"
+supporting_plans = ["PLAN-P01", "PLAN-P02", "PLAN-DB", "PLAN-INT"]
+contract_ids = ["CTR-REG-001", "CTR-REG-002"]
+scenario_ids = ["M02-PURE-005", "M02-DB-007", "M02-DB-008", "M02-HTTP-004", "M02-BROWSER-002"]
+evidence_boundaries = ["T1", "T2", "T3", "T4"]
+
+[[requirements]]
+requirement_id = "FR-ORG-003"
+status = "approved"
+primary_plan = "PLAN-M02"
+supporting_plans = ["PLAN-M05", "PLAN-M06", "PLAN-M07", "PLAN-P01", "PLAN-P02", "PLAN-INT"]
+contract_ids = ["CTR-REG-001", "CTR-REG-002", "CTR-REG-005", "CTR-REG-007", "CTR-CAP-003"]
+scenario_ids = ["M02-PURE-006", "M02-DB-009", "M02-HTTP-005", "M02-ARCH-001"]
+evidence_boundaries = ["T1", "T2", "T3", "T4"]
+
+[[requirements]]
+requirement_id = "FR-ACC-001"
+status = "approved"
+primary_plan = "PLAN-M02"
+supporting_plans = ["PLAN-M0-DISCOVERY", "PLAN-M03", "PLAN-A01", "PLAN-A02", "PLAN-A03", "PLAN-P01", "PLAN-P02", "PLAN-DB", "PLAN-INT"]
+contract_ids = ["CTR-REG-002", "CTR-REG-006", "CTR-PROV-005"]
+scenario_ids = ["M02-PURE-007", "M02-PURE-008", "M02-DB-010", "M02-DB-011", "M02-LIVE-001", "M02-LIVE-002", "M02-LIVE-003"]
+evidence_boundaries = ["T1", "T2", "T3", "T4", "T6"]
+
+[[requirements]]
+requirement_id = "FR-ACC-002"
+status = "approved"
+primary_plan = "PLAN-M02"
+supporting_plans = ["PLAN-P01", "PLAN-P02", "PLAN-DB", "PLAN-INT"]
+contract_ids = ["CTR-REG-002", "CTR-REG-007"]
+scenario_ids = ["M02-PURE-009", "M02-DB-012", "M02-DB-013", "M02-HTTP-006", "M02-BROWSER-003"]
+evidence_boundaries = ["T1", "T2", "T3", "T4", "T6"]
+
+[[requirements]]
+requirement_id = "FR-ACC-003"
+status = "approved"
+primary_plan = "PLAN-M02"
+supporting_plans = ["PLAN-M04", "PLAN-M05", "PLAN-M06", "PLAN-P01", "PLAN-P02", "PLAN-DB"]
+contract_ids = ["CTR-REG-002", "CTR-REG-007"]
+scenario_ids = ["M02-PURE-010", "M02-PURE-011", "M02-DB-014", "M02-HTTP-007"]
+evidence_boundaries = ["T1", "T2", "T3", "T4", "T6"]
+
+[[requirements]]
+requirement_id = "FR-ACC-004"
+status = "approved"
+primary_plan = "PLAN-M02"
+supporting_plans = ["PLAN-M0-DISCOVERY", "PLAN-M03", "PLAN-M05", "PLAN-A01", "PLAN-A02", "PLAN-A03", "PLAN-P01", "PLAN-P02"]
+contract_ids = ["CTR-REG-002", "CTR-REG-003", "CTR-REG-005"]
+scenario_ids = ["M02-PURE-012", "M02-PURE-013", "M02-PURE-014", "M02-DB-015", "M02-DB-016", "M02-DB-017", "M02-DB-018", "M02-LIVE-004"]
+evidence_boundaries = ["T1", "T2", "T3", "T4", "T6"]
+
+[[requirements]]
+requirement_id = "FR-ACC-005"
+status = "approved"
+primary_plan = "PLAN-M02"
+supporting_plans = ["PLAN-M0-DISCOVERY", "PLAN-M03", "PLAN-A01", "PLAN-A02", "PLAN-A03", "PLAN-P01", "PLAN-P02"]
+contract_ids = ["CTR-REG-004", "CTR-REG-006", "CTR-PROV-005"]
+scenario_ids = ["M02-PURE-015", "M02-PURE-016", "M02-DB-019", "M02-DB-020", "M02-HTTP-008", "M02-LIVE-005"]
+evidence_boundaries = ["T1", "T2", "T3", "T4", "T6"]
+
+[[requirements]]
+requirement_id = "FR-ACC-006"
+status = "approved"
+primary_plan = "PLAN-M02"
+supporting_plans = ["PLAN-M0-DISCOVERY", "PLAN-M06", "PLAN-A01", "PLAN-A02", "PLAN-A03", "PLAN-P01", "PLAN-P02"]
+contract_ids = ["CTR-REG-006", "CTR-RUN-007"]
+scenario_ids = ["M02-PURE-017", "M02-PURE-018", "M02-PURE-019", "M02-PURE-020", "M02-DB-021", "M02-DB-022", "M02-HTTP-009", "M02-BROWSER-004", "M02-BROWSER-005", "M02-LIVE-006"]
+evidence_boundaries = ["T1", "T2", "T3", "T4", "T6"]
+
+[[requirements]]
+requirement_id = "FR-AUTH-001"
+status = "approved"
+primary_plan = "PLAN-M03"
+supporting_plans = ["PLAN-M02", "PLAN-M04", "PLAN-M07", "PLAN-A01", "PLAN-A02", "PLAN-A03", "PLAN-P01", "PLAN-P02", "PLAN-INT"]
+contract_ids = ["CTR-PROV-006"]
+scenario_ids = ["M03-PURE-021", "M03-PURE-022", "M03-PURE-023", "M03-PURE-024", "M03-LIVE-006"]
+evidence_boundaries = ["T1", "T2", "T3", "T4", "T6"]
+
+[[requirements]]
+requirement_id = "FR-AUTH-002"
+status = "approved"
+primary_plan = "PLAN-M02"
+supporting_plans = ["PLAN-M01", "PLAN-M03", "PLAN-A01", "PLAN-A02", "PLAN-A03", "PLAN-P01", "PLAN-P02", "PLAN-INT"]
+contract_ids = ["CTR-REG-003", "CTR-REG-006", "CTR-PROV-007"]
+scenario_ids = ["M02-PURE-021", "M02-PURE-022", "M02-DB-023", "M02-HTTP-010", "M02-BROWSER-006", "M02-LIVE-007"]
+evidence_boundaries = ["T1", "T2", "T3", "T4", "T6"]
+
+[[requirements]]
+requirement_id = "FR-AUTH-003"
+status = "approved"
+primary_plan = "PLAN-M02"
+supporting_plans = ["PLAN-M03", "PLAN-A01", "PLAN-A02", "PLAN-A03", "PLAN-P01", "PLAN-P02", "PLAN-DB", "PLAN-INT"]
+contract_ids = ["CTR-REG-002", "CTR-REG-003", "CTR-REG-006", "CTR-REG-007", "CTR-PROV-007"]
+scenario_ids = ["M02-PURE-023", "M02-DB-024", "M02-LIVE-008"]
+evidence_boundaries = ["T1", "T2", "T3", "T4", "T6"]
+
+[[requirements]]
+requirement_id = "FR-AUTH-004"
+status = "approved"
+primary_plan = "PLAN-M02"
+supporting_plans = ["PLAN-M03", "PLAN-A01", "PLAN-A02", "PLAN-A03", "PLAN-P01", "PLAN-INT"]
+contract_ids = ["CTR-PROV-001", "CTR-PROV-007"]
+scenario_ids = ["M02-ARCH-002", "M02-SEC-001", "M02-SEC-002"]
+evidence_boundaries = ["T1", "T2", "T3", "T4", "T6"]
+
+[[requirements]]
+requirement_id = "FR-AUTH-005"
+status = "approved"
+primary_plan = "PLAN-M02"
+supporting_plans = ["PLAN-M03", "PLAN-A01", "PLAN-A02", "PLAN-A03", "PLAN-P01", "PLAN-INT"]
+contract_ids = ["CTR-REG-003", "CTR-PROV-007"]
+scenario_ids = ["M02-PURE-021", "M02-DB-023", "M02-HTTP-010", "M02-LIVE-009", "INT-SEC-006"]
+evidence_boundaries = ["T1", "T2", "T3", "T4", "T6"]
+
+[[requirements]]
+requirement_id = "FR-QUOTA-001"
+status = "approved"
+primary_plan = "PLAN-M05"
+supporting_plans = ["PLAN-M0-DISCOVERY", "PLAN-M03", "PLAN-M04", "PLAN-A01", "PLAN-A02", "PLAN-A03", "PLAN-P01", "PLAN-P02", "PLAN-DB", "PLAN-INT"]
+contract_ids = ["CTR-CAP-001"]
+scenario_ids = ["M05-PURE-001", "M05-PURE-002", "M05-PURE-003", "M05-PURE-004", "M05-PURE-005", "M05-DB-002", "M05-DB-003", "M05-DB-004", "M05-DB-005", "M05-DB-006", "M05-LIVE-001", "M05-LIVE-002", "M05-LIVE-003"]
+evidence_boundaries = ["T1", "T2", "T3", "T4", "T6"]
+
+[[requirements]]
+requirement_id = "FR-QUOTA-002"
+status = "approved"
+primary_plan = "PLAN-M05"
+supporting_plans = ["PLAN-M03", "PLAN-A01", "PLAN-A02", "PLAN-A03", "PLAN-P01", "PLAN-P02", "PLAN-INT"]
+contract_ids = ["CTR-CAP-001", "CTR-PROV-008"]
+scenario_ids = ["M05-PURE-006", "M05-PURE-007", "M05-DB-007", "M05-SEC-003", "M05-LIVE-004"]
+evidence_boundaries = ["T1", "T2", "T3", "T4", "T6"]
+
+[[requirements]]
+requirement_id = "FR-QUOTA-003"
+status = "approved"
+primary_plan = "PLAN-M05"
+supporting_plans = ["PLAN-M04", "PLAN-M07", "PLAN-P01", "PLAN-P02", "PLAN-INT"]
+contract_ids = ["CTR-CAP-003"]
+scenario_ids = ["M05-PURE-014", "M05-PURE-015", "M05-PURE-016", "M05-PURE-017", "M05-PURE-018", "M05-PURE-019", "M05-PURE-020", "M05-PURE-021", "M05-DB-017", "M05-DB-018", "M05-DB-019", "M05-LIVE-005"]
+evidence_boundaries = ["T1", "T2", "T3", "T4", "T6"]
+
+[[requirements]]
+requirement_id = "FR-QUOTA-004"
+status = "approved"
+primary_plan = "PLAN-M05"
+supporting_plans = ["PLAN-M03", "PLAN-A01", "PLAN-A02", "PLAN-A03", "PLAN-P01", "PLAN-P02", "PLAN-INT"]
+contract_ids = ["CTR-COMMON-004", "CTR-CAP-001", "CTR-CAP-003"]
+scenario_ids = ["M05-PURE-008", "M05-PURE-009", "M05-PURE-010", "M05-PURE-011", "M05-PURE-012", "M05-PURE-013", "M05-DB-008", "M05-DB-016", "M05-HTTP-002", "M05-BROWSER-001"]
+evidence_boundaries = ["T1", "T2", "T3", "T4", "T6"]
+
+[[requirements]]
+requirement_id = "FR-QUOTA-005"
+status = "approved"
+primary_plan = "PLAN-M05"
+supporting_plans = ["PLAN-M07", "PLAN-P01", "PLAN-P02", "PLAN-INT"]
+contract_ids = ["CTR-CAP-007"]
+scenario_ids = ["M05-PURE-031", "M05-PURE-032", "M05-PURE-033", "M05-PURE-034", "M05-PURE-035", "M05-PURE-036", "M05-PURE-037", "M05-PURE-038", "M05-PURE-039", "M05-PURE-040", "M05-PURE-041", "M05-PURE-042", "M05-DB-024", "M05-DB-025", "M05-DB-026", "M05-HTTP-006", "M05-LIVE-006", "INT-BUD-010"]
+evidence_boundaries = ["T1", "T2", "T3", "T4", "T6"]
+
+[[requirements]]
+requirement_id = "FR-BUDGET-001"
+status = "approved"
+primary_plan = "PLAN-M05"
+supporting_plans = ["PLAN-M0-DISCOVERY", "PLAN-M03", "PLAN-M04", "PLAN-A01", "PLAN-A02", "PLAN-A03", "PLAN-P01", "PLAN-P02", "PLAN-DB", "PLAN-INT"]
+contract_ids = ["CTR-CAP-002"]
+scenario_ids = ["M05-DB-009", "M05-DB-010", "M05-DB-011", "M05-DB-012", "M05-DB-013", "M05-DB-014", "M05-DB-015", "M05-LIVE-007", "M05-LIVE-008", "M05-LIVE-009", "M05-LIVE-010"]
+evidence_boundaries = ["T1", "T2", "T3", "T4", "T6"]
+
+[[requirements]]
+requirement_id = "FR-BUDGET-002"
+status = "approved"
+primary_plan = "PLAN-M05"
+supporting_plans = ["PLAN-A01", "PLAN-A02", "PLAN-A03", "PLAN-P01", "PLAN-P02", "PLAN-INT"]
+contract_ids = ["CTR-CAP-002", "CTR-CAP-007"]
+scenario_ids = ["M05-PURE-043", "M05-PURE-044", "M05-PURE-045", "M05-PURE-046", "M05-PURE-047", "M05-PURE-048", "M05-DB-011", "M05-DB-012", "M05-HTTP-003", "M05-LIVE-008", "M05-LIVE-009"]
+evidence_boundaries = ["T1", "T2", "T3", "T4", "T6"]
+
+[[requirements]]
+requirement_id = "FR-BUDGET-003"
+status = "approved"
+primary_plan = "PLAN-M05"
+supporting_plans = ["PLAN-M02", "PLAN-A01", "PLAN-A02", "PLAN-A03", "PLAN-P01", "PLAN-P02", "PLAN-INT"]
+contract_ids = ["CTR-CAP-002", "CTR-CAP-006"]
+scenario_ids = ["M05-PURE-049", "M05-PURE-050", "M05-PURE-051", "M05-PURE-052", "M05-DB-013", "M05-DB-014", "M05-DB-015", "M05-HTTP-004", "M05-LIVE-010", "M05-LIVE-011"]
+evidence_boundaries = ["T1", "T2", "T3", "T4", "T6"]
+
+[[requirements]]
+requirement_id = "FR-BUDGET-004"
+status = "approved"
+primary_plan = "PLAN-M05"
+supporting_plans = ["PLAN-FND", "PLAN-M08", "PLAN-P01", "PLAN-P02", "PLAN-DB", "PLAN-INT"]
+contract_ids = ["CTR-COMMON-003", "CTR-CAP-002"]
+scenario_ids = ["M05-PURE-053", "M05-PURE-054", "M05-PURE-055", "M05-PURE-056", "M05-PURE-057", "M05-PURE-058", "M05-DB-016", "M05-HTTP-007", "M05-SEC-004", "INT-BUD-007"]
+evidence_boundaries = ["T1", "T2", "T3", "T4", "T6"]
+
+[[requirements]]
+requirement_id = "FR-BUDGET-005"
+status = "approved"
+primary_plan = "PLAN-M05"
+supporting_plans = ["PLAN-M02", "PLAN-A01", "PLAN-A02", "PLAN-A03", "PLAN-P01", "PLAN-P02", "PLAN-INT"]
+contract_ids = ["CTR-CAP-001", "CTR-CAP-002", "CTR-CAP-003"]
+scenario_ids = ["M05-PURE-027", "M05-PURE-028", "M05-PURE-029", "M05-PURE-030", "M05-DB-022", "M05-DB-023", "M05-BROWSER-003", "INT-BUD-009"]
+evidence_boundaries = ["T1", "T2", "T3", "T4", "T6"]
+
+[[requirements]]
+requirement_id = "FR-DISC-001"
+status = "approved"
+primary_plan = "PLAN-M06"
+supporting_plans = ["PLAN-M0-DISCOVERY", "PLAN-A01", "PLAN-A02", "PLAN-A03", "PLAN-A04-LINUX", "PLAN-A04-MAC", "PLAN-P01", "PLAN-P02", "PLAN-INT"]
+contract_ids = ["CTR-RUN-001", "CTR-RUN-006"]
+scenario_ids = ["M06-LNX-001", "M06-LIVE-001", "M06-LIVE-002", "M06-LIVE-003"]
+evidence_boundaries = ["T1", "T2", "T3", "T4", "T5", "T6"]
+
+[[requirements]]
+requirement_id = "FR-DISC-002"
+status = "approved"
+primary_plan = "PLAN-M06"
+supporting_plans = ["PLAN-A04-LINUX", "PLAN-A04-MAC", "PLAN-P01", "PLAN-P02"]
+contract_ids = ["CTR-RUN-001", "CTR-RUN-006"]
+scenario_ids = ["M06-PURE-001", "M06-PURE-002", "M06-PURE-003", "M06-LNX-002", "M06-LNX-003", "M06-LNX-004", "M06-LNX-005", "M06-LNX-006"]
+evidence_boundaries = ["T1", "T2", "T3", "T4", "T5", "T6"]
+
+[[requirements]]
+requirement_id = "FR-DISC-003"
+status = "approved"
+primary_plan = "PLAN-M06"
+supporting_plans = ["PLAN-M0-DISCOVERY", "PLAN-FND", "PLAN-A01", "PLAN-A02", "PLAN-A03", "PLAN-A04-LINUX", "PLAN-A04-MAC", "PLAN-P01", "PLAN-P02"]
+contract_ids = ["CTR-RUN-002", "CTR-PLAT-001"]
+scenario_ids = ["M06-PURE-026", "M06-PURE-027", "M06-SEC-001", "M06-SEC-002", "M06-SEC-003", "M06-SEC-004", "M06-LIVE-004"]
+evidence_boundaries = ["T1", "T2", "T3", "T4", "T5", "T6"]
+
+[[requirements]]
+requirement_id = "FR-DISC-004"
+status = "approved"
+primary_plan = "PLAN-M06"
+supporting_plans = ["PLAN-M0-DISCOVERY", "PLAN-M02", "PLAN-A01", "PLAN-A02", "PLAN-A03", "PLAN-A04-LINUX", "PLAN-A04-MAC", "PLAN-P01", "PLAN-P02"]
+contract_ids = ["CTR-RUN-007", "CTR-REG-006"]
+scenario_ids = ["M06-PURE-018", "M06-PURE-019", "M06-PURE-020", "M06-PURE-021", "M06-DB-009", "M06-UI-002", "M06-LIVE-005"]
+evidence_boundaries = ["T1", "T2", "T3", "T4", "T5", "T6"]
+
+[[requirements]]
+requirement_id = "FR-DISC-005"
+status = "approved"
+primary_plan = "PLAN-M06"
+supporting_plans = ["PLAN-M0-DISCOVERY", "PLAN-A01", "PLAN-A02", "PLAN-A03", "PLAN-A04-LINUX", "PLAN-A04-MAC", "PLAN-P01", "PLAN-P02", "PLAN-INT"]
+contract_ids = ["CTR-RUN-003", "CTR-RUN-006"]
+scenario_ids = ["M06-PURE-004", "M06-PURE-005", "M06-PURE-014", "M06-PURE-015", "M06-PURE-016", "M06-PURE-017", "M06-LNX-007", "M06-LIVE-006"]
+evidence_boundaries = ["T1", "T2", "T3", "T4", "T5", "T6"]
+
+[[requirements]]
+requirement_id = "FR-DISC-006"
+status = "approved"
+primary_plan = "PLAN-M06"
+supporting_plans = ["PLAN-M0-DISCOVERY", "PLAN-A01", "PLAN-A02", "PLAN-A03", "PLAN-P01", "PLAN-P02"]
+contract_ids = ["CTR-RUN-002"]
+scenario_ids = ["M06-PURE-016", "M06-PURE-024", "M06-PURE-025", "M06-PURE-026", "M06-PURE-027", "M06-LIVE-004", "M06-LIVE-007"]
+evidence_boundaries = ["T1", "T2", "T3", "T4", "T5", "T6"]
+
+[[requirements]]
+requirement_id = "FR-DISC-007"
+status = "approved"
+primary_plan = "PLAN-M06"
+supporting_plans = ["PLAN-A04-LINUX", "PLAN-A04-MAC", "PLAN-INT"]
+contract_ids = ["CTR-RUN-006"]
+scenario_ids = ["M06-SEC-001", "M06-SEC-002", "M06-LNX-008"]
+evidence_boundaries = ["T1", "T2", "T3", "T4", "T5", "T6"]
+
+[[requirements]]
+requirement_id = "FR-DISC-008"
+status = "approved"
+primary_plan = "PLAN-M06"
+supporting_plans = ["PLAN-M03", "PLAN-A01", "PLAN-A02", "PLAN-A03", "PLAN-A04-LINUX", "PLAN-A04-MAC", "PLAN-P01"]
+contract_ids = ["CTR-RUN-002", "CTR-COMMON-004"]
+scenario_ids = ["M06-PURE-024", "M06-DB-003", "M06-LIVE-004"]
+evidence_boundaries = ["T1", "T2", "T3", "T4", "T5", "T6"]
+
+[[requirements]]
+requirement_id = "FR-STATE-001"
+status = "approved"
+primary_plan = "PLAN-M06"
+supporting_plans = ["PLAN-M07", "PLAN-A01", "PLAN-A02", "PLAN-A03", "PLAN-P01", "PLAN-P02"]
+contract_ids = ["CTR-RUN-002", "CTR-RUN-004"]
+scenario_ids = ["M06-PURE-006", "M06-PURE-007", "M06-LIVE-008"]
+evidence_boundaries = ["T1", "T2", "T3", "T4", "T5", "T6"]
+
+[[requirements]]
+requirement_id = "FR-STATE-002"
+status = "approved"
+primary_plan = "PLAN-M06"
+supporting_plans = ["PLAN-M0-DISCOVERY", "PLAN-A01", "PLAN-A02", "PLAN-A03", "PLAN-P01", "PLAN-P02"]
+contract_ids = ["CTR-RUN-004"]
+scenario_ids = ["M06-PURE-006", "M06-PURE-007", "M06-PURE-008", "M06-API-003"]
+evidence_boundaries = ["T1", "T2", "T3", "T4", "T5", "T6"]
+
+[[requirements]]
+requirement_id = "FR-STATE-003"
+status = "approved"
+primary_plan = "PLAN-M06"
+supporting_plans = ["PLAN-M07", "PLAN-P01", "PLAN-P02", "PLAN-DB", "PLAN-INT"]
+contract_ids = ["CTR-RUN-005"]
+scenario_ids = ["M06-PURE-009", "M06-PURE-010", "M06-PURE-011", "M06-PURE-012", "M06-PURE-013", "M06-DB-010", "M06-API-004"]
+evidence_boundaries = ["T1", "T2", "T3", "T4", "T5", "T6"]
+
+[[requirements]]
+requirement_id = "FR-STATE-004"
+status = "approved"
+primary_plan = "PLAN-M06"
+supporting_plans = ["PLAN-M07", "PLAN-A01", "PLAN-A02", "PLAN-A03", "PLAN-P01", "PLAN-P02", "PLAN-INT"]
+contract_ids = ["CTR-RUN-005"]
+scenario_ids = ["M06-PURE-010", "M06-PURE-011", "M06-LIVE-008"]
+evidence_boundaries = ["T1", "T2", "T3", "T4", "T5", "T6"]
+
+[[requirements]]
+requirement_id = "FR-COL-001"
+status = "approved"
+primary_plan = "PLAN-M04"
+supporting_plans = ["PLAN-M02", "PLAN-M03", "PLAN-A01", "PLAN-A02", "PLAN-A03", "PLAN-P01", "PLAN-P02", "PLAN-DB", "PLAN-INT"]
+contract_ids = ["CTR-COL-001"]
+scenario_ids = ["M04-PURE-001", "M04-PURE-002", "M04-PURE-003", "M04-PURE-004", "M04-PURE-005", "M04-DB-002", "M04-DB-003", "M04-LIVE-001", "M04-LIVE-002"]
+evidence_boundaries = ["T1", "T2", "T3", "T4", "T5", "T6"]
+
+[[requirements]]
+requirement_id = "FR-COL-002"
+status = "approved"
+primary_plan = "PLAN-M04"
+supporting_plans = ["PLAN-M03", "PLAN-P01", "PLAN-P02", "PLAN-INT"]
+contract_ids = ["CTR-COL-001"]
+scenario_ids = ["M04-PURE-006", "M04-PURE-007", "M04-DB-007", "M04-DB-008", "M04-DB-009", "M04-DB-010", "M04-HTTP-001", "M04-HTTP-002", "M04-HTTP-003", "M04-HTTP-004", "M04-LIVE-003", "M04-LIVE-004"]
+evidence_boundaries = ["T1", "T2", "T3", "T4", "T5", "T6"]
+
+[[requirements]]
+requirement_id = "FR-COL-003"
+status = "approved"
+primary_plan = "PLAN-M04"
+supporting_plans = ["PLAN-M03", "PLAN-M07", "PLAN-A01", "PLAN-A02", "PLAN-A03", "PLAN-INT"]
+contract_ids = ["CTR-COL-004", "CTR-PROV-004"]
+scenario_ids = ["M04-PURE-008", "M04-PURE-009", "M04-PURE-010", "M04-PURE-011", "M04-PURE-012", "M04-PURE-013", "M04-PURE-014", "M04-DB-013", "M04-DB-014", "M04-LIVE-005", "M04-LIVE-006", "M04-LIVE-007", "M04-LIVE-008"]
+evidence_boundaries = ["T1", "T2", "T3", "T4", "T5", "T6"]
+
+[[requirements]]
+requirement_id = "FR-COL-004"
+status = "approved"
+primary_plan = "PLAN-M04"
+supporting_plans = ["PLAN-M03", "PLAN-M05", "PLAN-M06", "PLAN-M07", "PLAN-A01", "PLAN-A02", "PLAN-A03", "PLAN-INT"]
+contract_ids = ["CTR-COL-002", "CTR-COL-003", "CTR-COMMON-004"]
+scenario_ids = ["M04-PURE-015", "M04-DB-015", "M04-DB-016", "M04-LIVE-009"]
+evidence_boundaries = ["T1", "T2", "T3", "T4", "T5", "T6"]
+
+[[requirements]]
+requirement_id = "FR-COL-005"
+status = "approved"
+primary_plan = "PLAN-M04"
+supporting_plans = ["PLAN-M07", "PLAN-M08", "PLAN-P01", "PLAN-P02"]
+contract_ids = ["CTR-COL-002", "CTR-COL-004"]
+scenario_ids = ["M04-PURE-016", "M04-PURE-017", "M04-DB-011", "M04-DB-012", "M04-DB-017", "M04-HTTP-005"]
+evidence_boundaries = ["T1", "T2", "T3", "T4", "T5", "T6"]
+
+[[requirements]]
+requirement_id = "FR-COL-006"
+status = "approved"
+primary_plan = "PLAN-M04"
+supporting_plans = ["PLAN-M03", "PLAN-M05", "PLAN-M07", "PLAN-P01", "PLAN-P02"]
+contract_ids = ["CTR-COL-002", "CTR-COL-004", "CTR-COL-005"]
+scenario_ids = ["M04-PURE-010", "M04-PURE-011", "M04-PURE-012", "M04-PURE-013", "M04-PURE-018", "M04-DB-018", "M04-HTTP-006", "M04-LIVE-006", "M04-LIVE-010"]
+evidence_boundaries = ["T1", "T2", "T3", "T4", "T5", "T6"]
+
+[[requirements]]
+requirement_id = "FR-COL-007"
+status = "approved"
+primary_plan = "PLAN-M04"
+supporting_plans = ["PLAN-M0-DISCOVERY", "PLAN-M03", "PLAN-A01", "PLAN-A02", "PLAN-A03", "PLAN-INT"]
+contract_ids = ["CTR-PROV-002", "CTR-PROV-003"]
+scenario_ids = ["M04-PURE-019", "M04-LIVE-011", "M04-ARCH-002"]
+evidence_boundaries = ["T1", "T2", "T3", "T4", "T5", "T6"]
+
+[[requirements]]
+requirement_id = "FR-COL-008"
+status = "approved"
+primary_plan = "PLAN-M04"
+supporting_plans = ["PLAN-M05", "PLAN-M07", "PLAN-P01", "PLAN-P02", "PLAN-INT"]
+contract_ids = ["CTR-COL-002", "CTR-COL-004", "CTR-COL-005"]
+scenario_ids = ["M04-PURE-020", "M04-DB-019", "M04-HTTP-007"]
+evidence_boundaries = ["T1", "T2", "T3", "T4", "T5", "T6"]
+
+[[requirements]]
+requirement_id = "FR-HIST-001"
+status = "approved"
+primary_plan = "PLAN-M08"
+supporting_plans = ["PLAN-M01", "PLAN-M04", "PLAN-M05", "PLAN-M06", "PLAN-M07", "PLAN-P01", "PLAN-P02", "PLAN-DB", "PLAN-INT"]
+contract_ids = ["CTR-OPS-005"]
+scenario_ids = ["M08-PURE-008", "M08-DB-009", "M08-LIFE-012"]
+evidence_boundaries = ["T1", "T2", "T3", "T4", "T6", "T7"]
+
+[[requirements]]
+requirement_id = "FR-HIST-002"
+status = "approved"
+primary_plan = "PLAN-M05"
+supporting_plans = ["PLAN-M06", "PLAN-M07", "PLAN-P01", "PLAN-P02", "PLAN-INT"]
+contract_ids = ["CTR-CAP-006", "CTR-CAP-007", "CTR-RUN-001", "CTR-RUN-002", "CTR-RUN-003", "CTR-ALERT-005"]
+scenario_ids = ["M05-PURE-060", "M05-PURE-061", "M05-PURE-062", "M05-PURE-063", "M05-PURE-064", "M05-DB-030", "M05-DB-031", "M05-DB-032", "M05-HTTP-009", "M05-BROWSER-002"]
+evidence_boundaries = ["T1", "T2", "T3", "T4", "T6", "T7"]
+
+[[requirements]]
+requirement_id = "FR-HIST-003"
+status = "approved"
+primary_plan = "PLAN-M08"
+supporting_plans = ["PLAN-M01", "PLAN-M04", "PLAN-M05", "PLAN-M06", "PLAN-M07", "PLAN-DB", "PLAN-INT"]
+contract_ids = ["CTR-OPS-005"]
+scenario_ids = ["M08-PURE-008", "M08-PURE-009", "M08-DB-009", "M08-DB-011", "M08-LIFE-009", "M08-LIFE-012"]
+evidence_boundaries = ["T1", "T2", "T3", "T4", "T6", "T7"]
+
+[[requirements]]
+requirement_id = "FR-HIST-004"
+status = "approved"
+primary_plan = "PLAN-M08"
+supporting_plans = ["PLAN-M05", "PLAN-M06", "PLAN-M07", "PLAN-P01", "PLAN-P02", "PLAN-DB", "PLAN-INT"]
+contract_ids = ["CTR-OPS-005"]
+scenario_ids = ["M08-PURE-012", "M08-DB-009", "M08-DB-010", "M08-FS-011", "M08-HTTP-007", "M08-HTTP-008", "M08-BROWSER-004", "INT-HIST-003"]
+evidence_boundaries = ["T1", "T2", "T3", "T4", "T6", "T7"]
+
+[[requirements]]
+requirement_id = "FR-HIST-005"
+status = "approved"
+primary_plan = "PLAN-INT"
+supporting_plans = ["PLAN-FND", "PLAN-M01", "PLAN-M02", "PLAN-M04", "PLAN-M05", "PLAN-M06", "PLAN-M07", "PLAN-M08", "PLAN-P01", "PLAN-P02", "PLAN-DB"]
+contract_ids = ["CTR-COMMON-002"]
+scenario_ids = ["INT-HIST-004"]
+evidence_boundaries = ["T1", "T2", "T3", "T4", "T6", "T7"]
+
+[[requirements]]
+requirement_id = "FR-ALERT-001"
+status = "approved"
+primary_plan = "PLAN-M07"
+supporting_plans = ["PLAN-M02", "PLAN-M05", "PLAN-P01", "PLAN-P02", "PLAN-DB", "PLAN-INT"]
+contract_ids = ["CTR-ALERT-001", "CTR-REG-001", "CTR-REG-002", "CTR-REG-007"]
+scenario_ids = ["M07-PURE-001", "M07-PURE-002", "M07-PURE-003", "M07-PURE-004", "M07-PURE-005", "M07-PURE-006", "M07-DB-001", "M07-DB-002", "M07-DB-003", "M07-DB-004", "M07-HTTP-001", "M07-HTTP-002"]
+evidence_boundaries = ["T1", "T2", "T3", "T4", "T5", "T6"]
+
+[[requirements]]
+requirement_id = "FR-ALERT-002"
+status = "approved"
+primary_plan = "PLAN-M07"
+supporting_plans = ["PLAN-P01", "PLAN-P02", "PLAN-DB", "PLAN-INT"]
+contract_ids = ["CTR-ALERT-001"]
+scenario_ids = ["M07-PURE-007", "M07-PURE-008", "M07-PURE-009", "M07-PURE-010", "M07-PURE-011", "M07-DB-005", "M07-HTTP-003", "M07-BROWSER-001"]
+evidence_boundaries = ["T1", "T2", "T3", "T4", "T5", "T6"]
+
+[[requirements]]
+requirement_id = "FR-ALERT-003"
+status = "approved"
+primary_plan = "PLAN-M07"
+supporting_plans = ["PLAN-M03", "PLAN-M04", "PLAN-M05", "PLAN-M06", "PLAN-A01", "PLAN-A02", "PLAN-A03", "PLAN-P01", "PLAN-P02", "PLAN-INT"]
+contract_ids = ["CTR-ALERT-002", "CTR-ALERT-003", "CTR-ALERT-004"]
+scenario_ids = ["M07-PURE-012", "M07-PURE-013", "M07-PURE-014", "M07-PURE-015", "M07-PURE-016", "M07-PURE-017", "M07-PURE-018", "M07-PURE-019", "M07-PURE-020", "M07-PURE-021", "M07-LIVE-001", "M07-LIVE-002", "M07-LIVE-003", "M07-LIVE-004", "M07-LIVE-005", "M07-LIVE-006", "M07-LIVE-007", "M07-LIVE-008", "M07-LIVE-009"]
+evidence_boundaries = ["T1", "T2", "T3", "T4", "T5", "T6"]
+
+[[requirements]]
+requirement_id = "FR-ALERT-004"
+status = "approved"
+primary_plan = "PLAN-M07"
+supporting_plans = ["PLAN-M04", "PLAN-M05", "PLAN-M06", "PLAN-P01", "PLAN-P02", "PLAN-DB", "PLAN-INT"]
+contract_ids = ["CTR-ALERT-002", "CTR-ALERT-003", "CTR-ALERT-004"]
+scenario_ids = ["M07-PURE-022", "M07-PURE-023", "M07-PURE-024", "M07-PURE-025", "M07-PURE-026", "M07-PURE-027", "M07-PURE-028", "M07-PURE-029", "M07-PURE-030", "M07-PURE-031", "M07-PURE-032", "M07-PURE-033", "M07-DB-006", "M07-DB-007", "M07-DB-008", "M07-DB-009", "M07-DB-010", "M07-DB-011", "M07-DB-012", "M07-LIVE-010"]
+evidence_boundaries = ["T1", "T2", "T3", "T4", "T5", "T6"]
+
+[[requirements]]
+requirement_id = "FR-ALERT-005"
+status = "approved"
+primary_plan = "PLAN-M07"
+supporting_plans = ["PLAN-P01", "PLAN-P02", "PLAN-DB", "PLAN-INT"]
+contract_ids = ["CTR-ALERT-002", "CTR-ALERT-004", "CTR-ALERT-005"]
+scenario_ids = ["M07-PURE-034", "M07-PURE-035", "M07-PURE-036", "M07-PURE-037", "M07-PURE-038", "M07-PURE-039", "M07-PURE-040", "M07-PURE-041", "M07-PURE-042", "M07-PURE-043", "M07-PURE-044", "M07-DB-013", "M07-DB-014", "M07-DB-015", "M07-DB-016", "M07-DB-017", "M07-DB-018", "M07-HTTP-004", "M07-HTTP-005", "M07-HTTP-006", "M07-HTTP-007", "M07-HTTP-008", "M07-HTTP-009", "M07-BROWSER-002", "M07-BROWSER-003", "M07-BROWSER-004", "M07-BROWSER-005", "M07-BROWSER-006", "M07-LIVE-011"]
+evidence_boundaries = ["T1", "T2", "T3", "T4", "T5", "T6"]
+
+[[requirements]]
+requirement_id = "FR-ALERT-006"
+status = "approved"
+primary_plan = "PLAN-M07"
+supporting_plans = ["PLAN-P01", "PLAN-P02", "PLAN-INT"]
+contract_ids = ["CTR-ALERT-003", "CTR-ALERT-004", "CTR-ALERT-005"]
+scenario_ids = ["M07-ARCH-001", "M07-ARCH-002", "M07-SEC-001", "M07-SEC-002", "M07-BROWSER-007", "INT-ALERT-004"]
+evidence_boundaries = ["T1", "T2", "T3", "T4", "T5", "T6"]
+
+[[requirements]]
+requirement_id = "FR-UI-001"
+status = "approved"
+primary_plan = "PLAN-P02"
+supporting_plans = ["PLAN-M0-DISCOVERY", "PLAN-FND", "PLAN-M01", "PLAN-M02", "PLAN-M03", "PLAN-M04", "PLAN-M05", "PLAN-M06", "PLAN-M07", "PLAN-M08", "PLAN-A01", "PLAN-A02", "PLAN-A03", "PLAN-A04-LINUX", "PLAN-A04-MAC", "PLAN-P01", "PLAN-DB", "PLAN-DEP", "PLAN-INT"]
+contract_ids = ["CTR-UI-001", "CTR-API-001"]
+scenario_ids = ["UI-RESP-001", "UI-RESP-002", "UI-RESP-003", "UI-RESP-004", "UI-RESP-005", "UI-RESP-006", "UI-RESP-007", "UI-RESP-008", "UI-VIS-001", "UI-VIS-002", "UI-VIS-003", "UI-VIS-004", "UI-VIS-005"]
+evidence_boundaries = ["T3", "T4"]
+
+[[requirements]]
+requirement_id = "FR-UI-002"
+status = "approved"
+primary_plan = "PLAN-P02"
+supporting_plans = ["PLAN-M01", "PLAN-M02", "PLAN-M03", "PLAN-M04", "PLAN-M05", "PLAN-M06", "PLAN-M07", "PLAN-M08", "PLAN-P01", "PLAN-INT"]
+contract_ids = ["CTR-UI-001", "CTR-API-001"]
+scenario_ids = ["UI-NAV-001", "UI-NAV-002", "UI-NAV-003", "UI-NAV-004", "UI-NAV-005", "UI-NAV-006", "UI-NAV-007", "UI-NAV-008"]
+evidence_boundaries = ["T3", "T4"]
+
+[[requirements]]
+requirement_id = "FR-UI-003"
+status = "approved"
+primary_plan = "PLAN-P02"
+supporting_plans = ["PLAN-M04", "PLAN-M05", "PLAN-M06", "PLAN-M07", "PLAN-M08", "PLAN-P01", "PLAN-INT"]
+contract_ids = ["CTR-API-001"]
+scenario_ids = ["UI-CMD-001", "UI-CMD-002", "UI-CMD-003", "UI-CMD-004", "UI-CMD-005", "UI-CMD-006", "UI-CMD-007", "UI-CMD-008", "UI-CMD-009", "UI-CMD-010"]
+evidence_boundaries = ["T3", "T4"]
+
+[[requirements]]
+requirement_id = "FR-UI-004"
+status = "approved"
+primary_plan = "PLAN-P02"
+supporting_plans = ["PLAN-P01", "PLAN-INT"]
+contract_ids = ["CTR-UI-001"]
+scenario_ids = ["UI-A11Y-001", "UI-A11Y-002", "UI-A11Y-003", "UI-A11Y-004", "UI-A11Y-005", "UI-A11Y-006", "UI-A11Y-007", "UI-A11Y-008", "UI-A11Y-009", "UI-A11Y-010"]
+evidence_boundaries = ["T3", "T4"]
+
+[[requirements]]
+requirement_id = "FR-UI-005"
+status = "approved"
+primary_plan = "PLAN-P02"
+supporting_plans = ["PLAN-M05", "PLAN-P01", "PLAN-INT"]
+contract_ids = ["CTR-API-001"]
+scenario_ids = ["UI-CAP-006", "UI-VIS-003"]
+evidence_boundaries = ["T3", "T4"]
+
+[[requirements]]
+requirement_id = "FR-UI-006"
+status = "approved"
+primary_plan = "PLAN-P02"
+supporting_plans = ["PLAN-M03", "PLAN-M05", "PLAN-M06", "PLAN-P01", "PLAN-INT"]
+contract_ids = ["CTR-API-001"]
+scenario_ids = ["UI-CAP-004", "UI-CAP-005", "UI-CAP-006", "UI-CAP-007", "UI-CAP-008", "UI-CAP-009", "UI-CAP-010"]
+evidence_boundaries = ["T3", "T4"]
+
+[[requirements]]
+requirement_id = "FR-UI-007"
+status = "approved"
+primary_plan = "PLAN-P02"
+supporting_plans = ["PLAN-M0-DISCOVERY", "PLAN-FND", "PLAN-M01", "PLAN-M02", "PLAN-M03", "PLAN-M04", "PLAN-M05", "PLAN-M06", "PLAN-M07", "PLAN-M08", "PLAN-A01", "PLAN-A02", "PLAN-A03", "PLAN-A04-LINUX", "PLAN-A04-MAC", "PLAN-P01", "PLAN-DB", "PLAN-DEP", "PLAN-INT"]
+contract_ids = ["CTR-UI-001", "CTR-FND-008"]
+scenario_ids = ["UI-DATA-001", "UI-DATA-002", "UI-DATA-003", "UI-DATA-004", "UI-DATA-005", "UI-DATA-006"]
+evidence_boundaries = ["T3", "T4"]
+
+[[requirements]]
+requirement_id = "FR-IAM-001"
+status = "approved"
+primary_plan = "PLAN-M01"
+supporting_plans = ["PLAN-P01", "PLAN-P02", "PLAN-DB", "PLAN-DEP", "PLAN-INT"]
+contract_ids = ["CTR-IAM-004"]
+scenario_ids = ["M01-DB-001", "M01-DB-002", "M01-HTTP-001", "M01-OPS-001"]
+evidence_boundaries = ["T1", "T2", "T3", "T4"]
+
+[[requirements]]
+requirement_id = "FR-IAM-002"
+status = "approved"
+primary_plan = "PLAN-M01"
+supporting_plans = ["PLAN-FND", "PLAN-DB", "PLAN-INT"]
+contract_ids = ["CTR-IAM-004"]
+scenario_ids = ["M01-CRYPTO-001", "M01-CRYPTO-002", "M01-CRYPTO-003", "M01-CRYPTO-004", "M01-HTTP-002"]
+evidence_boundaries = ["T1", "T2", "T3", "T4"]
+
+[[requirements]]
+requirement_id = "FR-IAM-003"
+status = "approved"
+primary_plan = "PLAN-M01"
+supporting_plans = ["PLAN-P01", "PLAN-P02", "PLAN-DB", "PLAN-DEP", "PLAN-INT"]
+contract_ids = ["CTR-IAM-003", "CTR-IAM-005", "CTR-API-002"]
+scenario_ids = ["M01-DB-003", "M01-DB-004", "M01-DB-005", "M01-DB-006", "M01-HTTP-003", "M01-HTTP-004", "M01-HTTP-005", "M01-HTTP-006", "M01-HTTP-007", "M01-HTTP-008", "M01-HTTP-009", "M01-HTTP-010", "M01-BROWSER-001", "M01-BROWSER-002", "M01-BROWSER-003", "M01-BROWSER-004", "INT-IAM-002"]
+evidence_boundaries = ["T1", "T2", "T3", "T4"]
+
+[[requirements]]
+requirement_id = "FR-IAM-004"
+status = "approved"
+primary_plan = "PLAN-M01"
+supporting_plans = ["PLAN-P01", "PLAN-P02", "PLAN-DB", "PLAN-INT"]
+contract_ids = ["CTR-IAM-006", "CTR-IAM-007", "CTR-API-003"]
+scenario_ids = ["M01-DB-007", "M01-DB-008", "M01-DB-009", "M01-DB-010", "M01-DB-011", "M01-HTTP-011", "M01-HTTP-012", "M01-HTTP-013", "M01-HTTP-014", "M01-HTTP-015", "M01-HTTP-016", "M01-BROWSER-005"]
+evidence_boundaries = ["T1", "T2", "T3", "T4"]
+
+[[requirements]]
+requirement_id = "FR-IAM-005"
+status = "approved"
+primary_plan = "PLAN-M01"
+supporting_plans = ["PLAN-M08", "PLAN-DB", "PLAN-INT"]
+contract_ids = ["CTR-IAM-006", "CTR-IAM-007"]
+scenario_ids = ["M01-DB-008", "M01-SEC-001", "M01-SEC-002"]
+evidence_boundaries = ["T1", "T2", "T3", "T4"]
+
+[[requirements]]
+requirement_id = "FR-IAM-006"
+status = "approved"
+primary_plan = "PLAN-M01"
+supporting_plans = ["PLAN-FND", "PLAN-P01", "PLAN-P02", "PLAN-INT"]
+contract_ids = ["CTR-IAM-006", "CTR-IAM-007", "CTR-API-003"]
+scenario_ids = ["M01-HTTP-017", "M01-BROWSER-006"]
+evidence_boundaries = ["T1", "T2", "T3", "T4"]
+
+[[requirements]]
+requirement_id = "FR-IAM-007"
+status = "approved"
+primary_plan = "PLAN-M01"
+supporting_plans = ["PLAN-FND", "PLAN-P01", "PLAN-P02", "PLAN-DEP", "PLAN-INT"]
+contract_ids = ["CTR-IAM-003", "CTR-API-002", "CTR-DEP-001"]
+scenario_ids = ["M01-HTTP-018", "M01-HTTP-019", "M01-HTTP-020", "M01-HTTP-021", "M01-OPS-002", "INT-IAM-005"]
+evidence_boundaries = ["T1", "T2", "T3", "T4"]
+
+[[requirements]]
+requirement_id = "FR-OPS-001"
+status = "approved"
+primary_plan = "PLAN-DEP"
+supporting_plans = ["PLAN-FND", "PLAN-M04", "PLAN-M08", "PLAN-A04-LINUX", "PLAN-P01", "PLAN-P02", "PLAN-INT"]
+contract_ids = ["CTR-DEP-001", "CTR-PLAT-001"]
+scenario_ids = ["DEP-INSTALL-001", "DEP-INSTALL-002", "DEP-INSTALL-003", "DEP-INSTALL-004", "DEP-INSTALL-005", "DEP-INSTALL-006", "DEP-INSTALL-007", "DEP-INSTALL-008", "DEP-SVC-001", "DEP-SVC-002", "DEP-SVC-003", "DEP-SVC-004", "DEP-SVC-005", "DEP-SVC-006", "DEP-SVC-007", "DEP-SVC-008", "DEP-SVC-009", "DEP-SVC-010", "DEP-SVC-011", "DEP-SVC-012", "DEP-SVC-013", "DEP-SVC-014"]
+evidence_boundaries = ["T2", "T3", "T4", "T5", "T7"]
+
+[[requirements]]
+requirement_id = "FR-OPS-002"
+status = "approved"
+primary_plan = "PLAN-M08"
+supporting_plans = ["PLAN-M03", "PLAN-M04", "PLAN-M05", "PLAN-M06", "PLAN-M07", "PLAN-P01", "PLAN-P02", "PLAN-DB", "PLAN-DEP", "PLAN-INT"]
+contract_ids = ["CTR-OPS-001", "CTR-OPS-002", "CTR-OPS-004", "CTR-OPS-006"]
+scenario_ids = ["M08-PURE-001", "M08-PURE-002", "M08-PURE-003", "M08-PURE-004", "M08-DB-012", "M08-HTTP-001", "M08-HTTP-002", "M08-HTTP-003", "M08-LIFE-001", "M08-LIFE-013"]
+evidence_boundaries = ["T2", "T3", "T4", "T5", "T7"]
+
+[[requirements]]
+requirement_id = "FR-OPS-003"
+status = "approved"
+primary_plan = "PLAN-M08"
+supporting_plans = ["PLAN-P01", "PLAN-P02", "PLAN-DB", "PLAN-DEP", "PLAN-INT"]
+contract_ids = ["CTR-OPS-003", "CTR-DB-003"]
+scenario_ids = ["M08-PURE-005", "M08-PURE-006", "M08-PURE-007", "M08-DB-007", "M08-DB-008", "M08-FS-001", "M08-FS-002", "M08-FS-003", "M08-FS-004", "M08-FS-005", "M08-FS-006", "M08-FS-007", "M08-FS-008", "M08-FS-009", "M08-LIFE-002"]
+evidence_boundaries = ["T2", "T3", "T4", "T5", "T7"]
+
+[[requirements]]
+requirement_id = "FR-OPS-004"
+status = "approved"
+primary_plan = "PLAN-M08"
+supporting_plans = ["PLAN-P01", "PLAN-P02", "PLAN-DB", "PLAN-DEP", "PLAN-INT"]
+contract_ids = ["CTR-OPS-003", "CTR-DB-003"]
+scenario_ids = ["M08-HTTP-004", "M08-HTTP-005", "M08-BROWSER-002", "M08-LIFE-003", "M08-LIFE-004", "M08-LIFE-005", "M08-LIFE-006", "M08-LIFE-007", "M08-LIFE-008"]
+evidence_boundaries = ["T2", "T3", "T4", "T5", "T7"]
+
+[[requirements]]
+requirement_id = "FR-OPS-005"
+status = "approved"
+primary_plan = "PLAN-M08"
+supporting_plans = ["PLAN-M0-DISCOVERY", "PLAN-FND", "PLAN-M01", "PLAN-M02", "PLAN-M03", "PLAN-M04", "PLAN-M05", "PLAN-M06", "PLAN-M07", "PLAN-A01", "PLAN-A02", "PLAN-A03", "PLAN-A04-LINUX", "PLAN-A04-MAC", "PLAN-P01", "PLAN-P02", "PLAN-DB", "PLAN-DEP", "PLAN-INT"]
+contract_ids = ["CTR-OPS-003", "CTR-OPS-004", "CTR-OPS-005"]
+scenario_ids = ["M08-PURE-011", "M08-PURE-012", "M08-FS-004", "M08-FS-010", "M08-FS-011", "M08-FS-012", "M08-FS-013", "M08-HTTP-005", "M08-HTTP-006", "M08-HTTP-009", "M08-SEC-001", "M08-SEC-002", "M08-SEC-003", "M08-SEC-004", "M08-SEC-005", "M08-SEC-006"]
+evidence_boundaries = ["T2", "T3", "T4", "T5", "T7"]
+
+[[requirements]]
+requirement_id = "FR-OPS-006"
+status = "approved"
+primary_plan = "PLAN-M08"
+supporting_plans = ["PLAN-FND", "PLAN-M03", "PLAN-M04", "PLAN-M05", "PLAN-M06", "PLAN-M07", "PLAN-P01", "PLAN-P02", "PLAN-DB", "PLAN-DEP", "PLAN-INT"]
+contract_ids = ["CTR-OPS-001", "CTR-OPS-004", "CTR-FND-007", "CTR-DB-001"]
+scenario_ids = ["M08-PURE-014", "M08-DB-012", "M08-HTTP-003", "M08-BROWSER-001"]
+evidence_boundaries = ["T2", "T3", "T4", "T5", "T7"]
+
+[[requirements]]
+requirement_id = "FR-SAFE-001"
+status = "approved"
+primary_plan = "PLAN-P01"
+supporting_plans = ["PLAN-M01", "PLAN-M02", "PLAN-M03", "PLAN-M04", "PLAN-M05", "PLAN-M06", "PLAN-M07", "PLAN-M08", "PLAN-A01", "PLAN-A02", "PLAN-A03", "PLAN-A04-LINUX", "PLAN-A04-MAC", "PLAN-P02", "PLAN-DEP", "PLAN-INT"]
+contract_ids = ["CTR-API-001"]
+scenario_ids = ["API-HTTP-010", "API-HTTP-011", "API-HTTP-012", "API-HTTP-013", "API-HTTP-014", "API-HTTP-015", "API-HTTP-016", "API-HTTP-017", "API-HTTP-018", "API-HTTP-019", "API-HTTP-020", "API-HTTP-021", "API-HTTP-022", "API-HTTP-023", "API-HTTP-024", "API-HTTP-025", "API-HTTP-026", "API-HTTP-027", "API-HTTP-028", "API-HTTP-029", "API-HTTP-030", "API-HTTP-031", "API-HTTP-032", "API-HTTP-033", "API-HTTP-034", "API-HTTP-035", "API-HTTP-036", "INT-SAFE-001", "INT-SAFE-002", "INT-SAFE-003", "INT-SAFE-004", "INT-SAFE-005", "INT-SAFE-006", "INT-SAFE-007", "INT-SAFE-008"]
+evidence_boundaries = ["T1", "T3", "T4", "T5", "T6", "T7"]
+
+[[requirements]]
+requirement_id = "FR-SAFE-002"
+status = "approved"
+primary_plan = "PLAN-P01"
+supporting_plans = ["PLAN-M0-DISCOVERY", "PLAN-FND", "PLAN-M01", "PLAN-M02", "PLAN-M03", "PLAN-M04", "PLAN-M05", "PLAN-M06", "PLAN-M07", "PLAN-M08", "PLAN-A01", "PLAN-A02", "PLAN-A03", "PLAN-A04-LINUX", "PLAN-A04-MAC", "PLAN-P02", "PLAN-DB", "PLAN-DEP", "PLAN-INT"]
+contract_ids = ["CTR-API-001"]
+scenario_ids = ["API-HTTP-036", "API-SEC-015", "INT-SEC-009"]
+evidence_boundaries = ["T1", "T3", "T4", "T5", "T6", "T7"]
+
+[[requirements]]
+requirement_id = "FR-AUTH-006"
+status = "discovery"
+primary_plan = "PLAN-M0-DISCOVERY"
+supporting_plans = ["PLAN-M02", "PLAN-M03", "PLAN-M04", "PLAN-A01", "PLAN-A02", "PLAN-A03", "PLAN-P01", "PLAN-P02", "PLAN-INT"]
+contract_ids = ["CTR-REG-003", "CTR-REG-006", "CTR-PROV-002", "CTR-PROV-005", "CTR-PROV-007"]
+scenario_ids = ["M0-CLA-001", "M0-CLA-007", "M0-CLA-008", "M0-CLA-009", "M0-CLA-010", "M0-CDX-001", "M0-CDX-007", "M0-CDX-008", "M0-CDX-009", "M0-CDX-010", "M0-OLL-001", "M0-OLL-007", "M0-OLL-009", "M0-OLL-010"]
+evidence_boundaries = ["T1", "T2", "T3", "T4", "T6"]
+
+[[requirements]]
+requirement_id = "FR-QUOTA-006"
+status = "discovery"
+primary_plan = "PLAN-M0-DISCOVERY"
+supporting_plans = ["PLAN-M03", "PLAN-M04", "PLAN-M05", "PLAN-A01", "PLAN-A02", "PLAN-A03", "PLAN-P01", "PLAN-P02", "PLAN-INT"]
+contract_ids = ["CTR-PROV-002", "CTR-PROV-004", "CTR-CAP-001"]
+scenario_ids = ["M0-CLA-001", "M0-CLA-002", "M0-CLA-003", "M0-CLA-004", "M0-CLA-010", "M0-CDX-001", "M0-CDX-002", "M0-CDX-003", "M0-CDX-004", "M0-CDX-010", "M0-OLL-001", "M0-OLL-004", "M0-OLL-010"]
+evidence_boundaries = ["T1", "T2", "T3", "T4", "T6"]
+
+[[requirements]]
+requirement_id = "FR-BUDGET-006"
+status = "discovery"
+primary_plan = "PLAN-M0-DISCOVERY"
+supporting_plans = ["PLAN-M03", "PLAN-M04", "PLAN-M05", "PLAN-A01", "PLAN-A02", "PLAN-A03", "PLAN-P01", "PLAN-P02", "PLAN-INT"]
+contract_ids = ["CTR-PROV-002", "CTR-PROV-004", "CTR-CAP-002"]
+scenario_ids = ["M0-ANT-001", "M0-ANT-002", "M0-ANT-003", "M0-ANT-004", "M0-ANT-005", "M0-ANT-006", "M0-ANT-007", "M0-ANT-008", "M0-OAI-001", "M0-OAI-002", "M0-OAI-003", "M0-OAI-004", "M0-OAI-005", "M0-OAI-006", "M0-OAI-007", "M0-OAI-008", "M0-OAI-009", "M0-OAPI-001", "M0-OAPI-002", "M0-OAPI-003", "M0-OAPI-004", "M0-OAPI-005", "M0-OAPI-006", "M0-OAPI-007"]
+evidence_boundaries = ["T1", "T2", "T3", "T4", "T6"]
+
+[[requirements]]
+requirement_id = "NFR-ARCH-001"
+status = "approved"
+primary_plan = "PLAN-FND"
+supporting_plans = ["PLAN-M0-DISCOVERY", "PLAN-M01", "PLAN-M02", "PLAN-M03", "PLAN-M04", "PLAN-M05", "PLAN-M06", "PLAN-M07", "PLAN-M08", "PLAN-A01", "PLAN-A02", "PLAN-A03", "PLAN-A04-LINUX", "PLAN-A04-MAC", "PLAN-P01", "PLAN-P02", "PLAN-DB", "PLAN-DEP", "PLAN-INT"]
+contract_ids = ["CTR-FND-001"]
+scenario_ids = ["FND-BND-001", "FND-BND-002", "INT-CONTRACT-002"]
+evidence_boundaries = ["T1", "docs"]
+
+[[requirements]]
+requirement_id = "NFR-ARCH-002"
+status = "approved"
+primary_plan = "PLAN-FND"
+supporting_plans = ["PLAN-M0-DISCOVERY", "PLAN-M01", "PLAN-M02", "PLAN-M03", "PLAN-M04", "PLAN-M05", "PLAN-M06", "PLAN-M07", "PLAN-M08", "PLAN-A01", "PLAN-A02", "PLAN-A03", "PLAN-A04-LINUX", "PLAN-A04-MAC", "PLAN-P01", "PLAN-P02", "PLAN-DB", "PLAN-DEP", "PLAN-INT"]
+contract_ids = ["CTR-FND-001"]
+scenario_ids = ["FND-BND-003", "FND-MIG-003", "INT-PLAN-003", "INT-CONTRACT-006"]
+evidence_boundaries = ["T1", "docs"]
+
+[[requirements]]
+requirement_id = "NFR-API-001"
+status = "approved"
+primary_plan = "PLAN-P01"
+supporting_plans = ["PLAN-FND", "PLAN-M01", "PLAN-M02", "PLAN-M03", "PLAN-M04", "PLAN-M05", "PLAN-M06", "PLAN-M07", "PLAN-M08", "PLAN-P02", "PLAN-DEP", "PLAN-INT"]
+contract_ids = ["CTR-API-001", "CTR-FND-002", "CTR-FND-005"]
+scenario_ids = ["API-OAPI-001", "API-OAPI-002", "API-OAPI-003", "API-OAPI-004", "API-OAPI-005", "API-OAPI-006", "API-OAPI-007", "API-OAPI-008", "API-OAPI-009", "API-OAPI-010", "API-OAPI-011", "API-OAPI-012", "API-HTTP-001", "API-HTTP-002", "API-HTTP-003", "API-HTTP-004", "API-HTTP-005", "API-HTTP-006", "API-HTTP-007", "API-HTTP-008", "API-HTTP-009", "API-HTTP-010", "API-HTTP-011", "API-HTTP-012", "API-HTTP-013", "API-HTTP-014", "API-HTTP-015", "API-HTTP-016", "API-HTTP-017", "API-HTTP-018", "API-HTTP-019", "API-HTTP-020", "API-HTTP-021", "API-HTTP-022", "API-HTTP-023", "API-HTTP-024", "API-HTTP-025", "API-HTTP-026", "API-HTTP-027", "API-HTTP-028", "API-HTTP-029", "API-HTTP-030", "API-HTTP-031", "API-HTTP-032", "API-HTTP-033", "API-HTTP-034", "API-HTTP-035", "API-HTTP-036", "API-HTTP-037", "API-HTTP-038", "INT-API-004"]
+evidence_boundaries = ["T3", "T4", "docs"]
+
+[[requirements]]
+requirement_id = "NFR-API-002"
+status = "approved"
+primary_plan = "PLAN-P01"
+supporting_plans = ["PLAN-FND", "PLAN-P02", "PLAN-INT"]
+contract_ids = ["CTR-UI-001", "CTR-FND-005"]
+scenario_ids = ["API-CLIENT-001", "API-CLIENT-002", "API-CLIENT-003", "API-CLIENT-004", "API-CLIENT-005", "API-CLIENT-006", "API-CLIENT-007", "API-CLIENT-008", "API-OAPI-001", "API-OAPI-002", "API-OAPI-003", "API-OAPI-004", "API-OAPI-005", "API-OAPI-006", "API-OAPI-007", "API-OAPI-008", "API-OAPI-009", "API-OAPI-010", "API-OAPI-011", "API-OAPI-012", "INT-API-003", "INT-API-005"]
+evidence_boundaries = ["T3", "T4", "docs"]
+
+[[requirements]]
+requirement_id = "NFR-DATA-001"
+status = "approved"
+primary_plan = "PLAN-DB"
+supporting_plans = ["PLAN-FND", "PLAN-M01", "PLAN-M02", "PLAN-M03", "PLAN-M04", "PLAN-M05", "PLAN-M06", "PLAN-M07", "PLAN-M08", "PLAN-DEP", "PLAN-INT"]
+contract_ids = ["CTR-DB-001", "CTR-DB-002", "CTR-DB-003", "CTR-FND-006"]
+scenario_ids = ["DB-FILE-001", "DB-FILE-002", "DB-FILE-003", "DB-FILE-004", "DB-FILE-005", "DB-FILE-006", "DB-FILE-007", "DB-FILE-008", "DB-FILE-009", "DB-FILE-010", "DB-TXN-001", "DB-TXN-002", "DB-TXN-003", "DB-TXN-004", "DB-TXN-005", "DB-TXN-006", "DB-TXN-007", "DB-TXN-008", "DB-TXN-009", "DB-TXN-010", "DB-TXN-011", "DB-TXN-012", "DB-PORT-001", "DB-PORT-002", "DB-PORT-003", "DB-PORT-004", "DB-PORT-005", "DB-PORT-006", "INT-MIG-008"]
+evidence_boundaries = ["T2", "T7", "docs"]
+
+[[requirements]]
+requirement_id = "NFR-TEST-001"
+status = "approved"
+primary_plan = "PLAN-FND"
+supporting_plans = ["PLAN-M0-DISCOVERY", "PLAN-M01", "PLAN-M02", "PLAN-M03", "PLAN-M04", "PLAN-M05", "PLAN-M06", "PLAN-M07", "PLAN-M08", "PLAN-A01", "PLAN-A02", "PLAN-A03", "PLAN-A04-LINUX", "PLAN-A04-MAC", "PLAN-P01", "PLAN-P02", "PLAN-DB", "PLAN-DEP", "PLAN-INT"]
+contract_ids = ["CTR-FND-008"]
+scenario_ids = ["FND-EVID-001"]
+evidence_boundaries = ["T1", "T2", "T3", "T4", "T5", "T6", "T7", "docs"]
+
+[[requirements]]
+requirement_id = "NFR-TEST-002"
+status = "approved"
+primary_plan = "PLAN-FND"
+supporting_plans = ["PLAN-M0-DISCOVERY", "PLAN-M01", "PLAN-M02", "PLAN-M03", "PLAN-M04", "PLAN-M05", "PLAN-M06", "PLAN-M07", "PLAN-M08", "PLAN-A01", "PLAN-A02", "PLAN-A03", "PLAN-A04-LINUX", "PLAN-A04-MAC", "PLAN-P01", "PLAN-P02", "PLAN-DB", "PLAN-DEP", "PLAN-INT"]
+contract_ids = ["CTR-FND-008"]
+scenario_ids = ["FND-TEST-001", "FND-UI-002"]
+evidence_boundaries = ["T1", "T2", "T3", "T4", "T5", "T6", "T7", "docs"]
+
+[[requirements]]
+requirement_id = "NFR-SEC-001"
+status = "approved"
+primary_plan = "PLAN-INT"
+supporting_plans = ["PLAN-M0-DISCOVERY", "PLAN-FND", "PLAN-M01", "PLAN-M02", "PLAN-M03", "PLAN-M04", "PLAN-M05", "PLAN-M06", "PLAN-M07", "PLAN-M08", "PLAN-A01", "PLAN-A02", "PLAN-A03", "PLAN-A04-LINUX", "PLAN-A04-MAC", "PLAN-P01", "PLAN-P02", "PLAN-DB", "PLAN-DEP"]
+contract_ids = ["CTR-FND-003", "CTR-FND-004", "CTR-FND-008"]
+scenario_ids = ["INT-SEC-001", "INT-SEC-002", "INT-SEC-003", "INT-SEC-004", "INT-SEC-005", "INT-SEC-006", "INT-SEC-007", "INT-SEC-008", "INT-SEC-009", "INT-SEC-010", "INT-SEC-011", "INT-SEC-012", "INT-API-007"]
+evidence_boundaries = ["T1", "T2", "T3", "T4", "T5", "T6", "T7", "docs"]
+
+[[requirements]]
+requirement_id = "NFR-PRIV-001"
+status = "approved"
+primary_plan = "PLAN-INT"
+supporting_plans = ["PLAN-FND", "PLAN-M03", "PLAN-M04", "PLAN-M05", "PLAN-M06", "PLAN-M07", "PLAN-M08", "PLAN-A01", "PLAN-A02", "PLAN-A03", "PLAN-A04-LINUX", "PLAN-A04-MAC", "PLAN-P01", "PLAN-P02", "PLAN-DB"]
+contract_ids = ["CTR-COMMON-004", "CTR-FND-003", "CTR-FND-008"]
+scenario_ids = ["INT-EVID-003", "INT-SEC-004", "INT-SEC-005", "INT-SEC-008", "INT-SEC-010"]
+evidence_boundaries = ["T1", "T2", "T3", "T4", "T5", "T6", "T7", "docs"]
+
+[[requirements]]
+requirement_id = "NFR-PRIV-002"
+status = "approved"
+primary_plan = "PLAN-INT"
+supporting_plans = ["PLAN-M0-DISCOVERY", "PLAN-FND", "PLAN-M01", "PLAN-M02", "PLAN-M03", "PLAN-M04", "PLAN-M05", "PLAN-M06", "PLAN-M07", "PLAN-M08", "PLAN-A01", "PLAN-A02", "PLAN-A03", "PLAN-A04-LINUX", "PLAN-A04-MAC", "PLAN-P01", "PLAN-P02", "PLAN-DB", "PLAN-DEP"]
+contract_ids = ["CTR-FND-003", "CTR-FND-004", "CTR-FND-008"]
+scenario_ids = ["INT-SEC-007", "INT-LIC-006"]
+evidence_boundaries = ["T1", "T2", "T3", "T4", "T5", "T6", "T7", "docs"]
+
+[[requirements]]
+requirement_id = "NFR-DOC-001"
+status = "approved"
+primary_plan = "PLAN-FND"
+supporting_plans = ["PLAN-M0-DISCOVERY", "PLAN-M01", "PLAN-M02", "PLAN-M03", "PLAN-M04", "PLAN-M05", "PLAN-M06", "PLAN-M07", "PLAN-M08", "PLAN-A01", "PLAN-A02", "PLAN-A03", "PLAN-A04-LINUX", "PLAN-A04-MAC", "PLAN-P01", "PLAN-P02", "PLAN-DB", "PLAN-DEP", "PLAN-INT"]
+contract_ids = ["CTR-FND-008"]
+scenario_ids = ["FND-DOC-001", "FND-DOC-002", "FND-DOC-003", "INT-AUTO-002"]
+evidence_boundaries = ["docs"]
+
+[[requirements]]
+requirement_id = "NFR-LIC-001"
+status = "approved"
+primary_plan = "PLAN-INT"
+supporting_plans = ["PLAN-M0-DISCOVERY", "PLAN-FND", "PLAN-M01", "PLAN-M02", "PLAN-M03", "PLAN-M04", "PLAN-M05", "PLAN-M06", "PLAN-M07", "PLAN-M08", "PLAN-A01", "PLAN-A02", "PLAN-A03", "PLAN-A04-LINUX", "PLAN-A04-MAC", "PLAN-P01", "PLAN-P02", "PLAN-DB", "PLAN-DEP"]
+contract_ids = ["CTR-FND-004", "CTR-FND-008"]
+scenario_ids = ["INT-LIC-001", "INT-LIC-002", "INT-LIC-003", "INT-LIC-004", "INT-LIC-005", "INT-LIC-006", "INT-LIC-007", "FND-DEP-001", "FND-DEP-002", "FND-DEP-003", "FND-DEP-004"]
+evidence_boundaries = ["docs"]
+
+[[requirements]]
+requirement_id = "NFR-PLAT-001"
+status = "approved"
+primary_plan = "PLAN-A04-MAC"
+supporting_plans = ["PLAN-FND", "PLAN-M06", "PLAN-A04-LINUX", "PLAN-DB", "PLAN-DEP", "PLAN-INT"]
+contract_ids = ["CTR-PLAT-001", "CTR-RUN-006", "CTR-DEP-001"]
+scenario_ids = ["MAC-CONTRACT-002", "LNX-COMP-001", "LNX-COMP-002", "LNX-COMP-003", "LNX-COMP-004", "LNX-COMP-005", "LNX-COMP-006"]
+evidence_boundaries = ["T5", "T7", "docs"]
+
+[[requirements]]
+requirement_id = "NFR-PERF-001"
+status = "approved"
+primary_plan = "PLAN-INT"
+supporting_plans = ["PLAN-FND", "PLAN-M02", "PLAN-M03", "PLAN-M04", "PLAN-M05", "PLAN-M06", "PLAN-M07", "PLAN-M08", "PLAN-A01", "PLAN-A02", "PLAN-A03", "PLAN-A04-LINUX", "PLAN-A04-MAC", "PLAN-P01", "PLAN-P02", "PLAN-DB", "PLAN-DEP"]
+contract_ids = ["CTR-API-001", "CTR-RUN-001", "CTR-FND-008"]
+scenario_ids = ["INT-PERF-001", "INT-PERF-002", "INT-PERF-003", "INT-PERF-004"]
+evidence_boundaries = ["T2", "T3", "T4", "T5", "docs"]
+
+[[requirements]]
+requirement_id = "NFR-RES-001"
+status = "approved"
+primary_plan = "PLAN-INT"
+supporting_plans = ["PLAN-M03", "PLAN-M04", "PLAN-M05", "PLAN-M06", "PLAN-M07", "PLAN-M08", "PLAN-A01", "PLAN-A02", "PLAN-A03", "PLAN-A04-LINUX", "PLAN-A04-MAC", "PLAN-P01", "PLAN-P02", "PLAN-DB", "PLAN-DEP"]
+contract_ids = ["CTR-OPS-001", "CTR-OPS-002", "CTR-OPS-004"]
+scenario_ids = ["INT-PERF-005", "INT-PERF-006", "INT-PERF-007", "INT-OPS-003"]
+evidence_boundaries = ["T2", "T3", "T4", "T5", "T6", "T7"]
+
+[[requirements]]
+requirement_id = "NFR-OBS-001"
+status = "approved"
+primary_plan = "PLAN-FND"
+supporting_plans = ["PLAN-M0-DISCOVERY", "PLAN-M01", "PLAN-M02", "PLAN-M03", "PLAN-M04", "PLAN-M05", "PLAN-M06", "PLAN-M07", "PLAN-M08", "PLAN-A01", "PLAN-A02", "PLAN-A03", "PLAN-A04-LINUX", "PLAN-A04-MAC", "PLAN-P01", "PLAN-P02", "PLAN-DB", "PLAN-DEP", "PLAN-INT"]
+contract_ids = ["CTR-FND-004", "CTR-OPS-004", "CTR-OPS-006"]
+scenario_ids = ["FND-LOG-001", "FND-LOG-002", "FND-LOG-003", "FND-LOG-004"]
+evidence_boundaries = ["T2", "T3", "T5", "T7", "docs"]
+
+[[requirements]]
+requirement_id = "NFR-COMP-001"
+status = "approved"
+primary_plan = "PLAN-INT"
+supporting_plans = ["PLAN-FND", "PLAN-M01", "PLAN-M02", "PLAN-M03", "PLAN-M04", "PLAN-M05", "PLAN-M06", "PLAN-M07", "PLAN-M08", "PLAN-A01", "PLAN-A02", "PLAN-A03", "PLAN-A04-LINUX", "PLAN-A04-MAC", "PLAN-P01", "PLAN-P02", "PLAN-DB", "PLAN-DEP"]
+contract_ids = ["CTR-FND-001", "CTR-EVT-001", "CTR-API-001", "CTR-DB-001"]
+scenario_ids = ["INT-CONTRACT-001", "INT-CONTRACT-002", "INT-CONTRACT-003", "INT-CONTRACT-004", "INT-CONTRACT-005", "INT-API-006", "INT-MIG-001", "INT-MIG-002", "INT-MIG-003", "INT-MIG-004", "INT-MIG-005", "INT-MIG-006", "INT-MIG-007", "INT-MIG-008"]
+evidence_boundaries = ["T1", "T2", "T3", "T4", "docs"]
+
+[[requirements]]
+requirement_id = "AC-V1-001"
+status = "approved"
+primary_plan = "PLAN-INT"
+supporting_plans = ["PLAN-M0-DISCOVERY", "PLAN-FND", "PLAN-M01", "PLAN-M02", "PLAN-M03", "PLAN-M04", "PLAN-M05", "PLAN-M06", "PLAN-M07", "PLAN-M08", "PLAN-A01", "PLAN-A02", "PLAN-A03", "PLAN-A04-LINUX", "PLAN-A04-MAC", "PLAN-P01", "PLAN-P02", "PLAN-DB", "PLAN-DEP"]
+contract_ids = ["CTR-FND-008"]
+scenario_ids = ["INT-TRACE-001", "INT-TRACE-002", "INT-TRACE-003", "INT-TRACE-004", "INT-TRACE-005", "INT-TRACE-006"]
+evidence_boundaries = ["T1", "T2", "T3", "T4", "T5", "T6", "T7", "docs"]
+
+[[requirements]]
+requirement_id = "AC-V1-002"
+status = "approved"
+primary_plan = "PLAN-INT"
+supporting_plans = ["PLAN-M0-DISCOVERY", "PLAN-FND", "PLAN-M01", "PLAN-M02", "PLAN-M03", "PLAN-M04", "PLAN-M05", "PLAN-M06", "PLAN-M07", "PLAN-M08", "PLAN-A01", "PLAN-A02", "PLAN-A03", "PLAN-A04-LINUX", "PLAN-A04-MAC", "PLAN-P01", "PLAN-P02", "PLAN-DB", "PLAN-DEP"]
+contract_ids = ["CTR-FND-001", "CTR-FND-008", "CTR-INT-001"]
+scenario_ids = ["INT-PLAN-001", "INT-PLAN-002", "INT-PLAN-003", "INT-PLAN-004", "INT-PLAN-005", "INT-PLAN-006"]
+evidence_boundaries = ["docs"]
+
+[[requirements]]
+requirement_id = "AC-V1-003"
+status = "approved"
+primary_plan = "PLAN-INT"
+supporting_plans = ["PLAN-FND", "PLAN-P01", "PLAN-P02", "PLAN-DEP"]
+contract_ids = ["CTR-FND-005", "CTR-API-001", "CTR-UI-001"]
+scenario_ids = ["INT-API-001", "INT-API-002", "INT-API-003", "INT-API-004", "INT-API-005", "INT-API-006", "INT-API-007", "INT-API-008"]
+evidence_boundaries = ["T3", "T4", "docs"]
+
+[[requirements]]
+requirement_id = "AC-V1-004"
+status = "approved"
+primary_plan = "PLAN-INT"
+supporting_plans = ["PLAN-FND", "PLAN-M01", "PLAN-M02", "PLAN-M03", "PLAN-M04", "PLAN-M05", "PLAN-M06", "PLAN-M07", "PLAN-M08", "PLAN-DB", "PLAN-DEP"]
+contract_ids = ["CTR-DB-001", "CTR-DB-002", "CTR-DB-003", "CTR-FND-006"]
+scenario_ids = ["INT-MIG-001", "INT-MIG-002", "INT-MIG-003", "INT-MIG-004", "INT-MIG-005", "INT-MIG-006", "INT-MIG-007", "INT-MIG-008"]
+evidence_boundaries = ["T2", "T7", "docs"]
+
+[[requirements]]
+requirement_id = "AC-V1-005"
+status = "approved"
+primary_plan = "PLAN-INT"
+supporting_plans = ["PLAN-M0-DISCOVERY", "PLAN-FND", "PLAN-M01", "PLAN-M02", "PLAN-M03", "PLAN-M04", "PLAN-M05", "PLAN-M06", "PLAN-M07", "PLAN-M08", "PLAN-A01", "PLAN-A02", "PLAN-A03", "PLAN-A04-LINUX", "PLAN-A04-MAC", "PLAN-P01", "PLAN-P02", "PLAN-DB", "PLAN-DEP"]
+contract_ids = ["CTR-FND-003", "CTR-FND-004", "CTR-FND-008"]
+scenario_ids = ["INT-SEC-001", "INT-SEC-002", "INT-SEC-003", "INT-SEC-004", "INT-SEC-005", "INT-SEC-006", "INT-SEC-007", "INT-SEC-008", "INT-SEC-009", "INT-SEC-010", "INT-SEC-011", "INT-SEC-012", "INT-LIC-001", "INT-LIC-002", "INT-LIC-003", "INT-LIC-004", "INT-LIC-005", "INT-LIC-006", "INT-LIC-007"]
+evidence_boundaries = ["T1", "T2", "T3", "T4", "T5", "T6", "T7", "docs"]
+
+[[requirements]]
+requirement_id = "AC-V1-006"
+status = "approved"
+primary_plan = "PLAN-INT"
+supporting_plans = ["PLAN-M0-DISCOVERY", "PLAN-FND", "PLAN-M01", "PLAN-M02", "PLAN-M03", "PLAN-M04", "PLAN-M05", "PLAN-M06", "PLAN-M07", "PLAN-M08", "PLAN-A01", "PLAN-A02", "PLAN-A03", "PLAN-A04-LINUX", "PLAN-A04-MAC", "PLAN-P01", "PLAN-P02", "PLAN-DB", "PLAN-DEP"]
+contract_ids = ["CTR-FND-008", "CTR-DEP-001"]
+scenario_ids = ["INT-DOC-001", "INT-DOC-002", "INT-DOC-003", "INT-DOC-004", "INT-DOC-005", "INT-DOC-006", "INT-DOC-007", "INT-DOC-008", "INT-TRACE-004", "INT-AUTO-002"]
+evidence_boundaries = ["docs"]
+
+[[requirements]]
+requirement_id = "AC-V1-007"
+status = "approved"
+primary_plan = "PLAN-INT"
+supporting_plans = ["PLAN-FND", "PLAN-M01", "PLAN-M02", "PLAN-M03", "PLAN-M04", "PLAN-M05", "PLAN-M06", "PLAN-M07", "PLAN-M08", "PLAN-P01", "PLAN-P02", "PLAN-DB", "PLAN-DEP"]
+contract_ids = ["CTR-FND-003", "CTR-FND-008"]
+scenario_ids = ["INT-SEC-003", "INT-SEC-004", "INT-SEC-005", "INT-SEC-006", "INT-SEC-007", "INT-SEC-008", "INT-SEC-009", "INT-SEC-010"]
+evidence_boundaries = ["T1", "T2", "T3", "T4", "T5", "T6", "T7", "docs"]
+
+[[requirements]]
+requirement_id = "AC-V1-008"
+status = "approved"
+primary_plan = "PLAN-INT"
+supporting_plans = ["PLAN-M0-DISCOVERY", "PLAN-FND", "PLAN-M01", "PLAN-M02", "PLAN-M03", "PLAN-M04", "PLAN-M05", "PLAN-M06", "PLAN-M07", "PLAN-M08", "PLAN-A01", "PLAN-A02", "PLAN-A03", "PLAN-A04-LINUX", "PLAN-A04-MAC", "PLAN-P01", "PLAN-P02", "PLAN-DB", "PLAN-DEP"]
+contract_ids = ["CTR-COMMON-004", "CTR-FND-008"]
+scenario_ids = ["INT-TEST-001", "INT-TEST-002", "INT-TEST-003", "INT-TEST-004", "INT-TEST-005", "INT-TEST-006", "INT-TEST-007", "INT-TEST-008", "INT-TRACE-005", "INT-AUTO-011"]
+evidence_boundaries = ["T1", "T2", "T3", "T4", "T5", "T6", "T7", "docs"]
+
+[[requirements]]
+requirement_id = "AC-LIVE-001"
+status = "approved"
+primary_plan = "PLAN-A01"
+supporting_plans = ["PLAN-M0-DISCOVERY", "PLAN-M02", "PLAN-M03", "PLAN-M04", "PLAN-M05", "PLAN-P01", "PLAN-P02", "PLAN-INT"]
+contract_ids = ["CTR-REG-002", "CTR-REG-003", "CTR-REG-005", "CTR-REG-006", "CTR-PROV-001", "CTR-PROV-002", "CTR-PROV-003", "CTR-PROV-004", "CTR-PROV-005", "CTR-PROV-006", "CTR-PROV-007", "CTR-PROV-008"]
+scenario_ids = ["CLA-LIVE-002", "INT-CLA-001"]
+evidence_boundaries = ["T2", "T3", "T4", "T5", "T6", "T7", "docs"]
+
+[[requirements]]
+requirement_id = "AC-LIVE-002"
+status = "approved"
+primary_plan = "PLAN-A02"
+supporting_plans = ["PLAN-M0-DISCOVERY", "PLAN-M02", "PLAN-M03", "PLAN-M04", "PLAN-M05", "PLAN-P01", "PLAN-P02", "PLAN-INT"]
+contract_ids = ["CTR-REG-002", "CTR-REG-003", "CTR-REG-005", "CTR-REG-006", "CTR-PROV-001", "CTR-PROV-002", "CTR-PROV-003", "CTR-PROV-004", "CTR-PROV-005", "CTR-PROV-006", "CTR-PROV-007", "CTR-PROV-008"]
+scenario_ids = ["CDX-LIVE-001", "CDX-LIVE-002", "CDX-LIVE-015", "CDX-LIVE-016", "CDX-LIVE-017", "CDX-LIVE-018", "CDX-LIVE-019", "INT-CDX-001"]
+evidence_boundaries = ["T2", "T3", "T4", "T5", "T6", "T7", "docs"]
+
+[[requirements]]
+requirement_id = "AC-LIVE-003"
+status = "approved"
+primary_plan = "PLAN-A03"
+supporting_plans = ["PLAN-M0-DISCOVERY", "PLAN-M02", "PLAN-M03", "PLAN-M04", "PLAN-M05", "PLAN-P01", "PLAN-P02", "PLAN-INT"]
+contract_ids = ["CTR-REG-002", "CTR-PROV-005"]
+scenario_ids = ["OLL-LIVE-002", "OLL-LIVE-003", "INT-OLL-001"]
+evidence_boundaries = ["T2", "T3", "T4", "T5", "T6", "T7", "docs"]
+
+[[requirements]]
+requirement_id = "AC-LIVE-004"
+status = "approved"
+primary_plan = "PLAN-M03"
+supporting_plans = ["PLAN-M0-DISCOVERY", "PLAN-M02", "PLAN-M04", "PLAN-M05", "PLAN-M06", "PLAN-A01", "PLAN-A02", "PLAN-A03", "PLAN-INT"]
+contract_ids = ["CTR-PROV-001", "CTR-PROV-002", "CTR-PROV-003", "CTR-PROV-004", "CTR-PROV-005", "CTR-PROV-006", "CTR-PROV-007", "CTR-PROV-008"]
+scenario_ids = ["M03-LIVE-001", "M03-LIVE-002", "M03-LIVE-003", "M03-LIVE-004", "M03-LIVE-005", "M03-LIVE-006", "M03-LIVE-007", "M03-LIVE-008", "M03-LIVE-009", "M03-LIVE-010"]
+evidence_boundaries = ["T2", "T3", "T4", "T5", "T6", "T7", "docs"]
+
+[[requirements]]
+requirement_id = "AC-LIVE-005"
+status = "approved"
+primary_plan = "PLAN-M05"
+supporting_plans = ["PLAN-M03", "PLAN-M04", "PLAN-A01", "PLAN-A02", "PLAN-A03", "PLAN-P01", "PLAN-P02", "PLAN-INT"]
+contract_ids = ["CTR-PROV-004", "CTR-CAP-001", "CTR-CAP-002", "CTR-COMMON-004"]
+scenario_ids = ["M05-LIVE-001", "M05-LIVE-002", "M05-LIVE-003", "M05-LIVE-004", "M05-LIVE-005", "M05-LIVE-006", "M05-LIVE-007", "M05-LIVE-008", "M05-LIVE-009", "M05-LIVE-010", "M05-LIVE-011", "M05-LIVE-012", "M05-LIVE-013"]
+evidence_boundaries = ["T2", "T3", "T4", "T5", "T6", "T7", "docs"]
+
+[[requirements]]
+requirement_id = "AC-LIVE-006"
+status = "approved"
+primary_plan = "PLAN-M02"
+supporting_plans = ["PLAN-M03", "PLAN-M04", "PLAN-A01", "PLAN-A02", "PLAN-A03", "PLAN-P01", "PLAN-P02", "PLAN-INT"]
+contract_ids = ["CTR-REG-003", "CTR-REG-006", "CTR-PROV-007"]
+scenario_ids = ["M02-LIVE-005", "M02-LIVE-007", "M02-LIVE-008", "M02-LIVE-009", "M02-LIVE-010"]
+evidence_boundaries = ["T2", "T3", "T4", "T5", "T6", "T7", "docs"]
+
+[[requirements]]
+requirement_id = "AC-LIVE-007"
+status = "approved"
+primary_plan = "PLAN-M03"
+supporting_plans = ["PLAN-M04", "PLAN-M05", "PLAN-M07", "PLAN-A01", "PLAN-A02", "PLAN-A03", "PLAN-P02", "PLAN-INT"]
+contract_ids = ["CTR-PROV-004", "CTR-PROV-006", "CTR-PROV-007"]
+scenario_ids = ["M03-LIVE-006", "M03-LIVE-007", "M03-LIVE-008", "M03-LIVE-010"]
+evidence_boundaries = ["T2", "T3", "T4", "T5", "T6", "T7", "docs"]
+
+[[requirements]]
+requirement_id = "AC-UI-001"
+status = "approved"
+primary_plan = "PLAN-P02"
+supporting_plans = ["PLAN-M01", "PLAN-P01", "PLAN-DB", "PLAN-INT"]
+contract_ids = ["CTR-IAM-003", "CTR-IAM-004", "CTR-IAM-005", "CTR-IAM-006", "CTR-IAM-007", "CTR-API-001", "CTR-API-002", "CTR-API-003", "CTR-UI-001"]
+scenario_ids = ["UI-AUTH-001", "UI-AUTH-002", "UI-AUTH-003", "UI-AUTH-004", "UI-AUTH-005", "UI-AUTH-006", "UI-AUTH-007", "UI-AUTH-008", "UI-AUTH-009", "UI-AUTH-010", "UI-TOKEN-001", "UI-TOKEN-002", "UI-TOKEN-003", "UI-TOKEN-004", "UI-TOKEN-005", "UI-TOKEN-006", "UI-TOKEN-007", "UI-TOKEN-008", "UI-TOKEN-009", "UI-TOKEN-010", "M01-BROWSER-001", "M01-BROWSER-002", "M01-BROWSER-003", "M01-BROWSER-004", "M01-BROWSER-005", "M01-BROWSER-006"]
+evidence_boundaries = ["T2", "T3", "T4"]
+
+[[requirements]]
+requirement_id = "AC-UI-002"
+status = "approved"
+primary_plan = "PLAN-P02"
+supporting_plans = ["PLAN-M0-DISCOVERY", "PLAN-FND", "PLAN-M01", "PLAN-M02", "PLAN-M03", "PLAN-M04", "PLAN-M05", "PLAN-M06", "PLAN-M07", "PLAN-M08", "PLAN-A01", "PLAN-A02", "PLAN-A03", "PLAN-A04-LINUX", "PLAN-A04-MAC", "PLAN-P01", "PLAN-DB", "PLAN-DEP", "PLAN-INT"]
+contract_ids = ["CTR-API-001", "CTR-UI-001"]
+scenario_ids = ["UI-CMD-002", "INT-UI-001"]
+evidence_boundaries = ["T2", "T3", "T4"]
+
+[[requirements]]
+requirement_id = "AC-UI-003"
+status = "approved"
+primary_plan = "PLAN-P02"
+supporting_plans = ["PLAN-P01", "PLAN-DEP", "PLAN-INT"]
+contract_ids = ["CTR-UI-001"]
+scenario_ids = ["UI-RESP-001", "UI-RESP-002", "UI-RESP-003", "UI-RESP-004", "UI-RESP-005", "UI-RESP-006", "UI-RESP-007", "UI-RESP-008", "INT-UI-002", "INT-UI-003"]
+evidence_boundaries = ["T2", "T3", "T4"]
+
+[[requirements]]
+requirement_id = "AC-UI-004"
+status = "approved"
+primary_plan = "PLAN-P02"
+supporting_plans = ["PLAN-P01", "PLAN-INT"]
+contract_ids = ["CTR-UI-001"]
+scenario_ids = ["UI-A11Y-001", "UI-A11Y-002", "UI-A11Y-003", "UI-A11Y-004", "UI-A11Y-005", "UI-A11Y-006", "UI-A11Y-007", "UI-A11Y-008", "UI-A11Y-009", "UI-A11Y-010", "INT-UI-004", "INT-UI-005"]
+evidence_boundaries = ["T2", "T3", "T4"]
+
+[[requirements]]
+requirement_id = "AC-UI-005"
+status = "approved"
+primary_plan = "PLAN-P02"
+supporting_plans = ["PLAN-M0-DISCOVERY", "PLAN-FND", "PLAN-M01", "PLAN-M02", "PLAN-M03", "PLAN-M04", "PLAN-M05", "PLAN-M06", "PLAN-M07", "PLAN-M08", "PLAN-A01", "PLAN-A02", "PLAN-A03", "PLAN-A04-LINUX", "PLAN-A04-MAC", "PLAN-P01", "PLAN-DB", "PLAN-DEP", "PLAN-INT"]
+contract_ids = ["CTR-API-001"]
+scenario_ids = ["UI-STATE-001", "UI-STATE-002", "UI-STATE-003", "UI-STATE-004", "UI-STATE-005", "UI-STATE-006", "UI-STATE-007", "UI-STATE-008", "UI-STATE-009", "UI-STATE-010", "UI-STATE-011", "UI-STATE-012", "INT-API-008", "INT-UI-006"]
+evidence_boundaries = ["T2", "T3", "T4"]
+
+[[requirements]]
+requirement_id = "AC-UI-006"
+status = "approved"
+primary_plan = "PLAN-P02"
+supporting_plans = ["PLAN-M03", "PLAN-M05", "PLAN-M06", "PLAN-P01", "PLAN-INT"]
+contract_ids = ["CTR-API-001"]
+scenario_ids = ["UI-CAP-004", "UI-CAP-005", "UI-CAP-006", "UI-CAP-007", "UI-CAP-008", "UI-CAP-009", "UI-CAP-010", "INT-UI-007"]
+evidence_boundaries = ["T2", "T3", "T4"]
+
+[[requirements]]
+requirement_id = "AC-PROC-001"
+status = "approved"
+primary_plan = "PLAN-M06"
+supporting_plans = ["PLAN-M0-DISCOVERY", "PLAN-A01", "PLAN-A02", "PLAN-A03", "PLAN-A04-LINUX", "PLAN-P01", "PLAN-P02", "PLAN-INT"]
+contract_ids = ["CTR-RUN-001", "CTR-RUN-006"]
+scenario_ids = ["M06-LNX-001", "M06-LNX-009", "INT-PROC-001"]
+evidence_boundaries = ["T2", "T3", "T4", "T5", "T6"]
+
+[[requirements]]
+requirement_id = "AC-PROC-002"
+status = "approved"
+primary_plan = "PLAN-M06"
+supporting_plans = ["PLAN-M0-DISCOVERY", "PLAN-A01", "PLAN-A02", "PLAN-A03", "PLAN-A04-LINUX", "PLAN-A04-MAC", "PLAN-P01", "PLAN-P02", "PLAN-INT"]
+contract_ids = ["CTR-RUN-003", "CTR-RUN-006"]
+scenario_ids = ["M06-LNX-007", "M06-LIVE-006", "INT-PROC-002"]
+evidence_boundaries = ["T2", "T3", "T4", "T5", "T6"]
+
+[[requirements]]
+requirement_id = "AC-PROC-003"
+status = "approved"
+primary_plan = "PLAN-M06"
+supporting_plans = ["PLAN-M02", "PLAN-A01", "PLAN-A02", "PLAN-A03", "PLAN-A04-LINUX", "PLAN-A04-MAC", "PLAN-P01", "PLAN-P02", "PLAN-INT"]
+contract_ids = ["CTR-RUN-007", "CTR-REG-006"]
+scenario_ids = ["M06-LIVE-005", "M06-API-005", "M06-UI-002", "INT-PROC-003"]
+evidence_boundaries = ["T2", "T3", "T4", "T5", "T6"]
+
+[[requirements]]
+requirement_id = "AC-PROC-004"
+status = "approved"
+primary_plan = "PLAN-M06"
+supporting_plans = ["PLAN-FND", "PLAN-M08", "PLAN-A01", "PLAN-A02", "PLAN-A03", "PLAN-A04-LINUX", "PLAN-A04-MAC", "PLAN-P01", "PLAN-P02", "PLAN-DB", "PLAN-INT"]
+contract_ids = ["CTR-RUN-002", "CTR-RUN-006", "CTR-FND-008"]
+scenario_ids = ["M06-SEC-001", "M06-SEC-002", "M06-SEC-003", "M06-SEC-004", "M06-LNX-008", "INT-PROC-004", "INT-SEC-005"]
+evidence_boundaries = ["T2", "T3", "T4", "T5", "T6"]
+
+[[requirements]]
+requirement_id = "AC-PROC-005"
+status = "approved"
+primary_plan = "PLAN-M06"
+supporting_plans = ["PLAN-M07", "PLAN-A01", "PLAN-A02", "PLAN-A03", "PLAN-A04-LINUX", "PLAN-A04-MAC", "PLAN-P01", "PLAN-P02", "PLAN-INT"]
+contract_ids = ["CTR-RUN-005"]
+scenario_ids = ["M06-LIVE-008", "M06-PURE-009", "M06-PURE-010", "M06-PURE-011", "M06-PURE-012", "INT-PROC-005", "INT-PROC-006"]
+evidence_boundaries = ["T2", "T3", "T4", "T5", "T6"]
+
+[[requirements]]
+requirement_id = "AC-ALERT-001"
+status = "approved"
+primary_plan = "PLAN-M07"
+supporting_plans = ["PLAN-M02", "PLAN-M05", "PLAN-P01", "PLAN-P02", "PLAN-DB", "PLAN-INT"]
+contract_ids = ["CTR-ALERT-001"]
+scenario_ids = ["M07-PURE-001", "M07-PURE-002", "M07-PURE-003", "M07-PURE-004", "M07-PURE-005", "M07-PURE-006", "M07-PURE-007", "M07-PURE-008", "M07-PURE-009", "M07-PURE-010", "M07-PURE-011", "M07-DB-001", "M07-DB-002", "M07-DB-003", "M07-DB-004", "M07-DB-005", "M07-HTTP-001", "M07-HTTP-002", "M07-HTTP-003", "INT-ALERT-001"]
+evidence_boundaries = ["T1", "T2", "T3", "T4", "T5", "T6"]
+
+[[requirements]]
+requirement_id = "AC-ALERT-002"
+status = "approved"
+primary_plan = "PLAN-M07"
+supporting_plans = ["PLAN-M04", "PLAN-M05", "PLAN-M06", "PLAN-P01", "PLAN-P02", "PLAN-DB", "PLAN-INT"]
+contract_ids = ["CTR-ALERT-002", "CTR-ALERT-003", "CTR-ALERT-004", "CTR-ALERT-005"]
+scenario_ids = ["M07-DB-006", "M07-DB-007", "M07-DB-008", "M07-DB-009", "M07-DB-010", "M07-DB-011", "M07-DB-012", "M07-DB-013", "M07-DB-014", "M07-DB-015", "M07-DB-016", "M07-DB-017", "M07-DB-018", "M07-DB-019", "M07-DB-020", "M07-DB-021", "M07-DB-022", "M07-HTTP-004", "M07-HTTP-005", "M07-HTTP-006", "M07-HTTP-007", "M07-HTTP-008", "M07-HTTP-009", "M07-HTTP-010", "M07-BROWSER-002", "M07-BROWSER-003", "M07-BROWSER-004", "M07-BROWSER-005", "M07-BROWSER-006", "M07-LIVE-011", "INT-ALERT-002"]
+evidence_boundaries = ["T1", "T2", "T3", "T4", "T5", "T6"]
+
+[[requirements]]
+requirement_id = "AC-ALERT-003"
+status = "approved"
+primary_plan = "PLAN-M07"
+supporting_plans = ["PLAN-M03", "PLAN-M04", "PLAN-M05", "PLAN-M06", "PLAN-A01", "PLAN-A02", "PLAN-A03", "PLAN-P01", "PLAN-P02", "PLAN-INT"]
+contract_ids = ["CTR-ALERT-002", "CTR-ALERT-003", "CTR-ALERT-004", "CTR-ALERT-005"]
+scenario_ids = ["M07-LIVE-004", "M07-LIVE-005", "M07-LIVE-006", "M07-LIVE-007", "INT-ALERT-003"]
+evidence_boundaries = ["T1", "T2", "T3", "T4", "T5", "T6"]
+
+[[requirements]]
+requirement_id = "AC-HIST-001"
+status = "approved"
+primary_plan = "PLAN-INT"
+supporting_plans = ["PLAN-M04", "PLAN-M05", "PLAN-M06", "PLAN-M07", "PLAN-M08", "PLAN-A01", "PLAN-A02", "PLAN-A03", "PLAN-P01", "PLAN-P02", "PLAN-DB"]
+contract_ids = ["CTR-COL-003", "CTR-COL-006", "CTR-CAP-006", "CTR-RUN-002", "CTR-ALERT-005"]
+scenario_ids = ["INT-HIST-001"]
+evidence_boundaries = ["T1", "T2", "T3", "T4", "T6"]
+
+[[requirements]]
+requirement_id = "AC-HIST-002"
+status = "approved"
+primary_plan = "PLAN-INT"
+supporting_plans = ["PLAN-M01", "PLAN-M04", "PLAN-M05", "PLAN-M06", "PLAN-M07", "PLAN-M08", "PLAN-DB"]
+contract_ids = ["CTR-OPS-005"]
+scenario_ids = ["INT-HIST-002"]
+evidence_boundaries = ["T1", "T2", "T3", "T4", "T6"]
+
+[[requirements]]
+requirement_id = "AC-OPS-001"
+status = "approved"
+primary_plan = "PLAN-DEP"
+supporting_plans = ["PLAN-FND", "PLAN-M08", "PLAN-A04-LINUX", "PLAN-P01", "PLAN-P02", "PLAN-DB", "PLAN-INT"]
+contract_ids = ["CTR-DEP-001", "CTR-PLAT-001"]
+scenario_ids = ["DEP-INSTALL-001", "DEP-INSTALL-002", "DEP-INSTALL-003", "DEP-INSTALL-004", "DEP-INSTALL-005", "DEP-INSTALL-006", "DEP-INSTALL-007", "DEP-INSTALL-008", "DEP-SVC-001", "DEP-SVC-002", "DEP-SVC-003", "DEP-SVC-004", "DEP-SVC-005", "DEP-SVC-006", "DEP-SVC-007", "DEP-SVC-008", "DEP-SVC-009", "INT-OPS-001"]
+evidence_boundaries = ["T2", "T3", "T4", "T5", "T6", "T7", "docs"]
+
+[[requirements]]
+requirement_id = "AC-OPS-002"
+status = "approved"
+primary_plan = "PLAN-DEP"
+supporting_plans = ["PLAN-M04", "PLAN-M08", "PLAN-A04-LINUX", "PLAN-P02", "PLAN-INT"]
+contract_ids = ["CTR-DEP-001", "CTR-OPS-003"]
+scenario_ids = ["DEP-SVC-007", "M04-OPS-008", "M08-LIFE-002", "INT-OPS-002"]
+evidence_boundaries = ["T2", "T3", "T4", "T5", "T6", "T7", "docs"]
+
+[[requirements]]
+requirement_id = "AC-OPS-003"
+status = "approved"
+primary_plan = "PLAN-INT"
+supporting_plans = ["PLAN-M03", "PLAN-M04", "PLAN-M05", "PLAN-M06", "PLAN-M07", "PLAN-M08", "PLAN-A01", "PLAN-A02", "PLAN-A03", "PLAN-A04-LINUX", "PLAN-A04-MAC", "PLAN-P01", "PLAN-P02", "PLAN-DEP"]
+contract_ids = ["CTR-OPS-001", "CTR-OPS-002", "CTR-OPS-004"]
+scenario_ids = ["INT-OPS-003", "INT-PERF-006"]
+evidence_boundaries = ["T2", "T3", "T4", "T5", "T6", "T7", "docs"]
+
+[[requirements]]
+requirement_id = "AC-OPS-004"
+status = "approved"
+primary_plan = "PLAN-M08"
+supporting_plans = ["PLAN-P01", "PLAN-P02", "PLAN-DB", "PLAN-DEP", "PLAN-INT"]
+contract_ids = ["CTR-OPS-003", "CTR-DB-003"]
+scenario_ids = ["M08-FS-001", "M08-FS-002", "M08-FS-003", "M08-FS-004", "M08-FS-005", "M08-FS-006", "M08-FS-007", "M08-FS-008", "M08-FS-009", "M08-LIFE-003", "M08-LIFE-004", "M08-LIFE-005", "M08-LIFE-006", "M08-LIFE-007", "M08-LIFE-008", "INT-OPS-004", "INT-OPS-009"]
+evidence_boundaries = ["T2", "T3", "T4", "T5", "T6", "T7", "docs"]
+
+[[requirements]]
+requirement_id = "AC-OPS-005"
+status = "approved"
+primary_plan = "PLAN-DEP"
+supporting_plans = ["PLAN-M01", "PLAN-M04", "PLAN-M05", "PLAN-M06", "PLAN-M07", "PLAN-M08", "PLAN-DB", "PLAN-INT"]
+contract_ids = ["CTR-DEP-001", "CTR-DB-001", "CTR-DB-002", "CTR-DB-003"]
+scenario_ids = ["DEP-UPG-001", "DEP-UPG-002", "DEP-UPG-003", "DEP-UPG-004", "DEP-UPG-005", "DEP-UPG-006", "DEP-UPG-007", "DEP-UPG-008", "DEP-UPG-009", "DEP-UPG-010", "DEP-UPG-011", "DEP-UPG-012", "DEP-REC-001", "DEP-REC-002", "DEP-REC-003", "DEP-REC-004", "DEP-REC-005", "DEP-REC-006", "DEP-REC-007", "DEP-REC-008", "DEP-REC-009", "DEP-REC-010", "INT-OPS-005", "INT-OPS-010"]
+evidence_boundaries = ["T2", "T3", "T4", "T5", "T6", "T7", "docs"]
+
+[[requirements]]
+requirement_id = "AC-OPS-006"
+status = "approved"
+primary_plan = "PLAN-M04"
+supporting_plans = ["PLAN-M0-DISCOVERY", "PLAN-M03", "PLAN-A01", "PLAN-A02", "PLAN-A03", "PLAN-INT"]
+contract_ids = ["CTR-PROV-002", "CTR-PROV-004"]
+scenario_ids = ["M04-PURE-024", "M04-PURE-025", "M04-DB-005", "M04-DB-006", "M04-LIVE-015", "INT-OPS-006", "INT-BUD-012"]
+evidence_boundaries = ["T2", "T3", "T4", "T5", "T6", "T7", "docs"]
+
+[[requirements]]
+requirement_id = "AC-TEST-001"
+status = "approved"
+primary_plan = "PLAN-FND"
+supporting_plans = ["PLAN-M0-DISCOVERY", "PLAN-M01", "PLAN-M02", "PLAN-M03", "PLAN-M04", "PLAN-M05", "PLAN-M06", "PLAN-M07", "PLAN-M08", "PLAN-A01", "PLAN-A02", "PLAN-A03", "PLAN-A04-LINUX", "PLAN-A04-MAC", "PLAN-P01", "PLAN-P02", "PLAN-DB", "PLAN-DEP", "PLAN-INT"]
+contract_ids = ["CTR-FND-008"]
+scenario_ids = ["FND-EVID-001"]
+evidence_boundaries = ["T1", "T2", "T3", "T4", "T5", "T6", "T7", "docs"]
+
+[[requirements]]
+requirement_id = "AC-TEST-002"
+status = "approved"
+primary_plan = "PLAN-FND"
+supporting_plans = ["PLAN-M0-DISCOVERY", "PLAN-M01", "PLAN-M02", "PLAN-M03", "PLAN-M04", "PLAN-M05", "PLAN-M06", "PLAN-M07", "PLAN-M08", "PLAN-A01", "PLAN-A02", "PLAN-A03", "PLAN-A04-LINUX", "PLAN-A04-MAC", "PLAN-P01", "PLAN-P02", "PLAN-DB", "PLAN-DEP", "PLAN-INT"]
+contract_ids = ["CTR-FND-008"]
+scenario_ids = ["FND-TEST-001", "FND-UI-002"]
+evidence_boundaries = ["T1", "T2", "T3", "T4", "T5", "T6", "T7", "docs"]
+
+[[requirements]]
+requirement_id = "AC-TEST-003"
+status = "approved"
+primary_plan = "PLAN-INT"
+supporting_plans = ["PLAN-FND", "PLAN-M01", "PLAN-M02", "PLAN-M03", "PLAN-M04", "PLAN-M05", "PLAN-M06", "PLAN-M07", "PLAN-M08", "PLAN-P01", "PLAN-P02", "PLAN-DB"]
+contract_ids = ["CTR-FND-008"]
+scenario_ids = ["FND-DB-001", "FND-HTTP-001", "FND-UI-001", "INT-AUTO-003", "INT-AUTO-011"]
+evidence_boundaries = ["T1", "T2", "T3", "T4", "T5", "T6", "T7", "docs"]
+
+[[requirements]]
+requirement_id = "AC-TEST-004"
+status = "approved"
+primary_plan = "PLAN-INT"
+supporting_plans = ["PLAN-M0-DISCOVERY", "PLAN-FND", "PLAN-M03", "PLAN-M04", "PLAN-M05", "PLAN-M06", "PLAN-A01", "PLAN-A02", "PLAN-A03", "PLAN-A04-LINUX", "PLAN-A04-MAC"]
+contract_ids = ["CTR-FND-008", "CTR-PROV-002"]
+scenario_ids = ["INT-EVID-004", "M0-COM-008"]
+evidence_boundaries = ["T1", "T2", "T3", "T4", "T5", "T6", "T7", "docs"]
+
+[[requirements]]
+requirement_id = "AC-TEST-005"
+status = "approved"
+primary_plan = "PLAN-INT"
+supporting_plans = ["PLAN-FND", "PLAN-M01", "PLAN-M04", "PLAN-M05", "PLAN-M06", "PLAN-M07"]
+contract_ids = ["CTR-FND-008"]
+scenario_ids = ["INT-TEST-005"]
+evidence_boundaries = ["T1", "T2", "T3", "T4", "T5", "T6", "T7", "docs"]
+
+[[requirements]]
+requirement_id = "AC-TEST-006"
+status = "approved"
+primary_plan = "PLAN-INT"
+supporting_plans = ["PLAN-M0-DISCOVERY", "PLAN-FND", "PLAN-M01", "PLAN-M02", "PLAN-M03", "PLAN-M04", "PLAN-M05", "PLAN-M06", "PLAN-M07", "PLAN-M08", "PLAN-A01", "PLAN-A02", "PLAN-A03", "PLAN-A04-LINUX", "PLAN-A04-MAC", "PLAN-P01", "PLAN-P02", "PLAN-DB", "PLAN-DEP"]
+contract_ids = ["CTR-FND-008"]
+scenario_ids = ["INT-TRACE-006", "INT-EVID-001", "INT-AUTO-003", "INT-AUTO-011"]
+evidence_boundaries = ["T1", "T2", "T3", "T4", "T5", "T6", "T7", "docs"]
+
+[[requirements]]
+requirement_id = "AC-M3-001"
+status = "approved"
+primary_plan = "PLAN-INT"
+supporting_plans = ["PLAN-M0-DISCOVERY", "PLAN-M03", "PLAN-A01"]
+contract_ids = ["CTR-PROV-001", "CTR-PROV-002", "CTR-PROV-003", "CTR-PROV-004", "CTR-PROV-005", "CTR-PROV-006", "CTR-PROV-007", "CTR-PROV-008"]
+scenario_ids = ["INT-M3-001"]
+evidence_boundaries = ["T1", "T2", "T5", "T6", "docs"]
+
+[[requirements]]
+requirement_id = "AC-M3-002"
+status = "approved"
+primary_plan = "PLAN-INT"
+supporting_plans = ["PLAN-M02", "PLAN-A01", "PLAN-DB"]
+contract_ids = ["CTR-REG-001", "CTR-REG-002", "CTR-REG-005", "CTR-REG-006", "CTR-REG-007"]
+scenario_ids = ["INT-M3-002"]
+evidence_boundaries = ["T2", "T6", "docs"]
+
+[[requirements]]
+requirement_id = "AC-M3-003"
+status = "approved"
+primary_plan = "PLAN-INT"
+supporting_plans = ["PLAN-M03", "PLAN-M05", "PLAN-A01", "PLAN-P01", "PLAN-P02"]
+contract_ids = ["CTR-PROV-004", "CTR-CAP-001", "CTR-UI-001"]
+scenario_ids = ["INT-M3-003"]
+evidence_boundaries = ["T2", "T3", "T4", "T6"]
+
+[[requirements]]
+requirement_id = "AC-M3-004"
+status = "approved"
+primary_plan = "PLAN-INT"
+supporting_plans = ["PLAN-M03", "PLAN-M04", "PLAN-M05", "PLAN-A01", "PLAN-DB"]
+contract_ids = ["CTR-COL-001", "CTR-COL-003", "CTR-COL-006", "CTR-CAP-001", "CTR-CAP-004", "CTR-CAP-006"]
+scenario_ids = ["INT-M3-004"]
+evidence_boundaries = ["T1", "T2", "T3", "T4", "T6", "docs"]
+
+[[requirements]]
+requirement_id = "AC-M3-005"
+status = "approved"
+primary_plan = "PLAN-INT"
+supporting_plans = ["PLAN-M04", "PLAN-M06", "PLAN-A01", "PLAN-A04-LINUX", "PLAN-P01", "PLAN-P02"]
+contract_ids = ["CTR-COL-006", "CTR-RUN-001", "CTR-RUN-002", "CTR-RUN-003", "CTR-RUN-006", "CTR-RUN-007", "CTR-API-001", "CTR-UI-001"]
+scenario_ids = ["INT-M3-005"]
+evidence_boundaries = ["T2", "T3", "T4", "T5", "T6"]
+
+[[requirements]]
+requirement_id = "AC-M3-006"
+status = "approved"
+primary_plan = "PLAN-INT"
+supporting_plans = ["PLAN-M02", "PLAN-M03", "PLAN-M04", "PLAN-M05", "PLAN-M06", "PLAN-A01", "PLAN-P01", "PLAN-P02"]
+contract_ids = ["CTR-API-001", "CTR-UI-001", "CTR-REG-002", "CTR-PROV-002", "CTR-COL-003", "CTR-CAP-003", "CTR-RUN-002"]
+scenario_ids = ["INT-M3-006"]
+evidence_boundaries = ["T2", "T3", "T4", "T5", "T6"]
+
+[[requirements]]
+requirement_id = "AC-M3-007"
+status = "approved"
+primary_plan = "PLAN-INT"
+supporting_plans = ["PLAN-FND", "PLAN-M02", "PLAN-M03", "PLAN-M04", "PLAN-M05", "PLAN-M06", "PLAN-A01", "PLAN-P01", "PLAN-P02", "PLAN-DB"]
+contract_ids = ["CTR-FND-008"]
+scenario_ids = ["INT-M3-007"]
+evidence_boundaries = ["T1", "T2", "T3", "T4", "T5", "T6", "docs"]
+
+[[requirements]]
+requirement_id = "FR-ALERT-007"
+status = "deferred"
+primary_plan = "POST-V1"
+supporting_plans = []
+contract_ids = []
+scenario_ids = []
+evidence_boundaries = []
+v1_guard = "No email transport, credential input, configuration, worker, dependency, route, or delivery scenario may enter V1; V1 delivery remains dashboard-only."
+
+[[requirements]]
+requirement_id = "FR-ALERT-008"
+status = "deferred"
+primary_plan = "POST-V1"
+supporting_plans = []
+contract_ids = []
+scenario_ids = []
+evidence_boundaries = []
+v1_guard = "No messenger or native-desktop notification transport, configuration, dependency, route, or delivery scenario may enter V1."
+
+[[requirements]]
+requirement_id = "FR-ROUTE-001"
+status = "deferred"
+primary_plan = "POST-V1"
+supporting_plans = []
+contract_ids = []
+scenario_ids = []
+evidence_boundaries = []
+v1_guard = "No account recommendation, automatic account selection, credential switching, or routing command may enter V1."
+
+[[requirements]]
+requirement_id = "FR-ROUTE-002"
+status = "deferred"
+primary_plan = "POST-V1"
+supporting_plans = []
+contract_ids = []
+scenario_ids = []
+evidence_boundaries = []
+v1_guard = "No checkpoint, cross-account/provider recovery, resumed-session mutation, or recovery command may enter V1."
+
+[[requirements]]
+requirement_id = "FR-CONTENT-001"
+status = "deferred"
+primary_plan = "POST-V1"
+supporting_plans = []
+contract_ids = []
+scenario_ids = []
+evidence_boundaries = []
+v1_guard = "No prompt, response, tool-activity, source-content capture, schema, persistence, export, or UI surface may enter V1."
+
+[[requirements]]
+requirement_id = "FR-REMOTE-001"
+status = "deferred"
+primary_plan = "POST-V1"
+supporting_plans = []
+contract_ids = []
+scenario_ids = []
+evidence_boundaries = []
+v1_guard = "No remote bind, HTTPS hosting, multi-user identity, or remote authorization surface may enter V1; V1 remains loopback and single-administrator."
+
+[[requirements]]
+requirement_id = "FR-PROVIDER-EXT-001"
+status = "deferred"
+primary_plan = "POST-V1"
+supporting_plans = []
+contract_ids = []
+scenario_ids = []
+evidence_boundaries = []
+v1_guard = "No Gemini, Grok, Muse, or other additional-provider adapter, contract implementation, discovery, API, or UI claim may enter V1."

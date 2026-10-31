@@ -1,0 +1,12 @@
+{
+  "record_type": "M0HandoffApprovalV1",
+  "schema_version": "1.0",
+  "approval_id": "APR-M0-M3-SECURITY-PRIVACY-001",
+  "subject_id": "M0-M3-CLAUDE-HANDOFF-SUBJECT-001",
+  "subject_sha256": "2878d8ae61121eb2f0df3483593ab07822dffcfb7b0cdfbac1706629348dcee6",
+  "role": "security_privacy",
+  "decision": "pending",
+  "reviewer_ref": null,
+  "decision_date": null,
+  "authority_ref": null
+}

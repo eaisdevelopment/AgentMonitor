@@ -1,0 +1,93 @@
+schema_version = "1.0"
+status = "planned_import_ready"
+source_spec = "docs/product/v1-specification.md"
+program_plan = "docs/superpowers/plans/2026-09-19-agentmonitor-v1-program.md"
+gitlab_objects_created = false
+implementation_authorized = false
+
+milestones = [
+  { id = "V1-M1", title = "Foundation and local-stack skeleton", plan_path = "docs/superpowers/plans/2026-09-19-agentmonitor-v1-m1-foundation.md", depends_on = [] },
+  { id = "V1-M2", title = "Authenticated local dashboard shell", plan_path = "docs/superpowers/plans/2026-09-19-agentmonitor-v1-m2-authenticated-shell.md", depends_on = ["V1-M1"] },
+  { id = "V1-M3", title = "Real Claude vertical slice", plan_path = "docs/superpowers/plans/2026-09-19-agentmonitor-v1-m3-claude-slice.md", depends_on = ["V1-M2"] },
+  { id = "V1-M4", title = "Claude fleet, alerts, and operations", plan_path = "docs/superpowers/plans/2026-09-19-agentmonitor-v1-m4-claude-fleet-alerts.md", depends_on = ["V1-M3"] },
+  { id = "V1-M5", title = "Codex vertical slice and fleet", plan_path = "docs/superpowers/plans/2026-09-19-agentmonitor-v1-m5-codex-slice.md", depends_on = ["V1-M3"] },
+  { id = "V1-M6", title = "Ollama local/cloud vertical slice", plan_path = "docs/superpowers/plans/2026-09-19-agentmonitor-v1-m6-ollama-slice.md", depends_on = ["V1-M3"] },
+  { id = "V1-M7", title = "API usage, cost, credit, and budget monitoring", plan_path = "docs/superpowers/plans/2026-09-19-agentmonitor-v1-m7-api-budgets.md", depends_on = ["V1-M3"] },
+  { id = "V1-M8", title = "Hardening and release", plan_path = "docs/superpowers/plans/2026-09-19-agentmonitor-v1-m8-hardening-release.md", depends_on = ["V1-M4", "V1-M5", "V1-M6", "V1-M7"] },
+]
+
+epics = [
+  { id = "EPIC-FND-01", milestone_id = "V1-M1", title = "Foundation" },
+  { id = "EPIC-CONTRACT-01", milestone_id = "V1-M1", title = "Technical contracts" },
+  { id = "EPIC-DATA-01", milestone_id = "V1-M1", title = "SQLite foundation" },
+  { id = "EPIC-IAM-01", milestone_id = "V1-M2", title = "Identity and access" },
+  { id = "EPIC-API-01", milestone_id = "V1-M2", title = "Authenticated API boundary" },
+  { id = "EPIC-UI-01", milestone_id = "V1-M2", title = "Authenticated dashboard shell" },
+  { id = "EPIC-REG-01", milestone_id = "V1-M3", title = "Account registry" },
+  { id = "EPIC-PROV-01", milestone_id = "V1-M3", title = "Provider protocol" },
+  { id = "EPIC-CLA-01", milestone_id = "V1-M3", title = "Claude adapter" },
+  { id = "EPIC-OBS-01", milestone_id = "V1-M3", title = "Collection and observation" },
+  { id = "EPIC-FLEET-01", milestone_id = "V1-M4", title = "Claude fleet and history" },
+  { id = "EPIC-ALERT-01", milestone_id = "V1-M4", title = "Dashboard alerts" },
+  { id = "EPIC-OPS-01", milestone_id = "V1-M4", title = "Health and diagnostics" },
+  { id = "EPIC-CDX-01", milestone_id = "V1-M5", title = "Codex vertical slice and fleet" },
+  { id = "EPIC-OLL-01", milestone_id = "V1-M6", title = "Ollama local/cloud slice" },
+  { id = "EPIC-BUDGET-01", milestone_id = "V1-M7", title = "API budgets" },
+  { id = "EPIC-DEP-01", milestone_id = "V1-M8", title = "Native Linux deployment" },
+  { id = "EPIC-HARDEN-01", milestone_id = "V1-M8", title = "Operations and hardening" },
+  { id = "EPIC-RELEASE-01", milestone_id = "V1-M8", title = "V1 release" },
+]
+
+stories = [
+  { id = "ST-CONTRACT-001", milestone_id = "V1-M1", epic_id = "EPIC-CONTRACT-01", title = "Freeze V1 technical contracts and import ownership", plan_ids = ["PLAN-FND", "PLAN-DB"], depends_on = [], status = "Planned" },
+  { id = "ST-FND-001", milestone_id = "V1-M1", epic_id = "EPIC-FND-01", title = "Typed bootstrap configuration and safe correlation logging", plan_ids = ["PLAN-FND"], depends_on = ["ST-CONTRACT-001"], status = "Planned" },
+  { id = "ST-DATA-001", milestone_id = "V1-M1", epic_id = "EPIC-DATA-01", title = "Real SQLite policy, compatibility inspection, and base migration", plan_ids = ["PLAN-DB"], depends_on = ["ST-CONTRACT-001"], status = "Planned" },
+  { id = "ST-CONTRACT-002", milestone_id = "V1-M1", epic_id = "EPIC-CONTRACT-01", title = "Loopback application factory and deterministic OpenAPI client", plan_ids = ["PLAN-FND", "PLAN-P01", "PLAN-P02"], depends_on = ["ST-FND-001", "ST-DATA-001"], status = "Planned" },
+  { id = "ST-FND-002", milestone_id = "V1-M1", epic_id = "EPIC-FND-01", title = "Built browser shell and canonical milestone automation", plan_ids = ["PLAN-FND", "PLAN-P02"], depends_on = ["ST-CONTRACT-002"], status = "Planned" },
+
+  { id = "ST-IAM-001", milestone_id = "V1-M2", epic_id = "EPIC-IAM-01", title = "M01 policy contracts, administrator bootstrap, and real persistence", plan_ids = ["PLAN-M01", "PLAN-DB"], depends_on = ["V1-M1"], status = "Planned" },
+  { id = "ST-IAM-002", milestone_id = "V1-M2", epic_id = "EPIC-IAM-01", title = "Durable sessions, CSRF, throttle, and authorization", plan_ids = ["PLAN-M01"], depends_on = ["ST-IAM-001"], status = "Planned" },
+  { id = "ST-IAM-003", milestone_id = "V1-M2", epic_id = "EPIC-IAM-01", title = "Least-privilege API-token lifecycle", plan_ids = ["PLAN-M01"], depends_on = ["ST-IAM-002"], status = "Planned" },
+  { id = "ST-API-001", milestone_id = "V1-M2", epic_id = "EPIC-API-01", title = "Hardened IAM HTTP boundary and generated client", plan_ids = ["PLAN-P01"], depends_on = ["ST-IAM-003"], status = "Planned" },
+  { id = "ST-UI-001", milestone_id = "V1-M2", epic_id = "EPIC-UI-01", title = "Real-browser authentication and token settings", plan_ids = ["PLAN-P02"], depends_on = ["ST-API-001"], status = "Planned" },
+  { id = "ST-API-002", milestone_id = "V1-M2", epic_id = "EPIC-API-01", title = "Cross-origin denial and milestone integration gate", plan_ids = ["PLAN-M01", "PLAN-P01", "PLAN-P02", "PLAN-INT"], depends_on = ["ST-UI-001"], status = "Planned" },
+
+  { id = "ST-PROV-001", milestone_id = "V1-M3", epic_id = "EPIC-PROV-01", title = "Provider protocol, provenance, negotiation, and compatibility", plan_ids = ["PLAN-M03"], depends_on = ["V1-M2"], status = "Planned" },
+  { id = "ST-REG-001", milestone_id = "V1-M3", epic_id = "EPIC-REG-01", title = "Registry persistence and one owner-confirmed Claude account", plan_ids = ["PLAN-M02", "PLAN-DB"], depends_on = ["ST-PROV-001"], status = "Planned" },
+  { id = "ST-CLA-001", milestone_id = "V1-M3", epic_id = "EPIC-CLA-01", title = "Evidence-scoped Claude adapter and real subscription observation", plan_ids = ["PLAN-M03", "PLAN-A01", "PLAN-DB"], depends_on = ["ST-REG-001"], status = "Planned" },
+  { id = "ST-OBS-001", milestone_id = "V1-M3", epic_id = "EPIC-OBS-01", title = "Real collection run and idempotent capacity commit", plan_ids = ["PLAN-M04", "PLAN-M05", "PLAN-DB"], depends_on = ["ST-CLA-001"], status = "Planned" },
+  { id = "ST-OBS-002", milestone_id = "V1-M3", epic_id = "EPIC-OBS-01", title = "Real Linux process/session observation for the same account", plan_ids = ["PLAN-M06", "PLAN-A01", "PLAN-A04-LINUX", "PLAN-DB"], depends_on = ["ST-OBS-001"], status = "Planned" },
+  { id = "ST-OBS-003", milestone_id = "V1-M3", epic_id = "EPIC-OBS-01", title = "Authenticated API, generated client, browser, and live milestone gate", plan_ids = ["PLAN-P01", "PLAN-P02", "PLAN-INT"], depends_on = ["ST-OBS-002"], status = "Planned" },
+
+  { id = "ST-FLEET-001", milestone_id = "V1-M4", epic_id = "EPIC-FLEET-01", title = "Reconcile six accounts, organizations, and read-only auth health", plan_ids = ["PLAN-FND", "PLAN-M02", "PLAN-A01", "PLAN-P01", "PLAN-P02"], depends_on = ["V1-M3"], status = "Planned" },
+  { id = "ST-FLEET-002", milestone_id = "V1-M4", epic_id = "EPIC-FLEET-01", title = "Collect account and organization capacity with history", plan_ids = ["PLAN-M04", "PLAN-M05", "PLAN-A01"], depends_on = ["ST-FLEET-001"], status = "Planned" },
+  { id = "ST-FLEET-003", milestone_id = "V1-M4", epic_id = "EPIC-FLEET-01", title = "Expose runtime, capacity, and history in the browser", plan_ids = ["PLAN-FND", "PLAN-M06", "PLAN-A01", "PLAN-A04-LINUX", "PLAN-P01", "PLAN-P02"], depends_on = ["ST-FLEET-002"], status = "Planned" },
+  { id = "ST-ALERT-001", milestone_id = "V1-M4", epic_id = "EPIC-ALERT-01", title = "Implement alert contracts, three migrations, and event lifecycle", plan_ids = ["PLAN-M07", "PLAN-DB"], depends_on = ["ST-FLEET-002"], status = "Planned" },
+  { id = "ST-ALERT-002", milestone_id = "V1-M4", epic_id = "EPIC-ALERT-01", title = "Deliver alert rules and console through HTTP and browser", plan_ids = ["PLAN-FND", "PLAN-M07", "PLAN-P01", "PLAN-P02"], depends_on = ["ST-ALERT-001"], status = "Planned" },
+  { id = "ST-OPS-001", milestone_id = "V1-M4", epic_id = "EPIC-OPS-01", title = "Publish operations contracts, diagnostics, and M4 evidence", plan_ids = ["PLAN-FND", "PLAN-M08", "PLAN-P01", "PLAN-P02", "PLAN-INT"], depends_on = ["ST-FLEET-003", "ST-ALERT-002"], status = "Planned" },
+
+  { id = "ST-CDX-001", milestone_id = "V1-M5", epic_id = "EPIC-CDX-01", title = "Admit the evidence-scoped adapter and real installation", plan_ids = ["PLAN-A02", "PLAN-M03"], depends_on = ["V1-M3"], status = "Planned" },
+  { id = "ST-CDX-002", milestone_id = "V1-M5", epic_id = "EPIC-CDX-01", title = "Reconcile four identities and authentication health", plan_ids = ["PLAN-M02", "PLAN-A02"], depends_on = ["ST-CDX-001"], status = "Planned" },
+  { id = "ST-CDX-003", milestone_id = "V1-M5", epic_id = "EPIC-CDX-01", title = "Collect native subscription windows into capacity history", plan_ids = ["PLAN-M04", "PLAN-M05", "PLAN-A02"], depends_on = ["ST-CDX-002"], status = "Planned" },
+  { id = "ST-CDX-004", milestone_id = "V1-M5", epic_id = "EPIC-CDX-01", title = "Discover and correlate 5–6 representative processes", plan_ids = ["PLAN-M06", "PLAN-A02", "PLAN-A04-LINUX"], depends_on = ["ST-CDX-003"], status = "Planned" },
+  { id = "ST-CDX-005", milestone_id = "V1-M5", epic_id = "EPIC-CDX-01", title = "Integrate HTTP, browser, health, and M5 evidence", plan_ids = ["PLAN-FND", "PLAN-A02", "PLAN-P01", "PLAN-P02", "PLAN-M08", "PLAN-INT"], depends_on = ["ST-CDX-004"], status = "Planned" },
+
+  { id = "ST-OLL-001", milestone_id = "V1-M6", epic_id = "EPIC-OLL-01", title = "Admit independently gated capabilities and installation evidence", plan_ids = ["PLAN-A03", "PLAN-M03"], depends_on = ["V1-M3"], status = "Planned" },
+  { id = "ST-OLL-002", milestone_id = "V1-M6", epic_id = "EPIC-OLL-01", title = "Observe local service, metadata decision, catalog, and runtime safely", plan_ids = ["PLAN-A03", "PLAN-A04-LINUX", "PLAN-M06"], depends_on = ["ST-OLL-001"], status = "Planned" },
+  { id = "ST-OLL-003", milestone_id = "V1-M6", epic_id = "EPIC-OLL-01", title = "Reconcile two cloud identities and authentication health", plan_ids = ["PLAN-M02", "PLAN-A03"], depends_on = ["ST-OLL-002"], status = "Planned" },
+  { id = "ST-OLL-004", milestone_id = "V1-M6", epic_id = "EPIC-OLL-01", title = "Collect cloud subscription capacity as a separate pool", plan_ids = ["PLAN-M04", "PLAN-M05", "PLAN-A03"], depends_on = ["ST-OLL-003"], status = "Planned" },
+  { id = "ST-OLL-005", milestone_id = "V1-M6", epic_id = "EPIC-OLL-01", title = "Correlate, integrate, render, and close M6 evidence", plan_ids = ["PLAN-FND", "PLAN-M06", "PLAN-A03", "PLAN-P01", "PLAN-P02", "PLAN-M08", "PLAN-INT"], depends_on = ["ST-OLL-004"], status = "Planned" },
+
+  { id = "ST-BUDGET-001", milestone_id = "V1-M7", epic_id = "EPIC-BUDGET-01", title = "Build the exact M05 budget core", plan_ids = ["PLAN-M03", "PLAN-M04", "PLAN-M05", "PLAN-A01", "PLAN-DB"], depends_on = ["V1-M3"], status = "Planned" },
+  { id = "ST-BUDGET-002", milestone_id = "V1-M7", epic_id = "EPIC-BUDGET-01", title = "Complete OpenAI and Ollama provider API lanes", plan_ids = ["PLAN-A02", "PLAN-A03", "PLAN-M03", "PLAN-M04"], depends_on = ["ST-BUDGET-001"], status = "Planned" },
+  { id = "ST-BUDGET-003", milestone_id = "V1-M7", epic_id = "EPIC-BUDGET-01", title = "Publish budget HTTP resources and generated client", plan_ids = ["PLAN-P01"], depends_on = ["ST-BUDGET-002"], status = "Planned" },
+  { id = "ST-BUDGET-004", milestone_id = "V1-M7", epic_id = "EPIC-BUDGET-01", title = "Render truthful budget and history views", plan_ids = ["PLAN-P02"], depends_on = ["ST-BUDGET-003"], status = "Planned" },
+  { id = "ST-BUDGET-005", milestone_id = "V1-M7", epic_id = "EPIC-BUDGET-01", title = "Reconcile verticals and close V1-M7", plan_ids = ["PLAN-FND", "PLAN-M05", "PLAN-A01", "PLAN-A02", "PLAN-A03", "PLAN-INT"], depends_on = ["ST-BUDGET-004"], status = "Planned" },
+
+  { id = "ST-DEP-001", milestone_id = "V1-M8", epic_id = "EPIC-DEP-01", title = "Build and preflight the native Linux release", plan_ids = ["PLAN-DEP"], depends_on = ["V1-M4", "V1-M5", "V1-M6", "V1-M7"], status = "Planned" },
+  { id = "ST-DEP-002", milestone_id = "V1-M8", epic_id = "EPIC-DEP-01", title = "Install, operate, upgrade, and recover the fixed user service", plan_ids = ["PLAN-DEP"], depends_on = ["ST-DEP-001"], status = "Planned" },
+  { id = "ST-HARDEN-001", milestone_id = "V1-M8", epic_id = "EPIC-HARDEN-01", title = "Implement operations, backup, retention, export, and restore", plan_ids = ["PLAN-M08", "PLAN-DB"], depends_on = ["ST-DEP-002"], status = "Planned" },
+  { id = "ST-HARDEN-002", milestone_id = "V1-M8", epic_id = "EPIC-HARDEN-01", title = "Expose operations and close UI, scale, security, and license findings", plan_ids = ["PLAN-M08", "PLAN-P01", "PLAN-P02", "PLAN-INT"], depends_on = ["ST-HARDEN-001"], status = "Planned" },
+  { id = "ST-RELEASE-001", milestone_id = "V1-M8", epic_id = "EPIC-RELEASE-01", title = "Implement candidate evidence and fail-closed release automation", plan_ids = ["PLAN-FND", "PLAN-INT"], depends_on = ["ST-HARDEN-002"], status = "Planned" },
+  { id = "ST-RELEASE-002", milestone_id = "V1-M8", epic_id = "EPIC-RELEASE-01", title = "Exercise the release candidate and record the V1 decision", plan_ids = ["PLAN-INT"], depends_on = ["ST-RELEASE-001"], status = "Planned" },
+]
