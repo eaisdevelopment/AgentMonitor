@@ -1,3 +1,4 @@
+import { ProductPromotion } from "./ProductPromotion";
 import { AccountQuotaOverview } from "./AccountQuotaOverview";
 import { ProviderPage } from "../providers/ProviderPage";
 import { SessionPanel } from "../sessions/SessionPanel";
@@ -19,6 +20,7 @@ export function OverviewPage({
         <span className="overview-local-state"><span className="status-light" aria-hidden="true" />Local dashboard</span>
       </header>
       <AccountQuotaOverview onExpired={onExpired} onOpenAccount={onOpenAccount} />
+      <ProductPromotion />
       <div className="command-grid">
         <ProviderPage displayMode="panel" onExpired={onExpired} />
         <SessionPanel displayMode="panel" onExpired={onExpired} />

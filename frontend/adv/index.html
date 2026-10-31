@@ -1,0 +1,147 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark light">
+  <title>Work better with Essential AI</title>
+  <style>
+    :root { font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; color: #eff8f6; background: #0b1316; }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: #0b1316; }
+    button, a { font: inherit; }
+    button:focus-visible, a:focus-visible { outline: 3px solid #aff5da; outline-offset: 4px; }
+    .promo { --accent: #a9edcf; --accent-rgb: 169, 237, 207; position: relative; overflow: hidden; min-height: 360px; display: grid; grid-template-columns: minmax(0, 1fr) minmax(180px, 31%); background: radial-gradient(ellipse at 90% 0%, rgba(var(--accent-rgb),.15), transparent 43%), #101d20; border: 1px solid #30423f; border-radius: 18px; isolation: isolate; }
+    .copy { z-index: 1; min-width: 0; padding: clamp(22px, 4vw, 42px); display: flex; flex-direction: column; align-items: flex-start; }
+    .eyebrow { display: flex; align-items: center; gap: 9px; margin: 0 0 35px; font-size: .71rem; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; color: #a7bfb7; }
+    .eyebrow::before { content: ''; width: 7px; height: 7px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 15px var(--accent); }
+    .product-meta { display: flex; align-items: center; gap: 9px; margin: 0 0 10px; color: var(--accent); font-size: .72rem; font-weight: 750; letter-spacing: .11em; text-transform: uppercase; }
+    .product-meta .sep { opacity: .5; }
+    h1 { margin: 0; font-size: clamp(2rem, 4.5vw, 3.45rem); letter-spacing: -.065em; line-height: 1.02; font-weight: 690; }
+    .tagline { max-width: 36rem; margin: 12px 0 0; color: #e5f0ec; font-size: clamp(1rem, 1.6vw, 1.17rem); font-weight: 600; line-height: 1.4; }
+    .description { max-width: 38rem; margin: 9px 0 0; color: #a9bdb6; font-size: .91rem; line-height: 1.6; }
+    .action-row { display: flex; flex-wrap: wrap; gap: 14px; align-items: center; margin-top: 23px; }
+    .cta { display: inline-flex; min-height: 42px; align-items: center; gap: 15px; padding: 0 15px; border-radius: 8px; background: var(--accent); color: #12221b; text-decoration: none; font-size: .82rem; font-weight: 750; transition: filter .2s ease; }
+    .cta:hover { filter: brightness(1.12); }
+    .cta[hidden] { display: none; }
+    .coming { color: #c1d3cb; font-size: .82rem; font-weight: 600; }
+    .coming[hidden] { display: none; }
+    .control-row { margin-top: auto; padding-top: 30px; width: 100%; display: flex; align-items: center; gap: 10px; }
+    .counter { color: #9db3aa; font-size: .72rem; font-variant-numeric: tabular-nums; letter-spacing: .04em; min-width: 46px; }
+    .track { height: 2px; background: #3a5148; flex: 1; max-width: 140px; overflow: hidden; border-radius: 5px; }
+    .track > span { display: block; height: 100%; width: 0; background: var(--accent); }
+    .buttons { display: flex; gap: 6px; }
+    .icon-button { display: grid; place-items: center; width: 32px; height: 32px; border: 1px solid #435b52; border-radius: 50%; background: transparent; color: #e7f3ed; cursor: pointer; }
+    .icon-button:hover { background: #293e36; }
+    .pause { display: inline-flex; justify-content: center; align-items: center; min-width: 48px; height: 32px; padding: 0 8px; color: #b8ccc2; background: transparent; border: 0; cursor: pointer; font-size: .72rem; }
+    .art { position: relative; min-height: 100%; overflow: hidden; border-left: 1px solid rgba(213,245,227,.08); }
+    .art::before, .art::after { content: ''; position: absolute; width: 240px; height: 240px; border: 1px solid rgba(var(--accent-rgb),.21); border-radius: 50%; left: 50%; top: 47%; transform: translate(-50%, -50%); }
+    .art::after { width: 165px; height: 165px; border-color: rgba(var(--accent-rgb),.29); }
+    .orb { position: absolute; left: 50%; top: 47%; width: 94px; height: 94px; transform: translate(-50%, -50%) rotate(-9deg); display: grid; place-items: center; border-radius: 28px; background: linear-gradient(145deg, rgba(var(--accent-rgb),.24), rgba(var(--accent-rgb),.04)); border: 1px solid rgba(var(--accent-rgb),.65); box-shadow: 0 16px 80px rgba(var(--accent-rgb),.12), inset 0 1px rgba(255,255,255,.15); color: var(--accent); font-size: 1.95rem; font-weight: 750; letter-spacing: -.08em; }
+    .orbit-dot { position: absolute; left: calc(50% + 99px); top: calc(47% - 72px); width: 11px; height: 11px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 24px var(--accent); }
+    .art-label { position: absolute; left: 0; right: 0; bottom: 26px; text-align: center; color: #77928a; font-size: .67rem; letter-spacing: .13em; text-transform: uppercase; }
+    .directory { position: absolute; right: 22px; top: 22px; z-index: 2; color: #bad4c8; font-size: .74rem; text-decoration: none; }
+    .directory:hover { color: #fff; }
+    .catalog { padding: 25px clamp(22px, 4vw, 42px) 30px; background: #0e191b; border: 1px solid #30423f; border-top: 0; border-radius: 0 0 18px 18px; margin-top: -12px; }
+    .catalog h2 { margin: 0 0 15px; color: #aec3b8; font-size: .73rem; letter-spacing: .12em; text-transform: uppercase; }
+    .catalog-list { display: flex; flex-wrap: wrap; gap: 8px; }
+    .catalog-list button { border: 1px solid #344a40; background: #142521; color: #d5e6dd; padding: 8px 11px; border-radius: 8px; font-size: .76rem; cursor: pointer; }
+    .catalog-list button[aria-current="true"] { color: #10231a; background: var(--active-accent, #a9edcf); border-color: transparent; }
+    .catalog-list button:hover { border-color: #a9edcf; }
+    .catalog[hidden], .controls[hidden] { display: none; }
+    .fallback { color: #a9bdb6; margin: 15px clamp(22px, 4vw, 42px); font-size: .8rem; }
+    @media (max-width: 530px) { .promo { min-height: 340px; grid-template-columns: 1fr; } .copy { padding: 25px; padding-right: 32px; } .eyebrow { margin-bottom: 34px; } .art { position: absolute; inset: 0 0 auto auto; width: 155px; height: 180px; min-height: 0; opacity: .32; border: 0; pointer-events: none; } .art::before { width: 170px; height: 170px; } .art::after { width: 115px; height: 115px; } .orb { width: 62px; height: 62px; border-radius: 18px; font-size: 1.35rem; } .orbit-dot, .art-label { display: none; } .description { max-width: 30rem; } .directory { top: 24px; right: 24px; } }
+    @media (prefers-reduced-motion: reduce) { *, *::before, *::after { scroll-behavior: auto !important; transition: none !important; } }
+  </style>
+</head>
+<body>
+  <section class="promo" id="product-promo" aria-label="Discover the Essential AI product family">
+    <div class="copy">
+      <p class="eyebrow">Work better with</p>
+      <div class="product-meta"><span id="category">Collaborative AI</span><span class="sep">/</span><span id="label">Essential AI family</span></div>
+      <h1 id="name">Cogent</h1>
+      <p class="tagline" id="tagline">Bring your AI agents together.</p>
+      <p class="description" id="description">Give agents a shared way to communicate and collaborate across your tools and teams.</p>
+      <div class="action-row"><a class="cta" id="cta" href="https://cogent.tools/" target="_blank" rel="noopener noreferrer">Explore Cogent <span aria-hidden="true">↗</span></a><span class="coming" id="coming" hidden>Public link coming soon</span></div>
+      <div class="control-row controls" id="controls" hidden>
+        <span class="counter" id="counter" aria-label="Product number">01 / 10</span>
+        <div class="track" aria-hidden="true"><span id="progress"></span></div>
+        <div class="buttons"><button class="icon-button" id="previous" type="button" aria-label="Previous product">←</button><button class="icon-button" id="next" type="button" aria-label="Next product">→</button></div>
+        <button class="pause" id="pause" type="button" aria-label="Pause rotation">Pause</button>
+      </div>
+    </div>
+    <a class="directory controls" id="directory-link" href="#product-directory" hidden>All products ↗</a>
+    <div class="art" aria-hidden="true"><div class="orb" id="mark">C</div><div class="orbit-dot"></div><span class="art-label">Tools that work together</span></div>
+  </section>
+  <section class="catalog" id="product-directory" aria-labelledby="catalog-title" hidden>
+    <h2 id="catalog-title">Explore the family</h2><div class="catalog-list" id="catalog-list"></div>
+  </section>
+  <noscript><p class="fallback">Explore <a href="https://cogent.tools/">Cogent</a>, <a href="https://all2wiki.com/">All2WIKI</a>, <a href="https://clonedetector.com/">Clone Detector</a>, <a href="https://marvinpda.com/">Marvin</a>, <a href="https://klaire.pro/">KLAIRE</a>, <a href="https://megaprompting.com/">Megaprompting</a>, <a href="https://github.com/eaisdevelopment/jevmcp">Jev MCP</a>, <a href="https://github.com/eaisdevelopment/skills">Agent Skills</a> and <a href="https://github.com/eaisdevelopment/mcp-multi-edit">MCP Multi-Edit</a>. AgentMonitor is coming soon.</p></noscript>
+  <script>
+    (() => {
+      // To add or update a product, edit this list. Set AgentMonitor's URL when public.
+      const products = [
+        { id: 'cogent', name: 'Cogent', category: 'Collaborative AI', tagline: 'Bring your AI agents together.', description: 'Give agents a shared way to communicate and collaborate across your tools and teams.', url: 'https://cogent.tools/', mark: 'C', accent: '#a9edcf', rgb: '169,237,207' },
+        { id: 'all2wiki', name: 'All2WIKI', category: 'Knowledge for agents', tagline: 'Give your agents a source of truth.', description: 'Turn books, documents and URLs into linked, searchable knowledge your AI can use.', url: 'https://all2wiki.com/', mark: 'A2', accent: '#b9c8ff', rgb: '185,200,255' },
+        { id: 'clone-detector', name: 'Clone Detector', category: 'Brand protection', tagline: 'Find the sites pretending to be you.', description: 'Detect website clones and phishing threats that put your brand and customers at risk.', url: 'https://clonedetector.com/', mark: 'CD', accent: '#ffc6a8', rgb: '255,198,168' },
+        { id: 'marvin', name: 'Marvin', category: 'Personal AI', tagline: 'An assistant that remembers.', description: 'Meet a personal AI assistant with memory you can inspect, correct and control.', url: 'https://marvinpda.com/', mark: 'M', accent: '#f4c5d8', rgb: '244,197,216' },
+        { id: 'klaire', name: 'KLAIRE', category: 'AI for business', tagline: 'Make negotiations work smarter.', description: 'Bring specialized AI agents together to support complex B2B negotiations.', url: 'https://klaire.pro/', mark: 'K', accent: '#d5c5ff', rgb: '213,197,255' },
+        { id: 'megaprompting', name: 'Megaprompting', category: 'Better prompts', tagline: 'Make more of every prompt.', description: 'Transform a simple request into an enhanced prompt with AI-powered template matching.', url: 'https://megaprompting.com/', mark: 'M+', accent: '#ffe0a3', rgb: '255,224,163' },
+        { id: 'jevmcp', name: 'Jev MCP', category: 'Open source', tagline: 'Find the issues that need attention.', description: 'Screen spec drift, CI failures and code-rule violations so your agent can focus its investigation.', url: 'https://github.com/eaisdevelopment/jevmcp', mark: 'J', accent: '#a5e7e7', rgb: '165,231,231' },
+        { id: 'skills', name: 'Agent Skills', category: 'Open source', tagline: 'Give your agents useful skills.', description: 'Explore reusable skills for AI agents and coding workflows.', url: 'https://github.com/eaisdevelopment/skills', mark: 'S', accent: '#b6e4bb', rgb: '182,228,187' },
+        { id: 'multi-edit', name: 'MCP Multi-Edit', category: 'Open source', tagline: 'Make more edits in one step.', description: 'Let coding agents apply multiple edits to a file together and reduce repetitive tool calls.', url: 'https://github.com/eaisdevelopment/mcp-multi-edit', mark: 'ME', accent: '#ffd0b1', rgb: '255,208,177' },
+        { id: 'agentmonitor', name: 'AgentMonitor', category: 'Agent visibility', tagline: 'Know which agent is using what.', description: 'See your AI accounts, available capacity and linked agents in one dashboard.', url: null, mark: 'AM', accent: '#9ddccf', rgb: '157,220,207' }
+      ];
+      const byId = id => document.getElementById(id);
+      const promo = byId('product-promo');
+      const elements = Object.fromEntries(['category', 'name', 'tagline', 'description', 'cta', 'coming', 'counter', 'progress', 'mark', 'controls', 'directory-link', 'product-directory', 'catalog-list', 'pause'].map(id => [id, byId(id)]));
+      const params = new URLSearchParams(location.search);
+      // ?exclude=cogent hides the host project; ?interval=10000 changes rotation in ms.
+      const excluded = new Set((params.get('exclude') || '').toLowerCase().split(',').map(value => value.trim()).filter(Boolean));
+      const available = products.filter(product => !excluded.has(product.id));
+      if (!available.length) available.push(...products);
+      const requestedInterval = Number(params.get('interval'));
+      const interval = Number.isFinite(requestedInterval) && requestedInterval >= 5000 && requestedInterval <= 60000 ? requestedInterval : 9000;
+      const reduced = matchMedia('(prefers-reduced-motion: reduce)');
+      let index = 0, paused = reduced.matches, hovered = false, focused = false, started = performance.now(), timer;
+      const catalogButtons = [];
+      available.forEach((product, position) => {
+        const button = document.createElement('button');
+        button.type = 'button'; button.textContent = product.name;
+        button.addEventListener('click', () => { index = position; render(); });
+        elements['catalog-list'].append(button); catalogButtons.push(button);
+      });
+      function render() {
+        const item = available[index];
+        for (const key of ['name', 'category', 'tagline', 'description', 'mark']) elements[key].textContent = item[key];
+        promo.style.setProperty('--accent', item.accent); promo.style.setProperty('--accent-rgb', item.rgb);
+        elements['product-directory'].style.setProperty('--active-accent', item.accent);
+        elements.counter.textContent = `${String(index + 1).padStart(2, '0')} / ${String(available.length).padStart(2, '0')}`;
+        elements.cta.hidden = !item.url; elements.coming.hidden = !!item.url;
+        if (item.url) { elements.cta.href = item.url; elements.cta.replaceChildren(document.createTextNode(`Explore ${item.name} `), Object.assign(document.createElement('span'), { textContent: '↗', ariaHidden: 'true' })); }
+        catalogButtons.forEach((button, i) => button.setAttribute('aria-current', String(i === index)));
+        started = performance.now(); elements.progress.style.width = '0%';
+      }
+      function setPaused(value) { paused = value; elements.pause.textContent = paused ? 'Play' : 'Pause'; elements.pause.setAttribute('aria-label', paused ? 'Resume rotation' : 'Pause rotation'); started = performance.now(); }
+      byId('previous').addEventListener('click', () => { index = (index - 1 + available.length) % available.length; render(); });
+      byId('next').addEventListener('click', () => { index = (index + 1) % available.length; render(); });
+      elements.pause.addEventListener('click', () => setPaused(!paused));
+      promo.addEventListener('mouseenter', () => { hovered = true; });
+      promo.addEventListener('mouseleave', () => { hovered = false; started = performance.now(); });
+      promo.addEventListener('focusin', () => { focused = true; });
+      promo.addEventListener('focusout', event => { if (!promo.contains(event.relatedTarget)) { focused = false; started = performance.now(); } });
+      document.addEventListener('visibilitychange', () => { started = performance.now(); });
+      reduced.addEventListener('change', event => { if (event.matches) setPaused(true); });
+      elements.controls.hidden = available.length < 2; elements['directory-link'].hidden = false; elements['product-directory'].hidden = false;
+      render(); setPaused(paused);
+      timer = setInterval(() => {
+        if (paused || hovered || focused || document.hidden || available.length < 2) return;
+        const elapsed = performance.now() - started;
+        elements.progress.style.width = `${Math.min(100, elapsed / interval * 100)}%`;
+        if (elapsed >= interval) { index = (index + 1) % available.length; render(); }
+      }, 100);
+      window.addEventListener('pagehide', () => clearInterval(timer), { once: true });
+    })();
+  </script>
+</body>
+</html>
