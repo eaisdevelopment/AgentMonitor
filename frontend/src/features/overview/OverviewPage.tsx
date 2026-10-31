@@ -1,4 +1,3 @@
-import { ProductPromotion } from "./ProductPromotion";
 import { AccountQuotaOverview } from "./AccountQuotaOverview";
 import { ProviderPage } from "../providers/ProviderPage";
 import { SessionPanel } from "../sessions/SessionPanel";
@@ -15,7 +14,6 @@ export function OverviewPage({
 }>) {
   return (
     <div className="operations-console" data-monitoring-state="api">
-      <ProductPromotion />
       <header className="overview-heading">
         <h1 id="page-title" tabIndex={-1}>AgentMonitor</h1>
         <span className="overview-local-state"><span className="status-light" aria-hidden="true" />Local dashboard</span>

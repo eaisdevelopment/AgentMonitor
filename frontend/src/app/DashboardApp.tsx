@@ -5,6 +5,7 @@ import { PasswordChangePanel } from "../features/auth/PasswordChangePanel";
 import { ProtectedRoute } from "../features/auth/ProtectedRoute";
 import { ApiTokensPage } from "../features/settings/security/ApiTokensPage";
 import { OverviewPage } from "../features/overview/OverviewPage";
+import { ProductPromotion } from "../features/overview/ProductPromotion";
 import { AccountPage } from "../features/accounts/AccountPage";
 import { OrganizationsPage } from "../features/organizations/OrganizationsPage";
 import { CollectionRunPanel } from "../features/collectors/CollectionRunPanel";
@@ -435,6 +436,7 @@ export function DashboardApp() {
         data-password-lifecycle={passwordLifecycle}
         data-session-action={headerSessionAction}
       >
+        <ProductPromotion />
         <header className="dashboard-header">
           <div><p className="eyebrow">Local operations console</p><span className="brand">AgentMonitor</span></div>
           <div className="header-actions">

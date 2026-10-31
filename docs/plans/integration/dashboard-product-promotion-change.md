@@ -42,3 +42,9 @@ rendered footer and destination in the real dashboard.
 On 31 October 2026 the owner directed that the promotion be the first item on
 the Overview page, ahead of the account table. Verify its position on the
 real dashboard and retain the existing product-link checks.
+
+## Owner correction: top of application
+
+The owner clarified that top means above the application header, not merely
+the first item within Overview. Place the promotion before that header on
+the authenticated dashboard and verify its actual screen position.
