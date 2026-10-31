@@ -75,6 +75,10 @@ requires the owner's explicit decision.
 
 ## 4. Work packages and estimates
 
+**Superseded package estimate:** this table was a first rough estimate. The
+18-ticket [register](m6-ticket-register-2026-10-31.md) is authoritative for
+the current **73–118 hour** estimate.
+
 Estimates are **active engineering hours**, not guarantees. Range assumes one
 engineer familiar with this repository, access to the two accounts and remote
 model, no new dependency, and no breaking API or schema migration. Cloud
@@ -94,9 +98,9 @@ calendar date now.
 | 7 | Integrate API/generated client only where needed, Overview/detail/history/health and responsive UI. | 005 | 8–12 |
 | 8 | Execute real SQLite/HTTP/browser/provider tests, regressions, privacy/security, documented unavailable cases, and repair the known defect batch. | 001–005 | 6–10 |
 | 9 | Canonical M6 gate, one bounded review, service rollout/rollback verification, runbook and owner handoff. | 005 | 4–7 |
-| | **Total** | | **57–92 hours** |
+| | **Total** | | **57–92 hours** (superseded by 73–118 ticket-level estimate) |
 
-At six to seven focused engineering hours per workday this is roughly **9–16
+At six to seven focused engineering hours per workday this was roughly **9–16
 working days**, plus external waiting. This is a planning range, not an ETA.
 At the end of package 2, report elapsed hours, live-source findings, remaining
 range and any concrete risk; if the upper bound or scope changes materially,
@@ -191,7 +195,7 @@ raise the reason and options then, instead of continuing silently for weeks.
 | Shared team funds counted twice | Relationship uncertain: retain unknown scope; require source-backed shared pool before aggregation. |
 | Remote model unreachable | No safe read-only route or unknown trust boundary: local empty state remains valid; model-present check remains Blocked until access is supplied. Do not expose an unauthenticated Ollama API to a LAN. |
 | Security/privacy or provider mutation | Suspected secret/content leak, default-profile write, unapproved route or process mutation: stop that lane and investigate; preserve dashboard. |
-| Schedule drift | At package-2 checkpoint, compare actual hours and evidence against the 57–92 hour range; revise with specific reason and show alternatives. |
+| Schedule drift | At package-2 checkpoint, compare actual hours and evidence against the current 73–118 hour ticket-level range; revise with specific reason and show alternatives. |
 | New gate churn | Only block on a failed agreed M6 acceptance criterion or mandatory safety/contract rule, with reproducible evidence. Enhancements become follow-up, not new surprise blockers. |
 
 ## 9. Planning completion and approval
@@ -203,3 +207,31 @@ account/model evidence before production implementation begins. Existing
 `AUTO-PLAN-CHECK` validates the synchronized planning baseline; it is not an
 M6 readiness or acceptance gate. No estimate or proposed checklist is presented
 as evidence that M6 has been implemented.
+
+## 10. Ticket-level estimate correction and traceability
+
+The original package estimate of 57–92 hours was superseded after the work
+was decomposed into the [18-ticket catalog](m6-ticket-catalog-v1.json). The
+sum of the ticket estimates is **73–118 active engineering hours**, approximately
+**11–20 working days** at six to seven focused hours per day, plus external
+waiting. This is an estimate, not an assurance or a justification for hidden
+work. Ticket overlap and discovery results may reduce or increase it; update
+the forecast at the discovery checkpoint with actual evidence.
+
+Each catalog entry records a stable ID, existing `ST-OLL` story, owner,
+dependencies, requirement IDs, V1 and M6 acceptance IDs, estimate, scope,
+done condition, verification and evidence list. All entries currently remain
+`planned`; proposed commands and files are clearly identified as not yet
+implemented. Run `python3 tools/planning/validate_m6_tickets.py --stage plan` to validate
+ticket identities, references, dependency acyclicity and M6 acceptance
+coverage. This is a **planning traceability check only**. It cannot mark a
+ticket done or replace the future real `AUTO-M6-EXIT`.
+
+**Scope control:** after owner approval of the final capability decisions and
+acceptance catalog, no extra feature, new gate, repeated account confirmation
+or expanded work is added as a blocker unless it directly fails an agreed
+criterion or a mandatory security/contract invariant, with reproducible
+evidence and the smallest fix. Other findings go into a separate follow-up
+list. At each checkpoint report completed ticket IDs, blocked IDs, hours used,
+forecast and the next deliverable; do not ask the owner to operate internal
+gates.
