@@ -28,3 +28,11 @@ product links in new browser tabs. This plan describes how that approved change 
 - Rollback: remove the promotion component and restore the prior frontend
   build/service revision. No data migration, contract change, or provider
   credential handling is involved.
+
+## Owner-requested company attribution
+
+On 31 October 2026 the owner requested a footer naming the company that
+develops and delivers the application, consistent with the other products.
+Add a compact link to Essential AI Solutions Ltd throughout the authenticated
+dashboard, with no changes to provider data or authentication. Verify the
+rendered footer and destination in the real dashboard.

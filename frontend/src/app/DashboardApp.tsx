@@ -507,6 +507,7 @@ export function DashboardApp() {
               onProofUnavailable={protectedProofUnavailable}
             />
           )}
+          <footer className="dashboard-company-footer">Developed and delivered by <a href="https://essentialai.uk/" target="_blank" rel="noopener noreferrer">Essential AI Solutions Ltd</a> · © {new Date().getFullYear()}</footer>
         </main>
       </div>
     </ProtectedRoute>
