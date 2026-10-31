@@ -36,3 +36,9 @@ develops and delivers the application, consistent with the other products.
 Add a compact link to Essential AI Solutions Ltd throughout the authenticated
 dashboard, with no changes to provider data or authentication. Verify the
 rendered footer and destination in the real dashboard.
+
+## Owner-directed placement correction
+
+On 31 October 2026 the owner directed that the promotion be the first item on
+the Overview page, ahead of the account table. Verify its position on the
+real dashboard and retain the existing product-link checks.
