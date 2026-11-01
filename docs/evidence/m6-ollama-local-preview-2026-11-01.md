@@ -39,11 +39,11 @@ that other applications have no models.
   contract, freshness and status policies. A real browser caught a duplicate
   initial request and passed after the component was kept mounted.
 - `AUTO-M6-LOCAL-ADMIT` passed the narrow real-service/API/browser scope and
-  observed a real 30-second refresh. Its selected source/test digest was
-  `5d306b5cf52a70f26c262e1033f3aa7b0fbadfe849279d77a412963d3fc3fa2d`
-  before and after the run. The later activation-routine catalog change
-  invalidates that selected digest; activation reruns the admission. This is
-  not the complete revision digest or the M6 exit receipt. Separate responsive,
+  observed a real 30-second refresh. The activation reran admission after the
+  last routine-catalog change and required the selected source/test digest to
+  match before restarting. The current digest is
+  `b9277d7a2d9f69a54bebacf5c1417556c71fe22368de6cdac85de8fa192cefe4`.
+  This is not the complete revision digest or the M6 exit receipt. Separate responsive,
   TypeScript and API schema compatibility checks passed for their tested revisions.
 - **Not Run:** real populated-model catalog, a natural source failure and
   recovery, a daemon replacement with the same version, provider account
@@ -67,9 +67,14 @@ dashboard/rollback checks. `AUTO-M6-LOCAL-ACTIVATE` uses the existing
 dashboard-transition lock, checks that only the dashboard parent is in the
 service cgroup immediately before restart, and verifies loopback/LAN assets
 and an unauthenticated route after restart. Its real activation and rollback
-are not yet verified. Authenticated installed-browser behavior, a concurrent
-child-spawn race and interrupted transition recovery remain explicit limits.
-Until activation succeeds, the running dashboard is unchanged.
+were performed on 1 November 2026. The activation returned Passed for its
+limited scope; the service is running from revision `b0e9093`, and loopback
+and LAN `/login` returned HTTP 200. The new route's unauthenticated guard
+returned HTTP 401. Claude, Codex and Ollama processes were present after the
+dashboard restart; individual pre/post process identities were not compared.
+An authenticated installed-browser check was not performed; a concurrent
+child-spawn race, rollback under real failure, and interrupted transition
+recovery remain explicit limits.
 
 A read-only process/cgroup snapshot found 30 Claude/Codex-named processes
 outside the dashboard service cgroup and none inside at that instant. This
