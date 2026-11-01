@@ -28,3 +28,9 @@ no implementation command. Neither routine is currently an update path for
 this candidate. Do not remove the existing drop-in or restart the service to
 force either preflight. An update-capable, reviewed transition with real
 rollback verification is still required before this candidate is installed.
+
+Update-path work has started in the candidate branch: the pure preflight
+policy refuses changed or identical baseline/candidate trees and requires an
+exclusive, quiescent transition. Its test failed before implementation because
+the policy did not exist, then passed. This policy alone performs no system
+checks and is not a deployment command or evidence that rollback works.
