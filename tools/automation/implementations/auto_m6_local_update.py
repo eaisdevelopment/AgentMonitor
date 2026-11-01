@@ -265,53 +265,58 @@ def apply_update(held, old, candidate, snapshot) -> None:
         switched = False
         print("M6 LOCAL UPDATE: PASSED — candidate running on loopback and LAN")
     except BaseException:
-        if switched:
-            if job_unknown:
-                print(
-                    "M6 LOCAL UPDATE: rollback requires attention — systemd job status unknown"
-                )
-            elif hashlib.sha256(UNIT_FILE.read_bytes()).hexdigest() != unit_hash:
-                print("M6 LOCAL UPDATE: rollback blocked — service unit changed")
-            elif DROPIN.read_bytes() != after:
-                print("M6 LOCAL UPDATE: rollback blocked — override changed")
-            else:
-                current = service_identity()
-                pids = cgroup_pids(snapshot[0][2], allow_missing=True)
-                # Restoring a drop-in without a restart cannot terminate children.
-                safe = not restarted and current == snapshot[0]
-                safe |= (
-                    restarted
-                    and candidate_identity is not None
-                    and current == candidate_identity
-                    and safe_cgroup(current[0], pids)
-                )
-                safe |= (
-                    restarted
-                    and candidate_identity is None
-                    and current[0] == 0
-                    and not pids
-                    and prop("ActiveState") in {"inactive", "failed"}
-                )
-                if not safe:
+        try:
+            if switched:
+                if job_unknown:
                     print(
-                        "M6 LOCAL UPDATE: rollback blocked — service changed or has children"
+                        "M6 LOCAL UPDATE: rollback requires attention — systemd job status unknown"
                     )
-                elif (
-                    not replace_override(DROPIN, after, before)
-                    or ctl("daemon-reload").returncode
-                ):
-                    print(
-                        "M6 LOCAL UPDATE: rollback requires attention — configuration restore failed"
-                    )
-                elif restarted and (
-                    ctl("restart" if current[0] else "start", UNIT).returncode
-                    or not wait_ready(snapshot[2], candidate=False)
-                ):
-                    print(
-                        "M6 LOCAL UPDATE: rollback requires attention — original dashboard not ready"
-                    )
+                elif hashlib.sha256(UNIT_FILE.read_bytes()).hexdigest() != unit_hash:
+                    print("M6 LOCAL UPDATE: rollback blocked — service unit changed")
+                elif DROPIN.read_bytes() != after:
+                    print("M6 LOCAL UPDATE: rollback blocked — override changed")
                 else:
-                    print("M6 LOCAL UPDATE: original configuration restored")
+                    current = service_identity()
+                    pids = cgroup_pids(snapshot[0][2], allow_missing=True)
+                    # Restoring a drop-in without a restart cannot terminate children.
+                    safe = not restarted and current == snapshot[0]
+                    safe |= (
+                        restarted
+                        and candidate_identity is not None
+                        and current == candidate_identity
+                        and safe_cgroup(current[0], pids)
+                    )
+                    safe |= (
+                        restarted
+                        and candidate_identity is None
+                        and current[0] == 0
+                        and not pids
+                        and prop("ActiveState") in {"inactive", "failed"}
+                    )
+                    if not safe:
+                        print(
+                            "M6 LOCAL UPDATE: rollback blocked — service changed or has children"
+                        )
+                    elif (
+                        not replace_override(DROPIN, after, before)
+                        or ctl("daemon-reload").returncode
+                    ):
+                        print(
+                            "M6 LOCAL UPDATE: rollback requires attention — configuration restore failed"
+                        )
+                    elif restarted and (
+                        ctl("restart" if current[0] else "start", UNIT).returncode
+                        or not wait_ready(snapshot[2], candidate=False)
+                    ):
+                        print(
+                            "M6 LOCAL UPDATE: rollback requires attention — original dashboard not ready"
+                        )
+                    else:
+                        print("M6 LOCAL UPDATE: original configuration restored")
+        except (OSError, ValueError, RuntimeError, subprocess.SubprocessError):
+            print(
+                "M6 LOCAL UPDATE: rollback requires attention — recovery inspection failed"
+            )
         raise
 
 
