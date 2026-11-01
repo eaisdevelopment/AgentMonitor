@@ -34,3 +34,17 @@ policy refuses changed or identical baseline/candidate trees and requires an
 exclusive, quiescent transition. Its test failed before implementation because
 the policy did not exist, then passed. This policy alone performs no system
 checks and is not a deployment command or evidence that rollback works.
+
+Independent update review found a check-to-restart race: the service uses
+`KillMode=control-group`, and the dashboard could create a child after the
+empty-cgroup check. The code also had a window where a successful file replace
+followed by a directory fsync error could be mistaken for no mutation. The
+latter bookkeeping was corrected, but rollback has not been live-verified and
+can still require operator attention if systemd or filesystem inspection fails.
+`--apply` is deliberately disabled pending resolution and review of the
+restart race; passing preflight is not authorization or proof of safe restart.
+
+A read-only snapshot observed 14 Claude, 16 Codex and 2 Ollama processes outside
+the dashboard service cgroup and none with those names inside it. This is one
+instant, not a guarantee about later child creation or process ownership. No
+command lines, process environments, prompts, or credentials were inspected.
