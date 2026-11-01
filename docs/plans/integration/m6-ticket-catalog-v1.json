@@ -27,7 +27,7 @@
       "id": "M6-T001",
       "story": "ST-OLL-001",
       "title": "Reconcile implementation baseline",
-      "status": "planned",
+      "status": "done",
       "owner": "M6 integration steward",
       "depends_on": [],
       "requirements": [
@@ -49,13 +49,15 @@
         "git status --short --branch",
         "git log --oneline --graph --all -30"
       ],
-      "evidence": []
+      "evidence": [
+        "docs/evidence/m6-baseline-discovery-2026-11-01.md"
+      ]
     },
     {
       "id": "M6-T002",
       "story": "ST-OLL-001",
       "title": "Inventory local Ollama installation",
-      "status": "planned",
+      "status": "in_progress",
       "owner": "A03 adapter",
       "depends_on": [
         "M6-T001"
@@ -79,7 +81,9 @@
       "verification": [
         "ollama --version"
       ],
-      "evidence": []
+      "evidence": [
+        "docs/evidence/m6-baseline-discovery-2026-11-01.md"
+      ]
     },
     {
       "id": "M6-T003",

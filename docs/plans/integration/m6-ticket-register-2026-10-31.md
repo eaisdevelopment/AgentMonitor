@@ -1,6 +1,6 @@
 # M6 ticket register
 
-**State: proposed; all 18 tickets planned.** This is a traceable delivery register, not a claim that M6 implementation or its completion gate has passed.
+**State: proposed scope; baseline and discovery underway.** M6-T001 is done and M6-T002 is in progress; the remaining tickets are planned. Production implementation has not started, and the M6 completion gate has not passed.
 
 The machine-readable [ticket catalog](m6-ticket-catalog-v1.json) is the source for the IDs and links below. Validate it with `python3 tools/planning/validate_m6_tickets.py --stage plan`. See the [execution plan](m6-execution-plan-2026-10-31.md) for the acceptance criteria M6-A01–M6-A10, assumptions, scope control and risks.
 
@@ -31,25 +31,25 @@ The machine-readable [ticket catalog](m6-ticket-catalog-v1.json) is the source f
 
 ### M6-T001 — Reconcile implementation baseline
 
-- **Status / owner:** planned / M6 integration steward
+- **Status / owner:** done / M6 integration steward
 - **Story:** ST-OLL-001; **depends on:** none.
 - **Requirements:** FR-COL-008.
 - **Acceptance:** AC-V1-002; M6: M6-A10.
 - **Work:** Select one clean branch containing accepted M5 and the current dashboard, preserve both branch histories and receipt; document conflicts, service revision and rollback.
 - **Done when:** A reviewable merge/baseline exists; M5 receipt and promotion remain intact; real dashboard remains reachable.
 - **Verification:** git status --short --branch; git log --oneline --graph --all -30.
-- **Evidence:** not yet recorded.
+- **Evidence:** [merged baseline and live dashboard check](../../evidence/m6-baseline-discovery-2026-11-01.md).
 
 ### M6-T002 — Inventory local Ollama installation
 
-- **Status / owner:** planned / A03 adapter
+- **Status / owner:** in progress / A03 adapter
 - **Story:** ST-OLL-001; **depends on:** M6-T001.
 - **Requirements:** FR-ACC-005, FR-DISC-008.
 - **Acceptance:** AC-LIVE-004; M6: M6-A02.
 - **Work:** Record real CLI and daemon version, trusted host, process ownership and response bounds without profile or agent mutation.
 - **Done when:** Local version and availability have sanitized real evidence; missing or mismatched service is explicit.
 - **Verification:** ollama --version.
-- **Evidence:** not yet recorded.
+- **Evidence:** [preliminary local observations](../../evidence/m6-baseline-discovery-2026-11-01.md); formal M0 preflight/capability admission is not yet evidenced.
 
 ### M6-T003 — Verify model-host read-only access
 

@@ -220,8 +220,8 @@ the forecast at the discovery checkpoint with actual evidence.
 
 Each catalog entry records a stable ID, existing `ST-OLL` story, owner,
 dependencies, requirement IDs, V1 and M6 acceptance IDs, estimate, scope,
-done condition, verification and evidence list. All entries currently remain
-`planned`; proposed commands and files are clearly identified as not yet
+done condition, verification and evidence list. Current ticket status is
+maintained in the catalog; proposed commands and files are clearly identified as not yet
 implemented. Run `python3 tools/planning/validate_m6_tickets.py --stage plan` to validate
 ticket identities, references, dependency acyclicity and M6 acceptance
 coverage. This is a **planning traceability check only**. It cannot mark a
