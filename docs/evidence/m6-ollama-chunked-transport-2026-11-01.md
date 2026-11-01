@@ -48,3 +48,10 @@ A read-only snapshot observed 14 Claude, 16 Codex and 2 Ollama processes outside
 the dashboard service cgroup and none with those names inside it. This is one
 instant, not a guarantee about later child creation or process ownership. No
 command lines, process environments, prompts, or credentials were inspected.
+
+Shutdown review: the application has lifecycle cancellation and a bounded
+collector drain, but no independently callable collector-pause operation was
+found in the checked composition/lifecycle paths. The live unit uses
+`KillMode=control-group` with SIGTERM, so application cleanup alone does not
+prove a child created after the pre-restart check will be spared the initial
+service-stop signal. Do not treat the lifecycle hook as closing the race.
