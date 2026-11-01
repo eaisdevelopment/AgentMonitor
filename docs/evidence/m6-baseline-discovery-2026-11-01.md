@@ -118,6 +118,11 @@ client, and an accessibility enumeration encountered an AppArmor denial.
 No chat contents, browser data, provider profiles or process environments
 were accessed. This does not establish whether the app is on another machine,
 whether it is a web wrapper, or which server it uses.
+After activation, a metadata-only check found zero manifest files in
+the conventional system Ollama model directory and no conventional user model
+manifest directory. No model files or provider credentials were opened. This
+supports the empty response from the checked service but does not determine the
+desktop app's backend or rule out custom model locations.
 SDK and EAIS cloud identities, roles, balance variants and credentials remain
 unverified (M6-T004/T005). No authenticated cloud request was made.
 
