@@ -7,6 +7,7 @@ import hashlib
 import os
 import stat
 import subprocess
+import tempfile
 from pathlib import Path
 
 from tools.automation.implementations.auto_m6_local_activate import (
@@ -95,6 +96,49 @@ def service_snapshot() -> tuple[tuple[int, str, str], str, tuple[tuple[str, str]
         raise RuntimeError("dashboard_has_unclassified_children")
     actual = tuple(login_identity(origin) for origin in ORIGINS)
     return identity, hashlib.sha256(original).hexdigest(), actual
+
+
+def replace_override(path: Path, expected: bytes, replacement: bytes) -> bool:
+    """Replace an unchanged owner-only file; callers must hold the service lock.
+
+    The inode/content checks are not a compare-and-swap against non-cooperating
+    processes. The caller must still verify resulting service state.
+    """
+    metadata = path.lstat()
+    if (
+        not stat.S_ISREG(metadata.st_mode)
+        or metadata.st_uid != os.getuid()
+        or metadata.st_mode & 0o077
+        or path.read_bytes() != expected
+    ):
+        return False
+    temporary = None
+    try:
+        with tempfile.NamedTemporaryFile(
+            dir=path.parent, prefix=".agentmonitor-update-", delete=False
+        ) as handle:
+            temporary = Path(handle.name)
+            os.fchmod(handle.fileno(), 0o600)
+            handle.write(replacement)
+            handle.flush()
+            os.fsync(handle.fileno())
+        current = path.lstat()
+        if (current.st_dev, current.st_ino) != (
+            metadata.st_dev,
+            metadata.st_ino,
+        ) or path.read_bytes() != expected:
+            return False
+        os.replace(temporary, path)
+        temporary = None
+        directory = os.open(path.parent, os.O_RDONLY | os.O_DIRECTORY)
+        try:
+            os.fsync(directory)
+        finally:
+            os.close(directory)
+        return True
+    finally:
+        if temporary is not None:
+            temporary.unlink(missing_ok=True)
 
 
 def main() -> int:

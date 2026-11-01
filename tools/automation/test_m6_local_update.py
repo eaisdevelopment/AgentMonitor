@@ -16,3 +16,17 @@ def test_update_requires_distinct_unchanged_baseline_and_candidate():
     assert not update_preflight(baseline, baseline, baseline, baseline, True)
     assert not update_preflight(baseline, baseline, candidate, candidate, False)
     assert not update_preflight(("", ""), ("", ""), candidate, candidate, True)
+
+
+def test_atomic_override_replaces_only_the_expected_real_file(tmp_path):
+    from tools.automation.implementations.auto_m6_local_update import replace_override
+
+    target = tmp_path / "dashboard.conf"
+    target.write_bytes(b"old configuration\n")
+    target.chmod(0o600)
+    assert replace_override(target, b"old configuration\n", b"new configuration\n")
+    assert target.read_bytes() == b"new configuration\n"
+    assert not replace_override(
+        target, b"old configuration\n", b"other configuration\n"
+    )
+    assert target.read_bytes() == b"new configuration\n"
