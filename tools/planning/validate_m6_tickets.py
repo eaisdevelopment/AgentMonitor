@@ -17,6 +17,20 @@ PLAN = ROOT / "docs/plans/integration/m6-execution-plan-2026-10-31.md"
 ID = re.compile(r"M6-T\d{3}\Z")
 
 
+def validate_status_dependencies(tickets: dict[str, dict]) -> list[str]:
+    """Do not let a completed ticket conceal unfinished prerequisites."""
+    errors: list[str] = []
+    for key, ticket in tickets.items():
+        if ticket.get("status") != "done":
+            continue
+        if any(
+            dep in tickets and tickets[dep].get("status") != "done"
+            for dep in ticket.get("depends_on", [])
+        ):
+            errors.append(f"{key}: completed_dependency_not_done")
+    return errors
+
+
 def validate(catalog: object) -> list[str]:
     """Check identity, links, coverage and dependency graph of the fixed catalog."""
     errors: list[str] = []
@@ -91,6 +105,7 @@ def validate(catalog: object) -> list[str]:
         for dep in ticket.get("depends_on", []):
             if dep not in by_id or dep == key:
                 errors.append(f"{key}: invalid_dependency")
+    errors.extend(validate_status_dependencies(by_id))
     active: set[str] = set()
     visited: set[str] = set()
 
