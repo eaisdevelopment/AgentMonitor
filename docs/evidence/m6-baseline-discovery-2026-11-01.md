@@ -60,9 +60,27 @@ model-present host or cloud, and its initial implementation did not retain an
 exact-command Red-before-Green record; do not present that TDD evidence as
 passed. The broader automation suite was attempted in this fresh worktree and
 failed because its Node and Python tool environments are not installed there,
-among other reported failures; only the focused catalog/policy tests and
-actual local inventory have passed.
-The remote model host and its safe access route remain unverified (M6-T003).
+among other reported failures. After linking the existing local tool
+environments into the new worktree, the suite ran 54 tests with one failure:
+the nested Codex security-policy suite had six `codex_version_unverified`
+failures because it requires Codex `0.160.0`. This is not an Ollama failure or
+an M6 pass. The focused inventory catalog/policy tests and actual local
+inventory passed. The temporary tool-environment links are not repository
+changes and must not become deployment artifacts.
+
+For the proposed local vertical, the real-service test
+`PYTHONPATH=backend/src backend/.venv/bin/python -m pytest
+backend/tests/adapters/providers/ollama/live/test_local_catalog.py -q`
+currently fails at collection with `ModuleNotFoundError: No module named
+'agentmonitor.adapters.providers.ollama'`, as expected before an adapter
+exists. This establishes a preliminary Red only; it is not a successful live
+adapter check, and the test/contract may need revision during plan review.
+The owner subsequently identified this workstation as the model host. A
+repeat inventory still reported zero installed and zero loaded models; one
+local Ollama service/listener was identified, and no Ollama-labelled published
+container was found by the bounded container listing. The expected model name
+and how it is accessed remain unconfirmed (M6-T003); zero models from this
+service does not prove there is no model elsewhere on the machine.
 SDK and EAIS cloud identities, roles, balance variants and credentials remain
 unverified (M6-T004/T005). No authenticated cloud request was made.
 
