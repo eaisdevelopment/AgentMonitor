@@ -71,10 +71,10 @@ blockers = ["approved G1 schema", "AUTO-M0-POSTFLIGHT", "real scenario outcomes"
 [[routines]]
 id = "AUTO-M6-LOCAL-ACTIVATE"
 owner = "PLAN-INT"
-status = "blocked"
+status = "operational_limited"
 scope = "reversible owner-local dashboard activation after real local admission"
-implementation_command = []
-blockers = ["Service transition safety and recoverable activation require further implementation and real verification"]
+implementation_command = ["python3", "-m", "tools.automation.implementations.auto_m6_local_activate"]
+blockers = ["Authenticated installed-browser verification remains separate", "A concurrent child-spawn race and crash interruption cannot be excluded", "This does not complete M6"]
 
 [[routines]]
 id = "AUTO-M6-LOCAL-ADMIT"

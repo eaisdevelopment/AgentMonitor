@@ -41,9 +41,10 @@ that other applications have no models.
 - `AUTO-M6-LOCAL-ADMIT` passed the narrow real-service/API/browser scope and
   observed a real 30-second refresh. Its selected source/test digest was
   `5d306b5cf52a70f26c262e1033f3aa7b0fbadfe849279d77a412963d3fc3fa2d`
-  before and after the run. This is not the complete revision digest or the
-  M6 exit receipt. Separate responsive, TypeScript and API schema
-  compatibility checks passed for their tested revisions.
+  before and after the run. The later activation-routine catalog change
+  invalidates that selected digest; activation reruns the admission. This is
+  not the complete revision digest or the M6 exit receipt. Separate responsive,
+  TypeScript and API schema compatibility checks passed for their tested revisions.
 - **Not Run:** real populated-model catalog, a natural source failure and
   recovery, a daemon replacement with the same version, provider account
   identity/balance, cloud rate limiting, process correlation and the full
@@ -62,10 +63,13 @@ path/TOCTOU review. The lock is per process and does not coordinate multiple
 service processes. No dependency/license change or migration is introduced.
 An installed rollout requires a separately verified recoverable service
 transition, preservation of the existing configuration and data, and live
-dashboard/rollback checks. `AUTO-M6-LOCAL-ACTIVATE` remains blocked because the
-draft transition does not yet provide a race-free child-process guard and
-verified authenticated/LAN readiness and rollback. Until then the running
-dashboard is unchanged.
+dashboard/rollback checks. `AUTO-M6-LOCAL-ACTIVATE` uses the existing
+dashboard-transition lock, checks that only the dashboard parent is in the
+service cgroup immediately before restart, and verifies loopback/LAN assets
+and an unauthenticated route after restart. Its real activation and rollback
+are not yet verified. Authenticated installed-browser behavior, a concurrent
+child-spawn race and interrupted transition recovery remain explicit limits.
+Until activation succeeds, the running dashboard is unchanged.
 
 A read-only process/cgroup snapshot found 30 Claude/Codex-named processes
 outside the dashboard service cgroup and none inside at that instant. This
