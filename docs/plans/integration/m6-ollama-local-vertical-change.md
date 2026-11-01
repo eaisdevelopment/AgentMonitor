@@ -1,6 +1,6 @@
 # M6 Ollama local-service vertical
 
-- Status: Draft; owner approval required before production implementation.
+- Status: Approved by the owner on 1 November 2026 for this local-service scope.
 - Owners: A03 adapter, M03 provider protocol, M06 runtime, P01 API, P02 UI;
   the integration steward serializes shared contracts and composition.
 - Parent: A03 plan `0.2.1-draft`; M6 ST-OLL-001/002/005, M6-T002/003/006/008/009/013/014.

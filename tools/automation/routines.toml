@@ -69,6 +69,22 @@ implementation_command = []
 blockers = ["approved G1 schema", "AUTO-M0-POSTFLIGHT", "real scenario outcomes", "Red-Green-refactor ledger validator implementation"]
 
 [[routines]]
+id = "AUTO-M6-LOCAL-ACTIVATE"
+owner = "PLAN-INT"
+status = "blocked"
+scope = "reversible owner-local dashboard activation after real local admission"
+implementation_command = []
+blockers = ["Service transition safety and recoverable activation require further implementation and real verification"]
+
+[[routines]]
+id = "AUTO-M6-LOCAL-ADMIT"
+owner = "PLAN-A03"
+status = "operational_limited"
+scope = "real loopback local Ollama adapter, authenticated API and built browser; not full M6"
+implementation_command = ["python3", "tools/automation/implementations/auto_m6_local_admit.py"]
+blockers = ["Real model-present and natural source failure states require separate evidence", "Cloud identity, balance, history, alerts and M6 completion remain outside this routine"]
+
+[[routines]]
 id = "AUTO-M6-LOCAL-INVENTORY"
 owner = "PLAN-A03"
 status = "operational"

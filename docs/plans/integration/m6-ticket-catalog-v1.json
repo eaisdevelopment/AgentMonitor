@@ -250,7 +250,7 @@
       "id": "M6-T008",
       "story": "ST-OLL-001",
       "title": "Implement installation and capability admission",
-      "status": "planned",
+      "status": "in_progress",
       "owner": "A03 adapter",
       "depends_on": [
         "M6-T006"
@@ -276,13 +276,15 @@
       "verification": [
         "adapter pure policy tests; real installation test (to be defined)"
       ],
-      "evidence": []
+      "evidence": [
+        "docs/evidence/m6-ollama-local-preview-2026-11-01.md"
+      ]
     },
     {
       "id": "M6-T009",
       "story": "ST-OLL-002",
       "title": "Implement local catalog and loaded-model observation",
-      "status": "planned",
+      "status": "in_progress",
       "owner": "A03 adapter",
       "depends_on": [
         "M6-T003",
@@ -308,7 +310,9 @@
       "verification": [
         "real local service integration tests and browser checks (to be defined)"
       ],
-      "evidence": []
+      "evidence": [
+        "docs/evidence/m6-ollama-local-preview-2026-11-01.md"
+      ]
     },
     {
       "id": "M6-T010",
@@ -450,7 +454,7 @@
       "id": "M6-T014",
       "story": "ST-OLL-005",
       "title": "Implement dashboard views and provider filter",
-      "status": "planned",
+      "status": "in_progress",
       "owner": "P02 dashboard",
       "depends_on": [
         "M6-T009",
@@ -483,7 +487,9 @@
         "npm --prefix frontend run typecheck",
         "real dashboard browser checks (to be defined)"
       ],
-      "evidence": []
+      "evidence": [
+        "docs/evidence/m6-ollama-local-preview-2026-11-01.md"
+      ]
     },
     {
       "id": "M6-T015",

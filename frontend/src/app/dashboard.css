@@ -182,6 +182,11 @@ td { font-variant-numeric: tabular-nums; }
 .record-card-heading { display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
 .record-card-heading h2, .record-card-heading h3 { margin: 0; text-transform: capitalize; }
 .provider-stack, .timeline-list, .session-list { position: relative; z-index: 1; display: grid; gap: .75rem; }
+.ollama-catalog { margin-top: .75rem; }
+.ollama-catalog h3, .ollama-catalog h4 { margin: 0; }
+.ollama-model-lists { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 11rem), 1fr)); gap: .75rem; }
+.ollama-model-lists section { min-width: 0; overflow-wrap: anywhere; }
+.ollama-model-lists ul { margin: .4rem 0; padding-left: 1.25rem; }
 .capability-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 13rem), 1fr)); gap: .55rem; margin-top: 1rem; }
 .capability-grid > div { display: grid; align-content: start; gap: .5rem; padding: .7rem; border: 1px solid #294258; border-radius: .4rem; background: #0c1b28; }
 .capability-grid small { color: #8eabbc; }

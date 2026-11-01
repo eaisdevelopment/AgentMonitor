@@ -3801,6 +3801,22 @@
         "title": "LiveProcessLocationViewV1",
         "type": "object"
       },
+      "LocalCatalogItemViewV1": {
+        "additionalProperties": false,
+        "properties": {
+          "name": {
+            "maxLength": 256,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "title": "LocalCatalogItemViewV1",
+        "type": "object"
+      },
       "LoginInputV1": {
         "additionalProperties": false,
         "properties": {
@@ -4195,6 +4211,152 @@
           "running_agent_correlation"
         ],
         "title": "ObservedAccountIdentityViewV1",
+        "type": "object"
+      },
+      "OllamaLocalCatalogViewV1": {
+        "additionalProperties": false,
+        "properties": {
+          "daemon_version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Daemon Version"
+          },
+          "installed": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/LocalCatalogItemViewV1"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Installed"
+          },
+          "installed_observed_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Installed Observed At"
+          },
+          "installed_reason": {
+            "enum": [
+              "source_available",
+              "source_unavailable",
+              "invalid_provider_data",
+              "unverified_provider_version",
+              "collection_in_progress",
+              "operation_deadline_exceeded"
+            ],
+            "title": "Installed Reason",
+            "type": "string"
+          },
+          "installed_state": {
+            "enum": [
+              "available",
+              "unavailable"
+            ],
+            "title": "Installed State",
+            "type": "string"
+          },
+          "loaded": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/LocalCatalogItemViewV1"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Loaded"
+          },
+          "loaded_observed_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Loaded Observed At"
+          },
+          "loaded_reason": {
+            "enum": [
+              "source_available",
+              "source_unavailable",
+              "invalid_provider_data",
+              "unverified_provider_version",
+              "collection_in_progress",
+              "operation_deadline_exceeded"
+            ],
+            "title": "Loaded Reason",
+            "type": "string"
+          },
+          "loaded_state": {
+            "enum": [
+              "available",
+              "unavailable"
+            ],
+            "title": "Loaded State",
+            "type": "string"
+          },
+          "observed_at": {
+            "format": "date-time",
+            "title": "Observed At",
+            "type": "string"
+          },
+          "outcome": {
+            "enum": [
+              "success",
+              "partial",
+              "provider_unavailable",
+              "unverified_provider_version",
+              "invalid_provider_data",
+              "deadline_exceeded"
+            ],
+            "title": "Outcome",
+            "type": "string"
+          },
+          "source": {
+            "const": "ollama.local.catalog.v1",
+            "title": "Source",
+            "type": "string"
+          }
+        },
+        "required": [
+          "outcome",
+          "daemon_version",
+          "source",
+          "observed_at",
+          "installed_state",
+          "installed_reason",
+          "installed_observed_at",
+          "installed",
+          "loaded_state",
+          "loaded_reason",
+          "loaded_observed_at",
+          "loaded"
+        ],
+        "title": "OllamaLocalCatalogViewV1",
         "type": "object"
       },
       "OperationsComponentVersionWireV1": {
@@ -19158,6 +19320,190 @@
         "x-agentmonitor-required-permission": "read:accounts"
       }
     },
+    "/api/v1/providers/ollama/local-catalog": {
+      "get": {
+        "operationId": "provider_get_ollama_local_catalog_v1",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OllamaLocalCatalogViewV1"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          },
+          "405": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          },
+          "412": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          },
+          "413": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          },
+          "415": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          },
+          "428": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          },
+          "429": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          },
+          "500": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          },
+          "504": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          }
+        },
+        "security": [
+          {
+            "BrowserSessionCookieV1": []
+          },
+          {
+            "BearerTokenV1": []
+          }
+        ],
+        "summary": "Get Ollama Local Catalog",
+        "tags": [
+          "providers"
+        ],
+        "x-agentmonitor-application-port": "LocalCatalogPortV1",
+        "x-agentmonitor-auth-profile": "cookie_or_bearer",
+        "x-agentmonitor-error-schema": "SafeProblemV1",
+        "x-agentmonitor-replay-policy": "safe_query_repeat",
+        "x-agentmonitor-required-permission": "read:telemetry"
+      }
+    },
     "/api/v1/providers/{provider_key}/capabilities": {
       "get": {
         "operationId": "provider_get_capabilities_v1",
@@ -20781,10 +21127,10 @@
       "starlette": "1.6.0"
     },
     "generator": "agentmonitor-openapi-client",
-    "generator_sha256": "41b0c3a5539ca878de623e8fa90d51c2102c8cac4c4378c99ebb40f48925cb6a",
+    "generator_sha256": "0387918338b9b6180629a048c884838a628ab6afd7375eb2a285c5ce167072b9",
     "generator_version": "2.0.8",
     "openapi_version": "3.1.0",
-    "schema_sha256": "77a9852168b79486b140007d3bdd531cca904c1757efeb61de351580526a877f",
-    "source_sha256": "1d2d2938c76f8f896643d7db41fc8fae8edf590b37e0af1df586264523abae60"
+    "schema_sha256": "402145806bd50d1edbe28a7c298704162d9321d210d8cd9f5ff8e33940567399",
+    "source_sha256": "704788f96a339438eb5d7da73e8c7ff4702b8e4abfafe0c09ecfc18966beabd8"
   }
 }

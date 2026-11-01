@@ -1,6 +1,6 @@
 # M6 ticket register
 
-**State: proposed scope; baseline and discovery underway.** M6-T001 is done and M6-T002 is in progress; the remaining tickets are planned. Production implementation has not started, and the M6 completion gate has not passed.
+**State: local slice in progress.** M6-T001 is done; M6-T002, T008, T009 and T014 are in progress. The local adapter/API/dashboard candidate has narrow real-system evidence; cloud work and the M6 completion gate remain unfinished.
 
 The machine-readable [ticket catalog](m6-ticket-catalog-v1.json) is the source for the IDs and links below. Validate it with `python3 tools/planning/validate_m6_tickets.py --stage plan`. The validator rejects a completed ticket whose prerequisite is unfinished. It does not verify the substance of linked evidence or establish milestone completion. See the [execution plan](m6-execution-plan-2026-10-31.md) for the acceptance criteria M6-A01–M6-A10, assumptions, scope control and risks.
 
@@ -108,25 +108,25 @@ The machine-readable [ticket catalog](m6-ticket-catalog-v1.json) is the source f
 
 ### M6-T008 — Implement installation and capability admission
 
-- **Status / owner:** planned / A03 adapter
+- **Status / owner:** in progress / A03 adapter
 - **Story:** ST-OLL-001; **depends on:** M6-T006.
 - **Requirements:** FR-ACC-005, FR-DISC-008.
 - **Acceptance:** AC-LIVE-004, AC-TEST-001; M6: M6-A02, M6-A09.
 - **Work:** Implement provider manifest and installation discovery with separate client/daemon versions, source and compatibility.
 - **Done when:** Each lane independently admits exact supported version/source; invalid lane fails before I/O; real installation produces provenance.
 - **Verification:** adapter pure policy tests; real installation test (to be defined).
-- **Evidence:** not yet recorded.
+- **Evidence:** [local preview](../../evidence/m6-ollama-local-preview-2026-11-01.md); installation discovery remains unwired and admission is limited.
 
 ### M6-T009 — Implement local catalog and loaded-model observation
 
-- **Status / owner:** planned / A03 adapter
+- **Status / owner:** in progress / A03 adapter
 - **Story:** ST-OLL-002; **depends on:** M6-T003, M6-T008.
 - **Requirements:** FR-DISC-003, FR-COL-004.
 - **Acceptance:** AC-UI-005, AC-LIVE-004; M6: M6-A02.
 - **Work:** Use bounded local GET version/tags/ps sources, map installed and loaded models with source/time and real empty/offline states.
 - **Done when:** Actual empty and real model-present cases render distinctly; no inference/loading request or mutation.
 - **Verification:** real local service integration tests and browser checks (to be defined).
-- **Evidence:** not yet recorded.
+- **Evidence:** [local preview](../../evidence/m6-ollama-local-preview-2026-11-01.md); populated models and natural failure remain unverified.
 
 ### M6-T010 — Integrate accounts, identity and authentication health
 
@@ -174,14 +174,14 @@ The machine-readable [ticket catalog](m6-ticket-catalog-v1.json) is the source f
 
 ### M6-T014 — Implement dashboard views and provider filter
 
-- **Status / owner:** planned / P02 dashboard
+- **Status / owner:** in progress / P02 dashboard
 - **Story:** ST-OLL-005; **depends on:** M6-T009, M6-T010, M6-T011, M6-T013.
 - **Requirements:** FR-ACC-002, FR-COL-006.
 - **Acceptance:** AC-UI-002, AC-UI-003, AC-UI-004, AC-UI-005, AC-UI-006; M6: M6-A01, M6-A08.
 - **Work:** Render Ollama account, organization, resource type, values, source, freshness, model/process and failure states via versioned API.
 - **Done when:** Real Overview/detail/filter/history accessible on desktop and mobile; no placeholder values; existing promotion retained.
 - **Verification:** npm --prefix frontend run typecheck; real dashboard browser checks (to be defined).
-- **Evidence:** not yet recorded.
+- **Evidence:** [local preview](../../evidence/m6-ollama-local-preview-2026-11-01.md); the cloud and account-dependent views remain unfinished.
 
 ### M6-T015 — Verify failure isolation and natural recovery
 

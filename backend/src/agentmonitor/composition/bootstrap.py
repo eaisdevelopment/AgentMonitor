@@ -26,6 +26,8 @@ from functools import partial
 from pathlib import Path
 
 import uvicorn
+from fastapi import FastAPI
+
 from agentmonitor.adapters.identity_access.argon2_password import Argon2PasswordV1
 from agentmonitor.adapters.persistence._shared.sqlite.core.policy import (
     DatabaseRefV1,
@@ -105,6 +107,7 @@ from agentmonitor.composition.codex_dashboard_connection import (
 from agentmonitor.composition.linux_process_locations import (
     read_live_process_locations_v1,
 )
+from agentmonitor.composition.ollama_local_catalog import read_ollama_local_catalog_v1
 from agentmonitor.composition.operations_health import (
     CodexProviderHealthLeafV1,
     ConfigurationHealthLeafV1,
@@ -220,7 +223,6 @@ from agentmonitor.modules.runtime_observation.application.queries import (
     ListAgentSessionsV1,
     ListLiveProcessLocationsV1,
 )
-from fastapi import FastAPI
 
 
 class LoopbackServerError(ValueError):
@@ -536,6 +538,7 @@ def _observation_ports(
         registry_scope=AlertScopeAndSubjectQueryV1(registry),
         list_account_resources=ListAccountResourcesV1(registry),
         capacity_health_policy=ClassifyCapacityProjectionV1().policy,
+        ollama_local_catalog=read_ollama_local_catalog_v1,
     )
 
 

@@ -1017,6 +1017,8 @@ class AutomationRoutineTests(unittest.TestCase):
                 "AUTO-M0-POSTFLIGHT",
                 "AUTO-M0-LEDGER",
                 "AUTO-M6-LOCAL-INVENTORY",
+                "AUTO-M6-LOCAL-ADMIT",
+                "AUTO-M6-LOCAL-ACTIVATE",
                 "AUTO-DOCS-CHECK",
                 "AUTO-M3-LIVE",
                 "AUTO-M3-EXIT",

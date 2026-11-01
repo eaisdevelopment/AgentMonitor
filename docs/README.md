@@ -119,6 +119,8 @@ This index is the entry point for product, architecture, engineering, and operat
 - [Review checklists](engineering/review-checklists.md): planning, boundary, contract, test, security, UI, dependency, and release gates.
 - [Completion and automation gates](engineering/completion-and-automation-gates.md): executable completion claims and mandatory routine automation.
 
+- [M6 local Ollama catalog intermediate evidence](evidence/m6-ollama-local-preview-2026-11-01.md): approved local slice, narrow real-source/API/browser checks, and explicit outstanding M6 requirements.
+
 ## Operations
 
 - [Operations runbook](operations/runbook.md): installation, service, backup, recovery, authentication, diagnostics, and incidents.

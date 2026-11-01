@@ -34,6 +34,7 @@ import {
   type OrganizationPageV1,
   type OrganizationOrderingViewV1,
   type OrganizationViewV1,
+  type OllamaLocalCatalogViewV1,
   type ProviderCapabilityDeclarationPageV1,
   type ProviderAccountIdentityViewV1,
   type ProviderConnectionViewV1,
@@ -82,6 +83,7 @@ export type {
   OrganizationPageV1,
   OrganizationOrderingViewV1,
   OrganizationViewV1,
+  OllamaLocalCatalogViewV1,
   ProviderCapabilityDeclarationPageV1,
   ProviderAccountIdentityViewV1,
   ProviderConnectionViewV1,
@@ -352,6 +354,8 @@ export const registry = Object.freeze({
 });
 
 export const providers = Object.freeze({
+  ollamaLocalCatalog: (signal?: AbortSignal): Promise<ClientResult<OllamaLocalCatalogViewV1>> =>
+    apiClient.provider_get_ollama_local_catalog_v1({ signal }),
   connection: (accountId: string, signal?: AbortSignal): Promise<ClientResult<ProviderConnectionViewV1>> =>
     apiClient.provider_get_connection_v1({ path: { account_id: accountId }, signal }),
   connect: (account: AccountViewV1, expectedEmail: string): Promise<ClientResult<ProviderConnectionViewV1>> =>

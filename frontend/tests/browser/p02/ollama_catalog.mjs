@@ -38,20 +38,30 @@ try {
   const installedBefore = await realModelNames("/api/tags");
   const loadedBefore = await realModelNames("/api/ps");
   const page = await browser.newPage();
+  let catalogRequests = 0;
+  page.on("request", request => {
+    if (request.url() === `${origin}/api/v1/providers/ollama/local-catalog` &&
+        request.method() === "GET") catalogRequests += 1;
+  });
   await page.goto(`${origin}/login`);
   await page.getByLabel("Administrator password").fill(credential);
   await page.getByRole("button", { name: "Sign in" }).click();
   await page.getByRole("heading", { name: "AgentMonitor", exact: true }).waitFor();
   const catalog = page.getByRole("region", { name: "Ollama local models" });
   await catalog.waitFor({ state: "visible", timeout: 10000 });
-  if (!await catalog.getByText("Installed models", { exact: true }).isVisible()) {
-    throw new Error("ollama_installed_catalog_missing");
-  }
-  if (!await catalog.getByText("Loaded models", { exact: true }).isVisible()) {
-    throw new Error("ollama_loaded_catalog_missing");
-  }
+  await catalog.getByText("Installed models", { exact: true }).waitFor({ state: "visible" });
+  await catalog.getByText("Loaded models", { exact: true }).waitFor({ state: "visible" });
+  if (catalogRequests !== 1) throw new Error("ollama_initial_request_duplicated");
   const installed = catalog.getByRole("region", { name: "Installed models" });
   const loaded = catalog.getByRole("region", { name: "Loaded models" });
+  if (!await catalog.getByText(/Service version 0\.24\.0/).isVisible() ||
+      !await installed.getByText(/^Read .* · current$/).isVisible() ||
+      !await loaded.getByText(/^Read .* · current$/).isVisible()) {
+    if (await catalog.getByText("Another Ollama reading is in progress. Try again shortly.").isVisible()) {
+      throw new Error("ollama_initial_read_busy");
+    }
+    throw new Error("ollama_reading_provenance_missing");
+  }
   if (installedBefore.length === 0 && !await installed.getByText("No installed models", { exact: true }).isVisible()) {
     throw new Error("ollama_empty_installed_state_missing");
   }
@@ -79,6 +89,12 @@ try {
       throw new Error("ollama_catalog_horizontal_overflow");
     }
   }
+  const refreshed = await page.waitForResponse(response =>
+    response.url() === `${origin}/api/v1/providers/ollama/local-catalog` &&
+    response.request().method() === "GET" && response.status() === 200,
+  { timeout: 40_000 });
+  if (!refreshed.ok()) throw new Error("ollama_auto_refresh_failed");
+  await installed.getByText(/^Read .* · current$/).waitFor({ state: "visible" });
   console.log("P02 OLLAMA CATALOG: PASSED");
 } finally {
   await browser.close();
