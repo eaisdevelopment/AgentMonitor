@@ -23,3 +23,14 @@ currently contains Claude and Codex only, so an Ollama selector is not yet
 accepted. This is evidence of a concrete implementation gap, not proof that
 no Ollama processes exist. The local test's installation reference was used
 only for this ephemeral discovery call; it was not written to the registry.
+
+A same-user Ollama process was independently confirmed to have the same
+filesystem device and inode as the installed executable; a second Ollama
+process runs under another user and is outside the same-user adapter scope.
+A real-process test at `backend/tests/live/ollama/test_process_discovery.py`
+was added and run before implementation. It failed for the expected
+`linux_selector_unverified` reason (unsupported selector); this is Red, not a
+pass. The installation reference used by the test is an ephemeral digest of
+real executable metadata and is not persisted. This real-state test requires
+an existing matching same-user process and is not part of the already-passing
+local-catalog admission routine.
