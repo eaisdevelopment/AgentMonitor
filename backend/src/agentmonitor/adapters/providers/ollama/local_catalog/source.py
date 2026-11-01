@@ -25,6 +25,9 @@ _COLLECTION_LOCK = threading.Lock()
 _ROUTES = frozenset({"/api/version", "/api/tags", "/api/ps"})
 _NAME = re.compile(r"[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}\Z")
 _MAX_HEADERS = 16 * 1024
+_MAX_CHUNK_LINE = 1024
+_MAX_FRAMING = 64 * 1024
+_HEADER_NAME = re.compile(rb"[!#$%&'*+.^_`|~0-9A-Za-z-]+\Z")
 
 Outcome = Literal[
     "success", "partial", "provider_unavailable", "unverified_provider_version",
@@ -82,6 +85,76 @@ def request_deadline(now: float, operation_deadline: float) -> float:
     return min(now + TIMEOUT_SECONDS, operation_deadline)
 
 
+def _read_chunked_body(sock: socket.socket, initial: bytes, deadline: float) -> bytes:
+    """Decode bounded HTTP/1.1 chunk framing under the caller's deadline."""
+    pending = bytearray(initial)
+    result = bytearray()
+    framing = 0
+
+    def receive() -> None:
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            raise TimeoutError("source_deadline_exceeded")
+        sock.settimeout(remaining)
+        data = sock.recv(8192)
+        if not data:
+            raise ValueError("body_incomplete")
+        pending.extend(data)
+
+    def line(limit: int) -> bytes:
+        nonlocal framing
+        while True:
+            end = pending.find(b"\r\n")
+            if end >= 0:
+                if end > limit:
+                    raise ValueError("chunk_framing_invalid")
+                value = bytes(pending[:end])
+                del pending[:end + 2]
+                framing += end + 2
+                if framing > _MAX_FRAMING:
+                    raise ValueError("chunk_framing_too_large")
+                return value
+            if len(pending) > limit + 1:
+                raise ValueError("chunk_framing_invalid")
+            receive()
+
+    while True:
+        header = line(_MAX_CHUNK_LINE)
+        size, separator, extension = header.partition(b";")
+        if (not size or len(size) > 8 or
+                re.fullmatch(rb"[0-9A-Fa-f]+", size) is None or
+                (separator and (not extension or any(c < 32 or c > 126 for c in extension)))):
+            raise ValueError("chunk_size_invalid")
+        count = int(size, 16)
+        if count > MAX_BYTES - len(result):
+            raise ValueError("response_too_large")
+        if count == 0:
+            trailer_size = 0
+            while True:
+                trailer = line(_MAX_HEADERS)
+                trailer_size += len(trailer) + 2
+                if trailer_size > _MAX_HEADERS:
+                    raise ValueError("trailers_too_large")
+                if not trailer:
+                    if pending:
+                        raise ValueError("body_trailing_data")
+                    return bytes(result)
+                name, separator, value = trailer.partition(b":")
+                if (not separator or _HEADER_NAME.fullmatch(name) is None or
+                        name.lower() in {b"content-length", b"transfer-encoding"} or
+                        any(c < 32 and c != 9 or c == 127 for c in value)):
+                    raise ValueError("trailer_invalid")
+        while len(pending) < count + 2:
+            receive()
+        result.extend(pending[:count])
+        if pending[count:count + 2] != b"\r\n":
+            raise ValueError("chunk_terminator_invalid")
+        del pending[:count + 2]
+        framing += 2
+        if framing > _MAX_FRAMING:
+            raise ValueError("chunk_framing_too_large")
+
+
 def _read_json(route: str, *, operation_deadline: float | None = None) -> dict:
     if route not in _ROUTES:
         raise ValueError("source_not_allowed")
@@ -135,20 +208,26 @@ def _read_json(route: str, *, operation_deadline: float | None = None) -> dict:
         content_type = headers.get(b"content-type", b"").split(b";", 1)[0].lower()
         if content_type != b"application/json":
             raise ValueError("content_type_invalid")
+        transfer_encoding = headers.get(b"transfer-encoding")
         length_bytes = headers.get(b"content-length", b"")
-        if b"transfer-encoding" in headers or not length_bytes.isdigit():
-            raise ValueError("content_length_invalid")
-        length = int(length_bytes)
-        if length > MAX_BYTES or len(body) > length:
-            raise ValueError("response_too_large")
-        result = bytearray(body)
-        while len(result) < length:
-            sock.settimeout(remaining())
-            chunk = sock.recv(min(16384, length - len(result)))
-            if not chunk:
-                raise ValueError("body_incomplete")
-            result.extend(chunk)
-        data = bytes(result)
+        if transfer_encoding is not None:
+            if transfer_encoding.lower() != b"chunked" or b"content-length" in headers:
+                raise ValueError("transfer_encoding_invalid")
+            data = _read_chunked_body(sock, body, deadline)
+        else:
+            if not length_bytes.isdigit():
+                raise ValueError("content_length_invalid")
+            length = int(length_bytes)
+            if length > MAX_BYTES or len(body) > length:
+                raise ValueError("response_too_large")
+            result = bytearray(body)
+            while len(result) < length:
+                sock.settimeout(remaining())
+                chunk = sock.recv(min(16384, length - len(result)))
+                if not chunk:
+                    raise ValueError("body_incomplete")
+                result.extend(chunk)
+            data = bytes(result)
     parsed = json.loads(data)
     if type(parsed) is not dict:
         raise ValueError("object_required")

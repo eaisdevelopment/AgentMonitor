@@ -36,6 +36,7 @@ FILES = (
     "backend/tests/integration/api/test_ollama_local_catalog_http.py",
     "backend/tests/contracts/test_ollama_local_catalog_v1.py",
     "backend/tests/adapters/providers/ollama/live/test_local_catalog.py",
+    "backend/tests/adapters/providers/ollama/live/test_chunked_transport.py",
     "backend/tests/adapters/providers/ollama/live/test_catalog_concurrency.py",
     "backend/tests/adapters/providers/ollama/live/test_installation.py",
     "backend/tests/adapters/providers/ollama/test_deadline_policy.py",
