@@ -30,3 +30,18 @@ def test_atomic_override_replaces_only_the_expected_real_file(tmp_path):
         target, b"old configuration\n", b"other configuration\n"
     )
     assert target.read_bytes() == b"new configuration\n"
+
+
+def test_override_can_be_restored_and_never_follows_a_symlink(tmp_path):
+    from tools.automation.implementations.auto_m6_local_update import replace_override
+
+    target = tmp_path / "dashboard.conf"
+    target.write_bytes(b"original\n")
+    target.chmod(0o600)
+    assert replace_override(target, b"original\n", b"candidate\n")
+    assert replace_override(target, b"candidate\n", b"original\n")
+    assert target.read_bytes() == b"original\n"
+    link = tmp_path / "link.conf"
+    link.symlink_to(target)
+    assert not replace_override(link, b"original\n", b"unexpected\n")
+    assert target.read_bytes() == b"original\n"
