@@ -68,6 +68,13 @@ an M6 pass. The focused inventory catalog/policy tests and actual local
 inventory passed. The temporary tool-environment links are not repository
 changes and must not become deployment artifacts.
 
+The inventory now has a real-boundary regression check: it calls the canonical
+command and independently reads the same live service before and after,
+requiring the installed/loaded counts to agree when the observed source state
+is stable. `python3 -m unittest tools.discovery.test_m6_local_inventory -v`
+passed all three live/pure checks on the local service. A changing model state
+is reported as a test failure instead of being converted to a pass or skip.
+
 For the proposed local vertical, the real-service test
 `PYTHONPATH=backend/src backend/.venv/bin/python -m pytest
 backend/tests/adapters/providers/ollama/live/test_local_catalog.py -q`
