@@ -91,6 +91,12 @@ route returned HTTP 404 instead of 200. Assertions for authorization, rejected
 unknown query parameters and source-matching counts are present but were not
 reached; they are not passed checks. The route and response shape remain
 subject to the requested plan/contract approval.
+
+The independently prepared `ollama_catalog` built-browser scenario ran
+against the real local application stack. Authentication succeeded, then the
+test failed as expected because the proposed `Ollama local models` region is
+absent. Installed/loaded labels and responsive assertions were not reached;
+this is preliminary Red evidence, not a live-browser pass or M6 completion.
 The owner subsequently identified this workstation as the model host. A
 repeat inventory still reported zero installed and zero loaded models; one
 local Ollama service/listener was identified, and no Ollama-labelled published
