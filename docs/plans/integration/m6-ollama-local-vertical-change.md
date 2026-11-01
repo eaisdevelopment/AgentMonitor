@@ -32,16 +32,23 @@ the currently observed loopback service reports no models.
    bounded local source under `backend/src/agentmonitor/adapters/providers/ollama/`.
    Enforce fixed host/path/method, no redirects or proxy, time/size bounds,
    safe field allowlisting, normalized failures and admitted exact daemon
-   version. Do not write the database or depend on UI/domain internals.
+   version. Define safe permitted model fields, length/item bounds and
+   truncation before exposing them; provider-generated names may contain
+   user-defined content and require privacy review. Distinguish per-source
+   failure from an empty list. Do not write the database or depend on UI/domain
+   internals.
 2. M03/M06: publish typed catalog/capability ports and closed result objects in
    owned `backend/src/agentmonitor/contracts/` modules. The result distinguishes
    installed, loaded, empty, unavailable, stale and partial, with provenance;
-   it must not fabricate active work or ownership. Freeze field bounds from
-   real source evidence. The existing generic capability port does not prove
-   a concrete catalog schema exists.
+   it must not fabricate active work or ownership. Freeze per-source times,
+   freshness, size and item bounds, truncation, and errors from real evidence.
+   The existing generic capability port does not prove a concrete catalog
+   schema exists. `/api/tags` and `/api/ps` are not an atomic snapshot.
 3. P01/composition: inject the port and add an authenticated read-only v1
    provider catalog route and response schemas. Never accept a caller-chosen
-   network target. Regenerate the OpenAPI contract and TypeScript client with
+   network target or unknown query parameters and require `read:telemetry`.
+   Define an idempotent installation reconciliation or make the local catalog
+   visible independently of installation registration. Regenerate the OpenAPI contract and TypeScript client with
    the repository generator. Check additive compatibility; a breaking change
    requires a versioned migration path and ADR.
 4. P02: consume only the versioned generated client in the provider/dashboard
