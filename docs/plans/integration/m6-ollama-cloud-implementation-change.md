@@ -46,3 +46,18 @@ Roll out first to the existing local installation with the owner present for key
 ## Approval and completion boundary
 
 The unresolved decisions are: (1) explicit authorization and a recorded change/exception reconciling runtime secret handling and managed Secret Service storage with `AGENTS.md`; (2) owner approval of this cloud implementation plan and its local-machine setup tradeoff; (3) the normal documented dependency/security and contract review. One cohesive approval can cover the identified decisions when presented concretely; do not create repeated minor version approvals. Approval does not substitute for actual real-system evidence. The owner supplies keys only in the approved local prompt and performs any official login; the operator/agent performs implementation, tests and reporting. No cloud code is authorized until the policy conflict is actually resolved.
+
+## Workstation discovery (1 November 2026)
+
+A read-only package and service inventory found `secret-tool` installed,
+`libsecret-tools` and `libsecret-1-0` version `0.21.4-1build3`, and
+`gnome-keyring` version `46.1-2ubuntu0.2`. The user service was active and
+`org.freedesktop.secrets` was present on the user bus. No keyring items were
+listed or read. This establishes availability of a service name only: it does
+not establish unlock state, enrollment, dashboard-service access, restart
+behavior, or fitness of the design.
+
+Installed package copyright manifests enumerate LGPL-2.1+, BSD-3-Clause,
+GPL-2+, Apache-2.0 and other file-specific terms; the GNOME Keyring manifest
+also includes MPL and custom terms. This inventory is not a completed license
+or transitive-dependency review and does not approve adding a dependency.
