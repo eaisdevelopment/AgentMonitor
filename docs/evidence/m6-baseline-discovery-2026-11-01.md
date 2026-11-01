@@ -97,6 +97,12 @@ against the real local application stack. Authentication succeeded, then the
 test failed as expected because the proposed `Ollama local models` region is
 absent. Installed/loaded labels and responsive assertions were not reached;
 this is preliminary Red evidence, not a live-browser pass or M6 completion.
+The HTTP and browser tests were then strengthened to compare actual installed
+and loaded model names, not merely counts or headings, with bounded reads
+before and after the application observation. The browser also checks real
+empty-state messages. Both were rerun and remain Red at the same missing
+endpoint/panel; their source-to-UI name assertions were not reached. No model
+names or raw responses are recorded in the evidence.
 The owner subsequently identified this workstation as the model host. A
 repeat inventory still reported zero installed and zero loaded models; one
 local Ollama service/listener was identified, and no Ollama-labelled published

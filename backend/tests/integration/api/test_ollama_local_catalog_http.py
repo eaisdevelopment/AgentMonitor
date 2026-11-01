@@ -24,23 +24,29 @@ def test_real_ollama_catalog_requires_auth_and_reports_source_state(tmp_path: Pa
                 body={"password": credential}, headers={"Origin": origin}, cookies=jar,
             )
             assert login[0] == 204
-            before = (
-                len(read_json("/api/tags")["models"]),
-                len(read_json("/api/ps")["models"]),
-            )
+
+            def source_names(path: str) -> tuple[str, ...]:
+                return tuple(
+                    sorted(model["name"] for model in read_json(path)["models"])
+                )
+
+            before = (source_names("/api/tags"), source_names("/api/ps"))
             result = await asyncio.to_thread(
                 _request, origin, "GET", "/api/v1/providers/ollama/local-catalog",
                 cookies=jar,
             )
             assert result[0] == 200
             payload = json.loads(result[2])
-            after = (
-                len(read_json("/api/tags")["models"]),
-                len(read_json("/api/ps")["models"]),
-            )
-            assert before == after, "local_model_state_changed_during_test"
+            after = (source_names("/api/tags"), source_names("/api/ps"))
+            if before != after:
+                raise AssertionError("local_model_state_changed_during_test")
             assert payload["daemon_version"] == "0.24.0"
-            assert (len(payload["installed"]), len(payload["loaded"])) == before
+            observed = (
+                tuple(sorted(model["name"] for model in payload["installed"])),
+                tuple(sorted(model["name"] for model in payload["loaded"])),
+            )
+            if observed != before:
+                raise AssertionError("local_model_names_do_not_match_source")
             denied = await asyncio.to_thread(
                 _request, origin, "GET", "/api/v1/providers/ollama/local-catalog"
             )
