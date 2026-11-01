@@ -62,6 +62,14 @@ removal, backups, dependency/license impact, and exact rules for in-memory
 credential application. Do not silently add a dashboard secret field or
 change the provider-credential policy.
 
+As a non-secret workstation inventory on 1 November 2026, `secret-tool` and
+`systemd-creds` are installed and the user `gnome-keyring-daemon.service`
+reports active. That does not prove that the dashboard service can use either
+mechanism, that the store is unlocked after restart, that its access policy is
+appropriate, or that the dependencies and key lifecycle are approved. No
+secret-store item was queried, created or changed. Treat this as an option to
+assess rather than a supported credential implementation.
+
 Once a concrete design is approved, owner-controlled official setup and real
 SDK/EAIS provider UI/API comparisons establish source behavior once. Do not
 repeat owner attestations for unchanged valid evidence. All unavailable or
