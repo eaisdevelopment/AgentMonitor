@@ -464,6 +464,8 @@ td { font-variant-numeric: tabular-nums; }
 .dashboard-company-footer { margin: 1.5rem 0 .5rem; padding: 1rem 0; border-top: 1px solid #30434a; color: #9ab0b5; font-size: .78rem; }
 .dashboard-company-footer a { color: #b8e9d4; text-decoration: none; }
 .dashboard-company-footer a:hover { text-decoration: underline; }
+.header-support-link { color: #b8e9d4; font-size: .8rem; font-weight: 650; white-space: nowrap; }
+@media (max-width: 600px) { .header-support-link { white-space: normal; } }
 
 .dashboard-header .product-promotion { flex: 1 1 24rem; max-width: 42rem; min-width: 0; padding: .45rem .8rem; gap: .6rem; }
 .dashboard-header .product-promotion h2 { display: inline; margin: 0 .6rem 0 0; font-size: .85rem; }

@@ -42,6 +42,7 @@ from agentmonitor.modules.identity_access.application.bootstrap import (  # noqa
 )
 
 SCENARIOS = {
+    "support_checkout",
     "auth",
     "api_tokens",
     "idle_expiry",

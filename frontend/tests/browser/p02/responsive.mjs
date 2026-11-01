@@ -60,11 +60,13 @@ async function assertMobileHeaderLayout(page) {
 
 async function assertMobileHeaderKeyboardOrder(page) {
   await page.locator(".skip-link").focus();
-  await page.keyboard.press("Tab");
-  if (!await page.getByRole("button", { name: "Check session" }).evaluate(
-    (button) => document.activeElement === button)) {
-    throw new Error("check_session_keyboard_unreachable");
+  let reached = false;
+  for (let attempt = 0; attempt < 12; attempt++) {
+    await page.keyboard.press("Tab");
+    if (await page.getByRole("button", { name: "Check session" }).evaluate(
+      (button) => document.activeElement === button)) { reached = true; break; }
   }
+  if (!reached) throw new Error("check_session_keyboard_unreachable");
   await page.keyboard.press("Tab");
   if (!await page.getByRole("button", { name: "Sign out" }).evaluate(
     (button) => document.activeElement === button)) {

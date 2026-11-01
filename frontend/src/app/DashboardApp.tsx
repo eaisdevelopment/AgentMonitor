@@ -439,6 +439,7 @@ export function DashboardApp() {
         <header className="dashboard-header">
           <div><p className="eyebrow">Local operations console</p><span className="brand">AgentMonitor</span></div>
           <ProductPromotion />
+          <a className="header-support-link" href="https://buy.stripe.com/dRm4gBfGo59L4enf167EQ00" target="_blank" rel="noopener noreferrer">Help to keep Agent Monitor Project Free! ↗</a>
           <div className="header-actions">
             <button type="button" className="quiet-button" disabled={passwordFlowOpen || headerSessionActionOpen} onClick={() => { void checkSession(); }}>{headerSessionAction === "checking" ? "Checking…" : "Check session"}</button>
             <button type="button" className="quiet-button" disabled={passwordFlowOpen || headerSessionActionOpen} onClick={() => { void logout(); }}>{headerSessionAction === "logging-out" ? "Signing out…" : "Sign out"}</button>
