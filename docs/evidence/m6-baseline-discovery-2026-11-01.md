@@ -82,6 +82,15 @@ currently fails at collection with `ModuleNotFoundError: No module named
 'agentmonitor.adapters.providers.ollama'`, as expected before an adapter
 exists. This establishes a preliminary Red only; it is not a successful live
 adapter check, and the test/contract may need revision during plan review.
+
+The independently prepared authenticated loopback HTTP test
+`backend/tests/integration/api/test_ollama_local_catalog_http.py` used the real
+temporary application/SQLite stack and actual local Ollama state. It failed
+as expected after a successful dashboard login because the proposed catalog
+route returned HTTP 404 instead of 200. Assertions for authorization, rejected
+unknown query parameters and source-matching counts are present but were not
+reached; they are not passed checks. The route and response shape remain
+subject to the requested plan/contract approval.
 The owner subsequently identified this workstation as the model host. A
 repeat inventory still reported zero installed and zero loaded models; one
 local Ollama service/listener was identified, and no Ollama-labelled published
