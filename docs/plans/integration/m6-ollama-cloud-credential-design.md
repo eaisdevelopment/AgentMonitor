@@ -70,6 +70,19 @@ appropriate, or that the dependencies and key lifecycle are approved. No
 secret-store item was queried, created or changed. Treat this as an option to
 assess rather than a supported credential implementation.
 
+### Candidate tradeoffs for review
+
+| Candidate | Documented behavior | Consequence for M6 | Still needs real evidence / decision |
+|---|---|---|---|
+| Secret Service / `secret-tool` | The [Secret Service specification](https://specifications.freedesktop.org/secret-service/latest/unlocking.html) permits collections to be locked and unlocking may require a prompt; the [protocol](https://specifications.freedesktop.org/secret-service/latest-single/) transfers secret material between processes over D-Bus. | Per-account additions and removals may fit CRUD without restarting the dashboard, but the UI must show a locked/unavailable state and must not expose the credential. A running helper necessarily receives secret material in memory. | Service access after reboot and logout, locked-state behavior, permissions and cross-process exposure, exact profile/reference ownership, dependency admission, and whether runtime secret application is allowed by project policy. No keyring entry has been accessed. |
+| systemd encrypted credentials | [systemd-creds](https://www.freedesktop.org/software/systemd/man/250/systemd-creds.html) documents encrypted credentials that can be supplied to a unit through `LoadCredentialEncrypted=`; [systemd.exec](https://www.freedesktop.org/software/systemd/man/253/systemd.exec.html) describes loading them into the executed process. | Existing account additions or rotation may require changing service credential configuration and restarting or reloading the dashboard, which needs evaluation against the desired simple account CRUD and dashboard availability. The service still receives secret material. | Actual user-manager encryption support, machine/key protection, onboarding and rotation behavior, rollback and restart effects, and approval of a new provider-credential architecture. No credentials or unit settings have been created or changed. |
+
+Neither candidate is selected. Do not infer that an active keyring is unlocked,
+that either mechanism provides per-account least privilege, or that a key can
+be applied without some authorized process handling it. The decision must
+resolve both the user experience and the explicit provider-secret policy before
+production implementation.
+
 Once a concrete design is approved, owner-controlled official setup and real
 SDK/EAIS provider UI/API comparisons establish source behavior once. Do not
 repeat owner attestations for unchanged valid evidence. All unavailable or
