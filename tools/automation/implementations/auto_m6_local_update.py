@@ -1,4 +1,4 @@
-"""Preflight for a future M6 local dashboard update; never changes the service."""
+"""Bounded M6 local dashboard update, with guarded rollback."""
 
 from __future__ import annotations
 
@@ -6,6 +6,7 @@ import argparse
 import hashlib
 import os
 import re
+import signal
 import stat
 import subprocess
 import sys
@@ -22,6 +23,7 @@ from tools.automation.implementations.auto_m6_local_activate import (
     UNIT,
     UNIT_FILE,
     build_override,
+    candidate_runtime,
     cgroup_pids,
     create_tool_link,
     ctl,
@@ -30,6 +32,7 @@ from tools.automation.implementations.auto_m6_local_activate import (
     safe_cgroup,
     service_identity,
     tree_digest,
+    wait_ready,
 )
 from tools.automation.implementations.auto_m6_local_admit import source_digest
 from tools.automation.implementations.m5_service_activation import (
@@ -185,12 +188,148 @@ def prepare_candidate(expected_revision: str) -> tuple[str, str]:
     return source, build
 
 
+def apply_update(held, old, candidate, snapshot) -> None:
+    """Apply one prepared update; never restart unclassified service children."""
+    source, build = prepare_candidate(candidate[1])
+    page = (ROOT / "frontend/dist/dashboard.html").read_bytes()
+    match = re.search(rb'src="(/assets/[A-Za-z0-9_.-]+\.js)"', page)
+    if match is None:
+        raise RuntimeError("candidate_asset_missing")
+    asset = ROOT / "frontend/dist" / match.group(1).decode("ascii").lstrip("/")
+    if asset.is_symlink() or not asset.is_file():
+        raise RuntimeError("candidate_asset_invalid")
+    expected = (
+        hashlib.sha256(page).hexdigest(),
+        hashlib.sha256(asset.read_bytes()).hexdigest(),
+    )
+    validate_m5_service_activation_lock_v1(held)
+    if (
+        service_snapshot() != snapshot
+        or revision(BASELINE) != old[1]
+        or revision(ROOT) != candidate[1]
+        or source_digest() != source
+        or tree_digest(ROOT / "frontend/dist") != build
+    ):
+        raise RuntimeError("dashboard_or_candidate_changed")
+    before = build_override(BASELINE).encode()
+    after = build_override(ROOT).encode()
+    unit_hash = hashlib.sha256(UNIT_FILE.read_bytes()).hexdigest()
+    switched = False
+    restarted = False
+    job_unknown = False
+    candidate_identity = None
+    try:
+        # Replacement may succeed before a later fsync failure is reported.
+        switched = True
+        if not replace_override(DROPIN, before, after):
+            switched = False
+            raise RuntimeError("dashboard_override_changed")
+        validate_m5_service_activation_lock_v1(held)
+        if (
+            service_identity() != snapshot[0]
+            or not safe_cgroup(snapshot[0][0], cgroup_pids(snapshot[0][2]))
+            or revision(BASELINE) != old[1]
+            or revision(ROOT) != candidate[1]
+            or source_digest() != source
+            or tree_digest(ROOT / "frontend/dist") != build
+            or hashlib.sha256(UNIT_FILE.read_bytes()).hexdigest() != unit_hash
+        ):
+            raise RuntimeError("dashboard_or_candidate_changed")
+        job_unknown = True
+        reload_result = ctl("daemon-reload")
+        job_unknown = False
+        if reload_result.returncode:
+            raise RuntimeError("dashboard_reload_failed")
+        if service_identity() != snapshot[0] or not safe_cgroup(
+            snapshot[0][0], cgroup_pids(snapshot[0][2])
+        ):
+            raise RuntimeError("dashboard_became_busy")
+        job_unknown = True
+        restarted = True
+        result = ctl("restart", UNIT)
+        job_unknown = False
+        if result.returncode:
+            raise RuntimeError("dashboard_restart_failed")
+        candidate_identity = service_identity()
+        if (
+            not wait_ready((expected, expected), candidate=True)
+            or not candidate_runtime()
+        ):
+            raise RuntimeError("candidate_not_ready")
+        if (
+            revision(ROOT) != candidate[1]
+            or source_digest() != source
+            or tree_digest(ROOT / "frontend/dist") != build
+        ):
+            raise RuntimeError("candidate_changed_after_restart")
+        switched = False
+        print("M6 LOCAL UPDATE: PASSED — candidate running on loopback and LAN")
+    except BaseException:
+        if switched:
+            if job_unknown:
+                print(
+                    "M6 LOCAL UPDATE: rollback requires attention — systemd job status unknown"
+                )
+            elif hashlib.sha256(UNIT_FILE.read_bytes()).hexdigest() != unit_hash:
+                print("M6 LOCAL UPDATE: rollback blocked — service unit changed")
+            elif DROPIN.read_bytes() != after:
+                print("M6 LOCAL UPDATE: rollback blocked — override changed")
+            else:
+                current = service_identity()
+                pids = cgroup_pids(snapshot[0][2], allow_missing=True)
+                # Restoring a drop-in without a restart cannot terminate children.
+                safe = not restarted and current == snapshot[0]
+                safe |= (
+                    restarted
+                    and candidate_identity is not None
+                    and current == candidate_identity
+                    and safe_cgroup(current[0], pids)
+                )
+                safe |= (
+                    restarted
+                    and candidate_identity is None
+                    and current[0] == 0
+                    and not pids
+                    and prop("ActiveState") in {"inactive", "failed"}
+                )
+                if not safe:
+                    print(
+                        "M6 LOCAL UPDATE: rollback blocked — service changed or has children"
+                    )
+                elif (
+                    not replace_override(DROPIN, after, before)
+                    or ctl("daemon-reload").returncode
+                ):
+                    print(
+                        "M6 LOCAL UPDATE: rollback requires attention — configuration restore failed"
+                    )
+                elif restarted and (
+                    ctl("restart" if current[0] else "start", UNIT).returncode
+                    or not wait_ready(snapshot[2], candidate=False)
+                ):
+                    print(
+                        "M6 LOCAL UPDATE: rollback requires attention — original dashboard not ready"
+                    )
+                else:
+                    print("M6 LOCAL UPDATE: original configuration restored")
+        raise
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--check", action="store_true", required=True)
+    mode = parser.add_mutually_exclusive_group(required=True)
+    mode.add_argument("--check", action="store_true")
+    mode.add_argument("--apply", action="store_true")
     parser.add_argument("--prepare", action="store_true")
     options = parser.parse_args()
+    if options.apply and options.prepare:
+        parser.error("--apply already prepares the candidate")
+    if options.apply:
+        print("M6 LOCAL UPDATE: BLOCKED — restart safety review not complete")
+        return 3
     held = None
+    old_signal = signal.getsignal(signal.SIGTERM)
+    signal.signal(signal.SIGTERM, lambda *_: (_ for _ in ()).throw(KeyboardInterrupt()))
     try:
         held = acquire_m5_service_activation_lock_v1()
         old = (str(BASELINE), revision(BASELINE))
@@ -210,17 +349,24 @@ def main() -> int:
             snapshot == service_snapshot(),
         ):
             raise RuntimeError("dashboard_changed_during_preflight")
-        print(
-            "M6 LOCAL UPDATE PREFLIGHT: PASSED — current service and source trees stable"
-        )
-        print("M6 LOCAL UPDATE: NOT IMPLEMENTED — no service changes were made")
+        if options.apply:
+            apply_update(held, old, candidate, snapshot)
+        else:
+            print("M6 LOCAL UPDATE PREFLIGHT: PASSED — no service changes were made")
         return 0
-    except (OSError, ValueError, RuntimeError, subprocess.SubprocessError) as exc:
-        print(f"M6 LOCAL UPDATE PREFLIGHT: BLOCKED — {exc}")
+    except (
+        OSError,
+        ValueError,
+        RuntimeError,
+        subprocess.SubprocessError,
+        KeyboardInterrupt,
+    ) as exc:
+        print(f"M6 LOCAL UPDATE: FAILED — {exc or 'interrupted'}")
         return 3
     finally:
         if held is not None:
             release_m5_service_activation_lock_v1(held)
+        signal.signal(signal.SIGTERM, old_signal)
 
 
 if __name__ == "__main__":
