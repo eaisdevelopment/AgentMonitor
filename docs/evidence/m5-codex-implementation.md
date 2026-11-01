@@ -1,5 +1,10 @@
 # Test evidence: V1-M5 Codex implementation
 
+**Current result, 30 October 2026:** `AUTO-M5-EXIT` passed on revision
+`ab1408bce04fcb4e56c7fb57c62f4e34ba8a191a`. The
+[completion record](m5-completion-2026-10-30.md) and its receipt supersede
+earlier status statements below; the owner accepted M5 on 30 October 2026.
+
 ## 2026-10-27: timeout recovery, plan 1.21
 
 The eighth activation deployed plans 1.18–1.20 at `468a937`. Four explicit

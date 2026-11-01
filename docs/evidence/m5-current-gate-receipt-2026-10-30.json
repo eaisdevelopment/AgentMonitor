@@ -1,0 +1,172 @@
+{
+  "schema_version": "1.0.0",
+  "record_type": "agentmonitor.m5_current_gate_receipt",
+  "receipt_id": "M5-CURRENT-GATE-20261030T180928Z",
+  "milestone_id": "V1-M5",
+  "command_id": "AUTO-M5-EXIT",
+  "command": "python3 tools/automation/run.py AUTO-M5-EXIT",
+  "implementation_revision": "ab1408bce04fcb4e56c7fb57c62f4e34ba8a191a",
+  "started_at": "2026-10-30T17:57:19Z",
+  "completed_at": "2026-10-30T18:09:28Z",
+  "status": "passed",
+  "exit_code": 0,
+  "skips": [],
+  "test_count": 648,
+  "account_count": 4,
+  "verified_count": 3,
+  "owner_unavailable_count": 1,
+  "process_count": 5,
+  "process_scan_completeness": "partial",
+  "provider_version": "0.160.0",
+  "adapter_version": "1.0.2",
+  "parser_version": "1.0.1",
+  "schema_bundle_digest": "36bd8e1d76b12b89b06446a85c45e957945eb8cb63b05061264c3dec97f625da",
+  "mapping_id": "M5-CDX-0-160-0-002",
+  "mapping_digest": "417c46ba301f9c4217c606beed52be93c9bf497da9ca5b99ca4b1993167688d3",
+  "activation_receipt_digest": "2b06e7b53d1e88575a7d0d7c5fab96a1a4c6a9da50f1e1d6b3717930a360362d",
+  "owner_outcomes_digest": "c9b6b1798b8756c4fbf0e53ff2667298b41aa6fe4acb65223f1767662ae63cb8",
+  "alert_witness_digest": "5f4a7b307511ae014394ab5b07fa30f3b1ed17fcb3bf02dd072d337a23ef69a1",
+  "quota_witness_digest": "1d5accc883f62b1aabc62e75a458ce0336c167203aee1901d4afa4bc67867f6d",
+  "quota_value_set_digest": "0a0981077ea3efadd97d00037d91d110bedd4f12eea0a1b333f2f860c6b9481e",
+  "quota_history_value_set_digest": "968954348b6b334842a4877a928c254c616675bc91dfbda6703656167691524e",
+  "post_restart_history_value_set_digest": "949caa80d68b9725026f7ad15846d7c2c2f7418c2ec4ad094c3654d7ec783914",
+  "owner_observation_digest": "c3fc4de61bd8a77404a82382bc78ca81add797d505eaba0a7205db53e982a187",
+  "registry_graph_digest": "e1d0f1507e0939d91d04af255e2d1f66d8a9a507c09efdeab728eeff252e28d1",
+  "containment_evidence_digest": "8f147fec533df36a0485d0dcca1648cec4b4ff47b2703c70573ee1cfb9af0f09",
+  "containment_provider_access_count": 1807,
+  "containment_provider_write_count": 140,
+  "containment_default_profile_access_count": 0,
+  "containment_default_profile_write_count": 0,
+  "quota_window_count": 4,
+  "fleet_metadata_digest": "f3578c0f792b4eaa3a105e525f3f5fc975e7f4e931b68128510758d5133e7639",
+  "identity_set_digest": "75692572a9164c3fc959dea042a7c82a84617c5b9ace22ab7de2ff4f72950ca7",
+  "collection_run_set_digest": "0e8127f5c3f7fd989dd185b4828322b9f2f4a2490bb70485953a6b86774e4635",
+  "process_set_digest": "3a0e0cb3a9631f8058fdbd1c96b1e3357492c06ff2decde8216f33d144124836",
+  "required_lanes": [
+    {
+      "lane_id": "service_activation",
+      "status": "passed",
+      "evidence": "rollback_drill_receipt_validated"
+    },
+    {
+      "lane_id": "owner_outcomes",
+      "status": "passed",
+      "evidence": "four_owner_outcomes_validated"
+    },
+    {
+      "lane_id": "alert_prerequisite",
+      "status": "passed",
+      "evidence": "codex_alert_receipt_validated"
+    },
+    {
+      "lane_id": "exact_codex_admission",
+      "status": "passed",
+      "evidence": "codex_schema_mapping_no_default_access"
+    },
+    {
+      "lane_id": "authenticated_containment",
+      "status": "passed",
+      "evidence": "codex_identity_quota_trace_confined"
+    },
+    {
+      "lane_id": "build",
+      "status": "passed",
+      "evidence": "auto-build_passed"
+    },
+    {
+      "lane_id": "revision_bound_service",
+      "status": "passed",
+      "evidence": "service_restarted_from_clean_head"
+    },
+    {
+      "lane_id": "technical_suite",
+      "status": "passed",
+      "evidence": "auto_m3_test_and_pytest_648_passed_zero_skips"
+    },
+    {
+      "lane_id": "codex_browser",
+      "status": "passed",
+      "evidence": "codex_api_ui_history_passed"
+    },
+    {
+      "lane_id": "process_witness",
+      "status": "passed",
+      "evidence": "codex_processes_5_verified_partial_scan"
+    },
+    {
+      "lane_id": "fresh_quota_lineage",
+      "status": "passed",
+      "evidence": "codex_accounts_3_fresh_history"
+    },
+    {
+      "lane_id": "authoritative_quota_reconciliation",
+      "status": "passed",
+      "evidence": "codex_fleet_windows_4_sample_accounts_2_sample_windows_3_historical_user_screenshots"
+    },
+    {
+      "lane_id": "alert_lifecycle",
+      "status": "passed",
+      "evidence": "codex_alert_acknowledged_recovered"
+    },
+    {
+      "lane_id": "registry_unchanged",
+      "status": "passed",
+      "evidence": "pre_post_registry_digest_matched"
+    },
+    {
+      "lane_id": "provider_health",
+      "status": "passed",
+      "evidence": "codex_health_and_isolation_passed"
+    },
+    {
+      "lane_id": "generated_client",
+      "status": "passed",
+      "evidence": "auto_build_generated_client_passed"
+    },
+    {
+      "lane_id": "sqlite",
+      "status": "passed",
+      "evidence": "real_file_sqlite_suite_passed"
+    },
+    {
+      "lane_id": "overview_browser",
+      "status": "passed",
+      "evidence": "overview_browser_passed"
+    },
+    {
+      "lane_id": "alerts_browser",
+      "status": "passed",
+      "evidence": "alerts_browser_passed"
+    },
+    {
+      "lane_id": "operations_browser",
+      "status": "passed",
+      "evidence": "operations_browser_passed"
+    },
+    {
+      "lane_id": "planning",
+      "status": "passed",
+      "evidence": "auto-plan-check_passed"
+    },
+    {
+      "lane_id": "quality",
+      "status": "passed",
+      "evidence": "auto-quality_passed"
+    },
+    {
+      "lane_id": "mutation",
+      "status": "passed",
+      "evidence": "auto-mutation_passed"
+    },
+    {
+      "lane_id": "documentation",
+      "status": "passed",
+      "evidence": "auto-docs-check_passed"
+    },
+    {
+      "lane_id": "git_preflight",
+      "status": "passed",
+      "evidence": "auto-git-preflight_passed"
+    }
+  ]
+}

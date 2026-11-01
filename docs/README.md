@@ -26,15 +26,13 @@ Current program state:
   organizations, six fresh post-restart quota/history lineages, the guarded
   current-process witness, and every required technical, browser, and local
   quality lane with zero skips and zero registry mutations.
-- **V1-M5:** implementation is **Intermediate**. Plans 1.18–1.20 are deployed
-  at clean detached revision `468a937` after the eighth evidence-preserving
-  rollover. Four-account owner outcomes and the real alert lifecycle witness
-  passed on that service. The quota check exposed an account stranded after
-  a collection timeout. Owner-approved [plan 1.21](plans/integration/m5-timeout-recovery-change.md)
-  restores scheduled checks after the full five-minute cadence and authorizes
-  one ninth deployment. Its isolated candidate is under verification; deployment,
-  fresh account recovery, current prerequisite evidence, `AUTO-M5-EXIT`, and
-  milestone owner acceptance remain required. No M5 completion is claimed.
+- **V1-M5:** the bounded Codex implementation and `AUTO-M5-EXIT` passed on
+  clean deployed revision `ab1408b` on 30 October 2026. The result covers
+  three verified accounts, one owner-recorded unavailable account, five
+  representative processes, the recovered alert lifecycle, and the required
+  browser and technical checks. The [completion record](evidence/m5-completion-2026-10-30.md)
+  explains the evidence. The owner accepted M5 on 30 October 2026; see the
+  [acceptance record](evidence/m5-owner-acceptance-2026-10-30.md).
 - **V1-M6 through V1-M8:** Planned; their canonical gates have not run.
 
 The approved [M3 scope correction](evidence/m3-scope-correction-2026-10-02.md)

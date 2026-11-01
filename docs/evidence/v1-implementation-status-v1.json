@@ -2,8 +2,8 @@
   "schema_version": "1.0.0",
   "record_type": "agentmonitor.v1_implementation_status",
   "record_id": "V1-STATUS-2026-10-27-01",
-  "implementation_revision": "468a937d796efcb7ff1785a749789f07a3322abc",
-  "recorded_at": "2026-10-27T11:00:00Z",
+  "implementation_revision": "ab1408bce04fcb4e56c7fb57c62f4e34ba8a191a",
+  "recorded_at": "2026-10-30T18:09:28Z",
   "planning_backlog": "docs/superpowers/plans/implementation-backlog.toml",
   "planning_backlog_sha256": "2e93367d304fda306776f8789db23c754798f6307277628f0565350d0dbb962e",
   "roadmap": "docs/roadmap.md",
@@ -104,21 +104,24 @@
       "depends_on": [
         "V1-M3"
       ],
-      "delivery_state": "in_progress",
-      "canonical_gate_state": "failed",
-      "gate_binding": "none",
-      "gate_revision": null,
-      "acceptance_state": "not_recorded",
-      "acceptance_scope": "none",
-      "acceptance_decision_path": null,
+      "delivery_state": "implemented",
+      "canonical_gate_state": "passed",
+      "gate_binding": "historical_run",
+      "gate_revision": "ab1408bce04fcb4e56c7fb57c62f4e34ba8a191a",
+      "acceptance_state": "accepted",
+      "acceptance_scope": "full_milestone",
+      "acceptance_decision_path": "docs/evidence/m5-owner-acceptance-2026-10-30.md",
       "dependency_state": "satisfied",
       "unresolved_dependency_ids": [],
       "evidence_paths": [
         "docs/evidence/m5-codex-0.160.0-discovery.md",
         "docs/evidence/m5-codex-read-side-effect-blocker.md",
-        "docs/evidence/m5-codex-implementation.md"
+        "docs/evidence/m5-codex-implementation.md",
+        "docs/evidence/m5-current-gate-receipt-2026-10-30.json",
+        "docs/evidence/m5-completion-2026-10-30.md",
+        "docs/evidence/m5-owner-acceptance-2026-10-30.md"
       ],
-      "decision": "Codex implementation remains Intermediate. Plans 1.18 through 1.20 are deployed at exact clean detached revision 468a937d796efcb7ff1785a749789f07a3322abc after the eighth rollover. Four-account owner outcomes and the real alert lifecycle witness passed for that service. The current quota prerequisite exposed an account stranded after a collection timeout. Owner-approved plan 1.21 restores scheduled collection after the full cadence and authorizes one ninth deployment. That isolated candidate remains under verification. Deployment, fresh scheduled recovery, refreshed current prerequisites, a passing AUTO-M5-EXIT receipt and owner acceptance remain required. Historical canonical gate state remains failed with no receipt; no milestone completion is claimed."
+      "decision": "AUTO-M5-EXIT passed on clean deployed revision ab1408bce04fcb4e56c7fb57c62f4e34ba8a191a. The owner reviewed the scope and explicitly accepted the passed M5 result. Three accounts were verified and one was owner-recorded unavailable; five representative processes and the recovered alert lifecycle were verified. Process scanning was partial; historical screenshot comparisons were separate from current checks."
     },
     {
       "milestone_id": "V1-M6",
@@ -174,7 +177,6 @@
       "acceptance_decision_path": null,
       "dependency_state": "unresolved",
       "unresolved_dependency_ids": [
-        "V1-M5",
         "V1-M6",
         "V1-M7"
       ],
@@ -436,58 +438,63 @@
       "story_id": "ST-CDX-001",
       "milestone_id": "V1-M5",
       "title": "Admit the evidence-scoped adapter and real installation",
-      "delivery_state": "in_progress",
+      "delivery_state": "implemented",
       "evidence_paths": [
         "docs/evidence/m5-codex-0.160.0-discovery.md",
         "docs/evidence/m5-codex-read-side-effect-blocker.md",
-        "docs/evidence/m5-codex-implementation.md"
+        "docs/evidence/m5-codex-implementation.md",
+        "docs/evidence/m5-current-gate-receipt-2026-10-30.json"
       ],
-      "decision": "The exact-version adapter, installation admission and managed-profile safety implementation are present through approved plan 1.20. The unchanged authenticated Codex 0.160.0 containment node passes with zero skips against active revision 1ada84f71e827bb4f7ea966462a6cf51d050e9af. Post-eighth-rollover containment inside the clean exact-revision completion gate remains required."
+      "decision": "Implemented and verified by the bounded M5 gate on revision ab1408bce04fcb4e56c7fb57c62f4e34ba8a191a; the owner accepted M5 on 30 October 2026."
     },
     {
       "story_id": "ST-CDX-002",
       "milestone_id": "V1-M5",
       "title": "Reconcile four identities and authentication health",
-      "delivery_state": "in_progress",
+      "delivery_state": "implemented",
       "evidence_paths": [
         "docs/evidence/m5-codex-0.160.0-discovery.md",
         "docs/evidence/m5-codex-read-side-effect-blocker.md",
-        "docs/evidence/m5-codex-implementation.md"
+        "docs/evidence/m5-codex-implementation.md",
+        "docs/evidence/m5-current-gate-receipt-2026-10-30.json"
       ],
-      "decision": "Managed Codex connection, identity and authentication-health implementation is present. AUTO-M5-OWNER-OUTCOMES passed for active revision 1ada84f71e827bb4f7ea966462a6cf51d050e9af with four outcomes: three verified and one owner-unavailable. This prerequisite becomes stale after the approved eighth rollover and must be recreated; it contains no milestone acceptance result."
+      "decision": "Implemented and verified by the bounded M5 gate on revision ab1408bce04fcb4e56c7fb57c62f4e34ba8a191a; the owner accepted M5 on 30 October 2026."
     },
     {
       "story_id": "ST-CDX-003",
       "milestone_id": "V1-M5",
       "title": "Collect native subscription windows into capacity history",
-      "delivery_state": "in_progress",
+      "delivery_state": "implemented",
       "evidence_paths": [
         "docs/evidence/m5-codex-0.160.0-discovery.md",
         "docs/evidence/m5-codex-read-side-effect-blocker.md",
-        "docs/evidence/m5-codex-implementation.md"
+        "docs/evidence/m5-codex-implementation.md",
+        "docs/evidence/m5-current-gate-receipt-2026-10-30.json"
       ],
-      "decision": "Native Codex subscription mapping, collection and capacity-history implementation is present. Real official /status evidence on active revision 1ada84f71e827bb4f7ea966462a6cf51d050e9af exposed full-unused reset movement. Approved plan 1.18 now admits only exact bounded 100-percent rolling movement and fails maximum-datetime arithmetic closed. The quota-witness file passes 51 tests, but a fresh post-eighth-rollover live witness remains required."
+      "decision": "Implemented and verified by the bounded M5 gate on revision ab1408bce04fcb4e56c7fb57c62f4e34ba8a191a; the owner accepted M5 on 30 October 2026."
     },
     {
       "story_id": "ST-CDX-004",
       "milestone_id": "V1-M5",
-      "title": "Discover and correlate 5\u20136 representative processes",
-      "delivery_state": "in_progress",
+      "title": "Discover and correlate 5–6 representative processes",
+      "delivery_state": "implemented",
       "evidence_paths": [
         "docs/evidence/m5-codex-0.160.0-discovery.md",
-        "docs/evidence/m5-codex-implementation.md"
+        "docs/evidence/m5-codex-implementation.md",
+        "docs/evidence/m5-current-gate-receipt-2026-10-30.json"
       ],
-      "decision": "Codex process discovery and guarded association implementation is present. Six exact-version baseline processes were observed during earlier live work, but the combined-candidate five-to-six process selection, independent PID/start/executable reread, safe presentation and association witness remain required after the eighth rollover inside AUTO-M5-EXIT."
+      "decision": "Implemented and verified by the bounded M5 gate on revision ab1408bce04fcb4e56c7fb57c62f4e34ba8a191a; the owner accepted M5 on 30 October 2026."
     },
     {
       "story_id": "ST-CDX-005",
       "milestone_id": "V1-M5",
       "title": "Integrate HTTP, browser, health, and M5 evidence",
-      "delivery_state": "in_progress",
+      "delivery_state": "implemented",
       "evidence_paths": [
-        "docs/evidence/m5-codex-implementation.md"
+        "docs/evidence/m5-codex-implementation.md",
+        "docs/evidence/m5-current-gate-receipt-2026-10-30.json"
       ],
-      "decision": "Codex HTTP, browser, health, alert and completion-gate implementation is present through owner-approved plan 1.20. Active revision 1ada84f71e827bb4f7ea966462a6cf51d050e9af passed the seventh rollover and current owner and alert prerequisites. The combined 1.18--1.20 candidate has current-exit 80, quota-witness 51 and a final exact Story inventory of 600 parents, 1158 outcomes and digest ad0b77bd19a52f0b0ff29958963414e6836882a659096d7f291cafb7368e4b3e with zero skips. Detached clean-revision Git preflight, the live eighth rollover, refreshed witnesses and process proof, a passing AUTO-M5-EXIT receipt and owner acceptance remain required."
+      "decision": "Implemented and verified by the bounded M5 gate on revision ab1408bce04fcb4e56c7fb57c62f4e34ba8a191a; the owner accepted M5 on 30 October 2026."
     },
     {
       "story_id": "ST-OLL-001",
