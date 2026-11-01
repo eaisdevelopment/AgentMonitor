@@ -5,26 +5,33 @@ from __future__ import annotations
 import argparse
 import hashlib
 import os
+import re
 import stat
 import subprocess
+import sys
 import tempfile
 from pathlib import Path
 
 from tools.automation.implementations.auto_m6_local_activate import (
     DROPIN,
+    OLD_ROOT,
     ORIGINS,
     ROOT,
     SERVICE_PYTHON,
+    TOOL_ROOT,
     UNIT,
     UNIT_FILE,
     build_override,
     cgroup_pids,
+    create_tool_link,
     ctl,
     login_identity,
     prop,
     safe_cgroup,
     service_identity,
+    tree_digest,
 )
+from tools.automation.implementations.auto_m6_local_admit import source_digest
 from tools.automation.implementations.m5_service_activation import (
     acquire_m5_service_activation_lock_v1,
     release_m5_service_activation_lock_v1,
@@ -141,16 +148,59 @@ def replace_override(path: Path, expected: bytes, replacement: bytes) -> bool:
             temporary.unlink(missing_ok=True)
 
 
+def prepare_candidate(expected_revision: str) -> tuple[str, str]:
+    """Build and test a clean candidate without changing the running service."""
+    links: list[tuple[Path, Path]] = []
+    try:
+        for path, target in (
+            (ROOT / "backend/.venv", OLD_ROOT / "backend/.venv"),
+            (ROOT / "frontend/node_modules", TOOL_ROOT / "frontend/node_modules"),
+        ):
+            if create_tool_link(path, target):
+                links.append((path, target))
+        result = subprocess.run(
+            [sys.executable, "tools/automation/run.py", "AUTO-M6-LOCAL-ADMIT"],
+            cwd=ROOT,
+            capture_output=True,
+            text=True,
+            timeout=240,
+            check=False,
+        )
+        match = re.search(
+            r"Selected source-and-test digest: ([0-9a-f]{64})", result.stdout
+        )
+        if result.returncode or match is None or match.group(1) != source_digest():
+            raise RuntimeError("candidate_admission_failed")
+        source = match.group(1)
+        build = tree_digest(ROOT / "frontend/dist")
+    finally:
+        for path, target in reversed(links):
+            if not path.is_symlink() or path.resolve(strict=True) != target.resolve(
+                strict=True
+            ):
+                raise RuntimeError("temporary_tool_link_changed")
+            path.unlink()
+    if revision(ROOT) != expected_revision or source_digest() != source:
+        raise RuntimeError("candidate_changed_during_admission")
+    return source, build
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--check", action="store_true", required=True)
-    parser.parse_args()
+    parser.add_argument("--prepare", action="store_true")
+    options = parser.parse_args()
     held = None
     try:
         held = acquire_m5_service_activation_lock_v1()
         old = (str(BASELINE), revision(BASELINE))
         candidate = (str(ROOT), revision(ROOT))
         snapshot = service_snapshot()
+        if options.prepare:
+            prepared_source, prepared_build = prepare_candidate(candidate[1])
+            print(
+                f"M6 LOCAL UPDATE: candidate admission passed; source {prepared_source}, build {prepared_build}"
+            )
         validate_m5_service_activation_lock_v1(held)
         if not update_preflight(
             old,
