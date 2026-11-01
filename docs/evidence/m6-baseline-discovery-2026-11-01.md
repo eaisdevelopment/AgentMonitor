@@ -42,6 +42,26 @@ returned **BLOCKED by missing or unusable local executable** in this fresh
 worktree; this is an environment/tooling result, not a finding about the
 substantive custody or approvals. The previously observed requests must not be
 represented as authorized M0 scenario passes or capability admission.
+Accepted [ADR-0013](../decisions/0013-local-milestone-release-gates.md)
+supersedes detached M0 reviewer approvals as a prerequisite for owner-local
+M3–M8 milestone execution. It requires current technical bindings, real
+provider checks and the original privacy and safety protections; it does not
+claim M0 completion. The M0 runbook now clarifies that policy for owner-local
+milestones. The M6-specific technical check remains absent, so the preliminary
+result is not M6 capability admission. An unavailable
+M0 executable is not by itself evidence that the entire M6 milestone is blocked.
+`python3 tools/automation/run.py AUTO-M6-LOCAL-INVENTORY` is now a repeatable
+preliminary loopback inventory: it restricts its three GET paths, disables
+proxies and redirects, bounds time and response size, and outputs only daemon
+version and counts. Its real-service run observed daemon 0.24.0 and both
+counts zero. Two pure policy tests check path and redirect rejection. This
+inventory is narrower than a complete M6 technical admission, does not test a
+model-present host or cloud, and its initial implementation did not retain an
+exact-command Red-before-Green record; do not present that TDD evidence as
+passed. The broader automation suite was attempted in this fresh worktree and
+failed because its Node and Python tool environments are not installed there,
+among other reported failures; only the focused catalog/policy tests and
+actual local inventory have passed.
 The remote model host and its safe access route remain unverified (M6-T003).
 SDK and EAIS cloud identities, roles, balance variants and credentials remain
 unverified (M6-T004/T005). No authenticated cloud request was made.

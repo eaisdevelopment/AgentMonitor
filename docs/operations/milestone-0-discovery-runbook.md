@@ -47,6 +47,18 @@ Not allowed in this milestone without a new explicit approval:
 
 ## Preflight
 
+### Owner-local M3–M8 milestone execution
+
+[ADR-0013](../decisions/0013-local-milestone-release-gates.md) takes
+precedence over detached M0 reviewer-approval prerequisites for an owner-local
+milestone. Its milestone-specific technical checks must bind the current
+source, operation scope and provider versions, enforce the read-only and
+privacy boundaries below, and verify real outcomes. They must not report M0
+G1/G9 or unavailable live scenarios as passed. This does not eliminate the
+need for a canonical executable technical check or authorize provider profile
+mutation. Until an M6-specific technical check is implemented, no M6 source
+admission is established merely by this clarification.
+
 G1 artifacts and exact validation rules are defined in the
 [M0 G1 control specification](../plans/discovery/m0-g1-control-specification.md).
 Blank custody, operation/assertion, ledger, E1-admission, and incident forms are
@@ -54,7 +66,8 @@ under [the template index](../templates/README.md). A blank or completed form is
 not approval. `AUTO-M0-G1-CONTRACT` checks repository structure only.
 `AUTO-M0-G1-EXIT` remains Blocked until real custody, scanner admission, and
 exact bundle approvals exist. After G1, `AUTO-M0-PREFLIGHT` is the mandatory
-machine gate for every exact scenario packet. No gate may be bypassed or
+machine gate for every exact M0 scenario packet. Owner-local M3–M8 milestone
+execution follows ADR-0013 above. No applicable gate may be bypassed or
 substituted for another. `M0-COM-001` is the first ordinary post-G1 scenario;
 G1 itself executes no M0 scenario.
 

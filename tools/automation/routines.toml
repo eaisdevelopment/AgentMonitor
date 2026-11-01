@@ -69,6 +69,14 @@ implementation_command = []
 blockers = ["approved G1 schema", "AUTO-M0-POSTFLIGHT", "real scenario outcomes", "Red-Green-refactor ledger validator implementation"]
 
 [[routines]]
+id = "AUTO-M6-LOCAL-INVENTORY"
+owner = "PLAN-A03"
+status = "operational"
+scope = "bounded read-only loopback Ollama version and installed/loaded model counts; preliminary inventory only"
+implementation_command = ["python3", "tools/discovery/m6_local_inventory.py"]
+blockers = []
+
+[[routines]]
 id = "AUTO-DOCS-CHECK"
 owner = "PLAN-FND"
 status = "operational"
