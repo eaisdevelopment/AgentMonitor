@@ -20,3 +20,11 @@ catalog JSON response. Model-present and natural source failure/recovery tests
 remain unexecuted. This is a candidate, not the currently running dashboard or
 full M6 completion. See the earlier local preview evidence for rollout and
 security boundaries. No new dependency or license impact was identified.
+
+Deployment review: `AUTO-M6-LOCAL-ACTIVATE` is written for the original M5
+unit with no drop-in; the live service now has its M6 drop-in and therefore
+fails that routine's preflight. `AUTO-DEPLOY` is catalogued as blocked and has
+no implementation command. Neither routine is currently an update path for
+this candidate. Do not remove the existing drop-in or restart the service to
+force either preflight. An update-capable, reviewed transition with real
+rollback verification is still required before this candidate is installed.
