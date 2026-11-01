@@ -106,9 +106,12 @@ names or raw responses are recorded in the evidence.
 The owner subsequently identified this workstation as the model host. A
 repeat inventory still reported zero installed and zero loaded models; one
 local Ollama service/listener was identified, and no Ollama-labelled published
-container was found by the bounded container listing. The expected model name
-and how it is accessed remain unconfirmed (M6-T003); zero models from this
-service does not prove there is no model elsewhere on the machine.
+container was found by the bounded container listing. The owner subsequently
+showed a model selected in the Ollama desktop app and an interactive Ollama
+CLI. These establish that the app and CLI are available, but do not establish
+which daemon or compute host the app uses. Zero models from the local service
+does not prove the owner's model is unavailable (M6-T003). A live CLI process
+was observed separately; it was not signalled, inspected for content or changed.
 SDK and EAIS cloud identities, roles, balance variants and credentials remain
 unverified (M6-T004/T005). No authenticated cloud request was made.
 
