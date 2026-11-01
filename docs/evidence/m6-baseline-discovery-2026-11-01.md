@@ -112,6 +112,12 @@ CLI. These establish that the app and CLI are available, but do not establish
 which daemon or compute host the app uses. Zero models from the local service
 does not prove the owner's model is unavailable (M6-T003). A live CLI process
 was observed separately; it was not signalled, inspected for content or changed.
+An attempt to identify the desktop app using local window/application metadata
+was inconclusive: the available X11 window list exposed only an unrelated
+client, and an accessibility enumeration encountered an AppArmor denial.
+No chat contents, browser data, provider profiles or process environments
+were accessed. This does not establish whether the app is on another machine,
+whether it is a web wrapper, or which server it uses.
 SDK and EAIS cloud identities, roles, balance variants and credentials remain
 unverified (M6-T004/T005). No authenticated cloud request was made.
 
