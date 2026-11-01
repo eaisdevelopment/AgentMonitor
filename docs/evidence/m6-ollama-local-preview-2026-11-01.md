@@ -66,3 +66,9 @@ dashboard/rollback checks. `AUTO-M6-LOCAL-ACTIVATE` remains blocked because the
 draft transition does not yet provide a race-free child-process guard and
 verified authenticated/LAN readiness and rollback. Until then the running
 dashboard is unchanged.
+
+A read-only process/cgroup snapshot found 30 Claude/Codex-named processes
+outside the dashboard service cgroup and none inside at that instant. This
+supports separation of those currently observed processes, but is not a
+guarantee about later children or all possible agent names. Process arguments,
+environment and content were not inspected.
