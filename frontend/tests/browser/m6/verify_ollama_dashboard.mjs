@@ -399,6 +399,7 @@ try {
     }
   }
 
+  let processStage = "transport";
   try {
     const processResponse = page.waitForResponse(response => {
       const url = new URL(response.url());
@@ -409,13 +410,16 @@ try {
     if (!response.ok()) {
       setResult("process_visibility", "not_run", "real_ollama_process_unavailable");
     } else {
+      processStage = "payload";
       const payload = await response.json();
       if (!boundedPage(payload)) throw new Error("process_page_invalid");
+      processStage = "transport";
       const filteredResponse = await page.request.get(
         `${origin}/api/v1/process-metrics?provider_key=ollama&limit=200`,
         { headers: { Origin: origin } },
       );
       if (!filteredResponse.ok()) throw new Error("process_filter_unavailable");
+      processStage = "payload";
       const filtered = await filteredResponse.json();
       if (!boundedPage(filtered) || filtered.items.some(item => item.provider_key !== "ollama")) throw new Error("process_filter_invalid");
       const filteredIds = new Set(filtered.items.filter(item => item.presence === "running" && item.provenance?.source_id === "linux.proc.process.v1").map(item => item.process_id));
@@ -425,6 +429,7 @@ try {
         setResult("process_visibility", "not_run", payload.page.has_more
           ? "ollama_process_not_in_displayed_page" : "real_ollama_process_unavailable");
       } else {
+        processStage = "dom";
         const visible = await table.waitFor({ state: "visible", timeout: 15_000 }).then(() => true, () => false);
         if (!visible) {
           setResult("process_visibility", "failed", "ollama_process_ui_missing");
@@ -450,7 +455,9 @@ try {
       }
     }
   } catch {
-    setResult("process_visibility", "not_run", "ollama_process_evidence_unavailable");
+    if (processStage === "transport") setResult("process_visibility", "not_run", "ollama_process_evidence_unavailable");
+    else if (processStage === "payload") setResult("process_visibility", "failed", "ollama_process_response_invalid");
+    else setResult("process_visibility", "failed", "ollama_process_ui_evaluation_failed");
   }
   if (mutationRequests !== 0) {
     for (const name of Object.keys(results)) setResult(name, "failed", "dashboard_mutation_request_observed");
