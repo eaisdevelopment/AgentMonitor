@@ -124,7 +124,16 @@ def set_cloud_access_authorization(data_root: Path, *, authorized: bool) -> None
         finally:
             os.close(fd)
         current = os.stat(data_root, follow_symlinks=False)
-        if (root.st_dev, root.st_ino) != (current.st_dev, current.st_ino):
+        pinned = os.fstat(directory)
+        if (
+            not stat.S_ISDIR(current.st_mode)
+            or current.st_uid != os.getuid()
+            or stat.S_IMODE(current.st_mode) != 0o700
+            or pinned.st_uid != os.getuid()
+            or stat.S_IMODE(pinned.st_mode) != 0o700
+            or (root.st_dev, root.st_ino) != (current.st_dev, current.st_ino)
+            or (root.st_dev, root.st_ino) != (pinned.st_dev, pinned.st_ino)
+        ):
             raise ValueError("ollama_cloud_authority_root_invalid")
         os.replace(temporary, _MARKER, src_dir_fd=directory, dst_dir_fd=directory)
         os.fsync(directory)
