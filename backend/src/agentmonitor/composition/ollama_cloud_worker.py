@@ -228,6 +228,12 @@ class OllamaCloudWorkerSupervisorV1:
             self._running = False
 
     async def _run_transient(self) -> str:
+        # systemctl flattens argv, so whitespace would make identity ambiguous.
+        if any(
+            character.isspace() for character in sys.executable + str(self._data_root)
+        ):
+            self._quarantined = True
+            return "quarantined"
         code, existing = await self._command(
             _SYSTEMCTL,
             "--user",

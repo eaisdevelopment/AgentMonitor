@@ -225,3 +225,12 @@ def test_real_anonymous_provider_helper_is_contained_by_transient_unit() -> None
             timeout=8,
             check=False,
         )
+
+
+def test_ambiguous_systemd_arguments_quarantine_space_path(tmp_path: Path) -> None:
+    data_root = tmp_path / "data directory"
+    data_root.mkdir(mode=0o700)
+    worker = OllamaCloudWorkerSupervisorV1(data_root)
+    assert asyncio.run(worker.run_once()) == "quarantined"
+    assert worker.last_unit == ""
+    assert not (data_root / "agentmonitor.db").exists()

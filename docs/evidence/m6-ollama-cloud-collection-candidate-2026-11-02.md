@@ -87,3 +87,9 @@ quarantines later starts. Independent security review, populated migration,
 authenticated provider operation, live browser behavior and the completion
 gate remain Not Run. The supervisor is not wired into the dashboard service;
 no user-agent process was targeted by the checks.
+
+A real data-directory-with-spaces check showed that `systemctl show` flattens
+arguments ambiguously. The unwired supervisor now quarantines such executable or
+data-root paths before creating a unit. The follow-up real-path check passes;
+its defensive pre-start behavior does not have separate Red evidence. This is a
+known portability limitation until exact argument inspection is admitted.
