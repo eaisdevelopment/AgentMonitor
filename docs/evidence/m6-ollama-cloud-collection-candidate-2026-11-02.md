@@ -192,3 +192,12 @@ rotation race remains: the shared account lock must stay held through the
 network helper and nested Secret Service subprocess, including parent death.
 The populated SQL, race, authorization, provider and dashboard paths remain
 Not Run; this candidate must not be activated.
+
+The signal-composition candidate now checks the original terminal verification
+job and exact M02/M04/M05 lineage before deriving M03 scheduled permission;
+its final latest-signal read excludes only its own still-reserved lease. M05's
+transaction also rechecks the active official cloud target and exact source
+fingerprint. The pure target-fence test failed before the validator existed and
+passes afterward; 50 focused contract/domain tests pass. A real populated
+SQLite fence race, worker/helper credential-lock survival and authenticated
+provider/dashboard flow remain Not Run. The candidate is not activated.

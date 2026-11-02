@@ -794,7 +794,14 @@ class OllamaCloudCollectionV1:
             probe_job is None
             or probe_job.state != "terminal"
             or probe_job.outcome != "succeeded"
+            or probe_job.reason_code != "verification_succeeded"
             or probe_job.dispatch_certainty != "response_received"
+            or probe_job.run_id != verification.run_id
+            or probe_job.admission_id != verification.admission_id
+            or probe_job.schedule_id != probe_run.schedule_id
+            or probe_job.terminal_at is None
+            or probe_job.terminal_at != probe_run.completed_at
+            or probe_job.terminal_at < verification.verified_at
             or probe_job.account_id != binding.account_id
             or probe_job.binding_generation != binding.generation
             or probe_job.access_target_id != graph.access_target_id

@@ -15,6 +15,7 @@ from agentmonitor.adapters.persistence.collection_control.sqlite.ollama_cloud_ad
     ensure_ollama_run_in_transaction,
 )
 from agentmonitor.adapters.persistence.registry.sqlite.credential_bindings import (
+    ensure_access_target_in_transaction,
     ensure_active_binding_in_transaction,
     ensure_cloud_target_graph_in_transaction,
     ensure_current_binding_in_transaction,
@@ -26,7 +27,24 @@ from agentmonitor.contracts.collection_control_v1 import (
     CollectionRunAdmissionV2,
     OllamaCloudRequestLeaseV1,
 )
-from agentmonitor.contracts.registry_v1 import ActiveCredentialBindingRefV1
+from agentmonitor.contracts.registry_v1 import (
+    ActiveCredentialBindingRefV1,
+    ProviderAccessTargetV1,
+)
+
+
+def validate_cloud_target_fence(
+    target: ProviderAccessTargetV1, fingerprint: str
+) -> None:
+    """Reject a disabled, relabelled or changed cloud target in M05's transaction."""
+    if (
+        target.provider_key != "ollama"
+        or target.target_kind != "cloud_service"
+        or target.authority_id != "ollama.com"
+        or target.lifecycle != "active"
+        or target.manifest_fingerprint != fingerprint
+    ):
+        raise ValueError("ollama_cloud_target_changed")
 
 
 def ollama_capacity_repository(
@@ -51,6 +69,10 @@ def ollama_capacity_repository(
             isinstance(run, CollectionRunAdmissionV2)
             and run.provider_target.target_kind == "cloud_service"
         ):
+            target = ensure_access_target_in_transaction(
+                connection, run.provider_target.target_id
+            )
+            validate_cloud_target_fence(target, run.manifest_fingerprint)
             if run.trigger == "reauth_verification":
                 if verified_at is None or verified_at.utcoffset() is None:
                     raise ValueError("ollama_cloud_verification_time_invalid")
