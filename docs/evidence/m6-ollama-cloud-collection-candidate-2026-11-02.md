@@ -61,3 +61,10 @@ sending a provider request. Ruff passed. Timeout, cancellation and orphan-helper
 races, real credential use, authenticated reads, crash recovery and the
 completion gate remain Not Run. Pending independent review, this is not an
 activation or shutdown-safety claim. No dependency or license changed.
+
+A real worker cancellation check then failed because a subsequent worker could
+start; after shielding process creation and quarantining the supervisor on
+cancellation or timeout, both real unadmitted-process checks pass. This does
+not verify whole-tree containment: the provider helper currently starts a
+separate session. The worker stays unwired until that issue and real
+interruption/recovery checks are resolved.

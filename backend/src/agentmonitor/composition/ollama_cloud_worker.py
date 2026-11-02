@@ -31,25 +31,51 @@ class OllamaCloudWorkerSupervisorV1:
         if not data_root.is_absolute() or data_root in {Path("/"), Path.home()}:
             raise ValueError("ollama_cloud_data_root_invalid")
         self._data_root = data_root
+        self._quarantined = False
+        self._running = False
 
     async def run_once(self) -> str:
+        if self._quarantined:
+            return "quarantined"
+        if self._running:
+            return "worker_busy"
+        self._running = True
+        try:
+            return await self._run_owned_process()
+        finally:
+            self._running = False
+
+    async def _run_owned_process(self) -> str:
         environment = secret_tool_environment(os.environ)
         environment["PYTHONPATH"] = str(Path(__file__).resolve().parents[2])
-        process = await asyncio.create_subprocess_exec(
-            sys.executable,
-            "-m",
-            "agentmonitor.composition.ollama_cloud_worker",
-            "--data-root",
-            str(self._data_root),
-            stdin=asyncio.subprocess.DEVNULL,
-            stdout=asyncio.subprocess.DEVNULL,
-            stderr=asyncio.subprocess.DEVNULL,
-            env=environment,
+        spawn = asyncio.create_task(
+            asyncio.create_subprocess_exec(
+                sys.executable,
+                "-m",
+                "agentmonitor.composition.ollama_cloud_worker",
+                "--data-root",
+                str(self._data_root),
+                stdin=asyncio.subprocess.DEVNULL,
+                stdout=asyncio.subprocess.DEVNULL,
+                stderr=asyncio.subprocess.DEVNULL,
+                env=environment,
+            )
         )
+        try:
+            process = await asyncio.shield(spawn)
+        except asyncio.CancelledError:
+            self._quarantined = True
+            try:
+                process = await spawn
+                await self._stop(process)
+            except (OSError, RuntimeError):
+                pass
+            raise
         try:
             try:
                 code = await asyncio.wait_for(process.wait(), _WORKER_TIMEOUT_SECONDS)
             except TimeoutError:
+                self._quarantined = True
                 await self._stop(process)
                 return "worker_timeout"
             return (
@@ -60,6 +86,7 @@ class OllamaCloudWorkerSupervisorV1:
                 else "unavailable"
             )
         except asyncio.CancelledError:
+            self._quarantined = True
             await self._stop(process)
             raise
 
