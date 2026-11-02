@@ -12,5 +12,7 @@ from agentmonitor.adapters.persistence.registry.sqlite.credential_bindings impor
 def ollama_capacity_repository(reference: DatabaseRefV1) -> SqliteCapacityRepositoryV1:
     """Return an Ollama writer with the M02 fence installed fail-closed."""
     return SqliteCapacityRepositoryV1(
-        reference, credential_fence=ensure_active_binding_in_transaction
+        reference,
+        credential_fence=ensure_active_binding_in_transaction,
+        credential_fence_required=True,
     )

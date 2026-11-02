@@ -52,7 +52,7 @@ from agentmonitor.modules.capacity.application.ports import (
     current_window_lifecycle_semantic_v1,
     omitted_current_window_keys_v1,
 )
-from agentmonitor.modules.capacity.domain.ollama_fence import require_capacity_fence
+from agentmonitor.modules.capacity.domain.credential_fence import require_capacity_fence
 
 
 class CapacityRepositoryErrorV1(ValueError):
@@ -482,9 +482,11 @@ class SqliteCapacityRepositoryV1:
         *,
         credential_fence: Callable[[Connection, ActiveCredentialBindingRefV1], None]
         | None = None,
+        credential_fence_required: bool = False,
     ) -> None:
         self._database_ref = database_ref
         self._credential_fence = credential_fence
+        self._credential_fence_required = credential_fence_required
         self._health_policy = ClassifyCapacityProjectionV1()
 
     def read_capacity_events(
@@ -1144,20 +1146,19 @@ class SqliteCapacityRepositoryV1:
         )
 
     def commit(self, request: CapacityCommitRequestV1) -> CapacityCommitReceiptV1:
-        """Commit a non-Ollama typed result; perform no provider I/O."""
-        require_capacity_fence(request.payload.subject.provider_key, False)
+        """Commit a typed result; credential-required writers reject this path."""
+        require_capacity_fence(self._credential_fence_required, False)
         return self._commit_with_credential_fence(request, None)
 
-    def commit_ollama(
+    def commit_fenced(
         self, request: CapacityCommitRequestV1, binding: ActiveCredentialBindingRefV1
     ) -> CapacityCommitReceiptV1:
-        """Commit an Ollama result only under a transaction-bound M02 fence."""
+        """Commit a result only under a transaction-bound credential fence."""
         if (
-            request.payload.subject.provider_key != "ollama"
-            or binding.account_id != request.payload.subject.account_id
+            binding.account_id != request.payload.subject.account_id
             or self._credential_fence is None
         ):
-            raise CapacityRepositoryErrorV1("ollama_credential_fence_invalid")
+            raise CapacityRepositoryErrorV1("capacity_credential_fence_invalid")
         return self._commit_with_credential_fence(request, binding)
 
     def _commit_with_credential_fence(
@@ -1174,7 +1175,7 @@ class SqliteCapacityRepositoryV1:
                     if binding is not None:
                         if self._credential_fence is None:
                             raise CapacityRepositoryErrorV1(
-                                "ollama_credential_fence_invalid"
+                                "capacity_credential_fence_invalid"
                             )
                         self._credential_fence(connection, binding)
                     existing = (

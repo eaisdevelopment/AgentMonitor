@@ -1,13 +1,12 @@
-"""Credential fencing is required only for Ollama capacity commits."""
+"""A credential-required writer must receive a credential fence."""
 
 import pytest
 
-from agentmonitor.modules.capacity.domain.ollama_fence import require_capacity_fence
+from agentmonitor.modules.capacity.domain.credential_fence import require_capacity_fence
 
 
-def test_ollama_capacity_requires_a_binding_fence() -> None:
-    with pytest.raises(ValueError, match="ollama_credential_fence_required"):
-        require_capacity_fence("ollama", False)
-    require_capacity_fence("ollama", True)
-    require_capacity_fence("claude", False)
-    require_capacity_fence("codex", False)
+def test_writer_policy_rejects_missing_required_fence() -> None:
+    with pytest.raises(ValueError, match="capacity_credential_fence_required"):
+        require_capacity_fence(True, False)
+    require_capacity_fence(True, True)
+    require_capacity_fence(False, False)
