@@ -19,3 +19,15 @@ def test_real_official_balance_endpoint_rejects_anonymous_access() -> None:
     assert result.balance is None
     assert result.retry_after_seconds is None
     assert result.retry_after_state == "not_applicable"
+
+
+def test_probe_deadline_stops_the_isolated_network_process() -> None:
+    started = time.monotonic()
+
+    result = probe_cloud_balance_endpoint_v1(
+        deadline_monotonic=started + 0.001,
+    )
+
+    assert result.state == "deadline_exceeded"
+    assert result.reason_code == "ollama_cloud_deadline_exceeded"
+    assert time.monotonic() - started < 2.0

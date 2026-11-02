@@ -161,3 +161,37 @@ response body or application service is accessed.
 
 Final admissible focused Green at `2026-11-02T15:57:33Z`: `18 passed in
 1.71s`.
+
+## Enforceable anonymous-probe deadline
+
+The next policy Red expected the anonymous official-endpoint probe to declare
+an isolated process and strict deadline. It failed with
+`AttributeError: 'CloudBalancePolicyV1' object has no attribute
+'anonymous_probe_process_isolated'`.
+
+The probe now launches one fixed in-package helper under isolated Python with
+a minimal environment, no stdin, discarded stderr, a bounded sanitized stdout
+record and no credential or destination input. DNS resolution, TCP/TLS,
+response-header parsing and any body read all occur in that child. The parent
+applies the caller/8-second monotonic deadline to the whole child, starts it in
+its own session, passes only that non-secret absolute deadline, arms
+`ITIMER_REAL` in the single-threaded child before project import, and sends
+`SIGKILL` to the process group from the parent on expiry. Thus a blocked
+resolver or slow-drip header read is interruptible in the child and has a
+process-kill backstop before the supervisor returns `deadline_exceeded`. The
+helper returns only state, HTTP status and bounded retry metadata; raw headers,
+body, exceptions and balance values never cross the process boundary.
+
+One real anonymous probe still reaches the fixed official endpoint and returns
+sanitized HTTP 401. A second invocation of the same process-supervised entry
+point applies a 1-millisecond deadline, observes `deadline_exceeded` and
+returns within the bounded cleanup allowance. This is admission evidence for
+the anonymous probe only. The direct authenticated path remains fail-closed as
+`source_not_admitted`; no credential is passed to or inherited by the helper.
+A future authenticated worker must retrieve/apply the managed item entirely
+inside an equally bounded private process before this policy can be widened.
+The accepted header-size check remains post-parse inside the isolated process,
+so `wire_header_limit_strict` and authenticated admission remain false.
+
+Final focused result after the child-timer hardening at
+`2026-11-02T16:04:49Z`: `19 passed in 0.85s`.

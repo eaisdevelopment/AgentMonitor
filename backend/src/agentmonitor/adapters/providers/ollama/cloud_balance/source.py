@@ -10,12 +10,17 @@ from __future__ import annotations
 import http.client
 import json
 import math
+import os
 import re
+import signal
 import ssl
+import subprocess
+import sys
 import time
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from decimal import Decimal, InvalidOperation
+from pathlib import Path
 from typing import Literal, Protocol
 
 from agentmonitor.adapters.providers.ollama.cloud_balance.status import (
@@ -43,6 +48,7 @@ _MAX_JSON_STRING_BYTES = 64
 _MAX_RETRY_AFTER_SECONDS = 2**63 - 1
 _MAX_RETRY_AFTER_TEXT = str(_MAX_RETRY_AFTER_SECONDS)
 _MAX_BEARER_BYTES = 4096
+_MAX_PROBE_RESULT_BYTES = 256
 _RETAINED_HEADERS = frozenset(
     {
         "content-encoding",
@@ -77,6 +83,8 @@ class CloudBalancePolicyV1:
     operation_deadline_strict: Literal[False]
     dns_deadline_strict: Literal[False]
     wire_header_limit_strict: Literal[False]
+    anonymous_probe_process_isolated: Literal[True]
+    anonymous_probe_deadline_strict: Literal[True]
 
 
 CLOUD_BALANCE_POLICY_V1 = CloudBalancePolicyV1(
@@ -99,6 +107,8 @@ CLOUD_BALANCE_POLICY_V1 = CloudBalancePolicyV1(
     operation_deadline_strict=False,
     dns_deadline_strict=False,
     wire_header_limit_strict=False,
+    anonymous_probe_process_isolated=True,
+    anonymous_probe_deadline_strict=True,
 )
 
 
@@ -734,11 +744,169 @@ def read_cloud_balance_once_v1(
     )
 
 
+def _stop_probe_process(process: subprocess.Popen[bytes]) -> None:
+    if process.poll() is None:
+        try:
+            os.killpg(process.pid, signal.SIGKILL)
+        except (OSError, ProcessLookupError):
+            try:
+                process.kill()
+            except OSError:
+                pass
+    try:
+        process.wait(timeout=1.0)
+    except (OSError, subprocess.TimeoutExpired):
+        try:
+            process.kill()
+        except OSError:
+            pass
+
+
+def _probe_result(payload: bytes, returncode: int) -> CloudBalanceSourceResultV1:
+    if returncode != 0 or not 0 < len(payload) <= _MAX_PROBE_RESULT_BYTES:
+        return _result("internal_adapter_error", "ollama_cloud_probe_failed")
+    try:
+        fields = json.loads(payload.decode("ascii", errors="strict"))
+    except (UnicodeDecodeError, json.JSONDecodeError, RecursionError):
+        return _result("internal_adapter_error", "ollama_cloud_probe_failed")
+    if type(fields) is not list or len(fields) != 5:
+        return _result("internal_adapter_error", "ollama_cloud_probe_failed")
+    state, status, retry_after, retry_state, has_balance = fields
+    if (
+        type(state) is not str
+        or (
+            status is not None and (type(status) is not int or not 100 <= status <= 599)
+        )
+        or (
+            retry_after is not None
+            and (
+                type(retry_after) is not int
+                or not 0 <= retry_after <= _MAX_RETRY_AFTER_SECONDS
+            )
+        )
+        or retry_state
+        not in {
+            "not_applicable",
+            "absent",
+            "invalid",
+            "available",
+            "unrepresentable",
+        }
+        or type(has_balance) is not bool
+    ):
+        return _result("internal_adapter_error", "ollama_cloud_probe_failed")
+    if state == "success" or has_balance:
+        return _result(
+            "unexpected_response",
+            "ollama_cloud_anonymous_success_unexpected",
+            http_status=status,
+        )
+    ordinary_states = {
+        "unauthorized",
+        "access_denied",
+        "rate_limited",
+        "provider_unavailable",
+        "unexpected_response",
+    }
+    if state in ordinary_states:
+        if status is None:
+            if state != "provider_unavailable":
+                return _result("internal_adapter_error", "ollama_cloud_probe_failed")
+        elif classify_status(status) != state:
+            return _result("internal_adapter_error", "ollama_cloud_probe_failed")
+        if state == "rate_limited":
+            if retry_state not in {"absent", "invalid", "available"} or (
+                (retry_state == "available") != (retry_after is not None)
+            ):
+                return _result("internal_adapter_error", "ollama_cloud_probe_failed")
+        elif retry_after is not None or retry_state != "not_applicable":
+            return _result("internal_adapter_error", "ollama_cloud_probe_failed")
+        reason = (
+            "ollama_cloud_network_unavailable"
+            if state == "provider_unavailable" and status is None
+            else _STATUS_REASON[state]  # type: ignore[index]
+        )
+        return _result(
+            state,  # type: ignore[arg-type]
+            reason,
+            http_status=status,
+            retry_after_seconds=retry_after,
+            retry_after_state=retry_state,  # type: ignore[arg-type]
+        )
+    if state == "deadline_exceeded" and status is None:
+        return _result("deadline_exceeded", "ollama_cloud_deadline_exceeded")
+    if state == "invalid_provider_data" and status in {200, 429}:
+        return _result(
+            "invalid_provider_data",
+            "ollama_cloud_probe_invalid_provider_data",
+            http_status=status,
+            retry_after_state=(
+                "unrepresentable"
+                if retry_state == "unrepresentable"
+                else "not_applicable"
+            ),
+        )
+    return _result("internal_adapter_error", "ollama_cloud_probe_failed")
+
+
+def _run_isolated_probe(deadline: float) -> CloudBalanceSourceResultV1:
+    helper = Path(__file__).with_name("deadline_helper.py")
+    executable = Path(sys.executable)
+    if (
+        not helper.is_file()
+        or helper.is_symlink()
+        or not executable.is_absolute()
+        or not executable.is_file()
+    ):
+        return _result("internal_adapter_error", "ollama_cloud_probe_unavailable")
+    process: subprocess.Popen[bytes] | None = None
+    try:
+        process = subprocess.Popen(
+            [str(executable), "-I", str(helper), format(deadline, ".17g")],
+            stdin=subprocess.DEVNULL,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.DEVNULL,
+            cwd=helper.parent,
+            env={"LC_ALL": "C.UTF-8"},
+            close_fds=True,
+            start_new_session=True,
+        )
+        stdout, _ = process.communicate(
+            timeout=_remaining(
+                deadline, CLOUD_BALANCE_POLICY_V1.operation_timeout_seconds
+            )
+        )
+        if time.monotonic() >= deadline:
+            return _result("deadline_exceeded", "ollama_cloud_deadline_exceeded")
+        return _probe_result(stdout, process.returncode)
+    except (TimeoutError, subprocess.TimeoutExpired):
+        if process is not None:
+            _stop_probe_process(process)
+        return _result("deadline_exceeded", "ollama_cloud_deadline_exceeded")
+    except (OSError, subprocess.SubprocessError):
+        if process is not None:
+            _stop_probe_process(process)
+        return _result("internal_adapter_error", "ollama_cloud_probe_unavailable")
+    finally:
+        if process is not None and process.poll() is None:
+            _stop_probe_process(process)
+
+
 def probe_cloud_balance_endpoint_v1(
     *, deadline_monotonic: float | None = None
 ) -> CloudBalanceSourceResultV1:
-    """Anonymous official-endpoint admission probe, never a balance read."""
-    return _read_cloud_balance_once_v1(
-        authorization=None,
-        deadline_monotonic=deadline_monotonic,
+    """Bound DNS, TLS and headers in a killable credential-free process."""
+    started = time.monotonic()
+    if deadline_monotonic is not None and (
+        type(deadline_monotonic) is not float
+        or not math.isfinite(deadline_monotonic)
+        or deadline_monotonic <= started
+    ):
+        return _result("deadline_exceeded", "ollama_cloud_deadline_exceeded")
+    deadline = min(
+        started + CLOUD_BALANCE_POLICY_V1.operation_timeout_seconds,
+        deadline_monotonic
+        if deadline_monotonic is not None
+        else started + CLOUD_BALANCE_POLICY_V1.operation_timeout_seconds,
     )
+    return _run_isolated_probe(deadline)
