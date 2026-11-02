@@ -104,3 +104,13 @@ the owner's existing project `.env`, while the retained baseline override does
 not pass this new argument. A pure command-construction check failed before
 this correction and passed afterward. Fixed-target live activation, owner
 credential operations, authenticated collection, and complete M6 remain Not Run.
+
+Two subsequent sequential private copies upgraded successfully on the stable
+candidate. An additional real-data diagnostic run observed `upgrade_required`,
+`v1_0707`, integrity `passed`, policy `passed` before the upgrade and
+`compatible`, `v1_0717`, integrity `passed`, policy `passed` afterward. The
+earlier `target_schema_invalid` cause remains unknown. The migration command
+now reports only closed compatibility state, target/other/missing revision,
+integrity and policy on that failure; a real empty-SQLite diagnostic test
+failed before this helper existed and passed afterward. No live state or
+credential was modified.

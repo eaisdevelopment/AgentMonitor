@@ -425,3 +425,16 @@ def test_existing_real_locks_can_span_upgrade_with_preassigned_backup(
         service_lease.validate(tmp_path)
     with pytest.raises(MigrationRefused):
         settings_lease.validate(tmp_path)
+
+
+def test_real_schema_diagnostic_uses_closed_compatibility_state(tmp_path: Path) -> None:
+    from tools.automation.implementations.auto_migrate import _target_schema_diagnostic
+
+    reference = _prior_database(tmp_path, "v1_0708")
+    view = InspectSchemaCompatibilityV1(
+        reference, application_schema_range(), "runtime_read_write"
+    )
+    assert _target_schema_diagnostic(view) == (
+        "target_schema_invalid state=upgrade_required revision=other "
+        "integrity=passed policy=passed"
+    )

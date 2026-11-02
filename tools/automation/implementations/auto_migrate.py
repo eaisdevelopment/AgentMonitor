@@ -44,6 +44,7 @@ from agentmonitor.adapters.persistence._shared.sqlite.schema.compatibility impor
     InspectSchemaCompatibilityV1,
     MigrationCatalogV1,
     SchemaCompatibilityError,
+    SchemaCompatibilityViewV1,
     application_schema_range,
     load_migration_catalog,
 )
@@ -89,6 +90,21 @@ class MigrationRefused(RuntimeError):
 
 def _refuse(code: str, *, failed: bool = False) -> NoReturn:
     raise MigrationRefused(code, failed=failed) from None
+
+
+def _target_schema_diagnostic(view: SchemaCompatibilityViewV1) -> str:
+    """Expose only closed compatibility facts, never an untrusted revision."""
+    revision = (
+        "target"
+        if view.current_revision == TARGET
+        else "missing"
+        if view.current_revision is None
+        else "other"
+    )
+    return (
+        f"target_schema_invalid state={view.state} revision={revision} "
+        f"integrity={view.integrity_state} policy={view.policy_state}"
+    )
 
 
 def _safe_directory(path: Path) -> tuple[int, int]:
@@ -649,7 +665,7 @@ def run_upgrade(
             or view.integrity_state != "passed"
             or view.policy_state != "passed"
         ):
-            _refuse("target_schema_invalid", failed=True)
+            _refuse(_target_schema_diagnostic(view), failed=True)
         if backup_id is not None:
             backup = root / "backups" / backup_id
             if _digest_file(backup / "agentmonitor.db") != digest:
