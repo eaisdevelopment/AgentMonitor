@@ -6,6 +6,8 @@ import hashlib
 from collections.abc import Callable
 from datetime import datetime
 
+from sqlalchemy.engine import Connection
+
 from agentmonitor.adapters.persistence._shared.sqlite.core.policy import DatabaseRefV1
 from agentmonitor.adapters.persistence.capacity.sqlite.repository import (
     SqliteCapacityRepositoryV1,
@@ -18,8 +20,10 @@ from agentmonitor.adapters.persistence.collection_control.sqlite.repository impo
     SqliteCollectionRepositoryV1,
 )
 from agentmonitor.adapters.persistence.registry.sqlite.credential_bindings import (
+    CredentialBindingRepositoryErrorV1,
     SqliteCloudCredentialRegistryV1,
     SqliteCredentialBindingsV1,
+    ensure_cloud_verification_enqueue_authority_in_transaction,
 )
 from agentmonitor.adapters.persistence.registry.sqlite.repository import (
     SqliteRegistryRepositoryV1,
@@ -53,6 +57,9 @@ from agentmonitor.modules.registry.application.organizations import (
 from agentmonitor.modules.registry.domain.cloud_connection_status import (
     derive_connection_status,
 )
+from agentmonitor.modules.registry.domain.cloud_verification import (
+    cloud_verification_enqueue_account_version,
+)
 from agentmonitor.modules.registry.domain.credential_binding import (
     resolve_active_credential_binding,
 )
@@ -66,6 +73,57 @@ def _enqueue_conflict(
     return None
 
 
+class _AtomicVerificationEnqueueRepositoryV1(SqliteOllamaCloudAdmissionRepositoryV1):
+    """Bind a new M04 job to current M02 authority in the same transaction."""
+
+    def __init__(
+        self,
+        reference: DatabaseRefV1,
+        *,
+        expected_account_record_version: int,
+        binding: ActiveCredentialBindingRefV1,
+        expected_manifest_fingerprint: str,
+    ) -> None:
+        super().__init__(reference)
+        self._expected_account_record_version = expected_account_record_version
+        self._binding = binding
+        self._expected_manifest_fingerprint = expected_manifest_fingerprint
+
+    def _fence_new_verification_job(
+        self,
+        connection: Connection,
+        request: OllamaCloudVerificationEnqueueV1,
+        *,
+        profile_id: OpaqueIdV1,
+        resource_id: OpaqueIdV1,
+    ) -> None:
+        if (
+            request.account_id != self._binding.account_id
+            or request.binding_generation != self._binding.generation
+        ):
+            raise OllamaCloudAdmissionRepositoryErrorV1(
+                "ollama_cloud_verification_authority_unavailable"
+            )
+        try:
+            ensure_cloud_verification_enqueue_authority_in_transaction(
+                connection,
+                account_id=request.account_id,
+                expected_account_record_version=(self._expected_account_record_version),
+                profile_id=profile_id,
+                resource_id=resource_id,
+                access_target_id=request.access_target_id,
+                binding=self._binding,
+                expected_manifest_fingerprint=self._expected_manifest_fingerprint,
+            )
+        except CredentialBindingRepositoryErrorV1 as error:
+            code = (
+                "ollama_cloud_verification_account_version_conflict"
+                if str(error) == "credential_binding_account_version_conflict"
+                else "ollama_cloud_verification_authority_unavailable"
+            )
+            raise OllamaCloudAdmissionRepositoryErrorV1(code) from None
+
+
 class OllamaCloudConnectionServiceV1:
     """Prepare one owner-asserted request; the worker owns all later I/O.
 
@@ -75,6 +133,7 @@ class OllamaCloudConnectionServiceV1:
     """
 
     def __init__(self, reference: DatabaseRefV1, *, ready: Callable[[], bool]) -> None:
+        self._reference = reference
         self._registry = SqliteRegistryRepositoryV1(reference)
         self._bindings = SqliteCredentialBindingsV1(reference)
         self._cloud = SqliteCloudCredentialRegistryV1(reference)
@@ -237,10 +296,11 @@ class OllamaCloudConnectionServiceV1:
             as_of=command.requested_at,
         )
         graph = self._cloud.read_monitoring_target(command.account_id)
-        if (
+        owner_assertion_required = (
             graph is None
             or account.record_version != command.expected_account_record_version
-        ):
+        )
+        if owner_assertion_required:
             account, graph = AssertCredentialAccountOwnershipV1(self._registry)(
                 AssertCredentialAccountOwnershipCommandV1(
                     command.idempotency_key,
@@ -252,6 +312,16 @@ class OllamaCloudConnectionServiceV1:
                     command.requested_at,
                 )
             )
+        expected_enqueue_account_record_version = (
+            cloud_verification_enqueue_account_version(
+                command_expected_version=command.expected_account_record_version,
+                owner_assertion_required=owner_assertion_required,
+            )
+        )
+        if account.record_version != expected_enqueue_account_record_version:
+            raise RegistryCommandConflictV1("registry_account_version_conflict")
+        if graph is None:
+            raise ValueError("ollama_cloud_target_changed")
         if (
             graph.account_id != command.account_id
             or graph.access_target_id != target.access_target_id
@@ -287,7 +357,14 @@ class OllamaCloudConnectionServiceV1:
             )
         )
         try:
-            self._admission.enqueue_verification(
+            _AtomicVerificationEnqueueRepositoryV1(
+                self._reference,
+                expected_account_record_version=(
+                    expected_enqueue_account_record_version
+                ),
+                binding=binding,
+                expected_manifest_fingerprint=ollama_cloud_probe_fingerprint(),
+            ).enqueue_verification(
                 OllamaCloudVerificationEnqueueV1(
                     command.idempotency_key,
                     command.principal_id,
@@ -299,6 +376,10 @@ class OllamaCloudConnectionServiceV1:
                 )
             )
         except OllamaCloudAdmissionRepositoryErrorV1 as error:
+            if error.code == "ollama_cloud_verification_account_version_conflict":
+                raise RegistryCommandConflictV1(
+                    "registry_account_version_conflict"
+                ) from None
             conflict = _enqueue_conflict(error)
             if conflict is not None:
                 raise conflict from None

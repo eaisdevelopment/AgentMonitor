@@ -504,6 +504,19 @@ class SqliteOllamaCloudAdmissionRepositoryV1:
     def __init__(self, database_ref: DatabaseRefV1) -> None:
         self._database_ref = database_ref
 
+    def _fence_new_verification_job(
+        self,
+        connection: Connection,
+        request: OllamaCloudVerificationEnqueueV1,
+        *,
+        profile_id: OpaqueIdV1,
+        resource_id: OpaqueIdV1,
+    ) -> None:
+        """Require a composition-owned authority fence before a new job."""
+        raise OllamaCloudAdmissionRepositoryErrorV1(
+            "ollama_cloud_verification_authority_unavailable"
+        )
+
     def preferred_work_lane(self) -> str:
         """Choose fairly from the latest durable global admission."""
         try:
@@ -1384,25 +1397,35 @@ class SqliteOllamaCloudAdmissionRepositoryV1:
                             )
                         connection.rollback()
                         return _verification_job(existing)
-                    target = connection.exec_driver_sql(
-                        "SELECT 1 FROM collection_schedule WHERE schedule_id=? "
-                        "AND account_id=? AND provider_key=? AND capability_id=? "
-                        "AND provider_target_kind='cloud_service' "
-                        "AND provider_target_id=? AND target_generation=? "
-                        "AND state='enabled'",
-                        (
-                            request.schedule_id.value,
-                            request.account_id.value,
-                            _PROVIDER_KEY,
-                            _CAPABILITY_ID,
-                            request.access_target_id.value,
-                            request.binding_generation,
-                        ),
-                    ).first()
+                    target = (
+                        connection.exec_driver_sql(
+                            "SELECT profile_id,resource_id FROM collection_schedule WHERE schedule_id=? "
+                            "AND account_id=? AND provider_key=? AND capability_id=? "
+                            "AND provider_target_kind='cloud_service' "
+                            "AND provider_target_id=? AND target_generation=? "
+                            "AND state='enabled'",
+                            (
+                                request.schedule_id.value,
+                                request.account_id.value,
+                                _PROVIDER_KEY,
+                                _CAPABILITY_ID,
+                                request.access_target_id.value,
+                                request.binding_generation,
+                            ),
+                        )
+                        .mappings()
+                        .one_or_none()
+                    )
                     if target is None:
                         raise OllamaCloudAdmissionRepositoryErrorV1(
                             "ollama_cloud_verification_target_unavailable"
                         )
+                    self._fence_new_verification_job(
+                        connection,
+                        request,
+                        profile_id=OpaqueIdV1(str(target["profile_id"])),
+                        resource_id=OpaqueIdV1(str(target["resource_id"])),
+                    )
                     active = connection.exec_driver_sql(
                         "SELECT 1 FROM collection_cloud_verification_job "
                         "WHERE account_id=? AND binding_generation=? "

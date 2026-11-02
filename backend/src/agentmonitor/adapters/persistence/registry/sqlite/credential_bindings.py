@@ -32,6 +32,9 @@ from agentmonitor.modules.registry.domain.account import (
     RegistryPolicyErrorV1,
     decide_account_monitoring,
 )
+from agentmonitor.modules.registry.domain.cloud_verification import (
+    require_cloud_verification_enqueue_authority,
+)
 from agentmonitor.modules.registry.domain.credential_binding import (
     activate_prepared_credential_binding,
     complete_credential_binding_cleanup,
@@ -41,6 +44,7 @@ from agentmonitor.modules.registry.domain.credential_binding import (
     mark_pending_credential_binding_cleanup,
     new_credential_binding_aggregate,
     prepare_credential_binding,
+    resolve_active_credential_binding,
 )
 
 
@@ -231,6 +235,98 @@ def ensure_access_target_in_transaction(
             "credential_binding_target_unavailable"
         )
     return _access_target(row)
+
+
+def ensure_cloud_verification_enqueue_authority_in_transaction(
+    connection: Connection,
+    *,
+    account_id: OpaqueIdV1,
+    expected_account_record_version: int,
+    profile_id: OpaqueIdV1,
+    resource_id: OpaqueIdV1,
+    access_target_id: OpaqueIdV1,
+    binding: ActiveCredentialBindingRefV1,
+    expected_manifest_fingerprint: str,
+) -> None:
+    """Fence a new M04 verification job by current M02 authority atomically."""
+    if not connection.in_transaction() or binding.account_id != account_id:
+        raise CredentialBindingRepositoryErrorV1(
+            "credential_binding_transaction_required"
+        )
+    account = (
+        connection.exec_driver_sql(
+            "SELECT provider_key,lifecycle,identity_state,monitoring_preference,"
+            "record_version FROM reg_account WHERE account_id=?",
+            (account_id.value,),
+        )
+        .mappings()
+        .one_or_none()
+    )
+    if account is None:
+        raise CredentialBindingRepositoryErrorV1(
+            "credential_binding_enqueue_authority_unavailable"
+        )
+    target = (
+        connection.exec_driver_sql(
+            "SELECT t.provider_key,t.target_kind,t.authority_id,"
+            "t.manifest_fingerprint,t.lifecycle "
+            "FROM reg_provider_access_target t JOIN reg_provider_definition p "
+            "ON p.provider_key=t.provider_key AND p.lifecycle='active' "
+            "WHERE t.access_target_id=?",
+            (access_target_id.value,),
+        )
+        .mappings()
+        .one_or_none()
+    )
+    graph_is_exact = (
+        connection.exec_driver_sql(
+            "SELECT 1 FROM reg_cloud_monitoring_target WHERE account_id=? "
+            "AND profile_id=? AND resource_id=? AND access_target_id=? "
+            "AND binding_id=? AND binding_generation=? AND lifecycle='active' "
+            "AND identity_state='owner_confirmed'",
+            (
+                account_id.value,
+                profile_id.value,
+                resource_id.value,
+                access_target_id.value,
+                binding.binding_id.value,
+                binding.generation,
+            ),
+        ).first()
+        is not None
+    )
+    binding_is_current = (
+        resolve_active_credential_binding(_load(connection, account_id)) == binding
+    )
+    try:
+        require_cloud_verification_enqueue_authority(
+            account_provider=str(account["provider_key"]),
+            account_lifecycle=str(account["lifecycle"]),
+            account_identity_state=str(account["identity_state"]),
+            account_monitoring_preference=str(account["monitoring_preference"]),
+            account_record_version=int(account["record_version"]),
+            expected_account_record_version=expected_account_record_version,
+            target_provider=str(target["provider_key"]) if target is not None else "",
+            target_kind=str(target["target_kind"]) if target is not None else "",
+            target_authority=(
+                str(target["authority_id"]) if target is not None else ""
+            ),
+            target_lifecycle=str(target["lifecycle"]) if target is not None else "",
+            target_manifest_is_exact=(
+                target is not None
+                and target["manifest_fingerprint"] == expected_manifest_fingerprint
+            ),
+            graph_is_exact=graph_is_exact,
+            binding_is_current=binding_is_current,
+        )
+    except ValueError as error:
+        if str(error) == "registry_account_version_conflict":
+            raise CredentialBindingRepositoryErrorV1(
+                "credential_binding_account_version_conflict"
+            ) from None
+        raise CredentialBindingRepositoryErrorV1(
+            "credential_binding_enqueue_authority_unavailable"
+        ) from None
 
 
 def ensure_cloud_target_graph_in_transaction(
