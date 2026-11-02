@@ -12,3 +12,10 @@ assert.equal(ollamaCloudConnectionCopy("unauthorized").title, "Ollama rejected t
 assert.equal(ollamaCloudConnectionCopy("rate_limited").title, "Ollama temporarily limited requests");
 assert.equal(ollamaCloudConnectionCopy("unknown_new_state").title, "Connection status unavailable");
 console.log("OLLAMA CLOUD CONNECTION COPY: PASSED");
+
+import { ollamaCloudConnectionAction } from "../../src/features/accounts/ollamaCloudConnection.ts";
+assert.equal(ollamaCloudConnectionAction("not_configured", true), "Check connection");
+assert.equal(ollamaCloudConnectionAction("access_valid_identity_unresolved", true), null);
+assert.equal(ollamaCloudConnectionAction("pending", true), null);
+assert.equal(ollamaCloudConnectionAction("unknown_new_state", true), null);
+assert.equal(ollamaCloudConnectionAction("not_configured", false), null);

@@ -19,3 +19,10 @@ export function ollamaCloudConnectionCopy(state: string): OllamaCloudConnectionC
       return { title: "Connection status unavailable", description: "AgentMonitor cannot currently confirm this account's connection." };
   }
 }
+
+/** Show an action only when the server explicitly permits a known retry state. */
+export function ollamaCloudConnectionAction(state: string, canVerify: boolean): string | null {
+  if (!canVerify) return null;
+  if (["not_configured", "unauthorized", "authorization_unavailable"].includes(state)) return "Check connection";
+  return null;
+}

@@ -13,3 +13,9 @@ Its pure presentation check failed before the formatter existed and passes after
 it was added (`node --experimental-strip-types frontend/tests/pure/ollama-cloud-connection.mjs`).
 This formatter is not connected to a dashboard endpoint; no owner onboarding,
 credential entry, real account, browser display, or live verification is claimed.
+
+The prepared connection panel accepts a server-provided state and explicit
+verification permission; unknown states cannot produce an action. A pure test
+failed before the action policy existed and passed after it was added. Frontend
+typecheck passed. The panel is not yet routed or connected to an API; no built
+browser or live account verification was performed for it.
