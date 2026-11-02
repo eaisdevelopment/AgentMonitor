@@ -104,7 +104,12 @@ def test_disposable_unit_and_real_backup_migration(
             command.upgrade(config, "v1_0708")
             connection.commit()
     baseline = Path("/home/dev/.local/share/agentmonitor/worktrees/m6-integration")
-    candidate = Path("/home/dev/.local/share/agentmonitor/worktrees/m6-cloud-final")
+    candidate = Path(
+        os.environ.get(
+            "AGENTMONITOR_TEST_CANDIDATE",
+            "/home/dev/.local/share/agentmonitor/worktrees/m6-cloud-final",
+        )
+    )
     revision = subprocess.run(
         ["git", "rev-parse", "HEAD"],
         cwd=candidate,
