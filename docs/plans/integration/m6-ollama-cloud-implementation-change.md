@@ -38,6 +38,13 @@ path has changed, the local operator can use the retained non-secret location
 for disconnect and cleanup only; it cannot enroll a new key in that mode. This
 recovery requires no new approval.
 
+After restoring an older database, managed `.env` entries may outlive their
+binding records. The app retains the non-secret location while such entries
+exist. The local operator can remove only leftover AgentMonitor-managed entries
+when M02 proves no pending, active or cleanup-pending binding exists; account
+creation is fenced during that cleanup. Reconnect the account afterward if it
+is still needed. No entry values or opaque identifiers are shown to the owner.
+
 ## Outcome and scope
 
 An administrator can add any number of Ollama accounts through existing organization/account administration, connect each to an owner-provided official API key on the server, and see its actual cloud balance, freshness, history and applicable alerts. SDK and EAIS are examples of administrator-created groups, never hardcoded identities. The provider's documented balance variations and possible team sharing are preserved, not flattened into invented percentages. Local-model and process functionality remains in the approved local plan and the overall M6 plan; this plan covers the cloud work and its integration, not the whole milestone.

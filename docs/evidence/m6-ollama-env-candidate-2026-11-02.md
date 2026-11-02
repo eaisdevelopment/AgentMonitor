@@ -29,6 +29,12 @@ M6-A03, M6-A04, M6-A09; the M02 binding and M03 source contracts/fingerprint
 require reconciliation. No database migration or new dependency is introduced
 by the file writer. The full M6 completion gate has not passed.
 
+Restore recovery retains the location while managed entry names remain, even
+if an older database contains no binding. The local operator can request
+reserved-prefix orphan cleanup only under an M02 zero-unfinished-binding write
+fence. This new cross-module boundary, real restore, file update, process races
+and crash recovery remain unreviewed or Not Run.
+
 The candidate provider now receives a sealed file authority for the same
 explicit path, acquires the shared writer lock, streams the selected binding
 entry, and reloads per attempt. Forty-eight focused pure and provider-free

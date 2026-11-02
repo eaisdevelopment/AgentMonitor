@@ -17,6 +17,7 @@ from agentmonitor.adapters.persistence.registry.sqlite.repository import (
 )
 from agentmonitor.composition.ollama_credential_enrollment import (
     cleanup_ollama_credential,
+    cleanup_untracked_ollama_credentials,
     disconnect_ollama_credential,
     enroll_ollama_credential,
 )
@@ -191,6 +192,16 @@ def main(argv: list[str] | None = None) -> int:
                 return 2
             cursor = account_page[-1].account_id.value
         if not accounts:
+            if not SqliteCredentialBindingsV1(reference).has_unfinished_bindings():
+                action = input(
+                    "No Ollama accounts need cleanup. "
+                    "Enter 1 to remove leftover AgentMonitor entries, "
+                    "or Enter to cancel: "
+                ).strip()
+                if action == "1":
+                    cleanup_untracked_ollama_credentials(reference, env_file)
+                    print("Leftover AgentMonitor credential entries removed.")
+                    return 0
             print("No Ollama accounts found. Add an account in the dashboard first.")
             return 1
         print("Choose an Ollama account to connect or rotate:")

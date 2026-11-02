@@ -148,9 +148,7 @@ def env_location_matches(staging_root: Path, env_path: Path) -> bool:
         os.close(root)
 
 
-def read_env_location(staging_root: Path) -> Path:
-    """Read the non-secret retained location for offline credential cleanup."""
-    root, lock = _acquire_staging_guard(staging_root)
+def _read_location_at(root: int) -> Path:
     descriptor = None
     try:
         descriptor = os.open(
@@ -175,8 +173,93 @@ def read_env_location(staging_root: Path) -> Path:
     finally:
         if descriptor is not None:
             os.close(descriptor)
+
+
+def read_env_location(staging_root: Path) -> Path:
+    """Read the non-secret retained location for offline credential cleanup."""
+    root, lock = _acquire_staging_guard(staging_root)
+    try:
+        return _read_location_at(root)
+    finally:
         os.close(lock)
         os.close(root)
+
+
+def _managed_binding_ids(env_path: Path) -> tuple[str, ...]:
+    """Scan entry names only; never retain, return or print credential values."""
+    root = _open_env_parent(env_path)
+    lock = None
+    source = None
+    try:
+        lock = os.open(
+            ".ollama-env.lock", os.O_RDWR | os.O_NOFOLLOW | os.O_NONBLOCK, dir_fd=root
+        )
+        fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        held = os.fstat(lock)
+        entry = os.stat(".ollama-env.lock", dir_fd=root, follow_symlinks=False)
+        if (
+            not _private_file(held)
+            or not _private_file(entry)
+            or (held.st_dev, held.st_ino) != (entry.st_dev, entry.st_ino)
+        ):
+            raise ValueError("ollama_env_lock_invalid")
+        source = os.open(
+            ".env", os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK, dir_fd=root
+        )
+        metadata = os.fstat(source)
+        if not _private_file(metadata) or metadata.st_size > _MAX_ENV_BYTES:
+            raise ValueError("ollama_env_file_invalid")
+        prefix = b"AGENTMONITOR_OLLAMA_API_KEY_AMCB_"
+        bindings: list[str] = []
+        name = bytearray()
+        in_value = False
+        while byte := os.read(source, 1):
+            if byte == b"\n":
+                name.clear()
+                in_value = False
+            elif not in_value and byte == b"=":
+                candidate = bytes(name).strip()
+                if candidate.startswith(b"export "):
+                    candidate = candidate[7:].lstrip()
+                if candidate.startswith(prefix):
+                    suffix = candidate[len(prefix) :]
+                    if (
+                        re.fullmatch(rb"[0-9A-F]{32}", suffix) is None
+                        or len(bindings) >= 1000
+                    ):
+                        raise ValueError("ollama_env_entry_name_invalid")
+                    bindings.append("amcb_" + suffix.decode("ascii").lower())
+                name.clear()
+                in_value = True
+            elif not in_value:
+                if len(name) >= 256:
+                    raise ValueError("ollama_env_entry_name_invalid")
+                name.extend(byte)
+        entry = os.stat(".env", dir_fd=root, follow_symlinks=False)
+        if not _private_file(entry) or (
+            entry.st_dev,
+            entry.st_ino,
+            entry.st_size,
+            entry.st_mtime_ns,
+            entry.st_ctime_ns,
+        ) != (
+            metadata.st_dev,
+            metadata.st_ino,
+            metadata.st_size,
+            metadata.st_mtime_ns,
+            metadata.st_ctime_ns,
+        ):
+            raise ValueError("ollama_env_file_changed")
+        if len(set(bindings)) != len(bindings):
+            raise ValueError("ollama_env_entry_ambiguous")
+        return tuple(bindings)
+    finally:
+        for descriptor in (source, lock, root):
+            if descriptor is not None:
+                try:
+                    os.close(descriptor)
+                except OSError:
+                    pass
 
 
 def release_env_location_if_unused(
@@ -187,7 +270,7 @@ def release_env_location_if_unused(
     try:
         if not _location_matches(root, env_path, create=False):
             return
-        if not has_unfinished_bindings():
+        if not has_unfinished_bindings() and not _managed_binding_ids(env_path):
             _validate_staging_guard(root, lock)
             os.unlink(_LOCATION_NAME, dir_fd=root)
             os.fsync(root)
@@ -210,6 +293,8 @@ def recover_env_location_if_unused(
             return
         if not _private_file(entry):
             raise ValueError("ollama_env_location_invalid")
+        if _managed_binding_ids(_read_location_at(root)):
+            return
         _validate_staging_guard(root, lock)
         os.unlink(_LOCATION_NAME, dir_fd=root)
         os.fsync(root)

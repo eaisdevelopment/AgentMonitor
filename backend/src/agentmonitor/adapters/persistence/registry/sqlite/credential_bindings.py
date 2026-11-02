@@ -4,6 +4,7 @@
 
 import hashlib
 import secrets
+from collections.abc import Callable
 from datetime import UTC, datetime, timedelta
 from typing import Literal
 
@@ -746,6 +747,29 @@ class SqliteCredentialBindingsV1:
                             "WHERE lifecycle IN ('pending','active','cleanup_pending'))"
                         ).scalar_one()
                     )
+        except (SqlitePolicyError, SQLAlchemyError):
+            raise CredentialBindingRepositoryErrorV1(
+                "credential_binding_unavailable"
+            ) from None
+
+    def while_no_unfinished_bindings(self, operation: Callable[[], None]) -> None:
+        """Fence bounded orphan cleanup against concurrent binding creation."""
+        try:
+            with open_sqlite_database(self._reference, "runtime_read_write") as handle:
+                with handle.connect() as connection:
+                    connection.exec_driver_sql("BEGIN IMMEDIATE")
+                    unfinished = connection.exec_driver_sql(
+                        "SELECT EXISTS(SELECT 1 FROM reg_credential_binding "
+                        "WHERE lifecycle IN ('pending','active','cleanup_pending'))"
+                    ).scalar_one()
+                    if unfinished:
+                        raise CredentialBindingRepositoryErrorV1(
+                            "credential_binding_cleanup_busy"
+                        )
+                    operation()
+                    connection.rollback()
+        except CredentialBindingRepositoryErrorV1:
+            raise
         except (SqlitePolicyError, SQLAlchemyError):
             raise CredentialBindingRepositoryErrorV1(
                 "credential_binding_unavailable"
