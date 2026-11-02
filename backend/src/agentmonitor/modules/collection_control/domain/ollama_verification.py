@@ -26,6 +26,29 @@ RECONCILABLE_VERIFICATION_RUN_STATES_V1: tuple[CollectionRunStateV1, ...] = (
 )
 
 
+def decide_cloud_verification_replay(
+    *,
+    existing_account_id: str,
+    existing_expected_account_record_version: int | None,
+    request_account_id: str,
+    request_expected_account_record_version: int,
+) -> Literal["replay"]:
+    """Permit replay only for the original external initiation request."""
+    if (
+        not existing_account_id
+        or not request_account_id
+        or type(request_expected_account_record_version) is not int
+        or request_expected_account_record_version < 1
+        or type(existing_expected_account_record_version) is not int
+        or existing_expected_account_record_version < 1
+        or existing_account_id != request_account_id
+        or existing_expected_account_record_version
+        != request_expected_account_record_version
+    ):
+        raise ValueError("ollama_cloud_verification_idempotency_conflict")
+    return "replay"
+
+
 def classify_latest_ollama_cloud_source_signal_v1(
     *,
     run_state: str,

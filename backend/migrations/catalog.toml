@@ -1,5 +1,5 @@
-version = "1.7.16"
-head = "v1_0716"
+version = "1.7.17"
+head = "v1_0717"
 env_sha256 = "27449e3ed3984acde690510f9e4974eb6412f5f1b7e62af65bc8bb616879a7d7"
 
 [[revisions]]
@@ -772,3 +772,25 @@ backup_prerequisite = "required_existing_database"
 validation_ids = ["single_head", "m04_cloud_verification_job_schema", "foreign_key_check", "full_integrity"]
 recovery_policy = "preserve_failed_database_and_restore_verified_backup_or_forward_fix"
 reviewer = "M04-M6-cloud-verification-job-review"
+
+[[revisions]]
+ordinal = 717
+filename = "v1_0717_m04_cloud_verification_replay.py"
+sha256 = "bb7a0087d5bfe6000553c170a7b761cfdd62964aaa3d2cfac3ec96fc77c44289"
+status = "implemented"
+reviewed_at = "2026-11-02"
+revision = "v1_0717"
+parent_revision = "v1_0716"
+owner = "M04"
+plan_id = "PLAN-M04"
+requirement_ids = ["FR-COL-003", "FR-COL-005", "FR-COL-007", "M6-A07", "M6-A09", "NFR-DATA-001"]
+schema_range = ["v1_0717", "v1_0717", "v1_0717", "v1_0717", "v1_0717"]
+tables = ["collection_cloud_verification_job"]
+portability_notes = ["New verification jobs retain the external account version as part of their durable idempotency identity", "Legacy jobs remain nullable and fail closed rather than being assigned an invented request version"]
+lock_policy = "exclusive_migration_and_begin_immediate"
+downtime_policy = "offline_additive_schema_migration"
+expected_data_volume = "one nullable bounded integer per verification request"
+backup_prerequisite = "required_existing_database"
+validation_ids = ["single_head", "m04_cloud_verification_replay_schema", "foreign_key_check", "full_integrity"]
+recovery_policy = "preserve_failed_database_and_restore_verified_backup_or_forward_fix"
+reviewer = "pending-M04-independent-review"

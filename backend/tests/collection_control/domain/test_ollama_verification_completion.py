@@ -5,9 +5,47 @@ import pytest
 from agentmonitor.modules.collection_control.domain.ollama_verification import (
     RECONCILABLE_VERIFICATION_RUN_STATES_V1,
     VERIFICATION_RESPONSE_OUTCOME_V1,
+    decide_cloud_verification_replay,
     verification_completion_decision,
     verification_lineage_matches,
 )
+
+
+def test_exact_verification_request_replays_after_account_version_moves() -> None:
+    assert (
+        decide_cloud_verification_replay(
+            existing_account_id="account-1",
+            existing_expected_account_record_version=4,
+            request_account_id="account-1",
+            request_expected_account_record_version=4,
+        )
+        == "replay"
+    )
+
+
+@pytest.mark.parametrize(
+    "existing_account_id,existing_version,request_account_id,request_version",
+    (
+        ("account-1", 4, "account-1", 5),
+        ("account-1", 4, "account-2", 4),
+        ("account-1", None, "account-1", 4),
+    ),
+)
+def test_changed_or_legacy_verification_request_cannot_replay(
+    existing_account_id: str,
+    existing_version: int | None,
+    request_account_id: str,
+    request_version: int,
+) -> None:
+    with pytest.raises(
+        ValueError, match="ollama_cloud_verification_idempotency_conflict"
+    ):
+        decide_cloud_verification_replay(
+            existing_account_id=existing_account_id,
+            existing_expected_account_record_version=existing_version,
+            request_account_id=request_account_id,
+            request_expected_account_record_version=request_version,
+        )
 
 
 def test_successful_response_waits_for_terminal_run_and_receipt() -> None:

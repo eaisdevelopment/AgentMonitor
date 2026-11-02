@@ -389,6 +389,29 @@ def _cloud_access_target_id(value: OpaqueIdV1) -> bool:
 
 
 @dataclass(frozen=True, slots=True)
+class OllamaCloudVerificationReplayQueryV1(TechnicalValueV1):
+    """Lookup one external initiation request before current-state fencing."""
+
+    CONTRACT_ID: ClassVar[str] = "CTR-COL-010"
+    OWNER: ClassVar[str] = "PLAN-M04"
+
+    idempotency_key: OpaqueIdV1
+    principal_id: OpaqueIdV1
+    account_id: OpaqueIdV1
+    expected_account_record_version: int
+
+    def __post_init__(self) -> None:
+        TechnicalValueV1.__post_init__(self)
+        if (
+            type(self.expected_account_record_version) is not int
+            or self.expected_account_record_version < 1
+        ):
+            raise InvalidCollectionControlV1(
+                "ollama_cloud_verification_replay_query_invalid"
+            )
+
+
+@dataclass(frozen=True, slots=True)
 class OllamaCloudVerificationEnqueueV1(TechnicalValueV1):
     """Create-once owner request bound to one exact cloud credential generation."""
 
@@ -413,6 +436,23 @@ class OllamaCloudVerificationEnqueueV1(TechnicalValueV1):
         ):
             raise InvalidCollectionControlV1(
                 "ollama_cloud_verification_enqueue_invalid"
+            )
+
+
+@dataclass(frozen=True, slots=True)
+class OllamaCloudVerificationEnqueueV2(OllamaCloudVerificationEnqueueV1):
+    """V2 initiation identity retains the external account version."""
+
+    expected_account_record_version: int
+
+    def __post_init__(self) -> None:
+        super(OllamaCloudVerificationEnqueueV2, self).__post_init__()
+        if (
+            type(self.expected_account_record_version) is not int
+            or self.expected_account_record_version < 1
+        ):
+            raise InvalidCollectionControlV1(
+                "ollama_cloud_verification_enqueue_v2_invalid"
             )
 
 

@@ -13,10 +13,11 @@ from agentmonitor.contracts.collection_control_v1 import (
     OllamaCloudVerificationAcquireV1,
     OllamaCloudVerificationClaimRequestV1,
     OllamaCloudVerificationClaimTerminalV1,
-    OllamaCloudVerificationEnqueueV1,
+    OllamaCloudVerificationEnqueueV2,
     OllamaCloudVerificationInterruptionProofV1,
     OllamaCloudVerificationJobClaimV1,
     OllamaCloudVerificationJobViewV1,
+    OllamaCloudVerificationReplayQueryV1,
     OllamaCloudVerificationStatusV1,
     OllamaCloudVerificationTargetV1,
 )
@@ -42,8 +43,12 @@ class OllamaCloudAdmissionRepositoryV1(Protocol):
     ) -> OllamaCloudAdmissionDecisionV1: ...
 
     def enqueue_verification(
-        self, request: OllamaCloudVerificationEnqueueV1
+        self, request: OllamaCloudVerificationEnqueueV2
     ) -> OllamaCloudVerificationJobViewV1: ...
+
+    def replay_verification(
+        self, query: OllamaCloudVerificationReplayQueryV1
+    ) -> OllamaCloudVerificationJobViewV1 | None: ...
 
     def claim_verification(
         self, request: OllamaCloudVerificationClaimRequestV1
@@ -127,14 +132,14 @@ class AcquireOllamaCloudVerificationV1:
         return self._repository.acquire_verification(request)
 
 
-class EnqueueOllamaCloudVerificationV1:
-    """Persist an owner request without doing keyring or provider I/O."""
+class EnqueueOllamaCloudVerificationV2:
+    """Persist a version-fenced owner request without provider I/O."""
 
     def __init__(self, repository: OllamaCloudAdmissionRepositoryV1) -> None:
         self._repository = repository
 
     def __call__(
-        self, request: OllamaCloudVerificationEnqueueV1
+        self, request: OllamaCloudVerificationEnqueueV2
     ) -> OllamaCloudVerificationJobViewV1:
         return self._repository.enqueue_verification(request)
 

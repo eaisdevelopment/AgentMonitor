@@ -8,10 +8,11 @@ from agentmonitor.contracts.collection_control_v1 import (
     InvalidCollectionControlV1,
     OllamaCloudVerificationClaimRequestV1,
     OllamaCloudVerificationClaimTerminalV1,
-    OllamaCloudVerificationEnqueueV1,
+    OllamaCloudVerificationEnqueueV2,
     OllamaCloudVerificationInterruptionProofV1,
     OllamaCloudVerificationJobClaimV1,
     OllamaCloudVerificationJobViewV1,
+    OllamaCloudVerificationReplayQueryV1,
     OllamaCloudVerificationStatusV1,
 )
 from agentmonitor.contracts.common_v1 import OpaqueIdV1
@@ -41,14 +42,21 @@ def claim() -> OllamaCloudVerificationJobClaimV1:
 
 
 def test_verification_enqueue_and_claim_are_exact_bounded_values() -> None:
-    enqueue = OllamaCloudVerificationEnqueueV1(
+    enqueue = OllamaCloudVerificationEnqueueV2(
         idempotency_key=oid("request-1"),
         principal_id=oid("principal-1"),
         schedule_id=oid("schedule-1"),
         account_id=oid("account-1"),
         access_target_id=oid("amat_" + "2" * 32),
         binding_generation=3,
+        expected_account_record_version=4,
         requested_at=NOW,
+    )
+    replay = OllamaCloudVerificationReplayQueryV1(
+        idempotency_key=enqueue.idempotency_key,
+        principal_id=enqueue.principal_id,
+        account_id=enqueue.account_id,
+        expected_account_record_version=enqueue.expected_account_record_version,
     )
     request = OllamaCloudVerificationClaimRequestV1(
         worker_instance_id=oid("worker-1"),
@@ -57,6 +65,7 @@ def test_verification_enqueue_and_claim_are_exact_bounded_values() -> None:
     )
 
     assert enqueue.binding_generation == 3
+    assert replay.expected_account_record_version == 4
     assert request.claim_expires_at - request.claimed_at == timedelta(seconds=45)
     claimed = claim()
     assert claimed.fencing_token == 4

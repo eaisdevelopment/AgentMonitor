@@ -49,7 +49,8 @@ from agentmonitor.composition.ollama_cloud_collection import (
 from agentmonitor.contracts.cloud_schedule_status_v1 import CloudScheduleStatusV1
 from agentmonitor.contracts.collection_control_v1 import (
     OllamaCloudLatestSourceSignalQueryV1,
-    OllamaCloudVerificationEnqueueV1,
+    OllamaCloudVerificationEnqueueV2,
+    OllamaCloudVerificationReplayQueryV1,
     OllamaCloudVerificationTargetV1,
 )
 from agentmonitor.contracts.common_v1 import OpaqueIdV1
@@ -108,7 +109,7 @@ class _AtomicVerificationEnqueueRepositoryV1(SqliteOllamaCloudAdmissionRepositor
     def _fence_new_verification_job(
         self,
         connection: Connection,
-        request: OllamaCloudVerificationEnqueueV1,
+        request: OllamaCloudVerificationEnqueueV2,
         *,
         profile_id: OpaqueIdV1,
         resource_id: OpaqueIdV1,
@@ -368,6 +369,22 @@ class OllamaCloudConnectionServiceV1:
     def initiate(
         self, command: InitiateOllamaCloudVerificationCommandV1
     ) -> CredentialConnectionStatusV1:
+        try:
+            replay = self._admission.replay_verification(
+                OllamaCloudVerificationReplayQueryV1(
+                    command.idempotency_key,
+                    command.principal_id,
+                    command.account_id,
+                    command.expected_account_record_version,
+                )
+            )
+        except OllamaCloudAdmissionRepositoryErrorV1 as error:
+            conflict = _enqueue_conflict(error)
+            if conflict is not None:
+                raise conflict from None
+            raise
+        if replay is not None:
+            return self.read(command.account_id, command.requested_at)
         if not self._ready():
             raise ValueError("ollama_cloud_verification_unavailable")
         account = self._registry.get_account(command.account_id)
@@ -458,14 +475,17 @@ class OllamaCloudConnectionServiceV1:
                 binding=binding,
                 expected_manifest_fingerprint=ollama_cloud_probe_fingerprint(),
             ).enqueue_verification(
-                OllamaCloudVerificationEnqueueV1(
-                    command.idempotency_key,
-                    command.principal_id,
-                    schedule_id,
-                    command.account_id,
-                    target.access_target_id,
-                    binding.generation,
-                    command.requested_at,
+                OllamaCloudVerificationEnqueueV2(
+                    idempotency_key=command.idempotency_key,
+                    principal_id=command.principal_id,
+                    schedule_id=schedule_id,
+                    account_id=command.account_id,
+                    access_target_id=target.access_target_id,
+                    binding_generation=binding.generation,
+                    requested_at=command.requested_at,
+                    expected_account_record_version=(
+                        command.expected_account_record_version
+                    ),
                 )
             )
         except OllamaCloudAdmissionRepositoryErrorV1 as error:

@@ -34,11 +34,12 @@ from agentmonitor.contracts.collection_control_v1 import (
     OllamaCloudVerificationClaimRequestV1,
     OllamaCloudVerificationClaimTerminalV1,
     OllamaCloudVerificationDispatchCertaintyV1,
-    OllamaCloudVerificationEnqueueV1,
+    OllamaCloudVerificationEnqueueV2,
     OllamaCloudVerificationGateStateV1,
     OllamaCloudVerificationInterruptionProofV1,
     OllamaCloudVerificationJobClaimV1,
     OllamaCloudVerificationJobViewV1,
+    OllamaCloudVerificationReplayQueryV1,
     OllamaCloudVerificationStatusV1,
     OllamaCloudVerificationTargetV1,
 )
@@ -57,6 +58,7 @@ from agentmonitor.modules.collection_control.domain.ollama_verification import (
     RECONCILABLE_VERIFICATION_RUN_STATES_V1,
     VERIFICATION_RESPONSE_OUTCOME_V1,
     classify_latest_ollama_cloud_source_signal_v1,
+    decide_cloud_verification_replay,
     verification_completion_decision,
     verification_lineage_matches,
 )
@@ -507,7 +509,7 @@ class SqliteOllamaCloudAdmissionRepositoryV1:
     def _fence_new_verification_job(
         self,
         connection: Connection,
-        request: OllamaCloudVerificationEnqueueV1,
+        request: OllamaCloudVerificationEnqueueV2,
         *,
         profile_id: OpaqueIdV1,
         resource_id: OpaqueIdV1,
@@ -1360,8 +1362,53 @@ class SqliteOllamaCloudAdmissionRepositoryV1:
         except (SQLAlchemyError, SqlitePolicyError, OSError, ValueError, TypeError):
             raise OllamaCloudAdmissionRepositoryErrorV1() from None
 
+    def replay_verification(
+        self, query: OllamaCloudVerificationReplayQueryV1
+    ) -> OllamaCloudVerificationJobViewV1 | None:
+        """Return only the exact original initiation request, before new-work fencing."""
+        digest = _idempotency_digest(
+            query.principal_id.value, query.idempotency_key.value
+        )
+        try:
+            with open_sqlite_database(
+                self._database_ref, "runtime_read_only"
+            ) as handle:
+                with handle.connect() as connection:
+                    row = (
+                        connection.exec_driver_sql(
+                            "SELECT * FROM collection_cloud_verification_job "
+                            "WHERE principal_id=? AND idempotency_digest=?",
+                            (query.principal_id.value, digest),
+                        )
+                        .mappings()
+                        .one_or_none()
+                    )
+                    if row is None:
+                        return None
+                    decide_cloud_verification_replay(
+                        existing_account_id=str(row["account_id"]),
+                        existing_expected_account_record_version=(
+                            int(row["expected_account_record_version"])
+                            if row["expected_account_record_version"] is not None
+                            else None
+                        ),
+                        request_account_id=query.account_id.value,
+                        request_expected_account_record_version=(
+                            query.expected_account_record_version
+                        ),
+                    )
+                    return _verification_job(row)
+        except OllamaCloudAdmissionRepositoryErrorV1:
+            raise
+        except ValueError as error:
+            if str(error) == "ollama_cloud_verification_idempotency_conflict":
+                raise OllamaCloudAdmissionRepositoryErrorV1(str(error)) from None
+            raise OllamaCloudAdmissionRepositoryErrorV1() from None
+        except (SQLAlchemyError, SqlitePolicyError, OSError, TypeError):
+            raise OllamaCloudAdmissionRepositoryErrorV1() from None
+
     def enqueue_verification(
-        self, request: OllamaCloudVerificationEnqueueV1
+        self, request: OllamaCloudVerificationEnqueueV2
     ) -> OllamaCloudVerificationJobViewV1:
         """Create one private-idempotent job after rechecking the exact target."""
         digest = _idempotency_digest(
@@ -1391,6 +1438,8 @@ class SqliteOllamaCloudAdmissionRepositoryV1:
                             != request.access_target_id.value
                             or int(existing["binding_generation"])
                             != request.binding_generation
+                            or existing["expected_account_record_version"]
+                            != request.expected_account_record_version
                         ):
                             raise OllamaCloudAdmissionRepositoryErrorV1(
                                 "ollama_cloud_verification_idempotency_conflict"
@@ -1440,11 +1489,12 @@ class SqliteOllamaCloudAdmissionRepositoryV1:
                     connection.exec_driver_sql(
                         "INSERT INTO collection_cloud_verification_job "
                         "(job_id,principal_id,idempotency_digest,schedule_id,account_id,"
-                        "access_target_id,binding_generation,state,requested_at,not_before_at,"
+                        "access_target_id,binding_generation,expected_account_record_version,"
+                        "state,requested_at,not_before_at,"
                         "claim_owner_id,claim_fencing_token,claimed_at,claim_expires_at,"
                         "admission_id,run_id,dispatch_certainty,terminal_at,outcome,"
                         "reason_code,retry_after_seconds,record_version) "
-                        "VALUES (?,?,?,?,?,?,?,'queued',?,?,NULL,0,NULL,NULL,NULL,NULL,"
+                        "VALUES (?,?,?,?,?,?,?,?,'queued',?,?,NULL,0,NULL,NULL,NULL,NULL,"
                         "NULL,NULL,NULL,NULL,NULL,1)",
                         (
                             job_id,
@@ -1454,6 +1504,7 @@ class SqliteOllamaCloudAdmissionRepositoryV1:
                             request.account_id.value,
                             request.access_target_id.value,
                             request.binding_generation,
+                            request.expected_account_record_version,
                             instant,
                             instant,
                         ),
