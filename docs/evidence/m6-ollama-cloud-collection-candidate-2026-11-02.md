@@ -221,3 +221,10 @@ retryable wording and the actual last-check time, and never accepts a credential
 Frontend typecheck and production build pass. No authorized cloud account was available
 for a browser check; UI red/green, authenticated browser behavior and provider
 verification remain Not Run. The running dashboard was not changed.
+
+The candidate now holds the validated account credential lock from the final
+binding and M03 proof reads through the isolated helper and atomic commit. The
+helper and nested fixed Secret Service process inherit the same sealed lock;
+real disposable-process checks cover lock survival without entering a key.
+Authenticated source lookup, rotation during a real request, populated SQLite
+fences and live dashboard behavior remain Not Run. No credential was read.

@@ -26,6 +26,9 @@ from agentmonitor.adapters.persistence.registry.sqlite.credential_bindings impor
     SqliteCloudCredentialRegistryV1,
     SqliteCredentialBindingsV1,
 )
+from agentmonitor.adapters.persistence.registry.sqlite.credential_lock import (
+    account_credential_lock,
+)
 from agentmonitor.adapters.persistence.registry.sqlite.repository import (
     SqliteRegistryRepositoryV1,
 )
@@ -100,6 +103,7 @@ from agentmonitor.contracts.provider_system_v1 import (
     ScheduledSourceSignalRunStateV1,
 )
 from agentmonitor.contracts.registry_v1 import (
+    AccountCredentialLockLeaseV1,
     ActiveCredentialBindingRefV1,
     ProviderTargetRefV1,
 )
@@ -923,7 +927,22 @@ class OllamaCloudCollectionV1:
         run: CollectionRunAdmissionV1 | CollectionRunAdmissionV2,
         subject: CapacitySubjectV1 | CapacitySubjectV2,
     ):
-        """Create and progress an M04 run around one admitted real source read."""
+        """Hold the account fence across proof, child I/O and durable commit."""
+        if run.account_id is None:
+            raise OllamaCloudTargetIneligible("ollama_cloud_target_ineligible")
+        with account_credential_lock(
+            self._reference, run.account_id
+        ) as credential_lock:
+            return self._execute_admitted_locked(lease, run, subject, credential_lock)
+
+    def _execute_admitted_locked(
+        self,
+        lease: OllamaCloudRequestLeaseV1,
+        run: CollectionRunAdmissionV1 | CollectionRunAdmissionV2,
+        subject: CapacitySubjectV1 | CapacitySubjectV2,
+        credential_lock: AccountCredentialLockLeaseV1,
+    ):
+        """Progress one admitted run while the exact account lock is held."""
         authority = cloud_access_authorized(self._data_root)
         if run.trigger == "reauth_verification":
             require_probe_authorized(authority)
@@ -1021,18 +1040,25 @@ class OllamaCloudCollectionV1:
         deadline = time.monotonic() + source_budget
         if run.trigger == "reauth_verification":
             source = probe_cloud_balance_for_binding_v1(
-                binding=binding, deadline_monotonic=deadline
+                binding=binding,
+                credential_lock=credential_lock,
+                deadline_monotonic=deadline,
             )
         elif isinstance(run, CollectionRunAdmissionV2):
             if scheduled_proof is None:
                 self._admission.revert_undispatched(lease)
                 raise ValueError("ollama_cloud_scheduled_proof_invalid")
             source = read_scheduled_cloud_balance_v1(
-                binding=binding, proof=scheduled_proof, deadline_monotonic=deadline
+                binding=binding,
+                proof=scheduled_proof,
+                credential_lock=credential_lock,
+                deadline_monotonic=deadline,
             )
         else:
             source = read_cloud_balance_for_binding_v1(
-                binding=binding, deadline_monotonic=deadline
+                binding=binding,
+                credential_lock=credential_lock,
+                deadline_monotonic=deadline,
             )
         completed = datetime.now(UTC)
         authorization_not_sent = (
