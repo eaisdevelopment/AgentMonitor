@@ -73,3 +73,15 @@ installation it is the owner's existing project `.env`; the service must receive
 that path via its explicit
 `--credential-env-file` setting. This is a candidate instruction, not evidence
 that the operator, runtime capability or service deployment has been verified.
+
+At candidate commit `576046f`, the frontend typecheck and build passed using
+the existing installed dependencies, and the planning synchronization and
+`AUTO-DOCS-CHECK` gates passed. A fresh private empty database and 0600 empty
+configuration were used to start an isolated candidate dashboard with the
+explicit project `.env` path. Real headless Chrome received HTTP 200 for `/`,
+`/login`, and `/accounts`; after waiting for asynchronous rendering, the
+administrator-setup heading appeared. An immediate visibility assertion had
+failed before that wait. No account, credential, or telemetry was created;
+the isolated process and database were removed. This does not verify a
+signed-in account, credential operations, provider collection, or the M6 exit
+gate. No installed service, live database, or `.env` contents were changed.
