@@ -870,7 +870,7 @@ def _fixed_unit_preflight(
 
 
 def _verify_fixed_update_prestart(
-    data: dict, baseline: Path, candidate: Path, guard: Path
+    data: dict[str, Any], baseline: Path, candidate: Path, guard: Path
 ) -> None:
     """Revalidate the selected releases and loaded unit before resume or start."""
     if _FIXED_UNIT != data.get("unit"):
@@ -1025,14 +1025,14 @@ def update_current_schema() -> str:
 
 def _recover_same_schema_update_engine_inner(
     root: Path,
-    transition,
+    transition: _TransitionLease,
     *,
     unit: str,
     baseline: Path,
     candidate: Path,
     override: Path,
     guard: Path,
-    verify_baseline,
+    verify_baseline: Callable[[], None],
     expected_executable: Path,
 ) -> str:
     """Resume only a proven pre-candidate-start same-schema transition."""
@@ -1080,7 +1080,7 @@ def _recover_same_schema_update_engine_inner(
             "invocation_id",
             "start_monotonic",
         }
-        group = (
+        expected_group = (
             f"/user.slice/user-{os.getuid()}.slice/"
             f"user@{os.getuid()}.service/app.slice/{unit}"
         )
@@ -1088,7 +1088,7 @@ def _recover_same_schema_update_engine_inner(
             set(data) != expected
             or type(data.get("pid")) is not int
             or data["pid"] <= 1
-            or data.get("cgroup") != group
+            or data.get("cgroup") != expected_group
             or not isinstance(data.get("start_ticks"), str)
             or not data["start_ticks"].isdigit()
             or not isinstance(data.get("invocation_id"), str)
@@ -1359,14 +1359,14 @@ def _recover_same_schema_update_engine_inner(
 
 def _recover_same_schema_candidate_attempt_inner(
     root: Path,
-    transition,
+    transition: _TransitionLease,
     *,
     unit: str,
     baseline: Path,
     candidate: Path,
     override: Path,
     guard: Path,
-    verify_candidate,
+    verify_candidate: Callable[[], None],
 ) -> str:
     """Reconcile only the same candidate after an uncertain start request."""
     transition.validate(root)
@@ -1457,14 +1457,14 @@ def _reblock_current_update_on_failure(root: Path, guard: Path) -> None:
 
 def _recover_same_schema_update_engine(
     root: Path,
-    transition,
+    transition: _TransitionLease,
     *,
     unit: str,
     baseline: Path,
     candidate: Path,
     override: Path,
     guard: Path,
-    verify_baseline,
+    verify_baseline: Callable[[], None],
     expected_executable: Path,
 ) -> str:
     try:
@@ -1486,14 +1486,14 @@ def _recover_same_schema_update_engine(
 
 def _recover_same_schema_candidate_attempt(
     root: Path,
-    transition,
+    transition: _TransitionLease,
     *,
     unit: str,
     baseline: Path,
     candidate: Path,
     override: Path,
     guard: Path,
-    verify_candidate,
+    verify_candidate: Callable[[], None],
 ) -> str:
     try:
         return _recover_same_schema_candidate_attempt_inner(
@@ -1511,7 +1511,7 @@ def _recover_same_schema_candidate_attempt(
         raise
 
 
-def _journal_update_baseline(data: dict) -> Path:
+def _journal_update_baseline(data: dict[str, Any]) -> Path:
     revision = data.get("baseline_revision")
     if not isinstance(revision, str) or re.fullmatch(r"[a-f0-9]{40}", revision) is None:
         raise CutoverError("update_baseline_invalid")
@@ -1531,7 +1531,7 @@ def _journal_update_baseline(data: dict) -> Path:
     return baseline
 
 
-def _validate_current_update_facts(data: dict) -> tuple[Path, Path, str, str]:
+def _validate_current_update_facts(data: dict[str, Any]) -> tuple[Path, Path, str, str]:
     """Bind a same-schema recovery journal to sealed local releases."""
     revision = data.get("candidate_revision")
     build = data.get("candidate_build_sha256")
