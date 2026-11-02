@@ -43,6 +43,11 @@ OllamaCloudAdmissionDecisionStateV1 = Literal[
     "no_candidate",
 ]
 OllamaCloudAdmissionOutcomeV1 = Literal["succeeded", "rate_limited", "failed"]
+OllamaCloudVerificationJobStateV1 = Literal["queued", "claimed", "admitted", "terminal"]
+OllamaCloudVerificationGateStateV1 = Literal["ready", "not_due", "busy", "unresolved"]
+OllamaCloudVerificationDispatchCertaintyV1 = Literal[
+    "not_started", "may_have_started", "response_received"
+]
 
 CollectorHealthStateV1 = Literal[
     "healthy",
@@ -354,6 +359,264 @@ class OllamaCloudVerificationTargetV1(TechnicalValueV1):
             or not _utc(self.requested_at)
         ):
             raise InvalidCollectionControlV1("ollama_cloud_verification_target_invalid")
+
+
+def _verification_job_id(value: OpaqueIdV1) -> bool:
+    raw = value.value
+    return (
+        len(raw) == 37
+        and raw.startswith("amvj_")
+        and all(character in "0123456789abcdef" for character in raw[5:])
+    )
+
+
+def _cloud_access_target_id(value: OpaqueIdV1) -> bool:
+    raw = value.value
+    return (
+        len(raw) == 37
+        and raw.startswith("amat_")
+        and all(character in "0123456789abcdef" for character in raw[5:])
+    )
+
+
+@dataclass(frozen=True, slots=True)
+class OllamaCloudVerificationEnqueueV1(TechnicalValueV1):
+    """Create-once owner request bound to one exact cloud credential generation."""
+
+    CONTRACT_ID: ClassVar[str] = "CTR-COL-010"
+    OWNER: ClassVar[str] = "PLAN-M04"
+
+    idempotency_key: OpaqueIdV1
+    principal_id: OpaqueIdV1
+    schedule_id: OpaqueIdV1
+    account_id: OpaqueIdV1
+    access_target_id: OpaqueIdV1
+    binding_generation: int
+    requested_at: datetime
+
+    def __post_init__(self) -> None:
+        TechnicalValueV1.__post_init__(self)
+        if (
+            not _cloud_access_target_id(self.access_target_id)
+            or type(self.binding_generation) is not int
+            or self.binding_generation < 1
+            or not _utc(self.requested_at)
+        ):
+            raise InvalidCollectionControlV1(
+                "ollama_cloud_verification_enqueue_invalid"
+            )
+
+
+@dataclass(frozen=True, slots=True)
+class OllamaCloudVerificationClaimRequestV1(TechnicalValueV1):
+    """Bounded worker claim; expiry permits replay only before rate admission."""
+
+    CONTRACT_ID: ClassVar[str] = "CTR-COL-010"
+    OWNER: ClassVar[str] = "PLAN-M04"
+
+    worker_instance_id: OpaqueIdV1
+    claimed_at: datetime
+    claim_expires_at: datetime
+
+    def __post_init__(self) -> None:
+        TechnicalValueV1.__post_init__(self)
+        if (
+            not _utc(self.claimed_at)
+            or not _utc(self.claim_expires_at)
+            or not timedelta(0)
+            < self.claim_expires_at - self.claimed_at
+            <= timedelta(seconds=60)
+        ):
+            raise InvalidCollectionControlV1("ollama_cloud_verification_claim_invalid")
+
+
+@dataclass(frozen=True, slots=True)
+class OllamaCloudVerificationJobClaimV1(TechnicalValueV1):
+    """Exact claim fence returned to one verification worker."""
+
+    CONTRACT_ID: ClassVar[str] = "CTR-COL-010"
+    OWNER: ClassVar[str] = "PLAN-M04"
+
+    job_id: OpaqueIdV1
+    worker_instance_id: OpaqueIdV1
+    schedule_id: OpaqueIdV1
+    account_id: OpaqueIdV1
+    access_target_id: OpaqueIdV1
+    binding_generation: int
+    fencing_token: int
+    claimed_at: datetime
+    claim_expires_at: datetime
+    record_version: int
+
+    def __post_init__(self) -> None:
+        TechnicalValueV1.__post_init__(self)
+        if (
+            not _verification_job_id(self.job_id)
+            or not _cloud_access_target_id(self.access_target_id)
+            or type(self.binding_generation) is not int
+            or self.binding_generation < 1
+            or type(self.fencing_token) is not int
+            or self.fencing_token < 1
+            or type(self.record_version) is not int
+            or self.record_version < 1
+            or not _utc(self.claimed_at)
+            or not _utc(self.claim_expires_at)
+            or not timedelta(0)
+            < self.claim_expires_at - self.claimed_at
+            <= timedelta(seconds=60)
+        ):
+            raise InvalidCollectionControlV1("ollama_cloud_verification_claim_invalid")
+
+
+@dataclass(frozen=True, slots=True)
+class OllamaCloudVerificationClaimTerminalV1(TechnicalValueV1):
+    """Fenced terminal known to precede rate admission and provider dispatch."""
+
+    CONTRACT_ID: ClassVar[str] = "CTR-COL-010"
+    OWNER: ClassVar[str] = "PLAN-M04"
+
+    job_id: OpaqueIdV1
+    worker_instance_id: OpaqueIdV1
+    fencing_token: int
+    claimed_at: datetime
+    claim_expires_at: datetime
+    terminal_at: datetime
+    reason_code: Literal["worker_unavailable", "target_unavailable"]
+
+    def __post_init__(self) -> None:
+        TechnicalValueV1.__post_init__(self)
+        if (
+            not _verification_job_id(self.job_id)
+            or type(self.fencing_token) is not int
+            or self.fencing_token < 1
+            or not all(
+                _utc(value)
+                for value in (
+                    self.claimed_at,
+                    self.claim_expires_at,
+                    self.terminal_at,
+                )
+            )
+            or not timedelta(0)
+            < self.claim_expires_at - self.claimed_at
+            <= timedelta(seconds=60)
+            or not self.claimed_at <= self.terminal_at <= self.claim_expires_at
+            or self.reason_code not in {"worker_unavailable", "target_unavailable"}
+        ):
+            raise InvalidCollectionControlV1(
+                "ollama_cloud_verification_terminal_invalid"
+            )
+
+
+@dataclass(frozen=True, slots=True)
+class OllamaCloudVerificationJobViewV1(TechnicalValueV1):
+    """Safe durable projection of one owner-verification request."""
+
+    CONTRACT_ID: ClassVar[str] = "CTR-COL-010"
+    OWNER: ClassVar[str] = "PLAN-M04"
+
+    job_id: OpaqueIdV1
+    account_id: OpaqueIdV1
+    access_target_id: OpaqueIdV1
+    schedule_id: OpaqueIdV1
+    binding_generation: int
+    state: OllamaCloudVerificationJobStateV1
+    requested_at: datetime
+    not_before_at: datetime
+    admission_id: OpaqueIdV1 | None
+    run_id: OpaqueIdV1 | None
+    dispatch_certainty: OllamaCloudVerificationDispatchCertaintyV1 | None
+    terminal_at: datetime | None
+    outcome: OllamaCloudAdmissionOutcomeV1 | None
+    reason_code: str | None
+    retry_after_seconds: int | None
+    record_version: int
+
+    def __post_init__(self) -> None:
+        TechnicalValueV1.__post_init__(self)
+        pre_admission = self.state in {"queued", "claimed"}
+        terminal = self.state == "terminal"
+        if (
+            not _verification_job_id(self.job_id)
+            or not _cloud_access_target_id(self.access_target_id)
+            or type(self.binding_generation) is not int
+            or self.binding_generation < 1
+            or type(self.record_version) is not int
+            or self.record_version < 1
+            or not _utc(self.requested_at)
+            or not _utc(self.not_before_at)
+            or self.not_before_at < self.requested_at
+            or pre_admission
+            and (
+                self.admission_id is not None
+                or self.run_id is not None
+                or self.dispatch_certainty is not None
+            )
+            or self.state == "admitted"
+            and (self.admission_id is None or self.dispatch_certainty is None)
+            or terminal != (self.terminal_at is not None)
+            or (
+                self.terminal_at is not None
+                and (not _utc(self.terminal_at) or self.terminal_at < self.requested_at)
+            )
+            or terminal
+            and self.dispatch_certainty is None
+            or terminal
+            and (
+                self.dispatch_certainty == "may_have_started"
+                or self.reason_code is None
+            )
+            or (self.dispatch_certainty == "response_received")
+            != (self.outcome is not None)
+            or (
+                self.reason_code is not None
+                and _SAFE_CODE.fullmatch(self.reason_code) is None
+            )
+            or self.retry_after_seconds is not None
+            and (
+                self.outcome != "rate_limited"
+                or type(self.retry_after_seconds) is not int
+                or not 0 <= self.retry_after_seconds <= 2**63 - 1
+            )
+        ):
+            raise InvalidCollectionControlV1("ollama_cloud_verification_job_invalid")
+
+
+@dataclass(frozen=True, slots=True)
+class OllamaCloudVerificationStatusV1(TechnicalValueV1):
+    """One binding's latest work plus authoritative provider-global gate state."""
+
+    CONTRACT_ID: ClassVar[str] = "CTR-COL-010"
+    OWNER: ClassVar[str] = "PLAN-M04"
+
+    account_id: OpaqueIdV1
+    binding_generation: int
+    job: OllamaCloudVerificationJobViewV1 | None
+    gate_state: OllamaCloudVerificationGateStateV1
+    retry_at: datetime | None
+    queried_at: datetime
+
+    def __post_init__(self) -> None:
+        TechnicalValueV1.__post_init__(self)
+        requires_retry = self.gate_state in {"not_due", "busy"}
+        if (
+            type(self.binding_generation) is not int
+            or self.binding_generation < 1
+            or not _utc(self.queried_at)
+            or (
+                self.job is not None
+                and (
+                    self.job.account_id != self.account_id
+                    or self.job.binding_generation != self.binding_generation
+                )
+            )
+            or requires_retry != (self.retry_at is not None)
+            or (
+                self.retry_at is not None
+                and (not _utc(self.retry_at) or self.retry_at <= self.queried_at)
+            )
+        ):
+            raise InvalidCollectionControlV1("ollama_cloud_verification_status_invalid")
 
 
 @dataclass(frozen=True, slots=True)
@@ -785,6 +1048,7 @@ class CollectionRunAdmissionV2(TechnicalValueV1):
                 self.provider_version is not None
                 and not _bounded(self.provider_version)
             )
+            or not isinstance(self.provider_target, ProviderTargetRefV1)
             or (
                 self.provider_target.target_kind == "cloud_service"
                 and (

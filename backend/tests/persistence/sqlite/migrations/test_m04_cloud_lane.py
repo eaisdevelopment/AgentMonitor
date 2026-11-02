@@ -24,11 +24,25 @@ def test_cloud_lane_and_attempt_journal_exist(tmp_path: Path) -> None:
             assert {
                 "collection_cloud_schedule_lane",
                 "collection_cloud_attempt_journal",
+                "collection_cloud_verification_job",
             } <= tables
-            schedule_columns = {
-                item["name"]: item for item in inspect(connection).get_columns(
-                    "collection_schedule"
+            verification_indexes = {
+                item["name"]
+                for item in inspect(connection).get_indexes(
+                    "collection_cloud_verification_job"
                 )
+            }
+            assert {
+                "uq_collection_cloud_verification_idempotency",
+                "uq_collection_cloud_verification_admission",
+                "uq_collection_cloud_verification_run",
+                "uq_collection_cloud_verification_active_binding",
+                "ix_collection_cloud_verification_claim",
+                "ix_collection_cloud_verification_account",
+            } == verification_indexes
+            schedule_columns = {
+                item["name"]: item
+                for item in inspect(connection).get_columns("collection_schedule")
             }
             run_columns = {
                 item["name"]: item

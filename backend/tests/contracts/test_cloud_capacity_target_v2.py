@@ -67,3 +67,5 @@ def test_cloud_capacity_subject_is_not_a_provider_installation() -> None:
     assert len(capacity_payload_digest(payload)) == 64
     with pytest.raises(InvalidCapacityContractV1, match="capacity_subject_invalid"):
         replace(subject, account_id=None)  # type: ignore[arg-type]
+    with pytest.raises(InvalidCapacityContractV1, match="capacity_subject_invalid"):
+        replace(subject, provider_target="cloud_service")  # type: ignore[arg-type]

@@ -91,6 +91,19 @@ def test_cloud_access_target_is_distinct_from_a_local_installation() -> None:
         replace(target, target_kind="local_installation")  # type: ignore[arg-type]
 
 
+def test_provider_target_reference_requires_an_opaque_identifier() -> None:
+    with pytest.raises(ValueError, match="registry_provider_target_invalid"):
+        ProviderTargetRefV1(
+            target_kind="provider_installation",
+            target_id="installation-1",  # type: ignore[arg-type]
+        )
+    with pytest.raises(ValueError, match="registry_provider_target_invalid"):
+        ProviderTargetRefV1(
+            target_kind="cloud_service",
+            target_id="amat_" + "e" * 32,  # type: ignore[arg-type]
+        )
+
+
 def test_generation_verification_receipt_is_closed_and_non_secret() -> None:
     now = datetime(2026, 11, 2, 12, tzinfo=UTC)
     receipt = CredentialBindingVerificationReceiptV1(
@@ -213,3 +226,7 @@ def test_cloud_run_admission_requires_the_complete_cloud_graph() -> None:
         InvalidCollectionControlV1, match="collection_admission_invalid"
     ):
         replace(admission, resource_id=None)
+    with pytest.raises(
+        InvalidCollectionControlV1, match="collection_admission_invalid"
+    ):
+        replace(admission, provider_target="cloud_service")  # type: ignore[arg-type]

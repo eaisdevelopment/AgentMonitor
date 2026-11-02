@@ -413,8 +413,9 @@ class ProviderTargetRefV1(TechnicalValueV1):
 
     def __post_init__(self) -> None:
         TechnicalValueV1.__post_init__(self)
-        if self.target_kind == "cloud_service" and not _valid_access_target_id(
-            self.target_id
+        if not isinstance(self.target_id, OpaqueIdV1) or (
+            self.target_kind == "cloud_service"
+            and not _valid_access_target_id(self.target_id)
         ):
             raise ValueError("registry_provider_target_invalid")
 

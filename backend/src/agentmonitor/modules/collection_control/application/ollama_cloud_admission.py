@@ -1,5 +1,6 @@
 """M04 application boundary for global Ollama cloud request admission."""
 
+from datetime import datetime
 from typing import Protocol
 
 from agentmonitor.contracts.collection_control_v1 import (
@@ -8,8 +9,15 @@ from agentmonitor.contracts.collection_control_v1 import (
     OllamaCloudRequestAcquireV1,
     OllamaCloudRequestCompletionV1,
     OllamaCloudVerificationAcquireV1,
+    OllamaCloudVerificationClaimRequestV1,
+    OllamaCloudVerificationClaimTerminalV1,
+    OllamaCloudVerificationEnqueueV1,
+    OllamaCloudVerificationJobClaimV1,
+    OllamaCloudVerificationJobViewV1,
+    OllamaCloudVerificationStatusV1,
     OllamaCloudVerificationTargetV1,
 )
+from agentmonitor.contracts.common_v1 import OpaqueIdV1
 
 
 class OllamaCloudAdmissionRepositoryV1(Protocol):
@@ -26,6 +34,31 @@ class OllamaCloudAdmissionRepositoryV1(Protocol):
     def acquire_verification(
         self, request: OllamaCloudVerificationAcquireV1
     ) -> OllamaCloudAdmissionDecisionV1: ...
+
+    def enqueue_verification(
+        self, request: OllamaCloudVerificationEnqueueV1
+    ) -> OllamaCloudVerificationJobViewV1: ...
+
+    def claim_verification(
+        self, request: OllamaCloudVerificationClaimRequestV1
+    ) -> OllamaCloudVerificationJobClaimV1 | None: ...
+
+    def acquire_claimed_verification(
+        self,
+        claim: OllamaCloudVerificationJobClaimV1,
+        request: OllamaCloudVerificationAcquireV1,
+    ) -> OllamaCloudAdmissionDecisionV1: ...
+
+    def finish_verification_claim(
+        self, terminal: OllamaCloudVerificationClaimTerminalV1
+    ) -> OllamaCloudVerificationJobViewV1: ...
+
+    def read_verification_status(
+        self,
+        account_id: OpaqueIdV1,
+        binding_generation: int,
+        queried_at: datetime,
+    ) -> OllamaCloudVerificationStatusV1: ...
 
     def complete(
         self, completion: OllamaCloudRequestCompletionV1
@@ -63,6 +96,73 @@ class AcquireOllamaCloudVerificationV1:
             raise ValueError("ollama_cloud_verification_target_mismatch")
         self._repository.register_verification_target(target)
         return self._repository.acquire_verification(request)
+
+
+class EnqueueOllamaCloudVerificationV1:
+    """Persist an owner request without doing keyring or provider I/O."""
+
+    def __init__(self, repository: OllamaCloudAdmissionRepositoryV1) -> None:
+        self._repository = repository
+
+    def __call__(
+        self, request: OllamaCloudVerificationEnqueueV1
+    ) -> OllamaCloudVerificationJobViewV1:
+        return self._repository.enqueue_verification(request)
+
+
+class ClaimOllamaCloudVerificationV1:
+    """Claim one due job with a short pre-admission fence."""
+
+    def __init__(self, repository: OllamaCloudAdmissionRepositoryV1) -> None:
+        self._repository = repository
+
+    def __call__(
+        self, request: OllamaCloudVerificationClaimRequestV1
+    ) -> OllamaCloudVerificationJobClaimV1 | None:
+        return self._repository.claim_verification(request)
+
+
+class AcknowledgeOllamaCloudVerificationClaimV1:
+    """Atomically associate a live job claim with CTR-COL-008 admission."""
+
+    def __init__(self, repository: OllamaCloudAdmissionRepositoryV1) -> None:
+        self._repository = repository
+
+    def __call__(
+        self,
+        claim: OllamaCloudVerificationJobClaimV1,
+        request: OllamaCloudVerificationAcquireV1,
+    ) -> OllamaCloudAdmissionDecisionV1:
+        return self._repository.acquire_claimed_verification(claim, request)
+
+
+class FinishUnadmittedOllamaCloudVerificationV1:
+    """Persist a fenced no-request terminal before any rate admission exists."""
+
+    def __init__(self, repository: OllamaCloudAdmissionRepositoryV1) -> None:
+        self._repository = repository
+
+    def __call__(
+        self, terminal: OllamaCloudVerificationClaimTerminalV1
+    ) -> OllamaCloudVerificationJobViewV1:
+        return self._repository.finish_verification_claim(terminal)
+
+
+class ReadOllamaCloudVerificationStatusV1:
+    """Return one binding's job and authoritative provider-global gate state."""
+
+    def __init__(self, repository: OllamaCloudAdmissionRepositoryV1) -> None:
+        self._repository = repository
+
+    def __call__(
+        self,
+        account_id: OpaqueIdV1,
+        binding_generation: int,
+        queried_at: datetime,
+    ) -> OllamaCloudVerificationStatusV1:
+        return self._repository.read_verification_status(
+            account_id, binding_generation, queried_at
+        )
 
 
 class CompleteOllamaCloudRequestV1:

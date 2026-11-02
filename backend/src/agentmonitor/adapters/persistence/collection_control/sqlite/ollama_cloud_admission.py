@@ -2,6 +2,8 @@
 
 # ruff: noqa: E501 -- SQL identity and fence predicates stay explicit.
 
+import hashlib
+import secrets
 from datetime import UTC, datetime, timedelta
 
 from sqlalchemy.engine import Connection, RowMapping
@@ -26,6 +28,12 @@ from agentmonitor.contracts.collection_control_v1 import (
     OllamaCloudRequestCompletionV1,
     OllamaCloudRequestLeaseV1,
     OllamaCloudVerificationAcquireV1,
+    OllamaCloudVerificationClaimRequestV1,
+    OllamaCloudVerificationClaimTerminalV1,
+    OllamaCloudVerificationEnqueueV1,
+    OllamaCloudVerificationJobClaimV1,
+    OllamaCloudVerificationJobViewV1,
+    OllamaCloudVerificationStatusV1,
     OllamaCloudVerificationTargetV1,
 )
 from agentmonitor.contracts.common_v1 import OpaqueIdV1
@@ -146,6 +154,76 @@ def _gate_view(row: RowMapping) -> OllamaCloudRateGateViewV1:
     )
 
 
+def _idempotency_digest(principal_id: str, idempotency_key: str) -> str:
+    return hashlib.sha256(
+        (
+            "agentmonitor.ollama-verification.v1\0"
+            + principal_id
+            + "\0"
+            + idempotency_key
+        ).encode("utf-8")
+    ).hexdigest()
+
+
+def _verification_claim(row: RowMapping) -> OllamaCloudVerificationJobClaimV1:
+    return OllamaCloudVerificationJobClaimV1(
+        job_id=OpaqueIdV1(str(row["job_id"])),
+        worker_instance_id=OpaqueIdV1(str(row["claim_owner_id"])),
+        schedule_id=OpaqueIdV1(str(row["schedule_id"])),
+        account_id=OpaqueIdV1(str(row["account_id"])),
+        access_target_id=OpaqueIdV1(str(row["access_target_id"])),
+        binding_generation=int(row["binding_generation"]),
+        fencing_token=int(row["claim_fencing_token"]),
+        claimed_at=_utc_value(row["claimed_at"]),
+        claim_expires_at=_utc_value(row["claim_expires_at"]),
+        record_version=int(row["record_version"]),
+    )
+
+
+def _verification_job(row: RowMapping) -> OllamaCloudVerificationJobViewV1:
+    state = str(row["state"])
+    certainty = row["dispatch_certainty"]
+    outcome = row["outcome"]
+    reason = row["reason_code"]
+    retry_after = row["retry_after_seconds"]
+    if state == "admitted":
+        phase = row.get("journal_phase")
+        if phase == "dispatched":
+            certainty = "may_have_started"
+            reason = "request_outcome_unknown"
+        elif phase == "outcome":
+            certainty = "response_received"
+            outcome = row.get("journal_outcome")
+            reason = row.get("journal_failure_code")
+            retry_after = row.get("journal_retry_after_seconds")
+        elif phase == "reserved":
+            certainty = "not_started"
+    return OllamaCloudVerificationJobViewV1(
+        job_id=OpaqueIdV1(str(row["job_id"])),
+        account_id=OpaqueIdV1(str(row["account_id"])),
+        access_target_id=OpaqueIdV1(str(row["access_target_id"])),
+        schedule_id=OpaqueIdV1(str(row["schedule_id"])),
+        binding_generation=int(row["binding_generation"]),
+        state=state,  # type: ignore[arg-type]
+        requested_at=_utc_value(row["requested_at"]),
+        not_before_at=_utc_value(row["not_before_at"]),
+        admission_id=(
+            OpaqueIdV1(str(row["admission_id"]))
+            if row["admission_id"] is not None
+            else None
+        ),
+        run_id=(OpaqueIdV1(str(row["run_id"])) if row["run_id"] is not None else None),
+        dispatch_certainty=certainty,
+        terminal_at=(
+            _utc_value(row["terminal_at"]) if row["terminal_at"] is not None else None
+        ),
+        outcome=outcome,
+        reason_code=str(reason) if reason is not None else None,
+        retry_after_seconds=(int(retry_after) if retry_after is not None else None),
+        record_version=int(row["record_version"]),
+    )
+
+
 def _same_acquire(row: RowMapping, request: OllamaCloudRequestAcquireV1) -> bool:
     return (
         row["scheduler_instance_id"] == request.scheduler_instance_id.value
@@ -218,6 +296,31 @@ def bind_ollama_run_in_transaction(
     )
     if changed.rowcount != 1:
         raise OllamaCloudAdmissionRepositoryErrorV1("ollama_cloud_run_fencing_conflict")
+    job = connection.exec_driver_sql(
+        "SELECT job_id,run_id FROM collection_cloud_verification_job "
+        "WHERE admission_id=?",
+        (lease.admission_id.value,),
+    ).first()
+    if job is not None:
+        if job[1] is not None and job[1] != run.run_id.value:
+            raise OllamaCloudAdmissionRepositoryErrorV1(
+                "ollama_cloud_run_fencing_conflict"
+            )
+        bound = connection.exec_driver_sql(
+            "UPDATE collection_cloud_verification_job SET run_id=?,"
+            "record_version=record_version+1 WHERE job_id=? AND state='admitted' "
+            "AND admission_id=? AND (run_id IS NULL OR run_id=?)",
+            (
+                run.run_id.value,
+                job[0],
+                lease.admission_id.value,
+                run.run_id.value,
+            ),
+        )
+        if bound.rowcount != 1:
+            raise OllamaCloudAdmissionRepositoryErrorV1(
+                "ollama_cloud_run_fencing_conflict"
+            )
 
 
 def ensure_ollama_run_in_transaction(
@@ -380,6 +483,24 @@ class SqliteOllamaCloudAdmissionRepositoryV1:
                         raise OllamaCloudAdmissionRepositoryErrorV1(
                             "ollama_cloud_dispatch_conflict"
                         )
+                    job = connection.exec_driver_sql(
+                        "SELECT job_id FROM collection_cloud_verification_job "
+                        "WHERE admission_id=?",
+                        (lease.admission_id.value,),
+                    ).scalar_one_or_none()
+                    if job is not None:
+                        job_changed = connection.exec_driver_sql(
+                            "UPDATE collection_cloud_verification_job SET "
+                            "dispatch_certainty='may_have_started',"
+                            "reason_code='request_outcome_unknown',"
+                            "record_version=record_version+1 WHERE job_id=? "
+                            "AND state='admitted' AND dispatch_certainty='not_started'",
+                            (job,),
+                        )
+                        if job_changed.rowcount != 1:
+                            raise OllamaCloudAdmissionRepositoryErrorV1(
+                                "ollama_cloud_dispatch_conflict"
+                            )
                     connection.commit()
         except OllamaCloudAdmissionRepositoryErrorV1:
             raise
@@ -425,6 +546,24 @@ class SqliteOllamaCloudAdmissionRepositoryV1:
                         raise OllamaCloudAdmissionRepositoryErrorV1(
                             "ollama_cloud_dispatch_conflict"
                         )
+                    job = connection.exec_driver_sql(
+                        "SELECT job_id FROM collection_cloud_verification_job "
+                        "WHERE admission_id=?",
+                        (lease.admission_id.value,),
+                    ).scalar_one_or_none()
+                    if job is not None:
+                        job_changed = connection.exec_driver_sql(
+                            "UPDATE collection_cloud_verification_job SET "
+                            "dispatch_certainty='not_started',reason_code=NULL,"
+                            "record_version=record_version+1 WHERE job_id=? "
+                            "AND state='admitted' "
+                            "AND dispatch_certainty='may_have_started'",
+                            (job,),
+                        )
+                        if job_changed.rowcount != 1:
+                            raise OllamaCloudAdmissionRepositoryErrorV1(
+                                "ollama_cloud_dispatch_conflict"
+                            )
                     connection.commit()
         except OllamaCloudAdmissionRepositoryErrorV1:
             raise
@@ -657,6 +796,27 @@ class SqliteOllamaCloudAdmissionRepositoryV1:
         )
         if changed.rowcount != 1:
             raise OllamaCloudAdmissionRepositoryErrorV1("ollama_cloud_fencing_conflict")
+        job = connection.exec_driver_sql(
+            "SELECT job_id FROM collection_cloud_verification_job WHERE admission_id=?",
+            (lease.admission_id.value,),
+        ).scalar_one_or_none()
+        if job is not None:
+            finished = connection.exec_driver_sql(
+                "UPDATE collection_cloud_verification_job SET state='terminal',"
+                "dispatch_certainty='not_started',terminal_at=?,outcome=NULL,"
+                "reason_code=?,retry_after_seconds=NULL,record_version=record_version+1 "
+                "WHERE job_id=? AND state='admitted' AND admission_id=?",
+                (
+                    _utc_text(terminal.terminal_at),
+                    terminal.source_state or terminal.reason_code,
+                    job,
+                    lease.admission_id.value,
+                ),
+            )
+            if finished.rowcount != 1:
+                raise OllamaCloudAdmissionRepositoryErrorV1(
+                    "ollama_cloud_completion_conflict"
+                )
 
     def recover_rate_gate(
         self,
@@ -1101,6 +1261,545 @@ class SqliteOllamaCloudAdmissionRepositoryV1:
         except (SQLAlchemyError, SqlitePolicyError, OSError, ValueError, TypeError):
             raise OllamaCloudAdmissionRepositoryErrorV1() from None
 
+    def enqueue_verification(
+        self, request: OllamaCloudVerificationEnqueueV1
+    ) -> OllamaCloudVerificationJobViewV1:
+        """Create one private-idempotent job after rechecking the exact target."""
+        digest = _idempotency_digest(
+            request.principal_id.value, request.idempotency_key.value
+        )
+        instant = _utc_text(request.requested_at)
+        try:
+            with open_sqlite_database(
+                self._database_ref, "runtime_read_write"
+            ) as handle:
+                with handle.connect() as connection:
+                    connection.exec_driver_sql("BEGIN IMMEDIATE")
+                    existing = (
+                        connection.exec_driver_sql(
+                            "SELECT * FROM collection_cloud_verification_job "
+                            "WHERE principal_id=? AND idempotency_digest=?",
+                            (request.principal_id.value, digest),
+                        )
+                        .mappings()
+                        .one_or_none()
+                    )
+                    if existing is not None:
+                        if (
+                            existing["schedule_id"] != request.schedule_id.value
+                            or existing["account_id"] != request.account_id.value
+                            or existing["access_target_id"]
+                            != request.access_target_id.value
+                            or int(existing["binding_generation"])
+                            != request.binding_generation
+                        ):
+                            raise OllamaCloudAdmissionRepositoryErrorV1(
+                                "ollama_cloud_verification_idempotency_conflict"
+                            )
+                        connection.rollback()
+                        return _verification_job(existing)
+                    target = connection.exec_driver_sql(
+                        "SELECT 1 FROM collection_schedule WHERE schedule_id=? "
+                        "AND account_id=? AND provider_key=? AND capability_id=? "
+                        "AND provider_target_kind='cloud_service' "
+                        "AND provider_target_id=? AND target_generation=? "
+                        "AND state='enabled'",
+                        (
+                            request.schedule_id.value,
+                            request.account_id.value,
+                            _PROVIDER_KEY,
+                            _CAPABILITY_ID,
+                            request.access_target_id.value,
+                            request.binding_generation,
+                        ),
+                    ).first()
+                    if target is None:
+                        raise OllamaCloudAdmissionRepositoryErrorV1(
+                            "ollama_cloud_verification_target_unavailable"
+                        )
+                    active = connection.exec_driver_sql(
+                        "SELECT 1 FROM collection_cloud_verification_job "
+                        "WHERE account_id=? AND binding_generation=? "
+                        "AND state IN ('queued','claimed','admitted')",
+                        (request.account_id.value, request.binding_generation),
+                    ).first()
+                    if active is not None:
+                        raise OllamaCloudAdmissionRepositoryErrorV1(
+                            "ollama_cloud_verification_already_pending"
+                        )
+                    job_id = "amvj_" + secrets.token_hex(16)
+                    connection.exec_driver_sql(
+                        "INSERT INTO collection_cloud_verification_job "
+                        "(job_id,principal_id,idempotency_digest,schedule_id,account_id,"
+                        "access_target_id,binding_generation,state,requested_at,not_before_at,"
+                        "claim_owner_id,claim_fencing_token,claimed_at,claim_expires_at,"
+                        "admission_id,run_id,dispatch_certainty,terminal_at,outcome,"
+                        "reason_code,retry_after_seconds,record_version) "
+                        "VALUES (?,?,?,?,?,?,?,'queued',?,?,NULL,0,NULL,NULL,NULL,NULL,"
+                        "NULL,NULL,NULL,NULL,NULL,1)",
+                        (
+                            job_id,
+                            request.principal_id.value,
+                            digest,
+                            request.schedule_id.value,
+                            request.account_id.value,
+                            request.access_target_id.value,
+                            request.binding_generation,
+                            instant,
+                            instant,
+                        ),
+                    )
+                    row = (
+                        connection.exec_driver_sql(
+                            "SELECT * FROM collection_cloud_verification_job WHERE job_id=?",
+                            (job_id,),
+                        )
+                        .mappings()
+                        .one()
+                    )
+                    connection.commit()
+                    return _verification_job(row)
+        except OllamaCloudAdmissionRepositoryErrorV1:
+            raise
+        except (SQLAlchemyError, SqlitePolicyError, OSError, ValueError, TypeError):
+            raise OllamaCloudAdmissionRepositoryErrorV1() from None
+
+    def claim_verification(
+        self, request: OllamaCloudVerificationClaimRequestV1
+    ) -> OllamaCloudVerificationJobClaimV1 | None:
+        """Claim due work; only a never-admitted expired claim is reusable."""
+        claimed = _utc_text(request.claimed_at)
+        expires = _utc_text(request.claim_expires_at)
+        try:
+            with open_sqlite_database(
+                self._database_ref, "runtime_read_write"
+            ) as handle:
+                with handle.connect() as connection:
+                    connection.exec_driver_sql("BEGIN IMMEDIATE")
+                    connection.exec_driver_sql(
+                        "UPDATE collection_cloud_verification_job AS j SET "
+                        "state='terminal',dispatch_certainty='not_started',terminal_at=?,"
+                        "reason_code='target_unavailable',record_version=record_version+1 "
+                        "WHERE state IN ('queued','claimed') AND admission_id IS NULL "
+                        "AND NOT EXISTS (SELECT 1 FROM collection_schedule s "
+                        "WHERE s.schedule_id=j.schedule_id AND s.account_id=j.account_id "
+                        "AND s.provider_target_kind='cloud_service' "
+                        "AND s.provider_target_id=j.access_target_id "
+                        "AND s.target_generation=j.binding_generation "
+                        "AND s.provider_key=? AND s.capability_id=? AND s.state='enabled')",
+                        (claimed, _PROVIDER_KEY, _CAPABILITY_ID),
+                    )
+                    candidate = (
+                        connection.exec_driver_sql(
+                            "SELECT * FROM collection_cloud_verification_job "
+                            "WHERE not_before_at<=? AND ((state='queued') OR "
+                            "(state='claimed' AND admission_id IS NULL "
+                            "AND claim_expires_at<=?)) "
+                            "ORDER BY requested_at,job_id LIMIT 1",
+                            (claimed, claimed),
+                        )
+                        .mappings()
+                        .one_or_none()
+                    )
+                    if candidate is None:
+                        connection.commit()
+                        return None
+                    token = int(candidate["claim_fencing_token"]) + 1
+                    version = int(candidate["record_version"]) + 1
+                    updated = connection.exec_driver_sql(
+                        "UPDATE collection_cloud_verification_job SET state='claimed',"
+                        "claim_owner_id=?,claim_fencing_token=?,claimed_at=?,"
+                        "claim_expires_at=?,record_version=? WHERE job_id=? "
+                        "AND record_version=? AND admission_id IS NULL "
+                        "AND ((state='queued') OR (state='claimed' AND claim_expires_at<=?))",
+                        (
+                            request.worker_instance_id.value,
+                            token,
+                            claimed,
+                            expires,
+                            version,
+                            candidate["job_id"],
+                            candidate["record_version"],
+                            claimed,
+                        ),
+                    )
+                    if updated.rowcount != 1:
+                        raise OllamaCloudAdmissionRepositoryErrorV1(
+                            "ollama_cloud_verification_claim_conflict"
+                        )
+                    row = (
+                        connection.exec_driver_sql(
+                            "SELECT * FROM collection_cloud_verification_job WHERE job_id=?",
+                            (candidate["job_id"],),
+                        )
+                        .mappings()
+                        .one()
+                    )
+                    connection.commit()
+                    return _verification_claim(row)
+        except OllamaCloudAdmissionRepositoryErrorV1:
+            raise
+        except (SQLAlchemyError, SqlitePolicyError, OSError, ValueError, TypeError):
+            raise OllamaCloudAdmissionRepositoryErrorV1() from None
+
+    def finish_verification_claim(
+        self, terminal: OllamaCloudVerificationClaimTerminalV1
+    ) -> OllamaCloudVerificationJobViewV1:
+        """Record only a fenced, pre-admission no-request terminal."""
+        try:
+            with open_sqlite_database(
+                self._database_ref, "runtime_read_write"
+            ) as handle:
+                with handle.connect() as connection:
+                    connection.exec_driver_sql("BEGIN IMMEDIATE")
+                    existing = (
+                        connection.exec_driver_sql(
+                            "SELECT * FROM collection_cloud_verification_job WHERE job_id=?",
+                            (terminal.job_id.value,),
+                        )
+                        .mappings()
+                        .one_or_none()
+                    )
+                    if existing is not None and existing["state"] == "terminal":
+                        if (
+                            existing["claim_owner_id"]
+                            != terminal.worker_instance_id.value
+                            or int(existing["claim_fencing_token"])
+                            != terminal.fencing_token
+                            or existing["claimed_at"] != _utc_text(terminal.claimed_at)
+                            or existing["claim_expires_at"]
+                            != _utc_text(terminal.claim_expires_at)
+                            or existing["terminal_at"]
+                            != _utc_text(terminal.terminal_at)
+                            or existing["dispatch_certainty"] != "not_started"
+                            or existing["reason_code"] != terminal.reason_code
+                            or existing["admission_id"] is not None
+                            or existing["run_id"] is not None
+                        ):
+                            raise OllamaCloudAdmissionRepositoryErrorV1(
+                                "ollama_cloud_verification_claim_conflict"
+                            )
+                        connection.rollback()
+                        return _verification_job(existing)
+                    updated = connection.exec_driver_sql(
+                        "UPDATE collection_cloud_verification_job SET state='terminal',"
+                        "dispatch_certainty='not_started',terminal_at=?,reason_code=?,"
+                        "record_version=record_version+1 WHERE job_id=? AND state='claimed' "
+                        "AND admission_id IS NULL AND run_id IS NULL AND claim_owner_id=? "
+                        "AND claim_fencing_token=? AND claimed_at=? AND claim_expires_at=?",
+                        (
+                            _utc_text(terminal.terminal_at),
+                            terminal.reason_code,
+                            terminal.job_id.value,
+                            terminal.worker_instance_id.value,
+                            terminal.fencing_token,
+                            _utc_text(terminal.claimed_at),
+                            _utc_text(terminal.claim_expires_at),
+                        ),
+                    )
+                    if updated.rowcount != 1:
+                        raise OllamaCloudAdmissionRepositoryErrorV1(
+                            "ollama_cloud_verification_claim_conflict"
+                        )
+                    row = (
+                        connection.exec_driver_sql(
+                            "SELECT * FROM collection_cloud_verification_job WHERE job_id=?",
+                            (terminal.job_id.value,),
+                        )
+                        .mappings()
+                        .one()
+                    )
+                    connection.commit()
+                    return _verification_job(row)
+        except OllamaCloudAdmissionRepositoryErrorV1:
+            raise
+        except (SQLAlchemyError, SqlitePolicyError, OSError, ValueError, TypeError):
+            raise OllamaCloudAdmissionRepositoryErrorV1() from None
+
+    def acquire_claimed_verification(
+        self,
+        claim: OllamaCloudVerificationJobClaimV1,
+        request: OllamaCloudVerificationAcquireV1,
+    ) -> OllamaCloudAdmissionDecisionV1:
+        """Acknowledge a live claim and associate rate admission atomically."""
+        if (
+            claim.schedule_id != request.schedule_id
+            or claim.account_id != request.account_id
+            or claim.binding_generation != request.target_generation
+            or claim.worker_instance_id != request.scheduler_instance_id
+            or not claim.claimed_at <= request.requested_at <= claim.claim_expires_at
+        ):
+            raise OllamaCloudAdmissionRepositoryErrorV1(
+                "ollama_cloud_verification_claim_conflict"
+            )
+        base = OllamaCloudRequestAcquireV1(
+            admission_id=request.admission_id,
+            scheduler_instance_id=request.scheduler_instance_id,
+            requested_at=request.requested_at,
+            lease_expires_at=request.lease_expires_at,
+            jitter_seconds=request.jitter_seconds,
+        )
+        try:
+            with open_sqlite_database(
+                self._database_ref, "runtime_read_write"
+            ) as handle:
+                with handle.connect() as connection:
+                    connection.exec_driver_sql("BEGIN IMMEDIATE")
+                    row = (
+                        connection.exec_driver_sql(
+                            "SELECT * FROM collection_cloud_verification_job WHERE job_id=?",
+                            (claim.job_id.value,),
+                        )
+                        .mappings()
+                        .one_or_none()
+                    )
+                    if row is None or (
+                        row["claim_owner_id"] != claim.worker_instance_id.value
+                        or int(row["claim_fencing_token"]) != claim.fencing_token
+                        or _utc_value(row["claimed_at"]) != claim.claimed_at
+                        or _utc_value(row["claim_expires_at"]) != claim.claim_expires_at
+                        or row["schedule_id"] != claim.schedule_id.value
+                        or row["account_id"] != claim.account_id.value
+                        or row["access_target_id"] != claim.access_target_id.value
+                        or int(row["binding_generation"]) != claim.binding_generation
+                    ):
+                        raise OllamaCloudAdmissionRepositoryErrorV1(
+                            "ollama_cloud_verification_claim_conflict"
+                        )
+                    exact_target = connection.exec_driver_sql(
+                        "SELECT 1 FROM collection_schedule WHERE schedule_id=? "
+                        "AND account_id=? AND provider_key=? AND capability_id=? "
+                        "AND provider_target_kind='cloud_service' "
+                        "AND provider_target_id=? AND target_generation=? "
+                        "AND state='enabled'",
+                        (
+                            claim.schedule_id.value,
+                            claim.account_id.value,
+                            _PROVIDER_KEY,
+                            _CAPABILITY_ID,
+                            claim.access_target_id.value,
+                            claim.binding_generation,
+                        ),
+                    ).first()
+                    if row["state"] == "admitted":
+                        if (
+                            row["admission_id"] != request.admission_id.value
+                            or exact_target is None
+                        ):
+                            raise OllamaCloudAdmissionRepositoryErrorV1(
+                                "ollama_cloud_verification_claim_conflict"
+                            )
+                        result = self._acquire(connection, base, verification=request)
+                        connection.commit()
+                        return result
+                    if (
+                        row["state"] != "claimed"
+                        or row["admission_id"] is not None
+                        or row["run_id"] is not None
+                        or int(row["record_version"]) != claim.record_version
+                    ):
+                        raise OllamaCloudAdmissionRepositoryErrorV1(
+                            "ollama_cloud_verification_claim_conflict"
+                        )
+                    result = (
+                        self._acquire(connection, base, verification=request)
+                        if exact_target is not None
+                        else OllamaCloudAdmissionDecisionV1("no_candidate", None, None)
+                    )
+                    if result.state == "acquired":
+                        changed = connection.exec_driver_sql(
+                            "UPDATE collection_cloud_verification_job SET state='admitted',"
+                            "admission_id=?,dispatch_certainty='not_started',"
+                            "record_version=record_version+1 WHERE job_id=? "
+                            "AND state='claimed' AND record_version=?",
+                            (
+                                request.admission_id.value,
+                                claim.job_id.value,
+                                claim.record_version,
+                            ),
+                        )
+                    elif result.state in {"busy", "not_due"}:
+                        if result.retry_at is None:
+                            raise OllamaCloudAdmissionRepositoryErrorV1()
+                        changed = connection.exec_driver_sql(
+                            "UPDATE collection_cloud_verification_job SET state='queued',"
+                            "not_before_at=?,claim_owner_id=NULL,claimed_at=NULL,"
+                            "claim_expires_at=NULL,record_version=record_version+1 "
+                            "WHERE job_id=? AND state='claimed' AND record_version=?",
+                            (
+                                _utc_text(result.retry_at),
+                                claim.job_id.value,
+                                claim.record_version,
+                            ),
+                        )
+                    elif result.state == "no_candidate":
+                        target = connection.exec_driver_sql(
+                            "SELECT 1 FROM collection_schedule WHERE schedule_id=? "
+                            "AND account_id=? AND provider_key=? AND capability_id=? "
+                            "AND provider_target_kind='cloud_service' "
+                            "AND provider_target_id=? AND target_generation=? "
+                            "AND state='enabled'",
+                            (
+                                claim.schedule_id.value,
+                                claim.account_id.value,
+                                _PROVIDER_KEY,
+                                _CAPABILITY_ID,
+                                claim.access_target_id.value,
+                                claim.binding_generation,
+                            ),
+                        ).first()
+                        lease_expiry = connection.exec_driver_sql(
+                            "SELECT expires_at FROM collection_lease WHERE schedule_id=?",
+                            (claim.schedule_id.value,),
+                        ).scalar_one_or_none()
+                        if (
+                            target is not None
+                            and lease_expiry is not None
+                            and _utc_value(lease_expiry) > request.requested_at
+                        ):
+                            changed = connection.exec_driver_sql(
+                                "UPDATE collection_cloud_verification_job SET state='queued',"
+                                "not_before_at=?,claim_owner_id=NULL,claimed_at=NULL,"
+                                "claim_expires_at=NULL,record_version=record_version+1 "
+                                "WHERE job_id=? AND state='claimed' AND record_version=?",
+                                (
+                                    _utc_text(_utc_value(lease_expiry)),
+                                    claim.job_id.value,
+                                    claim.record_version,
+                                ),
+                            )
+                        else:
+                            reason = (
+                                "collection_lease_unresolved"
+                                if target is not None and lease_expiry is not None
+                                else "target_unavailable"
+                            )
+                            changed = connection.exec_driver_sql(
+                                "UPDATE collection_cloud_verification_job SET state='terminal',"
+                                "dispatch_certainty='not_started',terminal_at=?,"
+                                "reason_code=?,record_version=record_version+1 "
+                                "WHERE job_id=? AND state='claimed' AND record_version=?",
+                                (
+                                    _utc_text(request.requested_at),
+                                    reason,
+                                    claim.job_id.value,
+                                    claim.record_version,
+                                ),
+                            )
+                    else:
+                        raise OllamaCloudAdmissionRepositoryErrorV1(
+                            "ollama_cloud_verification_claim_conflict"
+                        )
+                    if changed.rowcount != 1:
+                        raise OllamaCloudAdmissionRepositoryErrorV1(
+                            "ollama_cloud_verification_claim_conflict"
+                        )
+                    connection.commit()
+                    return result
+        except OllamaCloudAdmissionRepositoryErrorV1:
+            raise
+        except (SQLAlchemyError, SqlitePolicyError, OSError, ValueError, TypeError):
+            raise OllamaCloudAdmissionRepositoryErrorV1() from None
+
+    def read_verification_status(
+        self,
+        account_id: OpaqueIdV1,
+        binding_generation: int,
+        queried_at: datetime,
+    ) -> OllamaCloudVerificationStatusV1:
+        """Read the latest safe job projection and the authoritative global gate."""
+        if (
+            type(binding_generation) is not int
+            or binding_generation < 1
+            or queried_at.utcoffset() != timedelta(0)
+        ):
+            raise OllamaCloudAdmissionRepositoryErrorV1(
+                "ollama_cloud_verification_query_invalid"
+            )
+        try:
+            with open_sqlite_database(
+                self._database_ref, "runtime_read_only"
+            ) as handle:
+                with handle.connect() as connection:
+                    row = (
+                        connection.exec_driver_sql(
+                            "SELECT j.*,a.state AS admission_state,"
+                            "a.lease_expires_at AS admission_lease_expires_at,"
+                            "x.phase AS journal_phase,x.outcome AS journal_outcome,"
+                            "x.failure_code AS journal_failure_code,"
+                            "x.retry_after_seconds AS journal_retry_after_seconds "
+                            "FROM collection_cloud_verification_job j "
+                            "LEFT JOIN collection_ollama_cloud_admission a "
+                            "ON a.admission_id=j.admission_id "
+                            "LEFT JOIN collection_cloud_attempt_journal x "
+                            "ON x.admission_id=j.admission_id "
+                            "WHERE j.account_id=? AND j.binding_generation=? "
+                            "ORDER BY j.requested_at DESC,j.job_id DESC LIMIT 1",
+                            (account_id.value, binding_generation),
+                        )
+                        .mappings()
+                        .one_or_none()
+                    )
+                    job = _verification_job(row) if row is not None else None
+                    gate = _gate_row(connection)
+                    gate_state = "ready"
+                    retry_at = None
+                    if gate is not None and gate["active_admission_id"] is not None:
+                        active = _admission_row(
+                            connection, str(gate["active_admission_id"])
+                        )
+                        if active is None or active["state"] != "active":
+                            raise OllamaCloudAdmissionRepositoryErrorV1(
+                                "ollama_cloud_fencing_conflict"
+                            )
+                        expiry = _utc_value(active["lease_expires_at"])
+                        if expiry <= queried_at:
+                            gate_state = "unresolved"
+                        else:
+                            gate_state = "busy"
+                            retry_at = max(expiry, _utc_value(gate["next_allowed_at"]))
+                    elif (
+                        gate is not None
+                        and _utc_value(gate["next_allowed_at"]) > queried_at
+                    ):
+                        gate_state = "not_due"
+                        retry_at = _utc_value(gate["next_allowed_at"])
+                    if (
+                        job is not None
+                        and job.state == "admitted"
+                        and job.dispatch_certainty == "may_have_started"
+                    ):
+                        gate_state = "unresolved"
+                        retry_at = None
+                    elif job is not None and gate_state != "unresolved":
+                        job_retry = None
+                        if job.state == "queued" and job.not_before_at > queried_at:
+                            job_retry = job.not_before_at
+                        elif (
+                            job.state == "claimed"
+                            and row is not None
+                            and row["claim_expires_at"] is not None
+                            and _utc_value(row["claim_expires_at"]) > queried_at
+                        ):
+                            job_retry = _utc_value(row["claim_expires_at"])
+                        if job_retry is not None:
+                            if retry_at is not None:
+                                job_retry = max(job_retry, retry_at)
+                            gate_state = "busy" if job.state == "claimed" else "not_due"
+                            retry_at = job_retry
+                    return OllamaCloudVerificationStatusV1(
+                        account_id=account_id,
+                        binding_generation=binding_generation,
+                        job=job,
+                        gate_state=gate_state,  # type: ignore[arg-type]
+                        retry_at=retry_at,
+                        queried_at=queried_at,
+                    )
+        except OllamaCloudAdmissionRepositoryErrorV1:
+            raise
+        except (SQLAlchemyError, SqlitePolicyError, OSError, ValueError, TypeError):
+            raise OllamaCloudAdmissionRepositoryErrorV1() from None
+
     def acquire(
         self, request: OllamaCloudRequestAcquireV1
     ) -> OllamaCloudAdmissionDecisionV1:
@@ -1394,11 +2093,11 @@ class SqliteOllamaCloudAdmissionRepositoryV1:
         row = _admission_row(connection, completion.admission_id.value)
         gate = _gate_row(connection)
         intent = connection.exec_driver_sql(
-            "SELECT outcome,response_received_at,retry_after_seconds,completion_jitter_seconds "
+            "SELECT outcome,response_received_at,retry_after_seconds,completion_jitter_seconds,failure_code "
             "FROM collection_cloud_attempt_journal WHERE admission_id=? AND phase='outcome'",
             (completion.admission_id.value,),
         ).first()
-        if intent is None or tuple(intent) != (
+        if intent is None or tuple(intent[:4]) != (
             completion.outcome,
             _utc_text(completion.response_received_at),
             completion.retry_after_seconds,
@@ -1480,6 +2179,29 @@ class SqliteOllamaCloudAdmissionRepositoryV1:
         )
         if updated.rowcount != 1:
             raise OllamaCloudAdmissionRepositoryErrorV1("ollama_cloud_fencing_conflict")
+        job = connection.exec_driver_sql(
+            "SELECT job_id FROM collection_cloud_verification_job WHERE admission_id=?",
+            (completion.admission_id.value,),
+        ).scalar_one_or_none()
+        if job is not None:
+            finished = connection.exec_driver_sql(
+                "UPDATE collection_cloud_verification_job SET state='terminal',"
+                "dispatch_certainty='response_received',terminal_at=?,outcome=?,"
+                "reason_code=?,retry_after_seconds=?,record_version=record_version+1 "
+                "WHERE job_id=? AND state='admitted' AND admission_id=?",
+                (
+                    completed_text,
+                    completion.outcome,
+                    intent[4] or "verification_succeeded",
+                    completion.retry_after_seconds,
+                    job,
+                    completion.admission_id.value,
+                ),
+            )
+            if finished.rowcount != 1:
+                raise OllamaCloudAdmissionRepositoryErrorV1(
+                    "ollama_cloud_completion_conflict"
+                )
         gate = _gate_row(connection)
         if gate is None:
             raise OllamaCloudAdmissionRepositoryErrorV1()

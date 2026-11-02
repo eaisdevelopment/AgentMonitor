@@ -1,5 +1,5 @@
-version = "1.7.15"
-head = "v1_0715"
+version = "1.7.16"
+head = "v1_0716"
 env_sha256 = "27449e3ed3984acde690510f9e4974eb6412f5f1b7e62af65bc8bb616879a7d7"
 
 [[revisions]]
@@ -750,3 +750,25 @@ backup_prerequisite = "required_existing_database"
 validation_ids = ["single_head", "m05_cloud_target_schema", "foreign_key_check", "full_integrity"]
 recovery_policy = "preserve_failed_database_and_restore_verified_backup_or_forward_fix"
 reviewer = "M05-M6-cloud-target-review"
+
+[[revisions]]
+ordinal = 716
+filename = "v1_0716_m04_cloud_verification_jobs.py"
+sha256 = "a5314129f41efbcc46a37edca94d6b425c409946df24a60cf3cfa9e7bfd20227"
+status = "shared"
+reviewed_at = "2026-11-02"
+revision = "v1_0716"
+parent_revision = "v1_0715"
+owner = "M04"
+plan_id = "PLAN-M04"
+requirement_ids = ["FR-COL-003", "FR-COL-005", "FR-COL-007", "M6-A07", "M6-A09", "NFR-DATA-001"]
+schema_range = ["v1_0716", "v1_0716", "v1_0716", "v1_0716", "v1_0716"]
+tables = ["collection_cloud_verification_job"]
+portability_notes = ["Owner verification is queued durably and an expired claim is reusable only before rate admission", "Ambiguous dispatch remains associated with the authoritative M04 admission and is never reclaimed as queued work"]
+lock_policy = "exclusive_migration_and_begin_immediate"
+downtime_policy = "offline_additive_schema_migration"
+expected_data_volume = "one bounded non-secret row per owner verification request"
+backup_prerequisite = "required_existing_database"
+validation_ids = ["single_head", "m04_cloud_verification_job_schema", "foreign_key_check", "full_integrity"]
+recovery_policy = "preserve_failed_database_and_restore_verified_backup_or_forward_fix"
+reviewer = "M04-M6-cloud-verification-job-review"

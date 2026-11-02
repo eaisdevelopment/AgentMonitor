@@ -140,6 +140,7 @@ class CapacitySubjectV2(TechnicalValueV1):
         TechnicalValueV1.__post_init__(self)
         if (
             not _token(self.provider_key)
+            or not isinstance(self.provider_target, ProviderTargetRefV1)
             or not isinstance(self.account_id, OpaqueIdV1)
             or not isinstance(self.resource_id, OpaqueIdV1)
         ):
