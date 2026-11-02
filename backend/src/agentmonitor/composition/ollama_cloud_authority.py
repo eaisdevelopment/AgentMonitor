@@ -83,7 +83,11 @@ def set_cloud_access_authorization(data_root: Path, *, authorized: bool) -> None
     """
     import secrets
 
-    if not data_root.is_absolute() or data_root in {Path("/"), Path.home()}:
+    if (
+        type(authorized) is not bool
+        or not data_root.is_absolute()
+        or data_root in {Path("/"), Path.home()}
+    ):
         raise ValueError("ollama_cloud_authority_root_invalid")
     directory = os.open(
         data_root, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW | os.O_CLOEXEC
@@ -112,6 +116,7 @@ def set_cloud_access_authorization(data_root: Path, *, authorized: bool) -> None
             dir_fd=directory,
         )
         try:
+            os.fchmod(fd, 0o600)
             data = ollama_cloud_probe_fingerprint().encode("ascii")
             if os.write(fd, data) != len(data):
                 raise OSError("ollama_cloud_authority_write_failed")
@@ -123,6 +128,8 @@ def set_cloud_access_authorization(data_root: Path, *, authorized: bool) -> None
             raise ValueError("ollama_cloud_authority_root_invalid")
         os.replace(temporary, _MARKER, src_dir_fd=directory, dst_dir_fd=directory)
         os.fsync(directory)
+        if not cloud_access_authorized(data_root):
+            raise ValueError("ollama_cloud_authority_verification_failed")
     finally:
         try:
             os.unlink(temporary, dir_fd=directory)
