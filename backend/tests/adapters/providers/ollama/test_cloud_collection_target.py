@@ -47,3 +47,46 @@ def test_failure_policy_never_shortens_provider_retry() -> None:
     )
 
     assert cloud_failure_policy("rate_limited", 172800).retry.delay_seconds == 172800
+
+
+def test_cloud_target_projects_into_v2_capacity_contract() -> None:
+    from decimal import Decimal
+
+    from agentmonitor.adapters.providers.ollama.cloud_balance.collection import (
+        cloud_balance_to_capacity,
+    )
+    from agentmonitor.contracts.capacity_v1 import (
+        CapacitySubjectV2,
+        ProviderQuotaInputV2,
+    )
+    from agentmonitor.contracts.common_v1 import OpaqueIdV1
+    from agentmonitor.contracts.providers.ollama.cloud_balance.v1.schema import (
+        OllamaCloudBalanceV1,
+    )
+    from agentmonitor.contracts.registry_v1 import ProviderTargetRefV1
+
+    subject = CapacitySubjectV2(
+        "ollama",
+        ProviderTargetRefV1("cloud_service", OpaqueIdV1("amat_" + "a" * 32)),
+        OpaqueIdV1("account"),
+        OpaqueIdV1("resource"),
+    )
+    payload = cloud_balance_to_capacity(
+        OllamaCloudBalanceV1(None, Decimal("5")), subject, 1
+    )
+    assert isinstance(payload, ProviderQuotaInputV2)
+    assert payload.subject == subject
+
+
+def test_cloud_v2_requires_same_provider_target() -> None:
+    from agentmonitor.adapters.providers.ollama.cloud_balance.collection import (
+        validate_cloud_provider_target,
+    )
+    from agentmonitor.contracts.common_v1 import OpaqueIdV1
+    from agentmonitor.contracts.registry_v1 import ProviderTargetRefV1
+
+    left = ProviderTargetRefV1("cloud_service", OpaqueIdV1("amat_" + "a" * 32))
+    other = ProviderTargetRefV1("cloud_service", OpaqueIdV1("amat_" + "b" * 32))
+    validate_cloud_provider_target(left, left)
+    with pytest.raises(ValueError, match="ollama_cloud_target_mismatch"):
+        validate_cloud_provider_target(left, other)

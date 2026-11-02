@@ -214,6 +214,12 @@ IAM_OPERATIONS = {
         "delete",
     ): "provider_cancel_connection_v1",
     ("/api/v1/collection-runs", "get"): "collection_list_runs_v1",
+    ("/api/v1/accounts/{account_id}/capacity/v2", "get"): "capacity_get_account_v2",
+    (
+        "/api/v1/accounts/{account_id}/quotas/v2",
+        "get",
+    ): "capacity_list_quota_windows_v2",
+    ("/api/v1/capacity/history/v2", "get"): "capacity_list_history_v2",
     ("/api/v1/accounts/{account_id}/capacity", "get"): "capacity_get_account_v1",
     ("/api/v1/accounts/{account_id}/quotas", "get"): "capacity_list_quota_windows_v1",
     ("/api/v1/capacity/history", "get"): "capacity_list_history_v1",
@@ -981,6 +987,42 @@ IAM_POLICY: dict[str, IamPolicyRow] = {
         _M2_REQUIRED_ERROR_STATUSES,
         None,
     ),
+    "capacity_get_account_v2": (
+        "cookie_or_bearer",
+        "read:telemetry",
+        "GetAccountCapacityV1",
+        "safe_query_repeat",
+        _COOKIE_BEARER,
+        "200",
+        "AccountCapacityViewV2",
+        "SafeProblemV1",
+        _M2_REQUIRED_ERROR_STATUSES,
+        None,
+    ),
+    "capacity_list_quota_windows_v2": (
+        "cookie_or_bearer",
+        "read:telemetry",
+        "ListQuotaWindowsV1",
+        "safe_query_repeat",
+        _COOKIE_BEARER,
+        "200",
+        "QuotaWindowPageV2",
+        "SafeProblemV1",
+        _M2_REQUIRED_ERROR_STATUSES,
+        None,
+    ),
+    "capacity_list_history_v2": (
+        "cookie_or_bearer",
+        "read:telemetry",
+        "ListCapacityHistoryV1",
+        "safe_query_repeat",
+        _COOKIE_BEARER,
+        "200",
+        "CapacityHistoryPageV2",
+        "SafeProblemV1",
+        _M2_REQUIRED_ERROR_STATUSES,
+        None,
+    ),
     "capacity_get_account_v1": (
         "cookie_or_bearer",
         "read:telemetry",
@@ -1295,7 +1337,7 @@ def validate_iam_openapi(document: object) -> tuple[str, ...]:
     if (
         actual != IAM_OPERATIONS
         or set(IAM_POLICY) != set(IAM_OPERATIONS.values())
-        or len(identifiers) != 70
+        or len(identifiers) != 73
     ):
         raise OpenApiGenerationError("operation_surface_invalid")
 

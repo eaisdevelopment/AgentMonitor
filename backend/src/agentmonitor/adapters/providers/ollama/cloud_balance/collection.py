@@ -1,10 +1,16 @@
 """Pure account and capacity conversion for one Ollama cloud reading."""
 
-from agentmonitor.contracts.capacity_v1 import CapacitySubjectV1, ProviderQuotaInputV1
+from agentmonitor.contracts.capacity_v1 import (
+    CapacitySubjectV1,
+    CapacitySubjectV2,
+    ProviderQuotaInputV1,
+    ProviderQuotaInputV2,
+)
 from agentmonitor.contracts.providers.ollama.cloud_balance.v1.schema import (
     OllamaCloudBalanceV1,
     to_capacity_windows,
 )
+from agentmonitor.contracts.registry_v1 import ProviderTargetRefV1
 
 
 def validate_cloud_target(
@@ -19,20 +25,39 @@ def validate_cloud_target(
         raise ValueError("ollama_cloud_target_mismatch")
 
 
+def validate_cloud_provider_target(
+    run_target: ProviderTargetRefV1, subject_target: ProviderTargetRefV1
+) -> None:
+    """Never relabel one cloud service target as another."""
+    if run_target.target_kind != "cloud_service" or run_target != subject_target:
+        raise ValueError("ollama_cloud_target_mismatch")
+
+
 def cloud_balance_to_capacity(
-    balance: OllamaCloudBalanceV1, subject: CapacitySubjectV1, registry_revision: int
-) -> ProviderQuotaInputV1:
+    balance: OllamaCloudBalanceV1,
+    subject: CapacitySubjectV1 | CapacitySubjectV2,
+    registry_revision: int,
+) -> ProviderQuotaInputV1 | ProviderQuotaInputV2:
     """Retain unknown scope and never retire windows on an incomplete source."""
     if subject.provider_key != "ollama":
         raise ValueError("ollama_cloud_target_mismatch")
     projection = to_capacity_windows(balance)
+    if isinstance(subject, CapacitySubjectV2):
+        return ProviderQuotaInputV2(
+            subject,
+            registry_revision,
+            "1.0.0",
+            "partial_scope",
+            projection.windows,
+            ("cloud_scope_unresolved",),
+        )
     return ProviderQuotaInputV1(
-        subject=subject,
-        registry_revision=registry_revision,
-        capability_schema_version="1.0.0",
-        completeness="partial_scope",
-        windows=projection.windows,
-        omission_codes=("cloud_scope_unresolved",),
+        subject,
+        registry_revision,
+        "1.0.0",
+        "partial_scope",
+        projection.windows,
+        ("cloud_scope_unresolved",),
     )
 
 

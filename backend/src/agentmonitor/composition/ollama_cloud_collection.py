@@ -46,11 +46,15 @@ from agentmonitor.adapters.providers.ollama.manifest import (
 from agentmonitor.composition.ollama_capacity_commit import ollama_capacity_repository
 from agentmonitor.contracts.capacity_v1 import (
     CapacityCommitRequestV1,
+    CapacityCommitRequestV2,
     CapacitySubjectV1,
+    CapacitySubjectV2,
+    ProviderQuotaInputV2,
 )
 from agentmonitor.contracts.collection_control_v1 import (
     CollectionFailedV1,
     CollectionRunAdmissionV1,
+    CollectionRunAdmissionV2,
     OllamaCloudAdmissionDecisionV1,
     OllamaCloudNoResponseCompletionV2,
     OllamaCloudRequestAcquireV1,
@@ -720,8 +724,8 @@ class OllamaCloudCollectionV1:
         self,
         lease: OllamaCloudRequestLeaseV1,
         binding: ActiveCredentialBindingRefV1,
-        run: CollectionRunAdmissionV1,
-        subject: CapacitySubjectV1,
+        run: CollectionRunAdmissionV1 | CollectionRunAdmissionV2,
+        subject: CapacitySubjectV1 | CapacitySubjectV2,
         registry_revision: int,
         source: CloudBalanceSourceResultV1,
         provenance: ObservationProvenanceV1,
@@ -746,7 +750,20 @@ class OllamaCloudCollectionV1:
             or run.provider_key != "ollama"
             or run.capability_id != "subscription.quota"
             or run.source_id != source.source_id
-            or run.installation_id != subject.installation_id
+            or (
+                isinstance(run, CollectionRunAdmissionV2)
+                and (
+                    not isinstance(subject, CapacitySubjectV2)
+                    or run.provider_target != subject.provider_target
+                )
+            )
+            or (
+                isinstance(run, CollectionRunAdmissionV1)
+                and (
+                    not isinstance(subject, CapacitySubjectV1)
+                    or run.installation_id != subject.installation_id
+                )
+            )
             or run.resource_id != subject.resource_id
             or run.registry_revision != registry_revision
             or provenance.operation_id != run.run_id
@@ -755,17 +772,40 @@ class OllamaCloudCollectionV1:
         ):
             raise ValueError("ollama_cloud_source_binding_invalid")
         payload = cloud_balance_to_capacity(source.balance, subject, registry_revision)
-        request = CapacityCommitRequestV1(
-            run_id=run.run_id,
-            target_generation=run.target_generation,
-            capability_id="subscription.quota",
-            payload_schema=run.payload_schema,
-            payload_digest=capacity_payload_digest(payload),
-            terminal_state="partial",
-            payload=payload,
-            provenance=provenance,
-        )
+        payload_digest = capacity_payload_digest(payload)
+        if isinstance(payload, ProviderQuotaInputV2):
+            if not isinstance(run, CollectionRunAdmissionV2):
+                raise ValueError("ollama_cloud_target_mismatch")
+            request = CapacityCommitRequestV2(
+                run_id=run.run_id,
+                target_generation=run.target_generation,
+                capability_id="subscription.quota",
+                payload_schema=run.payload_schema,
+                payload_digest=payload_digest,
+                terminal_state="partial",
+                payload=payload,
+                provenance=provenance,
+            )
+        else:
+            if not isinstance(run, CollectionRunAdmissionV1):
+                raise ValueError("ollama_cloud_target_mismatch")
+            request = CapacityCommitRequestV1(
+                run_id=run.run_id,
+                target_generation=run.target_generation,
+                capability_id="subscription.quota",
+                payload_schema=run.payload_schema,
+                payload_digest=payload_digest,
+                terminal_state="partial",
+                payload=payload,
+                provenance=provenance,
+            )
         receipt = ollama_capacity_repository(
-            self._reference, lease, run, request.payload_digest
+            self._reference,
+            lease,
+            run,
+            payload_digest,
+            verified_at=source.observed_at
+            if run.trigger == "reauth_verification"
+            else None,
         ).commit_fenced(request, binding)
         return receipt

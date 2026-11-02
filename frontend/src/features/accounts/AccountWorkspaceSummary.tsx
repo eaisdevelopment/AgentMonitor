@@ -4,7 +4,7 @@ import {
   capacity,
   runtime,
   providers,
-  type AccountCapacityViewV1,
+  type AccountCapacityViewV2,
   type AccountViewV1,
   type AgentSessionPageV1,
   type LiveProcessLocationPageV1,
@@ -16,7 +16,7 @@ import { providerDisplayName } from "./providerPresentation";
 type SummaryState =
   | Readonly<{ kind: "loading" }>
   | Readonly<{ kind: "error" }>
-  | Readonly<{ kind: "ready"; accountId: string; capacity: AccountCapacityViewV1 | null; sessions: AgentSessionPageV1 | null; identity: ProviderAccountIdentityViewV1 | null; refreshFailed: boolean }>;
+  | Readonly<{ kind: "ready"; accountId: string; capacity: AccountCapacityViewV2 | null; sessions: AgentSessionPageV1 | null; identity: ProviderAccountIdentityViewV1 | null; refreshFailed: boolean }>;
 
 export function AccountWorkspaceSummary({ account, organizationName, liveProcesses, onExpired, onIdentity }: Readonly<{
   account: AccountViewV1;

@@ -100,6 +100,10 @@ class CapacityQueryUnavailableV1(RuntimeError):
     pass
 
 
+class CapacityV2RequiredV1(RuntimeError):
+    """Legacy aggregate cannot represent at least one cloud target."""
+
+
 class CapacityCommitQueryRepositoryV1(Protocol):
     def get_commit_status(
         self, run_id: OpaqueIdV1, capability_id: str
@@ -329,11 +333,17 @@ class GetCapacityAggregateV1:
             for capacity in self._repository.list_account_capacities(
                 account.account_id, query.as_of
             )
+        )
+        legacy = tuple(
+            capacity
+            for capacity in capacities
             if isinstance(capacity, AccountCapacityViewV1)
         )
+        if len(legacy) != len(capacities):
+            raise CapacityV2RequiredV1("capacity_v2_required")
         if self._scope_query(expected.scope_kind, expected.scope_id) != expected:
             raise CapacityQueryUnavailableV1("registry_scope_changed")
-        return aggregate_capacity_v1(query, capacities)
+        return aggregate_capacity_v1(query, legacy)
 
 
 class CapacityAlertQueryRepositoryV1(Protocol):

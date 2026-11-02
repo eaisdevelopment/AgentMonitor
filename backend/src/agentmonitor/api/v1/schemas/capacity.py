@@ -47,6 +47,16 @@ class CapacitySubjectWireV1(_ClosedV1):
     resource_id: str
 
 
+class CapacitySubjectWireV2(_ClosedV1):
+    """Explicit cloud target; never represented as a local installation."""
+
+    provider_key: str
+    provider_target_kind: Literal["cloud_service"]
+    provider_target_id: str
+    account_id: str
+    resource_id: str
+
+
 class CapacityObservationProvenanceWireV1(_ClosedV1):
     capability_id: str
     capability_schema_version: str
@@ -293,5 +303,88 @@ class CapacityForecastWireV1(_ClosedV1):
 class CapacityForecastPageV1(_ClosedV1):
     account_id: str
     items: tuple[CapacityForecastWireV1, ...]
+    page: PageMetaV1
+    availability: AvailabilityV1
+
+
+class QuotaWindowViewV2(_ClosedV1):
+    window_id: str
+    subject: CapacitySubjectWireV1 | CapacitySubjectWireV2
+    window_key: str
+    safe_label: str | None
+    semantic_role: str | None = None
+    is_constraining: bool | None = None
+    reset_at: datetime | None = None
+    reset_precision: Literal["exact", "rounded", "range", "estimated", "unknown"] = (
+        "unknown"
+    )
+    allowance: QuotaAllowanceViewV1 | None = None
+    used: ExactMetricFieldWireV1
+    remaining: ExactMetricFieldWireV1
+    limit: ExactMetricFieldWireV1
+    remaining_ratio: ExactMetricFieldWireV1
+    provenance: CapacityObservationProvenanceWireV1 | None = None
+    freshness: Literal[
+        "fresh", "stale", "freshness_unknown", "conflicted", "no_observation"
+    ]
+    current_observation_id: str
+    collection_run_id: str
+    observed_at: datetime | None
+    collected_at: datetime
+    stored_at: datetime
+
+
+class AccountCapacityItemV2(_ClosedV1):
+    subject: CapacitySubjectWireV1 | CapacitySubjectWireV2
+    windows: tuple[QuotaWindowViewV2, ...]
+    health: CapacityHealthViewV1 | None
+
+
+class AccountCapacityViewV2(_ClosedV1):
+    account_id: str
+    items: tuple[AccountCapacityItemV2, ...]
+    availability: AvailabilityV1
+
+
+class QuotaWindowPageV2(_ClosedV1):
+    account_id: str
+    items: tuple[QuotaWindowViewV2, ...]
+    page: PageMetaV1
+    availability: AvailabilityV1
+
+
+class CapacityHistoryPointV2(_ClosedV1):
+    observation_id: str
+    window_id: str
+    window_definition_id: str
+    subject: CapacitySubjectWireV1 | CapacitySubjectWireV2
+    window_key: str
+    safe_label: str | None
+    semantic_role: str
+    native_unit: str | None
+    definition_version: int
+    metric: Literal["used", "remaining", "limit", "remaining_ratio"]
+    series_kind: Literal["raw_provider", "poll_snapshot", "derived"]
+    value: ExactMetricFieldWireV1
+    provenance: CapacityObservationProvenanceWireV1
+    freshness: Literal["fresh", "stale", "freshness_unknown"]
+    completeness: Literal["complete", "partial", "unknown"]
+    collection_run_id: str
+    derivation_id: str | None
+    observed_at: datetime
+    interval_start: datetime | None
+    interval_end: datetime | None
+    reset_at: datetime | None
+    reset_precision: Literal["exact", "rounded", "range", "estimated", "unknown"]
+    collected_at: datetime
+    stored_at: datetime
+    source_period_start: datetime | None = None
+
+
+class CapacityHistoryPageV2(_ClosedV1):
+    subject_id: str
+    metric: Literal["used", "remaining", "limit", "remaining_ratio"]
+    series_kind: Literal["raw_provider", "poll_snapshot", "derived"]
+    items: tuple[CapacityHistoryPointV2, ...]
     page: PageMetaV1
     availability: AvailabilityV1

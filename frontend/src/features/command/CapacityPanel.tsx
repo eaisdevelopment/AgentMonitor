@@ -5,11 +5,11 @@ import {
   appendCapacityHistoryPage,
   capacity,
   capacityHistoryContinuation,
-  type AccountCapacityViewV1,
-  type CapacityHistoryPageV1,
-  type CapacityHistoryPointV1,
+  type AccountCapacityViewV2,
+  type CapacityHistoryPageV2,
+  type CapacityHistoryPointV2,
   type ExactMetricFieldWireV1,
-  type QuotaWindowPageV1,
+  type QuotaWindowPageV2,
 } from "../../shared/api/client";
 
 type CapacityHistoryQuery = Readonly<{
@@ -25,9 +25,9 @@ type CapacityState =
   | Readonly<{ kind: "error"; message: string }>
   | Readonly<{
       kind: "ready";
-      account: AccountCapacityViewV1;
-      quotas: QuotaWindowPageV1;
-      historyPages: readonly CapacityHistoryPageV1[] | null;
+      account: AccountCapacityViewV2;
+      quotas: QuotaWindowPageV2;
+      historyPages: readonly CapacityHistoryPageV2[] | null;
       historyQuery: CapacityHistoryQuery;
       historyMessage: string | null;
       historyPageMessage: string | null;
@@ -50,7 +50,7 @@ function ExactMetric({ field }: Readonly<{ field: ExactMetricFieldWireV1 }>) {
   return <>{exactMetricValue(field)}<small>{field.availability.replaceAll("_", " ")} · {field.precision} · {field.confidence} · {field.value_kind.replaceAll("_", " ")}</small></>;
 }
 
-function chartNumber(point: CapacityHistoryPointV1): number | null {
+function chartNumber(point: CapacityHistoryPointV2): number | null {
   const exact = point.value.value;
   if (point.value.availability !== "available" || exact === null) return null;
   const coefficient = Number(exact.coefficient);
@@ -66,7 +66,7 @@ function CapacityHistory({
   onLoadMore,
   rangeDays,
 }: Readonly<{
-  pages: readonly CapacityHistoryPageV1[] | null;
+  pages: readonly CapacityHistoryPageV2[] | null;
   message: string | null;
   pageMessage: string | null;
   loadingMore: boolean;

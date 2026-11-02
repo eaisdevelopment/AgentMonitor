@@ -18,28 +18,37 @@ from agentmonitor.api.v1.routers._observation import (
 )
 from agentmonitor.api.v1.schemas.capacity import (
     AccountCapacityItemV1,
+    AccountCapacityItemV2,
     AccountCapacityViewV1,
+    AccountCapacityViewV2,
     CapacityForecastPageV1,
     CapacityForecastWireV1,
     CapacityHealthViewV1,
     CapacityHistoryPageV1,
+    CapacityHistoryPageV2,
     CapacityHistoryPointV1,
+    CapacityHistoryPointV2,
     CapacityObservationProvenanceWireV1,
     CapacityScopeViewV1,
     CapacitySubjectWireV1,
+    CapacitySubjectWireV2,
     ExactMetricFieldWireV1,
     ExactQuantityWireV1,
     QuotaAllowanceViewV1,
     QuotaWindowPageV1,
+    QuotaWindowPageV2,
     QuotaWindowViewV1,
+    QuotaWindowViewV2,
 )
 from agentmonitor.api.v1.serialization import technical_wire
 from agentmonitor.contracts.capacity_v1 import AccountCapacityViewV1 as DomainCapacity
+from agentmonitor.contracts.capacity_v1 import AccountCapacityViewV2 as DomainCapacityV2
 from agentmonitor.contracts.capacity_v1 import (
     CapacityAggregateQueryV1,
     CapacityForecastQueryV1,
     CapacityHistoryQueryV1,
     CapacitySubjectV1,
+    CapacitySubjectV2,
     ExactMetricFieldV1,
     InvalidCapacityContractV1,
 )
@@ -47,11 +56,18 @@ from agentmonitor.contracts.capacity_v1 import (
     CapacityHistoryPointV1 as DomainHistoryPoint,
 )
 from agentmonitor.contracts.capacity_v1 import (
+    CapacityHistoryPointV2 as DomainHistoryPointV2,
+)
+from agentmonitor.contracts.capacity_v1 import (
     QuotaWindowViewV1 as DomainWindow,
+)
+from agentmonitor.contracts.capacity_v1 import (
+    QuotaWindowViewV2 as DomainWindowV2,
 )
 from agentmonitor.contracts.common_v1 import OpaqueIdV1
 from agentmonitor.modules.capacity.application.queries import (
     CapacityQueryUnavailableV1,
+    CapacityV2RequiredV1,
     GetQuotaAllowanceV1,
 )
 
@@ -84,7 +100,24 @@ def _metric(item: ExactMetricFieldV1) -> ExactMetricFieldWireV1:
     )
 
 
-def _subject(item: CapacitySubjectV1) -> CapacitySubjectWireV1:
+def _subject(
+    item: CapacitySubjectV1 | CapacitySubjectV2,
+) -> CapacitySubjectWireV1 | CapacitySubjectWireV2:
+    if isinstance(item, CapacitySubjectV2):
+        if item.provider_target.target_kind == "provider_installation":
+            return CapacitySubjectWireV1(
+                provider_key=item.provider_key,
+                installation_id=item.provider_target.target_id.value,
+                account_id=item.account_id.value,
+                resource_id=item.resource_id.value,
+            )
+        return CapacitySubjectWireV2(
+            provider_key=item.provider_key,
+            provider_target_kind="cloud_service",
+            provider_target_id=item.provider_target.target_id.value,
+            account_id=item.account_id.value,
+            resource_id=item.resource_id.value,
+        )
     return CapacitySubjectWireV1(
         provider_key=item.provider_key,
         installation_id=item.installation_id.value,
@@ -94,7 +127,7 @@ def _subject(item: CapacitySubjectV1) -> CapacitySubjectWireV1:
 
 
 def _provenance(
-    item: DomainWindow | DomainHistoryPoint,
+    item: DomainWindow | DomainWindowV2 | DomainHistoryPoint | DomainHistoryPointV2,
 ) -> CapacityObservationProvenanceWireV1:
     source = item.provenance
     return CapacityObservationProvenanceWireV1(
@@ -118,89 +151,120 @@ def _provenance(
     )
 
 
-def _window(item: DomainWindow) -> QuotaWindowViewV1:
+def _window(
+    item: DomainWindow | DomainWindowV2, *, v2: bool = False
+) -> QuotaWindowViewV1 | QuotaWindowViewV2:
+    subject = _subject(item.subject)
+    if not v2 and isinstance(subject, CapacitySubjectWireV2):
+        raise ProblemError(409, "capacity_v2_required")
     allowance = GetQuotaAllowanceV1()(item)
-    return QuotaWindowViewV1(
-        window_id=item.window_id.value,
-        subject=_subject(item.subject),
-        window_key=item.window_key,
-        safe_label=item.safe_label,
-        semantic_role=item.semantic_role,
-        is_constraining=item.is_constraining,
-        reset_at=item.reset_at,
-        reset_precision=item.reset_precision,
-        allowance=QuotaAllowanceViewV1(
-            remaining_percentage=_metric(allowance.remaining_percentage),
-            calculation=allowance.calculation,
-            input_observation_id=allowance.input_observation_id.value,
+    model = QuotaWindowViewV2 if v2 else QuotaWindowViewV1
+    return model.model_validate(
+        dict(
+            window_id=item.window_id.value,
+            subject=subject,
+            window_key=item.window_key,
+            safe_label=item.safe_label,
+            semantic_role=item.semantic_role,
+            is_constraining=item.is_constraining,
+            reset_at=item.reset_at,
+            reset_precision=item.reset_precision,
+            allowance=QuotaAllowanceViewV1(
+                remaining_percentage=_metric(allowance.remaining_percentage),
+                calculation=allowance.calculation,
+                input_observation_id=allowance.input_observation_id.value,
+            )
+            if allowance
+            else None,
+            used=_metric(item.used),
+            remaining=_metric(item.remaining),
+            limit=_metric(item.limit),
+            remaining_ratio=_metric(item.remaining_ratio),
+            provenance=_provenance(item),
+            freshness=item.freshness,
+            current_observation_id=item.current_observation_id.value,
+            collection_run_id=item.collection_run_id.value,
+            observed_at=item.observed_at,
+            collected_at=item.collected_at,
+            stored_at=item.stored_at,
         )
-        if allowance
-        else None,
-        used=_metric(item.used),
-        remaining=_metric(item.remaining),
-        limit=_metric(item.limit),
-        remaining_ratio=_metric(item.remaining_ratio),
-        provenance=_provenance(item),
-        freshness=item.freshness,
-        current_observation_id=item.current_observation_id.value,
-        collection_run_id=item.collection_run_id.value,
-        observed_at=item.observed_at,
-        collected_at=item.collected_at,
-        stored_at=item.stored_at,
     )
 
 
-def _history_point(item: DomainHistoryPoint) -> CapacityHistoryPointV1:
-    return CapacityHistoryPointV1(
-        observation_id=item.observation_id.value,
-        window_id=item.window_id.value,
-        window_definition_id=item.window_definition_id.value,
-        subject=_subject(item.subject),
-        window_key=item.window_key,
-        safe_label=item.safe_label,
-        semantic_role=item.semantic_role,
-        native_unit=item.native_unit,
-        definition_version=item.definition_version,
-        metric=item.metric,
-        series_kind=item.series_kind,
-        value=_metric(item.value),
-        provenance=_provenance(item),
-        freshness=item.freshness,
-        completeness=item.completeness,
-        collection_run_id=item.collection_run_id.value,
-        derivation_id=(
-            item.derivation_id.value if item.derivation_id is not None else None
-        ),
-        observed_at=item.observed_at,
-        interval_start=item.interval_start,
-        interval_end=item.interval_end,
-        reset_at=item.reset_at,
-        reset_precision=item.reset_precision,
-        collected_at=item.collected_at,
-        stored_at=item.stored_at,
-        source_period_start=item.source_period_start,
+def _history_point(
+    item: DomainHistoryPoint | DomainHistoryPointV2, *, v2: bool = False
+) -> CapacityHistoryPointV1 | CapacityHistoryPointV2:
+    subject = _subject(item.subject)
+    if not v2 and isinstance(subject, CapacitySubjectWireV2):
+        raise ProblemError(409, "capacity_v2_required")
+    model = CapacityHistoryPointV2 if v2 else CapacityHistoryPointV1
+    return model.model_validate(
+        dict(
+            observation_id=item.observation_id.value,
+            window_id=item.window_id.value,
+            window_definition_id=item.window_definition_id.value,
+            subject=subject,
+            window_key=item.window_key,
+            safe_label=item.safe_label,
+            semantic_role=item.semantic_role,
+            native_unit=item.native_unit,
+            definition_version=item.definition_version,
+            metric=item.metric,
+            series_kind=item.series_kind,
+            value=_metric(item.value),
+            provenance=_provenance(item),
+            freshness=item.freshness,
+            completeness=item.completeness,
+            collection_run_id=item.collection_run_id.value,
+            derivation_id=(
+                item.derivation_id.value if item.derivation_id is not None else None
+            ),
+            observed_at=item.observed_at,
+            interval_start=item.interval_start,
+            interval_end=item.interval_end,
+            reset_at=item.reset_at,
+            reset_precision=item.reset_precision,
+            collected_at=item.collected_at,
+            stored_at=item.stored_at,
+            source_period_start=item.source_period_start,
+        )
     )
 
 
-def _capacity(item: DomainCapacity) -> AccountCapacityItemV1:
+def _capacity(
+    item: DomainCapacity | DomainCapacityV2, *, v2: bool = False
+) -> AccountCapacityItemV1 | AccountCapacityItemV2:
+    subject = _subject(item.subject)
+    if not v2 and isinstance(subject, CapacitySubjectWireV2):
+        raise ProblemError(409, "capacity_v2_required")
     health = item.health
-    return AccountCapacityItemV1(
-        subject=_subject(item.subject),
-        windows=tuple(_window(value) for value in item.windows),
-        health=None
-        if health is None
-        else CapacityHealthViewV1(
-            state=health.state,
-            completeness=health.completeness,
-            freshness=health.freshness,
-            constraining_window_id=health.constraining_window_id,
-            policy_id=health.policy_id,
-            policy_version=health.policy_version,
-            explanation_codes=health.explanation_codes,
-        ),
+    model = AccountCapacityItemV2 if v2 else AccountCapacityItemV1
+    return model.model_validate(
+        dict(
+            subject=subject,
+            windows=tuple(_window(value, v2=v2) for value in item.windows),
+            health=None
+            if health is None
+            else CapacityHealthViewV1(
+                state=health.state,
+                completeness=health.completeness,
+                freshness=health.freshness,
+                constraining_window_id=health.constraining_window_id,
+                policy_id=health.policy_id,
+                policy_version=health.policy_version,
+                explanation_codes=health.explanation_codes,
+            ),
+        )
     )
 
 
+@router.get(
+    "/accounts/{account_id}/capacity/v2",
+    operation_id="capacity_get_account_v2",
+    response_model=AccountCapacityViewV2,
+    responses=ERROR_RESPONSES,
+    openapi_extra=policy("read:telemetry", "GetAccountCapacityV1"),
+)
 @router.get(
     "/accounts/{account_id}/capacity",
     operation_id="capacity_get_account_v1",
@@ -208,7 +272,9 @@ def _capacity(item: DomainCapacity) -> AccountCapacityItemV1:
     responses=ERROR_RESPONSES,
     openapi_extra=policy("read:telemetry", "GetAccountCapacityV1"),
 )
-def get_account_capacity(account_id: str, request: Request) -> AccountCapacityViewV1:
+def get_account_capacity(
+    account_id: str, request: Request
+) -> AccountCapacityViewV1 | AccountCapacityViewV2:
     authorize_request(request, "read:telemetry")
     reject_unknown_query(request, frozenset())
     require_opaque_selector(account_id)
@@ -219,13 +285,24 @@ def get_account_capacity(account_id: str, request: Request) -> AccountCapacityVi
         )
     except CapacityQueryUnavailableV1:
         raise ProblemError(503, "observation_repository_unavailable") from None
-    return AccountCapacityViewV1(
-        account_id=account_id,
-        items=tuple(_capacity(item) for item in result.items),
-        availability=availability(result.availability),
+    v2 = request.url.path.endswith("/v2")
+    model = AccountCapacityViewV2 if v2 else AccountCapacityViewV1
+    return model.model_validate(
+        dict(
+            account_id=account_id,
+            items=tuple(_capacity(item, v2=v2) for item in result.items),
+            availability=availability(result.availability),
+        )
     )
 
 
+@router.get(
+    "/accounts/{account_id}/quotas/v2",
+    operation_id="capacity_list_quota_windows_v2",
+    response_model=QuotaWindowPageV2,
+    responses=ERROR_RESPONSES,
+    openapi_extra=policy("read:telemetry", "ListQuotaWindowsV1"),
+)
 @router.get(
     "/accounts/{account_id}/quotas",
     operation_id="capacity_list_quota_windows_v1",
@@ -238,7 +315,11 @@ def list_quota_windows(
     request: Request,
     limit: int = Query(50, ge=1, le=200),
     cursor: str | None = Query(None, max_length=1024),
-) -> QuotaWindowPageV1:
+) -> QuotaWindowPageV1 | QuotaWindowPageV2:
+    v2 = request.url.path.endswith("/v2")
+    operation = (
+        "capacity_list_quota_windows_v2" if v2 else "capacity_list_quota_windows_v1"
+    )
     caller = authorize_request(request, "read:telemetry")
     reject_unknown_query(request, frozenset({"limit", "cursor"}))
     require_opaque_selector(account_id)
@@ -248,7 +329,7 @@ def list_quota_windows(
         request,
         caller,
         cursor,
-        operation_id="capacity_list_quota_windows_v1",
+        operation_id=operation,
         limit=limit,
         filters=filters,
     )
@@ -258,22 +339,32 @@ def list_quota_windows(
         )
     except CapacityQueryUnavailableV1:
         raise ProblemError(503, "observation_repository_unavailable") from None
-    return QuotaWindowPageV1(
-        account_id=account_id,
-        items=tuple(_window(item) for item in result.items),
-        page=page_meta(
-            request,
-            caller,
-            operation_id="capacity_list_quota_windows_v1",
-            limit=result.limit,
-            has_more=result.has_more,
-            next_key=result.next_key,
-            filters=filters,
-        ),
-        availability=availability(result.availability),
+    model = QuotaWindowPageV2 if v2 else QuotaWindowPageV1
+    return model.model_validate(
+        dict(
+            account_id=account_id,
+            items=tuple(_window(item, v2=v2) for item in result.items),
+            page=page_meta(
+                request,
+                caller,
+                operation_id=operation,
+                limit=result.limit,
+                has_more=result.has_more,
+                next_key=result.next_key,
+                filters=filters,
+            ),
+            availability=availability(result.availability),
+        )
     )
 
 
+@router.get(
+    "/capacity/history/v2",
+    operation_id="capacity_list_history_v2",
+    response_model=CapacityHistoryPageV2,
+    responses=ERROR_RESPONSES,
+    openapi_extra=policy("read:telemetry", "ListCapacityHistoryV1"),
+)
 @router.get(
     "/capacity/history",
     operation_id="capacity_list_history_v1",
@@ -294,7 +385,9 @@ def list_capacity_history(
     bucket_seconds: int | None = Query(None, ge=1, le=31_536_000),
     limit: int = Query(50, ge=1, le=200),
     cursor: str | None = Query(None, max_length=1024),
-) -> CapacityHistoryPageV1:
+) -> CapacityHistoryPageV1 | CapacityHistoryPageV2:
+    v2 = request.url.path.endswith("/v2")
+    operation = "capacity_list_history_v2" if v2 else "capacity_list_history_v1"
     caller = authorize_request(request, "read:telemetry")
     reject_unknown_query(
         request,
@@ -336,7 +429,7 @@ def list_capacity_history(
         request,
         caller,
         cursor,
-        operation_id="capacity_list_history_v1",
+        operation_id=operation,
         limit=limit,
         filters=filters,
     )
@@ -362,21 +455,24 @@ def list_capacity_history(
         result = observation_ports(request).list_capacity_history(query)
     except CapacityQueryUnavailableV1:
         raise ProblemError(503, "observation_repository_unavailable") from None
-    return CapacityHistoryPageV1(
-        subject_id=subject_id,
-        metric=metric,
-        series_kind=series_kind,
-        items=tuple(_history_point(item) for item in result.items),
-        page=page_meta(
-            request,
-            caller,
-            operation_id="capacity_list_history_v1",
-            limit=result.limit,
-            has_more=result.has_more,
-            next_key=result.next_key,
-            filters=filters,
-        ),
-        availability=availability(result.availability),
+    model = CapacityHistoryPageV2 if v2 else CapacityHistoryPageV1
+    return model.model_validate(
+        dict(
+            subject_id=subject_id,
+            metric=metric,
+            series_kind=series_kind,
+            items=tuple(_history_point(item, v2=v2) for item in result.items),
+            page=page_meta(
+                request,
+                caller,
+                operation_id=operation,
+                limit=result.limit,
+                has_more=result.has_more,
+                next_key=result.next_key,
+                filters=filters,
+            ),
+            availability=availability(result.availability),
+        )
     )
 
 
@@ -427,6 +523,8 @@ def get_capacity_scope(
                 snapshot, accounts, resources, as_of, services.capacity_health_policy
             )
         )
+    except CapacityV2RequiredV1:
+        raise ProblemError(409, "capacity_v2_required") from None
     except (CapacityQueryUnavailableV1, ValueError):
         raise ProblemError(503, "observation_repository_unavailable") from None
     values = technical_wire(result)

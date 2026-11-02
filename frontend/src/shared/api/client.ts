@@ -1,7 +1,7 @@
 import {
   apiClient,
   apiVersion,
-  type AccountCapacityViewV1,
+  type AccountCapacityViewV2,
   type AccountPageV1,
   type AccountViewV1,
   type AlertRuleCommandWireV1,
@@ -24,8 +24,8 @@ import {
   type AvailabilityV1,
   type AgentProcessMetricPageV1,
   type AgentProcessMetricViewV1,
-  type CapacityHistoryPageV1,
-  type CapacityHistoryPointV1,
+  type CapacityHistoryPageV2,
+  type CapacityHistoryPointV2,
   type CollectionRunPageV1,
   type CollectionRunViewV1,
   type CurrentSessionViewV1,
@@ -44,8 +44,8 @@ import {
   type LiveProcessLocationViewV1,
   type ProviderInstallationPageV1,
   type ProviderInstallationViewV1,
-  type QuotaWindowPageV1,
-  type QuotaWindowViewV1,
+  type QuotaWindowPageV2,
+  type QuotaWindowViewV2,
   type SafeProblemV1,
   type SessionTreeNodeV1,
   type SessionTreeViewV1,
@@ -55,7 +55,7 @@ export type {
   ApiTokenCredentialIssueV1,
   ApiTokenPageV1,
   ApiTokenSummaryV1,
-  AccountCapacityViewV1,
+  AccountCapacityViewV2,
   AccountPageV1,
   AccountViewV1,
   AlertRuleCommandWireV1,
@@ -74,8 +74,8 @@ export type {
   AgentSessionPageV1,
   AgentSessionViewV1,
   AvailabilityV1,
-  CapacityHistoryPageV1,
-  CapacityHistoryPointV1,
+  CapacityHistoryPageV2,
+  CapacityHistoryPointV2,
   CollectionRunPageV1,
   CollectionRunViewV1,
   CurrentSessionViewV1,
@@ -94,8 +94,8 @@ export type {
   LiveProcessLocationViewV1,
   ProviderInstallationPageV1,
   ProviderInstallationViewV1,
-  QuotaWindowPageV1,
-  QuotaWindowViewV1,
+  QuotaWindowPageV2,
+  QuotaWindowViewV2,
   SafeProblemV1,
   SessionTreeNodeV1,
   SessionTreeViewV1,
@@ -126,7 +126,7 @@ export type CapacityHistoryContinuation =
   | Readonly<{ kind: "invalid" }>;
 
 export type CapacityHistoryAppendResult =
-  | Readonly<{ ok: true; pages: readonly CapacityHistoryPageV1[] }>
+  | Readonly<{ ok: true; pages: readonly CapacityHistoryPageV2[] }>
   | Readonly<{
       ok: false;
       reason:
@@ -137,7 +137,7 @@ export type CapacityHistoryAppendResult =
 
 /** Interpret the generated cursor contract without guessing a missing cursor. */
 export function capacityHistoryContinuation(
-  page: CapacityHistoryPageV1["page"],
+  page: CapacityHistoryPageV2["page"],
 ): CapacityHistoryContinuation {
   if (!page.has_more) return page.next_cursor === null ? { kind: "complete" } : { kind: "invalid" };
   if (page.next_cursor === null || page.next_cursor.trim().length === 0) return { kind: "invalid" };
@@ -150,13 +150,13 @@ export function capacityHistoryContinuation(
  * chart or making the retained-history count misleading.
  */
 export function appendCapacityHistoryPage(
-  pages: readonly CapacityHistoryPageV1[],
-  nextPage: CapacityHistoryPageV1,
+  pages: readonly CapacityHistoryPageV2[],
+  nextPage: CapacityHistoryPageV2,
 ): CapacityHistoryAppendResult {
   const firstPage = pages[0];
   if (firstPage === undefined) return { ok: false, reason: "history_page_sequence_missing" };
 
-  const sameQuery = (page: CapacityHistoryPageV1) =>
+  const sameQuery = (page: CapacityHistoryPageV2) =>
     page.subject_id === firstPage.subject_id &&
     page.metric === firstPage.metric &&
     page.series_kind === firstPage.series_kind;
@@ -467,13 +467,13 @@ export const capacity = Object.freeze({
   account: (
     accountId: string,
     signal?: AbortSignal,
-  ): Promise<ClientResult<AccountCapacityViewV1>> =>
-    apiClient.capacity_get_account_v1({ path: { account_id: accountId }, signal }),
+  ): Promise<ClientResult<AccountCapacityViewV2>> =>
+    apiClient.capacity_get_account_v2({ path: { account_id: accountId }, signal }),
   quotaWindows: (
     accountId: string,
     signal?: AbortSignal,
-  ): Promise<ClientResult<QuotaWindowPageV1>> =>
-    apiClient.capacity_list_quota_windows_v1({
+  ): Promise<ClientResult<QuotaWindowPageV2>> =>
+    apiClient.capacity_list_quota_windows_v2({
       path: { account_id: accountId }, query: { limit: 200 }, signal,
     }),
   history: (
@@ -486,8 +486,8 @@ export const capacity = Object.freeze({
       cursor?: string;
       signal?: AbortSignal;
     }>,
-  ): Promise<ClientResult<CapacityHistoryPageV1>> =>
-    apiClient.capacity_list_history_v1({
+  ): Promise<ClientResult<CapacityHistoryPageV2>> =>
+    apiClient.capacity_list_history_v2({
       query: {
         subject_id: options.accountId,
         from: options.rangeFrom,

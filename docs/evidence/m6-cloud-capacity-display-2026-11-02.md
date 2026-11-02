@@ -22,3 +22,14 @@ browser with CSRF, account version and idempotency headers and rejects a request
 body; it returns unavailable until its application port is wired. No real
 signed-in HTTP request, browser flow, account verification or key operation has
 been performed for this surface. The panel remains disconnected.
+
+The V2 cloud target now has separate account-capacity, quota and history wire
+routes; V1's required installation identity remains unchanged. V1 routes return
+an explicit V2-required problem for cloud targets. The dashboard client uses the
+V2 routes. A pure V2 subject-mapping test failed before the mapper existed and
+passes; eight focused API/mapping checks, generated OpenAPI compatibility,
+targeted mypy, frontend typecheck and build passed. An independent review on a
+private copy of real Claude/Codex data found identical V1/V2 wire output for
+12 account-capacity views, 19 windows and 4,800 sampled history points at the
+same observation time. No account values were printed and the copy was deleted.
+Live authenticated browser verification and real cloud data remain Not Run.

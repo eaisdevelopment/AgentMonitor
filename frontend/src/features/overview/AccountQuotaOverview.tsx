@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 
 import {
   capacity, providers, registry,
-  type AccountCapacityViewV1, type AccountPageV1, type AccountViewV1,
+  type AccountCapacityViewV2, type AccountPageV1, type AccountViewV1,
   type ProviderAccountIdentityViewV1, type OrganizationPageV1,
 } from "../../shared/api/client";
 import { providerDisplayName } from "../accounts/providerPresentation";
@@ -10,7 +10,7 @@ import { exactUsd, isLowQuota, metricAvailability, quotaResetPresentation, remai
 
 type AccountReading = Readonly<{
   account: AccountViewV1;
-  quota: AccountCapacityViewV1 | null;
+  quota: AccountCapacityViewV2 | null;
   identity: ProviderAccountIdentityViewV1 | null;
   refreshFailed: boolean;
 }>;
