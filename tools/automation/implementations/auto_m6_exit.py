@@ -1193,13 +1193,16 @@ def _open_receipt_directory() -> Iterator[_DirectoryChainV1]:
                 pass
             except OSError:
                 raise M6ExitBlockedV1("m6_receipt_root_unavailable") from None
-            local.revalidate()
-            with _open_directory_chain(
-                (".agentmonitor-local", "m6-exit-receipts"), private=True
-            ) as receipts:
-                if receipts.entries[0][2] != local.entries[0][2]:
-                    raise M6ExitBlockedV1("m6_receipt_root_changed")
-                yield receipts
+            # Creating the child legitimately changes the parent's link count.
+            # Reopen the complete chain and compare the stable parent identity.
+            parent_identity = local.entries[0][2]
+        with _open_directory_chain(
+            (".agentmonitor-local", "m6-exit-receipts"), private=True
+        ) as receipts:
+            reopened = receipts.entries[0][2]
+            if reopened[:3] != parent_identity[:3] or reopened[4] != parent_identity[4]:
+                raise M6ExitBlockedV1("m6_receipt_root_changed")
+            yield receipts
     except FileNotFoundError:
         raise M6ExitBlockedV1("m6_receipt_root_unavailable") from None
     except M6ExitErrorV1:
