@@ -127,14 +127,16 @@ def main() -> int:
                     time.sleep(0.1)
     except (OSError, ValueError, RuntimeError, subprocess.SubprocessError):
         print(
-            "M6 CURRENT UPDATE: BLOCKED — review the transition journal and service state"
+            "M6 CURRENT UPDATE: BLOCKED — review the transition journal "
+            "and service state"
         )
         return 3
     if status != "candidate_ready_restart_restored":
         print("M6 CURRENT UPDATE: BLOCKED — cutover result unverified")
         return 3
     print(
-        "M6 CURRENT UPDATE: candidate local readiness verified and original restart policy restored"
+        "M6 CURRENT UPDATE: candidate local readiness verified and "
+        "original restart policy restored"
     )
     return 0
 

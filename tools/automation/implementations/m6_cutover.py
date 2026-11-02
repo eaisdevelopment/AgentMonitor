@@ -1080,7 +1080,10 @@ def _recover_same_schema_update_engine_inner(
             "invocation_id",
             "start_monotonic",
         }
-        group = f"/user.slice/user-{os.getuid()}.slice/user@{os.getuid()}.service/app.slice/{unit}"
+        group = (
+            f"/user.slice/user-{os.getuid()}.slice/"
+            f"user@{os.getuid()}.service/app.slice/{unit}"
+        )
         if (
             set(data) != expected
             or type(data.get("pid")) is not int

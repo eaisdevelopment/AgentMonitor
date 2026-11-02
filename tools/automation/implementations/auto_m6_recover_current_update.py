@@ -81,7 +81,8 @@ def main() -> int:
             raise RuntimeError("operator_runtime_changed")
     except (OSError, RuntimeError, ValueError, subprocess.SubprocessError):
         print(
-            "M6 CURRENT UPDATE RECOVERY: BLOCKED — operator checkout or runtime unavailable"
+            "M6 CURRENT UPDATE RECOVERY: BLOCKED — operator checkout "
+            "or runtime unavailable"
         )
         return 3
     if Path(sys.prefix).resolve() != _RUNTIME:
@@ -110,7 +111,8 @@ def main() -> int:
         status = recover_current_schema_update()
     except (OSError, ValueError, RuntimeError, subprocess.SubprocessError):
         print(
-            "M6 CURRENT UPDATE RECOVERY: BLOCKED — review the transition journal and service state"
+            "M6 CURRENT UPDATE RECOVERY: BLOCKED — review the transition journal "
+            "and service state"
         )
         return 3
     if status not in {
@@ -120,7 +122,8 @@ def main() -> int:
         print("M6 CURRENT UPDATE RECOVERY: BLOCKED — cutover result unverified")
         return 3
     print(
-        "M6 CURRENT UPDATE RECOVERY: same-schema transition recovered and original restart policy restored"
+        "M6 CURRENT UPDATE RECOVERY: same-schema transition recovered "
+        "and original restart policy restored"
     )
     return 0
 
