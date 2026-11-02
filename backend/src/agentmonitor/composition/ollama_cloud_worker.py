@@ -14,9 +14,6 @@ from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 from agentmonitor.adapters.persistence._shared.sqlite.core.policy import DatabaseRefV1
-from agentmonitor.adapters.providers.ollama.cloud_balance.keyring_command import (
-    secret_tool_environment,
-)
 from agentmonitor.composition.ollama_cloud_collection import (
     OllamaCloudCollectionV1,
     require_probe_authorized,
@@ -25,6 +22,19 @@ from agentmonitor.composition.ollama_cloud_collection import (
 _PREFIX = "agentmonitor-cloud-worker-"
 _SYSTEMCTL = "/usr/bin/systemctl"
 _SYSTEMD_RUN = "/usr/bin/systemd-run"
+
+
+def _manager_environment() -> dict[str, str]:
+    """Use the local user bus without forwarding a keyring/display environment."""
+    runtime = f"/run/user/{os.getuid()}"
+    return {
+        "PATH": "/usr/bin:/bin",
+        "XDG_RUNTIME_DIR": runtime,
+        "DBUS_SESSION_BUS_ADDRESS": f"unix:path={runtime}/bus",
+        "LC_ALL": "C.UTF-8",
+    }
+
+
 _COMMAND_TIMEOUT_SECONDS = 8
 _CLEANUP_TIMEOUT_SECONDS = 20
 
@@ -136,7 +146,7 @@ class OllamaCloudWorkerSupervisorV1:
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.DEVNULL,
             pass_fds=pass_fds,
-            env=secret_tool_environment(os.environ),
+            env=_manager_environment(),
         )
         try:
             output, _ = await asyncio.wait_for(
@@ -431,7 +441,7 @@ class OllamaCloudWorkerSupervisorV1:
         unit = _PREFIX + token + ".service"
         self.last_unit = unit
         description = "AgentMonitor cloud worker " + token
-        environment = secret_tool_environment(os.environ)
+        environment = _manager_environment()
         environment["PYTHONPATH"] = str(Path(__file__).resolve().parents[2])
         command = [
             _SYSTEMD_RUN,
