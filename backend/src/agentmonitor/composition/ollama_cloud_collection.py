@@ -14,6 +14,7 @@ from agentmonitor.adapters.persistence.capacity.sqlite.repository import (
 )
 from agentmonitor.adapters.persistence.collection_control.sqlite.ollama_cloud_admission import (
     SqliteOllamaCloudAdmissionRepositoryV1,
+    bind_ollama_run_in_transaction,
 )
 from agentmonitor.adapters.persistence.collection_control.sqlite.repository import (
     SqliteCollectionRepositoryV1,
@@ -27,6 +28,7 @@ from agentmonitor.adapters.persistence.registry.sqlite.repository import (
 from agentmonitor.adapters.providers.ollama.cloud_balance.collection import (
     admission_outcome_for_source,
     cloud_balance_to_capacity,
+    cloud_failure_policy,
     eligible_cloud_account,
     validate_cloud_target,
 )
@@ -77,8 +79,6 @@ def require_source_admitted() -> None:
     policy = CLOUD_BALANCE_POLICY_V1
     if not (
         policy.authenticated_collection_admitted
-        and policy.operation_deadline_strict
-        and policy.dns_deadline_strict
         and policy.wire_header_limit_strict
         and policy.binding_worker_process_isolated
         and policy.binding_worker_deadline_strict
@@ -315,20 +315,8 @@ class OllamaCloudCollectionV1:
             and item[0].account_id == lease.account_id
         ]
         if len(selected) != 1:
-            # No request was dispatched. Record the failed attempt without a
-            # fabricated provider response, retaining the global cooldown.
-            self._admission.complete(
-                OllamaCloudRequestCompletionV1(
-                    admission_id=lease.admission_id,
-                    scheduler_instance_id=lease.scheduler_instance_id,
-                    schedule_id=lease.schedule_id,
-                    fencing_token=lease.fencing_token,
-                    started_at=lease.started_at,
-                    response_received_at=datetime.now(UTC),
-                    outcome="failed",
-                    retry_after_seconds=None,
-                    jitter_seconds=secrets.randbelow(11),
-                )
+            self._admission.recover_rate_gate(
+                datetime.now(UTC), expected=lease, reserved_only=True
             )
             raise ValueError("ollama_cloud_target_changed")
         run, profile, resource = selected[0]
@@ -338,7 +326,34 @@ class OllamaCloudCollectionV1:
             lease.account_id,
             resource.resource_id,
         )
-        return self.execute_admitted(lease, run, subject)
+        try:
+            return self.execute_admitted(lease, run, subject)
+        except BaseException:
+            # Release only a reservation that never crossed dispatch. A
+            # dispatched/recorded attempt requires normal durable recovery.
+            try:
+                recovered = self._admission.recover_rate_gate(
+                    datetime.now(UTC), expected=lease, reserved_only=True
+                )
+                if recovered == "recovered":
+                    current_run = self._runs.get_run(run.run_id)
+                    failure = CollectionFailedV1(
+                        run.run_id,
+                        "failed",
+                        "ollama_cloud_pre_dispatch_failed",
+                        datetime.now(UTC),
+                    )
+                    if current_run.state == "queued":
+                        self._runs.finalize_before_dispatch(
+                            failure, fencing_token=current_run.fencing_token
+                        )
+                    elif current_run.state == "running":
+                        self._runs.finalize_failed(
+                            failure, fencing_token=current_run.fencing_token
+                        )
+            except (OSError, RuntimeError, ValueError):
+                pass
+            raise
 
     def _eligible_binding(
         self, run: CollectionRunAdmissionV1
@@ -426,7 +441,12 @@ class OllamaCloudCollectionV1:
             or run.resource_id != subject.resource_id
         ):
             raise ValueError("ollama_cloud_target_mismatch")
-        admitted = self._runs.admit_run(run)
+        admitted = self._runs.admit_run(
+            run,
+            on_admitted=lambda connection: bind_ollama_run_in_transaction(
+                connection, lease, run, datetime.now(UTC)
+            ),
+        )
         if admitted.state != "queued":
             raise ValueError("ollama_cloud_run_not_dispatchable")
         now = datetime.now(UTC)
@@ -442,19 +462,81 @@ class OllamaCloudCollectionV1:
         )
         if remaining <= 1:
             raise ValueError("ollama_cloud_lease_expired")
+        self._admission.mark_dispatched(lease, datetime.now(UTC))
+        current = datetime.now(UTC)
+        remaining = min(
+            (lease.lease_expires_at - current).total_seconds(),
+            (run.deadline_at - current).total_seconds(),
+            CLOUD_BALANCE_POLICY_V1.operation_timeout_seconds,
+        )
+        if remaining <= 1:
+            # No worker was spawned; make this exact owner cancellation recoverable.
+            self._admission.revert_undispatched(lease)
+            raise ValueError("ollama_cloud_lease_expired")
         source = read_cloud_balance_for_binding_v1(
             binding=binding, deadline_monotonic=time.monotonic() + remaining - 1
         )
+        completed = datetime.now(UTC)
+        authorization_not_sent = (
+            source.dispatch_certainty == "not_started"
+            and source.state == "authorization_unavailable"
+        )
+        if (
+            source.dispatch_certainty == "may_have_started"
+            or (
+                source.dispatch_certainty == "response_received"
+                and source.http_status is None
+            )
+            or source.retry_after_state == "unrepresentable"
+        ):
+            # We cannot infer whether an unobserved 429 imposed a longer wait.
+            raise ValueError("ollama_cloud_outcome_unresolved")
+        outcome = admission_outcome_for_source(source.state)
+        completion = OllamaCloudRequestCompletionV1(
+            admission_id=lease.admission_id,
+            scheduler_instance_id=lease.scheduler_instance_id,
+            schedule_id=lease.schedule_id,
+            fencing_token=lease.fencing_token,
+            started_at=lease.started_at,
+            response_received_at=completed,
+            outcome=outcome,
+            retry_after_seconds=(
+                source.retry_after_seconds if outcome == "rate_limited" else None
+            ),
+            jitter_seconds=secrets.randbelow(11),
+        )
+        self._admission.record_completion(lease, completion)
         provenance = (
             self._source_provenance(run, source) if source.state == "success" else None
         )
-        completed = datetime.now(UTC)
         if source.state != "success":
-            failed = CollectionFailedV1(
-                run.run_id, "failed", "ollama_cloud_read_failed", completed
+            safe_codes = {
+                "unauthorized",
+                "access_denied",
+                "rate_limited",
+                "provider_unavailable",
+                "unexpected_response",
+                "invalid_provider_data",
+                "deadline_exceeded",
+                "authorization_unavailable",
+                "internal_adapter_error",
+                "source_not_admitted",
+            }
+            failure_code = (
+                "ollama_cloud_store_unavailable"
+                if authorization_not_sent
+                else "ollama_cloud_"
+                + (source.state if source.state in safe_codes else "read_failed")
             )
-            self._runs.finalize_failed(failed, fencing_token=admitted.fencing_token)
-            self.complete_failure(lease, source)
+            failed = CollectionFailedV1(run.run_id, "failed", failure_code, completed)
+            self._runs.finalize_failed(
+                failed,
+                fencing_token=admitted.fencing_token,
+                provider_policy=cloud_failure_policy(
+                    source.state, source.retry_after_seconds
+                ),
+            )
+            self._admission.complete(completion)
             return failed
         if source.balance is None or provenance is None:
             raise ValueError("ollama_cloud_source_binding_invalid")
@@ -472,6 +554,7 @@ class OllamaCloudCollectionV1:
         receipt = self.commit_reading(
             lease, binding, run, subject, run.registry_revision, source, provenance
         )
+        self._admission.complete(completion)
         self._runs.finalize_committed(
             receipt,
             terminal_state="partial",
@@ -505,6 +588,46 @@ class OllamaCloudCollectionV1:
             recovery_lease_expires_at=recovery_lease_expires_at,
             maximum_runs=maximum_runs,
         )
+
+    def recover_journals(
+        self,
+        *,
+        as_of: datetime,
+        owner_stale_before: datetime,
+        recovery_lease_expires_at: datetime,
+        maximum_runs: int = 10,
+    ) -> tuple[str, int, int]:
+        """Reconcile a stale owner's exact rate journal and durable M04 runs."""
+        rate = self._admission.recover_rate_gate(
+            as_of, owner_stale_before=owner_stale_before
+        )
+        # Ambiguous post-dispatch outcomes must never permit a new request.
+        if rate in {
+            "outcome_unknown",
+            "legacy_unresolved",
+            "owner_active_or_unverified",
+        }:
+            return rate, 0, 0
+        committed = self.recover_committing_runs(
+            as_of=as_of,
+            owner_stale_before=owner_stale_before,
+            recovery_lease_expires_at=recovery_lease_expires_at,
+            maximum_runs=maximum_runs,
+        )
+        orphaned = self._admission.recoverable_orphaned_runs(
+            now=as_of, owner_stale_before=owner_stale_before, limit=maximum_runs
+        )
+        for run_id, state, fence in orphaned:
+            failure = CollectionFailedV1(
+                run_id, "failed", "ollama_cloud_run_interrupted", as_of
+            )
+            if state == "queued":
+                self._runs.finalize_before_dispatch(failure, fencing_token=fence)
+            else:
+                self._runs.finalize_failed(failure, fencing_token=fence)
+        if len(orphaned) == maximum_runs:
+            raise ValueError("ollama_cloud_recovery_batch_incomplete")
+        return rate, len(committed), len(orphaned)
 
     def acquire_next(self, now: datetime) -> OllamaCloudAdmissionDecisionV1:
         """Use M04's durable round-robin schedule selector, once admitted."""
@@ -571,39 +694,4 @@ class OllamaCloudCollectionV1:
         receipt = ollama_capacity_repository(
             self._reference, lease, run, request.payload_digest
         ).commit_fenced(request, binding)
-        self._complete(lease, source)
         return receipt
-
-    def complete_failure(
-        self, lease: OllamaCloudRequestLeaseV1, source: CloudBalanceSourceResultV1
-    ):
-        """Record only a failed source; successful reads require a durable commit."""
-        if source.state == "success":
-            raise ValueError("ollama_cloud_success_requires_commit")
-        return self._complete(lease, source)
-
-    def _complete(
-        self, lease: OllamaCloudRequestLeaseV1, source: CloudBalanceSourceResultV1
-    ):
-        """Persist cooldown; unrepresentable retry or expired lease stays blocked."""
-        if source.retry_after_state == "unrepresentable":
-            raise ValueError("ollama_cloud_retry_after_unrepresentable")
-        now = datetime.now(UTC)
-        if now > lease.lease_expires_at:
-            raise ValueError("ollama_cloud_lease_expired")
-        state = admission_outcome_for_source(source.state)
-        return self._admission.complete(
-            OllamaCloudRequestCompletionV1(
-                admission_id=lease.admission_id,
-                scheduler_instance_id=lease.scheduler_instance_id,
-                schedule_id=lease.schedule_id,
-                fencing_token=lease.fencing_token,
-                started_at=lease.started_at,
-                response_received_at=now,
-                outcome=state,
-                retry_after_seconds=(
-                    source.retry_after_seconds if state == "rate_limited" else None
-                ),
-                jitter_seconds=secrets.randbelow(11),
-            )
-        )

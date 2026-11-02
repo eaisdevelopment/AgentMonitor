@@ -36,7 +36,12 @@ def _write_all(payload: bytes) -> None:
         view = view[written:]
 
 
-def _fallback_payload(state: str) -> bytes:
+def _fallback_payload(state: str, dispatch_certainty: str) -> bytes:
+    # A fallback carries no trusted HTTP status. Preserve only the conservative
+    # fact that the request may have started when the precise child result is
+    # unavailable.
+    if dispatch_certainty == "response_received":
+        dispatch_certainty = "may_have_started"
     return json.dumps(
         [
             state,
@@ -44,6 +49,7 @@ def _fallback_payload(state: str) -> bytes:
             None,
             None,
             "not_applicable",
+            dispatch_certainty,
             None,
         ],
         ensure_ascii=True,
@@ -61,12 +67,13 @@ def main() -> int:
         return 2
     remaining = deadline - time.monotonic()
     if not math.isfinite(deadline) or not 0 < remaining <= _MAX_OPERATION_SECONDS:
-        payload = _fallback_payload("deadline_exceeded")
+        payload = _fallback_payload("deadline_exceeded", "not_started")
         remaining = 0.0
     else:
         payload = b""
         signal.signal(signal.SIGALRM, _deadline_expired)
         signal.setitimer(signal.ITIMER_REAL, remaining)
+    fallback_certainty = "not_started"
     try:
         if remaining > 0:
             _bootstrap_source_root()
@@ -87,27 +94,33 @@ def main() -> int:
                     sys.argv[2]
                 )
 
+            # From this point a failure outside the source cannot prove that the
+            # fixed request did not cross the wire. The source returns a more
+            # precise closed fact when it completes normally.
+            fallback_certainty = "may_have_started"
             result = _read_cloud_balance_once_v1(
                 authorization=authorization,
                 deadline_monotonic=deadline,
             )
-            payload = worker_protocol.encode_worker_result_v1(
+            fallback_certainty = result.dispatch_certainty
+            payload = worker_protocol.encode_worker_result_v2(
                 state=result.state,
                 observed_at=result.observed_at,
                 http_status=result.http_status,
                 balance=result.balance,
                 retry_after_seconds=result.retry_after_seconds,
                 retry_after_state=result.retry_after_state,
+                dispatch_certainty=result.dispatch_certainty,
             )
     except _DeadlineExpired:
-        payload = _fallback_payload("deadline_exceeded")
+        payload = _fallback_payload("deadline_exceeded", fallback_certainty)
     except BaseException:
-        payload = _fallback_payload("internal_adapter_error")
+        payload = _fallback_payload("internal_adapter_error", fallback_certainty)
     finally:
         if remaining > 0:
             signal.setitimer(signal.ITIMER_REAL, 0.0)
     if not 0 < len(payload) <= 4096:
-        payload = _fallback_payload("internal_adapter_error")
+        payload = _fallback_payload("internal_adapter_error", fallback_certainty)
     try:
         _write_all(payload)
     except OSError:

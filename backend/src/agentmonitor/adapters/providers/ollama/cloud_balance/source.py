@@ -32,8 +32,8 @@ from agentmonitor.adapters.providers.ollama.cloud_balance.status import (
 )
 from agentmonitor.adapters.providers.ollama.cloud_balance.worker_protocol import (
     MAX_WORKER_RESULT_BYTES,
-    WorkerResultV1,
-    decode_worker_result_v1,
+    WorkerResultV2,
+    decode_worker_result_v2,
 )
 from agentmonitor.contracts.providers.ollama.cloud_balance.v1.schema import (
     IncludedCreditsV1,
@@ -226,6 +226,7 @@ RetryAfterState = Literal[
     "available",
     "unrepresentable",
 ]
+DispatchCertainty = Literal["not_started", "may_have_started", "response_received"]
 
 
 @dataclass(frozen=True, slots=True)
@@ -240,6 +241,17 @@ class CloudBalanceSourceResultV1:
     balance: OllamaCloudBalanceV1 | None
     retry_after_seconds: int | None
     retry_after_state: RetryAfterState
+    dispatch_certainty: DispatchCertainty
+
+    def __post_init__(self) -> None:
+        if self.dispatch_certainty not in {
+            "not_started",
+            "may_have_started",
+            "response_received",
+        } or (self.http_status is not None) != (
+            self.dispatch_certainty == "response_received"
+        ):
+            raise ValueError("ollama_cloud_dispatch_certainty_invalid")
 
 
 @dataclass(frozen=True, slots=True)
@@ -592,6 +604,7 @@ def _result(
     state: SourceState,
     reason_code: str,
     *,
+    dispatch_certainty: DispatchCertainty,
     http_status: int | None = None,
     balance: OllamaCloudBalanceV1 | None = None,
     retry_after_seconds: int | None = None,
@@ -607,6 +620,7 @@ def _result(
         balance=balance,
         retry_after_seconds=retry_after_seconds,
         retry_after_state=retry_after_state,
+        dispatch_certainty=dispatch_certainty,
     )
 
 
@@ -623,7 +637,11 @@ def _read_cloud_balance_once_v1(
         or not math.isfinite(deadline_monotonic)
         or deadline_monotonic <= started
     ):
-        return _result("deadline_exceeded", "ollama_cloud_deadline_exceeded")
+        return _result(
+            "deadline_exceeded",
+            "ollama_cloud_deadline_exceeded",
+            dispatch_certainty="not_started",
+        )
     deadline = min(
         started + policy.operation_timeout_seconds,
         deadline_monotonic
@@ -632,6 +650,7 @@ def _read_cloud_balance_once_v1(
     )
     connection: http.client.HTTPSConnection | None = None
     response: http.client.HTTPResponse | None = None
+    dispatch_certainty: DispatchCertainty = "not_started"
     try:
         connection = http.client.HTTPSConnection(
             policy.host,
@@ -667,6 +686,10 @@ def _read_cloud_balance_once_v1(
             None,
             _remaining(deadline, policy.read_timeout_seconds),
         )
+        # ``endheaders`` may partially send before raising. From immediately
+        # before that call until a status arrives, no caller may infer that the
+        # provider did not receive the request.
+        dispatch_certainty = "may_have_started"
         connection.endheaders()
         _set_socket_timeout(
             connection,
@@ -674,6 +697,7 @@ def _read_cloud_balance_once_v1(
             _remaining(deadline, policy.read_timeout_seconds),
         )
         response = connection.getresponse()
+        dispatch_certainty = "response_received"
         _remaining(deadline, policy.operation_timeout_seconds)
         headers = _headers(response)
         status = classify_status(response.status)
@@ -685,6 +709,7 @@ def _read_cloud_balance_once_v1(
                     return _result(
                         "invalid_provider_data",
                         error.code,
+                        dispatch_certainty=dispatch_certainty,
                         http_status=response.status,
                         retry_after_state="unrepresentable",
                     )
@@ -694,6 +719,7 @@ def _read_cloud_balance_once_v1(
             return _result(
                 status,
                 _STATUS_REASON[status],
+                dispatch_certainty=dispatch_certainty,
                 http_status=response.status,
                 retry_after_seconds=retry_after_seconds,
                 retry_after_state=retry_after_state,
@@ -707,25 +733,52 @@ def _read_cloud_balance_once_v1(
             return _result(
                 "invalid_provider_data",
                 parsed.reason_code or "ollama_cloud_schema_invalid",
+                dispatch_certainty=dispatch_certainty,
                 http_status=response.status,
             )
         return _result(
             "success",
             _STATUS_REASON["success"],
+            dispatch_certainty=dispatch_certainty,
             http_status=response.status,
             balance=parsed.balance,
         )
     except CloudBalanceAuthorizationUnavailable as error:
-        return _result("authorization_unavailable", error.code)
+        return _result(
+            "authorization_unavailable",
+            error.code,
+            dispatch_certainty=dispatch_certainty,
+            http_status=response.status if response is not None else None,
+        )
     except TimeoutError:
-        return _result("deadline_exceeded", "ollama_cloud_deadline_exceeded")
+        return _result(
+            "deadline_exceeded",
+            "ollama_cloud_deadline_exceeded",
+            dispatch_certainty=dispatch_certainty,
+            http_status=response.status if response is not None else None,
+        )
     except _InvalidCloudBalance as error:
-        return _result("invalid_provider_data", error.code)
+        return _result(
+            "invalid_provider_data",
+            error.code,
+            dispatch_certainty=dispatch_certainty,
+            http_status=response.status if response is not None else None,
+        )
     except (http.client.HTTPException, OSError, ssl.SSLError):
-        return _result("provider_unavailable", "ollama_cloud_network_unavailable")
+        return _result(
+            "provider_unavailable",
+            "ollama_cloud_network_unavailable",
+            dispatch_certainty=dispatch_certainty,
+            http_status=response.status if response is not None else None,
+        )
     except Exception:
         # Never propagate or stringify a credential-boundary/provider exception.
-        return _result("internal_adapter_error", "ollama_cloud_internal_error")
+        return _result(
+            "internal_adapter_error",
+            "ollama_cloud_internal_error",
+            dispatch_certainty=dispatch_certainty,
+            http_status=response.status if response is not None else None,
+        )
     finally:
         if response is not None:
             response.close()
@@ -747,6 +800,7 @@ def read_cloud_balance_once_v1(
         return _result(
             "source_not_admitted",
             "ollama_cloud_authenticated_source_not_admitted",
+            dispatch_certainty="not_started",
         )
     return _read_cloud_balance_once_v1(
         authorization=authorization,
@@ -773,18 +827,30 @@ def _stop_worker_process(process: subprocess.Popen[bytes]) -> None:
 
 
 def _map_worker_result(
-    worker: WorkerResultV1, *, authenticated: bool
+    worker: WorkerResultV2, *, authenticated: bool
 ) -> CloudBalanceSourceResultV1:
     state = worker.state
     status = worker.http_status
     retry_after = worker.retry_after_seconds
     retry_state = worker.retry_after_state
     observed_at = worker.observed_at
+    dispatch_certainty = worker.dispatch_certainty
+
+    def worker_failed() -> CloudBalanceSourceResultV1:
+        return _result(
+            "internal_adapter_error",
+            "ollama_cloud_worker_failed",
+            dispatch_certainty=dispatch_certainty,
+            http_status=status,
+            observed_at=observed_at,
+        )
+
     if state == "success":
         if not authenticated:
             return _result(
                 "unexpected_response",
                 "ollama_cloud_anonymous_success_unexpected",
+                dispatch_certainty=dispatch_certainty,
                 http_status=status,
                 observed_at=observed_at,
             )
@@ -795,10 +861,11 @@ def _map_worker_result(
             or retry_after is not None
             or retry_state != "not_applicable"
         ):
-            return _result("internal_adapter_error", "ollama_cloud_worker_failed")
+            return worker_failed()
         return _result(
             "success",
             "ollama_cloud_success",
+            dispatch_certainty=dispatch_certainty,
             http_status=status,
             balance=worker.balance,
             observed_at=observed_at,
@@ -811,18 +878,21 @@ def _map_worker_result(
         "unexpected_response",
     }
     if state in ordinary_states:
-        if status is None:
-            if state != "provider_unavailable":
-                return _result("internal_adapter_error", "ollama_cloud_worker_failed")
-        elif classify_status(status) != state:
-            return _result("internal_adapter_error", "ollama_cloud_worker_failed")
+        if state == "provider_unavailable":
+            if status is not None and classify_status(status) not in {
+                "success",
+                "provider_unavailable",
+            }:
+                return worker_failed()
+        elif status is None or classify_status(status) != state:
+            return worker_failed()
         if state == "rate_limited":
             if retry_state not in {"absent", "invalid", "available"} or (
                 (retry_state == "available") != (retry_after is not None)
             ):
-                return _result("internal_adapter_error", "ollama_cloud_worker_failed")
+                return worker_failed()
         elif retry_after is not None or retry_state != "not_applicable":
-            return _result("internal_adapter_error", "ollama_cloud_worker_failed")
+            return worker_failed()
         reason = (
             "ollama_cloud_network_unavailable"
             if state == "provider_unavailable" and status is None
@@ -831,32 +901,37 @@ def _map_worker_result(
         return _result(
             state,  # type: ignore[arg-type]
             reason,
+            dispatch_certainty=dispatch_certainty,
             http_status=status,
             retry_after_seconds=retry_after,
-            retry_after_state=retry_state,  # type: ignore[arg-type]
+            retry_after_state=retry_state,
             observed_at=observed_at,
         )
     if (
         state == "deadline_exceeded"
-        and status is None
+        and (status is None or classify_status(status) == "success")
         and retry_after is None
         and retry_state == "not_applicable"
     ):
         return _result(
             "deadline_exceeded",
             "ollama_cloud_deadline_exceeded",
+            dispatch_certainty=dispatch_certainty,
+            http_status=status,
             observed_at=observed_at,
         )
     if (
         state == "authorization_unavailable"
         and authenticated
         and status is None
+        and dispatch_certainty == "not_started"
         and retry_after is None
         and retry_state == "not_applicable"
     ):
         return _result(
             "authorization_unavailable",
             "ollama_cloud_store_unavailable",
+            dispatch_certainty=dispatch_certainty,
             observed_at=observed_at,
         )
     if (
@@ -871,6 +946,7 @@ def _map_worker_result(
         return _result(
             "invalid_provider_data",
             "ollama_cloud_probe_invalid_provider_data",
+            dispatch_certainty=dispatch_certainty,
             http_status=status,
             retry_after_state=(
                 "unrepresentable"
@@ -879,18 +955,36 @@ def _map_worker_result(
             ),
             observed_at=observed_at,
         )
-    return _result("internal_adapter_error", "ollama_cloud_worker_failed")
+    if (
+        state == "internal_adapter_error"
+        and retry_after is None
+        and retry_state == "not_applicable"
+    ):
+        return worker_failed()
+    return worker_failed()
 
 
 def _worker_result(
-    payload: bytes, returncode: int, *, authenticated: bool
+    payload: bytes,
+    returncode: int,
+    *,
+    authenticated: bool,
+    fallback_certainty: DispatchCertainty,
 ) -> CloudBalanceSourceResultV1:
     if returncode != 0 or not 0 < len(payload) <= MAX_WORKER_RESULT_BYTES:
-        return _result("internal_adapter_error", "ollama_cloud_worker_failed")
+        return _result(
+            "internal_adapter_error",
+            "ollama_cloud_worker_failed",
+            dispatch_certainty=fallback_certainty,
+        )
     try:
-        worker = decode_worker_result_v1(payload)
+        worker = decode_worker_result_v2(payload)
     except ValueError:
-        return _result("internal_adapter_error", "ollama_cloud_worker_failed")
+        return _result(
+            "internal_adapter_error",
+            "ollama_cloud_worker_failed",
+            dispatch_certainty=fallback_certainty,
+        )
     return _map_worker_result(worker, authenticated=authenticated)
 
 
@@ -905,8 +999,13 @@ def _run_isolated_worker(
         or not executable.is_absolute()
         or not executable.is_file()
     ):
-        return _result("internal_adapter_error", "ollama_cloud_worker_unavailable")
+        return _result(
+            "internal_adapter_error",
+            "ollama_cloud_worker_unavailable",
+            dispatch_certainty="not_started",
+        )
     process: subprocess.Popen[bytes] | None = None
+    fallback_certainty: DispatchCertainty = "not_started"
     try:
         command = [str(executable), "-I", str(helper), format(deadline, ".17g")]
         environment = {"LC_ALL": "C.UTF-8"}
@@ -924,26 +1023,40 @@ def _run_isolated_worker(
             close_fds=True,
             start_new_session=True,
         )
+        fallback_certainty = "may_have_started"
         stdout, _ = process.communicate(
             timeout=_remaining(
                 deadline, CLOUD_BALANCE_POLICY_V1.operation_timeout_seconds
             )
         )
         if time.monotonic() >= deadline:
-            return _result("deadline_exceeded", "ollama_cloud_deadline_exceeded")
+            return _result(
+                "deadline_exceeded",
+                "ollama_cloud_deadline_exceeded",
+                dispatch_certainty=fallback_certainty,
+            )
         return _worker_result(
             stdout,
             process.returncode,
             authenticated=binding_id is not None,
+            fallback_certainty=fallback_certainty,
         )
     except (TimeoutError, subprocess.TimeoutExpired):
         if process is not None:
             _stop_worker_process(process)
-        return _result("deadline_exceeded", "ollama_cloud_deadline_exceeded")
+        return _result(
+            "deadline_exceeded",
+            "ollama_cloud_deadline_exceeded",
+            dispatch_certainty=fallback_certainty,
+        )
     except (OSError, subprocess.SubprocessError):
         if process is not None:
             _stop_worker_process(process)
-        return _result("internal_adapter_error", "ollama_cloud_worker_unavailable")
+        return _result(
+            "internal_adapter_error",
+            "ollama_cloud_worker_unavailable",
+            dispatch_certainty=fallback_certainty,
+        )
     finally:
         if process is not None and process.poll() is None:
             _stop_worker_process(process)
@@ -959,7 +1072,11 @@ def probe_cloud_balance_endpoint_v1(
         or not math.isfinite(deadline_monotonic)
         or deadline_monotonic <= started
     ):
-        return _result("deadline_exceeded", "ollama_cloud_deadline_exceeded")
+        return _result(
+            "deadline_exceeded",
+            "ollama_cloud_deadline_exceeded",
+            dispatch_certainty="not_started",
+        )
     deadline = min(
         started + CLOUD_BALANCE_POLICY_V1.operation_timeout_seconds,
         deadline_monotonic
@@ -981,14 +1098,22 @@ def probe_cloud_balance_for_binding_v1(
     This source candidate is not scheduled until authenticated live validation.
     """
     if not isinstance(binding, ActiveCredentialBindingRefV1):
-        return _result("internal_adapter_error", "ollama_cloud_binding_invalid")
+        return _result(
+            "internal_adapter_error",
+            "ollama_cloud_binding_invalid",
+            dispatch_certainty="not_started",
+        )
     started = time.monotonic()
     if deadline_monotonic is not None and (
         type(deadline_monotonic) is not float
         or not math.isfinite(deadline_monotonic)
         or deadline_monotonic <= started
     ):
-        return _result("deadline_exceeded", "ollama_cloud_deadline_exceeded")
+        return _result(
+            "deadline_exceeded",
+            "ollama_cloud_deadline_exceeded",
+            dispatch_certainty="not_started",
+        )
     deadline = min(
         started + CLOUD_BALANCE_POLICY_V1.operation_timeout_seconds,
         deadline_monotonic
@@ -1011,6 +1136,7 @@ def read_cloud_balance_for_binding_v1(
         return _result(
             "source_not_admitted",
             "ollama_cloud_authenticated_source_not_admitted",
+            dispatch_certainty="not_started",
         )
     return probe_cloud_balance_for_binding_v1(
         binding=binding,

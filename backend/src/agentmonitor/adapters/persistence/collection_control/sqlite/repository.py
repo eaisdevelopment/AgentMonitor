@@ -4,7 +4,11 @@
 
 import hashlib
 import json
+from collections.abc import Callable
 from datetime import UTC, datetime, timedelta
+
+from sqlalchemy.engine import Connection, RowMapping
+from sqlalchemy.exc import SQLAlchemyError
 
 from agentmonitor.adapters.persistence._shared.sqlite.core.policy import (
     DatabaseRefV1,
@@ -19,8 +23,6 @@ from agentmonitor.contracts.collection_control_v1 import (
     CollectionRunViewV1,
 )
 from agentmonitor.contracts.common_v1 import OpaqueIdV1
-from sqlalchemy.engine import Connection, RowMapping
-from sqlalchemy.exc import SQLAlchemyError
 
 
 class CollectionRepositoryErrorV1(ValueError):
@@ -124,7 +126,12 @@ class SqliteCollectionRepositoryV1:
     def __init__(self, database_ref: DatabaseRefV1) -> None:
         self._database_ref = database_ref
 
-    def admit_run(self, admission: CollectionRunAdmissionV1) -> CollectionRunViewV1:
+    def admit_run(
+        self,
+        admission: CollectionRunAdmissionV1,
+        *,
+        on_admitted: Callable[[Connection], None] | None = None,
+    ) -> CollectionRunViewV1:
         try:
             with open_sqlite_database(
                 self._database_ref, "runtime_read_write"
@@ -139,6 +146,8 @@ class SqliteCollectionRepositoryV1:
                                 "collection_idempotency_conflict"
                             )
                         result = _run_view(connection, existing)
+                        if on_admitted is not None:
+                            on_admitted(connection)
                         connection.commit()
                         return result
                     if (
@@ -499,6 +508,8 @@ class SqliteCollectionRepositoryV1:
                             "collection_repository_unavailable"
                         )
                     result = _run_view(connection, row)
+                    if on_admitted is not None:
+                        on_admitted(connection)
                     connection.commit()
                     return result
         except CollectionRepositoryErrorV1:
@@ -814,6 +825,20 @@ class SqliteCollectionRepositoryV1:
             instant=completed_at,
             terminal_code=terminal_state,
             receipt=receipt,
+            fencing_token=fencing_token,
+        )
+
+    def finalize_before_dispatch(
+        self, failure: CollectionFailedV1, *, fencing_token: int
+    ) -> None:
+        """Close a queued run proven not to have started provider dispatch."""
+        self._transition(
+            failure.run_id,
+            expected="queued",
+            state=failure.terminal_state,
+            instant=failure.completed_at,
+            terminal_code=failure.error_code,
+            receipt=None,
             fencing_token=fencing_token,
         )
 

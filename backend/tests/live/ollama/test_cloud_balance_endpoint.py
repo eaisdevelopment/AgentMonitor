@@ -15,6 +15,7 @@ def test_real_official_balance_endpoint_rejects_anonymous_access() -> None:
 
     assert result.state == "unauthorized"
     assert result.reason_code == "ollama_cloud_unauthorized"
+    assert result.dispatch_certainty == "response_received"
     assert result.http_status == 401
     assert result.balance is None
     assert result.retry_after_seconds is None
@@ -30,4 +31,5 @@ def test_probe_deadline_stops_the_isolated_network_process() -> None:
 
     assert result.state == "deadline_exceeded"
     assert result.reason_code == "ollama_cloud_deadline_exceeded"
+    assert result.dispatch_certainty == "may_have_started"
     assert time.monotonic() - started < 2.0

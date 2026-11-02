@@ -259,3 +259,32 @@ live gate.
 Final admissible focused Green at `2026-11-02T16:13:38Z`: `25 passed in
 2.46s`. This includes the real anonymous endpoint but no Secret Service lookup
 or authenticated provider call.
+
+## Sanitized request-dispatch certainty
+
+Scope: `M6-T011`, `M6-A09`, source `ollama.cloud.balance.v1`, and private
+worker protocol V2. The collection rate gate must distinguish a request proven
+not to have started from a request that may have crossed the wire; a missing
+HTTP status alone cannot make that distinction.
+
+The policy Red failed two fail-closed results with
+`AttributeError: 'CloudBalanceSourceResultV1' object has no attribute
+'dispatch_certainty'`. A separate real official anonymous endpoint Red reached
+the fixed endpoint, received sanitized HTTP 401, and failed for the same
+missing field. No response body or credential was retained.
+
+The source now emits exactly `not_started`, `may_have_started`, or
+`response_received`. It changes to `may_have_started` immediately before the
+buffered request may be sent and to `response_received` only after a validated
+HTTP response object supplies a status. The isolated child carries this fact
+through private worker protocol V2. A missing, malformed, late, or killed child
+result is conservatively `may_have_started` after process launch; a pre-launch
+or fail-closed admission result remains `not_started`. Status and certainty are
+cross-validated, and neither value contains provider or credential data.
+
+Green: the two fail-closed policy cases plus the fixed source policy passed
+`3 passed in 0.15s`; the real official anonymous 401 and bounded child-deadline
+cases passed `2 passed in 0.58s`; the focused provider-source security/policy
+set passed `14 passed in 0.34s`. Changed-file Ruff, strict focused mypy, and
+`git diff --check` passed. Authenticated provider success, real key lookup, and
+rate-gate recovery remain **Not Run**.

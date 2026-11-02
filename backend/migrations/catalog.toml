@@ -1,5 +1,5 @@
-version = "1.7.10"
-head = "v1_0710"
+version = "1.7.11"
+head = "v1_0711"
 env_sha256 = "27449e3ed3984acde690510f9e4974eb6412f5f1b7e62af65bc8bb616879a7d7"
 
 [[revisions]]
@@ -640,3 +640,25 @@ backup_prerequisite = "required_existing_database"
 validation_ids = ["single_head", "m05_source_period_schema", "foreign_key_check", "full_integrity"]
 recovery_policy = "preserve_failed_database_and_restore_verified_backup_or_forward_fix"
 reviewer = "M05-M6-source-period-review"
+
+[[revisions]]
+ordinal = 711
+filename = "v1_0711_m04_cloud_journal.py"
+sha256 = "70d4248c856b6011a2fe4c526c9c6b6ef154757bf4c320dcf7c6b68404c3c310"
+status = "shared"
+reviewed_at = "2026-11-02"
+revision = "v1_0711"
+parent_revision = "v1_0710"
+owner = "M04"
+plan_id = "PLAN-M04"
+requirement_ids = ["FR-COL-003", "FR-COL-007", "M6-A09"]
+schema_range = ["v1_0711", "v1_0711", "v1_0711", "v1_0711", "v1_0711"]
+tables = ["collection_cloud_schedule_lane", "collection_cloud_attempt_journal"]
+portability_notes = ["Cloud source lane and sanitized attempt outcome are durable"]
+lock_policy = "exclusive_migration_and_begin_immediate"
+downtime_policy = "offline_additive_schema_migration"
+expected_data_volume = "one_row_per_schedule_and_one_per_attempt"
+backup_prerequisite = "required_existing_database"
+validation_ids = ["single_head", "m04_cloud_journal_schema", "foreign_key_check", "full_integrity"]
+recovery_policy = "preserve_failed_database_and_restore_verified_backup_or_forward_fix"
+reviewer = "M04-M6-cloud-journal-review"

@@ -76,6 +76,7 @@ def test_authenticated_source_fails_closed_before_authorization_or_network() -> 
 
     assert result.state == "source_not_admitted"
     assert result.reason_code == "ollama_cloud_authenticated_source_not_admitted"
+    assert result.dispatch_certainty == "not_started"
     assert result.http_status is None
     assert result.balance is None
 
@@ -92,5 +93,6 @@ def test_binding_source_fails_closed_before_admission_probe_or_network() -> None
 
     assert result.state == "source_not_admitted"
     assert result.reason_code == "ollama_cloud_authenticated_source_not_admitted"
+    assert result.dispatch_certainty == "not_started"
     assert result.http_status is None
     assert result.balance is None

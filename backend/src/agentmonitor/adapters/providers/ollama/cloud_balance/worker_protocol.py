@@ -39,6 +39,12 @@ _MAX_RETRY_AFTER_SECONDS = 2**63 - 1
 WorkerRetryState = Literal[
     "not_applicable", "absent", "invalid", "available", "unrepresentable"
 ]
+WorkerDispatchCertainty = Literal[
+    "not_started", "may_have_started", "response_received"
+]
+_DISPATCH_CERTAINTIES = frozenset(
+    {"not_started", "may_have_started", "response_received"}
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -49,6 +55,19 @@ class WorkerResultV1:
     balance: OllamaCloudBalanceV1 | None
     retry_after_seconds: int | None
     retry_after_state: WorkerRetryState
+
+
+@dataclass(frozen=True, slots=True)
+class WorkerResultV2:
+    """V2 adds sanitized wire-dispatch certainty to the private child record."""
+
+    state: str
+    observed_at: datetime
+    http_status: int | None
+    balance: OllamaCloudBalanceV1 | None
+    retry_after_seconds: int | None
+    retry_after_state: WorkerRetryState
+    dispatch_certainty: WorkerDispatchCertainty
 
 
 def _time(value: datetime | None) -> str | None:
@@ -230,6 +249,110 @@ def decode_worker_result_v1(payload: bytes) -> WorkerResultV1:
             balance=parsed_balance,
             retry_after_seconds=retry_after,
             retry_after_state=cast(WorkerRetryState, retry_state),
+        )
+    except (
+        InvalidOperation,
+        UnicodeDecodeError,
+        json.JSONDecodeError,
+        RecursionError,
+        TypeError,
+        ValueError,
+    ):
+        raise ValueError("ollama_cloud_worker_result_invalid") from None
+
+
+def encode_worker_result_v2(
+    *,
+    state: str,
+    observed_at: datetime,
+    http_status: int | None,
+    balance: OllamaCloudBalanceV1 | None,
+    retry_after_seconds: int | None,
+    retry_after_state: str,
+    dispatch_certainty: str,
+) -> bytes:
+    """Encode the V2 result with no provider bytes, secrets, or free text."""
+    if (
+        state not in _STATES
+        or retry_after_state not in _RETRY_STATES
+        or dispatch_certainty not in _DISPATCH_CERTAINTIES
+        or (state == "success") != (balance is not None)
+        or (http_status is not None) != (dispatch_certainty == "response_received")
+    ):
+        raise ValueError("ollama_cloud_worker_result_invalid")
+    payload = json.dumps(
+        [
+            state,
+            _time(observed_at),
+            http_status,
+            retry_after_seconds,
+            retry_after_state,
+            dispatch_certainty,
+            _balance_fields(balance),
+        ],
+        ensure_ascii=True,
+        separators=(",", ":"),
+    ).encode("ascii")
+    if not 0 < len(payload) <= MAX_WORKER_RESULT_BYTES:
+        raise ValueError("ollama_cloud_worker_result_invalid")
+    return payload
+
+
+def decode_worker_result_v2(payload: bytes) -> WorkerResultV2:
+    """Revalidate the exact V2 child record and reject uncertain shapes."""
+    try:
+        if (
+            type(payload) is not bytes
+            or not 0 < len(payload) <= MAX_WORKER_RESULT_BYTES
+        ):
+            raise ValueError("ollama_cloud_worker_result_invalid")
+        fields = json.loads(payload.decode("ascii", errors="strict"))
+        if type(fields) is not list or len(fields) != 7:
+            raise ValueError("ollama_cloud_worker_result_invalid")
+        (
+            state,
+            observed_at,
+            status,
+            retry_after,
+            retry_state,
+            dispatch_certainty,
+            balance,
+        ) = fields
+        if (
+            type(state) is not str
+            or state not in _STATES
+            or (
+                status is not None
+                and (type(status) is not int or not 100 <= status <= 599)
+            )
+            or (
+                retry_after is not None
+                and (
+                    type(retry_after) is not int
+                    or not 0 <= retry_after <= _MAX_RETRY_AFTER_SECONDS
+                )
+            )
+            or type(retry_state) is not str
+            or retry_state not in _RETRY_STATES
+            or type(dispatch_certainty) is not str
+            or dispatch_certainty not in _DISPATCH_CERTAINTIES
+            or (status is not None) != (dispatch_certainty == "response_received")
+        ):
+            raise ValueError("ollama_cloud_worker_result_invalid")
+        parsed_balance = _parsed_balance(balance)
+        if (state == "success") != (parsed_balance is not None):
+            raise ValueError("ollama_cloud_worker_result_invalid")
+        parsed_observed_at = _parsed_time(observed_at)
+        if parsed_observed_at is None:
+            raise ValueError("ollama_cloud_worker_timestamp_invalid")
+        return WorkerResultV2(
+            state=state,
+            observed_at=parsed_observed_at,
+            http_status=status,
+            balance=parsed_balance,
+            retry_after_seconds=retry_after,
+            retry_after_state=cast(WorkerRetryState, retry_state),
+            dispatch_certainty=cast(WorkerDispatchCertainty, dispatch_certainty),
         )
     except (
         InvalidOperation,

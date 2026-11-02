@@ -54,3 +54,43 @@ def eligible_cloud_account(
         and effective_monitoring is True
         and identity_state in {"owner_confirmed", "matched"}
     )
+
+
+def cloud_failure_policy(state: str, retry_after: int | None):
+    """Map closed source failure categories to actionable M04 retry policy."""
+    from agentmonitor.contracts.collection_control_v1 import CollectionFailurePolicyV1
+    from agentmonitor.contracts.provider_system_v1 import RetryAdviceV1
+
+    if state == "authorization_unavailable":
+        return CollectionFailurePolicyV1(
+            "blocked_user_action_required", RetryAdviceV1("after_user_action")
+        )
+    if state == "unauthorized":
+        return CollectionFailurePolicyV1(
+            "reauthentication_required", RetryAdviceV1("after_reauthentication")
+        )
+    if state == "access_denied":
+        return CollectionFailurePolicyV1(
+            "authorization_insufficient", RetryAdviceV1("after_user_action")
+        )
+    if state == "rate_limited":
+        delay = min(86400, max(1, retry_after if retry_after is not None else 60))
+        return CollectionFailurePolicyV1(
+            "rate_limited", RetryAdviceV1("after_delay", delay, "estimated")
+        )
+    if state in {"provider_unavailable", "deadline_exceeded"}:
+        outcome = (
+            "deadline_exceeded"
+            if state == "deadline_exceeded"
+            else "provider_unavailable"
+        )
+        return CollectionFailurePolicyV1(
+            outcome, RetryAdviceV1("after_delay", 60, "estimated")
+        )
+    if state in {"invalid_provider_data", "unexpected_response"}:
+        return CollectionFailurePolicyV1(
+            "invalid_provider_data", RetryAdviceV1("after_version_review")
+        )
+    return CollectionFailurePolicyV1(
+        "internal_adapter_error", RetryAdviceV1("after_user_action")
+    )

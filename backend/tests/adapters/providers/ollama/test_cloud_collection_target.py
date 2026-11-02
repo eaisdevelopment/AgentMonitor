@@ -23,3 +23,19 @@ def test_source_status_maps_to_durable_rate_outcomes() -> None:
     assert admission_outcome_for_source("success") == "succeeded"
     assert admission_outcome_for_source("rate_limited") == "rate_limited"
     assert admission_outcome_for_source("unauthorized") == "failed"
+
+
+def test_failure_policy_preserves_actionable_provider_states() -> None:
+    from agentmonitor.adapters.providers.ollama.cloud_balance.collection import (
+        cloud_failure_policy,
+    )
+
+    assert (
+        cloud_failure_policy("authorization_unavailable", None).retry.disposition
+        == "after_user_action"
+    )
+    assert (
+        cloud_failure_policy("unauthorized", None).provider_outcome
+        == "reauthentication_required"
+    )
+    assert cloud_failure_policy("rate_limited", 90).retry.delay_seconds == 90
