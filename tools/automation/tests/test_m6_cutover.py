@@ -51,6 +51,7 @@ from tools.automation.implementations.m6_transition_lease import _hold_transitio
     "case",
     [
         "normal",
+        "candidate_finalize_process_changed",
         "candidate_finalize",
         "candidate_finalize_interrupted",
         "candidate_finalize_no",
@@ -680,6 +681,53 @@ with _hold_transition_locks(root) as lease:
                 )
                 == 1
             )
+            if case == "candidate_finalize_process_changed":
+                original_pid = subprocess.check_output(
+                    ["systemctl", "--user", "show", unit, "-p", "MainPID", "--value"],
+                    text=True,
+                ).strip()
+
+                def stop_during_verification() -> None:
+                    subprocess.run(
+                        ["systemctl", "--user", "kill", "--signal=SIGKILL", unit],
+                        check=True,
+                        capture_output=True,
+                    )
+                    deadline = time.monotonic() + 5
+                    while time.monotonic() < deadline:
+                        current_pid = subprocess.check_output(
+                            [
+                                "systemctl",
+                                "--user",
+                                "show",
+                                unit,
+                                "-p",
+                                "MainPID",
+                                "--value",
+                            ],
+                            text=True,
+                        ).strip()
+                        if current_pid != original_pid:
+                            return
+                        time.sleep(0.05)
+                    raise AssertionError("disposable process did not change")
+
+                with (
+                    _hold_transition_locks(root) as lease,
+                    pytest.raises(
+                        CutoverError, match="baseline_restart_process_changed"
+                    ),
+                ):
+                    _finish_restored_baseline_engine(
+                        root,
+                        lease,
+                        unit=unit,
+                        guard=directory / "95-m6-cutover-restart.conf",
+                        expected_restart="on-failure",
+                        verify_after=stop_during_verification,
+                        candidate=True,
+                    )
+                assert (root / ".m6-cutover-journal.json").exists()
             if case in {
                 "candidate_finalize",
                 "candidate_finalize_interrupted",
@@ -768,6 +816,7 @@ with _hold_transition_locks(root) as lease:
             "candidate_finalize",
             "candidate_finalize_interrupted",
             "candidate_finalize_no",
+            "candidate_finalize_process_changed",
         }:
             assert not (directory / "95-m6-cutover-restart.conf").exists()
         else:

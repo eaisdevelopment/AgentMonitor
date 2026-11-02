@@ -1,5 +1,6 @@
 """Real isolated dashboard cutover and candidate finalization, without keys."""
 
+import os
 import shutil
 import socket
 import sqlite3
@@ -11,6 +12,7 @@ import urllib.request
 import uuid
 from pathlib import Path
 
+import pytest
 from agentmonitor.adapters.persistence._shared.sqlite.core.policy import (
     DatabaseRefV1,
     open_sqlite_database,
@@ -142,6 +144,20 @@ def test_real_dashboard_cutover_and_finalization(tmp_path: Path) -> None:
             reader.execute("BEGIN")
             reader.execute("SELECT count(*) FROM sqlite_schema").fetchone()
             assert (root / "agentmonitor.db-wal").exists()
+
+            from tools.automation.implementations import m6_cutover
+
+            pid = int(
+                subprocess.check_output(
+                    ["systemctl", "--user", "show", unit, "-p", "MainPID", "--value"],
+                    text=True,
+                ).strip()
+            )
+            m6_cutover._verify_loopback_listener(pid, origin)
+            with pytest.raises(
+                m6_cutover.CutoverError, match="candidate_listener_unverified"
+            ):
+                m6_cutover._verify_loopback_listener(os.getpid(), origin)
 
             def verify() -> None:
                 _verify_candidate_runtime(

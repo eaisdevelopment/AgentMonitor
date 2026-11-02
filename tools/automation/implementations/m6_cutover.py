@@ -1376,6 +1376,21 @@ def _finish_restored_baseline_engine(
         raise CutoverError("baseline_restart_policy_unverified")
     if verify_after is not None:
         verify_after()
+
+    def same_running_invocation() -> None:
+        current = _properties(unit)
+        if current.get("ActiveState") != "active" or any(
+            current.get(key) != before.get(key)
+            for key in (
+                "MainPID",
+                "ControlGroup",
+                "InvocationID",
+                "ExecMainStartTimestampMonotonic",
+            )
+        ):
+            raise CutoverError("baseline_restart_process_changed")
+
+    same_running_invocation()
     transition.validate(root)
     current, identity = _read_journal_at(transition)
     if current != data:
@@ -1406,6 +1421,7 @@ def _finish_restored_baseline_engine(
             ctypes.c_uint,
         )
         renameat2.restype = ctypes.c_int
+        same_running_invocation()
         if (
             renameat2(
                 transition.directory,
@@ -1451,6 +1467,41 @@ def _request_loopback_login(origin: str) -> tuple[int, bytes]:
         return response.status, body
 
 
+def _verify_loopback_listener(pid: int, origin: str) -> None:
+    """Require the exact PID to own the IPv4 loopback listening socket."""
+    match = re.fullmatch(r"http://127\.0\.0\.1:([1-9][0-9]{0,4})", origin)
+    if match is None or not 1 <= int(match.group(1)) <= 65535:
+        raise CutoverError("candidate_listener_unverified")
+    expected = "0100007F:" + format(int(match.group(1)), "04X")
+    try:
+        proc = Path("/proc") / str(pid)
+        with (proc / "net/tcp").open() as stream:
+            content = stream.read(4_194_305)
+        if len(content) > 4_194_304:
+            raise CutoverError("candidate_listener_unverified")
+        listeners = set()
+        for line in content.splitlines()[1:]:
+            fields = line.split()
+            if len(fields) > 9 and fields[1] == expected and fields[3] == "0A":
+                listeners.add(fields[9])
+        owned = set()
+        descriptors = list((proc / "fd").iterdir())
+        if len(descriptors) > 4096:
+            raise CutoverError("candidate_listener_unverified")
+        for descriptor in descriptors:
+            try:
+                target = os.readlink(descriptor)
+            except FileNotFoundError:
+                continue
+            socket_match = re.fullmatch(r"socket:\[([0-9]+)\]", target)
+            if socket_match:
+                owned.add(socket_match.group(1))
+        if len(listeners) != 1 or not listeners <= owned:
+            raise CutoverError("candidate_listener_unverified")
+    except (OSError, ValueError):
+        raise CutoverError("candidate_listener_unverified") from None
+
+
 def _verify_candidate_runtime(
     *,
     root: Path,
@@ -1467,10 +1518,26 @@ def _verify_candidate_runtime(
     _verify_candidate_process(
         current, unit=unit, executable=executable, expected_command=expected_command
     )
+    _verify_loopback_listener(int(current["MainPID"]), origin)
     _verify_active_schema(DatabaseRefV1(root / "agentmonitor.db", root))
     status, body = _request_loopback_login(origin)
     if status != 200 or b"agentmonitor-dashboard-root" not in body:
         raise CutoverError("candidate_http_unverified")
+    after = _properties(unit)
+    if after.get("ActiveState") != "active" or any(
+        after.get(key) != current.get(key)
+        for key in (
+            "MainPID",
+            "ControlGroup",
+            "InvocationID",
+            "ExecMainStartTimestampMonotonic",
+        )
+    ):
+        raise CutoverError("candidate_process_changed")
+    _verify_candidate_process(
+        after, unit=unit, executable=executable, expected_command=expected_command
+    )
+    _verify_loopback_listener(int(after["MainPID"]), origin)
 
 
 def finalize_candidate() -> str:

@@ -124,3 +124,11 @@ and loopback login HTTP. It archived the transition journal and left the
 candidate running until the test stopped its own disposable unit. This was a
 no-key check; the fixed installed wrapper, real account and provider behavior,
 crash interruption, and full M6 completion remain unverified by this test.
+
+Candidate finalization now rechecks the service PID, cgroup and invocation after
+readiness and immediately before journal archival, and requires the candidate PID
+to own the loopback listening socket. A real disposable service test that killed
+the candidate during final verification failed before this recheck (the journal
+was incorrectly archived) and passed afterward. A real disposable dashboard
+check passed listener ownership for its PID and refused the test runner PID.
+These checks did not operate the installed service or contact a provider.
