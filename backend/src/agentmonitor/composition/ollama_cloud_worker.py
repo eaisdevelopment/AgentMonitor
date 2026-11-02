@@ -44,6 +44,7 @@ class OllamaCloudWorkerSupervisorV1:
         self._data_root = data_root
         self._quarantined = False
         self._running = False
+        self._lifecycle_running = False
         self.last_unit = ""
         self._lock_fd: int | None = None
         self._root_fd: int | None = None
@@ -495,14 +496,22 @@ class OllamaCloudWorkerSupervisorV1:
             return "quarantined"
 
     async def run(self) -> None:
-        while True:
-            try:
-                await self.run_once(
-                    recovery_only=not cloud_access_authorized(self._data_root)
-                )
-            except Exception:  # noqa: BLE001 - optional lane, no provider details.
-                self._quarantined = True
-            await asyncio.sleep(60)
+        self._lifecycle_running = True
+        try:
+            while True:
+                try:
+                    await self.run_once(
+                        recovery_only=not cloud_access_authorized(self._data_root)
+                    )
+                except Exception:  # noqa: BLE001 - optional lane, no provider details.
+                    self._quarantined = True
+                await asyncio.sleep(60)
+        finally:
+            self._lifecycle_running = False
+
+    def is_monitoring_available(self) -> bool:
+        """Include lifecycle supervision; capability alone is not polling."""
+        return self._lifecycle_running and self.is_available()
 
 
 def main() -> int:

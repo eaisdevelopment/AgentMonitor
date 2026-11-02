@@ -566,6 +566,7 @@ def _observation_ports(
             ready=lambda: (
                 cloud_connection_ready(data_root) and ollama_cloud_worker.is_available()
             ),
+            monitoring_ready=ollama_cloud_worker.is_monitoring_available,
         ),
     )
 

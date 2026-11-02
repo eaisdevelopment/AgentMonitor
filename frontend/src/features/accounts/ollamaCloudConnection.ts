@@ -1,6 +1,15 @@
 /** Owner-readable copy for the versioned Ollama cloud connection status. */
 export type OllamaCloudConnectionCopy = Readonly<{ title: string; description: string }>;
 
+export function ollamaMonitoringCopy(state: string, reason: string): string {
+  if (state === "off") return "Monitoring is off";
+  if (state === "scheduled") return "Monitoring scheduled";
+  if (reason === "credential_unavailable") return "Waiting for a credential";
+  if (reason === "source_not_admitted") return "Waiting for a verified connection";
+  if (reason === "schedule_not_registered") return "Waiting for scheduling";
+  return "Monitoring unavailable";
+}
+
 export function ollamaCloudConnectionCopy(state: string): OllamaCloudConnectionCopy {
   switch (state) {
     case "not_configured":

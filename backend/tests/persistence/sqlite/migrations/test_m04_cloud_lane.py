@@ -16,8 +16,13 @@ from agentmonitor.adapters.persistence._shared.sqlite.schema.compatibility impor
 
 
 def test_cloud_lane_and_attempt_journal_exist(tmp_path: Path) -> None:
+    from agentmonitor.adapters.persistence.collection_control.sqlite.cloud_schedule_status import (
+        SqliteCloudScheduleStatusV1,
+    )
+
     reference = DatabaseRefV1(tmp_path / "agentmonitor.db", tmp_path)
     migrate_to_head(reference)
+    assert SqliteCloudScheduleStatusV1(reference).list_registered() == ()
     with open_sqlite_database(reference, "runtime_read_only") as database:
         with database.connect() as connection:
             tables = set(inspect(connection).get_table_names())

@@ -5014,6 +5014,20 @@
             "title": "Can Verify",
             "type": "boolean"
           },
+          "monitoring_reason": {
+            "title": "Monitoring Reason",
+            "type": "string"
+          },
+          "monitoring_state": {
+            "enum": [
+              "off",
+              "waiting",
+              "scheduled",
+              "unavailable"
+            ],
+            "title": "Monitoring State",
+            "type": "string"
+          },
           "observed_at": {
             "anyOf": [
               {
@@ -5048,7 +5062,9 @@
           "account_id",
           "state",
           "can_verify",
-          "observed_at"
+          "observed_at",
+          "monitoring_state",
+          "monitoring_reason"
         ],
         "title": "OllamaCloudConnectionStatusV1",
         "type": "object"
@@ -23600,7 +23616,7 @@
     "generator_sha256": "53adb2f5dd513514e758906103e689e00f212d14fbcb307a193ed54bddcdc9cb",
     "generator_version": "2.0.8",
     "openapi_version": "3.1.0",
-    "schema_sha256": "621e6e3bfd0980c165c3ad97de3810e7554b4eb003b83cfb32f126707edcaf1b",
-    "source_sha256": "a9a8bfb48d2d739853654399a0bc40a6f9b7c748973828e32807028581282da6"
+    "schema_sha256": "169afa76015e8dca4cf702f30600041ef15b574343d857e3edf81303e3343715",
+    "source_sha256": "32fdfbd1a05524d817d2416bde33a7ad1b36b4560d46f4d2771b39a91809bbb1"
   }
 }

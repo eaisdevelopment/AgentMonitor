@@ -1,5 +1,7 @@
 """Pure, fail-closed presentation policy for owner-asserted cloud access."""
 
+from typing import Literal
+
 from agentmonitor.contracts.registry_v1 import CredentialConnectionStateV1
 
 
@@ -9,7 +11,7 @@ def scheduled_monitoring_state(
     binding_present: bool,
     source_admitted: bool,
     schedule_registered: bool,
-) -> tuple[str, str]:
+) -> tuple[Literal["off", "waiting", "scheduled", "unavailable"], str]:
     """Report scheduling only when every current runtime prerequisite holds."""
     if not monitoring_enabled:
         return "off", "monitoring_disabled"

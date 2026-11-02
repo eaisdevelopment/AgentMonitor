@@ -59,6 +59,17 @@ def test_run_binds_exact_claim_graph_and_owner() -> None:
         1,
     )
     run = build_verification_run(claim, graph, lease, 1, "b" * 64, now)
+    from agentmonitor.adapters.providers.ollama.cloud_balance.verification_run import (
+        cloud_schedule_target_digest,
+    )
+
+    assert cloud_schedule_target_digest(graph) == run.target_key_digest
+    assert (
+        cloud_schedule_target_digest(
+            replace(graph, binding=replace(binding, generation=4))
+        )
+        != run.target_key_digest
+    )
     assert run.request_principal_id == claim.request_principal_id
     assert run.idempotency_key_digest == claim.idempotency_key_digest
     assert run.provider_target.target_id == graph.access_target_id

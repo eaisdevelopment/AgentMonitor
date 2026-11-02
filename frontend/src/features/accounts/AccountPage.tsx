@@ -221,7 +221,7 @@ export function AccountPage({
           <nav className="account-breadcrumb" aria-label="Account breadcrumb"><a href="/accounts">Accounts</a><span aria-hidden="true">/</span><span>{state.organizations.items.find((item) => item.organization_id === selected.organization_id)?.name ?? "Ungrouped"}</span></nav>
           <h1 id={titleId} tabIndex={-1}>{observedEmail ?? selected.friendly_name}</h1>
           {observedEmail && observedEmail !== selected.friendly_name && <p className="connection-warning">Registered as {selected.friendly_name} · {providerDisplayName(selected.provider_key)} currently reports {observedEmail}. Review this connection before treating it as the registered account.</p>}
-          <p className="account-subtitle"><span className="provider-name">{selected.provider_key}</span><span aria-hidden="true">·</span><span>{selected.is_effective_monitoring_enabled ? "Quota monitoring is on" : "Quota monitoring is off"}</span></p>
+          <p className="account-subtitle"><span className="provider-name">{selected.provider_key}</span><span aria-hidden="true">·</span><span>{selected.provider_key === "ollama" ? (selected.is_effective_monitoring_enabled ? "Monitoring requested" : "Monitoring is off") : (selected.is_effective_monitoring_enabled ? "Quota monitoring is on" : "Quota monitoring is off")}</span></p>
         </div>
         <button className="quiet-button" type="button" onClick={() => {
           if (settingsRef.current) {

@@ -77,5 +77,5 @@ export function OllamaCloudConnectionView({ account, onExpired, onProofUnavailab
 
   if (error) return <section className="account-secondary" aria-label="Ollama cloud connection"><h2>Connection status unavailable</h2><p>{error}</p><button type="button" className="quiet-button" onClick={() => void refresh()}>Try again</button></section>;
   if (!connection) return <section className="account-secondary" aria-label="Ollama cloud connection"><p>Checking connection status…</p></section>;
-  return <OllamaCloudConnectionPanel state={connection.state} canVerify={connection.can_verify} busy={busy} checkedAt={connection.observed_at} onVerify={() => void verify()} />;
+  return <OllamaCloudConnectionPanel state={connection.state} canVerify={connection.can_verify} busy={busy} checkedAt={connection.observed_at} monitoringState={connection.monitoring_state} monitoringReason={connection.monitoring_reason} onVerify={() => void verify()} />;
 }

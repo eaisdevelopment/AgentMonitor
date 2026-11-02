@@ -207,6 +207,8 @@ def _ollama_cloud_view(
         state=value.state,
         can_verify=value.can_verify,
         observed_at=value.observed_at,
+        monitoring_state=value.monitoring_state,
+        monitoring_reason=value.monitoring_reason,
     )
 
 

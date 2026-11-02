@@ -20,6 +20,19 @@ def _digest(*values: str) -> str:
     return hashlib.sha256("\0".join(values).encode()).hexdigest()
 
 
+def cloud_schedule_target_digest(graph: CloudMonitoringTargetV1) -> str:
+    """Identify the exact current cloud graph and credential generation."""
+    return _digest(
+        "ollama",
+        graph.access_target_id.value,
+        graph.account_id.value,
+        graph.profile_id.value,
+        graph.resource_id.value,
+        graph.binding.binding_id.value,
+        str(graph.binding.generation),
+    )
+
+
 def source_budget_seconds(
     rate_lease_remaining: float, run_lease_remaining: float, source_max: float
 ) -> float:
@@ -52,15 +65,7 @@ def build_verification_run(
         or not lease.started_at <= now < lease.lease_expires_at
     ):
         raise ValueError("ollama_cloud_verification_target_mismatch")
-    target = _digest(
-        "ollama",
-        graph.access_target_id.value,
-        graph.account_id.value,
-        graph.profile_id.value,
-        graph.resource_id.value,
-        graph.binding.binding_id.value,
-        str(graph.binding.generation),
-    )
+    target = cloud_schedule_target_digest(graph)
     request_digest = _digest(claim.job_id.value, target, claim.idempotency_key_digest)
     suffix = _digest(claim.job_id.value, lease.admission_id.value)[:32]
     deadline = min(lease.lease_expires_at, now + timedelta(seconds=30))
@@ -122,15 +127,7 @@ def build_scheduled_cloud_run(
     """Build one cloud-target scheduled run without aliasing an installation."""
     if graph.lifecycle != "active" or graph.identity_state != "owner_confirmed":
         raise ValueError("ollama_cloud_verification_target_mismatch")
-    target = _digest(
-        "ollama",
-        graph.access_target_id.value,
-        graph.account_id.value,
-        graph.profile_id.value,
-        graph.resource_id.value,
-        graph.binding.binding_id.value,
-        str(graph.binding.generation),
-    )
+    target = cloud_schedule_target_digest(graph)
     suffix = _digest(worker_id.value, target, now.isoformat())[:32]
     request_id = OpaqueIdV1("ollama-cloud-request-" + suffix)
     return CollectionRunAdmissionV2(

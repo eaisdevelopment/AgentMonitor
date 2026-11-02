@@ -4,14 +4,17 @@ import {
   capacity, providers, registry,
   type AccountCapacityViewV2, type AccountPageV1, type AccountViewV1,
   type ProviderAccountIdentityViewV1, type OrganizationPageV1,
+  type OllamaCloudConnectionStatusV1,
 } from "../../shared/api/client";
 import { providerDisplayName } from "../accounts/providerPresentation";
+import { ollamaMonitoringCopy } from "../accounts/ollamaCloudConnection";
 import { exactUsd, isLowQuota, metricAvailability, quotaResetPresentation, remainingPercentage } from "../command/quotaPresentation";
 
 type AccountReading = Readonly<{
   account: AccountViewV1;
   quota: AccountCapacityViewV2 | null;
   identity: ProviderAccountIdentityViewV1 | null;
+  monitoring: OllamaCloudConnectionStatusV1 | null;
   refreshFailed: boolean;
 }>;
 type OverviewState =
@@ -161,14 +164,15 @@ export function AccountQuotaOverview({ onExpired, onOpenAccount }: Readonly<{
         for (let offset = 0; offset < visible.length; offset += 6) {
           const batch = await Promise.all(visible.slice(offset, offset + 6).map(async account => {
             try {
-              const [quota, identity] = await Promise.all([
+              const [quota, identity, monitoring] = await Promise.all([
                 capacity.account(account.account_id, controller.signal),
                 providers.accountIdentity(account.account_id, controller.signal),
+                account.provider_key === "ollama" ? providers.ollamaCloudConnection(account.account_id, controller.signal) : Promise.resolve(null),
               ]);
-              if ((!quota.ok && quota.problem.code === "dashboard_authentication_required") || (!identity.ok && identity.problem.code === "dashboard_authentication_required")) expired = true;
-              return { account, quota: quota.ok ? quota.data : null, identity: identity.ok ? identity.data : null, refreshFailed: !quota.ok || !identity.ok };
+              if ((!quota.ok && quota.problem.code === "dashboard_authentication_required") || (!identity.ok && identity.problem.code === "dashboard_authentication_required") || (monitoring !== null && !monitoring.ok && monitoring.problem.code === "dashboard_authentication_required")) expired = true;
+              return { account, quota: quota.ok ? quota.data : null, identity: identity.ok ? identity.data : null, monitoring: monitoring?.ok && monitoring.data.account_id === account.account_id ? monitoring.data : null, refreshFailed: !quota.ok || !identity.ok };
             } catch {
-              return { account, quota: null, identity: null, refreshFailed: true };
+              return { account, quota: null, identity: null, monitoring: null, refreshFailed: true };
             }
           }));
           if (controller.signal.aborted) return;
@@ -270,7 +274,7 @@ export function AccountQuotaOverview({ onExpired, onOpenAccount }: Readonly<{
                   {additional.length > 0 && <div className="additional-connections"><strong>{additional.length + 1} connected profiles · one quota balance</strong>{additional.map(other => <button key={other.account.account_id} type="button" className="quiet-button" onClick={() => onOpenAccount(other.account.account_id)}>Review {other.account.friendly_name} connection</button>)}</div>}
                 </th>
                 <td data-label="Organization"><span className="organization-tag">{organization}</span></td>
-                <td data-label="State"><span className={`overview-reading-state overview-state-${status.tone}`}><span aria-hidden="true">{status.icon}</span><span>{status.label}</span></span><small>Monitoring {account.is_effective_monitoring_enabled ? "on" : "off"}</small></td>
+                <td data-label="State"><span className={`overview-reading-state overview-state-${status.tone}`}><span aria-hidden="true">{status.icon}</span><span>{status.label}</span></span><small>{account.provider_key === "ollama" ? reading.monitoring === null ? "Monitoring unavailable" : ollamaMonitoringCopy(reading.monitoring.monitoring_state, reading.monitoring.monitoring_reason) : `Monitoring ${account.is_effective_monitoring_enabled ? "on" : "off"}`}</small></td>
                 <td data-label="Quota left"><div className="overview-quota-list">
                   {windows.length === 0 ? <span>{quota === null ? "Unavailable" : "No reading yet"}</span> : windows.map(window => {
                     const percentage = remainingPercentage(window.allowance?.remaining_percentage ?? window.remaining_ratio);

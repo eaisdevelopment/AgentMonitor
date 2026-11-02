@@ -770,9 +770,8 @@ class OllamaCloudCollectionV1:
             raise OllamaCloudTargetIneligible("ollama_cloud_target_ineligible")
         return active
 
-    def _scheduled_proof(
+    def scheduled_proof_for_binding(
         self,
-        run: CollectionRunAdmissionV2,
         binding: ActiveCredentialBindingRefV1,
         lease: OllamaCloudRequestLeaseV1 | None = None,
     ) -> ScheduledSourceAdmissionProofV1:
@@ -915,7 +914,7 @@ class OllamaCloudCollectionV1:
         if isinstance(run, CollectionRunAdmissionV2):
             require_probe_authorized(authority)
             binding = self._eligible_binding(run)
-            self._scheduled_proof(run, binding)
+            self.scheduled_proof_for_binding(binding)
         else:
             require_source_admitted(authority)
             self._eligible_binding(run)
@@ -1008,7 +1007,7 @@ class OllamaCloudCollectionV1:
             current_binding = self._eligible_binding(run)
             if current_binding != binding:
                 raise OllamaCloudTargetIneligible("ollama_cloud_target_ineligible")
-            scheduled_proof = self._scheduled_proof(run, binding, lease)
+            scheduled_proof = self.scheduled_proof_for_binding(binding, lease)
         self._admission.mark_dispatched(lease, datetime.now(UTC))
         current = datetime.now(UTC)
         remaining = min(
