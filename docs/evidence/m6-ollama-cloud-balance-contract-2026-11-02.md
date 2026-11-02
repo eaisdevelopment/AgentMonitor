@@ -21,3 +21,10 @@ migration, key, provider profile, live account or provider request was added.
 This is not cloud collection or M6 completion. Live provider comparison,
 credit exhaustion semantics, period persistence, history, alerts, API/UI and
 sharing provenance remain open.
+
+The official balance endpoint returned HTTP 401 to an anonymous read-only
+request on 2 November 2026; no credentials or response body were captured.
+The new pure status classifier distinguishes success, unauthorized, denied,
+rate-limited, unavailable and unexpected responses. Its test failed before
+the classifier existed and passes after implementation; Ruff and mypy pass.
+This does not verify an authenticated account or other live response codes.
