@@ -94,6 +94,19 @@ def test_source_deadline_reserves_time_for_commit_and_cleanup() -> None:
         source_budget_seconds(8.0, 20.0, 30.0)
 
 
+def test_cloud_schedule_status_rejects_incomplete_identity() -> None:
+    from agentmonitor.contracts.cloud_schedule_status_v1 import CloudScheduleStatusV1
+
+    with pytest.raises(ValueError):
+        CloudScheduleStatusV1(
+            "", "a" * 64, "account", "profile", "resource", "target", 1
+        )
+    with pytest.raises(ValueError):
+        CloudScheduleStatusV1(
+            "schedule", "not-a-digest", "account", "profile", "resource", "target", 1
+        )
+
+
 def test_cloud_polling_target_does_not_alias_installation() -> None:
     from agentmonitor.adapters.persistence.collection_control.sqlite.ollama_cloud_admission import (  # noqa: E501
         cloud_schedule_storage_target,
