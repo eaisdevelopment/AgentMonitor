@@ -68,3 +68,22 @@ cancellation or timeout, both real unadmitted-process checks pass. This does
 not verify whole-tree containment: the provider helper currently starts a
 separate session. The worker stays unwired until that issue and real
 interruption/recovery checks are resolved.
+
+## Transient-unit containment candidate
+
+The unwired supervisor now creates one uniquely named systemd user service per
+attempt, checks its exact executable arguments, invocation and control-group
+properties, and stops only that unit. A private cross-process lock and a
+synchronized uncertainty marker prevent a subsequent start after an ambiguous
+attempt. Seven real local subprocess and user-manager checks passed, including
+independent-process contention, cancellation during startup, and stopping a
+transient unit containing the actual anonymous Ollama source and its observed
+helper. No key or account was used and no provider payload was retained. Ruff
+passed. The earlier process-group candidate was withdrawn.
+
+The manager-command timeout after a queued start has not been reproduced on a
+real manager; code inspection indicates it retains the uncertainty marker and
+quarantines later starts. Independent security review, populated migration,
+authenticated provider operation, live browser behavior and the completion
+gate remain Not Run. The supervisor is not wired into the dashboard service;
+no user-agent process was targeted by the checks.
