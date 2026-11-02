@@ -8,6 +8,7 @@ are fixed here.  Provider response bytes are parsed into
 from __future__ import annotations
 
 import http.client
+import io
 import json
 import math
 import os
@@ -90,7 +91,7 @@ class CloudBalancePolicyV1:
     authenticated_collection_admitted: Literal[False]
     operation_deadline_strict: Literal[False]
     dns_deadline_strict: Literal[False]
-    wire_header_limit_strict: Literal[False]
+    wire_header_limit_strict: Literal[True]
     anonymous_probe_process_isolated: Literal[True]
     anonymous_probe_deadline_strict: Literal[True]
     binding_worker_process_isolated: Literal[True]
@@ -117,7 +118,7 @@ CLOUD_BALANCE_POLICY_V1 = CloudBalancePolicyV1(
     authenticated_collection_admitted=False,
     operation_deadline_strict=False,
     dns_deadline_strict=False,
-    wire_header_limit_strict=False,
+    wire_header_limit_strict=True,
     anonymous_probe_process_isolated=True,
     anonymous_probe_deadline_strict=True,
     binding_worker_process_isolated=True,
@@ -274,6 +275,64 @@ class _InvalidCloudBalance(ValueError):
 
 def _fail(code: str) -> _InvalidCloudBalance:
     return _InvalidCloudBalance(code)
+
+
+class _BoundedHeaderReader(io.BufferedIOBase):
+    """Enforce the policy byte/line budget before stdlib header parsing."""
+
+    def __init__(
+        self, source: io.BufferedIOBase, *, maximum_bytes: int, maximum_lines: int
+    ) -> None:
+        super().__init__()
+        self._source = source
+        self._maximum_bytes = maximum_bytes
+        self._maximum_lines = maximum_lines
+        self._bytes_read = 0
+        self._lines_read = 0
+
+    def readline(self, size: int | None = -1, /) -> bytes:
+        remaining = self._maximum_bytes - self._bytes_read
+        # Read one byte beyond the remaining budget so an oversized line cannot
+        # be mistaken for a complete bounded line by ``http.client``.
+        bounded_size = remaining + 1
+        if size is not None and size >= 0:
+            bounded_size = min(size, bounded_size)
+        line = self._source.readline(bounded_size)
+        self._bytes_read += len(line)
+        if self._bytes_read > self._maximum_bytes:
+            raise _fail("ollama_cloud_headers_too_large")
+        if line not in {b"", b"\n", b"\r\n"}:
+            self._lines_read += 1
+            if self._lines_read > self._maximum_lines:
+                raise _fail("ollama_cloud_headers_too_large")
+        return line
+
+
+class _BoundedHeaderHTTPResponse(http.client.HTTPResponse):
+    """Apply the cumulative ingress limit around ``HTTPResponse.begin``."""
+
+    def begin(self) -> None:
+        if self.headers is not None:
+            return
+        source = self.fp
+        if source is None:
+            raise _fail("ollama_cloud_headers_invalid")
+        bounded = _BoundedHeaderReader(
+            source,
+            maximum_bytes=CLOUD_BALANCE_POLICY_V1.maximum_header_bytes,
+            # ``HTTPResponse.begin`` reads the status line through this same
+            # object.  The published count applies to response-header lines.
+            maximum_lines=CLOUD_BALANCE_POLICY_V1.maximum_header_count + 1,
+        )
+        self.fp = bounded
+        try:
+            super().begin()
+        finally:
+            self.fp = source
+
+
+class _BoundedHeaderHTTPSConnection(http.client.HTTPSConnection):
+    response_class = _BoundedHeaderHTTPResponse
 
 
 def _object(pairs: list[tuple[str, object]]) -> dict[str, object]:
@@ -652,7 +711,7 @@ def _read_cloud_balance_once_v1(
     response: http.client.HTTPResponse | None = None
     dispatch_certainty: DispatchCertainty = "not_started"
     try:
-        connection = http.client.HTTPSConnection(
+        connection = _BoundedHeaderHTTPSConnection(
             policy.host,
             port=policy.port,
             timeout=_remaining(deadline, policy.connect_timeout_seconds),

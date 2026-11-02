@@ -40,7 +40,7 @@ def test_cloud_balance_source_is_one_fixed_bounded_request() -> None:
     assert not policy.authenticated_collection_admitted
     assert not policy.operation_deadline_strict
     assert not policy.dns_deadline_strict
-    assert not policy.wire_header_limit_strict
+    assert policy.wire_header_limit_strict
     assert policy.anonymous_probe_process_isolated
     assert policy.anonymous_probe_deadline_strict
     assert policy.binding_worker_process_isolated

@@ -90,6 +90,14 @@ mechanics through published module ports; PLAN-INT governs the registry. A
 central event table and cross-module SQL are prohibited. This is Draft-aligned
 and still requires owner approval before implementation.
 
+CTR-COL-009 1.0.0 is the M04-owned no-response terminal contract for the
+Ollama cloud rate lane. It records a terminal time and proven `not_started`
+certainty without claiming an HTTP response. The v1_0712 overlay is
+transactionally authoritative over the retained V1 admission shadow. Existing
+V1 response-received completion remains unchanged; older schema clients cannot
+read v1_0712. Real account, concurrency, recovery and upgrade evidence remains
+outstanding.
+
 CTR-COL-008 is a narrow additive exception authorized by the owner-approved M6
 Ollama cloud plan. It is distinct from CTR-COL-001 request intent and
 CTR-COL-002 run state because it grants one fenced provider-global request

@@ -4,7 +4,6 @@
 
 import hashlib
 import json
-from collections.abc import Callable
 from datetime import UTC, datetime, timedelta
 
 from sqlalchemy.engine import Connection, RowMapping
@@ -126,12 +125,23 @@ class SqliteCollectionRepositoryV1:
     def __init__(self, database_ref: DatabaseRefV1) -> None:
         self._database_ref = database_ref
 
-    def admit_run(
-        self,
-        admission: CollectionRunAdmissionV1,
-        *,
-        on_admitted: Callable[[Connection], None] | None = None,
-    ) -> CollectionRunViewV1:
+    def _finalize_budget(
+        self, connection: Connection, run_id: OpaqueIdV1, instant_text: str
+    ) -> None:
+        """Apply the ordinary conservative budget rule inside finalization."""
+        connection.exec_driver_sql(
+            "UPDATE collection_budget_reservation SET state=CASE "
+            "WHEN state='dispatched' THEN 'expired_conservative' "
+            "ELSE 'released' END, updated_at=? WHERE run_id=?",
+            (instant_text, run_id.value),
+        )
+
+    def _on_admitted(
+        self, connection: Connection, admission: CollectionRunAdmissionV1
+    ) -> None:
+        """Internal adapter hook; ordinary M04 admissions need no extra write."""
+
+    def admit_run(self, admission: CollectionRunAdmissionV1) -> CollectionRunViewV1:
         try:
             with open_sqlite_database(
                 self._database_ref, "runtime_read_write"
@@ -146,8 +156,7 @@ class SqliteCollectionRepositoryV1:
                                 "collection_idempotency_conflict"
                             )
                         result = _run_view(connection, existing)
-                        if on_admitted is not None:
-                            on_admitted(connection)
+                        self._on_admitted(connection, admission)
                         connection.commit()
                         return result
                     if (
@@ -508,8 +517,7 @@ class SqliteCollectionRepositoryV1:
                             "collection_repository_unavailable"
                         )
                     result = _run_view(connection, row)
-                    if on_admitted is not None:
-                        on_admitted(connection)
+                    self._on_admitted(connection, admission)
                     connection.commit()
                     return result
         except CollectionRepositoryErrorV1:
@@ -1023,12 +1031,7 @@ class SqliteCollectionRepositoryV1:
                         "cancelled",
                         "unsupported",
                     }:
-                        connection.exec_driver_sql(
-                            "UPDATE collection_budget_reservation SET state=CASE "
-                            "WHEN state='dispatched' THEN 'expired_conservative' "
-                            "ELSE 'released' END, updated_at=? WHERE run_id=?",
-                            (instant_text, run_id.value),
-                        )
+                        self._finalize_budget(connection, run_id, instant_text)
                         connection.exec_driver_sql(
                             "DELETE FROM collection_lease WHERE run_id=? AND "
                             "fencing_token=?",

@@ -399,6 +399,61 @@ class OllamaCloudRequestCompletionV1(TechnicalValueV1):
 
 
 @dataclass(frozen=True, slots=True)
+class OllamaCloudNoResponseCompletionV2(TechnicalValueV1):
+    """Terminal result known to have sent no HTTP request; no response time."""
+
+    CONTRACT_ID: ClassVar[str] = "CTR-COL-009"
+    OWNER: ClassVar[str] = "PLAN-M04"
+    admission_id: OpaqueIdV1
+    scheduler_instance_id: OpaqueIdV1
+    schedule_id: OpaqueIdV1
+    fencing_token: int
+    started_at: datetime
+    terminal_at: datetime
+    reason_code: Literal[
+        "pre_dispatch_failed", "source_not_started", "store_unavailable"
+    ]
+    source_state: (
+        Literal[
+            "authorization_unavailable",
+            "deadline_exceeded",
+            "provider_unavailable",
+            "internal_adapter_error",
+            "source_not_admitted",
+        ]
+        | None
+    ) = None
+    dispatch_certainty: Literal["not_started"] = "not_started"
+
+    def __post_init__(self) -> None:
+        TechnicalValueV1.__post_init__(self)
+        if (
+            type(self.fencing_token) is not int
+            or self.fencing_token < 1
+            or not _utc(self.started_at)
+            or not _utc(self.terminal_at)
+            or self.terminal_at < self.started_at
+            or self.reason_code
+            not in {"pre_dispatch_failed", "source_not_started", "store_unavailable"}
+            or self.dispatch_certainty != "not_started"
+            or self.source_state
+            not in {
+                None,
+                "authorization_unavailable",
+                "deadline_exceeded",
+                "provider_unavailable",
+                "internal_adapter_error",
+                "source_not_admitted",
+            }
+            or (self.reason_code == "pre_dispatch_failed")
+            != (self.source_state is None)
+            or (self.reason_code == "store_unavailable")
+            != (self.source_state == "authorization_unavailable")
+        ):
+            raise InvalidCollectionControlV1("ollama_cloud_no_response_invalid")
+
+
+@dataclass(frozen=True, slots=True)
 class OllamaCloudRateGateViewV1(TechnicalValueV1):
     """Non-secret durable global limiter state after one transition."""
 

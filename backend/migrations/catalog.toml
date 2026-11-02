@@ -1,5 +1,5 @@
-version = "1.7.11"
-head = "v1_0711"
+version = "1.7.12"
+head = "v1_0712"
 env_sha256 = "27449e3ed3984acde690510f9e4974eb6412f5f1b7e62af65bc8bb616879a7d7"
 
 [[revisions]]
@@ -660,5 +660,27 @@ downtime_policy = "offline_additive_schema_migration"
 expected_data_volume = "one_row_per_schedule_and_one_per_attempt"
 backup_prerequisite = "required_existing_database"
 validation_ids = ["single_head", "m04_cloud_journal_schema", "foreign_key_check", "full_integrity"]
+recovery_policy = "preserve_failed_database_and_restore_verified_backup_or_forward_fix"
+reviewer = "M04-M6-cloud-journal-review"
+
+[[revisions]]
+ordinal = 712
+filename = "v1_0712_m04_cloud_failure.py"
+sha256 = "9a28679ee7f8dff9391e39fdf96f9c271d126e8ecbe24394c5d90a21d9d5a639"
+status = "shared"
+reviewed_at = "2026-11-02"
+revision = "v1_0712"
+parent_revision = "v1_0711"
+owner = "M04"
+plan_id = "PLAN-M04"
+requirement_ids = ["FR-COL-003", "FR-COL-007", "M6-A09"]
+schema_range = ["v1_0712", "v1_0712", "v1_0712", "v1_0712", "v1_0712"]
+tables = ["collection_cloud_attempt_journal", "collection_cloud_no_response_terminal"]
+portability_notes = ["Nullable safe failure code preserves interrupted-run classification", "V2 no-response overlay is authoritative over its legacy admission shadow"]
+lock_policy = "exclusive_migration"
+downtime_policy = "offline_additive_schema_migration"
+expected_data_volume = "one_nullable_column_per_attempt"
+backup_prerequisite = "required_existing_database"
+validation_ids = ["single_head", "m04_cloud_failure_schema", "foreign_key_check", "full_integrity"]
 recovery_policy = "preserve_failed_database_and_restore_verified_backup_or_forward_fix"
 reviewer = "M04-M6-cloud-journal-review"

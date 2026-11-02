@@ -288,3 +288,33 @@ cases passed `2 passed in 0.58s`; the focused provider-source security/policy
 set passed `14 passed in 0.34s`. Changed-file Ruff, strict focused mypy, and
 `git diff --check` passed. Authenticated provider success, real key lookup, and
 rate-gate recovery remain **Not Run**.
+
+## Pre-parse response-header bound
+
+Scope: `M6-T005`, `M6-T011`, `M6-A04`, `M6-A09`, source
+`ollama.cloud.balance.v1`. The approved network boundary requires a finite
+response-header limit. Earlier evidence above truthfully records that only a
+post-parse acceptance check existed at that time.
+
+The policy Red required `wire_header_limit_strict=true` and failed because the
+source still declared `false`. The source now installs a private
+`HTTPResponse` reader in the isolated worker before the standard-library
+status/header parser runs. That reader limits cumulative status/header ingress
+to 16 KiB and at most 64 response-header lines, then the existing parsed-header
+validation remains as defense in depth. An over-limit read raises only the
+closed `ollama_cloud_headers_too_large` code; raw header bytes never cross the
+worker boundary.
+
+Green at `2026-11-02T16:43:40Z`: source policy/security tests passed `8 passed
+in 0.53s`; the real fixed official anonymous endpoint and bounded-deadline
+tests passed `2 passed in 0.59s`; changed-file Ruff and strict focused mypy
+passed. The official endpoint produced the existing sanitized HTTP 401 result.
+No credential, provider profile, response body, database, or live service was
+read or changed.
+
+A hostile oversized-header provider boundary is **Not Run**: no natural
+official response exhibiting it was available, and this project prohibits a
+fabricated HTTP provider boundary. Authenticated 200/schema validation and
+production admission remain **Not Run**; this increment changes neither
+`authenticated_collection_admitted=false` nor
+`binding_worker_authenticated_validated=false`.

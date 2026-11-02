@@ -39,3 +39,11 @@ def test_failure_policy_preserves_actionable_provider_states() -> None:
         == "reauthentication_required"
     )
     assert cloud_failure_policy("rate_limited", 90).retry.delay_seconds == 90
+
+
+def test_failure_policy_never_shortens_provider_retry() -> None:
+    from agentmonitor.adapters.providers.ollama.cloud_balance.collection import (
+        cloud_failure_policy,
+    )
+
+    assert cloud_failure_policy("rate_limited", 172800).retry.delay_seconds == 172800

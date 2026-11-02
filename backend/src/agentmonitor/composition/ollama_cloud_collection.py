@@ -14,7 +14,8 @@ from agentmonitor.adapters.persistence.capacity.sqlite.repository import (
 )
 from agentmonitor.adapters.persistence.collection_control.sqlite.ollama_cloud_admission import (
     SqliteOllamaCloudAdmissionRepositoryV1,
-    bind_ollama_run_in_transaction,
+    SqliteOllamaCloudRunRepositoryV1,
+    SqliteOllamaNoResponseRunRepositoryV1,
 )
 from agentmonitor.adapters.persistence.collection_control.sqlite.repository import (
     SqliteCollectionRepositoryV1,
@@ -51,6 +52,7 @@ from agentmonitor.contracts.collection_control_v1 import (
     CollectionFailedV1,
     CollectionRunAdmissionV1,
     OllamaCloudAdmissionDecisionV1,
+    OllamaCloudNoResponseCompletionV2,
     OllamaCloudRequestAcquireV1,
     OllamaCloudRequestCompletionV1,
     OllamaCloudRequestLeaseV1,
@@ -300,10 +302,13 @@ class OllamaCloudCollectionV1:
             if len(matches) > 1:
                 raise ValueError("ollama_cloud_target_ambiguous")
             candidates.extend(matches)
-        if not candidates:
-            return "ollama_cloud_no_eligible_accounts"
         for run, _, _ in candidates:
             self.register_target(run)
+        self._admission.reconcile_source_lane(
+            tuple(run.schedule_id for run, _, _ in candidates)
+        )
+        if not candidates:
+            return "ollama_cloud_no_eligible_accounts"
         decision = self.acquire_next(datetime.now(UTC))
         if decision.lease is None:
             return decision.state
@@ -343,12 +348,15 @@ class OllamaCloudCollectionV1:
                         "ollama_cloud_pre_dispatch_failed",
                         datetime.now(UTC),
                     )
+                    no_request_runs = SqliteOllamaNoResponseRunRepositoryV1(
+                        self._reference, lease.admission_id
+                    )
                     if current_run.state == "queued":
-                        self._runs.finalize_before_dispatch(
+                        no_request_runs.finalize_before_dispatch(
                             failure, fencing_token=current_run.fencing_token
                         )
                     elif current_run.state == "running":
-                        self._runs.finalize_failed(
+                        no_request_runs.finalize_failed(
                             failure, fencing_token=current_run.fencing_token
                         )
             except (OSError, RuntimeError, ValueError):
@@ -441,11 +449,8 @@ class OllamaCloudCollectionV1:
             or run.resource_id != subject.resource_id
         ):
             raise ValueError("ollama_cloud_target_mismatch")
-        admitted = self._runs.admit_run(
-            run,
-            on_admitted=lambda connection: bind_ollama_run_in_transaction(
-                connection, lease, run, datetime.now(UTC)
-            ),
+        admitted = SqliteOllamaCloudRunRepositoryV1(self._reference, lease).admit_run(
+            run
         )
         if admitted.state != "queued":
             raise ValueError("ollama_cloud_run_not_dispatchable")
@@ -481,6 +486,43 @@ class OllamaCloudCollectionV1:
             source.dispatch_certainty == "not_started"
             and source.state == "authorization_unavailable"
         )
+        if source.dispatch_certainty == "not_started":
+            allowed = {
+                "authorization_unavailable",
+                "deadline_exceeded",
+                "provider_unavailable",
+                "internal_adapter_error",
+                "source_not_admitted",
+            }
+            if source.state not in allowed:
+                raise ValueError("ollama_cloud_source_binding_invalid")
+            terminal = OllamaCloudNoResponseCompletionV2(
+                admission_id=lease.admission_id,
+                scheduler_instance_id=lease.scheduler_instance_id,
+                schedule_id=lease.schedule_id,
+                fencing_token=lease.fencing_token,
+                started_at=lease.started_at,
+                terminal_at=completed,
+                reason_code="store_unavailable"
+                if authorization_not_sent
+                else "source_not_started",
+                source_state=source.state,
+            )
+            self._admission.finish_no_response(lease, terminal)
+            failure_code = (
+                "ollama_cloud_store_unavailable"
+                if authorization_not_sent
+                else "ollama_cloud_" + source.state
+            )
+            failed = CollectionFailedV1(run.run_id, "failed", failure_code, completed)
+            SqliteOllamaNoResponseRunRepositoryV1(
+                self._reference, lease.admission_id
+            ).finalize_failed(
+                failed,
+                fencing_token=admitted.fencing_token,
+                provider_policy=cloud_failure_policy(source.state, None),
+            )
+            return failed
         if (
             source.dispatch_certainty == "may_have_started"
             or (
@@ -505,7 +547,11 @@ class OllamaCloudCollectionV1:
             ),
             jitter_seconds=secrets.randbelow(11),
         )
-        self._admission.record_completion(lease, completion)
+        self._admission.record_completion(
+            lease,
+            completion,
+            failure_code=source.state if source.state != "success" else None,
+        )
         provenance = (
             self._source_provenance(run, source) if source.state == "success" else None
         )
@@ -617,14 +663,42 @@ class OllamaCloudCollectionV1:
         orphaned = self._admission.recoverable_orphaned_runs(
             now=as_of, owner_stale_before=owner_stale_before, limit=maximum_runs
         )
-        for run_id, state, fence in orphaned:
-            failure = CollectionFailedV1(
-                run_id, "failed", "ollama_cloud_run_interrupted", as_of
+        for (
+            run_id,
+            state,
+            fence,
+            source_failure,
+            retry_after,
+            no_response_id,
+            no_response_reason,
+        ) in orphaned:
+            failure_code = (
+                "ollama_cloud_store_unavailable"
+                if source_failure == "authorization_unavailable"
+                else "ollama_cloud_" + source_failure
+                if source_failure
+                else "ollama_cloud_pre_dispatch_failed"
+                if no_response_reason == "pre_dispatch_failed"
+                else "ollama_cloud_run_interrupted"
+            )
+            failure = CollectionFailedV1(run_id, "failed", failure_code, as_of)
+            finalizer = (
+                SqliteOllamaNoResponseRunRepositoryV1(self._reference, no_response_id)
+                if no_response_id is not None
+                else self._runs
             )
             if state == "queued":
-                self._runs.finalize_before_dispatch(failure, fencing_token=fence)
+                finalizer.finalize_before_dispatch(failure, fencing_token=fence)
             else:
-                self._runs.finalize_failed(failure, fencing_token=fence)
+                finalizer.finalize_failed(
+                    failure,
+                    fencing_token=fence,
+                    provider_policy=(
+                        cloud_failure_policy(source_failure, retry_after)
+                        if source_failure
+                        else None
+                    ),
+                )
         if len(orphaned) == maximum_runs:
             raise ValueError("ollama_cloud_recovery_batch_incomplete")
         return rate, len(committed), len(orphaned)

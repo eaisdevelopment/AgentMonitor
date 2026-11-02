@@ -74,9 +74,12 @@ def cloud_failure_policy(state: str, retry_after: int | None):
             "authorization_insufficient", RetryAdviceV1("after_user_action")
         )
     if state == "rate_limited":
-        delay = min(86400, max(1, retry_after if retry_after is not None else 60))
+        delay = max(1, retry_after if retry_after is not None else 60)
+        precision = (
+            "exact" if retry_after is not None and retry_after >= 1 else "estimated"
+        )
         return CollectionFailurePolicyV1(
-            "rate_limited", RetryAdviceV1("after_delay", delay, "estimated")
+            "rate_limited", RetryAdviceV1("after_delay", delay, precision)
         )
     if state in {"provider_unavailable", "deadline_exceeded"}:
         outcome = (
