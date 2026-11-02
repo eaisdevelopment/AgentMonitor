@@ -62,6 +62,20 @@ try {
     }
     throw new Error("ollama_reading_provenance_missing");
   }
+  const providerHeading = page.getByRole("heading", { name: "ollama", exact: true });
+  await providerHeading.waitFor({ state: "visible", timeout: 15_000 });
+  const providerCard = page.locator("article.provider-card").filter({ has: providerHeading });
+  const capabilities = providerCard.locator('[aria-label="ollama capabilities"]');
+  await capabilities.waitFor({ state: "visible", timeout: 10_000 });
+  const capabilityIds = await capabilities.locator(":scope > div > span").allTextContents();
+  if (JSON.stringify(capabilityIds) !== JSON.stringify(["installation.discovery", "model.catalog"]) ||
+      await capabilities.getByText("unknown", { exact: true }).count() !== 2 ||
+      await providerCard.getByText("Capability manifest unavailable.", { exact: true }).count() !== 0) {
+    throw new Error("ollama_manifest_not_truthfully_published");
+  }
+  if (/cloud|balance|quota/i.test(await capabilities.innerText())) {
+    throw new Error("ollama_unverified_cloud_capability_published");
+  }
   if (installedBefore.length === 0 && !await installed.getByText("No installed models", { exact: true }).isVisible()) {
     throw new Error("ollama_empty_installed_state_missing");
   }

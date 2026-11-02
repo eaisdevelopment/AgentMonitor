@@ -85,6 +85,7 @@ from agentmonitor.adapters.persistence.runtime_observation.sqlite.repository imp
 )
 from agentmonitor.adapters.providers.claude.manifest import build_claude_manifest
 from agentmonitor.adapters.providers.codex.manifest import build_codex_manifest
+from agentmonitor.adapters.providers.ollama.manifest import build_ollama_manifest
 from agentmonitor.api.app import create_application
 from agentmonitor.api.v1.dependencies import (
     AlertApiPortsV1,
@@ -521,7 +522,13 @@ def _observation_ports(
         GetAccountV1(registry),
         ListAccountsV1(registry),
         ListProviderInstallationsV1(registry),
-        GetProviderCapabilitiesV1((build_claude_manifest(), build_codex_manifest())),
+        GetProviderCapabilitiesV1(
+            (
+                build_claude_manifest(),
+                build_codex_manifest(),
+                build_ollama_manifest(),
+            )
+        ),
         ListCollectionRunsV1(collection),
         GetAccountCapacityV1(capacity),
         ListQuotaWindowsV1(capacity),
