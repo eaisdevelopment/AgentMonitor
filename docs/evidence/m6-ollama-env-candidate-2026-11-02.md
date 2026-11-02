@@ -114,3 +114,13 @@ now reports only closed compatibility state, target/other/missing revision,
 integrity and policy on that failure; a real empty-SQLite diagnostic test
 failed before this helper existed and passed afterward. No live state or
 credential was modified.
+
+A real disposable systemd unit ran the old dashboard against an empty v1_0707
+SQLite database, then underwent the actual cutover to a clean clone of the
+candidate. With WAL and SHM present, candidate finalization ran the same runtime
+readiness component before and after restoring the original restart policy:
+process/cgroup/argument identity, a consistent read-only SQLite schema snapshot,
+and loopback login HTTP. It archived the transition journal and left the
+candidate running until the test stopped its own disposable unit. This was a
+no-key check; the fixed installed wrapper, real account and provider behavior,
+crash interruption, and full M6 completion remain unverified by this test.
