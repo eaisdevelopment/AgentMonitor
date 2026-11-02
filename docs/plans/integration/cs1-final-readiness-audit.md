@@ -1063,3 +1063,11 @@ This structural record binds the additive M04 verification enqueue V2 contract a
 Plan snapshot SHA-256: `874137e1557267fedfd23a748e5089b4f2be19f2fd370e13c10921c1e7a3a1cb`
 
 Planning validator SHA-256: `708b8d29fefc68fdf39d9c8e529ffd923fafd02f7e4b0ea55482540192b03d2e`
+
+## 2026-11-02 integration coordinator structural rebind
+
+This binds the versioned integration-owned verification coordinator and schedule snapshot in the planning catalog. This is structural reconciliation only, not independent semantic review, real credential validation, deployment or milestone completion.
+
+Plan snapshot SHA-256: `d58d2eb5ae130a730d25d48f3b39947bb497fa3d7d4dd378c26527251351fb4f`
+
+Planning validator SHA-256: `708b8d29fefc68fdf39d9c8e529ffd923fafd02f7e4b0ea55482540192b03d2e`
