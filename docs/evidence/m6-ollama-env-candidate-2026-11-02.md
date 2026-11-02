@@ -151,3 +151,10 @@ accepts no target arguments and starts with bytecode writing disabled; an
 argument-refusal/catalog check failed before registration and passed after.
 The command has not been executed against the installed service. Candidate
 readiness, authenticated behavior and M6 completion remain separate.
+
+The restored baseline uses the same pinned private Python runtime as the M6
+candidate. Its service override now also disables bytecode writes. A real
+isolated recovery test failed before the fix because the baseline override
+lacked the setting; afterward, a disposable service restored a copied runtime,
+completed a real FastAPI import, and retained the exact pre-start runtime digest.
+The installed runtime, dashboard and provider profiles were not modified.

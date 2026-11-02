@@ -59,6 +59,7 @@ from tools.automation.implementations.m6_transition_lease import _hold_transitio
         "writer",
         "restore",
         "restore_restart",
+        "restore_runtime",
         "restore_restart_interrupted",
         "restore_restart_no",
         "restore_restart_retry",
@@ -127,6 +128,20 @@ def test_disposable_unit_and_real_backup_migration(
     override = directory / "90-m6-local.conf"
     override.write_text(build_override(baseline))
     override.chmod(0o600)
+    test_executable = Path("/bin/sleep")
+    runtime_command = ["/bin/sleep", "60"]
+    runtime = None
+    if case == "restore_runtime":
+        from tools.automation.implementations.m6_cutover import _FIXED_VENV
+
+        runtime = tmp_path / "runtime"
+        shutil.copytree(_FIXED_VENV, runtime, symlinks=True)
+        test_executable = runtime / "bin/python"
+        runtime_command = [
+            str(test_executable),
+            "-c",
+            "import fastapi,time; time.sleep(60)",
+        ]
     result = subprocess.run(
         [
             "systemd-run",
@@ -143,7 +158,7 @@ def test_disposable_unit_and_real_backup_migration(
             *(
                 ["/bin/bash", "-c", "sleep 60 & wait"]
                 if case == "child"
-                else ["/bin/sleep", "60"]
+                else runtime_command
             ),
         ],
         capture_output=True,
@@ -260,6 +275,7 @@ _cutover_engine(unit=sys.argv[1], data_root=Path(sys.argv[2]), baseline=Path(sys
         elif case in {
             "restore",
             "restore_restart",
+            "restore_runtime",
             "restore_restart_interrupted",
             "restore_restart_no",
             "restore_restart_retry",
@@ -294,7 +310,7 @@ _cutover_engine(unit=sys.argv[1], data_root=Path(sys.argv[2]), baseline=Path(sys
                     override=override,
                     source=source_revision,
                     expected_revision=revision,
-                    expected_executable=Path("/bin/sleep"),
+                    expected_executable=test_executable,
                 )
             conflict.join(timeout=30)
             assert not conflict.is_alive()
@@ -411,12 +427,33 @@ with _hold_transition_locks(root) as transition, exclusive_service_quiescence(ro
             )
             if case in {
                 "restore_restart",
+                "restore_runtime",
                 "restore_restart_interrupted",
                 "restore_restart_no",
                 "restore_restart_retry",
                 "restore_ready_retry",
             }:
                 before = build_override(baseline).encode()
+                restart_override = before
+                if case == "restore_runtime":
+                    from tools.automation.implementations.m6_cutover import (
+                        _FIXED_BASELINE,
+                        _candidate_override,
+                    )
+                    from tools.automation.implementations.m6_runtime_integrity import (
+                        _runtime_digest,
+                    )
+
+                    assert runtime is not None
+                    for cache in runtime.rglob("__pycache__"):
+                        shutil.rmtree(cache)
+                    before_digest = _runtime_digest(runtime)
+                    environment = next(
+                        line
+                        for line in _candidate_override(_FIXED_BASELINE).splitlines()
+                        if line.startswith("Environment=PYTHONDONTWRITEBYTECODE=")
+                    )
+                    restart_override += (environment + "\n").encode()
                 with _hold_transition_locks(root) as transition_lease:
                     assert (
                         _start_restored_baseline_engine(
@@ -427,9 +464,9 @@ with _hold_transition_locks(root) as transition, exclusive_service_quiescence(ro
                             guard=directory / "95-m6-cutover-restart.conf",
                             override=override,
                             expected_override=before,
-                            start_override=before,
+                            start_override=restart_override,
                             baseline=baseline,
-                            executable=Path("/bin/sleep"),
+                            executable=test_executable,
                         )
                         == "baseline_started_readiness_unverified"
                     )
@@ -437,6 +474,33 @@ with _hold_transition_locks(root) as transition, exclusive_service_quiescence(ro
                     json.loads(journal.read_text())["phase"]
                     == "baseline_start_attempted"
                 )
+                if case == "restore_runtime":
+                    restarted_pid = int(
+                        subprocess.check_output(
+                            [
+                                "systemctl",
+                                "--user",
+                                "show",
+                                unit,
+                                "-p",
+                                "MainPID",
+                                "--value",
+                            ],
+                            text=True,
+                        ).strip()
+                    )
+                    deadline = time.monotonic() + 5
+                    while time.monotonic() < deadline:
+                        if (
+                            Path("/proc") / str(restarted_pid) / "wchan"
+                        ).read_text().strip() == "hrtimer_nanosleep":
+                            break
+                        time.sleep(0.05)
+                    else:
+                        raise AssertionError(
+                            "restored Python did not complete its import"
+                        )
+                    assert _runtime_digest(runtime) == before_digest
                 if case == "restore_restart_retry":
                     from tools.automation.implementations import m6_cutover
 
@@ -809,6 +873,7 @@ with _hold_transition_locks(root) as lease:
             "child",
             "writer",
             "restore_restart",
+            "restore_runtime",
             "restore_restart_interrupted",
             "restore_restart_no",
             "restore_restart_retry",
@@ -944,3 +1009,6 @@ def test_candidate_override_selects_existing_credential_file() -> None:
     )
     assert "--credential-env-file" not in _candidate_override(_FIXED_BASELINE)
     assert "Environment=PYTHONDONTWRITEBYTECODE=1" in candidate
+    assert "Environment=PYTHONDONTWRITEBYTECODE=1" in _candidate_override(
+        _FIXED_BASELINE
+    )

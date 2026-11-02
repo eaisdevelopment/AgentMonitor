@@ -641,11 +641,7 @@ def _candidate_override(candidate: Path) -> str:
     )
     if candidate != _FIXED_BASELINE:
         command += " --credential-env-file " + str(_FIXED_CREDENTIAL_ENV_FILE)
-    runtime_environment = (
-        "Environment=PYTHONDONTWRITEBYTECODE=1\n"
-        if candidate != _FIXED_BASELINE
-        else ""
-    )
+    runtime_environment = "Environment=PYTHONDONTWRITEBYTECODE=1\n"
     return (
         build_override(candidate)
         + runtime_environment
