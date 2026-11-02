@@ -29,12 +29,13 @@ export function OllamaCloudConnectionPanel({ state, canVerify, busy, checkedAt, 
   return <section className="account-secondary" aria-label="Ollama cloud connection">
     <h2>{copy.title}</h2>
     <p>{copy.description}</p>
-    {state === "not_configured" && <div>
+    <details open={state === "not_configured"}>
+      <summary>Set up or replace the local key</summary>
       <p>Run this command in a terminal on the AgentMonitor computer, then select this account and enter the key at the hidden prompt.</p>
       <code className="ollama-setup-command">{ollamaLocalSetupCommand}</code>
       <button type="button" className="quiet-button" onClick={() => { void copyCommand(); }}>Copy setup command</button>
       {copyStatus && <p role="status">{copyStatus}</p>}
-    </div>}
+    </details>
     <p>{ollamaMonitoringCopy(monitoringState, monitoringReason)}</p>
     {checkedAt !== null && ["stale", "retry_available", "access_valid_owner_confirmed", "access_valid_identity_unresolved"].includes(state) && <p>Last check: {new Date(checkedAt).toLocaleString()}</p>}
     {action !== null && <button type="button" disabled={busy} onClick={onVerify}>{action}</button>}
