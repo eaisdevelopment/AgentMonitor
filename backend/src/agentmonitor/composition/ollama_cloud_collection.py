@@ -38,6 +38,10 @@ from agentmonitor.adapters.providers.ollama.cloud_balance.collection import (
 from agentmonitor.adapters.providers.ollama.cloud_balance.freshness import (
     cloud_freshness_deadline_v1,
 )
+from agentmonitor.adapters.providers.ollama.cloud_balance.probe_descriptor import (
+    ollama_cloud_probe_fingerprint,
+    ollama_cloud_probe_source,
+)
 from agentmonitor.adapters.providers.ollama.cloud_balance.source import (
     CLOUD_BALANCE_POLICY_V1,
     CloudBalanceSourceResultV1,
@@ -199,15 +203,28 @@ class OllamaCloudCollectionV1:
         run: CollectionRunAdmissionV1 | CollectionRunAdmissionV2,
         source: CloudBalanceSourceResultV1,
     ) -> ObservationProvenanceV1:
-        manifest = require_cloud_manifest()
-        declaration = next(
-            item
-            for item in manifest.declarations
-            if item.capability_id == "subscription.quota"
+        is_probe = (
+            isinstance(run, CollectionRunAdmissionV2)
+            and run.trigger == "reauth_verification"
         )
-        native = next(
-            item for item in declaration.sources if item.source_id == source.source_id
-        )
+        if is_probe:
+            native = ollama_cloud_probe_source()
+            decision_reference = "M6-OLLAMA-CLOUD-PROBE"
+        else:
+            manifest = require_cloud_manifest()
+            declaration = next(
+                item
+                for item in manifest.declarations
+                if item.capability_id == "subscription.quota"
+            )
+            native = next(
+                item
+                for item in declaration.sources
+                if item.source_id == source.source_id
+            )
+            decision_reference = manifest.m0_mapping_id
+        if native.source_id != source.source_id:
+            raise ValueError("ollama_cloud_source_binding_invalid")
         deadline = cloud_freshness_deadline_v1(
             source.observed_at, self._monitored_cloud_account_count(run)
         )
@@ -236,12 +253,12 @@ class OllamaCloudCollectionV1:
             confidence="confirmed",
             confidence_reason_code="provider_reported_balance",
             value_kind="provider_reported",
-            is_experimental=False,
+            is_experimental=is_probe,
             fallback_lineage=(),
             warnings=(),
             operation_id=run.run_id,
             correlation_id=run.correlation_id,
-            decision_reference=manifest.m0_mapping_id,
+            decision_reference=decision_reference,
             derivation_method=None,
             input_observation_ids=(),
         )
@@ -336,7 +353,6 @@ class OllamaCloudCollectionV1:
         manifest admission checks happen before a job can be claimed.
         """
         require_source_admitted()
-        manifest = require_cloud_manifest()
         now = datetime.now(UTC)
         claim = self._admission.claim_verification(
             OllamaCloudVerificationClaimRequestV1(
@@ -399,10 +415,7 @@ class OllamaCloudCollectionV1:
                 graph,
                 lease,
                 account.registry_revision,
-                _digest(
-                    "provider-manifest-fingerprint-v1",
-                    get_manifest_fingerprint_v1(manifest),
-                ),
+                ollama_cloud_probe_fingerprint(),
                 datetime.now(UTC),
             )
             subject = CapacitySubjectV2(

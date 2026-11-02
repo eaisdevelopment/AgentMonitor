@@ -23,7 +23,9 @@ from agentmonitor.adapters.persistence.registry.sqlite.credential_bindings impor
 from agentmonitor.adapters.persistence.registry.sqlite.repository import (
     SqliteRegistryRepositoryV1,
 )
-from agentmonitor.composition.ollama_cloud_collection import require_cloud_manifest
+from agentmonitor.adapters.providers.ollama.cloud_balance.probe_descriptor import (
+    ollama_cloud_probe_fingerprint,
+)
 from agentmonitor.contracts.collection_control_v1 import (
     OllamaCloudVerificationEnqueueV1,
     OllamaCloudVerificationTargetV1,
@@ -35,9 +37,6 @@ from agentmonitor.contracts.registry_v1 import (
     CredentialConnectionStatusV1,
     InitiateOllamaCloudVerificationCommandV1,
     ProviderTargetRefV1,
-)
-from agentmonitor.modules.provider_system.application.gateway import (
-    get_manifest_fingerprint_v1,
 )
 from agentmonitor.modules.registry.application.accounts import (
     AssertCredentialAccountOwnershipV1,
@@ -149,11 +148,10 @@ class OllamaCloudConnectionServiceV1:
         )
         if binding is None:
             raise ValueError("ollama_cloud_binding_unavailable")
-        manifest = require_cloud_manifest()
         target = self._cloud.reconcile_access_target(
             provider_key="ollama",
             authority_id="ollama.com",
-            manifest_fingerprint=get_manifest_fingerprint_v1(manifest),
+            manifest_fingerprint=ollama_cloud_probe_fingerprint(),
             as_of=command.requested_at,
         )
         graph = self._cloud.read_monitoring_target(command.account_id)

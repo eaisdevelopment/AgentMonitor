@@ -165,3 +165,11 @@ pass; populated SQLite finalization, interruption races, authenticated provider
 I/O and dashboard integration remain Not Run. Source and manifest admission
 remain closed, and no key operation was executed. Worker time limits and
 shutdown quarantine require independent review before activation.
+
+`M6-OLLAMA-CLOUD-PROBE` is the separate one-shot source decision associated
+with the approved `docs/plans/integration/m6-ollama-cloud-implementation-change.md`.
+Its source metadata identifies the documented Ollama balance API; the first
+observation is marked experimental and does not claim the scheduled provider
+capability is supported. The source descriptor fingerprint binds the target,
+run and receipt. The static source admission and owner key-use restriction
+remain closed; no probe, secret access or live validation was performed.

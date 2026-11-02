@@ -435,10 +435,10 @@ def main() -> int:
         }:
             try:
                 require_source_admitted()
-                require_cloud_manifest()
             except ValueError:
                 return 3
             if collector.verification_tick() == "no_candidate":
+                require_cloud_manifest()
                 collector.tick()
         return 0
     except Exception:  # noqa: BLE001 - the process returns only a closed status.
