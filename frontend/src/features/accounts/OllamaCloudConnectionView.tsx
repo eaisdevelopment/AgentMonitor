@@ -22,6 +22,10 @@ export function OllamaCloudConnectionView({ account, onExpired, onProofUnavailab
         else setError("Connection status is unavailable.");
         return;
       }
+      if (result.data.account_id !== account.account_id) {
+        setError("Connection status did not match this account.");
+        return;
+      }
       setConnection(result.data);
       setError(null);
     } catch (cause) {
@@ -54,6 +58,10 @@ export function OllamaCloudConnectionView({ account, onExpired, onProofUnavailab
           setError("The account changed. Its current version is being refreshed.");
           onAccountReload();
         } else setError("The connection check could not be started.");
+        return;
+      }
+      if (result.data.account_id !== account.account_id) {
+        setError("Connection status did not match this account.");
         return;
       }
       setConnection(result.data);
