@@ -310,6 +310,7 @@ td { font-variant-numeric: tabular-nums; }
 .allowance-value strong { font-size: 2.1rem; letter-spacing: -.045em; font-variant-numeric: tabular-nums; line-height: 1.1; }
 .allowance-value > span { color: #a6b7c4; font-size: .84rem; }
 .allowance-time { color: #97a9b7; font-size: .72rem; margin: .85rem 0 0; }
+.ollama-setup-command { display: block; overflow-wrap: anywhere; white-space: pre-wrap; }
 .account-secondary { min-width: 0; border: 1px solid #2e4353; border-radius: .6rem; background: #101d28; }
 .account-secondary > summary { display: flex; flex-wrap: wrap; align-items: center; gap: .6rem 1rem; cursor: pointer; min-height: 3.4rem; padding: 1rem 1.25rem; font-weight: 600; font-size: .88rem; list-style: none; }
 .account-secondary > summary::before { content: '›'; color: #9fbdce; font-size: 1.25rem; line-height: 1; transition: transform .15s ease; }

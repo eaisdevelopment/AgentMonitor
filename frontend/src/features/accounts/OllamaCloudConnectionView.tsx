@@ -41,7 +41,14 @@ export function OllamaCloudConnectionView({ account, onExpired, onProofUnavailab
   }, [refresh]);
 
   useEffect(() => {
-    if (!connection || connection.can_verify || !["pending", "stale", "retry_available", "rate_limited"].includes(connection.state)) return;
+    const onReturn = () => { if (document.visibilityState === "visible") void refresh(); };
+    window.addEventListener("focus", onReturn);
+    document.addEventListener("visibilitychange", onReturn);
+    return () => { window.removeEventListener("focus", onReturn); document.removeEventListener("visibilitychange", onReturn); };
+  }, [refresh]);
+
+  useEffect(() => {
+    if (!connection || connection.can_verify || !["not_configured", "pending", "stale", "retry_available", "rate_limited"].includes(connection.state)) return;
     const timer = window.setTimeout(() => { void refresh(); }, 15000);
     return () => window.clearTimeout(timer);
   }, [connection, refresh]);

@@ -1,3 +1,6 @@
+/** Local Linux setup command; the browser never receives an API key. */
+export const ollamaLocalSetupCommand = String.raw`PYTHONPATH="$(systemctl --user show agentmonitor-dashboard.service -p WorkingDirectory --value)/backend/src" "$(systemctl --user show agentmonitor-dashboard.service -p ExecStart --value | sed -n 's/^{ path=\([^ ]*\) ;.*/\1/p')" -B -m agentmonitor.composition.ollama_credential_operator --data-root "$HOME/.local/share/agentmonitor"`;
+
 /** Owner-readable copy for the versioned Ollama cloud connection status. */
 export type OllamaCloudConnectionCopy = Readonly<{ title: string; description: string }>;
 
