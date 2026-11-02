@@ -448,7 +448,6 @@ def env_credential_file_lease_v1(
     lock_descriptor: int | None = None
     file_descriptor: int | None = None
     state = _EnvCredentialLeaseStateV1()
-    body_failed = False
     try:
         try:
             parent = _open_parent(authority._path)
@@ -506,19 +505,17 @@ def env_credential_file_lease_v1(
             raise EnvCredentialFileError("ollama_cloud_store_unavailable") from None
         try:
             yield lease
-        except BaseException:
-            body_failed = True
-            raise
         finally:
             lease.invalidate()
     finally:
         state.active = False
-        cleanup_failed = False
         for descriptor in (file_descriptor, lock_descriptor, parent):
             if descriptor is not None:
                 try:
                     os.close(descriptor)
                 except OSError:
-                    cleanup_failed = True
-        if cleanup_failed and not body_failed:
-            raise EnvCredentialFileError("ollama_cloud_store_unavailable") from None
+                    # Preserve the already-known request outcome. A close error
+                    # must not be rewritten as a pre-dispatch authorization
+                    # failure; this short-lived worker releases any surviving
+                    # descriptor at process exit.
+                    pass
