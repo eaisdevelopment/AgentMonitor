@@ -178,3 +178,12 @@ It includes the Ollama process, registry, lifecycle and authenticated API
 checks. This is a limited candidate result, not a deployment or full M6 pass.
 The thread-shutdown worst case, natural idle/failure states and other host
 remain unverified; the live dashboard and its database were not changed.
+
+On resumption, the existing authenticated observation API regression was
+corrected to allow genuine Ollama installation, run and process observations
+that the new lifecycle can create in an otherwise fresh database. It still
+requires no user accounts, sessions or unrelated-provider observations and
+requires discovered Ollama runs to have no account association. Before the
+correction it failed on a real Ollama installation; afterward the full
+`backend/tests/integration/api/test_observation_http.py` suite passed: 23 tests.
+No live dashboard database or provider profile was changed.

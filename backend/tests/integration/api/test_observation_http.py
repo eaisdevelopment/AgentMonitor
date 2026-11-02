@@ -262,7 +262,20 @@ def test_observation_resources_preserve_fresh_database_truth(tmp_path: Path) -> 
                 assert response[0] == 200, (path, response[2])
                 payload = json.loads(response[2])
                 assert payload["availability"]["state"] == availability
-                assert payload.get("items", ()) == []
+                items = payload.get("items", ())
+                if path in {
+                    "/api/v1/provider-installations",
+                    "/api/v1/collection-runs",
+                    "/api/v1/processes",
+                    "/api/v1/process-metrics",
+                }:
+                    # A fresh database may already contain real Ollama
+                    # installation/process observations from the live collector.
+                    assert all(item["provider_key"] == "ollama" for item in items)
+                    if path == "/api/v1/collection-runs":
+                        assert all(item["account_id"] is None for item in items)
+                else:
+                    assert items == []
 
     asyncio.run(exercise())
 
