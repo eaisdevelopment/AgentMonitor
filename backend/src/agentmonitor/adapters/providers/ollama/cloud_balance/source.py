@@ -32,8 +32,15 @@ if TYPE_CHECKING:
 from agentmonitor.adapters.providers.ollama.cloud_balance.credential_lock import (
     validated_credential_lock_descriptor,
 )
-from agentmonitor.adapters.providers.ollama.cloud_balance.keyring_command import (
-    secret_tool_environment,
+from agentmonitor.adapters.providers.ollama.cloud_balance.env_capability import (
+    EnvCredentialFileAuthorityV1,
+    EnvCredentialFileError,
+    InheritedEnvCredentialFileV1,
+    env_credential_file_lease_v1,
+    validated_inherited_env_file_v1,
+)
+from agentmonitor.adapters.providers.ollama.cloud_balance.env_policy import (
+    ENV_AUTHORIZATION_POLICY_V1,
 )
 from agentmonitor.adapters.providers.ollama.cloud_balance.status import (
     CloudStatus,
@@ -70,7 +77,7 @@ _MAX_JSON_NODES = 24
 _MAX_JSON_STRING_BYTES = 64
 _MAX_RETRY_AFTER_SECONDS = 2**63 - 1
 _MAX_RETRY_AFTER_TEXT = str(_MAX_RETRY_AFTER_SECONDS)
-_MAX_BEARER_BYTES = 4096
+_MAX_BEARER_BYTES = ENV_AUTHORIZATION_POLICY_V1.maximum_token_bytes
 _RETAINED_HEADERS = frozenset(
     {
         "content-encoding",
@@ -191,7 +198,7 @@ class CloudBalanceAuthorizationV1(Protocol):
     """Resolved private grant limited to a single-use bearer sink.
 
     The provider key never appears in this method signature or return value.
-    The future credential boundary owns transient retrieval and header
+    The private credential boundary owns transient retrieval and header
     application. The grant receives no connection, destination, request,
     logging, debug, redirect, or response authority.
     """
@@ -1068,6 +1075,7 @@ def _run_isolated_worker(
     binding_id: str | None = None,
     account_id: OpaqueIdV1 | None = None,
     credential_lock: InheritedAccountCredentialLockV1 | None = None,
+    credential_file: InheritedEnvCredentialFileV1 | None = None,
 ) -> CloudBalanceSourceResultV1:
     helper = Path(__file__).with_name("deadline_helper.py")
     executable = Path(sys.executable)
@@ -1089,10 +1097,10 @@ def _run_isolated_worker(
         environment = {"LC_ALL": "C.UTF-8"}
         pass_fds: tuple[int, ...] = ()
         if binding_id is not None:
-            if type(
-                credential_lock
-            ) is not InheritedAccountCredentialLockV1 or not isinstance(
-                account_id, OpaqueIdV1
+            if (
+                type(credential_lock) is not InheritedAccountCredentialLockV1
+                or not isinstance(account_id, OpaqueIdV1)
+                or type(credential_file) is not InheritedEnvCredentialFileV1
             ):
                 return _result(
                     "internal_adapter_error",
@@ -1104,6 +1112,9 @@ def _run_isolated_worker(
                 lock_descriptor, directory_descriptor = (
                     validated_credential_lock_descriptor(credential_lock, account_id)
                 )
+                validated_inherited_env_file_v1(credential_file)
+                credential_file_arguments = credential_file.subprocess_arguments()
+                credential_file_descriptors = credential_file.subprocess_descriptors()
             except (OSError, ValueError):
                 return _result(
                     "internal_adapter_error",
@@ -1112,10 +1123,17 @@ def _run_isolated_worker(
                 )
             command.append(binding_id)
             command.extend(lock_arguments)
-            pass_fds = (lock_descriptor, directory_descriptor)
-            environment = secret_tool_environment(os.environ)
-            environment["LC_ALL"] = "C.UTF-8"
-        elif credential_lock is not None or account_id is not None:
+            command.extend(credential_file_arguments)
+            pass_fds = (
+                lock_descriptor,
+                directory_descriptor,
+                *credential_file_descriptors,
+            )
+        elif (
+            credential_lock is not None
+            or account_id is not None
+            or credential_file is not None
+        ):
             return _result(
                 "internal_adapter_error",
                 "ollama_cloud_worker_unavailable",
@@ -1153,6 +1171,9 @@ def _run_isolated_worker(
         if credential_lock is not None and account_id is not None:
             try:
                 validated_credential_lock_descriptor(credential_lock, account_id)
+                if credential_file is None:
+                    raise ValueError("ollama_env_lease_invalid")
+                validated_inherited_env_file_v1(credential_file)
             except (OSError, ValueError):
                 return _result(
                     "internal_adapter_error",
@@ -1222,6 +1243,7 @@ def probe_cloud_balance_for_binding_v1(
     *,
     binding: ActiveCredentialBindingRefV1,
     credential_lock: AccountCredentialLockLeaseV1 | None = None,
+    credential_authority: EnvCredentialFileAuthorityV1 | None = None,
     deadline_monotonic: float | None = None,
 ) -> CloudBalanceSourceResultV1:
     """Run the explicit admission probe in one isolated child.
@@ -1240,6 +1262,12 @@ def probe_cloud_balance_for_binding_v1(
         return _result(
             "internal_adapter_error",
             "ollama_cloud_credential_lock_invalid",
+            dispatch_certainty="not_started",
+        )
+    if type(credential_authority) is not EnvCredentialFileAuthorityV1:
+        return _result(
+            "authorization_unavailable",
+            "ollama_cloud_store_unavailable",
             dispatch_certainty="not_started",
         )
     try:
@@ -1267,18 +1295,41 @@ def probe_cloud_balance_for_binding_v1(
         if deadline_monotonic is not None
         else started + CLOUD_BALANCE_POLICY_V1.operation_timeout_seconds,
     )
-    return _run_isolated_worker(
-        deadline,
-        binding_id=binding.binding_id.value,
-        account_id=binding.account_id,
-        credential_lock=inherited_lock,
-    )
+    try:
+        with env_credential_file_lease_v1(credential_authority) as credential_file:
+            inherited_file = credential_file.inherited_file()
+            result = _run_isolated_worker(
+                deadline,
+                binding_id=binding.binding_id.value,
+                account_id=binding.account_id,
+                credential_lock=inherited_lock,
+                credential_file=inherited_file,
+            )
+            try:
+                # Reinvoke both issuers: inherited children can prove pinned FDs,
+                # while these live leases additionally prove the approved paths.
+                credential_lock.inherited_lock(binding.account_id)
+                credential_file.inherited_file()
+            except (OSError, ValueError):
+                return _result(
+                    "internal_adapter_error",
+                    "ollama_cloud_credential_lock_invalid",
+                    dispatch_certainty=result.dispatch_certainty,
+                )
+            return result
+    except EnvCredentialFileError as error:
+        return _result(
+            "authorization_unavailable",
+            error.code,
+            dispatch_certainty="not_started",
+        )
 
 
 def read_cloud_balance_for_binding_v1(
     *,
     binding: ActiveCredentialBindingRefV1,
     credential_lock: AccountCredentialLockLeaseV1 | None = None,
+    credential_authority: EnvCredentialFileAuthorityV1 | None = None,
     deadline_monotonic: float | None = None,
 ) -> CloudBalanceSourceResultV1:
     """Fail closed until the isolated authenticated source is live-validated."""
@@ -1294,6 +1345,7 @@ def read_cloud_balance_for_binding_v1(
     return probe_cloud_balance_for_binding_v1(
         binding=binding,
         credential_lock=credential_lock,
+        credential_authority=credential_authority,
         deadline_monotonic=deadline_monotonic,
     )
 
@@ -1303,6 +1355,7 @@ def read_scheduled_cloud_balance_v1(
     binding: ActiveCredentialBindingRefV1,
     proof: ScheduledSourceAdmissionProofV1,
     credential_lock: AccountCredentialLockLeaseV1 | None = None,
+    credential_authority: EnvCredentialFileAuthorityV1 | None = None,
     deadline_monotonic: float | None = None,
 ) -> CloudBalanceSourceResultV1:
     """Read only with an exact, freshly rederived per-binding M03 proof."""
@@ -1321,5 +1374,6 @@ def read_scheduled_cloud_balance_v1(
     return probe_cloud_balance_for_binding_v1(
         binding=binding,
         credential_lock=credential_lock,
+        credential_authority=credential_authority,
         deadline_monotonic=deadline_monotonic,
     )

@@ -8,6 +8,9 @@ import hashlib
 import json
 from dataclasses import asdict
 
+from agentmonitor.adapters.providers.ollama.cloud_balance.env_policy import (
+    ENV_AUTHORIZATION_POLICY_V1,
+)
 from agentmonitor.adapters.providers.ollama.cloud_balance.source import (
     CLOUD_BALANCE_POLICY_V1,
 )
@@ -31,7 +34,7 @@ def ollama_cloud_probe_source() -> ProviderSourceV1:
         capability_id="subscription.quota",
         source_class="documented_api",
         stability="documented",
-        mechanism_version="1.0.1",
+        mechanism_version="1.0.2",
         credential_role="owner_supplied_api_key",
         side_effect_class="read_only",
         evidence_reference="ollama-balance-api-2026-11",
@@ -42,9 +45,10 @@ def ollama_cloud_probe_source() -> ProviderSourceV1:
 def ollama_cloud_probe_fingerprint() -> str:
     """Bind verification to source, adapter, parser and transport policy."""
     material = {
-        "version": "agentmonitor-ollama-cloud-probe-v3",
+        "version": "agentmonitor-ollama-cloud-probe-v4",
         "adapter_version": OLLAMA_ADAPTER_VERSION,
         "payload_schema": "ProviderQuotaInputV2@2",
+        "authorization": asdict(ENV_AUTHORIZATION_POLICY_V1),
         "source": asdict(ollama_cloud_probe_source()),
         "transport": asdict(CLOUD_BALANCE_POLICY_V1),
     }

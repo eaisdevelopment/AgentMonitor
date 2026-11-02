@@ -5,19 +5,27 @@ import binascii
 import re
 from typing import cast
 
-_BINDING = re.compile(r"amcb_[0-9a-f]{32}\Z")
-_NAME = re.compile(rb"AGENTMONITOR_OLLAMA_API_KEY_AMCB_[0-9A-F]{32}\Z")
-_MAX_TOKEN_BYTES = 4096
+from agentmonitor.adapters.providers.ollama.cloud_balance.env_policy import (
+    ENV_AUTHORIZATION_POLICY_V1,
+)
+
+_BINDING = re.compile(ENV_AUTHORIZATION_POLICY_V1.binding_id_pattern)
+_NAME = re.compile(ENV_AUTHORIZATION_POLICY_V1.variable_name_pattern.encode("ascii"))
 
 
 def credential_variable_name(binding_id: str) -> bytes:
     if not isinstance(binding_id, str) or _BINDING.fullmatch(binding_id) is None:
         raise ValueError("ollama_env_binding_invalid")
-    return b"AGENTMONITOR_OLLAMA_API_KEY_AMCB_" + binding_id[5:].upper().encode("ascii")
+    return ENV_AUTHORIZATION_POLICY_V1.variable_prefix.encode("ascii") + binding_id[
+        5:
+    ].upper().encode("ascii")
 
 
 def encode_credential_value(token: bytearray) -> bytes:
-    if not isinstance(token, bytearray) or not 1 <= len(token) <= _MAX_TOKEN_BYTES:
+    if (
+        not isinstance(token, bytearray)
+        or not 1 <= len(token) <= ENV_AUTHORIZATION_POLICY_V1.maximum_token_bytes
+    ):
         raise ValueError("ollama_env_value_invalid")
     if any(value < 0x21 or value > 0x7E for value in token):
         raise ValueError("ollama_env_value_invalid")
@@ -27,7 +35,10 @@ def encode_credential_value(token: bytearray) -> bytes:
 def decode_credential_value(encoded: bytes) -> bytearray:
     token: bytearray | None = None
     try:
-        if not isinstance(encoded, bytes) or len(encoded) > 5464:
+        if (
+            not isinstance(encoded, bytes)
+            or len(encoded) > ENV_AUTHORIZATION_POLICY_V1.maximum_encoded_bytes
+        ):
             raise ValueError("ollama_env_value_invalid")
         token = bytearray(base64.b64decode(encoded, validate=True))
         if encode_credential_value(token) != encoded:
@@ -39,12 +50,15 @@ def decode_credential_value(encoded: bytes) -> bytearray:
         raise ValueError("ollama_env_value_invalid") from None
 
 
+def _lines(content: bytes | bytearray) -> list[bytes | bytearray]:
+    return cast(list[bytes | bytearray], content.splitlines(keepends=True))
+
+
 def _target_lines(content: bytes | bytearray, name: bytes) -> list[int]:
     if _NAME.fullmatch(name) is None:
         raise ValueError("ollama_env_binding_invalid")
     matches = []
-    lines = cast(list[bytes | bytearray], content.splitlines(keepends=True))
-    for index, line in enumerate(lines):
+    for index, line in enumerate(_lines(content)):
         stripped = line.lstrip()
         if stripped.startswith(b"export "):
             stripped = stripped[7:].lstrip()
@@ -59,7 +73,7 @@ def read_credential_value(content: bytes | bytearray, name: bytes) -> bytearray:
     matches = _target_lines(content, name)
     if not matches:
         raise ValueError("ollama_env_entry_missing")
-    line = content.splitlines(keepends=True)[matches[0]]
+    line = _lines(content)[matches[0]]
     if not line.startswith(name + b"="):
         raise ValueError("ollama_env_entry_invalid")
     return decode_credential_value(bytes(line[len(name) + 1 :].rstrip(b"\r\n")))

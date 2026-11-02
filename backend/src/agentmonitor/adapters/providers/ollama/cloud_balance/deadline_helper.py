@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import math
 import os
+import resource
 import signal
 import sys
 import time
@@ -12,6 +13,12 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 _MAX_OPERATION_SECONDS = 8.0
+
+
+def _disable_core_dumps_v1() -> None:
+    resource.setrlimit(resource.RLIMIT_CORE, (0, 0))
+    if resource.getrlimit(resource.RLIMIT_CORE) != (0, 0):
+        raise OSError("ollama_cloud_core_limit_invalid")
 
 
 class _DeadlineExpired(TimeoutError):
@@ -68,7 +75,11 @@ def _decimal_argument(value: str, *, minimum: int) -> int:
 
 def main() -> int:
     """Run one fixed request; authenticated mode requires an inherited lock."""
-    if len(sys.argv) not in {2, 10}:
+    try:
+        _disable_core_dumps_v1()
+    except (OSError, ValueError):
+        return 2
+    if len(sys.argv) not in {2, 22}:
         return 2
     try:
         deadline = float(sys.argv[1])
@@ -95,10 +106,11 @@ def main() -> int:
 
             authorization = None
             request_allowed = True
-            if len(sys.argv) == 10:
+            if len(sys.argv) == 22:
                 from agentmonitor.adapters.providers.ollama.cloud_balance import (
                     credential_lock,
-                    keyring_authorization,
+                    env_authorization,
+                    env_capability,
                 )
                 from agentmonitor.contracts.common_v1 import OpaqueIdV1
 
@@ -113,8 +125,22 @@ def main() -> int:
                         root_device=_decimal_argument(sys.argv[8], minimum=0),
                         root_inode=_decimal_argument(sys.argv[9], minimum=1),
                     )
-                    authorization = keyring_authorization.SecretToolAuthorizationV1(
-                        sys.argv[2], account_id, inherited_lock
+                    credential_file = env_capability.inherited_env_credential_file_v1(
+                        file_descriptor=_decimal_argument(sys.argv[10], minimum=3),
+                        file_device=_decimal_argument(sys.argv[11], minimum=0),
+                        file_inode=_decimal_argument(sys.argv[12], minimum=1),
+                        file_size=_decimal_argument(sys.argv[13], minimum=0),
+                        file_mtime_ns=_decimal_argument(sys.argv[14], minimum=0),
+                        file_ctime_ns=_decimal_argument(sys.argv[15], minimum=0),
+                        parent_descriptor=_decimal_argument(sys.argv[16], minimum=3),
+                        parent_device=_decimal_argument(sys.argv[17], minimum=0),
+                        parent_inode=_decimal_argument(sys.argv[18], minimum=1),
+                        lock_descriptor=_decimal_argument(sys.argv[19], minimum=3),
+                        lock_device=_decimal_argument(sys.argv[20], minimum=0),
+                        lock_inode=_decimal_argument(sys.argv[21], minimum=1),
+                    )
+                    authorization = env_authorization.EnvFileAuthorizationV1(
+                        sys.argv[2], account_id, inherited_lock, credential_file
                     )
                 except (OSError, TypeError, ValueError):
                     payload = _fallback_payload("internal_adapter_error", "not_started")
