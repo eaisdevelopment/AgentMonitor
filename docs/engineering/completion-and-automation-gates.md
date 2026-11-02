@@ -152,6 +152,7 @@ the lifecycle stage that needs it remains Not Ready.
 | `AUTO-M6-RECOVER-MIGRATION` | Recover a fixed local dashboard migration before service startup | Integration | Limited recovery; start block remains in place |
 | `AUTO-M6-RESTORE-PRESTART` | Restore the fixed dashboard backup before service startup | Integration | Limited recovery; start block remains in place |
 | `AUTO-M6-START-RESTORED` | Start the fixed restored baseline and verify local sign-in HTTP | Integration | Limited recovery of the existing baseline; not M6 completion |
+| `AUTO-M6-CUTOVER` | Safely cut over the fixed local dashboard to the reviewed candidate | Integration | Limited fixed-target startup; readiness finalization and M6 acceptance remain separate |
 | `AUTO-M6-FINALIZE-CANDIDATE` | Verify the fixed running candidate and local sign-in HTTP, restore its original restart policy and archive the transition journal | Integration | Limited local readiness; authenticated and LAN checks remain separate |
 | `AUTO-MUTATION` | Mutate the exact admitted critical M05/M06 pure-policy surface and fail on every survivor or result not covered by an exact independently reviewed equivalence binding | Foundation/test steward | V1-M3 completion claim |
 | `AUTO-MIGRATE` | Preflight schema range, lock migration, take required backup, apply explicit revisions, verify integrity, and fail safely | Persistence/operations | upgrade/start on new schema |

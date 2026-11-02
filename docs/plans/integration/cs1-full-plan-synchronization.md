@@ -1128,3 +1128,11 @@ This binds the fixed-target candidate readiness continuation. It does not claim 
 Plan snapshot SHA-256: `443d0bff8639fecff7d55a95c726bbbaa081d77cf46ac4eece2005c393ef7a1e`
 
 Planning validator SHA-256: `5b8ab642405c0e78c9d2b7d1652bcf444bec139b11e5cd1b597588a6d80e0f92`
+
+## 2026-11-02 fixed-target cutover routine structural rebind
+
+This binds the existing approved fixed-target cutover routine in the automation catalog. Structural synchronization does not claim independent semantic review, live deployment, authenticated provider verification, or M6 completion; acceptance scope is unchanged.
+
+Plan snapshot SHA-256: `34cc1ce8fe8341d67539b2a20dab9cebb9664a9604889362a159d732f4596058`
+
+Planning validator SHA-256: `c22d377bd74692731f2bac2bf8b1f87bef2b35e7ef2df50e473da3d2ebcd2db5`

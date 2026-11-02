@@ -77,6 +77,14 @@ implementation_command = ["python3", "-m", "tools.automation.implementations.aut
 blockers = ["Authenticated installed-browser verification remains separate", "A concurrent child-spawn race and crash interruption cannot be excluded", "This does not complete M6"]
 
 [[routines]]
+id = "AUTO-M6-CUTOVER"
+owner = "PLAN-INT"
+status = "operational_limited"
+scope = "fixed local dashboard cutover to the reviewed candidate with pre-start backup and recovery journal"
+implementation_command = ["python3", "-B", "tools/automation/implementations/auto_m6_cutover.py"]
+blockers = ["Only the fixed user service and selected candidate are accepted", "Candidate readiness finalization and authenticated product verification remain separate"]
+
+[[routines]]
 id = "AUTO-M6-FINALIZE-CANDIDATE"
 owner = "PLAN-INT"
 status = "operational_limited"

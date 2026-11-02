@@ -144,3 +144,10 @@ ignores Python environment variables. This changes the cloud probe mechanism to
 older verification fingerprints are invalidated. The fixed service override
 check failed before the no-bytecode setting and passed afterward. The real
 credential and provider boundary remains Not Run.
+
+The existing reviewed fixed-target cutover has a canonical limited command,
+`AUTO-M6-CUTOVER`, bound to this candidate checkout and private runtime. It
+accepts no target arguments and starts with bytecode writing disabled; an
+argument-refusal/catalog check failed before registration and passed after.
+The command has not been executed against the installed service. Candidate
+readiness, authenticated behavior and M6 completion remain separate.
