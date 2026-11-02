@@ -2,6 +2,7 @@
 
 import os
 import subprocess
+from collections.abc import Mapping
 
 from agentmonitor.adapters.persistence._shared.sqlite.core.policy import DatabaseRefV1
 from agentmonitor.adapters.persistence.registry.sqlite.credential_bindings import (
@@ -14,6 +15,22 @@ from agentmonitor.adapters.providers.ollama.cloud_balance.keyring_command import
     build_store_command,
 )
 from agentmonitor.contracts.common_v1 import OpaqueIdV1
+
+
+def secret_tool_environment(source: Mapping[str, str]) -> dict[str, str]:
+    """Only forward the user-session settings needed by Secret Service."""
+    allowed = (
+        "DBUS_SESSION_BUS_ADDRESS",
+        "XDG_RUNTIME_DIR",
+        "DISPLAY",
+        "WAYLAND_DISPLAY",
+        "LANG",
+        "LC_CTYPE",
+    )
+    return {
+        "PATH": "/usr/bin:/bin",
+        **{key: source[key] for key in allowed if key in source},
+    }
 
 
 class EnrollmentError(ValueError):
@@ -30,7 +47,7 @@ def enroll_ollama_credential(reference: DatabaseRefV1, account_id: OpaqueIdV1) -
         raise EnrollmentError("owner_terminal_required")
     if len({os.ttyname(fd) for fd in (0, 1, 2)}) != 1:
         raise EnrollmentError("owner_terminal_required")
-    with account_credential_lock(reference, account_id):
+    with account_credential_lock(reference, account_id) as lock_fd:
         repository = SqliteCredentialBindingsV1(reference)
         before = repository.read(account_id)
         pending_items = tuple(
@@ -50,7 +67,11 @@ def enroll_ollama_credential(reference: DatabaseRefV1, account_id: OpaqueIdV1) -
             )
         try:
             result = subprocess.run(
-                build_store_command(item.binding_id.value), timeout=300, check=False
+                build_store_command(item.binding_id.value),
+                timeout=300,
+                check=False,
+                env=secret_tool_environment(os.environ),
+                pass_fds=(lock_fd,),
             )
         except (OSError, subprocess.SubprocessError):
             raise EnrollmentError("credential_store_unavailable") from None
