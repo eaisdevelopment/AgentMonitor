@@ -33,6 +33,15 @@ CollectionTriggerV1 = Literal[
 CollectionCommitStatusStateV1 = Literal[
     "not_committed", "committed", "conflict", "unavailable"
 ]
+OllamaCloudAdmissionDecisionStateV1 = Literal[
+    "acquired",
+    "replayed_active",
+    "replayed_terminal",
+    "not_due",
+    "busy",
+    "no_candidate",
+]
+OllamaCloudAdmissionOutcomeV1 = Literal["succeeded", "rate_limited", "failed"]
 
 CollectorHealthStateV1 = Literal[
     "healthy",
@@ -251,6 +260,172 @@ def _bounded(value: object, maximum: int = 128) -> bool:
         and 1 <= len(value) <= maximum
         and value.isprintable()
     )
+
+
+def _utc(value: object) -> bool:
+    return isinstance(value, datetime) and value.utcoffset() == timedelta(0)
+
+
+@dataclass(frozen=True, slots=True)
+class OllamaCloudRequestAcquireV1(TechnicalValueV1):
+    """One create-once attempt to acquire the global cloud request gate."""
+
+    CONTRACT_ID: ClassVar[str] = "CTR-COL-008"
+    OWNER: ClassVar[str] = "PLAN-M04"
+
+    admission_id: OpaqueIdV1
+    scheduler_instance_id: OpaqueIdV1
+    requested_at: datetime
+    lease_expires_at: datetime
+    jitter_seconds: int
+
+    def __post_init__(self) -> None:
+        TechnicalValueV1.__post_init__(self)
+        if (
+            not _utc(self.requested_at)
+            or not _utc(self.lease_expires_at)
+            or not timedelta(0)
+            < self.lease_expires_at - self.requested_at
+            <= timedelta(seconds=60)
+            or type(self.jitter_seconds) is not int
+            or not 0 <= self.jitter_seconds <= 10
+        ):
+            raise InvalidCollectionControlV1("ollama_cloud_acquire_invalid")
+
+
+@dataclass(frozen=True, slots=True)
+class OllamaCloudRequestLeaseV1(TechnicalValueV1):
+    """Fenced permission for one exact account request start."""
+
+    CONTRACT_ID: ClassVar[str] = "CTR-COL-008"
+    OWNER: ClassVar[str] = "PLAN-M04"
+
+    admission_id: OpaqueIdV1
+    scheduler_instance_id: OpaqueIdV1
+    schedule_id: OpaqueIdV1
+    account_id: OpaqueIdV1
+    fencing_token: int
+    started_at: datetime
+    lease_expires_at: datetime
+    next_allowed_at: datetime
+    gate_record_version: int
+
+    def __post_init__(self) -> None:
+        TechnicalValueV1.__post_init__(self)
+        if (
+            type(self.fencing_token) is not int
+            or self.fencing_token < 1
+            or type(self.gate_record_version) is not int
+            or self.gate_record_version < 1
+            or not all(
+                _utc(value)
+                for value in (
+                    self.started_at,
+                    self.lease_expires_at,
+                    self.next_allowed_at,
+                )
+            )
+            or self.lease_expires_at <= self.started_at
+            or self.next_allowed_at < self.started_at + timedelta(seconds=60)
+        ):
+            raise InvalidCollectionControlV1("ollama_cloud_lease_invalid")
+
+
+@dataclass(frozen=True, slots=True)
+class OllamaCloudAdmissionDecisionV1(TechnicalValueV1):
+    """Closed admission result; only ``acquired`` permits provider dispatch."""
+
+    CONTRACT_ID: ClassVar[str] = "CTR-COL-008"
+    OWNER: ClassVar[str] = "PLAN-M04"
+
+    state: OllamaCloudAdmissionDecisionStateV1
+    lease: OllamaCloudRequestLeaseV1 | None
+    retry_at: datetime | None
+
+    def __post_init__(self) -> None:
+        TechnicalValueV1.__post_init__(self)
+        has_lease = self.state == "acquired"
+        needs_retry = self.state in {
+            "replayed_active",
+            "replayed_terminal",
+            "not_due",
+            "busy",
+        }
+        if (
+            has_lease != (self.lease is not None)
+            or needs_retry != (self.retry_at is not None)
+            or (self.retry_at is not None and not _utc(self.retry_at))
+        ):
+            raise InvalidCollectionControlV1("ollama_cloud_decision_invalid")
+
+
+@dataclass(frozen=True, slots=True)
+class OllamaCloudRequestCompletionV1(TechnicalValueV1):
+    """Sanitized result facts used to release and advance the global gate."""
+
+    CONTRACT_ID: ClassVar[str] = "CTR-COL-008"
+    OWNER: ClassVar[str] = "PLAN-M04"
+
+    admission_id: OpaqueIdV1
+    scheduler_instance_id: OpaqueIdV1
+    schedule_id: OpaqueIdV1
+    fencing_token: int
+    started_at: datetime
+    response_received_at: datetime
+    outcome: OllamaCloudAdmissionOutcomeV1
+    retry_after_seconds: int | None
+    jitter_seconds: int
+
+    def __post_init__(self) -> None:
+        TechnicalValueV1.__post_init__(self)
+        if (
+            type(self.fencing_token) is not int
+            or self.fencing_token < 1
+            or not _utc(self.started_at)
+            or not _utc(self.response_received_at)
+            or self.response_received_at < self.started_at
+            or (self.outcome != "rate_limited" and self.retry_after_seconds is not None)
+            or (
+                self.retry_after_seconds is not None
+                and (
+                    type(self.retry_after_seconds) is not int
+                    or not 0 <= self.retry_after_seconds <= 2**63 - 1
+                )
+            )
+            or type(self.jitter_seconds) is not int
+            or not 0 <= self.jitter_seconds <= 10
+        ):
+            raise InvalidCollectionControlV1("ollama_cloud_completion_invalid")
+
+
+@dataclass(frozen=True, slots=True)
+class OllamaCloudRateGateViewV1(TechnicalValueV1):
+    """Non-secret durable global limiter state after one transition."""
+
+    CONTRACT_ID: ClassVar[str] = "CTR-COL-008"
+    OWNER: ClassVar[str] = "PLAN-M04"
+
+    next_allowed_at: datetime
+    fair_cursor_schedule_id: OpaqueIdV1 | None
+    active_admission_id: OpaqueIdV1 | None
+    consecutive_rate_limits: int
+    fencing_token: int
+    record_version: int
+    updated_at: datetime
+
+    def __post_init__(self) -> None:
+        TechnicalValueV1.__post_init__(self)
+        if (
+            not _utc(self.next_allowed_at)
+            or not _utc(self.updated_at)
+            or type(self.consecutive_rate_limits) is not int
+            or not 0 <= self.consecutive_rate_limits <= 100
+            or type(self.fencing_token) is not int
+            or self.fencing_token < 0
+            or type(self.record_version) is not int
+            or self.record_version < 1
+        ):
+            raise InvalidCollectionControlV1("ollama_cloud_gate_invalid")
 
 
 @dataclass(frozen=True, slots=True)

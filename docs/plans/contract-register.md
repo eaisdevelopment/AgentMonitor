@@ -1,18 +1,18 @@
 # AgentMonitor contract register
 
 - Status: **Draft-aligned; owner approval and implementation authorization are absent**
-- Register version: 0.2.0
+- Register version: 0.2.1
 - Machine-readable authority: [contract-baseline.toml](contract-baseline.toml)
 - Source review: [contract-alignment audit](integration/contract-alignment-audit.md)
 - Ownership allocation: [parallel-ownership.toml](parallel-ownership.toml)
 - Owner: integration steward
-- Updated: 2026-09-18
+- Updated: 2026-11-02
 
 ## Purpose and authority
 
 This register is the human index for the proposed AgentMonitor V1 contract
 baseline. `contract-baseline.toml` is the complete machine-readable inventory:
-97 unique contract IDs, proposed version, one semantic producer, explicit
+98 unique contract IDs, proposed version, one semantic producer, explicit
 consumers, maturity, decision reference, and semantic checklist.
 
 `Draft-aligned` means the producer/consumer direction and cross-plan ownership
@@ -29,10 +29,10 @@ normalized.
 
 | Measure | Draft-aligned baseline |
 |---|---:|
-| Total contracts | 97 |
+| Total contracts | 98 |
 | Original registered contracts retained | 76 |
-| Accepted missing contracts added | 21 |
-| `proposed_aligned` | 63 |
+| Accepted missing contracts added | 22 |
+| `proposed_aligned` | 64 |
 | `evidence_blocked` | 34 |
 | Synchronized/Approved/Implemented | 0 |
 | Cross-plan resolutions recorded | 17 |
@@ -50,7 +50,7 @@ until producer, consumers, reviewers, and owner accept the exact baseline.
 | Identity/access | CTR-IAM-001..008 | PLAN-M01 | P01, P02, M08, DB/DEP where enumerated | proposed-aligned |
 | Registry | CTR-REG-001..010 | PLAN-M02 | M03–M08, adapters, P01/P02 | mixed; provider identity/reauth evidence-blocked |
 | Provider system | CTR-PROV-001..008 | PLAN-M03 | A01–A03, M02/M04–M08, P01/P02 | evidence-blocked |
-| Collection | CTR-COL-001..007 | PLAN-M04 | M05–M08, P01/P02 | proposed-aligned |
+| Collection | CTR-COL-001..008 | PLAN-M04 | M05–M08, A03, P01/P02 and PLAN-INT as enumerated | proposed-aligned |
 | Capacity | CTR-CAP-001..009 | PLAN-M05 | M07/M08, P01/P02 | evidence-blocked |
 | Runtime | CTR-RUN-001..007 | PLAN-M06 | A04 implementations, M02/M07/M08, P01/P02 | evidence-blocked |
 | Alerting | CTR-ALERT-001..005 | PLAN-M07 | M08, P01/P02 | proposed-aligned |
@@ -72,7 +72,7 @@ machine-readable baseline to prevent drift between a prose table and automation.
 |---|---|
 | CTR-COMMON-007 | Preserve missing/null/unknown/unsupported/unavailable/not-applicable/withheld/stale/zero distinctions end to end |
 | CTR-REG-008..010 | Durable reauthentication workflow, alert-scope query, and normalized auth-health change |
-| CTR-COL-006..007 | Commit/receipt seam and current/change collector-health input without M04 owning observation tables |
+| CTR-COL-006..008 | Commit/receipt seam, current/change collector-health input, and durable Ollama cloud admission without M04 owning provider I/O or observation tables |
 | CTR-CAP-008..009 | Forecast and availability generation/recovery signals required by M07 |
 | CTR-OPS-007 | Module-owned retention/export/consistency participant ports for M08 orchestration |
 | CTR-DB-003 | Typed database snapshot/preparation/activation receipts split from service/artifact activation |
@@ -88,6 +88,14 @@ receipts/checkpoints; PLAN-DB implements reusable persistence/dispatcher
 mechanics through published module ports; PLAN-INT governs the registry. A
 central event table and cross-module SQL are prohibited. This is Draft-aligned
 and still requires owner approval before implementation.
+
+CTR-COL-008 is a narrow additive exception authorized by the owner-approved M6
+Ollama cloud plan. It is distinct from CTR-COL-001 request intent and
+CTR-COL-002 run state because it grants one fenced provider-global request
+start, persists the next permitted start and fair cursor, and records only
+sanitized completion timing. Reusing either older contract would silently
+change its replay and side-effect meaning. This authorization does not approve
+or implement the rest of the Draft-aligned baseline.
 
 ## Accepted cross-plan alignment decisions
 

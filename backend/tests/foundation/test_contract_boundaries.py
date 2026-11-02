@@ -946,6 +946,19 @@ def test_m02_sqlite_adapter_rejects_direct_registry_domain_policy_import(
     ]
 
 
+def test_m04_ollama_admission_adapter_imports_only_reviewed_pure_policy(
+    tmp_path: Path,
+) -> None:
+    copy_contract_policy(tmp_path)
+    write_source(
+        tmp_path,
+        "adapters/persistence/collection_control/sqlite/ollama_cloud_admission.py",
+        "from agentmonitor.modules.collection_control.domain.ollama_rate_policy "
+        "import after_ollama_attempt\n",
+    )
+    assert checker().find_forbidden_imports(tmp_path) == []
+
+
 @pytest.mark.parametrize(
     "source_name",
     [

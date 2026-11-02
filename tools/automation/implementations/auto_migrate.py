@@ -1,4 +1,4 @@
-"""Bounded offline AgentMonitor v1_0603 to v1_0707 upgrade.
+"""Bounded offline AgentMonitor v1_0603/v1_0707 to v1_0708 upgrade.
 
 This operator command never starts/stops the service or restores a database.
 It acts only on an explicitly selected owner-only data root and retains its
@@ -6,7 +6,6 @@ verified pre-migration backup and any failed database for separate recovery.
 """
 
 # This operator script inserts the checkout's backend source path before imports.
-# ruff: noqa: E402
 
 from __future__ import annotations
 
@@ -57,8 +56,8 @@ from agentmonitor.modules.runtime_observation.application.ports import (
     OwnerAssociationErrorV1,
 )
 
-SOURCE = "v1_0603"
-TARGET = "v1_0707"
+SOURCES = ("v1_0603", "v1_0707")
+TARGET = "v1_0708"
 SETTINGS = "owner-process-account-associations-v1.json"
 SETTINGS_LOCK = ".owner-process-account-associations-v1.lock"
 MAX_SETTINGS_BYTES = 1024 * 1024
@@ -277,14 +276,16 @@ def _create_sqlite_backup(driver: sqlite3.Connection, target: Path) -> str:
     return _digest_file(target)
 
 
-def _verify_sqlite_backup(backup_root: Path, catalog_digest: str) -> None:
+def _verify_sqlite_backup(
+    backup_root: Path, catalog_digest: str, source_revision: str
+) -> None:
     backup_ref = DatabaseRefV1(backup_root / "agentmonitor.db", backup_root)
     view = InspectSchemaCompatibilityV1(
         backup_ref, application_schema_range(), "runtime_read_write"
     )
     if (
         view.state != "upgrade_required"
-        or view.current_revision != SOURCE
+        or view.current_revision != source_revision
         or view.integrity_state != "passed"
         or view.policy_state != "passed"
         or view.application_range.catalog_digest != catalog_digest
@@ -305,11 +306,12 @@ def _write_manifest(
     catalog_digest: str,
     database_digest: str,
     settings_digests: dict[str, str | None],
+    source_revision: str,
 ) -> None:
     manifest = {
         "format": "agentmonitor-m4-migration-preflight.v1",
         "backup_id": backup.name,
-        "source_revision": SOURCE,
+        "source_revision": source_revision,
         "target_revision": TARGET,
         "catalog_digest": catalog_digest,
         "database_sha256": database_digest,
@@ -353,15 +355,18 @@ def _marker(connection: Connection) -> str:
     return rows[0]
 
 
-def _preflight_catalog() -> tuple[MigrationCatalogV1, tuple[str, ...]]:
+def _preflight_catalog(source: str) -> tuple[MigrationCatalogV1, tuple[str, ...]]:
     catalog = load_migration_catalog()
     revisions = [item.revision for item in catalog.revisions]
-    if catalog.head != TARGET or SOURCE not in revisions or revisions[-1] != TARGET:
+    if catalog.head != TARGET or source not in SOURCES or revisions[-1] != TARGET:
         _refuse("migration_catalog_not_m4")
-    tail = catalog.revisions[revisions.index(SOURCE) + 1 :]
-    if tuple(item.revision for item in tail) != tuple(
-        f"v1_070{index}" for index in range(8)
-    ) or any(
+    tail = catalog.revisions[revisions.index(source) + 1 :]
+    expected_tail = (
+        tuple(f"v1_070{index}" for index in range(9))
+        if source == "v1_0603"
+        else ("v1_0708",)
+    )
+    if tuple(item.revision for item in tail) != expected_tail or any(
         item.backup_prerequisite != "required_existing_database"
         or item.downtime_policy != "offline_additive_schema_migration"
         for item in tail
@@ -370,8 +375,8 @@ def _preflight_catalog() -> tuple[MigrationCatalogV1, tuple[str, ...]]:
     return catalog, tuple(item.revision for item in tail)
 
 
-def run_upgrade(root: Path) -> tuple[str, str | None]:
-    catalog, revisions = _preflight_catalog()
+def run_upgrade(root: Path, source: str) -> tuple[str, str | None]:
+    catalog, revisions = _preflight_catalog(source)
     reference = DatabaseRefV1(root / "agentmonitor.db", root)
     reference.validate()
     backup_id: str | None = None
@@ -386,7 +391,7 @@ def run_upgrade(root: Path) -> tuple[str, str | None]:
                 connection.commit()
                 # Exact schema validation follows after the connection closes.
                 outcome = "already_current"
-            elif current != SOURCE:
+            elif current != source:
                 _refuse("source_revision_not_m4")
             else:
                 settings_guard.enter_context(_hold_settings_lock(root))
@@ -441,12 +446,13 @@ def run_upgrade(root: Path) -> tuple[str, str | None]:
                         OwnerAssociationSettingsRepositoryV1(backup).records()
                     except OwnerAssociationErrorV1:
                         _refuse("settings_format_invalid")
-                _verify_sqlite_backup(backup, catalog.digest)
+                _verify_sqlite_backup(backup, catalog.digest, source)
                 _write_manifest(
                     backup,
                     catalog_digest=catalog.digest,
                     database_digest=digest,
                     settings_digests=settings_digests,
+                    source_revision=source,
                 )
                 _verify_source_metadata(root, settings_digests)
                 if (
@@ -461,7 +467,7 @@ def run_upgrade(root: Path) -> tuple[str, str | None]:
                     reference.validate() != identity
                     or connection.exec_driver_sql("PRAGMA data_version").scalar_one()
                     != original_version
-                    or _marker(connection) != SOURCE
+                    or _marker(connection) != source
                 ):
                     _refuse("source_changed_after_backup")
                 config = Config()
@@ -515,11 +521,11 @@ def run_upgrade(root: Path) -> tuple[str, str | None]:
 def main() -> int:
     selected = os.environ.get("AGENTMONITOR_MIGRATE_DATA_ROOT")
     expected = os.environ.get("AGENTMONITOR_MIGRATE_EXPECTED_HEAD")
-    if not selected or not Path(selected).is_absolute() or expected != SOURCE:
+    if not selected or not Path(selected).is_absolute() or expected not in SOURCES:
         print("AUTO-MIGRATE: BLOCKED — explicit M4 target/expected head required")
         return 3
     try:
-        outcome, backup_id = run_upgrade(Path(selected))
+        outcome, backup_id = run_upgrade(Path(selected), expected)
     except MigrationRefused as error:
         state = "FAILED" if error.failed else "BLOCKED"
         print(f"AUTO-MIGRATE: {state} — {error.code}")
@@ -534,10 +540,10 @@ def main() -> int:
         print("AUTO-MIGRATE: FAILED — migration_unavailable")
         return 2
     if outcome == "already_current":
-        print("AUTO-MIGRATE: PASSED — already at v1_0707; no schema change")
+        print(f"AUTO-MIGRATE: PASSED — already at {TARGET}; no schema change")
     else:
         print(
-            "AUTO-MIGRATE: PASSED — v1_0603 to v1_0707, "
+            f"AUTO-MIGRATE: PASSED — {expected} to {TARGET}, "
             f"verified backup {backup_id}; service activation Not Run"
         )
     return 0

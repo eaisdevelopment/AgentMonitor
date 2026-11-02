@@ -35,6 +35,41 @@ No mixing native money and ratios, no guessed zero, denominator or reset. Existi
 
 Ollama documents 10 requests/minute/user shared by keys/devices; team balances are shared. Single instance: durable global `next_allowed_at` plus fair cursor, acquire transactionally before each request, >=60 seconds spacing plus jitter across all Ollama cloud accounts, with one request in flight. Persist a 429 `Retry-After` deadline, apply globally when identity equivalence is unknown, and honor it after restart. Use bounded exponential fallback when the header is absent/invalid; never truncate a provider-supplied wait to a shorter time. Wall-clock jumps require conservative handling; no data collected early after restart. Other applications may consume the provider limit; rate limiting remains possible. Multi-process/multi-host simultaneous collection is unsupported until an actual cross-process coordination mechanism exists. Manual refresh uses the same limiter; old observations stay visibly stale. Preserve existing Claude/Codex jobs and app availability during any Ollama error.
 
+The additive M04 seam is `CTR-COL-008 OllamaCloudAdmissionV1`, traced to
+`M6-A07`, `M6-A09`, `FR-COL-003`, `FR-COL-005`, `FR-COL-006`, and
+`FR-COL-008`. It carries create-once admission identity, scheduler owner,
+bounded UTC lease, bounded jitter, exact selected schedule/account, fencing,
+closed admission decision, sanitized terminal outcome and optional parsed
+`Retry-After` seconds. Only `acquired` authorizes provider dispatch; active or
+terminal replay never grants a second dispatch. M04 owns the durable global
+gate and fair cursor. A03 and integration composition consume the seam but do
+not write M04 tables directly. CTR-COL-001 remains request intent and
+CTR-COL-002 remains collection-run state; overloading either would break their
+existing replay and side-effect meaning.
+
+## Schema compatibility and rollback consequences
+
+`v1_0708` is an additive M04 migration: it adds the global Ollama cloud gate,
+create-once admission rows and their indexes without altering or rewriting
+existing IAM, registry, provider, collection, capacity, runtime or alert rows.
+A real `v1_0707` database remains readable by the current inspector as
+`upgrade_required`; the offline `AUTO-MIGRATE` path accepts either `v1_0603` or
+`v1_0707`, creates and verifies an owner-only pre-migration backup, and then
+applies the immutable chain to `v1_0708`. A current binary requires `v1_0708`
+for writes. An older binary correctly treats `v1_0708` as newer than itself and
+must not write it.
+
+There is no in-place downgrade and the migration never drops the new tables.
+Binary rollback after applying `v1_0708` therefore requires stopping the
+service and restoring the verified pre-migration `v1_0707` backup, or a
+reviewed forward fix; merely starting an older binary against the newer file
+is not a rollback. Disabling the Ollama cloud integration leaves the additive
+technical rows in place and does not affect Claude/Codex schedules or provider
+profiles. Admission rows grow by one bounded technical record per attempt, so
+retention/purge policy remains follow-up work before claiming indefinite
+operational storage. This implementation work uses isolated real SQLite files;
+it does not migrate the live dashboard database or restart its service.
+
 ## Dependency and license review — admission still open
 
 `/usr/bin/secret-tool` is installed on the examined workstation from Ubuntu `libsecret-tools 0.21.4-1build3`; `libsecret-1-0 0.21.4-1build3` and `gnome-keyring 46.1-2ubuntu0.2` are installed. No keyring items were accessed and service-session compatibility is not proven. Direct dependencies reported by `dpkg-query` are: libsecret-tools: libc6, libglib2.0-0t64, libsecret-1-0; libsecret-1-0: libc6, libgcrypt20, libglib2.0-0t64, libsecret-common; gnome-keyring: dconf/gsettings backend, init-system-helpers, libc6, libgck-1-0, libgcr-base-3-1, libgcrypt20, libglib2.0-0t64, libsystemd0, gcr, a D-Bus session bus, p11-kit and pinentry-gnome3. This is **not a complete transitive/license inventory**; enumerate installed closure and release-platform equivalents before admission.
