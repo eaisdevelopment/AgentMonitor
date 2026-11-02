@@ -58,6 +58,7 @@ from tools.automation.implementations.m6_transition_lease import _hold_transitio
         "restore_restart_interrupted",
         "restore_restart_no",
         "restore_restart_retry",
+        "restore_ready_retry",
         "crash_pre",
         "crash_post",
         "real_source_restore",
@@ -249,6 +250,7 @@ _cutover_engine(unit=sys.argv[1], data_root=Path(sys.argv[2]), baseline=Path(sys
             "restore_restart_interrupted",
             "restore_restart_no",
             "restore_restart_retry",
+            "restore_ready_retry",
             "crash_pre",
             "crash_post",
             "real_source_restore",
@@ -399,6 +401,7 @@ with _hold_transition_locks(root) as transition, exclusive_service_quiescence(ro
                 "restore_restart_interrupted",
                 "restore_restart_no",
                 "restore_restart_retry",
+                "restore_ready_retry",
             }:
                 before = build_override(baseline).encode()
                 with _hold_transition_locks(root) as transition_lease:
@@ -470,7 +473,7 @@ with _hold_transition_locks(root) as transition, exclusive_service_quiescence(ro
                             baseline=baseline,
                             executable=Path("/bin/sleep"),
                         )
-                if case == "restore_restart_interrupted":
+                if case in {"restore_restart_interrupted", "restore_ready_retry"}:
                     code = """
 import os, sys
 from pathlib import Path
@@ -526,6 +529,45 @@ with _hold_transition_locks(root) as lease:
                         os.kill(worker_pid, signal.SIGKILL)
                     finally:
                         tracer.communicate(timeout=20)
+                    if case == "restore_ready_retry":
+                        from tools.automation.implementations import m6_cutover
+
+                        subprocess.run(
+                            ["systemctl", "--user", "kill", "--signal=SIGKILL", unit],
+                            check=True,
+                            capture_output=True,
+                        )
+                        deadline = time.monotonic() + 5
+                        while time.monotonic() < deadline:
+                            state = subprocess.run(
+                                [
+                                    "systemctl",
+                                    "--user",
+                                    "show",
+                                    unit,
+                                    "-p",
+                                    "MainPID",
+                                    "--value",
+                                ],
+                                capture_output=True,
+                                text=True,
+                                check=True,
+                            ).stdout.strip()
+                            if state == "0":
+                                break
+                            time.sleep(0.05)
+                        else:
+                            raise AssertionError("disposable service did not stop")
+                        with _hold_transition_locks(root) as lease:
+                            m6_cutover._retry_stopped_baseline_engine(
+                                root,
+                                lease,
+                                unit=unit,
+                                guard=guard,
+                                override=override,
+                                baseline=baseline,
+                                executable=Path("/bin/sleep"),
+                            )
                 with _hold_transition_locks(root) as transition_lease:
                     assert (
                         _finish_restored_baseline_engine(
@@ -633,6 +675,7 @@ with _hold_transition_locks(root) as lease:
             "restore_restart_interrupted",
             "restore_restart_no",
             "restore_restart_retry",
+            "restore_ready_retry",
         }:
             assert not (directory / "95-m6-cutover-restart.conf").exists()
         else:

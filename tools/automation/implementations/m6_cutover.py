@@ -1173,9 +1173,15 @@ def _retry_stopped_baseline_engine(
         ):
             transition.validate(root)
             data = _read_journal_at(transition)[0]
-            if data.get("phase") != "baseline_start_attempted":
+            if data.get("phase") not in {
+                "baseline_start_attempted",
+                "baseline_http_ready",
+            }:
                 raise CutoverError("baseline_restart_journal_invalid")
             receipt = _receipt(data["cutover_facts"])
+            if not guard.exists() and data["phase"] == "baseline_http_ready":
+                _create(guard, blocked)
+                _ctl("daemon-reload")
             current = _properties(unit)
             if (
                 receipt.unit != unit
@@ -1455,6 +1461,14 @@ def start_restored_baseline() -> str:
                     raise CutoverError("baseline_restart_guard_changed")
                 if guard_present and guard.read_bytes() not in {blocked, relaxed}:
                     raise CutoverError("baseline_restart_guard_changed")
+                if (
+                    not guard_present
+                    and phase == "baseline_http_ready"
+                    and _properties(_FIXED_UNIT).get("ActiveState")
+                    in {"failed", "inactive"}
+                ):
+                    _create(guard, blocked)
+                    guard_present = True
                 _ctl("daemon-reload")
                 current_override = _FIXED_OVERRIDE.read_bytes()
                 private_override = _candidate_override(_FIXED_BASELINE).encode()
@@ -1469,9 +1483,13 @@ def start_restored_baseline() -> str:
                     private_baseline=private_now,
                     start_block=guard_present and guard.read_bytes() == blocked,
                 )
-                if phase == "baseline_start_attempted" and _properties(_FIXED_UNIT).get(
-                    "ActiveState"
-                ) in {"failed", "inactive"}:
+                if phase in {
+                    "baseline_start_attempted",
+                    "baseline_http_ready",
+                } and _properties(_FIXED_UNIT).get("ActiveState") in {
+                    "failed",
+                    "inactive",
+                }:
                     verify_controller()
                     if guard.read_bytes() == relaxed:
                         if not replace_override(guard, relaxed, blocked):
