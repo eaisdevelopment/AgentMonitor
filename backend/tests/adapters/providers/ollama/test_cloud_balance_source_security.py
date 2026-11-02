@@ -3,7 +3,6 @@
 import os
 import subprocess
 import sys
-import time
 from pathlib import Path
 
 import pytest
@@ -100,7 +99,6 @@ def test_raw_descriptor_cannot_be_used_as_a_credential_lock() -> None:
 
 def test_inherited_lock_rejects_an_arbitrary_locked_file(tmp_path: Path) -> None:
     import fcntl
-    import os
 
     from agentmonitor.adapters.providers.ollama.cloud_balance.credential_lock import (
         validated_credential_lock_descriptor,
@@ -131,51 +129,3 @@ def test_inherited_lock_rejects_an_arbitrary_locked_file(tmp_path: Path) -> None
     finally:
         os.close(descriptor)
         os.close(directory)
-
-
-def test_nested_lookup_child_dies_with_its_isolated_helper() -> None:
-    backend = Path(__file__).resolve().parents[4]
-    script = """
-import os, subprocess, sys
-from agentmonitor.adapters.providers.ollama.cloud_balance.keyring_authorization import (
-    _parent_death_signal_v1,
-)
-parent = os.getpid()
-child = subprocess.Popen(
-    [sys.executable, '-c', 'import time; time.sleep(30)'],
-    stdin=subprocess.DEVNULL,
-    stdout=subprocess.DEVNULL,
-    stderr=subprocess.DEVNULL,
-    preexec_fn=_parent_death_signal_v1(parent),
-)
-print(child.pid, flush=True)
-os._exit(0)
-"""
-    process = subprocess.Popen(
-        [sys.executable, "-c", script],
-        stdin=subprocess.DEVNULL,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.DEVNULL,
-        start_new_session=True,
-        cwd=backend.parent,
-        env={"PATH": "/usr/bin:/bin", "PYTHONPATH": str(backend / "src")},
-    )
-    child_pid = 0
-    try:
-        assert process.stdout is not None
-        child_pid = int(process.stdout.readline())
-        assert process.wait(timeout=5) == 0
-        deadline = time.monotonic() + 2
-        while Path(f"/proc/{child_pid}").exists():
-            assert time.monotonic() < deadline
-            time.sleep(0.01)
-    finally:
-        if child_pid and Path(f"/proc/{child_pid}").exists():
-            try:
-                import signal
-
-                os.kill(child_pid, signal.SIGKILL)
-            except ProcessLookupError:
-                pass
-        if process.stdout is not None:
-            process.stdout.close()

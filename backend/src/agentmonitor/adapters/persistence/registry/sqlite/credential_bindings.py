@@ -716,9 +716,9 @@ class SqliteCloudCredentialRegistryV1:
 class SqliteCredentialBindingsV1:
     """Serialize each complete aggregate update using BEGIN IMMEDIATE.
 
-    Callers must separately serialize local Secret Service operations and commit
+    Callers must separately serialize local managed credential operations and commit
     provider observations against the generation within their own transaction.
-    This repository does not access a keyring or claim that those fences exist.
+    This repository does not access credentials or claim that those fences exist.
     """
 
     def __init__(self, reference: DatabaseRefV1) -> None:
