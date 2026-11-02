@@ -23,6 +23,7 @@ from agentmonitor.contracts.common_v1 import OpaqueIdV1
 _VERSION = re.compile(rb"ollama version is ([0-9]+\.[0-9]+\.[0-9]+)\r?\n?\Z")
 _LIMIT = 128
 _TIMEOUT = 3.0
+_SUPPORTED_LOCAL_BIN = Path("/usr/local/bin/ollama")
 type OllamaExecutableIdentityV1 = tuple[int, int, int, int, int, int, int, int]
 
 
@@ -160,7 +161,9 @@ def discover_installation() -> InstallationResult:
         )
     try:
         found = shutil.which("ollama")
-        if found is None or not Path(found).is_absolute():
+        if found is None:
+            found = str(_SUPPORTED_LOCAL_BIN)
+        if not Path(found).is_absolute():
             raise ValueError("ollama_executable_unavailable")
         executable = Path(found).resolve(strict=True)
         identity = _identity(executable)
