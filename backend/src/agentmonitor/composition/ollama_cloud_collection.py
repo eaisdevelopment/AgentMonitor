@@ -42,6 +42,9 @@ from agentmonitor.adapters.providers.ollama.cloud_balance.source import (
     CloudBalanceSourceResultV1,
     read_cloud_balance_for_binding_v1,
 )
+from agentmonitor.adapters.providers.ollama.cloud_balance.verification_run import (
+    build_verification_run,
+)
 from agentmonitor.adapters.providers.ollama.manifest import (
     OLLAMA_ADAPTER_ID,
     OLLAMA_ADAPTER_VERSION,
@@ -64,10 +67,16 @@ from agentmonitor.contracts.collection_control_v1 import (
     OllamaCloudRequestAcquireV1,
     OllamaCloudRequestCompletionV1,
     OllamaCloudRequestLeaseV1,
+    OllamaCloudVerificationAcquireV1,
+    OllamaCloudVerificationClaimRequestV1,
+    OllamaCloudVerificationClaimTerminalV1,
 )
 from agentmonitor.contracts.common_provenance_v1 import ObservationProvenanceV1
 from agentmonitor.contracts.common_v1 import FieldAvailabilityV1, OpaqueIdV1
-from agentmonitor.contracts.registry_v1 import ActiveCredentialBindingRefV1
+from agentmonitor.contracts.registry_v1 import (
+    ActiveCredentialBindingRefV1,
+    ProviderTargetRefV1,
+)
 from agentmonitor.modules.capacity.domain.payload_digest import capacity_payload_digest
 from agentmonitor.modules.collection_control.application.executor import (
     ExecuteCollectionRunV1,
@@ -312,6 +321,117 @@ class OllamaCloudCollectionV1:
         )
         self._eligible_binding(result)
         return result
+
+    def verification_tick(self):
+        """Progress at most one queued owner request under the existing M04 gate.
+
+        This candidate is not registered with the service. The source and
+        manifest admission checks happen before a job can be claimed.
+        """
+        require_source_admitted()
+        manifest = require_cloud_manifest()
+        now = datetime.now(UTC)
+        claim = self._admission.claim_verification(
+            OllamaCloudVerificationClaimRequestV1(
+                self._instance, now, now + timedelta(seconds=45)
+            )
+        )
+        if claim is None:
+            return "no_candidate"
+        graph = self._cloud_registry.read_monitoring_target(claim.account_id)
+        account = self._registry.get_account(claim.account_id)
+        binding = resolve_active_credential_binding(
+            self._bindings.read(claim.account_id)
+        )
+        if (
+            graph is None
+            or account is None
+            or binding is None
+            or graph.binding != binding
+            or graph.access_target_id != claim.access_target_id
+            or graph.lifecycle != "active"
+            or binding.generation != claim.binding_generation
+            or account.lifecycle != "active"
+            or account.provider_key != "ollama"
+        ):
+            finished = datetime.now(UTC)
+            self._admission.finish_verification_claim(
+                OllamaCloudVerificationClaimTerminalV1(
+                    claim.job_id,
+                    claim.worker_instance_id,
+                    claim.fencing_token,
+                    claim.claimed_at,
+                    claim.claim_expires_at,
+                    finished,
+                    "target_unavailable",
+                )
+            )
+            return "target_unavailable"
+        now = datetime.now(UTC)
+        decision = self._admission.acquire_claimed_verification(
+            claim,
+            OllamaCloudVerificationAcquireV1(
+                OpaqueIdV1("ollama-cloud-attempt-" + uuid.uuid4().hex),
+                claim.worker_instance_id,
+                claim.schedule_id,
+                claim.account_id,
+                claim.binding_generation,
+                now,
+                now + timedelta(seconds=30),
+                secrets.randbelow(11),
+            ),
+        )
+        if decision.lease is None:
+            return decision.state
+        lease = decision.lease
+        run = None
+        try:
+            run = build_verification_run(
+                claim,
+                graph,
+                lease,
+                account.registry_revision,
+                _digest(
+                    "provider-manifest-fingerprint-v1",
+                    get_manifest_fingerprint_v1(manifest),
+                ),
+                datetime.now(UTC),
+            )
+            subject = CapacitySubjectV2(
+                "ollama",
+                ProviderTargetRefV1("cloud_service", graph.access_target_id),
+                graph.account_id,
+                graph.resource_id,
+            )
+            return self.execute_admitted(lease, run, subject)
+        except BaseException:
+            # Only a reservation proven not dispatched can be released here.
+            try:
+                recovered = self._admission.recover_rate_gate(
+                    datetime.now(UTC), expected=lease, reserved_only=True
+                )
+                if recovered == "recovered" and run is not None:
+                    current = self._runs.get_run(run.run_id)
+                    failure = CollectionFailedV1(
+                        run.run_id,
+                        "failed",
+                        "ollama_cloud_pre_dispatch_failed",
+                        datetime.now(UTC),
+                    )
+                    finalizer = SqliteOllamaNoResponseRunRepositoryV1(
+                        self._reference, lease.admission_id
+                    )
+                    if current.state == "queued":
+                        finalizer.finalize_before_dispatch(
+                            failure, fencing_token=current.fencing_token
+                        )
+                    elif current.state == "running":
+                        finalizer.finalize_failed(
+                            failure, fencing_token=current.fencing_token
+                        )
+            except (OSError, RuntimeError, ValueError):
+                pass
+            raise
 
     def tick(self):
         """Select eligible M02 targets, reserve the fair gate, then collect once."""
