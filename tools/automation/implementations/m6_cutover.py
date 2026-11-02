@@ -17,6 +17,7 @@ import secrets
 import stat
 import subprocess
 import sys
+import urllib.request
 from contextlib import ExitStack
 from dataclasses import asdict
 from pathlib import Path
@@ -29,6 +30,7 @@ from agentmonitor.adapters.persistence._shared.sqlite.core.policy import (
     open_sqlite_database,
 )
 from agentmonitor.adapters.persistence._shared.sqlite.schema.compatibility import (
+    InspectActiveSchemaCompatibilityV1,
     InspectSchemaCompatibilityV1,
     application_schema_range,
     load_migration_catalog,
@@ -800,8 +802,12 @@ def _fixed_unit_preflight(
     _check_candidate_schema(candidate_path)
 
 
-def _verify_fixed_candidate_process(
-    properties: dict[str, str], *, checkout: Path
+def _verify_candidate_process(
+    properties: dict[str, str],
+    *,
+    unit: str,
+    executable: Path,
+    expected_command: list[str],
 ) -> None:
     pid = int(properties.get("MainPID", "0"))
     group = properties.get("ControlGroup", "")
@@ -812,7 +818,7 @@ def _verify_fixed_candidate_process(
     descriptor = os.pidfd_open(pid, 0)
     try:
         before = _process_identity(pid, group)
-        expected = _FIXED_EXECUTABLE.stat()
+        expected = executable.stat()
         if before[1:] != (expected.st_dev, expected.st_ino):
             raise CutoverError("candidate_executable_invalid")
         fd = os.open(f"/proc/{pid}/cmdline", os.O_RDONLY | os.O_CLOEXEC)
@@ -820,18 +826,12 @@ def _verify_fixed_candidate_process(
             actual = os.read(fd, 16385)
         finally:
             os.close(fd)
-        expected_command = (
-            _candidate_override(checkout)
-            .split("ExecStart=\nExecStart=", 1)[1]
-            .strip()
-            .split()
-        )
         expected_cmdline = (
             b"\0".join(part.encode() for part in expected_command) + b"\0"
         )
         if actual != expected_cmdline or _process_identity(pid, group) != before:
             raise CutoverError("candidate_process_changed")
-        current = _properties(_FIXED_UNIT)
+        current = _properties(unit)
         if (
             current.get("MainPID") != str(pid)
             or current.get("ControlGroup") != group
@@ -841,6 +841,23 @@ def _verify_fixed_candidate_process(
             raise CutoverError("candidate_process_changed")
     finally:
         os.close(descriptor)
+
+
+def _verify_fixed_candidate_process(
+    properties: dict[str, str], *, checkout: Path
+) -> None:
+    command = (
+        _candidate_override(checkout)
+        .split("ExecStart=\nExecStart=", 1)[1]
+        .strip()
+        .split()
+    )
+    _verify_candidate_process(
+        properties,
+        unit=_FIXED_UNIT,
+        executable=_FIXED_EXECUTABLE,
+        expected_command=command,
+    )
 
 
 def cutover() -> str:
@@ -1413,6 +1430,48 @@ def _finish_restored_baseline_engine(
     )
 
 
+def _verify_active_schema(reference: DatabaseRefV1) -> None:
+    """Verify the active SQLite schema through a consistent read-only snapshot."""
+    state, revision = InspectActiveSchemaCompatibilityV1(reference)
+    if state != "compatible" or revision != load_migration_catalog().head:
+        raise CutoverError("candidate_schema_unverified")
+
+
+def _request_loopback_login(origin: str) -> tuple[int, bytes]:
+    if re.fullmatch(r"http://127\.0\.0\.1:[1-9][0-9]{0,4}", origin) is None:
+        raise CutoverError("candidate_http_unverified")
+    from tools.automation.implementations.auto_m6_local_activate import NoRedirect
+
+    opener = urllib.request.build_opener(urllib.request.ProxyHandler({}), NoRedirect())
+    with opener.open(origin + "/login", timeout=3) as response:
+        body = response.read(1048577)
+        if len(body) > 1048576:
+            raise CutoverError("candidate_http_unverified")
+        return response.status, body
+
+
+def _verify_candidate_runtime(
+    *,
+    root: Path,
+    unit: str,
+    checkout: Path,
+    origin: str,
+    executable: Path,
+    expected_command: list[str],
+) -> None:
+    """Verify one actual candidate process, active SQLite snapshot and HTTP."""
+    current = _properties(unit)
+    if current.get("ActiveState") != "active" or _cwd(unit) != str(checkout):
+        raise CutoverError("candidate_start_unverified")
+    _verify_candidate_process(
+        current, unit=unit, executable=executable, expected_command=expected_command
+    )
+    _verify_active_schema(DatabaseRefV1(root / "agentmonitor.db", root))
+    status, body = _request_loopback_login(origin)
+    if status != 200 or b"agentmonitor-dashboard-root" not in body:
+        raise CutoverError("candidate_http_unverified")
+
+
 def finalize_candidate() -> str:
     """Verify the fixed running candidate before restoring its restart policy."""
     root = _FIXED_DATA
@@ -1449,26 +1508,17 @@ def finalize_candidate() -> str:
                 candidate=True,
                 start_block=present and guard.read_bytes() == blocked,
             )
-            current = _properties(_FIXED_UNIT)
-            if current.get("ActiveState") != "active" or _cwd(_FIXED_UNIT) != str(
-                checkout
-            ):
-                raise CutoverError("candidate_start_unverified")
-            _verify_fixed_candidate_process(current, checkout=checkout)
-            ref = DatabaseRefV1(root / "agentmonitor.db", root)
-            view = InspectSchemaCompatibilityV1(
-                ref, application_schema_range(), "runtime_read_write"
+            _verify_candidate_runtime(
+                root=root,
+                unit=_FIXED_UNIT,
+                checkout=checkout,
+                origin="http://127.0.0.1:43110",
+                executable=_FIXED_EXECUTABLE,
+                expected_command=_candidate_override(checkout)
+                .split("ExecStart=\nExecStart=", 1)[1]
+                .strip()
+                .split(),
             )
-            if (
-                view.state != "compatible"
-                or view.current_revision != load_migration_catalog().head
-                or view.integrity_state != "passed"
-                or view.policy_state != "passed"
-            ):
-                raise CutoverError("candidate_schema_unverified")
-            status, body = request("http://127.0.0.1:43110", "/login")
-            if status != 200 or b"agentmonitor-dashboard-root" not in body:
-                raise CutoverError("candidate_http_unverified")
 
         try:
             return _finish_restored_baseline_engine(

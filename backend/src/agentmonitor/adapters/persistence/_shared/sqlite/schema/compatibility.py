@@ -1592,6 +1592,29 @@ def InspectSchemaCompatibilityV1(
     )
 
 
+def InspectActiveSchemaCompatibilityV1(
+    database_ref: DatabaseRefV1,
+) -> tuple[SchemaState, str | None]:
+    """Inspect one consistent read-only WAL snapshot of an active database.
+
+    This does not grant a writable receipt or quiescent migration authority.
+    """
+    app = application_schema_range()
+    if app.catalog_digest != load_migration_catalog().digest:
+        raise SchemaCompatibilityError("schema_catalog_changed")
+    identity = database_ref.validate()
+    with open_sqlite_database(database_ref, "runtime_read_only") as handle:
+        with handle.connect() as connection:
+            connection.exec_driver_sql("BEGIN")
+            try:
+                result = _inspect(connection, app)
+                if database_ref.validate() != identity:
+                    raise SchemaCompatibilityError("database_identity_changed")
+            finally:
+                connection.rollback()
+    return result
+
+
 def RequireWritableSchemaV1(view: SchemaCompatibilityViewV1) -> WritableSchemaReceiptV1:
     """A readiness receipt, not a connection or authorization for migration."""
     if (

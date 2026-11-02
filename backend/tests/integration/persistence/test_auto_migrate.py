@@ -438,3 +438,111 @@ def test_real_schema_diagnostic_uses_closed_compatibility_state(tmp_path: Path) 
         "target_schema_invalid state=upgrade_required revision=other "
         "integrity=passed policy=passed"
     )
+
+
+def test_candidate_finalization_schema_check_allows_active_wal(tmp_path: Path) -> None:
+    import sqlite3
+
+    from tools.automation.implementations.m6_cutover import _verify_active_schema
+
+    from agentmonitor.adapters.persistence._shared.sqlite.schema.compatibility import (
+        migrate_to_head,
+    )
+
+    tmp_path.chmod(0o700)
+    reference = DatabaseRefV1(tmp_path / "agentmonitor.db", tmp_path)
+    migrate_to_head(reference)
+    with sqlite3.connect(tmp_path / "agentmonitor.db") as writer:
+        writer.execute("PRAGMA journal_mode=WAL")
+        writer.execute("BEGIN")
+        writer.execute("SELECT count(*) FROM sqlite_schema").fetchone()
+        assert (tmp_path / "agentmonitor.db-wal").exists()
+        assert (tmp_path / "agentmonitor.db-shm").exists()
+        _verify_active_schema(reference)
+
+
+def test_candidate_runtime_readiness_on_real_disposable_service(tmp_path: Path) -> None:
+    import socket
+    import sqlite3
+    import time
+    import urllib.error
+    import urllib.request
+    import uuid
+
+    from tools.automation.implementations.m6_cutover import _verify_candidate_runtime
+
+    from agentmonitor.adapters.persistence._shared.sqlite.schema.compatibility import (
+        migrate_to_head,
+    )
+
+    tmp_path.chmod(0o700)
+    reference = DatabaseRefV1(tmp_path / "agentmonitor.db", tmp_path)
+    migrate_to_head(reference)
+    config = tmp_path / "config.toml"
+    config.write_text("")
+    config.chmod(0o600)
+    with socket.socket() as probe:
+        probe.bind(("127.0.0.1", 0))
+        port = probe.getsockname()[1]
+    origin = f"http://127.0.0.1:{port}"
+    unit = f"agentmonitor-readiness-test-{uuid.uuid4().hex}.service"
+    checkout = ROOT
+    command = [
+        sys.executable,
+        "-m",
+        "agentmonitor.composition.bootstrap",
+        "--config",
+        str(config),
+        "--data-root",
+        str(tmp_path),
+        "--host",
+        "127.0.0.1",
+        "--port",
+        str(port),
+        "--authenticated-dashboard",
+    ]
+    started = subprocess.run(
+        [
+            "systemd-run",
+            "--user",
+            "--unit",
+            unit,
+            f"--property=WorkingDirectory={checkout}",
+            f"--property=Environment=PYTHONPATH={checkout / 'backend/src'}",
+            *command,
+        ],
+        capture_output=True,
+        check=False,
+    )
+    assert started.returncode == 0
+    try:
+        deadline = time.monotonic() + 30
+        while True:
+            try:
+                with urllib.request.urlopen(origin + "/login", timeout=1) as response:
+                    assert response.status == 200
+                break
+            except (OSError, urllib.error.URLError):
+                if time.monotonic() >= deadline:
+                    raise AssertionError("candidate did not become ready") from None
+                time.sleep(0.1)
+        with sqlite3.connect(tmp_path / "agentmonitor.db") as reader:
+            reader.execute("BEGIN")
+            reader.execute("SELECT count(*) FROM sqlite_schema").fetchone()
+            assert (tmp_path / "agentmonitor.db-wal").exists()
+            assert (tmp_path / "agentmonitor.db-shm").exists()
+            _verify_candidate_runtime(
+                root=tmp_path,
+                unit=unit,
+                checkout=checkout,
+                origin=origin,
+                executable=Path(sys.executable),
+                expected_command=command,
+            )
+    finally:
+        subprocess.run(
+            ["systemctl", "--user", "stop", unit],
+            capture_output=True,
+            check=False,
+            timeout=10,
+        )
