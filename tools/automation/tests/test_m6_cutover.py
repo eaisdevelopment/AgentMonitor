@@ -4,6 +4,7 @@ import ast
 import inspect
 import json
 import os
+import shutil
 import signal
 import sqlite3
 import subprocess
@@ -45,27 +46,54 @@ from tools.automation.implementations.m6_transition_lease import _hold_transitio
 
 
 @pytest.mark.parametrize(
-    "case", ["normal", "child", "writer", "restore", "crash_pre", "crash_post"]
+    "case",
+    [
+        "normal",
+        "child",
+        "writer",
+        "restore",
+        "crash_pre",
+        "crash_post",
+        "real_source_restore",
+    ],
 )
-def test_disposable_unit_and_real_backup_migration(tmp_path: Path, case: str) -> None:
+def test_disposable_unit_and_real_backup_migration(
+    tmp_path: Path, case: str, request: pytest.FixtureRequest
+) -> None:
     root = tmp_path / "data"
     root.mkdir(mode=0o700)
+    if case == "real_source_restore":
+        request.addfinalizer(lambda: shutil.rmtree(root) if root.exists() else None)
     ref = DatabaseRefV1(root / "agentmonitor.db", root)
-    catalog = load_migration_catalog()
-    with (
-        open_sqlite_database(ref, "migration_initialize") as handle,
-        handle.connect() as connection,
-    ):
-        connection.exec_driver_sql("BEGIN IMMEDIATE")
-        config = Config()
-        config.set_main_option("script_location", str(MIGRATIONS_PATH))
-        config.attributes.update(
-            connection=connection,
-            migrations_path=MIGRATIONS_PATH,
-            catalog_digest=catalog.digest,
+    source_revision = "v1_0707" if case == "real_source_restore" else "v1_0708"
+    if case == "real_source_restore":
+        live_uri = "file:/home/dev/.local/share/agentmonitor/agentmonitor.db?mode=ro"
+        with (
+            sqlite3.connect(live_uri, uri=True) as live,
+            sqlite3.connect(root / "agentmonitor.db") as private,
+        ):
+            live.backup(private)
+        (root / "agentmonitor.db").chmod(0o600)
+        view = InspectSchemaCompatibilityV1(
+            ref, application_schema_range(), "runtime_read_write"
         )
-        command.upgrade(config, "v1_0708")
-        connection.commit()
+        assert view.current_revision == source_revision
+    else:
+        catalog = load_migration_catalog()
+        with (
+            open_sqlite_database(ref, "migration_initialize") as handle,
+            handle.connect() as connection,
+        ):
+            connection.exec_driver_sql("BEGIN IMMEDIATE")
+            config = Config()
+            config.set_main_option("script_location", str(MIGRATIONS_PATH))
+            config.attributes.update(
+                connection=connection,
+                migrations_path=MIGRATIONS_PATH,
+                catalog_digest=catalog.digest,
+            )
+            command.upgrade(config, "v1_0708")
+            connection.commit()
     baseline = Path("/home/dev/.local/share/agentmonitor/worktrees/m6-integration")
     candidate = Path("/home/dev/.local/share/agentmonitor/worktrees/m6-next")
     revision = subprocess.run(
@@ -104,7 +132,7 @@ def test_disposable_unit_and_real_backup_migration(tmp_path: Path, case: str) ->
         subprocess.run(
             ["systemctl", "--user", "daemon-reload"], check=True, capture_output=True
         )
-        if case in {"restore", "crash_pre", "crash_post"}:
+        if case in {"restore", "crash_pre", "crash_post", "real_source_restore"}:
             pid = int(
                 subprocess.run(
                     ["systemctl", "--user", "show", unit, "-p", "MainPID", "--value"],
@@ -129,7 +157,7 @@ def test_disposable_unit_and_real_backup_migration(tmp_path: Path, case: str) ->
                     baseline=baseline,
                     candidate=candidate,
                     override=override,
-                    source="v1_0708",
+                    source=source_revision,
                     expected_revision=revision,
                     expected_executable=Path("/bin/sleep"),
                 )
@@ -272,7 +300,7 @@ with _hold_transition_locks(root) as transition, exclusive_service_quiescence(ro
             view = InspectSchemaCompatibilityV1(
                 ref, application_schema_range(), "runtime_read_write"
             )
-            assert view.current_revision == "v1_0708"
+            assert view.current_revision == source_revision
         elif case in {"child", "writer"}:
             if case == "writer":
                 writer = sqlite3.connect(root / "agentmonitor.db")
@@ -298,7 +326,7 @@ with _hold_transition_locks(root) as transition, exclusive_service_quiescence(ro
                     baseline=baseline,
                     candidate=candidate,
                     override=override,
-                    source="v1_0708",
+                    source=source_revision,
                     expected_revision=revision,
                     expected_executable=Path(
                         "/bin/bash" if case == "child" else "/bin/sleep"
@@ -318,7 +346,7 @@ with _hold_transition_locks(root) as transition, exclusive_service_quiescence(ro
             view = InspectSchemaCompatibilityV1(
                 ref, application_schema_range(), "runtime_read_write"
             )
-            assert view.current_revision == "v1_0708"
+            assert view.current_revision == source_revision
             assert not (root / "backups").exists()
             assert not (root / ".m6-cutover-journal.json").exists()
         else:
@@ -329,7 +357,7 @@ with _hold_transition_locks(root) as transition, exclusive_service_quiescence(ro
                     baseline=baseline,
                     candidate=candidate,
                     override=override,
-                    source="v1_0708",
+                    source=source_revision,
                     expected_revision=revision,
                     expected_executable=Path(
                         "/bin/bash" if case == "child" else "/bin/sleep"
@@ -374,6 +402,8 @@ with _hold_transition_locks(root) as transition, exclusive_service_quiescence(ro
         subprocess.run(
             ["systemctl", "--user", "daemon-reload"], capture_output=True, check=False
         )
+        if case == "real_source_restore":
+            shutil.rmtree(root)
 
 
 def test_public_cutover_target_is_not_caller_selectable() -> None:
