@@ -45,21 +45,26 @@ class EnvCredentialFileError(ValueError):
     """Sanitized capability failure with no path or credential detail."""
 
     def __init__(self, code: EnvCredentialFileFailureCode) -> None:
-        self.code = code
-        super().__init__(code)
+        normalized: EnvCredentialFileFailureCode
+        if type(code) is str and code == "ollama_cloud_store_locked":
+            normalized = "ollama_cloud_store_locked"
+        else:
+            normalized = "ollama_cloud_store_unavailable"
+        self.code = normalized
+        super().__init__(normalized)
 
 
 def require_safe_env_parent_metadata_v1(
     *, directory: bool, owner_uid: int, current_uid: int, mode: int
 ) -> bool:
-    """Admit the owner-approved parent policy and report group-write residual."""
+    """Admit the explicit parent policy and report observed group-write risk."""
     if (
         directory is not True
         or type(owner_uid) is not int
         or type(current_uid) is not int
         or owner_uid != current_uid
         or type(mode) is not int
-        or mode not in {0o700, 0o750, 0o755, 0o770, 0o775}
+        or mode not in ENV_AUTHORIZATION_POLICY_V1.allowed_parent_modes
     ):
         raise ValueError("ollama_env_parent_unsafe") from None
     return bool(mode & stat.S_IWGRP)
@@ -209,7 +214,7 @@ class EnvCredentialFileAuthorityV1:
 
     @property
     def parent_group_writable_residual(self) -> bool:
-        """Expose only the owner-approved non-secret parent-risk category."""
+        """Expose only the observed non-secret parent-risk category."""
         return bool(self._parent_identity[4] & stat.S_IWGRP)
 
     def __getstate__(self) -> NoReturn:
@@ -492,7 +497,12 @@ def env_credential_file_lease_v1(
             )
 
         lease = EnvCredentialFileLeaseV1(validate, state)
-        lease.inherited_file()
+        try:
+            lease.inherited_file()
+        except EnvCredentialFileError:
+            raise
+        except (OSError, TypeError, ValueError):
+            raise EnvCredentialFileError("ollama_cloud_store_unavailable") from None
         try:
             yield lease
         finally:

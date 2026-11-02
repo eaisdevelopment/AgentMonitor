@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import ctypes
 import json
 import math
 import os
@@ -13,12 +14,31 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 _MAX_OPERATION_SECONDS = 8.0
+_PR_GET_DUMPABLE = 3
+_PR_SET_DUMPABLE = 4
 
 
 def _disable_core_dumps_v1() -> None:
     resource.setrlimit(resource.RLIMIT_CORE, (0, 0))
     if resource.getrlimit(resource.RLIMIT_CORE) != (0, 0):
         raise OSError("ollama_cloud_core_limit_invalid")
+    libc = ctypes.CDLL(None, use_errno=True)
+    try:
+        prctl = libc.prctl
+    except AttributeError:
+        raise OSError("ollama_cloud_dumpable_policy_unavailable") from None
+    prctl.argtypes = (
+        ctypes.c_int,
+        ctypes.c_ulong,
+        ctypes.c_ulong,
+        ctypes.c_ulong,
+        ctypes.c_ulong,
+    )
+    prctl.restype = ctypes.c_int
+    if prctl(_PR_SET_DUMPABLE, 0, 0, 0, 0) != 0:
+        raise OSError("ollama_cloud_dumpable_policy_unavailable") from None
+    if prctl(_PR_GET_DUMPABLE, 0, 0, 0, 0) != 0:
+        raise OSError("ollama_cloud_dumpable_policy_invalid") from None
 
 
 class _DeadlineExpired(TimeoutError):

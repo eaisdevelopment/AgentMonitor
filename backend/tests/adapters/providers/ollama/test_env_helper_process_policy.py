@@ -8,11 +8,12 @@ from pathlib import Path
 def test_real_helper_process_disables_core_dumps() -> None:
     source = Path(__file__).resolve().parents[4] / "src"
     program = (
-        "import resource; "
+        "import ctypes, resource; "
         "from agentmonitor.adapters.providers.ollama.cloud_balance.deadline_helper "
         "import _disable_core_dumps_v1; "
         "_disable_core_dumps_v1(); "
-        "print(*resource.getrlimit(resource.RLIMIT_CORE))"
+        "libc = ctypes.CDLL(None, use_errno=True); "
+        "print(*resource.getrlimit(resource.RLIMIT_CORE), libc.prctl(3, 0, 0, 0, 0))"
     )
     result = subprocess.run(
         [sys.executable, "-c", program],
@@ -24,5 +25,5 @@ def test_real_helper_process_disables_core_dumps() -> None:
     )
 
     assert result.returncode == 0
-    assert result.stdout == "0 0\n"
+    assert result.stdout == "0 0 0\n"
     assert result.stderr == ""
