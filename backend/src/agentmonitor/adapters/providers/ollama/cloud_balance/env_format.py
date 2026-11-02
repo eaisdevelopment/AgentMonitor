@@ -24,16 +24,21 @@ def encode_credential_value(token: bytearray) -> bytes:
 
 
 def decode_credential_value(encoded: bytes) -> bytearray:
+    token: bytearray | None = None
     try:
+        if not isinstance(encoded, bytes) or len(encoded) > 5464:
+            raise ValueError("ollama_env_value_invalid")
         token = bytearray(base64.b64decode(encoded, validate=True))
         if encode_credential_value(token) != encoded:
             raise ValueError("ollama_env_value_invalid")
         return token
     except (ValueError, TypeError, binascii.Error):
+        if token is not None:
+            token[:] = b"\0" * len(token)
         raise ValueError("ollama_env_value_invalid") from None
 
 
-def _target_lines(content: bytes, name: bytes) -> list[int]:
+def _target_lines(content: bytes | bytearray, name: bytes) -> list[int]:
     if _NAME.fullmatch(name) is None:
         raise ValueError("ollama_env_binding_invalid")
     matches = []
@@ -48,14 +53,14 @@ def _target_lines(content: bytes, name: bytes) -> list[int]:
     return matches
 
 
-def read_credential_value(content: bytes, name: bytes) -> bytearray:
+def read_credential_value(content: bytes | bytearray, name: bytes) -> bytearray:
     matches = _target_lines(content, name)
     if not matches:
         raise ValueError("ollama_env_entry_missing")
     line = content.splitlines(keepends=True)[matches[0]]
     if not line.startswith(name + b"="):
         raise ValueError("ollama_env_entry_invalid")
-    return decode_credential_value(line[len(name) + 1 :].rstrip(b"\r\n"))
+    return decode_credential_value(bytes(line[len(name) + 1 :].rstrip(b"\r\n")))
 
 
 def edit_credential_entry(content: bytes, name: bytes, encoded: bytes | None) -> bytes:
