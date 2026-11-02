@@ -2,11 +2,13 @@
 
 from __future__ import annotations
 
+import ctypes
 import json
 import os
 import re
 import secrets
 import stat
+from collections.abc import Callable
 from pathlib import Path
 
 from agentmonitor.adapters.persistence._shared.sqlite.core.policy import (
@@ -33,7 +35,6 @@ from tools.automation.implementations.auto_migrate import (
 )
 from tools.automation.implementations.m6_offline_restore import (
     _ensure_cgroup_empty,
-    _fsync_dir,
     _read_private_json,
 )
 from tools.automation.implementations.m6_quiescent_stop import (
@@ -47,11 +48,66 @@ class MigrationRecoveryError(RuntimeError):
     """Fail-closed recovery refusal without user records."""
 
 
-def _replace_journal(path: Path, before: dict, after: dict) -> None:
-    """Durably replace only the exact observed stopped journal."""
-    if _read_private_json(path) != before:
+def _read_journal_at(transition: _TransitionLease) -> tuple[dict, tuple[int, int]]:
+    descriptor = os.open(
+        ".m6-cutover-journal.json",
+        os.O_RDONLY | os.O_NOFOLLOW | os.O_CLOEXEC,
+        dir_fd=transition.directory,
+    )
+    try:
+        before = os.fstat(descriptor)
+        if (
+            not stat.S_ISREG(before.st_mode)
+            or before.st_uid != os.getuid()
+            or stat.S_IMODE(before.st_mode) != 0o600
+            or before.st_nlink != 1
+            or before.st_size > 65536
+        ):
+            raise MigrationRecoveryError("migration_recovery_journal_invalid")
+        chunks = bytearray()
+        while len(chunks) <= 65536:
+            part = os.read(descriptor, min(4096, 65537 - len(chunks)))
+            if not part:
+                break
+            chunks.extend(part)
+        after = os.fstat(descriptor)
+        if (
+            before.st_dev,
+            before.st_ino,
+            before.st_size,
+            before.st_mtime_ns,
+            before.st_ctime_ns,
+        ) != (
+            after.st_dev,
+            after.st_ino,
+            after.st_size,
+            after.st_mtime_ns,
+            after.st_ctime_ns,
+        ) or len(chunks) != before.st_size:
+            raise MigrationRecoveryError("migration_recovery_journal_changed")
+
+        def unique(pairs):
+            result = {}
+            for key, value in pairs:
+                if key in result:
+                    raise MigrationRecoveryError("migration_recovery_journal_invalid")
+                result[key] = value
+            return result
+
+        value = json.loads(chunks, object_pairs_hook=unique)
+        if not isinstance(value, dict):
+            raise MigrationRecoveryError("migration_recovery_journal_invalid")
+        return value, (before.st_dev, before.st_ino)
+    finally:
+        os.close(descriptor)
+
+
+def _replace_journal(transition: _TransitionLease, before: dict, after: dict) -> None:
+    """Exchange through the pinned root and retain the displaced journal."""
+    observed, identity = _read_journal_at(transition)
+    if observed != before:
         raise MigrationRecoveryError("migration_recovery_journal_changed")
-    temporary = path.parent / (".m6-recovery-" + secrets.token_hex(16))
+    temporary = ".m6-recovery-" + secrets.token_hex(16)
     raw = json.dumps(after, sort_keys=True, separators=(",", ":")).encode() + b"\n"
     if len(raw) > 65536:
         raise MigrationRecoveryError("migration_recovery_journal_invalid")
@@ -59,6 +115,7 @@ def _replace_journal(path: Path, before: dict, after: dict) -> None:
         temporary,
         os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW | os.O_CLOEXEC,
         0o600,
+        dir_fd=transition.directory,
     )
     try:
         with os.fdopen(descriptor, "wb", closefd=False) as stream:
@@ -67,19 +124,43 @@ def _replace_journal(path: Path, before: dict, after: dict) -> None:
         os.fsync(descriptor)
     finally:
         os.close(descriptor)
-    if _read_private_json(path) != before:
+    transition.validate(transition.root)
+    latest, current_identity = _read_journal_at(transition)
+    if latest != before or current_identity != identity:
         raise MigrationRecoveryError("migration_recovery_journal_changed")
-    os.replace(temporary, path)
-    _fsync_dir(path.parent)
-    if _read_private_json(path) != after:
+    libc = ctypes.CDLL(None, use_errno=True)
+    renameat2 = libc.renameat2
+    renameat2.argtypes = (
+        ctypes.c_int,
+        ctypes.c_char_p,
+        ctypes.c_int,
+        ctypes.c_char_p,
+        ctypes.c_uint,
+    )
+    renameat2.restype = ctypes.c_int
+    if (
+        renameat2(
+            transition.directory,
+            os.fsencode(temporary),
+            transition.directory,
+            b".m6-cutover-journal.json",
+            2,
+        )
+        != 0
+    ):
+        raise MigrationRecoveryError("migration_recovery_exchange_failed")
+    os.fsync(transition.directory)
+    displaced = os.stat(temporary, dir_fd=transition.directory, follow_symlinks=False)
+    actual, _ = _read_journal_at(transition)
+    if (displaced.st_dev, displaced.st_ino) != identity or actual != after:
         raise MigrationRecoveryError("migration_recovery_journal_changed")
 
 
-def _preserve_interrupted_journal(root: Path) -> None:
-    """Retain, rather than reuse or delete, a killed writer's temp journal."""
-    temporary = root / ".m6-cutover-journal.json.next"
+def _preserve_interrupted_journal(transition: _TransitionLease) -> None:
+    """Retain a killed writer's temp using the pinned root directory."""
+    name = ".m6-cutover-journal.json.next"
     try:
-        info = temporary.lstat()
+        info = os.stat(name, dir_fd=transition.directory, follow_symlinks=False)
     except FileNotFoundError:
         return
     if (
@@ -89,19 +170,49 @@ def _preserve_interrupted_journal(root: Path) -> None:
         or info.st_nlink != 1
     ):
         raise MigrationRecoveryError("migration_recovery_temp_unsafe")
-    directory = root / ".m6-journal-orphans"
-    directory.mkdir(mode=0o700, exist_ok=True)
-    _safe_directory(directory)
-    _fsync_dir(root)
-    destination = directory / ("journal-" + secrets.token_hex(16))
-    if destination.exists() or destination.is_symlink():
-        raise MigrationRecoveryError("migration_recovery_temp_unsafe")
-    os.rename(temporary, destination)
-    _fsync_dir(directory)
-    _fsync_dir(root)
-    moved = destination.lstat()
-    if (moved.st_dev, moved.st_ino) != (info.st_dev, info.st_ino):
-        raise MigrationRecoveryError("migration_recovery_temp_unsafe")
+    try:
+        os.mkdir(".m6-journal-orphans", 0o700, dir_fd=transition.directory)
+    except FileExistsError:
+        pass
+    directory = os.open(
+        ".m6-journal-orphans",
+        os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW | os.O_CLOEXEC,
+        dir_fd=transition.directory,
+    )
+    try:
+        state = os.fstat(directory)
+        if state.st_uid != os.getuid() or stat.S_IMODE(state.st_mode) != 0o700:
+            raise MigrationRecoveryError("migration_recovery_temp_unsafe")
+        os.fsync(transition.directory)
+        destination = "journal-" + secrets.token_hex(16)
+        libc = ctypes.CDLL(None, use_errno=True)
+        renameat2 = libc.renameat2
+        renameat2.argtypes = (
+            ctypes.c_int,
+            ctypes.c_char_p,
+            ctypes.c_int,
+            ctypes.c_char_p,
+            ctypes.c_uint,
+        )
+        renameat2.restype = ctypes.c_int
+        if (
+            renameat2(
+                transition.directory,
+                os.fsencode(name),
+                directory,
+                os.fsencode(destination),
+                1,
+            )
+            != 0
+        ):
+            raise MigrationRecoveryError("migration_recovery_temp_unsafe")
+        os.fsync(directory)
+        os.fsync(transition.directory)
+        moved = os.stat(destination, dir_fd=directory, follow_symlinks=False)
+        if (moved.st_dev, moved.st_ino) != (info.st_dev, info.st_ino):
+            raise MigrationRecoveryError("migration_recovery_temp_unsafe")
+    finally:
+        os.close(directory)
 
 
 def _receipt(data: dict) -> QuiescentStopReceipt:
@@ -139,6 +250,75 @@ def _receipt(data: dict) -> QuiescentStopReceipt:
     )
 
 
+def _validate_stopped_journal(data: dict, receipt: QuiescentStopReceipt) -> None:
+    required = {
+        "format",
+        "phase",
+        "backup_id",
+        "unit",
+        "baseline_revision",
+        "candidate_revision",
+        "source_revision",
+        "candidate_build_sha256",
+        "fixed_unit_sha256",
+        "fixed_baseline_override_sha256",
+        "fixed_runtime_sha256",
+        "fixed_python_sha256",
+        "pid",
+        "cgroup",
+        "start_ticks",
+        "invocation_id",
+        "start_monotonic",
+        "stop_receipt",
+    }
+    if set(data) not in (required, required | {"prior_backup_ids"}):
+        raise MigrationRecoveryError("migration_recovery_journal_invalid")
+    for field in ("baseline_revision", "candidate_revision"):
+        value = data.get(field)
+        if not isinstance(value, str) or re.fullmatch(r"[a-f0-9]{40}", value) is None:
+            raise MigrationRecoveryError("migration_recovery_journal_invalid")
+    for field in (
+        "candidate_build_sha256",
+        "fixed_unit_sha256",
+        "fixed_baseline_override_sha256",
+        "fixed_runtime_sha256",
+        "fixed_python_sha256",
+    ):
+        value = data.get(field)
+        if (field == "candidate_build_sha256" or value is not None) and (
+            not isinstance(value, str) or re.fullmatch(r"[a-f0-9]{64}", value) is None
+        ):
+            raise MigrationRecoveryError("migration_recovery_journal_invalid")
+    if any(
+        data.get(field) != getattr(receipt, field)
+        for field in (
+            "unit",
+            "pid",
+            "cgroup",
+            "start_ticks",
+            "invocation_id",
+            "start_monotonic",
+        )
+    ):
+        raise MigrationRecoveryError("migration_recovery_receipt_invalid")
+    expected_group = f"/user.slice/user-{os.getuid()}.slice/user@{os.getuid()}.service/app.slice/{receipt.unit}"
+    if receipt.cgroup != expected_group:
+        raise MigrationRecoveryError("migration_recovery_receipt_invalid")
+    history = data.get("prior_backup_ids", [])
+    if (
+        not isinstance(history, list)
+        or len(history) > 128
+        or len(set(history)) != len(history)
+        or any(
+            not isinstance(item, str)
+            or re.fullmatch(r"migration-preflight-[a-f0-9]{32}", item) is None
+            for item in history
+        )
+        or data.get("backup_id") in history
+    ):
+        raise MigrationRecoveryError("migration_recovery_journal_invalid")
+
+
 def _verify_stopped(receipt: QuiescentStopReceipt) -> dict[str, str]:
     current = _properties(receipt.unit)
     if (
@@ -148,6 +328,7 @@ def _verify_stopped(receipt: QuiescentStopReceipt) -> dict[str, str]:
         or current.get("Restart") != "no"
         or current.get("InvocationID") != receipt.invocation_id
         or current.get("ExecMainStartTimestampMonotonic") != receipt.start_monotonic
+        or current.get("ControlGroup", "") not in ("", receipt.cgroup)
     ):
         raise MigrationRecoveryError("migration_recovery_service_changed")
     _ensure_cgroup_empty(receipt.cgroup)
@@ -186,6 +367,7 @@ def _recover_migration_before_start(
     transition_lease: _TransitionLease,
     service_lease: ServiceQuiescenceLeaseV1,
     settings_lease: _SettingsLockLeaseV1,
+    verify_provenance: Callable[[], None] | None = None,
 ) -> str:
     """Resume a journaled pre-start migration, retaining every earlier backup.
 
@@ -196,8 +378,7 @@ def _recover_migration_before_start(
         transition_lease.validate(root)
         service_lease.validate(root)
         settings_lease.validate(root)
-        journal = root / ".m6-cutover-journal.json"
-        data = _read_private_json(journal)
+        data = _read_journal_at(transition_lease)[0]
         source = data.get("source_revision")
         backup_id = data.get("backup_id")
         if (
@@ -210,7 +391,10 @@ def _recover_migration_before_start(
             raise MigrationRecoveryError("migration_recovery_journal_invalid")
         _preflight_catalog(source)
         receipt = _receipt(data)
+        _validate_stopped_journal(data, receipt)
         current = _verify_stopped(receipt)
+        if verify_provenance is not None:
+            verify_provenance()
         ref = DatabaseRefV1(root / "agentmonitor.db", root)
         # A killed SQLite writer may leave a valid WAL/SHM; recover and
         # checkpoint it while all service and settings locks remain held.
@@ -218,18 +402,24 @@ def _recover_migration_before_start(
         transition_lease.validate(root)
         service_lease.validate(root)
         settings_lease.validate(root)
-        if _verify_stopped(receipt) != current or _read_private_json(journal) != data:
+        if (
+            _verify_stopped(receipt) != current
+            or _read_journal_at(transition_lease)[0] != data
+        ):
             raise MigrationRecoveryError("migration_recovery_service_changed")
         view = InspectSchemaCompatibilityV1(
             ref, application_schema_range(), "runtime_read_write"
         )
         if view.integrity_state != "passed" or view.policy_state != "passed":
             raise MigrationRecoveryError("migration_recovery_database_invalid")
-        _preserve_interrupted_journal(root)
+        _preserve_interrupted_journal(transition_lease)
         transition_lease.validate(root)
         service_lease.validate(root)
         settings_lease.validate(root)
-        if _verify_stopped(receipt) != current or _read_private_json(journal) != data:
+        if (
+            _verify_stopped(receipt) != current
+            or _read_journal_at(transition_lease)[0] != data
+        ):
             raise MigrationRecoveryError("migration_recovery_service_changed")
         if view.current_revision == source and view.state == "upgrade_required":
             # The source is intact. Preserve any incomplete old backup and bind
@@ -247,7 +437,7 @@ def _recover_migration_before_start(
                 "backup_id": replacement_id,
                 "prior_backup_ids": [*history, backup_id],
             }
-            _replace_journal(journal, data, updated)
+            _replace_journal(transition_lease, data, updated)
             data = updated
             backup_id = replacement_id
             transition_lease.validate(root)
@@ -255,9 +445,11 @@ def _recover_migration_before_start(
             settings_lease.validate(root)
             if (
                 _verify_stopped(receipt) != current
-                or _read_private_json(journal) != data
+                or _read_journal_at(transition_lease)[0] != data
             ):
                 raise MigrationRecoveryError("migration_recovery_service_changed")
+            if verify_provenance is not None:
+                verify_provenance()
             outcome, actual = run_upgrade(
                 root,
                 source,
@@ -276,7 +468,10 @@ def _recover_migration_before_start(
         transition_lease.validate(root)
         service_lease.validate(root)
         settings_lease.validate(root)
-        if _verify_stopped(receipt) != current or _read_private_json(journal) != data:
+        if (
+            _verify_stopped(receipt) != current
+            or _read_journal_at(transition_lease)[0] != data
+        ):
             raise MigrationRecoveryError("migration_recovery_service_changed")
         view = InspectSchemaCompatibilityV1(
             ref, application_schema_range(), "runtime_read_write"
@@ -288,7 +483,17 @@ def _recover_migration_before_start(
             or view.policy_state != "passed"
         ):
             raise MigrationRecoveryError("migration_recovery_database_invalid")
-        _replace_journal(journal, data, {**data, "phase": "migrated"})
+        if verify_provenance is not None:
+            verify_provenance()
+        transition_lease.validate(root)
+        service_lease.validate(root)
+        settings_lease.validate(root)
+        if (
+            _verify_stopped(receipt) != current
+            or _read_journal_at(transition_lease)[0] != data
+        ):
+            raise MigrationRecoveryError("migration_recovery_service_changed")
+        _replace_journal(transition_lease, data, {**data, "phase": "migrated"})
         return "migration_recovered"
     except MigrationRecoveryError:
         raise

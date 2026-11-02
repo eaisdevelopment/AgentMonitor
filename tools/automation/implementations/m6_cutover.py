@@ -16,7 +16,6 @@ import secrets
 import stat
 import subprocess
 import sys
-import time
 from contextlib import ExitStack
 from dataclasses import asdict
 from pathlib import Path
@@ -61,6 +60,10 @@ from tools.automation.implementations.m6_quiescent_stop import (
     _process_identity,
     _properties,
     stop_quiescent_unit,
+)
+from tools.automation.implementations.m6_runtime_integrity import (
+    _runtime_digest,
+    _trusted_checkout_revision,
 )
 from tools.automation.implementations.m6_transition_lease import _hold_transition_locks
 
@@ -582,147 +585,6 @@ _FIXED_PYTHON_SHA256 = (
 )
 
 
-def _runtime_digest(root: Path) -> str:
-    """Hash a bounded private runtime through pinned, no-follow descriptors."""
-    digest = hashlib.sha256()
-    deadline = time.monotonic() + 30
-    count = 0
-    total = 0
-    allowed_links = {
-        "bin/python": "/usr/bin/python3",
-        "bin/python3": "python",
-        "bin/python3.12": "python",
-        "lib64": "lib",
-    }
-    directory = os.open(
-        root, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW | os.O_CLOEXEC
-    )
-    try:
-        root_info = os.fstat(directory)
-        path_info = root.lstat()
-        if (
-            root_info.st_uid != os.getuid()
-            or stat.S_IMODE(root_info.st_mode) != 0o700
-            or (root_info.st_dev, root_info.st_ino)
-            != (path_info.st_dev, path_info.st_ino)
-        ):
-            raise CutoverError("runtime_changed")
-
-        def walk(fd: int, prefix: str) -> None:
-            nonlocal count, total
-            initial = os.fstat(fd)
-            if initial.st_uid != os.getuid() or stat.S_IMODE(initial.st_mode) != 0o700:
-                raise CutoverError("runtime_changed")
-            names = sorted(os.listdir(fd))
-            for name in names:
-                count += 1
-                if count > 100000 or time.monotonic() > deadline:
-                    raise CutoverError("runtime_too_large")
-                relative = prefix + name
-                item = os.stat(name, dir_fd=fd, follow_symlinks=False)
-                if item.st_uid != os.getuid():
-                    raise CutoverError("runtime_changed")
-                if stat.S_ISLNK(item.st_mode):
-                    if relative not in allowed_links:
-                        raise CutoverError("runtime_symlink_invalid")
-                    target = os.readlink(name, dir_fd=fd)
-                    if target != allowed_links[relative]:
-                        raise CutoverError("runtime_symlink_invalid")
-                    digest.update(
-                        b"L" + relative.encode() + b"\0" + target.encode() + b"\0"
-                    )
-                elif stat.S_ISDIR(item.st_mode):
-                    digest.update(b"D" + relative.encode() + b"\0")
-                    child = os.open(
-                        name,
-                        os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW | os.O_CLOEXEC,
-                        dir_fd=fd,
-                    )
-                    try:
-                        pinned = os.fstat(child)
-                        if (pinned.st_dev, pinned.st_ino) != (item.st_dev, item.st_ino):
-                            raise CutoverError("runtime_changed")
-                        walk(child, relative + "/")
-                    finally:
-                        os.close(child)
-                elif stat.S_ISREG(item.st_mode):
-                    if item.st_nlink != 1 or stat.S_IMODE(item.st_mode) not in {
-                        0o600,
-                        0o700,
-                    }:
-                        raise CutoverError("runtime_changed")
-                    total += item.st_size
-                    if total > 1_073_741_824:
-                        raise CutoverError("runtime_too_large")
-                    child = os.open(
-                        name,
-                        os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK | os.O_CLOEXEC,
-                        dir_fd=fd,
-                    )
-                    try:
-                        pinned = os.fstat(child)
-                        identity = (
-                            item.st_dev,
-                            item.st_ino,
-                            item.st_mode,
-                            item.st_size,
-                            item.st_mtime_ns,
-                            item.st_ctime_ns,
-                        )
-                        if (
-                            pinned.st_dev,
-                            pinned.st_ino,
-                            pinned.st_mode,
-                            pinned.st_size,
-                            pinned.st_mtime_ns,
-                            pinned.st_ctime_ns,
-                        ) != identity:
-                            raise CutoverError("runtime_changed")
-                        digest.update(
-                            b"F"
-                            + relative.encode()
-                            + b"\0"
-                            + str(stat.S_IMODE(item.st_mode)).encode()
-                            + b"\0"
-                        )
-                        while block := os.read(child, 1024 * 1024):
-                            digest.update(block)
-                            if time.monotonic() > deadline:
-                                raise CutoverError("runtime_too_large")
-                        final = os.fstat(child)
-                        if (
-                            final.st_dev,
-                            final.st_ino,
-                            final.st_mode,
-                            final.st_size,
-                            final.st_mtime_ns,
-                            final.st_ctime_ns,
-                        ) != identity:
-                            raise CutoverError("runtime_changed")
-                    finally:
-                        os.close(child)
-                else:
-                    raise CutoverError("runtime_entry_invalid")
-            final_dir = os.fstat(fd)
-            if (
-                initial.st_dev,
-                initial.st_ino,
-                initial.st_mtime_ns,
-                initial.st_ctime_ns,
-            ) != (
-                final_dir.st_dev,
-                final_dir.st_ino,
-                final_dir.st_mtime_ns,
-                final_dir.st_ctime_ns,
-            ):
-                raise CutoverError("runtime_changed")
-
-        walk(directory, "")
-        return digest.hexdigest()
-    finally:
-        os.close(directory)
-
-
 def _candidate_override(candidate: Path) -> str:
     command = (
         str(_FIXED_VENV / "bin/python")
@@ -869,7 +731,6 @@ def _fixed_unit_preflight(
         )
     ):
         raise CutoverError("target_unit_changed")
-    _check_candidate_schema(_FIXED_CANDIDATE)
     if (
         _revision(_FIXED_BASELINE) != _FIXED_BASELINE_REVISION
         or _revision(_FIXED_CANDIDATE) != expected_revision
@@ -879,6 +740,9 @@ def _fixed_unit_preflight(
         != _FIXED_PYTHON_SHA256
     ):
         raise CutoverError("release_identity_changed")
+    # Do not execute candidate or private-runtime code until the pinned files
+    # and clean source revision have passed the static checks above.
+    _check_candidate_schema(_FIXED_CANDIDATE)
 
 
 def _verify_fixed_candidate_process(properties: dict[str, str]) -> None:
@@ -950,12 +814,19 @@ def recover_interrupted_migration() -> str:
     selected source/build and installed unit must still match the journal.
     """
     root = _FIXED_DATA
+    controller_revision = _trusted_checkout_revision(ROOT)
+
+    def verify_controller() -> None:
+        if _trusted_checkout_revision(ROOT) != controller_revision:
+            raise CutoverError("operator_checkout_changed")
+
     with _hold_transition_locks(root) as transition:
         journal = root / ".m6-cutover-journal.json"
         data = _read_private_json(journal)
         receipt = data.get("stop_receipt")
         candidate_revision = data.get("candidate_revision")
         candidate_build = data.get("candidate_build_sha256")
+        executable = _FIXED_EXECUTABLE.stat()
         if (
             data.get("format") != "m6-cutover.v1"
             or data.get("phase") != "stopped"
@@ -968,6 +839,8 @@ def recover_interrupted_migration() -> str:
             or data.get("fixed_python_sha256") != _FIXED_PYTHON_SHA256
             or not isinstance(receipt, dict)
             or receipt.get("unit") != _FIXED_UNIT
+            or receipt.get("executable_identity")
+            != [executable.st_dev, executable.st_ino]
             or not isinstance(candidate_revision, str)
             or re.fullmatch(r"[a-f0-9]{40}", candidate_revision) is None
             or not isinstance(candidate_build, str)
@@ -976,10 +849,22 @@ def recover_interrupted_migration() -> str:
             raise CutoverError("migration_recovery_target_invalid")
         transition.validate(root)
         _fixed_unit_preflight(candidate_revision, candidate_build, guarded=True)
-        return _recover_migration_engine(root, transition, data)
+
+        def verify_recovery_provenance() -> None:
+            verify_controller()
+            _fixed_unit_preflight(candidate_revision, candidate_build, guarded=True)
+
+        return _recover_migration_engine(
+            root,
+            transition,
+            data,
+            verify_provenance=verify_recovery_provenance,
+        )
 
 
-def _recover_migration_engine(root: Path, transition, expected_journal: dict) -> str:
+def _recover_migration_engine(
+    root: Path, transition, expected_journal: dict, *, verify_provenance=None
+) -> str:
     """Hold the same service and settings locks for the entire recovery."""
     journal = root / ".m6-cutover-journal.json"
     reference = DatabaseRefV1(root / "agentmonitor.db", root)
@@ -995,6 +880,7 @@ def _recover_migration_engine(root: Path, transition, expected_journal: dict) ->
             transition_lease=transition,
             service_lease=service,
             settings_lease=settings,
+            verify_provenance=verify_provenance,
         )
 
 
