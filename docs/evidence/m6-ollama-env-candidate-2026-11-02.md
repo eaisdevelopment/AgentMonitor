@@ -132,3 +132,15 @@ the candidate during final verification failed before this recheck (the journal
 was incorrectly archived) and passed afterward. A real disposable dashboard
 check passed listener ownership for its PID and refused the test runner PID.
 These checks did not operate the installed service or contact a provider.
+
+The private pinned runtime failed its integrity preflight after three Ruff
+bytecode-cache files and a cache directory appeared. The owner-authorized
+cleanup removed only those disposable cache files; the original pinned runtime
+digest then matched again. The candidate dashboard and owned worker now disable
+bytecode writes; the isolated Python helper uses `-B` because isolated mode
+ignores Python environment variables. This changes the cloud probe mechanism to
+1.0.4 and fingerprint to
+`047d2bf64f70eae87a54223cb6f1aa3bec240c84ae99c0cc2155db8342a5110f`;
+older verification fingerprints are invalidated. The fixed service override
+check failed before the no-bytecode setting and passed afterward. The real
+credential and provider boundary remains Not Run.

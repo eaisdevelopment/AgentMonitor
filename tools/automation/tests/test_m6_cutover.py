@@ -926,3 +926,4 @@ def test_candidate_override_selects_existing_credential_file() -> None:
         in candidate
     )
     assert "--credential-env-file" not in _candidate_override(_FIXED_BASELINE)
+    assert "Environment=PYTHONDONTWRITEBYTECODE=1" in candidate

@@ -39,6 +39,7 @@ def _manager_environment() -> dict[str, str]:
         "XDG_RUNTIME_DIR": runtime,
         "DBUS_SESSION_BUS_ADDRESS": f"unix:path={runtime}/bus",
         "LC_ALL": "C.UTF-8",
+        "PYTHONDONTWRITEBYTECODE": "1",
     }
 
 

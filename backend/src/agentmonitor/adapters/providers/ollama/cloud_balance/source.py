@@ -1093,7 +1093,7 @@ def _run_isolated_worker(
     process: subprocess.Popen[bytes] | None = None
     fallback_certainty: DispatchCertainty = "not_started"
     try:
-        command = [str(executable), "-I", str(helper), format(deadline, ".17g")]
+        command = [str(executable), "-I", "-B", str(helper), format(deadline, ".17g")]
         environment = {"LC_ALL": "C.UTF-8"}
         pass_fds: tuple[int, ...] = ()
         if binding_id is not None:
