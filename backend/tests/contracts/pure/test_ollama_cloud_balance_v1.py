@@ -4,7 +4,6 @@ from datetime import UTC, datetime
 from decimal import Decimal
 
 import pytest
-
 from agentmonitor.contracts.providers.ollama.cloud_balance.v1.schema import (
     IncludedCreditsV1,
     LegacyLimitsV1,

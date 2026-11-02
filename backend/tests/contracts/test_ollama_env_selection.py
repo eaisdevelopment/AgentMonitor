@@ -3,7 +3,6 @@
 from pathlib import Path
 
 import pytest
-
 from agentmonitor.composition.ollama_credential_operator import selected_env_from_argv
 
 

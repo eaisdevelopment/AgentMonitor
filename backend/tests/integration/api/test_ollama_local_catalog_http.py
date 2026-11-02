@@ -20,8 +20,13 @@ def test_real_ollama_catalog_requires_auth_and_reports_source_state(tmp_path: Pa
         async with _running(app) as origin:
             jar = http.cookiejar.CookieJar()
             login = await asyncio.to_thread(
-                _request, origin, "POST", "/api/v1/session",
-                body={"password": credential}, headers={"Origin": origin}, cookies=jar,
+                _request,
+                origin,
+                "POST",
+                "/api/v1/session",
+                body={"password": credential},
+                headers={"Origin": origin},
+                cookies=jar,
             )
             assert login[0] == 204
 
@@ -32,7 +37,10 @@ def test_real_ollama_catalog_requires_auth_and_reports_source_state(tmp_path: Pa
 
             before = (source_names("/api/tags"), source_names("/api/ps"))
             result = await asyncio.to_thread(
-                _request, origin, "GET", "/api/v1/providers/ollama/local-catalog",
+                _request,
+                origin,
+                "GET",
+                "/api/v1/providers/ollama/local-catalog",
                 cookies=jar,
             )
             assert result[0] == 200
@@ -52,7 +60,9 @@ def test_real_ollama_catalog_requires_auth_and_reports_source_state(tmp_path: Pa
             )
             assert denied[0] in (401, 403)
             invalid = await asyncio.to_thread(
-                _request, origin, "GET",
+                _request,
+                origin,
+                "GET",
                 "/api/v1/providers/ollama/local-catalog?target=untrusted",
                 cookies=jar,
             )

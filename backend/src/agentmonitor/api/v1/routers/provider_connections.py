@@ -2,9 +2,6 @@
 
 from datetime import UTC, datetime
 
-from fastapi import APIRouter, Path, Request, Response
-from starlette.concurrency import run_in_threadpool
-
 from agentmonitor.api.problem import ProblemError
 from agentmonitor.api.v1.dependencies import (
     authorize_request,
@@ -44,6 +41,8 @@ from agentmonitor.contracts.registry_v1 import (
 from agentmonitor.modules.registry.application.organizations import (
     RegistryCommandConflictV1,
 )
+from fastapi import APIRouter, Path, Request, Response
+from starlette.concurrency import run_in_threadpool
 
 router = APIRouter(tags=["providers"])
 

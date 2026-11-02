@@ -1,7 +1,6 @@
 """Pure route and redirect security rules for the local source."""
 
 import pytest
-
 from agentmonitor.adapters.providers.ollama.local_catalog.source import (
     _read_json,
 )

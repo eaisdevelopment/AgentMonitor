@@ -1,7 +1,6 @@
 """Pure streaming parser policy; no filesystem or credential access."""
 
 import pytest
-
 from agentmonitor.adapters.providers.ollama.cloud_balance.env_format import (
     credential_variable_name,
     encode_credential_value,

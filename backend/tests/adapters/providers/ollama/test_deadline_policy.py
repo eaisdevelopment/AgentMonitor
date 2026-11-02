@@ -1,7 +1,6 @@
 """Pure timing policy for one bounded local collection."""
 
 import pytest
-
 from agentmonitor.adapters.providers.ollama.local_catalog.source import (
     request_deadline,
 )

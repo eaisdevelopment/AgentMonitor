@@ -6,9 +6,6 @@ import hashlib
 import json
 from datetime import UTC, datetime, timedelta
 
-from sqlalchemy.engine import Connection, RowMapping
-from sqlalchemy.exc import SQLAlchemyError
-
 from agentmonitor.adapters.persistence._shared.sqlite.core.policy import (
     DatabaseRefV1,
     SqlitePolicyError,
@@ -23,6 +20,8 @@ from agentmonitor.contracts.collection_control_v1 import (
     CollectionRunViewV1,
 )
 from agentmonitor.contracts.common_v1 import OpaqueIdV1
+from sqlalchemy.engine import Connection, RowMapping
+from sqlalchemy.exc import SQLAlchemyError
 
 
 class CollectionRepositoryErrorV1(ValueError):
@@ -170,9 +169,7 @@ class SqliteCollectionRepositoryV1:
     ) -> None:
         """Internal adapter hook; ordinary M04 admissions need no extra write."""
 
-    def admit_run(
-        self, admission: CollectionRunAdmissionV1OrV2
-    ) -> CollectionRunViewV1:
+    def admit_run(self, admission: CollectionRunAdmissionV1OrV2) -> CollectionRunViewV1:
         try:
             with open_sqlite_database(
                 self._database_ref, "runtime_read_write"

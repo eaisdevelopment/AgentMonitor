@@ -102,14 +102,16 @@ def main() -> int:
         status = restore_interrupted_migration()
     except (OSError, ValueError, RuntimeError, subprocess.SubprocessError):
         print(
-            "M6 PRE-START RESTORE: BLOCKED — review the transition journal and service state"
+            "M6 PRE-START RESTORE: BLOCKED — review the transition journal "
+            "and service state"
         )
         return 3
     if status != "baseline_restored_service_stopped":
         print("M6 PRE-START RESTORE: BLOCKED — recovery result unverified")
         return 3
     print(
-        "M6 PRE-START RESTORE: backup restored; dashboard remains stopped and start-blocked"
+        "M6 PRE-START RESTORE: backup restored; dashboard remains stopped "
+        "and start-blocked"
     )
     return 0
 

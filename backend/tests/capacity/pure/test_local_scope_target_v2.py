@@ -4,9 +4,6 @@ from dataclasses import replace
 from datetime import UTC, datetime
 
 import pytest
-from backend.tests.capacity.pure.test_alert_conditions import _window
-from backend.tests.capacity.pure.test_cloud_scope_v2 import _account
-
 from agentmonitor.contracts.capacity_v1 import (
     AccountCapacityViewV1,
     CapacityAggregateQueryV2,
@@ -23,6 +20,9 @@ from agentmonitor.modules.capacity.domain.aggregation import aggregate_capacity_
 from agentmonitor.modules.capacity.domain.health import (
     default_capacity_health_policy_v1,
 )
+
+from backend.tests.capacity.pure.test_alert_conditions import _window
+from backend.tests.capacity.pure.test_cloud_scope_v2 import _account
 
 
 def test_local_scope_rejects_wrong_installation() -> None:

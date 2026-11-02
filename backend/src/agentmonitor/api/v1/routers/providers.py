@@ -2,8 +2,6 @@
 
 from datetime import UTC, datetime
 
-from fastapi import APIRouter, Path, Request
-
 from agentmonitor.api.problem import ProblemError
 from agentmonitor.api.v1.dependencies import authorize_request, observation_ports
 from agentmonitor.api.v1.routers._observation import (
@@ -25,6 +23,7 @@ from agentmonitor.contracts.common_v1 import OpaqueIdV1
 from agentmonitor.modules.provider_system.application.queries import (
     ProviderCapabilitiesNotFoundV1,
 )
+from fastapi import APIRouter, Path, Request
 
 router = APIRouter(tags=["providers"])
 

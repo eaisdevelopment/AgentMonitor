@@ -3,9 +3,6 @@
 from datetime import datetime, timedelta
 from typing import ClassVar
 
-from sqlalchemy.engine import Connection
-from sqlalchemy.exc import SQLAlchemyError
-
 from agentmonitor.adapters.persistence._shared.sqlite.core.policy import (
     DatabaseRefV1,
     SqlitePolicyError,
@@ -46,6 +43,8 @@ from agentmonitor.contracts.registry_v1 import (
 from agentmonitor.modules.registry.application.organizations import (
     RegistryCommandConflictV1,
 )
+from sqlalchemy.engine import Connection
+from sqlalchemy.exc import SQLAlchemyError
 
 
 class _BoundAtomicOllamaCloudVerificationEnqueueV2(

@@ -1,7 +1,6 @@
 """Pure sequencing policy for owner-requested Ollama verification."""
 
 import pytest
-
 from agentmonitor.modules.collection_control.domain.ollama_verification import (
     RECONCILABLE_VERIFICATION_RUN_STATES_V1,
     VERIFICATION_RESPONSE_OUTCOME_V1,

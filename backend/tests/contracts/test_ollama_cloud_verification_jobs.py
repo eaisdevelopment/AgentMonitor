@@ -3,7 +3,6 @@
 from datetime import UTC, datetime, timedelta
 
 import pytest
-
 from agentmonitor.contracts.collection_control_v1 import (
     InvalidCollectionControlV1,
     OllamaCloudVerificationClaimRequestV1,

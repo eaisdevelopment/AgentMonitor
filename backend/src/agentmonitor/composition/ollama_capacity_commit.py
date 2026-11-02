@@ -4,8 +4,6 @@
 
 from datetime import UTC, datetime
 
-from sqlalchemy.engine import Connection
-
 from agentmonitor.adapters.persistence._shared.sqlite.core.policy import DatabaseRefV1
 from agentmonitor.adapters.persistence.capacity.sqlite.repository import (
     SqliteCapacityRepositoryV1,
@@ -31,6 +29,7 @@ from agentmonitor.contracts.registry_v1 import (
     ActiveCredentialBindingRefV1,
     ProviderAccessTargetV1,
 )
+from sqlalchemy.engine import Connection
 
 
 def validate_cloud_target_fence(

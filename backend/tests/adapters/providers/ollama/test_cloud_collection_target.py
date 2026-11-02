@@ -1,7 +1,6 @@
 """Pure checks for account ownership before a cloud capacity commit."""
 
 import pytest
-
 from agentmonitor.adapters.providers.ollama.cloud_balance.collection import (
     validate_cloud_target,
 )

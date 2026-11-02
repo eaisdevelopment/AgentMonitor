@@ -4,7 +4,6 @@ from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 
 import pytest
-
 from agentmonitor.contracts.common_v1 import OpaqueIdV1
 from agentmonitor.contracts.provider_system_v1 import (
     InvalidProviderContract,

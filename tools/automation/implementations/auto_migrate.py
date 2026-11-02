@@ -5,7 +5,7 @@ It acts only on an explicitly selected owner-only data root and retains its
 verified pre-migration backup and any failed database for separate recovery.
 """
 
-# This operator script inserts the checkout's backend source path before imports.
+# ruff: noqa: E402 -- this operator pins checkout source before backend imports.
 
 from __future__ import annotations
 

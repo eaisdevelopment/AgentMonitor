@@ -8,7 +8,6 @@ import time
 from pathlib import Path
 
 import pytest
-
 from agentmonitor.adapters.persistence._shared.sqlite.core.policy import DatabaseRefV1
 from agentmonitor.adapters.persistence.registry.sqlite.credential_lock import (
     account_credential_lock,

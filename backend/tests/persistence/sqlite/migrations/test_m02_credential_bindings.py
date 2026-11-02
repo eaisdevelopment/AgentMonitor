@@ -2,8 +2,6 @@
 
 from pathlib import Path
 
-from sqlalchemy import inspect
-
 from agentmonitor.adapters.persistence._shared.sqlite.core.policy import (
     DatabaseRefV1,
     open_sqlite_database,
@@ -11,6 +9,7 @@ from agentmonitor.adapters.persistence._shared.sqlite.core.policy import (
 from agentmonitor.adapters.persistence._shared.sqlite.schema.compatibility import (
     migrate_to_head,
 )
+from sqlalchemy import inspect
 
 
 def test_migrated_database_has_guarded_credential_binding_schema(

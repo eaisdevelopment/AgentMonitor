@@ -30,13 +30,20 @@ _MAX_FRAMING = 64 * 1024
 _HEADER_NAME = re.compile(rb"[!#$%&'*+.^_`|~0-9A-Za-z-]+\Z")
 
 Outcome = Literal[
-    "success", "partial", "provider_unavailable", "unverified_provider_version",
-    "invalid_provider_data", "deadline_exceeded",
+    "success",
+    "partial",
+    "provider_unavailable",
+    "unverified_provider_version",
+    "invalid_provider_data",
+    "deadline_exceeded",
 ]
 SourceState = Literal["available", "unavailable"]
 SourceReason = Literal[
-    "source_available", "source_unavailable", "invalid_provider_data",
-    "unverified_provider_version", "collection_in_progress",
+    "source_available",
+    "source_unavailable",
+    "invalid_provider_data",
+    "unverified_provider_version",
+    "collection_in_progress",
     "operation_deadline_exceeded",
 ]
 
@@ -109,7 +116,7 @@ def _read_chunked_body(sock: socket.socket, initial: bytes, deadline: float) -> 
                 if end > limit:
                     raise ValueError("chunk_framing_invalid")
                 value = bytes(pending[:end])
-                del pending[:end + 2]
+                del pending[: end + 2]
                 framing += end + 2
                 if framing > _MAX_FRAMING:
                     raise ValueError("chunk_framing_too_large")
@@ -121,9 +128,15 @@ def _read_chunked_body(sock: socket.socket, initial: bytes, deadline: float) -> 
     while True:
         header = line(_MAX_CHUNK_LINE)
         size, separator, extension = header.partition(b";")
-        if (not size or len(size) > 8 or
-                re.fullmatch(rb"[0-9A-Fa-f]+", size) is None or
-                (separator and (not extension or any(c < 32 or c > 126 for c in extension)))):
+        if (
+            not size
+            or len(size) > 8
+            or re.fullmatch(rb"[0-9A-Fa-f]+", size) is None
+            or (
+                separator
+                and (not extension or any(c < 32 or c > 126 for c in extension))
+            )
+        ):
             raise ValueError("chunk_size_invalid")
         count = int(size, 16)
         if count > MAX_BYTES - len(result):
@@ -140,16 +153,19 @@ def _read_chunked_body(sock: socket.socket, initial: bytes, deadline: float) -> 
                         raise ValueError("body_trailing_data")
                     return bytes(result)
                 name, separator, value = trailer.partition(b":")
-                if (not separator or _HEADER_NAME.fullmatch(name) is None or
-                        name.lower() in {b"content-length", b"transfer-encoding"} or
-                        any(c < 32 and c != 9 or c == 127 for c in value)):
+                if (
+                    not separator
+                    or _HEADER_NAME.fullmatch(name) is None
+                    or name.lower() in {b"content-length", b"transfer-encoding"}
+                    or any(c < 32 and c != 9 or c == 127 for c in value)
+                ):
                     raise ValueError("trailer_invalid")
         while len(pending) < count + 2:
             receive()
         result.extend(pending[:count])
-        if pending[count:count + 2] != b"\r\n":
+        if pending[count : count + 2] != b"\r\n":
             raise ValueError("chunk_terminator_invalid")
-        del pending[:count + 2]
+        del pending[: count + 2]
         framing += 2
         if framing > _MAX_FRAMING:
             raise ValueError("chunk_framing_too_large")
@@ -161,9 +177,7 @@ def _read_json(route: str, *, operation_deadline: float | None = None) -> dict:
     now = time.monotonic()
     deadline = request_deadline(
         now,
-        operation_deadline
-        if operation_deadline is not None
-        else now + TIMEOUT_SECONDS,
+        operation_deadline if operation_deadline is not None else now + TIMEOUT_SECONDS,
     )
     connect_timeout = deadline - time.monotonic()
     if connect_timeout <= 0:
@@ -171,6 +185,7 @@ def _read_json(route: str, *, operation_deadline: float | None = None) -> dict:
     with socket.create_connection(
         ("127.0.0.1", 11434), timeout=connect_timeout
     ) as sock:
+
         def remaining() -> float:
             value = deadline - time.monotonic()
             if value <= 0:
@@ -260,11 +275,17 @@ def _read_models(
 
 def _unavailable(outcome: Outcome, reason: SourceReason) -> CatalogResult:
     return CatalogResult(
-        outcome=outcome, daemon_version=None, source=SOURCE_ID,
+        outcome=outcome,
+        daemon_version=None,
+        source=SOURCE_ID,
         observed_at=datetime.now(UTC),
-        installed_state="unavailable", installed=None, installed_reason=reason,
+        installed_state="unavailable",
+        installed=None,
+        installed_reason=reason,
         installed_observed_at=None,
-        loaded_state="unavailable", loaded=None, loaded_reason=reason,
+        loaded_state="unavailable",
+        loaded=None,
+        loaded_reason=reason,
         loaded_observed_at=None,
     )
 
@@ -285,9 +306,9 @@ def read_local_catalog() -> CatalogResult:
 
 def _read_local_catalog(operation_deadline: float) -> CatalogResult:
     try:
-        version = _read_json(
-            "/api/version", operation_deadline=operation_deadline
-        ).get("version")
+        version = _read_json("/api/version", operation_deadline=operation_deadline).get(
+            "version"
+        )
         if type(version) is not str or not re.fullmatch(
             r"[0-9]+\.[0-9]+\.[0-9]+", version
         ):
@@ -330,11 +351,16 @@ def _read_local_catalog(operation_deadline: float) -> CatalogResult:
     else:
         outcome = "provider_unavailable"
     return CatalogResult(
-        outcome=outcome, daemon_version=version, source=SOURCE_ID,
+        outcome=outcome,
+        daemon_version=version,
+        source=SOURCE_ID,
         observed_at=datetime.now(UTC),
         installed_state="available" if installed is not None else "unavailable",
-        installed=installed, installed_reason=installed_reason,
+        installed=installed,
+        installed_reason=installed_reason,
         installed_observed_at=installed_at,
         loaded_state="available" if loaded is not None else "unavailable",
-        loaded=loaded, loaded_reason=loaded_reason, loaded_observed_at=loaded_at,
+        loaded=loaded,
+        loaded_reason=loaded_reason,
+        loaded_observed_at=loaded_at,
     )

@@ -3,7 +3,6 @@
 from dataclasses import replace
 
 import pytest
-
 from agentmonitor.composition.ollama_capacity_commit import validate_cloud_target_fence
 from agentmonitor.contracts.common_v1 import OpaqueIdV1
 from agentmonitor.contracts.registry_v1 import ProviderAccessTargetV1

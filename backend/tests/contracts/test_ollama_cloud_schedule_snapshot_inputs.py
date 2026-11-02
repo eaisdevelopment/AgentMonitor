@@ -1,7 +1,6 @@
 """Pure guards for the authorized cloud-schedule snapshot boundary."""
 
 import pytest
-
 from agentmonitor.adapters.persistence.integration.sqlite.ollama_cloud_schedule_snapshot import (  # noqa: E501
     OllamaCloudScheduleSnapshotErrorV1,
     _require_authorized_snapshot_inputs_v1,

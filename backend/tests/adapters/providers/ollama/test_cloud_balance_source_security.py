@@ -6,7 +6,6 @@ import sys
 from pathlib import Path
 
 import pytest
-
 from agentmonitor.adapters.providers.ollama.cloud_balance.source import (
     CloudBalanceAuthorizationUnavailable,
     _retry_after,

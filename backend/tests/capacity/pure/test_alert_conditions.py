@@ -6,7 +6,6 @@ from decimal import Decimal
 from typing import Any, Literal
 
 import pytest
-
 from agentmonitor.contracts import capacity_v1 as contracts
 from agentmonitor.contracts.common_quantity_v1 import ExactQuantityV1
 from agentmonitor.contracts.common_v1 import FieldAvailabilityV1, OpaqueIdV1

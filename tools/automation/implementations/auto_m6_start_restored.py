@@ -102,14 +102,16 @@ def main() -> int:
         status = start_restored_baseline()
     except (OSError, ValueError, RuntimeError, subprocess.SubprocessError):
         print(
-            "M6 RESTORED BASELINE: BLOCKED — review the transition journal and service state"
+            "M6 RESTORED BASELINE: BLOCKED — review the transition journal "
+            "and service state"
         )
         return 3
     if status != "baseline_ready_restart_restored":
         print("M6 RESTORED BASELINE: BLOCKED — recovery result unverified")
         return 3
     print(
-        "M6 RESTORED BASELINE: baseline started, local sign-in page responded, and automatic restart was restored"
+        "M6 RESTORED BASELINE: baseline started, local sign-in page responded, "
+        "and automatic restart was restored"
     )
     return 0
 

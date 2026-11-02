@@ -102,14 +102,16 @@ def main() -> int:
         status = recover_interrupted_migration()
     except (OSError, ValueError, RuntimeError, subprocess.SubprocessError):
         print(
-            "M6 MIGRATION RECOVERY: BLOCKED — review the transition journal and service state"
+            "M6 MIGRATION RECOVERY: BLOCKED — review the transition journal "
+            "and service state"
         )
         return 3
     if status != "migration_recovered":
         print("M6 MIGRATION RECOVERY: BLOCKED — recovery result unverified")
         return 3
     print(
-        "M6 MIGRATION RECOVERY: migration recovered; dashboard remains stopped and start-blocked"
+        "M6 MIGRATION RECOVERY: migration recovered; dashboard remains "
+        "stopped and start-blocked"
     )
     return 0
 

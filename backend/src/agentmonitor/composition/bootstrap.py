@@ -26,8 +26,6 @@ from functools import partial
 from pathlib import Path
 
 import uvicorn
-from fastapi import FastAPI
-
 from agentmonitor.adapters.identity_access.argon2_password import Argon2PasswordV1
 from agentmonitor.adapters.persistence._shared.sqlite.core.policy import (
     DatabaseRefV1,
@@ -235,6 +233,7 @@ from agentmonitor.modules.runtime_observation.application.queries import (
     ListAgentSessionsV1,
     ListLiveProcessLocationsV1,
 )
+from fastapi import FastAPI
 
 
 class LoopbackServerError(ValueError):

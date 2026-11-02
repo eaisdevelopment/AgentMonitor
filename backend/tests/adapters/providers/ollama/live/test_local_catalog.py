@@ -5,6 +5,7 @@ from datetime import UTC, datetime
 from agentmonitor.adapters.providers.ollama.local_catalog.source import (
     read_local_catalog,
 )
+
 from tools.discovery.m6_local_inventory import read_json
 
 

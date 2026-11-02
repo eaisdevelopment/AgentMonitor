@@ -7,9 +7,6 @@ import json
 import secrets
 from datetime import UTC, datetime, timedelta
 
-from sqlalchemy.engine import Connection, RowMapping
-from sqlalchemy.exc import SQLAlchemyError
-
 from agentmonitor.adapters.persistence._shared.sqlite.core.policy import (
     DatabaseRefV1,
     SqlitePolicyError,
@@ -72,6 +69,8 @@ from agentmonitor.modules.registry.domain.cloud_verification import (
     cloud_verification_enqueue_account_version,
     decide_cloud_owner_assertion,
 )
+from sqlalchemy.engine import Connection, RowMapping
+from sqlalchemy.exc import SQLAlchemyError
 
 
 class RegistryRepositoryErrorV1(ValueError):

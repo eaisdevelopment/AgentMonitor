@@ -3,11 +3,10 @@
 from datetime import datetime
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, Field
-
 from agentmonitor.api.v1.schemas.registry import AvailabilityV1
 from agentmonitor.contracts.provider_system_v1 import ProviderConnectionStateV1
 from agentmonitor.contracts.registry_v1 import CredentialConnectionStateV1
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class _ClosedV1(BaseModel):

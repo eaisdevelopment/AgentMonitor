@@ -5,6 +5,8 @@ claim M6 acceptance. It never signals a child process. Once candidate startup
 is attempted it will not restore an old database snapshot automatically.
 """
 
+# ruff: noqa: E402 -- this operator pins checkout source before backend imports.
+
 from __future__ import annotations
 
 import ctypes
@@ -667,7 +669,8 @@ def _candidate_override(candidate: Path) -> str:
         + str(_FIXED_DATA / "service.env")
         + " --data-root "
         + str(_FIXED_DATA)
-        + " --host 127.0.0.1 --port 43110 --authenticated-dashboard --lan-host 192.168.1.18 --lan-network 192.168.1.0/24"
+        + " --host 127.0.0.1 --port 43110 --authenticated-dashboard"
+        + " --lan-host 192.168.1.18 --lan-network 192.168.1.0/24"
     )
     if candidate != _FIXED_BASELINE:
         command += " --credential-env-file " + str(_FIXED_CREDENTIAL_ENV_FILE)

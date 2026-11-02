@@ -213,9 +213,10 @@ class BoundaryCheckV1:
             raise ValueError("m6_direct_check_count_invalid")
         if self.status == "passed" and self.reason_code is not None:
             raise ValueError("m6_direct_check_reason_invalid")
-        if self.reason_code is not None and _SAFE_REASON.fullmatch(
-            self.reason_code
-        ) is None:
+        if (
+            self.reason_code is not None
+            and _SAFE_REASON.fullmatch(self.reason_code) is None
+        ):
             raise ValueError("m6_direct_check_reason_invalid")
 
 
@@ -309,17 +310,14 @@ class DirectM6FactsV1:
             or len({item.host_id for item in self.model_host_evidence})
             != len(self.model_host_evidence)
             or self.owner_confirmed_cloud_targets > self.active_cloud_targets
-            or self.owner_confirmed_required_scopes
-            > self.owner_confirmed_cloud_targets
+            or self.owner_confirmed_required_scopes > self.owner_confirmed_cloud_targets
             or self.verified_cloud_targets > self.active_cloud_targets
             or self.current_balance_targets > self.active_cloud_targets
-            or self.authoritative_balance_reconciled_targets
-            > self.active_cloud_targets
+            or self.authoritative_balance_reconciled_targets > self.active_cloud_targets
             or self.authoritative_balance_reconciled_targets
             > self.current_balance_targets
             or self.history_targets > self.active_cloud_targets
-            or self.history_lineage_reconciled_targets
-            > self.active_cloud_targets
+            or self.history_lineage_reconciled_targets > self.active_cloud_targets
             or self.history_lineage_reconciled_targets > self.history_targets
             or self.alerted_targets > self.configured_alert_targets
         ):
@@ -353,9 +351,7 @@ def _combined(
             ),
             "real_boundary_check_failed",
         )
-        return DirectM6OutcomeV1(
-            "failed", reason, count, skip_count, limitation
-        )
+        return DirectM6OutcomeV1("failed", reason, count, skip_count, limitation)
     if "blocked" in statuses:
         reason = next(
             (
@@ -365,9 +361,7 @@ def _combined(
             ),
             "real_boundary_unavailable",
         )
-        return DirectM6OutcomeV1(
-            "blocked", reason, count, skip_count, limitation
-        )
+        return DirectM6OutcomeV1("blocked", reason, count, skip_count, limitation)
     if "not_run" in statuses:
         reason = next(
             (
@@ -377,9 +371,7 @@ def _combined(
             ),
             "real_boundary_not_run",
         )
-        return DirectM6OutcomeV1(
-            "not_run", reason, count, skip_count, limitation
-        )
+        return DirectM6OutcomeV1("not_run", reason, count, skip_count, limitation)
     return DirectM6OutcomeV1("passed", None, max(1, count), skip_count, limitation)
 
 
@@ -406,13 +398,9 @@ def classify_direct_m6_evidence_v1(
     """Classify the approved external M6 catalog without inventing evidence."""
 
     outcomes: dict[str, DirectM6OutcomeV1] = {}
-    account_admin = _combined(
-        facts.account_admin_browser, facts.database_snapshot
-    )
+    account_admin = _combined(facts.account_admin_browser, facts.database_snapshot)
     if account_admin.status == "passed" and facts.active_ollama_accounts < 1:
-        outcomes["M6-A01"] = _missing(
-            "real_ollama_account_not_observed", account_admin
-        )
+        outcomes["M6-A01"] = _missing("real_ollama_account_not_observed", account_admin)
     else:
         outcomes["M6-A01"] = account_admin
 
@@ -421,8 +409,7 @@ def classify_direct_m6_evidence_v1(
     )
     if local.status == "passed" and (
         facts.registered_local_installations < 2
-        or facts.observed_local_installations
-        < facts.registered_local_installations
+        or facts.observed_local_installations < facts.registered_local_installations
         or facts.observed_model_hosts < 2
     ):
         outcomes["M6-A02"] = _missing("second_local_host_not_observed", local)
@@ -455,8 +442,7 @@ def classify_direct_m6_evidence_v1(
     if cloud_balance.status == "passed" and (
         facts.verified_cloud_targets < facts.active_cloud_targets
         or facts.current_balance_targets < facts.active_cloud_targets
-        or facts.authoritative_balance_reconciled_targets
-        < facts.active_cloud_targets
+        or facts.authoritative_balance_reconciled_targets < facts.active_cloud_targets
     ):
         outcomes["M6-A04"] = _missing(
             "authoritative_cloud_balance_not_observed", cloud_balance
@@ -468,13 +454,10 @@ def classify_direct_m6_evidence_v1(
         facts.configured_alert_targets == 0
         or facts.alerted_targets == facts.configured_alert_targets
     )
-    history_base = _combined(
-        outcomes["M6-A04"], facts.capacity_history_browser
-    )
+    history_base = _combined(outcomes["M6-A04"], facts.capacity_history_browser)
     if history_base.status == "passed" and (
         facts.history_targets < facts.active_cloud_targets
-        or facts.history_lineage_reconciled_targets
-        < facts.active_cloud_targets
+        or facts.history_lineage_reconciled_targets < facts.active_cloud_targets
         or not alerts_complete
     ):
         outcomes["M6-A05"] = _missing(
@@ -485,10 +468,7 @@ def classify_direct_m6_evidence_v1(
 
     process_limit = ("sampled_process_coverage",)
     process_browser = facts.process_browser
-    if (
-        process_browser.status == "not_run"
-        and facts.process_observation_count > 0
-    ):
+    if process_browser.status == "not_run" and facts.process_observation_count > 0:
         process_browser = BoundaryCheckV1(
             "failed",
             1,
@@ -509,9 +489,7 @@ def classify_direct_m6_evidence_v1(
     else:
         outcomes["M6-A06"] = process_base
 
-    recovery_base = _combined(
-        cloud_base, facts.dashboard_continuity_browser
-    )
+    recovery_base = _combined(cloud_base, facts.dashboard_continuity_browser)
     if recovery_base.status == "passed" and (
         facts.natural_recovery_targets < 1
         or facts.cross_provider_continuity_targets < 1
@@ -549,9 +527,7 @@ def classify_direct_m6_evidence_v1(
         )
     else:
         outcomes["ST-OLL-003"] = _combined(outcomes["M6-A03"])
-    outcomes["ST-OLL-004"] = _combined(
-        outcomes["M6-A04"], outcomes["M6-A05"]
-    )
+    outcomes["ST-OLL-004"] = _combined(outcomes["M6-A04"], outcomes["M6-A05"])
     outcomes["ST-OLL-005"] = _combined(
         *(outcomes[f"M6-A{index:02}"] for index in range(1, 10)),
         limitation=process_limit,
@@ -599,8 +575,7 @@ def direct_bundle_v1(
         or any(character not in "0123456789abcdef" for character in artifact_sha256)
         or len(implementation_revision) != 40
         or any(
-            character not in "0123456789abcdef"
-            for character in implementation_revision
+            character not in "0123456789abcdef" for character in implementation_revision
         )
         or len(catalog_sha256) != 64
         or any(character not in "0123456789abcdef" for character in catalog_sha256)
@@ -614,11 +589,11 @@ def direct_bundle_v1(
     source_versions_digest = hashlib.sha256()
     limitations: set[str] = set()
     valid_until = recorded_at + timedelta(minutes=20)
-    observed = recorded_at.astimezone(UTC).isoformat(timespec="seconds").replace(
-        "+00:00", "Z"
+    observed = (
+        recorded_at.astimezone(UTC).isoformat(timespec="seconds").replace("+00:00", "Z")
     )
-    valid = valid_until.astimezone(UTC).isoformat(timespec="seconds").replace(
-        "+00:00", "Z"
+    valid = (
+        valid_until.astimezone(UTC).isoformat(timespec="seconds").replace("+00:00", "Z")
     )
     for (
         scope_id,

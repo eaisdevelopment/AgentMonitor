@@ -39,11 +39,6 @@ def test_scheduled_proof_is_bound_to_current_account_and_policy() -> None:
     from datetime import timedelta
 
     import pytest
-    from backend.tests.provider_system.test_scheduled_source_admission import (
-        NOW,
-        lineage,
-    )
-
     from agentmonitor.adapters.providers.ollama.cloud_balance.probe_descriptor import (
         ollama_cloud_scheduled_policy,
         require_matching_scheduled_proof,
@@ -51,6 +46,11 @@ def test_scheduled_proof_is_bound_to_current_account_and_policy() -> None:
     from agentmonitor.contracts.registry_v1 import ActiveCredentialBindingRefV1
     from agentmonitor.modules.provider_system.domain.protocol import (
         derive_scheduled_source_admission_v1,
+    )
+
+    from backend.tests.provider_system.test_scheduled_source_admission import (
+        NOW,
+        lineage,
     )
 
     policy = ollama_cloud_scheduled_policy()

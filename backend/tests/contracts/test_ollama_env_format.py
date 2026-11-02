@@ -1,7 +1,6 @@
 """Pure format policy; no real credential or filesystem access."""
 
 import pytest
-
 from agentmonitor.adapters.providers.ollama.cloud_balance.env_format import (
     credential_variable_name,
     decode_credential_value,

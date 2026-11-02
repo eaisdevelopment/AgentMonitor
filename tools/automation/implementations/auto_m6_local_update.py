@@ -269,7 +269,8 @@ def apply_update(held, old, candidate, snapshot) -> None:
             if switched:
                 if job_unknown:
                     print(
-                        "M6 LOCAL UPDATE: rollback requires attention — systemd job status unknown"
+                        "M6 LOCAL UPDATE: rollback requires attention — "
+                        "systemd job status unknown"
                     )
                 elif hashlib.sha256(UNIT_FILE.read_bytes()).hexdigest() != unit_hash:
                     print("M6 LOCAL UPDATE: rollback blocked — service unit changed")
@@ -295,27 +296,31 @@ def apply_update(held, old, candidate, snapshot) -> None:
                     )
                     if not safe:
                         print(
-                            "M6 LOCAL UPDATE: rollback blocked — service changed or has children"
+                            "M6 LOCAL UPDATE: rollback blocked — service changed "
+                            "or has children"
                         )
                     elif (
                         not replace_override(DROPIN, after, before)
                         or ctl("daemon-reload").returncode
                     ):
                         print(
-                            "M6 LOCAL UPDATE: rollback requires attention — configuration restore failed"
+                            "M6 LOCAL UPDATE: rollback requires attention — "
+                            "configuration restore failed"
                         )
                     elif restarted and (
                         ctl("restart" if current[0] else "start", UNIT).returncode
                         or not wait_ready(snapshot[2], candidate=False)
                     ):
                         print(
-                            "M6 LOCAL UPDATE: rollback requires attention — original dashboard not ready"
+                            "M6 LOCAL UPDATE: rollback requires attention — "
+                            "original dashboard not ready"
                         )
                     else:
                         print("M6 LOCAL UPDATE: original configuration restored")
         except (OSError, ValueError, RuntimeError, subprocess.SubprocessError):
             print(
-                "M6 LOCAL UPDATE: rollback requires attention — recovery inspection failed"
+                "M6 LOCAL UPDATE: rollback requires attention — "
+                "recovery inspection failed"
             )
         raise
 
@@ -343,7 +348,8 @@ def main() -> int:
         if options.prepare:
             prepared_source, prepared_build = prepare_candidate(candidate[1])
             print(
-                f"M6 LOCAL UPDATE: candidate admission passed; source {prepared_source}, build {prepared_build}"
+                "M6 LOCAL UPDATE: candidate admission passed; "
+                f"source {prepared_source}, build {prepared_build}"
             )
         validate_m5_service_activation_lock_v1(held)
         if not update_preflight(

@@ -4,8 +4,6 @@
 
 from pathlib import Path
 
-from sqlalchemy import inspect
-
 from agentmonitor.adapters.persistence._shared.sqlite.core.policy import (
     DatabaseRefV1,
     open_sqlite_database,
@@ -13,6 +11,7 @@ from agentmonitor.adapters.persistence._shared.sqlite.core.policy import (
 from agentmonitor.adapters.persistence._shared.sqlite.schema.compatibility import (
     migrate_to_head,
 )
+from sqlalchemy import inspect
 
 
 def test_cloud_lane_and_attempt_journal_exist(tmp_path: Path) -> None:

@@ -685,4 +685,3 @@ def test_quota_window_health_preserves_incomplete_and_reauth_precedence() -> Non
         "reauthentication_required",
         "unknown",
     )
-

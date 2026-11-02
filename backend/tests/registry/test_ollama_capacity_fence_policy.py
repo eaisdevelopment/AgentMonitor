@@ -1,7 +1,6 @@
 """A credential-required writer must receive a credential fence."""
 
 import pytest
-
 from agentmonitor.modules.capacity.domain.credential_fence import require_capacity_fence
 
 

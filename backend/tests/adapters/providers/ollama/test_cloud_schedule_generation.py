@@ -1,7 +1,6 @@
 """Pure generation reconciliation keeps an in-flight schedule immutable."""
 
 import pytest
-
 from agentmonitor.modules.collection_control.domain.ollama_rate_policy import (
     cloud_schedule_generation_action,
 )

@@ -46,11 +46,13 @@ def main() -> int:
                 wire = _window(window).model_dump()
                 if wire.get("is_constraining") != window.is_constraining:
                     print(
-                        "CONSTRAINT PROJECTION: FAILED — stored state is absent or changed"
+                        "CONSTRAINT PROJECTION: FAILED — stored state is absent "
+                        "or changed"
                     )
                     return 1
                 print(
-                    "CONSTRAINT PROJECTION: PASSED — stored state reaches API projection"
+                    "CONSTRAINT PROJECTION: PASSED — stored state reaches "
+                    "API projection"
                 )
                 return 0
     except (OSError, sqlite3.Error, ValueError, TypeError):

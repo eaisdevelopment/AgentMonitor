@@ -1,7 +1,6 @@
 """Pure wire-boundary checks; no HTTP or database I/O."""
 
 import pytest
-
 from agentmonitor.api.problem import ProblemError
 from agentmonitor.api.v1.routers.provider_connections import (
     _ollama_cloud_conflict,
@@ -49,9 +48,9 @@ def test_stale_concurrently_activated_account_reports_version_conflict() -> None
 
 
 def test_registry_detail_rejects_wrong_account() -> None:
-    from backend.tests.capacity.pure.test_cloud_scope_v2 import _account
-
     from agentmonitor.api.v1.routers.registry import _assert_account_matches
+
+    from backend.tests.capacity.pure.test_cloud_scope_v2 import _account
 
     with pytest.raises(ProblemError):
         _assert_account_matches(_account("account-a"), OpaqueIdV1("account-b"))

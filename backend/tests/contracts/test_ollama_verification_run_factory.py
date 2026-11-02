@@ -2,7 +2,6 @@ from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 
 import pytest
-
 from agentmonitor.adapters.providers.ollama.cloud_balance.verification_run import (
     build_verification_run,
 )

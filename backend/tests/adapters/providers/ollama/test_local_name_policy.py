@@ -1,7 +1,6 @@
 """Pure safe-name policy for Ollama's model identifiers."""
 
 import pytest
-
 from agentmonitor.adapters.providers.ollama.local_catalog.source import safe_model_name
 
 

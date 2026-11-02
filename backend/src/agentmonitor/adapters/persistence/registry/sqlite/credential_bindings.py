@@ -8,9 +8,6 @@ import secrets
 from datetime import UTC, datetime, timedelta
 from typing import Literal
 
-from sqlalchemy.engine import Connection, RowMapping
-from sqlalchemy.exc import SQLAlchemyError
-
 from agentmonitor.adapters.persistence._shared.sqlite.core.credential_guard import (
     acquire_credential_staging_guard,
     validate_credential_staging_guard,
@@ -51,6 +48,8 @@ from agentmonitor.modules.registry.domain.credential_binding import (
     prepare_credential_binding,
     resolve_active_credential_binding,
 )
+from sqlalchemy.engine import Connection, RowMapping
+from sqlalchemy.exc import SQLAlchemyError
 
 
 class CredentialBindingRepositoryErrorV1(ValueError):

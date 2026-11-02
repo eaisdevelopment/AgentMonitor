@@ -3,7 +3,6 @@
 from datetime import UTC, datetime
 
 import pytest
-
 from agentmonitor.contracts.ollama_local_catalog_v1 import (
     LocalCatalogItemV1,
     LocalCatalogSnapshotV1,

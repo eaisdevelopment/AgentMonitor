@@ -30,10 +30,10 @@ from agentmonitor.adapters.persistence.alerting.sqlite.repository import (
 from agentmonitor.adapters.persistence.capacity.sqlite.repository import (
     SqliteCapacityRepositoryV1,
 )
-from agentmonitor.adapters.persistence.collection_control.sqlite.cloud_schedule_status import (
+from agentmonitor.adapters.persistence.collection_control.sqlite.cloud_schedule_status import (  # noqa: E501
     SqliteCloudScheduleStatusV1,
 )
-from agentmonitor.adapters.persistence.collection_control.sqlite.ollama_cloud_admission import (
+from agentmonitor.adapters.persistence.collection_control.sqlite.ollama_cloud_admission import (  # noqa: E501
     SqliteOllamaCloudAdmissionRepositoryV1,
 )
 from agentmonitor.adapters.persistence.registry.sqlite.credential_bindings import (
@@ -131,18 +131,15 @@ class M6EvidenceSnapshotV1:
             or not self.reason_code.startswith("m6_snapshot_")
             or not self.schema_state
             or any(type(value) is not int or value < 0 for value in counts)
-            or self.observed_local_installations
-            > self.registered_local_installations
+            or self.observed_local_installations > self.registered_local_installations
             or self.owner_confirmed_cloud_targets > self.active_cloud_targets
-            or self.owner_confirmed_required_scopes
-            > self.owner_confirmed_cloud_targets
+            or self.owner_confirmed_required_scopes > self.owner_confirmed_cloud_targets
             or self.verified_cloud_targets > self.active_cloud_targets
             or self.current_balance_targets > self.verified_cloud_targets
             or self.history_targets > self.current_balance_targets
             or self.alerted_targets > self.configured_alert_targets
             or self.natural_recovery_targets > self.active_cloud_targets
-            or self.cross_provider_continuity_targets
-            > self.natural_recovery_targets
+            or self.cross_provider_continuity_targets > self.natural_recovery_targets
             or any(
                 len(value) != 64
                 or any(character not in "0123456789abcdef" for character in value)
@@ -155,15 +152,11 @@ class M6EvidenceSnapshotV1:
             raise ValueError("m6_snapshot_contract_invalid")
 
     @classmethod
-    def not_run(
-        cls, *, schema_state: str, reason_code: str
-    ) -> M6EvidenceSnapshotV1:
+    def not_run(cls, *, schema_state: str, reason_code: str) -> M6EvidenceSnapshotV1:
         return cls("not_run", reason_code, schema_state)
 
     @classmethod
-    def blocked(
-        cls, *, schema_state: str, reason_code: str
-    ) -> M6EvidenceSnapshotV1:
+    def blocked(cls, *, schema_state: str, reason_code: str) -> M6EvidenceSnapshotV1:
         return cls("blocked", reason_code, schema_state)
 
     def as_json(self) -> dict[str, object]:
@@ -382,13 +375,7 @@ def _has_deduplicated_current_observation_alert(
         )
         if history.has_more:
             raise ValueError("m6_snapshot_alert_history_limit_exceeded")
-        if (
-            sum(
-                item.source_event_id == source_event_id
-                for item in history.items
-            )
-            != 1
-        ):
+        if sum(item.source_event_id == source_event_id for item in history.items) != 1:
             return False
         rule_key = (
             alert.rule.rule_id.value
@@ -455,9 +442,7 @@ def read_m6_evidence_snapshot_v1(
             for account in registry.list_accounts("ollama", page_size=201)
             if account.lifecycle == "active"
         )
-        installations = registry.list_provider_installations(
-            "ollama", page_size=201
-        )
+        installations = registry.list_provider_installations("ollama", page_size=201)
         organizations = registry.list_organizations(page_size=201)
         if (
             len(accounts) >= 201
@@ -478,11 +463,7 @@ def read_m6_evidence_snapshot_v1(
         process_rows = runtime.list_processes("ollama", instant, 500)
         if len(process_rows) >= 500:
             raise ValueError("m6_snapshot_process_limit_exceeded")
-        processes = tuple(
-            item
-            for item in process_rows
-            if item.presence == "running"
-        )
+        processes = tuple(item for item in process_rows if item.presence == "running")
         active_targets = 0
         owner_confirmed = 0
         verified = 0
@@ -545,9 +526,7 @@ def read_m6_evidence_snapshot_v1(
             )
             if signal.signal != "verified_success" or signal.run_id is None:
                 continue
-            windows = _current_cloud_windows(
-                capacity, graph, signal.run_id, instant
-            )
+            windows = _current_cloud_windows(capacity, graph, signal.run_id, instant)
             if not windows:
                 continue
             current += 1
@@ -620,12 +599,8 @@ def read_m6_evidence_snapshot_v1(
             process_observation_count=len(processes),
             natural_recovery_targets=recovery,
             cross_provider_continuity_targets=continuity,
-            current_balance_lineage_sha256=_lineage_digest(
-                current_balance_lineage
-            ),
-            current_history_lineage_sha256=_lineage_digest(
-                current_history_lineage
-            ),
+            current_balance_lineage_sha256=_lineage_digest(current_balance_lineage),
+            current_history_lineage_sha256=_lineage_digest(current_history_lineage),
         )
     except (OSError, TypeError, ValueError):
         return M6EvidenceSnapshotV1.blocked(

@@ -989,9 +989,7 @@ def validate_existing_passed_receipt_v1(
         return ("m6_receipt_evidence_digest_invalid",)
     mismatched = tuple(
         key
-        for key in sorted(
-            _RECEIPT_KEYS - {"completed_at", "direct_evidence_sha256"}
-        )
+        for key in sorted(_RECEIPT_KEYS - {"completed_at", "direct_evidence_sha256"})
         if receipt.get(key) != expected.get(key)
     )
     if mismatched:

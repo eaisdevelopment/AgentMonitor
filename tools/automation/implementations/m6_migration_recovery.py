@@ -207,7 +207,10 @@ def _validate_stopped_journal(data: dict, receipt: QuiescentStopReceipt) -> None
         )
     ):
         raise MigrationRecoveryError("migration_recovery_receipt_invalid")
-    expected_group = f"/user.slice/user-{os.getuid()}.slice/user@{os.getuid()}.service/app.slice/{receipt.unit}"
+    expected_group = (
+        f"/user.slice/user-{os.getuid()}.slice/"
+        f"user@{os.getuid()}.service/app.slice/{receipt.unit}"
+    )
     if receipt.cgroup != expected_group:
         raise MigrationRecoveryError("migration_recovery_receipt_invalid")
     history = data.get("prior_backup_ids", [])

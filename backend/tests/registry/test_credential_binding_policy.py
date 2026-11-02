@@ -4,7 +4,6 @@ from dataclasses import fields
 from typing import Literal, cast
 
 import pytest
-
 from agentmonitor.contracts.common_v1 import OpaqueIdV1
 from agentmonitor.contracts.registry_v1 import (
     CredentialBindingAggregateV1,

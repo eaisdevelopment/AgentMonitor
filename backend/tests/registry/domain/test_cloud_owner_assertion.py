@@ -1,7 +1,6 @@
 """Pure M02 owner-assertion policy; no database, provider, or secret I/O."""
 
 import pytest
-
 from agentmonitor.modules.registry.domain.cloud_verification import (
     cloud_verification_enqueue_account_version,
     decide_cloud_owner_assertion,

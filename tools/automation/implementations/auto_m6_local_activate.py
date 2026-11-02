@@ -46,7 +46,10 @@ def build_override(root: Path) -> str:
     text = str(root)
     if not re.fullmatch(r"/[A-Za-z0-9_./-]+", text):
         raise ValueError("checkout_path_invalid")
-    return f"[Service]\nWorkingDirectory={text}\nEnvironment=PYTHONPATH={text}/backend/src\n"
+    return (
+        f"[Service]\nWorkingDirectory={text}\n"
+        f"Environment=PYTHONPATH={text}/backend/src\n"
+    )
 
 
 def activation_preflight(proofs: frozenset[str]) -> tuple[str, ...]:
@@ -416,7 +419,8 @@ def main() -> int:
         job_unknown = False
         if reload_result.returncode:
             raise RuntimeError("daemon_reload_failed")
-        # A child can spawn after this check. Only the named dashboard unit is restarted.
+        # A child can spawn after this check. Only the named dashboard unit is
+        # restarted.
         if not safe_cgroup(old_snapshot[2], cgroup_pids(old_snapshot[1])):
             raise RuntimeError("service_became_busy")
         restarted = True
@@ -463,12 +467,14 @@ def main() -> int:
             # The systemd manager may still be executing the timed-out job.
             # Do not remove its configuration or issue another job concurrently.
             print(
-                "M6 LOCAL ACTIVATION: rollback needs operator attention — restart job status unknown"
+                "M6 LOCAL ACTIVATION: rollback needs operator attention — "
+                "restart job status unknown"
             )
             cleanup_failed = True
         elif created_dropin and not activated:
             try:
-                # Only remove the inode we created; never overwrite another tool's state.
+                # Only remove the inode we created; never overwrite another
+                # tool's state.
                 metadata = DROPIN.lstat()
                 if not stat.S_ISREG(metadata.st_mode) or not same_identity(
                     dropin_identity, (metadata.st_dev, metadata.st_ino)
@@ -488,12 +494,14 @@ def main() -> int:
                         != old_snapshot[0]
                     ):
                         print(
-                            "M6 LOCAL ACTIVATION: rollback needs attention — original unit changed"
+                            "M6 LOCAL ACTIVATION: rollback needs attention — "
+                            "original unit changed"
                         )
                         cleanup_failed = True
                     elif ctl("daemon-reload").returncode:
                         print(
-                            "M6 LOCAL ACTIVATION: rollback needs attention — reload failed"
+                            "M6 LOCAL ACTIVATION: rollback needs attention — "
+                            "reload failed"
                         )
                         cleanup_failed = True
                     elif restarted:
@@ -518,7 +526,9 @@ def main() -> int:
                         )
                         if not can_restart and not can_start:
                             print(
-                                "M6 LOCAL ACTIVATION: rollback needs operator attention — candidate changed or has unclassified children"
+                                "M6 LOCAL ACTIVATION: rollback needs operator "
+                                "attention — candidate changed or has "
+                                "unclassified children"
                             )
                             cleanup_failed = True
                         elif (
@@ -527,19 +537,22 @@ def main() -> int:
                             or not wait_ready(baseline, candidate=False)
                         ):
                             print(
-                                "M6 LOCAL ACTIVATION: rollback needs attention — readiness failed"
+                                "M6 LOCAL ACTIVATION: rollback needs attention — "
+                                "readiness failed"
                             )
                             cleanup_failed = True
                         elif old_snapshot is None or prop("WorkingDirectory") != str(
                             OLD_ROOT
                         ):
                             print(
-                                "M6 LOCAL ACTIVATION: rollback needs attention — runtime mismatch"
+                                "M6 LOCAL ACTIVATION: rollback needs attention — "
+                                "runtime mismatch"
                             )
                             cleanup_failed = True
                         else:
                             print(
-                                "M6 LOCAL ACTIVATION: previous loopback/LAN build restored"
+                                "M6 LOCAL ACTIVATION: previous loopback/LAN "
+                                "build restored"
                             )
                     else:
                         print("M6 LOCAL ACTIVATION: drop-in removed before restart")

@@ -380,13 +380,13 @@ def test_existing_real_locks_can_span_upgrade_with_preassigned_backup(
     import secrets
 
     import pytest
+    from agentmonitor.composition.iam_operator import OperatorQuiescenceError
+
     from tools.automation.implementations.auto_migrate import (
         MigrationRefused,
         _hold_settings_lock,
         run_upgrade,
     )
-
-    from agentmonitor.composition.iam_operator import OperatorQuiescenceError
 
     reference = _prior_database(tmp_path, "v1_0708")
     selected = "migration-preflight-" + secrets.token_hex(16)
@@ -443,11 +443,11 @@ def test_real_schema_diagnostic_uses_closed_compatibility_state(tmp_path: Path) 
 def test_candidate_finalization_schema_check_allows_active_wal(tmp_path: Path) -> None:
     import sqlite3
 
-    from tools.automation.implementations.m6_cutover import _verify_active_schema
-
     from agentmonitor.adapters.persistence._shared.sqlite.schema.compatibility import (
         migrate_to_head,
     )
+
+    from tools.automation.implementations.m6_cutover import _verify_active_schema
 
     tmp_path.chmod(0o700)
     reference = DatabaseRefV1(tmp_path / "agentmonitor.db", tmp_path)
@@ -469,11 +469,11 @@ def test_candidate_runtime_readiness_on_real_disposable_service(tmp_path: Path) 
     import urllib.request
     import uuid
 
-    from tools.automation.implementations.m6_cutover import _verify_candidate_runtime
-
     from agentmonitor.adapters.persistence._shared.sqlite.schema.compatibility import (
         migrate_to_head,
     )
+
+    from tools.automation.implementations.m6_cutover import _verify_candidate_runtime
 
     tmp_path.chmod(0o700)
     reference = DatabaseRefV1(tmp_path / "agentmonitor.db", tmp_path)

@@ -12,12 +12,6 @@ import time
 from datetime import UTC, datetime
 from pathlib import Path
 
-from backend.tests.integration.api.test_iam_http import (
-    _installation,
-    _request,
-    _running,
-)
-
 from agentmonitor.adapters.persistence._shared.sqlite.core.policy import DatabaseRefV1
 from agentmonitor.adapters.persistence._shared.sqlite.schema.compatibility import (
     migrate_to_head,
@@ -27,6 +21,12 @@ from agentmonitor.adapters.persistence.collection_control.sqlite.repository impo
 )
 from agentmonitor.adapters.persistence.registry.sqlite.repository import (
     SqliteRegistryRepositoryV1,
+)
+
+from backend.tests.integration.api.test_iam_http import (
+    _installation,
+    _request,
+    _running,
 )
 
 

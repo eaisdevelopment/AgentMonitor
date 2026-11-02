@@ -7,9 +7,6 @@ import secrets
 from datetime import UTC, datetime, timedelta
 from typing import cast
 
-from sqlalchemy.engine import Connection, RowMapping
-from sqlalchemy.exc import SQLAlchemyError
-
 from agentmonitor.adapters.persistence._shared.sqlite.core.policy import (
     DatabaseRefV1,
     SqlitePolicyError,
@@ -62,6 +59,8 @@ from agentmonitor.modules.collection_control.domain.ollama_verification import (
     verification_completion_decision,
     verification_lineage_matches,
 )
+from sqlalchemy.engine import Connection, RowMapping
+from sqlalchemy.exc import SQLAlchemyError
 
 _GATE_ID = "ollama-cloud-balance-v1"
 _PROVIDER_KEY = "ollama"

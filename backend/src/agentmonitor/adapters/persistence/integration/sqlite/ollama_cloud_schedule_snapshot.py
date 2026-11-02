@@ -1,7 +1,5 @@
 """PLAN-INT authorized Ollama schedule snapshot across M02 and M04."""
 
-from sqlalchemy.exc import SQLAlchemyError
-
 from agentmonitor.adapters.persistence._shared.sqlite.core.policy import (
     DatabaseRefV1,
     SqlitePolicyError,
@@ -17,6 +15,7 @@ from agentmonitor.adapters.persistence.registry.sqlite.credential_bindings impor
 from agentmonitor.contracts.cloud_schedule_status_v1 import CloudScheduleStatusV1
 from agentmonitor.contracts.common_v1 import OpaqueIdV1
 from agentmonitor.contracts.registry_v1 import ActiveCredentialBindingRefV1
+from sqlalchemy.exc import SQLAlchemyError
 
 
 class OllamaCloudScheduleSnapshotErrorV1(ValueError):

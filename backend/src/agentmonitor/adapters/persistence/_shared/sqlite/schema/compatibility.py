@@ -15,10 +15,6 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Literal
 
-from alembic import command
-from alembic.config import Config
-from sqlalchemy.engine import Connection
-
 from agentmonitor.adapters.persistence._shared.sqlite.core.policy import (
     DatabaseOpenModeV1,
     DatabaseRefV1,
@@ -28,6 +24,9 @@ from agentmonitor.adapters.persistence._shared.sqlite.core.policy import (
 )
 from agentmonitor.contracts.database_v1 import SchemaCompatibilityV1
 from agentmonitor.contracts.foundation_v1 import MigrationMetadataV1
+from alembic import command
+from alembic.config import Config
+from sqlalchemy.engine import Connection
 
 MIGRATIONS_PATH = Path(__file__).resolve().parents[7] / "migrations"
 CATALOG_SHA256 = "932c7dab0bb23f3dbf10ba772f3526ad79443bcc3edbf8df0e2628bddb62c2b1"

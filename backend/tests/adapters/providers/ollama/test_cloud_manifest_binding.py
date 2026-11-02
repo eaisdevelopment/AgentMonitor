@@ -1,7 +1,6 @@
 """A pending provider manifest cannot be used as proof of cloud support."""
 
 import pytest
-
 from agentmonitor.composition.ollama_cloud_collection import require_cloud_manifest
 
 

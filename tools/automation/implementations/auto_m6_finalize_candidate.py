@@ -102,14 +102,16 @@ def main() -> int:
         status = finalize_candidate()
     except (OSError, ValueError, RuntimeError, subprocess.SubprocessError):
         print(
-            "M6 CANDIDATE FINALIZE: BLOCKED — review the transition journal and service state"
+            "M6 CANDIDATE FINALIZE: BLOCKED — review the transition journal "
+            "and service state"
         )
         return 3
     if status != "candidate_ready_restart_restored":
         print("M6 CANDIDATE FINALIZE: BLOCKED — recovery result unverified")
         return 3
     print(
-        "M6 CANDIDATE FINALIZE: candidate local sign-in page responded and original restart policy was restored"
+        "M6 CANDIDATE FINALIZE: candidate local sign-in page responded and "
+        "original restart policy was restored"
     )
     return 0
 

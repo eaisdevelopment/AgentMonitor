@@ -4,8 +4,6 @@ from dataclasses import fields
 from datetime import UTC, datetime
 
 import pytest
-from backend.tests.capacity.pure.test_alert_conditions import _window
-
 from agentmonitor.contracts.capacity_v1 import (
     AccountCapacityViewV2,
     CapacityAggregateQueryV2,
@@ -25,6 +23,8 @@ from agentmonitor.modules.capacity.domain.aggregation import aggregate_capacity_
 from agentmonitor.modules.capacity.domain.health import (
     default_capacity_health_policy_v1,
 )
+
+from backend.tests.capacity.pure.test_alert_conditions import _window
 
 NOW = datetime(2026, 11, 2, 20, 0, tzinfo=UTC)
 TARGET = ProviderTargetRefV1(

@@ -6,7 +6,6 @@ from decimal import Decimal
 from typing import Literal
 
 import pytest
-
 from agentmonitor.contracts.alerting_v1 import (
     AcknowledgeAlertCommandV1,
     AlertDecisionSummaryV1,

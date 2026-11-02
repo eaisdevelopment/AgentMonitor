@@ -4,8 +4,6 @@ import re
 from datetime import UTC, datetime
 from typing import Literal, cast
 
-from fastapi import APIRouter, Query, Request, Response
-
 from agentmonitor.api.problem import ProblemError
 from agentmonitor.api.v1.dependencies import (
     authorize_request,
@@ -64,6 +62,7 @@ from agentmonitor.modules.registry.application.organizations import (
     RegistryCommandConflictV1,
     ReorderOrganizationsCommandV1,
 )
+from fastapi import APIRouter, Query, Request, Response
 
 router = APIRouter(tags=["registry"])
 

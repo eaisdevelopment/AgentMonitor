@@ -103,9 +103,7 @@ DIRECT_SNAPSHOT_SCHEMA_STATES = frozenset(
         "migration_failed",
     }
 )
-PROJECT_BACKEND_VENV = Path(
-    "/home/dev/Nextcloud/Code/AI/AgentMonitor/backend/.venv"
-)
+PROJECT_BACKEND_VENV = Path("/home/dev/Nextcloud/Code/AI/AgentMonitor/backend/.venv")
 PROJECT_NODE_MODULES = Path(
     "/home/dev/Nextcloud/Code/AI/AgentMonitor/frontend/node_modules"
 )
@@ -717,9 +715,7 @@ def _temporary_tool_environment() -> Iterator[None]:
         (ROOT / "backend/.venv", PROJECT_BACKEND_VENV),
         (ROOT / "frontend/node_modules", PROJECT_NODE_MODULES),
     )
-    target_identities = {
-        target: _tool_target_identity(target) for _, target in targets
-    }
+    target_identities = {target: _tool_target_identity(target) for _, target in targets}
     created: list[tuple[Path, Path, tuple[int, int]]] = []
     try:
         for path, target in targets:
@@ -741,9 +737,7 @@ def _temporary_tool_environment() -> Iterator[None]:
             raise cleanup_error
 
 
-def _boundary(
-    status: StatusV1, reason_code: str | None = None
-) -> BoundaryCheckV1:
+def _boundary(status: StatusV1, reason_code: str | None = None) -> BoundaryCheckV1:
     if status != "passed" and reason_code is None:
         reason_code = {
             "failed": "real_boundary_check_failed",
@@ -852,12 +846,8 @@ def _run_direct_argv(
         raise
     if not _process_group_absent(process.pid):
         cleanup = _terminate_process_group(process)
-        return _ProcessResultV1(
-            True, process.returncode, False, cleanup, bytes(output)
-        )
-    return _ProcessResultV1(
-        True, process.returncode, False, True, bytes(output)
-    )
+        return _ProcessResultV1(True, process.returncode, False, cleanup, bytes(output))
+    return _ProcessResultV1(True, process.returncode, False, True, bytes(output))
 
 
 def _simple_process_status(result: _ProcessResultV1) -> StatusV1:
@@ -917,8 +907,7 @@ def _run_ollama_dashboard_browser(
         not isinstance(parsed, dict)
         or set(parsed) != {"schema_version", "record_type", "results", "facts"}
         or parsed.get("schema_version") != "1.0.0"
-        or parsed.get("record_type")
-        != "agentmonitor.m6_ollama_dashboard_check.v1"
+        or parsed.get("record_type") != "agentmonitor.m6_ollama_dashboard_check.v1"
         or not isinstance(parsed.get("results"), dict)
         or set(parsed["results"])
         != {
@@ -931,8 +920,7 @@ def _run_ollama_dashboard_browser(
         or not isinstance(parsed.get("facts"), dict)
         or set(parsed["facts"]) != set(empty_facts)
         or any(
-            type(parsed["facts"][name]) is not int
-            or parsed["facts"][name] < 0
+            type(parsed["facts"][name]) is not int or parsed["facts"][name] < 0
             for name in (
                 "confirmed_cloud_targets",
                 "current_lineage_targets",
@@ -976,8 +964,7 @@ def _run_ollama_dashboard_browser(
             or (
                 result_status != "passed"
                 and (
-                    not isinstance(reason, str)
-                    or not reason.replace("_", "").isalnum()
+                    not isinstance(reason, str) or not reason.replace("_", "").isalnum()
                 )
             )
         ):
@@ -1003,8 +990,9 @@ def _run_ollama_dashboard_browser(
     )
 
 
-def _run_local_inventory(
-) -> tuple[BoundaryCheckV1, tuple[LocalModelHostEvidenceV1, ...]]:
+def _run_local_inventory() -> tuple[
+    BoundaryCheckV1, tuple[LocalModelHostEvidenceV1, ...]
+]:
     result = _run_direct_argv(
         _direct_command("local_inventory", "0" * 40),
         timeout_seconds=DIRECT_CHECK_TIMEOUT_SECONDS["local_inventory"],
@@ -1039,8 +1027,7 @@ def _run_local_inventory(
                     "observed_at",
                 }
                 or parsed.get("schema_version") != "1.0.0"
-                or parsed.get("record_type")
-                != "agentmonitor.m6_local_inventory.v1"
+                or parsed.get("record_type") != "agentmonitor.m6_local_inventory.v1"
                 or parsed.get("status") != "passed"
             ):
                 raise ValueError("local_inventory_output_invalid")
@@ -1059,20 +1046,14 @@ def _run_local_inventory(
         except (KeyError, TypeError, ValueError):
             return _boundary("failed", "local_inventory_output_invalid"), ()
         return _boundary("passed"), (host,)
-    if (
-        result.return_code == 3
-        and b"M6 LOCAL INVENTORY: BLOCKED " in result.output
-    ):
+    if result.return_code == 3 and b"M6 LOCAL INVENTORY: BLOCKED " in result.output:
         return _boundary("blocked", "local_inventory_source_unavailable"), ()
     return _boundary("failed", "local_inventory_execution_failed"), ()
 
 
-def _run_real_snapshot(
-) -> tuple[BoundaryCheckV1, dict[str, int], dict[str, str]]:
+def _run_real_snapshot() -> tuple[BoundaryCheckV1, dict[str, int], dict[str, str]]:
     empty = {key: 0 for key in DIRECT_SNAPSHOT_KEYS}
-    empty_digests = {
-        key: _EMPTY_LINEAGE_SHA256 for key in DIRECT_SNAPSHOT_DIGEST_KEYS
-    }
+    empty_digests = {key: _EMPTY_LINEAGE_SHA256 for key in DIRECT_SNAPSHOT_DIGEST_KEYS}
     result = _run_direct_argv(
         _direct_command("database_snapshot", "0" * 40),
         timeout_seconds=DIRECT_CHECK_TIMEOUT_SECONDS["database_snapshot"],
@@ -1108,17 +1089,14 @@ def _run_real_snapshot(
         or not isinstance(parsed.get("counts"), dict)
         or set(parsed["counts"]) != set(DIRECT_SNAPSHOT_KEYS)
         or any(
-            type(value) is not int or value < 0
-            for value in parsed["counts"].values()
+            type(value) is not int or value < 0 for value in parsed["counts"].values()
         )
         or not isinstance(parsed.get("digests"), dict)
         or set(parsed["digests"]) != set(DIRECT_SNAPSHOT_DIGEST_KEYS)
         or any(
             not isinstance(value, str)
             or len(value) != 64
-            or any(
-                character not in "0123456789abcdef" for character in value
-            )
+            or any(character not in "0123456789abcdef" for character in value)
             for value in parsed["digests"].values()
         )
     ):
@@ -1134,9 +1112,7 @@ def _run_real_snapshot(
     )
 
 
-def _run_direct_checks(
-    checks: dict[str, StatusV1], revision: str
-) -> DirectM6FactsV1:
+def _run_direct_checks(checks: dict[str, StatusV1], revision: str) -> DirectM6FactsV1:
     """Run every available real check once, independent of sibling outcomes."""
 
     local_inventory, model_hosts = _run_local_inventory()
@@ -1319,9 +1295,7 @@ def _retain_bounded_direct_evidence(
         for name in os.listdir(directory.leaf_fd):
             if pattern.fullmatch(name) is None or name in protected:
                 continue
-            metadata = os.stat(
-                name, dir_fd=directory.leaf_fd, follow_symlinks=False
-            )
+            metadata = os.stat(name, dir_fd=directory.leaf_fd, follow_symlinks=False)
             if (
                 not stat.S_ISREG(metadata.st_mode)
                 or metadata.st_uid != os.getuid()
@@ -1338,9 +1312,7 @@ def _retain_bounded_direct_evidence(
             )
         owned.sort()
         for _, name, identity in owned[: max(0, len(owned) - 30)]:
-            current = os.stat(
-                name, dir_fd=directory.leaf_fd, follow_symlinks=False
-            )
+            current = os.stat(name, dir_fd=directory.leaf_fd, follow_symlinks=False)
             if (current.st_dev, current.st_ino) != identity:
                 raise M6ExitBlockedV1("m6_evidence_retention_changed")
             os.unlink(name, dir_fd=directory.leaf_fd)
@@ -1382,15 +1354,12 @@ def _receipt_bound_evidence_names() -> set[str]:
                 != "agentmonitor.m6_technical_exit_receipt.v1"
                 or parsed.get("implementation_revision") != match.group(1)
                 or not isinstance(parsed.get("direct_evidence_sha256"), str)
-                or re.fullmatch(
-                    r"[0-9a-f]{64}", parsed["direct_evidence_sha256"]
-                )
+                or re.fullmatch(r"[0-9a-f]{64}", parsed["direct_evidence_sha256"])
                 is None
             ):
                 raise M6ExitErrorV1("m6_receipt_shape_invalid")
             protected.add(
-                f"direct-{match.group(1)}-"
-                f"{parsed['direct_evidence_sha256'][:16]}.json"
+                f"direct-{match.group(1)}-{parsed['direct_evidence_sha256'][:16]}.json"
             )
         directory.revalidate()
     return protected
@@ -1418,9 +1387,7 @@ def _write_direct_evidence_artifact(
         .replace("+00:00", "Z"),
         "required_checks": dict(sorted(checks.items())),
         "direct_facts": asdict(facts),
-        "outcomes": {
-            key: asdict(value) for key, value in sorted(outcomes.items())
-        },
+        "outcomes": {key: asdict(value) for key, value in sorted(outcomes.items())},
     }
     payload = (
         json.dumps(document, sort_keys=True, separators=(",", ":")) + "\n"
@@ -1484,9 +1451,7 @@ def _write_direct_evidence_artifact(
             if descriptor >= 0:
                 os.close(descriptor)
             if not cleanup_ok:
-                raise M6ExitBlockedV1(
-                    "m6_evidence_cleanup_identity_changed"
-                ) from None
+                raise M6ExitBlockedV1("m6_evidence_cleanup_identity_changed") from None
             raise
     return str(Path(".agentmonitor-local/m6-evidence") / name), payload_digest
 
@@ -1494,9 +1459,10 @@ def _write_direct_evidence_artifact(
 def _validate_direct_evidence_artifact(revision: str, digest: str) -> None:
     """Revalidate the immutable direct artifact named by a prior receipt."""
 
-    if re.fullmatch(r"[0-9a-f]{40}", revision) is None or re.fullmatch(
-        r"[0-9a-f]{64}", digest
-    ) is None:
+    if (
+        re.fullmatch(r"[0-9a-f]{40}", revision) is None
+        or re.fullmatch(r"[0-9a-f]{64}", digest) is None
+    ):
         raise M6ExitErrorV1("m6_receipt_evidence_digest_invalid")
     name = f"direct-{revision}-{digest[:16]}.json"
     with _open_direct_evidence_directory() as directory:
@@ -1518,9 +1484,10 @@ def _write_or_validate_receipt(
     revalidate_snapshot: Callable[[], None],
 ) -> str:
     evidence_digest = receipt.get("direct_evidence_sha256")
-    if not isinstance(evidence_digest, str) or re.fullmatch(
-        r"[0-9a-f]{64}", evidence_digest
-    ) is None:
+    if (
+        not isinstance(evidence_digest, str)
+        or re.fullmatch(r"[0-9a-f]{64}", evidence_digest) is None
+    ):
         raise M6ExitErrorV1("m6_receipt_evidence_digest_invalid")
     name = f"{revision}.json"
     payload = (
@@ -1550,12 +1517,12 @@ def _write_or_validate_receipt(
                 parsed, expected=receipt, now=datetime.now(UTC)
             )
             if errors:
-                raise M6ExitErrorV1(errors[0])
+                raise M6ExitErrorV1(errors[0]) from None
             if not isinstance(parsed, dict):
-                raise M6ExitErrorV1("m6_receipt_evidence_digest_invalid")
+                raise M6ExitErrorV1("m6_receipt_evidence_digest_invalid") from None
             prior_evidence_digest = parsed.get("direct_evidence_sha256")
             if not isinstance(prior_evidence_digest, str):
-                raise M6ExitErrorV1("m6_receipt_evidence_digest_invalid")
+                raise M6ExitErrorV1("m6_receipt_evidence_digest_invalid") from None
             _validate_direct_evidence_artifact(revision, prior_evidence_digest)
             revalidate_snapshot()
             if (
@@ -1568,7 +1535,7 @@ def _write_or_validate_receipt(
                 )
                 != current
             ):
-                raise M6ExitErrorV1("m6_receipt_changed")
+                raise M6ExitErrorV1("m6_receipt_changed") from None
             return str(Path(".agentmonitor-local/m6-exit-receipts") / name)
         except OSError:
             raise M6ExitBlockedV1("m6_receipt_unavailable") from None

@@ -1,7 +1,6 @@
 """Pure exact-version consistency policy for local catalog collection."""
 
 import pytest
-
 from agentmonitor.adapters.providers.ollama.local_catalog.source import (
     version_consistent,
 )

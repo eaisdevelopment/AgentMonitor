@@ -5,7 +5,6 @@ from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 
 import pytest
-
 from agentmonitor.contracts.capacity_v1 import (
     CapacityAlertAvailabilityV1,
     CapacityAlertConditionV1,

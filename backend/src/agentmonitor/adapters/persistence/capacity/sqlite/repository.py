@@ -9,9 +9,6 @@ import secrets
 from collections.abc import Callable
 from datetime import UTC, datetime, timedelta
 
-from sqlalchemy.engine import Connection, RowMapping
-from sqlalchemy.exc import SQLAlchemyError
-
 from agentmonitor.adapters.persistence._shared.sqlite.core.policy import (
     DatabaseRefV1,
     SqlitePolicyError,
@@ -64,6 +61,8 @@ from agentmonitor.modules.capacity.application.ports import (
     omitted_current_window_keys_v1,
 )
 from agentmonitor.modules.capacity.domain.credential_fence import require_capacity_fence
+from sqlalchemy.engine import Connection, RowMapping
+from sqlalchemy.exc import SQLAlchemyError
 
 
 class CapacityRepositoryErrorV1(ValueError):
@@ -485,9 +484,7 @@ def _current_windows(
     return tuple(_quota_window(connection, row, as_of) for row in rows)
 
 
-def _history_point(
-    row: RowMapping, as_of: datetime
-) -> CapacityHistoryPointV1OrV2:
+def _history_point(row: RowMapping, as_of: datetime) -> CapacityHistoryPointV1OrV2:
     collected_at = _utc_value(str(row["collected_at"]))
     freshness_deadline = (
         _utc_value(str(row["freshness_deadline"]))
@@ -1583,8 +1580,7 @@ class SqliteCapacityRepositoryV1:
             same_semantics = latest_definition is not None and all(
                 (
                     latest_definition["installation_id"] == installation_id,
-                    latest_definition["provider_target_kind"]
-                    == provider_target_kind,
+                    latest_definition["provider_target_kind"] == provider_target_kind,
                     latest_definition["provider_target_id"] == provider_target_id,
                     latest_definition["account_id"] == payload.subject.account_id.value,
                     latest_definition["safe_label"] == window.safe_label,

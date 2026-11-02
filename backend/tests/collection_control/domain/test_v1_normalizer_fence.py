@@ -3,7 +3,6 @@
 from datetime import UTC, datetime
 
 import pytest
-
 from agentmonitor.modules.collection_control.application.runner import v1_normalizer
 
 

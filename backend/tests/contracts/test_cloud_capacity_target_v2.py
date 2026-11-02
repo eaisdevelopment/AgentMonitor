@@ -3,7 +3,6 @@
 from dataclasses import replace
 
 import pytest
-
 from agentmonitor.contracts.capacity_v1 import (
     CapacityHistoryPointV2,
     CapacitySubjectV2,

@@ -3,7 +3,6 @@
 from datetime import UTC, datetime
 
 import pytest
-
 from agentmonitor.contracts.collection_control_v1 import (
     OllamaCloudNoResponseCompletionV2,
 )
