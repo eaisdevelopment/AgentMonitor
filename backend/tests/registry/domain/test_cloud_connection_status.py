@@ -74,6 +74,17 @@ def test_stale_and_transient_states_are_not_reported_as_pending() -> None:
     ) == ("retry_available", True)
 
 
+def test_credential_update_contention_is_actionable_and_explicit() -> None:
+    assert derive_connection_status(
+        True,
+        False,
+        "terminal",
+        "credential_update_in_progress",
+        "ready",
+        True,
+    ) == ("credential_update_in_progress", True)
+
+
 def test_scheduled_state_never_follows_preference_or_old_receipt_alone() -> None:
     from agentmonitor.modules.registry.domain.cloud_connection_status import (
         scheduled_monitoring_state,

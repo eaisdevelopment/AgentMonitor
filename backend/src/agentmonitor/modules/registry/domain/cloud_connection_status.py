@@ -56,6 +56,7 @@ def derive_connection_status(
         "transient_failure": "retry_available",
         "unauthorized": "unauthorized",
         "rate_limited": "rate_limited",
+        "credential_update_in_progress": "credential_update_in_progress",
         "authorization_unavailable": "authorization_unavailable",
         "store_unavailable": "authorization_unavailable",
     }

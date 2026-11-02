@@ -519,6 +519,7 @@ ScheduledSourceAuthorizationSignalV1 = Literal[
     "rate_limited",
     "transient_failure",
     "authorization_unavailable",
+    "credential_update_in_progress",
     "outcome_unresolved",
 ]
 
@@ -593,6 +594,7 @@ class ScheduledSourceLineageV1(TechnicalValueV1):
     """Cross-module proof projection; contains no key or provider identity."""
 
     CONTRACT_ID: ClassVar[str] = "CTR-PROV-003"
+    CONTRACT_VERSION: ClassVar[str] = "1.1.0"
     OWNER: ClassVar[str] = "PLAN-M03"
 
     verification_id: OpaqueIdV1
@@ -720,6 +722,11 @@ class ScheduledSourceLineageV1(TechnicalValueV1):
                 or self.authorization_signal_dispatch_certainty
                 not in {"not_started", "response_received"}
             )
+            or self.authorization_signal == "credential_update_in_progress"
+            and (
+                self.authorization_signal_run_state != "failed"
+                or self.authorization_signal_dispatch_certainty != "not_started"
+            )
         ):
             raise InvalidProviderContract("scheduled_source_lineage_invalid")
 
@@ -729,6 +736,7 @@ class ScheduledSourceAdmissionProofV1(TechnicalValueV1):
     """Ephemeral proof; callers rederive it after every current-state read."""
 
     CONTRACT_ID: ClassVar[str] = "CTR-PROV-003"
+    CONTRACT_VERSION: ClassVar[str] = "1.1.0"
     OWNER: ClassVar[str] = "PLAN-M03"
 
     policy_ref: OpaqueIdV1
@@ -815,6 +823,11 @@ class ScheduledSourceAdmissionProofV1(TechnicalValueV1):
                 self.authorization_signal_run_state != "failed"
                 or self.authorization_signal_dispatch_certainty
                 not in {"not_started", "response_received"}
+            )
+            or self.authorization_signal == "credential_update_in_progress"
+            and (
+                self.authorization_signal_run_state != "failed"
+                or self.authorization_signal_dispatch_certainty != "not_started"
             )
         ):
             raise InvalidProviderContract("scheduled_source_proof_invalid")

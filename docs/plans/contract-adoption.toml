@@ -1,7 +1,7 @@
 schema_version = "1.0"
 status = "draft_exact"
 contract_baseline_version = "0.2.2"
-contract_baseline_sha256 = "a25567b33034fa4abf7238201943d260fa2da1b4f8bed327852a3c6413e4c417"
+contract_baseline_sha256 = "b78ebba1082ef72a5b16df2745dd9d7744a53da7d5403767d2d8c00013433305"
 plan_count = 20
 owner_approved = false
 implementation_authorized = false

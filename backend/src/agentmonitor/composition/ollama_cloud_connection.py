@@ -277,6 +277,11 @@ class OllamaCloudConnectionServiceV1:
                             "authorization_unavailable",
                             "terminal",
                         )
+                    elif signal.signal == "credential_update_in_progress":
+                        signal_reason, job_state = (
+                            "credential_update_in_progress",
+                            "terminal",
+                        )
                     elif signal.signal == "transient_failure":
                         signal_reason, job_state = "transient_failure", "terminal"
                     elif signal.signal == "verified_success":

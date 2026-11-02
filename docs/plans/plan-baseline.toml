@@ -159,13 +159,13 @@ bytes = 4124
 [[controls]]
 id = "contract-baseline"
 path = "docs/plans/contract-baseline.toml"
-sha256 = "a25567b33034fa4abf7238201943d260fa2da1b4f8bed327852a3c6413e4c417"
-bytes = 61919
+sha256 = "b78ebba1082ef72a5b16df2745dd9d7744a53da7d5403767d2d8c00013433305"
+bytes = 62000
 
 [[controls]]
 id = "contract-adoption"
 path = "docs/plans/contract-adoption.toml"
-sha256 = "1cc64f9a82d8d71c99d2d8f484bd119b6c22fe54f3f47b5796a4ca91146ed3b6"
+sha256 = "f163501e303afeb7f8c0c83396a59a93478f7983871fa25e3c7259588148076c"
 bytes = 16903
 
 [[controls]]

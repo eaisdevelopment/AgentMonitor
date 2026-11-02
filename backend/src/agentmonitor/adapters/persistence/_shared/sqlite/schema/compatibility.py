@@ -30,7 +30,7 @@ from agentmonitor.contracts.database_v1 import SchemaCompatibilityV1
 from agentmonitor.contracts.foundation_v1 import MigrationMetadataV1
 
 MIGRATIONS_PATH = Path(__file__).resolve().parents[7] / "migrations"
-CATALOG_SHA256 = "c38fcf4b338462fbcfd73dfd84c8fd48c8218ad9fa80bd723498de46b2c42240"
+CATALOG_SHA256 = "932c7dab0bb23f3dbf10ba772f3526ad79443bcc3edbf8df0e2628bddb62c2b1"
 IAM_TABLES = frozenset(
     {
         "iam_administrator",
@@ -1242,17 +1242,17 @@ def _inspect(
             or any(kind not in {"table", "index", "trigger"} for kind, _ in objects)
             or not _m4_owned_structure_is_valid(
                 connection,
-                "ac50594b166f8b223b7b2147080fc7f6cf7317105512d84ddf3ad5b7f683cb2c"
+                "e7326f491ed90aec72d02a009b430ccccbdf8357c3deb13880ecc02b51b9cc47"
                 if current == "v1_0717"
-                else "9c20a2ebd4d07cff11b9308426992aca0bf513f2ed814abacd8ddc7b939ac082"
+                else "bed69739e22a51936416befef93db86a5891f144a14e855cd256e31ecf052e83"
                 if current == "v1_0716"
-                else "604fd1571dd3d1face04b3d7aae7d7416cf6c34cfddcb438d93b34098e6753c5"
+                else "930c51225e91c81434f62b371f7b5361e636b89d210386544a0877fbed25146f"
                 if current == "v1_0715"
-                else "3635c5880a6318f06a1d5f77965f3371f89a9ef5c0d32cb805df17d1565e254a"
+                else "152c56e99283ac8e28ae4c6e15c12374aff88e7e807222ea8a5d54eef6302511"
                 if current == "v1_0714"
-                else "21872fe8be2e4d1296dedb905a9b177c2475932654a26e71f1df46f8d45d4172"
+                else "6057ae04dda3791bbbcbdc86570348113f9dfa55bb5ac7dd9f6bfa791972d372"
                 if current == "v1_0713"
-                else "5bb703f8b23ea63d8af3139445eda48610f73d300007c125bd230969a3cc54e7"
+                else "87da9af239306aa2c8bde5bc4e79bbdda430ca8bbf553039fa4c80ca64c20f49"
                 if current == "v1_0712"
                 else "18cec43896b5bf998b080accdee6e6500a69aee0f540657474b7619dee2a6327"
                 if current == "v1_0711"

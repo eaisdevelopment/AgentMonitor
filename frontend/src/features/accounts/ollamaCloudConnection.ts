@@ -30,6 +30,8 @@ export function ollamaCloudConnectionCopy(state: string): OllamaCloudConnectionC
       return { title: "Ollama temporarily limited requests", description: "The next check must wait until Ollama's limit allows it." };
     case "store_locked":
       return { title: "Credential unavailable", description: "Reconnect the account locally on the AgentMonitor computer." };
+    case "credential_update_in_progress":
+      return { title: "Another account update is in progress", description: "Wait for it to finish, then check the connection again." };
     case "authorization_unavailable":
       return { title: "Credential unavailable", description: "Reconnect the account locally on the AgentMonitor computer." };
     default:
@@ -40,6 +42,6 @@ export function ollamaCloudConnectionCopy(state: string): OllamaCloudConnectionC
 /** Show an action only when the server explicitly permits a known retry state. */
 export function ollamaCloudConnectionAction(state: string, canVerify: boolean): string | null {
   if (!canVerify) return null;
-  if (["pending", "stale", "retry_available", "unauthorized", "rate_limited", "store_locked", "authorization_unavailable"].includes(state)) return "Check connection";
+  if (["pending", "stale", "retry_available", "unauthorized", "rate_limited", "store_locked", "credential_update_in_progress", "authorization_unavailable"].includes(state)) return "Check connection";
   return null;
 }

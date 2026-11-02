@@ -73,6 +73,22 @@ def admission_outcome_for_source(
     return "failed"
 
 
+def no_response_reason_for_source(
+    state: str, reason_code: str
+) -> Literal[
+    "credential_update_in_progress", "store_unavailable", "source_not_started"
+]:
+    """Preserve temporary local contention without exposing store internals."""
+    if (
+        state == "authorization_unavailable"
+        and reason_code == "ollama_cloud_store_locked"
+    ):
+        return "credential_update_in_progress"
+    if state == "authorization_unavailable":
+        return "store_unavailable"
+    return "source_not_started"
+
+
 def eligible_cloud_account(
     provider: str, lifecycle: str, effective_monitoring: bool, identity_state: str
 ) -> bool:

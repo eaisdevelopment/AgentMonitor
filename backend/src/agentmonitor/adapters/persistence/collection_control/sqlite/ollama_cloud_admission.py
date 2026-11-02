@@ -893,6 +893,11 @@ class SqliteOllamaCloudAdmissionRepositoryV1:
             (lease.admission_id.value,),
         ).scalar_one_or_none()
         if job is not None:
+            job_reason = (
+                terminal.reason_code
+                if terminal.reason_code == "credential_update_in_progress"
+                else terminal.source_state or terminal.reason_code
+            )
             finished = connection.exec_driver_sql(
                 "UPDATE collection_cloud_verification_job SET state='terminal',"
                 "dispatch_certainty='not_started',terminal_at=?,outcome=NULL,"
@@ -900,7 +905,7 @@ class SqliteOllamaCloudAdmissionRepositoryV1:
                 "WHERE job_id=? AND state='admitted' AND admission_id=?",
                 (
                     _utc_text(terminal.terminal_at),
-                    terminal.source_state or terminal.reason_code,
+                    job_reason,
                     job,
                     lease.admission_id.value,
                 ),
@@ -2081,6 +2086,7 @@ class SqliteOllamaCloudAdmissionRepositoryV1:
                         "a.account_id AS admission_account_id,"
                         "a.schedule_id AS admission_schedule_id,"
                         "t.terminal_at AS no_response_terminal_at,"
+                        "t.reason_code AS no_response_reason_code,"
                         "t.source_state AS no_response_source_state,"
                         "t.dispatch_certainty AS no_response_certainty "
                         "FROM collection_run r "
@@ -2145,7 +2151,10 @@ class SqliteOllamaCloudAdmissionRepositoryV1:
                         certainty = str(row["no_response_certainty"])
                         outcome = None
                         failure = (
-                            str(row["no_response_source_state"])
+                            "credential_update_in_progress"
+                            if row["no_response_reason_code"]
+                            == "credential_update_in_progress"
+                            else str(row["no_response_source_state"])
                             if row["no_response_source_state"] is not None
                             else None
                         )

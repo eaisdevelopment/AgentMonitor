@@ -196,11 +196,19 @@ def test_authoritative_auth_or_schema_failure_revokes_scheduled_admission(
 
 
 @pytest.mark.parametrize(
-    "signal", ("rate_limited", "transient_failure", "authorization_unavailable")
+    "signal",
+    (
+        "rate_limited",
+        "transient_failure",
+        "authorization_unavailable",
+        "credential_update_in_progress",
+    ),
 )
 def test_temporary_failure_preserves_generation_bound_admission(signal: str) -> None:
     certainty = (
-        "not_started" if signal == "authorization_unavailable" else "response_received"
+        "not_started"
+        if signal in {"authorization_unavailable", "credential_update_in_progress"}
+        else "response_received"
     )
     proof = derive_scheduled_source_admission_v1(
         policy(),

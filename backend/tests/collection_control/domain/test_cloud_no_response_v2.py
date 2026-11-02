@@ -36,3 +36,30 @@ def test_no_response_completion_does_not_claim_response() -> None:
             "store_unavailable",
             "provider_unavailable",
         )
+
+
+def test_credential_update_contention_is_a_distinct_no_request_terminal() -> None:
+    now = datetime(2026, 1, 1, tzinfo=UTC)
+    terminal = OllamaCloudNoResponseCompletionV2(
+        OpaqueIdV1("attempt"),
+        OpaqueIdV1("owner"),
+        OpaqueIdV1("schedule"),
+        1,
+        now,
+        now,
+        "credential_update_in_progress",
+        "authorization_unavailable",
+    )
+    assert terminal.CONTRACT_VERSION == "1.1.0"
+    assert terminal.reason_code == "credential_update_in_progress"
+    with pytest.raises(ValueError):
+        OllamaCloudNoResponseCompletionV2(
+            OpaqueIdV1("attempt"),
+            OpaqueIdV1("owner"),
+            OpaqueIdV1("schedule"),
+            1,
+            now,
+            now,
+            "credential_update_in_progress",
+            "provider_unavailable",
+        )

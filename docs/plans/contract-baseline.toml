@@ -543,11 +543,11 @@ checklist = { field_state_null = true, units_time = true, auth = true, side_effe
 [[contracts]]
 id = "CTR-REG-012"
 name = "CredentialConnectionStatusV1"
-version = "1.0.0"
+version = "1.1.0"
 producer = "PLAN-M02"
 consumers = ["PLAN-M04", "PLAN-M05", "PLAN-P01", "PLAN-INT"]
 maturity = "evidence_blocked"
-decision_reference = "Owner-approved M6 Ollama cloud integration; candidate remains under review, 2026-11-02"
+decision_reference = "Owner-approved M6 Ollama cloud integration; additive temporary credential-update state, 2026-11-02"
 checklist = { field_state_null = true, units_time = true, auth = true, side_effects = true, idempotency = true, events = true, retention = true, errors = true, compatibility = true }
 
 # Provider-system contracts
@@ -575,11 +575,11 @@ checklist = { field_state_null = true, units_time = true, auth = true, side_effe
 [[contracts]]
 id = "CTR-PROV-003"
 name = "ProviderSourceV1"
-version = "1.0.0"
+version = "1.1.0"
 producer = "PLAN-M03"
 consumers = ["PLAN-A01", "PLAN-A02", "PLAN-A03", "PLAN-M04", "PLAN-M05", "PLAN-M06", "PLAN-A04-LINUX", "PLAN-A04-MAC"]
 maturity = "evidence_blocked"
-decision_reference = "CAA-2026-09-18-01 sections 5.5 and 8"
+decision_reference = "CAA-2026-09-18-01 sections 5.5 and 8; additive temporary credential-update signal, 2026-11-02"
 checklist = { field_state_null = true, units_time = true, auth = true, side_effects = true, idempotency = true, events = true, retention = true, errors = true, compatibility = true }
 
 [[contracts]]
@@ -707,21 +707,21 @@ checklist = { field_state_null = true, units_time = true, auth = true, side_effe
 [[contracts]]
 id = "CTR-COL-008"
 name = "OllamaCloudAdmissionV1"
-version = "1.0.0"
+version = "1.1.0"
 producer = "PLAN-M04"
 consumers = ["PLAN-A03", "PLAN-INT"]
 maturity = "proposed_aligned"
-decision_reference = "Owner-approved M6 Ollama cloud plan, Rate and failure behavior; M6 Ollama cloud contract review, Rate limiter and operational contract"
+decision_reference = "Owner-approved M6 Ollama cloud plan, Rate and failure behavior; additive temporary credential-update signal, 2026-11-02"
 checklist = { field_state_null = true, units_time = true, auth = true, side_effects = true, idempotency = true, events = true, retention = true, errors = true, compatibility = true }
 
 [[contracts]]
 id = "CTR-COL-009"
 name = "OllamaCloudNoResponseCompletionV2"
-version = "1.0.0"
+version = "1.1.0"
 producer = "PLAN-M04"
 consumers = ["PLAN-A03", "PLAN-INT"]
 maturity = "proposed_aligned"
-decision_reference = "Owner-approved M6 Ollama cloud plan, Rate and failure behavior; no-response terminal correction"
+decision_reference = "Owner-approved M6 Ollama cloud plan, Rate and failure behavior; additive no-request credential-update terminal, 2026-11-02"
 checklist = { field_state_null = true, units_time = true, auth = true, side_effects = true, idempotency = true, events = true, retention = true, errors = true, compatibility = true }
 
 [[contracts]]

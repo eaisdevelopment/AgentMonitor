@@ -79,6 +79,12 @@ def active_lease() -> OllamaCloudRequestLeaseV1:
             "authorization_unavailable",
             "authorization_unavailable",
         ),
+        (
+            "not_started",
+            None,
+            "credential_update_in_progress",
+            "credential_update_in_progress",
+        ),
     ),
 )
 def test_terminal_exact_source_state_maps_to_closed_signal(

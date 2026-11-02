@@ -152,7 +152,8 @@ def derive_scheduled_source_admission_v1(
             lineage.authorization_signal_run_state != "failed"
             or lineage.authorization_signal_dispatch_certainty != "response_received"
         )
-        or lineage.authorization_signal == "authorization_unavailable"
+        or lineage.authorization_signal
+        in {"authorization_unavailable", "credential_update_in_progress"}
         and (
             lineage.authorization_signal_run_state != "failed"
             or lineage.authorization_signal_dispatch_certainty != "not_started"

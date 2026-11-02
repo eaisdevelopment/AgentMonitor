@@ -5052,6 +5052,7 @@
               "unauthorized",
               "rate_limited",
               "store_locked",
+              "credential_update_in_progress",
               "authorization_unavailable",
               "unavailable"
             ],
@@ -23617,7 +23618,7 @@
     "generator_sha256": "53adb2f5dd513514e758906103e689e00f212d14fbcb307a193ed54bddcdc9cb",
     "generator_version": "2.0.8",
     "openapi_version": "3.1.0",
-    "schema_sha256": "0be38d4f3700cd4d0b63d616b5490a92670a78f18283dd8ed9477e36309f68fe",
-    "source_sha256": "50513723858dd850dbecef4e1c9d962478c08578ac7a74c559a2307e2b8c486b"
+    "schema_sha256": "8e51cc54cdc9ed20f01f2274cd00f396b2cf170e20b844c294af9384e53b0f56",
+    "source_sha256": "2a2f8fc775d665792eef7016cdcd22c0de6be5d44b99abee1b7ad6e24ca601b7"
   }
 }

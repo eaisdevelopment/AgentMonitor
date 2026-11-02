@@ -55,6 +55,7 @@ OllamaCloudSourceAuthorizationSignalV1 = Literal[
     "rate_limited",
     "transient_failure",
     "authorization_unavailable",
+    "credential_update_in_progress",
     "outcome_unresolved",
 ]
 
@@ -760,6 +761,7 @@ class OllamaCloudLatestSourceSignalV1(TechnicalValueV1):
     """Latest exact-source outcome plus the authoritative global gate state."""
 
     CONTRACT_ID: ClassVar[str] = "CTR-COL-008"
+    CONTRACT_VERSION: ClassVar[str] = "1.1.0"
     OWNER: ClassVar[str] = "PLAN-M04"
 
     account_id: OpaqueIdV1
@@ -831,7 +833,8 @@ class OllamaCloudLatestSourceSignalV1(TechnicalValueV1):
                 self.run_state != "failed"
                 or self.dispatch_certainty != "response_received"
             )
-            or self.signal == "authorization_unavailable"
+            or self.signal
+            in {"authorization_unavailable", "credential_update_in_progress"}
             and (self.run_state != "failed" or self.dispatch_certainty != "not_started")
             or self.signal == "transient_failure"
             and (
@@ -974,6 +977,7 @@ class OllamaCloudNoResponseCompletionV2(TechnicalValueV1):
     """Terminal result known to have sent no HTTP request; no response time."""
 
     CONTRACT_ID: ClassVar[str] = "CTR-COL-009"
+    CONTRACT_VERSION: ClassVar[str] = "1.1.0"
     OWNER: ClassVar[str] = "PLAN-M04"
     admission_id: OpaqueIdV1
     scheduler_instance_id: OpaqueIdV1
@@ -982,7 +986,10 @@ class OllamaCloudNoResponseCompletionV2(TechnicalValueV1):
     started_at: datetime
     terminal_at: datetime
     reason_code: Literal[
-        "pre_dispatch_failed", "source_not_started", "store_unavailable"
+        "pre_dispatch_failed",
+        "source_not_started",
+        "store_unavailable",
+        "credential_update_in_progress",
     ]
     source_state: (
         Literal[
@@ -1005,7 +1012,12 @@ class OllamaCloudNoResponseCompletionV2(TechnicalValueV1):
             or not _utc(self.terminal_at)
             or self.terminal_at < self.started_at
             or self.reason_code
-            not in {"pre_dispatch_failed", "source_not_started", "store_unavailable"}
+            not in {
+                "pre_dispatch_failed",
+                "source_not_started",
+                "store_unavailable",
+                "credential_update_in_progress",
+            }
             or self.dispatch_certainty != "not_started"
             or self.source_state
             not in {
@@ -1018,7 +1030,10 @@ class OllamaCloudNoResponseCompletionV2(TechnicalValueV1):
             }
             or (self.reason_code == "pre_dispatch_failed")
             != (self.source_state is None)
-            or (self.reason_code == "store_unavailable")
+            or (
+                self.reason_code
+                in {"store_unavailable", "credential_update_in_progress"}
+            )
             != (self.source_state == "authorization_unavailable")
         ):
             raise InvalidCollectionControlV1("ollama_cloud_no_response_invalid")

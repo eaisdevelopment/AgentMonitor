@@ -217,7 +217,13 @@ def _validate_contract_baseline(
         contract_id = item.get("id", "<missing>")
         if not re.fullmatch(r"CTR-[A-Z]+-\d{3}", str(contract_id)):
             violations.append(f"contract baseline has invalid ID {contract_id!r}")
-        expected_version = "2.0.0" if contract_id == "CTR-COL-010" else "1.0.0"
+        expected_version = {
+            "CTR-COL-008": "1.1.0",
+            "CTR-COL-009": "1.1.0",
+            "CTR-COL-010": "2.0.0",
+            "CTR-PROV-003": "1.1.0",
+            "CTR-REG-012": "1.1.0",
+        }.get(contract_id, "1.0.0")
         if item.get("version") != expected_version:
             violations.append(
                 f"{contract_id}: expected proposed version {expected_version}"

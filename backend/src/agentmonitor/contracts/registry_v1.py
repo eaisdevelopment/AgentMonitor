@@ -86,6 +86,7 @@ CredentialConnectionStateV1 = Literal[
     "unauthorized",
     "rate_limited",
     "store_locked",
+    "credential_update_in_progress",
     "authorization_unavailable",
     "unavailable",
 ]
@@ -798,6 +799,7 @@ class CredentialConnectionStatusV1(TechnicalValueV1):
     """Safe server-derived cloud connection status; no secret/keyring detail."""
 
     CONTRACT_ID: ClassVar[str] = "CTR-REG-012"
+    CONTRACT_VERSION: ClassVar[str] = "1.1.0"
     OWNER: ClassVar[str] = "PLAN-M02"
 
     account_id: OpaqueIdV1
@@ -823,6 +825,7 @@ class CredentialConnectionStatusV1(TechnicalValueV1):
                 "retry_available",
                 "unauthorized",
                 "store_locked",
+                "credential_update_in_progress",
                 "authorization_unavailable",
             }
             or self.state == "not_configured"

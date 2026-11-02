@@ -666,7 +666,7 @@ reviewer = "M04-M6-cloud-journal-review"
 [[revisions]]
 ordinal = 712
 filename = "v1_0712_m04_cloud_failure.py"
-sha256 = "9a28679ee7f8dff9391e39fdf96f9c271d126e8ecbe24394c5d90a21d9d5a639"
+sha256 = "759d8b60da24a339576ff1f40c54658db33a542164bcb56c50b3bccd83c35172"
 status = "shared"
 reviewed_at = "2026-11-02"
 revision = "v1_0712"
@@ -676,7 +676,7 @@ plan_id = "PLAN-M04"
 requirement_ids = ["FR-COL-003", "FR-COL-007", "M6-A09"]
 schema_range = ["v1_0712", "v1_0712", "v1_0712", "v1_0712", "v1_0712"]
 tables = ["collection_cloud_attempt_journal", "collection_cloud_no_response_terminal"]
-portability_notes = ["Nullable safe failure code preserves interrupted-run classification", "V2 no-response overlay is authoritative over its legacy admission shadow"]
+portability_notes = ["Nullable safe failure code preserves interrupted-run classification", "V2 no-response overlay is authoritative over its legacy admission shadow", "Credential-update lock contention remains a retryable no-request terminal"]
 lock_policy = "exclusive_migration"
 downtime_policy = "offline_additive_schema_migration"
 expected_data_volume = "one_nullable_column_per_attempt"

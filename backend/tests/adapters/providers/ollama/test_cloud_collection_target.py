@@ -25,6 +25,31 @@ def test_source_status_maps_to_durable_rate_outcomes() -> None:
     assert admission_outcome_for_source("unauthorized") == "failed"
 
 
+def test_credential_update_contention_keeps_a_distinct_no_response_reason() -> None:
+    from agentmonitor.adapters.providers.ollama.cloud_balance.collection import (
+        no_response_reason_for_source,
+    )
+
+    assert (
+        no_response_reason_for_source(
+            "authorization_unavailable", "ollama_cloud_store_locked"
+        )
+        == "credential_update_in_progress"
+    )
+    assert (
+        no_response_reason_for_source(
+            "authorization_unavailable", "ollama_cloud_store_unavailable"
+        )
+        == "store_unavailable"
+    )
+    assert (
+        no_response_reason_for_source(
+            "provider_unavailable", "ollama_cloud_provider_unavailable"
+        )
+        == "source_not_started"
+    )
+
+
 def test_failure_policy_preserves_actionable_provider_states() -> None:
     from agentmonitor.adapters.providers.ollama.cloud_balance.collection import (
         cloud_failure_policy,

@@ -37,6 +37,7 @@ from agentmonitor.adapters.providers.ollama.cloud_balance.collection import (
     cloud_balance_to_capacity,
     cloud_failure_policy,
     eligible_cloud_account,
+    no_response_reason_for_source,
     validate_cloud_target,
 )
 from agentmonitor.adapters.providers.ollama.cloud_balance.env_capability import (
@@ -1118,6 +1119,9 @@ class OllamaCloudCollectionV1:
             }
             if source.state not in allowed:
                 raise ValueError("ollama_cloud_source_binding_invalid")
+            no_response_reason = no_response_reason_for_source(
+                source.state, source.reason_code
+            )
             terminal = OllamaCloudNoResponseCompletionV2(
                 admission_id=lease.admission_id,
                 scheduler_instance_id=lease.scheduler_instance_id,
@@ -1125,9 +1129,7 @@ class OllamaCloudCollectionV1:
                 fencing_token=lease.fencing_token,
                 started_at=lease.started_at,
                 terminal_at=completed,
-                reason_code="store_unavailable"
-                if authorization_not_sent
-                else "source_not_started",
+                reason_code=no_response_reason,
                 source_state=cast(
                     Literal[
                         "authorization_unavailable",
@@ -1141,7 +1143,9 @@ class OllamaCloudCollectionV1:
             )
             self._admission.finish_no_response(lease, terminal)
             failure_code = (
-                "ollama_cloud_store_unavailable"
+                "ollama_cloud_credential_update_in_progress"
+                if no_response_reason == "credential_update_in_progress"
+                else "ollama_cloud_store_unavailable"
                 if authorization_not_sent
                 else "ollama_cloud_" + source.state
             )
@@ -1384,7 +1388,9 @@ class OllamaCloudCollectionV1:
             no_response_reason,
         ) in orphaned:
             failure_code = (
-                "ollama_cloud_store_unavailable"
+                "ollama_cloud_credential_update_in_progress"
+                if no_response_reason == "credential_update_in_progress"
+                else "ollama_cloud_store_unavailable"
                 if source_failure == "authorization_unavailable"
                 else "ollama_cloud_" + source_failure
                 if source_failure

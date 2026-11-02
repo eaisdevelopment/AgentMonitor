@@ -78,6 +78,7 @@ def classify_latest_ollama_cloud_source_signal_v1(
         not in {
             None,
             "authorization_unavailable",
+            "credential_update_in_progress",
             "unauthorized",
             "access_denied",
             "rate_limited",
@@ -113,6 +114,8 @@ def classify_latest_ollama_cloud_source_signal_v1(
             return "transient_failure"
         return "outcome_unresolved"
     if dispatch_certainty == "not_started" and run_state == "failed":
+        if failure_code == "credential_update_in_progress":
+            return "credential_update_in_progress"
         if failure_code == "authorization_unavailable":
             return "authorization_unavailable"
         if failure_code in {"provider_unavailable", "deadline_exceeded"}:

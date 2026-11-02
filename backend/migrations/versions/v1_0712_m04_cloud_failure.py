@@ -27,6 +27,7 @@ METADATA = MappingProxyType(
         "portability_notes": (
             "Nullable safe failure code preserves interrupted-run classification",
             "V2 no-response overlay is authoritative over its legacy admission shadow",
+            "Credential-update lock contention remains a retryable no-request terminal",
         ),
         "lock_policy": "exclusive_migration",
         "downtime_policy": "offline_additive_schema_migration",
@@ -92,7 +93,8 @@ def upgrade() -> None:
             name="ck_cloud_no_response_source_state",
         ),
         sa.CheckConstraint(
-            "reason_code IN ('pre_dispatch_failed','source_not_started','store_unavailable')",
+            "reason_code IN ('pre_dispatch_failed','source_not_started','store_unavailable',"
+            "'credential_update_in_progress')",
             name="ck_cloud_no_response_reason",
         ),
         sa.CheckConstraint(
@@ -103,7 +105,8 @@ def upgrade() -> None:
         ),
         sa.CheckConstraint(
             "COALESCE((reason_code='pre_dispatch_failed' AND source_state IS NULL) OR "
-            "(reason_code='store_unavailable' AND source_state='authorization_unavailable') OR "
+            "(reason_code IN ('store_unavailable','credential_update_in_progress') "
+            "AND source_state='authorization_unavailable') OR "
             "(reason_code='source_not_started' AND source_state IN ('deadline_exceeded',"
             "'provider_unavailable','internal_adapter_error','source_not_admitted')),0)=1",
             name="ck_cloud_no_response_reason_state",
