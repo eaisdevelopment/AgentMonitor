@@ -413,9 +413,13 @@ class ProviderTargetRefV1(TechnicalValueV1):
 
     def __post_init__(self) -> None:
         TechnicalValueV1.__post_init__(self)
-        if not isinstance(self.target_id, OpaqueIdV1) or (
-            self.target_kind == "cloud_service"
-            and not _valid_access_target_id(self.target_id)
+        if (
+            self.target_kind not in {"provider_installation", "cloud_service"}
+            or not isinstance(self.target_id, OpaqueIdV1)
+            or (
+                self.target_kind == "cloud_service"
+                and not _valid_access_target_id(self.target_id)
+            )
         ):
             raise ValueError("registry_provider_target_invalid")
 
@@ -1029,6 +1033,33 @@ class RegistryCloudResourceMembershipV2(TechnicalValueV1):
 
 
 @dataclass(frozen=True, slots=True)
+class RegistryLocalResourceTargetV2(TechnicalValueV1):
+    """One active local profile target linked to a resource in this snapshot."""
+
+    CONTRACT_ID: ClassVar[str] = "CTR-REG-009"
+    CONTRACT_VERSION: ClassVar[str] = "2.0.0"
+    OWNER: ClassVar[str] = "PLAN-M02"
+
+    resource_id: OpaqueIdV1
+    account_id: OpaqueIdV1
+    provider_key: str
+    installation_id: OpaqueIdV1
+    registry_revision: int
+
+    def __post_init__(self) -> None:
+        TechnicalValueV1.__post_init__(self)
+        if (
+            not isinstance(self.resource_id, OpaqueIdV1)
+            or not isinstance(self.account_id, OpaqueIdV1)
+            or not isinstance(self.installation_id, OpaqueIdV1)
+            or not _bounded(self.provider_key, maximum=64)
+            or type(self.registry_revision) is not int
+            or self.registry_revision < 1
+        ):
+            raise ValueError("registry_local_resource_target_invalid")
+
+
+@dataclass(frozen=True, slots=True)
 class RegistryScopeSnapshotV2(TechnicalValueV1):
     """One atomic registry scope including real local and cloud resources."""
 
@@ -1044,6 +1075,7 @@ class RegistryScopeSnapshotV2(TechnicalValueV1):
     cloud_resources: tuple[RegistryCloudResourceMembershipV2, ...]
     completeness_state: Literal["complete", "unavailable"]
     registry_revision: int
+    local_targets: tuple[RegistryLocalResourceTargetV2, ...] = ()
 
     def __post_init__(self) -> None:
         TechnicalValueV1.__post_init__(self)
@@ -1063,13 +1095,20 @@ class RegistryScopeSnapshotV2(TechnicalValueV1):
             or set(self.local_resource_ids).intersection(cloud_resource_ids)
             or any(item not in self.account_ids for item in cloud_accounts)
             or any(
+                item.resource_id not in self.local_resource_ids
+                or item.account_id not in self.account_ids
+                or item.registry_revision != self.registry_revision
+                for item in self.local_targets
+            )
+            or len(set(self.local_targets)) != len(self.local_targets)
+            or any(
                 item.registry_revision != self.registry_revision
                 for item in self.cloud_resources
             )
             or self.scope_kind == "provider"
             and any(
                 item.provider_key != self.scope_id.value
-                for item in self.cloud_resources
+                for item in (*self.cloud_resources, *self.local_targets)
                 if self.scope_id is not None
             )
             or self.scope_kind == "account"
@@ -1078,6 +1117,7 @@ class RegistryScopeSnapshotV2(TechnicalValueV1):
             and self.organization_ids not in {(), (self.scope_id,)}
             or len(self.account_ids) > 200
             or len(self.local_resource_ids) + len(self.cloud_resources) > 2000
+            or len(self.local_targets) > 4000
         ):
             raise ValueError("registry_scope_snapshot_invalid")
 

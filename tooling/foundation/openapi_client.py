@@ -1757,6 +1757,8 @@ def _ts_type(value: object) -> str:
     if kind == "null":
         return "null"
     if kind == "array":
+        if schema.get("maxItems") == 0:
+            return "readonly []"
         return "readonly (" + _ts_type(schema["items"]) + ")[]"
     if kind == "object":
         properties = _object(schema.get("properties", {}))

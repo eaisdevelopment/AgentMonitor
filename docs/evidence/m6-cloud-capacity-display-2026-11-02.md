@@ -56,3 +56,10 @@ reading. Pure policy tests failed before the policy existed and pass afterward.
 The repository has no existing audited general freshness-setting use case, so
 the default is not yet administrator-editable. Real provider provenance,
 registry-count races and live stale/current display remain Not Run.
+
+V2 unresolved aggregate groups have no numeric totals in both the domain and
+wire schema. The local candidate baseline initially rejected this correction
+as `breaking_drift`; public GitHub main (1e325eb) and the running dashboard's
+working tree (86f2701) contain no V2 group. The generated candidate artifacts
+were therefore checked against that published GitHub baseline before the
+unshipped candidate baseline was updated. V1 wire contracts were preserved.

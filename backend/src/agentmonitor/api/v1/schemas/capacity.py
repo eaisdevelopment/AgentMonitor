@@ -293,7 +293,7 @@ class CapacityWindowGroupWireV2(_ClosedV1):
     input_observation_ids: tuple[str, ...]
     relationship_state: Literal["unresolved"]
     reason_codes: tuple[str, ...]
-    numeric_values: tuple[CapacityNumericAggregateWireV1, ...]
+    numeric_values: tuple[()]
 
 
 class CapacityScopeViewV2(_ClosedV1):

@@ -7,6 +7,9 @@ import json
 import secrets
 from datetime import UTC, datetime, timedelta
 
+from sqlalchemy.engine import Connection, RowMapping
+from sqlalchemy.exc import SQLAlchemyError
+
 from agentmonitor.adapters.persistence._shared.sqlite.core.policy import (
     DatabaseRefV1,
     SqlitePolicyError,
@@ -40,6 +43,7 @@ from agentmonitor.contracts.registry_v1 import (
     ProviderInstallationViewV1,
     ProviderTargetRefV1,
     RegistryCloudResourceMembershipV2,
+    RegistryLocalResourceTargetV2,
     RegistryScopeKindV1,
     RegistryScopeSnapshotV1,
     RegistryScopeSnapshotV2,
@@ -67,8 +71,6 @@ from agentmonitor.modules.registry.application.organizations import (
 from agentmonitor.modules.registry.domain.cloud_verification import (
     decide_cloud_owner_assertion,
 )
-from sqlalchemy.engine import Connection, RowMapping
-from sqlalchemy.exc import SQLAlchemyError
 
 
 class RegistryRepositoryErrorV1(ValueError):
@@ -3733,6 +3735,43 @@ class SqliteRegistryRepositoryV1:
                             key=lambda item: item.value,
                         )
                     )
+                    local_target_rows = (
+                        connection.exec_driver_sql(
+                            "SELECT DISTINCT r.resource_id,r.account_id,a.provider_key,"
+                            "p.provider_installation_id FROM reg_account_resource r "
+                            "JOIN reg_account a ON a.account_id=r.account_id "
+                            "JOIN reg_profile_resource_link l ON l.account_id=r.account_id "
+                            "AND l.resource_id=r.resource_id "
+                            "AND l.invalidated_at IS NULL "
+                            "JOIN reg_monitoring_profile p ON p.profile_id=l.profile_id "
+                            "AND p.account_id=r.account_id "
+                            "JOIN reg_provider_installation i ON "
+                            "i.provider_installation_id=p.provider_installation_id "
+                            "AND i.provider_key=a.provider_key "
+                            "WHERE r.lifecycle='active' AND p.lifecycle='active' "
+                            "AND r.account_id IN (" + placeholders + ") "
+                            "ORDER BY r.resource_id,p.provider_installation_id LIMIT 4001",
+                            ordered_account_values,
+                        )
+                        .mappings()
+                        .all()
+                        if ordered_account_values
+                        else []
+                    )
+                    if len(local_target_rows) > 4000:
+                        raise RegistryRepositoryErrorV1(
+                            "registry_scope_membership_limit_exceeded"
+                        )
+                    local_targets = tuple(
+                        RegistryLocalResourceTargetV2(
+                            OpaqueIdV1(str(row["resource_id"])),
+                            OpaqueIdV1(str(row["account_id"])),
+                            str(row["provider_key"]),
+                            OpaqueIdV1(str(row["provider_installation_id"])),
+                            revision,
+                        )
+                        for row in local_target_rows
+                    )
                     cloud_rows = (
                         connection.exec_driver_sql(
                             "SELECT c.resource_id,c.account_id,t.provider_key,"
@@ -3827,6 +3866,7 @@ class SqliteRegistryRepositoryV1:
                         cloud_resources=cloud_resources,
                         completeness_state="complete",
                         registry_revision=revision,
+                        local_targets=local_targets,
                     )
         except RegistryRepositoryErrorV1:
             raise

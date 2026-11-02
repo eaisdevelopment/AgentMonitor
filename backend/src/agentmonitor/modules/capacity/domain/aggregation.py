@@ -311,10 +311,20 @@ def aggregate_capacity_v2(
                     "capacity_aggregate_subject_outside_scope"
                 )
         elif local is not None:
-            if (
-                subject.account_id != local.account_id
-                or isinstance(subject, CapacitySubjectV2)
-                and subject.provider_target.target_kind == "cloud_service"
+            installation = (
+                subject.provider_target.target_id
+                if isinstance(subject, CapacitySubjectV2)
+                and subject.provider_target.target_kind == "provider_installation"
+                else subject.installation_id
+                if not isinstance(subject, CapacitySubjectV2)
+                else None
+            )
+            if subject.account_id != local.account_id or not any(
+                item.resource_id == subject.resource_id
+                and item.account_id == subject.account_id
+                and item.provider_key == subject.provider_key
+                and item.installation_id == installation
+                for item in query.scope_snapshot.local_targets
             ):
                 raise InvalidCapacityContractV1(
                     "capacity_aggregate_subject_outside_scope"
