@@ -10,6 +10,7 @@ import stat
 import sys
 from collections.abc import Iterator
 from contextlib import contextmanager
+from dataclasses import dataclass
 from pathlib import Path
 
 from agentmonitor.adapters.identity_access.argon2_password import Argon2PasswordV1
@@ -38,10 +39,62 @@ class OperatorQuiescenceError(RuntimeError):
         super().__init__(code)
 
 
+_LEASE_ISSUER = object()
+
+
+@dataclass(frozen=True, slots=True)
+class _LeaseState:
+    active: bool = True
+
+
+@dataclass(frozen=True, slots=True)
+class ServiceQuiescenceLeaseV1:
+    """Sealed, root-pinned and process-held service lock capability."""
+
+    _root: Path
+    _descriptor: int
+    _directory: int
+    _identity: tuple[int, int]
+    _root_identity: tuple[int, int]
+    _state: _LeaseState
+    _issuer: object
+
+    def validate(self, root: Path) -> None:
+        try:
+            held = os.fstat(self._descriptor)
+            directory = os.fstat(self._directory)
+            path = os.stat(
+                ".agentmonitor-service.lock",
+                dir_fd=self._directory,
+                follow_symlinks=False,
+            )
+            root_path = root.lstat()
+            if (
+                self._issuer is not _LEASE_ISSUER
+                or not self._state.active
+                or root != self._root
+                or not stat.S_ISDIR(directory.st_mode)
+                or directory.st_uid != os.getuid()
+                or stat.S_IMODE(directory.st_mode) != 0o700
+                or (directory.st_dev, directory.st_ino) != self._root_identity
+                or (root_path.st_dev, root_path.st_ino) != self._root_identity
+                or not stat.S_ISREG(held.st_mode)
+                or (held.st_dev, held.st_ino) != self._identity
+                or (path.st_dev, path.st_ino) != self._identity
+                or held.st_uid != os.getuid()
+                or held.st_nlink != 1
+                or stat.S_IMODE(held.st_mode) != 0o600
+            ):
+                raise OperatorQuiescenceError("service_lock_unsafe")
+            fcntl.flock(self._descriptor, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except OSError:
+            raise OperatorQuiescenceError("service_lock_unsafe") from None
+
+
 @contextmanager
 def exclusive_service_quiescence(
     root: Path, database_ref: DatabaseRefV1
-) -> Iterator[None]:
+) -> Iterator[ServiceQuiescenceLeaseV1]:
     """Hold the same nonblocking flock as P01 before any SQLite connection.
 
     The lock file is permanent: unlinking it could split service/operator locks.
@@ -70,12 +123,14 @@ def exclusive_service_quiescence(
                 not stat.S_ISREG(state.st_mode)
                 or stat.S_IMODE(state.st_mode) != 0o600
                 or state.st_uid != os.getuid()
+                or state.st_nlink != 1
             ):
                 raise OperatorQuiescenceError("service_lock_unsafe")
             try:
                 fcntl.flock(descriptor, fcntl.LOCK_EX | fcntl.LOCK_NB)
             except OSError as error:
                 raise OperatorQuiescenceError("service_lock_occupied") from error
+            lease: ServiceQuiescenceLeaseV1 | None = None
             try:
                 database_ref.validate()
                 path_state = root.lstat()
@@ -84,8 +139,21 @@ def exclusive_service_quiescence(
                     root_state.st_ino,
                 ):
                     raise OperatorQuiescenceError("service_lock_unsafe")
-                yield
+                lease = ServiceQuiescenceLeaseV1(
+                    root,
+                    descriptor,
+                    directory,
+                    (state.st_dev, state.st_ino),
+                    (root_state.st_dev, root_state.st_ino),
+                    _LeaseState(),
+                    _LEASE_ISSUER,
+                )
+                lease.validate(root)
+                yield lease
+                lease.validate(root)
             finally:
+                if lease is not None:
+                    object.__setattr__(lease._state, "active", False)
                 fcntl.flock(descriptor, fcntl.LOCK_UN)
         finally:
             os.close(descriptor)

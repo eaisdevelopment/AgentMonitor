@@ -372,3 +372,56 @@ def test_auto_migrate_upgrades_v1_0715_to_cloud_replay_with_backup(
     manifest = json.loads(manifests[0].read_text())
     assert manifest["source_revision"] == "v1_0715"
     assert manifest["target_revision"] == "v1_0717"
+
+
+def test_existing_real_locks_can_span_upgrade_with_preassigned_backup(
+    tmp_path: Path,
+) -> None:
+    import secrets
+
+    import pytest
+    from tools.automation.implementations.auto_migrate import (
+        MigrationRefused,
+        _hold_settings_lock,
+        run_upgrade,
+    )
+
+    from agentmonitor.composition.iam_operator import OperatorQuiescenceError
+
+    reference = _prior_database(tmp_path, "v1_0708")
+    selected = "migration-preflight-" + secrets.token_hex(16)
+    with (
+        exclusive_service_quiescence(tmp_path, reference) as service_lease,
+        _hold_settings_lock(tmp_path) as settings_lease,
+    ):
+        contender = _run(tmp_path, expected="v1_0708")
+        assert contender.returncode == 3
+        outcome, backup_id = run_upgrade(
+            tmp_path,
+            "v1_0708",
+            service_lease=service_lease,
+            settings_lease=settings_lease,
+            planned_backup_id=selected,
+        )
+        assert outcome == "upgraded" and backup_id == selected
+        assert (tmp_path / "backups" / selected / "manifest.json").is_file()
+        service_lease.validate(tmp_path)
+        settings_lease.validate(tmp_path)
+        other_root = tmp_path / "other"
+        other_root.mkdir(mode=0o700)
+        with pytest.raises(OperatorQuiescenceError):
+            service_lease.validate(other_root)
+        with pytest.raises(MigrationRefused):
+            settings_lease.validate(other_root)
+        tmp_path.chmod(0o750)
+        try:
+            with pytest.raises(OperatorQuiescenceError):
+                service_lease.validate(tmp_path)
+            with pytest.raises(MigrationRefused):
+                settings_lease.validate(tmp_path)
+        finally:
+            tmp_path.chmod(0o700)
+    with pytest.raises(OperatorQuiescenceError):
+        service_lease.validate(tmp_path)
+    with pytest.raises(MigrationRefused):
+        settings_lease.validate(tmp_path)

@@ -13,13 +13,15 @@ import fcntl
 import hashlib
 import json
 import os
+import re
 import sqlite3
 import stat
 import sys
 import tempfile
 import time
 from collections.abc import Iterator
-from contextlib import ExitStack, closing, contextmanager
+from contextlib import ExitStack, closing, contextmanager, nullcontext
+from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import NoReturn
@@ -50,6 +52,7 @@ from agentmonitor.adapters.persistence.runtime_observation.settings.repository i
 )
 from agentmonitor.composition.iam_operator import (
     OperatorQuiescenceError,
+    ServiceQuiescenceLeaseV1,
     exclusive_service_quiescence,
 )
 from agentmonitor.modules.runtime_observation.application.ports import (
@@ -110,8 +113,54 @@ def _backup_parent(root: Path) -> Path:
     return parent
 
 
+_SETTINGS_LEASE_ISSUER = object()
+
+
+@dataclass(frozen=True, slots=True)
+class _SettingsLeaseState:
+    active: bool = True
+
+
+@dataclass(frozen=True, slots=True)
+class _SettingsLockLeaseV1:
+    _root: Path
+    _descriptor: int
+    _directory: int
+    _identity: tuple[int, int]
+    _root_identity: tuple[int, int]
+    _state: _SettingsLeaseState
+    _issuer: object
+
+    def validate(self, root: Path) -> None:
+        try:
+            held = os.fstat(self._descriptor)
+            directory = os.fstat(self._directory)
+            path = os.stat(SETTINGS_LOCK, dir_fd=self._directory, follow_symlinks=False)
+            root_path = root.lstat()
+            if (
+                self._issuer is not _SETTINGS_LEASE_ISSUER
+                or not self._state.active
+                or root != self._root
+                or not stat.S_ISDIR(directory.st_mode)
+                or directory.st_uid != os.getuid()
+                or stat.S_IMODE(directory.st_mode) != 0o700
+                or (directory.st_dev, directory.st_ino) != self._root_identity
+                or (root_path.st_dev, root_path.st_ino) != self._root_identity
+                or not stat.S_ISREG(held.st_mode)
+                or (held.st_dev, held.st_ino) != self._identity
+                or (path.st_dev, path.st_ino) != self._identity
+                or held.st_uid != os.getuid()
+                or held.st_nlink != 1
+                or stat.S_IMODE(held.st_mode) != 0o600
+            ):
+                _refuse("settings_lock_changed")
+            fcntl.flock(self._descriptor, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except OSError:
+            _refuse("settings_lock_changed")
+
+
 @contextmanager
-def _hold_settings_lock(root: Path) -> Iterator[None]:
+def _hold_settings_lock(root: Path) -> Iterator[_SettingsLockLeaseV1]:
     """Exclude the production M06 settings writer for the whole upgrade."""
     path = root / SETTINGS_LOCK
     try:
@@ -126,9 +175,26 @@ def _hold_settings_lock(root: Path) -> Iterator[None]:
         lock_present = False
     if settings_present and not lock_present:
         _refuse("settings_lock_missing")
-    descriptor = os.open(
-        path, os.O_RDWR | os.O_CREAT | os.O_NOFOLLOW | os.O_CLOEXEC, 0o600
+    directory = os.open(
+        root, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW | os.O_CLOEXEC
     )
+    root_info = os.fstat(directory)
+    try:
+        if (
+            not stat.S_ISDIR(root_info.st_mode)
+            or stat.S_IMODE(root_info.st_mode) != 0o700
+            or root_info.st_uid != os.getuid()
+        ):
+            _refuse("settings_lock_unsafe")
+        descriptor = os.open(
+            SETTINGS_LOCK,
+            os.O_RDWR | os.O_CREAT | os.O_NOFOLLOW | os.O_CLOEXEC,
+            0o600,
+            dir_fd=directory,
+        )
+    except BaseException:
+        os.close(directory)
+        raise
     try:
         info = os.fstat(descriptor)
         if (
@@ -145,12 +211,26 @@ def _hold_settings_lock(root: Path) -> Iterator[None]:
         current = path.stat(follow_symlinks=False)
         if (current.st_dev, current.st_ino) != (info.st_dev, info.st_ino):
             _refuse("settings_lock_changed")
-        yield
+        lease = _SettingsLockLeaseV1(
+            root,
+            descriptor,
+            directory,
+            (info.st_dev, info.st_ino),
+            (root_info.st_dev, root_info.st_ino),
+            _SettingsLeaseState(),
+            _SETTINGS_LEASE_ISSUER,
+        )
+        lease.validate(root)
+        yield lease
+        lease.validate(root)
         current = path.stat(follow_symlinks=False)
         if (current.st_dev, current.st_ino) != (info.st_dev, info.st_ino):
             _refuse("settings_lock_changed", failed=True)
     finally:
+        if "lease" in locals():
+            object.__setattr__(lease._state, "active", False)
         os.close(descriptor)
+        os.close(directory)
 
 
 def _digest_file(path: Path, *, max_bytes: int | None = None) -> str:
@@ -395,12 +475,39 @@ def _preflight_catalog(source: str) -> tuple[MigrationCatalogV1, tuple[str, ...]
     return catalog, tuple(item.revision for item in tail)
 
 
-def run_upgrade(root: Path, source: str) -> tuple[str, str | None]:
+def run_upgrade(
+    root: Path,
+    source: str,
+    *,
+    service_lease: ServiceQuiescenceLeaseV1 | None = None,
+    settings_lease: _SettingsLockLeaseV1 | None = None,
+    planned_backup_id: str | None = None,
+) -> tuple[str, str | None]:
     catalog, revisions = _preflight_catalog(source)
     reference = DatabaseRefV1(root / "agentmonitor.db", root)
     reference.validate()
     backup_id: str | None = None
-    with exclusive_service_quiescence(root, reference), ExitStack() as settings_guard:
+    if (service_lease is None) != (settings_lease is None):
+        _refuse("migration_lock_selection_invalid")
+    if service_lease is not None and (
+        type(service_lease) is not ServiceQuiescenceLeaseV1
+        or type(settings_lease) is not _SettingsLockLeaseV1
+    ):
+        _refuse("migration_lock_selection_invalid")
+    if (
+        planned_backup_id is not None
+        and re.fullmatch(r"migration-preflight-[a-f0-9]{32}", planned_backup_id) is None
+    ):
+        _refuse("backup_id_invalid")
+    service_context = (
+        exclusive_service_quiescence(root, reference)
+        if service_lease is None
+        else nullcontext(service_lease)
+    )
+    with service_context as held_service, ExitStack() as settings_guard:
+        held_service.validate(root)
+        if settings_lease is not None:
+            settings_lease.validate(root)
         identity = reference.validate()
         with (
             open_sqlite_database(reference, "migration_existing") as handle,
@@ -414,7 +521,10 @@ def run_upgrade(root: Path, source: str) -> tuple[str, str | None]:
             elif current != source:
                 _refuse("source_revision_not_m4")
             else:
-                settings_guard.enter_context(_hold_settings_lock(root))
+                if settings_lease is None:
+                    settings_guard.enter_context(_hold_settings_lock(root))
+                else:
+                    settings_lease.validate(root)
                 driver = connection.connection.driver_connection
                 if not isinstance(driver, sqlite3.Connection):
                     _refuse("database_driver_invalid")
@@ -442,9 +552,16 @@ def run_upgrade(root: Path, source: str) -> tuple[str, str | None]:
                 ):
                     _refuse("backup_space_insufficient")
                 backup_parent = _backup_parent(root)
-                backup = Path(
-                    tempfile.mkdtemp(prefix="migration-preflight-", dir=backup_parent)
-                )
+                if planned_backup_id is None:
+                    backup = Path(
+                        tempfile.mkdtemp(
+                            prefix="migration-preflight-", dir=backup_parent
+                        )
+                    )
+                else:
+                    backup = backup_parent / planned_backup_id
+                    backup.mkdir(mode=0o700)
+                    _fsync_directory(backup_parent)
                 _safe_directory(backup)
                 backup_id = backup.name
                 digest = _create_sqlite_backup(driver, backup / "agentmonitor.db")
@@ -520,6 +637,9 @@ def run_upgrade(root: Path, source: str) -> tuple[str, str | None]:
                     connection.rollback()
                     raise
                 outcome = "upgraded"
+        held_service.validate(root)
+        if settings_lease is not None:
+            settings_lease.validate(root)
         view = InspectSchemaCompatibilityV1(
             reference, application_schema_range(), "runtime_read_write"
         )
