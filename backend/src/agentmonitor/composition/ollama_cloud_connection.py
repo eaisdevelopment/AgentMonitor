@@ -9,7 +9,10 @@ from typing import Literal
 
 from sqlalchemy.engine import Connection
 
-from agentmonitor.adapters.persistence._shared.sqlite.core.policy import DatabaseRefV1
+from agentmonitor.adapters.persistence._shared.sqlite.core.policy import (
+    DatabaseRefV1,
+    open_sqlite_database,
+)
 from agentmonitor.adapters.persistence.capacity.sqlite.repository import (
     SqliteCapacityRepositoryV1,
 )
@@ -43,6 +46,7 @@ from agentmonitor.composition.ollama_cloud_collection import (
     OllamaCloudCollectionV1,
     OllamaCloudTargetIneligible,
 )
+from agentmonitor.contracts.cloud_schedule_status_v1 import CloudScheduleStatusV1
 from agentmonitor.contracts.collection_control_v1 import (
     OllamaCloudLatestSourceSignalQueryV1,
     OllamaCloudVerificationEnqueueV1,
@@ -164,32 +168,60 @@ class OllamaCloudConnectionServiceV1:
         self._collector = OllamaCloudCollectionV1(reference)
 
     def _monitoring_status(
-        self, enabled: bool, binding: ActiveCredentialBindingRefV1 | None
-    ) -> tuple[Literal["off", "waiting", "scheduled", "unavailable"], str]:
+        self,
+        enabled: bool,
+        binding: ActiveCredentialBindingRefV1 | None,
+        account_record_version: int,
+    ) -> tuple[Literal["off", "waiting", "scheduled", "unavailable", "reading"], str]:
         ready = self._ready() and self._monitoring_ready()
         if not enabled or not ready or binding is None:
             return scheduled_monitoring_state(
                 enabled, ready, binding is not None, False, False
             )
+        proof = None
         try:
-            self._collector.scheduled_proof_for_binding(binding)
+            proof = self._collector.scheduled_proof_for_binding(binding)
         except OllamaCloudTargetIneligible:
-            return scheduled_monitoring_state(True, True, True, False, False)
+            pass
         graph = self._cloud.read_monitoring_target(binding.account_id)
         if graph is None or graph.binding != binding:
             return scheduled_monitoring_state(True, True, True, False, False)
         digest = cloud_schedule_target_digest(graph)
-        registered = any(
-            item.schedule_id == "ollama-cloud-" + digest[:40]
-            and item.target_key_digest == digest
-            and item.account_id == graph.account_id.value
-            and item.profile_id == graph.profile_id.value
-            and item.resource_id == graph.resource_id.value
-            and item.access_target_id == graph.access_target_id.value
-            and item.target_generation == binding.generation
-            for item in self._schedules.list_registered()
+        target = CloudScheduleStatusV1(
+            "ollama-cloud-" + digest[:40],
+            digest,
+            graph.account_id.value,
+            graph.profile_id.value,
+            graph.resource_id.value,
+            graph.access_target_id.value,
+            binding.generation,
         )
-        return scheduled_monitoring_state(True, True, True, True, registered)
+        fingerprint = ollama_cloud_probe_fingerprint()
+        try:
+            with open_sqlite_database(self._reference, "runtime_read_only") as handle:
+                with handle.connect() as connection:
+                    connection.exec_driver_sql("BEGIN")
+                    ensure_cloud_verification_enqueue_authority_in_transaction(
+                        connection,
+                        account_id=graph.account_id,
+                        expected_account_record_version=account_record_version,
+                        profile_id=graph.profile_id,
+                        resource_id=graph.resource_id,
+                        access_target_id=graph.access_target_id,
+                        binding=binding,
+                        expected_manifest_fingerprint=fingerprint,
+                    )
+                    registered, reading, latest = self._schedules.read_snapshot(
+                        connection, target, fingerprint
+                    )
+        except CredentialBindingRepositoryErrorV1:
+            return "unavailable", "source_not_admitted"
+        admitted = (
+            proof is not None and latest == proof.authorization_signal_run_id.value
+        )
+        return scheduled_monitoring_state(
+            True, True, True, admitted, registered, reading
+        )
 
     def _verified(self, binding: ActiveCredentialBindingRefV1) -> bool:
         receipt = self._cloud.read_current_verification(binding)
@@ -232,7 +264,7 @@ class OllamaCloudConnectionServiceV1:
             raise ValueError("ollama_cloud_account_unavailable")
         binding = resolve_active_credential_binding(self._bindings.read(account_id))
         monitoring_state, monitoring_reason = self._monitoring_status(
-            account.is_effective_monitoring_enabled, binding
+            account.is_effective_monitoring_enabled, binding, account.record_version
         )
         if binding is None:
             return CredentialConnectionStatusV1(

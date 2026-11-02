@@ -806,9 +806,9 @@ class CredentialConnectionStatusV1(TechnicalValueV1):
     binding_generation: int | None
     observed_at: datetime | None
     reason_code: str
-    monitoring_state: Literal["off", "waiting", "scheduled", "unavailable"] = (
-        "unavailable"
-    )
+    monitoring_state: Literal[
+        "off", "waiting", "scheduled", "unavailable", "reading"
+    ] = "unavailable"
     monitoring_reason: str = "worker_unavailable"
 
     def __post_init__(self) -> None:
@@ -838,7 +838,7 @@ class CredentialConnectionStatusV1(TechnicalValueV1):
             )
             or not _bounded(self.reason_code, maximum=128)
             or self.monitoring_state
-            not in {"off", "waiting", "scheduled", "unavailable"}
+            not in {"off", "waiting", "scheduled", "unavailable", "reading"}
             or self.monitoring_reason
             not in {
                 "monitoring_disabled",
@@ -847,6 +847,7 @@ class CredentialConnectionStatusV1(TechnicalValueV1):
                 "source_not_admitted",
                 "schedule_not_registered",
                 "scheduled",
+                "reading_now",
             }
         ):
             raise ValueError("registry_credential_connection_status_invalid")

@@ -11,7 +11,8 @@ def scheduled_monitoring_state(
     binding_present: bool,
     source_admitted: bool,
     schedule_registered: bool,
-) -> tuple[Literal["off", "waiting", "scheduled", "unavailable"], str]:
+    reading_now: bool = False,
+) -> tuple[Literal["off", "waiting", "scheduled", "unavailable", "reading"], str]:
     """Report scheduling only when every current runtime prerequisite holds."""
     if not monitoring_enabled:
         return "off", "monitoring_disabled"
@@ -19,6 +20,8 @@ def scheduled_monitoring_state(
         return "unavailable", "worker_unavailable"
     if not binding_present:
         return "waiting", "credential_unavailable"
+    if schedule_registered and reading_now:
+        return "reading", "reading_now"
     if not source_admitted:
         return "unavailable", "source_not_admitted"
     if not schedule_registered:

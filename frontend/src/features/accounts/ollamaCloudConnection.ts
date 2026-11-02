@@ -4,6 +4,7 @@ export type OllamaCloudConnectionCopy = Readonly<{ title: string; description: s
 export function ollamaMonitoringCopy(state: string, reason: string): string {
   if (state === "off") return "Monitoring is off";
   if (state === "scheduled") return "Monitoring scheduled";
+  if (state === "reading") return "Reading now";
   if (reason === "credential_unavailable") return "Waiting for a credential";
   if (reason === "source_not_admitted") return "Monitoring status unavailable";
   if (reason === "schedule_not_registered") return "Waiting for scheduling";

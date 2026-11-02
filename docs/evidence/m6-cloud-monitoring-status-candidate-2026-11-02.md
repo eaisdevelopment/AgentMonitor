@@ -20,6 +20,12 @@ populated cloud lane, authenticated API/browser behavior, provider checks,
 worker lifecycle and restart behavior were not tested. The canonical M6
 completion gate has not passed; this is not milestone completion.
 
+Follow-up candidate: the M02 account/version/binding fence and M04 lane and
+latest-run checks share a read transaction. An exact dispatched run with its
+current unexpired gate and run leases can be presented as “Reading now”. The
+populated and in-flight SQL paths have not been exercised against a real cloud
+account and require independent review before activation.
+
 No provider state, user agent, credential or service was modified or read.
 The read-only query introduces no schema migration or dependency. Follow-up:
 independent review, M04 contract registration and actual-system verification.

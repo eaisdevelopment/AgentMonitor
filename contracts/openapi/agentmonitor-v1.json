@@ -5023,7 +5023,8 @@
               "off",
               "waiting",
               "scheduled",
-              "unavailable"
+              "unavailable",
+              "reading"
             ],
             "title": "Monitoring State",
             "type": "string"
@@ -23616,7 +23617,7 @@
     "generator_sha256": "53adb2f5dd513514e758906103e689e00f212d14fbcb307a193ed54bddcdc9cb",
     "generator_version": "2.0.8",
     "openapi_version": "3.1.0",
-    "schema_sha256": "169afa76015e8dca4cf702f30600041ef15b574343d857e3edf81303e3343715",
-    "source_sha256": "32fdfbd1a05524d817d2416bde33a7ad1b36b4560d46f4d2771b39a91809bbb1"
+    "schema_sha256": "0be38d4f3700cd4d0b63d616b5490a92670a78f18283dd8ed9477e36309f68fe",
+    "source_sha256": "50513723858dd850dbecef4e1c9d962478c08578ac7a74c559a2307e2b8c486b"
   }
 }

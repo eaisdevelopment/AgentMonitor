@@ -169,5 +169,5 @@ class OllamaCloudConnectionStatusV1(_ClosedV1):
     state: CredentialConnectionStateV1
     can_verify: bool
     observed_at: datetime | None
-    monitoring_state: Literal["off", "waiting", "scheduled", "unavailable"]
+    monitoring_state: Literal["off", "waiting", "scheduled", "unavailable", "reading"]
     monitoring_reason: str

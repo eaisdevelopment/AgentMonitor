@@ -99,3 +99,7 @@ def test_scheduled_state_never_follows_preference_or_old_receipt_alone() -> None
         "scheduled",
         "scheduled",
     )
+    assert scheduled_monitoring_state(True, True, True, False, True, True) == (
+        "reading",
+        "reading_now",
+    )
