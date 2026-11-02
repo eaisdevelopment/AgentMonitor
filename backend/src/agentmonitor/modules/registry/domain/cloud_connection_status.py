@@ -3,6 +3,27 @@
 from agentmonitor.contracts.registry_v1 import CredentialConnectionStateV1
 
 
+def scheduled_monitoring_state(
+    monitoring_enabled: bool,
+    worker_ready: bool,
+    binding_present: bool,
+    source_admitted: bool,
+    schedule_registered: bool,
+) -> tuple[str, str]:
+    """Report scheduling only when every current runtime prerequisite holds."""
+    if not monitoring_enabled:
+        return "off", "monitoring_disabled"
+    if not worker_ready:
+        return "unavailable", "worker_unavailable"
+    if not binding_present:
+        return "waiting", "credential_unavailable"
+    if not source_admitted:
+        return "waiting", "source_not_admitted"
+    if not schedule_registered:
+        return "waiting", "schedule_not_registered"
+    return "scheduled", "scheduled"
+
+
 def derive_connection_status(
     binding_present: bool,
     verified: bool,

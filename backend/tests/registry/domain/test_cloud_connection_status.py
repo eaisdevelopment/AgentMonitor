@@ -72,3 +72,30 @@ def test_stale_and_transient_states_are_not_reported_as_pending() -> None:
     assert derive_connection_status(
         True, False, "terminal", "transient_failure", "ready", True
     ) == ("retry_available", True)
+
+
+def test_scheduled_state_never_follows_preference_or_old_receipt_alone() -> None:
+    from agentmonitor.modules.registry.domain.cloud_connection_status import (
+        scheduled_monitoring_state,
+    )
+
+    assert scheduled_monitoring_state(False, True, True, True, True) == (
+        "off",
+        "monitoring_disabled",
+    )
+    assert scheduled_monitoring_state(True, False, True, True, True) == (
+        "unavailable",
+        "worker_unavailable",
+    )
+    assert scheduled_monitoring_state(True, True, True, False, True) == (
+        "waiting",
+        "source_not_admitted",
+    )
+    assert scheduled_monitoring_state(True, True, True, True, False) == (
+        "waiting",
+        "schedule_not_registered",
+    )
+    assert scheduled_monitoring_state(True, True, True, True, True) == (
+        "scheduled",
+        "scheduled",
+    )
