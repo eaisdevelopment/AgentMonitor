@@ -66,7 +66,7 @@ def test_stopped_unit_is_killed_without_automatic_restart() -> None:
     assert result.returncode == 0
     directory = _arm(unit)
     try:
-        assert stop_quiescent_unit(unit, **_bound(unit)) == "stopped"
+        assert stop_quiescent_unit(unit, **_bound(unit)).unit == unit
         state = subprocess.run(
             ["systemctl", "--user", "show", unit, "-p", "MainPID", "-p", "NRestarts"],
             capture_output=True,

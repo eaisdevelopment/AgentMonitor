@@ -11,7 +11,29 @@ import re
 import signal
 import subprocess
 import time
+from dataclasses import dataclass
 from pathlib import Path
+
+
+@dataclass(frozen=True, slots=True)
+class QuiescentStopReceipt:
+    unit: str
+    pid: int
+    cgroup: str
+    start_ticks: str
+    executable_identity: tuple[int, int]
+    invocation_id: str
+    start_monotonic: str
+
+
+def _systemd_environment() -> dict[str, str]:
+    runtime = f"/run/user/{os.getuid()}"
+    return {
+        "PATH": "/usr/bin:/bin",
+        "LANG": "C",
+        "XDG_RUNTIME_DIR": runtime,
+        "DBUS_SESSION_BUS_ADDRESS": "unix:path=" + runtime + "/bus",
+    }
 
 
 class QuiescentStopError(RuntimeError):
@@ -23,7 +45,7 @@ def _properties(unit: str) -> dict[str, str]:
         raise QuiescentStopError("unit_invalid")
     result = subprocess.run(
         [
-            "systemctl",
+            "/usr/bin/systemctl",
             "--user",
             "show",
             unit,
@@ -46,6 +68,7 @@ def _properties(unit: str) -> dict[str, str]:
         text=True,
         timeout=5,
         check=False,
+        env=_systemd_environment(),
     )
     if result.returncode:
         raise QuiescentStopError("unit_unavailable")
@@ -114,7 +137,7 @@ def stop_quiescent_unit(
     expected_executable_identity: tuple[int, int],
     expected_invocation_id: str,
     expected_start_monotonic: str,
-) -> str:
+) -> QuiescentStopReceipt:
     """Freeze, inspect, and kill only the exact main PID; resume on refusal.
 
     Only call after independent executable/start-identity proof and exclusive
@@ -180,7 +203,21 @@ def stop_quiescent_unit(
                 "failed",
                 "inactive",
             }:
-                return "stopped"
+                if (
+                    current.get("InvocationID") != expected_invocation_id
+                    or current.get("ExecMainStartTimestampMonotonic")
+                    != expected_start_monotonic
+                ):
+                    raise QuiescentStopError("unit_invocation_changed")
+                return QuiescentStopReceipt(
+                    unit,
+                    pid,
+                    cgroup,
+                    expected_start_ticks,
+                    expected_executable_identity,
+                    expected_invocation_id,
+                    expected_start_monotonic,
+                )
             time.sleep(0.025)
         raise QuiescentStopError("unit_stop_unconfirmed")
     except OSError as error:
