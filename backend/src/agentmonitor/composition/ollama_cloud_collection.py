@@ -66,7 +66,6 @@ from agentmonitor.adapters.providers.ollama.manifest import (
     build_ollama_manifest,
 )
 from agentmonitor.composition.ollama_capacity_commit import ollama_capacity_repository
-from agentmonitor.composition.ollama_cloud_authority import cloud_access_authorized
 from agentmonitor.contracts.capacity_v1 import (
     CapacityCommitRequestV1,
     CapacityCommitRequestV2,
@@ -126,11 +125,11 @@ class OllamaCloudTargetIneligible(ValueError):
     """Known target is not currently eligible for cloud monitoring."""
 
 
-def require_probe_authorized(owner_authorized: bool = False) -> None:
-    """An owner grant permits only a bounded one-shot verification probe."""
+def require_probe_authorized(source_configured: bool = False) -> None:
+    """A configured credential source permits only a bounded one-shot verification probe."""
     policy = CLOUD_BALANCE_POLICY_V1
     if not (
-        owner_authorized
+        source_configured
         and policy.wire_header_limit_strict
         and policy.binding_worker_process_isolated
         and policy.binding_worker_deadline_strict
@@ -138,9 +137,9 @@ def require_probe_authorized(owner_authorized: bool = False) -> None:
         raise ValueError("ollama_cloud_source_not_admitted")
 
 
-def require_source_admitted(owner_authorized: bool = False) -> None:
+def require_source_admitted(source_configured: bool = False) -> None:
     """Scheduled reads also require technical scheduled-source admission."""
-    require_probe_authorized(owner_authorized)
+    require_probe_authorized(source_configured)
     policy = CLOUD_BALANCE_POLICY_V1
     if not (
         policy.authenticated_collection_admitted
@@ -149,10 +148,10 @@ def require_source_admitted(owner_authorized: bool = False) -> None:
         raise ValueError("ollama_cloud_source_not_admitted")
 
 
-def cloud_connection_ready(data_root: Path) -> bool:
-    """Report whether the local owner grant and fixed transport bounds permit work."""
+def cloud_connection_ready(credential_env_file: Path | None) -> bool:
+    """Report whether the configured credential source and fixed transport bounds permit work."""
     try:
-        require_probe_authorized(cloud_access_authorized(data_root))
+        require_probe_authorized(credential_env_file is not None)
     except ValueError:
         return False
     return True
@@ -189,7 +188,11 @@ class OllamaCloudCollectionV1:
     """
 
     def __init__(
-        self, reference: DatabaseRefV1, *, data_root: Path | None = None
+        self,
+        reference: DatabaseRefV1,
+        *,
+        data_root: Path | None = None,
+        credential_env_file: Path | None = None,
     ) -> None:
         if data_root is not None and reference != DatabaseRefV1(
             data_root / "agentmonitor.db", data_root
@@ -197,6 +200,7 @@ class OllamaCloudCollectionV1:
             raise ValueError("ollama_cloud_authority_root_mismatch")
         self._reference = reference
         self._data_root = data_root
+        self._credential_env_file = credential_env_file
         self._admission = SqliteOllamaCloudAdmissionRepositoryV1(reference)
         self._runs = SqliteCollectionRepositoryV1(reference)
         self._registry = SqliteRegistryRepositoryV1(reference)
@@ -316,7 +320,7 @@ class OllamaCloudCollectionV1:
         self, account, profile, resource, now: datetime
     ) -> CollectionRunAdmissionV1:
         """Derive one run from existing M02 account, profile and resource views."""
-        require_source_admitted(cloud_access_authorized(self._data_root))
+        require_source_admitted(self._credential_env_file is not None)
         manifest = require_cloud_manifest()
         if (
             not eligible_cloud_account(
@@ -401,7 +405,7 @@ class OllamaCloudCollectionV1:
         This candidate is not registered with the service. The source and
         manifest admission checks happen before a job can be claimed.
         """
-        require_probe_authorized(cloud_access_authorized(self._data_root))
+        require_probe_authorized(self._credential_env_file is not None)
         now = datetime.now(UTC)
         claim = self._admission.claim_verification(
             OllamaCloudVerificationClaimRequestV1(
@@ -505,7 +509,7 @@ class OllamaCloudCollectionV1:
 
     def tick(self):
         """Select eligible M02 targets, reserve the fair gate, then collect once."""
-        require_probe_authorized(cloud_access_authorized(self._data_root))
+        require_probe_authorized(self._credential_env_file is not None)
         accounts = []
         cursor = None
         scanned = 0
@@ -910,13 +914,13 @@ class OllamaCloudCollectionV1:
         self, run: CollectionRunAdmissionV1 | CollectionRunAdmissionV2
     ) -> None:
         """Register a genuine eligible account schedule without creating a run."""
-        authority = cloud_access_authorized(self._data_root)
+        source_configured = self._credential_env_file is not None
         if isinstance(run, CollectionRunAdmissionV2):
-            require_probe_authorized(authority)
+            require_probe_authorized(source_configured)
             binding = self._eligible_binding(run)
             self.scheduled_proof_for_binding(binding)
         else:
-            require_source_admitted(authority)
+            require_source_admitted(source_configured)
             self._eligible_binding(run)
         self._admission.register_schedule(run)
 
@@ -929,13 +933,13 @@ class OllamaCloudCollectionV1:
         """Hold the account fence across proof, child I/O and durable commit."""
         if run.account_id is None:
             raise OllamaCloudTargetIneligible("ollama_cloud_target_ineligible")
-        authority = cloud_access_authorized(self._data_root)
+        source_configured = self._credential_env_file is not None
         if run.trigger == "reauth_verification" or isinstance(
             run, CollectionRunAdmissionV2
         ):
-            require_probe_authorized(authority)
+            require_probe_authorized(source_configured)
         else:
-            require_source_admitted(authority)
+            require_source_admitted(source_configured)
         with account_credential_lock(
             self._reference, run.account_id
         ) as credential_lock:
@@ -949,13 +953,13 @@ class OllamaCloudCollectionV1:
         credential_lock: AccountCredentialLockLeaseV1,
     ):
         """Progress one admitted run while the exact account lock is held."""
-        authority = cloud_access_authorized(self._data_root)
+        source_configured = self._credential_env_file is not None
         if run.trigger == "reauth_verification":
-            require_probe_authorized(authority)
+            require_probe_authorized(source_configured)
         elif isinstance(run, CollectionRunAdmissionV2):
-            require_probe_authorized(authority)
+            require_probe_authorized(source_configured)
         else:
-            require_source_admitted(authority)
+            require_source_admitted(source_configured)
         binding = self._eligible_binding(run)
         validate_cloud_target(
             lease.account_id.value,
@@ -1033,13 +1037,13 @@ class OllamaCloudCollectionV1:
             self._admission.revert_undispatched(lease)
             raise
         try:
-            authority = cloud_access_authorized(self._data_root)
+            source_configured = self._credential_env_file is not None
             if run.trigger == "reauth_verification":
-                require_probe_authorized(authority)
+                require_probe_authorized(source_configured)
             elif isinstance(run, CollectionRunAdmissionV2):
-                require_probe_authorized(authority)
+                require_probe_authorized(source_configured)
             else:
-                require_source_admitted(authority)
+                require_source_admitted(source_configured)
         except ValueError:
             self._admission.revert_undispatched(lease)
             raise
@@ -1380,7 +1384,7 @@ class OllamaCloudCollectionV1:
 
     def acquire_next(self, now: datetime) -> OllamaCloudAdmissionDecisionV1:
         """Use M04's durable round-robin schedule selector, once admitted."""
-        require_probe_authorized(cloud_access_authorized(self._data_root))
+        require_probe_authorized(self._credential_env_file is not None)
         return self._admission.acquire(
             OllamaCloudRequestAcquireV1(
                 admission_id=OpaqueIdV1("ollama-cloud-attempt-" + uuid.uuid4().hex),

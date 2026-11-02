@@ -564,7 +564,9 @@ def _observation_ports(
         ollama_cloud_connection=OllamaCloudConnectionServiceV1(
             reference,
             ready=lambda: (
-                cloud_connection_ready(data_root) and ollama_cloud_worker.is_available()
+                cloud_connection_ready(ollama_cloud_worker.credential_env_file())
+                and ollama_cloud_worker.is_available()
+                and ollama_cloud_worker.is_configured()
             ),
             monitoring_ready=ollama_cloud_worker.is_monitoring_available,
         ),
@@ -572,7 +574,11 @@ def _observation_ports(
 
 
 def create_iam_application(
-    config_path: Path, data_root: Path, *, lifecycle: LifecycleHooksV1
+    config_path: Path,
+    data_root: Path,
+    *,
+    lifecycle: LifecycleHooksV1,
+    credential_env_file: Path | None = None,
 ) -> FastAPI:
     """M2 production IAM mode over a pre-migrated real installation."""
     settings = load_bootstrap_configuration(
@@ -588,7 +594,9 @@ def create_iam_application(
         reference, managed_profiles_root=data_root / "profiles" / "codex"
     )
     ollama_runtime_collector = OllamaRuntimeCollectorV1(reference, data_root=data_root)
-    ollama_cloud_worker = OllamaCloudWorkerSupervisorV1(data_root)
+    ollama_cloud_worker = OllamaCloudWorkerSupervisorV1(
+        data_root, credential_env_file=credential_env_file
+    )
     claude_connections = ClaudeDashboardConnectionV1(reference, data_root)
     codex_connections = CodexDashboardConnectionV1(reference, data_root)
     alert_delivery = CapacityAlertDeliveryV1(reference)
@@ -932,6 +940,7 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--config", type=Path, required=True)
     parser.add_argument("--data-root", type=Path, required=True)
+    parser.add_argument("--credential-env-file", type=Path)
     parser.add_argument("--host", required=True)
     parser.add_argument("--port", type=int, required=True)
     parser.add_argument("--lan-host", help="Opt-in private IPv4 dashboard interface")
@@ -955,6 +964,7 @@ def main() -> int:
                     args.config,
                     args.data_root,
                     lifecycle=LifecycleHooksV1(),
+                    credential_env_file=args.credential_env_file,
                 )
             else:
                 app = create_foundation_application(

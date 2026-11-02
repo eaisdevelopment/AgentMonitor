@@ -44,7 +44,7 @@ def update_ollama_env(env_path: Path, binding_id: str, token: bytearray | None) 
             0o600,
             dir_fd=root_fd,
         )
-        fcntl.flock(lock_fd, fcntl.LOCK_EX)
+        fcntl.flock(lock_fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
         lock = os.fstat(lock_fd)
         lock_path = os.stat(".ollama-env.lock", dir_fd=root_fd, follow_symlinks=False)
         if (

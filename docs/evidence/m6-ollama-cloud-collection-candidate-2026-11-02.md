@@ -174,7 +174,9 @@ capability is supported. The source descriptor fingerprint binds the target,
 run and receipt. The static source admission and owner key-use restriction
 remain closed; no probe, secret access or live validation was performed.
 
-The candidate runtime grant stores only the non-secret 64-character probe-policy
+Historical note: the owner-approved `.env` decision removed the separate runtime
+grant; current work uses the explicit account connection action and configured
+credential file, with technical checks retained. The former candidate grant stored only the non-secret 64-character probe-policy
 fingerprint. It is absent on this workstation. The fingerprint includes the
 adapter version, source descriptor, payload schema and fixed transport policy;
 it does not hash executable or parser files. Every parser, worker or protocol

@@ -17,7 +17,6 @@ from agentmonitor.adapters.persistence._shared.sqlite.core.policy import Databas
 from agentmonitor.adapters.providers.ollama.cloud_balance.keyring_command import (
     secret_tool_environment,
 )
-from agentmonitor.composition.ollama_cloud_authority import cloud_access_authorized
 from agentmonitor.composition.ollama_cloud_collection import (
     OllamaCloudCollectionV1,
     require_probe_authorized,
@@ -38,10 +37,19 @@ def recovery_exit_code(rate_state: str) -> int:
 class OllamaCloudWorkerSupervisorV1:
     """Supervise a uniquely named systemd user unit, never an agent process."""
 
-    def __init__(self, data_root: Path) -> None:
+    def __init__(
+        self, data_root: Path, *, credential_env_file: Path | None = None
+    ) -> None:
         if not data_root.is_absolute() or data_root in {Path("/"), Path.home()}:
             raise ValueError("ollama_cloud_data_root_invalid")
         self._data_root = data_root
+        if credential_env_file is not None and (
+            not credential_env_file.is_absolute()
+            or credential_env_file.name != ".env"
+            or ".." in credential_env_file.parts
+        ):
+            raise ValueError("ollama_cloud_env_path_invalid")
+        self._credential_env_file = credential_env_file
         self._quarantined = False
         self._running = False
         self._lifecycle_running = False
@@ -183,6 +191,8 @@ class OllamaCloudWorkerSupervisorV1:
             "--data-root",
             str(self._data_root),
         ]
+        if self._credential_env_file is not None:
+            expected_argv += ["--credential-env-file", str(self._credential_env_file)]
         if self._active_recovery_only:
             expected_argv.append("--recovery-only")
         if (
@@ -438,6 +448,8 @@ class OllamaCloudWorkerSupervisorV1:
         command += [
             "--setenv=" + key + "=" + value for key, value in environment.items()
         ]
+        if self._credential_env_file is not None:
+            command += ["--credential-env-file", str(self._credential_env_file)]
         command += [
             sys.executable,
             "-m",
@@ -502,9 +514,7 @@ class OllamaCloudWorkerSupervisorV1:
         try:
             while True:
                 try:
-                    await self.run_once(
-                        recovery_only=not cloud_access_authorized(self._data_root)
-                    )
+                    await self.run_once(recovery_only=self._credential_env_file is None)
                 except Exception:  # noqa: BLE001 - optional lane, no provider details.
                     self._quarantined = True
                 await asyncio.sleep(60)
@@ -513,12 +523,23 @@ class OllamaCloudWorkerSupervisorV1:
 
     def is_monitoring_available(self) -> bool:
         """Include lifecycle supervision; capability alone is not polling."""
-        return self._lifecycle_running and self.is_available()
+        return (
+            self._credential_env_file is not None
+            and self._lifecycle_running
+            and self.is_available()
+        )
+
+    def is_configured(self) -> bool:
+        return self._credential_env_file is not None
+
+    def credential_env_file(self) -> Path | None:
+        return self._credential_env_file
 
 
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--data-root", required=True, type=Path)
+    parser.add_argument("--credential-env-file", type=Path)
     parser.add_argument("--recovery-only", action="store_true")
     args = parser.parse_args()
     if not args.data_root.is_absolute() or args.data_root in {Path("/"), Path.home()}:
@@ -529,6 +550,7 @@ def main() -> int:
         collector = OllamaCloudCollectionV1(
             DatabaseRefV1(args.data_root / "agentmonitor.db", args.data_root),
             data_root=args.data_root,
+            credential_env_file=args.credential_env_file,
         )
         now = datetime.now(UTC)
         rate, _, _ = collector.recover_journals(
@@ -540,9 +562,11 @@ def main() -> int:
             return 4
         if args.recovery_only:
             return 0
+        if args.credential_env_file is None:
+            return 3
         if recovery_exit_code(rate) == 0:
             try:
-                require_probe_authorized(cloud_access_authorized(args.data_root))
+                require_probe_authorized(args.credential_env_file is not None)
             except ValueError:
                 return 3
             if collector.preferred_work_lane() == "scheduled":
