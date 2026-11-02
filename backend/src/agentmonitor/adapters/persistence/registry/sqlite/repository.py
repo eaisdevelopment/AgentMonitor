@@ -7,10 +7,16 @@ import json
 import secrets
 from datetime import UTC, datetime, timedelta
 
+from sqlalchemy.engine import Connection, RowMapping
+from sqlalchemy.exc import SQLAlchemyError
+
 from agentmonitor.adapters.persistence._shared.sqlite.core.policy import (
     DatabaseRefV1,
     SqlitePolicyError,
     open_sqlite_database,
+)
+from agentmonitor.adapters.persistence.registry.sqlite.credential_bindings import (
+    archive_bindings_in_transaction,
 )
 from agentmonitor.contracts.common_v1 import OpaqueIdV1
 from agentmonitor.contracts.provider_system_v1 import DiscoveryOutcomeV1
@@ -50,8 +56,6 @@ from agentmonitor.modules.registry.application.organizations import (
     RegistryCommandConflictV1,
     ReorderOrganizationsCommandV1,
 )
-from sqlalchemy.engine import Connection, RowMapping
-from sqlalchemy.exc import SQLAlchemyError
 
 
 class RegistryRepositoryErrorV1(ValueError):
@@ -1339,6 +1343,8 @@ class SqliteRegistryRepositoryV1:
                         connection.rollback()
                         return result
                     version = command.expected_version + 1
+                    if command.action == "archive" and row["provider_key"] == "ollama":
+                        archive_bindings_in_transaction(connection, command.account_id)
                     revision = _next_revision(connection, instant)
                     connection.exec_driver_sql(
                         "UPDATE reg_account SET friendly_name=?, normalized_name=?, "

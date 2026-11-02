@@ -23,6 +23,7 @@ from agentmonitor.modules.registry.domain.credential_binding import (
     activate_prepared_credential_binding,
     complete_credential_binding_cleanup,
     disconnect_active_credential_binding,
+    ensure_binding_visible_for_account,
     mark_pending_credential_binding_cleanup,
     new_credential_binding_aggregate,
     prepare_credential_binding,
@@ -37,7 +38,8 @@ def _load(
     connection: Connection, account_id: OpaqueIdV1
 ) -> CredentialBindingAggregateV1:
     account = connection.exec_driver_sql(
-        "SELECT provider_key FROM reg_account WHERE account_id=?", (account_id.value,)
+        "SELECT provider_key,lifecycle FROM reg_account WHERE account_id=?",
+        (account_id.value,),
     ).first()
     if account is None or account[0] != "ollama":
         raise CredentialBindingRepositoryErrorV1(
@@ -60,7 +62,43 @@ def _load(
         )
         for row in rows
     )
-    return CredentialBindingAggregateV1(account_id, state[0], state[1], bindings)
+    result = CredentialBindingAggregateV1(account_id, state[0], state[1], bindings)
+    ensure_binding_visible_for_account(result, account_lifecycle=account[1])
+    return result
+
+
+def archive_bindings_in_transaction(
+    connection: Connection, account_id: OpaqueIdV1
+) -> None:
+    """Fence and retire nonterminal bindings under the caller's account write lock."""
+    old = _load(connection, account_id)
+    new = disconnect_active_credential_binding(
+        old, expected_record_version=old.record_version, reason_code="account_archived"
+    )
+    if new == old:
+        return
+    updated = connection.exec_driver_sql(
+        "UPDATE reg_credential_binding_state SET record_version=?,binding_generation=? "
+        "WHERE account_id=? AND record_version=? AND binding_generation=?",
+        (
+            new.record_version,
+            new.binding_generation,
+            account_id.value,
+            old.record_version,
+            old.binding_generation,
+        ),
+    )
+    if updated.rowcount != 1:
+        raise CredentialBindingRepositoryErrorV1("credential_binding_conflict")
+    expected = sum(item.lifecycle in {"pending", "active"} for item in old.bindings)
+    changed = connection.exec_driver_sql(
+        "UPDATE reg_credential_binding SET lifecycle='cleanup_pending', "
+        "reason_code='account_archived' WHERE account_id=? "
+        "AND lifecycle IN ('pending','active')",
+        (account_id.value,),
+    )
+    if changed.rowcount != expected:
+        raise CredentialBindingRepositoryErrorV1("credential_binding_conflict")
 
 
 class SqliteCredentialBindingsV1:

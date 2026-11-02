@@ -237,3 +237,13 @@ def ensure_credential_binding_commit_current(
     ):
         raise RegistryPolicyErrorV1("registry_credential_binding_stale")
     return "current"
+
+
+def ensure_binding_visible_for_account(
+    aggregate: CredentialBindingAggregateV1, *, account_lifecycle: str
+) -> None:
+    """Fail closed when an archived account has a still-usable binding."""
+    if account_lifecycle == "archived" and any(
+        item.lifecycle in {"active", "pending"} for item in aggregate.bindings
+    ):
+        raise RegistryPolicyErrorV1("registry_credential_binding_archived")

@@ -354,3 +354,22 @@ def test_binding_aggregate_rejects_mixed_accounts_and_duplicate_ids() -> None:
             binding_generation=1,
             bindings=(first, first),
         )
+
+
+def test_archived_account_cannot_expose_active_binding() -> None:
+    from agentmonitor.modules.registry.domain.credential_binding import (
+        ensure_binding_visible_for_account,
+    )
+
+    active = _active_first_binding()
+    ensure_binding_visible_for_account(active, account_lifecycle="active")
+    with pytest.raises(
+        RegistryPolicyErrorV1, match="registry_credential_binding_archived"
+    ):
+        ensure_binding_visible_for_account(active, account_lifecycle="archived")
+    cleaned = disconnect_active_credential_binding(
+        active,
+        expected_record_version=active.record_version,
+        reason_code="account_archived",
+    )
+    ensure_binding_visible_for_account(cleaned, account_lifecycle="archived")
