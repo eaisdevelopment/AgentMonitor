@@ -35,6 +35,7 @@ import {
   type OrganizationOrderingViewV1,
   type OrganizationViewV1,
   type OllamaLocalCatalogViewV1,
+  type OllamaCloudConnectionStatusV1,
   type ProviderCapabilityDeclarationPageV1,
   type ProviderAccountIdentityViewV1,
   type ProviderConnectionViewV1,
@@ -84,6 +85,7 @@ export type {
   OrganizationOrderingViewV1,
   OrganizationViewV1,
   OllamaLocalCatalogViewV1,
+  OllamaCloudConnectionStatusV1,
   ProviderCapabilityDeclarationPageV1,
   ProviderAccountIdentityViewV1,
   ProviderConnectionViewV1,
@@ -354,6 +356,13 @@ export const registry = Object.freeze({
 });
 
 export const providers = Object.freeze({
+  ollamaCloudConnection: (accountId: string, signal?: AbortSignal): Promise<ClientResult<OllamaCloudConnectionStatusV1>> =>
+    apiClient.ollama_cloud_get_connection_v1({ path: { account_id: accountId }, signal }),
+  initiateOllamaCloudConnection: (account: AccountViewV1): Promise<ClientResult<OllamaCloudConnectionStatusV1>> =>
+    apiClient.ollama_cloud_initiate_connection_v1({
+      path: { account_id: account.account_id },
+      headers: mutationHeaders({ id: account.account_id, recordVersion: account.record_version }, true),
+    }),
   ollamaLocalCatalog: (signal?: AbortSignal): Promise<ClientResult<OllamaLocalCatalogViewV1>> =>
     apiClient.provider_get_ollama_local_catalog_v1({ signal }),
   connection: (accountId: string, signal?: AbortSignal): Promise<ClientResult<ProviderConnectionViewV1>> =>

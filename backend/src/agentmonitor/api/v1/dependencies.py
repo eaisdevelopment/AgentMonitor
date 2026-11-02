@@ -5,6 +5,7 @@ from dataclasses import dataclass
 from fastapi import Request
 
 from agentmonitor.api.problem import ProblemError
+from agentmonitor.api.v1.ollama_cloud_port import OllamaCloudConnectionPortV1
 from agentmonitor.contracts.capacity_v1 import CapacityHealthPolicyV1
 from agentmonitor.contracts.common_v1 import OpaqueIdV1
 from agentmonitor.contracts.identity_access_v1 import (
@@ -157,6 +158,7 @@ class ObservationApiPortsV1:
     list_account_resources: ListAccountResourcesV1 | None = None
     capacity_health_policy: CapacityHealthPolicyV1 | None = None
     ollama_local_catalog: LocalCatalogPortV1 | None = None
+    ollama_cloud_connection: OllamaCloudConnectionPortV1 | None = None
 
 
 @dataclass(frozen=True, slots=True)

@@ -42,6 +42,7 @@ SOURCE_FILES = (
     "backend/src/agentmonitor/api/problem.py",
     "backend/src/agentmonitor/api/transport.py",
     "backend/src/agentmonitor/api/v1/dependencies.py",
+    "backend/src/agentmonitor/api/v1/ollama_cloud_port.py",
     "backend/src/agentmonitor/api/v1/pagination.py",
     "backend/src/agentmonitor/api/v1/routers/iam.py",
     "backend/src/agentmonitor/api/v1/routers/_observation.py",
@@ -195,6 +196,14 @@ IAM_OPERATIONS = {
         "/api/v1/accounts/{account_id}/provider-identity",
         "get",
     ): "provider_get_account_identity_v1",
+    (
+        "/api/v1/accounts/{account_id}/ollama-cloud-connection",
+        "get",
+    ): "ollama_cloud_get_connection_v1",
+    (
+        "/api/v1/accounts/{account_id}/ollama-cloud-connection",
+        "post",
+    ): "ollama_cloud_initiate_connection_v1",
     ("/api/v1/accounts/{account_id}/connection", "get"): "provider_get_connection_v1",
     (
         "/api/v1/accounts/{account_id}/connection",
@@ -503,6 +512,30 @@ IAM_POLICY: dict[str, IamPolicyRow] = {
         "SafeProblemV1",
         _M2_REQUIRED_ERROR_STATUSES,
         "SetProcessAccountAssociationInputV1",
+    ),
+    "ollama_cloud_get_connection_v1": (
+        "cookie_or_bearer",
+        "read:accounts",
+        "OllamaCloudConnectionPortV1.read",
+        "safe_query_repeat",
+        _COOKIE_BEARER,
+        "200",
+        "OllamaCloudConnectionStatusV1",
+        "SafeProblemV1",
+        _M2_REQUIRED_ERROR_STATUSES,
+        None,
+    ),
+    "ollama_cloud_initiate_connection_v1": (
+        "browser_cookie_only",
+        "write:reauth",
+        "OllamaCloudConnectionPortV1.initiate",
+        "replay_safe_connection_receipt",
+        _COOKIE_CSRF,
+        "202",
+        "OllamaCloudConnectionStatusV1",
+        "SafeProblemV1",
+        _M2_REQUIRED_ERROR_STATUSES,
+        None,
     ),
     "provider_get_connection_v1": (
         "cookie_or_bearer",
@@ -1262,7 +1295,7 @@ def validate_iam_openapi(document: object) -> tuple[str, ...]:
     if (
         actual != IAM_OPERATIONS
         or set(IAM_POLICY) != set(IAM_OPERATIONS.values())
-        or len(identifiers) != 68
+        or len(identifiers) != 70
     ):
         raise OpenApiGenerationError("operation_surface_invalid")
 

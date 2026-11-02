@@ -1,11 +1,16 @@
 """Cookie-authorized explicit managed connection actions; safe status only."""
 
+from datetime import UTC, datetime
+
+from fastapi import APIRouter, Path, Request, Response
+
 from agentmonitor.api.problem import ProblemError
 from agentmonitor.api.v1.dependencies import (
     authorize_request,
     correlation_id,
     observation_ports,
 )
+from agentmonitor.api.v1.ollama_cloud_port import OllamaCloudConnectionPortV1
 from agentmonitor.api.v1.routers._observation import (
     ERROR_RESPONSES,
     policy,
@@ -18,6 +23,7 @@ from agentmonitor.api.v1.routers.registry import (
 )
 from agentmonitor.api.v1.schemas.providers import (
     CancelProviderConnectionInputV1,
+    OllamaCloudConnectionStatusV1,
     ProviderConnectionViewV1,
     StartProviderConnectionInputV1,
 )
@@ -30,7 +36,10 @@ from agentmonitor.contracts.provider_system_v1 import (
 from agentmonitor.contracts.provider_system_v1 import (
     ProviderConnectionViewV1 as SourceViewV1,
 )
-from fastapi import APIRouter, Path, Request, Response
+from agentmonitor.contracts.registry_v1 import (
+    CredentialConnectionStatusV1,
+    InitiateOllamaCloudVerificationCommandV1,
+)
 
 router = APIRouter(tags=["providers"])
 
@@ -174,3 +183,90 @@ def cancel_connection(
         raise _error(error) from None
     except (OSError, ValueError, RuntimeError):
         raise ProblemError(503, "provider_connection_unavailable") from None
+
+
+def _ollama_cloud_service(request: Request) -> OllamaCloudConnectionPortV1:
+    service = observation_ports(request).ollama_cloud_connection
+    if service is None:
+        raise ProblemError(503, "ollama_cloud_connection_unavailable")
+    return service
+
+
+def _ollama_cloud_view(
+    value: CredentialConnectionStatusV1,
+) -> OllamaCloudConnectionStatusV1:
+    return OllamaCloudConnectionStatusV1(
+        account_id=value.account_id.value,
+        state=value.state,
+        can_verify=value.can_verify,
+        observed_at=value.observed_at,
+    )
+
+
+@router.get(
+    "/accounts/{account_id}/ollama-cloud-connection",
+    operation_id="ollama_cloud_get_connection_v1",
+    response_model=OllamaCloudConnectionStatusV1,
+    responses=ERROR_RESPONSES,
+    openapi_extra=policy("read:accounts", "OllamaCloudConnectionPortV1.read"),
+)
+def get_ollama_cloud_connection(
+    request: Request,
+    response: Response,
+    account_id: str = Path(min_length=1, max_length=64, pattern=r"^[A-Za-z0-9_-]+$"),
+) -> OllamaCloudConnectionStatusV1:
+    authorize_request(request, "read:accounts")
+    reject_unknown_query(request, frozenset())
+    response.headers["Cache-Control"] = "no-store, private"
+    try:
+        return _ollama_cloud_view(
+            _ollama_cloud_service(request).read(
+                OpaqueIdV1(account_id), datetime.now(UTC)
+            )
+        )
+    except (OSError, ValueError, RuntimeError):
+        raise ProblemError(503, "ollama_cloud_connection_unavailable") from None
+
+
+@router.post(
+    "/accounts/{account_id}/ollama-cloud-connection",
+    operation_id="ollama_cloud_initiate_connection_v1",
+    status_code=202,
+    response_model=OllamaCloudConnectionStatusV1,
+    responses=ERROR_RESPONSES,
+    openapi_extra={
+        **_version_policy("OllamaCloudConnectionPortV1.initiate", idempotent=True),
+        "security": [{"BrowserSessionCookieV1": [], "BrowserCsrfHeaderV1": []}],
+        "x-agentmonitor-auth-profile": "browser_cookie_only",
+        "x-agentmonitor-required-permission": "write:reauth",
+        "x-agentmonitor-replay-policy": "replay_safe_connection_receipt",
+    },
+)
+def initiate_ollama_cloud_connection(
+    request: Request,
+    response: Response,
+    account_id: str = Path(min_length=1, max_length=64, pattern=r"^[A-Za-z0-9_-]+$"),
+) -> OllamaCloudConnectionStatusV1:
+    caller = authorize_request(
+        request, "write:reauth", cookie_only=True, require_csrf=True
+    )
+    reject_unknown_query(request, frozenset())
+    # This endpoint has no request body and must not accept credentials over HTTP.
+    if (
+        request.headers.get("content-length") != "0"
+        or request.headers.get("transfer-encoding") is not None
+    ):
+        raise ProblemError(400, "request_body_not_allowed")
+    command = InitiateOllamaCloudVerificationCommandV1(
+        idempotency_key=_idempotency_key(request),
+        principal_id=caller.principal.principal_id,
+        account_id=OpaqueIdV1(account_id),
+        expected_account_record_version=_expected_version(request, account_id),
+        requested_at=datetime.now(UTC),
+    )
+    try:
+        value = _ollama_cloud_service(request).initiate(command)
+        response.headers["Cache-Control"] = "no-store, private"
+        return _ollama_cloud_view(value)
+    except (OSError, ValueError, RuntimeError):
+        raise ProblemError(503, "ollama_cloud_connection_unavailable") from None

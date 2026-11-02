@@ -7,6 +7,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from agentmonitor.api.v1.schemas.registry import AvailabilityV1
 from agentmonitor.contracts.provider_system_v1 import ProviderConnectionStateV1
+from agentmonitor.contracts.registry_v1 import CredentialConnectionStateV1
 
 
 class _ClosedV1(BaseModel):
@@ -159,3 +160,12 @@ class ProviderCapabilityDeclarationPageV1(_ClosedV1):
     m0_mapping_version: str
     items: tuple[ProviderCapabilityDeclarationViewV1, ...]
     availability: AvailabilityV1
+
+
+class OllamaCloudConnectionStatusV1(_ClosedV1):
+    """Safe account connection state; no credentials or binding identifiers."""
+
+    account_id: str
+    state: CredentialConnectionStateV1
+    can_verify: bool
+    observed_at: datetime | None

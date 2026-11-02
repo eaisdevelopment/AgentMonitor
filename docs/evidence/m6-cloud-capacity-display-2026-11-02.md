@@ -13,3 +13,12 @@ Frontend typecheck passed. The panel is not connected to an API or routed; a
 real-data built-browser check and its required Red/Green evidence remain Not Run.
 Earlier constructed presentation checks were removed as inadmissible under the
 project's external-boundary test rule; they are not counted as evidence.
+
+The candidate declares a bodyless Ollama cloud status/initiation API surface.
+The actual application OpenAPI route check failed before the route existed and
+passes afterwards; generated OpenAPI/client compatibility, frontend typecheck,
+and targeted API type checking passed. The initiation route requires a signed-in
+browser with CSRF, account version and idempotency headers and rejects a request
+body; it returns unavailable until its application port is wired. No real
+signed-in HTTP request, browser flow, account verification or key operation has
+been performed for this surface. The panel remains disconnected.
