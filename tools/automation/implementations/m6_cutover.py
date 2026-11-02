@@ -59,6 +59,7 @@ from tools.automation.implementations.m6_migration_recovery import (
     _verify_stopped,
 )
 from tools.automation.implementations.m6_offline_restore import (
+    _ensure_cgroup_empty,
     _read_private_json,
     classify_restore_recovery,
     restore_before_candidate_start,
@@ -1148,6 +1149,106 @@ def _start_restored_baseline_engine(
         raise
 
 
+def _retry_stopped_baseline_engine(
+    root,
+    transition,
+    *,
+    unit,
+    guard,
+    override,
+    baseline,
+    executable,
+    verify_before=None,
+    verify_after=None,
+):
+    """Retry an already-attempted baseline without restoring any database."""
+    blocked = b"[Unit]\nRefuseManualStart=yes\n[Service]\nRestart=no\n"
+    relaxed = b"[Service]\nRestart=no\n"
+    reference = DatabaseRefV1(root / "agentmonitor.db", root)
+    relaxed_guard = False
+    try:
+        with (
+            exclusive_service_quiescence(root, reference) as service,
+            _hold_settings_lock(root) as settings,
+        ):
+            transition.validate(root)
+            data = _read_journal_at(transition)[0]
+            if data.get("phase") != "baseline_start_attempted":
+                raise CutoverError("baseline_restart_journal_invalid")
+            receipt = _receipt(data["cutover_facts"])
+            current = _properties(unit)
+            if (
+                receipt.unit != unit
+                or current.get("MainPID") != "0"
+                or current.get("ActiveState") not in {"inactive", "failed"}
+                or current.get("Restart") != "no"
+                or current.get("RefuseManualStart") != "yes"
+                or current.get("ControlGroup", "") not in {"", receipt.cgroup}
+            ):
+                raise CutoverError("baseline_restart_service_changed")
+            _ensure_cgroup_empty(receipt.cgroup)
+            expected = (
+                _candidate_override(baseline)
+                if unit == _FIXED_UNIT
+                else build_override(baseline)
+            ).encode()
+            original = build_override(baseline).encode()
+            actual_override = override.read_bytes()
+            if (
+                override.is_symlink()
+                or actual_override not in {expected, original}
+                or guard.is_symlink()
+                or guard.read_bytes() != blocked
+            ):
+                raise CutoverError("baseline_restart_guard_changed")
+            if verify_before is not None:
+                verify_before()
+            transition.validate(root)
+            service.validate(root)
+            settings.validate(root)
+            if actual_override != expected and not replace_override(
+                override, actual_override, expected
+            ):
+                raise CutoverError("baseline_restart_override_changed")
+            if _read_journal_at(transition)[0] != data or not replace_override(
+                guard, blocked, relaxed
+            ):
+                raise CutoverError("baseline_restart_guard_changed")
+            relaxed_guard = True
+            _ctl("daemon-reload")
+        if verify_after is not None:
+            verify_after()
+        _ctl("start", unit)
+        current = _properties(unit)
+        pid = int(current.get("MainPID", "0"))
+        if (
+            current.get("ActiveState") != "active"
+            or pid <= 1
+            or current.get("ControlGroup") != receipt.cgroup
+        ):
+            raise CutoverError("baseline_start_unverified")
+        descriptor = os.pidfd_open(pid, 0)
+        try:
+            identity = _process_identity(pid, receipt.cgroup)
+            expected_exe = executable.stat()
+            if (
+                identity[1:] != (expected_exe.st_dev, expected_exe.st_ino)
+                or Path(f"/proc/{pid}/cwd").resolve() != baseline
+                or _process_identity(pid, receipt.cgroup) != identity
+                or _properties(unit).get("MainPID") != str(pid)
+            ):
+                raise CutoverError("baseline_start_unverified")
+        finally:
+            os.close(descriptor)
+        return "baseline_started_readiness_unverified"
+    except Exception:
+        if relaxed_guard:
+            if not replace_override(guard, relaxed, blocked):
+                raise CutoverError("baseline_restart_block_unverified") from None
+            _ctl("daemon-reload")
+        raise
+
+
 def _finish_restored_baseline_engine(
     root: Path,
     transition,
@@ -1354,15 +1455,44 @@ def start_restored_baseline() -> str:
                     raise CutoverError("baseline_restart_guard_changed")
                 if guard_present and guard.read_bytes() not in {blocked, relaxed}:
                     raise CutoverError("baseline_restart_guard_changed")
-                if not guard_present:
-                    _ctl("daemon-reload")
+                _ctl("daemon-reload")
+                current_override = _FIXED_OVERRIDE.read_bytes()
+                private_override = _candidate_override(_FIXED_BASELINE).encode()
+                original_override = build_override(_FIXED_BASELINE).encode()
+                if current_override not in {private_override, original_override}:
+                    raise CutoverError("baseline_restart_override_changed")
+                private_now = current_override == private_override
                 _fixed_unit_preflight(
                     candidate_revision,
                     candidate_build,
                     guarded=guard_present,
-                    private_baseline=True,
+                    private_baseline=private_now,
                     start_block=guard_present and guard.read_bytes() == blocked,
                 )
+                if phase == "baseline_start_attempted" and _properties(_FIXED_UNIT).get(
+                    "ActiveState"
+                ) in {"failed", "inactive"}:
+                    verify_controller()
+                    if guard.read_bytes() == relaxed:
+                        if not replace_override(guard, relaxed, blocked):
+                            raise CutoverError("baseline_restart_guard_changed")
+                        _ctl("daemon-reload")
+                    _retry_stopped_baseline_engine(
+                        root,
+                        transition,
+                        unit=_FIXED_UNIT,
+                        guard=guard,
+                        override=_FIXED_OVERRIDE,
+                        baseline=_FIXED_BASELINE,
+                        executable=_FIXED_EXECUTABLE,
+                        verify_before=lambda: _fixed_unit_preflight(
+                            candidate_revision,
+                            candidate_build,
+                            guarded=True,
+                            private_baseline=private_now,
+                        ),
+                        verify_after=verify_after,
+                    )
 
             def verify_ready(*, after_guard: bool = False) -> None:
                 verify_controller()

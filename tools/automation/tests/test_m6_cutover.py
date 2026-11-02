@@ -57,6 +57,7 @@ from tools.automation.implementations.m6_transition_lease import _hold_transitio
         "restore_restart",
         "restore_restart_interrupted",
         "restore_restart_no",
+        "restore_restart_retry",
         "crash_pre",
         "crash_post",
         "real_source_restore",
@@ -247,6 +248,7 @@ _cutover_engine(unit=sys.argv[1], data_root=Path(sys.argv[2]), baseline=Path(sys
             "restore_restart",
             "restore_restart_interrupted",
             "restore_restart_no",
+            "restore_restart_retry",
             "crash_pre",
             "crash_post",
             "real_source_restore",
@@ -396,6 +398,7 @@ with _hold_transition_locks(root) as transition, exclusive_service_quiescence(ro
                 "restore_restart",
                 "restore_restart_interrupted",
                 "restore_restart_no",
+                "restore_restart_retry",
             }:
                 before = build_override(baseline).encode()
                 with _hold_transition_locks(root) as transition_lease:
@@ -418,6 +421,55 @@ with _hold_transition_locks(root) as transition, exclusive_service_quiescence(ro
                     json.loads(journal.read_text())["phase"]
                     == "baseline_start_attempted"
                 )
+                if case == "restore_restart_retry":
+                    from tools.automation.implementations import m6_cutover
+
+                    subprocess.run(
+                        ["systemctl", "--user", "kill", "--signal=SIGKILL", unit],
+                        check=True,
+                        capture_output=True,
+                    )
+                    guard = directory / "95-m6-cutover-restart.conf"
+                    guard.write_text(
+                        "[Unit]\nRefuseManualStart=yes\n[Service]\nRestart=no\n"
+                    )
+                    guard.chmod(0o600)
+                    subprocess.run(
+                        ["systemctl", "--user", "daemon-reload"],
+                        check=True,
+                        capture_output=True,
+                    )
+                    deadline = time.monotonic() + 5
+                    while time.monotonic() < deadline:
+                        state = subprocess.run(
+                            [
+                                "systemctl",
+                                "--user",
+                                "show",
+                                unit,
+                                "-p",
+                                "MainPID",
+                                "--value",
+                            ],
+                            capture_output=True,
+                            text=True,
+                            check=True,
+                        ).stdout.strip()
+                        if state == "0":
+                            break
+                        time.sleep(0.05)
+                    else:
+                        raise AssertionError("disposable service did not stop")
+                    with _hold_transition_locks(root) as lease:
+                        m6_cutover._retry_stopped_baseline_engine(
+                            root,
+                            lease,
+                            unit=unit,
+                            guard=guard,
+                            override=override,
+                            baseline=baseline,
+                            executable=Path("/bin/sleep"),
+                        )
                 if case == "restore_restart_interrupted":
                     code = """
 import os, sys
@@ -580,6 +632,7 @@ with _hold_transition_locks(root) as lease:
             "restore_restart",
             "restore_restart_interrupted",
             "restore_restart_no",
+            "restore_restart_retry",
         }:
             assert not (directory / "95-m6-cutover-restart.conf").exists()
         else:
