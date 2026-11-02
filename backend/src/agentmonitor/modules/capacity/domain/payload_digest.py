@@ -4,8 +4,10 @@ import hashlib
 import json
 
 from agentmonitor.contracts.capacity_v1 import (
+    CapacitySubjectV2,
     ExactMetricFieldV1,
     ProviderQuotaInputV1,
+    ProviderQuotaInputV2,
 )
 
 
@@ -23,12 +25,22 @@ def _field(field: ExactMetricFieldV1) -> dict[str, object]:
     }
 
 
-def capacity_payload_digest(payload: ProviderQuotaInputV1) -> str:
+def capacity_payload_digest(
+    payload: ProviderQuotaInputV1 | ProviderQuotaInputV2,
+) -> str:
     """Hash the complete closed payload; caller-supplied digests are never trusted."""
+    subject_target = (
+        {
+            "target_kind": payload.subject.provider_target.target_kind,
+            "target_id": payload.subject.provider_target.target_id.value,
+        }
+        if isinstance(payload.subject, CapacitySubjectV2)
+        else {"installation_id": payload.subject.installation_id.value}
+    )
     document = {
         "subject": {
             "provider_key": payload.subject.provider_key,
-            "installation_id": payload.subject.installation_id.value,
+            **subject_target,
             "account_id": payload.subject.account_id.value,
             "resource_id": payload.subject.resource_id.value,
         },

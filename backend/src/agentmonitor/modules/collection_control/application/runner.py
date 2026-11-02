@@ -7,7 +7,7 @@ from agentmonitor.contracts.collection_control_v1 import (
     CollectionCommitReceiptV1,
     CollectionFailedV1,
     CollectionOutcomeCommitV1,
-    CollectionRunAdmissionV1,
+    CollectionRunAdmissionV1OrV2,
     CollectionRunViewV1,
 )
 from agentmonitor.contracts.common_v1 import TechnicalValueV1
@@ -24,7 +24,9 @@ class RequestManualCollectionV1:
     def __init__(self, repository: CollectionRunRepositoryV1) -> None:
         self._repository = repository
 
-    def __call__(self, admission: CollectionRunAdmissionV1) -> CollectionRunViewV1:
+    def __call__(
+        self, admission: CollectionRunAdmissionV1OrV2
+    ) -> CollectionRunViewV1:
         if admission.trigger != "manual":
             raise ValueError("manual_collection_trigger_required")
         if admission.request_principal_id is None:
@@ -38,7 +40,9 @@ class AdmitScheduledCollectionV1:
     def __init__(self, repository: CollectionRunRepositoryV1) -> None:
         self._repository = repository
 
-    def __call__(self, admission: CollectionRunAdmissionV1) -> CollectionRunViewV1:
+    def __call__(
+        self, admission: CollectionRunAdmissionV1OrV2
+    ) -> CollectionRunViewV1:
         if admission.trigger != "scheduled":
             raise ValueError("scheduled_collection_trigger_required")
         return self._repository.admit_run(admission)
@@ -52,10 +56,10 @@ class RunOneCollectionV1[SourceT: TechnicalValueV1, PayloadT: TechnicalValueV1]:
 
     def __call__(
         self,
-        admission: CollectionRunAdmissionV1,
+        admission: CollectionRunAdmissionV1OrV2,
         collect: Callable[[], CollectionOutcomeV1[SourceT]],
         normalize: Callable[
-            [CollectionRunAdmissionV1, CollectionOutcomeV1[SourceT], datetime],
+            [CollectionRunAdmissionV1OrV2, CollectionOutcomeV1[SourceT], datetime],
             CollectionOutcomeCommitV1[PayloadT] | CollectionFailedV1,
         ],
         *,

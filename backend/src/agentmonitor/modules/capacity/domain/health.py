@@ -8,7 +8,7 @@ from agentmonitor.contracts.capacity_v1 import (
     CapacityHealthPolicyV1,
     CapacityHealthStateV1,
     CapacityHealthViewV1,
-    QuotaWindowViewV1,
+    QuotaWindowViewV1OrV2,
 )
 from agentmonitor.contracts.common_quantity_v1 import CanonicalDecimalV1
 from agentmonitor.modules.capacity.domain.allowance import remaining_percentage_v1
@@ -30,7 +30,7 @@ def default_capacity_health_policy_v1() -> CapacityHealthPolicyV1:
 
 
 def classify_capacity_windows_v1(
-    windows: tuple[QuotaWindowViewV1, ...],
+    windows: tuple[QuotaWindowViewV1OrV2, ...],
     *,
     policy: CapacityHealthPolicyV1,
     is_reauthentication_required: bool = False,

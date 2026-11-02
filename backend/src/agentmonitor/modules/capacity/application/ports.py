@@ -7,7 +7,7 @@ from agentmonitor.contracts.capacity_v1 import (
     CapacityCommittedNoticeV1,
     CapacityHealthPolicyV1,
     CapacityHealthViewV1,
-    QuotaWindowViewV1,
+    QuotaWindowViewV1OrV2,
 )
 from agentmonitor.contracts.common_v1 import OpaqueIdV1
 from agentmonitor.modules.capacity.domain.current_projection import (
@@ -36,7 +36,9 @@ class ClassifyCapacityProjectionV1:
     def policy(self) -> CapacityHealthPolicyV1:
         return default_capacity_health_policy_v1()
 
-    def __call__(self, windows: tuple[QuotaWindowViewV1, ...]) -> CapacityHealthViewV1:
+    def __call__(
+        self, windows: tuple[QuotaWindowViewV1OrV2, ...]
+    ) -> CapacityHealthViewV1:
         return classify_capacity_windows_v1(
             windows,
             policy=self.policy,

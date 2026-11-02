@@ -1,5 +1,5 @@
-version = "1.7.13"
-head = "v1_0713"
+version = "1.7.15"
+head = "v1_0715"
 env_sha256 = "27449e3ed3984acde690510f9e4974eb6412f5f1b7e62af65bc8bb616879a7d7"
 
 [[revisions]]
@@ -706,3 +706,47 @@ backup_prerequisite = "required_existing_database"
 validation_ids = ["single_head", "m02_cloud_target_verification_schema", "foreign_key_check", "full_integrity"]
 recovery_policy = "preserve_failed_database_and_restore_verified_backup_or_forward_fix"
 reviewer = "M02-M6-cloud-target-review"
+
+[[revisions]]
+ordinal = 714
+filename = "v1_0714_m04_cloud_targets.py"
+sha256 = "2b0ad09afea542de67a330b4fa08ee336899001b15e99e09c6996c919d322434"
+status = "shared"
+reviewed_at = "2026-11-02"
+revision = "v1_0714"
+parent_revision = "v1_0713"
+owner = "M04"
+plan_id = "PLAN-M04"
+requirement_ids = ["FR-COL-003", "FR-COL-005", "FR-COL-006", "M6-A07", "NFR-DATA-001"]
+schema_range = ["v1_0714", "v1_0714", "v1_0714", "v1_0714", "v1_0714"]
+tables = ["collection_schedule", "collection_run"]
+portability_notes = ["V2 cloud rows leave the legacy installation identity null and store an explicit discriminated target"]
+lock_policy = "exclusive_migration_and_begin_immediate"
+downtime_policy = "offline_additive_schema_migration"
+expected_data_volume = "existing_collection_rows_preserved_during_offline_table_rebuild"
+backup_prerequisite = "required_existing_database"
+validation_ids = ["single_head", "m04_cloud_verification_target_schema", "foreign_key_check", "full_integrity"]
+recovery_policy = "preserve_failed_database_and_restore_verified_backup_or_forward_fix"
+reviewer = "M04-M6-cloud-target-review"
+
+[[revisions]]
+ordinal = 715
+filename = "v1_0715_m05_cloud_targets.py"
+sha256 = "db5bbeff829f538787ef52944285aa3f524a7b3793f764f6bc0bb87a7aedb4fd"
+status = "shared"
+reviewed_at = "2026-11-02"
+revision = "v1_0715"
+parent_revision = "v1_0714"
+owner = "M05"
+plan_id = "PLAN-M05"
+requirement_ids = ["FR-QUOTA-001", "FR-QUOTA-004", "FR-COL-004", "M6-A03", "M6-A07", "NFR-DATA-001"]
+schema_range = ["v1_0715", "v1_0715", "v1_0715", "v1_0715", "v1_0715"]
+tables = ["capacity_quota_window_definition", "capacity_current_projection"]
+portability_notes = ["V2 cloud capacity rows retain an explicit discriminated target and a null legacy installation identity"]
+lock_policy = "exclusive_migration_and_begin_immediate"
+downtime_policy = "offline_additive_schema_migration"
+expected_data_volume = "existing_capacity_rows_preserved_during_offline_table_rebuild"
+backup_prerequisite = "required_existing_database"
+validation_ids = ["single_head", "m05_cloud_target_schema", "foreign_key_check", "full_integrity"]
+recovery_policy = "preserve_failed_database_and_restore_verified_backup_or_forward_fix"
+reviewer = "M05-M6-cloud-target-review"

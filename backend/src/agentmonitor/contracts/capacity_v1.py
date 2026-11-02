@@ -24,6 +24,7 @@ from agentmonitor.contracts.events_v1 import DurableEventBatchV1
 from agentmonitor.contracts.registry_v1 import (
     AccountResourceViewV1,
     AccountViewV1,
+    ProviderTargetRefV1,
     RegistryScopeKindV1,
     RegistryScopeSnapshotV1,
 )
@@ -123,6 +124,29 @@ class CapacitySubjectV1(TechnicalValueV1):
 
 
 @dataclass(frozen=True, slots=True)
+class CapacitySubjectV2(TechnicalValueV1):
+    """V2 subject with an explicit installation-or-cloud target."""
+
+    CONTRACT_ID: ClassVar[str] = "CTR-CAP-001"
+    CONTRACT_VERSION: ClassVar[str] = "2.0.0"
+    OWNER: ClassVar[str] = "PLAN-M05"
+
+    provider_key: str
+    provider_target: ProviderTargetRefV1
+    account_id: OpaqueIdV1
+    resource_id: OpaqueIdV1
+
+    def __post_init__(self) -> None:
+        TechnicalValueV1.__post_init__(self)
+        if (
+            not _token(self.provider_key)
+            or not isinstance(self.account_id, OpaqueIdV1)
+            or not isinstance(self.resource_id, OpaqueIdV1)
+        ):
+            raise InvalidCapacityContractV1("capacity_subject_invalid")
+
+
+@dataclass(frozen=True, slots=True)
 class ProviderQuotaWindowInputV1(TechnicalValueV1):
     CONTRACT_ID: ClassVar[str] = "CTR-CAP-001"
     OWNER: ClassVar[str] = "PLAN-M05"
@@ -212,8 +236,49 @@ class ProviderQuotaInputV1(TechnicalValueV1):
             raise InvalidCapacityContractV1("capacity_partial_omissions_required")
 
 
+@dataclass(frozen=True, slots=True)
+class ProviderQuotaInputV2(TechnicalValueV1):
+    """V2 quota batch retaining the discriminated provider target."""
+
+    CONTRACT_ID: ClassVar[str] = "CTR-CAP-001"
+    CONTRACT_VERSION: ClassVar[str] = "2.0.0"
+    OWNER: ClassVar[str] = "PLAN-M05"
+
+    subject: CapacitySubjectV2
+    registry_revision: int
+    capability_schema_version: str
+    completeness: Literal["complete_scope", "partial_scope"]
+    windows: tuple[ProviderQuotaWindowInputV1, ...]
+    omission_codes: tuple[str, ...] = ()
+
+    def __post_init__(self) -> None:
+        TechnicalValueV1.__post_init__(self)
+        keys = tuple(item.window_key for item in self.windows)
+        if (
+            not _token(self.capability_schema_version)
+            or type(self.registry_revision) is not int
+            or self.registry_revision < 1
+            or not keys
+            or len(keys) > 32
+            or len(keys) != len(set(keys))
+        ):
+            raise InvalidCapacityContractV1("capacity_quota_batch_invalid")
+        if self.omission_codes != tuple(sorted(set(self.omission_codes))) or not all(
+            _token(code) for code in self.omission_codes
+        ):
+            raise InvalidCapacityContractV1("capacity_omission_codes_invalid")
+        if (self.completeness == "partial_scope") != bool(self.omission_codes):
+            raise InvalidCapacityContractV1("capacity_partial_omissions_required")
+
+
 class CapacityCommitRequestV1(CollectionOutcomeCommitV1[ProviderQuotaInputV1]):
     CONTRACT_ID: ClassVar[str] = "CTR-CAP-004"
+    OWNER: ClassVar[str] = "PLAN-M05"
+
+
+class CapacityCommitRequestV2(CollectionOutcomeCommitV1[ProviderQuotaInputV2]):
+    CONTRACT_ID: ClassVar[str] = "CTR-CAP-004"
+    CONTRACT_VERSION: ClassVar[str] = "2.0.0"
     OWNER: ClassVar[str] = "PLAN-M05"
 
 
@@ -311,6 +376,44 @@ class QuotaWindowViewV1(TechnicalValueV1):
 
 
 @dataclass(frozen=True, slots=True)
+class QuotaWindowViewV2(TechnicalValueV1):
+    """V2 quota view retaining a cloud-or-installation target."""
+
+    CONTRACT_ID: ClassVar[str] = "CTR-CAP-001"
+    CONTRACT_VERSION: ClassVar[str] = "2.0.0"
+    OWNER: ClassVar[str] = "PLAN-M05"
+
+    window_id: OpaqueIdV1
+    subject: CapacitySubjectV2
+    window_key: str
+    safe_label: str | None
+    used: ExactMetricFieldV1
+    remaining: ExactMetricFieldV1
+    limit: ExactMetricFieldV1
+    remaining_ratio: ExactMetricFieldV1
+    provenance: CapacityObservationProvenanceViewV1
+    freshness: Literal[
+        "fresh", "stale", "freshness_unknown", "conflicted", "no_observation"
+    ]
+    current_observation_id: OpaqueIdV1
+    collection_run_id: OpaqueIdV1
+    observed_at: datetime | None
+    collected_at: datetime
+    stored_at: datetime
+    semantic_role: str | None = None
+    is_constraining: bool | None = None
+    definition_version: int | None = None
+    reset_at: datetime | None = None
+    reset_precision: PrecisionV1 = "unknown"
+    registry_revision: int | None = None
+    projection_version: int | None = None
+    completeness: CompletenessV1 = "unknown"
+
+
+QuotaWindowViewV1OrV2 = QuotaWindowViewV1 | QuotaWindowViewV2
+
+
+@dataclass(frozen=True, slots=True)
 class QuotaAllowanceV1:
     """M05 display derivation with the original observation left intact."""
 
@@ -366,6 +469,20 @@ class AccountCapacityViewV1(TechnicalValueV1):
     subject: CapacitySubjectV1
     windows: tuple[QuotaWindowViewV1, ...]
     health: CapacityHealthViewV1 | None
+
+
+@dataclass(frozen=True, slots=True)
+class AccountCapacityViewV2(TechnicalValueV1):
+    CONTRACT_ID: ClassVar[str] = "CTR-CAP-001"
+    CONTRACT_VERSION: ClassVar[str] = "2.0.0"
+    OWNER: ClassVar[str] = "PLAN-M05"
+
+    subject: CapacitySubjectV2
+    windows: tuple[QuotaWindowViewV2, ...]
+    health: CapacityHealthViewV1 | None
+
+
+AccountCapacityViewV1OrV2 = AccountCapacityViewV1 | AccountCapacityViewV2
 
 
 @dataclass(frozen=True, slots=True)
@@ -458,6 +575,65 @@ class CapacityHistoryPointV1(TechnicalValueV1):
     @property
     def cursor_key(self) -> str:
         return self.observation_id.value
+
+
+@dataclass(frozen=True, slots=True)
+class CapacityHistoryPointV2(TechnicalValueV1):
+    """V2 history point retaining a cloud-or-installation target."""
+
+    CONTRACT_ID: ClassVar[str] = "CTR-CAP-006"
+    CONTRACT_VERSION: ClassVar[str] = "2.0.0"
+    OWNER: ClassVar[str] = "PLAN-M05"
+
+    observation_id: OpaqueIdV1
+    window_id: OpaqueIdV1
+    window_definition_id: OpaqueIdV1
+    subject: CapacitySubjectV2
+    window_key: str
+    safe_label: str | None
+    semantic_role: str
+    native_unit: str | None
+    definition_version: int
+    metric: CapacityHistoryMetricV1
+    series_kind: CapacityHistorySeriesKindV1
+    value: ExactMetricFieldV1
+    provenance: CapacityObservationProvenanceViewV1
+    freshness: Literal["fresh", "stale", "freshness_unknown"]
+    completeness: CompletenessV1
+    collection_run_id: OpaqueIdV1
+    derivation_id: OpaqueIdV1 | None
+    observed_at: datetime
+    interval_start: datetime | None
+    interval_end: datetime | None
+    reset_at: datetime | None
+    reset_precision: PrecisionV1
+    collected_at: datetime
+    stored_at: datetime
+    source_period_start: datetime | None = None
+
+    def __post_init__(self) -> None:
+        TechnicalValueV1.__post_init__(self)
+        if (
+            not _token(self.window_key)
+            or not _token(self.semantic_role)
+            or type(self.definition_version) is not int
+            or self.definition_version < 1
+            or (self.interval_start is None) != (self.interval_end is None)
+            or (
+                self.interval_start is not None
+                and self.interval_end is not None
+                and self.interval_start >= self.interval_end
+            )
+            or (self.reset_at is None) != (self.reset_precision == "unknown")
+        ):
+            raise InvalidCapacityContractV1("capacity_history_point_invalid")
+
+    @property
+    def cursor_key(self) -> str:
+        return self.observation_id.value
+
+
+CapacityHistoryPointV1OrV2 = CapacityHistoryPointV1 | CapacityHistoryPointV2
 
 
 @dataclass(frozen=True, slots=True)

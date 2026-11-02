@@ -6,7 +6,7 @@ public serialization field.
 """
 
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import ClassVar, Literal, NoReturn, Protocol, SupportsIndex
 
 from agentmonitor.contracts.common_v1 import (
@@ -452,6 +452,36 @@ class ProviderAccessTargetV1(TechnicalValueV1):
 
 
 @dataclass(frozen=True, slots=True)
+class CloudMonitoringTargetV1(TechnicalValueV1):
+    """Owner-confirmed cloud graph independent of a local installation."""
+
+    CONTRACT_ID: ClassVar[str] = "CTR-REG-012"
+    OWNER: ClassVar[str] = "PLAN-M02"
+
+    profile_id: OpaqueIdV1
+    resource_id: OpaqueIdV1
+    account_id: OpaqueIdV1
+    access_target_id: OpaqueIdV1
+    binding: ActiveCredentialBindingRefV1
+    lifecycle: Literal["active", "disabled", "archived"]
+    identity_state: Literal["owner_confirmed"]
+    owner_principal_id: OpaqueIdV1
+    owner_asserted_at: datetime
+    record_version: int
+
+    def __post_init__(self) -> None:
+        TechnicalValueV1.__post_init__(self)
+        if (
+            self.binding.account_id != self.account_id
+            or not _valid_access_target_id(self.access_target_id)
+            or self.owner_asserted_at.utcoffset() != timedelta(0)
+            or type(self.record_version) is not int
+            or self.record_version < 1
+        ):
+            raise ValueError("registry_cloud_monitoring_target_invalid")
+
+
+@dataclass(frozen=True, slots=True)
 class AssertCredentialAccountOwnershipCommandV1(TechnicalValueV1):
     """Owner assertion for one pending account and exact credential generation."""
 
@@ -508,6 +538,7 @@ class CredentialBindingVerificationReceiptV1(TechnicalValueV1):
 
     verification_id: OpaqueIdV1
     binding: ActiveCredentialBindingRefV1
+    access_target_id: OpaqueIdV1
     run_id: OpaqueIdV1
     admission_id: OpaqueIdV1
     source_id: Literal["ollama.cloud.balance.v1"]
@@ -524,6 +555,7 @@ class CredentialBindingVerificationReceiptV1(TechnicalValueV1):
             len(identifier) != 37
             or not identifier.startswith("amvr_")
             or any(character not in "0123456789abcdef" for character in identifier[5:])
+            or not _valid_access_target_id(self.access_target_id)
             or not _bounded(self.adapter_version, maximum=64)
             or len(self.manifest_fingerprint) != 64
             or any(
@@ -534,6 +566,7 @@ class CredentialBindingVerificationReceiptV1(TechnicalValueV1):
             or any(
                 character not in "0123456789abcdef" for character in self.payload_digest
             )
+            or self.verified_at.utcoffset() != timedelta(0)
             or self.record_version != 1
         ):
             raise ValueError("registry_credential_verification_invalid")
@@ -557,6 +590,18 @@ class CredentialConnectionStatusV1(TechnicalValueV1):
         TechnicalValueV1.__post_init__(self)
         if (
             type(self.can_verify) is not bool
+            or self.can_verify
+            and self.state
+            not in {
+                "pending",
+                "unauthorized",
+                "store_locked",
+                "authorization_unavailable",
+            }
+            or self.state == "not_configured"
+            and self.binding_generation is not None
+            or self.state not in {"not_configured", "unavailable"}
+            and self.binding_generation is None
             or (
                 self.binding_generation is not None
                 and (

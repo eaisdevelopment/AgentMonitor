@@ -9,14 +9,14 @@ from agentmonitor.contracts.capacity_v1 import (
     CapacityAlertConditionV1,
     CapacityAlertReasonV1,
     InvalidCapacityContractV1,
-    QuotaWindowViewV1,
+    QuotaWindowViewV1OrV2,
 )
 from agentmonitor.contracts.common_quantity_v1 import CanonicalDecimalV1
 from agentmonitor.modules.capacity.domain.allowance import remaining_percentage_v1
 
 
 def derive_capacity_alert_condition_v1(
-    window: QuotaWindowViewV1, *, as_of: datetime
+    window: QuotaWindowViewV1OrV2, *, as_of: datetime
 ) -> CapacityAlertConditionV1:
     """Only fresh complete native allowance evidence can activate or recover."""
     if window.projection_version is None or window.projection_version < 1:

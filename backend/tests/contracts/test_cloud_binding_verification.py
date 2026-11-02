@@ -6,8 +6,10 @@ from datetime import UTC, datetime, timedelta
 import pytest
 
 from agentmonitor.contracts.collection_control_v1 import (
+    CollectionRunAdmissionV2,
     InvalidCollectionControlV1,
     OllamaCloudVerificationAcquireV1,
+    OllamaCloudVerificationTargetV1,
 )
 from agentmonitor.contracts.common_v1 import OpaqueIdV1
 from agentmonitor.contracts.registry_v1 import (
@@ -17,6 +19,7 @@ from agentmonitor.contracts.registry_v1 import (
     CredentialConnectionStatusV1,
     InitiateOllamaCloudVerificationCommandV1,
     ProviderAccessTargetV1,
+    ProviderTargetRefV1,
 )
 
 
@@ -64,6 +67,10 @@ def test_owner_assertion_is_exact_account_binding_installation_and_version() -> 
         reason_code="verification_required",
     )
     assert status.can_verify
+    with pytest.raises(
+        ValueError, match="registry_credential_connection_status_invalid"
+    ):
+        replace(status, state="unavailable", can_verify=True)
 
 
 def test_cloud_access_target_is_distinct_from_a_local_installation() -> None:
@@ -89,6 +96,7 @@ def test_generation_verification_receipt_is_closed_and_non_secret() -> None:
     receipt = CredentialBindingVerificationReceiptV1(
         verification_id=OpaqueIdV1("amvr_" + "b" * 32),
         binding=_binding(),
+        access_target_id=OpaqueIdV1("amat_" + "e" * 32),
         run_id=OpaqueIdV1("run-1"),
         admission_id=OpaqueIdV1("admission-1"),
         source_id="ollama.cloud.balance.v1",
@@ -100,6 +108,7 @@ def test_generation_verification_receipt_is_closed_and_non_secret() -> None:
     )
 
     assert receipt.binding.generation == 3
+    assert receipt.access_target_id == OpaqueIdV1("amat_" + "e" * 32)
     with pytest.raises(ValueError, match="registry_credential_verification_invalid"):
         replace(receipt, verification_id=OpaqueIdV1("owner-supplied"))
     with pytest.raises(ValueError, match="unsupported-field-state"):
@@ -130,3 +139,77 @@ def test_targeted_verification_acquire_is_exact_and_short_lived() -> None:
         InvalidCollectionControlV1, match="ollama_cloud_verification_acquire_invalid"
     ):
         replace(request, lease_expires_at=now + timedelta(seconds=61))
+
+    target = OllamaCloudVerificationTargetV1(
+        schedule_id=request.schedule_id,
+        account_id=request.account_id,
+        profile_id=OpaqueIdV1("profile-1"),
+        resource_id=OpaqueIdV1("resource-1"),
+        provider_target=ProviderTargetRefV1(
+            target_kind="cloud_service",
+            target_id=OpaqueIdV1("amat_" + "e" * 32),
+        ),
+        target_key_digest="a" * 64,
+        target_generation=request.target_generation,
+        requested_at=now,
+    )
+    assert target.provider_target.target_kind == "cloud_service"
+
+
+def test_cloud_run_admission_requires_the_complete_cloud_graph() -> None:
+    now = datetime(2026, 11, 2, 12, tzinfo=UTC)
+    admission = CollectionRunAdmissionV2(
+        run_id=OpaqueIdV1("run-1"),
+        schedule_id=OpaqueIdV1("schedule-1"),
+        request_id=OpaqueIdV1("request-1"),
+        trigger="reauth_verification",
+        operation_family="ollama_cloud_verification",
+        requested_capability_ids=("subscription.quota",),
+        capability_set_version="1.0.0",
+        request_auth_method="dashboard_session",
+        request_principal_id=OpaqueIdV1("principal-1"),
+        correlation_id=OpaqueIdV1("correlation-1"),
+        causation_id=None,
+        target_key_digest="1" * 64,
+        provider_key="ollama",
+        provider_target=ProviderTargetRefV1(
+            target_kind="cloud_service",
+            target_id=OpaqueIdV1("amat_" + "2" * 32),
+        ),
+        account_id=OpaqueIdV1("account-1"),
+        profile_id=OpaqueIdV1("profile-1"),
+        resource_id=OpaqueIdV1("resource-1"),
+        capability_id="subscription.quota",
+        source_id="ollama.cloud.balance.v1",
+        adapter_version="1.0.0",
+        provider_version=None,
+        adapter_protocol_version="1.0.0",
+        manifest_fingerprint="3" * 64,
+        collection_policy_version="1.0.0",
+        registry_revision=1,
+        retry_chain_id=OpaqueIdV1("retry-1"),
+        attempt_ordinal=1,
+        target_generation=1,
+        scheduler_instance_id=OpaqueIdV1("scheduler-1"),
+        lease_policy_version="1.0.0",
+        budget_policy_id="ollama-cloud-global",
+        budget_policy_version="1.0.0",
+        budget_scope_digest="4" * 64,
+        budget_dimension="request",
+        budget_unit="count",
+        budget_units=1,
+        budget_limit_units=1,
+        budget_window_start=now,
+        budget_window_end=now + timedelta(minutes=1),
+        payload_schema="ProviderQuotaInputV2@2",
+        idempotency_key_digest=None,
+        request_digest="5" * 64,
+        requested_at=now,
+        deadline_at=now + timedelta(seconds=30),
+    )
+
+    assert admission.provider_target.target_kind == "cloud_service"
+    with pytest.raises(
+        InvalidCollectionControlV1, match="collection_admission_invalid"
+    ):
+        replace(admission, resource_id=None)

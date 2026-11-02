@@ -10,7 +10,7 @@ from agentmonitor.contracts.collection_control_v1 import (
     CollectionFailurePolicyV1,
     CollectionOutcomeCommitPortV1,
     CollectionOutcomeCommitV1,
-    CollectionRunAdmissionV1,
+    CollectionRunAdmissionV1OrV2,
     CollectionRunViewV1,
 )
 from agentmonitor.contracts.common_v1 import OpaqueIdV1, TechnicalValueV1
@@ -18,7 +18,9 @@ from agentmonitor.contracts.provider_system_v1 import CollectionOutcomeV1
 
 
 class CollectionRunRepositoryV1(Protocol):
-    def admit_run(self, admission: CollectionRunAdmissionV1) -> CollectionRunViewV1: ...
+    def admit_run(
+        self, admission: CollectionRunAdmissionV1OrV2
+    ) -> CollectionRunViewV1: ...
 
     def claim_expired_committing_runs(
         self,
@@ -88,10 +90,10 @@ class ExecuteCollectionRunV1[SourceT: TechnicalValueV1, PayloadT: TechnicalValue
 
     def execute(
         self,
-        admission: CollectionRunAdmissionV1,
+        admission: CollectionRunAdmissionV1OrV2,
         collect: Callable[[], CollectionOutcomeV1[SourceT]],
         normalize: Callable[
-            [CollectionRunAdmissionV1, CollectionOutcomeV1[SourceT], datetime],
+            [CollectionRunAdmissionV1OrV2, CollectionOutcomeV1[SourceT], datetime],
             CollectionOutcomeCommitV1[PayloadT] | CollectionFailedV1,
         ],
         *,
@@ -157,7 +159,7 @@ class ExecuteCollectionRunV1[SourceT: TechnicalValueV1, PayloadT: TechnicalValue
 
     def recover_commit(
         self,
-        admission: CollectionRunAdmissionV1,
+        admission: CollectionRunAdmissionV1OrV2,
         *,
         completed_at: datetime,
     ) -> CollectionCommitReceiptV1 | CollectionFailedV1:

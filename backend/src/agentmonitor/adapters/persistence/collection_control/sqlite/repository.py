@@ -18,7 +18,8 @@ from agentmonitor.contracts.collection_control_v1 import (
     CollectionCommitReceiptV1,
     CollectionFailedV1,
     CollectionFailurePolicyV1,
-    CollectionRunAdmissionV1,
+    CollectionRunAdmissionV1OrV2,
+    CollectionRunAdmissionV2,
     CollectionRunViewV1,
 )
 from agentmonitor.contracts.common_v1 import OpaqueIdV1
@@ -30,6 +31,34 @@ class CollectionRepositoryErrorV1(ValueError):
     def __init__(self, code: str = "collection_repository_unavailable") -> None:
         self.code = code
         super().__init__(code)
+
+
+def _storage_target(
+    admission: CollectionRunAdmissionV1OrV2,
+) -> tuple[str | None, str | None, str | None]:
+    if isinstance(admission, CollectionRunAdmissionV2):
+        if admission.provider_target.target_kind == "cloud_service":
+            return (
+                None,
+                admission.provider_target.target_kind,
+                admission.provider_target.target_id.value,
+            )
+        return admission.provider_target.target_id.value, None, None
+    return admission.installation_id.value, None, None
+
+
+def _require_cloud_run_target(
+    connection: Connection,
+    admission: CollectionRunAdmissionV1OrV2,
+) -> None:
+    expected = _storage_target(admission)
+    row = connection.exec_driver_sql(
+        "SELECT installation_id,provider_target_kind,provider_target_id "
+        "FROM collection_run WHERE run_id=?",
+        (admission.run_id.value,),
+    ).one_or_none()
+    if row is None or tuple(row) != expected:
+        raise CollectionRepositoryErrorV1("collection_idempotency_conflict")
 
 
 def _utc_text(value: datetime) -> str:
@@ -137,11 +166,13 @@ class SqliteCollectionRepositoryV1:
         )
 
     def _on_admitted(
-        self, connection: Connection, admission: CollectionRunAdmissionV1
+        self, connection: Connection, admission: CollectionRunAdmissionV1OrV2
     ) -> None:
         """Internal adapter hook; ordinary M04 admissions need no extra write."""
 
-    def admit_run(self, admission: CollectionRunAdmissionV1) -> CollectionRunViewV1:
+    def admit_run(
+        self, admission: CollectionRunAdmissionV1OrV2
+    ) -> CollectionRunViewV1:
         try:
             with open_sqlite_database(
                 self._database_ref, "runtime_read_write"
@@ -155,6 +186,7 @@ class SqliteCollectionRepositoryV1:
                             raise CollectionRepositoryErrorV1(
                                 "collection_idempotency_conflict"
                             )
+                        _require_cloud_run_target(connection, admission)
                         result = _run_view(connection, existing)
                         self._on_admitted(connection, admission)
                         connection.commit()
@@ -208,12 +240,16 @@ class SqliteCollectionRepositoryV1:
                         .mappings()
                         .one_or_none()
                     )
+                    installation_id, provider_target_kind, provider_target_id = (
+                        _storage_target(admission)
+                    )
                     if schedule is None:
                         instant = _utc_text(admission.requested_at)
                         connection.exec_driver_sql(
                             "INSERT INTO collection_schedule "
                             "(schedule_id, target_key_digest, provider_key, "
-                            "installation_id, account_id, profile_id, resource_id, "
+                            "installation_id, provider_target_kind, provider_target_id, "
+                            "account_id, profile_id, resource_id, "
                             "capability_id, state, activity_class, "
                             "base_interval_seconds, effective_interval_seconds, "
                             "target_generation, next_due_at, not_before_at, "
@@ -221,13 +257,15 @@ class SqliteCollectionRepositoryV1:
                             "consecutive_failure_count, last_attempted_run_id, "
                             "last_successful_run_id, last_terminal_outcome_code, "
                             "record_version, created_at, updated_at) VALUES "
-                            "(?, ?, ?, ?, ?, ?, ?, ?, 'enabled', 'unknown', 300, "
+                            "(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'enabled', 'unknown', 300, "
                             "300, ?, ?, NULL, NULL, 0, 0, ?, NULL, NULL, 1, ?, ?)",
                             (
                                 admission.schedule_id.value,
                                 admission.target_key_digest,
                                 admission.provider_key,
-                                admission.installation_id.value,
+                                installation_id,
+                                provider_target_kind,
+                                provider_target_id,
                                 admission.account_id.value
                                 if admission.account_id is not None
                                 else None,
@@ -248,8 +286,9 @@ class SqliteCollectionRepositoryV1:
                     elif (
                         schedule["target_key_digest"] != admission.target_key_digest
                         or schedule["provider_key"] != admission.provider_key
-                        or schedule["installation_id"]
-                        != admission.installation_id.value
+                        or schedule["installation_id"] != installation_id
+                        or schedule["provider_target_kind"] != provider_target_kind
+                        or schedule["provider_target_id"] != provider_target_id
                         or schedule["account_id"]
                         != (
                             admission.account_id.value
@@ -408,7 +447,8 @@ class SqliteCollectionRepositoryV1:
                     connection.exec_driver_sql(
                         "INSERT INTO collection_run "
                         "(run_id, schedule_id, request_digest, provider_key, "
-                        "installation_id, account_id, profile_id, resource_id, "
+                        "installation_id, provider_target_kind, provider_target_id, "
+                        "account_id, profile_id, resource_id, "
                         "capability_id, source_id, adapter_version, "
                         "adapter_protocol_version, manifest_fingerprint, "
                         "collection_policy_version, registry_revision, "
@@ -420,7 +460,7 @@ class SqliteCollectionRepositoryV1:
                         "requested_at, queued_at, started_at, completed_at, "
                         "deadline_at, duration_ms, retry_disposition, retry_eligible, "
                         "retry_after, correlation_id, causation_id, record_version) "
-                        "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, "
+                        "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, "
                         "?, ?, ?, ?, ?, ?, NULL, 'queued', NULL, NULL, ?, ?, NULL, "
                         "NULL, ?, "
                         "NULL, NULL, NULL, NULL, ?, ?, 1)",
@@ -429,7 +469,9 @@ class SqliteCollectionRepositoryV1:
                             admission.schedule_id.value,
                             admission.request_digest,
                             admission.provider_key,
-                            admission.installation_id.value,
+                            installation_id,
+                            provider_target_kind,
+                            provider_target_id,
                             admission.account_id.value
                             if admission.account_id is not None
                             else None,

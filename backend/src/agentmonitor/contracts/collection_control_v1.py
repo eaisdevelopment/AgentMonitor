@@ -8,6 +8,7 @@ from typing import ClassVar, Literal, Protocol, get_args, runtime_checkable
 from agentmonitor.contracts.common_provenance_v1 import ObservationProvenanceV1
 from agentmonitor.contracts.common_v1 import OpaqueIdV1, QueryPageV1, TechnicalValueV1
 from agentmonitor.contracts.provider_system_v1 import OutcomeStateV1, RetryAdviceV1
+from agentmonitor.contracts.registry_v1 import ProviderTargetRefV1
 
 CollectionRunStateV1 = Literal[
     "requested",
@@ -325,6 +326,34 @@ class OllamaCloudVerificationAcquireV1(TechnicalValueV1):
             raise InvalidCollectionControlV1(
                 "ollama_cloud_verification_acquire_invalid"
             )
+
+
+@dataclass(frozen=True, slots=True)
+class OllamaCloudVerificationTargetV1(TechnicalValueV1):
+    """Exact cloud-only target registered for one owner verification attempt."""
+
+    CONTRACT_ID: ClassVar[str] = "CTR-COL-010"
+    OWNER: ClassVar[str] = "PLAN-M04"
+
+    schedule_id: OpaqueIdV1
+    account_id: OpaqueIdV1
+    profile_id: OpaqueIdV1
+    resource_id: OpaqueIdV1
+    provider_target: ProviderTargetRefV1
+    target_key_digest: str
+    target_generation: int
+    requested_at: datetime
+
+    def __post_init__(self) -> None:
+        TechnicalValueV1.__post_init__(self)
+        if (
+            self.provider_target.target_kind != "cloud_service"
+            or _SHA256.fullmatch(self.target_key_digest) is None
+            or type(self.target_generation) is not int
+            or self.target_generation < 1
+            or not _utc(self.requested_at)
+        ):
+            raise InvalidCollectionControlV1("ollama_cloud_verification_target_invalid")
 
 
 @dataclass(frozen=True, slots=True)
@@ -660,6 +689,127 @@ class CollectionRunAdmissionV1(TechnicalValueV1):
             or self.deadline_at <= self.requested_at
         ):
             raise InvalidCollectionControlV1("collection_admission_invalid")
+
+
+@dataclass(frozen=True, slots=True)
+class CollectionRunAdmissionV2(TechnicalValueV1):
+    """V2 run admission using a discriminated provider target reference."""
+
+    CONTRACT_ID: ClassVar[str] = "CTR-COL-002"
+    CONTRACT_VERSION: ClassVar[str] = "2.0.0"
+    OWNER: ClassVar[str] = "PLAN-M04"
+
+    run_id: OpaqueIdV1
+    schedule_id: OpaqueIdV1
+    request_id: OpaqueIdV1
+    trigger: CollectionTriggerV1
+    operation_family: str
+    requested_capability_ids: tuple[str, ...]
+    capability_set_version: str
+    request_auth_method: str
+    request_principal_id: OpaqueIdV1 | None
+    correlation_id: OpaqueIdV1
+    causation_id: OpaqueIdV1 | None
+    target_key_digest: str
+    provider_key: str
+    provider_target: ProviderTargetRefV1
+    account_id: OpaqueIdV1 | None
+    profile_id: OpaqueIdV1 | None
+    resource_id: OpaqueIdV1 | None
+    capability_id: str
+    source_id: str
+    adapter_version: str
+    provider_version: str | None
+    adapter_protocol_version: str
+    manifest_fingerprint: str
+    collection_policy_version: str
+    registry_revision: int
+    retry_chain_id: OpaqueIdV1
+    attempt_ordinal: int
+    target_generation: int
+    scheduler_instance_id: OpaqueIdV1
+    lease_policy_version: str
+    budget_policy_id: str
+    budget_policy_version: str
+    budget_scope_digest: str
+    budget_dimension: str
+    budget_unit: str
+    budget_units: int
+    budget_limit_units: int
+    budget_window_start: datetime
+    budget_window_end: datetime
+    payload_schema: str
+    idempotency_key_digest: str | None
+    request_digest: str
+    requested_at: datetime
+    deadline_at: datetime
+
+    def __post_init__(self) -> None:
+        TechnicalValueV1.__post_init__(self)
+        if (
+            _SHA256.fullmatch(self.target_key_digest) is None
+            or _SHA256.fullmatch(self.request_digest) is None
+            or (
+                self.idempotency_key_digest is not None
+                and _SHA256.fullmatch(self.idempotency_key_digest) is None
+            )
+            or (self.trigger == "manual" and self.idempotency_key_digest is None)
+            or _SHA256.fullmatch(self.budget_scope_digest) is None
+            or _SHA256.fullmatch(self.manifest_fingerprint) is None
+            or not all(
+                _bounded(value)
+                for value in (
+                    self.operation_family,
+                    self.capability_set_version,
+                    self.request_auth_method,
+                    self.provider_key,
+                    self.capability_id,
+                    self.source_id,
+                    self.adapter_version,
+                    self.adapter_protocol_version,
+                    self.collection_policy_version,
+                    self.lease_policy_version,
+                    self.budget_policy_id,
+                    self.budget_policy_version,
+                    self.budget_dimension,
+                    self.budget_unit,
+                    self.payload_schema,
+                )
+            )
+            or not self.requested_capability_ids
+            or len(self.requested_capability_ids) > 16
+            or self.requested_capability_ids
+            != tuple(sorted(set(self.requested_capability_ids)))
+            or not all(_bounded(value) for value in self.requested_capability_ids)
+            or (
+                self.provider_version is not None
+                and not _bounded(self.provider_version)
+            )
+            or (
+                self.provider_target.target_kind == "cloud_service"
+                and (
+                    self.account_id is None
+                    or self.profile_id is None
+                    or self.resource_id is None
+                )
+            )
+            or type(self.target_generation) is not int
+            or self.target_generation < 1
+            or type(self.registry_revision) is not int
+            or self.registry_revision < 1
+            or type(self.attempt_ordinal) is not int
+            or self.attempt_ordinal < 1
+            or type(self.budget_units) is not int
+            or self.budget_units < 0
+            or type(self.budget_limit_units) is not int
+            or self.budget_limit_units < self.budget_units
+            or self.budget_window_end <= self.budget_window_start
+            or self.deadline_at <= self.requested_at
+        ):
+            raise InvalidCollectionControlV1("collection_admission_invalid")
+
+
+CollectionRunAdmissionV1OrV2 = CollectionRunAdmissionV1 | CollectionRunAdmissionV2
 
 
 @dataclass(frozen=True, slots=True)

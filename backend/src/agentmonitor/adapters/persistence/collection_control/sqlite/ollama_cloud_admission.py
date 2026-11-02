@@ -17,12 +17,16 @@ from agentmonitor.adapters.persistence.collection_control.sqlite.repository impo
 )
 from agentmonitor.contracts.collection_control_v1 import (
     CollectionRunAdmissionV1,
+    CollectionRunAdmissionV1OrV2,
+    CollectionRunAdmissionV2,
     OllamaCloudAdmissionDecisionV1,
     OllamaCloudNoResponseCompletionV2,
     OllamaCloudRateGateViewV1,
     OllamaCloudRequestAcquireV1,
     OllamaCloudRequestCompletionV1,
     OllamaCloudRequestLeaseV1,
+    OllamaCloudVerificationAcquireV1,
+    OllamaCloudVerificationTargetV1,
 )
 from agentmonitor.contracts.common_v1 import OpaqueIdV1
 from agentmonitor.modules.collection_control.domain.ollama_rate_policy import (
@@ -183,7 +187,7 @@ def ensure_ollama_lease_in_transaction(
 def bind_ollama_run_in_transaction(
     connection: Connection,
     lease: OllamaCloudRequestLeaseV1,
-    run: CollectionRunAdmissionV1,
+    run: CollectionRunAdmissionV1OrV2,
     now: datetime,
 ) -> None:
     """Attach the actual queued M04 run to the reserved rate attempt atomically."""
@@ -219,7 +223,7 @@ def bind_ollama_run_in_transaction(
 def ensure_ollama_run_in_transaction(
     connection: Connection,
     lease: OllamaCloudRequestLeaseV1,
-    run: CollectionRunAdmissionV1,
+    run: CollectionRunAdmissionV1OrV2,
     payload_digest: str,
     now: datetime,
 ) -> None:
@@ -238,6 +242,19 @@ def ensure_ollama_run_in_transaction(
         )
         .mappings()
         .one_or_none()
+    )
+    cloud_target = (
+        (run.provider_target.target_kind, run.provider_target.target_id.value)
+        if isinstance(run, CollectionRunAdmissionV2)
+        and run.provider_target.target_kind == "cloud_service"
+        else None
+    )
+    storage_installation_id = (
+        None
+        if cloud_target is not None
+        else run.provider_target.target_id.value
+        if isinstance(run, CollectionRunAdmissionV2)
+        else run.installation_id.value
     )
     if (
         not connection.in_transaction()
@@ -266,7 +283,11 @@ def ensure_ollama_run_in_transaction(
         or row["provider_key"] != "ollama"
         or row["capability_id"] != "subscription.quota"
         or row["source_id"] != "ollama.cloud.balance.v1"
-        or row["installation_id"] != run.installation_id.value
+        or row["installation_id"] != storage_installation_id
+        or row["provider_target_kind"]
+        != (cloud_target[0] if cloud_target is not None else None)
+        or row["provider_target_id"]
+        != (cloud_target[1] if cloud_target is not None else None)
         or row["resource_id"] != (run.resource_id.value if run.resource_id else None)
         or row["correlation_id"] != run.correlation_id.value
         or row["target_generation"] != run.target_generation
@@ -287,7 +308,7 @@ class SqliteOllamaCloudRunRepositoryV1(SqliteCollectionRepositoryV1):
         self._cloud_lease = lease
 
     def _on_admitted(
-        self, connection: Connection, admission: CollectionRunAdmissionV1
+        self, connection: Connection, admission: CollectionRunAdmissionV1OrV2
     ) -> None:
         bind_ollama_run_in_transaction(
             connection, self._cloud_lease, admission, datetime.now(UTC)
@@ -864,6 +885,84 @@ class SqliteOllamaCloudAdmissionRepositoryV1:
         except (SQLAlchemyError, SqlitePolicyError, OSError, ValueError, TypeError):
             raise OllamaCloudAdmissionRepositoryErrorV1() from None
 
+    def register_verification_target(
+        self, target: OllamaCloudVerificationTargetV1
+    ) -> None:
+        """Register a cloud-only target without putting it in the scheduled lane."""
+        try:
+            with open_sqlite_database(
+                self._database_ref, "runtime_read_write"
+            ) as handle:
+                with handle.connect() as connection:
+                    connection.exec_driver_sql("BEGIN IMMEDIATE")
+                    _assert_terminal_gate_consistency(connection)
+                    row = (
+                        connection.exec_driver_sql(
+                            "SELECT * FROM collection_schedule WHERE schedule_id=?",
+                            (target.schedule_id.value,),
+                        )
+                        .mappings()
+                        .one_or_none()
+                    )
+                    expected = (
+                        target.target_key_digest,
+                        _PROVIDER_KEY,
+                        None,
+                        target.provider_target.target_kind,
+                        target.provider_target.target_id.value,
+                        target.account_id.value,
+                        target.profile_id.value,
+                        target.resource_id.value,
+                        _CAPABILITY_ID,
+                        target.target_generation,
+                    )
+                    instant = _utc_text(target.requested_at)
+                    if row is None:
+                        connection.exec_driver_sql(
+                            "INSERT INTO collection_schedule "
+                            "(schedule_id,target_key_digest,provider_key,installation_id,"
+                            "provider_target_kind,provider_target_id,account_id,profile_id,"
+                            "resource_id,capability_id,state,activity_class,"
+                            "base_interval_seconds,effective_interval_seconds,target_generation,"
+                            "next_due_at,not_before_at,backoff_kind,backoff_generation,"
+                            "consecutive_failure_count,last_attempted_run_id,last_successful_run_id,"
+                            "last_terminal_outcome_code,record_version,created_at,updated_at) "
+                            "VALUES (?,?,?,?,?,?,?,?,?,?,'enabled','unknown',300,300,?,?,"
+                            "NULL,NULL,0,0,NULL,NULL,NULL,1,?,?)",
+                            (
+                                target.schedule_id.value,
+                                *expected,
+                                instant,
+                                instant,
+                                instant,
+                            ),
+                        )
+                    else:
+                        actual = tuple(
+                            row[key]
+                            for key in (
+                                "target_key_digest",
+                                "provider_key",
+                                "installation_id",
+                                "provider_target_kind",
+                                "provider_target_id",
+                                "account_id",
+                                "profile_id",
+                                "resource_id",
+                                "capability_id",
+                                "target_generation",
+                            )
+                        )
+                        if actual != expected:
+                            raise OllamaCloudAdmissionRepositoryErrorV1(
+                                "ollama_cloud_schedule_conflict"
+                            )
+                    connection.commit()
+        except OllamaCloudAdmissionRepositoryErrorV1:
+            raise
+        except (SQLAlchemyError, SqlitePolicyError, OSError, ValueError, TypeError):
+            raise OllamaCloudAdmissionRepositoryErrorV1() from None
+
     def register_schedule(self, admission: CollectionRunAdmissionV1) -> None:
         """Register one genuine target for fair selection without creating a run."""
         if (
@@ -1019,14 +1118,59 @@ class SqliteOllamaCloudAdmissionRepositoryV1:
         except (SQLAlchemyError, SqlitePolicyError, OSError, ValueError, TypeError):
             raise OllamaCloudAdmissionRepositoryErrorV1() from None
 
+    def acquire_verification(
+        self, request: OllamaCloudVerificationAcquireV1
+    ) -> OllamaCloudAdmissionDecisionV1:
+        """Admit one exact owner-selected target through the same global gate."""
+        base = OllamaCloudRequestAcquireV1(
+            admission_id=request.admission_id,
+            scheduler_instance_id=request.scheduler_instance_id,
+            requested_at=request.requested_at,
+            lease_expires_at=request.lease_expires_at,
+            jitter_seconds=request.jitter_seconds,
+        )
+        try:
+            with open_sqlite_database(
+                self._database_ref, "runtime_read_write"
+            ) as handle:
+                with handle.connect() as connection:
+                    connection.exec_driver_sql("BEGIN IMMEDIATE")
+                    result = self._acquire(connection, base, verification=request)
+                    connection.commit()
+                    return result
+        except OllamaCloudAdmissionRepositoryErrorV1:
+            raise
+        except (SQLAlchemyError, SqlitePolicyError, OSError, ValueError, TypeError):
+            raise OllamaCloudAdmissionRepositoryErrorV1() from None
+
     def _acquire(
-        self, connection: Connection, request: OllamaCloudRequestAcquireV1
+        self,
+        connection: Connection,
+        request: OllamaCloudRequestAcquireV1,
+        *,
+        verification: OllamaCloudVerificationAcquireV1 | None = None,
     ) -> OllamaCloudAdmissionDecisionV1:
         requested_text = _utc_text(request.requested_at)
         existing = _admission_row(connection, request.admission_id.value)
         gate = _gate_row(connection)
         if existing is not None:
-            if gate is None or not _same_acquire(existing, request):
+            if (
+                gate is None
+                or not _same_acquire(existing, request)
+                or (
+                    verification is not None
+                    and (
+                        existing["schedule_id"] != verification.schedule_id.value
+                        or existing["account_id"] != verification.account_id.value
+                        or connection.exec_driver_sql(
+                            "SELECT target_generation FROM collection_schedule "
+                            "WHERE schedule_id=? AND provider_target_kind='cloud_service'",
+                            (verification.schedule_id.value,),
+                        ).scalar_one_or_none()
+                        != verification.target_generation
+                    )
+                )
+            ):
                 raise OllamaCloudAdmissionRepositoryErrorV1(
                     "ollama_cloud_admission_conflict"
                 )
@@ -1098,30 +1242,53 @@ class SqliteOllamaCloudAdmissionRepositoryV1:
             return OllamaCloudAdmissionDecisionV1("not_due", None, next_allowed)
 
         cursor = gate["fair_cursor_schedule_id"]
-        candidate = (
-            connection.exec_driver_sql(
-                "SELECT s.schedule_id,s.account_id,s.effective_interval_seconds "
-                "FROM collection_schedule AS s JOIN collection_cloud_schedule_lane AS lane "
-                "ON lane.schedule_id=s.schedule_id AND lane.source_id='ollama.cloud.balance.v1' "
-                "LEFT JOIN collection_lease AS l "
-                "ON l.schedule_id=s.schedule_id WHERE s.provider_key=? AND "
-                "s.capability_id=? AND s.account_id IS NOT NULL AND "
-                "s.state='enabled' AND s.next_due_at<=? AND "
-                "(s.not_before_at IS NULL OR s.not_before_at<=?) AND "
-                "l.schedule_id IS NULL ORDER BY CASE WHEN ? IS NULL THEN 0 "
-                "WHEN s.schedule_id>? THEN 0 ELSE 1 END,s.schedule_id LIMIT 1",
-                (
-                    _PROVIDER_KEY,
-                    _CAPABILITY_ID,
-                    requested_text,
-                    requested_text,
-                    cursor,
-                    cursor,
-                ),
+        if verification is None:
+            candidate = (
+                connection.exec_driver_sql(
+                    "SELECT s.schedule_id,s.account_id,s.effective_interval_seconds "
+                    "FROM collection_schedule AS s JOIN collection_cloud_schedule_lane AS lane "
+                    "ON lane.schedule_id=s.schedule_id AND lane.source_id='ollama.cloud.balance.v1' "
+                    "LEFT JOIN collection_lease AS l "
+                    "ON l.schedule_id=s.schedule_id WHERE s.provider_key=? AND "
+                    "s.capability_id=? AND s.account_id IS NOT NULL AND "
+                    "s.state='enabled' AND s.next_due_at<=? AND "
+                    "(s.not_before_at IS NULL OR s.not_before_at<=?) AND "
+                    "l.schedule_id IS NULL ORDER BY CASE WHEN ? IS NULL THEN 0 "
+                    "WHEN s.schedule_id>? THEN 0 ELSE 1 END,s.schedule_id LIMIT 1",
+                    (
+                        _PROVIDER_KEY,
+                        _CAPABILITY_ID,
+                        requested_text,
+                        requested_text,
+                        cursor,
+                        cursor,
+                    ),
+                )
+                .mappings()
+                .one_or_none()
             )
-            .mappings()
-            .one_or_none()
-        )
+        else:
+            candidate = (
+                connection.exec_driver_sql(
+                    "SELECT s.schedule_id,s.account_id,s.effective_interval_seconds "
+                    "FROM collection_schedule AS s "
+                    "LEFT JOIN collection_lease AS l ON l.schedule_id=s.schedule_id "
+                    "WHERE s.schedule_id=? AND s.account_id=? AND s.provider_key=? "
+                    "AND s.capability_id=? AND s.target_generation=? "
+                    "AND s.provider_target_kind='cloud_service' "
+                    "AND s.provider_target_id IS NOT NULL AND s.state='enabled' "
+                    "AND l.schedule_id IS NULL",
+                    (
+                        verification.schedule_id.value,
+                        verification.account_id.value,
+                        _PROVIDER_KEY,
+                        _CAPABILITY_ID,
+                        verification.target_generation,
+                    ),
+                )
+                .mappings()
+                .one_or_none()
+            )
         if candidate is None:
             return OllamaCloudAdmissionDecisionV1("no_candidate", None, None)
 

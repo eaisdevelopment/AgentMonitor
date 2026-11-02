@@ -7,6 +7,7 @@ from typing import Protocol
 
 from agentmonitor.contracts.capacity_v1 import (
     AccountCapacityViewV1,
+    AccountCapacityViewV1OrV2,
     CapacityAggregateQueryV1,
     CapacityAggregateViewV1,
     CapacityAlertConditionQueryV1,
@@ -17,11 +18,13 @@ from agentmonitor.contracts.capacity_v1 import (
     CapacityForecastSampleV1,
     CapacityForecastV1,
     CapacityHealthViewV1,
-    CapacityHistoryPointV1,
+    CapacityHistoryPointV1OrV2,
+    CapacityHistoryPointV2,
     CapacityHistoryQueryV1,
     ExactMetricFieldV1,
     QuotaAllowanceV1,
-    QuotaWindowViewV1,
+    QuotaWindowViewV1OrV2,
+    QuotaWindowViewV2,
 )
 from agentmonitor.contracts.common_v1 import (
     FieldAvailabilityV1,
@@ -85,7 +88,7 @@ from agentmonitor.modules.capacity.domain.health import (
 class GetQuotaAllowanceV1:
     """Publish the per-window display calculation and its exact input lineage."""
 
-    def __call__(self, window: QuotaWindowViewV1) -> QuotaAllowanceV1 | None:
+    def __call__(self, window: QuotaWindowViewV1OrV2) -> QuotaAllowanceV1 | None:
         result = remaining_percentage_v1(window.used, window.remaining_ratio)
         if result is None:
             return None
@@ -108,11 +111,11 @@ class CapacityCommitQueryRepositoryV1(Protocol):
         resource_id: OpaqueIdV1,
         capability_id: str,
         as_of: datetime,
-    ) -> tuple[QuotaWindowViewV1, ...]: ...
+    ) -> tuple[QuotaWindowViewV1OrV2, ...]: ...
 
     def list_account_quota_windows(
         self, account_id: OpaqueIdV1, as_of: datetime
-    ) -> tuple[QuotaWindowViewV1, ...]: ...
+    ) -> tuple[QuotaWindowViewV1OrV2, ...]: ...
 
     def page_account_quota_windows(
         self,
@@ -120,19 +123,19 @@ class CapacityCommitQueryRepositoryV1(Protocol):
         as_of: datetime,
         page_size: int,
         after_key: str | None,
-    ) -> tuple[QuotaWindowViewV1, ...]: ...
+    ) -> tuple[QuotaWindowViewV1OrV2, ...]: ...
 
     def page_capacity_history(
         self,
         query: CapacityHistoryQueryV1,
         page_size: int,
-    ) -> tuple[CapacityHistoryPointV1, ...]: ...
+    ) -> tuple[CapacityHistoryPointV1OrV2, ...]: ...
 
     def recent_capacity_history(
         self,
         query: CapacityHistoryQueryV1,
         page_size: int,
-    ) -> tuple[CapacityHistoryPointV1, ...]: ...
+    ) -> tuple[CapacityHistoryPointV1OrV2, ...]: ...
 
     def get_capacity_health(
         self,
@@ -148,11 +151,11 @@ class CapacityCommitQueryRepositoryV1(Protocol):
         resource_id: OpaqueIdV1,
         capability_id: str,
         as_of: datetime,
-    ) -> AccountCapacityViewV1: ...
+    ) -> AccountCapacityViewV1OrV2: ...
 
     def list_account_capacities(
         self, account_id: OpaqueIdV1, as_of: datetime
-    ) -> tuple[AccountCapacityViewV1, ...]: ...
+    ) -> tuple[AccountCapacityViewV1OrV2, ...]: ...
 
 
 class GetCollectionCommitStatusV1:
@@ -174,7 +177,7 @@ class ListQuotaWindowsV1:
         account_id: OpaqueIdV1,
         *,
         as_of: datetime,
-    ) -> tuple[QuotaWindowViewV1, ...]:
+    ) -> tuple[QuotaWindowViewV1OrV2, ...]:
         return self._repository.list_account_quota_windows(account_id, as_of)
 
     def for_scope(
@@ -184,7 +187,7 @@ class ListQuotaWindowsV1:
         capability_id: str,
         *,
         as_of: datetime,
-    ) -> tuple[QuotaWindowViewV1, ...]:
+    ) -> tuple[QuotaWindowViewV1OrV2, ...]:
         return self._repository.list_quota_windows(
             account_id, resource_id, capability_id, as_of
         )
@@ -196,7 +199,7 @@ class ListQuotaWindowsV1:
         as_of: datetime,
         limit: int = 50,
         after_key: str | None = None,
-    ) -> QueryPageV1[QuotaWindowViewV1]:
+    ) -> QueryPageV1[QuotaWindowViewV1OrV2]:
         try:
             rows = self._repository.page_account_quota_windows(
                 account_id, as_of, limit + 1, after_key
@@ -227,7 +230,7 @@ class ListCapacityHistoryV1:
 
     def __call__(
         self, query: CapacityHistoryQueryV1
-    ) -> QueryPageV1[CapacityHistoryPointV1]:
+    ) -> QueryPageV1[CapacityHistoryPointV1OrV2]:
         try:
             rows = self._repository.page_capacity_history(query, query.limit + 1)
         except ValueError:
@@ -275,7 +278,7 @@ class GetAccountCapacityV1:
         account_id: OpaqueIdV1,
         *,
         as_of: datetime,
-    ) -> QueryCollectionV1[AccountCapacityViewV1]:
+    ) -> QueryCollectionV1[AccountCapacityViewV1OrV2]:
         try:
             items = self._repository.list_account_capacities(account_id, as_of)
         except ValueError:
@@ -296,7 +299,7 @@ class GetAccountCapacityV1:
         capability_id: str,
         *,
         as_of: datetime,
-    ) -> AccountCapacityViewV1:
+    ) -> AccountCapacityViewV1OrV2:
         return self._repository.get_account_capacity(
             account_id, resource_id, capability_id, as_of
         )
@@ -326,6 +329,7 @@ class GetCapacityAggregateV1:
             for capacity in self._repository.list_account_capacities(
                 account.account_id, query.as_of
             )
+            if isinstance(capacity, AccountCapacityViewV1)
         )
         if self._scope_query(expected.scope_kind, expected.scope_id) != expected:
             raise CapacityQueryUnavailableV1("registry_scope_changed")
@@ -335,7 +339,7 @@ class GetCapacityAggregateV1:
 class CapacityAlertQueryRepositoryV1(Protocol):
     def page_capacity_alert_windows(
         self, query: CapacityAlertConditionQueryV1, page_size: int
-    ) -> tuple[QuotaWindowViewV1, ...]: ...
+    ) -> tuple[QuotaWindowViewV1OrV2, ...]: ...
 
 
 class ListCapacityAlertConditionsV1:
@@ -427,8 +431,10 @@ class ListCapacityForecastsV1:
         )
 
     def _window_forecast(
-        self, window: QuotaWindowViewV1, as_of: datetime
+        self, window: QuotaWindowViewV1OrV2, as_of: datetime
     ) -> CapacityForecastV1 | None:
+        if isinstance(window, QuotaWindowViewV2):
+            return None
         query = CapacityHistoryQueryV1(
             window.subject.account_id,
             window.subject.resource_id,
@@ -460,6 +466,8 @@ class ListCapacityForecastsV1:
         }
         samples = []
         for point in used:
+            if isinstance(point, CapacityHistoryPointV2):
+                return None
             remaining = remaining_by_id.get(
                 point.observation_id, _unknown_forecast_metric()
             )

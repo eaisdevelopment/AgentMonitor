@@ -25,6 +25,21 @@ def test_cloud_lane_and_attempt_journal_exist(tmp_path: Path) -> None:
                 "collection_cloud_schedule_lane",
                 "collection_cloud_attempt_journal",
             } <= tables
+            schedule_columns = {
+                item["name"]: item for item in inspect(connection).get_columns(
+                    "collection_schedule"
+                )
+            }
+            run_columns = {
+                item["name"]: item
+                for item in inspect(connection).get_columns("collection_run")
+            }
+            assert schedule_columns["installation_id"]["nullable"] is True
+            assert run_columns["installation_id"]["nullable"] is True
+            assert {"provider_target_kind", "provider_target_id"} <= set(
+                schedule_columns
+            )
+            assert {"provider_target_kind", "provider_target_id"} <= set(run_columns)
 
 
 def test_empty_real_registry_has_no_cloud_candidate(tmp_path: Path) -> None:

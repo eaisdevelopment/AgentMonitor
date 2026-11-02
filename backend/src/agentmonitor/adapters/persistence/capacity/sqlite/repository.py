@@ -19,19 +19,27 @@ from agentmonitor.adapters.persistence._shared.sqlite.core.policy import (
 )
 from agentmonitor.contracts.capacity_v1 import (
     AccountCapacityViewV1,
+    AccountCapacityViewV1OrV2,
+    AccountCapacityViewV2,
     CapacityAlertConditionQueryV1,
     CapacityCommitReceiptV1,
     CapacityCommitRequestV1,
+    CapacityCommitRequestV2,
     CapacityCommitStatusV1,
     CapacityCommittedNoticeV1,
     CapacityHealthViewV1,
     CapacityHistoryPointV1,
+    CapacityHistoryPointV1OrV2,
+    CapacityHistoryPointV2,
     CapacityHistoryQueryV1,
     CapacityObservationProvenanceViewV1,
     CapacitySubjectV1,
+    CapacitySubjectV2,
     ExactMetricFieldV1,
     InvalidCapacityContractV1,
     QuotaWindowViewV1,
+    QuotaWindowViewV1OrV2,
+    QuotaWindowViewV2,
 )
 from agentmonitor.contracts.common_quantity_v1 import (
     CanonicalDecimalV1,
@@ -44,7 +52,10 @@ from agentmonitor.contracts.common_v1 import (
     QueryAvailabilityV1,
 )
 from agentmonitor.contracts.events_v1 import DurableEventBatchV1, DurableEventV1
-from agentmonitor.contracts.registry_v1 import ActiveCredentialBindingRefV1
+from agentmonitor.contracts.registry_v1 import (
+    ActiveCredentialBindingRefV1,
+    ProviderTargetRefV1,
+)
 from agentmonitor.modules.capacity.application.ports import (
     CapacityCommittedPayloadPolicyV1,
     ClassifyCapacityProjectionV1,
@@ -69,6 +80,70 @@ def _identifier() -> str:
 
 def _stable_identifier(*values: str) -> str:
     return hashlib.sha256("\x1f".join(values).encode()).hexdigest()
+
+
+CapacityCommitRequestV1OrV2 = CapacityCommitRequestV1 | CapacityCommitRequestV2
+
+
+def _subject_storage_target(
+    subject: CapacitySubjectV1 | CapacitySubjectV2,
+) -> tuple[str | None, str | None, str | None]:
+    if isinstance(subject, CapacitySubjectV2):
+        if subject.provider_target.target_kind == "cloud_service":
+            return (
+                None,
+                subject.provider_target.target_kind,
+                subject.provider_target.target_id.value,
+            )
+        return subject.provider_target.target_id.value, None, None
+    return subject.installation_id.value, None, None
+
+
+def _subject_from_row(row: RowMapping) -> CapacitySubjectV1 | CapacitySubjectV2:
+    provider_key = str(row["provider_key"])
+    account_id = OpaqueIdV1(str(row["account_id"]))
+    resource_id = OpaqueIdV1(str(row["resource_id"]))
+    installation_id = row["installation_id"]
+    target_kind = row["provider_target_kind"]
+    target_id = row["provider_target_id"]
+    if installation_id is not None and target_kind is None and target_id is None:
+        return CapacitySubjectV1(
+            provider_key=provider_key,
+            installation_id=OpaqueIdV1(str(installation_id)),
+            account_id=account_id,
+            resource_id=resource_id,
+        )
+    if installation_id is None and target_kind == "cloud_service" and target_id:
+        return CapacitySubjectV2(
+            provider_key=provider_key,
+            provider_target=ProviderTargetRefV1(
+                target_kind="cloud_service", target_id=OpaqueIdV1(str(target_id))
+            ),
+            account_id=account_id,
+            resource_id=resource_id,
+        )
+    raise CapacityRepositoryErrorV1("capacity_target_invalid")
+
+
+def _target_scope_key(
+    installation_id: object,
+    provider_target_kind: object,
+    provider_target_id: object,
+) -> str:
+    """Return a comparison-only key without aliasing a cloud target as an install."""
+    if (
+        isinstance(installation_id, str)
+        and provider_target_kind is None
+        and provider_target_id is None
+    ):
+        return installation_id
+    if (
+        installation_id is None
+        and provider_target_kind == "cloud_service"
+        and isinstance(provider_target_id, str)
+    ):
+        return "cloud_service:" + provider_target_id
+    raise CapacityRepositoryErrorV1("capacity_target_invalid")
 
 
 def _utc_text(value: datetime) -> str:
@@ -197,7 +272,7 @@ def _provenance(row: RowMapping) -> CapacityObservationProvenanceViewV1:
 
 def _quota_window(
     connection: Connection, row: RowMapping, as_of: datetime
-) -> QuotaWindowViewV1:
+) -> QuotaWindowViewV1OrV2:
     measures = {
         str(measure["metric_kind"]): _metric_field(measure)
         for measure in connection.exec_driver_sql(
@@ -205,14 +280,15 @@ def _quota_window(
             (row["observation_id"],),
         ).mappings()
     }
-    return QuotaWindowViewV1(
+    subject = _subject_from_row(row)
+    view_type = (
+        QuotaWindowViewV2
+        if isinstance(subject, CapacitySubjectV2)
+        else QuotaWindowViewV1
+    )
+    return view_type(
         window_id=OpaqueIdV1(str(row["projection_id"])),
-        subject=CapacitySubjectV1(
-            provider_key=str(row["provider_key"]),
-            installation_id=OpaqueIdV1(str(row["installation_id"])),
-            account_id=OpaqueIdV1(str(row["account_id"])),
-            resource_id=OpaqueIdV1(str(row["resource_id"])),
-        ),
+        subject=subject,  # type: ignore[arg-type]
         window_key=str(row["native_window_key"]),
         safe_label=str(row["safe_label"]) if row["safe_label"] is not None else None,
         used=measures["used"],
@@ -379,13 +455,14 @@ def _current_windows(
     resource_id: OpaqueIdV1,
     capability_id: str,
     as_of: datetime,
-) -> tuple[QuotaWindowViewV1, ...]:
+) -> tuple[QuotaWindowViewV1OrV2, ...]:
     rows = (
         connection.exec_driver_sql(
             "SELECT "
             + _quota_metadata_columns(connection)
             + "p.projection_id, p.account_id, p.resource_id, p.freshness_state, d.provider_key, "
-            "d.installation_id, d.native_window_key, d.safe_label, "
+            "d.installation_id, d.provider_target_kind, d.provider_target_id, "
+            "d.native_window_key, d.safe_label, "
             "o.observation_id, o.collection_run_id, o.observed_at, "
             "o.collected_at, o.stored_at, p.freshness_deadline, "
             "p.capability_id, o.capability_schema_version, "
@@ -408,23 +485,26 @@ def _current_windows(
     return tuple(_quota_window(connection, row, as_of) for row in rows)
 
 
-def _history_point(row: RowMapping, as_of: datetime) -> CapacityHistoryPointV1:
+def _history_point(
+    row: RowMapping, as_of: datetime
+) -> CapacityHistoryPointV1OrV2:
     collected_at = _utc_value(str(row["collected_at"]))
     freshness_deadline = (
         _utc_value(str(row["freshness_deadline"]))
         if row["freshness_deadline"] is not None
         else None
     )
-    return CapacityHistoryPointV1(
+    subject = _subject_from_row(row)
+    view_type = (
+        CapacityHistoryPointV2
+        if isinstance(subject, CapacitySubjectV2)
+        else CapacityHistoryPointV1
+    )
+    return view_type(
         observation_id=OpaqueIdV1(str(row["observation_id"])),
         window_id=OpaqueIdV1(str(row["window_id"])),
         window_definition_id=OpaqueIdV1(str(row["window_definition_id"])),
-        subject=CapacitySubjectV1(
-            provider_key=str(row["provider_key"]),
-            installation_id=OpaqueIdV1(str(row["installation_id"])),
-            account_id=OpaqueIdV1(str(row["account_id"])),
-            resource_id=OpaqueIdV1(str(row["resource_id"])),
-        ),
+        subject=subject,  # type: ignore[arg-type]
         window_key=str(row["native_window_key"]),
         safe_label=str(row["safe_label"]) if row["safe_label"] is not None else None,
         semantic_role=str(row["semantic_role"]),
@@ -783,7 +863,7 @@ class SqliteCapacityRepositoryV1:
         resource_id: OpaqueIdV1,
         capability_id: str,
         as_of: datetime,
-    ) -> tuple[QuotaWindowViewV1, ...]:
+    ) -> tuple[QuotaWindowViewV1OrV2, ...]:
         try:
             with open_sqlite_database(
                 self._database_ref, "runtime_read_only"
@@ -832,7 +912,7 @@ class SqliteCapacityRepositoryV1:
 
     def list_account_quota_windows(
         self, account_id: OpaqueIdV1, as_of: datetime
-    ) -> tuple[QuotaWindowViewV1, ...]:
+    ) -> tuple[QuotaWindowViewV1OrV2, ...]:
         return tuple(
             window
             for resource_id, capability_id in self._account_capacity_scopes(
@@ -849,12 +929,12 @@ class SqliteCapacityRepositoryV1:
         as_of: datetime,
         page_size: int,
         after_key: str | None,
-    ) -> tuple[QuotaWindowViewV1, ...]:
+    ) -> tuple[QuotaWindowViewV1OrV2, ...]:
         return self._page_current_windows(account_id, as_of, page_size, after_key)
 
     def page_capacity_alert_windows(
         self, query: CapacityAlertConditionQueryV1, page_size: int
-    ) -> tuple[QuotaWindowViewV1, ...]:
+    ) -> tuple[QuotaWindowViewV1OrV2, ...]:
         return self._page_current_windows(
             query.account_id,
             query.as_of,
@@ -873,7 +953,7 @@ class SqliteCapacityRepositoryV1:
         *,
         resource_id: OpaqueIdV1 | None = None,
         window_id: OpaqueIdV1 | None = None,
-    ) -> tuple[QuotaWindowViewV1, ...]:
+    ) -> tuple[QuotaWindowViewV1OrV2, ...]:
         if type(page_size) is not int or not 1 <= page_size <= 201:
             raise CapacityRepositoryErrorV1("capacity_query_invalid")
         try:
@@ -886,7 +966,8 @@ class SqliteCapacityRepositoryV1:
                             "SELECT "
                             + _quota_metadata_columns(connection)
                             + "p.projection_id, p.account_id, p.resource_id, p.freshness_state, "
-                            "d.provider_key, d.installation_id, d.native_window_key, d.safe_label, "
+                            "d.provider_key, d.installation_id, d.provider_target_kind, "
+                            "d.provider_target_id, d.native_window_key, d.safe_label, "
                             "o.observation_id, o.collection_run_id, o.observed_at, o.collected_at, "
                             "o.stored_at, p.freshness_deadline, p.capability_id, "
                             "o.capability_schema_version, v.adapter_id, v.adapter_version, "
@@ -936,7 +1017,7 @@ class SqliteCapacityRepositoryV1:
         page_size: int,
         *,
         _recent: bool = False,
-    ) -> tuple[CapacityHistoryPointV1, ...]:
+    ) -> tuple[CapacityHistoryPointV1OrV2, ...]:
         """Read one exact immutable quota series without collecting or deriving."""
         if (
             not isinstance(query, CapacityHistoryQueryV1)
@@ -953,7 +1034,8 @@ class SqliteCapacityRepositoryV1:
                         connection.exec_driver_sql(
                             "SELECT p.projection_id AS window_id, "
                             "d.window_definition_id, d.provider_key, "
-                            "d.installation_id, d.account_id, d.resource_id, "
+                            "d.installation_id, d.provider_target_kind, "
+                            "d.provider_target_id, d.account_id, d.resource_id, "
                             "d.native_window_key, d.safe_label, d.semantic_role, "
                             "d.native_unit, d.definition_version, "
                             "d.reset_precision, o.observation_id, "
@@ -1052,7 +1134,7 @@ class SqliteCapacityRepositoryV1:
         self,
         query: CapacityHistoryQueryV1,
         page_size: int,
-    ) -> tuple[CapacityHistoryPointV1, ...]:
+    ) -> tuple[CapacityHistoryPointV1OrV2, ...]:
         if query.after_key is not None:
             raise CapacityRepositoryErrorV1("capacity_forecast_cursor_invalid")
         return tuple(
@@ -1061,8 +1143,8 @@ class SqliteCapacityRepositoryV1:
 
     def list_account_capacities(
         self, account_id: OpaqueIdV1, as_of: datetime
-    ) -> tuple[AccountCapacityViewV1, ...]:
-        results: list[AccountCapacityViewV1] = []
+    ) -> tuple[AccountCapacityViewV1OrV2, ...]:
+        results: list[AccountCapacityViewV1OrV2] = []
         for resource_id, capability_id in self._account_capacity_scopes(
             account_id, as_of
         ):
@@ -1079,13 +1161,35 @@ class SqliteCapacityRepositoryV1:
                 if error.code != "capacity_health_not_found":
                     raise
                 health = None
-            results.append(
-                AccountCapacityViewV1(
-                    subject=windows[0].subject,
-                    windows=windows,
-                    health=health,
+            subject = windows[0].subject
+            if isinstance(subject, CapacitySubjectV2):
+                if not all(type(window) is QuotaWindowViewV2 for window in windows):
+                    raise CapacityRepositoryErrorV1("capacity_target_mixed")
+                results.append(
+                    AccountCapacityViewV2(
+                        subject=subject,
+                        windows=tuple(
+                            window
+                            for window in windows
+                            if type(window) is QuotaWindowViewV2
+                        ),
+                        health=health,
+                    )
                 )
-            )
+            else:
+                if not all(type(window) is QuotaWindowViewV1 for window in windows):
+                    raise CapacityRepositoryErrorV1("capacity_target_mixed")
+                results.append(
+                    AccountCapacityViewV1(
+                        subject=subject,
+                        windows=tuple(
+                            window
+                            for window in windows
+                            if type(window) is QuotaWindowViewV1
+                        ),
+                        health=health,
+                    )
+                )
         return tuple(results)
 
     def get_capacity_health(
@@ -1138,25 +1242,41 @@ class SqliteCapacityRepositoryV1:
         resource_id: OpaqueIdV1,
         capability_id: str,
         as_of: datetime,
-    ) -> AccountCapacityViewV1:
+    ) -> AccountCapacityViewV1OrV2:
         windows = self.list_quota_windows(account_id, resource_id, capability_id, as_of)
         if not windows:
             raise CapacityRepositoryErrorV1("capacity_not_found")
+        subject = windows[0].subject
+        health = self.get_capacity_health(account_id, resource_id, capability_id, as_of)
+        if isinstance(subject, CapacitySubjectV2):
+            if not all(type(window) is QuotaWindowViewV2 for window in windows):
+                raise CapacityRepositoryErrorV1("capacity_target_mixed")
+            return AccountCapacityViewV2(
+                subject=subject,
+                windows=tuple(
+                    window for window in windows if type(window) is QuotaWindowViewV2
+                ),
+                health=health,
+            )
+        if not all(type(window) is QuotaWindowViewV1 for window in windows):
+            raise CapacityRepositoryErrorV1("capacity_target_mixed")
         return AccountCapacityViewV1(
-            subject=windows[0].subject,
-            windows=windows,
-            health=self.get_capacity_health(
-                account_id, resource_id, capability_id, as_of
+            subject=subject,
+            windows=tuple(
+                window for window in windows if type(window) is QuotaWindowViewV1
             ),
+            health=health,
         )
 
-    def commit(self, request: CapacityCommitRequestV1) -> CapacityCommitReceiptV1:
+    def commit(self, request: CapacityCommitRequestV1OrV2) -> CapacityCommitReceiptV1:
         """Commit a typed result; credential-required writers reject this path."""
         require_capacity_fence(self._credential_fence_required, False)
         return self._commit_with_credential_fence(request, None)
 
     def commit_fenced(
-        self, request: CapacityCommitRequestV1, binding: ActiveCredentialBindingRefV1
+        self,
+        request: CapacityCommitRequestV1OrV2,
+        binding: ActiveCredentialBindingRefV1,
     ) -> CapacityCommitReceiptV1:
         """Commit a result only under a transaction-bound credential fence."""
         if (
@@ -1168,7 +1288,7 @@ class SqliteCapacityRepositoryV1:
 
     def _commit_with_credential_fence(
         self,
-        request: CapacityCommitRequestV1,
+        request: CapacityCommitRequestV1OrV2,
         binding: ActiveCredentialBindingRefV1 | None,
     ) -> CapacityCommitReceiptV1:
         try:
@@ -1215,10 +1335,13 @@ class SqliteCapacityRepositoryV1:
             raise CapacityRepositoryErrorV1() from None
 
     def _insert_commit(
-        self, connection: Connection, request: CapacityCommitRequestV1
+        self, connection: Connection, request: CapacityCommitRequestV1OrV2
     ) -> CapacityCommitReceiptV1:
         payload = request.payload
         provenance = request.provenance
+        installation_id, provider_target_kind, provider_target_id = (
+            _subject_storage_target(payload.subject)
+        )
         if not _has_constraint_metadata(connection):
             raise CapacityRepositoryErrorV1(
                 "capacity_projection_metadata_schema_required"
@@ -1271,11 +1394,20 @@ class SqliteCapacityRepositoryV1:
         )
         incoming_semantic = provenance.observed_at or provenance.collected_at
         incoming_semantic_text = _utc_text(incoming_semantic)
+        target_scope_key = _target_scope_key(
+            installation_id, provider_target_kind, provider_target_id
+        )
+        target_hash_parts = (
+            (provider_target_kind, provider_target_id)
+            if provider_target_kind is not None and provider_target_id is not None
+            else ()
+        )
         if payload.completeness == "complete_scope":
             scoped_current = (
                 connection.exec_driver_sql(
                     "SELECT d.window_definition_id,d.provider_key,"
-                    "d.installation_id,d.account_id,d.resource_id,d.capability_id,"
+                    "d.installation_id,d.provider_target_kind,d.provider_target_id,"
+                    "d.account_id,d.resource_id,d.capability_id,"
                     "d.native_window_key,d.identity_scheme_version,d.lifecycle,"
                     "d.last_observed_at,"
                     "o.observed_at,o.collected_at FROM "
@@ -1285,20 +1417,26 @@ class SqliteCapacityRepositoryV1:
                     "capacity_quota_observation o ON "
                     "o.observation_id=p.current_observation_id WHERE "
                     "p.projection_kind='quota' AND p.provider_key=? AND "
-                    "p.installation_id=? AND p.account_id=? AND p.resource_id=? AND "
-                    "p.capability_id=? AND d.provider_key=? AND d.installation_id=? "
+                    "p.installation_id IS ? AND p.provider_target_kind IS ? AND "
+                    "p.provider_target_id IS ? AND p.account_id=? AND p.resource_id=? AND "
+                    "p.capability_id=? AND d.provider_key=? AND d.installation_id IS ? "
+                    "AND d.provider_target_kind IS ? AND d.provider_target_id IS ? "
                     "AND d.account_id=? AND d.resource_id=? AND d.capability_id=? "
                     "AND d.identity_scheme_version=1 AND "
                     "d.lifecycle IN ('active','not_observed_currently') "
                     "ORDER BY d.native_window_key,p.projection_id",
                     (
                         payload.subject.provider_key,
-                        payload.subject.installation_id.value,
+                        installation_id,
+                        provider_target_kind,
+                        provider_target_id,
                         payload.subject.account_id.value,
                         payload.subject.resource_id.value,
                         request.capability_id,
                         payload.subject.provider_key,
-                        payload.subject.installation_id.value,
+                        installation_id,
+                        provider_target_kind,
+                        provider_target_id,
                         payload.subject.account_id.value,
                         payload.subject.resource_id.value,
                         request.capability_id,
@@ -1329,7 +1467,11 @@ class SqliteCapacityRepositoryV1:
                     identity_scheme_proven=row["identity_scheme_version"] == 1,
                     current_scope=(
                         str(row["provider_key"]),
-                        str(row["installation_id"]),
+                        _target_scope_key(
+                            row["installation_id"],
+                            row["provider_target_kind"],
+                            row["provider_target_id"],
+                        ),
                         str(row["account_id"]),
                         str(row["resource_id"]),
                         str(row["capability_id"]),
@@ -1337,7 +1479,7 @@ class SqliteCapacityRepositoryV1:
                     ),
                     incoming_scope=(
                         payload.subject.provider_key,
-                        payload.subject.installation_id.value,
+                        target_scope_key,
                         payload.subject.account_id.value,
                         payload.subject.resource_id.value,
                         request.capability_id,
@@ -1386,6 +1528,7 @@ class SqliteCapacityRepositoryV1:
                 payload.subject.resource_id.value,
                 request.capability_id,
                 window.window_key,
+                *target_hash_parts,
                 "quota_window",
             )
             projection_id = _stable_identifier("current", projection_key)
@@ -1411,12 +1554,16 @@ class SqliteCapacityRepositoryV1:
                     "lifecycle_semantic_at FROM "
                     "capacity_quota_window_definition WHERE "
                     "provider_key=? AND resource_id=? AND capability_id=? AND "
-                    "identity_scheme_version=1 "
+                    "installation_id IS ? AND provider_target_kind IS ? AND "
+                    "provider_target_id IS ? AND identity_scheme_version=1 "
                     "AND native_window_key=? ORDER BY definition_version DESC LIMIT 1",
                     (
                         payload.subject.provider_key,
                         payload.subject.resource_id.value,
                         request.capability_id,
+                        installation_id,
+                        provider_target_kind,
+                        provider_target_id,
                         window.window_key,
                     ),
                 )
@@ -1435,8 +1582,10 @@ class SqliteCapacityRepositoryV1:
             )
             same_semantics = latest_definition is not None and all(
                 (
-                    latest_definition["installation_id"]
-                    == payload.subject.installation_id.value,
+                    latest_definition["installation_id"] == installation_id,
+                    latest_definition["provider_target_kind"]
+                    == provider_target_kind,
+                    latest_definition["provider_target_id"] == provider_target_id,
                     latest_definition["account_id"] == payload.subject.account_id.value,
                     latest_definition["safe_label"] == window.safe_label,
                     latest_definition["safe_label_state"] == safe_label_state,
@@ -1483,6 +1632,7 @@ class SqliteCapacityRepositoryV1:
                     payload.subject.resource_id.value,
                     request.capability_id,
                     window.window_key,
+                    *target_hash_parts,
                     str(definition_version),
                 )
                 definition_last_observed_at = current_window_lifecycle_semantic_v1(
@@ -1497,20 +1647,23 @@ class SqliteCapacityRepositoryV1:
                 connection.exec_driver_sql(
                     "INSERT INTO capacity_quota_window_definition "
                     "(window_definition_id, provider_key, installation_id, "
-                    "account_id, resource_id, capability_id, "
+                    "provider_target_kind, provider_target_id, account_id, "
+                    "resource_id, capability_id, "
                     "identity_scheme_version, native_window_key, "
                     "definition_version, lifecycle, safe_label, safe_label_state, "
                     "semantic_role, native_unit, window_start, window_end, reset_at, "
                     "renewal_semantic, reset_precision, timezone_precision, "
                     "provider_timezone, extension_schema_ref, first_observed_at, "
                     "last_observed_at, decision_reference, created_at, updated_at) "
-                    "VALUES (?, ?, ?, ?, ?, ?, 1, ?, ?, ?, ?, ?, ?, ?, "
+                    "VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?, ?, ?, ?, ?, ?, "
                     "NULL, NULL, ?, 'provider_native', ?, 'unknown', NULL, NULL, "
                     "?, ?, ?, ?, ?)",
                     (
                         window_definition_id,
                         payload.subject.provider_key,
-                        payload.subject.installation_id.value,
+                        installation_id,
+                        provider_target_kind,
+                        provider_target_id,
                         payload.subject.account_id.value,
                         payload.subject.resource_id.value,
                         request.capability_id,
@@ -1597,7 +1750,8 @@ class SqliteCapacityRepositoryV1:
                 connection.exec_driver_sql(
                     "INSERT INTO capacity_current_projection "
                     "(projection_id, projection_key, projection_kind, provider_key, "
-                    "installation_id, account_id, resource_id, capability_id, "
+                    "installation_id, provider_target_kind, provider_target_id, "
+                    "account_id, resource_id, capability_id, "
                     "window_definition_id, "
                     "budget_definition_id, metric_key, definition_version, "
                     "current_observation_id, collection_run_id, target_generation, "
@@ -1605,7 +1759,7 @@ class SqliteCapacityRepositoryV1:
                     "conflict_state, registry_revision, source_generation, "
                     "projection_policy_id, projection_policy_version, evaluated_at, "
                     "updated_at, projected_at, record_version) VALUES "
-                    "(?, ?, 'quota', ?, ?, ?, ?, ?, ?, NULL, 'quota_window', ?, ?, ?, "
+                    "(?, ?, 'quota', ?, ?, ?, ?, ?, ?, ?, ?, NULL, 'quota_window', ?, ?, ?, "
                     "?, ?, ?, ?, 'none', ?, ?, 'capacity-current-v1', '1.0.0', ?, "
                     "?, ?, 1) ON CONFLICT(projection_key) DO UPDATE SET "
                     "window_definition_id=excluded.window_definition_id, "
@@ -1625,7 +1779,9 @@ class SqliteCapacityRepositoryV1:
                         projection_id,
                         projection_key,
                         payload.subject.provider_key,
-                        payload.subject.installation_id.value,
+                        installation_id,
+                        provider_target_kind,
+                        provider_target_id,
                         payload.subject.account_id.value,
                         payload.subject.resource_id.value,
                         request.capability_id,

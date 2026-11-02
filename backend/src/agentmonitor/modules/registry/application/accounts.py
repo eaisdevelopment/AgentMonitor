@@ -13,6 +13,8 @@ from agentmonitor.contracts.registry_v1 import (
     AccountResourceViewV1,
     AccountViewV1,
     AlertSubjectScopeV1,
+    AssertCredentialAccountOwnershipCommandV1,
+    CloudMonitoringTargetV1,
     ConfirmProviderIdentityFingerprintCommandV1,
     MonitoringProfileViewV1,
     PrivateProfileLocatorRefV1,
@@ -157,6 +159,10 @@ class AccountRepositoryPortV1(Protocol):
         self, command: ConfirmIdentityAssociationCommandV1
     ) -> AccountViewV1: ...
 
+    def assert_credential_account_ownership(
+        self, command: AssertCredentialAccountOwnershipCommandV1
+    ) -> tuple[AccountViewV1, CloudMonitoringTargetV1]: ...
+
     def confirm_provider_identity_fingerprint(
         self, command: ConfirmProviderIdentityFingerprintCommandV1
     ) -> ProviderIdentityResolutionV1: ...
@@ -195,6 +201,18 @@ class ConfirmIdentityAssociationV1(ConfirmIdentityAssociationPortV1):
 
     def __call__(self, command: ConfirmIdentityAssociationCommandV1) -> AccountViewV1:
         return self._repository.confirm_identity(command)
+
+
+class AssertCredentialAccountOwnershipV1:
+    """M02 owner command; successful access is recorded by a later M05 commit."""
+
+    def __init__(self, repository: AccountRepositoryPortV1) -> None:
+        self._repository = repository
+
+    def __call__(
+        self, command: AssertCredentialAccountOwnershipCommandV1
+    ) -> tuple[AccountViewV1, CloudMonitoringTargetV1]:
+        return self._repository.assert_credential_account_ownership(command)
 
 
 class ConfirmProviderIdentityFingerprintV1:
