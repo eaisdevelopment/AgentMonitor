@@ -126,6 +126,35 @@ Integration verification on `m6-next` after cherry-picking the process
 contribution: 47 focused live Ollama process, real SQLite registry/runtime,
 authenticated HTTP and collection-control tests passed. The running dashboard
 was not restarted; its `/login` endpoint returned HTTP 200. The contribution
-remains intermediate: no production lifecycle currently invokes durable Ollama
-collection, and the provider capability admission, built-browser proof,
-model/process relationship and other-host coverage remain open.
+remained intermediate at that revision because no production lifecycle invoked
+durable Ollama collection.
+
+## Production lifecycle increment
+
+The follow-up Red ran the real production lifespan against migrated temporary
+SQLite and failed with zero reconciled Ollama installations; the separate
+failure-isolation test failed because `OllamaRuntimeCollectorV1` did not exist.
+Green wires one optional collector into the authenticated service lifespan. It
+uses scheduled M04 admission (`internal_scheduler`, no owner principal or
+idempotency claim), recovers pending commits once, reconciles the exact
+installation only when absent, and follows the existing five-minute unknown-
+activity cadence with a matching five-minute freshness lease. Expected
+installation, database, or exact-process failures produce one safe status and a
+five-minute in-memory backoff rather than stopping HTTP or hot-looping provider
+discovery. The M03 Ollama manifest remains unpublished and unknown.
+
+The neutral live query now starts its three-second deadline before discovery,
+runs provider discovery concurrently, and does not label a successful
+Claude/Codex scan truncated merely because optional Ollama is unavailable. A
+deadline-expired unknown discovery scope remains explicitly truncated. A
+complete exact Ollama scan with no matching same-user process is a valid empty
+observation; the live stopped/idle boundary was **Not Run** because user
+processes were not stopped for testing.
+
+Final focused lifecycle, real SQLite/API, exact process, recovery, association,
+and compatibility set: `34 passed in 14.94s`. Changed-file Ruff lint and format
+and `git diff --check` passed. The existing provider-neutral Sessions/Overview
+table already renders persisted Ollama rows; its real browser scenario was
+extended but is **Not Run** in this isolated worktree and remains required after
+integration. Capability admission, model/process relationship, browser proof,
+and other-host coverage remain open.

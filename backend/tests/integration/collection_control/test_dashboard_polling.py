@@ -6,6 +6,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 import pytest
+
 from agentmonitor.adapters.persistence._shared.sqlite.core.policy import DatabaseRefV1
 from agentmonitor.adapters.persistence._shared.sqlite.schema.compatibility import (
     migrate_to_head,
@@ -143,7 +144,9 @@ def test_production_service_collects_enabled_claude_and_preserves_registry() -> 
     asyncio.run(run())
 
 
-def test_empty_service_restarts_after_readonly_queries(tmp_path: Path) -> None:
+def test_service_restart_does_not_duplicate_optional_runtime_collection(
+    tmp_path: Path,
+) -> None:
     reference = DatabaseRefV1(tmp_path / "agentmonitor.db", tmp_path)
     migrate_to_head(reference)
     config = tmp_path / "service.env"
@@ -151,7 +154,8 @@ def test_empty_service_restarts_after_readonly_queries(tmp_path: Path) -> None:
     config.chmod(0o600)
 
     async def run() -> None:
-        for _ in range(2):
+        first_runs = None
+        for attempt in range(2):
             app = create_iam_application(config, tmp_path, lifecycle=LifecycleHooksV1())
             stop = asyncio.Event()
             ready = asyncio.get_running_loop().create_future()
@@ -166,21 +170,17 @@ def test_empty_service_restarts_after_readonly_queries(tmp_path: Path) -> None:
             )
             try:
                 await asyncio.wait_for(ready, 8)
-                assert (
-                    SqliteCollectionRepositoryV1(reference).list_runs(
-                        None, None, datetime.now(UTC), 100
-                    )
-                    == ()
-                )
+                await asyncio.sleep(1)
             finally:
                 stop.set()
                 await asyncio.wait_for(server, 35)
             # SQLite's read-only runtime opens may retain journal sidecars.
-            assert (
-                SqliteCollectionRepositoryV1(reference).list_runs(
-                    None, None, datetime.now(UTC), 100
-                )
-                == ()
+            runs = SqliteCollectionRepositoryV1(reference).list_runs(
+                None, None, datetime.now(UTC), 100
             )
+            if attempt == 0:
+                first_runs = runs
+            else:
+                assert runs == first_runs
 
     asyncio.run(run())

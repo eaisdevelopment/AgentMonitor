@@ -108,6 +108,9 @@ from agentmonitor.composition.linux_process_locations import (
     read_live_process_locations_v1,
 )
 from agentmonitor.composition.ollama_local_catalog import read_ollama_local_catalog_v1
+from agentmonitor.composition.ollama_runtime_collection import (
+    OllamaRuntimeCollectorV1,
+)
 from agentmonitor.composition.operations_health import (
     CodexProviderHealthLeafV1,
     ConfigurationHealthLeafV1,
@@ -558,6 +561,7 @@ def create_iam_application(
     codex_collector = CodexDashboardCollectorV1(
         reference, managed_profiles_root=data_root / "profiles" / "codex"
     )
+    ollama_runtime_collector = OllamaRuntimeCollectorV1(reference, data_root=data_root)
     claude_connections = ClaudeDashboardConnectionV1(reference, data_root)
     codex_connections = CodexDashboardConnectionV1(reference, data_root)
     alert_delivery = CapacityAlertDeliveryV1(reference)
@@ -567,6 +571,7 @@ def create_iam_application(
         + (
             claude_collector.run,
             codex_collector.run,
+            ollama_runtime_collector.run,
             claude_connections.run,
             codex_connections.run,
             alert_delivery.run,

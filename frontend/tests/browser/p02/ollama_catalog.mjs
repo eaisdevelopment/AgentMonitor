@@ -95,6 +95,32 @@ try {
   { timeout: 40_000 });
   if (!refreshed.ok()) throw new Error("ollama_auto_refresh_failed");
   await installed.getByText(/^Read .* · current$/).waitFor({ state: "visible" });
+  let processPayload;
+  const processDeadline = Date.now() + 15_000;
+  while (Date.now() < processDeadline) {
+    const response = await page.request.get(
+      `${origin}/api/v1/process-metrics?provider_key=ollama&limit=200`,
+    );
+    if (!response.ok()) throw new Error("ollama_process_api_unavailable");
+    processPayload = await response.json();
+    if (processPayload.items?.length > 0) break;
+    await page.waitForTimeout(100);
+  }
+  if (!processPayload?.items?.length ||
+      processPayload.items.some((item) => item.provider_key !== "ollama" ||
+        item.provenance?.source_id !== "linux.proc.process.v1" ||
+        "account_id" in item || "model_id" in item)) {
+    throw new Error("ollama_process_api_invalid");
+  }
+  await page.getByRole("button", { name: "Sessions", exact: true }).click();
+  const processTable = page.getByRole("region", { name: "Process observations table" });
+  await processTable.waitFor({ state: "visible", timeout: 15_000 });
+  const processRows = processTable.locator('tbody tr[data-process-row="true"]');
+  const ollamaRows = processRows.filter({ has: page.getByRole("rowheader", { name: "ollama", exact: true }) });
+  if (await ollamaRows.count() < 1 ||
+      !await ollamaRows.first().getByText("linux.proc.process.v1", { exact: true }).isVisible()) {
+    throw new Error("ollama_process_row_missing");
+  }
   console.log("P02 OLLAMA CATALOG: PASSED");
 } finally {
   await browser.close();

@@ -2,10 +2,14 @@
 
 from __future__ import annotations
 
+import time
 import uuid
+from collections.abc import Callable
+from concurrent.futures import FIRST_COMPLETED, Future, ThreadPoolExecutor, wait
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
+from typing import Literal
 
 from agentmonitor.adapters.platform.linux.processes import (
     ApprovedLinuxExecutableSelectorV1,
@@ -40,39 +44,65 @@ class _ProcessInstallation:
     expected_file_identity: LinuxExecutableFileIdentityV1 | None
 
 
-def _discover_installations(
-    *, include_claude: bool, include_codex: bool, include_ollama: bool
+@dataclass(frozen=True, slots=True)
+class _ProviderDiscoveryResultV1:
+    state: Literal["available", "unavailable"]
+    installations: tuple[_ProcessInstallation, ...]
+    truncated: bool
+
+
+def _merge_provider_discoveries_v1(
+    discoveries: tuple[_ProviderDiscoveryResultV1, ...],
 ) -> tuple[tuple[_ProcessInstallation, ...], bool]:
+    """Merge completed scopes without treating unavailability as truncation."""
+
+    return (
+        tuple(
+            installation
+            for discovery in discoveries
+            if discovery.state == "available"
+            for installation in discovery.installations
+        ),
+        any(
+            discovery.state == "available" and discovery.truncated
+            for discovery in discoveries
+        ),
+    )
+
+
+def _discover_claude_installations_v1() -> _ProviderDiscoveryResultV1:
     installations: list[_ProcessInstallation] = []
-    incomplete = False
-    if include_claude:
-        try:
-            discovered, truncated = discover_claude_process_installations()
-            incomplete = incomplete or truncated
-            for item in discovered:
-                try:
-                    executable, expected_file_identity = (
-                        item.executable_for_process_observation()
+    try:
+        discovered, truncated = discover_claude_process_installations()
+        for item in discovered:
+            try:
+                executable, expected_file_identity = (
+                    item.executable_for_process_observation()
+                )
+                installations.append(
+                    _ProcessInstallation(
+                        "claude",
+                        "linux.proc.claude-process.v1",
+                        "claude",
+                        item.installation_ref.value,
+                        item.provider_version,
+                        executable,
+                        expected_file_identity,
                     )
-                    installations.append(
-                        _ProcessInstallation(
-                            "claude",
-                            "linux.proc.claude-process.v1",
-                            "claude",
-                            item.installation_ref.value,
-                            item.provider_version,
-                            executable,
-                            expected_file_identity,
-                        )
-                    )
-                except (OSError, RuntimeError, ValueError):
-                    incomplete = True
-        except (OSError, RuntimeError, ValueError):
-            incomplete = True
-    if include_codex:
-        try:
-            codex_installation = discover_codex_installation()
-            installations.append(
+                )
+            except (OSError, RuntimeError, ValueError):
+                truncated = True
+        return _ProviderDiscoveryResultV1("available", tuple(installations), truncated)
+    except (OSError, RuntimeError, ValueError):
+        return _ProviderDiscoveryResultV1("unavailable", (), False)
+
+
+def _discover_codex_installations_v1() -> _ProviderDiscoveryResultV1:
+    try:
+        codex_installation = discover_codex_installation()
+        return _ProviderDiscoveryResultV1(
+            "available",
+            (
                 _ProcessInstallation(
                     "codex",
                     "linux.proc.codex-process.v1",
@@ -81,23 +111,29 @@ def _discover_installations(
                     codex_installation.provider_version,
                     codex_installation.executable_for_launch(),
                     None,
-                )
-            )
-        except (OSError, RuntimeError, ValueError):
-            incomplete = True
-    if include_ollama:
-        try:
-            ollama_installation = discover_ollama_installation()
-            if (
-                ollama_installation.outcome != "success"
-                or ollama_installation.installation_ref is None
-                or ollama_installation.cli_version is None
-            ):
-                raise ValueError("ollama_process_installation_unavailable")
-            executable, expected_file_identity = (
-                ollama_installation.executable_for_process_observation()
-            )
-            installations.append(
+                ),
+            ),
+            False,
+        )
+    except (OSError, RuntimeError, ValueError):
+        return _ProviderDiscoveryResultV1("unavailable", (), False)
+
+
+def _discover_ollama_installations_v1() -> _ProviderDiscoveryResultV1:
+    try:
+        ollama_installation = discover_ollama_installation()
+        if (
+            ollama_installation.outcome != "success"
+            or ollama_installation.installation_ref is None
+            or ollama_installation.cli_version is None
+        ):
+            return _ProviderDiscoveryResultV1("unavailable", (), False)
+        executable, expected_file_identity = (
+            ollama_installation.executable_for_process_observation()
+        )
+        return _ProviderDiscoveryResultV1(
+            "available",
+            (
                 _ProcessInstallation(
                     "ollama",
                     "linux.proc.ollama-process.v1",
@@ -106,83 +142,145 @@ def _discover_installations(
                     ollama_installation.cli_version,
                     executable,
                     expected_file_identity,
-                )
-            )
-        except (OSError, RuntimeError, ValueError):
-            incomplete = True
-    return tuple(installations), incomplete
+                ),
+            ),
+            False,
+        )
+    except (OSError, RuntimeError, ValueError):
+        return _ProviderDiscoveryResultV1("unavailable", (), False)
+
+
+def _requested_provider_discoveries_v1(
+    *, include_claude: bool, include_codex: bool, include_ollama: bool
+) -> tuple[Callable[[], _ProviderDiscoveryResultV1], ...]:
+    discoveries: list[Callable[[], _ProviderDiscoveryResultV1]] = []
+    if include_claude:
+        discoveries.append(_discover_claude_installations_v1)
+    if include_codex:
+        discoveries.append(_discover_codex_installations_v1)
+    if include_ollama:
+        discoveries.append(_discover_ollama_installations_v1)
+    return tuple(discoveries)
 
 
 def _read_process_locations_v1(
     *, include_claude: bool, include_codex: bool, include_ollama: bool
 ) -> LiveProcessLocationsV1:
     observed_at = datetime.now(UTC)
-    try:
-        installations, truncated = _discover_installations(
-            include_claude=include_claude,
-            include_codex=include_codex,
-            include_ollama=include_ollama,
+    deadline_at = observed_at + timedelta(seconds=3)
+    deadline_monotonic = time.monotonic() + 3.0
+    discoveries = _requested_provider_discoveries_v1(
+        include_claude=include_claude,
+        include_codex=include_codex,
+        include_ollama=include_ollama,
+    )
+    if not discoveries:
+        return LiveProcessLocationsV1(
+            (),
+            QueryAvailabilityV1(
+                "unavailable", "process_source_unavailable", observed_at
+            ),
+            None,
+            False,
         )
+
+    executor = ThreadPoolExecutor(
+        max_workers=len(discoveries),
+        thread_name_prefix="agentmonitor-process-source",
+    )
+    pending: dict[Future[_ProviderDiscoveryResultV1], int] = {}
+    try:
+        pending = {
+            executor.submit(discovery): index
+            for index, discovery in enumerate(discoveries)
+        }
         items: list[LiveProcessLocationV1] = []
         usable = False
-        deadline_at = observed_at + timedelta(seconds=3)
-        for installation in installations:
-            if datetime.now(UTC) >= deadline_at:
+        truncated = False
+        while pending and len(items) < 512:
+            remaining = deadline_monotonic - time.monotonic()
+            if remaining <= 0:
                 truncated = True
                 break
-            try:
-                selector = ApprovedLinuxExecutableSelectorV1.from_executable(
-                    selector_id=installation.selector_id,
-                    executable_identity=installation.executable_identity,
-                    provider_key=installation.provider_key,
-                    installation_id=installation.installation_id,
-                    provider_version=installation.provider_version,
-                    executable=installation.executable,
-                    expected_file_identity=installation.expected_file_identity,
-                )
-                operation_id = "process-locations-" + uuid.uuid4().hex
-                outcome, locations = InspectLinuxProcessesV1(
-                    approved_executable_selectors=(selector,)
-                ).locations(
-                    PlatformInspectionRequestV1(
-                        operation_id=operation_id,
-                        correlation_id=operation_id,
-                        provider_key=installation.provider_key,
-                        installation_id=installation.installation_id,
-                        provider_version=installation.provider_version,
-                        source_id="linux.proc.process.v1",
-                        selector_id=installation.selector_id,
-                        executable_identity=installation.executable_identity,
-                        requested_fields=(
-                            "kernel_state",
-                            "parent_pid",
-                            "resident_pages",
-                            "system_cpu_ticks",
-                            "thread_count",
-                            "user_cpu_ticks",
-                        ),
-                        maximum_candidates=16_384,
-                        maximum_results=512,
-                        deadline_at=deadline_at,
-                    )
-                )
-            except (OSError, RuntimeError, ValueError):
-                truncated = True
-                continue
-            usable = usable or outcome.state in {"success", "partial"}
-            observed_at = outcome.observed_at
-            items.extend(locations)
-            if len(items) > 512:
-                items = items[:512]
-                truncated = True
-                break
-            truncated = (
-                truncated
-                or outcome.truncated
-                or bool(outcome.omission_codes)
-                or len(locations) < len(outcome.processes)
-                or outcome.state not in {"success", "partial"}
+            completed, _ = wait(
+                pending,
+                timeout=remaining,
+                return_when=FIRST_COMPLETED,
             )
+            if not completed:
+                truncated = True
+                break
+            for future in sorted(completed, key=pending.__getitem__):
+                pending.pop(future)
+                try:
+                    discovery = future.result()
+                except (OSError, RuntimeError, ValueError):
+                    discovery = _ProviderDiscoveryResultV1("unavailable", (), False)
+                installations, discovery_truncated = _merge_provider_discoveries_v1(
+                    (discovery,)
+                )
+                truncated = truncated or discovery_truncated
+                for installation in installations:
+                    if time.monotonic() >= deadline_monotonic:
+                        truncated = True
+                        break
+                    try:
+                        selector = ApprovedLinuxExecutableSelectorV1.from_executable(
+                            selector_id=installation.selector_id,
+                            executable_identity=installation.executable_identity,
+                            provider_key=installation.provider_key,
+                            installation_id=installation.installation_id,
+                            provider_version=installation.provider_version,
+                            executable=installation.executable,
+                            expected_file_identity=(
+                                installation.expected_file_identity
+                            ),
+                        )
+                        operation_id = "process-locations-" + uuid.uuid4().hex
+                        outcome, locations = InspectLinuxProcessesV1(
+                            approved_executable_selectors=(selector,)
+                        ).locations(
+                            PlatformInspectionRequestV1(
+                                operation_id=operation_id,
+                                correlation_id=operation_id,
+                                provider_key=installation.provider_key,
+                                installation_id=installation.installation_id,
+                                provider_version=installation.provider_version,
+                                source_id="linux.proc.process.v1",
+                                selector_id=installation.selector_id,
+                                executable_identity=(installation.executable_identity),
+                                requested_fields=(
+                                    "kernel_state",
+                                    "parent_pid",
+                                    "resident_pages",
+                                    "system_cpu_ticks",
+                                    "thread_count",
+                                    "user_cpu_ticks",
+                                ),
+                                maximum_candidates=16_384,
+                                maximum_results=512,
+                                deadline_at=deadline_at,
+                            )
+                        )
+                    except (OSError, RuntimeError, ValueError):
+                        truncated = True
+                        continue
+                    usable = usable or outcome.state in {"success", "partial"}
+                    observed_at = outcome.observed_at
+                    items.extend(locations)
+                    if len(items) > 512:
+                        items = items[:512]
+                        truncated = True
+                        break
+                    truncated = (
+                        truncated
+                        or outcome.truncated
+                        or bool(outcome.omission_codes)
+                        or len(locations) < len(outcome.processes)
+                        or outcome.state not in {"success", "partial"}
+                    )
+        if pending:
+            truncated = True
         versions = {item.provider_version for item in items if item.provider_version}
         return LiveProcessLocationsV1(
             tuple(items),
@@ -205,6 +303,10 @@ def _read_process_locations_v1(
             None,
             False,
         )
+    finally:
+        for future in pending:
+            future.cancel()
+        executor.shutdown(wait=False, cancel_futures=True)
 
 
 def read_live_process_locations_v1() -> LiveProcessLocationsV1:
