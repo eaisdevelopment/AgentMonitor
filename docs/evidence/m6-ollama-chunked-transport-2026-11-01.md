@@ -55,3 +55,8 @@ found in the checked composition/lifecycle paths. The live unit uses
 `KillMode=control-group` with SIGTERM, so application cleanup alone does not
 prove a child created after the pre-restart check will be spared the initial
 service-stop signal. Do not treat the lifecycle hook as closing the race.
+
+The earlier real-file override tests used constructed file contents at an I/O
+boundary. They are not admissible under the project's constructed-value rule
+and were removed. Service configuration replacement and rollback therefore
+remain unverified; `--apply` stays disabled.
