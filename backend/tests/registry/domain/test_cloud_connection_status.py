@@ -88,7 +88,7 @@ def test_scheduled_state_never_follows_preference_or_old_receipt_alone() -> None
         "worker_unavailable",
     )
     assert scheduled_monitoring_state(True, True, True, False, True) == (
-        "waiting",
+        "unavailable",
         "source_not_admitted",
     )
     assert scheduled_monitoring_state(True, True, True, True, False) == (

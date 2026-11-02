@@ -5,7 +5,7 @@ export function ollamaMonitoringCopy(state: string, reason: string): string {
   if (state === "off") return "Monitoring is off";
   if (state === "scheduled") return "Monitoring scheduled";
   if (reason === "credential_unavailable") return "Waiting for a credential";
-  if (reason === "source_not_admitted") return "Waiting for a verified connection";
+  if (reason === "source_not_admitted") return "Monitoring status unavailable";
   if (reason === "schedule_not_registered") return "Waiting for scheduling";
   return "Monitoring unavailable";
 }

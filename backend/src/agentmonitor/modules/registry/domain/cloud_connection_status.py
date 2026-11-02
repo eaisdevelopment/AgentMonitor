@@ -20,7 +20,7 @@ def scheduled_monitoring_state(
     if not binding_present:
         return "waiting", "credential_unavailable"
     if not source_admitted:
-        return "waiting", "source_not_admitted"
+        return "unavailable", "source_not_admitted"
     if not schedule_registered:
         return "waiting", "schedule_not_registered"
     return "scheduled", "scheduled"
