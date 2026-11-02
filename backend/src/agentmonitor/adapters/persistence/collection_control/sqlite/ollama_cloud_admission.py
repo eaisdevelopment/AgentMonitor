@@ -11,6 +11,7 @@ from agentmonitor.adapters.persistence._shared.sqlite.core.policy import (
     open_sqlite_database,
 )
 from agentmonitor.contracts.collection_control_v1 import (
+    CollectionRunAdmissionV1,
     OllamaCloudAdmissionDecisionV1,
     OllamaCloudRateGateViewV1,
     OllamaCloudRequestAcquireV1,
@@ -121,6 +122,80 @@ def _same_acquire(row: RowMapping, request: OllamaCloudRequestAcquireV1) -> bool
         and _utc_value(row["lease_expires_at"]) == request.lease_expires_at
         and int(row["admission_jitter_seconds"]) == request.jitter_seconds
     )
+
+
+def ensure_ollama_lease_in_transaction(
+    connection: Connection, lease: OllamaCloudRequestLeaseV1, now: datetime
+) -> None:
+    """Fence a capacity commit against the same active durable cloud lease."""
+    if not connection.in_transaction():
+        raise OllamaCloudAdmissionRepositoryErrorV1("ollama_cloud_transaction_required")
+    row = _admission_row(connection, lease.admission_id.value)
+    gate = _gate_row(connection)
+    if (
+        row is None
+        or gate is None
+        or row["state"] != "active"
+        or gate["active_admission_id"] != lease.admission_id.value
+        or row["scheduler_instance_id"] != lease.scheduler_instance_id.value
+        or row["schedule_id"] != lease.schedule_id.value
+        or row["account_id"] != lease.account_id.value
+        or int(row["fencing_token"]) != lease.fencing_token
+        or int(gate["fencing_token"]) != lease.fencing_token
+        or _utc_value(row["started_at"]) != lease.started_at
+        or _utc_value(row["lease_expires_at"]) != lease.lease_expires_at
+        or now < lease.started_at
+        or now > lease.lease_expires_at
+    ):
+        raise OllamaCloudAdmissionRepositoryErrorV1("ollama_cloud_fencing_conflict")
+
+
+def ensure_ollama_run_in_transaction(
+    connection: Connection,
+    lease: OllamaCloudRequestLeaseV1,
+    run: CollectionRunAdmissionV1,
+    payload_digest: str,
+    now: datetime,
+) -> None:
+    """Require the actual M04 run in committing state, bound to the rate lease."""
+    row = (
+        connection.exec_driver_sql(
+            "SELECT * FROM collection_run WHERE run_id=?", (run.run_id.value,)
+        )
+        .mappings()
+        .one_or_none()
+    )
+    run_lease = (
+        connection.exec_driver_sql(
+            "SELECT * FROM collection_lease WHERE schedule_id=?",
+            (lease.schedule_id.value,),
+        )
+        .mappings()
+        .one_or_none()
+    )
+    if (
+        not connection.in_transaction()
+        or row is None
+        or run_lease is None
+        or run_lease["run_id"] != run.run_id.value
+        or run_lease["owner_instance_id"] != run.scheduler_instance_id.value
+        or run_lease["fencing_token"] != row["fencing_token"]
+        or _utc_value(run_lease["expires_at"]) < now
+        or row["state"] != "committing"
+        or row["schedule_id"] != lease.schedule_id.value
+        or row["account_id"] != lease.account_id.value
+        or row["provider_key"] != "ollama"
+        or row["capability_id"] != "subscription.quota"
+        or row["source_id"] != "ollama.cloud.balance.v1"
+        or row["installation_id"] != run.installation_id.value
+        or row["resource_id"] != (run.resource_id.value if run.resource_id else None)
+        or row["correlation_id"] != run.correlation_id.value
+        or row["target_generation"] != run.target_generation
+        or row["registry_revision"] != run.registry_revision
+        or row["payload_schema"] != run.payload_schema
+        or row["payload_digest"] != payload_digest
+    ):
+        raise OllamaCloudAdmissionRepositoryErrorV1("ollama_cloud_run_fencing_conflict")
 
 
 class SqliteOllamaCloudAdmissionRepositoryV1:
