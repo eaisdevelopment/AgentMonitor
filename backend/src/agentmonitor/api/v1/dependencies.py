@@ -2,8 +2,6 @@
 
 from dataclasses import dataclass
 
-from fastapi import Request
-
 from agentmonitor.api.problem import ProblemError
 from agentmonitor.api.v1.ollama_cloud_port import OllamaCloudConnectionPortV1
 from agentmonitor.contracts.capacity_v1 import CapacityHealthPolicyV1
@@ -39,6 +37,7 @@ from agentmonitor.modules.alerting.application.rules import (
 from agentmonitor.modules.capacity.application.queries import (
     GetAccountCapacityV1,
     GetCapacityAggregateV1,
+    GetCapacityAggregateV2,
     ListCapacityForecastsV1,
     ListCapacityHistoryV1,
     ListQuotaWindowsV1,
@@ -76,6 +75,7 @@ from agentmonitor.modules.provider_system.application.queries import (
 )
 from agentmonitor.modules.registry.application.accounts import (
     AlertScopeAndSubjectQueryV1,
+    CapacityScopeMembershipQueryV2,
     EditAccountV1,
     GetAccountV1,
     ListAccountResourcesV1,
@@ -102,6 +102,7 @@ from agentmonitor.modules.runtime_observation.application.queries import (
     ListAgentSessionsV1,
     ListLiveProcessLocationsV1,
 )
+from fastapi import Request
 
 SESSION_COOKIE = "agentmonitor_session"
 CSRF_COOKIE = "agentmonitor_csrf"
@@ -153,8 +154,10 @@ class ObservationApiPortsV1:
     provider_connections: ProviderConnectionPortV1 | None = None
     owner_process_associations: OwnerProcessAccountAssociationsV1 | None = None
     get_capacity_aggregate: GetCapacityAggregateV1 | None = None
+    get_capacity_aggregate_v2: GetCapacityAggregateV2 | None = None
     list_capacity_forecasts: ListCapacityForecastsV1 | None = None
     registry_scope: AlertScopeAndSubjectQueryV1 | None = None
+    registry_scope_v2: CapacityScopeMembershipQueryV2 | None = None
     list_account_resources: ListAccountResourcesV1 | None = None
     capacity_health_policy: CapacityHealthPolicyV1 | None = None
     ollama_local_catalog: LocalCatalogPortV1 | None = None

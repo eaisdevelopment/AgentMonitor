@@ -3,9 +3,8 @@
 from datetime import datetime
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict
-
 from agentmonitor.api.v1.schemas.registry import AvailabilityV1, PageMetaV1
+from pydantic import BaseModel, ConfigDict
 
 
 class _ClosedV1(BaseModel):
@@ -250,6 +249,73 @@ class CapacityScopeViewV1(_ClosedV1):
     excluded_accounts: tuple[CapacityCoverageWireV1, ...]
     accounts: tuple[CapacityCoverageWireV1, ...]
     window_groups: tuple[CapacityWindowGroupWireV1, ...]
+    health_counts: tuple[CapacityCountWireV1, ...]
+    freshness_counts: tuple[CapacityCountWireV1, ...]
+    worst_health: str
+    input_observation_ids: tuple[str, ...]
+    input_set_digest: str
+    policy_id: str
+    policy_version: str
+
+
+class ProviderTargetRefWireV2(_ClosedV1):
+    target_kind: Literal["cloud_service"]
+    target_id: str
+
+
+class CapacityCloudResourceCoverageWireV2(_ClosedV1):
+    resource_id: str
+    provider_key: str
+    provider_target: ProviderTargetRefWireV2
+    relationship_state: Literal["unresolved"]
+    reason_codes: tuple[str, ...]
+
+
+class CapacityCoverageWireV2(_ClosedV1):
+    account_id: str
+    resource_ids: tuple[str, ...]
+    cloud_resources: tuple[CapacityCloudResourceCoverageWireV2, ...]
+    eligibility: Literal["eligible", "excluded"]
+    coverage: Literal["covered", "missing", "partial", "excluded"]
+    reason_codes: tuple[str, ...]
+    health: CapacityHealthViewV1 | None
+    windows: tuple["QuotaWindowViewV2", ...]
+    input_observation_ids: tuple[str, ...]
+
+
+class CapacityWindowGroupWireV2(_ClosedV1):
+    provider_key: str
+    native_window_key: str
+    semantic_role: str | None
+    unit: str | None
+    resource_ids: tuple[str, ...]
+    account_ids: tuple[str, ...]
+    input_observation_ids: tuple[str, ...]
+    relationship_state: Literal["unresolved"]
+    reason_codes: tuple[str, ...]
+    numeric_values: tuple[CapacityNumericAggregateWireV1, ...]
+
+
+class CapacityScopeViewV2(_ClosedV1):
+    scope_kind: Literal["global", "organization", "provider", "account"]
+    scope_id: str | None
+    registry_revision: int
+    generated_at: datetime
+    completeness: Literal["complete", "partial", "unknown"]
+    availability: Literal["available", "unavailable"]
+    reason_codes: tuple[str, ...]
+    registered_account_count: int
+    eligible_account_count: int
+    covered_account_count: int
+    excluded_account_count: int
+    missing_account_count: int
+    observed_capacity_count: int
+    eligible_account_ids: tuple[str, ...]
+    covered_account_ids: tuple[str, ...]
+    missing_accounts: tuple[CapacityCoverageWireV2, ...]
+    excluded_accounts: tuple[CapacityCoverageWireV2, ...]
+    accounts: tuple[CapacityCoverageWireV2, ...]
+    window_groups: tuple[CapacityWindowGroupWireV2, ...]
     health_counts: tuple[CapacityCountWireV1, ...]
     freshness_counts: tuple[CapacityCountWireV1, ...]
     worst_health: str

@@ -26,8 +26,6 @@ from functools import partial
 from pathlib import Path
 
 import uvicorn
-from fastapi import FastAPI
-
 from agentmonitor.adapters.identity_access.argon2_password import Argon2PasswordV1
 from agentmonitor.adapters.persistence._shared.sqlite.core.policy import (
     DatabaseRefV1,
@@ -163,6 +161,7 @@ from agentmonitor.modules.capacity.application.ports import ClassifyCapacityProj
 from agentmonitor.modules.capacity.application.queries import (
     GetAccountCapacityV1,
     GetCapacityAggregateV1,
+    GetCapacityAggregateV2,
     ListCapacityForecastsV1,
     ListCapacityHistoryV1,
     ListQuotaWindowsV1,
@@ -201,6 +200,7 @@ from agentmonitor.modules.provider_system.application.queries import (
 )
 from agentmonitor.modules.registry.application.accounts import (
     AlertScopeAndSubjectQueryV1,
+    CapacityScopeMembershipQueryV2,
     EditAccountV1,
     GetAccountV1,
     ListAccountResourcesV1,
@@ -227,6 +227,7 @@ from agentmonitor.modules.runtime_observation.application.queries import (
     ListAgentSessionsV1,
     ListLiveProcessLocationsV1,
 )
+from fastapi import FastAPI
 
 
 class LoopbackServerError(ValueError):
@@ -544,8 +545,12 @@ def _observation_ports(
         get_capacity_aggregate=GetCapacityAggregateV1(
             capacity, AlertScopeAndSubjectQueryV1(registry)
         ),
+        get_capacity_aggregate_v2=GetCapacityAggregateV2(
+            capacity, CapacityScopeMembershipQueryV2(registry)
+        ),
         list_capacity_forecasts=ListCapacityForecastsV1(capacity),
         registry_scope=AlertScopeAndSubjectQueryV1(registry),
+        registry_scope_v2=CapacityScopeMembershipQueryV2(registry),
         list_account_resources=ListAccountResourcesV1(registry),
         capacity_health_policy=ClassifyCapacityProjectionV1().policy,
         ollama_local_catalog=read_ollama_local_catalog_v1,

@@ -9,7 +9,9 @@ from agentmonitor.contracts.capacity_v1 import (
     AccountCapacityViewV1,
     AccountCapacityViewV1OrV2,
     CapacityAggregateQueryV1,
+    CapacityAggregateQueryV2,
     CapacityAggregateViewV1,
+    CapacityAggregateViewV2,
     CapacityAlertConditionQueryV1,
     CapacityAlertConditionV1,
     CapacityCommitStatusV1,
@@ -33,7 +35,10 @@ from agentmonitor.contracts.common_v1 import (
     QueryCollectionV1,
     QueryPageV1,
 )
-from agentmonitor.contracts.registry_v1 import AlertScopeAndSubjectQueryV1
+from agentmonitor.contracts.registry_v1 import (
+    AlertScopeAndSubjectQueryV1,
+    CapacityScopeMembershipQueryV2,
+)
 from agentmonitor.modules.capacity.application.current import (
     ListCapacityAvailabilityConditionsV1 as ListCapacityAvailabilityConditionsV1,
 )
@@ -63,6 +68,9 @@ from agentmonitor.modules.capacity.application.events import (
 )
 from agentmonitor.modules.capacity.domain.aggregation import (
     aggregate_capacity_v1 as aggregate_capacity_v1,
+)
+from agentmonitor.modules.capacity.domain.aggregation import (
+    aggregate_capacity_v2 as aggregate_capacity_v2,
 )
 from agentmonitor.modules.capacity.domain.alert_conditions import (
     derive_capacity_alert_condition_v1 as derive_capacity_alert_condition_v1,
@@ -344,6 +352,36 @@ class GetCapacityAggregateV1:
         if self._scope_query(expected.scope_kind, expected.scope_id) != expected:
             raise CapacityQueryUnavailableV1("registry_scope_changed")
         return aggregate_capacity_v1(query, legacy)
+
+
+class GetCapacityAggregateV2:
+    """Read V2 local/cloud facts under one exact M02 membership revision."""
+
+    def __init__(
+        self,
+        repository: CapacityCommitQueryRepositoryV1,
+        scope_query: CapacityScopeMembershipQueryV2,
+    ) -> None:
+        self._repository = repository
+        self._scope_query = scope_query
+
+    def __call__(self, query: CapacityAggregateQueryV2) -> CapacityAggregateViewV2:
+        expected = query.scope_snapshot
+        if expected.completeness_state != "complete":
+            raise CapacityQueryUnavailableV1("registry_scope_unavailable")
+        if self._scope_query(expected.scope_kind, expected.scope_id) != expected:
+            raise CapacityQueryUnavailableV1("registry_scope_changed")
+        capacities = tuple(
+            capacity
+            for account in query.accounts
+            if account.lifecycle == "active" and account.is_effective_monitoring_enabled
+            for capacity in self._repository.list_account_capacities(
+                account.account_id, query.as_of
+            )
+        )
+        if self._scope_query(expected.scope_kind, expected.scope_id) != expected:
+            raise CapacityQueryUnavailableV1("registry_scope_changed")
+        return aggregate_capacity_v2(query, capacities)
 
 
 class CapacityAlertQueryRepositoryV1(Protocol):

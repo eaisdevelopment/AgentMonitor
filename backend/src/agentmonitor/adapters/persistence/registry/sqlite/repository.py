@@ -7,9 +7,6 @@ import json
 import secrets
 from datetime import UTC, datetime, timedelta
 
-from sqlalchemy.engine import Connection, RowMapping
-from sqlalchemy.exc import SQLAlchemyError
-
 from agentmonitor.adapters.persistence._shared.sqlite.core.policy import (
     DatabaseRefV1,
     SqlitePolicyError,
@@ -41,8 +38,11 @@ from agentmonitor.contracts.registry_v1 import (
     OrganizationViewV1,
     ProviderIdentityResolutionV1,
     ProviderInstallationViewV1,
+    ProviderTargetRefV1,
+    RegistryCloudResourceMembershipV2,
     RegistryScopeKindV1,
     RegistryScopeSnapshotV1,
+    RegistryScopeSnapshotV2,
     ResolveProviderIdentityFingerprintQueryV1,
 )
 from agentmonitor.modules.registry.application.accounts import (
@@ -67,6 +67,8 @@ from agentmonitor.modules.registry.application.organizations import (
 from agentmonitor.modules.registry.domain.cloud_verification import (
     decide_cloud_owner_assertion,
 )
+from sqlalchemy.engine import Connection, RowMapping
+from sqlalchemy.exc import SQLAlchemyError
 
 
 class RegistryRepositoryErrorV1(ValueError):
@@ -916,7 +918,7 @@ class SqliteRegistryRepositoryV1:
                     return result
         except RegistryCommandConflictV1:
             raise
-        except (SqlitePolicyError, SQLAlchemyError, ValueError, TypeError):
+        except (SqlitePolicyError, SQLAlchemyError, ValueError):
             raise RegistryRepositoryErrorV1() from None
 
     def reorder_organizations(
@@ -3646,4 +3648,187 @@ class SqliteRegistryRepositoryV1:
         except RegistryRepositoryErrorV1:
             raise
         except (SqlitePolicyError, SQLAlchemyError, ValueError):
+            raise RegistryRepositoryErrorV1() from None
+
+    def get_registry_capacity_scope_v2(
+        self, scope_kind: RegistryScopeKindV1, scope_id: OpaqueIdV1 | None
+    ) -> RegistryScopeSnapshotV2:
+        """Read local and cloud resource membership in one SQLite snapshot."""
+        if (scope_kind == "global") != (scope_id is None):
+            raise RegistryRepositoryErrorV1("registry_scope_invalid")
+        scope_value = scope_id.value if scope_id is not None else None
+        try:
+            with open_sqlite_database(
+                self._database_ref, "runtime_read_only"
+            ) as handle:
+                with handle.connect() as connection:
+                    connection.exec_driver_sql("BEGIN")
+                    revision = _current_revision(connection)
+                    account_filter = ""
+                    account_parameters: tuple[str, ...] = ()
+                    if scope_kind == "organization":
+                        account_filter = " AND organization_id=?"
+                        account_parameters = (scope_value or "",)
+                    elif scope_kind == "provider":
+                        account_filter = " AND provider_key=?"
+                        account_parameters = (scope_value or "",)
+                    elif scope_kind == "account":
+                        account_filter = " AND account_id=?"
+                        account_parameters = (scope_value or "",)
+                    account_rows = (
+                        connection.exec_driver_sql(
+                            "SELECT account_id,organization_id,provider_key "
+                            "FROM reg_account WHERE lifecycle<>'archived' "
+                            + account_filter
+                            + " ORDER BY provider_key,normalized_name,account_id "
+                            "LIMIT 201",
+                            account_parameters,
+                        )
+                        .mappings()
+                        .all()
+                    )
+                    if len(account_rows) > 200:
+                        raise RegistryRepositoryErrorV1(
+                            "registry_scope_membership_limit_exceeded"
+                        )
+                    account_ids = tuple(
+                        sorted(
+                            (
+                                OpaqueIdV1(str(row["account_id"]))
+                                for row in account_rows
+                            ),
+                            key=lambda item: item.value,
+                        )
+                    )
+                    account_values = {item.value for item in account_ids}
+                    ordered_account_values = tuple(sorted(account_values))
+                    account_providers = {
+                        str(row["account_id"]): str(row["provider_key"])
+                        for row in account_rows
+                    }
+                    placeholders = ",".join("?" for _ in ordered_account_values)
+                    all_local_rows = (
+                        connection.exec_driver_sql(
+                            "SELECT resource_id,account_id FROM reg_account_resource "
+                            "WHERE lifecycle='active' AND account_id IN ("
+                            + placeholders
+                            + ") ORDER BY resource_id LIMIT 2001",
+                            ordered_account_values,
+                        )
+                        .mappings()
+                        .all()
+                        if ordered_account_values
+                        else []
+                    )
+                    if len(all_local_rows) > 2000:
+                        raise RegistryRepositoryErrorV1(
+                            "registry_scope_membership_limit_exceeded"
+                        )
+                    local_resource_ids = tuple(
+                        sorted(
+                            (
+                                OpaqueIdV1(str(row["resource_id"]))
+                                for row in all_local_rows
+                            ),
+                            key=lambda item: item.value,
+                        )
+                    )
+                    cloud_rows = (
+                        connection.exec_driver_sql(
+                            "SELECT c.resource_id,c.account_id,t.provider_key,"
+                            "t.access_target_id FROM reg_cloud_monitoring_target c "
+                            "JOIN reg_provider_access_target t "
+                            "ON t.access_target_id=c.access_target_id "
+                            "WHERE c.lifecycle='active' AND t.lifecycle='active' "
+                            "AND c.account_id IN ("
+                            + placeholders
+                            + ") ORDER BY c.resource_id LIMIT 2001",
+                            ordered_account_values,
+                        )
+                        .mappings()
+                        .all()
+                        if ordered_account_values
+                        else []
+                    )
+                    if len(cloud_rows) > 2000:
+                        raise RegistryRepositoryErrorV1(
+                            "registry_scope_membership_limit_exceeded"
+                        )
+                    cloud_resources = tuple(
+                        RegistryCloudResourceMembershipV2(
+                            resource_id=OpaqueIdV1(str(row["resource_id"])),
+                            account_id=OpaqueIdV1(str(row["account_id"])),
+                            provider_key=str(row["provider_key"]),
+                            provider_target=ProviderTargetRefV1(
+                                target_kind="cloud_service",
+                                target_id=OpaqueIdV1(str(row["access_target_id"])),
+                            ),
+                            relationship_state="unresolved",
+                            registry_revision=revision,
+                        )
+                        for row in cloud_rows
+                        if account_providers.get(str(row["account_id"]))
+                        == row["provider_key"]
+                    )
+                    selected_cloud_resources = {
+                        item.resource_id.value for item in cloud_resources
+                    }
+                    expected_cloud_resources = {
+                        str(row["resource_id"]) for row in cloud_rows
+                    }
+                    if selected_cloud_resources != expected_cloud_resources:
+                        raise RegistryRepositoryErrorV1(
+                            "registry_cloud_resource_membership_invalid"
+                        )
+                    if scope_kind == "global":
+                        organization_values = tuple(
+                            connection.exec_driver_sql(
+                                "SELECT organization_id FROM reg_organization "
+                                "WHERE lifecycle='active' "
+                                "ORDER BY display_order,organization_id"
+                            ).scalars()
+                        )
+                    elif scope_kind == "organization":
+                        organization_values = (
+                            (scope_value,)
+                            if connection.exec_driver_sql(
+                                "SELECT 1 FROM reg_organization "
+                                "WHERE organization_id=? AND lifecycle='active'",
+                                (scope_value,),
+                            ).scalar_one_or_none()
+                            is not None
+                            else ()
+                        )
+                    else:
+                        active_organizations = set(
+                            connection.exec_driver_sql(
+                                "SELECT organization_id FROM reg_organization "
+                                "WHERE lifecycle='active'"
+                            ).scalars()
+                        )
+                        organization_values = tuple(
+                            sorted(
+                                {
+                                    str(row["organization_id"])
+                                    for row in account_rows
+                                    if row["organization_id"] in active_organizations
+                                }
+                            )
+                        )
+                    organization_ids = tuple(
+                        OpaqueIdV1(str(value)) for value in organization_values
+                    )
+                    return RegistryScopeSnapshotV2(
+                        scope_kind=scope_kind,
+                        scope_id=scope_id,
+                        organization_ids=organization_ids,
+                        account_ids=account_ids,
+                        local_resource_ids=local_resource_ids,
+                        cloud_resources=cloud_resources,
+                        completeness_state="complete",
+                        registry_revision=revision,
+                    )
+        except RegistryRepositoryErrorV1:
+            raise
+        except (SqlitePolicyError, SQLAlchemyError, ValueError, TypeError):
             raise RegistryRepositoryErrorV1() from None

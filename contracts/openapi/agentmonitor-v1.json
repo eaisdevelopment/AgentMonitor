@@ -1826,6 +1826,43 @@
         "title": "CapacityBurnRateWireV1",
         "type": "object"
       },
+      "CapacityCloudResourceCoverageWireV2": {
+        "additionalProperties": false,
+        "properties": {
+          "provider_key": {
+            "title": "Provider Key",
+            "type": "string"
+          },
+          "provider_target": {
+            "$ref": "#/components/schemas/ProviderTargetRefWireV2"
+          },
+          "reason_codes": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Reason Codes",
+            "type": "array"
+          },
+          "relationship_state": {
+            "const": "unresolved",
+            "title": "Relationship State",
+            "type": "string"
+          },
+          "resource_id": {
+            "title": "Resource Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "resource_id",
+          "provider_key",
+          "provider_target",
+          "relationship_state",
+          "reason_codes"
+        ],
+        "title": "CapacityCloudResourceCoverageWireV2",
+        "type": "object"
+      },
       "CapacityCountWireV1": {
         "additionalProperties": false,
         "properties": {
@@ -1920,6 +1957,91 @@
           "input_observation_ids"
         ],
         "title": "CapacityCoverageWireV1",
+        "type": "object"
+      },
+      "CapacityCoverageWireV2": {
+        "additionalProperties": false,
+        "properties": {
+          "account_id": {
+            "title": "Account Id",
+            "type": "string"
+          },
+          "cloud_resources": {
+            "items": {
+              "$ref": "#/components/schemas/CapacityCloudResourceCoverageWireV2"
+            },
+            "title": "Cloud Resources",
+            "type": "array"
+          },
+          "coverage": {
+            "enum": [
+              "covered",
+              "missing",
+              "partial",
+              "excluded"
+            ],
+            "title": "Coverage",
+            "type": "string"
+          },
+          "eligibility": {
+            "enum": [
+              "eligible",
+              "excluded"
+            ],
+            "title": "Eligibility",
+            "type": "string"
+          },
+          "health": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CapacityHealthViewV1"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "input_observation_ids": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Input Observation Ids",
+            "type": "array"
+          },
+          "reason_codes": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Reason Codes",
+            "type": "array"
+          },
+          "resource_ids": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Resource Ids",
+            "type": "array"
+          },
+          "windows": {
+            "items": {
+              "$ref": "#/components/schemas/QuotaWindowViewV2"
+            },
+            "title": "Windows",
+            "type": "array"
+          }
+        },
+        "required": [
+          "account_id",
+          "resource_ids",
+          "cloud_resources",
+          "eligibility",
+          "coverage",
+          "reason_codes",
+          "health",
+          "windows",
+          "input_observation_ids"
+        ],
+        "title": "CapacityCoverageWireV2",
         "type": "object"
       },
       "CapacityForecastPageV1": {
@@ -3159,6 +3281,198 @@
         "title": "CapacityScopeViewV1",
         "type": "object"
       },
+      "CapacityScopeViewV2": {
+        "additionalProperties": false,
+        "properties": {
+          "accounts": {
+            "items": {
+              "$ref": "#/components/schemas/CapacityCoverageWireV2"
+            },
+            "title": "Accounts",
+            "type": "array"
+          },
+          "availability": {
+            "enum": [
+              "available",
+              "unavailable"
+            ],
+            "title": "Availability",
+            "type": "string"
+          },
+          "completeness": {
+            "enum": [
+              "complete",
+              "partial",
+              "unknown"
+            ],
+            "title": "Completeness",
+            "type": "string"
+          },
+          "covered_account_count": {
+            "title": "Covered Account Count",
+            "type": "integer"
+          },
+          "covered_account_ids": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Covered Account Ids",
+            "type": "array"
+          },
+          "eligible_account_count": {
+            "title": "Eligible Account Count",
+            "type": "integer"
+          },
+          "eligible_account_ids": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Eligible Account Ids",
+            "type": "array"
+          },
+          "excluded_account_count": {
+            "title": "Excluded Account Count",
+            "type": "integer"
+          },
+          "excluded_accounts": {
+            "items": {
+              "$ref": "#/components/schemas/CapacityCoverageWireV2"
+            },
+            "title": "Excluded Accounts",
+            "type": "array"
+          },
+          "freshness_counts": {
+            "items": {
+              "$ref": "#/components/schemas/CapacityCountWireV1"
+            },
+            "title": "Freshness Counts",
+            "type": "array"
+          },
+          "generated_at": {
+            "format": "date-time",
+            "title": "Generated At",
+            "type": "string"
+          },
+          "health_counts": {
+            "items": {
+              "$ref": "#/components/schemas/CapacityCountWireV1"
+            },
+            "title": "Health Counts",
+            "type": "array"
+          },
+          "input_observation_ids": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Input Observation Ids",
+            "type": "array"
+          },
+          "input_set_digest": {
+            "title": "Input Set Digest",
+            "type": "string"
+          },
+          "missing_account_count": {
+            "title": "Missing Account Count",
+            "type": "integer"
+          },
+          "missing_accounts": {
+            "items": {
+              "$ref": "#/components/schemas/CapacityCoverageWireV2"
+            },
+            "title": "Missing Accounts",
+            "type": "array"
+          },
+          "observed_capacity_count": {
+            "title": "Observed Capacity Count",
+            "type": "integer"
+          },
+          "policy_id": {
+            "title": "Policy Id",
+            "type": "string"
+          },
+          "policy_version": {
+            "title": "Policy Version",
+            "type": "string"
+          },
+          "reason_codes": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Reason Codes",
+            "type": "array"
+          },
+          "registered_account_count": {
+            "title": "Registered Account Count",
+            "type": "integer"
+          },
+          "registry_revision": {
+            "title": "Registry Revision",
+            "type": "integer"
+          },
+          "scope_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Scope Id"
+          },
+          "scope_kind": {
+            "enum": [
+              "global",
+              "organization",
+              "provider",
+              "account"
+            ],
+            "title": "Scope Kind",
+            "type": "string"
+          },
+          "window_groups": {
+            "items": {
+              "$ref": "#/components/schemas/CapacityWindowGroupWireV2"
+            },
+            "title": "Window Groups",
+            "type": "array"
+          },
+          "worst_health": {
+            "title": "Worst Health",
+            "type": "string"
+          }
+        },
+        "required": [
+          "scope_kind",
+          "scope_id",
+          "registry_revision",
+          "generated_at",
+          "completeness",
+          "availability",
+          "reason_codes",
+          "registered_account_count",
+          "eligible_account_count",
+          "covered_account_count",
+          "excluded_account_count",
+          "missing_account_count",
+          "observed_capacity_count",
+          "eligible_account_ids",
+          "covered_account_ids",
+          "missing_accounts",
+          "excluded_accounts",
+          "accounts",
+          "window_groups",
+          "health_counts",
+          "freshness_counts",
+          "worst_health",
+          "input_observation_ids",
+          "input_set_digest",
+          "policy_id",
+          "policy_version"
+        ],
+        "title": "CapacityScopeViewV2",
+        "type": "object"
+      },
       "CapacitySubjectWireV1": {
         "additionalProperties": false,
         "properties": {
@@ -3311,6 +3625,95 @@
           "numeric_values"
         ],
         "title": "CapacityWindowGroupWireV1",
+        "type": "object"
+      },
+      "CapacityWindowGroupWireV2": {
+        "additionalProperties": false,
+        "properties": {
+          "account_ids": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Account Ids",
+            "type": "array"
+          },
+          "input_observation_ids": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Input Observation Ids",
+            "type": "array"
+          },
+          "native_window_key": {
+            "title": "Native Window Key",
+            "type": "string"
+          },
+          "numeric_values": {
+            "items": {
+              "$ref": "#/components/schemas/CapacityNumericAggregateWireV1"
+            },
+            "title": "Numeric Values",
+            "type": "array"
+          },
+          "provider_key": {
+            "title": "Provider Key",
+            "type": "string"
+          },
+          "reason_codes": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Reason Codes",
+            "type": "array"
+          },
+          "relationship_state": {
+            "const": "unresolved",
+            "title": "Relationship State",
+            "type": "string"
+          },
+          "resource_ids": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Resource Ids",
+            "type": "array"
+          },
+          "semantic_role": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Semantic Role"
+          },
+          "unit": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unit"
+          }
+        },
+        "required": [
+          "provider_key",
+          "native_window_key",
+          "semantic_role",
+          "unit",
+          "resource_ids",
+          "account_ids",
+          "input_observation_ids",
+          "relationship_state",
+          "reason_codes",
+          "numeric_values"
+        ],
+        "title": "CapacityWindowGroupWireV2",
         "type": "object"
       },
       "ChangeAdministratorPasswordInputV1": {
@@ -6169,6 +6572,26 @@
           "registry_revision"
         ],
         "title": "ProviderInstallationViewV1",
+        "type": "object"
+      },
+      "ProviderTargetRefWireV2": {
+        "additionalProperties": false,
+        "properties": {
+          "target_id": {
+            "title": "Target Id",
+            "type": "string"
+          },
+          "target_kind": {
+            "const": "cloud_service",
+            "title": "Target Kind",
+            "type": "string"
+          }
+        },
+        "required": [
+          "target_kind",
+          "target_id"
+        ],
+        "title": "ProviderTargetRefWireV2",
         "type": "object"
       },
       "QuotaAllowanceViewV1": {
@@ -16370,6 +16793,225 @@
         "x-agentmonitor-required-permission": "read:telemetry"
       }
     },
+    "/api/v1/capacity/scope/v2": {
+      "get": {
+        "operationId": "capacity_get_scope_v2",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "scope_kind",
+            "required": false,
+            "schema": {
+              "default": "global",
+              "enum": [
+                "global",
+                "organization",
+                "provider",
+                "account"
+              ],
+              "title": "Scope Kind",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "scope_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 128,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Scope Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CapacityScopeViewV2"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          },
+          "405": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          },
+          "412": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          },
+          "413": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          },
+          "415": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          },
+          "428": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          },
+          "429": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          },
+          "500": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          },
+          "504": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          }
+        },
+        "security": [
+          {
+            "BrowserSessionCookieV1": []
+          },
+          {
+            "BearerTokenV1": []
+          }
+        ],
+        "summary": "Get Capacity Scope V2",
+        "tags": [
+          "capacity"
+        ],
+        "x-agentmonitor-application-port": "GetCapacityAggregateV2",
+        "x-agentmonitor-auth-profile": "cookie_or_bearer",
+        "x-agentmonitor-error-schema": "SafeProblemV1",
+        "x-agentmonitor-replay-policy": "safe_query_repeat",
+        "x-agentmonitor-required-permission": "read:telemetry"
+      }
+    },
     "/api/v1/collection-runs": {
       "get": {
         "operationId": "collection_list_runs_v1",
@@ -22954,10 +23596,10 @@
       "starlette": "1.6.0"
     },
     "generator": "agentmonitor-openapi-client",
-    "generator_sha256": "4a3e258ec44b51df5be7aa9d48e404c4e27f925853be3d75ee86b0ba908aa209",
+    "generator_sha256": "2c57691d51a3bd844e7fbf1b584dd07cceaa08417db6ee7719759ffcf4ae01bd",
     "generator_version": "2.0.8",
     "openapi_version": "3.1.0",
-    "schema_sha256": "2894ca7917dd083054aa01d5b3066831b6ca416bc8c3ac32eef7ec04bf7bd54a",
-    "source_sha256": "04aeb9c6a9ae07907218c4889cad0fc1feef12e864b55d2af13a65b21666bebf"
+    "schema_sha256": "febab0f23e34da569e38a01ee97b8372a031d57727476383eb1f1cd66bf98516",
+    "source_sha256": "eb33d426d7fe53bad045985848519f1823a67e5ae7f03d9e600c5d00d26dc70b"
   }
 }

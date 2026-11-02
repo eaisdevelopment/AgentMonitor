@@ -24,6 +24,7 @@ from agentmonitor.contracts.registry_v1 import (
     ProviderIdentityResolutionV1,
     RegistryScopeKindV1,
     RegistryScopeSnapshotV1,
+    RegistryScopeSnapshotV2,
     ResolveProviderIdentityFingerprintQueryV1,
     ResourceKindV1,
 )
@@ -194,6 +195,10 @@ class AccountRepositoryPortV1(Protocol):
         self, scope_kind: RegistryScopeKindV1, scope_id: OpaqueIdV1 | None
     ) -> RegistryScopeSnapshotV1: ...
 
+    def get_registry_capacity_scope_v2(
+        self, scope_kind: RegistryScopeKindV1, scope_id: OpaqueIdV1 | None
+    ) -> RegistryScopeSnapshotV2: ...
+
 
 class ConfirmIdentityAssociationV1(ConfirmIdentityAssociationPortV1):
     def __init__(self, repository: AccountRepositoryPortV1) -> None:
@@ -329,6 +334,20 @@ class AlertScopeAndSubjectQueryV1:
         if (scope_kind == "global") != (scope_id is None):
             raise ValueError("registry_scope_invalid")
         return self._repository.get_registry_scope_snapshot(scope_kind, scope_id)
+
+
+class CapacityScopeMembershipQueryV2:
+    """Return one atomic M02 membership snapshot including cloud resources."""
+
+    def __init__(self, repository: AccountRepositoryPortV1) -> None:
+        self._repository = repository
+
+    def __call__(
+        self, scope_kind: RegistryScopeKindV1, scope_id: OpaqueIdV1 | None = None
+    ) -> RegistryScopeSnapshotV2:
+        if (scope_kind == "global") != (scope_id is None):
+            raise ValueError("registry_scope_invalid")
+        return self._repository.get_registry_capacity_scope_v2(scope_kind, scope_id)
 
 
 class ResolveAlertSubjectScopeV1:

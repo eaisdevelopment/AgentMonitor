@@ -48,13 +48,28 @@ def test_scope_inventory_reports_actual_empty_registry_and_rejects_bad_filters(
             assert result[0] == 200
             payload = json.loads(result[2])
             assert payload["scope_kind"] == "global"
-            assert payload["registry_revision"] == 0
+            assert payload["registry_revision"] == 1
             assert payload["registered_account_count"] == 0
             assert payload["eligible_account_count"] == 0
             assert payload["covered_account_count"] == 0
             assert payload["accounts"] == [] and payload["window_groups"] == []
             assert payload["input_observation_ids"] == []
             assert payload["worst_health"] == "unknown"
+            cloud_safe = await asyncio.to_thread(
+                _request,
+                origin,
+                "GET",
+                "/api/v1/capacity/scope/v2?scope_kind=global",
+                cookies=jar,
+            )
+            assert cloud_safe[0] == 200
+            cloud_payload = json.loads(cloud_safe[2])
+            assert cloud_payload["scope_kind"] == "global"
+            assert cloud_payload["registry_revision"] == payload["registry_revision"]
+            assert cloud_payload["registered_account_count"] == 0
+            assert cloud_payload["accounts"] == []
+            assert cloud_payload["window_groups"] == []
+            assert cloud_payload["input_observation_ids"] == []
             for query in (
                 "scope_kind=global&scope_id=invalid",
                 "scope_kind=organization",

@@ -27,6 +27,7 @@ from agentmonitor.contracts.registry_v1 import (
     ProviderTargetRefV1,
     RegistryScopeKindV1,
     RegistryScopeSnapshotV1,
+    RegistryScopeSnapshotV2,
 )
 
 PrecisionV1 = Literal["exact", "rounded", "range", "estimated", "unknown"]
@@ -848,6 +849,45 @@ class CapacityAggregateQueryV1(TechnicalValueV1):
 
 
 @dataclass(frozen=True, slots=True)
+class CapacityAggregateQueryV2(TechnicalValueV1):
+    """Revision-fenced local and cloud membership for one V2 aggregate."""
+
+    CONTRACT_ID: ClassVar[str] = "CTR-CAP-003"
+    CONTRACT_VERSION: ClassVar[str] = "2.0.0"
+    OWNER: ClassVar[str] = "PLAN-M05"
+
+    scope_snapshot: RegistryScopeSnapshotV2
+    accounts: tuple[AccountViewV1, ...]
+    local_resources: tuple[AccountResourceViewV1, ...]
+    as_of: datetime
+    policy: CapacityHealthPolicyV1
+
+    def __post_init__(self) -> None:
+        TechnicalValueV1.__post_init__(self)
+        scope = self.scope_snapshot
+        account_ids = tuple(item.account_id for item in self.accounts)
+        resource_ids = tuple(item.resource_id for item in self.local_resources)
+        if (
+            not isinstance(scope, RegistryScopeSnapshotV2)
+            or len(account_ids) != len(set(account_ids))
+            or len(resource_ids) != len(set(resource_ids))
+            or set(account_ids) != set(scope.account_ids)
+            or set(resource_ids) != set(scope.local_resource_ids)
+            or any(item.account_id not in account_ids for item in self.local_resources)
+            or len(account_ids) > 200
+            or len(resource_ids) + len(scope.cloud_resources) > 2000
+        ):
+            raise InvalidCapacityContractV1("capacity_aggregate_membership_invalid")
+        if any(
+            item.registry_revision != scope.registry_revision for item in self.accounts
+        ) or any(
+            item.registry_revision != scope.registry_revision
+            for item in self.local_resources
+        ):
+            raise InvalidCapacityContractV1("registry_scope_changed")
+
+
+@dataclass(frozen=True, slots=True)
 class CapacityAccountCoverageV1(TechnicalValueV1):
     CONTRACT_ID: ClassVar[str] = "CTR-CAP-003"
     OWNER: ClassVar[str] = "PLAN-M05"
@@ -860,6 +900,78 @@ class CapacityAccountCoverageV1(TechnicalValueV1):
     health: CapacityHealthViewV1 | None
     windows: tuple[QuotaWindowViewV1, ...]
     input_observation_ids: tuple[OpaqueIdV1, ...]
+
+
+@dataclass(frozen=True, slots=True)
+class CapacityCloudResourceCoverageV2(TechnicalValueV1):
+    """Cloud membership whose provider pool-sharing relationship is unresolved."""
+
+    CONTRACT_ID: ClassVar[str] = "CTR-CAP-003"
+    CONTRACT_VERSION: ClassVar[str] = "2.0.0"
+    OWNER: ClassVar[str] = "PLAN-M05"
+
+    resource_id: OpaqueIdV1
+    provider_key: str
+    provider_target: ProviderTargetRefV1
+    relationship_state: Literal["unresolved"]
+    reason_codes: tuple[str, ...]
+
+    def __post_init__(self) -> None:
+        TechnicalValueV1.__post_init__(self)
+        if (
+            not isinstance(self.resource_id, OpaqueIdV1)
+            or not _token(self.provider_key)
+            or not isinstance(self.provider_target, ProviderTargetRefV1)
+            or self.provider_target.target_kind != "cloud_service"
+            or self.relationship_state != "unresolved"
+            or self.reason_codes != ("pool_relationship_unknown",)
+        ):
+            raise InvalidCapacityContractV1("capacity_cloud_resource_coverage_invalid")
+
+
+@dataclass(frozen=True, slots=True)
+class CapacityAccountCoverageV2(TechnicalValueV1):
+    CONTRACT_ID: ClassVar[str] = "CTR-CAP-003"
+    CONTRACT_VERSION: ClassVar[str] = "2.0.0"
+    OWNER: ClassVar[str] = "PLAN-M05"
+
+    account_id: OpaqueIdV1
+    resource_ids: tuple[OpaqueIdV1, ...]
+    cloud_resources: tuple[CapacityCloudResourceCoverageV2, ...]
+    eligibility: Literal["eligible", "excluded"]
+    coverage: Literal["covered", "missing", "partial", "excluded"]
+    reason_codes: tuple[str, ...]
+    health: CapacityHealthViewV1 | None
+    windows: tuple[QuotaWindowViewV1OrV2, ...]
+    input_observation_ids: tuple[OpaqueIdV1, ...]
+
+    def __post_init__(self) -> None:
+        TechnicalValueV1.__post_init__(self)
+        cloud_ids = tuple(item.resource_id for item in self.cloud_resources)
+        window_ids = tuple(item.window_id for item in self.windows)
+        if (
+            len(self.resource_ids) != len(set(self.resource_ids))
+            or len(cloud_ids) != len(set(cloud_ids))
+            or any(item not in self.resource_ids for item in cloud_ids)
+            or len(window_ids) != len(set(window_ids))
+            or any(item.subject.account_id != self.account_id for item in self.windows)
+            or any(
+                item.subject.resource_id not in self.resource_ids
+                for item in self.windows
+            )
+            or (self.eligibility == "excluded") != (self.coverage == "excluded")
+            or self.eligibility == "excluded"
+            and (self.health is not None or bool(self.windows))
+            or self.reason_codes != tuple(sorted(set(self.reason_codes)))
+            or self.input_observation_ids
+            != tuple(
+                sorted(
+                    {item.current_observation_id for item in self.windows},
+                    key=lambda item: item.value,
+                )
+            )
+        ):
+            raise InvalidCapacityContractV1("capacity_account_coverage_invalid")
 
 
 @dataclass(frozen=True, slots=True)
@@ -909,6 +1021,37 @@ class CapacityAggregateWindowGroupV1(TechnicalValueV1):
 
 
 @dataclass(frozen=True, slots=True)
+class CapacityAggregateWindowGroupV2(TechnicalValueV1):
+    """V2 inventory group; unresolved sharing always forbids numeric totals."""
+
+    CONTRACT_ID: ClassVar[str] = "CTR-CAP-003"
+    CONTRACT_VERSION: ClassVar[str] = "2.0.0"
+    OWNER: ClassVar[str] = "PLAN-M05"
+
+    provider_key: str
+    native_window_key: str
+    semantic_role: str | None
+    unit: str | None
+    resource_ids: tuple[OpaqueIdV1, ...]
+    account_ids: tuple[OpaqueIdV1, ...]
+    input_observation_ids: tuple[OpaqueIdV1, ...]
+    relationship_state: Literal["unresolved"]
+    reason_codes: tuple[str, ...]
+    numeric_values: tuple[CapacityNumericAggregateV1, ...] = ()
+
+    def __post_init__(self) -> None:
+        TechnicalValueV1.__post_init__(self)
+        if (
+            not _token(self.provider_key)
+            or not _token(self.native_window_key)
+            or self.relationship_state != "unresolved"
+            or self.reason_codes != ("pool_relationship_unknown",)
+            or self.numeric_values
+        ):
+            raise InvalidCapacityContractV1("capacity_aggregation_incompatible")
+
+
+@dataclass(frozen=True, slots=True)
 class CapacityAggregateViewV1(TechnicalValueV1):
     CONTRACT_ID: ClassVar[str] = "CTR-CAP-003"
     OWNER: ClassVar[str] = "PLAN-M05"
@@ -926,6 +1069,62 @@ class CapacityAggregateViewV1(TechnicalValueV1):
     excluded_accounts: tuple[CapacityAccountCoverageV1, ...]
     accounts: tuple[CapacityAccountCoverageV1, ...]
     window_groups: tuple[CapacityAggregateWindowGroupV1, ...]
+    health_counts: tuple[tuple[CapacityHealthStateV1, int], ...]
+    freshness_counts: tuple[tuple[str, int], ...]
+    worst_health: CapacityHealthStateV1
+    input_observation_ids: tuple[OpaqueIdV1, ...]
+    input_set_digest: str
+    policy_id: str
+    policy_version: str
+
+    @property
+    def registered_account_count(self) -> int:
+        return len(self.accounts)
+
+    @property
+    def eligible_account_count(self) -> int:
+        return len(self.eligible_account_ids)
+
+    @property
+    def covered_account_count(self) -> int:
+        return len(self.covered_account_ids)
+
+    @property
+    def excluded_account_count(self) -> int:
+        return len(self.excluded_accounts)
+
+    @property
+    def missing_account_count(self) -> int:
+        return len(self.missing_accounts)
+
+    @property
+    def observed_capacity_count(self) -> int:
+        return sum(
+            bool(item.windows)
+            for item in self.accounts
+            if item.eligibility == "eligible"
+        )
+
+
+@dataclass(frozen=True, slots=True)
+class CapacityAggregateViewV2(TechnicalValueV1):
+    CONTRACT_ID: ClassVar[str] = "CTR-CAP-003"
+    CONTRACT_VERSION: ClassVar[str] = "2.0.0"
+    OWNER: ClassVar[str] = "PLAN-M05"
+
+    scope_kind: RegistryScopeKindV1
+    scope_id: OpaqueIdV1 | None
+    registry_revision: int
+    generated_at: datetime
+    completeness: CompletenessV1
+    availability: Literal["available", "unavailable"]
+    reason_codes: tuple[str, ...]
+    eligible_account_ids: tuple[OpaqueIdV1, ...]
+    covered_account_ids: tuple[OpaqueIdV1, ...]
+    missing_accounts: tuple[CapacityAccountCoverageV2, ...]
+    excluded_accounts: tuple[CapacityAccountCoverageV2, ...]
+    accounts: tuple[CapacityAccountCoverageV2, ...]
+    window_groups: tuple[CapacityAggregateWindowGroupV2, ...]
     health_counts: tuple[tuple[CapacityHealthStateV1, int], ...]
     freshness_counts: tuple[tuple[str, int], ...]
     worst_health: CapacityHealthStateV1

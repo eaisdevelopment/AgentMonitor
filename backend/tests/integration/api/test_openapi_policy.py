@@ -3,13 +3,13 @@
 from copy import deepcopy
 
 import pytest
+from agentmonitor.composition.bootstrap import create_iam_schema_application
 from fastapi.openapi.models import OpenAPI
+
 from tooling.foundation.openapi_client import (
     OpenApiGenerationError,
     validate_iam_openapi,
 )
-
-from agentmonitor.composition.bootstrap import create_iam_schema_application
 
 EXPECTED_SUCCESS = {
     "provider_get_ollama_local_catalog_v1": ("200", "OllamaLocalCatalogViewV1"),
@@ -41,9 +41,20 @@ EXPECTED_SUCCESS = {
     "registry_list_provider_installations_v1": ("200", "ProviderInstallationPageV1"),
     "provider_get_capabilities_v1": ("200", "ProviderCapabilityDeclarationPageV1"),
     "collection_list_runs_v1": ("200", "CollectionRunPageV1"),
+    "ollama_cloud_get_connection_v1": (
+        "200",
+        "OllamaCloudConnectionStatusV1",
+    ),
+    "ollama_cloud_initiate_connection_v1": (
+        "202",
+        "OllamaCloudConnectionStatusV1",
+    ),
     "capacity_get_account_v1": ("200", "AccountCapacityViewV1"),
+    "capacity_get_account_v2": ("200", "AccountCapacityViewV2"),
     "capacity_list_quota_windows_v1": ("200", "QuotaWindowPageV1"),
+    "capacity_list_quota_windows_v2": ("200", "QuotaWindowPageV2"),
     "capacity_list_history_v1": ("200", "CapacityHistoryPageV1"),
+    "capacity_list_history_v2": ("200", "CapacityHistoryPageV2"),
     "runtime_list_processes_v1": ("200", "AgentProcessPageV1"),
     "runtime_list_process_metrics_v1": ("200", "AgentProcessMetricPageV1"),
     "runtime_list_sessions_v1": ("200", "AgentSessionPageV1"),
@@ -77,6 +88,7 @@ EXPECTED_SUCCESS = {
     "alert_unsnooze_v1": ("200", "AlertCommandWireV1"),
     "alert_update_rule_v1": ("200", "AlertRuleCommandWireV1"),
     "capacity_get_scope_v1": ("200", "CapacityScopeViewV1"),
+    "capacity_get_scope_v2": ("200", "CapacityScopeViewV2"),
     "capacity_list_forecasts_v1": ("200", "CapacityForecastPageV1"),
     "operations_get_diagnostics_v1": ("200", "OperationsDiagnosticsWireV1"),
     "operations_get_health_v1": ("200", "OperationsHealthWireV1"),
@@ -153,7 +165,7 @@ def test_generator_rejects_changed_policy_on_every_frozen_operation() -> None:
 
 def test_generator_rejects_success_schema_drift_for_all_operations() -> None:
     schema = create_iam_schema_application().openapi()
-    assert len(validate_iam_openapi(schema)) == len(EXPECTED_SUCCESS) == 68
+    assert len(validate_iam_openapi(schema)) == len(EXPECTED_SUCCESS) == 74
     seen: set[str] = set()
     for path, methods in schema["paths"].items():
         for method, operation in methods.items():

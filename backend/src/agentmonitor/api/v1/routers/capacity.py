@@ -3,8 +3,6 @@
 from datetime import UTC, datetime
 from typing import Annotated, Literal
 
-from fastapi import APIRouter, Query, Request
-
 from agentmonitor.api.problem import ProblemError
 from agentmonitor.api.v1.dependencies import authorize_request, observation_ports
 from agentmonitor.api.v1.routers._observation import (
@@ -30,6 +28,7 @@ from agentmonitor.api.v1.schemas.capacity import (
     CapacityHistoryPointV2,
     CapacityObservationProvenanceWireV1,
     CapacityScopeViewV1,
+    CapacityScopeViewV2,
     CapacitySubjectWireV1,
     CapacitySubjectWireV2,
     ExactMetricFieldWireV1,
@@ -45,6 +44,9 @@ from agentmonitor.contracts.capacity_v1 import AccountCapacityViewV1 as DomainCa
 from agentmonitor.contracts.capacity_v1 import AccountCapacityViewV2 as DomainCapacityV2
 from agentmonitor.contracts.capacity_v1 import (
     CapacityAggregateQueryV1,
+    CapacityAggregateQueryV2,
+    CapacityAggregateViewV1,
+    CapacityAggregateViewV2,
     CapacityForecastQueryV1,
     CapacityHistoryQueryV1,
     CapacitySubjectV1,
@@ -70,6 +72,7 @@ from agentmonitor.modules.capacity.application.queries import (
     CapacityV2RequiredV1,
     GetQuotaAllowanceV1,
 )
+from fastapi import APIRouter, Query, Request
 
 router = APIRouter(tags=["capacity"])
 
@@ -256,6 +259,94 @@ def _capacity(
             ),
         )
     )
+
+
+def _capacity_scope_values(
+    result: CapacityAggregateViewV1 | CapacityAggregateViewV2, *, v2: bool
+) -> dict[str, object]:
+    values = technical_wire(result)
+    if not isinstance(values, dict):
+        raise ProblemError(500, "internal_error")
+    for key in ("accounts", "missing_accounts", "excluded_accounts"):
+        coverage = getattr(result, key)
+        mapped_coverage = []
+        for item in coverage:
+            mapped = technical_wire(item)
+            if not isinstance(mapped, dict):
+                raise ProblemError(500, "internal_error")
+            mapped["windows"] = tuple(_window(window, v2=v2) for window in item.windows)
+            mapped_coverage.append(mapped)
+        values[key] = tuple(mapped_coverage)
+    for key in (
+        "registered_account_count",
+        "eligible_account_count",
+        "covered_account_count",
+        "excluded_account_count",
+        "missing_account_count",
+        "observed_capacity_count",
+    ):
+        values[key] = getattr(result, key)
+    values["health_counts"] = tuple(
+        {"state": state, "count": count} for state, count in result.health_counts
+    )
+    values["freshness_counts"] = tuple(
+        {"state": state, "count": count} for state, count in result.freshness_counts
+    )
+    return values
+
+
+@router.get(
+    "/capacity/scope/v2",
+    operation_id="capacity_get_scope_v2",
+    response_model=CapacityScopeViewV2,
+    responses=ERROR_RESPONSES,
+    openapi_extra=policy("read:telemetry", "GetCapacityAggregateV2"),
+)
+def get_capacity_scope_v2(
+    request: Request,
+    scope_kind: Literal["global", "organization", "provider", "account"] = "global",
+    scope_id: str | None = Query(None, max_length=128),
+) -> CapacityScopeViewV2:
+    authorize_request(request, "read:telemetry")
+    reject_unknown_query(request, frozenset({"scope_kind", "scope_id"}))
+    if (scope_kind == "global") != (scope_id is None):
+        raise ProblemError(400, "invalid_filter")
+    if scope_id is not None:
+        require_opaque_selector(scope_id)
+    services = observation_ports(request)
+    if (
+        services.registry_scope_v2 is None
+        or services.list_account_resources is None
+        or services.get_capacity_aggregate_v2 is None
+        or services.capacity_health_policy is None
+    ):
+        raise ProblemError(503, "observation_data_unavailable")
+    as_of = datetime.now(UTC)
+    try:
+        selector = OpaqueIdV1(scope_id) if scope_id is not None else None
+        snapshot = services.registry_scope_v2(scope_kind, selector)
+        account_rows = []
+        for account_id in snapshot.account_ids:
+            account = services.get_account(account_id)
+            if account is None:
+                raise CapacityQueryUnavailableV1("registry_scope_changed")
+            account_rows.append(account)
+        accounts = tuple(account_rows)
+        local_members = set(snapshot.local_resource_ids)
+        resources = tuple(
+            resource
+            for account in accounts
+            for resource in services.list_account_resources(account.account_id)
+            if resource.resource_id in local_members
+        )
+        result = services.get_capacity_aggregate_v2(
+            CapacityAggregateQueryV2(
+                snapshot, accounts, resources, as_of, services.capacity_health_policy
+            )
+        )
+    except (CapacityQueryUnavailableV1, ValueError):
+        raise ProblemError(503, "observation_repository_unavailable") from None
+    return CapacityScopeViewV2.model_validate(_capacity_scope_values(result, v2=True))
 
 
 @router.get(

@@ -998,6 +998,110 @@ class RegistryScopeSnapshotV1(TechnicalValueV1):
             raise ValueError("registry_scope_snapshot_invalid")
 
 
+@dataclass(frozen=True, slots=True)
+class RegistryCloudResourceMembershipV2(TechnicalValueV1):
+    """One real cloud resource membership without an asserted pool relationship."""
+
+    CONTRACT_ID: ClassVar[str] = "CTR-REG-009"
+    CONTRACT_VERSION: ClassVar[str] = "2.0.0"
+    OWNER: ClassVar[str] = "PLAN-M02"
+
+    resource_id: OpaqueIdV1
+    account_id: OpaqueIdV1
+    provider_key: str
+    provider_target: ProviderTargetRefV1
+    relationship_state: Literal["unresolved"]
+    registry_revision: int
+
+    def __post_init__(self) -> None:
+        TechnicalValueV1.__post_init__(self)
+        if (
+            not isinstance(self.resource_id, OpaqueIdV1)
+            or not isinstance(self.account_id, OpaqueIdV1)
+            or not _bounded(self.provider_key, maximum=64)
+            or not isinstance(self.provider_target, ProviderTargetRefV1)
+            or self.provider_target.target_kind != "cloud_service"
+            or self.relationship_state != "unresolved"
+            or type(self.registry_revision) is not int
+            or self.registry_revision < 1
+        ):
+            raise ValueError("registry_cloud_resource_membership_invalid")
+
+
+@dataclass(frozen=True, slots=True)
+class RegistryScopeSnapshotV2(TechnicalValueV1):
+    """One atomic registry scope including real local and cloud resources."""
+
+    CONTRACT_ID: ClassVar[str] = "CTR-REG-009"
+    CONTRACT_VERSION: ClassVar[str] = "2.0.0"
+    OWNER: ClassVar[str] = "PLAN-M02"
+
+    scope_kind: RegistryScopeKindV1
+    scope_id: OpaqueIdV1 | None
+    organization_ids: tuple[OpaqueIdV1, ...]
+    account_ids: tuple[OpaqueIdV1, ...]
+    local_resource_ids: tuple[OpaqueIdV1, ...]
+    cloud_resources: tuple[RegistryCloudResourceMembershipV2, ...]
+    completeness_state: Literal["complete", "unavailable"]
+    registry_revision: int
+
+    def __post_init__(self) -> None:
+        TechnicalValueV1.__post_init__(self)
+        cloud_resource_ids = tuple(item.resource_id for item in self.cloud_resources)
+        cloud_accounts = tuple(item.account_id for item in self.cloud_resources)
+        values = (
+            self.organization_ids,
+            self.account_ids,
+            self.local_resource_ids,
+            cloud_resource_ids,
+        )
+        if (
+            (self.scope_kind == "global") != (self.scope_id is None)
+            or type(self.registry_revision) is not int
+            or self.registry_revision < 0
+            or any(len(set(items)) != len(items) for items in values)
+            or set(self.local_resource_ids).intersection(cloud_resource_ids)
+            or any(item not in self.account_ids for item in cloud_accounts)
+            or any(
+                item.registry_revision != self.registry_revision
+                for item in self.cloud_resources
+            )
+            or self.scope_kind == "provider"
+            and any(
+                item.provider_key != self.scope_id.value
+                for item in self.cloud_resources
+                if self.scope_id is not None
+            )
+            or self.scope_kind == "account"
+            and self.account_ids not in {(), (self.scope_id,)}
+            or self.scope_kind == "organization"
+            and self.organization_ids not in {(), (self.scope_id,)}
+            or len(self.account_ids) > 200
+            or len(self.local_resource_ids) + len(self.cloud_resources) > 2000
+        ):
+            raise ValueError("registry_scope_snapshot_invalid")
+
+    @property
+    def resource_ids(self) -> tuple[OpaqueIdV1, ...]:
+        return tuple(
+            sorted(
+                (
+                    *self.local_resource_ids,
+                    *(item.resource_id for item in self.cloud_resources),
+                ),
+                key=lambda item: item.value,
+            )
+        )
+
+
+class CapacityScopeMembershipQueryV2(Protocol):
+    """M02-owned atomic V2 capacity-scope membership read port."""
+
+    def __call__(
+        self, scope_kind: RegistryScopeKindV1, scope_id: OpaqueIdV1 | None = None
+    ) -> RegistryScopeSnapshotV2: ...
+
+
 class ReconcileProviderDiscoveryV1(Protocol):
     def __call__(
         self, outcome: DiscoveryOutcomeV1, *, reconciled_at: datetime
