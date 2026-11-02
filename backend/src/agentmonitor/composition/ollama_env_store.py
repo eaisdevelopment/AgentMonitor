@@ -9,7 +9,7 @@ import stat
 from collections.abc import Callable
 from pathlib import Path
 
-from agentmonitor.adapters.persistence._shared.sqlite.core.credential_guard import (
+from agentmonitor.adapters.persistence.registry.sqlite.credential_guard import (
     acquire_credential_staging_guard,
     validate_credential_staging_guard,
 )

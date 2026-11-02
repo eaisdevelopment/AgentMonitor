@@ -5,6 +5,7 @@ import json
 import os
 import secrets
 import stat
+from typing import Any
 
 from tools.automation.implementations.m6_transition_lease import _TransitionLease
 
@@ -13,7 +14,9 @@ class TransitionJournalError(RuntimeError):
     """Fail closed if a transition journal changes unexpectedly."""
 
 
-def _read_journal_at(transition: _TransitionLease) -> tuple[dict, tuple[int, int]]:
+def _read_journal_at(
+    transition: _TransitionLease,
+) -> tuple[dict[str, Any], tuple[int, int]]:
     descriptor = os.open(
         ".m6-cutover-journal.json",
         os.O_RDONLY | os.O_NOFOLLOW | os.O_CLOEXEC,
@@ -51,8 +54,8 @@ def _read_journal_at(transition: _TransitionLease) -> tuple[dict, tuple[int, int
         ) or len(chunks) != before.st_size:
             raise TransitionJournalError("migration_recovery_journal_changed")
 
-        def unique(pairs):
-            result = {}
+        def unique(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+            result: dict[str, Any] = {}
             for key, value in pairs:
                 if key in result:
                     raise TransitionJournalError("migration_recovery_journal_invalid")
@@ -67,7 +70,11 @@ def _read_journal_at(transition: _TransitionLease) -> tuple[dict, tuple[int, int
         os.close(descriptor)
 
 
-def _replace_journal(transition: _TransitionLease, before: dict, after: dict) -> None:
+def _replace_journal(
+    transition: _TransitionLease,
+    before: dict[str, Any],
+    after: dict[str, Any],
+) -> None:
     """Exchange through the pinned root and retain the displaced journal."""
     after = json.loads(json.dumps(after))
     observed, identity = _read_journal_at(transition)

@@ -145,7 +145,7 @@ def test_mismatched_current_or_commit_lineage_is_not_admitted(
     with pytest.raises(InvalidProviderContract, match="scheduled_source_not_admitted"):
         derive_scheduled_source_admission_v1(
             policy(),
-            replace(lineage(), **change),
+            replace(lineage(), **change),  # type: ignore[arg-type]
             evaluated_at=NOW + timedelta(seconds=2),
         )
 

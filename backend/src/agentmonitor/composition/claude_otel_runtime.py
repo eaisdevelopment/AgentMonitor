@@ -61,6 +61,7 @@ from agentmonitor.composition.linux_runtime_monitoring import (
 from agentmonitor.contracts.collection_control_v1 import (
     CollectionFailedV1,
     CollectionRunAdmissionV1,
+    CollectionRunAdmissionV2,
     CollectionRunViewV1,
 )
 from agentmonitor.contracts.common_provenance_v1 import ObservationProvenanceV1
@@ -438,10 +439,12 @@ def _provenance(
 
 
 def _prepare_commit(
-    admission: CollectionRunAdmissionV1,
+    admission: CollectionRunAdmissionV1 | CollectionRunAdmissionV2,
     outcome: CollectionOutcomeV1[RuntimeObservationBatchV1],
     completed_at: datetime,
 ) -> RuntimeCommitRequestV1 | CollectionFailedV1:
+    if not isinstance(admission, CollectionRunAdmissionV1):
+        raise ValueError("claude_otel_v1_admission_required")
     if outcome.state != "success":
         assert outcome.error is not None
         return CollectionFailedV1(

@@ -28,6 +28,7 @@ from agentmonitor.contracts.collection_control_v1 import (
 from agentmonitor.contracts.registry_v1 import (
     ActiveCredentialBindingRefV1,
     ProviderAccessTargetV1,
+    ProviderTargetRefV1,
 )
 from sqlalchemy.engine import Connection
 
@@ -44,6 +45,14 @@ def validate_cloud_target_fence(
         or target.manifest_fingerprint != fingerprint
     ):
         raise ValueError("ollama_cloud_target_changed")
+
+
+def validate_cloud_provider_target(
+    run_target: ProviderTargetRefV1, subject_target: ProviderTargetRefV1
+) -> None:
+    """Never relabel one cloud service target as another."""
+    if run_target.target_kind != "cloud_service" or run_target != subject_target:
+        raise ValueError("ollama_cloud_target_mismatch")
 
 
 def ollama_capacity_repository(

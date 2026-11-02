@@ -58,8 +58,19 @@ CONTRACT_MODULES = frozenset(
         "integration_v1",
         "api_v1",
         "ui_v1",
+        "ollama_local_catalog_v1",
     }
 )
+# Reviewed compatible/versioned M6 contract revisions. Every other published
+# contract remains pinned to the V1 baseline below; this closed map prevents a
+# generic semantic-version allowance from weakening the catalog check.
+CONTRACT_VERSION_EXCEPTIONS = {
+    "CTR-COL-008": "1.1.0",
+    "CTR-COL-009": "1.1.0",
+    "CTR-COL-010": "2.0.0",
+    "CTR-PROV-003": "1.1.0",
+    "CTR-REG-012": "1.1.0",
+}
 # Published supporting values have no independent catalog ID. This closed list
 # prevents arbitrary aliases/re-exports from masquerading as support metadata.
 SUPPORT_SYMBOLS = {
@@ -80,12 +91,19 @@ SUPPORT_SYMBOLS = {
         "ProviderConnectionStateV1",
         "SideEffectClassV1",
         "StabilityV1",
+        "ScheduledSourceSignalRunStateV1",
     },
     "agentmonitor.contracts.collection_control_v1": {
         "CollectorHealthStateV1",
         "CollectorFreshnessStateV1",
         "CollectorRetryCategoryV1",
         "CollectorConditionReasonV1",
+        "CollectionRunAdmissionV1OrV2",
+        "CollectionRunStateV1",
+        "OllamaCloudAdmissionOutcomeV1",
+        "OllamaCloudSourceAuthorizationSignalV1",
+        "OllamaCloudVerificationDispatchCertaintyV1",
+        "OllamaCloudVerificationGateStateV1",
     },
     "agentmonitor.contracts.registry_v1": {
         "ConfirmIdentityAssociationCommandV1",
@@ -101,6 +119,8 @@ SUPPORT_SYMBOLS = {
         "RegistryScopeSnapshotV1",
         "ResourceKindV1",
         "ConfirmIdentityAssociationV1",
+        "CapacityScopeMembershipQueryV2",
+        "CredentialConnectionStateV1",
     },
     "agentmonitor.contracts.runtime_observation_v1": {
         "AgentProcessViewV1",
@@ -158,12 +178,19 @@ SUPPORT_SYMBOLS = {
         "CapacityProjectionEventPayloadV1",
         "InvalidCapacityContractV1",
         "ValueKindV1",
+        "AccountCapacityViewV1OrV2",
+        "CapacityHistoryPointV1OrV2",
+        "QuotaWindowViewV1OrV2",
     },
     "agentmonitor.contracts.providers.codex.subscription_quota.v1.schema": {
         "CodexPlanTypeV1",
         "CodexRateLimitReachedTypeV1",
         "CodexWindowRoleV1",
     },
+    "agentmonitor.contracts.providers.ollama.cloud_balance.v1.schema": {
+        "to_capacity_windows",
+    },
+    "agentmonitor.contracts.ollama_local_catalog_v1": {"LocalCatalogPortV1"},
 }
 TASK_CONTRACT_IDS = frozenset(
     {
@@ -310,6 +337,9 @@ PROVIDER_SYSTEM_GATEWAY_SYMBOLS_BY_ADAPTER = {
     ),
     "agentmonitor.adapters.providers.codex": frozenset(
         {"ResolveAndInvokeProviderCapabilityV1"}
+    ),
+    "agentmonitor.adapters.providers.ollama": frozenset(
+        {"scheduled_source_policy_digest_v1"}
     ),
 }
 FRESH_INIT_MIGRATE_TARGET = (
@@ -510,11 +540,42 @@ def _bounded_health_read_module(source: str, target: str) -> bool:
 def _approved_owner_adapter_domain_module(source: str, target: str) -> bool:
     return (source, target) in {
         (
+            "agentmonitor.adapters.persistence.capacity.sqlite.repository",
+            "agentmonitor.modules.capacity.domain.credential_fence",
+        ),
+        (
             (
                 "agentmonitor.adapters.persistence.collection_control.sqlite."
                 "ollama_cloud_admission"
             ),
             "agentmonitor.modules.collection_control.domain.ollama_rate_policy",
+        ),
+        (
+            (
+                "agentmonitor.adapters.persistence.collection_control.sqlite."
+                "ollama_cloud_admission"
+            ),
+            "agentmonitor.modules.collection_control.domain.ollama_verification",
+        ),
+        (
+            ("agentmonitor.adapters.persistence.registry.sqlite.credential_bindings"),
+            "agentmonitor.modules.registry.domain.account",
+        ),
+        (
+            ("agentmonitor.adapters.persistence.registry.sqlite.credential_bindings"),
+            "agentmonitor.modules.registry.domain.cloud_verification",
+        ),
+        (
+            ("agentmonitor.adapters.persistence.registry.sqlite.credential_bindings"),
+            "agentmonitor.modules.registry.domain.credential_binding",
+        ),
+        (
+            "agentmonitor.adapters.persistence.registry.sqlite.credential_lock",
+            "agentmonitor.modules.registry.domain.credential_lock",
+        ),
+        (
+            "agentmonitor.adapters.persistence.registry.sqlite.repository",
+            "agentmonitor.modules.registry.domain.cloud_verification",
         ),
         (
             "agentmonitor.adapters.persistence.collection_control.sqlite.alert_conditions",
@@ -975,6 +1036,18 @@ def _contract_consumption_errors(
                     declared_contracts[node.name] = "CTR-PROV-008"
                     declared_owners.add(owner)
                 elif (
+                    module == "agentmonitor.contracts.ollama_local_catalog_v1"
+                    and contract_id == "CTR-PROV-OLLAMA-LOCAL-CATALOG-001"
+                    and owner == "PLAN-M03"
+                    and "CTR-PROV-008" in permissions[owner]
+                ):
+                    # Preserve the deployed local-catalog identity and import path
+                    # while accounting for it under the published provider-
+                    # extension family. This exception is exact, not a generic
+                    # legacy-contract or alias allowance.
+                    declared_contracts[node.name] = "CTR-PROV-008"
+                    declared_owners.add(owner)
+                elif (
                     module == "agentmonitor.contracts.identity_access_v1"
                     and node.name == "SecretInputV1"
                     and contract_id is None
@@ -1142,7 +1215,8 @@ def find_ownership_violations(root: Path) -> list[str]:
             ]
             if producers != [entry["producer"]]:
                 errors.append(f"{contract_id}:contract-producer-count")
-            if entry["version"] != "1.0.0":
+            expected_version = CONTRACT_VERSION_EXCEPTIONS.get(contract_id, "1.0.0")
+            if entry["version"] != expected_version:
                 errors.append(f"{contract_id}:contract-version")
             if entry["maturity"] not in {"proposed_aligned", "evidence_blocked"}:
                 errors.append(f"{contract_id}:contract-maturity")

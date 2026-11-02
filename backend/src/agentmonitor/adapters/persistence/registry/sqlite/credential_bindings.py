@@ -8,14 +8,14 @@ import secrets
 from datetime import UTC, datetime, timedelta
 from typing import Literal
 
-from agentmonitor.adapters.persistence._shared.sqlite.core.credential_guard import (
-    acquire_credential_staging_guard,
-    validate_credential_staging_guard,
-)
 from agentmonitor.adapters.persistence._shared.sqlite.core.policy import (
     DatabaseRefV1,
     SqlitePolicyError,
     open_sqlite_database,
+)
+from agentmonitor.adapters.persistence.registry.sqlite.credential_guard import (
+    acquire_credential_staging_guard,
+    validate_credential_staging_guard,
 )
 from agentmonitor.adapters.persistence.registry.sqlite.credential_lock import (
     account_credential_lock,

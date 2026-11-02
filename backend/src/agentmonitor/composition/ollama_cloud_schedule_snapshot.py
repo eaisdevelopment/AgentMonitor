@@ -2,7 +2,6 @@
 
 from agentmonitor.adapters.persistence._shared.sqlite.core.policy import (
     DatabaseRefV1,
-    SqlitePolicyError,
     open_sqlite_database,
 )
 from agentmonitor.adapters.persistence.collection_control.sqlite.cloud_schedule_status import (  # noqa: E501
@@ -12,7 +11,7 @@ from agentmonitor.adapters.persistence.registry.sqlite.credential_bindings impor
     CredentialBindingRepositoryErrorV1,
     ensure_cloud_verification_enqueue_authority_in_transaction,
 )
-from agentmonitor.contracts.cloud_schedule_status_v1 import CloudScheduleStatusV1
+from agentmonitor.contracts.collection_control_v1 import CloudScheduleStatusV1
 from agentmonitor.contracts.common_v1 import OpaqueIdV1
 from agentmonitor.contracts.registry_v1 import ActiveCredentialBindingRefV1
 from sqlalchemy.exc import SQLAlchemyError
@@ -87,7 +86,6 @@ class SqliteOllamaCloudScheduleSnapshotRepositoryV1:
         except (
             CredentialBindingRepositoryErrorV1,
             SQLAlchemyError,
-            SqlitePolicyError,
             OSError,
             AttributeError,
             TypeError,

@@ -11,7 +11,7 @@ from dataclasses import asdict
 from agentmonitor.adapters.providers.ollama.cloud_balance.env_policy import (
     ENV_AUTHORIZATION_POLICY_V1,
 )
-from agentmonitor.adapters.providers.ollama.cloud_balance.source import (
+from agentmonitor.adapters.providers.ollama.cloud_balance.transport_policy import (
     CLOUD_BALANCE_POLICY_V1,
 )
 from agentmonitor.adapters.providers.ollama.manifest import OLLAMA_ADAPTER_VERSION
@@ -22,7 +22,7 @@ from agentmonitor.contracts.provider_system_v1 import (
     ScheduledSourceAdmissionProofV1,
 )
 from agentmonitor.contracts.registry_v1 import ActiveCredentialBindingRefV1
-from agentmonitor.modules.provider_system.domain.protocol import (
+from agentmonitor.modules.provider_system.application.gateway import (
     scheduled_source_policy_digest_v1,
 )
 

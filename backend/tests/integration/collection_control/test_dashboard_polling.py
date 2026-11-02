@@ -77,9 +77,14 @@ def test_production_service_collects_enabled_claude_and_preserves_registry() -> 
             deadline = asyncio.get_running_loop().time() + 345
             fresh: tuple[QuotaWindowViewV1, ...] = ()
             while asyncio.get_running_loop().time() < deadline:
-                fresh = capacity.list_account_quota_windows(
+                quota_rows = capacity.list_account_quota_windows(
                     account.account_id, datetime.now(UTC)
                 )
+                current_rows: list[QuotaWindowViewV1] = []
+                for row in quota_rows:
+                    assert isinstance(row, QuotaWindowViewV1)
+                    current_rows.append(row)
+                fresh = tuple(current_rows)
                 if fresh and all(row.collected_at >= started for row in fresh):
                     break
                 await asyncio.sleep(0.5)

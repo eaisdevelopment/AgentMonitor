@@ -174,7 +174,9 @@ def test_running_service_persisted_native_codex_windows_and_history() -> None:
     next_key = None
     for _ in range(128):
         history = list_history(history_query.with_cursor(next_key))
-        history_points.extend(history.items)
+        for point in history.items:
+            assert isinstance(point, CapacityHistoryPointV1)
+            history_points.append(point)
         if not history.has_more:
             assert history.next_key is None
             break

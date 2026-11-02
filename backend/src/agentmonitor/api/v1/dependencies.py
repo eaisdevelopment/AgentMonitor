@@ -12,7 +12,9 @@ from agentmonitor.contracts.identity_access_v1 import (
     SessionSummaryV1,
     TokenCallerProofV1,
 )
-from agentmonitor.contracts.ollama_local_catalog_v1 import LocalCatalogPortV1
+from agentmonitor.contracts.ollama_local_catalog_v1 import (
+    LocalCatalogPortV1,
+)
 from agentmonitor.contracts.provider_system_v1 import ProviderConnectionPortV1
 from agentmonitor.modules.alerting.application.commands import (
     AcknowledgeAlertV1,

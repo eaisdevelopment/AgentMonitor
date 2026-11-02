@@ -1,4 +1,4 @@
-"""Pure construction of an owner-requested, exact-target M04 verification run."""
+"""Composition-owned construction of exact-target M04 Ollama cloud runs."""
 
 import hashlib
 from datetime import datetime, timedelta

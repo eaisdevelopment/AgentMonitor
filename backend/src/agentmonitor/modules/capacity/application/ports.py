@@ -27,6 +27,9 @@ from agentmonitor.modules.capacity.domain.health import (
     classify_capacity_windows_v1,
     default_capacity_health_policy_v1,
 )
+from agentmonitor.modules.capacity.domain.payload_digest import (
+    capacity_payload_digest as capacity_payload_digest,
+)
 
 
 class ClassifyCapacityProjectionV1:

@@ -124,7 +124,7 @@ def test_generation_verification_receipt_is_closed_and_non_secret() -> None:
     with pytest.raises(ValueError, match="registry_credential_verification_invalid"):
         replace(receipt, verification_id=OpaqueIdV1("owner-supplied"))
     with pytest.raises(ValueError, match="unsupported-field-state"):
-        replace(receipt, source_id="other.source")
+        replace(receipt, source_id="other.source")  # type: ignore[arg-type]
     with pytest.raises(ValueError, match="registry_credential_verification_invalid"):
         replace(receipt, payload_digest="d" * 63)
 

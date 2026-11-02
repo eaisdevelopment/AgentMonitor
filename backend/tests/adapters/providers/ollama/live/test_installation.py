@@ -5,7 +5,7 @@ from datetime import UTC, datetime
 from agentmonitor.adapters.providers.ollama.installation import discover_installation
 
 
-def test_real_local_cli_version_is_independent_of_daemon():
+def test_real_local_cli_version_is_independent_of_daemon() -> None:
     started = datetime.now(UTC)
     result = discover_installation()
     completed = datetime.now(UTC)

@@ -4,6 +4,11 @@ import pytest
 from agentmonitor.adapters.providers.ollama.cloud_balance.collection import (
     validate_cloud_target,
 )
+from agentmonitor.modules.collection_control.application.ollama_cloud_admission import (
+    admission_outcome_for_source,
+    cloud_failure_policy,
+    no_response_reason_for_source,
+)
 
 
 def test_cloud_target_rejects_cross_account_data() -> None:
@@ -15,20 +20,12 @@ def test_cloud_target_rejects_cross_account_data() -> None:
 
 
 def test_source_status_maps_to_durable_rate_outcomes() -> None:
-    from agentmonitor.adapters.providers.ollama.cloud_balance.collection import (
-        admission_outcome_for_source,
-    )
-
     assert admission_outcome_for_source("success") == "succeeded"
     assert admission_outcome_for_source("rate_limited") == "rate_limited"
     assert admission_outcome_for_source("unauthorized") == "failed"
 
 
 def test_credential_update_contention_keeps_a_distinct_no_response_reason() -> None:
-    from agentmonitor.adapters.providers.ollama.cloud_balance.collection import (
-        no_response_reason_for_source,
-    )
-
     assert (
         no_response_reason_for_source(
             "authorization_unavailable", "ollama_cloud_store_locked"
@@ -50,10 +47,6 @@ def test_credential_update_contention_keeps_a_distinct_no_response_reason() -> N
 
 
 def test_failure_policy_preserves_actionable_provider_states() -> None:
-    from agentmonitor.adapters.providers.ollama.cloud_balance.collection import (
-        cloud_failure_policy,
-    )
-
     assert (
         cloud_failure_policy("authorization_unavailable", None).retry.disposition
         == "after_user_action"
@@ -66,10 +59,6 @@ def test_failure_policy_preserves_actionable_provider_states() -> None:
 
 
 def test_failure_policy_never_shortens_provider_retry() -> None:
-    from agentmonitor.adapters.providers.ollama.cloud_balance.collection import (
-        cloud_failure_policy,
-    )
-
     assert cloud_failure_policy("rate_limited", 172800).retry.delay_seconds == 172800
 
 
@@ -103,7 +92,7 @@ def test_cloud_target_projects_into_v2_capacity_contract() -> None:
 
 
 def test_cloud_v2_requires_same_provider_target() -> None:
-    from agentmonitor.adapters.providers.ollama.cloud_balance.collection import (
+    from agentmonitor.composition.ollama_capacity_commit import (
         validate_cloud_provider_target,
     )
     from agentmonitor.contracts.common_v1 import OpaqueIdV1

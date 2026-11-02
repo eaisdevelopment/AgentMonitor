@@ -22,9 +22,11 @@ import subprocess
 import sys
 import time
 import urllib.request
+from collections.abc import Callable
 from contextlib import ExitStack
 from dataclasses import asdict
 from pathlib import Path
+from typing import Any
 
 ROOT = Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(ROOT / "backend/src"))
@@ -89,7 +91,10 @@ from tools.automation.implementations.m6_transition_journal import (
     _read_journal_at,
     _replace_journal,
 )
-from tools.automation.implementations.m6_transition_lease import _hold_transition_locks
+from tools.automation.implementations.m6_transition_lease import (
+    _hold_transition_locks,
+    _TransitionLease,
+)
 
 
 def _systemd_environment() -> dict[str, str]:
@@ -174,7 +179,11 @@ def _create(path: Path, content: bytes) -> None:
 
 
 def _journal(
-    path: Path, phase: str, backup_id: str | None = None, *, facts: dict | None = None
+    path: Path,
+    phase: str,
+    backup_id: str | None = None,
+    *,
+    facts: dict[str, Any] | None = None,
 ) -> None:
     """Durably record a closed recovery phase, without secrets or account data."""
     raw = (
@@ -369,7 +378,7 @@ def _cutover_engine(
     candidate_start_attempted = False
     operation_stack = ExitStack()
     barrier_stack = ExitStack()
-    facts = {
+    facts: dict[str, Any] = {
         "unit": unit,
         "baseline_restart": baseline_restart,
         "baseline_revision": _revision(baseline),
@@ -1640,7 +1649,7 @@ def recover_current_schema_update() -> str:
 
 
 def _fixed_journal_facts(
-    data: dict, *, phase: str, allow_update: bool = False
+    data: dict[str, Any], *, phase: str, allow_update: bool = False
 ) -> tuple[str, str, bool]:
     receipt = data.get("stop_receipt")
     candidate_revision = data.get("candidate_revision")
@@ -1728,7 +1737,11 @@ def recover_interrupted_migration() -> str:
 
 
 def _recover_migration_engine(
-    root: Path, transition, expected_journal: dict, *, verify_provenance=None
+    root: Path,
+    transition: _TransitionLease,
+    expected_journal: dict[str, Any],
+    *,
+    verify_provenance: Callable[[], None] | None = None,
 ) -> str:
     """Hold the same service and settings locks for the entire recovery."""
     journal = root / ".m6-cutover-journal.json"
@@ -1756,14 +1769,16 @@ def restore_interrupted_migration() -> str:
     with _hold_transition_locks(root) as transition:
         data = _read_private_json(root / ".m6-cutover-journal.json")
         phase = data.get("phase")
+        facts: dict[str, Any]
         if phase == "migrated":
             facts = data
         elif phase in {"restore_prepared", "restore_activated"}:
-            facts = data.get("cutover_facts")
+            nested = data.get("cutover_facts")
+            if not isinstance(nested, dict):
+                raise CutoverError("restore_recovery_journal_invalid")
+            facts = nested
         else:
             raise CutoverError("restore_recovery_phase_invalid")
-        if not isinstance(facts, dict):
-            raise CutoverError("restore_recovery_journal_invalid")
         candidate_revision, candidate_build, baseline_private = _fixed_journal_facts(
             facts, phase="migrated"
         )
@@ -1786,11 +1801,11 @@ def restore_interrupted_migration() -> str:
 
 def _restore_interrupted_migration_engine(
     root: Path,
-    transition,
-    expected_journal: dict,
-    facts: dict,
+    transition: _TransitionLease,
+    expected_journal: dict[str, Any],
+    facts: dict[str, Any],
     *,
-    verify_provenance=None,
+    verify_provenance: Callable[[], None] | None = None,
 ) -> str:
     """Restore/reconcile genuine pre-start backup while every lock is held."""
     journal = root / ".m6-cutover-journal.json"
@@ -1838,8 +1853,8 @@ def _restore_interrupted_migration_engine(
 
 def _start_restored_baseline_engine(
     root: Path,
-    transition,
-    facts: dict,
+    transition: _TransitionLease,
+    facts: dict[str, Any],
     *,
     unit: str,
     guard: Path,
@@ -1848,8 +1863,8 @@ def _start_restored_baseline_engine(
     start_override: bytes,
     baseline: Path,
     executable: Path,
-    verify_before=None,
-    verify_after=None,
+    verify_before: Callable[[], None] | None = None,
+    verify_after: Callable[[], None] | None = None,
 ) -> str:
     """Start only the selected restored unit after a durable no-rollback fence.
 
@@ -1941,17 +1956,17 @@ def _start_restored_baseline_engine(
 
 
 def _retry_stopped_baseline_engine(
-    root,
-    transition,
+    root: Path,
+    transition: _TransitionLease,
     *,
-    unit,
-    guard,
-    override,
-    baseline,
-    executable,
-    verify_before=None,
-    verify_after=None,
-):
+    unit: str,
+    guard: Path,
+    override: Path,
+    baseline: Path,
+    executable: Path,
+    verify_before: Callable[[], None] | None = None,
+    verify_after: Callable[[], None] | None = None,
+) -> str:
     """Retry an already-attempted baseline without restoring any database."""
     blocked = b"[Unit]\nRefuseManualStart=yes\n[Service]\nRestart=no\n"
     relaxed = b"[Service]\nRestart=no\n"
@@ -2048,13 +2063,13 @@ def _retry_stopped_baseline_engine(
 
 def _finish_restored_baseline_engine(
     root: Path,
-    transition,
+    transition: _TransitionLease,
     *,
     unit: str,
     guard: Path,
     expected_restart: str,
-    verify_ready=None,
-    verify_after=None,
+    verify_ready: Callable[[], None] | None = None,
+    verify_after: Callable[[], None] | None = None,
     candidate: bool = False,
     existing_baseline: bool = False,
 ) -> str:
@@ -2117,8 +2132,13 @@ def _finish_restored_baseline_engine(
                     }
                 ):
                     raise CutoverError("baseline_restart_guard_changed")
-                current = os.stat(guard.name, dir_fd=directory, follow_symlinks=False)
-                if (current.st_dev, current.st_ino) != (state.st_dev, state.st_ino):
+                guard_path_state = os.stat(
+                    guard.name, dir_fd=directory, follow_symlinks=False
+                )
+                if (guard_path_state.st_dev, guard_path_state.st_ino) != (
+                    state.st_dev,
+                    state.st_ino,
+                ):
                     raise CutoverError("baseline_restart_guard_changed")
                 os.unlink(guard.name, dir_fd=directory)
                 os.fsync(directory)

@@ -7,7 +7,7 @@ from agentmonitor.modules.collection_control.application.runner import v1_normal
 
 
 def test_v1_normalizer_rejects_non_v1_admission_before_callback() -> None:
-    def normalize(_admission, _outcome, _completed):
+    def normalize(_admission: object, _outcome: object, _completed: datetime) -> object:
         raise AssertionError("legacy callback must not run")
 
     with pytest.raises(ValueError, match="collection_v1_admission_required"):

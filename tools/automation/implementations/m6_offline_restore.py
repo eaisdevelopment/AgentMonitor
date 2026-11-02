@@ -14,6 +14,7 @@ from collections.abc import Callable
 from contextlib import closing
 from dataclasses import asdict
 from pathlib import Path
+from typing import Any
 
 from agentmonitor.adapters.persistence._shared.sqlite.core.policy import (
     DatabaseRefV1,
@@ -53,7 +54,7 @@ class OfflineRestoreError(RuntimeError):
     """A bounded safe restore refusal."""
 
 
-def _read_private_json(path: Path) -> dict:
+def _read_private_json(path: Path) -> dict[str, Any]:
     fd = os.open(path, os.O_RDONLY | os.O_NOFOLLOW | os.O_CLOEXEC)
     try:
         before = os.fstat(fd)
@@ -79,8 +80,8 @@ def _read_private_json(path: Path) -> dict:
         ):
             raise OfflineRestoreError("restore_object_changed")
 
-        def unique_pairs(pairs: list[tuple[str, object]]) -> dict:
-            result = {}
+        def unique_pairs(pairs: list[tuple[str, object]]) -> dict[str, Any]:
+            result: dict[str, Any] = {}
             for key, value in pairs:
                 if key in result:
                     raise OfflineRestoreError("restore_object_duplicate_key")
@@ -262,6 +263,8 @@ def classify_restore_recovery(root: Path, journal: Path) -> str:
         ):
             raise OfflineRestoreError("restore_recovery_generation_changed")
         active = DatabaseRefV1(root / "agentmonitor.db", root).validate()
+        if active is None:
+            raise OfflineRestoreError("restore_recovery_generation_changed")
         active_digest = _digest_file(root / "agentmonitor.db")
         other_digest = _digest_file(restored)
         other = restored.stat()

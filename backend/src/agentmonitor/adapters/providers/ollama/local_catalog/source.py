@@ -171,7 +171,9 @@ def _read_chunked_body(sock: socket.socket, initial: bytes, deadline: float) -> 
             raise ValueError("chunk_framing_too_large")
 
 
-def _read_json(route: str, *, operation_deadline: float | None = None) -> dict:
+def _read_json(
+    route: str, *, operation_deadline: float | None = None
+) -> dict[str, object]:
     if route not in _ROUTES:
         raise ValueError("source_not_allowed")
     now = time.monotonic()

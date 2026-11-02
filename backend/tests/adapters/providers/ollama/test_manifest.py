@@ -3,7 +3,7 @@
 from agentmonitor.adapters.providers.ollama.manifest import build_ollama_manifest
 
 
-def test_pending_local_capabilities_are_not_advertised_as_supported():
+def test_pending_local_capabilities_are_not_advertised_as_supported() -> None:
     manifest = build_ollama_manifest()
     assert manifest.descriptor.provider_key == "ollama"
     declarations = {item.capability_id: item for item in manifest.declarations}

@@ -3,7 +3,7 @@
 from agentmonitor.adapters.providers.ollama.cloud_balance.status import classify_status
 
 
-def test_balance_statuses_remain_distinct():
+def test_balance_statuses_remain_distinct() -> None:
     assert classify_status(200) == "success"
     assert classify_status(401) == "unauthorized"
     assert classify_status(403) == "access_denied"

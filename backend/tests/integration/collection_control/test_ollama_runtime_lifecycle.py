@@ -22,6 +22,8 @@ from agentmonitor.adapters.persistence.collection_control.sqlite.repository impo
 from agentmonitor.adapters.persistence.registry.sqlite.repository import (
     SqliteRegistryRepositoryV1,
 )
+from agentmonitor.contracts.collection_control_v1 import CollectionRunViewV1
+from agentmonitor.contracts.registry_v1 import ProviderInstallationViewV1
 
 from backend.tests.integration.api.test_iam_http import (
     _installation,
@@ -41,8 +43,8 @@ def test_production_lifespan_reconciles_and_collects_real_ollama(
     async def exercise() -> None:
         async with _running(app) as origin:
             deadline = asyncio.get_running_loop().time() + 12
-            runs = ()
-            installations = ()
+            runs: tuple[CollectionRunViewV1, ...] = ()
+            installations: tuple[ProviderInstallationViewV1, ...] = ()
             while asyncio.get_running_loop().time() < deadline:
                 installations = registry.list_provider_installations("ollama")
                 runs = collection.list_runs("ollama", None, datetime.now(UTC), 20)

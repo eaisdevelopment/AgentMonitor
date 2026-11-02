@@ -1,5 +1,7 @@
 """Pure sequencing policy for owner-requested Ollama verification."""
 
+from typing import Literal
+
 import pytest
 from agentmonitor.modules.collection_control.domain.ollama_verification import (
     RECONCILABLE_VERIFICATION_RUN_STATES_V1,
@@ -104,7 +106,7 @@ def test_finalization_requires_exact_cross_table_lineage() -> None:
     (("partial", False), ("failed", True), ("running", True)),
 )
 def test_receipt_and_run_mismatch_fails_closed(
-    run_state: str, receipt_present: bool
+    run_state: Literal["partial", "failed", "running"], receipt_present: bool
 ) -> None:
     with pytest.raises(ValueError, match="ollama_cloud_verification_proof_invalid"):
         verification_completion_decision("succeeded", run_state, receipt_present)

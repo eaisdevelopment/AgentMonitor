@@ -20,6 +20,9 @@ from agentmonitor.api.v1.schemas.providers import (
     ProviderCapabilityDeclarationViewV1,
 )
 from agentmonitor.contracts.common_v1 import OpaqueIdV1
+from agentmonitor.contracts.ollama_local_catalog_v1 import (
+    LocalCatalogSnapshotV1,
+)
 from agentmonitor.modules.provider_system.application.queries import (
     ProviderCapabilitiesNotFoundV1,
 )
@@ -43,7 +46,9 @@ def get_ollama_local_catalog(request: Request) -> OllamaLocalCatalogViewV1:
         raise ProblemError(503, "provider_unavailable")
     value = port()
 
-    def items(snapshot):
+    def items(
+        snapshot: LocalCatalogSnapshotV1,
+    ) -> tuple[LocalCatalogItemViewV1, ...] | None:
         return (
             tuple(LocalCatalogItemViewV1(name=item.name) for item in snapshot.items)
             if snapshot.items is not None

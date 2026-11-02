@@ -6,7 +6,7 @@ from agentmonitor.adapters.persistence._shared.sqlite.core.policy import (
     DatabaseRefV1,
     open_sqlite_database,
 )
-from agentmonitor.contracts.cloud_schedule_status_v1 import CloudScheduleStatusV1
+from agentmonitor.contracts.collection_control_v1 import CloudScheduleStatusV1
 from sqlalchemy.engine import Connection
 
 

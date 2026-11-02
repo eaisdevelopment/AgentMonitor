@@ -10,6 +10,7 @@ from contextlib import contextmanager
 from dataclasses import dataclass
 from pathlib import Path
 
+from tools.automation.implementations.m5_completion_lock import M5CompletionLockV1
 from tools.automation.implementations.m5_service_activation import (
     acquire_m5_service_activation_lock_v1,
     release_m5_service_activation_lock_v1,
@@ -31,7 +32,7 @@ class _TransitionLease:
     descriptor: int
     root_identity: tuple[int, int]
     lock_identity: tuple[int, int]
-    activation: object
+    activation: M5CompletionLockV1
     state: _State
     issuer: object
 

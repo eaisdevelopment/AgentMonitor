@@ -4,14 +4,15 @@ from concurrent.futures import ThreadPoolExecutor
 from threading import Barrier
 
 from agentmonitor.adapters.providers.ollama.local_catalog.source import (
+    CatalogResult,
     read_local_catalog,
 )
 
 
-def test_real_concurrent_reads_return_busy_without_waiting_for_collection():
+def test_real_concurrent_reads_return_busy_without_waiting_for_collection() -> None:
     gate = Barrier(12)
 
-    def read_once():
+    def read_once() -> CatalogResult:
         gate.wait(timeout=5)
         return read_local_catalog()
 

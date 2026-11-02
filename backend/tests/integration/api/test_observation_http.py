@@ -453,11 +453,15 @@ def test_real_ollama_installation_has_registered_truthful_manifest(
                 )
                 assert response[0] == 200, response[2]
                 installations = json.loads(response[2])
-                if installations["items"]:
+                items = installations.get("items")
+                if isinstance(items, list) and items:
                     break
                 await asyncio.sleep(0.05)
-            assert len(installations["items"]) == 1
-            installation = installations["items"][0]
+            items = installations.get("items")
+            assert isinstance(items, list)
+            assert len(items) == 1
+            installation = items[0]
+            assert isinstance(installation, dict)
             assert installation["provider_key"] == "ollama"
             assert installation["presence_state"] == "present"
 

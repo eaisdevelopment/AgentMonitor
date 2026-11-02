@@ -12,6 +12,7 @@ import sys
 import uuid
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
+from typing import TypeVar
 
 from agentmonitor.adapters.persistence._shared.sqlite.core.policy import DatabaseRefV1
 from agentmonitor.adapters.persistence.registry.sqlite.credential_bindings import (
@@ -45,6 +46,7 @@ def _manager_environment() -> dict[str, str]:
 
 _COMMAND_TIMEOUT_SECONDS = 8
 _CLEANUP_TIMEOUT_SECONDS = 20
+_T = TypeVar("_T")
 
 
 def recovery_exit_code(rate_state: str) -> int:
@@ -269,7 +271,7 @@ class OllamaCloudWorkerSupervisorV1:
             return False
 
     @staticmethod
-    async def _finish_cleanup(task: asyncio.Task, deadline: float):
+    async def _finish_cleanup(task: asyncio.Task[_T], deadline: float) -> _T | None:
         """Bound all cleanup steps by one monotonic deadline despite cancellation."""
         while not task.done():
             # Keep time for the manager child's own cancellation/kill/wait.
@@ -295,7 +297,10 @@ class OllamaCloudWorkerSupervisorV1:
         return task.result()
 
     async def _cancelled_cleanup(
-        self, unit: str, description: str, start: asyncio.Task
+        self,
+        unit: str,
+        description: str,
+        start: asyncio.Task[tuple[int, str]],
     ) -> None:
         deadline = asyncio.get_running_loop().time() + _CLEANUP_TIMEOUT_SECONDS
         try:

@@ -35,6 +35,7 @@ from tools.automation.implementations.auto_m6_local_activate import (
     wait_ready,
 )
 from tools.automation.implementations.auto_m6_local_admit import source_digest
+from tools.automation.implementations.m5_completion_lock import M5CompletionLockV1
 from tools.automation.implementations.m5_service_activation import (
     acquire_m5_service_activation_lock_v1,
     release_m5_service_activation_lock_v1,
@@ -188,7 +189,12 @@ def prepare_candidate(expected_revision: str) -> tuple[str, str]:
     return source, build
 
 
-def apply_update(held, old, candidate, snapshot) -> None:
+def apply_update(
+    held: M5CompletionLockV1,
+    old: tuple[str, str],
+    candidate: tuple[str, str],
+    snapshot: tuple[tuple[int, str, str], str, tuple[tuple[str, str], ...]],
+) -> None:
     """Apply one prepared update; never restart unclassified service children."""
     source, build = prepare_candidate(candidate[1])
     page = (ROOT / "frontend/dist/dashboard.html").read_bytes()

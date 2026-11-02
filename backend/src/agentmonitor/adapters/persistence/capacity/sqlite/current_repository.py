@@ -555,6 +555,10 @@ class SqliteCurrentCapacityRepositoryV1:
                 )
                 if window is None:
                     continue
+                # This V1 forecast projection cannot relabel a cloud-target V2
+                # window as an installation-scoped V1 subject.
+                if not isinstance(window, QuotaWindowViewV1):
+                    continue
                 if window.projection_version is None:
                     continue
                 exploratory = ListCapacityForecastsV1(self._quota)._window_forecast(

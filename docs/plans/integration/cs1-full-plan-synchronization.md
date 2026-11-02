@@ -1177,3 +1177,20 @@ claim.
 Plan snapshot SHA-256: `81b4ef0fb6a9e97e2954589daae24d39fbfc5fa851feb3e5e00f54cc078c6b77`
 
 Planning validator SHA-256: `c9ba3f027ca8cc38441cac49e167e5d063b146c8511f14af99006f22c26a2c05`
+
+## 2026-11-02 M6 boundary-catalog structural reconciliation
+
+The synchronized snapshot now records the exact M6 integration coordinator,
+provider transport-policy extension, local-catalog extension, and legitimate
+producer/consumer ownership relationships found by an independent scoped
+boundary audit. Contract adoption was regenerated from its authoritative
+renderer, and checker exceptions remain closed to explicitly named versions
+and support symbols.
+
+This synchronization does not change owner-approval or implementation-
+authorization fields and does not claim live provider verification,
+credential access, deployment, M6 completion, or product readiness.
+
+Plan snapshot SHA-256: `8895ce0ea3dda5004af1b4bc3323b5c5ff73b4d8dd3430bb126847a8093787ac`
+
+Planning validator SHA-256: `c9ba3f027ca8cc38441cac49e167e5d063b146c8511f14af99006f22c26a2c05`

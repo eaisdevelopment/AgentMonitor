@@ -5,7 +5,7 @@ import ssl
 import time
 
 
-def test_real_ollama_documentation_chunked_response():
+def test_real_ollama_documentation_chunked_response() -> None:
     from agentmonitor.adapters.providers.ollama.local_catalog.source import (
         MAX_BYTES,
         _read_chunked_body,

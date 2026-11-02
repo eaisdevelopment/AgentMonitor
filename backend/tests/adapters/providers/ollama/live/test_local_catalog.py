@@ -9,17 +9,23 @@ from agentmonitor.adapters.providers.ollama.local_catalog.source import (
 from tools.discovery.m6_local_inventory import read_json
 
 
-def test_real_loopback_catalog_distinguishes_installed_and_loaded_models():
+def _model_count(path: str) -> int:
+    models = read_json(path).get("models")
+    assert isinstance(models, list)
+    return len(models)
+
+
+def test_real_loopback_catalog_distinguishes_installed_and_loaded_models() -> None:
     before = (
-        len(read_json("/api/tags")["models"]),
-        len(read_json("/api/ps")["models"]),
+        _model_count("/api/tags"),
+        _model_count("/api/ps"),
     )
     started = datetime.now(UTC)
     result = read_local_catalog()
     completed = datetime.now(UTC)
     after = (
-        len(read_json("/api/tags")["models"]),
-        len(read_json("/api/ps")["models"]),
+        _model_count("/api/tags"),
+        _model_count("/api/ps"),
     )
     assert before == after, "local_model_state_changed_during_test"
     assert result.outcome == "success"

@@ -33,11 +33,8 @@ from agentmonitor.adapters.persistence.registry.sqlite.repository import (
     SqliteRegistryRepositoryV1,
 )
 from agentmonitor.adapters.providers.ollama.cloud_balance.collection import (
-    admission_outcome_for_source,
     cloud_balance_to_capacity,
-    cloud_failure_policy,
     eligible_cloud_account,
-    no_response_reason_for_source,
     validate_cloud_target,
 )
 from agentmonitor.adapters.providers.ollama.cloud_balance.env_capability import (
@@ -60,11 +57,6 @@ from agentmonitor.adapters.providers.ollama.cloud_balance.source import (
     read_cloud_balance_for_binding_v1,
     read_scheduled_cloud_balance_v1,
 )
-from agentmonitor.adapters.providers.ollama.cloud_balance.verification_run import (
-    build_scheduled_cloud_run,
-    build_verification_run,
-    source_budget_seconds,
-)
 from agentmonitor.adapters.providers.ollama.manifest import (
     OLLAMA_ADAPTER_ID,
     OLLAMA_ADAPTER_VERSION,
@@ -72,7 +64,13 @@ from agentmonitor.adapters.providers.ollama.manifest import (
 )
 from agentmonitor.composition.ollama_capacity_commit import ollama_capacity_repository
 from agentmonitor.composition.ollama_env_store import env_location_matches
+from agentmonitor.composition.ollama_verification_run import (
+    build_scheduled_cloud_run,
+    build_verification_run,
+    source_budget_seconds,
+)
 from agentmonitor.contracts.capacity_v1 import (
+    CapacityCommitReceiptV1,
     CapacityCommitRequestV1,
     CapacityCommitRequestV2,
     CapacitySubjectV1,
@@ -80,6 +78,7 @@ from agentmonitor.contracts.capacity_v1 import (
     ProviderQuotaInputV2,
 )
 from agentmonitor.contracts.collection_control_v1 import (
+    CollectionCommitReceiptV1,
     CollectionFailedV1,
     CollectionRunAdmissionV1,
     CollectionRunAdmissionV2,
@@ -101,28 +100,33 @@ from agentmonitor.contracts.common_v1 import (
     TechnicalValueV1,
 )
 from agentmonitor.contracts.provider_system_v1 import (
+    CapabilityManifestV1,
     ScheduledSourceAdmissionProofV1,
     ScheduledSourceLineageV1,
-    ScheduledSourceRunStateV1,
-    ScheduledSourceSignalDispatchCertaintyV1,
     ScheduledSourceSignalRunStateV1,
 )
 from agentmonitor.contracts.registry_v1 import (
     AccountCredentialLockLeaseV1,
+    AccountResourceViewV1,
+    AccountViewV1,
     ActiveCredentialBindingRefV1,
+    MonitoringProfileViewV1,
     ProviderTargetRefV1,
 )
-from agentmonitor.modules.capacity.domain.payload_digest import capacity_payload_digest
+from agentmonitor.modules.capacity.application.ports import capacity_payload_digest
 from agentmonitor.modules.collection_control.application.executor import (
     ExecuteCollectionRunV1,
 )
+from agentmonitor.modules.collection_control.application.ollama_cloud_admission import (
+    admission_outcome_for_source,
+    cloud_failure_policy,
+    no_response_reason_for_source,
+)
 from agentmonitor.modules.provider_system.application.gateway import (
+    derive_scheduled_source_admission_v1,
     get_manifest_fingerprint_v1,
 )
-from agentmonitor.modules.provider_system.domain.protocol import (
-    derive_scheduled_source_admission_v1,
-)
-from agentmonitor.modules.registry.domain.credential_binding import (
+from agentmonitor.modules.registry.application.cloud_connection import (
     resolve_active_credential_binding,
 )
 
@@ -166,7 +170,7 @@ def cloud_connection_ready(credential_env_file: Path | None) -> bool:
     return True
 
 
-def require_cloud_manifest():
+def require_cloud_manifest() -> CapabilityManifestV1:
     """Do not misrepresent a local-only manifest as cloud admission."""
     manifest = build_ollama_manifest()
     matches = [
@@ -334,7 +338,11 @@ class OllamaCloudCollectionV1:
         )
 
     def prepare_run(
-        self, account, profile, resource, now: datetime
+        self,
+        account: AccountViewV1,
+        profile: MonitoringProfileViewV1,
+        resource: AccountResourceViewV1,
+        now: datetime,
     ) -> CollectionRunAdmissionV1:
         """Derive one run from existing M02 account, profile and resource views."""
         require_source_admitted(self._credential_env_file is not None)
@@ -416,7 +424,9 @@ class OllamaCloudCollectionV1:
         self._eligible_binding(result)
         return result
 
-    def verification_tick(self):
+    def verification_tick(
+        self,
+    ) -> str | CapacityCommitReceiptV1 | CollectionFailedV1:
         """Progress at most one queued owner request under the existing M04 gate.
 
         The supervised worker invokes this lane when selected. Source policy
@@ -524,10 +534,10 @@ class OllamaCloudCollectionV1:
                 pass
             raise
 
-    def tick(self):
+    def tick(self) -> str | CapacityCommitReceiptV1 | CollectionFailedV1:
         """Select eligible M02 targets, reserve the fair gate, then collect once."""
         require_probe_authorized(self._credential_env_file is not None)
-        accounts = []
+        accounts: list[AccountViewV1] = []
         cursor = None
         scanned = 0
         while True:
@@ -541,7 +551,12 @@ class OllamaCloudCollectionV1:
             if scanned >= 1000:
                 raise ValueError("ollama_cloud_target_limit")
             cursor = page[-1].account_id.value
-        candidates = []
+        candidates: list[
+            tuple[
+                CollectionRunAdmissionV1 | CollectionRunAdmissionV2,
+                CapacitySubjectV1 | CapacitySubjectV2,
+            ]
+        ] = []
         for account in accounts:
             if not eligible_cloud_account(
                 account.provider_key,
@@ -558,22 +573,22 @@ class OllamaCloudCollectionV1:
                 ):
                     continue
                 try:
-                    run = build_scheduled_cloud_run(
+                    cloud_run = build_scheduled_cloud_run(
                         graph,
                         self._instance,
                         account.registry_revision,
                         ollama_cloud_probe_fingerprint(),
                         datetime.now(UTC),
                     )
-                    self._eligible_binding(run)
+                    self._eligible_binding(cloud_run)
                 except OllamaCloudTargetIneligible:
                     continue
                 candidates.append(
                     (
-                        run,
+                        cloud_run,
                         CapacitySubjectV2(
                             "ollama",
-                            run.provider_target,
+                            cloud_run.provider_target,
                             account.account_id,
                             graph.resource_id,
                         ),
@@ -591,7 +606,7 @@ class OllamaCloudCollectionV1:
                     ):
                         continue
                     try:
-                        run = self.prepare_run(
+                        legacy_run = self.prepare_run(
                             account, profile, resource, datetime.now(UTC)
                         )
                     except OllamaCloudTargetIneligible:
@@ -602,7 +617,7 @@ class OllamaCloudCollectionV1:
                         continue
                     matches.append(
                         (
-                            run,
+                            legacy_run,
                             CapacitySubjectV1(
                                 "ollama",
                                 profile.provider_installation_id,
@@ -614,7 +629,12 @@ class OllamaCloudCollectionV1:
             if len(matches) > 1:
                 raise ValueError("ollama_cloud_target_ambiguous")
             candidates.extend(matches)
-        registered = []
+        registered: list[
+            tuple[
+                CollectionRunAdmissionV1 | CollectionRunAdmissionV2,
+                CapacitySubjectV1 | CapacitySubjectV2,
+            ]
+        ] = []
         for run, subject in candidates:
             try:
                 self.register_target(run)
@@ -882,7 +902,7 @@ class OllamaCloudCollectionV1:
             probe_run_id=verification.run_id,
             probe_admission_id=verification.admission_id,
             dispatch_certainty="response_received",
-            run_state=cast(ScheduledSourceRunStateV1, probe_run.state),
+            run_state=probe_run.state,
             run_account_id=probe_run.account_id,
             run_target_generation=probe_run.target_generation,
             run_source_id=probe_run.source_id,
@@ -910,9 +930,7 @@ class OllamaCloudCollectionV1:
             authorization_signal_run_state=cast(
                 ScheduledSourceSignalRunStateV1, signal.run_state
             ),
-            authorization_signal_dispatch_certainty=cast(
-                ScheduledSourceSignalDispatchCertaintyV1, signal.dispatch_certainty
-            ),
+            authorization_signal_dispatch_certainty=signal.dispatch_certainty,
             authorization_signal_run_requested_at=signal.run_requested_at,
             authorization_signal_observed_at=signal.signal_observed_at,
         )
@@ -946,7 +964,7 @@ class OllamaCloudCollectionV1:
         lease: OllamaCloudRequestLeaseV1,
         run: CollectionRunAdmissionV1 | CollectionRunAdmissionV2,
         subject: CapacitySubjectV1 | CapacitySubjectV2,
-    ):
+    ) -> CapacityCommitReceiptV1 | CollectionFailedV1:
         """Hold the account fence across proof, child I/O and durable commit."""
         if run.account_id is None:
             raise OllamaCloudTargetIneligible("ollama_cloud_target_ineligible")
@@ -968,7 +986,7 @@ class OllamaCloudCollectionV1:
         run: CollectionRunAdmissionV1 | CollectionRunAdmissionV2,
         subject: CapacitySubjectV1 | CapacitySubjectV2,
         credential_lock: AccountCredentialLockLeaseV1,
-    ):
+    ) -> CapacityCommitReceiptV1 | CollectionFailedV1:
         """Progress one admitted run while the exact account lock is held."""
         if self._credential_authority is None and self._credential_env_file is not None:
             try:
@@ -1329,7 +1347,7 @@ class OllamaCloudCollectionV1:
         owner_stale_before: datetime,
         recovery_lease_expires_at: datetime,
         maximum_runs: int = 10,
-    ):
+    ) -> tuple[CollectionCommitReceiptV1 | CollectionFailedV1, ...]:
         """Recover M04 receipts without making a provider request.
 
         An unresolved global rate lease stays blocked for separate reconciliation.
@@ -1447,7 +1465,7 @@ class OllamaCloudCollectionV1:
         registry_revision: int,
         source: CloudBalanceSourceResultV1,
         provenance: ObservationProvenanceV1,
-    ):
+    ) -> CapacityCommitReceiptV1:
         """Project a real result then commit under both M04 and M02 fences."""
         validate_cloud_target(
             lease.account_id.value,

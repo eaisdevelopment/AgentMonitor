@@ -19,13 +19,6 @@ from agentmonitor.adapters.persistence.collection_control.sqlite.ollama_cloud_ad
 from agentmonitor.adapters.persistence.collection_control.sqlite.repository import (
     SqliteCollectionRepositoryV1,
 )
-from agentmonitor.adapters.persistence.integration.sqlite.ollama_cloud_schedule_snapshot import (  # noqa: E501
-    OllamaCloudScheduleSnapshotErrorV1,
-    SqliteOllamaCloudScheduleSnapshotRepositoryV1,
-)
-from agentmonitor.adapters.persistence.integration.sqlite.ollama_cloud_verification_enqueue_v2 import (  # noqa: E501
-    SqliteAtomicOllamaCloudVerificationEnqueueRepositoryV2,
-)
 from agentmonitor.adapters.persistence.registry.sqlite.credential_bindings import (
     SqliteCloudCredentialRegistryV1,
     SqliteCredentialBindingsV1,
@@ -36,16 +29,23 @@ from agentmonitor.adapters.persistence.registry.sqlite.repository import (
 from agentmonitor.adapters.providers.ollama.cloud_balance.probe_descriptor import (
     ollama_cloud_probe_fingerprint,
 )
-from agentmonitor.adapters.providers.ollama.cloud_balance.verification_run import (
-    cloud_schedule_target_digest,
-)
 from agentmonitor.adapters.providers.ollama.manifest import OLLAMA_ADAPTER_VERSION
 from agentmonitor.composition.ollama_cloud_collection import (
     OllamaCloudCollectionV1,
     OllamaCloudTargetIneligible,
 )
-from agentmonitor.contracts.cloud_schedule_status_v1 import CloudScheduleStatusV1
+from agentmonitor.composition.ollama_cloud_schedule_snapshot import (
+    OllamaCloudScheduleSnapshotErrorV1,
+    SqliteOllamaCloudScheduleSnapshotRepositoryV1,
+)
+from agentmonitor.composition.ollama_cloud_verification_enqueue_v2 import (
+    SqliteAtomicOllamaCloudVerificationEnqueueRepositoryV2,
+)
+from agentmonitor.composition.ollama_verification_run import (
+    cloud_schedule_target_digest,
+)
 from agentmonitor.contracts.collection_control_v1 import (
+    CloudScheduleStatusV1,
     OllamaCloudLatestSourceSignalQueryV1,
     OllamaCloudVerificationReplayQueryV1,
 )
@@ -58,18 +58,16 @@ from agentmonitor.contracts.registry_v1 import (
 from agentmonitor.modules.collection_control.application.ollama_cloud_admission import (
     AtomicallyInitiateOllamaCloudVerificationV2,
 )
-from agentmonitor.modules.provider_system.domain.protocol import (
+from agentmonitor.modules.provider_system.application.gateway import (
     current_access_from_signal,
+)
+from agentmonitor.modules.registry.application.cloud_connection import (
+    derive_connection_status,
+    resolve_active_credential_binding,
+    scheduled_monitoring_state,
 )
 from agentmonitor.modules.registry.application.organizations import (
     RegistryCommandConflictV1,
-)
-from agentmonitor.modules.registry.domain.cloud_connection_status import (
-    derive_connection_status,
-    scheduled_monitoring_state,
-)
-from agentmonitor.modules.registry.domain.credential_binding import (
-    resolve_active_credential_binding,
 )
 
 

@@ -17,10 +17,11 @@ from agentmonitor.composition.linux_process_locations import (
 from agentmonitor.contracts.runtime_observation_v1 import PlatformInspectionRequestV1
 
 
-def test_real_ollama_executable_process_is_attributed_without_an_account():
+def test_real_ollama_executable_process_is_attributed_without_an_account() -> None:
     installation = discover_installation()
     assert installation.outcome == "success"
     assert installation.installation_ref is not None
+    assert installation.cli_version is not None
     executable, expected_file_identity = (
         installation.executable_for_process_observation()
     )
@@ -66,7 +67,7 @@ def test_real_ollama_executable_process_is_attributed_without_an_account():
     assert all(not hasattr(process, "account_id") for process in outcome.processes)
 
 
-def test_shared_live_locations_include_exact_ollama_without_guessing_account():
+def test_shared_live_locations_include_exact_ollama_without_guessing_account() -> None:
     installation = discover_installation()
     assert installation.outcome == "success"
     assert installation.installation_ref is not None

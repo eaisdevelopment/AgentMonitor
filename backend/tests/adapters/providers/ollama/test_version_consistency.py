@@ -16,5 +16,7 @@ from agentmonitor.adapters.providers.ollama.local_catalog.source import (
         (None, "0.24.0", False),
     ],
 )
-def test_only_unchanged_admitted_version_is_consistent(initial, final, expected):
+def test_only_unchanged_admitted_version_is_consistent(
+    initial: str | None, final: str | None, expected: bool
+) -> None:
     assert version_consistent(initial, final) is expected

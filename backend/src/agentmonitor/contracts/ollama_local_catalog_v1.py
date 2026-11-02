@@ -11,6 +11,7 @@ from agentmonitor.contracts.common_v1 import TechnicalValueV1
 class LocalCatalogItemV1(TechnicalValueV1):
     CONTRACT_ID: ClassVar[str] = "CTR-PROV-OLLAMA-LOCAL-CATALOG-001"
     OWNER: ClassVar[str] = "PLAN-M03"
+
     name: str
 
     def __post_init__(self) -> None:
@@ -29,6 +30,7 @@ class LocalCatalogItemV1(TechnicalValueV1):
 class LocalCatalogSnapshotV1(TechnicalValueV1):
     CONTRACT_ID: ClassVar[str] = "CTR-PROV-OLLAMA-LOCAL-CATALOG-001"
     OWNER: ClassVar[str] = "PLAN-M03"
+
     state: Literal["available", "unavailable"]
     reason: Literal[
         "source_available",
@@ -50,7 +52,7 @@ class LocalCatalogSnapshotV1(TechnicalValueV1):
             or (self.items is not None and len(self.items) > 1024)
             or (
                 self.items is not None
-                and any(type(i) is not LocalCatalogItemV1 for i in self.items)
+                and any(type(item) is not LocalCatalogItemV1 for item in self.items)
             )
             or (
                 self.items is not None
@@ -64,6 +66,7 @@ class LocalCatalogSnapshotV1(TechnicalValueV1):
 class LocalCatalogViewV1(TechnicalValueV1):
     CONTRACT_ID: ClassVar[str] = "CTR-PROV-OLLAMA-LOCAL-CATALOG-001"
     OWNER: ClassVar[str] = "PLAN-M03"
+
     outcome: Literal[
         "success",
         "partial",

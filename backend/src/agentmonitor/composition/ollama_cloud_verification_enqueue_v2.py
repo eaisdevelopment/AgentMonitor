@@ -1,11 +1,10 @@
-"""Atomic Ollama verification initiation across M02 and M04 persistence."""
+"""Composition-owned atomic Ollama verification initiation across M02 and M04."""
 
 from datetime import datetime, timedelta
 from typing import ClassVar
 
 from agentmonitor.adapters.persistence._shared.sqlite.core.policy import (
     DatabaseRefV1,
-    SqlitePolicyError,
     open_sqlite_database,
 )
 from agentmonitor.adapters.persistence.collection_control.sqlite.ollama_cloud_admission import (  # noqa: E501
@@ -25,7 +24,7 @@ from agentmonitor.adapters.persistence.registry.sqlite.repository import (
     RegistryRepositoryErrorV1,
     SqliteRegistryRepositoryV1,
 )
-from agentmonitor.adapters.providers.ollama.cloud_balance.verification_run import (
+from agentmonitor.composition.ollama_verification_run import (
     cloud_schedule_target_digest,
 )
 from agentmonitor.contracts.collection_control_v1 import (
@@ -312,7 +311,6 @@ class SqliteAtomicOllamaCloudVerificationEnqueueRepositoryV2:
         except (
             CredentialBindingRepositoryErrorV1,
             RegistryRepositoryErrorV1,
-            SqlitePolicyError,
             SQLAlchemyError,
             OSError,
             TypeError,

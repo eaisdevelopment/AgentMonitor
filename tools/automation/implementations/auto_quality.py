@@ -207,6 +207,7 @@ def checked_source_paths() -> tuple[Path, ...]:
         for relative in sources.stdout.split("\x00")
         if relative
         and (ROOT / relative) != Path(__file__).resolve()
+        and (ROOT / relative).is_file()
         and (ROOT / relative).suffix in source_suffixes
         and "node_modules" not in (ROOT / relative).parts
     )
@@ -221,7 +222,7 @@ def minimum_local_controls() -> bool:
     for path in checked_paths:
         try:
             content = path.read_text(encoding="utf-8")
-        except UnicodeDecodeError:
+        except (OSError, UnicodeDecodeError):
             return False
         if not source_is_allowed(content):
             return False

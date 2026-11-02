@@ -1,4 +1,4 @@
-"""Shared non-secret guard serializing credential creation and file cleanup."""
+"""M02-owned non-secret guard for credential creation and file cleanup."""
 
 import fcntl
 import os

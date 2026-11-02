@@ -52,6 +52,9 @@ class SourcePeriodV1(TechnicalValueV1):
 
 @dataclass(frozen=True, slots=True)
 class IncludedCreditsV1(TechnicalValueV1):
+    CONTRACT_ID: ClassVar[str] = "OLLAMA-CLOUD-BALANCE-V1"
+    OWNER: ClassVar[str] = "PLAN-A03"
+
     balance_usd: Decimal | None
     allowance_usd: Decimal | None
     period: SourcePeriodV1 | None
@@ -66,6 +69,9 @@ class IncludedCreditsV1(TechnicalValueV1):
 
 @dataclass(frozen=True, slots=True)
 class LegacyWindowV1(TechnicalValueV1):
+    CONTRACT_ID: ClassVar[str] = "OLLAMA-CLOUD-BALANCE-V1"
+    OWNER: ClassVar[str] = "PLAN-A03"
+
     remaining_percent: Decimal | None
     resets_at: datetime | None
 
@@ -82,6 +88,9 @@ class LegacyWindowV1(TechnicalValueV1):
 
 @dataclass(frozen=True, slots=True)
 class LegacyLimitsV1(TechnicalValueV1):
+    CONTRACT_ID: ClassVar[str] = "OLLAMA-CLOUD-BALANCE-V1"
+    OWNER: ClassVar[str] = "PLAN-A03"
+
     session: LegacyWindowV1 | None
     weekly: LegacyWindowV1 | None
 

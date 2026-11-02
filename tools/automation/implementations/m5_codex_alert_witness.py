@@ -633,7 +633,12 @@ def _source_observation_evidence(
             raise M5CodexAlertWitnessErrorV1(
                 "m5_alert_witness_source_observation_missing"
             )
-        points.extend(page.items)
+        for point in page.items:
+            if not isinstance(point, CapacityHistoryPointV1):
+                raise M5CodexAlertWitnessErrorV1(
+                    "m5_alert_witness_source_observation_contract_invalid"
+                )
+            points.append(point)
         next_key = _next_source_observation_cursor_v1(
             has_more=page.has_more,
             next_key=page.next_key,

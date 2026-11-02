@@ -1,11 +1,11 @@
 """Pure guards for the authorized cloud-schedule snapshot boundary."""
 
 import pytest
-from agentmonitor.adapters.persistence.integration.sqlite.ollama_cloud_schedule_snapshot import (  # noqa: E501
+from agentmonitor.composition.ollama_cloud_schedule_snapshot import (
     OllamaCloudScheduleSnapshotErrorV1,
     _require_authorized_snapshot_inputs_v1,
 )
-from agentmonitor.contracts.cloud_schedule_status_v1 import CloudScheduleStatusV1
+from agentmonitor.contracts.collection_control_v1 import CloudScheduleStatusV1
 from agentmonitor.contracts.common_v1 import OpaqueIdV1
 from agentmonitor.contracts.registry_v1 import ActiveCredentialBindingRefV1
 
@@ -50,8 +50,8 @@ def test_invalid_snapshot_inputs_fail_with_closed_error(
         match="ollama_cloud_schedule_snapshot_unavailable",
     ):
         _require_authorized_snapshot_inputs_v1(
-            target,
-            account_version,
-            binding,
-            fingerprint,
+            target,  # type: ignore[arg-type]
+            account_version,  # type: ignore[arg-type]
+            binding,  # type: ignore[arg-type]
+            fingerprint,  # type: ignore[arg-type]
         )

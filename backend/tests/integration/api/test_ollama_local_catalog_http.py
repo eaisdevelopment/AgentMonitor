@@ -13,10 +13,12 @@ from backend.tests.integration.api.test_iam_http import (
 from tools.discovery.m6_local_inventory import read_json
 
 
-def test_real_ollama_catalog_requires_auth_and_reports_source_state(tmp_path: Path):
+def test_real_ollama_catalog_requires_auth_and_reports_source_state(
+    tmp_path: Path,
+) -> None:
     app, credential = _installation(tmp_path)
 
-    async def exercise():
+    async def exercise() -> None:
         async with _running(app) as origin:
             jar = http.cookiejar.CookieJar()
             login = await asyncio.to_thread(
@@ -31,9 +33,15 @@ def test_real_ollama_catalog_requires_auth_and_reports_source_state(tmp_path: Pa
             assert login[0] == 204
 
             def source_names(path: str) -> tuple[str, ...]:
-                return tuple(
-                    sorted(model["name"] for model in read_json(path)["models"])
-                )
+                models = read_json(path).get("models")
+                assert isinstance(models, list)
+                names: list[str] = []
+                for model in models:
+                    assert isinstance(model, dict)
+                    name = model.get("name")
+                    assert isinstance(name, str)
+                    names.append(name)
+                return tuple(sorted(names))
 
             before = (source_names("/api/tags"), source_names("/api/ps"))
             result = await asyncio.to_thread(

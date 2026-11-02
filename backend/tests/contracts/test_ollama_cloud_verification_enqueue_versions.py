@@ -6,7 +6,7 @@ import textwrap
 from inspect import signature
 from typing import get_type_hints
 
-from agentmonitor.adapters.persistence.integration.sqlite.ollama_cloud_verification_enqueue_v2 import (  # noqa: E501
+from agentmonitor.composition.ollama_cloud_verification_enqueue_v2 import (
     SqliteAtomicOllamaCloudVerificationEnqueueRepositoryV2,
 )
 from agentmonitor.contracts.collection_control_v1 import (

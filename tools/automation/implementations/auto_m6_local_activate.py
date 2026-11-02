@@ -20,6 +20,7 @@ import time
 import urllib.error
 import urllib.request
 from pathlib import Path
+from types import FrameType
 
 from tools.automation.implementations.auto_m6_local_admit import source_digest
 from tools.automation.implementations.m5_service_activation import (
@@ -188,7 +189,15 @@ def cgroup_pids(group: str, *, allow_missing: bool = False) -> frozenset[int]:
 
 
 class NoRedirect(urllib.request.HTTPRedirectHandler):
-    def redirect_request(self, req, fp, code, msg, headers, newurl):
+    def redirect_request(
+        self,
+        req: object,
+        fp: object,
+        code: int,
+        msg: str,
+        headers: object,
+        newurl: str,
+    ) -> None:
         return None
 
 
@@ -309,7 +318,7 @@ def main() -> int:
     old_snapshot: tuple[str, str, int, str] | None = None
     old_signal = signal.getsignal(signal.SIGTERM)
 
-    def interrupt(_signum, _frame):
+    def interrupt(_signum: int, _frame: FrameType | None) -> None:
         raise KeyboardInterrupt
 
     signal.signal(signal.SIGTERM, interrupt)

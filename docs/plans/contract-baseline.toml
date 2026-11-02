@@ -199,7 +199,7 @@ id = "CTR-COMMON-003"
 name = "ExactQuantityV1"
 version = "1.0.0"
 producer = "PLAN-FND"
-consumers = ["PLAN-M05", "PLAN-M07", "PLAN-A01", "PLAN-A02", "PLAN-P01", "PLAN-P02", "PLAN-DB"]
+consumers = ["PLAN-M05", "PLAN-M07", "PLAN-A01", "PLAN-A02", "PLAN-A03", "PLAN-P01", "PLAN-P02", "PLAN-DB"]
 maturity = "proposed_aligned"
 decision_reference = "CAA-2026-09-18-01 sections 5.1 and 9.2"
 checklist = { field_state_null = true, units_time = true, auth = true, side_effects = true, idempotency = true, events = true, retention = true, errors = true, compatibility = true }
@@ -435,7 +435,7 @@ id = "CTR-REG-001"
 name = "OrganizationViewV1"
 version = "1.0.0"
 producer = "PLAN-M02"
-consumers = ["PLAN-M05", "PLAN-M06", "PLAN-M07", "PLAN-M08", "PLAN-P01", "PLAN-P02"]
+consumers = ["PLAN-FND", "PLAN-M05", "PLAN-M06", "PLAN-M07", "PLAN-M08", "PLAN-P01", "PLAN-P02"]
 maturity = "proposed_aligned"
 decision_reference = "CAA-2026-09-18-01 sections 5.4 and 9.1"
 checklist = { field_state_null = true, units_time = true, auth = true, side_effects = true, idempotency = true, events = true, retention = true, errors = true, compatibility = true }
@@ -535,7 +535,7 @@ id = "CTR-REG-011"
 name = "CredentialBindingAggregateV1"
 version = "1.0.0"
 producer = "PLAN-M02"
-consumers = ["PLAN-M03", "PLAN-M04", "PLAN-A03", "PLAN-M08", "PLAN-INT"]
+consumers = ["PLAN-FND", "PLAN-M03", "PLAN-M04", "PLAN-M05", "PLAN-A03", "PLAN-M08", "PLAN-INT"]
 maturity = "evidence_blocked"
 decision_reference = "Owner-approved M6 Ollama cloud plan and contract review, 2026-11-02"
 checklist = { field_state_null = true, units_time = true, auth = true, side_effects = true, idempotency = true, events = true, retention = true, errors = true, compatibility = true }
@@ -545,7 +545,7 @@ id = "CTR-REG-012"
 name = "CredentialConnectionStatusV1"
 version = "1.1.0"
 producer = "PLAN-M02"
-consumers = ["PLAN-M04", "PLAN-M05", "PLAN-P01", "PLAN-INT"]
+consumers = ["PLAN-FND", "PLAN-M04", "PLAN-M05", "PLAN-P01", "PLAN-INT"]
 maturity = "evidence_blocked"
 decision_reference = "Owner-approved M6 Ollama cloud integration; additive temporary credential-update state, 2026-11-02"
 checklist = { field_state_null = true, units_time = true, auth = true, side_effects = true, idempotency = true, events = true, retention = true, errors = true, compatibility = true }
@@ -567,7 +567,7 @@ id = "CTR-PROV-002"
 name = "CapabilityManifestV1"
 version = "1.0.0"
 producer = "PLAN-M03"
-consumers = ["PLAN-M02", "PLAN-M05", "PLAN-A01", "PLAN-A02", "PLAN-A03", "PLAN-A04-LINUX", "PLAN-A04-MAC", "PLAN-M04", "PLAN-M06", "PLAN-M08", "PLAN-P01", "PLAN-P02"]
+consumers = ["PLAN-FND", "PLAN-M02", "PLAN-M05", "PLAN-A01", "PLAN-A02", "PLAN-A03", "PLAN-A04-LINUX", "PLAN-A04-MAC", "PLAN-M04", "PLAN-M06", "PLAN-M08", "PLAN-P01", "PLAN-P02"]
 maturity = "evidence_blocked"
 decision_reference = "CAA-2026-09-18-01 sections 5.5 and 8"
 checklist = { field_state_null = true, units_time = true, auth = true, side_effects = true, idempotency = true, events = true, retention = true, errors = true, compatibility = true }
@@ -577,7 +577,7 @@ id = "CTR-PROV-003"
 name = "ProviderSourceV1"
 version = "1.1.0"
 producer = "PLAN-M03"
-consumers = ["PLAN-A01", "PLAN-A02", "PLAN-A03", "PLAN-M04", "PLAN-M05", "PLAN-M06", "PLAN-A04-LINUX", "PLAN-A04-MAC"]
+consumers = ["PLAN-FND", "PLAN-A01", "PLAN-A02", "PLAN-A03", "PLAN-M04", "PLAN-M05", "PLAN-M06", "PLAN-A04-LINUX", "PLAN-A04-MAC"]
 maturity = "evidence_blocked"
 decision_reference = "CAA-2026-09-18-01 sections 5.5 and 8; additive temporary credential-update signal, 2026-11-02"
 checklist = { field_state_null = true, units_time = true, auth = true, side_effects = true, idempotency = true, events = true, retention = true, errors = true, compatibility = true }
@@ -627,7 +627,7 @@ id = "CTR-PROV-008"
 name = "ProviderExtensionSchemasV1"
 version = "1.0.0"
 producer = "PLAN-M03"
-consumers = ["PLAN-FND", "PLAN-A01", "PLAN-A02", "PLAN-A03", "PLAN-M05", "PLAN-M06", "PLAN-P02"]
+consumers = ["PLAN-FND", "PLAN-A01", "PLAN-A02", "PLAN-A03", "PLAN-M05", "PLAN-M06", "PLAN-P01", "PLAN-P02"]
 maturity = "evidence_blocked"
 decision_reference = "CAA-2026-09-18-01 sections 5.5, 7 CAA-C16, and 8"
 checklist = { field_state_null = true, units_time = true, auth = true, side_effects = true, idempotency = true, events = true, retention = true, errors = true, compatibility = true }
@@ -709,7 +709,7 @@ id = "CTR-COL-008"
 name = "OllamaCloudAdmissionV1"
 version = "1.1.0"
 producer = "PLAN-M04"
-consumers = ["PLAN-A03", "PLAN-INT"]
+consumers = ["PLAN-FND", "PLAN-A03", "PLAN-INT"]
 maturity = "proposed_aligned"
 decision_reference = "Owner-approved M6 Ollama cloud plan, Rate and failure behavior; additive temporary credential-update signal, 2026-11-02"
 checklist = { field_state_null = true, units_time = true, auth = true, side_effects = true, idempotency = true, events = true, retention = true, errors = true, compatibility = true }
@@ -719,7 +719,7 @@ id = "CTR-COL-009"
 name = "OllamaCloudNoResponseCompletionV2"
 version = "1.1.0"
 producer = "PLAN-M04"
-consumers = ["PLAN-A03", "PLAN-INT"]
+consumers = ["PLAN-FND", "PLAN-A03", "PLAN-INT"]
 maturity = "proposed_aligned"
 decision_reference = "Owner-approved M6 Ollama cloud plan, Rate and failure behavior; additive no-request credential-update terminal, 2026-11-02"
 checklist = { field_state_null = true, units_time = true, auth = true, side_effects = true, idempotency = true, events = true, retention = true, errors = true, compatibility = true }
@@ -729,7 +729,7 @@ id = "CTR-COL-010"
 name = "OllamaCloudVerificationJobV1"
 version = "2.0.0"
 producer = "PLAN-M04"
-consumers = ["PLAN-INT"]
+consumers = ["PLAN-FND", "PLAN-INT"]
 maturity = "evidence_blocked"
 decision_reference = "Owner-approved M6 Ollama cloud integration; existing one-request V2 enqueue remains compatible and an additive atomic V2 port adds exact external request-version fencing; candidate remains under review, 2026-11-02"
 checklist = { field_state_null = true, units_time = true, auth = true, side_effects = true, idempotency = true, events = true, retention = true, errors = true, compatibility = true }
@@ -739,7 +739,7 @@ id = "CTR-COL-011"
 name = "CloudScheduleStatusV1"
 version = "1.0.0"
 producer = "PLAN-M04"
-consumers = ["PLAN-INT"]
+consumers = ["PLAN-FND", "PLAN-INT"]
 maturity = "evidence_blocked"
 decision_reference = "Owner-approved M6 Ollama cloud integration; candidate remains under review, 2026-11-02"
 checklist = { field_state_null = true, units_time = true, auth = true, side_effects = true, idempotency = true, events = true, retention = true, errors = true, compatibility = true }

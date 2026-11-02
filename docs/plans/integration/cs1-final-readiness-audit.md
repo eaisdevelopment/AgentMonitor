@@ -1145,3 +1145,20 @@ claim.
 Plan snapshot SHA-256: `81b4ef0fb6a9e97e2954589daae24d39fbfc5fa851feb3e5e00f54cc078c6b77`
 
 Planning validator SHA-256: `c9ba3f027ca8cc38441cac49e167e5d063b146c8511f14af99006f22c26a2c05`
+
+## 2026-11-02 M6 boundary-catalog structural reconciliation
+
+An independent scoped boundary audit classified the candidate violations and
+confirmed the required ownership moves, one-way provider transport-policy
+leaf, exact supporting-symbol registrations, and exact contract-consumer
+reconciliation. The implemented checker remains fail closed: exceptions are
+closed to named contract versions and symbols, the final boundary check has
+zero violations, and the synchronized adoption renderer has no drift.
+
+This is a structural boundary and catalog reconciliation only. It does not
+claim provider behavior, credential access, deployment, completion of the M6
+live acceptance criteria, or product readiness.
+
+Plan snapshot SHA-256: `8895ce0ea3dda5004af1b4bc3323b5c5ff73b4d8dd3430bb126847a8093787ac`
+
+Planning validator SHA-256: `c9ba3f027ca8cc38441cac49e167e5d063b146c8511f14af99006f22c26a2c05`

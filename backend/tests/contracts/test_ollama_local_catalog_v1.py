@@ -10,28 +10,33 @@ from agentmonitor.contracts.ollama_local_catalog_v1 import (
 )
 
 
-def test_empty_available_snapshot_is_a_real_empty_observation():
+def test_published_local_catalog_contract_identity_is_preserved() -> None:
+    assert LocalCatalogViewV1.CONTRACT_ID == "CTR-PROV-OLLAMA-LOCAL-CATALOG-001"
+    assert LocalCatalogViewV1.OWNER == "PLAN-M03"
+
+
+def test_empty_available_snapshot_is_a_real_empty_observation() -> None:
     value = LocalCatalogSnapshotV1(
         "available", "source_available", datetime.now(UTC), ()
     )
     assert value.items == ()
 
 
-def test_unavailable_snapshot_cannot_claim_empty_results():
+def test_unavailable_snapshot_cannot_claim_empty_results() -> None:
     with pytest.raises(ValueError, match="catalog_snapshot_state_invalid"):
         LocalCatalogSnapshotV1(
             "unavailable", "source_unavailable", datetime.now(UTC), ()
         )
 
 
-def test_unavailable_snapshot_has_no_items():
+def test_unavailable_snapshot_has_no_items() -> None:
     value = LocalCatalogSnapshotV1(
         "unavailable", "source_unavailable", datetime.now(UTC), None
     )
     assert value.items is None
 
 
-def test_duplicate_model_names_are_rejected():
+def test_duplicate_model_names_are_rejected() -> None:
     item = LocalCatalogItemV1("model:tag")
     with pytest.raises(ValueError, match="catalog_snapshot_state_invalid"):
         LocalCatalogSnapshotV1(
@@ -40,12 +45,12 @@ def test_duplicate_model_names_are_rejected():
 
 
 @pytest.mark.parametrize("name", ["", "bad\nname", "x" * 257])
-def test_model_names_are_bounded_printable_text(name):
+def test_model_names_are_bounded_printable_text(name: str) -> None:
     with pytest.raises(ValueError, match="catalog_model_name_invalid"):
         LocalCatalogItemV1(name)
 
 
-def test_success_cannot_hide_a_failed_source():
+def test_success_cannot_hide_a_failed_source() -> None:
     now = datetime.now(UTC)
     available = LocalCatalogSnapshotV1("available", "source_available", now, ())
     unavailable = LocalCatalogSnapshotV1("unavailable", "source_unavailable", now, None)
@@ -60,7 +65,7 @@ def test_success_cannot_hide_a_failed_source():
         )
 
 
-def test_unverified_version_requires_matching_source_reasons():
+def test_unverified_version_requires_matching_source_reasons() -> None:
     now = datetime.now(UTC)
     unavailable = LocalCatalogSnapshotV1("unavailable", "source_unavailable", now, None)
     with pytest.raises(ValueError, match="catalog_outcome_invalid"):
@@ -74,7 +79,7 @@ def test_unverified_version_requires_matching_source_reasons():
         )
 
 
-def test_catalog_requires_an_observation_time():
+def test_catalog_requires_an_observation_time() -> None:
     now = datetime.now(UTC)
     unavailable = LocalCatalogSnapshotV1("unavailable", "source_unavailable", now, None)
     with pytest.raises(ValueError, match="catalog_outcome_invalid"):
@@ -82,13 +87,13 @@ def test_catalog_requires_an_observation_time():
             "provider_unavailable",
             None,
             "ollama.local.catalog.v1",
-            None,
+            None,  # type: ignore[arg-type]
             unavailable,
             unavailable,
         )
 
 
-def test_concurrent_read_reports_busy_without_claiming_success():
+def test_concurrent_read_reports_busy_without_claiming_success() -> None:
     now = datetime.now(UTC)
     busy = LocalCatalogSnapshotV1("unavailable", "collection_in_progress", None, None)
     value = LocalCatalogViewV1(
@@ -97,7 +102,7 @@ def test_concurrent_read_reports_busy_without_claiming_success():
     assert value.installed.reason == "collection_in_progress"
 
 
-def test_deadline_exceeded_is_distinct_from_empty():
+def test_deadline_exceeded_is_distinct_from_empty() -> None:
     now = datetime.now(UTC)
     timed_out = LocalCatalogSnapshotV1(
         "unavailable", "operation_deadline_exceeded", now, None

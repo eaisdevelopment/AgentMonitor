@@ -9,6 +9,7 @@ import secrets
 import stat
 from collections.abc import Callable
 from pathlib import Path
+from typing import Any
 
 from agentmonitor.adapters.persistence._shared.sqlite.core.policy import (
     DatabaseRefV1,
@@ -110,7 +111,7 @@ def _preserve_interrupted_journal(transition: _TransitionLease) -> None:
         os.close(directory)
 
 
-def _receipt(data: dict) -> QuiescentStopReceipt:
+def _receipt(data: dict[str, Any]) -> QuiescentStopReceipt:
     raw = data.get("stop_receipt")
     keys = {
         "unit",
@@ -145,7 +146,9 @@ def _receipt(data: dict) -> QuiescentStopReceipt:
     )
 
 
-def _validate_stopped_journal(data: dict, receipt: QuiescentStopReceipt) -> None:
+def _validate_stopped_journal(
+    data: dict[str, Any], receipt: QuiescentStopReceipt
+) -> None:
     required = {
         "format",
         "phase",
