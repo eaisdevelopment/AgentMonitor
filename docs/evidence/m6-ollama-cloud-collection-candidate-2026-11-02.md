@@ -128,6 +128,80 @@ that change. A queued unit can still appear after an absent-unit check and the
 marker blocks another attempt, but cannot prove the unit has stopped; worker
 activation and settled-shutdown claims remain blocked.
 
+## Interrupted worker-start recovery correction
+
+Scope: `M6-T015`, `M6-T016`, `M6-A07`, `M6-A09`, `FR-COL-006`,
+`FR-SAFE-002`, `NFR-SEC-001`, `NFR-RES-001` and the `AC-OPS-003`
+contribution. This correction changes the private A01 composition runtime only;
+it does not change a published contract, API, schema, provider source
+fingerprint or dependency.
+
+The pre-change Red used real isolated systemd user services and the real local
+filesystem. Cancellation left the private uncertainty marker permanently
+quarantined, so two restart checks returned `quarantined` instead of
+`recovered`. A late exact worker process also reached its ordinary startup path
+instead of returning the private revoked-start exit status. The focused Red was
+three failures with seven tests deselected.
+
+```text
+python -m pytest -q backend/tests/adapters/providers/ollama/test_cloud_worker_boundary.py -k 'cancelled_real_worker_start_is_recovered_before_reuse or worker_requires_parent_start_authority_before_database_access or real_transient_start_interruption_leaves_no_owned_unit'
+3 failed, 7 deselected
+```
+
+The corrected supervisor passes a one-shot start authority to the transient
+unit over `systemd-run --pipe`. The child consumes the exact authority before it
+opens SQLite, the configured credential file or any provider boundary. The
+parent grants it only after checking the exact transient unit description,
+executable, arguments, invocation and bounded systemd properties. Parent death,
+cancellation or a timed-out start closes the sole writer, so a later accepted
+unit receives EOF and exits before owned-state or provider I/O. The fsynced
+marker is then a recoverable exact-unit record: the next supervisor invocation
+either stops the exact AgentMonitor unit and returns `recovered`, or retains a
+truthful unavailable state. A differently configured lookalike unit is refused
+and remains untouched. Recovery performs no provider work in the same cycle.
+
+Provider-free Green evidence:
+
+```text
+PYTHONDONTWRITEBYTECODE=1 python -B -m pytest -q -p tools.automation.pytest_no_skip backend/tests/adapters/providers/ollama/test_cloud_worker_boundary.py -k 'not real_anonymous_provider_helper_is_contained_by_transient_unit'
+12 passed, 1 deselected
+
+PYTHONDONTWRITEBYTECODE=1 python -B -m pytest -q -p tools.automation.pytest_no_skip backend/tests/adapters/providers/ollama/test_cloud_recovery_status.py
+1 passed
+```
+
+- 12 real worker-boundary checks passed with the pre-existing anonymous
+  provider check explicitly deselected. They include real cancellation, a
+  SIGKILLed AgentMonitor test supervisor, an exact late systemd replay with EOF,
+  a real file-backed SQLite permission tripwire, cross-process serialization,
+  exact-unit cleanup, a live lookalike unit that was not stopped and lock-inode
+  replacement refusal.
+- The late replay exited with private status 5 before SQLite access; it created
+  no WAL/SHM or managed-credential staging file. The original database mode was
+  restored in test cleanup.
+- The separate recovery-status check passed. Ruff and strict mypy passed for
+  the changed runtime, and `git diff --check` was clean.
+
+The governing plan does not require the 20-second manager-cleanup bound to
+equal the transient unit's 30-second runtime bound. If an already-authorized
+unit outlives manager cleanup, the exact marker remains and another attempt is
+not admitted; systemd still applies the existing 30-second runtime ceiling.
+That slow-manager boundary was not naturally reproduced, so settled shutdown
+under that condition remains Not Run rather than being reported as passed.
+An invalid marker or exact-unit identity is quarantined; a manager failure while
+checking that identity can therefore require a clean dashboard-service retry
+before another recovery attempt. Recovery across a simultaneous deployment
+configuration change is also fail-closed because the prior unit must match the
+current credential-path and recovery-only arguments. Neither limitation admits
+work or targets another process, and neither boundary was naturally exercised.
+Authenticated cloud work, credentials, the selected `.env`, provider profiles,
+the installed dashboard, user agents and live provider data were not used by
+the correction checks. A prior exploratory full-file run inadvertently invoked
+the pre-existing anonymous official-endpoint containment check once; it used no
+account or key and retained no payload, but it is outside this correction's
+evidence and is not counted. Independent integration review and the canonical
+M6 completion gate remain required.
+
 ## Populated cloud-target migration correction
 
 The first real private-copy upgrade from v1_0707 failed at commit with a deferred

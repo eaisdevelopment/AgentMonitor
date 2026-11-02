@@ -1,9 +1,30 @@
 """Exercise the real unadmitted local worker without a provider request."""
 
 import asyncio
+import os
+import subprocess
+import sys
+import time
+import uuid
 from pathlib import Path
 
+from agentmonitor.adapters.persistence._shared.sqlite.core.policy import DatabaseRefV1
+from agentmonitor.adapters.persistence._shared.sqlite.schema.compatibility import (
+    migrate_to_head,
+)
 from agentmonitor.composition.ollama_cloud_worker import OllamaCloudWorkerSupervisorV1
+
+
+def _test_runtime_environment() -> dict[str, str]:
+    runtime_dir = f"/run/user/{os.getuid()}"
+    return {
+        "PATH": "/usr/bin:/bin",
+        "PYTHONPATH": str(Path(__file__).resolve().parents[4] / "src"),
+        "XDG_RUNTIME_DIR": runtime_dir,
+        "DBUS_SESSION_BUS_ADDRESS": f"unix:path={runtime_dir}/bus",
+        "LC_ALL": "C.UTF-8",
+        "PYTHONDONTWRITEBYTECODE": "1",
+    }
 
 
 def test_real_unadmitted_worker_does_not_create_database(tmp_path: Path) -> None:
@@ -12,25 +33,150 @@ def test_real_unadmitted_worker_does_not_create_database(tmp_path: Path) -> None
     assert not (tmp_path / "agentmonitor.db").exists()
 
 
-def test_cancelled_real_worker_is_quarantined(tmp_path: Path) -> None:
+def test_cancelled_real_worker_start_is_recovered_before_reuse(tmp_path: Path) -> None:
     async def exercise() -> None:
         worker = OllamaCloudWorkerSupervisorV1(tmp_path)
         task = asyncio.create_task(worker.run_once())
-        await asyncio.sleep(0)
+        while not worker.last_unit and not task.done():
+            await asyncio.sleep(0.001)
+        assert worker.last_unit
         task.cancel()
         try:
             await task
         except asyncio.CancelledError:
             pass
-        assert await worker.run_once() == "quarantined"
+        assert await worker.run_once() == "recovered"
+        assert await worker.run_once() == "not_admitted"
 
     asyncio.run(exercise())
     assert not (tmp_path / "agentmonitor.db").exists()
 
 
-def test_real_worker_uses_private_transient_unit_and_cleans_it(tmp_path: Path) -> None:
-    import subprocess
+def test_worker_requires_parent_start_authority_before_database_access(
+    tmp_path: Path,
+) -> None:
+    """A late worker gets EOF, not permission to inspect SQLite or credentials."""
+    token = uuid.uuid4().hex
+    process = subprocess.Popen(
+        [
+            sys.executable,
+            "-m",
+            "agentmonitor.composition.ollama_cloud_worker",
+            "--data-root",
+            str(tmp_path),
+            "--start-authority",
+            token,
+        ],
+        stdin=subprocess.PIPE,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+        close_fds=True,
+        env=_test_runtime_environment(),
+    )
+    assert process.stdin is not None
+    process.stdin.close()
+    assert process.wait(timeout=5) == 5
+    assert not (tmp_path / "agentmonitor.db").exists()
 
+
+def test_cancelled_start_replayed_late_is_revoked_before_worker_io(
+    tmp_path: Path,
+) -> None:
+    async def interrupt() -> str:
+        worker = OllamaCloudWorkerSupervisorV1(tmp_path)
+        task = asyncio.create_task(worker.run_once())
+        while not worker.last_unit and not task.done():
+            await asyncio.sleep(0.001)
+        assert worker.last_unit
+        task.cancel()
+        try:
+            await task
+        except asyncio.CancelledError:
+            pass
+        return worker.last_unit
+
+    unit = asyncio.run(interrupt())
+    token = unit.removeprefix("agentmonitor-cloud-worker-").removesuffix(".service")
+    database_path = tmp_path / "agentmonitor.db"
+    reference = DatabaseRefV1(database_path, tmp_path)
+    migrate_to_head(reference)
+    assert os.geteuid() != 0
+    database_path.chmod(0)
+    environment = _test_runtime_environment()
+    command = [
+        "/usr/bin/systemd-run",
+        "--user",
+        "--quiet",
+        "--pipe",
+        "--unit=" + unit,
+        "--description=AgentMonitor cloud worker " + token,
+        "--property=KillMode=control-group",
+        "--property=RuntimeMaxSec=30s",
+        "--property=LimitCORE=0",
+        "--property=TimeoutStopSec=3s",
+        "--property=RemainAfterExit=yes",
+    ]
+    command += ["--setenv=" + key + "=" + value for key, value in environment.items()]
+    command += [
+        sys.executable,
+        "-m",
+        "agentmonitor.composition.ollama_cloud_worker",
+        "--data-root",
+        str(tmp_path),
+        "--start-authority",
+        token,
+    ]
+    try:
+        replay = subprocess.run(
+            command,
+            stdin=subprocess.DEVNULL,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            env=_test_runtime_environment(),
+            check=False,
+            timeout=8,
+        )
+        assert replay.returncode == 5
+        status = subprocess.run(
+            [
+                "/usr/bin/systemctl",
+                "--user",
+                "show",
+                unit,
+                "--property=ExecMainStatus",
+                "--value",
+            ],
+            check=False,
+            capture_output=True,
+            text=True,
+            timeout=5,
+        )
+        assert status.stdout.strip() == "5"
+        assert not Path(str(database_path) + "-wal").exists()
+        assert not Path(str(database_path) + "-shm").exists()
+        assert not any(tmp_path.glob(".ollama-env*"))
+    finally:
+        database_path.chmod(0o600)
+        subprocess.run(
+            ["/usr/bin/systemctl", "--user", "stop", unit],
+            check=False,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            timeout=8,
+        )
+        subprocess.run(
+            ["/usr/bin/systemctl", "--user", "reset-failed", unit],
+            check=False,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            timeout=8,
+        )
+
+    restarted = OllamaCloudWorkerSupervisorV1(tmp_path)
+    assert asyncio.run(restarted.run_once()) == "recovered"
+
+
+def test_real_worker_uses_private_transient_unit_and_cleans_it(tmp_path: Path) -> None:
     worker = OllamaCloudWorkerSupervisorV1(tmp_path)
     assert asyncio.run(worker.run_once()) == "not_admitted"
     unit = worker.last_unit
@@ -47,8 +193,6 @@ def test_real_worker_uses_private_transient_unit_and_cleans_it(tmp_path: Path) -
 
 
 def test_real_transient_start_interruption_leaves_no_owned_unit(tmp_path: Path) -> None:
-    import subprocess
-
     async def exercise() -> str:
         worker = OllamaCloudWorkerSupervisorV1(tmp_path)
         task = asyncio.create_task(worker.run_once())
@@ -61,7 +205,7 @@ def test_real_transient_start_interruption_leaves_no_owned_unit(tmp_path: Path) 
             await task
         except asyncio.CancelledError:
             pass
-        assert await worker.run_once() == "quarantined"
+        assert await worker.run_once() == "recovered"
         return unit
 
     unit = asyncio.run(exercise())
@@ -73,6 +217,78 @@ def test_real_transient_start_interruption_leaves_no_owned_unit(tmp_path: Path) 
         timeout=5,
     )
     assert result.stdout.strip() == "not-found"
+
+
+def test_real_supervisor_death_recovers_recorded_unit(tmp_path: Path) -> None:
+    program = (
+        "import asyncio,sys; "
+        "from pathlib import Path; "
+        "from agentmonitor.composition.ollama_cloud_worker import "
+        "OllamaCloudWorkerSupervisorV1; "
+        "asyncio.run(OllamaCloudWorkerSupervisorV1(Path(sys.argv[1])).run_once())"
+    )
+    process = subprocess.Popen(
+        [sys.executable, "-B", "-c", program, str(tmp_path)],
+        stdin=subprocess.DEVNULL,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+        close_fds=True,
+        env=_test_runtime_environment(),
+    )
+    marker = tmp_path / ".ollama-cloud-worker.lock"
+    unit = ""
+    try:
+        for _ in range(5000):
+            try:
+                unit = marker.read_text(encoding="ascii").strip()
+            except FileNotFoundError:
+                pass
+            if unit or process.poll() is not None:
+                break
+            # This observes a real fsynced marker; it does not delay production I/O.
+            time.sleep(0.0005)
+        assert unit
+        assert process.poll() is None
+        process.kill()
+        assert process.wait(timeout=5) < 0
+
+        restarted = OllamaCloudWorkerSupervisorV1(tmp_path)
+        assert asyncio.run(restarted.run_once()) == "recovered"
+        assert asyncio.run(restarted.run_once()) == "not_admitted"
+        result = subprocess.run(
+            [
+                "/usr/bin/systemctl",
+                "--user",
+                "show",
+                unit,
+                "--property=LoadState",
+                "--value",
+            ],
+            check=False,
+            capture_output=True,
+            text=True,
+            timeout=5,
+        )
+        assert result.stdout.strip() == "not-found"
+    finally:
+        if process.poll() is None:
+            process.kill()
+            process.wait(timeout=5)
+        if unit:
+            subprocess.run(
+                ["/usr/bin/systemctl", "--user", "stop", unit],
+                check=False,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                timeout=8,
+            )
+            subprocess.run(
+                ["/usr/bin/systemctl", "--user", "reset-failed", unit],
+                check=False,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                timeout=8,
+            )
 
 
 def test_real_supervisors_serialize_unit_startup(tmp_path: Path) -> None:
@@ -87,8 +303,6 @@ def test_real_supervisors_serialize_unit_startup(tmp_path: Path) -> None:
 
 
 def test_independent_real_processes_serialize_unit_startup(tmp_path: Path) -> None:
-    import sys
-
     async def exercise() -> None:
         program = (
             "import asyncio,sys; "
@@ -107,6 +321,7 @@ def test_independent_real_processes_serialize_unit_startup(tmp_path: Path) -> No
                 stdin=asyncio.subprocess.PIPE,
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
+                env=_test_runtime_environment(),
             )
             for _ in range(2)
         ]
@@ -141,11 +356,6 @@ def test_independent_real_processes_serialize_unit_startup(tmp_path: Path) -> No
 
 def test_real_anonymous_provider_helper_is_contained_by_transient_unit() -> None:
     """Interrupt the real fixed anonymous source, with no account or secret."""
-    import subprocess
-    import sys
-    import time
-    import uuid
-
     unit = "agentmonitor-cloud-helper-proof-" + uuid.uuid4().hex + ".service"
     source = str(Path(__file__).resolve().parents[4] / "src")
     script = (
@@ -236,9 +446,58 @@ def test_ambiguous_systemd_arguments_quarantine_space_path(tmp_path: Path) -> No
     assert not (data_root / "agentmonitor.db").exists()
 
 
-def test_real_replaced_lock_inode_is_rejected(tmp_path: Path) -> None:
-    import os
+def test_real_lookalike_unit_is_never_stopped(tmp_path: Path) -> None:
+    unit = "agentmonitor-cloud-worker-" + uuid.uuid4().hex + ".service"
+    started = subprocess.run(
+        [
+            "/usr/bin/systemd-run",
+            "--user",
+            "--quiet",
+            "--unit=" + unit,
+            "/usr/bin/sleep",
+            "30",
+        ],
+        check=False,
+        capture_output=True,
+        timeout=8,
+    )
+    assert started.returncode == 0
+    try:
+        worker = OllamaCloudWorkerSupervisorV1(tmp_path)
+        assert asyncio.run(worker.run_once()) == "quarantined"
+        state = subprocess.run(
+            [
+                "/usr/bin/systemctl",
+                "--user",
+                "show",
+                unit,
+                "--property=ActiveState",
+                "--value",
+            ],
+            check=False,
+            capture_output=True,
+            text=True,
+            timeout=5,
+        )
+        assert state.stdout.strip() == "active"
+    finally:
+        subprocess.run(
+            ["/usr/bin/systemctl", "--user", "stop", unit],
+            check=False,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            timeout=8,
+        )
+        subprocess.run(
+            ["/usr/bin/systemctl", "--user", "reset-failed", unit],
+            check=False,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            timeout=8,
+        )
 
+
+def test_real_replaced_lock_inode_is_rejected(tmp_path: Path) -> None:
     worker = OllamaCloudWorkerSupervisorV1(tmp_path)
     descriptor = worker._acquire_lock()
     worker._lock_fd = descriptor

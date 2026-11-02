@@ -1,4 +1,4 @@
-"""Unwired transient-unit supervisor for optional Ollama cloud work."""
+"""Transient-unit supervisor for optional Ollama cloud work."""
 
 from __future__ import annotations
 
@@ -6,9 +6,11 @@ import argparse
 import asyncio
 import fcntl
 import os
+import select
 import shlex
 import stat
 import sys
+import time
 import uuid
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
@@ -46,12 +48,49 @@ def _manager_environment() -> dict[str, str]:
 
 _COMMAND_TIMEOUT_SECONDS = 8
 _CLEANUP_TIMEOUT_SECONDS = 20
+_START_AUTHORITY_TIMEOUT_SECONDS = 8
+_START_AUTHORIZATION_REVOKED_EXIT = 5
 _T = TypeVar("_T")
 
 
 def recovery_exit_code(rate_state: str) -> int:
     """Unknown recovery states never report a successful drain."""
     return 0 if rate_state in {"idle", "recovered"} else 4
+
+
+def _valid_start_token(token: str) -> bool:
+    return len(token) == 32 and all(
+        character in "0123456789abcdef" for character in token
+    )
+
+
+def _consume_start_authority(token: str) -> bool:
+    """Consume one parent-issued start grant before opening any owned state."""
+    if not _valid_start_token(token):
+        return False
+    expected = ("START " + token + "\n").encode("ascii")
+    received = bytearray()
+    deadline = time.monotonic() + _START_AUTHORITY_TIMEOUT_SECONDS
+    while len(received) <= len(expected):
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            return False
+        try:
+            ready, _, _ = select.select([sys.stdin.fileno()], [], [], remaining)
+        except (OSError, ValueError):
+            return False
+        if not ready:
+            return False
+        try:
+            chunk = os.read(sys.stdin.fileno(), len(expected) + 1 - len(received))
+        except OSError:
+            return False
+        if not chunk:
+            return False
+        received.extend(chunk)
+        if b"\n" in received:
+            return bytes(received) == expected
+    return False
 
 
 class OllamaCloudWorkerSupervisorV1:
@@ -174,6 +213,28 @@ class OllamaCloudWorkerSupervisorV1:
             raise ValueError("ollama_cloud_unit_output_invalid")
         return process.returncode or 0, output.decode("utf-8", "strict")
 
+    @staticmethod
+    async def _start_command(authority_reader: int, *args: str) -> int:
+        """Start through the real manager while passing only the read authority."""
+        process = await asyncio.create_subprocess_exec(
+            *args,
+            stdin=authority_reader,
+            stdout=asyncio.subprocess.DEVNULL,
+            stderr=asyncio.subprocess.DEVNULL,
+            env=_manager_environment(),
+        )
+        try:
+            await asyncio.wait_for(process.wait(), _COMMAND_TIMEOUT_SECONDS)
+        except (TimeoutError, asyncio.CancelledError):
+            if process.returncode is None:
+                process.kill()
+                try:
+                    await asyncio.wait_for(process.wait(), 2)
+                except TimeoutError:
+                    pass
+            raise
+        return process.returncode or 0
+
     async def _show(self, unit: str) -> dict[str, str]:
         code, output = await self._command(
             _SYSTEMCTL,
@@ -194,7 +255,13 @@ class OllamaCloudWorkerSupervisorV1:
             raise ValueError("ollama_cloud_unit_identity_invalid")
         return result
 
-    def _identity(self, unit: str, description: str, properties: dict[str, str]) -> str:
+    def _identity(
+        self,
+        unit: str,
+        description: str,
+        start_token: str,
+        properties: dict[str, str],
+    ) -> str:
         invocation = properties.get("InvocationID", "")
         fragment = f"/run/user/{os.getuid()}/systemd/transient/{unit}"
         executable = str(Path(sys.executable))
@@ -215,6 +282,7 @@ class OllamaCloudWorkerSupervisorV1:
             expected_argv += ["--credential-env-file", str(self._credential_env_file)]
         if self._active_recovery_only:
             expected_argv.append("--recovery-only")
+        expected_argv += ["--start-authority", start_token]
         if (
             properties.get("Id") != unit
             or properties.get("Description") != description
@@ -233,10 +301,16 @@ class OllamaCloudWorkerSupervisorV1:
             raise ValueError("ollama_cloud_unit_identity_invalid")
         return invocation
 
-    async def _stop_owned(self, unit: str, description: str, invocation: str) -> bool:
+    async def _stop_owned(
+        self,
+        unit: str,
+        description: str,
+        start_token: str,
+        invocation: str,
+    ) -> bool:
         try:
             before = await self._show(unit)
-            if self._identity(unit, description, before) != invocation:
+            if self._identity(unit, description, start_token, before) != invocation:
                 return False
             code, _ = await self._command(_SYSTEMCTL, "--user", "stop", unit)
             if code:
@@ -245,7 +319,7 @@ class OllamaCloudWorkerSupervisorV1:
             if (
                 after.get("Id") == unit
                 and after.get("FragmentPath")
-                and self._identity(unit, description, after) != invocation
+                and self._identity(unit, description, start_token, after) != invocation
             ):
                 return False
             if after.get("Id") == unit and after.get("ActiveState") not in {
@@ -300,29 +374,64 @@ class OllamaCloudWorkerSupervisorV1:
         self,
         unit: str,
         description: str,
-        start: asyncio.Task[tuple[int, str]],
-    ) -> None:
+        start_token: str,
+        start: asyncio.Task[int],
+    ) -> bool:
         deadline = asyncio.get_running_loop().time() + _CLEANUP_TIMEOUT_SECONDS
         try:
+            cleaned = False
+            try:
+                properties = await self._finish_cleanup(
+                    asyncio.create_task(self._show(unit)), deadline
+                )
+                if (
+                    properties is not None
+                    and properties.get("LoadState") != "not-found"
+                ):
+                    invocation = self._identity(
+                        unit, description, start_token, properties
+                    )
+                    cleaned = (
+                        await self._finish_cleanup(
+                            asyncio.create_task(
+                                self._stop_owned(
+                                    unit, description, start_token, invocation
+                                )
+                            ),
+                            deadline,
+                        )
+                        is True
+                    )
+            except (OSError, ValueError, RuntimeError, TimeoutError):
+                pass
             try:
                 await self._finish_cleanup(start, deadline)
             except (OSError, ValueError, RuntimeError, TimeoutError):
                 # A timed-out manager client may nevertheless have queued the unit.
                 pass
             if asyncio.get_running_loop().time() >= deadline:
-                return
+                return False
             properties = await self._finish_cleanup(
                 asyncio.create_task(self._show(unit)), deadline
             )
             if properties is None:
-                return
-            invocation = self._identity(unit, description, properties)
-            await self._finish_cleanup(
-                asyncio.create_task(self._stop_owned(unit, description, invocation)),
+                return False
+            if (
+                properties.get("LoadState") == "not-found"
+                and not properties.get("FragmentPath")
+                and not properties.get("ControlGroup")
+            ):
+                return True
+            invocation = self._identity(unit, description, start_token, properties)
+            final_cleaned = await self._finish_cleanup(
+                asyncio.create_task(
+                    self._stop_owned(unit, description, start_token, invocation)
+                ),
                 deadline,
             )
+            return cleaned or final_cleaned is True
         except (OSError, ValueError, RuntimeError, TimeoutError):
-            return
+            return False
 
     def _acquire_lock(self) -> int:
         directory = os.open(
@@ -353,8 +462,6 @@ class OllamaCloudWorkerSupervisorV1:
             self._root_fd = directory
             self._lock_fd = descriptor
             self._verify_lock()
-            if os.read(descriptor, 129):
-                raise ValueError("ollama_cloud_previous_start_unresolved")
             return descriptor
         except BaseException:
             if descriptor is not None:
@@ -394,16 +501,71 @@ class OllamaCloudWorkerSupervisorV1:
             raise ValueError("ollama_cloud_lock_missing")
         self._verify_lock()
         data = (unit + "\n").encode("ascii")
+        os.ftruncate(self._lock_fd, 0)
+        os.lseek(self._lock_fd, 0, os.SEEK_SET)
         if os.write(self._lock_fd, data) != len(data):
             raise ValueError("ollama_cloud_marker_write_failed")
         os.fsync(self._lock_fd)
+
+    def _read_marker(self) -> str:
+        if self._lock_fd is None:
+            raise ValueError("ollama_cloud_lock_missing")
+        self._verify_lock()
+        os.lseek(self._lock_fd, 0, os.SEEK_SET)
+        data = os.read(self._lock_fd, 129)
+        if len(data) > 128:
+            raise ValueError("ollama_cloud_marker_invalid")
+        try:
+            marker = data.decode("ascii")
+        except UnicodeDecodeError:
+            raise ValueError("ollama_cloud_marker_invalid") from None
+        if not marker:
+            return ""
+        if marker.count("\n") != 1 or not marker.endswith("\n"):
+            raise ValueError("ollama_cloud_marker_invalid")
+        unit = marker[:-1]
+        self._unit_token(unit)
+        return unit
 
     def _clear_marker(self) -> None:
         if self._lock_fd is None:
             raise ValueError("ollama_cloud_lock_missing")
         self._verify_lock()
         os.ftruncate(self._lock_fd, 0)
+        os.lseek(self._lock_fd, 0, os.SEEK_SET)
         os.fsync(self._lock_fd)
+
+    @staticmethod
+    def _unit_token(unit: str) -> str:
+        suffix = ".service"
+        if not unit.startswith(_PREFIX) or not unit.endswith(suffix):
+            raise ValueError("ollama_cloud_unit_identity_invalid")
+        token = unit[len(_PREFIX) : -len(suffix)]
+        if not _valid_start_token(token):
+            raise ValueError("ollama_cloud_unit_identity_invalid")
+        return token
+
+    async def _recover_recorded_start(self, unit: str) -> bool:
+        token = self._unit_token(unit)
+        description = "AgentMonitor cloud worker " + token
+        properties = await self._show(unit)
+        if (
+            properties.get("LoadState") == "not-found"
+            and not properties.get("FragmentPath")
+            and not properties.get("ControlGroup")
+        ):
+            return True
+        invocation = self._identity(unit, description, token, properties)
+        return await self._stop_owned(unit, description, token, invocation)
+
+    async def _recover_listed_units(self, listing: str) -> bool:
+        units = [line.split(maxsplit=1)[0] for line in listing.splitlines() if line]
+        if not units or len(units) > 8 or len(set(units)) != len(units):
+            return False
+        for unit in units:
+            if not await self._recover_recorded_start(unit):
+                return False
+        return True
 
     async def run_once(self, *, recovery_only: bool = False) -> str:
         if self._quarantined:
@@ -418,9 +580,21 @@ class OllamaCloudWorkerSupervisorV1:
             except (OSError, ValueError):
                 self._quarantined = True
                 return "quarantined"
+            try:
+                marker = self._read_marker()
+                if marker:
+                    self._recovery_unresolved = True
+                    if not await self._recover_recorded_start(marker):
+                        return "recovery_unresolved"
+                    self._clear_marker()
+                    self._recovery_unresolved = False
+                    return "recovered"
+            except (OSError, ValueError, RuntimeError, TimeoutError):
+                self._quarantined = True
+                return "quarantined"
             return await self._run_transient()
         except asyncio.CancelledError:
-            self._quarantined = True
+            self._recovery_unresolved = True
             raise
         finally:
             if self._lock_fd is not None:
@@ -450,7 +624,15 @@ class OllamaCloudWorkerSupervisorV1:
             "--no-legend",
             _PREFIX + "*.service",
         )
-        if code or existing.strip():
+        if code:
+            self._quarantined = True
+            return "quarantined"
+        if existing.strip():
+            try:
+                if await self._recover_listed_units(existing):
+                    return "recovered"
+            except (OSError, ValueError, RuntimeError, TimeoutError):
+                pass
             self._quarantined = True
             return "quarantined"
         token = uuid.uuid4().hex
@@ -463,6 +645,7 @@ class OllamaCloudWorkerSupervisorV1:
             _SYSTEMD_RUN,
             "--user",
             "--quiet",
+            "--pipe",
             "--unit=" + unit,
             "--description=" + description,
             "--property=KillMode=control-group",
@@ -485,32 +668,55 @@ class OllamaCloudWorkerSupervisorV1:
             command += ["--credential-env-file", str(self._credential_env_file)]
         if self._active_recovery_only:
             command.append("--recovery-only")
+        command += ["--start-authority", token]
         self._mark_start(unit)
         if self._lock_fd is None:
             raise ValueError("ollama_cloud_lock_missing")
         self._verify_lock()
-        start = asyncio.create_task(self._command(*command, pass_fds=(self._lock_fd,)))
+        authority_reader, authority_writer = os.pipe2(os.O_CLOEXEC)
+        start = asyncio.create_task(self._start_command(authority_reader, *command))
         try:
-            code, _ = await asyncio.shield(start)
-            if code:
-                self._quarantined = True
-                await self._cancelled_cleanup(unit, description, start)
-                return "quarantined"
-            properties = await self._show(unit)
-            invocation = self._identity(unit, description, properties)
+            start_deadline = (
+                asyncio.get_running_loop().time() + _COMMAND_TIMEOUT_SECONDS
+            )
+            invocation = ""
+            while asyncio.get_running_loop().time() < start_deadline:
+                if start.done():
+                    code = await asyncio.shield(start)
+                    if code:
+                        raise ValueError("ollama_cloud_unit_start_failed")
+                properties = await self._show(unit)
+                if properties.get("LoadState") != "not-found":
+                    invocation = self._identity(unit, description, token, properties)
+                    break
+                await asyncio.sleep(0.05)
+            if not invocation:
+                raise TimeoutError("ollama_cloud_unit_start_timeout")
+            self._verify_lock()
+            authority = ("START " + token + "\n").encode("ascii")
+            if os.write(authority_writer, authority) != len(authority):
+                raise ValueError("ollama_cloud_start_authority_write_failed")
+            os.close(authority_writer)
+            authority_writer = -1
             for _ in range(300):
                 properties = await self._show(unit)
-                if self._identity(unit, description, properties) != invocation:
+                if self._identity(unit, description, token, properties) != invocation:
                     raise ValueError("ollama_cloud_unit_identity_changed")
                 if properties.get("ActiveState") in {"failed", "inactive"} or (
                     properties.get("ActiveState") == "active"
                     and not properties.get("ControlGroup")
                 ):
                     status = properties.get("ExecMainStatus")
-                    clean = await self._stop_owned(unit, description, invocation)
+                    clean = await self._stop_owned(unit, description, token, invocation)
                     if not clean:
-                        self._quarantined = True
-                        return "quarantined"
+                        self._recovery_unresolved = True
+                        return "recovery_unresolved"
+                    await self._finish_cleanup(
+                        start, asyncio.get_running_loop().time() + 5
+                    )
+                    if not start.done():
+                        self._recovery_unresolved = True
+                        return "recovery_unresolved"
                     self._clear_marker()
                     self._recovery_unresolved = status not in {"0", "3"}
                     return (
@@ -523,17 +729,31 @@ class OllamaCloudWorkerSupervisorV1:
                         else "unavailable"
                     )
                 await asyncio.sleep(0.1)
-            self._quarantined = True
-            await self._stop_owned(unit, description, invocation)
+            clean = await self._stop_owned(unit, description, token, invocation)
+            if clean:
+                self._clear_marker()
+            else:
+                self._recovery_unresolved = True
             return "worker_timeout"
         except asyncio.CancelledError:
-            self._quarantined = True
-            await self._cancelled_cleanup(unit, description, start)
+            if authority_writer >= 0:
+                os.close(authority_writer)
+                authority_writer = -1
+            self._recovery_unresolved = True
+            await self._cancelled_cleanup(unit, description, token, start)
             raise
         except (OSError, ValueError, RuntimeError, TimeoutError):
-            self._quarantined = True
-            await self._cancelled_cleanup(unit, description, start)
-            return "quarantined"
+            if authority_writer >= 0:
+                os.close(authority_writer)
+                authority_writer = -1
+            self._recovery_unresolved = True
+            await self._cancelled_cleanup(unit, description, token, start)
+            return "recovery_unresolved"
+        finally:
+            if authority_writer >= 0:
+                os.close(authority_writer)
+            if authority_reader >= 0:
+                os.close(authority_reader)
 
     async def run(self) -> None:
         self._lifecycle_running = True
@@ -567,9 +787,12 @@ def main() -> int:
     parser.add_argument("--data-root", required=True, type=Path)
     parser.add_argument("--credential-env-file", type=Path)
     parser.add_argument("--recovery-only", action="store_true")
+    parser.add_argument("--start-authority", required=True)
     args = parser.parse_args()
     if not args.data_root.is_absolute() or args.data_root in {Path("/"), Path.home()}:
         return 2
+    if not _consume_start_authority(args.start_authority):
+        return _START_AUTHORIZATION_REVOKED_EXIT
     if not (args.data_root / "agentmonitor.db").is_file():
         return 3
     try:
