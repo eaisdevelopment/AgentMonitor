@@ -6,7 +6,11 @@ import hashlib
 import json
 import re
 import secrets
+from collections.abc import Callable
 from datetime import UTC, datetime, timedelta
+
+from sqlalchemy.engine import Connection, RowMapping
+from sqlalchemy.exc import SQLAlchemyError
 
 from agentmonitor.adapters.persistence._shared.sqlite.core.policy import (
     DatabaseRefV1,
@@ -40,6 +44,7 @@ from agentmonitor.contracts.common_v1 import (
     QueryAvailabilityV1,
 )
 from agentmonitor.contracts.events_v1 import DurableEventBatchV1, DurableEventV1
+from agentmonitor.contracts.registry_v1 import ActiveCredentialBindingRefV1
 from agentmonitor.modules.capacity.application.ports import (
     CapacityCommittedPayloadPolicyV1,
     ClassifyCapacityProjectionV1,
@@ -47,8 +52,7 @@ from agentmonitor.modules.capacity.application.ports import (
     current_window_lifecycle_semantic_v1,
     omitted_current_window_keys_v1,
 )
-from sqlalchemy.engine import Connection, RowMapping
-from sqlalchemy.exc import SQLAlchemyError
+from agentmonitor.modules.capacity.domain.ollama_fence import require_capacity_fence
 
 
 class CapacityRepositoryErrorV1(ValueError):
@@ -472,8 +476,15 @@ class SqliteCapacityRepositoryV1:
     CONSUMER_KEY = "capacity"
     CONSUMER_VERSION = "1.0.0"
 
-    def __init__(self, database_ref: DatabaseRefV1) -> None:
+    def __init__(
+        self,
+        database_ref: DatabaseRefV1,
+        *,
+        credential_fence: Callable[[Connection, ActiveCredentialBindingRefV1], None]
+        | None = None,
+    ) -> None:
         self._database_ref = database_ref
+        self._credential_fence = credential_fence
         self._health_policy = ClassifyCapacityProjectionV1()
 
     def read_capacity_events(
@@ -1133,13 +1144,39 @@ class SqliteCapacityRepositoryV1:
         )
 
     def commit(self, request: CapacityCommitRequestV1) -> CapacityCommitReceiptV1:
-        """Commit an already-collected typed result; perform no provider I/O."""
+        """Commit a non-Ollama typed result; perform no provider I/O."""
+        require_capacity_fence(request.payload.subject.provider_key, False)
+        return self._commit_with_credential_fence(request, None)
+
+    def commit_ollama(
+        self, request: CapacityCommitRequestV1, binding: ActiveCredentialBindingRefV1
+    ) -> CapacityCommitReceiptV1:
+        """Commit an Ollama result only under a transaction-bound M02 fence."""
+        if (
+            request.payload.subject.provider_key != "ollama"
+            or binding.account_id != request.payload.subject.account_id
+            or self._credential_fence is None
+        ):
+            raise CapacityRepositoryErrorV1("ollama_credential_fence_invalid")
+        return self._commit_with_credential_fence(request, binding)
+
+    def _commit_with_credential_fence(
+        self,
+        request: CapacityCommitRequestV1,
+        binding: ActiveCredentialBindingRefV1 | None,
+    ) -> CapacityCommitReceiptV1:
         try:
             with open_sqlite_database(
                 self._database_ref, "runtime_read_write"
             ) as handle:
                 with handle.connect() as connection:
                     connection.exec_driver_sql("BEGIN IMMEDIATE")
+                    if binding is not None:
+                        if self._credential_fence is None:
+                            raise CapacityRepositoryErrorV1(
+                                "ollama_credential_fence_invalid"
+                            )
+                        self._credential_fence(connection, binding)
                     existing = (
                         connection.exec_driver_sql(
                             "SELECT * FROM capacity_commit_receipt WHERE "

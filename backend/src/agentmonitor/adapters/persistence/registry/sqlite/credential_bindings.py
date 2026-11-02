@@ -18,6 +18,7 @@ from agentmonitor.adapters.persistence.registry.sqlite.credential_lock import (
 )
 from agentmonitor.contracts.common_v1 import OpaqueIdV1
 from agentmonitor.contracts.registry_v1 import (
+    ActiveCredentialBindingRefV1,
     CredentialBindingAggregateV1,
     CredentialBindingRecordV1,
 )
@@ -27,6 +28,7 @@ from agentmonitor.modules.registry.domain.credential_binding import (
     complete_credential_binding_cleanup,
     disconnect_active_credential_binding,
     ensure_binding_visible_for_account,
+    ensure_credential_binding_commit_current,
     mark_pending_credential_binding_cleanup,
     new_credential_binding_aggregate,
     prepare_credential_binding,
@@ -68,6 +70,18 @@ def _load(
     result = CredentialBindingAggregateV1(account_id, state[0], state[1], bindings)
     ensure_binding_visible_for_account(result, account_lifecycle=account[1])
     return result
+
+
+def ensure_active_binding_in_transaction(
+    connection: Connection, reference: ActiveCredentialBindingRefV1
+) -> None:
+    """M02-owned adapter port: verify authority using the caller's write transaction."""
+    if not connection.in_transaction():
+        raise CredentialBindingRepositoryErrorV1(
+            "credential_binding_transaction_required"
+        )
+    aggregate = _load(connection, reference.account_id)
+    ensure_credential_binding_commit_current(aggregate, reference)
 
 
 def archive_bindings_in_transaction(
