@@ -64,7 +64,7 @@ concurrent replay path remain Not Run and require independent review.
 The candidate local operator is invoked with the installed Python environment:
 
 ```text
-python -m agentmonitor.composition.ollama_credential_operator --data-root DATA_ROOT
+python -B -m agentmonitor.composition.ollama_credential_operator --data-root DATA_ROOT
 ```
 
 It presents account names and accepts the key only through the no-echo prompt.
