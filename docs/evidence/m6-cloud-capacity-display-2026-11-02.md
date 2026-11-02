@@ -6,3 +6,10 @@ Constructed frontend and wire-projection presentation cases were removed because
 
 
 The API still does not expose source period start, verified team-pool identity, or shared-balance semantics. This slice does not implement cloud collection, deduplication, quota history or alerts, and does not establish M6 completion. No database migration or new dependency was introduced. Deployment and live validation remain outstanding.
+
+The prepared Ollama cloud connection copy maps an access-success state to the
+owner-provided account name and organization, without asserting provider identity.
+Its pure presentation check failed before the formatter existed and passes after
+it was added (`node --experimental-strip-types frontend/tests/pure/ollama-cloud-connection.mjs`).
+This formatter is not connected to a dashboard endpoint; no owner onboarding,
+credential entry, real account, browser display, or live verification is claimed.
