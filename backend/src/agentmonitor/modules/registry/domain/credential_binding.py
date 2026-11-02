@@ -160,7 +160,7 @@ def disconnect_active_credential_binding(
     expected_record_version: int,
     reason_code: DisconnectReasonV1,
 ) -> CredentialBindingAggregateV1:
-    """Disable scheduling and move the exact active binding to cleanup."""
+    """Disable scheduling and move every nonterminal binding to cleanup."""
     _ensure_record_version(aggregate, expected_record_version)
     if reason_code not in {
         "owner_disconnected",
@@ -168,9 +168,11 @@ def disconnect_active_credential_binding(
         "account_deleted",
     }:
         raise RegistryPolicyErrorV1("registry_credential_binding_reason_invalid")
-    active = tuple(item for item in aggregate.bindings if item.lifecycle == "active")
-    if len(active) != 1:
-        raise RegistryPolicyErrorV1("registry_credential_binding_state_invalid")
+    nonterminal = tuple(
+        item for item in aggregate.bindings if item.lifecycle in {"active", "pending"}
+    )
+    if not nonterminal:
+        return aggregate
     return CredentialBindingAggregateV1(
         account_id=aggregate.account_id,
         record_version=aggregate.record_version + 1,
@@ -193,6 +195,8 @@ def complete_credential_binding_cleanup(
     """Record cleanup only after the dedicated local item was actually cleared."""
     _ensure_record_version(aggregate, expected_record_version)
     target = _find_binding(aggregate, binding_id)
+    if target.lifecycle == "cleanup_complete":
+        return aggregate
     if target.lifecycle != "cleanup_pending":
         raise RegistryPolicyErrorV1("registry_credential_binding_state_invalid")
     return _replace_binding(

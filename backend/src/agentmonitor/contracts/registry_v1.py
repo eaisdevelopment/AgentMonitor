@@ -76,6 +76,15 @@ CredentialBindingReasonV1 = Literal[
 ]
 
 
+def _valid_credential_binding_id(value: OpaqueIdV1) -> bool:
+    binding_id = value.value
+    return (
+        len(binding_id) == 37
+        and binding_id.startswith("amcb_")
+        and all(character in "0123456789abcdef" for character in binding_id[5:])
+    )
+
+
 def _bounded(value: object, *, maximum: int = 256) -> bool:
     return (
         type(value) is str
@@ -291,8 +300,8 @@ class AccountViewV1(TechnicalValueV1):
 class CredentialBindingRecordV1(TechnicalValueV1):
     """Internal non-secret lifecycle record for one managed credential item.
 
-    This contract cannot carry a credential, fingerprint, prefix, account
-    identity, provider profile location, or keyring path. It is not an API view.
+    ``binding_id`` is a closed-shape application handle, not owner input. The
+    application must generate it internally; this contract is not an API view.
     """
 
     CONTRACT_ID: ClassVar[str] = "CTR-REG-011"
@@ -307,6 +316,8 @@ class CredentialBindingRecordV1(TechnicalValueV1):
 
     def __post_init__(self) -> None:
         TechnicalValueV1.__post_init__(self)
+        if not _valid_credential_binding_id(self.binding_id):
+            raise ValueError("registry_credential_binding_id_invalid")
         if type(self.generation) is not int or self.generation < 1:
             raise ValueError("registry_credential_binding_generation_invalid")
 
@@ -364,6 +375,8 @@ class ActiveCredentialBindingRefV1(TechnicalValueV1):
 
     def __post_init__(self) -> None:
         TechnicalValueV1.__post_init__(self)
+        if not _valid_credential_binding_id(self.binding_id):
+            raise ValueError("registry_credential_binding_id_invalid")
         if type(self.generation) is not int or self.generation < 1:
             raise ValueError("registry_credential_binding_generation_invalid")
 

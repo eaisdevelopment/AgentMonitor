@@ -24,8 +24,8 @@ from agentmonitor.modules.registry.domain.credential_binding import (
 )
 
 ACCOUNT_ID = OpaqueIdV1("account-1")
-FIRST_BINDING_ID = OpaqueIdV1("binding-1")
-SECOND_BINDING_ID = OpaqueIdV1("binding-2")
+FIRST_BINDING_ID = OpaqueIdV1(f"amcb_{'1' * 32}")
+SECOND_BINDING_ID = OpaqueIdV1(f"amcb_{'2' * 32}")
 
 
 def _active_first_binding() -> CredentialBindingAggregateV1:
@@ -63,6 +63,15 @@ def test_binding_contract_is_non_secret_and_owner_asserted() -> None:
             lifecycle="pending",
             generation=2,
             association_provenance=cast(Literal["owner_asserted"], "provider_verified"),
+            reason_code="owner_prepared",
+        )
+    with pytest.raises(ValueError, match="registry_credential_binding_id_invalid"):
+        CredentialBindingRecordV1(
+            account_id=ACCOUNT_ID,
+            binding_id=OpaqueIdV1("owner-supplied-arbitrary-value"),
+            lifecycle="pending",
+            generation=2,
+            association_provenance="owner_asserted",
             reason_code="owner_prepared",
         )
 
@@ -215,6 +224,32 @@ def test_disconnect_during_rotation_cleans_all_nonterminal_bindings() -> None:
     assert resolve_active_credential_binding(disconnected) is None
 
 
+def test_disconnect_pending_only_enrollment_is_safe_and_idempotent() -> None:
+    """M6-T004/T010: an unactivated enrollment remains owner-cleanable."""
+    initial = new_credential_binding_aggregate(ACCOUNT_ID)
+    pending = prepare_credential_binding(
+        initial,
+        binding_id=FIRST_BINDING_ID,
+        expected_record_version=0,
+    )
+
+    disconnected = disconnect_active_credential_binding(
+        pending,
+        expected_record_version=1,
+        reason_code="owner_disconnected",
+    )
+
+    assert disconnected.record_version == 2
+    assert disconnected.binding_generation == 1
+    assert disconnected.bindings[0].lifecycle == "cleanup_pending"
+    replay = disconnect_active_credential_binding(
+        disconnected,
+        expected_record_version=2,
+        reason_code="owner_disconnected",
+    )
+    assert replay == disconnected
+
+
 def test_cleanup_completion_is_explicit_and_failed_clear_stays_pending() -> None:
     """M6-T010: only a confirmed local clear completes registry cleanup."""
     active = _active_first_binding()
@@ -237,6 +272,12 @@ def test_cleanup_completion_is_explicit_and_failed_clear_stays_pending() -> None
     assert completed.binding_generation == 2
     assert completed.bindings[0].lifecycle == "cleanup_complete"
     assert completed.bindings[0].reason_code == "local_cleanup_completed"
+    replay = complete_credential_binding_cleanup(
+        completed,
+        binding_id=FIRST_BINDING_ID,
+        expected_record_version=4,
+    )
+    assert replay == completed
     with pytest.raises(
         RegistryPolicyErrorV1,
         match="registry_credential_binding_state_invalid",
@@ -273,7 +314,7 @@ def test_stale_or_conflicting_per_account_mutation_is_rejected() -> None:
     ):
         prepare_credential_binding(
             rotating,
-            binding_id=OpaqueIdV1("binding-3"),
+            binding_id=OpaqueIdV1(f"amcb_{'3' * 32}"),
             expected_record_version=3,
         )
 
