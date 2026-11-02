@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import { CsrfUnavailableError, providers, type AccountViewV1, type OllamaCloudConnectionStatusV1 } from "../../shared/api/client";
 import { OllamaCloudConnectionPanel } from "./OllamaCloudConnectionPanel";
@@ -10,34 +10,52 @@ export function OllamaCloudConnectionView({ account, onExpired, onProofUnavailab
   onProofUnavailable: () => void;
   onAccountReload: () => void;
 }>) {
-  const [connection, setConnection] = useState<OllamaCloudConnectionStatusV1 | null>(null);
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [connectionState, setConnectionState] = useState<{ accountId: string; value: OllamaCloudConnectionStatusV1 } | null>(null);
+  const [busyAccount, setBusyAccount] = useState<string | null>(null);
+  const [errorState, setErrorState] = useState<{ accountId: string; message: string } | null>(null);
+  const currentAccount = useRef(account.account_id);
+  currentAccount.current = account.account_id;
+  const requestGeneration = useRef(0);
+  const refreshController = useRef<AbortController | null>(null);
+  const verifyingAccount = useRef<string | null>(null);
+  const connection = connectionState?.accountId === account.account_id ? connectionState.value : null;
+  const error = errorState?.accountId === account.account_id ? errorState.message : null;
+  const busy = busyAccount === account.account_id;
 
-  const refresh = useCallback(async (signal?: AbortSignal) => {
+  const refresh = useCallback(async () => {
+    if (verifyingAccount.current === account.account_id) return;
+    refreshController.current?.abort();
+    const controller = new AbortController();
+    refreshController.current = controller;
+    const generation = ++requestGeneration.current;
+    const isCurrent = () => !controller.signal.aborted && generation === requestGeneration.current && currentAccount.current === account.account_id;
     try {
-      const result = await providers.ollamaCloudConnection(account.account_id, signal);
+      const result = await providers.ollamaCloudConnection(account.account_id, controller.signal);
+      if (!isCurrent()) return;
       if (!result.ok) {
         if (result.problem.code === "dashboard_authentication_required") onExpired();
-        else setError("Connection status is unavailable.");
+        else setErrorState({ accountId: account.account_id, message: "Connection status is unavailable." });
         return;
       }
       if (result.data.account_id !== account.account_id) {
-        setError("Connection status did not match this account.");
+        setErrorState({ accountId: account.account_id, message: "Connection status did not match this account." });
         return;
       }
-      setConnection(result.data);
-      setError(null);
+      setConnectionState({ accountId: account.account_id, value: result.data });
+      setErrorState(null);
     } catch (cause) {
-      if (cause instanceof DOMException && cause.name === "AbortError") return;
-      setError("Connection status is unavailable.");
+      if (!isCurrent() || (cause instanceof DOMException && cause.name === "AbortError")) return;
+      setErrorState({ accountId: account.account_id, message: "Connection status is unavailable." });
     }
   }, [account.account_id, onExpired]);
 
   useEffect(() => {
-    const controller = new AbortController();
-    void refresh(controller.signal);
-    return () => controller.abort();
+    void refresh();
+    return () => {
+      requestGeneration.current++;
+      refreshController.current?.abort();
+      refreshController.current = null;
+    };
   }, [refresh]);
 
   useEffect(() => {
@@ -48,37 +66,44 @@ export function OllamaCloudConnectionView({ account, onExpired, onProofUnavailab
   }, [refresh]);
 
   useEffect(() => {
-    if (!connection || connection.can_verify || !["not_configured", "pending", "stale", "retry_available", "rate_limited"].includes(connection.state)) return;
+    if (busy || !connection || connection.can_verify || !["not_configured", "pending", "stale", "retry_available", "rate_limited"].includes(connection.state)) return;
     const timer = window.setTimeout(() => { void refresh(); }, 15000);
     return () => window.clearTimeout(timer);
-  }, [connection, refresh]);
+  }, [busy, connection, refresh]);
 
   const verify = async () => {
     if (busy || !connection?.can_verify) return;
-    setBusy(true);
+    refreshController.current?.abort();
+    const generation = ++requestGeneration.current;
+    const isCurrent = () => generation === requestGeneration.current && currentAccount.current === account.account_id;
+    verifyingAccount.current = account.account_id;
+    setBusyAccount(account.account_id);
     try {
       const result = await providers.initiateOllamaCloudConnection(account);
+      if (!isCurrent()) return;
       if (!result.ok) {
         if (result.problem.code === "dashboard_authentication_required") onExpired();
         else if (result.problem.code === "csrf_validation_failed") onProofUnavailable();
         else if (result.problem.status === 412) {
-          setError("The account changed. Its current version is being refreshed.");
+          setErrorState({ accountId: account.account_id, message: "The account changed. Its current version is being refreshed." });
           onAccountReload();
-        } else setError("The connection check could not be started.");
+        } else setErrorState({ accountId: account.account_id, message: "The connection check could not be started." });
         return;
       }
       if (result.data.account_id !== account.account_id) {
-        setError("Connection status did not match this account.");
+        setErrorState({ accountId: account.account_id, message: "Connection status did not match this account." });
         return;
       }
-      setConnection(result.data);
-      setError(null);
+      setConnectionState({ accountId: account.account_id, value: result.data });
+      setErrorState(null);
       onAccountReload();
     } catch (cause) {
+      if (!isCurrent()) return;
       if (cause instanceof CsrfUnavailableError) onProofUnavailable();
-      else setError("The connection check could not be started.");
+      else setErrorState({ accountId: account.account_id, message: "The connection check could not be started." });
     } finally {
-      setBusy(false);
+      if (verifyingAccount.current === account.account_id) verifyingAccount.current = null;
+      setBusyAccount((previous) => previous === account.account_id ? null : previous);
     }
   };
 

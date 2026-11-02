@@ -21,3 +21,5 @@ constructed UI or API account data was used. This is a candidate change,
 not a claim of verified onboarding or full M6 acceptance. It affects M6-A01,
 M6-A03 and the P02 account presentation; no API, schema, provider contract,
 dependency or migration changes are introduced.
+
+Follow-up: The command now uses the fixed systemctl and sed executables, and the exact displayed command reached the deployed operator's help successfully without accessing credentials. Account status is bound to the selected account, and obsolete refreshes are aborted and fenced. Frontend typecheck and build passed. A real signed-in account navigation and red/green browser check remain Not Run; no account or provider data was fabricated.
