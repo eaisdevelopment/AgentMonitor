@@ -1,6 +1,6 @@
 # M6 Ollama process observation — implementation plan
 
-**Status: Draft.** M6-T013, M6-A06 and AC-PROC-001..004. The approved local
+**Status: Approved by the owner on 2 November 2026.** M6-T013, M6-A06 and AC-PROC-001..004. The approved local
 catalog plan leaves this separate owned path open. This plan does not claim
 process-to-model or process-to-account association from process names.
 
@@ -54,4 +54,4 @@ contract requires versioned migration and an ADR. No new dependency is proposed.
 The host has Ollama processes, but the existing platform selector rejects an
 Ollama selector as unsupported. See
 [m6-ollama-process-discovery-2026-11-01](../../evidence/m6-ollama-process-discovery-2026-11-01.md).
-No production code is approved by this draft.
+Production implementation is approved within the boundaries of this plan.
