@@ -21,6 +21,7 @@ from agentmonitor.adapters.persistence.collection_control.sqlite.repository impo
     SqliteCollectionRepositoryV1,
 )
 from agentmonitor.adapters.persistence.registry.sqlite.credential_bindings import (
+    SqliteCloudCredentialRegistryV1,
     SqliteCredentialBindingsV1,
 )
 from agentmonitor.adapters.persistence.registry.sqlite.repository import (
@@ -132,6 +133,7 @@ class OllamaCloudCollectionV1:
         self._runs = SqliteCollectionRepositoryV1(reference)
         self._registry = SqliteRegistryRepositoryV1(reference)
         self._bindings = SqliteCredentialBindingsV1(reference)
+        self._cloud_registry = SqliteCloudCredentialRegistryV1(reference)
         self._instance = OpaqueIdV1("ollama-cloud-" + uuid.uuid4().hex)
 
     def _monitored_cloud_account_count(
@@ -420,7 +422,7 @@ class OllamaCloudCollectionV1:
             raise
 
     def _eligible_binding(
-        self, run: CollectionRunAdmissionV1
+        self, run: CollectionRunAdmissionV1 | CollectionRunAdmissionV2
     ) -> ActiveCredentialBindingRefV1:
         """Re-read exact account, profile, resource and current key ownership."""
         if (
@@ -433,6 +435,35 @@ class OllamaCloudCollectionV1:
         ):
             raise OllamaCloudTargetIneligible("ollama_cloud_target_ineligible")
         account = self._registry.get_account(run.account_id)
+        if isinstance(run, CollectionRunAdmissionV2):
+            if (
+                account is None
+                or account.provider_key != "ollama"
+                or account.lifecycle != "active"
+                or account.registry_revision != run.registry_revision
+                or run.provider_target.target_kind != "cloud_service"
+                # Scheduled cloud collection needs a verified-current receipt
+                # predicate and is not enabled by this verification-only path.
+                or run.trigger != "reauth_verification"
+            ):
+                raise OllamaCloudTargetIneligible("ollama_cloud_target_ineligible")
+            graph = self._cloud_registry.read_monitoring_target(run.account_id)
+            active = resolve_active_credential_binding(
+                self._bindings.read(run.account_id)
+            )
+            if (
+                graph is None
+                or active is None
+                or graph.binding != active
+                or graph.profile_id != run.profile_id
+                or graph.resource_id != run.resource_id
+                or graph.access_target_id != run.provider_target.target_id
+                or graph.lifecycle != "active"
+                or graph.identity_state != "owner_confirmed"
+                or active.generation != run.target_generation
+            ):
+                raise OllamaCloudTargetIneligible("ollama_cloud_target_ineligible")
+            return active
         if (
             account is None
             or not eligible_cloud_account(
@@ -485,8 +516,8 @@ class OllamaCloudCollectionV1:
     def execute_admitted(
         self,
         lease: OllamaCloudRequestLeaseV1,
-        run: CollectionRunAdmissionV1,
-        subject: CapacitySubjectV1,
+        run: CollectionRunAdmissionV1 | CollectionRunAdmissionV2,
+        subject: CapacitySubjectV1 | CapacitySubjectV2,
     ):
         """Create and progress an M04 run around one admitted real source read."""
         require_source_admitted()
@@ -501,8 +532,21 @@ class OllamaCloudCollectionV1:
             run.schedule_id != lease.schedule_id
             or run.account_id != lease.account_id
             or run.scheduler_instance_id != lease.scheduler_instance_id
-            or run.installation_id != subject.installation_id
             or run.resource_id != subject.resource_id
+            or (
+                isinstance(run, CollectionRunAdmissionV1)
+                and (
+                    not isinstance(subject, CapacitySubjectV1)
+                    or run.installation_id != subject.installation_id
+                )
+            )
+            or (
+                isinstance(run, CollectionRunAdmissionV2)
+                and (
+                    not isinstance(subject, CapacitySubjectV2)
+                    or run.provider_target != subject.provider_target
+                )
+            )
         ):
             raise ValueError("ollama_cloud_target_mismatch")
         admitted = SqliteOllamaCloudRunRepositoryV1(self._reference, lease).admit_run(
