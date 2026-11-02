@@ -9,8 +9,12 @@ Real SQLite tests failed before the new repository existed. Subsequent tests
 exposed replay dispatch, missing Retry-After and unrepresentable waits; those
 behaviors were corrected before the focused suite passed. On the integrated
 candidate, 64 admission, schema/migration, offline migration, rate policy and
-balance contract tests passed on 2 November 2026. Those tests used isolated
-SQLite files. No live database was migrated, no cloud request was made and no
+balance contract tests returned passing results on 2 November 2026. However,
+the admission I/O tests constructed account IDs and schedule rows in isolated
+SQLite, contrary to the project rule limiting constructed values to pure tests.
+Those results are not admissible live-boundary evidence; the noncompliant new
+admission test was removed and must be replaced with real account and schedule
+state. No live database was migrated, no cloud request was made and no
 credential or provider profile was read.
 
 Open: a populated `v1_0707` data-preservation upgrade, executable restore and
