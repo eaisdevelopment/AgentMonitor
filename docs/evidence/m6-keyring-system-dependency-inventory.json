@@ -1,0 +1,1489 @@
+{
+  "date": "2026-11-02",
+  "packages": [
+    {
+      "copyright_license_labels": [
+        "CC-BY-3.0-US",
+        "CC-BY-SA-2.0-IT",
+        "CC-BY-SA-3.0 or LGPL-3, and CC-BY-SA-4.0",
+        "CC-BY-SA-3.0-US",
+        "CC-BY-SA-3.0-US or LGPL-3",
+        "CC-BY-SA-3.0-Unported",
+        "CC-BY-SA-4.0",
+        "GFDL-1.2+",
+        "GFDL-1.2+ or CC-BY-SA-3.0-Unported or CC-BY-SA-2.0-IT, and CC-BY-3.0-US",
+        "GPL-2",
+        "GPL-3+",
+        "GPL-unspecified"
+      ],
+      "package": "adwaita-icon-theme",
+      "version": "46.0-1"
+    },
+    {
+      "copyright_license_labels": [
+        "AFL-2.1",
+        "AFL-2.1 or GPL-2+",
+        "GPL-2",
+        "GPL-2+",
+        "LGPL-2+",
+        "LGPL-2.1+",
+        "public-domain"
+      ],
+      "package": "at-spi2-common",
+      "version": "2.52.0-1build1"
+    },
+    {
+      "copyright_license_labels": [
+        "GPL-3",
+        "LGPL-2+"
+      ],
+      "package": "dconf-gsettings-backend",
+      "version": "0.40.0-4ubuntu0.1"
+    },
+    {
+      "copyright_license_labels": [
+        "GPL-3",
+        "LGPL-2+"
+      ],
+      "package": "dconf-service",
+      "version": "0.40.0-4ubuntu0.1"
+    },
+    {
+      "copyright_license_labels": [],
+      "package": "fontconfig",
+      "version": "2.15.0-1.1ubuntu2"
+    },
+    {
+      "copyright_license_labels": [],
+      "package": "fontconfig-config",
+      "version": "2.15.0-1.1ubuntu2"
+    },
+    {
+      "copyright_license_labels": [
+        "GPL-2+",
+        "bitstream-vera"
+      ],
+      "package": "fonts-dejavu-core",
+      "version": "2.37-8"
+    },
+    {
+      "copyright_license_labels": [
+        "GPL-2+",
+        "bitstream-vera"
+      ],
+      "package": "fonts-dejavu-mono",
+      "version": "2.37-8"
+    },
+    {
+      "copyright_license_labels": [
+        "GPL-2+",
+        "SIL-OFL-1.1"
+      ],
+      "package": "fonts-liberation",
+      "version": "1:2.1.5-3"
+    },
+    {
+      "copyright_license_labels": [
+        "GPL-3+",
+        "OFL-1.1"
+      ],
+      "package": "fonts-noto-core",
+      "version": "20201225-2"
+    },
+    {
+      "copyright_license_labels": [
+        "GPL-3+",
+        "OFL-1.1"
+      ],
+      "package": "fonts-noto-mono",
+      "version": "20201225-2"
+    },
+    {
+      "copyright_license_labels": [
+        "AGPL-3",
+        "AGPL-3 with Font exception",
+        "CC-BY-4.0",
+        "GPL-2+"
+      ],
+      "package": "fonts-urw-base35",
+      "version": "20200910-8"
+    },
+    {
+      "copyright_license_labels": [],
+      "package": "gcc-14-base",
+      "version": "14.2.0-4ubuntu2~24.04.1"
+    },
+    {
+      "copyright_license_labels": [
+        "LGPL-2.1+",
+        "bzip2-1.0.5"
+      ],
+      "package": "gcr",
+      "version": "3.41.2-1build3"
+    },
+    {
+      "copyright_license_labels": [
+        "LGPL-2.1+",
+        "bzip2-1.0.5"
+      ],
+      "package": "gcr4",
+      "version": "4.2.0-5"
+    },
+    {
+      "copyright_license_labels": [
+        "BSD-3-clause",
+        "BSD-3-clause and GPL-2+ or LGPL-3+",
+        "Expat",
+        "FSFAP",
+        "FSFUL",
+        "FSFULLR",
+        "FSFULLR or GPL-2+ with AutoConf exception",
+        "FSFULLR or GPL-2+ with LibTool exception",
+        "GPL-2+",
+        "GPL-2+ with AutoConf exception",
+        "GPL-2+ with LibTool exception",
+        "GPL-3+ with AutoConf exception",
+        "LGPL-2+",
+        "LGPL-2.1+",
+        "LGPL-3+",
+        "MPL-1.1",
+        "MPL-1.1 or GPL-2+ or LGPL-2.1+",
+        "custom-license"
+      ],
+      "package": "gnome-keyring",
+      "version": "46.1-2ubuntu0.2"
+    },
+    {
+      "copyright_license_labels": [
+        "Apache-2.0",
+        "CC-BY-SA-4.0",
+        "Expat",
+        "GPL-3+",
+        "LGPL-2+",
+        "LGPL-2+ and LGPL-2.1+ and Expat",
+        "LGPL-2+ and ZPL-2.1",
+        "LGPL-2+ or SWL",
+        "LGPL-2.1+",
+        "SWL",
+        "X11R5-permissive",
+        "ZPL-2.1",
+        "check-gdk-cairo-permissive",
+        "other",
+        "unencumbered"
+      ],
+      "package": "gtk-update-icon-cache",
+      "version": "3.24.41-4ubuntu1.3"
+    },
+    {
+      "copyright_license_labels": [
+        "GPL-2+"
+      ],
+      "package": "hicolor-icon-theme",
+      "version": "0.17-2"
+    },
+    {
+      "copyright_license_labels": [
+        "The Humanity Icon Theme is licensed under the GPL v2."
+      ],
+      "package": "humanity-icon-theme",
+      "version": "0.6.16"
+    },
+    {
+      "copyright_license_labels": [
+        "BSD-3-clause",
+        "GPL-2+"
+      ],
+      "package": "init-system-helpers",
+      "version": "1.66ubuntu1"
+    },
+    {
+      "copyright_license_labels": [
+        "GAP",
+        "GAP~FSF",
+        "GPL-2+",
+        "GPL-2+ with libtool exception",
+        "GPL-3+",
+        "LGPL-2.1+",
+        "LGPL-3+"
+      ],
+      "package": "libassuan0",
+      "version": "2.5.6-1build1"
+    },
+    {
+      "copyright_license_labels": [
+        "AFL-2.1",
+        "AFL-2.1 or GPL-2+",
+        "GPL-2",
+        "GPL-2+",
+        "LGPL-2+",
+        "LGPL-2.1+",
+        "public-domain"
+      ],
+      "package": "libatk-bridge2.0-0t64",
+      "version": "2.52.0-1build1"
+    },
+    {
+      "copyright_license_labels": [
+        "AFL-2.1",
+        "AFL-2.1 or GPL-2+",
+        "GPL-2",
+        "GPL-2+",
+        "LGPL-2+",
+        "LGPL-2.1+",
+        "public-domain"
+      ],
+      "package": "libatk1.0-0t64",
+      "version": "2.52.0-1build1"
+    },
+    {
+      "copyright_license_labels": [
+        "AFL-2.1",
+        "AFL-2.1 or GPL-2+",
+        "GPL-2",
+        "GPL-2+",
+        "LGPL-2+",
+        "LGPL-2.1+",
+        "public-domain"
+      ],
+      "package": "libatspi2.0-0t64",
+      "version": "2.52.0-1build1"
+    },
+    {
+      "copyright_license_labels": [],
+      "package": "libavahi-client3",
+      "version": "0.8-13ubuntu6.2"
+    },
+    {
+      "copyright_license_labels": [],
+      "package": "libavahi-common-data",
+      "version": "0.8-13ubuntu6.2"
+    },
+    {
+      "copyright_license_labels": [],
+      "package": "libavahi-common3",
+      "version": "0.8-13ubuntu6.2"
+    },
+    {
+      "copyright_license_labels": [
+        "BSD-3-clause",
+        "BSD-4-clause",
+        "BSLA",
+        "GPL-2",
+        "GPL-2+",
+        "GPL-3+",
+        "LGPL",
+        "LGPL-2+",
+        "LGPL-2.1+",
+        "LGPL-3+",
+        "MIT",
+        "public-domain"
+      ],
+      "package": "libblkid1",
+      "version": "2.39.3-9ubuntu6.6"
+    },
+    {
+      "copyright_license_labels": [
+        "MIT"
+      ],
+      "package": "libbrotli1",
+      "version": "1.1.0-2ubuntu0.1"
+    },
+    {
+      "copyright_license_labels": [
+        "BSD-2-clause",
+        "BSD-2-clause-NetBSD",
+        "BSD-2-clause-author",
+        "BSD-2-clause-verbatim",
+        "BSD-3-clause",
+        "BSD-3-clause-John-Birrell",
+        "BSD-3-clause-Regents",
+        "BSD-3-clause-Regents and BSD-2-clause-NetBSD",
+        "BSD-3-clause-author",
+        "BSD-5-clause-Peter-Wemm",
+        "Beerware",
+        "Expat",
+        "ISC",
+        "ISC-Original",
+        "public-domain"
+      ],
+      "package": "libbsd0",
+      "version": "0.12.1-1build1.1"
+    },
+    {
+      "copyright_license_labels": [
+        "BSD-variant",
+        "GPL-2"
+      ],
+      "package": "libbz2-1.0",
+      "version": "1.0.8-5.1ubuntu0.1"
+    },
+    {
+      "copyright_license_labels": [],
+      "package": "libc6",
+      "version": "2.39-0ubuntu8.9"
+    },
+    {
+      "copyright_license_labels": [],
+      "package": "libcairo-gobject2",
+      "version": "1.18.0-3build1"
+    },
+    {
+      "copyright_license_labels": [],
+      "package": "libcairo-script-interpreter2",
+      "version": "1.18.0-3build1"
+    },
+    {
+      "copyright_license_labels": [],
+      "package": "libcairo2",
+      "version": "1.18.0-3build1"
+    },
+    {
+      "copyright_license_labels": [
+        "BSD-3-clause",
+        "BSD-3-clause or GPL-2",
+        "BSD-3-clause or GPL-2+",
+        "GPL-2",
+        "GPL-2+"
+      ],
+      "package": "libcap2",
+      "version": "1:2.66-5ubuntu2.4"
+    },
+    {
+      "copyright_license_labels": [
+        "CC0-1.0",
+        "CC0-1.0 and NPES",
+        "GFDL-NIV",
+        "GPL-2+",
+        "LGPL-2.1+",
+        "NPES"
+      ],
+      "package": "libcolord2",
+      "version": "1.4.7-1build2"
+    },
+    {
+      "copyright_license_labels": [
+        "Apache-2",
+        "BSD-3-Clause",
+        "GPL or MIT-US-export",
+        "GPL-2",
+        "GPL-2+ with Texinfo exception",
+        "ISC",
+        "Kazlib",
+        "LGPL-2",
+        "Latex2e"
+      ],
+      "package": "libcom-err2",
+      "version": "1.47.0-2.4~exp1ubuntu4.1"
+    },
+    {
+      "copyright_license_labels": [
+        "Apache-2.0",
+        "Apache-2.0-with-GPL2-LGPL2-Exception",
+        "Apache-2.0-with-GPL2-LGPL2-Exception or BSD-2-clause",
+        "BSD-2-Clause",
+        "FSFUL",
+        "Zlib"
+      ],
+      "package": "libcups2t64",
+      "version": "2.4.7-1.2ubuntu7.14"
+    },
+    {
+      "copyright_license_labels": [
+        "GPL-2+",
+        "LGPL-2.1+"
+      ],
+      "package": "libdatrie1",
+      "version": "0.2.13-3build1"
+    },
+    {
+      "copyright_license_labels": [
+        "AFL-2.1",
+        "BSD-3-clause",
+        "BSD-3-clause and BSD-3-clause-generic",
+        "BSD-3-clause-generic",
+        "Expat",
+        "FSF-unlimited-permission",
+        "GPL-2+",
+        "GPL-2+ or AFL-2.1, and Expat and Tcl-BSDish",
+        "LGPL-2.1+",
+        "Tcl-BSDish",
+        "autoconf-archive-permissive",
+        "g10-permissive"
+      ],
+      "package": "libdbus-1-3",
+      "version": "1.14.10-4ubuntu4.1"
+    },
+    {
+      "copyright_license_labels": [
+        "GPL-3",
+        "LGPL-2+"
+      ],
+      "package": "libdconf1",
+      "version": "0.40.0-4ubuntu0.1"
+    },
+    {
+      "copyright_license_labels": [
+        "Expat"
+      ],
+      "package": "libdeflate0",
+      "version": "1.19-1build1.1"
+    },
+    {
+      "copyright_license_labels": [
+        "Expat"
+      ],
+      "package": "libepoxy0",
+      "version": "1.5.10-1build1"
+    },
+    {
+      "copyright_license_labels": [
+        "MIT"
+      ],
+      "package": "libexpat1",
+      "version": "2.6.1-2ubuntu0.6"
+    },
+    {
+      "copyright_license_labels": [
+        "Expat",
+        "GPL",
+        "GPL-2+",
+        "GPL-3+",
+        "MPL-1.1 or GPL-2+ or LGPL-2.1+",
+        "X11",
+        "public-domain"
+      ],
+      "package": "libffi8",
+      "version": "3.4.6-1build1"
+    },
+    {
+      "copyright_license_labels": [],
+      "package": "libfontconfig1",
+      "version": "2.15.0-1.1ubuntu2"
+    },
+    {
+      "copyright_license_labels": [],
+      "package": "libfontenc1",
+      "version": "1:1.1.8-1build1"
+    },
+    {
+      "copyright_license_labels": [
+        "BSD-3-Clause",
+        "BSL-1.0",
+        "Expat",
+        "FSFAP",
+        "FTL",
+        "FTL and Expat",
+        "GPL-2+",
+        "GPL-3+",
+        "MIT-Modern-Variant",
+        "MIT-SMC",
+        "OpenGroup-MIT",
+        "Public-Domain",
+        "Zlib"
+      ],
+      "package": "libfreetype6",
+      "version": "2.13.2+dfsg-1ubuntu0.2"
+    },
+    {
+      "copyright_license_labels": [
+        "LGPL-2.1+"
+      ],
+      "package": "libfribidi0",
+      "version": "1.0.13-3build1"
+    },
+    {
+      "copyright_license_labels": [],
+      "package": "libgcc-s1",
+      "version": "14.2.0-4ubuntu2~24.04.1"
+    },
+    {
+      "copyright_license_labels": [
+        "LGPL-2.1+",
+        "bzip2-1.0.5"
+      ],
+      "package": "libgck-1-0",
+      "version": "3.41.2-1build3"
+    },
+    {
+      "copyright_license_labels": [
+        "LGPL-2.1+",
+        "bzip2-1.0.5"
+      ],
+      "package": "libgck-2-2",
+      "version": "4.2.0-5"
+    },
+    {
+      "copyright_license_labels": [
+        "LGPL-2.1+",
+        "bzip2-1.0.5"
+      ],
+      "package": "libgcr-4-4",
+      "version": "4.2.0-5"
+    },
+    {
+      "copyright_license_labels": [
+        "LGPL-2.1+",
+        "bzip2-1.0.5"
+      ],
+      "package": "libgcr-base-3-1",
+      "version": "3.41.2-1build3"
+    },
+    {
+      "copyright_license_labels": [
+        "LGPL-2.1+",
+        "bzip2-1.0.5"
+      ],
+      "package": "libgcr-ui-3-1",
+      "version": "3.41.2-1build3"
+    },
+    {
+      "copyright_license_labels": [
+        "Most of the package is licensed under the GNU Lesser General Public"
+      ],
+      "package": "libgcrypt20",
+      "version": "1.10.3-2ubuntu0.2"
+    },
+    {
+      "copyright_license_labels": [
+        "CC0-1.0",
+        "GPL-2+",
+        "LGPL-2+",
+        "LGPL-2+ and LGPL-2.1+ and CC0-1.0",
+        "LGPL-2.1+"
+      ],
+      "package": "libgdk-pixbuf-2.0-0",
+      "version": "2.42.10+dfsg-3ubuntu3.3"
+    },
+    {
+      "copyright_license_labels": [
+        "CC0-1.0",
+        "GPL-2+",
+        "LGPL-2+",
+        "LGPL-2+ and LGPL-2.1+ and CC0-1.0",
+        "LGPL-2.1+"
+      ],
+      "package": "libgdk-pixbuf2.0-common",
+      "version": "2.42.10+dfsg-3ubuntu3.3"
+    },
+    {
+      "copyright_license_labels": [
+        "Apache-2.0",
+        "BSD-1-clause",
+        "GPL",
+        "GPL-3+",
+        "MIT",
+        "public-domain"
+      ],
+      "package": "libgles2",
+      "version": "1.7.0-1build1"
+    },
+    {
+      "copyright_license_labels": [
+        "AFL-2.0",
+        "AFL-2.0 or LGPL-2.1+",
+        "Apache-2.0 with LLVM exception",
+        "CC-BY-SA-3.0",
+        "CC0-1.0",
+        "CC0-1.0 or Mingw-PD",
+        "Expat",
+        "FSFULLR",
+        "GPL-2+",
+        "Iconv-PD",
+        "Janik-permissive",
+        "Janik-permissive and old-glib-tests",
+        "Kuchling-PD",
+        "LGPL-2+",
+        "LGPL-2.1+",
+        "LGPL-2.1+ and Kuchling-PD and Plumb-PD",
+        "LGPL-3+",
+        "Mingw-PD",
+        "Plumb-PD",
+        "Unicode-DFS-2016",
+        "bzip2-1.0.6",
+        "cmph",
+        "old-glib-tests"
+      ],
+      "package": "libglib2.0-0t64",
+      "version": "2.80.0-6ubuntu3.9"
+    },
+    {
+      "copyright_license_labels": [
+        "Apache-2.0",
+        "BSD-1-clause",
+        "GPL",
+        "GPL-3+",
+        "MIT",
+        "public-domain"
+      ],
+      "package": "libglvnd0",
+      "version": "1.7.0-1build1"
+    },
+    {
+      "copyright_license_labels": [
+        "GPL-2+",
+        "GPL-2+ or LGPL-3+",
+        "GPL-3+",
+        "GPL-3+ with Bison exception",
+        "LGPL-3+"
+      ],
+      "package": "libgmp10",
+      "version": "2:6.3.0+dfsg-2ubuntu6.1"
+    },
+    {
+      "copyright_license_labels": [
+        "* Redistribution and use in source and binary forms, with or without",
+        "Apache-2.0",
+        "BSD-3-Clause",
+        "CC0 license",
+        "Expat",
+        "GPLv3+",
+        "LGPLv2.1+",
+        "LGPLv3+_or_GPLv2+",
+        "Public domain.",
+        "The main library is licensed under GNU Lesser",
+        "based on Russian standard GOST 28147-89"
+      ],
+      "package": "libgnutls30t64",
+      "version": "3.8.3-1.1ubuntu3.6"
+    },
+    {
+      "copyright_license_labels": [
+        "BSD-3-clause",
+        "GPL-3+",
+        "LGPL-2.1+",
+        "LGPL-2.1+ or BSD-3-clause",
+        "g10-permissive"
+      ],
+      "package": "libgpg-error0",
+      "version": "1.47-3build2.1"
+    },
+    {
+      "copyright_license_labels": [
+        "Expat"
+      ],
+      "package": "libgraphene-1.0-0",
+      "version": "1.10.8-3build2"
+    },
+    {
+      "copyright_license_labels": [
+        "Artistic",
+        "Artistic or GPL-1+",
+        "GPL-1+",
+        "GPL-2+",
+        "LGPL-2.1+",
+        "LGPL-2.1+ or GPL-2+ or MPL-1.1",
+        "LGPL-2.1+ or MPL-1.1 or GPL-2+",
+        "MPL-1.1",
+        "custom-sil-open-font-license",
+        "public-domain"
+      ],
+      "package": "libgraphite2-3",
+      "version": "1.3.14-2ubuntu0.24.04.1"
+    },
+    {
+      "copyright_license_labels": [],
+      "package": "libgssapi-krb5-2",
+      "version": "1.20.1-6ubuntu2.10"
+    },
+    {
+      "copyright_license_labels": [
+        "Apache-2.0",
+        "CC-BY-SA-4.0",
+        "Expat",
+        "GPL-3+",
+        "LGPL-2+",
+        "LGPL-2+ and LGPL-2.1+ and Expat",
+        "LGPL-2+ and ZPL-2.1",
+        "LGPL-2+ or SWL",
+        "LGPL-2.1+",
+        "SWL",
+        "X11R5-permissive",
+        "ZPL-2.1",
+        "check-gdk-cairo-permissive",
+        "other",
+        "unencumbered"
+      ],
+      "package": "libgtk-3-0t64",
+      "version": "3.24.41-4ubuntu1.3"
+    },
+    {
+      "copyright_license_labels": [
+        "Apache-2.0",
+        "CC-BY-SA-4.0",
+        "Expat",
+        "GPL-3+",
+        "LGPL-2+",
+        "LGPL-2+ and LGPL-2.1+ and Expat",
+        "LGPL-2+ and ZPL-2.1",
+        "LGPL-2+ or SWL",
+        "LGPL-2.1+",
+        "SWL",
+        "X11R5-permissive",
+        "ZPL-2.1",
+        "check-gdk-cairo-permissive",
+        "other",
+        "unencumbered"
+      ],
+      "package": "libgtk-3-common",
+      "version": "3.24.41-4ubuntu1.3"
+    },
+    {
+      "copyright_license_labels": [
+        "Apache-2.0",
+        "Apache-2.0 with LLVM exception",
+        "BSD-3-clause-Google",
+        "CC0-1.0",
+        "Expat",
+        "Expat or unlicense",
+        "GPL-3+",
+        "LGPL-2+",
+        "LGPL-2+ and LGPL-2.1+ and sun-permissive and lcs-telegraphics-permissive and X11R5-permissive and Expat and BSD-3-clause-Google and Apache-2.0 and CC0-1.0 and ZPL-2.1",
+        "LGPL-2.1+",
+        "Unicode-DFS-2016",
+        "X11R5-permissive",
+        "ZPL-2.1",
+        "lcs-telegraphics-permissive",
+        "sun-permissive",
+        "unlicense"
+      ],
+      "package": "libgtk-4-1",
+      "version": "4.14.5+ds-0ubuntu0.10"
+    },
+    {
+      "copyright_license_labels": [
+        "Apache-2.0",
+        "Apache-2.0 with LLVM exception",
+        "BSD-3-clause-Google",
+        "CC0-1.0",
+        "Expat",
+        "Expat or unlicense",
+        "GPL-3+",
+        "LGPL-2+",
+        "LGPL-2+ and LGPL-2.1+ and sun-permissive and lcs-telegraphics-permissive and X11R5-permissive and Expat and BSD-3-clause-Google and Apache-2.0 and CC0-1.0 and ZPL-2.1",
+        "LGPL-2.1+",
+        "Unicode-DFS-2016",
+        "X11R5-permissive",
+        "ZPL-2.1",
+        "lcs-telegraphics-permissive",
+        "sun-permissive",
+        "unlicense"
+      ],
+      "package": "libgtk-4-common",
+      "version": "4.14.5+ds-0ubuntu0.10"
+    },
+    {
+      "copyright_license_labels": [
+        "Apache-2.0",
+        "CC0-1.0",
+        "Expat",
+        "FSFAP",
+        "FSFUL",
+        "FSFULLR",
+        "GPL-2+ with AutoConf exception",
+        "GPL-2+ with Font exception",
+        "GPL-2+ with LibTool exception",
+        "GPL-3+",
+        "GPL-3+ with AutoConf exception",
+        "ISC",
+        "LGPL-2.1+",
+        "MIT",
+        "Monotype",
+        "OFL-1.1",
+        "UFL-1.0",
+        "Unicode"
+      ],
+      "package": "libharfbuzz0b",
+      "version": "8.3.0-2build2"
+    },
+    {
+      "copyright_license_labels": [
+        "Expat",
+        "GAP",
+        "GPL-2",
+        "GPL-2+",
+        "GPL-3+ with Autoconf exception",
+        "LGPL-2+",
+        "LGPL-3+",
+        "LGPL-3+ or GPL-2+",
+        "public-domain"
+      ],
+      "package": "libhogweed6t64",
+      "version": "3.9.1-2.2build1.1"
+    },
+    {
+      "copyright_license_labels": [
+        "GPL-3",
+        "MIT"
+      ],
+      "package": "libicu74",
+      "version": "74.2-1ubuntu3.1"
+    },
+    {
+      "copyright_license_labels": [
+        "GPL-2+",
+        "GPL-3+",
+        "LGPL-3+",
+        "LGPL-3+ or GPL-2+",
+        "Unicode"
+      ],
+      "package": "libidn2-0",
+      "version": "2.3.7-2build1.1"
+    },
+    {
+      "copyright_license_labels": [
+        "GPL-2+"
+      ],
+      "package": "libjbig0",
+      "version": "2.1-6.1ubuntu2"
+    },
+    {
+      "copyright_license_labels": [
+        "BSD-3-clause",
+        "BSD-BY-LC-NE",
+        "Expat",
+        "NTP",
+        "Zlib",
+        "zlib"
+      ],
+      "package": "libjpeg-turbo8",
+      "version": "2.1.5-2ubuntu2"
+    },
+    {
+      "copyright_license_labels": [
+        "LGPL-2.1"
+      ],
+      "package": "libjpeg8",
+      "version": "8c-2ubuntu11"
+    },
+    {
+      "copyright_license_labels": [],
+      "package": "libk5crypto3",
+      "version": "1.20.1-6ubuntu2.10"
+    },
+    {
+      "copyright_license_labels": [
+        "GPL-2+",
+        "LGPL-2+"
+      ],
+      "package": "libkeyutils1",
+      "version": "1.6.3-3build1"
+    },
+    {
+      "copyright_license_labels": [],
+      "package": "libkrb5-3",
+      "version": "1.20.1-6ubuntu2.10"
+    },
+    {
+      "copyright_license_labels": [],
+      "package": "libkrb5support0",
+      "version": "1.20.1-6ubuntu2.10"
+    },
+    {
+      "copyright_license_labels": [
+        "GPL-2+",
+        "GPL-3",
+        "IJG",
+        "MIT"
+      ],
+      "package": "liblcms2-2",
+      "version": "2.14-2ubuntu0.1"
+    },
+    {
+      "copyright_license_labels": [
+        "Apache-2.0"
+      ],
+      "package": "liblerc4",
+      "version": "4.0.0+ds-4ubuntu2"
+    },
+    {
+      "copyright_license_labels": [
+        "BSD-2-clause",
+        "GPL-2+",
+        "GPL-2+ or BSD-2-clause"
+      ],
+      "package": "liblz4-1",
+      "version": "1.9.4-1build1.1"
+    },
+    {
+      "copyright_license_labels": [
+        "Autoconf",
+        "Different licenses apply to different files in this package. Here",
+        "GPL-2",
+        "GPL-2+",
+        "LGPL-2.1+",
+        "PD",
+        "PD-debian",
+        "config-h",
+        "noderivs",
+        "none",
+        "permissive-fsf",
+        "permissive-nowarranty",
+        "probably-PD"
+      ],
+      "package": "liblzma5",
+      "version": "5.6.1+really5.4.5-1ubuntu0.4"
+    },
+    {
+      "copyright_license_labels": [
+        "GPL-2+"
+      ],
+      "package": "liblzo2-2",
+      "version": "2.10-2build4"
+    },
+    {
+      "copyright_license_labels": [
+        "BSD-2-clause",
+        "BSD-2-clause-NetBSD",
+        "BSD-3-clause",
+        "BSD-3-clause-Aaron-D-Gifford",
+        "Beerware",
+        "ISC",
+        "public-domain-md4",
+        "public-domain-md5",
+        "public-domain-sha1"
+      ],
+      "package": "libmd0",
+      "version": "1.1.0-2build1.1"
+    },
+    {
+      "copyright_license_labels": [
+        "BSD-3-clause",
+        "BSD-4-clause",
+        "BSLA",
+        "GPL-2",
+        "GPL-2+",
+        "GPL-3+",
+        "LGPL",
+        "LGPL-2+",
+        "LGPL-2.1+",
+        "LGPL-3+",
+        "MIT",
+        "public-domain"
+      ],
+      "package": "libmount1",
+      "version": "2.39.3-9ubuntu6.6"
+    },
+    {
+      "copyright_license_labels": [
+        "BSD-3-clause",
+        "MIT/X11",
+        "X11"
+      ],
+      "package": "libncursesw6",
+      "version": "6.4+20240113-1ubuntu2.2"
+    },
+    {
+      "copyright_license_labels": [
+        "Expat",
+        "GAP",
+        "GPL-2",
+        "GPL-2+",
+        "GPL-3+ with Autoconf exception",
+        "LGPL-2+",
+        "LGPL-3+",
+        "LGPL-3+ or GPL-2+",
+        "public-domain"
+      ],
+      "package": "libnettle8t64",
+      "version": "3.9.1-2.2build1.1"
+    },
+    {
+      "copyright_license_labels": [
+        "Apache-2.0",
+        "BSD-3-clause",
+        "FSFAP",
+        "FSFULLR",
+        "GPL-2+ with Autoconf-data exception",
+        "GPL-3+ with Autoconf-data exception",
+        "ISC",
+        "LGPL-2.1+",
+        "X11",
+        "customFSFUL",
+        "customFSFULLRWD"
+      ],
+      "package": "libp11-kit0",
+      "version": "0.25.3-4ubuntu2.2"
+    },
+    {
+      "copyright_license_labels": [
+        "Apache-2",
+        "Apache-2 and Bitstream-Vera and OFL-1.1",
+        "Bitstream-Vera",
+        "Chromium-BSD-style",
+        "Example",
+        "ICU",
+        "LGPL-2+",
+        "LGPL-2+ and ICU",
+        "LGPL-2+ and LGPL-2.1+",
+        "LGPL-2+ and TCL",
+        "LGPL-2.1+",
+        "OFL-1.1",
+        "TCL",
+        "Unicode"
+      ],
+      "package": "libpango-1.0-0",
+      "version": "1.52.1+ds-1build1"
+    },
+    {
+      "copyright_license_labels": [
+        "Apache-2",
+        "Apache-2 and Bitstream-Vera and OFL-1.1",
+        "Bitstream-Vera",
+        "Chromium-BSD-style",
+        "Example",
+        "ICU",
+        "LGPL-2+",
+        "LGPL-2+ and ICU",
+        "LGPL-2+ and LGPL-2.1+",
+        "LGPL-2+ and TCL",
+        "LGPL-2.1+",
+        "OFL-1.1",
+        "TCL",
+        "Unicode"
+      ],
+      "package": "libpangocairo-1.0-0",
+      "version": "1.52.1+ds-1build1"
+    },
+    {
+      "copyright_license_labels": [
+        "Apache-2",
+        "Apache-2 and Bitstream-Vera and OFL-1.1",
+        "Bitstream-Vera",
+        "Chromium-BSD-style",
+        "Example",
+        "ICU",
+        "LGPL-2+",
+        "LGPL-2+ and ICU",
+        "LGPL-2+ and LGPL-2.1+",
+        "LGPL-2+ and TCL",
+        "LGPL-2.1+",
+        "OFL-1.1",
+        "TCL",
+        "Unicode"
+      ],
+      "package": "libpangoft2-1.0-0",
+      "version": "1.52.1+ds-1build1"
+    },
+    {
+      "copyright_license_labels": [
+        "BSD-2-clause",
+        "BSD-3-clause",
+        "BSD-3-clause-Cambridge with BINARY LIBRARY-LIKE PACKAGES exception",
+        "X11",
+        "public-domain"
+      ],
+      "package": "libpcre2-8-0",
+      "version": "10.42-4ubuntu2.1"
+    },
+    {
+      "copyright_license_labels": [],
+      "package": "libpixman-1-0",
+      "version": "0.42.2-1build1"
+    },
+    {
+      "copyright_license_labels": [
+        "Apache-2.0",
+        "BSD-3-clause",
+        "BSD-like-with-advertising-clause",
+        "GPL-2+",
+        "GPL-2+ or BSD-like-with-advertising-clause",
+        "expat",
+        "libpng",
+        "libpng OR Apache-2.0 OR BSD-3-clause"
+      ],
+      "package": "libpng16-16t64",
+      "version": "1.6.43-5ubuntu0.7"
+    },
+    {
+      "copyright_license_labels": [
+        "GPL-2.0+",
+        "LGPL-2.0+",
+        "LGPL-2.1+"
+      ],
+      "package": "libproc2-0",
+      "version": "2:4.0.4-4ubuntu3.3"
+    },
+    {
+      "copyright_license_labels": [
+        "Apache-2.0",
+        "BSD-3-clause",
+        "GPL-2+",
+        "LGPL-2.1+"
+      ],
+      "package": "libsecret-1-0",
+      "version": "0.21.4-1build3"
+    },
+    {
+      "copyright_license_labels": [
+        "Apache-2.0",
+        "BSD-3-clause",
+        "GPL-2+",
+        "LGPL-2.1+"
+      ],
+      "package": "libsecret-common",
+      "version": "0.21.4-1build3"
+    },
+    {
+      "copyright_license_labels": [
+        "Apache-2.0",
+        "BSD-3-clause",
+        "GPL-2+",
+        "LGPL-2.1+"
+      ],
+      "package": "libsecret-tools",
+      "version": "0.21.4-1build3"
+    },
+    {
+      "copyright_license_labels": [
+        "GPL-2",
+        "public-domain"
+      ],
+      "package": "libselinux1",
+      "version": "3.5-2ubuntu2.1"
+    },
+    {
+      "copyright_license_labels": [
+        "Apache-2.0",
+        "BSD-3-Clause"
+      ],
+      "package": "libsharpyuv0",
+      "version": "1.3.2-0.4build3"
+    },
+    {
+      "copyright_license_labels": [
+        "Apache-2.0",
+        "Artistic",
+        "Artistic or GPL-1+",
+        "GPL-1+"
+      ],
+      "package": "libssl3t64",
+      "version": "3.0.13-0ubuntu3.16"
+    },
+    {
+      "copyright_license_labels": [],
+      "package": "libstdc++6",
+      "version": "14.2.0-4ubuntu2~24.04.1"
+    },
+    {
+      "copyright_license_labels": [
+        "CC0-1.0",
+        "Expat",
+        "GPL-2 with Linux-syscall-note exception",
+        "GPL-2+",
+        "LGPL-2.1+",
+        "public-domain"
+      ],
+      "package": "libsystemd0",
+      "version": "255.4-1ubuntu8.18"
+    },
+    {
+      "copyright_license_labels": [],
+      "package": "libtasn1-6",
+      "version": "4.19.0-3ubuntu0.24.04.2"
+    },
+    {
+      "copyright_license_labels": [
+        "GPL-2+",
+        "LGPL-2.1+"
+      ],
+      "package": "libthai-data",
+      "version": "0.1.29-2build1"
+    },
+    {
+      "copyright_license_labels": [
+        "GPL-2+",
+        "LGPL-2.1+"
+      ],
+      "package": "libthai0",
+      "version": "0.1.29-2build1"
+    },
+    {
+      "copyright_license_labels": [
+        "Hylafax"
+      ],
+      "package": "libtiff6",
+      "version": "4.5.1+git230720-4ubuntu2.5"
+    },
+    {
+      "copyright_license_labels": [
+        "BSD-3-clause",
+        "MIT/X11",
+        "X11"
+      ],
+      "package": "libtinfo6",
+      "version": "6.4+20240113-1ubuntu2.2"
+    },
+    {
+      "copyright_license_labels": [
+        "CC0-1.0",
+        "Expat",
+        "GPL-2 with Linux-syscall-note exception",
+        "GPL-2+",
+        "LGPL-2.1+",
+        "public-domain"
+      ],
+      "package": "libudev1",
+      "version": "255.4-1ubuntu8.18"
+    },
+    {
+      "copyright_license_labels": [
+        "FreeSoftware",
+        "GFDL-NIV-1.2+",
+        "GPL-2+",
+        "GPL-2+ with distribution exception",
+        "GPL-2+ with distribution exception, Expat and GPL-2+",
+        "GPL-3+",
+        "GPL-3+ or GFDL-NIV-1.2+",
+        "LGPL-3+",
+        "LGPL-3+ or GPL-2+",
+        "X11"
+      ],
+      "package": "libunistring5",
+      "version": "1.1-2build1.1"
+    },
+    {
+      "copyright_license_labels": [
+        "Apache-2.0",
+        "MIT",
+        "MIT or Apache-2.0"
+      ],
+      "package": "libvulkan1",
+      "version": "1.3.275.0-1build1"
+    },
+    {
+      "copyright_license_labels": [
+        "X11"
+      ],
+      "package": "libwayland-client0",
+      "version": "1.22.0-2.1build1"
+    },
+    {
+      "copyright_license_labels": [
+        "X11"
+      ],
+      "package": "libwayland-cursor0",
+      "version": "1.22.0-2.1build1"
+    },
+    {
+      "copyright_license_labels": [
+        "X11"
+      ],
+      "package": "libwayland-egl1",
+      "version": "1.22.0-2.1build1"
+    },
+    {
+      "copyright_license_labels": [
+        "Apache-2.0",
+        "BSD-3-Clause"
+      ],
+      "package": "libwebp7",
+      "version": "1.3.2-0.4build3"
+    },
+    {
+      "copyright_license_labels": [],
+      "package": "libx11-6",
+      "version": "2:1.8.7-1ubuntu0.1"
+    },
+    {
+      "copyright_license_labels": [],
+      "package": "libx11-data",
+      "version": "2:1.8.7-1ubuntu0.1"
+    },
+    {
+      "copyright_license_labels": [],
+      "package": "libxau6",
+      "version": "1:1.0.9-1build6"
+    },
+    {
+      "copyright_license_labels": [],
+      "package": "libxcb-render0",
+      "version": "1.15-1ubuntu2"
+    },
+    {
+      "copyright_license_labels": [],
+      "package": "libxcb-shm0",
+      "version": "1.15-1ubuntu2"
+    },
+    {
+      "copyright_license_labels": [],
+      "package": "libxcb1",
+      "version": "1.15-1ubuntu2"
+    },
+    {
+      "copyright_license_labels": [],
+      "package": "libxcomposite1",
+      "version": "1:0.4.5-1build3"
+    },
+    {
+      "copyright_license_labels": [],
+      "package": "libxcursor1",
+      "version": "1:1.2.1-1build1"
+    },
+    {
+      "copyright_license_labels": [],
+      "package": "libxdamage1",
+      "version": "1:1.1.6-1build1"
+    },
+    {
+      "copyright_license_labels": [],
+      "package": "libxdmcp6",
+      "version": "1:1.1.3-0ubuntu6"
+    },
+    {
+      "copyright_license_labels": [],
+      "package": "libxext6",
+      "version": "2:1.3.4-1build2"
+    },
+    {
+      "copyright_license_labels": [],
+      "package": "libxfixes3",
+      "version": "1:6.0.0-2build1"
+    },
+    {
+      "copyright_license_labels": [],
+      "package": "libxi6",
+      "version": "2:1.8.1-1build1"
+    },
+    {
+      "copyright_license_labels": [],
+      "package": "libxinerama1",
+      "version": "2:1.1.4-3build1"
+    },
+    {
+      "copyright_license_labels": [],
+      "package": "libxkbcommon0",
+      "version": "1.6.0-1build1"
+    },
+    {
+      "copyright_license_labels": [
+        "ISC",
+        "MIT-1"
+      ],
+      "package": "libxml2",
+      "version": "2.9.14+dfsg-1.3ubuntu3.10"
+    },
+    {
+      "copyright_license_labels": [],
+      "package": "libxrandr2",
+      "version": "2:1.5.2-2build1"
+    },
+    {
+      "copyright_license_labels": [],
+      "package": "libxrender1",
+      "version": "1:0.9.10-1.1build1"
+    },
+    {
+      "copyright_license_labels": [
+        "BSD-3-clause",
+        "BSD-3-clause or GPL-2",
+        "Expat",
+        "GPL-2",
+        "zlib"
+      ],
+      "package": "libzstd1",
+      "version": "1.5.5+dfsg2-2build1.1"
+    },
+    {
+      "copyright_license_labels": [
+        "Apache-2.0",
+        "BSD-3-clause",
+        "FSFAP",
+        "FSFULLR",
+        "GPL-2+ with Autoconf-data exception",
+        "GPL-3+ with Autoconf-data exception",
+        "ISC",
+        "LGPL-2.1+",
+        "X11",
+        "customFSFUL",
+        "customFSFULLRWD"
+      ],
+      "package": "p11-kit",
+      "version": "0.25.3-4ubuntu2.2"
+    },
+    {
+      "copyright_license_labels": [
+        "Apache-2.0",
+        "BSD-3-clause",
+        "FSFAP",
+        "FSFULLR",
+        "GPL-2+ with Autoconf-data exception",
+        "GPL-3+ with Autoconf-data exception",
+        "ISC",
+        "LGPL-2.1+",
+        "X11",
+        "customFSFUL",
+        "customFSFULLRWD"
+      ],
+      "package": "p11-kit-modules",
+      "version": "0.25.3-4ubuntu2.2"
+    },
+    {
+      "copyright_license_labels": [
+        "GPL-2",
+        "GPL-2+",
+        "LGPL-3+",
+        "LGPL-3+ or GPL-2+",
+        "X11"
+      ],
+      "package": "pinentry-gnome3",
+      "version": "1.2.1-3ubuntu5"
+    },
+    {
+      "copyright_license_labels": [
+        "GPL-2.0+",
+        "LGPL-2.0+",
+        "LGPL-2.1+"
+      ],
+      "package": "procps",
+      "version": "2:4.0.4-4ubuntu3.3"
+    },
+    {
+      "copyright_license_labels": [
+        "This package is free software; you can redistribute it and/or modify"
+      ],
+      "package": "shared-mime-info",
+      "version": "2.4-4"
+    },
+    {
+      "copyright_license_labels": [
+        "CC-BY-SA-3.0",
+        "GPL-3"
+      ],
+      "package": "ubuntu-mono",
+      "version": "24.04-0ubuntu1"
+    },
+    {
+      "copyright_license_labels": [],
+      "package": "x11-common",
+      "version": "1:7.7+23ubuntu3"
+    },
+    {
+      "copyright_license_labels": [],
+      "package": "xfonts-encodings",
+      "version": "1:1.0.5-0ubuntu2"
+    },
+    {
+      "copyright_license_labels": [],
+      "package": "xfonts-utils",
+      "version": "1:7.7+6build3"
+    },
+    {
+      "copyright_license_labels": [],
+      "package": "xkb-data",
+      "version": "2.41-2ubuntu1.1"
+    },
+    {
+      "copyright_license_labels": [
+        "Zlib"
+      ],
+      "package": "zlib1g",
+      "version": "1:1.3.dfsg-3.1ubuntu2.3"
+    }
+  ],
+  "roots": [
+    "libsecret-tools",
+    "gnome-keyring"
+  ],
+  "scope": "Installed apt-cache recursive dependency candidates, no recommends/suggests; alternatives and virtual packages may be overcounted. License labels are package copyright metadata, not a legal conclusion or complete per-binary SBOM.",
+  "unresolved_or_virtual_names": []
+}
