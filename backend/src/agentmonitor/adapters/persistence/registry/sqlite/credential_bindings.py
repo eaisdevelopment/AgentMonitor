@@ -552,6 +552,36 @@ class SqliteCloudCredentialRegistryV1:
                 "credential_binding_unavailable"
             ) from None
 
+    def read_verification_by_run(
+        self, run_id: OpaqueIdV1, admission_id: OpaqueIdV1
+    ) -> CredentialBindingVerificationReceiptV1 | None:
+        """Read one immutable non-secret receipt by its exact M04 lineage."""
+        if not isinstance(run_id, OpaqueIdV1) or not isinstance(
+            admission_id, OpaqueIdV1
+        ):
+            raise CredentialBindingRepositoryErrorV1(
+                "credential_binding_verification_query_invalid"
+            )
+        try:
+            with open_sqlite_database(self._reference, "runtime_read_only") as handle:
+                with handle.connect() as connection:
+                    row = (
+                        connection.exec_driver_sql(
+                            "SELECT * FROM reg_credential_binding_verification "
+                            "WHERE run_id=? AND admission_id=?",
+                            (run_id.value, admission_id.value),
+                        )
+                        .mappings()
+                        .one_or_none()
+                    )
+                    return _verification_receipt(row) if row is not None else None
+        except CredentialBindingRepositoryErrorV1:
+            raise
+        except (SqlitePolicyError, SQLAlchemyError, ValueError, TypeError):
+            raise CredentialBindingRepositoryErrorV1(
+                "credential_binding_unavailable"
+            ) from None
+
 
 class SqliteCredentialBindingsV1:
     """Serialize each complete aggregate update using BEGIN IMMEDIATE.

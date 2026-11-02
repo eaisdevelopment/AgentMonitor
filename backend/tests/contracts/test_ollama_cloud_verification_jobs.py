@@ -3,11 +3,13 @@
 from datetime import UTC, datetime, timedelta
 
 import pytest
+
 from agentmonitor.contracts.collection_control_v1 import (
     InvalidCollectionControlV1,
     OllamaCloudVerificationClaimRequestV1,
     OllamaCloudVerificationClaimTerminalV1,
     OllamaCloudVerificationEnqueueV1,
+    OllamaCloudVerificationInterruptionProofV1,
     OllamaCloudVerificationJobClaimV1,
     OllamaCloudVerificationJobViewV1,
     OllamaCloudVerificationStatusV1,
@@ -171,4 +173,26 @@ def test_ambiguous_dispatch_cannot_be_presented_as_terminal() -> None:
             reason_code="request_outcome_unknown",
             retry_after_seconds=None,
             record_version=4,
+        )
+
+
+def test_interruption_proof_is_closed_and_time_bound() -> None:
+    proof = OllamaCloudVerificationInterruptionProofV1(
+        job_id=oid("amvj_" + "1" * 32),
+        run_id=oid("run-1"),
+        admission_id=oid("admission-1"),
+        commit_status="not_committed",
+        verification_receipt_state="absent",
+        checked_at=NOW,
+    )
+    assert proof.commit_status == "not_committed"
+
+    with pytest.raises(ValueError, match="unsupported-field-state"):
+        OllamaCloudVerificationInterruptionProofV1(
+            job_id=proof.job_id,
+            run_id=proof.run_id,
+            admission_id=proof.admission_id,
+            commit_status="committed",  # type: ignore[arg-type]
+            verification_receipt_state="absent",
+            checked_at=NOW,
         )

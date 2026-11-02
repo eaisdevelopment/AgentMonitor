@@ -513,6 +513,35 @@ class OllamaCloudVerificationClaimTerminalV1(TechnicalValueV1):
 
 
 @dataclass(frozen=True, slots=True)
+class OllamaCloudVerificationInterruptionProofV1(TechnicalValueV1):
+    """Trusted composition proof that no consumer or M02 receipt committed."""
+
+    CONTRACT_ID: ClassVar[str] = "CTR-COL-010"
+    OWNER: ClassVar[str] = "PLAN-M04"
+
+    job_id: OpaqueIdV1
+    run_id: OpaqueIdV1
+    admission_id: OpaqueIdV1
+    commit_status: Literal["not_committed"]
+    verification_receipt_state: Literal["absent"]
+    checked_at: datetime
+
+    def __post_init__(self) -> None:
+        TechnicalValueV1.__post_init__(self)
+        if (
+            not _verification_job_id(self.job_id)
+            or not isinstance(self.run_id, OpaqueIdV1)
+            or not isinstance(self.admission_id, OpaqueIdV1)
+            or self.commit_status != "not_committed"
+            or self.verification_receipt_state != "absent"
+            or not _utc(self.checked_at)
+        ):
+            raise InvalidCollectionControlV1(
+                "ollama_cloud_verification_interruption_invalid"
+            )
+
+
+@dataclass(frozen=True, slots=True)
 class OllamaCloudVerificationJobViewV1(TechnicalValueV1):
     """Safe durable projection of one owner-verification request."""
 

@@ -5,6 +5,10 @@
 import hashlib
 import secrets
 from datetime import UTC, datetime, timedelta
+from typing import cast
+
+from sqlalchemy.engine import Connection, RowMapping
+from sqlalchemy.exc import SQLAlchemyError
 
 from agentmonitor.adapters.persistence._shared.sqlite.core.policy import (
     DatabaseRefV1,
@@ -18,6 +22,7 @@ from agentmonitor.contracts.collection_control_v1 import (
     CollectionRunAdmissionV1,
     CollectionRunAdmissionV1OrV2,
     CollectionRunAdmissionV2,
+    CollectionRunStateV1,
     OllamaCloudAdmissionDecisionV1,
     OllamaCloudNoResponseCompletionV2,
     OllamaCloudRateGateViewV1,
@@ -28,19 +33,27 @@ from agentmonitor.contracts.collection_control_v1 import (
     OllamaCloudVerificationClaimRequestV1,
     OllamaCloudVerificationClaimTerminalV1,
     OllamaCloudVerificationEnqueueV1,
+    OllamaCloudVerificationInterruptionProofV1,
     OllamaCloudVerificationJobClaimV1,
     OllamaCloudVerificationJobViewV1,
     OllamaCloudVerificationStatusV1,
     OllamaCloudVerificationTargetV1,
 )
 from agentmonitor.contracts.common_v1 import OpaqueIdV1
+from agentmonitor.contracts.registry_v1 import (
+    CredentialBindingVerificationReceiptV1,
+)
 from agentmonitor.modules.collection_control.domain.ollama_rate_policy import (
     after_ollama_attempt,
     cloud_schedule_generation_action,
     reserve_after_lease,
 )
-from sqlalchemy.engine import Connection, RowMapping
-from sqlalchemy.exc import SQLAlchemyError
+from agentmonitor.modules.collection_control.domain.ollama_verification import (
+    RECONCILABLE_VERIFICATION_RUN_STATES_V1,
+    VERIFICATION_RESPONSE_OUTCOME_V1,
+    verification_completion_decision,
+    verification_lineage_matches,
+)
 
 _GATE_ID = "ollama-cloud-balance-v1"
 _PROVIDER_KEY = "ollama"
@@ -195,7 +208,7 @@ def _verification_job(row: RowMapping) -> OllamaCloudVerificationJobViewV1:
         elif phase == "outcome":
             certainty = "response_received"
             outcome = row.get("journal_outcome")
-            reason = row.get("journal_failure_code")
+            reason = row.get("journal_failure_code") or reason
             retry_after = row.get("journal_retry_after_seconds")
         elif phase == "reserved":
             certainty = "not_started"
@@ -1804,6 +1817,354 @@ class SqliteOllamaCloudAdmissionRepositoryV1:
         except (SQLAlchemyError, SqlitePolicyError, OSError, ValueError, TypeError):
             raise OllamaCloudAdmissionRepositoryErrorV1() from None
 
+    def pending_verification_finalizations(
+        self,
+        limit: int = 32,
+        *,
+        after_job_id: OpaqueIdV1 | None = None,
+    ) -> tuple[OllamaCloudVerificationJobViewV1, ...]:
+        """Page terminal HTTP-success jobs still awaiting receipt reconciliation."""
+        if (
+            type(limit) is not int
+            or not 1 <= limit <= 64
+            or (after_job_id is not None and not isinstance(after_job_id, OpaqueIdV1))
+        ):
+            raise OllamaCloudAdmissionRepositoryErrorV1(
+                "ollama_cloud_verification_query_invalid"
+            )
+        after = None if after_job_id is None else after_job_id.value
+        if after is not None and (
+            len(after) != 37
+            or not after.startswith("amvj_")
+            or any(character not in "0123456789abcdef" for character in after[5:])
+        ):
+            raise OllamaCloudAdmissionRepositoryErrorV1(
+                "ollama_cloud_verification_query_invalid"
+            )
+        try:
+            with open_sqlite_database(
+                self._database_ref, "runtime_read_only"
+            ) as handle:
+                with handle.connect() as connection:
+                    rows = (
+                        connection.exec_driver_sql(
+                            "SELECT j.*,x.phase AS journal_phase,"
+                            "x.outcome AS journal_outcome,"
+                            "x.failure_code AS journal_failure_code,"
+                            "x.retry_after_seconds AS journal_retry_after_seconds "
+                            "FROM collection_cloud_verification_job j "
+                            "JOIN collection_ollama_cloud_admission a "
+                            "ON a.admission_id=j.admission_id "
+                            "JOIN collection_cloud_attempt_journal x "
+                            "ON x.admission_id=j.admission_id "
+                            "JOIN collection_run r ON r.run_id=j.run_id "
+                            "WHERE j.state='admitted' "
+                            "AND j.dispatch_certainty='response_received' "
+                            "AND j.reason_code='verification_commit_pending' "
+                            "AND j.run_id IS NOT NULL AND a.state='completed' "
+                            "AND a.outcome='succeeded' AND x.phase='outcome' "
+                            "AND x.outcome='succeeded' "
+                            "AND r.state IN (?,?,?,?,?,?) "
+                            "AND (? IS NULL OR j.job_id>?) "
+                            "ORDER BY j.job_id LIMIT ?",
+                            (
+                                *RECONCILABLE_VERIFICATION_RUN_STATES_V1,
+                                after,
+                                after,
+                                limit,
+                            ),
+                        )
+                        .mappings()
+                        .all()
+                    )
+                    return tuple(_verification_job(row) for row in rows)
+        except OllamaCloudAdmissionRepositoryErrorV1:
+            raise
+        except (SQLAlchemyError, SqlitePolicyError, OSError, ValueError, TypeError):
+            raise OllamaCloudAdmissionRepositoryErrorV1() from None
+
+    def finalize_verification_success(
+        self, receipt: CredentialBindingVerificationReceiptV1
+    ) -> OllamaCloudVerificationJobViewV1:
+        """Terminalize only after the exact M02 receipt and M04 run committed."""
+        if not isinstance(receipt, CredentialBindingVerificationReceiptV1):
+            raise OllamaCloudAdmissionRepositoryErrorV1(
+                "ollama_cloud_verification_proof_invalid"
+            )
+        try:
+            with open_sqlite_database(
+                self._database_ref, "runtime_read_write"
+            ) as handle:
+                with handle.connect() as connection:
+                    connection.exec_driver_sql("BEGIN IMMEDIATE")
+                    row = (
+                        connection.exec_driver_sql(
+                            "SELECT j.*,a.state AS admission_state,"
+                            "a.outcome AS admission_outcome,"
+                            "a.account_id AS admission_account_id,"
+                            "a.schedule_id AS admission_schedule_id,"
+                            "x.run_id AS journal_run_id,x.phase AS journal_phase,"
+                            "x.outcome AS journal_outcome,"
+                            "x.failure_code AS journal_failure_code,"
+                            "r.state AS run_state,r.account_id AS run_account_id,"
+                            "r.schedule_id AS run_schedule_id,"
+                            "r.provider_key AS run_provider_key,"
+                            "r.provider_target_kind AS run_target_kind,"
+                            "r.provider_target_id AS run_target_id,"
+                            "r.capability_id AS run_capability_id,"
+                            "r.source_id AS run_source_id,"
+                            "r.adapter_version AS run_adapter_version,"
+                            "r.manifest_fingerprint AS run_manifest_fingerprint,"
+                            "r.target_generation AS run_target_generation,"
+                            "r.payload_digest AS run_payload_digest,"
+                            "r.completed_at AS run_completed_at "
+                            "FROM collection_cloud_verification_job j "
+                            "JOIN collection_ollama_cloud_admission a "
+                            "ON a.admission_id=j.admission_id "
+                            "JOIN collection_cloud_attempt_journal x "
+                            "ON x.admission_id=j.admission_id "
+                            "JOIN collection_run r ON r.run_id=j.run_id "
+                            "WHERE j.run_id=? AND j.admission_id=?",
+                            (receipt.run_id.value, receipt.admission_id.value),
+                        )
+                        .mappings()
+                        .one_or_none()
+                    )
+                    if row is None:
+                        raise OllamaCloudAdmissionRepositoryErrorV1(
+                            "ollama_cloud_verification_proof_invalid"
+                        )
+                    decision = verification_completion_decision(
+                        "succeeded",
+                        cast(CollectionRunStateV1, str(row["run_state"])),
+                        True,
+                    )
+                    completed_at = _utc_value(row["run_completed_at"])
+                    observation = connection.exec_driver_sql(
+                        "SELECT 1 FROM collection_run_observation_ref "
+                        "WHERE run_id=? AND consumer_key='capacity' LIMIT 1",
+                        (receipt.run_id.value,),
+                    ).first()
+                    if (
+                        decision != "verification_succeeded"
+                        or not verification_lineage_matches(
+                            expected_run_id=receipt.run_id.value,
+                            job_run_id=row["run_id"],
+                            journal_run_id=row["journal_run_id"],
+                            job_account_id=row["account_id"],
+                            admission_account_id=row["admission_account_id"],
+                            run_account_id=row["run_account_id"],
+                            job_schedule_id=row["schedule_id"],
+                            admission_schedule_id=row["admission_schedule_id"],
+                            run_schedule_id=row["run_schedule_id"],
+                        )
+                        or row["admission_state"] != "completed"
+                        or row["admission_outcome"] != "succeeded"
+                        or row["journal_phase"] != "outcome"
+                        or row["journal_outcome"] != "succeeded"
+                        or row["journal_failure_code"] is not None
+                        or row["account_id"] != receipt.binding.account_id.value
+                        or row["access_target_id"] != receipt.access_target_id.value
+                        or int(row["binding_generation"]) != receipt.binding.generation
+                        or row["run_account_id"] != receipt.binding.account_id.value
+                        or row["run_provider_key"] != _PROVIDER_KEY
+                        or row["run_target_kind"] != "cloud_service"
+                        or row["run_target_id"] != receipt.access_target_id.value
+                        or row["run_capability_id"] != _CAPABILITY_ID
+                        or row["run_source_id"] != receipt.source_id
+                        or row["run_adapter_version"] != receipt.adapter_version
+                        or row["run_manifest_fingerprint"]
+                        != receipt.manifest_fingerprint
+                        or int(row["run_target_generation"])
+                        != receipt.binding.generation
+                        or row["run_payload_digest"] != receipt.payload_digest
+                        or receipt.verified_at > completed_at
+                        or observation is None
+                    ):
+                        raise OllamaCloudAdmissionRepositoryErrorV1(
+                            "ollama_cloud_verification_proof_invalid"
+                        )
+                    if row["state"] == "terminal":
+                        if (
+                            row["dispatch_certainty"] != "response_received"
+                            or row["outcome"] != "succeeded"
+                            or row["reason_code"] != "verification_succeeded"
+                            or row["terminal_at"] != _utc_text(completed_at)
+                            or row["retry_after_seconds"] is not None
+                        ):
+                            raise OllamaCloudAdmissionRepositoryErrorV1(
+                                "ollama_cloud_verification_proof_invalid"
+                            )
+                        connection.rollback()
+                        return _verification_job(row)
+                    changed = connection.exec_driver_sql(
+                        "UPDATE collection_cloud_verification_job SET "
+                        "state='terminal',terminal_at=?,outcome='succeeded',"
+                        "reason_code='verification_succeeded',"
+                        "retry_after_seconds=NULL,record_version=record_version+1 "
+                        "WHERE job_id=? AND state='admitted' "
+                        "AND dispatch_certainty='response_received' "
+                        "AND reason_code='verification_commit_pending' "
+                        "AND outcome IS NULL AND terminal_at IS NULL",
+                        (_utc_text(completed_at), row["job_id"]),
+                    )
+                    if changed.rowcount != 1:
+                        raise OllamaCloudAdmissionRepositoryErrorV1(
+                            "ollama_cloud_verification_proof_invalid"
+                        )
+                    final = (
+                        connection.exec_driver_sql(
+                            "SELECT * FROM collection_cloud_verification_job "
+                            "WHERE job_id=?",
+                            (row["job_id"],),
+                        )
+                        .mappings()
+                        .one()
+                    )
+                    connection.commit()
+                    return _verification_job(final)
+        except OllamaCloudAdmissionRepositoryErrorV1:
+            raise
+        except (SQLAlchemyError, SqlitePolicyError, OSError, ValueError, TypeError):
+            raise OllamaCloudAdmissionRepositoryErrorV1() from None
+
+    def finalize_verification_interrupted(
+        self, proof: OllamaCloudVerificationInterruptionProofV1
+    ) -> OllamaCloudVerificationJobViewV1:
+        """Terminalize a failed run only after trusted absence checks completed."""
+        if not isinstance(proof, OllamaCloudVerificationInterruptionProofV1):
+            raise OllamaCloudAdmissionRepositoryErrorV1(
+                "ollama_cloud_verification_proof_invalid"
+            )
+        try:
+            with open_sqlite_database(
+                self._database_ref, "runtime_read_write"
+            ) as handle:
+                with handle.connect() as connection:
+                    connection.exec_driver_sql("BEGIN IMMEDIATE")
+                    row = (
+                        connection.exec_driver_sql(
+                            "SELECT j.*,a.state AS admission_state,"
+                            "a.outcome AS admission_outcome,"
+                            "a.account_id AS admission_account_id,"
+                            "a.schedule_id AS admission_schedule_id,"
+                            "x.run_id AS journal_run_id,x.phase AS journal_phase,"
+                            "x.outcome AS journal_outcome,"
+                            "x.failure_code AS journal_failure_code,"
+                            "r.state AS run_state,r.account_id AS run_account_id,"
+                            "r.schedule_id AS run_schedule_id,"
+                            "r.provider_key AS run_provider_key,"
+                            "r.provider_target_kind AS run_target_kind,"
+                            "r.provider_target_id AS run_target_id,"
+                            "r.capability_id AS run_capability_id,"
+                            "r.source_id AS run_source_id,"
+                            "r.target_generation AS run_target_generation,"
+                            "r.completed_at AS run_completed_at "
+                            "FROM collection_cloud_verification_job j "
+                            "JOIN collection_ollama_cloud_admission a "
+                            "ON a.admission_id=j.admission_id "
+                            "JOIN collection_cloud_attempt_journal x "
+                            "ON x.admission_id=j.admission_id "
+                            "JOIN collection_run r ON r.run_id=j.run_id "
+                            "WHERE j.job_id=? AND j.run_id=? AND j.admission_id=?",
+                            (
+                                proof.job_id.value,
+                                proof.run_id.value,
+                                proof.admission_id.value,
+                            ),
+                        )
+                        .mappings()
+                        .one_or_none()
+                    )
+                    if row is None:
+                        raise OllamaCloudAdmissionRepositoryErrorV1(
+                            "ollama_cloud_verification_proof_invalid"
+                        )
+                    decision = verification_completion_decision(
+                        "succeeded",
+                        cast(CollectionRunStateV1, str(row["run_state"])),
+                        False,
+                    )
+                    completed_at = _utc_value(row["run_completed_at"])
+                    if (
+                        decision != "verification_commit_interrupted"
+                        or not verification_lineage_matches(
+                            expected_run_id=proof.run_id.value,
+                            job_run_id=row["run_id"],
+                            journal_run_id=row["journal_run_id"],
+                            job_account_id=row["account_id"],
+                            admission_account_id=row["admission_account_id"],
+                            run_account_id=row["run_account_id"],
+                            job_schedule_id=row["schedule_id"],
+                            admission_schedule_id=row["admission_schedule_id"],
+                            run_schedule_id=row["run_schedule_id"],
+                        )
+                        or proof.checked_at < completed_at
+                        or row["admission_state"] != "completed"
+                        or row["admission_outcome"] != "succeeded"
+                        or row["journal_phase"] != "outcome"
+                        or row["journal_outcome"] != "succeeded"
+                        or row["journal_failure_code"] is not None
+                        or row["run_account_id"] != row["account_id"]
+                        or row["run_provider_key"] != _PROVIDER_KEY
+                        or row["run_target_kind"] != "cloud_service"
+                        or row["run_target_id"] != row["access_target_id"]
+                        or row["run_capability_id"] != _CAPABILITY_ID
+                        or row["run_source_id"] != "ollama.cloud.balance.v1"
+                        or int(row["run_target_generation"])
+                        != int(row["binding_generation"])
+                    ):
+                        raise OllamaCloudAdmissionRepositoryErrorV1(
+                            "ollama_cloud_verification_proof_invalid"
+                        )
+                    if row["state"] == "terminal":
+                        if (
+                            row["dispatch_certainty"] != "response_received"
+                            or row["outcome"] != VERIFICATION_RESPONSE_OUTCOME_V1
+                            or row["reason_code"] != "verification_commit_interrupted"
+                            or row["terminal_at"] != _utc_text(completed_at)
+                            or row["retry_after_seconds"] is not None
+                        ):
+                            raise OllamaCloudAdmissionRepositoryErrorV1(
+                                "ollama_cloud_verification_proof_invalid"
+                            )
+                        connection.rollback()
+                        return _verification_job(row)
+                    changed = connection.exec_driver_sql(
+                        "UPDATE collection_cloud_verification_job SET "
+                        "state='terminal',terminal_at=?,outcome=?,"
+                        "reason_code='verification_commit_interrupted',"
+                        "retry_after_seconds=NULL,record_version=record_version+1 "
+                        "WHERE job_id=? AND state='admitted' "
+                        "AND dispatch_certainty='response_received' "
+                        "AND reason_code='verification_commit_pending' "
+                        "AND outcome IS NULL AND terminal_at IS NULL",
+                        (
+                            _utc_text(completed_at),
+                            VERIFICATION_RESPONSE_OUTCOME_V1,
+                            row["job_id"],
+                        ),
+                    )
+                    if changed.rowcount != 1:
+                        raise OllamaCloudAdmissionRepositoryErrorV1(
+                            "ollama_cloud_verification_proof_invalid"
+                        )
+                    final = (
+                        connection.exec_driver_sql(
+                            "SELECT * FROM collection_cloud_verification_job "
+                            "WHERE job_id=?",
+                            (row["job_id"],),
+                        )
+                        .mappings()
+                        .one()
+                    )
+                    connection.commit()
+                    return _verification_job(final)
+        except OllamaCloudAdmissionRepositoryErrorV1:
+            raise
+        except (SQLAlchemyError, SqlitePolicyError, OSError, ValueError, TypeError):
+            raise OllamaCloudAdmissionRepositoryErrorV1() from None
+
     def acquire(
         self, request: OllamaCloudRequestAcquireV1
     ) -> OllamaCloudAdmissionDecisionV1:
@@ -2188,20 +2549,38 @@ class SqliteOllamaCloudAdmissionRepositoryV1:
             (completion.admission_id.value,),
         ).scalar_one_or_none()
         if job is not None:
-            finished = connection.exec_driver_sql(
-                "UPDATE collection_cloud_verification_job SET state='terminal',"
-                "dispatch_certainty='response_received',terminal_at=?,outcome=?,"
-                "reason_code=?,retry_after_seconds=?,record_version=record_version+1 "
-                "WHERE job_id=? AND state='admitted' AND admission_id=?",
-                (
-                    completed_text,
-                    completion.outcome,
-                    intent[4] or "verification_succeeded",
-                    completion.retry_after_seconds,
-                    job,
-                    completion.admission_id.value,
-                ),
-            )
+            if completion.outcome == "succeeded":
+                decision = verification_completion_decision(
+                    completion.outcome, "running", False
+                )
+                if decision != "pending":
+                    raise OllamaCloudAdmissionRepositoryErrorV1(
+                        "ollama_cloud_completion_conflict"
+                    )
+                finished = connection.exec_driver_sql(
+                    "UPDATE collection_cloud_verification_job SET "
+                    "dispatch_certainty='response_received',"
+                    "reason_code='verification_commit_pending',"
+                    "record_version=record_version+1 WHERE job_id=? "
+                    "AND state='admitted' AND admission_id=? "
+                    "AND outcome IS NULL AND terminal_at IS NULL",
+                    (job, completion.admission_id.value),
+                )
+            else:
+                finished = connection.exec_driver_sql(
+                    "UPDATE collection_cloud_verification_job SET state='terminal',"
+                    "dispatch_certainty='response_received',terminal_at=?,outcome=?,"
+                    "reason_code=?,retry_after_seconds=?,record_version=record_version+1 "
+                    "WHERE job_id=? AND state='admitted' AND admission_id=?",
+                    (
+                        completed_text,
+                        completion.outcome,
+                        intent[4],
+                        completion.retry_after_seconds,
+                        job,
+                        completion.admission_id.value,
+                    ),
+                )
             if finished.rowcount != 1:
                 raise OllamaCloudAdmissionRepositoryErrorV1(
                     "ollama_cloud_completion_conflict"

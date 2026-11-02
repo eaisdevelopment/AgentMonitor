@@ -12,12 +12,16 @@ from agentmonitor.contracts.collection_control_v1 import (
     OllamaCloudVerificationClaimRequestV1,
     OllamaCloudVerificationClaimTerminalV1,
     OllamaCloudVerificationEnqueueV1,
+    OllamaCloudVerificationInterruptionProofV1,
     OllamaCloudVerificationJobClaimV1,
     OllamaCloudVerificationJobViewV1,
     OllamaCloudVerificationStatusV1,
     OllamaCloudVerificationTargetV1,
 )
 from agentmonitor.contracts.common_v1 import OpaqueIdV1
+from agentmonitor.contracts.registry_v1 import (
+    CredentialBindingVerificationReceiptV1,
+)
 
 
 class OllamaCloudAdmissionRepositoryV1(Protocol):
@@ -59,6 +63,21 @@ class OllamaCloudAdmissionRepositoryV1(Protocol):
         binding_generation: int,
         queried_at: datetime,
     ) -> OllamaCloudVerificationStatusV1: ...
+
+    def pending_verification_finalizations(
+        self,
+        limit: int = 32,
+        *,
+        after_job_id: OpaqueIdV1 | None = None,
+    ) -> tuple[OllamaCloudVerificationJobViewV1, ...]: ...
+
+    def finalize_verification_success(
+        self, receipt: CredentialBindingVerificationReceiptV1
+    ) -> OllamaCloudVerificationJobViewV1: ...
+
+    def finalize_verification_interrupted(
+        self, proof: OllamaCloudVerificationInterruptionProofV1
+    ) -> OllamaCloudVerificationJobViewV1: ...
 
     def complete(
         self, completion: OllamaCloudRequestCompletionV1
@@ -175,3 +194,44 @@ class CompleteOllamaCloudRequestV1:
         self, completion: OllamaCloudRequestCompletionV1
     ) -> OllamaCloudRateGateViewV1:
         return self._repository.complete(completion)
+
+
+class ListPendingOllamaCloudVerificationFinalizationsV1:
+    """Read a bounded receipt-reconciliation batch without provider access."""
+
+    def __init__(self, repository: OllamaCloudAdmissionRepositoryV1) -> None:
+        self._repository = repository
+
+    def __call__(
+        self,
+        limit: int = 32,
+        *,
+        after_job_id: OpaqueIdV1 | None = None,
+    ) -> tuple[OllamaCloudVerificationJobViewV1, ...]:
+        return self._repository.pending_verification_finalizations(
+            limit, after_job_id=after_job_id
+        )
+
+
+class FinalizeOllamaCloudVerificationSuccessV1:
+    """Accept one genuine M02 receipt after its exact M04 run committed."""
+
+    def __init__(self, repository: OllamaCloudAdmissionRepositoryV1) -> None:
+        self._repository = repository
+
+    def __call__(
+        self, receipt: CredentialBindingVerificationReceiptV1
+    ) -> OllamaCloudVerificationJobViewV1:
+        return self._repository.finalize_verification_success(receipt)
+
+
+class FinalizeInterruptedOllamaCloudVerificationV1:
+    """Accept trusted no-commit/no-receipt proof for one failed M04 run."""
+
+    def __init__(self, repository: OllamaCloudAdmissionRepositoryV1) -> None:
+        self._repository = repository
+
+    def __call__(
+        self, proof: OllamaCloudVerificationInterruptionProofV1
+    ) -> OllamaCloudVerificationJobViewV1:
+        return self._repository.finalize_verification_interrupted(proof)

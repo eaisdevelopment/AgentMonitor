@@ -1,0 +1,73 @@
+"""Pure sequencing policy for owner-requested Ollama verification."""
+
+import pytest
+
+from agentmonitor.modules.collection_control.domain.ollama_verification import (
+    RECONCILABLE_VERIFICATION_RUN_STATES_V1,
+    VERIFICATION_RESPONSE_OUTCOME_V1,
+    verification_completion_decision,
+    verification_lineage_matches,
+)
+
+
+def test_successful_response_waits_for_terminal_run_and_receipt() -> None:
+    assert verification_completion_decision("succeeded", "running", False) == "pending"
+    assert (
+        verification_completion_decision("succeeded", "partial", True)
+        == "verification_succeeded"
+    )
+
+
+def test_interrupted_commit_never_becomes_verified() -> None:
+    assert (
+        verification_completion_decision("succeeded", "failed", False)
+        == "verification_commit_interrupted"
+    )
+    assert VERIFICATION_RESPONSE_OUTCOME_V1 == "succeeded"
+
+
+def test_recovery_query_only_selects_terminal_reconcilable_runs() -> None:
+    assert RECONCILABLE_VERIFICATION_RUN_STATES_V1 == (
+        "succeeded",
+        "partial",
+        "failed",
+        "blocked",
+        "cancelled",
+        "unsupported",
+    )
+
+
+def test_finalization_requires_exact_cross_table_lineage() -> None:
+    assert verification_lineage_matches(
+        expected_run_id="run",
+        job_run_id="run",
+        journal_run_id="run",
+        job_account_id="account",
+        admission_account_id="account",
+        run_account_id="account",
+        job_schedule_id="schedule",
+        admission_schedule_id="schedule",
+        run_schedule_id="schedule",
+    )
+    assert not verification_lineage_matches(
+        expected_run_id="run",
+        job_run_id="run",
+        journal_run_id="other-run",
+        job_account_id="account",
+        admission_account_id="account",
+        run_account_id="account",
+        job_schedule_id="schedule",
+        admission_schedule_id="schedule",
+        run_schedule_id="schedule",
+    )
+
+
+@pytest.mark.parametrize(
+    ("run_state", "receipt_present"),
+    (("partial", False), ("failed", True), ("running", True)),
+)
+def test_receipt_and_run_mismatch_fails_closed(
+    run_state: str, receipt_present: bool
+) -> None:
+    with pytest.raises(ValueError, match="ollama_cloud_verification_proof_invalid"):
+        verification_completion_decision("succeeded", run_state, receipt_present)
