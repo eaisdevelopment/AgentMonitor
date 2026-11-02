@@ -3,6 +3,23 @@
 AgentMonitor V1 runtime observation is read-only. It must never signal, attach
 to, pause, kill, restart, write stdin to, or switch credentials for a process.
 
+The optional local Ollama collector uses one twenty-second scheduling budget,
+at most two pending-commit recovery attempts per tick, and the existing bounded
+process-inspection deadline. Each SQLite or provider boundary retains its own
+short timeout. Service cancellation stops before a new durable admission when
+possible and otherwise drains the already admitted run. A sanitized five-minute
+failure deadline is stored atomically in the owner-only data root, so restarting
+the service cannot turn a pre-admission failure into a hot retry loop. That small
+operational state contains no provider identity or telemetry and is not part of
+the SQLite backup. An unsafe or unreadable state file leaves this optional
+collector unavailable; do not delete or loosen its permissions to force a retry.
+
+Live dashboard process discovery shares three bounded provider-discovery
+workers across requests. One unavailable provider remains visibly unavailable
+without spawning another worker pool per request or changing the successful
+Claude, Codex, or Ollama observations. Exact executable evidence never implies
+an Ollama account, model, or active generation relationship.
+
 Run the focused Task 5 tests from the repository root:
 
 ```text

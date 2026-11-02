@@ -9,6 +9,7 @@ from concurrent.futures import FIRST_COMPLETED, Future, ThreadPoolExecutor, wait
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
+from threading import RLock
 from typing import Literal
 
 from agentmonitor.adapters.platform.linux.processes import (
@@ -49,6 +50,35 @@ class _ProviderDiscoveryResultV1:
     state: Literal["available", "unavailable"]
     installations: tuple[_ProcessInstallation, ...]
     truncated: bool
+
+
+class _ProviderDiscoveryCoordinatorV1:
+    """Share at most one bounded worker per provider across live requests."""
+
+    def __init__(self) -> None:
+        self._executor = ThreadPoolExecutor(
+            max_workers=3,
+            thread_name_prefix="agentmonitor-process-source",
+        )
+        self._lock = RLock()
+        self._in_flight: dict[
+            Callable[[], _ProviderDiscoveryResultV1],
+            Future[_ProviderDiscoveryResultV1],
+        ] = {}
+
+    def submit(
+        self, discovery: Callable[[], _ProviderDiscoveryResultV1]
+    ) -> Future[_ProviderDiscoveryResultV1]:
+        with self._lock:
+            current = self._in_flight.get(discovery)
+            if current is not None and not current.done():
+                return current
+            submitted = self._executor.submit(discovery)
+            self._in_flight[discovery] = submitted
+            return submitted
+
+
+_PROVIDER_DISCOVERY = _ProviderDiscoveryCoordinatorV1()
 
 
 def _merge_provider_discoveries_v1(
@@ -195,14 +225,10 @@ def _read_process_locations_v1(
             False,
         )
 
-    executor = ThreadPoolExecutor(
-        max_workers=len(discoveries),
-        thread_name_prefix="agentmonitor-process-source",
-    )
     pending: dict[Future[_ProviderDiscoveryResultV1], int] = {}
     try:
         pending = {
-            executor.submit(discovery): index
+            _PROVIDER_DISCOVERY.submit(discovery): index
             for index, discovery in enumerate(discoveries)
         }
         items: list[LiveProcessLocationV1] = []
@@ -226,9 +252,11 @@ def _read_process_locations_v1(
                 pending.pop(future)
                 try:
                     discovery = future.result()
-                except (OSError, RuntimeError, ValueError):
+                except Exception:  # noqa: BLE001 - isolate one optional provider.
                     discovery = _ProviderDiscoveryResultV1("unavailable", (), False)
-                provider_unavailable = provider_unavailable or discovery.state == "unavailable"
+                provider_unavailable = (
+                    provider_unavailable or discovery.state == "unavailable"
+                )
                 installations, discovery_truncated = _merge_provider_discoveries_v1(
                     (discovery,)
                 )
@@ -317,10 +345,6 @@ def _read_process_locations_v1(
             None,
             False,
         )
-    finally:
-        for future in pending:
-            future.cancel()
-        executor.shutdown(wait=False, cancel_futures=True)
 
 
 def read_live_process_locations_v1() -> LiveProcessLocationsV1:

@@ -77,7 +77,9 @@ def test_shared_live_locations_include_exact_ollama_without_guessing_account():
     result = read_live_process_locations_v1()
     ollama = tuple(item for item in result.items if item.provider_key == "ollama")
 
-    assert result.availability.state == "available"
+    assert result.availability.state in {"available", "partial"}
+    if result.availability.state == "partial":
+        assert result.availability.reason_code == "provider_discovery_partial"
     assert ollama
     assert all(item.snapshot is not None for item in ollama)
     assert all(item.provider_version == installation.cli_version for item in ollama)

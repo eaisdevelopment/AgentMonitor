@@ -107,6 +107,10 @@ class LinuxRuntimeMonitoringErrorV1(RuntimeError):
     """Safe composition failure without paths, process data, or provider output."""
 
 
+class LinuxRuntimeMonitoringCancelledV1(RuntimeError):
+    """The optional scheduled collector was stopped before durable admission."""
+
+
 @dataclass(frozen=True, slots=True)
 class LinuxRuntimeMonitoringResultV1:
     """Safe persisted receipts and projections from one real inspection."""
@@ -256,6 +260,7 @@ def _build_admission(
     run_id: str,
     request_id: str,
     correlation_id: str,
+    operation_deadline_at: datetime | None = None,
 ) -> CollectionRunAdmissionV1:
     target_digest = _digest(
         "linux-runtime-target-v1",
@@ -264,6 +269,11 @@ def _build_admission(
         _SOURCE_ID,
         spec.selector_id,
     )
+    deadline_at = requested_at + timedelta(seconds=10)
+    if operation_deadline_at is not None:
+        deadline_at = min(deadline_at, operation_deadline_at)
+    if deadline_at <= requested_at:
+        raise LinuxRuntimeMonitoringErrorV1("linux_runtime_operation_deadline")
     return CollectionRunAdmissionV1(
         run_id=OpaqueIdV1(run_id),
         schedule_id=invocation.schedule_id,
@@ -317,7 +327,7 @@ def _build_admission(
         ),
         request_digest=_digest(request_id, target_digest, _CAPABILITY_ID),
         requested_at=requested_at,
-        deadline_at=requested_at + timedelta(seconds=10),
+        deadline_at=deadline_at,
     )
 
 
@@ -556,6 +566,10 @@ def _run_linux_runtime_collection(
     data_root: Path,
     spec: _RuntimeProviderSpecV1,
     invocation: _RuntimeInvocationV1,
+    *,
+    cancellation_requested: Callable[[], bool] | None = None,
+    operation_deadline_at: datetime | None = None,
+    recover_pending: bool = True,
 ) -> LinuxRuntimeMonitoringResultV1:
     """Inspect and persist one provider's real processes without guessing."""
     if not data_root.is_absolute() or data_root in {Path("/"), Path.home()}:
@@ -565,20 +579,36 @@ def _run_linux_runtime_collection(
         raise LinuxRuntimeMonitoringErrorV1("linux_runtime_database_missing")
     reference = DatabaseRefV1(database_path, data_root)
 
+    def checkpoint() -> None:
+        if cancellation_requested is not None and cancellation_requested():
+            raise LinuxRuntimeMonitoringCancelledV1(
+                "linux_runtime_collection_cancelled"
+            )
+        if (
+            operation_deadline_at is not None
+            and datetime.now(UTC) >= operation_deadline_at
+        ):
+            raise LinuxRuntimeMonitoringErrorV1("linux_runtime_operation_deadline")
+
     # Crash recovery is strictly database-to-database reconciliation. It runs
     # before a new run ID exists, before durable admission, and before procfs.
-    _recover_pending_linux_runtime_commits(
-        reference,
-        spec=spec,
-        as_of=datetime.now(UTC),
-    )
+    checkpoint()
+    if recover_pending:
+        _recover_pending_linux_runtime_commits(
+            reference,
+            spec=spec,
+            as_of=datetime.now(UTC),
+        )
+        checkpoint()
 
     registered_id, registered_version, registry_revision = _registered_installation(
         reference, spec
     )
+    checkpoint()
     platform_id, discovered_version, executable, expected_identity = (
         spec.discover_installation()
     )
+    checkpoint()
     if platform_id != "linux-x86_64" or discovered_version != registered_version:
         raise LinuxRuntimeMonitoringErrorV1(
             "linux_runtime_installation_version_mismatch"
@@ -608,6 +638,7 @@ def _run_linux_runtime_collection(
         run_id=run_id,
         request_id=request_id,
         correlation_id=correlation_id,
+        operation_deadline_at=operation_deadline_at,
     )
     inspection_request = PlatformInspectionRequestV1(
         operation_id=run_id,
@@ -624,6 +655,7 @@ def _run_linux_runtime_collection(
         deadline_at=admission.deadline_at,
     )
 
+    checkpoint()
     collection_repository = SqliteCollectionRepositoryV1(reference)
     runtime_repository = SqliteRuntimeObservationRepositoryV1(reference)
     sink = CommitRuntimeCollectionOutcomeV1(runtime_repository)
@@ -699,7 +731,12 @@ def run_ollama_runtime_collection(data_root: Path) -> LinuxRuntimeMonitoringResu
 
 
 def run_scheduled_ollama_runtime_collection(
-    data_root: Path, *, scheduler_instance_id: OpaqueIdV1
+    data_root: Path,
+    *,
+    scheduler_instance_id: OpaqueIdV1,
+    cancellation_requested: Callable[[], bool] | None = None,
+    operation_deadline_at: datetime | None = None,
+    recover_pending: bool = True,
 ) -> LinuxRuntimeMonitoringResultV1:
     """Persist one due Ollama scan through the scheduler admission boundary."""
 
@@ -713,6 +750,9 @@ def run_scheduled_ollama_runtime_collection(
             None,
             scheduler_instance_id,
         ),
+        cancellation_requested=cancellation_requested,
+        operation_deadline_at=operation_deadline_at,
+        recover_pending=recover_pending,
     )
 
 

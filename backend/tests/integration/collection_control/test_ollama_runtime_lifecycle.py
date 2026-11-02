@@ -3,7 +3,12 @@
 import asyncio
 import http.cookiejar
 import json
+import os
 import sqlite3
+import stat
+import subprocess
+import sys
+import time
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -94,6 +99,80 @@ def test_optional_ollama_failure_backs_off_without_hot_looping(
 
     assert collector.tick() == "ollama_runtime_unavailable"
     assert collector.tick() == "ollama_runtime_backoff"
+
+
+def test_optional_ollama_failure_backoff_survives_collector_restart(
+    tmp_path: Path,
+) -> None:
+    from agentmonitor.composition.ollama_runtime_collection import (
+        OllamaRuntimeCollectorV1,
+    )
+
+    reference = DatabaseRefV1(tmp_path / "agentmonitor.db", tmp_path)
+    migrate_to_head(reference)
+    database = tmp_path / "agentmonitor.db"
+    unavailable = tmp_path / "agentmonitor.unavailable"
+    database.rename(unavailable)
+
+    first = OllamaRuntimeCollectorV1(reference, data_root=tmp_path)
+    assert first.tick() == "ollama_runtime_unavailable"
+    state_file = tmp_path / ".ollama-runtime-collector-v1.json"
+    assert stat.S_IMODE(state_file.stat().st_mode) == 0o600
+    unavailable.rename(database)
+
+    restarted = OllamaRuntimeCollectorV1(reference, data_root=tmp_path)
+    assert restarted.tick() == "ollama_runtime_backoff"
+
+
+def test_unexpected_output_failure_does_not_terminate_optional_collector(
+    tmp_path: Path,
+) -> None:
+    reference = DatabaseRefV1(tmp_path / "agentmonitor.db", tmp_path)
+    migrate_to_head(reference)
+    (tmp_path / "agentmonitor.db").rename(tmp_path / "agentmonitor.unavailable")
+    source_root = Path(__file__).resolve().parents[3] / "src"
+    script = "\n".join(
+        (
+            "import asyncio",
+            "import sys",
+            "from pathlib import Path",
+            f"sys.path.insert(0, {str(source_root)!r})",
+            "from agentmonitor.adapters.persistence._shared.sqlite.core.policy "
+            "import DatabaseRefV1",
+            "from agentmonitor.composition.ollama_runtime_collection "
+            "import OllamaRuntimeCollectorV1",
+            f"root = Path({str(tmp_path)!r})",
+            "reference = DatabaseRefV1(root / 'agentmonitor.db', root)",
+            "asyncio.run(OllamaRuntimeCollectorV1(reference, data_root=root).run())",
+        )
+    )
+    process = subprocess.Popen(  # noqa: S603 - current test interpreter and fixed code
+        [sys.executable, "-I", "-c", script],
+        stdin=subprocess.DEVNULL,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.DEVNULL,
+        cwd=tmp_path,
+        env={
+            "LANG": "C.UTF-8",
+            "LC_ALL": "C.UTF-8",
+        },
+        start_new_session=True,
+    )
+    assert process.stdout is not None
+    process.stdout.close()
+    try:
+        deadline = time.monotonic() + 1.5
+        while process.poll() is None and time.monotonic() < deadline:
+            time.sleep(0.02)
+        assert process.poll() is None
+    finally:
+        if process.poll() is None:
+            os.killpg(process.pid, 15)
+            try:
+                process.wait(timeout=3)
+            except subprocess.TimeoutExpired:
+                os.killpg(process.pid, 9)
+                process.wait(timeout=3)
 
 
 def test_real_ollama_collector_reuses_registry_and_schedule_between_ticks(
