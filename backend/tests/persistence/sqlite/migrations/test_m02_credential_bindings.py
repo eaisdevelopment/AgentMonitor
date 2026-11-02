@@ -21,9 +21,13 @@ def test_migrated_database_has_guarded_credential_binding_schema(
     with open_sqlite_database(ref, "runtime_read_only") as database:
         with database.connect() as connection:
             inspector = inspect(connection)
-            assert {"reg_credential_binding_state", "reg_credential_binding"} <= set(
-                inspector.get_table_names()
-            )
+            assert {
+                "reg_credential_binding_state",
+                "reg_credential_binding",
+                "reg_credential_binding_verification",
+                "reg_provider_access_target",
+                "reg_cloud_monitoring_target",
+            } <= set(inspector.get_table_names())
             indexes = {
                 item["name"]: item
                 for item in inspector.get_indexes("reg_credential_binding")
@@ -37,3 +41,8 @@ def test_migrated_database_has_guarded_credential_binding_schema(
                 fk["referred_table"] == "reg_account"
                 for fk in inspector.get_foreign_keys("reg_credential_binding_state")
             )
+            verification_indexes = {
+                item["name"]: item
+                for item in inspector.get_indexes("reg_credential_binding_verification")
+            }
+            assert verification_indexes["ix_reg_binding_verification_current"]

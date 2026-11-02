@@ -74,6 +74,17 @@ CredentialBindingReasonV1 = Literal[
     "account_deleted",
     "local_cleanup_completed",
 ]
+CredentialConnectionStateV1 = Literal[
+    "not_configured",
+    "pending",
+    "access_valid_identity_unresolved",
+    "access_valid_owner_confirmed",
+    "unauthorized",
+    "rate_limited",
+    "store_locked",
+    "authorization_unavailable",
+    "unavailable",
+]
 
 
 def _valid_credential_binding_id(value: OpaqueIdV1) -> bool:
@@ -379,6 +390,183 @@ class ActiveCredentialBindingRefV1(TechnicalValueV1):
             raise ValueError("registry_credential_binding_id_invalid")
         if type(self.generation) is not int or self.generation < 1:
             raise ValueError("registry_credential_binding_generation_invalid")
+
+
+def _valid_access_target_id(value: OpaqueIdV1) -> bool:
+    target_id = value.value
+    return (
+        len(target_id) == 37
+        and target_id.startswith("amat_")
+        and all(character in "0123456789abcdef" for character in target_id[5:])
+    )
+
+
+@dataclass(frozen=True, slots=True)
+class ProviderTargetRefV1(TechnicalValueV1):
+    """Discriminated M02 target identity; never aliases cloud to installation."""
+
+    CONTRACT_ID: ClassVar[str] = "CTR-REG-012"
+    OWNER: ClassVar[str] = "PLAN-M02"
+
+    target_kind: Literal["provider_installation", "cloud_service"]
+    target_id: OpaqueIdV1
+
+    def __post_init__(self) -> None:
+        TechnicalValueV1.__post_init__(self)
+        if self.target_kind == "cloud_service" and not _valid_access_target_id(
+            self.target_id
+        ):
+            raise ValueError("registry_provider_target_invalid")
+
+
+@dataclass(frozen=True, slots=True)
+class ProviderAccessTargetV1(TechnicalValueV1):
+    """Code-owned official cloud service target, distinct from a local install."""
+
+    CONTRACT_ID: ClassVar[str] = "CTR-REG-012"
+    OWNER: ClassVar[str] = "PLAN-M02"
+
+    access_target_id: OpaqueIdV1
+    provider_key: str
+    target_kind: Literal["cloud_service"]
+    authority_id: str
+    manifest_fingerprint: str
+    lifecycle: Literal["active", "disabled"]
+    record_version: int
+
+    def __post_init__(self) -> None:
+        TechnicalValueV1.__post_init__(self)
+        if (
+            not _valid_access_target_id(self.access_target_id)
+            or not _bounded(self.provider_key, maximum=64)
+            or not _bounded(self.authority_id, maximum=128)
+            or len(self.manifest_fingerprint) != 64
+            or any(
+                character not in "0123456789abcdef"
+                for character in self.manifest_fingerprint
+            )
+            or type(self.record_version) is not int
+            or self.record_version < 1
+        ):
+            raise ValueError("registry_provider_access_target_invalid")
+
+
+@dataclass(frozen=True, slots=True)
+class AssertCredentialAccountOwnershipCommandV1(TechnicalValueV1):
+    """Owner assertion for one pending account and exact credential generation."""
+
+    CONTRACT_ID: ClassVar[str] = "CTR-REG-012"
+    OWNER: ClassVar[str] = "PLAN-M02"
+
+    command_id: OpaqueIdV1
+    principal_id: OpaqueIdV1
+    account_id: OpaqueIdV1
+    access_target_id: OpaqueIdV1
+    expected_account_record_version: int
+    binding: ActiveCredentialBindingRefV1
+    requested_at: datetime
+
+    def __post_init__(self) -> None:
+        TechnicalValueV1.__post_init__(self)
+        if (
+            self.binding.account_id != self.account_id
+            or not _valid_access_target_id(self.access_target_id)
+            or type(self.expected_account_record_version) is not int
+            or self.expected_account_record_version < 1
+        ):
+            raise ValueError("registry_credential_owner_assertion_invalid")
+
+
+@dataclass(frozen=True, slots=True)
+class InitiateOllamaCloudVerificationCommandV1(TechnicalValueV1):
+    """Signed-in owner request; server resolves all private binding references."""
+
+    CONTRACT_ID: ClassVar[str] = "CTR-REG-012"
+    OWNER: ClassVar[str] = "PLAN-M02"
+
+    idempotency_key: OpaqueIdV1
+    principal_id: OpaqueIdV1
+    account_id: OpaqueIdV1
+    expected_account_record_version: int
+    requested_at: datetime
+
+    def __post_init__(self) -> None:
+        TechnicalValueV1.__post_init__(self)
+        if (
+            type(self.expected_account_record_version) is not int
+            or self.expected_account_record_version < 1
+        ):
+            raise ValueError("registry_credential_verification_command_invalid")
+
+
+@dataclass(frozen=True, slots=True)
+class CredentialBindingVerificationReceiptV1(TechnicalValueV1):
+    """Successful balance-access receipt for one exact binding generation."""
+
+    CONTRACT_ID: ClassVar[str] = "CTR-REG-012"
+    OWNER: ClassVar[str] = "PLAN-M02"
+
+    verification_id: OpaqueIdV1
+    binding: ActiveCredentialBindingRefV1
+    run_id: OpaqueIdV1
+    admission_id: OpaqueIdV1
+    source_id: Literal["ollama.cloud.balance.v1"]
+    adapter_version: str
+    manifest_fingerprint: str
+    payload_digest: str
+    verified_at: datetime
+    record_version: int
+
+    def __post_init__(self) -> None:
+        TechnicalValueV1.__post_init__(self)
+        identifier = self.verification_id.value
+        if (
+            len(identifier) != 37
+            or not identifier.startswith("amvr_")
+            or any(character not in "0123456789abcdef" for character in identifier[5:])
+            or not _bounded(self.adapter_version, maximum=64)
+            or len(self.manifest_fingerprint) != 64
+            or any(
+                character not in "0123456789abcdef"
+                for character in self.manifest_fingerprint
+            )
+            or len(self.payload_digest) != 64
+            or any(
+                character not in "0123456789abcdef" for character in self.payload_digest
+            )
+            or self.record_version != 1
+        ):
+            raise ValueError("registry_credential_verification_invalid")
+
+
+@dataclass(frozen=True, slots=True)
+class CredentialConnectionStatusV1(TechnicalValueV1):
+    """Safe server-derived cloud connection status; no secret/keyring detail."""
+
+    CONTRACT_ID: ClassVar[str] = "CTR-REG-012"
+    OWNER: ClassVar[str] = "PLAN-M02"
+
+    account_id: OpaqueIdV1
+    state: CredentialConnectionStateV1
+    can_verify: bool
+    binding_generation: int | None
+    observed_at: datetime | None
+    reason_code: str
+
+    def __post_init__(self) -> None:
+        TechnicalValueV1.__post_init__(self)
+        if (
+            type(self.can_verify) is not bool
+            or (
+                self.binding_generation is not None
+                and (
+                    type(self.binding_generation) is not int
+                    or self.binding_generation < 1
+                )
+            )
+            or not _bounded(self.reason_code, maximum=128)
+        ):
+            raise ValueError("registry_credential_connection_status_invalid")
 
 
 @dataclass(frozen=True, slots=True)

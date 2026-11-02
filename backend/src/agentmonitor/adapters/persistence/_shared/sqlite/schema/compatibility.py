@@ -30,7 +30,7 @@ from agentmonitor.contracts.database_v1 import SchemaCompatibilityV1
 from agentmonitor.contracts.foundation_v1 import MigrationMetadataV1
 
 MIGRATIONS_PATH = Path(__file__).resolve().parents[7] / "migrations"
-CATALOG_SHA256 = "dd33370f9e172d6664c378125d2b98105adf2bc5454f1f06606e99a5c3ff5208"
+CATALOG_SHA256 = "d1b604e772495e86d1053647d08595b3210e35d850fb976c70c1c80451627dc7"
 IAM_TABLES = frozenset(
     {
         "iam_administrator",
@@ -370,6 +370,7 @@ REVISION_ORDER = {
     "v1_0710": 710,
     "v1_0711": 711,
     "v1_0712": 712,
+    "v1_0713": 713,
 }
 ApplicationSchemaRangeV1 = SchemaCompatibilityV1
 SchemaState = Literal[
@@ -532,10 +533,10 @@ def load_migration_catalog(
             raise SchemaCompatibilityError("migration_catalog_invalid")
         records = document["revisions"]
         if (
-            document["version"] != "1.7.12"
-            or document["head"] != "v1_0712"
+            document["version"] != "1.7.13"
+            or document["head"] != "v1_0713"
             or not isinstance(records, list)
-            or len(records) != 31
+            or len(records) != 32
             or not all(isinstance(record, dict) for record in records)
         ):
             raise SchemaCompatibilityError("migration_catalog_invalid")
@@ -572,6 +573,7 @@ def load_migration_catalog(
             "v1_0710_m05_source_period.py",
             "v1_0711_m04_cloud_journal.py",
             "v1_0712_m04_cloud_failure.py",
+            "v1_0713_m02_cloud_targets.py",
         ) or tuple(record.get("ordinal") for record in records) != (
             0,
             100,
@@ -604,6 +606,7 @@ def load_migration_catalog(
             710,
             711,
             712,
+            713,
         ):
             raise SchemaCompatibilityError("migration_catalog_invalid")
         inventory = {path.name for path in (migrations_path / "versions").glob("*.py")}
@@ -740,7 +743,16 @@ def load_migration_catalog(
                 "collection_cloud_attempt_journal",
                 "collection_cloud_no_response_terminal",
             }
-            or any(record.get("status") != "shared" for record in records[18:31])
+            or metadata[31].parent_revision != "v1_0712"
+            or metadata[31].owner != "M02"
+            or metadata[31].plan_id != "PLAN-M02"
+            or set(metadata[31].tables)
+            != {
+                "reg_provider_access_target",
+                "reg_cloud_monitoring_target",
+                "reg_credential_binding_verification",
+            }
+            or any(record.get("status") != "shared" for record in records[18:32])
             or any(
                 item.backup_prerequisite
                 not in {"none_empty_bootstrap", "required_existing_database"}
@@ -748,7 +760,7 @@ def load_migration_catalog(
             )
         ):
             raise SchemaCompatibilityError("migration_catalog_invalid")
-        result = MigrationCatalogV1("1.7.12", digest, "v1_0712", metadata)
+        result = MigrationCatalogV1("1.7.13", digest, "v1_0713", metadata)
     except SchemaCompatibilityError as error:
         failure = error.code
     except (OSError, ValueError, KeyError, TypeError, SyntaxError, UnicodeError):
@@ -936,6 +948,7 @@ def _inspect(
         "v1_0710",
         "v1_0711",
         "v1_0712",
+        "v1_0713",
     }:
         table_names = {name for kind, name in objects if kind == "table"}
         explicit_indexes = {
@@ -970,6 +983,7 @@ def _inspect(
             "v1_0710",
             "v1_0711",
             "v1_0712",
+            "v1_0713",
         }
         collector_guarded = current in {
             "v1_0706",
@@ -979,6 +993,7 @@ def _inspect(
             "v1_0710",
             "v1_0711",
             "v1_0712",
+            "v1_0713",
         }
         projection_guarded = current in {
             "v1_0707",
@@ -987,6 +1002,7 @@ def _inspect(
             "v1_0710",
             "v1_0711",
             "v1_0712",
+            "v1_0713",
         }
         ollama_admission_guarded = current in {
             "v1_0708",
@@ -994,6 +1010,7 @@ def _inspect(
             "v1_0710",
             "v1_0711",
             "v1_0712",
+            "v1_0713",
         }
         expected_triggers = (
             (ALERT_CONFIGURATION_TRIGGERS if guarded else frozenset())
@@ -1013,7 +1030,7 @@ def _inspect(
             )
             | (
                 frozenset({"collection_cloud_no_response_terminal"})
-                if current == "v1_0712"
+                if current in {"v1_0712", "v1_0713"}
                 else frozenset()
             )
             | (
@@ -1023,12 +1040,30 @@ def _inspect(
                         "collection_cloud_attempt_journal",
                     }
                 )
-                if current in {"v1_0711", "v1_0712"}
+                if current in {"v1_0711", "v1_0712", "v1_0713"}
                 else frozenset()
             )
             | (
                 frozenset({"reg_credential_binding_state", "reg_credential_binding"})
-                if current in {"v1_0709", "v1_0710", "v1_0711", "v1_0712"}
+                if current
+                in {
+                    "v1_0709",
+                    "v1_0710",
+                    "v1_0711",
+                    "v1_0712",
+                    "v1_0713",
+                }
+                else frozenset()
+            )
+            | (
+                frozenset(
+                    {
+                        "reg_provider_access_target",
+                        "reg_cloud_monitoring_target",
+                        "reg_credential_binding_verification",
+                    }
+                )
+                if current == "v1_0713"
                 else frozenset()
             )
             | (
@@ -1058,12 +1093,31 @@ def _inspect(
                         "ix_reg_binding_cleanup",
                     }
                 )
-                if current in {"v1_0709", "v1_0710", "v1_0711", "v1_0712"}
+                if current
+                in {
+                    "v1_0709",
+                    "v1_0710",
+                    "v1_0711",
+                    "v1_0712",
+                    "v1_0713",
+                }
                 else frozenset()
             )
             | (
                 frozenset({"uq_collection_cloud_attempt_run"})
-                if current == "v1_0712"
+                if current in {"v1_0712", "v1_0713"}
+                else frozenset()
+            )
+            | (
+                frozenset(
+                    {
+                        "uq_reg_binding_account_id",
+                        "ix_reg_access_target_provider",
+                        "ix_reg_cloud_monitoring_target",
+                        "ix_reg_binding_verification_current",
+                    }
+                )
+                if current == "v1_0713"
                 else frozenset()
             )
             | (
@@ -1080,7 +1134,9 @@ def _inspect(
             or any(kind not in {"table", "index", "trigger"} for kind, _ in objects)
             or not _m4_owned_structure_is_valid(
                 connection,
-                "5bb703f8b23ea63d8af3139445eda48610f73d300007c125bd230969a3cc54e7"
+                "21872fe8be2e4d1296dedb905a9b177c2475932654a26e71f1df46f8d45d4172"
+                if current == "v1_0713"
+                else "5bb703f8b23ea63d8af3139445eda48610f73d300007c125bd230969a3cc54e7"
                 if current == "v1_0712"
                 else "18cec43896b5bf998b080accdee6e6500a69aee0f540657474b7619dee2a6327"
                 if current == "v1_0711"

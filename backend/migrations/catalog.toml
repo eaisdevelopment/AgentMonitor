@@ -1,5 +1,5 @@
-version = "1.7.12"
-head = "v1_0712"
+version = "1.7.13"
+head = "v1_0713"
 env_sha256 = "27449e3ed3984acde690510f9e4974eb6412f5f1b7e62af65bc8bb616879a7d7"
 
 [[revisions]]
@@ -684,3 +684,25 @@ backup_prerequisite = "required_existing_database"
 validation_ids = ["single_head", "m04_cloud_failure_schema", "foreign_key_check", "full_integrity"]
 recovery_policy = "preserve_failed_database_and_restore_verified_backup_or_forward_fix"
 reviewer = "M04-M6-cloud-journal-review"
+
+[[revisions]]
+ordinal = 713
+filename = "v1_0713_m02_cloud_targets.py"
+sha256 = "6cc24b862de63a21851efc29f9363f3fedce93e5a28db739ac44c792097ebe80"
+status = "shared"
+reviewed_at = "2026-11-02"
+revision = "v1_0713"
+parent_revision = "v1_0712"
+owner = "M02"
+plan_id = "PLAN-M02"
+requirement_ids = ["FR-ACC-001", "FR-COL-004", "FR-SAFE-001", "M6-A03", "M6-A04", "NFR-DATA-001"]
+schema_range = ["v1_0713", "v1_0713", "v1_0713", "v1_0713", "v1_0713"]
+tables = ["reg_provider_access_target", "reg_cloud_monitoring_target", "reg_credential_binding_verification"]
+portability_notes = ["Cloud service targets remain distinct from locally discovered installations", "Verification receipts bind one successful run to an exact credential generation without storing credentials"]
+lock_policy = "exclusive_migration_and_begin_immediate"
+downtime_policy = "offline_additive_schema_migration"
+expected_data_volume = "one_cloud_target_per_authority;one_monitoring_target_per_account;one_receipt_per_successful_verification"
+backup_prerequisite = "required_existing_database"
+validation_ids = ["single_head", "m02_cloud_target_verification_schema", "foreign_key_check", "full_integrity"]
+recovery_policy = "preserve_failed_database_and_restore_verified_backup_or_forward_fix"
+reviewer = "M02-M6-cloud-target-review"

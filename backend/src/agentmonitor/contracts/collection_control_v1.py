@@ -294,6 +294,40 @@ class OllamaCloudRequestAcquireV1(TechnicalValueV1):
 
 
 @dataclass(frozen=True, slots=True)
+class OllamaCloudVerificationAcquireV1(TechnicalValueV1):
+    """One owner-targeted first-verification acquire on the global rate gate."""
+
+    CONTRACT_ID: ClassVar[str] = "CTR-COL-010"
+    OWNER: ClassVar[str] = "PLAN-M04"
+
+    admission_id: OpaqueIdV1
+    scheduler_instance_id: OpaqueIdV1
+    schedule_id: OpaqueIdV1
+    account_id: OpaqueIdV1
+    target_generation: int
+    requested_at: datetime
+    lease_expires_at: datetime
+    jitter_seconds: int
+
+    def __post_init__(self) -> None:
+        TechnicalValueV1.__post_init__(self)
+        if (
+            type(self.target_generation) is not int
+            or self.target_generation < 1
+            or not _utc(self.requested_at)
+            or not _utc(self.lease_expires_at)
+            or not timedelta(0)
+            < self.lease_expires_at - self.requested_at
+            <= timedelta(seconds=60)
+            or type(self.jitter_seconds) is not int
+            or not 0 <= self.jitter_seconds <= 10
+        ):
+            raise InvalidCollectionControlV1(
+                "ollama_cloud_verification_acquire_invalid"
+            )
+
+
+@dataclass(frozen=True, slots=True)
 class OllamaCloudRequestLeaseV1(TechnicalValueV1):
     """Fenced permission for one exact account request start."""
 
