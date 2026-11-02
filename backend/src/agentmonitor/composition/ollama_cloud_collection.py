@@ -44,6 +44,7 @@ from agentmonitor.adapters.providers.ollama.cloud_balance.source import (
 )
 from agentmonitor.adapters.providers.ollama.cloud_balance.verification_run import (
     build_verification_run,
+    source_budget_seconds,
 )
 from agentmonitor.adapters.providers.ollama.manifest import (
     OLLAMA_ADAPTER_ID,
@@ -350,6 +351,7 @@ class OllamaCloudCollectionV1:
             or graph.binding != binding
             or graph.access_target_id != claim.access_target_id
             or graph.lifecycle != "active"
+            or graph.identity_state != "owner_confirmed"
             or binding.generation != claim.binding_generation
             or account.lifecycle != "active"
             or account.provider_key != "ollama"
@@ -698,8 +700,21 @@ class OllamaCloudCollectionV1:
             # No worker was spawned; make this exact owner cancellation recoverable.
             self._admission.revert_undispatched(lease)
             raise ValueError("ollama_cloud_lease_expired")
+        try:
+            source_budget = (
+                source_budget_seconds(
+                    (lease.lease_expires_at - current).total_seconds(),
+                    (run.deadline_at - current).total_seconds(),
+                    float(CLOUD_BALANCE_POLICY_V1.operation_timeout_seconds),
+                )
+                if isinstance(run, CollectionRunAdmissionV2)
+                else remaining - 1
+            )
+        except ValueError:
+            self._admission.revert_undispatched(lease)
+            raise
         source = read_cloud_balance_for_binding_v1(
-            binding=binding, deadline_monotonic=time.monotonic() + remaining - 1
+            binding=binding, deadline_monotonic=time.monotonic() + source_budget
         )
         completed = datetime.now(UTC)
         authorization_not_sent = (

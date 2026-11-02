@@ -416,10 +416,7 @@ def main() -> int:
     args = parser.parse_args()
     if not args.data_root.is_absolute() or args.data_root in {Path("/"), Path.home()}:
         return 2
-    try:
-        require_source_admitted()
-        require_cloud_manifest()
-    except ValueError:
+    if not (args.data_root / "agentmonitor.db").is_file():
         return 3
     try:
         collector = OllamaCloudCollectionV1(
@@ -436,6 +433,11 @@ def main() -> int:
             "legacy_unresolved",
             "owner_active_or_unverified",
         }:
+            try:
+                require_source_admitted()
+                require_cloud_manifest()
+            except ValueError:
+                return 3
             collector.tick()
         return 0
     except Exception:  # noqa: BLE001 - the process returns only a closed status.

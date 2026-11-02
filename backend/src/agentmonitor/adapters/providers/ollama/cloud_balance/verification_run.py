@@ -20,6 +20,16 @@ def _digest(*values: str) -> str:
     return hashlib.sha256("\0".join(values).encode()).hexdigest()
 
 
+def source_budget_seconds(
+    rate_lease_remaining: float, run_lease_remaining: float, source_max: float
+) -> float:
+    """Reserve eight seconds for durable completion and worker cleanup."""
+    budget = min(rate_lease_remaining, run_lease_remaining) - 8.0
+    if budget <= 0 or source_max <= 0:
+        raise ValueError("ollama_cloud_lease_expired")
+    return min(budget, source_max)
+
+
 def build_verification_run(
     claim: OllamaCloudVerificationJobClaimV1,
     graph: CloudMonitoringTargetV1,

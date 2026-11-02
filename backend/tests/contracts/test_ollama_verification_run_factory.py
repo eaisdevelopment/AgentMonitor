@@ -71,3 +71,13 @@ def test_run_binds_exact_claim_graph_and_owner() -> None:
             "b" * 64,
             now,
         )
+
+
+def test_source_deadline_reserves_time_for_commit_and_cleanup() -> None:
+    from agentmonitor.adapters.providers.ollama.cloud_balance.verification_run import (
+        source_budget_seconds,
+    )
+
+    assert source_budget_seconds(20.0, 18.0, 30.0) == 10.0
+    with pytest.raises(ValueError):
+        source_budget_seconds(8.0, 20.0, 30.0)

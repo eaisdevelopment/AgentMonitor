@@ -1600,6 +1600,7 @@ class SqliteOllamaCloudAdmissionRepositoryV1:
                         or row["admission_id"] is not None
                         or row["run_id"] is not None
                         or int(row["record_version"]) != claim.record_version
+                        or datetime.now(UTC) >= claim.claim_expires_at
                     ):
                         raise OllamaCloudAdmissionRepositoryErrorV1(
                             "ollama_cloud_verification_claim_conflict"
