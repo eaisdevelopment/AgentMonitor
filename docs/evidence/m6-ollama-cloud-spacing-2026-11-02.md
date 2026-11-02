@@ -18,3 +18,7 @@ handling, request execution, actual provider rate-limit behavior, and
 multi-instance behavior remain unimplemented or unverified. This policy is
 not wired to a live collector. A future caller must treat validation errors as
 blocked admission, never as an immediately eligible poll.
+
+Collection-control regression run on 2 November 2026: the complete existing
+`backend/tests/collection_control` suite passed, 37 tests. This does not add
+provider-boundary, scheduler persistence, or live rate-limit evidence.
