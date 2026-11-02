@@ -47,3 +47,12 @@ Ubuntu copyright files report libsecret core LGPL-2.1+, with separately identifi
 2. Land M02 and credential boundary, M03 source + capability, M04 durable limiter, M05 native windows/history/alerts, versioned API and generated UI as one coordinated end-to-end change. Keep provider implementation in its adapter, no direct cross-module table access. Design account identity as owner asserted unless independently proved. Preserve fallback/recovery without stopping agents.
 3. Red-green-refactor meaningful no-I/O pure contract tests; use real SQLite, actual app/service/browser and real owner-provisioned source for boundary behavior; no mocks, recording, seeded telemetry or fabricated provider states. Verify rotation/crash/cleanup, no secret leak, DST/UTC and exact numbers, period fidelity, unauthorized/rate-limited/locked paths when naturally available, safe backoff/restart, history and alert deduplication, existing provider health. Record omitted scenarios accurately as blocked/not run. Verify with owner in official Ollama views, never request key in chat or screenshots.
 4. Run the canonical full M6 completion gate against deployed clean revision, account for the local and cloud requirements and record sanitized evidence, not a partial success. This review supplies neither a completed executable gate nor live verification.
+
+## Additional user-service reachability evidence
+
+On 2 November 2026 an isolated, short-lived systemd user service successfully
+queried the user bus for `org.freedesktop.secrets` and exited normally. This
+is evidence of bus-name reachability from a user-service context only. It does
+not prove the login collection is unlocked, that unattended lookup succeeds,
+or that behavior survives logout or reboot; no secret items were created,
+listed, read, or changed. The transient service was collected after exit.
