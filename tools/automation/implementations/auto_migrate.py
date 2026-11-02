@@ -1,4 +1,4 @@
-"""Bounded offline AgentMonitor v1_0603/v1_0707/v1_0708/v1_0709/v1_0710/v1_0711/v1_0712 to v1_0713 upgrade.
+"""Bounded offline AgentMonitor v1_0603/v1_0707/v1_0708/v1_0709/v1_0710/v1_0711/v1_0712/v1_0713/v1_0714 to v1_0715 upgrade.
 
 This operator command never starts/stops the service or restores a database.
 It acts only on an explicitly selected owner-only data root and retains its
@@ -64,8 +64,10 @@ SOURCES = (
     "v1_0710",
     "v1_0711",
     "v1_0712",
+    "v1_0713",
+    "v1_0714",
 )
-TARGET = "v1_0713"
+TARGET = "v1_0715"
 SETTINGS = "owner-process-account-associations-v1.json"
 SETTINGS_LOCK = ".owner-process-account-associations-v1.lock"
 MAX_SETTINGS_BYTES = 1024 * 1024
@@ -369,27 +371,17 @@ def _preflight_catalog(source: str) -> tuple[MigrationCatalogV1, tuple[str, ...]
     if catalog.head != TARGET or source not in SOURCES or revisions[-1] != TARGET:
         _refuse("migration_catalog_not_m4")
     tail = catalog.revisions[revisions.index(source) + 1 :]
-    expected_tail = (
-        (
-            *tuple(f"v1_070{index}" for index in range(10)),
-            "v1_0710",
-            "v1_0711",
-            "v1_0712",
-            "v1_0713",
-        )
-        if source == "v1_0603"
-        else ("v1_0708", "v1_0709", "v1_0710", "v1_0711", "v1_0712", "v1_0713")
-        if source == "v1_0707"
-        else ("v1_0709", "v1_0710", "v1_0711", "v1_0712", "v1_0713")
-        if source == "v1_0708"
-        else ("v1_0710", "v1_0711", "v1_0712", "v1_0713")
-        if source == "v1_0709"
-        else ("v1_0711", "v1_0712", "v1_0713")
-        if source == "v1_0710"
-        else ("v1_0712", "v1_0713")
-        if source == "v1_0711"
-        else ("v1_0713",)
+    expected_chain = (
+        "v1_0603",
+        *tuple(f"v1_070{index}" for index in range(10)),
+        "v1_0710",
+        "v1_0711",
+        "v1_0712",
+        "v1_0713",
+        "v1_0714",
+        "v1_0715",
     )
+    expected_tail = expected_chain[expected_chain.index(source) + 1 :]
     if tuple(item.revision for item in tail) != expected_tail or any(
         item.backup_prerequisite != "required_existing_database"
         or item.downtime_policy != "offline_additive_schema_migration"

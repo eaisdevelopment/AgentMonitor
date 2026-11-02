@@ -51,6 +51,7 @@ class OllamaCloudWorkerSupervisorV1:
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.DEVNULL,
             pass_fds=pass_fds,
+            env=secret_tool_environment(os.environ),
         )
         try:
             output, _ = await asyncio.wait_for(
@@ -69,17 +70,22 @@ class OllamaCloudWorkerSupervisorV1:
         return process.returncode or 0, output.decode("utf-8", "strict")
 
     async def _show(self, unit: str) -> dict[str, str]:
-        _, output = await self._command(
+        code, output = await self._command(
             _SYSTEMCTL,
             "--user",
             "show",
             unit,
-            "--property=Id,Description,Transient,FragmentPath,InvocationID,KillMode,ActiveState,ControlGroup,ExecMainStatus,ExecStart,RuntimeMaxUSec,TimeoutStopUSec,RemainAfterExit",
+            "--property=Id,LoadState,Description,Transient,FragmentPath,InvocationID,KillMode,ActiveState,ControlGroup,ExecMainStatus,ExecStart,RuntimeMaxUSec,TimeoutStopUSec,RemainAfterExit",
             "--no-pager",
         )
         pairs = [line.partition("=") for line in output.splitlines() if "=" in line]
         result = {key: value for key, _, value in pairs}
-        if len(result) != len(pairs):
+        if (
+            code != 0
+            or len(result) != len(pairs)
+            or result.get("Id") != unit
+            or not result.get("LoadState")
+        ):
             raise ValueError("ollama_cloud_unit_identity_invalid")
         return result
 
@@ -139,9 +145,18 @@ class OllamaCloudWorkerSupervisorV1:
                 return False
             if after.get("ControlGroup"):
                 return False
-            await self._command(_SYSTEMCTL, "--user", "reset-failed", unit)
+            if after.get("LoadState") != "not-found":
+                reset_code, _ = await self._command(
+                    _SYSTEMCTL, "--user", "reset-failed", unit
+                )
+                if reset_code:
+                    return False
             final = await self._show(unit)
-            return final.get("FragmentPath", "") == "" and not final.get("ControlGroup")
+            return (
+                final.get("LoadState") == "not-found"
+                and final.get("FragmentPath", "") == ""
+                and not final.get("ControlGroup")
+            )
         except (OSError, ValueError, TimeoutError):
             return False
 
@@ -230,6 +245,7 @@ class OllamaCloudWorkerSupervisorV1:
     def _verify_lock(self) -> None:
         if self._root_fd is None or self._lock_fd is None:
             raise ValueError("ollama_cloud_lock_missing")
+        fcntl.flock(self._lock_fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
         pinned_root = os.fstat(self._root_fd)
         path_root = os.stat(self._data_root, follow_symlinks=False)
         pinned_lock = os.fstat(self._lock_fd)
@@ -238,9 +254,13 @@ class OllamaCloudWorkerSupervisorV1:
         )
         if (
             not stat.S_ISDIR(path_root.st_mode)
+            or path_root.st_uid != os.getuid()
+            or stat.S_IMODE(path_root.st_mode) != 0o700
             or (pinned_root.st_dev, pinned_root.st_ino)
             != (path_root.st_dev, path_root.st_ino)
             or not stat.S_ISREG(path_lock.st_mode)
+            or path_lock.st_uid != os.getuid()
+            or stat.S_IMODE(path_lock.st_mode) != 0o600
             or pinned_lock.st_nlink != 1
             or (pinned_lock.st_dev, pinned_lock.st_ino)
             != (path_lock.st_dev, path_lock.st_ino)
@@ -343,6 +363,7 @@ class OllamaCloudWorkerSupervisorV1:
             code, _ = await asyncio.shield(start)
             if code:
                 self._quarantined = True
+                await self._cancelled_cleanup(unit, description, start)
                 return "quarantined"
             properties = await self._show(unit)
             invocation = self._identity(unit, description, properties)

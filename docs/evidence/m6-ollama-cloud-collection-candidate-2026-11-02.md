@@ -101,3 +101,29 @@ exact-unit cleanup even after a manager-start failure, preserving the durable
 uncertainty marker on ambiguity. Nine real process/user-manager checks pass.
 A real manager hang after queueing and an aggregate slow-manager shutdown have
 not been reproduced; independent review and live service wiring remain open.
+
+## v1_0715 and supervisor review follow-up
+
+The v1_0713-to-v1_0715 offline upgrade check failed before those source
+revisions were admitted and passed after updating the bounded command. The
+complete isolated offline migration suite passed 15 tests, including verified
+backups from v1_0713 and v1_0714. These use empty real schemas; populated
+upgrade and installed activation remain Not Run.
+
+The unwired supervisor now pins and rechecks its root and lock inode, owner and
+mode, uses a single 20-second cancellation-cleanup deadline, and attempts
+exact-unit cleanup even when the start command fails or times out. The real
+lock-replacement check failed before the inode check and passes afterwards;
+nine real worker checks pass. Manager `show` and `reset-failed` results are
+checked and manager subprocesses use an allowlisted session environment.
+A manager that accepts a start after the cleanup check, a truly slow manager,
+and total shutdown under that condition have not been reproduced. In those
+cases the durable marker prevents another start but does not prove cessation;
+the worker remains unwired pending independent review.
+
+The lock verification now also reasserts its nonblocking exclusive flock.
+Nine real worker checks and the real application API-surface check passed after
+that change. A queued unit can still appear after an absent-unit check and the
+20-second cleanup deadline can expire before its 30-second runtime limit. The
+marker blocks another attempt, but cannot prove the unit has stopped; worker
+activation and settled-shutdown claims remain blocked.
