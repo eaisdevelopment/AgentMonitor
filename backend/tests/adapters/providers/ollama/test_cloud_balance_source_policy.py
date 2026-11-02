@@ -6,6 +6,7 @@ from agentmonitor.adapters.providers.ollama.cloud_balance.source import (
     CLOUD_BALANCE_POLICY_V1,
     CloudBalanceAuthorizationSinkV1,
     CloudBalanceAuthorizationV1,
+    read_cloud_balance_for_binding_v1,
     read_cloud_balance_once_v1,
 )
 
@@ -39,6 +40,9 @@ def test_cloud_balance_source_is_one_fixed_bounded_request() -> None:
     assert not policy.wire_header_limit_strict
     assert policy.anonymous_probe_process_isolated
     assert policy.anonymous_probe_deadline_strict
+    assert policy.binding_worker_process_isolated
+    assert policy.binding_worker_deadline_strict
+    assert not policy.binding_worker_authenticated_validated
     assert tuple(signature(read_cloud_balance_once_v1).parameters) == (
         "authorization",
         "deadline_monotonic",
@@ -46,6 +50,10 @@ def test_cloud_balance_source_is_one_fixed_bounded_request() -> None:
     assert tuple(
         signature(CloudBalanceAuthorizationV1.apply_authorization_v1).parameters
     ) == ("self", "sink")
+    assert tuple(signature(read_cloud_balance_for_binding_v1).parameters) == (
+        "binding",
+        "deadline_monotonic",
+    )
     assert {
         name
         for name in CloudBalanceAuthorizationSinkV1.__dict__

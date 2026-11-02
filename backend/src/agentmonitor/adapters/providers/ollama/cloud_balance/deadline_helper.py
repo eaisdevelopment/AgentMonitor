@@ -1,4 +1,4 @@
-"""Isolated anonymous Ollama endpoint probe with sanitized stdout only."""
+"""Isolated Ollama worker; credentials never cross its process boundary."""
 
 from __future__ import annotations
 
@@ -8,6 +8,7 @@ import os
 import signal
 import sys
 import time
+from datetime import UTC, datetime
 from pathlib import Path
 
 _MAX_OPERATION_SECONDS = 8.0
@@ -35,9 +36,24 @@ def _write_all(payload: bytes) -> None:
         view = view[written:]
 
 
+def _fallback_payload(state: str) -> bytes:
+    return json.dumps(
+        [
+            state,
+            datetime.now(UTC).isoformat(timespec="microseconds").replace("+00:00", "Z"),
+            None,
+            None,
+            "not_applicable",
+            None,
+        ],
+        ensure_ascii=True,
+        separators=(",", ":"),
+    ).encode("ascii")
+
+
 def main() -> int:
-    """Run one fixed request; never accept a destination or credential input."""
-    if len(sys.argv) != 2:
+    """Run one fixed request; accept only deadline and optional binding ID."""
+    if len(sys.argv) not in {2, 3}:
         return 2
     try:
         deadline = float(sys.argv[1])
@@ -45,48 +61,53 @@ def main() -> int:
         return 2
     remaining = deadline - time.monotonic()
     if not math.isfinite(deadline) or not 0 < remaining <= _MAX_OPERATION_SECONDS:
-        fields: list[object] = [
-            "deadline_exceeded",
-            None,
-            None,
-            "not_applicable",
-            False,
-        ]
+        payload = _fallback_payload("deadline_exceeded")
         remaining = 0.0
     else:
-        fields = []
+        payload = b""
         signal.signal(signal.SIGALRM, _deadline_expired)
         signal.setitimer(signal.ITIMER_REAL, remaining)
     try:
         if remaining > 0:
             _bootstrap_source_root()
+            from agentmonitor.adapters.providers.ollama.cloud_balance import (
+                worker_protocol,
+            )
             from agentmonitor.adapters.providers.ollama.cloud_balance.source import (
                 _read_cloud_balance_once_v1,
             )
 
+            authorization = None
+            if len(sys.argv) == 3:
+                from agentmonitor.adapters.providers.ollama.cloud_balance import (
+                    keyring_authorization,
+                )
+
+                authorization = keyring_authorization.SecretToolAuthorizationV1(
+                    sys.argv[2]
+                )
+
             result = _read_cloud_balance_once_v1(
-                authorization=None,
+                authorization=authorization,
                 deadline_monotonic=deadline,
             )
-            fields = [
-                result.state,
-                result.http_status,
-                result.retry_after_seconds,
-                result.retry_after_state,
-                result.balance is not None,
-            ]
+            payload = worker_protocol.encode_worker_result_v1(
+                state=result.state,
+                observed_at=result.observed_at,
+                http_status=result.http_status,
+                balance=result.balance,
+                retry_after_seconds=result.retry_after_seconds,
+                retry_after_state=result.retry_after_state,
+            )
     except _DeadlineExpired:
-        fields = ["deadline_exceeded", None, None, "not_applicable", False]
+        payload = _fallback_payload("deadline_exceeded")
     except BaseException:
-        fields = ["internal_adapter_error", None, None, "not_applicable", False]
+        payload = _fallback_payload("internal_adapter_error")
     finally:
         if remaining > 0:
             signal.setitimer(signal.ITIMER_REAL, 0.0)
-    payload = json.dumps(fields, ensure_ascii=True, separators=(",", ":")).encode(
-        "ascii"
-    )
-    if len(payload) > 256:
-        payload = b'["internal_adapter_error",null,null,"not_applicable",false]'
+    if not 0 < len(payload) <= 4096:
+        payload = _fallback_payload("internal_adapter_error")
     try:
         _write_all(payload)
     except OSError:

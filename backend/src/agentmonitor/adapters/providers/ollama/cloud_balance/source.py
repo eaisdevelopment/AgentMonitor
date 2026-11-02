@@ -23,9 +23,17 @@ from decimal import Decimal, InvalidOperation
 from pathlib import Path
 from typing import Literal, Protocol
 
+from agentmonitor.adapters.providers.ollama.cloud_balance.keyring_command import (
+    secret_tool_environment,
+)
 from agentmonitor.adapters.providers.ollama.cloud_balance.status import (
     CloudStatus,
     classify_status,
+)
+from agentmonitor.adapters.providers.ollama.cloud_balance.worker_protocol import (
+    MAX_WORKER_RESULT_BYTES,
+    WorkerResultV1,
+    decode_worker_result_v1,
 )
 from agentmonitor.contracts.providers.ollama.cloud_balance.v1.schema import (
     IncludedCreditsV1,
@@ -34,6 +42,7 @@ from agentmonitor.contracts.providers.ollama.cloud_balance.v1.schema import (
     OllamaCloudBalanceV1,
     SourcePeriodV1,
 )
+from agentmonitor.contracts.registry_v1 import ActiveCredentialBindingRefV1
 
 SOURCE_ID: Literal["ollama.cloud.balance.v1"] = "ollama.cloud.balance.v1"
 _TIMESTAMP = re.compile(
@@ -48,7 +57,6 @@ _MAX_JSON_STRING_BYTES = 64
 _MAX_RETRY_AFTER_SECONDS = 2**63 - 1
 _MAX_RETRY_AFTER_TEXT = str(_MAX_RETRY_AFTER_SECONDS)
 _MAX_BEARER_BYTES = 4096
-_MAX_PROBE_RESULT_BYTES = 256
 _RETAINED_HEADERS = frozenset(
     {
         "content-encoding",
@@ -85,6 +93,9 @@ class CloudBalancePolicyV1:
     wire_header_limit_strict: Literal[False]
     anonymous_probe_process_isolated: Literal[True]
     anonymous_probe_deadline_strict: Literal[True]
+    binding_worker_process_isolated: Literal[True]
+    binding_worker_deadline_strict: Literal[True]
+    binding_worker_authenticated_validated: Literal[False]
 
 
 CLOUD_BALANCE_POLICY_V1 = CloudBalancePolicyV1(
@@ -109,6 +120,9 @@ CLOUD_BALANCE_POLICY_V1 = CloudBalancePolicyV1(
     wire_header_limit_strict=False,
     anonymous_probe_process_isolated=True,
     anonymous_probe_deadline_strict=True,
+    binding_worker_process_isolated=True,
+    binding_worker_deadline_strict=True,
+    binding_worker_authenticated_validated=False,
 )
 
 
@@ -582,12 +596,13 @@ def _result(
     balance: OllamaCloudBalanceV1 | None = None,
     retry_after_seconds: int | None = None,
     retry_after_state: RetryAfterState = "not_applicable",
+    observed_at: datetime | None = None,
 ) -> CloudBalanceSourceResultV1:
     return CloudBalanceSourceResultV1(
         state=state,
         reason_code=reason_code,
         source_id=SOURCE_ID,
-        observed_at=datetime.now(UTC),
+        observed_at=datetime.now(UTC) if observed_at is None else observed_at,
         http_status=http_status,
         balance=balance,
         retry_after_seconds=retry_after_seconds,
@@ -625,12 +640,6 @@ def _read_cloud_balance_once_v1(
             context=_secure_tls_context(),
         )
         connection.set_debuglevel(0)
-        connection.connect()
-        _set_socket_timeout(
-            connection,
-            None,
-            _remaining(deadline, policy.read_timeout_seconds),
-        )
         connection.putrequest(
             policy.method,
             policy.path,
@@ -652,6 +661,7 @@ def _read_cloud_balance_once_v1(
         # The resolved grant never receives the connection, and debug output is
         # disabled again immediately before the buffered secret header is sent.
         connection.set_debuglevel(0)
+        connection.connect()
         _set_socket_timeout(
             connection,
             None,
@@ -744,7 +754,7 @@ def read_cloud_balance_once_v1(
     )
 
 
-def _stop_probe_process(process: subprocess.Popen[bytes]) -> None:
+def _stop_worker_process(process: subprocess.Popen[bytes]) -> None:
     if process.poll() is None:
         try:
             os.killpg(process.pid, signal.SIGKILL)
@@ -762,44 +772,36 @@ def _stop_probe_process(process: subprocess.Popen[bytes]) -> None:
             pass
 
 
-def _probe_result(payload: bytes, returncode: int) -> CloudBalanceSourceResultV1:
-    if returncode != 0 or not 0 < len(payload) <= _MAX_PROBE_RESULT_BYTES:
-        return _result("internal_adapter_error", "ollama_cloud_probe_failed")
-    try:
-        fields = json.loads(payload.decode("ascii", errors="strict"))
-    except (UnicodeDecodeError, json.JSONDecodeError, RecursionError):
-        return _result("internal_adapter_error", "ollama_cloud_probe_failed")
-    if type(fields) is not list or len(fields) != 5:
-        return _result("internal_adapter_error", "ollama_cloud_probe_failed")
-    state, status, retry_after, retry_state, has_balance = fields
-    if (
-        type(state) is not str
-        or (
-            status is not None and (type(status) is not int or not 100 <= status <= 599)
-        )
-        or (
-            retry_after is not None
-            and (
-                type(retry_after) is not int
-                or not 0 <= retry_after <= _MAX_RETRY_AFTER_SECONDS
+def _map_worker_result(
+    worker: WorkerResultV1, *, authenticated: bool
+) -> CloudBalanceSourceResultV1:
+    state = worker.state
+    status = worker.http_status
+    retry_after = worker.retry_after_seconds
+    retry_state = worker.retry_after_state
+    observed_at = worker.observed_at
+    if state == "success":
+        if not authenticated:
+            return _result(
+                "unexpected_response",
+                "ollama_cloud_anonymous_success_unexpected",
+                http_status=status,
+                observed_at=observed_at,
             )
-        )
-        or retry_state
-        not in {
-            "not_applicable",
-            "absent",
-            "invalid",
-            "available",
-            "unrepresentable",
-        }
-        or type(has_balance) is not bool
-    ):
-        return _result("internal_adapter_error", "ollama_cloud_probe_failed")
-    if state == "success" or has_balance:
+        if (
+            status is None
+            or classify_status(status) != "success"
+            or worker.balance is None
+            or retry_after is not None
+            or retry_state != "not_applicable"
+        ):
+            return _result("internal_adapter_error", "ollama_cloud_worker_failed")
         return _result(
-            "unexpected_response",
-            "ollama_cloud_anonymous_success_unexpected",
+            "success",
+            "ollama_cloud_success",
             http_status=status,
+            balance=worker.balance,
+            observed_at=observed_at,
         )
     ordinary_states = {
         "unauthorized",
@@ -811,16 +813,16 @@ def _probe_result(payload: bytes, returncode: int) -> CloudBalanceSourceResultV1
     if state in ordinary_states:
         if status is None:
             if state != "provider_unavailable":
-                return _result("internal_adapter_error", "ollama_cloud_probe_failed")
+                return _result("internal_adapter_error", "ollama_cloud_worker_failed")
         elif classify_status(status) != state:
-            return _result("internal_adapter_error", "ollama_cloud_probe_failed")
+            return _result("internal_adapter_error", "ollama_cloud_worker_failed")
         if state == "rate_limited":
             if retry_state not in {"absent", "invalid", "available"} or (
                 (retry_state == "available") != (retry_after is not None)
             ):
-                return _result("internal_adapter_error", "ollama_cloud_probe_failed")
+                return _result("internal_adapter_error", "ollama_cloud_worker_failed")
         elif retry_after is not None or retry_state != "not_applicable":
-            return _result("internal_adapter_error", "ollama_cloud_probe_failed")
+            return _result("internal_adapter_error", "ollama_cloud_worker_failed")
         reason = (
             "ollama_cloud_network_unavailable"
             if state == "provider_unavailable" and status is None
@@ -832,10 +834,40 @@ def _probe_result(payload: bytes, returncode: int) -> CloudBalanceSourceResultV1
             http_status=status,
             retry_after_seconds=retry_after,
             retry_after_state=retry_state,  # type: ignore[arg-type]
+            observed_at=observed_at,
         )
-    if state == "deadline_exceeded" and status is None:
-        return _result("deadline_exceeded", "ollama_cloud_deadline_exceeded")
-    if state == "invalid_provider_data" and status in {200, 429}:
+    if (
+        state == "deadline_exceeded"
+        and status is None
+        and retry_after is None
+        and retry_state == "not_applicable"
+    ):
+        return _result(
+            "deadline_exceeded",
+            "ollama_cloud_deadline_exceeded",
+            observed_at=observed_at,
+        )
+    if (
+        state == "authorization_unavailable"
+        and authenticated
+        and status is None
+        and retry_after is None
+        and retry_state == "not_applicable"
+    ):
+        return _result(
+            "authorization_unavailable",
+            "ollama_cloud_store_unavailable",
+            observed_at=observed_at,
+        )
+    if (
+        state == "invalid_provider_data"
+        and status in {200, 429}
+        and retry_after is None
+        and (
+            (status == 200 and retry_state == "not_applicable")
+            or (status == 429 and retry_state == "unrepresentable")
+        )
+    ):
         return _result(
             "invalid_provider_data",
             "ollama_cloud_probe_invalid_provider_data",
@@ -845,11 +877,26 @@ def _probe_result(payload: bytes, returncode: int) -> CloudBalanceSourceResultV1
                 if retry_state == "unrepresentable"
                 else "not_applicable"
             ),
+            observed_at=observed_at,
         )
-    return _result("internal_adapter_error", "ollama_cloud_probe_failed")
+    return _result("internal_adapter_error", "ollama_cloud_worker_failed")
 
 
-def _run_isolated_probe(deadline: float) -> CloudBalanceSourceResultV1:
+def _worker_result(
+    payload: bytes, returncode: int, *, authenticated: bool
+) -> CloudBalanceSourceResultV1:
+    if returncode != 0 or not 0 < len(payload) <= MAX_WORKER_RESULT_BYTES:
+        return _result("internal_adapter_error", "ollama_cloud_worker_failed")
+    try:
+        worker = decode_worker_result_v1(payload)
+    except ValueError:
+        return _result("internal_adapter_error", "ollama_cloud_worker_failed")
+    return _map_worker_result(worker, authenticated=authenticated)
+
+
+def _run_isolated_worker(
+    deadline: float, *, binding_id: str | None = None
+) -> CloudBalanceSourceResultV1:
     helper = Path(__file__).with_name("deadline_helper.py")
     executable = Path(sys.executable)
     if (
@@ -858,16 +905,22 @@ def _run_isolated_probe(deadline: float) -> CloudBalanceSourceResultV1:
         or not executable.is_absolute()
         or not executable.is_file()
     ):
-        return _result("internal_adapter_error", "ollama_cloud_probe_unavailable")
+        return _result("internal_adapter_error", "ollama_cloud_worker_unavailable")
     process: subprocess.Popen[bytes] | None = None
     try:
+        command = [str(executable), "-I", str(helper), format(deadline, ".17g")]
+        environment = {"LC_ALL": "C.UTF-8"}
+        if binding_id is not None:
+            command.append(binding_id)
+            environment = secret_tool_environment(os.environ)
+            environment["LC_ALL"] = "C.UTF-8"
         process = subprocess.Popen(
-            [str(executable), "-I", str(helper), format(deadline, ".17g")],
+            command,
             stdin=subprocess.DEVNULL,
             stdout=subprocess.PIPE,
             stderr=subprocess.DEVNULL,
             cwd=helper.parent,
-            env={"LC_ALL": "C.UTF-8"},
+            env=environment,
             close_fds=True,
             start_new_session=True,
         )
@@ -878,18 +931,22 @@ def _run_isolated_probe(deadline: float) -> CloudBalanceSourceResultV1:
         )
         if time.monotonic() >= deadline:
             return _result("deadline_exceeded", "ollama_cloud_deadline_exceeded")
-        return _probe_result(stdout, process.returncode)
+        return _worker_result(
+            stdout,
+            process.returncode,
+            authenticated=binding_id is not None,
+        )
     except (TimeoutError, subprocess.TimeoutExpired):
         if process is not None:
-            _stop_probe_process(process)
+            _stop_worker_process(process)
         return _result("deadline_exceeded", "ollama_cloud_deadline_exceeded")
     except (OSError, subprocess.SubprocessError):
         if process is not None:
-            _stop_probe_process(process)
-        return _result("internal_adapter_error", "ollama_cloud_probe_unavailable")
+            _stop_worker_process(process)
+        return _result("internal_adapter_error", "ollama_cloud_worker_unavailable")
     finally:
         if process is not None and process.poll() is None:
-            _stop_probe_process(process)
+            _stop_worker_process(process)
 
 
 def probe_cloud_balance_endpoint_v1(
@@ -909,4 +966,33 @@ def probe_cloud_balance_endpoint_v1(
         if deadline_monotonic is not None
         else started + CLOUD_BALANCE_POLICY_V1.operation_timeout_seconds,
     )
-    return _run_isolated_probe(deadline)
+    return _run_isolated_worker(deadline)
+
+
+def read_cloud_balance_for_binding_v1(
+    *,
+    binding: ActiveCredentialBindingRefV1,
+    deadline_monotonic: float | None = None,
+) -> CloudBalanceSourceResultV1:
+    """Run the candidate binding lookup and HTTPS read in one isolated child.
+
+    The reference is owner asserted and proves no provider identity. Its exact
+    generation must be rechecked transactionally before any observation commit.
+    This source candidate is not scheduled until authenticated live validation.
+    """
+    if not isinstance(binding, ActiveCredentialBindingRefV1):
+        return _result("internal_adapter_error", "ollama_cloud_binding_invalid")
+    started = time.monotonic()
+    if deadline_monotonic is not None and (
+        type(deadline_monotonic) is not float
+        or not math.isfinite(deadline_monotonic)
+        or deadline_monotonic <= started
+    ):
+        return _result("deadline_exceeded", "ollama_cloud_deadline_exceeded")
+    deadline = min(
+        started + CLOUD_BALANCE_POLICY_V1.operation_timeout_seconds,
+        deadline_monotonic
+        if deadline_monotonic is not None
+        else started + CLOUD_BALANCE_POLICY_V1.operation_timeout_seconds,
+    )
+    return _run_isolated_worker(deadline, binding_id=binding.binding_id.value)

@@ -179,19 +179,78 @@ its own session, passes only that non-secret absolute deadline, arms
 `SIGKILL` to the process group from the parent on expiry. Thus a blocked
 resolver or slow-drip header read is interruptible in the child and has a
 process-kill backstop before the supervisor returns `deadline_exceeded`. The
-helper returns only state, HTTP status and bounded retry metadata; raw headers,
-body, exceptions and balance values never cross the process boundary.
+In anonymous mode the helper returns only state, observation time, HTTP status
+and bounded retry metadata; raw headers, body and exceptions never cross the
+process boundary.
 
 One real anonymous probe still reaches the fixed official endpoint and returns
 sanitized HTTP 401. A second invocation of the same process-supervised entry
 point applies a 1-millisecond deadline, observes `deadline_exceeded` and
 returns within the bounded cleanup allowance. This is admission evidence for
 the anonymous probe only. The direct authenticated path remains fail-closed as
-`source_not_admitted`; no credential is passed to or inherited by the helper.
-A future authenticated worker must retrieve/apply the managed item entirely
-inside an equally bounded private process before this policy can be widened.
+`source_not_admitted`; the anonymous invocation passes or inherits no
+credential. An authenticated worker must retrieve/apply the managed item
+entirely inside an equally bounded private process before production
+scheduling can be admitted.
 The accepted header-size check remains post-parse inside the isolated process,
 so `wire_header_limit_strict` and authenticated admission remain false.
 
 Final focused result after the child-timer hardening at
 `2026-11-02T16:04:49Z`: `19 passed in 0.85s`.
+
+## Isolated Secret Service authorization candidate
+
+Scope: `M6-T004/T005/T011/T016`, `M6-A03/A04/A09`, internal M02
+`CTR-REG-011` 1.0.0 and source `ollama.cloud.balance.v1`. This is a source
+candidate, not scheduled authenticated collection or M6 completion.
+
+The command/policy Red failed collection because `build_lookup_command` and
+`read_cloud_balance_for_binding_v1` did not exist. The implementation accepts
+one validated `ActiveCredentialBindingRefV1`, passes only its non-secret closed
+`amcb_[0-9a-f]{32}` binding ID and the absolute monotonic deadline to the
+isolated worker, and retains account/generation for the required transactional
+commit fence. A successful read proves endpoint access only; the binding and
+account association remain owner asserted.
+
+The worker invokes only fixed `/usr/bin/secret-tool lookup` attributes
+`application=agentmonitor`, `provider=ollama`, `purpose=balance` and the exact
+binding. It rejects an unsafe executable type/owner/mode, supplies no stdin,
+discards stderr, forwards only the approved Secret Service/session environment
+allowlist, and reads at most 4,098 stdout bytes. One optional terminal newline
+is removed; the remaining value must be 1–4,096 visible ASCII bytes. The value
+is passed directly through the one-use bearer sink and never returned to the
+parent. Mutable buffers are overwritten after use without claiming reliable
+Python or kernel-memory zeroization. Lookup failure, missing item, locked or
+unavailable service and malformed output deliberately collapse to sanitized
+`ollama_cloud_store_unavailable` until real behavior can support a narrower
+classification.
+
+The exact binding lookup runs before DNS/TCP/TLS. A missing or unavailable
+managed item therefore fails before any provider connection; after a token is
+accepted, the request buffer remains confined to the bounded child while the
+fixed TLS connection is established and sent.
+
+Secret Service lookup, DNS, TCP/TLS, request/response handling and project
+imports share the worker's one absolute `ITIMER_REAL` deadline. `secret-tool`
+inherits the worker process group; the parent also kills that group when the
+deadline expires. The worker protocol permits only a bounded validated result:
+closed state/status/retry fields, observation time and, on authenticated
+success only, an `OLLAMA-CLOUD-BALANCE-V1` typed value encoded as exact decimal
+strings and UTC timestamps. It never carries raw response bytes, headers,
+exceptions, binding/account IDs or credential bytes.
+
+Read-only system inspection found `/usr/bin/secret-tool` is a regular
+root-owned, root-group executable with mode `0755`, matching the admitted
+fixed path. The existing real anonymous official-endpoint check still returns
+sanitized HTTP 401. No real registry binding exists in the current application
+database, so an exact no-item lookup was **Not Run** rather than using an
+invented binding or inspecting unrelated Secret Service items. Authenticated
+lookup, 401/403/429, typed 200 compatibility, locked-store behavior and key
+containment with an owner-provisioned item are likewise **Not Run** until the
+end-to-end owner setup. Policy therefore keeps
+`binding_worker_authenticated_validated=false` and production scheduling is
+not admitted.
+
+Final admissible focused Green at `2026-11-02T16:12:37Z`: `24 passed in
+1.10s`. This includes the real anonymous endpoint but no Secret Service lookup
+or authenticated provider call.

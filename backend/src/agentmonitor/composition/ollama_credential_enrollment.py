@@ -2,7 +2,6 @@
 
 import os
 import subprocess
-from collections.abc import Mapping
 
 from agentmonitor.adapters.persistence._shared.sqlite.core.policy import DatabaseRefV1
 from agentmonitor.adapters.persistence.registry.sqlite.credential_bindings import (
@@ -13,24 +12,9 @@ from agentmonitor.adapters.persistence.registry.sqlite.credential_lock import (
 )
 from agentmonitor.adapters.providers.ollama.cloud_balance.keyring_command import (
     build_store_command,
+    secret_tool_environment,
 )
 from agentmonitor.contracts.common_v1 import OpaqueIdV1
-
-
-def secret_tool_environment(source: Mapping[str, str]) -> dict[str, str]:
-    """Only forward the user-session settings needed by Secret Service."""
-    allowed = (
-        "DBUS_SESSION_BUS_ADDRESS",
-        "XDG_RUNTIME_DIR",
-        "DISPLAY",
-        "WAYLAND_DISPLAY",
-        "LANG",
-        "LC_CTYPE",
-    )
-    return {
-        "PATH": "/usr/bin:/bin",
-        **{key: source[key] for key in allowed if key in source},
-    }
 
 
 class EnrollmentError(ValueError):
