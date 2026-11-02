@@ -930,6 +930,13 @@ class OllamaCloudCollectionV1:
         """Hold the account fence across proof, child I/O and durable commit."""
         if run.account_id is None:
             raise OllamaCloudTargetIneligible("ollama_cloud_target_ineligible")
+        authority = cloud_access_authorized(self._data_root)
+        if run.trigger == "reauth_verification" or isinstance(
+            run, CollectionRunAdmissionV2
+        ):
+            require_probe_authorized(authority)
+        else:
+            require_source_admitted(authority)
         with account_credential_lock(
             self._reference, run.account_id
         ) as credential_lock:
