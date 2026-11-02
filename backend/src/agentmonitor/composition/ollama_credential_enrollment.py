@@ -33,10 +33,21 @@ def enroll_ollama_credential(reference: DatabaseRefV1, account_id: OpaqueIdV1) -
     with account_credential_lock(reference, account_id):
         repository = SqliteCredentialBindingsV1(reference)
         before = repository.read(account_id)
-        pending = repository.transition_locked(
-            account_id, action="prepare", expected_record_version=before.record_version
+        pending_items = tuple(
+            item for item in before.bindings if item.lifecycle == "pending"
         )
-        item = next(item for item in pending.bindings if item.lifecycle == "pending")
+        if pending_items:
+            # Retry the same account-owned pending item after an interrupted store.
+            pending, item = before, pending_items[0]
+        else:
+            pending = repository.transition_locked(
+                account_id,
+                action="prepare",
+                expected_record_version=before.record_version,
+            )
+            item = next(
+                item for item in pending.bindings if item.lifecycle == "pending"
+            )
         try:
             result = subprocess.run(
                 build_store_command(item.binding_id.value), timeout=300, check=False
