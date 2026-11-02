@@ -16,9 +16,11 @@ def after_ollama_attempt(
     consecutive_rate_limits: int,
     retry_after_seconds: int | None,
     jitter_seconds: int,
+    *,
+    observed_at: datetime,
 ) -> datetime:
     """Calculate a next start, preserving longer provider-directed waits."""
-    if started_at.utcoffset() is None:
+    if started_at.utcoffset() is None or observed_at.utcoffset() is None:
         raise ValueError("ollama_rate_time_requires_timezone")
     if (
         type(consecutive_rate_limits) is not int
@@ -39,5 +41,8 @@ def after_ollama_attempt(
         if consecutive_rate_limits
         else 0
     )
-    delay = max(_MIN_SPACING_SECONDS, retry_after_seconds or 0, fallback)
-    return started_at + timedelta(seconds=delay + jitter_seconds)
+    minimum = started_at + timedelta(seconds=_MIN_SPACING_SECONDS)
+    provider_wait = observed_at + timedelta(
+        seconds=max(retry_after_seconds or 0, fallback)
+    )
+    return max(minimum, provider_wait) + timedelta(seconds=jitter_seconds)
