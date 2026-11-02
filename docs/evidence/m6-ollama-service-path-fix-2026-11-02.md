@@ -46,3 +46,14 @@ database failed before this engine option existed and passed afterward.
 Fixed-target update admission, interrupted-update recovery, independent
 review, and live installation remain Not Run; this is not authorization or a
 claim of safe deployment by itself.
+
+A same-schema update and recovery candidate was exercised serially against
+real isolated systemd units, genuine dashboard processes and empty v1_0717
+SQLite databases. Nine tests passed, covering normal update/finalization;
+controller interruption during preparation, while the owned dashboard main
+process was frozen, after it exited, after stop receipt, and around candidate
+start; guard replacement before reload; guard removal before reload; and
+readiness-failure reblocking. Only disposable controller and dashboard processes
+were signalled. The fixed installed wrapper and real deployment remain Not Run.
+The update and recovery wrappers are not catalogued or enabled pending
+independent review; the live service and database remain unchanged.

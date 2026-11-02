@@ -14,9 +14,11 @@ import json
 import os
 import re
 import secrets
+import signal
 import stat
 import subprocess
 import sys
+import time
 import urllib.request
 from contextlib import ExitStack
 from dataclasses import asdict
@@ -27,10 +29,12 @@ sys.path.insert(0, str(ROOT / "backend/src"))
 
 from agentmonitor.adapters.persistence._shared.sqlite.core.policy import (
     DatabaseRefV1,
+    checkpoint_sqlite_database,
     open_sqlite_database,
 )
 from agentmonitor.adapters.persistence._shared.sqlite.schema.compatibility import (
     InspectActiveSchemaCompatibilityV1,
+    InspectSchemaCompatibilityV1,
     application_schema_range,
     load_migration_catalog,
 )
@@ -57,6 +61,7 @@ from tools.automation.implementations.m6_candidate_release import (
     verify_candidate_release,
 )
 from tools.automation.implementations.m6_migration_recovery import (
+    _preserve_interrupted_journal,
     _receipt,
     _recover_migration_before_start,
     _validate_stopped_journal,
@@ -447,6 +452,7 @@ def _cutover_engine(
                 build_digest,
                 guarded=True,
                 private_baseline=baseline_private,
+                update_baseline=baseline if same_schema_update else None,
             )
         _journal(journal, "stop_attempted", backup_id, facts=facts)
         stop_attempted = True
@@ -501,7 +507,11 @@ def _cutover_engine(
         validate_m5_service_activation_lock_v1(shared_lock)
         if unit == _FIXED_UNIT:
             _fixed_unit_preflight(
-                expected_revision, build_digest, guarded=True, candidate=True
+                expected_revision,
+                build_digest,
+                guarded=True,
+                candidate=True,
+                update_baseline=baseline if same_schema_update else None,
             )
         _journal(journal, "candidate_start_attempted", backup_id, facts=facts)
         candidate_start_attempted = True
@@ -520,6 +530,7 @@ def _cutover_engine(
                 guarded=True,
                 candidate=True,
                 start_block=False,
+                update_baseline=baseline if same_schema_update else None,
             )
         operation_stack.close()
         _ctl("start", unit)
@@ -530,6 +541,7 @@ def _cutover_engine(
                 guarded=True,
                 candidate=True,
                 start_block=False,
+                update_baseline=baseline if same_schema_update else None,
             )
         current = _properties(unit)
         candidate_pid = int(current.get("MainPID", "0"))
@@ -709,6 +721,17 @@ def _check_candidate_schema(candidate: Path) -> None:
         raise CutoverError("candidate_schema_mismatch")
 
 
+def _verify_retained_baseline(path: Path) -> tuple[str, str]:
+    if path.parent != _FIXED_RELEASES:
+        raise CutoverError("update_baseline_invalid")
+    match = re.fullmatch(r"m6-candidate-([a-f0-9]{40})-([a-f0-9]{64})", path.name)
+    if match is None:
+        raise CutoverError("update_baseline_invalid")
+    revision, build = match.groups()
+    verify_candidate_release(path, _FIXED_RELEASES, revision, build)
+    return revision, build
+
+
 def _fixed_unit_preflight(
     expected_revision: str,
     expected_build: str,
@@ -717,6 +740,7 @@ def _fixed_unit_preflight(
     candidate: bool = False,
     private_baseline: bool = False,
     start_block: bool = True,
+    update_baseline: Path | None = None,
 ) -> None:
     candidate_path = _FIXED_RELEASES / (
         "m6-candidate-" + expected_revision + "-" + expected_build
@@ -724,6 +748,8 @@ def _fixed_unit_preflight(
     verify_candidate_release(
         candidate_path, _FIXED_RELEASES, expected_revision, expected_build
     )
+    if update_baseline is not None:
+        _verify_retained_baseline(update_baseline)
     if os.getuid() != _FIXED_HOME.stat().st_uid:
         raise CutoverError("target_uid_mismatch")
     release_parent = _FIXED_VENV.parent.lstat()
@@ -740,9 +766,9 @@ def _fixed_unit_preflight(
             hashlib.sha256(_candidate_override(candidate_path).encode()).hexdigest()
             if candidate
             else hashlib.sha256(
-                _candidate_override(_FIXED_BASELINE).encode()
+                _candidate_override(update_baseline or _FIXED_BASELINE).encode()
             ).hexdigest()
-            if private_baseline
+            if private_baseline or update_baseline is not None
             else _FIXED_OVERRIDE_SHA256,
         ),
     ):
@@ -794,7 +820,7 @@ def _fixed_unit_preflight(
     )
     expected_start = (
         str(_FIXED_VENV / "bin/python")
-        if candidate or private_baseline
+        if candidate or private_baseline or update_baseline is not None
         else str(
             _FIXED_DATA / "worktrees/m5-scheduled-quota-fix/backend/.venv/bin/python"
         )
@@ -804,7 +830,7 @@ def _fixed_unit_preflight(
         or fields.get("DropInPaths")
         != (str(_FIXED_OVERRIDE) + (" " + str(guard_path) if guarded else ""))
         or fields.get("WorkingDirectory")
-        != str(candidate_path if candidate else _FIXED_BASELINE)
+        != str(candidate_path if candidate else update_baseline or _FIXED_BASELINE)
         or not fields.get("ExecStart", "").startswith(
             "{ path="
             + expected_start
@@ -815,7 +841,10 @@ def _fixed_unit_preflight(
     ):
         raise CutoverError("target_unit_changed")
     if (
-        _revision(_FIXED_BASELINE) != _FIXED_BASELINE_REVISION
+        (
+            update_baseline is None
+            and _revision(_FIXED_BASELINE) != _FIXED_BASELINE_REVISION
+        )
         or _revision(candidate_path) != expected_revision
         or tree_digest(candidate_path / "frontend/dist") != expected_build
         or _runtime_digest(_FIXED_VENV) != _FIXED_VENV_SHA256
@@ -826,6 +855,33 @@ def _fixed_unit_preflight(
     # Do not execute candidate or private-runtime code until the pinned files
     # and clean source revision have passed the static checks above.
     _check_candidate_schema(candidate_path)
+
+
+def _verify_fixed_update_prestart(
+    data: dict, baseline: Path, candidate: Path, guard: Path
+) -> None:
+    """Revalidate the selected releases and loaded unit before resume or start."""
+    if _FIXED_UNIT != data.get("unit"):
+        raise CutoverError("update_recovery_journal_invalid")
+    blocked = b"[Unit]\nRefuseManualStart=yes\n[Service]\nRestart=no\n"
+    content = _FIXED_OVERRIDE.read_bytes()
+    baseline_content = _candidate_override(baseline).encode()
+    candidate_content = _candidate_override(candidate).encode()
+    if content not in {baseline_content, candidate_content}:
+        raise CutoverError("update_recovery_override_changed")
+    if guard.is_symlink() or not guard.is_file():
+        raise CutoverError("update_recovery_guard_changed")
+    guard_content = guard.read_bytes()
+    if guard_content not in {blocked, b"[Service]\nRestart=no\n"}:
+        raise CutoverError("update_recovery_guard_changed")
+    _fixed_unit_preflight(
+        data["candidate_revision"],
+        data["candidate_build_sha256"],
+        guarded=True,
+        candidate=content == candidate_content,
+        start_block=guard_content == blocked,
+        update_baseline=baseline,
+    )
 
 
 def _verify_candidate_process(
@@ -921,7 +977,668 @@ def cutover() -> str:
     )
 
 
-def _fixed_journal_facts(data: dict, *, phase: str) -> tuple[str, str, bool]:
+def update_current_schema() -> str:
+    """Prepare one sealed release and update the fixed v1_0717 service."""
+    with _hold_transition_locks(_FIXED_DATA) as transition:
+        retained, revision, build = prepare_candidate_release(
+            _FIXED_SOURCE,
+            _FIXED_RELEASES,
+            _FIXED_DATA,
+            TOOL_ROOT / "frontend/node_modules",
+        )
+        transition.validate(_FIXED_DATA)
+        baseline = Path(_cwd(_FIXED_UNIT))
+        _verify_retained_baseline(baseline)
+        if baseline == retained:
+            raise CutoverError("candidate_already_running")
+        _fixed_unit_preflight(revision, build, update_baseline=baseline)
+        properties = _properties(_FIXED_UNIT)
+        if properties.get("ActiveState") != "active":
+            raise CutoverError("service_identity_invalid")
+        _verify_fixed_candidate_process(properties, checkout=baseline)
+    return _cutover_engine(
+        unit=_FIXED_UNIT,
+        data_root=_FIXED_DATA,
+        baseline=baseline,
+        candidate=retained,
+        override=_FIXED_OVERRIDE,
+        source=load_migration_catalog().head,
+        expected_revision=revision,
+        expected_build=build,
+        expected_executable=_FIXED_EXECUTABLE,
+        baseline_private=True,
+        same_schema_update=True,
+    )
+
+
+def _recover_same_schema_update_engine_inner(
+    root: Path,
+    transition,
+    *,
+    unit: str,
+    baseline: Path,
+    candidate: Path,
+    override: Path,
+    guard: Path,
+    verify_baseline,
+    expected_executable: Path,
+) -> str:
+    """Resume only a proven pre-candidate-start same-schema transition."""
+    transition.validate(root)
+    data = _read_journal_at(transition)[0]
+    if (
+        data.get("format") != "m6-cutover.v1"
+        or data.get("source_revision") != load_migration_catalog().head
+        or data.get("backup_id") is not None
+        or data.get("unit") != unit
+        or data.get("phase")
+        not in {
+            "preparing",
+            "stop_attempted",
+            "stopped",
+            "schema_verified",
+            "baseline_start_attempted",
+            "baseline_http_ready",
+        }
+        or data.get("baseline_revision") != _revision(baseline)
+        or data.get("candidate_revision") != _revision(candidate)
+        or data.get("candidate_build_sha256")
+        != tree_digest(candidate / "frontend/dist")
+    ):
+        raise CutoverError("update_recovery_journal_invalid")
+    receipt = None
+    if data.get("stop_receipt") is None:
+        expected = {
+            "format",
+            "phase",
+            "backup_id",
+            "unit",
+            "baseline_restart",
+            "baseline_revision",
+            "candidate_revision",
+            "source_revision",
+            "candidate_build_sha256",
+            "fixed_unit_sha256",
+            "fixed_baseline_override_sha256",
+            "fixed_runtime_sha256",
+            "fixed_python_sha256",
+            "pid",
+            "cgroup",
+            "start_ticks",
+            "invocation_id",
+            "start_monotonic",
+        }
+        group = f"/user.slice/user-{os.getuid()}.slice/user@{os.getuid()}.service/app.slice/{unit}"
+        if (
+            set(data) != expected
+            or type(data.get("pid")) is not int
+            or data["pid"] <= 1
+            or data.get("cgroup") != group
+            or not isinstance(data.get("start_ticks"), str)
+            or not data["start_ticks"].isdigit()
+            or not isinstance(data.get("invocation_id"), str)
+            or re.fullmatch(r"[a-f0-9]{32}", data["invocation_id"]) is None
+            or not isinstance(data.get("start_monotonic"), str)
+            or not data["start_monotonic"].isdigit()
+        ):
+            raise CutoverError("update_recovery_journal_invalid")
+    if data.get("stop_receipt") is not None:
+        receipt = _receipt(data)
+        _validate_stopped_journal(data, receipt)
+    elif data["phase"] not in {
+        "preparing",
+        "stop_attempted",
+        "baseline_start_attempted",
+        "baseline_http_ready",
+    }:
+        raise CutoverError("update_recovery_journal_invalid")
+    before = (
+        _candidate_override(baseline)
+        if unit == _FIXED_UNIT
+        else build_override(baseline)
+    ).encode()
+    after = (
+        _candidate_override(candidate)
+        if unit == _FIXED_UNIT
+        else build_override(candidate)
+    ).encode()
+    blocked = b"[Unit]\nRefuseManualStart=yes\n[Service]\nRestart=no\n"
+    relaxed = b"[Service]\nRestart=no\n"
+    if data["phase"] == "preparing":
+        properties = _properties(unit)
+        pid = data["pid"]
+        group = data["cgroup"]
+        executable = expected_executable.stat()
+        if (
+            properties.get("ActiveState") != "active"
+            or properties.get("MainPID") != str(pid)
+            or properties.get("ControlGroup") != group
+            or properties.get("InvocationID") != data["invocation_id"]
+            or properties.get("ExecMainStartTimestampMonotonic")
+            != data["start_monotonic"]
+            or _process_identity(pid, group)
+            != (data["start_ticks"], executable.st_dev, executable.st_ino)
+            or _cwd(unit) != str(baseline)
+            or Path(f"/proc/{pid}/cwd").resolve() != baseline
+            or override.is_symlink()
+            or override.read_bytes() != before
+        ):
+            raise CutoverError("update_recovery_service_changed")
+        if guard.exists():
+            if guard.is_symlink():
+                raise CutoverError("update_recovery_guard_changed")
+            content = guard.read_bytes()
+            if content != blocked and (
+                not blocked.startswith(content)
+                or not replace_override(guard, content, blocked)
+            ):
+                raise CutoverError("update_recovery_guard_changed")
+        _ctl("daemon-reload")
+        if guard.exists() and unit == _FIXED_UNIT:
+            _verify_fixed_update_prestart(data, baseline, candidate, guard)
+        verify_baseline()
+        return _finish_restored_baseline_engine(
+            root,
+            transition,
+            unit=unit,
+            guard=guard,
+            expected_restart=data["baseline_restart"],
+            verify_ready=verify_baseline,
+            verify_after=verify_baseline,
+            existing_baseline=True,
+        )
+    if (
+        data["phase"] in {"baseline_start_attempted", "baseline_http_ready"}
+        and _properties(unit).get("ActiveState") == "active"
+    ):
+        if override.is_symlink() or override.read_bytes() != before:
+            raise CutoverError("update_recovery_override_changed")
+        if data["phase"] == "baseline_http_ready" and not guard.exists():
+            _ctl("daemon-reload")
+        verify_baseline()
+        return _finish_restored_baseline_engine(
+            root,
+            transition,
+            unit=unit,
+            guard=guard,
+            expected_restart=data["baseline_restart"],
+            verify_ready=verify_baseline,
+            verify_after=verify_baseline,
+        )
+    if data["phase"] == "stop_attempted":
+        properties = _properties(unit)
+        pid = data.get("pid")
+        group = data.get("cgroup")
+        if (
+            type(pid) is not int
+            or pid <= 1
+            or not isinstance(group, str)
+            or properties.get("ControlGroup") not in {"", group}
+            or properties.get("Restart") != "no"
+            or properties.get("RefuseManualStart") != "yes"
+            or properties.get("InvocationID") != data.get("invocation_id")
+            or properties.get("ExecMainStartTimestampMonotonic")
+            != data.get("start_monotonic")
+            or override.is_symlink()
+            or override.read_bytes() != before
+            or guard.is_symlink()
+            or guard.read_bytes() != blocked
+        ):
+            raise CutoverError("update_recovery_service_changed")
+        if unit == _FIXED_UNIT:
+            _ctl("daemon-reload")
+            _verify_fixed_update_prestart(data, baseline, candidate, guard)
+            properties = _properties(unit)
+        if (
+            properties.get("ActiveState") == "active"
+            and properties.get("MainPID") == str(pid)
+            and properties.get("ControlGroup") == group
+        ):
+            descriptor = os.pidfd_open(pid, 0)
+            try:
+                executable = expected_executable.stat()
+                if (
+                    _process_identity(pid, group)
+                    != (data.get("start_ticks"), executable.st_dev, executable.st_ino)
+                    or _properties(unit) != properties
+                    or _cwd(unit) != str(baseline)
+                    or Path(f"/proc/{pid}/cwd").resolve() != baseline
+                ):
+                    raise CutoverError("update_recovery_service_changed")
+                state = next(
+                    line
+                    for line in (Path("/proc") / str(pid) / "status")
+                    .read_text()
+                    .splitlines()
+                    if line.startswith("State:")
+                )
+                if state.split()[1] in {"T", "t"}:
+                    if unit == _FIXED_UNIT:
+                        _verify_fixed_update_prestart(data, baseline, candidate, guard)
+                    if (
+                        _process_identity(pid, group)
+                        != (
+                            data.get("start_ticks"),
+                            executable.st_dev,
+                            executable.st_ino,
+                        )
+                        or _properties(unit) != properties
+                        or Path(f"/proc/{pid}/cwd").resolve() != baseline
+                    ):
+                        raise CutoverError("update_recovery_service_changed")
+                    signal.pidfd_send_signal(descriptor, signal.SIGCONT)
+            finally:
+                os.close(descriptor)
+            _preserve_interrupted_journal(transition)
+            updated = {**data, "phase": "baseline_start_attempted"}
+            _replace_journal(transition, data, updated)
+            deadline = time.monotonic() + 15
+            while True:
+                try:
+                    verify_baseline()
+                    break
+                except (CutoverError, OSError):
+                    if time.monotonic() >= deadline:
+                        raise CutoverError(
+                            "update_recovery_readiness_unavailable"
+                        ) from None
+                    time.sleep(0.1)
+            return _finish_restored_baseline_engine(
+                root,
+                transition,
+                unit=unit,
+                guard=guard,
+                expected_restart=data["baseline_restart"],
+                verify_ready=verify_baseline,
+                verify_after=verify_baseline,
+            )
+        if properties.get("MainPID") != "0" or properties.get("ActiveState") not in {
+            "failed",
+            "inactive",
+        }:
+            raise CutoverError("update_recovery_service_changed")
+        _ensure_cgroup_empty(group)
+    reference = DatabaseRefV1(root / "agentmonitor.db", root)
+    with (
+        exclusive_service_quiescence(root, reference) as service,
+        _hold_settings_lock(root) as settings,
+    ):
+        transition.validate(root)
+        service.validate(root)
+        settings.validate(root)
+        if _read_journal_at(transition)[0] != data:
+            raise CutoverError("update_recovery_journal_changed")
+        if data["phase"] in {"stop_attempted", "stopped", "schema_verified"}:
+            if receipt is not None:
+                _verify_stopped(receipt)
+            else:
+                _ensure_cgroup_empty(data["cgroup"])
+            checkpoint_sqlite_database(reference)
+            view = InspectSchemaCompatibilityV1(
+                reference, application_schema_range(), "runtime_read_write"
+            )
+            if (
+                view.state != "compatible"
+                or view.current_revision != load_migration_catalog().head
+            ):
+                raise CutoverError("update_recovery_schema_invalid")
+            _preserve_interrupted_journal(transition)
+            if unit == _FIXED_UNIT:
+                _ctl("daemon-reload")
+                _verify_fixed_update_prestart(data, baseline, candidate, guard)
+            current_override = override.read_bytes()
+            if current_override not in {before, after}:
+                raise CutoverError("update_recovery_override_changed")
+            if current_override != before and not replace_override(
+                override, current_override, before
+            ):
+                raise CutoverError("update_recovery_override_changed")
+            if guard.is_symlink() or guard.read_bytes() != blocked:
+                raise CutoverError("update_recovery_guard_changed")
+            if unit == _FIXED_UNIT:
+                _ctl("daemon-reload")
+                _verify_fixed_update_prestart(data, baseline, candidate, guard)
+            updated = {**data, "phase": "baseline_start_attempted"}
+            _replace_journal(transition, data, updated)
+            data = updated
+        elif override.is_symlink() or override.read_bytes() != before:
+            raise CutoverError("update_recovery_override_changed")
+        guard_bytes = guard.read_bytes()
+        if guard.is_symlink() or guard_bytes not in {blocked, relaxed}:
+            raise CutoverError("update_recovery_guard_changed")
+        if guard_bytes == blocked and not replace_override(guard, blocked, relaxed):
+            raise CutoverError("update_recovery_guard_changed")
+        _ctl("daemon-reload")
+        if unit == _FIXED_UNIT:
+            _verify_fixed_update_prestart(data, baseline, candidate, guard)
+    current = _properties(unit)
+    if current.get("ActiveState") != "active":
+        if (
+            current.get("MainPID") != "0"
+            or current.get("ActiveState") not in {"inactive", "failed"}
+            or current.get("RefuseManualStart") != "no"
+            or current.get("Restart") != "no"
+        ):
+            raise CutoverError("update_recovery_service_changed")
+        _ensure_cgroup_empty(data["cgroup"])
+        _ctl("start", unit)
+    deadline = time.monotonic() + 15
+    while True:
+        try:
+            verify_baseline()
+            break
+        except (CutoverError, OSError):
+            if time.monotonic() >= deadline:
+                raise CutoverError("update_recovery_readiness_unavailable") from None
+            time.sleep(0.1)
+    return _finish_restored_baseline_engine(
+        root,
+        transition,
+        unit=unit,
+        guard=guard,
+        expected_restart=data["baseline_restart"],
+        verify_ready=verify_baseline,
+        verify_after=verify_baseline,
+    )
+
+
+def _recover_same_schema_candidate_attempt_inner(
+    root: Path,
+    transition,
+    *,
+    unit: str,
+    baseline: Path,
+    candidate: Path,
+    override: Path,
+    guard: Path,
+    verify_candidate,
+) -> str:
+    """Reconcile only the same candidate after an uncertain start request."""
+    transition.validate(root)
+    data = _read_journal_at(transition)[0]
+    if (
+        data.get("format") != "m6-cutover.v1"
+        or data.get("phase") != "candidate_start_attempted"
+        or data.get("source_revision") != load_migration_catalog().head
+        or data.get("backup_id") is not None
+        or data.get("unit") != unit
+        or data.get("baseline_revision") != _revision(baseline)
+        or data.get("candidate_revision") != _revision(candidate)
+        or data.get("candidate_build_sha256")
+        != tree_digest(candidate / "frontend/dist")
+    ):
+        raise CutoverError("update_recovery_journal_invalid")
+    receipt = _receipt(data)
+    _validate_stopped_journal(data, receipt)
+    after = (
+        _candidate_override(candidate)
+        if unit == _FIXED_UNIT
+        else build_override(candidate)
+    ).encode()
+    if override.is_symlink() or override.read_bytes() != after:
+        raise CutoverError("update_recovery_override_changed")
+    blocked = b"[Unit]\nRefuseManualStart=yes\n[Service]\nRestart=no\n"
+    relaxed = b"[Service]\nRestart=no\n"
+    if guard.is_symlink() or guard.read_bytes() not in {blocked, relaxed}:
+        raise CutoverError("update_recovery_guard_changed")
+    if unit == _FIXED_UNIT:
+        _ctl("daemon-reload")
+        _verify_fixed_update_prestart(data, baseline, candidate, guard)
+    _preserve_interrupted_journal(transition)
+    if guard.read_bytes() == blocked and not replace_override(guard, blocked, relaxed):
+        raise CutoverError("update_recovery_guard_changed")
+    _ctl("daemon-reload")
+    if unit == _FIXED_UNIT:
+        _verify_fixed_update_prestart(data, baseline, candidate, guard)
+    current = _properties(unit)
+    if current.get("ActiveState") != "active":
+        if (
+            current.get("MainPID") != "0"
+            or current.get("ActiveState") not in {"inactive", "failed"}
+            or current.get("RefuseManualStart") != "no"
+            or current.get("Restart") != "no"
+        ):
+            raise CutoverError("update_recovery_service_changed")
+        _ensure_cgroup_empty(receipt.cgroup)
+        _ctl("start", unit)
+    deadline = time.monotonic() + 15
+    while True:
+        try:
+            verify_candidate()
+            break
+        except (CutoverError, OSError):
+            if time.monotonic() >= deadline:
+                raise CutoverError("update_recovery_readiness_unavailable") from None
+            time.sleep(0.1)
+    if _read_journal_at(transition)[0] != data:
+        raise CutoverError("update_recovery_journal_changed")
+    _replace_journal(transition, data, {**data, "phase": "candidate_started"})
+    return "candidate_started_product_verification_required"
+
+
+def _reblock_current_update_on_failure(root: Path, guard: Path) -> None:
+    journal = root / ".m6-cutover-journal.json"
+    if not journal.exists():
+        return
+    if journal.is_symlink() or guard.is_symlink():
+        raise CutoverError("update_recovery_guard_changed")
+    blocked = b"[Unit]\nRefuseManualStart=yes\n[Service]\nRestart=no\n"
+    relaxed = b"[Service]\nRestart=no\n"
+    if not guard.exists():
+        data = _read_private_json(journal)
+        if data.get("format") != "m6-cutover.v1" or data.get("phase") not in {
+            "baseline_http_ready",
+            "candidate_http_ready",
+        }:
+            return
+        _create(guard, blocked)
+    elif guard.read_bytes() == relaxed:
+        if not replace_override(guard, relaxed, blocked):
+            raise CutoverError("update_recovery_guard_changed")
+    elif guard.read_bytes() != blocked:
+        raise CutoverError("update_recovery_guard_changed")
+    _ctl("daemon-reload")
+
+
+def _recover_same_schema_update_engine(
+    root: Path,
+    transition,
+    *,
+    unit: str,
+    baseline: Path,
+    candidate: Path,
+    override: Path,
+    guard: Path,
+    verify_baseline,
+    expected_executable: Path,
+) -> str:
+    try:
+        return _recover_same_schema_update_engine_inner(
+            root,
+            transition,
+            unit=unit,
+            baseline=baseline,
+            candidate=candidate,
+            override=override,
+            guard=guard,
+            verify_baseline=verify_baseline,
+            expected_executable=expected_executable,
+        )
+    except Exception:
+        _reblock_current_update_on_failure(root, guard)
+        raise
+
+
+def _recover_same_schema_candidate_attempt(
+    root: Path,
+    transition,
+    *,
+    unit: str,
+    baseline: Path,
+    candidate: Path,
+    override: Path,
+    guard: Path,
+    verify_candidate,
+) -> str:
+    try:
+        return _recover_same_schema_candidate_attempt_inner(
+            root,
+            transition,
+            unit=unit,
+            baseline=baseline,
+            candidate=candidate,
+            override=override,
+            guard=guard,
+            verify_candidate=verify_candidate,
+        )
+    except Exception:
+        _reblock_current_update_on_failure(root, guard)
+        raise
+
+
+def _journal_update_baseline(data: dict) -> Path:
+    revision = data.get("baseline_revision")
+    if not isinstance(revision, str) or re.fullmatch(r"[a-f0-9]{40}", revision) is None:
+        raise CutoverError("update_baseline_invalid")
+    matches = [
+        path
+        for path in _FIXED_RELEASES.iterdir()
+        if path.name.startswith("m6-candidate-" + revision + "-")
+    ]
+    if len(matches) != 1:
+        raise CutoverError("update_baseline_invalid")
+    baseline = matches[0]
+    _verify_retained_baseline(baseline)
+    if hashlib.sha256(_candidate_override(baseline).encode()).hexdigest() != data.get(
+        "fixed_baseline_override_sha256"
+    ):
+        raise CutoverError("update_baseline_invalid")
+    return baseline
+
+
+def _validate_current_update_facts(data: dict) -> tuple[Path, Path, str, str]:
+    """Bind a same-schema recovery journal to sealed local releases."""
+    revision = data.get("candidate_revision")
+    build = data.get("candidate_build_sha256")
+    if (
+        data.get("format") != "m6-cutover.v1"
+        or data.get("source_revision") != load_migration_catalog().head
+        or data.get("backup_id") is not None
+        or data.get("unit") != _FIXED_UNIT
+        or data.get("fixed_unit_sha256") != _FIXED_UNIT_SHA256
+        or data.get("fixed_runtime_sha256") != _FIXED_VENV_SHA256
+        or data.get("fixed_python_sha256") != _FIXED_PYTHON_SHA256
+        or data.get("baseline_restart")
+        not in {
+            "no",
+            "always",
+            "on-success",
+            "on-failure",
+            "on-abnormal",
+            "on-watchdog",
+            "on-abort",
+        }
+        or not isinstance(revision, str)
+        or re.fullmatch(r"[a-f0-9]{40}", revision) is None
+        or not isinstance(build, str)
+        or re.fullmatch(r"[a-f0-9]{64}", build) is None
+    ):
+        raise CutoverError("update_recovery_journal_invalid")
+    baseline = _journal_update_baseline(data)
+    candidate = _FIXED_RELEASES / ("m6-candidate-" + revision + "-" + build)
+    verify_candidate_release(candidate, _FIXED_RELEASES, revision, build)
+    unit_state = _FIXED_UNIT_FILE.lstat()
+    if (
+        not stat.S_ISREG(unit_state.st_mode)
+        or unit_state.st_uid != os.getuid()
+        or unit_state.st_mode & 0o022
+        or unit_state.st_nlink != 1
+        or hashlib.sha256(_FIXED_UNIT_FILE.read_bytes()).hexdigest()
+        != _FIXED_UNIT_SHA256
+    ):
+        raise CutoverError("target_unit_changed")
+    if (
+        _runtime_digest(_FIXED_VENV) != _FIXED_VENV_SHA256
+        or hashlib.sha256(_FIXED_EXECUTABLE.read_bytes()).hexdigest()
+        != _FIXED_PYTHON_SHA256
+    ):
+        raise CutoverError("release_identity_changed")
+    return baseline, candidate, revision, build
+
+
+def recover_current_schema_update() -> str:
+    """Resume one fixed same-schema update without restoring a database."""
+    root = _FIXED_DATA
+    controller = _trusted_checkout_revision(ROOT)
+    finalize = False
+    with _hold_transition_locks(root) as transition:
+        data = _read_journal_at(transition)[0]
+        phase = data.get("phase")
+        baseline, candidate, revision, build = _validate_current_update_facts(data)
+        guard = _FIXED_OVERRIDE.parent / "95-m6-cutover-restart.conf"
+        blocked = b"[Unit]\nRefuseManualStart=yes\n[Service]\nRestart=no\n"
+
+        def verify_running(checkout: Path) -> None:
+            if _trusted_checkout_revision(ROOT) != controller:
+                raise CutoverError("operator_checkout_changed")
+            present = guard.exists()
+            _fixed_unit_preflight(
+                revision,
+                build,
+                guarded=present,
+                candidate=checkout == candidate,
+                start_block=present and guard.read_bytes() == blocked,
+                update_baseline=baseline,
+            )
+            command = (
+                _candidate_override(checkout)
+                .split("ExecStart=\nExecStart=", 1)[1]
+                .strip()
+                .split()
+            )
+            _verify_candidate_runtime(
+                root=root,
+                unit=_FIXED_UNIT,
+                checkout=checkout,
+                origin="http://127.0.0.1:43110",
+                executable=_FIXED_EXECUTABLE,
+                expected_command=command,
+            )
+
+        if phase in {"candidate_started", "candidate_http_ready"}:
+            finalize = True
+        elif phase == "candidate_start_attempted":
+            _recover_same_schema_candidate_attempt(
+                root,
+                transition,
+                unit=_FIXED_UNIT,
+                baseline=baseline,
+                candidate=candidate,
+                override=_FIXED_OVERRIDE,
+                guard=guard,
+                verify_candidate=lambda: verify_running(candidate),
+            )
+            finalize = True
+        else:
+            return _recover_same_schema_update_engine(
+                root,
+                transition,
+                unit=_FIXED_UNIT,
+                baseline=baseline,
+                candidate=candidate,
+                override=_FIXED_OVERRIDE,
+                guard=guard,
+                verify_baseline=lambda: verify_running(baseline),
+                expected_executable=_FIXED_EXECUTABLE,
+            )
+    if finalize:
+        return finalize_candidate()
+    raise CutoverError("update_recovery_journal_invalid")
+
+
+def _fixed_journal_facts(
+    data: dict, *, phase: str, allow_update: bool = False
+) -> tuple[str, str, bool]:
     receipt = data.get("stop_receipt")
     candidate_revision = data.get("candidate_revision")
     candidate_build = data.get("candidate_build_sha256")
@@ -930,14 +1647,24 @@ def _fixed_journal_facts(data: dict, *, phase: str) -> tuple[str, str, bool]:
         _candidate_override(_FIXED_BASELINE).encode()
     ).hexdigest()
     baseline_hash = data.get("fixed_baseline_override_sha256")
+    is_update = (
+        allow_update and data.get("source_revision") == load_migration_catalog().head
+    )
+    if is_update:
+        _journal_update_baseline(data)
+        if data.get("backup_id") is not None:
+            raise CutoverError("migration_recovery_target_invalid")
     if (
         data.get("format") != "m6-cutover.v1"
         or data.get("phase") != phase
         or data.get("unit") != _FIXED_UNIT
-        or data.get("source_revision") != "v1_0707"
-        or data.get("baseline_revision") != _FIXED_BASELINE_REVISION
+        or (not is_update and data.get("source_revision") != "v1_0707")
+        or (not is_update and data.get("baseline_revision") != _FIXED_BASELINE_REVISION)
         or data.get("fixed_unit_sha256") != _FIXED_UNIT_SHA256
-        or baseline_hash not in {_FIXED_OVERRIDE_SHA256, private_hash}
+        or (
+            not is_update
+            and baseline_hash not in {_FIXED_OVERRIDE_SHA256, private_hash}
+        )
         or data.get("fixed_runtime_sha256") != _FIXED_VENV_SHA256
         or data.get("fixed_python_sha256") != _FIXED_PYTHON_SHA256
         or not isinstance(receipt, dict)
@@ -1326,6 +2053,7 @@ def _finish_restored_baseline_engine(
     verify_ready=None,
     verify_after=None,
     candidate: bool = False,
+    existing_baseline: bool = False,
 ) -> str:
     """Restore restart policy and archive the successful transition."""
     transition.validate(root)
@@ -1333,7 +2061,10 @@ def _finish_restored_baseline_engine(
     start_phase, ready_phase = (
         ("candidate_started", "candidate_http_ready")
         if candidate
-        else ("baseline_start_attempted", "baseline_http_ready")
+        else (
+            "preparing" if existing_baseline else "baseline_start_attempted",
+            "baseline_http_ready",
+        )
     )
     if data.get("phase") not in {start_phase, ready_phase}:
         raise CutoverError("baseline_finish_journal_invalid")
@@ -1361,7 +2092,11 @@ def _finish_restored_baseline_engine(
             )
         except FileNotFoundError:
             descriptor = None
-        if descriptor is None and original_phase != ready_phase:
+        if (
+            descriptor is None
+            and original_phase != ready_phase
+            and not existing_baseline
+        ):
             raise CutoverError("baseline_restart_guard_changed")
         if descriptor is not None:
             try:
@@ -1574,8 +2309,13 @@ def finalize_candidate() -> str:
         phase = data.get("phase")
         if phase not in {"candidate_started", "candidate_http_ready"}:
             raise CutoverError("candidate_finish_journal_invalid")
-        revision, build, _ = _fixed_journal_facts(data, phase=phase)
+        revision, build, _ = _fixed_journal_facts(data, phase=phase, allow_update=True)
         checkout = _FIXED_RELEASES / ("m6-candidate-" + revision + "-" + build)
+        update_baseline = (
+            _journal_update_baseline(data)
+            if data.get("source_revision") == load_migration_catalog().head
+            else None
+        )
         guard = _FIXED_OVERRIDE.parent / "95-m6-cutover-restart.conf"
         blocked = b"[Unit]\nRefuseManualStart=yes\n[Service]\nRestart=no\n"
         relaxed = b"[Service]\nRestart=no\n"
@@ -1600,6 +2340,7 @@ def finalize_candidate() -> str:
                 guarded=present,
                 candidate=True,
                 start_block=present and guard.read_bytes() == blocked,
+                update_baseline=update_baseline,
             )
             _verify_candidate_runtime(
                 root=root,
@@ -1626,9 +2367,7 @@ def finalize_candidate() -> str:
             )
         except Exception:
             # Do not stop an unverified process or roll back a database after start.
-            if not guard.exists() and (root / ".m6-cutover-journal.json").exists():
-                _create(guard, blocked)
-                _ctl("daemon-reload")
+            _reblock_current_update_on_failure(root, guard)
             raise
 
 

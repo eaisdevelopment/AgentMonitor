@@ -929,7 +929,7 @@ def test_public_cutover_target_is_not_caller_selectable() -> None:
                 and node.func.id == "_cutover_engine"
             ):
                 callers.append(path.name)
-    assert callers == ["m6_cutover.py"]
+    assert callers and set(callers) == {"m6_cutover.py"}
 
 
 def test_recovery_command_is_cataloged_and_rejects_target_arguments() -> None:
