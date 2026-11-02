@@ -57,9 +57,18 @@ def _fallback_payload(state: str, dispatch_certainty: str) -> bytes:
     ).encode("ascii")
 
 
+def _decimal_argument(value: str, *, minimum: int) -> int:
+    if not value or len(value) > 20 or not value.isascii() or not value.isdecimal():
+        raise ValueError("probe_argument_invalid") from None
+    parsed = int(value)
+    if parsed < minimum or str(parsed) != value:
+        raise ValueError("probe_argument_invalid") from None
+    return parsed
+
+
 def main() -> int:
-    """Run one fixed request; accept only deadline and optional binding ID."""
-    if len(sys.argv) not in {2, 3}:
+    """Run one fixed request; authenticated mode requires an inherited lock."""
+    if len(sys.argv) not in {2, 10}:
         return 2
     try:
         deadline = float(sys.argv[1])
@@ -85,33 +94,51 @@ def main() -> int:
             )
 
             authorization = None
-            if len(sys.argv) == 3:
+            request_allowed = True
+            if len(sys.argv) == 10:
                 from agentmonitor.adapters.providers.ollama.cloud_balance import (
+                    credential_lock,
                     keyring_authorization,
                 )
+                from agentmonitor.contracts.common_v1 import OpaqueIdV1
 
-                authorization = keyring_authorization.SecretToolAuthorizationV1(
-                    sys.argv[2]
-                )
+                try:
+                    account_id = OpaqueIdV1(sys.argv[3])
+                    inherited_lock = credential_lock.inherited_credential_lock_v1(
+                        account_id=account_id,
+                        descriptor=_decimal_argument(sys.argv[4], minimum=3),
+                        device=_decimal_argument(sys.argv[5], minimum=0),
+                        inode=_decimal_argument(sys.argv[6], minimum=1),
+                        directory_descriptor=_decimal_argument(sys.argv[7], minimum=3),
+                        root_device=_decimal_argument(sys.argv[8], minimum=0),
+                        root_inode=_decimal_argument(sys.argv[9], minimum=1),
+                    )
+                    authorization = keyring_authorization.SecretToolAuthorizationV1(
+                        sys.argv[2], account_id, inherited_lock
+                    )
+                except (OSError, TypeError, ValueError):
+                    payload = _fallback_payload("internal_adapter_error", "not_started")
+                    request_allowed = False
 
             # From this point a failure outside the source cannot prove that the
             # fixed request did not cross the wire. The source returns a more
             # precise closed fact when it completes normally.
-            fallback_certainty = "may_have_started"
-            result = _read_cloud_balance_once_v1(
-                authorization=authorization,
-                deadline_monotonic=deadline,
-            )
-            fallback_certainty = result.dispatch_certainty
-            payload = worker_protocol.encode_worker_result_v2(
-                state=result.state,
-                observed_at=result.observed_at,
-                http_status=result.http_status,
-                balance=result.balance,
-                retry_after_seconds=result.retry_after_seconds,
-                retry_after_state=result.retry_after_state,
-                dispatch_certainty=result.dispatch_certainty,
-            )
+            if request_allowed:
+                fallback_certainty = "may_have_started"
+                result = _read_cloud_balance_once_v1(
+                    authorization=authorization,
+                    deadline_monotonic=deadline,
+                )
+                fallback_certainty = result.dispatch_certainty
+                payload = worker_protocol.encode_worker_result_v2(
+                    state=result.state,
+                    observed_at=result.observed_at,
+                    http_status=result.http_status,
+                    balance=result.balance,
+                    retry_after_seconds=result.retry_after_seconds,
+                    retry_after_state=result.retry_after_state,
+                    dispatch_certainty=result.dispatch_certainty,
+                )
     except _DeadlineExpired:
         payload = _fallback_payload("deadline_exceeded", fallback_certainty)
     except BaseException:

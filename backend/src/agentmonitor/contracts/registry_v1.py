@@ -5,6 +5,8 @@ and bounded owner metadata. Provider locators and raw identity values have no
 public serialization field.
 """
 
+import hashlib
+from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from typing import ClassVar, Literal, NoReturn, Protocol, SupportsIndex
@@ -392,6 +394,207 @@ class ActiveCredentialBindingRefV1(TechnicalValueV1):
             raise ValueError("registry_credential_binding_id_invalid")
         if type(self.generation) is not int or self.generation < 1:
             raise ValueError("registry_credential_binding_generation_invalid")
+
+
+class _CredentialLockLeaseStateV1:
+    __slots__ = ("active",)
+
+    def __init__(self) -> None:
+        self.active = True
+
+
+class InheritedAccountCredentialLockV1:
+    """Transient exact descriptor identity; never serialize, persist, or log."""
+
+    CONTRACT_ID: ClassVar[str] = "CTR-REG-011"
+    OWNER: ClassVar[str] = "PLAN-M02"
+    __slots__ = (
+        "_account_id",
+        "_descriptor",
+        "_device",
+        "_directory_descriptor",
+        "_inode",
+        "_root_device",
+        "_root_inode",
+        "_state",
+    )
+
+    def __init__(
+        self,
+        *,
+        account_id: OpaqueIdV1,
+        descriptor: int,
+        device: int,
+        inode: int,
+        directory_descriptor: int,
+        root_device: int,
+        root_inode: int,
+        state: _CredentialLockLeaseStateV1,
+    ) -> None:
+        if (
+            not isinstance(account_id, OpaqueIdV1)
+            or type(descriptor) is not int
+            or descriptor < 0
+            or type(device) is not int
+            or device < 0
+            or type(inode) is not int
+            or inode <= 0
+            or type(directory_descriptor) is not int
+            or directory_descriptor < 0
+            or type(root_device) is not int
+            or root_device < 0
+            or type(root_inode) is not int
+            or root_inode <= 0
+            or type(state) is not _CredentialLockLeaseStateV1
+        ):
+            raise ValueError("credential_lock_invalid") from None
+        self._account_id = account_id
+        self._descriptor = descriptor
+        self._device = device
+        self._inode = inode
+        self._directory_descriptor = directory_descriptor
+        self._root_device = root_device
+        self._root_inode = root_inode
+        self._state = state
+
+    def descriptor_identity(
+        self, account_id: OpaqueIdV1
+    ) -> tuple[int, int, int, int, int, int]:
+        """Reveal only the technical fd identity to an approved adapter."""
+        if (
+            type(self) is not InheritedAccountCredentialLockV1
+            or not self._state.active
+            or not isinstance(account_id, OpaqueIdV1)
+            or account_id != self._account_id
+        ):
+            raise ValueError("credential_lock_invalid") from None
+        return (
+            self._descriptor,
+            self._device,
+            self._inode,
+            self._directory_descriptor,
+            self._root_device,
+            self._root_inode,
+        )
+
+    def lock_name(self, account_id: OpaqueIdV1) -> str:
+        """Derive the one M02-owned persistent entry name for this account."""
+        self.descriptor_identity(account_id)
+        return (
+            "credential-"
+            + hashlib.sha256(account_id.value.encode("utf-8")).hexdigest()
+            + ".lock"
+        )
+
+    def subprocess_arguments(self, account_id: OpaqueIdV1) -> tuple[str, ...]:
+        """Return bounded non-secret identity arguments for one fixed helper."""
+        descriptor, device, inode, directory, root_device, root_inode = (
+            self.descriptor_identity(account_id)
+        )
+        return (
+            account_id.value,
+            str(descriptor),
+            str(device),
+            str(inode),
+            str(directory),
+            str(root_device),
+            str(root_inode),
+        )
+
+    @classmethod
+    def from_inherited_identity(
+        cls,
+        *,
+        account_id: OpaqueIdV1,
+        descriptor: int,
+        device: int,
+        inode: int,
+        directory_descriptor: int,
+        root_device: int,
+        root_inode: int,
+    ) -> "InheritedAccountCredentialLockV1":
+        """Recreate a transient identity after exec; adapters still verify fds."""
+        return cls(
+            account_id=account_id,
+            descriptor=descriptor,
+            device=device,
+            inode=inode,
+            directory_descriptor=directory_descriptor,
+            root_device=root_device,
+            root_inode=root_inode,
+            state=_CredentialLockLeaseStateV1(),
+        )
+
+    def __repr__(self) -> str:
+        return "<InheritedAccountCredentialLockV1 transient>"
+
+    __str__ = __repr__
+
+    def __getstate__(self) -> NoReturn:
+        raise TypeError("credential_lock_not_serializable")
+
+    def __reduce_ex__(self, protocol: SupportsIndex) -> NoReturn:
+        raise TypeError("credential_lock_not_serializable")
+
+
+class AccountCredentialLockLeaseV1:
+    """Live account-bound capability issued by the M02 persistence adapter."""
+
+    CONTRACT_ID: ClassVar[str] = "CTR-REG-011"
+    OWNER: ClassVar[str] = "PLAN-M02"
+    __slots__ = ("_account_id", "_state", "_validator")
+
+    def __init__(
+        self,
+        *,
+        account_id: OpaqueIdV1,
+        validator: Callable[[OpaqueIdV1], tuple[int, int, int, int, int, int]],
+    ) -> None:
+        if not isinstance(account_id, OpaqueIdV1) or not callable(validator):
+            raise ValueError("credential_lock_invalid") from None
+        self._account_id = account_id
+        self._validator = validator
+        self._state = _CredentialLockLeaseStateV1()
+
+    def inherited_lock(
+        self, account_id: OpaqueIdV1
+    ) -> InheritedAccountCredentialLockV1:
+        """Invoke the issuing adapter's post-flock path/inode revalidation."""
+        if (
+            type(self) is not AccountCredentialLockLeaseV1
+            or not self._state.active
+            or not isinstance(account_id, OpaqueIdV1)
+            or account_id != self._account_id
+        ):
+            raise ValueError("credential_lock_invalid") from None
+        descriptor, device, inode, directory, root_device, root_inode = self._validator(
+            account_id
+        )
+        return InheritedAccountCredentialLockV1(
+            account_id=account_id,
+            descriptor=descriptor,
+            device=device,
+            inode=inode,
+            directory_descriptor=directory,
+            root_device=root_device,
+            root_inode=root_inode,
+            state=self._state,
+        )
+
+    def invalidate(self) -> None:
+        """Issuer-only lifecycle boundary; stale capabilities fail closed."""
+        self._state.active = False
+
+    def __repr__(self) -> str:
+        return "<AccountCredentialLockLeaseV1 transient>"
+
+    __str__ = __repr__
+
+    def __getstate__(self) -> NoReturn:
+        raise TypeError("credential_lock_not_serializable")
+
+    def __reduce_ex__(self, protocol: SupportsIndex) -> NoReturn:
+        raise TypeError("credential_lock_not_serializable")
 
 
 def _valid_access_target_id(value: OpaqueIdV1) -> bool:

@@ -29,6 +29,9 @@ if TYPE_CHECKING:
         ScheduledSourceAdmissionProofV1,
     )
 
+from agentmonitor.adapters.providers.ollama.cloud_balance.credential_lock import (
+    validated_credential_lock_descriptor,
+)
 from agentmonitor.adapters.providers.ollama.cloud_balance.keyring_command import (
     secret_tool_environment,
 )
@@ -41,6 +44,7 @@ from agentmonitor.adapters.providers.ollama.cloud_balance.worker_protocol import
     WorkerResultV2,
     decode_worker_result_v2,
 )
+from agentmonitor.contracts.common_v1 import OpaqueIdV1
 from agentmonitor.contracts.providers.ollama.cloud_balance.v1.schema import (
     IncludedCreditsV1,
     LegacyLimitsV1,
@@ -48,7 +52,11 @@ from agentmonitor.contracts.providers.ollama.cloud_balance.v1.schema import (
     OllamaCloudBalanceV1,
     SourcePeriodV1,
 )
-from agentmonitor.contracts.registry_v1 import ActiveCredentialBindingRefV1
+from agentmonitor.contracts.registry_v1 import (
+    AccountCredentialLockLeaseV1,
+    ActiveCredentialBindingRefV1,
+    InheritedAccountCredentialLockV1,
+)
 
 SOURCE_ID: Literal["ollama.cloud.balance.v1"] = "ollama.cloud.balance.v1"
 _TIMESTAMP = re.compile(
@@ -872,15 +880,15 @@ def read_cloud_balance_once_v1(
     )
 
 
-def _stop_worker_process(process: subprocess.Popen[bytes]) -> None:
+def _stop_worker_process(process: subprocess.Popen[bytes]) -> bool:
+    """Kill the pinned live session leader and reap it within one second."""
     if process.poll() is None:
         try:
             os.killpg(process.pid, signal.SIGKILL)
-        except (OSError, ProcessLookupError):
-            try:
-                process.kill()
-            except OSError:
-                pass
+        except ProcessLookupError:
+            pass
+        except OSError:
+            return False
     try:
         process.wait(timeout=1.0)
     except (OSError, subprocess.TimeoutExpired):
@@ -888,6 +896,8 @@ def _stop_worker_process(process: subprocess.Popen[bytes]) -> None:
             process.kill()
         except OSError:
             pass
+        return False
+    return True
 
 
 def _map_worker_result(
@@ -1053,7 +1063,11 @@ def _worker_result(
 
 
 def _run_isolated_worker(
-    deadline: float, *, binding_id: str | None = None
+    deadline: float,
+    *,
+    binding_id: str | None = None,
+    account_id: OpaqueIdV1 | None = None,
+    credential_lock: InheritedAccountCredentialLockV1 | None = None,
 ) -> CloudBalanceSourceResultV1:
     helper = Path(__file__).with_name("deadline_helper.py")
     executable = Path(sys.executable)
@@ -1073,10 +1087,40 @@ def _run_isolated_worker(
     try:
         command = [str(executable), "-I", str(helper), format(deadline, ".17g")]
         environment = {"LC_ALL": "C.UTF-8"}
+        pass_fds: tuple[int, ...] = ()
         if binding_id is not None:
+            if type(
+                credential_lock
+            ) is not InheritedAccountCredentialLockV1 or not isinstance(
+                account_id, OpaqueIdV1
+            ):
+                return _result(
+                    "internal_adapter_error",
+                    "ollama_cloud_credential_lock_invalid",
+                    dispatch_certainty="not_started",
+                )
+            try:
+                lock_arguments = credential_lock.subprocess_arguments(account_id)
+                lock_descriptor, directory_descriptor = (
+                    validated_credential_lock_descriptor(credential_lock, account_id)
+                )
+            except (OSError, ValueError):
+                return _result(
+                    "internal_adapter_error",
+                    "ollama_cloud_credential_lock_invalid",
+                    dispatch_certainty="not_started",
+                )
             command.append(binding_id)
+            command.extend(lock_arguments)
+            pass_fds = (lock_descriptor, directory_descriptor)
             environment = secret_tool_environment(os.environ)
             environment["LC_ALL"] = "C.UTF-8"
+        elif credential_lock is not None or account_id is not None:
+            return _result(
+                "internal_adapter_error",
+                "ollama_cloud_worker_unavailable",
+                dispatch_certainty="not_started",
+            )
         process = subprocess.Popen(
             command,
             stdin=subprocess.DEVNULL,
@@ -1085,6 +1129,7 @@ def _run_isolated_worker(
             cwd=helper.parent,
             env=environment,
             close_fds=True,
+            pass_fds=pass_fds,
             start_new_session=True,
         )
         fallback_certainty = "may_have_started"
@@ -1093,12 +1138,27 @@ def _run_isolated_worker(
                 deadline, CLOUD_BALANCE_POLICY_V1.operation_timeout_seconds
             )
         )
+        if not _stop_worker_process(process):
+            return _result(
+                "internal_adapter_error",
+                "ollama_cloud_worker_cleanup_failed",
+                dispatch_certainty=fallback_certainty,
+            )
         if time.monotonic() >= deadline:
             return _result(
                 "deadline_exceeded",
                 "ollama_cloud_deadline_exceeded",
                 dispatch_certainty=fallback_certainty,
             )
+        if credential_lock is not None and account_id is not None:
+            try:
+                validated_credential_lock_descriptor(credential_lock, account_id)
+            except (OSError, ValueError):
+                return _result(
+                    "internal_adapter_error",
+                    "ollama_cloud_credential_lock_invalid",
+                    dispatch_certainty=fallback_certainty,
+                )
         return _worker_result(
             stdout,
             process.returncode,
@@ -1106,23 +1166,31 @@ def _run_isolated_worker(
             fallback_certainty=fallback_certainty,
         )
     except (TimeoutError, subprocess.TimeoutExpired):
-        if process is not None:
-            _stop_worker_process(process)
+        if process is not None and not _stop_worker_process(process):
+            return _result(
+                "internal_adapter_error",
+                "ollama_cloud_worker_cleanup_failed",
+                dispatch_certainty=fallback_certainty,
+            )
         return _result(
             "deadline_exceeded",
             "ollama_cloud_deadline_exceeded",
             dispatch_certainty=fallback_certainty,
         )
     except (OSError, subprocess.SubprocessError):
-        if process is not None:
-            _stop_worker_process(process)
+        if process is not None and not _stop_worker_process(process):
+            return _result(
+                "internal_adapter_error",
+                "ollama_cloud_worker_cleanup_failed",
+                dispatch_certainty=fallback_certainty,
+            )
         return _result(
             "internal_adapter_error",
             "ollama_cloud_worker_unavailable",
             dispatch_certainty=fallback_certainty,
         )
     finally:
-        if process is not None and process.poll() is None:
+        if process is not None:
             _stop_worker_process(process)
 
 
@@ -1153,6 +1221,7 @@ def probe_cloud_balance_endpoint_v1(
 def probe_cloud_balance_for_binding_v1(
     *,
     binding: ActiveCredentialBindingRefV1,
+    credential_lock: AccountCredentialLockLeaseV1 | None = None,
     deadline_monotonic: float | None = None,
 ) -> CloudBalanceSourceResultV1:
     """Run the explicit admission probe in one isolated child.
@@ -1165,6 +1234,20 @@ def probe_cloud_balance_for_binding_v1(
         return _result(
             "internal_adapter_error",
             "ollama_cloud_binding_invalid",
+            dispatch_certainty="not_started",
+        )
+    if type(credential_lock) is not AccountCredentialLockLeaseV1:
+        return _result(
+            "internal_adapter_error",
+            "ollama_cloud_credential_lock_invalid",
+            dispatch_certainty="not_started",
+        )
+    try:
+        inherited_lock = credential_lock.inherited_lock(binding.account_id)
+    except (OSError, ValueError):
+        return _result(
+            "internal_adapter_error",
+            "ollama_cloud_credential_lock_invalid",
             dispatch_certainty="not_started",
         )
     started = time.monotonic()
@@ -1184,12 +1267,18 @@ def probe_cloud_balance_for_binding_v1(
         if deadline_monotonic is not None
         else started + CLOUD_BALANCE_POLICY_V1.operation_timeout_seconds,
     )
-    return _run_isolated_worker(deadline, binding_id=binding.binding_id.value)
+    return _run_isolated_worker(
+        deadline,
+        binding_id=binding.binding_id.value,
+        account_id=binding.account_id,
+        credential_lock=inherited_lock,
+    )
 
 
 def read_cloud_balance_for_binding_v1(
     *,
     binding: ActiveCredentialBindingRefV1,
+    credential_lock: AccountCredentialLockLeaseV1 | None = None,
     deadline_monotonic: float | None = None,
 ) -> CloudBalanceSourceResultV1:
     """Fail closed until the isolated authenticated source is live-validated."""
@@ -1204,6 +1293,7 @@ def read_cloud_balance_for_binding_v1(
         )
     return probe_cloud_balance_for_binding_v1(
         binding=binding,
+        credential_lock=credential_lock,
         deadline_monotonic=deadline_monotonic,
     )
 
@@ -1212,6 +1302,7 @@ def read_scheduled_cloud_balance_v1(
     *,
     binding: ActiveCredentialBindingRefV1,
     proof: ScheduledSourceAdmissionProofV1,
+    credential_lock: AccountCredentialLockLeaseV1 | None = None,
     deadline_monotonic: float | None = None,
 ) -> CloudBalanceSourceResultV1:
     """Read only with an exact, freshly rederived per-binding M03 proof."""
@@ -1228,5 +1319,7 @@ def read_scheduled_cloud_balance_v1(
             dispatch_certainty="not_started",
         )
     return probe_cloud_balance_for_binding_v1(
-        binding=binding, deadline_monotonic=deadline_monotonic
+        binding=binding,
+        credential_lock=credential_lock,
+        deadline_monotonic=deadline_monotonic,
     )

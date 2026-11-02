@@ -55,10 +55,12 @@ def test_cloud_balance_source_is_one_fixed_bounded_request() -> None:
     ) == ("self", "sink")
     assert tuple(signature(read_cloud_balance_for_binding_v1).parameters) == (
         "binding",
+        "credential_lock",
         "deadline_monotonic",
     )
     assert tuple(signature(probe_cloud_balance_for_binding_v1).parameters) == (
         "binding",
+        "credential_lock",
         "deadline_monotonic",
     )
     assert {

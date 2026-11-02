@@ -7,16 +7,76 @@ import sys
 import time
 from pathlib import Path
 
+import pytest
+
+from agentmonitor.adapters.persistence._shared.sqlite.core.policy import DatabaseRefV1
+from agentmonitor.adapters.persistence.registry.sqlite.credential_lock import (
+    account_credential_lock,
+)
+from agentmonitor.contracts.common_v1 import OpaqueIdV1
+from agentmonitor.modules.registry.domain.credential_lock import credential_lock_name
+
+
+def _reference(root: Path) -> DatabaseRefV1:
+    root.chmod(0o700)
+    descriptor = os.open(root / "agentmonitor.db", os.O_CREAT | os.O_EXCL, 0o600)
+    os.close(descriptor)
+    return DatabaseRefV1(root / "agentmonitor.db", root)
+
+
+def test_account_lock_rejects_replaced_directory_entry_after_flock(
+    tmp_path: Path,
+) -> None:
+    reference = _reference(tmp_path)
+    account_id = OpaqueIdV1("account-lock-replacement")
+
+    with account_credential_lock(reference, account_id) as lease:
+        path = tmp_path / credential_lock_name(account_id.value)
+        path.rename(tmp_path / "displaced-account-lock")
+        replacement = os.open(path, os.O_CREAT | os.O_EXCL | os.O_RDWR, 0o600)
+        os.close(replacement)
+
+        with pytest.raises(ValueError, match="credential_lock_replaced"):
+            lease.inherited_lock(account_id)
+
+
+def test_account_lock_capability_is_account_bound_and_invalidated_on_exit(
+    tmp_path: Path,
+) -> None:
+    reference = _reference(tmp_path)
+    account_id = OpaqueIdV1("account-bound-lock")
+    other_account_id = OpaqueIdV1("other-account-bound-lock")
+
+    with account_credential_lock(reference, account_id) as lease:
+        inherited = lease.inherited_lock(account_id)
+        with pytest.raises(ValueError, match="credential_lock_invalid"):
+            lease.inherited_lock(other_account_id)
+        with pytest.raises(ValueError, match="credential_lock_invalid"):
+            inherited.descriptor_identity(other_account_id)
+
+    with pytest.raises(ValueError, match="credential_lock_invalid"):
+        inherited.descriptor_identity(account_id)
+
 
 def test_child_holds_lock_after_parent_death(tmp_path: Path) -> None:
-    lock = tmp_path / "lock"
+    account_id = OpaqueIdV1("account-parent-death")
+    lock = tmp_path / credential_lock_name(account_id.value)
     script = """
 import os, subprocess, sys
+from pathlib import Path
+from agentmonitor.adapters.persistence._shared.sqlite.core.policy import DatabaseRefV1
 from agentmonitor.adapters.persistence.registry.sqlite.credential_lock import (
-    exclusive_descriptor,
+    account_credential_lock,
 )
-fd = os.open(sys.argv[1], os.O_CREAT | os.O_RDWR, 0o600)
-with exclusive_descriptor(fd):
+from agentmonitor.contracts.common_v1 import OpaqueIdV1
+root = Path(sys.argv[1])
+root.chmod(0o700)
+db_fd = os.open(root / 'agentmonitor.db', os.O_CREAT | os.O_EXCL, 0o600)
+os.close(db_fd)
+account = OpaqueIdV1('account-parent-death')
+reference = DatabaseRefV1(root / 'agentmonitor.db', root)
+with account_credential_lock(reference, account) as lease:
+    fd = lease.inherited_lock(account).descriptor_identity(account)[0]
     subprocess.Popen([sys.executable, "-c", "import sys; sys.stdin.buffer.read(1)"],
                      stdin=sys.stdin, stdout=subprocess.DEVNULL,
                      stderr=subprocess.DEVNULL,
@@ -25,7 +85,7 @@ with exclusive_descriptor(fd):
     os._exit(0)
 """
     parent = subprocess.Popen(
-        [sys.executable, "-c", script, str(lock)],
+        [sys.executable, "-c", script, str(tmp_path)],
         stdin=subprocess.PIPE,
         stdout=subprocess.PIPE,
         stderr=subprocess.DEVNULL,

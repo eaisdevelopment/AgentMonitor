@@ -31,7 +31,7 @@ def enroll_ollama_credential(reference: DatabaseRefV1, account_id: OpaqueIdV1) -
         raise EnrollmentError("owner_terminal_required")
     if len({os.ttyname(fd) for fd in (0, 1, 2)}) != 1:
         raise EnrollmentError("owner_terminal_required")
-    with account_credential_lock(reference, account_id) as lock_fd:
+    with account_credential_lock(reference, account_id) as lock_lease:
         repository = SqliteCredentialBindingsV1(reference)
         before = repository.read(account_id)
         pending_items = tuple(
@@ -50,17 +50,25 @@ def enroll_ollama_credential(reference: DatabaseRefV1, account_id: OpaqueIdV1) -
                 item for item in pending.bindings if item.lifecycle == "pending"
             )
         try:
+            inherited_lock = lock_lease.inherited_lock(account_id)
+            lock_descriptor = inherited_lock.descriptor_identity(account_id)[0]
             result = subprocess.run(
                 build_store_command(item.binding_id.value),
                 timeout=300,
                 check=False,
                 env=secret_tool_environment(os.environ),
-                pass_fds=(lock_fd,),
+                pass_fds=(lock_descriptor,),
             )
-        except (OSError, subprocess.SubprocessError):
+        except (OSError, subprocess.SubprocessError, ValueError):
             raise EnrollmentError("credential_store_unavailable") from None
         if result.returncode:
             raise EnrollmentError("credential_store_unavailable")
+        # Fail closed if the lock path was replaced while the official prompt
+        # was open. The retained descriptor still serializes the old inode.
+        try:
+            lock_lease.inherited_lock(account_id)
+        except ValueError:
+            raise EnrollmentError("credential_store_unavailable") from None
         current = repository.read(account_id)
         if current.record_version != pending.record_version:
             raise EnrollmentError("credential_binding_changed")

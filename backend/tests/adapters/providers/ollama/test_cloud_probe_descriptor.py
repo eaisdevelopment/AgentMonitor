@@ -13,6 +13,7 @@ def test_probe_identifies_documented_api_without_claiming_supported_capability()
     assert source.source_id == "ollama.cloud.balance.v1"
     assert source.source_class == "documented_api"
     assert source.capability_id == "subscription.quota"
+    assert source.mechanism_version == "1.0.1"
     assert source.side_effect_class == "read_only"
     assert not source.is_experimental
     assert len(ollama_cloud_probe_fingerprint()) == 64
