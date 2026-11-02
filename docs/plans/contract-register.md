@@ -12,7 +12,7 @@
 
 This register is the human index for the proposed AgentMonitor V1 contract
 baseline. `contract-baseline.toml` is the complete machine-readable inventory:
-98 unique contract IDs, proposed version, one semantic producer, explicit
+99 unique contract IDs, proposed version, one semantic producer, explicit
 consumers, maturity, decision reference, and semantic checklist.
 
 `Draft-aligned` means the producer/consumer direction and cross-plan ownership
@@ -29,13 +29,13 @@ normalized.
 
 | Measure | Draft-aligned baseline |
 |---|---:|
-| Total contracts | 98 |
+| Total contracts | 99 |
 | Original registered contracts retained | 76 |
-| Accepted missing contracts added | 22 |
+| Accepted missing contracts added | 23 |
 | `proposed_aligned` | 64 |
-| `evidence_blocked` | 34 |
+| `evidence_blocked` | 35 |
 | Synchronized/Approved/Implemented | 0 |
-| Cross-plan resolutions recorded | 17 |
+| Cross-plan resolutions recorded | 18 |
 
 Every contract proposes semantic version `1.0.0`. The version is not approved
 until producer, consumers, reviewers, and owner accept the exact baseline.
@@ -48,7 +48,7 @@ until producer, consumers, reviewers, and owner accept the exact baseline.
 | Configuration | CTR-CONFIG-001 | PLAN-FND mechanism; each plan owns its keys | all configured components | proposed-aligned |
 | Foundation | CTR-FND-001..008 | PLAN-FND | every plan as enumerated | proposed-aligned |
 | Identity/access | CTR-IAM-001..008 | PLAN-M01 | P01, P02, M08, DB/DEP where enumerated | proposed-aligned |
-| Registry | CTR-REG-001..010 | PLAN-M02 | M03–M08, adapters, P01/P02 | mixed; provider identity/reauth evidence-blocked |
+| Registry | CTR-REG-001..011 | PLAN-M02 | M03–M08, adapters, P01/P02 | mixed; provider identity/reauth/credential integration evidence-blocked |
 | Provider system | CTR-PROV-001..008 | PLAN-M03 | A01–A03, M02/M04–M08, P01/P02 | evidence-blocked |
 | Collection | CTR-COL-001..008 | PLAN-M04 | M05–M08, A03, P01/P02 and PLAN-INT as enumerated | proposed-aligned |
 | Capacity | CTR-CAP-001..009 | PLAN-M05 | M07/M08, P01/P02 | evidence-blocked |
@@ -72,6 +72,7 @@ machine-readable baseline to prevent drift between a prose table and automation.
 |---|---|
 | CTR-COMMON-007 | Preserve missing/null/unknown/unsupported/unavailable/not-applicable/withheld/stale/zero distinctions end to end |
 | CTR-REG-008..010 | Durable reauthentication workflow, alert-scope query, and normalized auth-health change |
+| CTR-REG-011 | Internal non-secret credential-binding lifecycle and exact generation fence; no key, store path, or public account-view field |
 | CTR-COL-006..008 | Commit/receipt seam, current/change collector-health input, and durable Ollama cloud admission without M04 owning provider I/O or observation tables |
 | CTR-CAP-008..009 | Forecast and availability generation/recovery signals required by M07 |
 | CTR-OPS-007 | Module-owned retention/export/consistency participant ports for M08 orchestration |
