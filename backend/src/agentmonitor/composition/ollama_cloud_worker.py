@@ -584,13 +584,13 @@ def main() -> int:
             return 0
         if args.credential_env_file is None:
             return 3
+        recover_ollama_env_staging(args.credential_env_file, args.data_root)
         recover_env_location_if_unused(
             args.data_root,
             has_unfinished_bindings=SqliteCredentialBindingsV1(
                 DatabaseRefV1(args.data_root / "agentmonitor.db", args.data_root)
             ).has_unfinished_bindings,
         )
-        recover_ollama_env_staging(args.credential_env_file, args.data_root)
         if recovery_exit_code(rate) == 0:
             try:
                 require_probe_authorized(args.credential_env_file is not None)

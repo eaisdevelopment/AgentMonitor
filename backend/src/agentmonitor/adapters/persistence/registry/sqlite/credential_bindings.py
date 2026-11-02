@@ -13,6 +13,7 @@ from sqlalchemy.exc import SQLAlchemyError
 
 from agentmonitor.adapters.persistence._shared.sqlite.core.credential_guard import (
     acquire_credential_staging_guard,
+    validate_credential_staging_guard,
 )
 from agentmonitor.adapters.persistence._shared.sqlite.core.policy import (
     DatabaseRefV1,
@@ -831,13 +832,20 @@ class SqliteCredentialBindingsV1:
             )
         root, guard = acquire_credential_staging_guard(self._reference._approved_root)
         try:
-            return self._transition_locked_under_guard(
+            validate_credential_staging_guard(
+                self._reference._approved_root, root, guard
+            )
+            result = self._transition_locked_under_guard(
                 account_id,
                 expected_record_version=expected_record_version,
                 action=action,
                 binding_id=binding_id,
                 reason=reason,
             )
+            validate_credential_staging_guard(
+                self._reference._approved_root, root, guard
+            )
+            return result
         finally:
             os.close(guard)
             os.close(root)

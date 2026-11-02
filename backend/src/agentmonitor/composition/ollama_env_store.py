@@ -11,6 +11,7 @@ from pathlib import Path
 
 from agentmonitor.adapters.persistence._shared.sqlite.core.credential_guard import (
     acquire_credential_staging_guard,
+    validate_credential_staging_guard,
 )
 from agentmonitor.adapters.providers.ollama.cloud_balance.env_capability import (
     require_safe_env_parent_metadata_v1,
@@ -39,7 +40,7 @@ def _private_file(info: os.stat_result) -> bool:
     )
 
 
-def _remove_location_staging(root: int) -> None:
+def _remove_location_staging(root: int, staging_root: Path, lock: int) -> None:
     names = os.listdir(root)
     if len(names) > 4096:
         raise ValueError("ollama_env_directory_too_large")
@@ -59,6 +60,7 @@ def _remove_location_staging(root: int) -> None:
                 or (held.st_dev, held.st_ino) != (entry.st_dev, entry.st_ino)
             ):
                 raise ValueError("ollama_env_staging_invalid")
+            validate_credential_staging_guard(staging_root, root, lock)
             os.unlink(name, dir_fd=root)
             removed = True
         finally:
@@ -70,24 +72,12 @@ def _remove_location_staging(root: int) -> None:
 def _acquire_staging_guard(staging_root: Path) -> tuple[int, int]:
     root, lock = acquire_credential_staging_guard(staging_root)
     try:
-        _remove_location_staging(root)
+        _remove_location_staging(root, staging_root, lock)
         return root, lock
     except BaseException:
         os.close(lock)
         os.close(root)
         raise
-
-
-def _validate_staging_guard(root: int, lock: int) -> None:
-    held = os.fstat(lock)
-    entry = os.stat(".ollama-env-staging.lock", dir_fd=root, follow_symlinks=False)
-    if (
-        not _private_file(held)
-        or not _private_file(entry)
-        or (held.st_dev, held.st_ino) != (entry.st_dev, entry.st_ino)
-    ):
-        raise ValueError("ollama_env_staging_lock_invalid")
-    fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
 
 
 def _location_bytes(env_path: Path) -> bytes:
@@ -102,7 +92,13 @@ def _location_bytes(env_path: Path) -> bytes:
     return value
 
 
-def _location_matches(root_fd: int, env_path: Path, *, create: bool) -> bool:
+def _location_matches(
+    root_fd: int,
+    env_path: Path,
+    *,
+    create: bool,
+    validate_publish: Callable[[], None] | None = None,
+) -> bool:
     expected = _location_bytes(env_path)
     try:
         descriptor = os.open(
@@ -111,10 +107,13 @@ def _location_matches(root_fd: int, env_path: Path, *, create: bool) -> bool:
     except FileNotFoundError:
         if not create:
             return False
+        if validate_publish is None:
+            raise ValueError("ollama_env_staging_lock_invalid") from None
+        validate_publish()
         temporary = ".ollama-env-location-tmp-" + secrets.token_hex(16)
         descriptor = os.open(
             temporary,
-            os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW,
+            os.O_RDWR | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW,
             0o600,
             dir_fd=root_fd,
         )
@@ -123,11 +122,31 @@ def _location_matches(root_fd: int, env_path: Path, *, create: bool) -> bool:
             if os.write(descriptor, expected) != len(expected):
                 raise OSError("ollama_env_location_write_failed")
             os.fsync(descriptor)
+            validate_publish()
+            held = os.fstat(descriptor)
+            entry = os.stat(temporary, dir_fd=root_fd, follow_symlinks=False)
+            if (
+                not _private_file(held)
+                or not _private_file(entry)
+                or (held.st_dev, held.st_ino) != (entry.st_dev, entry.st_ino)
+            ):
+                raise ValueError("ollama_env_location_invalid")
+            os.replace(
+                temporary, _LOCATION_NAME, src_dir_fd=root_fd, dst_dir_fd=root_fd
+            )
+            entry = os.stat(_LOCATION_NAME, dir_fd=root_fd, follow_symlinks=False)
+            os.lseek(descriptor, 0, os.SEEK_SET)
+            if (
+                not _private_file(entry)
+                or (held.st_dev, held.st_ino) != (entry.st_dev, entry.st_ino)
+                or os.read(descriptor, 4097) != expected
+            ):
+                raise ValueError("ollama_env_location_invalid")
+            validate_publish()
+            os.fsync(root_fd)
+            return True
         finally:
             os.close(descriptor)
-        os.replace(temporary, _LOCATION_NAME, src_dir_fd=root_fd, dst_dir_fd=root_fd)
-        os.fsync(root_fd)
-        return True
     try:
         held = os.fstat(descriptor)
         entry = os.stat(_LOCATION_NAME, dir_fd=root_fd, follow_symlinks=False)
@@ -138,7 +157,14 @@ def _location_matches(root_fd: int, env_path: Path, *, create: bool) -> bool:
             or (held.st_dev, held.st_ino) != (entry.st_dev, entry.st_ino)
         ):
             raise ValueError("ollama_env_location_invalid")
-        return os.read(descriptor, 4097) == expected
+        matches = os.read(descriptor, 4097) == expected
+        final = os.stat(_LOCATION_NAME, dir_fd=root_fd, follow_symlinks=False)
+        if not _private_file(final) or (held.st_dev, held.st_ino) != (
+            final.st_dev,
+            final.st_ino,
+        ):
+            raise ValueError("ollama_env_location_invalid")
+        return matches
     finally:
         os.close(descriptor)
 
@@ -147,7 +173,9 @@ def env_location_matches(staging_root: Path, env_path: Path) -> bool:
     """Match configured path to durable non-secret binding-location provenance."""
     root, lock = _acquire_staging_guard(staging_root)
     try:
-        return _location_matches(root, env_path, create=False)
+        result = _location_matches(root, env_path, create=False)
+        validate_credential_staging_guard(staging_root, root, lock)
+        return result
     finally:
         os.close(lock)
         os.close(root)
@@ -171,6 +199,12 @@ def _read_location_at(root: int) -> Path:
         ):
             raise ValueError("ollama_env_location_invalid")
         raw = os.read(descriptor, 4097)
+        final = os.stat(_LOCATION_NAME, dir_fd=root, follow_symlinks=False)
+        if not _private_file(final) or (held.st_dev, held.st_ino) != (
+            final.st_dev,
+            final.st_ino,
+        ):
+            raise ValueError("ollama_env_location_invalid")
         path = Path(os.fsdecode(raw))
         if _location_bytes(path) != raw:
             raise ValueError("ollama_env_location_invalid")
@@ -184,7 +218,9 @@ def read_env_location(staging_root: Path) -> Path:
     """Read the non-secret retained location for offline credential cleanup."""
     root, lock = _acquire_staging_guard(staging_root)
     try:
-        return _read_location_at(root)
+        result = _read_location_at(root)
+        validate_credential_staging_guard(staging_root, root, lock)
+        return result
     finally:
         os.close(lock)
         os.close(root)
@@ -278,6 +314,16 @@ def _managed_binding_ids(env_path: Path) -> tuple[str, ...]:
             )
         ):
             raise ValueError("ollama_env_file_changed")
+        held_lock = os.fstat(lock)
+        lock_entry = os.stat(".ollama-env.lock", dir_fd=root, follow_symlinks=False)
+        if (
+            not _private_file(held_lock)
+            or not _private_file(lock_entry)
+            or (held_lock.st_dev, held_lock.st_ino)
+            != (lock_entry.st_dev, lock_entry.st_ino)
+        ):
+            raise ValueError("ollama_env_lock_invalid")
+        fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
         if len(set(bindings)) != len(bindings):
             raise ValueError("ollama_env_entry_ambiguous")
         return tuple(bindings)
@@ -290,20 +336,50 @@ def _managed_binding_ids(env_path: Path) -> tuple[str, ...]:
                     pass
 
 
+def _require_no_staging_files(
+    staging_root: Path, env_path: Path, root: int, lock: int
+) -> None:
+    """Retain the location while any staged copy needs separate recovery."""
+    validate_credential_staging_guard(staging_root, root, lock)
+    name = ".ollama-env-staging-" + hashlib.sha256(os.fsencode(env_path)).hexdigest()
+    try:
+        child = os.open(name, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW, dir_fd=root)
+    except FileNotFoundError:
+        return
+    try:
+        held = os.fstat(child)
+        entry = os.stat(name, dir_fd=root, follow_symlinks=False)
+        if (
+            not stat.S_ISDIR(held.st_mode)
+            or held.st_uid != os.getuid()
+            or stat.S_IMODE(held.st_mode) != 0o700
+            or (held.st_dev, held.st_ino) != (entry.st_dev, entry.st_ino)
+        ):
+            raise ValueError("ollama_env_staging_root_invalid")
+        if os.listdir(child):
+            raise ValueError("ollama_env_staging_recovery_required")
+        _validate_staging_child(staging_root, env_path, root, lock, child)
+    finally:
+        os.close(child)
+
+
 def release_env_location_if_unused(
     staging_root: Path, env_path: Path, *, has_unfinished_bindings: Callable[[], bool]
 ) -> None:
     """Permit a later deployment path only after all bindings are cleaned."""
+    recover_ollama_env_staging(env_path, staging_root)
     root, lock = _acquire_staging_guard(staging_root)
     try:
         if not _location_matches(root, env_path, create=False):
             return
-        if not has_unfinished_bindings() and not _managed_binding_ids(env_path):
-            _validate_staging_guard(root, lock)
-            if not _location_matches(root, env_path, create=False):
-                raise ValueError("ollama_env_location_mismatch")
-            os.unlink(_LOCATION_NAME, dir_fd=root)
-            os.fsync(root)
+        if has_unfinished_bindings() or _managed_binding_ids(env_path):
+            return
+        _require_no_staging_files(staging_root, env_path, root, lock)
+        validate_credential_staging_guard(staging_root, root, lock)
+        if not _location_matches(root, env_path, create=False):
+            raise ValueError("ollama_env_location_mismatch")
+        os.unlink(_LOCATION_NAME, dir_fd=root)
+        os.fsync(root)
     finally:
         os.close(lock)
         os.close(root)
@@ -326,7 +402,8 @@ def recover_env_location_if_unused(
         retained = _read_location_at(root)
         if _managed_binding_ids(retained):
             return
-        _validate_staging_guard(root, lock)
+        _require_no_staging_files(staging_root, retained, root, lock)
+        validate_credential_staging_guard(staging_root, root, lock)
         if not _location_matches(root, retained, create=False):
             raise ValueError("ollama_env_location_mismatch")
         os.unlink(_LOCATION_NAME, dir_fd=root)
@@ -364,7 +441,9 @@ def _open_env_parent(env_path: Path) -> int:
     return root_fd
 
 
-def _remove_staging(root_fd: int, env_parent_fd: int) -> None:
+def _remove_staging(
+    root_fd: int, env_parent_fd: int, *, validate_guard: Callable[[], None]
+) -> None:
     names = os.listdir(root_fd)
     if len(names) > 4096:
         raise ValueError("ollama_env_directory_too_large")
@@ -394,12 +473,29 @@ def _remove_staging(root_fd: int, env_parent_fd: int) -> None:
                 )
             if not valid or (held.st_dev, held.st_ino) != (entry.st_dev, entry.st_ino):
                 raise ValueError("ollama_env_staging_invalid")
+            validate_guard()
             os.unlink(name, dir_fd=root_fd)
             removed = True
         finally:
             os.close(descriptor)
     if removed:
         os.fsync(root_fd)
+
+
+def _validate_staging_child(
+    staging_root: Path, env_path: Path, root: int, lock: int, child: int
+) -> None:
+    validate_credential_staging_guard(staging_root, root, lock)
+    name = ".ollama-env-staging-" + hashlib.sha256(os.fsencode(env_path)).hexdigest()
+    held = os.fstat(child)
+    entry = os.stat(name, dir_fd=root, follow_symlinks=False)
+    if (
+        not stat.S_ISDIR(entry.st_mode)
+        or entry.st_uid != os.getuid()
+        or stat.S_IMODE(entry.st_mode) != 0o700
+        or (held.st_dev, held.st_ino) != (entry.st_dev, entry.st_ino)
+    ):
+        raise ValueError("ollama_env_staging_root_invalid")
 
 
 def _open_staging_root(
@@ -460,7 +556,7 @@ def recover_ollama_env_staging(env_path: Path, staging_root: Path) -> None:
             os.close(guard_root)
             return
         root_fd = _open_env_parent(env_path)
-        _validate_staging_guard(guard_root, guard_lock)
+        validate_credential_staging_guard(staging_root, guard_root, guard_lock)
     except BaseException:
         os.close(guard_lock)
         os.close(guard_root)
@@ -493,7 +589,13 @@ def recover_ollama_env_staging(env_path: Path, staging_root: Path) -> None:
             create=False,
         )
         if staging_fd is not None:
-            _remove_staging(staging_fd, root_fd)
+            _remove_staging(
+                staging_fd,
+                root_fd,
+                validate_guard=lambda: _validate_staging_child(
+                    staging_root, env_path, guard_root, guard_lock, staging_fd
+                ),
+            )
     finally:
         if staging_fd is not None:
             os.close(staging_fd)
@@ -521,10 +623,18 @@ def update_ollama_env(
     else:
         guard_root, guard_lock = _held_guard
     try:
-        if not _location_matches(guard_root, env_path, create=True):
+        validate_credential_staging_guard(staging_root, guard_root, guard_lock)
+        if not _location_matches(
+            guard_root,
+            env_path,
+            create=True,
+            validate_publish=lambda: validate_credential_staging_guard(
+                staging_root, guard_root, guard_lock
+            ),
+        ):
             raise ValueError("ollama_env_location_mismatch")
         root_fd = _open_env_parent(env_path)
-        _validate_staging_guard(guard_root, guard_lock)
+        validate_credential_staging_guard(staging_root, guard_root, guard_lock)
     except BaseException:
         if owns_guard:
             os.close(guard_lock)
@@ -564,7 +674,13 @@ def update_ollama_env(
         )
         if staging_fd is None:
             raise ValueError("ollama_env_staging_root_invalid")
-        _remove_staging(staging_fd, root_fd)
+        _remove_staging(
+            staging_fd,
+            root_fd,
+            validate_guard=lambda: _validate_staging_child(
+                staging_root, env_path, guard_root, guard_lock, staging_fd
+            ),
+        )
         try:
             source_fd = os.open(
                 ".env",
@@ -602,6 +718,9 @@ def update_ollama_env(
             raise ValueError("ollama_env_file_invalid")
         if updated == content:
             return
+        _validate_staging_child(
+            staging_root, env_path, guard_root, guard_lock, staging_fd
+        )
         temp_fd = os.open(
             temp_name,
             os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW,
@@ -615,11 +734,17 @@ def update_ollama_env(
             raise ValueError("ollama_env_file_invalid")
         view = memoryview(updated)
         while view:
+            _validate_staging_child(
+                staging_root, env_path, guard_root, guard_lock, staging_fd
+            )
             written = os.write(temp_fd, view)
             if written <= 0:
                 raise OSError("ollama_env_write_failed")
             view = view[written:]
         os.fsync(temp_fd)
+        _validate_staging_child(
+            staging_root, env_path, guard_root, guard_lock, staging_fd
+        )
         current_root = os.stat(env_path.parent, follow_symlinks=False)
         current_staging_root = os.stat(staging_root, follow_symlinks=False)
         pinned_staging_root = os.fstat(guard_root)
@@ -656,12 +781,16 @@ def update_ollama_env(
             ):
                 raise ValueError("ollama_env_file_changed")
         staged_entry = os.stat(temp_name, dir_fd=staging_fd, follow_symlinks=False)
-        _validate_staging_guard(guard_root, guard_lock)
+        validate_credential_staging_guard(staging_root, guard_root, guard_lock)
         if not _private_file(staged_entry) or (
             staged_entry.st_dev,
             staged_entry.st_ino,
         ) != (staged.st_dev, staged.st_ino):
             raise ValueError("ollama_env_file_changed")
+        validate_credential_staging_guard(staging_root, guard_root, guard_lock)
+        _validate_staging_child(
+            staging_root, env_path, guard_root, guard_lock, staging_fd
+        )
         os.replace(temp_name, ".env", src_dir_fd=staging_fd, dst_dir_fd=root_fd)
         temp_created = False
         installed = os.stat(".env", dir_fd=root_fd, follow_symlinks=False)
@@ -682,6 +811,7 @@ def update_ollama_env(
                         held.st_dev,
                         held.st_ino,
                     ):
+                        # Remove the exact inode even if its directory was renamed.
                         os.unlink(temp_name, dir_fd=staging_fd)
                         os.fsync(staging_fd)
                 except FileNotFoundError:
@@ -707,11 +837,19 @@ def cleanup_untracked_env_entries(
     staging_root: Path, env_path: Path, *, has_unfinished_bindings: Callable[[], bool]
 ) -> None:
     """Clean reserved orphan entries under the binding-creation/writer guard."""
+    recover_ollama_env_staging(env_path, staging_root)
     root, lock = _acquire_staging_guard(staging_root)
     try:
         if has_unfinished_bindings():
             raise ValueError("credential_binding_cleanup_busy")
-        if not _location_matches(root, env_path, create=True):
+        if not _location_matches(
+            root,
+            env_path,
+            create=True,
+            validate_publish=lambda: validate_credential_staging_guard(
+                staging_root, root, lock
+            ),
+        ):
             raise ValueError("ollama_env_location_mismatch")
         for binding_id in _managed_binding_ids(env_path):
             update_ollama_env(
@@ -721,12 +859,14 @@ def cleanup_untracked_env_entries(
                 staging_root=staging_root,
                 _held_guard=(root, lock),
             )
-        if not has_unfinished_bindings() and not _managed_binding_ids(env_path):
-            _validate_staging_guard(root, lock)
-            if not _location_matches(root, env_path, create=False):
-                raise ValueError("ollama_env_location_mismatch")
-            os.unlink(_LOCATION_NAME, dir_fd=root)
-            os.fsync(root)
+        if has_unfinished_bindings() or _managed_binding_ids(env_path):
+            raise ValueError("credential_binding_cleanup_busy")
+        _require_no_staging_files(staging_root, env_path, root, lock)
+        validate_credential_staging_guard(staging_root, root, lock)
+        if not _location_matches(root, env_path, create=False):
+            raise ValueError("ollama_env_location_mismatch")
+        os.unlink(_LOCATION_NAME, dir_fd=root)
+        os.fsync(root)
     finally:
         os.close(lock)
         os.close(root)
