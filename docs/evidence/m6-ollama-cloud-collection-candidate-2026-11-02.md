@@ -143,3 +143,14 @@ row counts for five affected tables matched, and postcommit full integrity and
 foreign-key checks passed. No rows were printed, the copy was deleted, and the
 live database was untouched. Sixteen isolated migration checks also passed.
 This does not validate installed activation, restore or other M6 behavior.
+
+## Durable-job migration checkpoint
+
+The v1_0715-to-v1_0716 offline upgrade test failed before the source revision
+was admitted and passed after the bounded automation was updated. The combined
+migration/job contract suite passed 22 checks. Independently, two real private
+copies of v1_0707 upgraded and committed to v1_0716 with five key table counts
+and all 12 alert-table counts preserved; postcommit integrity, FK enforcement,
+FK checks and schema validation passed. No rows were printed and the copies
+were deleted. No event with the new non-constraining reason was manufactured;
+its real persistence remains Not Run. Installed activation is also Not Run.
