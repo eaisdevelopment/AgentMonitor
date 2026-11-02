@@ -16,10 +16,11 @@ def classify_status(status: int) -> CloudStatus:
     """Map only documented status codes without leaking response data."""
     if type(status) is not int or not 100 <= status <= 599:
         raise ValueError("ollama_cloud_http_status_invalid")
-    return {
+    outcomes: dict[int, CloudStatus] = {
         200: "success",
         401: "unauthorized",
         403: "access_denied",
         429: "rate_limited",
         503: "provider_unavailable",
-    }.get(status, "unexpected_response")
+    }
+    return outcomes.get(status, "unexpected_response")
