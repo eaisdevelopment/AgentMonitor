@@ -710,7 +710,7 @@ reviewer = "M02-M6-cloud-target-review"
 [[revisions]]
 ordinal = 714
 filename = "v1_0714_m04_cloud_targets.py"
-sha256 = "2b0ad09afea542de67a330b4fa08ee336899001b15e99e09c6996c919d322434"
+sha256 = "3b296db07118a5385b1fc92b6f2408b1723fb2a9d3da721d487422a23b219152"
 status = "shared"
 reviewed_at = "2026-11-02"
 revision = "v1_0714"
@@ -732,7 +732,7 @@ reviewer = "M04-M6-cloud-target-review"
 [[revisions]]
 ordinal = 715
 filename = "v1_0715_m05_cloud_targets.py"
-sha256 = "db5bbeff829f538787ef52944285aa3f524a7b3793f764f6bc0bb87a7aedb4fd"
+sha256 = "d0c0300fd5da1863449cc7b77670e02e953d4942afa27ba530b42bd1ee07fc15"
 status = "shared"
 reviewed_at = "2026-11-02"
 revision = "v1_0715"

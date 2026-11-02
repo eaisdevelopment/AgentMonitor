@@ -30,7 +30,7 @@ from agentmonitor.contracts.database_v1 import SchemaCompatibilityV1
 from agentmonitor.contracts.foundation_v1 import MigrationMetadataV1
 
 MIGRATIONS_PATH = Path(__file__).resolve().parents[7] / "migrations"
-CATALOG_SHA256 = "2e97f60adb51c5ee7f3dc577f6ff8056942715083f77261e05d9e795dd6debec"
+CATALOG_SHA256 = "6bea130ae9203f8c83297077578cd9086d5761dba8ce98d42ab5ef8551d021c6"
 IAM_TABLES = frozenset(
     {
         "iam_administrator",
@@ -1185,9 +1185,9 @@ def _inspect(
             or any(kind not in {"table", "index", "trigger"} for kind, _ in objects)
             or not _m4_owned_structure_is_valid(
                 connection,
-                "d290eeab989b2b962a565e6a26dcddb09bca05687703aa5a9f325d91cb75111c"
+                "604fd1571dd3d1face04b3d7aae7d7416cf6c34cfddcb438d93b34098e6753c5"
                 if current == "v1_0715"
-                else "3b3fbb5bad83136899bbe762a79ec4e4bb4b961c48fad55425cded576b137427"
+                else "3635c5880a6318f06a1d5f77965f3371f89a9ef5c0d32cb805df17d1565e254a"
                 if current == "v1_0714"
                 else "21872fe8be2e4d1296dedb905a9b177c2475932654a26e71f1df46f8d45d4172"
                 if current == "v1_0713"

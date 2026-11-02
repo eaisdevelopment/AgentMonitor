@@ -88,7 +88,8 @@ def upgrade() -> None:
         "CONSTRAINT ck_collection_schedule_provider_target CHECK "
         "((installation_id IS NOT NULL AND provider_target_kind IS NULL "
         "AND provider_target_id IS NULL) OR "
-        "(installation_id IS NULL AND provider_target_kind='cloud_service' "
+        "(installation_id IS NULL AND provider_target_kind IS NOT NULL "
+        "AND provider_target_id IS NOT NULL AND provider_target_kind='cloud_service' "
         "AND length(provider_target_id)=37 "
         "AND substr(provider_target_id,1,5)='amat_' "
         "AND substr(provider_target_id,6) NOT GLOB '*[^a-f0-9]*')))"
@@ -163,7 +164,8 @@ def upgrade() -> None:
         "CONSTRAINT ck_collection_run_provider_target CHECK "
         "((installation_id IS NOT NULL AND provider_target_kind IS NULL "
         "AND provider_target_id IS NULL) OR "
-        "(installation_id IS NULL AND provider_target_kind='cloud_service' "
+        "(installation_id IS NULL AND provider_target_kind IS NOT NULL "
+        "AND provider_target_id IS NOT NULL AND provider_target_kind='cloud_service' "
         "AND length(provider_target_id)=37 "
         "AND substr(provider_target_id,1,5)='amat_' "
         "AND substr(provider_target_id,6) NOT GLOB '*[^a-f0-9]*')))"
@@ -206,15 +208,27 @@ def upgrade() -> None:
         "collection_run",
         ["schedule_id"],
         unique=True,
-        sqlite_where=sa.text(
-            "state IN ('requested','queued','running','committing')"
-        ),
+        sqlite_where=sa.text("state IN ('requested','queued','running','committing')"),
     )
     op.create_index(
         "ix_collection_run_provider_target",
         "collection_run",
         ["provider_target_kind", "provider_target_id", "run_id"],
     )
+
+    # SQLite retains stale deferred-FK counters after DROP/rename rebuilds.
+    # Validate every real FK under the same write transaction before resetting
+    # that counter. SQLite still enforces foreign_keys after deferral is off.
+    connection = op.get_bind()
+    if connection.exec_driver_sql("PRAGMA foreign_keys").scalar_one() != 1:
+        raise ValueError("migration_foreign_keys_disabled")
+    if connection.exec_driver_sql("PRAGMA foreign_key_check").first() is not None:
+        raise ValueError("migration_foreign_key_violation")
+    connection.exec_driver_sql("PRAGMA defer_foreign_keys=OFF")
+    if connection.exec_driver_sql("PRAGMA defer_foreign_keys").scalar_one() != 0:
+        raise ValueError("migration_foreign_key_deferral_still_active")
+    if connection.exec_driver_sql("PRAGMA foreign_keys").scalar_one() != 1:
+        raise ValueError("migration_foreign_keys_disabled")
 
 
 def downgrade() -> None:

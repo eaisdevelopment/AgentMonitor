@@ -127,3 +127,19 @@ that change. A queued unit can still appear after an absent-unit check and the
 20-second cleanup deadline can expire before its 30-second runtime limit. The
 marker blocks another attempt, but cannot prove the unit has stopped; worker
 activation and settled-shutdown claims remain blocked.
+
+## Populated cloud-target migration correction
+
+The first real private-copy upgrade from v1_0707 failed at commit with a deferred
+foreign-key error even though SQLite reported no current FK violations. The
+v1_0714 and v1_0715 rebuilds now explicitly reject null cloud target fields,
+check every FK in the same write transaction before resetting the stale deferred
+counter, and verify both that deferral is off and foreign-key enforcement is on.
+SQLite documents the counter-reset risk in its
+[defer_foreign_keys reference](https://sqlite.org/pragma.html#pragma_defer_foreign_keys).
+An independent reviewer inspected this bounded sequence. On the exact updated
+migration snapshot, a real private copy upgraded and committed v1_0707→v1_0715;
+row counts for five affected tables matched, and postcommit full integrity and
+foreign-key checks passed. No rows were printed, the copy was deleted, and the
+live database was untouched. Sixteen isolated migration checks also passed.
+This does not validate installed activation, restore or other M6 behavior.
