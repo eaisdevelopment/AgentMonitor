@@ -294,6 +294,10 @@ def run_owner_confirmed_claude_collection(
     windows = route.list_quota_windows(graph.account.account_id, as_of=as_of)
     if not capacities or not windows:
         raise ClaudeLiveMonitoringErrorV1("claude_capacity_projection_missing")
+    if any(not isinstance(item, AccountCapacityViewV1) for item in capacities) or any(
+        not isinstance(item, QuotaWindowViewV1) for item in windows
+    ):
+        raise ClaudeLiveMonitoringErrorV1("claude_capacity_projection_invalid")
     return ClaudeLiveMonitoringResultV1(
         discovery_state=discovery.state,
         discovered_account_count=len(discovery.value.accounts),
@@ -305,8 +309,12 @@ def run_owner_confirmed_claude_collection(
         queued_run=queued,
         completed_run=completed,
         capacity_receipt=result,
-        capacities=capacities,
-        quota_windows=windows,
+        capacities=tuple(
+            item for item in capacities if isinstance(item, AccountCapacityViewV1)
+        ),
+        quota_windows=tuple(
+            item for item in windows if isinstance(item, QuotaWindowViewV1)
+        ),
         discovery_collected_at=discovery.provenance.collected_at,
         collection_started_at=collection_started_at,
     )

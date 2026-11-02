@@ -17,10 +17,10 @@ from agentmonitor.adapters.persistence._shared.sqlite.core.policy import Databas
 from agentmonitor.adapters.providers.ollama.cloud_balance.keyring_command import (
     secret_tool_environment,
 )
+from agentmonitor.composition.ollama_cloud_authority import cloud_access_authorized
 from agentmonitor.composition.ollama_cloud_collection import (
     OllamaCloudCollectionV1,
-    require_cloud_manifest,
-    require_source_admitted,
+    require_probe_authorized,
 )
 
 _PREFIX = "agentmonitor-cloud-worker-"
@@ -28,6 +28,11 @@ _SYSTEMCTL = "/usr/bin/systemctl"
 _SYSTEMD_RUN = "/usr/bin/systemd-run"
 _COMMAND_TIMEOUT_SECONDS = 8
 _CLEANUP_TIMEOUT_SECONDS = 20
+
+
+def recovery_exit_code(rate_state: str) -> int:
+    """Unknown recovery states never report a successful drain."""
+    return 0 if rate_state in {"idle", "recovered"} else 4
 
 
 class OllamaCloudWorkerSupervisorV1:
@@ -42,6 +47,77 @@ class OllamaCloudWorkerSupervisorV1:
         self.last_unit = ""
         self._lock_fd: int | None = None
         self._root_fd: int | None = None
+        self._active_recovery_only = False
+        self._recovery_unresolved = False
+
+    def is_available(self) -> bool:
+        """Expose quarantine and unresolved-start state without starting work."""
+        if (
+            self._quarantined
+            or self._recovery_unresolved
+            or not all(os.access(path, os.X_OK) for path in (_SYSTEMCTL, _SYSTEMD_RUN))
+        ):
+            return False
+        if self._running:
+            return True
+        root_fd = None
+        lock_fd = None
+        try:
+            manager = os.stat(
+                f"/run/user/{os.getuid()}/systemd/private", follow_symlinks=False
+            )
+            if not stat.S_ISSOCK(manager.st_mode) or manager.st_uid != os.getuid():
+                return False
+            root_fd = os.open(
+                self._data_root, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW
+            )
+            root = os.fstat(root_fd)
+            path_root = os.stat(self._data_root, follow_symlinks=False)
+            if (
+                root.st_uid != os.getuid()
+                or stat.S_IMODE(root.st_mode) != 0o700
+                or not stat.S_ISDIR(path_root.st_mode)
+                or path_root.st_uid != os.getuid()
+                or stat.S_IMODE(path_root.st_mode) != 0o700
+                or (root.st_dev, root.st_ino) != (path_root.st_dev, path_root.st_ino)
+            ):
+                return False
+            try:
+                lock_fd = os.open(
+                    ".ollama-cloud-worker.lock",
+                    os.O_RDONLY | os.O_NOFOLLOW,
+                    dir_fd=root_fd,
+                )
+            except FileNotFoundError:
+                return True
+            lock = os.fstat(lock_fd)
+            fcntl.flock(lock_fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            current_root = os.stat(self._data_root, follow_symlinks=False)
+            current_lock = os.stat(
+                ".ollama-cloud-worker.lock", dir_fd=root_fd, follow_symlinks=False
+            )
+            return (
+                stat.S_ISREG(lock.st_mode)
+                and lock.st_uid == os.getuid()
+                and lock.st_nlink == 1
+                and stat.S_IMODE(lock.st_mode) == 0o600
+                and lock.st_size == 0
+                and (root.st_dev, root.st_ino)
+                == (current_root.st_dev, current_root.st_ino)
+                and (lock.st_dev, lock.st_ino)
+                == (current_lock.st_dev, current_lock.st_ino)
+                and current_lock.st_uid == os.getuid()
+                and current_lock.st_nlink == 1
+                and stat.S_IMODE(current_lock.st_mode) == 0o600
+                and current_lock.st_size == 0
+            )
+        except OSError:
+            return False
+        finally:
+            if lock_fd is not None:
+                os.close(lock_fd)
+            if root_fd is not None:
+                os.close(root_fd)
 
     @staticmethod
     async def _command(*args: str, pass_fds: tuple[int, ...] = ()) -> tuple[int, str]:
@@ -106,6 +182,8 @@ class OllamaCloudWorkerSupervisorV1:
             "--data-root",
             str(self._data_root),
         ]
+        if self._active_recovery_only:
+            expected_argv.append("--recovery-only")
         if (
             properties.get("Id") != unit
             or properties.get("Description") != description
@@ -164,9 +242,14 @@ class OllamaCloudWorkerSupervisorV1:
     async def _finish_cleanup(task: asyncio.Task, deadline: float):
         """Bound all cleanup steps by one monotonic deadline despite cancellation."""
         while not task.done():
-            remaining = deadline - asyncio.get_running_loop().time()
+            # Keep time for the manager child's own cancellation/kill/wait.
+            remaining = deadline - asyncio.get_running_loop().time() - 3
             if remaining <= 0:
                 task.cancel()
+                try:
+                    await asyncio.wait_for(task, 3)
+                except (asyncio.CancelledError, TimeoutError, OSError, ValueError):
+                    pass
                 return None
             try:
                 return await asyncio.wait_for(asyncio.shield(task), remaining)
@@ -174,6 +257,10 @@ class OllamaCloudWorkerSupervisorV1:
                 continue
             except TimeoutError:
                 task.cancel()
+                try:
+                    await asyncio.wait_for(task, 3)
+                except (asyncio.CancelledError, TimeoutError, OSError, ValueError):
+                    pass
                 return None
         return task.result()
 
@@ -283,12 +370,13 @@ class OllamaCloudWorkerSupervisorV1:
         os.ftruncate(self._lock_fd, 0)
         os.fsync(self._lock_fd)
 
-    async def run_once(self) -> str:
+    async def run_once(self, *, recovery_only: bool = False) -> str:
         if self._quarantined:
             return "quarantined"
         if self._running:
             return "worker_busy"
         self._running = True
+        self._active_recovery_only = recovery_only
         try:
             try:
                 self._lock_fd = self._acquire_lock()
@@ -354,6 +442,8 @@ class OllamaCloudWorkerSupervisorV1:
             "--data-root",
             str(self._data_root),
         ]
+        if self._active_recovery_only:
+            command.append("--recovery-only")
         self._mark_start(unit)
         if self._lock_fd is None:
             raise ValueError("ollama_cloud_lock_missing")
@@ -381,9 +471,12 @@ class OllamaCloudWorkerSupervisorV1:
                         self._quarantined = True
                         return "quarantined"
                     self._clear_marker()
+                    self._recovery_unresolved = status not in {"0", "3"}
                     return (
                         "not_admitted"
                         if status == "3"
+                        else "recovery_unresolved"
+                        if status == "4"
                         else "completed"
                         if status == "0"
                         else "unavailable"
@@ -404,7 +497,9 @@ class OllamaCloudWorkerSupervisorV1:
     async def run(self) -> None:
         while True:
             try:
-                await self.run_once()
+                await self.run_once(
+                    recovery_only=not cloud_access_authorized(self._data_root)
+                )
             except Exception:  # noqa: BLE001 - optional lane, no provider details.
                 self._quarantined = True
             await asyncio.sleep(60)
@@ -413,6 +508,7 @@ class OllamaCloudWorkerSupervisorV1:
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--data-root", required=True, type=Path)
+    parser.add_argument("--recovery-only", action="store_true")
     args = parser.parse_args()
     if not args.data_root.is_absolute() or args.data_root in {Path("/"), Path.home()}:
         return 2
@@ -420,7 +516,8 @@ def main() -> int:
         return 3
     try:
         collector = OllamaCloudCollectionV1(
-            DatabaseRefV1(args.data_root / "agentmonitor.db", args.data_root)
+            DatabaseRefV1(args.data_root / "agentmonitor.db", args.data_root),
+            data_root=args.data_root,
         )
         now = datetime.now(UTC)
         rate, _, _ = collector.recover_journals(
@@ -428,18 +525,30 @@ def main() -> int:
             owner_stale_before=now - timedelta(minutes=2),
             recovery_lease_expires_at=now + timedelta(seconds=45),
         )
-        if rate not in {
-            "outcome_unknown",
-            "legacy_unresolved",
-            "owner_active_or_unverified",
-        }:
+        if recovery_exit_code(rate) != 0:
+            return 4
+        if args.recovery_only:
+            return 0
+        if recovery_exit_code(rate) == 0:
             try:
-                require_source_admitted()
+                require_probe_authorized(cloud_access_authorized(args.data_root))
             except ValueError:
                 return 3
-            if collector.verification_tick() == "no_candidate":
-                require_cloud_manifest()
-                collector.tick()
+            if collector.preferred_work_lane() == "scheduled":
+                try:
+                    scheduled = collector.tick()
+                except ValueError as error:
+                    if str(error) != "ollama_cloud_source_not_admitted":
+                        raise
+                    scheduled = "ollama_cloud_no_eligible_accounts"
+                if scheduled == "ollama_cloud_no_eligible_accounts":
+                    collector.verification_tick()
+            elif collector.verification_tick() == "no_candidate":
+                try:
+                    collector.tick()
+                except ValueError as error:
+                    if str(error) != "ollama_cloud_source_not_admitted":
+                        raise
         return 0
     except Exception:  # noqa: BLE001 - the process returns only a closed status.
         return 1

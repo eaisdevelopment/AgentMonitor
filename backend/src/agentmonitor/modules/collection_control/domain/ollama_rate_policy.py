@@ -5,10 +5,20 @@ alone does not prevent concurrent requests or enforce a provider's rate limit.
 """
 
 from datetime import UTC, datetime, timedelta
+from typing import Literal
 
 _MIN_SPACING_SECONDS = 60
 _MAX_BACKOFF_SECONDS = 300
 _MAX_JITTER_SECONDS = 10
+
+
+def next_cloud_work_lane(
+    last_was_verification: bool | None,
+) -> Literal["verification", "scheduled"]:
+    """Alternate from durable last admission, including across worker restarts."""
+    if last_was_verification is not None and type(last_was_verification) is not bool:
+        raise ValueError("ollama_cloud_lane_invalid")
+    return "scheduled" if last_was_verification else "verification"
 
 
 def after_ollama_attempt(

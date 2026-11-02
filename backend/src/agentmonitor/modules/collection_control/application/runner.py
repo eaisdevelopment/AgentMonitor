@@ -7,6 +7,7 @@ from agentmonitor.contracts.collection_control_v1 import (
     CollectionCommitReceiptV1,
     CollectionFailedV1,
     CollectionOutcomeCommitV1,
+    CollectionRunAdmissionV1,
     CollectionRunAdmissionV1OrV2,
     CollectionRunViewV1,
 )
@@ -24,9 +25,7 @@ class RequestManualCollectionV1:
     def __init__(self, repository: CollectionRunRepositoryV1) -> None:
         self._repository = repository
 
-    def __call__(
-        self, admission: CollectionRunAdmissionV1OrV2
-    ) -> CollectionRunViewV1:
+    def __call__(self, admission: CollectionRunAdmissionV1OrV2) -> CollectionRunViewV1:
         if admission.trigger != "manual":
             raise ValueError("manual_collection_trigger_required")
         if admission.request_principal_id is None:
@@ -40,12 +39,33 @@ class AdmitScheduledCollectionV1:
     def __init__(self, repository: CollectionRunRepositoryV1) -> None:
         self._repository = repository
 
-    def __call__(
-        self, admission: CollectionRunAdmissionV1OrV2
-    ) -> CollectionRunViewV1:
+    def __call__(self, admission: CollectionRunAdmissionV1OrV2) -> CollectionRunViewV1:
         if admission.trigger != "scheduled":
             raise ValueError("scheduled_collection_trigger_required")
         return self._repository.admit_run(admission)
+
+
+def v1_normalizer[SourceT: TechnicalValueV1, PayloadT: TechnicalValueV1](
+    normalize: Callable[
+        [CollectionRunAdmissionV1, CollectionOutcomeV1[SourceT], datetime],
+        CollectionOutcomeCommitV1[PayloadT] | CollectionFailedV1,
+    ],
+) -> Callable[
+    [CollectionRunAdmissionV1OrV2, CollectionOutcomeV1[SourceT], datetime],
+    CollectionOutcomeCommitV1[PayloadT] | CollectionFailedV1,
+]:
+    """Fence legacy normalizers against an unexpected V2 admission."""
+
+    def apply(
+        admission: CollectionRunAdmissionV1OrV2,
+        outcome: CollectionOutcomeV1[SourceT],
+        completed_at: datetime,
+    ) -> CollectionOutcomeCommitV1[PayloadT] | CollectionFailedV1:
+        if not isinstance(admission, CollectionRunAdmissionV1):
+            raise ValueError("collection_v1_admission_required")
+        return normalize(admission, outcome, completed_at)
+
+    return apply
 
 
 class RunOneCollectionV1[SourceT: TechnicalValueV1, PayloadT: TechnicalValueV1]:

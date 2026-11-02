@@ -19,7 +19,6 @@ from agentmonitor.adapters.persistence.collection_control.sqlite.repository impo
     SqliteCollectionRepositoryV1,
 )
 from agentmonitor.contracts.collection_control_v1 import (
-    CollectionRunAdmissionV1,
     CollectionRunAdmissionV1OrV2,
     CollectionRunAdmissionV2,
     CollectionRunStateV1,
@@ -42,10 +41,12 @@ from agentmonitor.contracts.collection_control_v1 import (
 from agentmonitor.contracts.common_v1 import OpaqueIdV1
 from agentmonitor.contracts.registry_v1 import (
     CredentialBindingVerificationReceiptV1,
+    ProviderTargetRefV1,
 )
 from agentmonitor.modules.collection_control.domain.ollama_rate_policy import (
     after_ollama_attempt,
     cloud_schedule_generation_action,
+    next_cloud_work_lane,
     reserve_after_lease,
 )
 from agentmonitor.modules.collection_control.domain.ollama_verification import (
@@ -58,6 +59,17 @@ from agentmonitor.modules.collection_control.domain.ollama_verification import (
 _GATE_ID = "ollama-cloud-balance-v1"
 _PROVIDER_KEY = "ollama"
 _CAPABILITY_ID = "subscription.quota"
+
+
+def cloud_schedule_storage_target(
+    target: ProviderTargetRefV1,
+) -> tuple[str | None, str | None, str | None]:
+    """Preserve the cloud/installation distinction in schedule storage."""
+    if target.target_kind == "provider_installation":
+        return target.target_id.value, None, None
+    if target.target_kind == "cloud_service":
+        return None, target.target_kind, target.target_id.value
+    raise ValueError("ollama_cloud_schedule_invalid")
 
 
 class OllamaCloudAdmissionRepositoryErrorV1(ValueError):
@@ -464,6 +476,30 @@ class SqliteOllamaCloudAdmissionRepositoryV1:
 
     def __init__(self, database_ref: DatabaseRefV1) -> None:
         self._database_ref = database_ref
+
+    def preferred_work_lane(self) -> str:
+        """Choose fairly from the latest durable global admission."""
+        try:
+            with open_sqlite_database(
+                self._database_ref, "runtime_read_only"
+            ) as handle:
+                with handle.connect() as connection:
+                    row = (
+                        connection.exec_driver_sql(
+                            "SELECT EXISTS (SELECT 1 FROM collection_cloud_verification_job j "
+                            "WHERE j.admission_id=a.admission_id) AS was_verification "
+                            "FROM collection_ollama_cloud_admission a WHERE a.gate_id=? "
+                            "ORDER BY a.fencing_token DESC LIMIT 1",
+                            (_GATE_ID,),
+                        )
+                        .mappings()
+                        .one_or_none()
+                    )
+            return next_cloud_work_lane(
+                None if row is None else bool(row["was_verification"])
+            )
+        except (SQLAlchemyError, SqlitePolicyError, OSError, ValueError, TypeError):
+            raise OllamaCloudAdmissionRepositoryErrorV1() from None
 
     def assert_active(self, lease: OllamaCloudRequestLeaseV1, now: datetime) -> None:
         """Check the acquired gate before starting the one provider request."""
@@ -1137,7 +1173,7 @@ class SqliteOllamaCloudAdmissionRepositoryV1:
         except (SQLAlchemyError, SqlitePolicyError, OSError, ValueError, TypeError):
             raise OllamaCloudAdmissionRepositoryErrorV1() from None
 
-    def register_schedule(self, admission: CollectionRunAdmissionV1) -> None:
+    def register_schedule(self, admission: CollectionRunAdmissionV1OrV2) -> None:
         """Register one genuine target for fair selection without creating a run."""
         if (
             admission.provider_key != _PROVIDER_KEY
@@ -1167,7 +1203,13 @@ class SqliteOllamaCloudAdmissionRepositoryV1:
                     target = (
                         admission.target_key_digest,
                         admission.provider_key,
-                        admission.installation_id.value,
+                        *cloud_schedule_storage_target(
+                            admission.provider_target
+                            if isinstance(admission, CollectionRunAdmissionV2)
+                            else ProviderTargetRefV1(
+                                "provider_installation", admission.installation_id
+                            )
+                        ),
                         admission.account_id.value,
                         admission.profile_id.value,
                         admission.resource_id.value,
@@ -1178,13 +1220,14 @@ class SqliteOllamaCloudAdmissionRepositoryV1:
                         connection.exec_driver_sql(
                             "INSERT INTO collection_schedule "
                             "(schedule_id,target_key_digest,provider_key,installation_id,"
+                            "provider_target_kind,provider_target_id,"
                             "account_id,profile_id,resource_id,capability_id,state,activity_class,"
                             "base_interval_seconds,effective_interval_seconds,target_generation,"
                             "next_due_at,not_before_at,backoff_kind,backoff_generation,"
                             "consecutive_failure_count,last_attempted_run_id,last_successful_run_id,"
                             "last_terminal_outcome_code,record_version,created_at,"
                             "updated_at) "
-                            "VALUES (?,?,?,?,?,?,?,?,'enabled','unknown',300,300,?,?"
+                            "VALUES (?,?,?,?,?,?,?,?,?,?,'enabled','unknown',300,300,?,?"
                             ",NULL,NULL,"
                             "0,0,NULL,NULL,NULL,1,?,?)",
                             (
@@ -1203,6 +1246,8 @@ class SqliteOllamaCloudAdmissionRepositoryV1:
                                 "target_key_digest",
                                 "provider_key",
                                 "installation_id",
+                                "provider_target_kind",
+                                "provider_target_id",
                                 "account_id",
                                 "profile_id",
                                 "resource_id",

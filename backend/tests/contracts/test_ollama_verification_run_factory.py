@@ -81,3 +81,56 @@ def test_source_deadline_reserves_time_for_commit_and_cleanup() -> None:
     assert source_budget_seconds(20.0, 18.0, 30.0) == 10.0
     with pytest.raises(ValueError):
         source_budget_seconds(8.0, 20.0, 30.0)
+
+
+def test_cloud_polling_target_does_not_alias_installation() -> None:
+    from agentmonitor.adapters.persistence.collection_control.sqlite.ollama_cloud_admission import (  # noqa: E501
+        cloud_schedule_storage_target,
+    )
+    from agentmonitor.contracts.registry_v1 import ProviderTargetRefV1
+
+    cloud = ProviderTargetRefV1("cloud_service", OpaqueIdV1("amat_" + "2" * 32))
+    assert cloud_schedule_storage_target(cloud) == (
+        None,
+        "cloud_service",
+        cloud.target_id.value,
+    )
+    local = ProviderTargetRefV1("provider_installation", OpaqueIdV1("installation"))
+    assert cloud_schedule_storage_target(local) == ("installation", None, None)
+
+
+def test_cloud_scheduled_run_uses_same_generation_scoped_target() -> None:
+    from agentmonitor.adapters.providers.ollama.cloud_balance.verification_run import (
+        build_scheduled_cloud_run,
+    )
+
+    now = datetime(2026, 11, 2, tzinfo=UTC)
+    oid = OpaqueIdV1
+    binding = ActiveCredentialBindingRefV1(oid("account"), oid("amcb_" + "1" * 32), 3)
+    graph = CloudMonitoringTargetV1(
+        oid("profile"),
+        oid("resource"),
+        oid("account"),
+        oid("amat_" + "2" * 32),
+        binding,
+        "active",
+        "owner_confirmed",
+        oid("owner"),
+        now,
+        1,
+    )
+    run = build_scheduled_cloud_run(graph, oid("worker"), 7, "b" * 64, now)
+    assert run.trigger == "scheduled"
+    assert run.provider_target.target_kind == "cloud_service"
+    assert run.target_generation == 3
+    assert run.account_id == binding.account_id
+
+
+def test_work_lane_alternates_from_last_durable_request() -> None:
+    from agentmonitor.modules.collection_control.domain.ollama_rate_policy import (
+        next_cloud_work_lane,
+    )
+
+    assert next_cloud_work_lane(None) == "verification"
+    assert next_cloud_work_lane(True) == "scheduled"
+    assert next_cloud_work_lane(False) == "verification"

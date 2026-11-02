@@ -22,7 +22,12 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from decimal import Decimal, InvalidOperation
 from pathlib import Path
-from typing import Literal, Protocol
+from typing import TYPE_CHECKING, Literal, Protocol
+
+if TYPE_CHECKING:
+    from agentmonitor.contracts.provider_system_v1 import (
+        ScheduledSourceAdmissionProofV1,
+    )
 
 from agentmonitor.adapters.providers.ollama.cloud_balance.keyring_command import (
     secret_tool_environment,
@@ -1200,4 +1205,28 @@ def read_cloud_balance_for_binding_v1(
     return probe_cloud_balance_for_binding_v1(
         binding=binding,
         deadline_monotonic=deadline_monotonic,
+    )
+
+
+def read_scheduled_cloud_balance_v1(
+    *,
+    binding: ActiveCredentialBindingRefV1,
+    proof: ScheduledSourceAdmissionProofV1,
+    deadline_monotonic: float | None = None,
+) -> CloudBalanceSourceResultV1:
+    """Read only with an exact, freshly rederived per-binding M03 proof."""
+    from agentmonitor.adapters.providers.ollama.cloud_balance.probe_descriptor import (
+        require_matching_scheduled_proof,
+    )
+
+    try:
+        require_matching_scheduled_proof(binding, proof)
+    except (TypeError, ValueError):
+        return _result(
+            "source_not_admitted",
+            "ollama_cloud_scheduled_proof_invalid",
+            dispatch_certainty="not_started",
+        )
+    return probe_cloud_balance_for_binding_v1(
+        binding=binding, deadline_monotonic=deadline_monotonic
     )

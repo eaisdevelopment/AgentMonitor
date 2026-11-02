@@ -14,6 +14,8 @@ def derive_connection_status(
     """Never infer provider identity or offer a retry against an uncertain gate."""
     if not binding_present:
         return "not_configured", False
+    if not ready:
+        return "unavailable", False
     if verified:
         return "access_valid_owner_confirmed", False
     if gate_state == "unresolved":

@@ -213,7 +213,7 @@ def _read_json(route: str, *, operation_deadline: float | None = None) -> dict:
         if transfer_encoding is not None:
             if transfer_encoding.lower() != b"chunked" or b"content-length" in headers:
                 raise ValueError("transfer_encoding_invalid")
-            data = _read_chunked_body(sock, body, deadline)
+            response_body = _read_chunked_body(sock, body, deadline)
         else:
             if not length_bytes.isdigit():
                 raise ValueError("content_length_invalid")
@@ -227,8 +227,8 @@ def _read_json(route: str, *, operation_deadline: float | None = None) -> dict:
                 if not chunk:
                     raise ValueError("body_incomplete")
                 result.extend(chunk)
-            data = bytes(result)
-    parsed = json.loads(data)
+            response_body = bytes(result)
+    parsed = json.loads(response_body)
     if type(parsed) is not dict:
         raise ValueError("object_required")
     return parsed

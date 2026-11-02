@@ -14,7 +14,7 @@ def test_verified_binding_never_claims_provider_identity() -> None:
 
 def test_unready_or_active_work_cannot_offer_verification() -> None:
     assert derive_connection_status(True, False, None, None, "ready", False) == (
-        "pending",
+        "unavailable",
         False,
     )
     assert derive_connection_status(True, False, "claimed", None, "busy", True) == (
@@ -41,3 +41,12 @@ def test_completed_rate_limit_becomes_retryable_only_after_gate_is_ready() -> No
     assert derive_connection_status(
         True, False, "terminal", "rate_limited", "ready", True
     ) == ("pending", True)
+
+
+def test_historical_verification_is_not_current_when_authorization_is_unavailable() -> (
+    None
+):
+    assert derive_connection_status(True, True, None, None, "ready", False) == (
+        "unavailable",
+        False,
+    )

@@ -110,3 +110,72 @@ def build_verification_run(
         requested_at=now,
         deadline_at=deadline,
     )
+
+
+def build_scheduled_cloud_run(
+    graph: CloudMonitoringTargetV1,
+    worker_id: OpaqueIdV1,
+    registry_revision: int,
+    manifest_fingerprint: str,
+    now: datetime,
+) -> CollectionRunAdmissionV2:
+    """Build one cloud-target scheduled run without aliasing an installation."""
+    if graph.lifecycle != "active" or graph.identity_state != "owner_confirmed":
+        raise ValueError("ollama_cloud_verification_target_mismatch")
+    target = _digest(
+        "ollama",
+        graph.access_target_id.value,
+        graph.account_id.value,
+        graph.profile_id.value,
+        graph.resource_id.value,
+        graph.binding.binding_id.value,
+        str(graph.binding.generation),
+    )
+    suffix = _digest(worker_id.value, target, now.isoformat())[:32]
+    request_id = OpaqueIdV1("ollama-cloud-request-" + suffix)
+    return CollectionRunAdmissionV2(
+        run_id=OpaqueIdV1("ollama-cloud-run-" + suffix),
+        schedule_id=OpaqueIdV1("ollama-cloud-" + target[:40]),
+        request_id=request_id,
+        trigger="scheduled",
+        operation_family="collect.subscription.quota",
+        requested_capability_ids=("subscription.quota",),
+        capability_set_version="1.0.0",
+        request_auth_method="internal_scheduler",
+        request_principal_id=None,
+        correlation_id=OpaqueIdV1("ollama-cloud-correlation-" + suffix),
+        causation_id=None,
+        target_key_digest=target,
+        provider_key="ollama",
+        provider_target=ProviderTargetRefV1("cloud_service", graph.access_target_id),
+        account_id=graph.account_id,
+        profile_id=graph.profile_id,
+        resource_id=graph.resource_id,
+        capability_id="subscription.quota",
+        source_id="ollama.cloud.balance.v1",
+        adapter_version=OLLAMA_ADAPTER_VERSION,
+        provider_version=None,
+        adapter_protocol_version="1.0.0",
+        manifest_fingerprint=manifest_fingerprint,
+        collection_policy_version="1.0.0",
+        registry_revision=registry_revision,
+        retry_chain_id=OpaqueIdV1("ollama-cloud-chain-" + suffix),
+        attempt_ordinal=1,
+        target_generation=graph.binding.generation,
+        scheduler_instance_id=worker_id,
+        lease_policy_version="1.0.0",
+        budget_policy_id="ollama-cloud-scheduled-v1",
+        budget_policy_version="1.0.0",
+        budget_scope_digest=_digest("ollama-cloud-global"),
+        budget_dimension="provider_requests",
+        budget_unit="request",
+        budget_units=1,
+        budget_limit_units=1,
+        budget_window_start=now,
+        budget_window_end=now + timedelta(seconds=60),
+        payload_schema="ProviderQuotaInputV2@2",
+        idempotency_key_digest=None,
+        request_digest=_digest(request_id.value, target),
+        requested_at=now,
+        deadline_at=now + timedelta(seconds=30),
+    )

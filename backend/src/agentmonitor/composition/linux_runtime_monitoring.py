@@ -72,6 +72,7 @@ from agentmonitor.modules.collection_control.application.runner import (
     AdmitScheduledCollectionV1,
     RequestManualCollectionV1,
     RunOneCollectionV1,
+    v1_normalizer,
 )
 from agentmonitor.modules.registry.application.discovery import (
     ListProviderInstallationsV1,
@@ -679,7 +680,7 @@ def _run_linux_runtime_collection(
             request=inspection_request,
             provider_version=registered_version,
         ),
-        _prepare_commit,
+        v1_normalizer(_prepare_commit),
         started_at=started_at,
         completed_at=lambda: datetime.now(UTC),
     )

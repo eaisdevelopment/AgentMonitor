@@ -173,3 +173,12 @@ observation is marked experimental and does not claim the scheduled provider
 capability is supported. The source descriptor fingerprint binds the target,
 run and receipt. The static source admission and owner key-use restriction
 remain closed; no probe, secret access or live validation was performed.
+
+The candidate runtime grant stores only the non-secret 64-character probe-policy
+fingerprint. It is absent on this workstation. The fingerprint includes the
+adapter version, source descriptor, payload schema and fixed transport policy;
+it does not hash executable or parser files. Every parser, worker or protocol
+semantic change therefore requires an adapter-version or fingerprint-schema
+version bump before a grant or receipt can be reused. Revocation prevents new
+dispatch but does not interrupt an already dispatched request. Marker creation,
+revocation, authenticated probing and scheduled-source admission are Not Run.

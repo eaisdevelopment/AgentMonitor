@@ -26,6 +26,8 @@ from functools import partial
 from pathlib import Path
 
 import uvicorn
+from fastapi import FastAPI
+
 from agentmonitor.adapters.identity_access.argon2_password import Argon2PasswordV1
 from agentmonitor.adapters.persistence._shared.sqlite.core.policy import (
     DatabaseRefV1,
@@ -106,6 +108,11 @@ from agentmonitor.composition.codex_dashboard_connection import (
 from agentmonitor.composition.linux_process_locations import (
     read_live_process_locations_v1,
 )
+from agentmonitor.composition.ollama_cloud_collection import cloud_connection_ready
+from agentmonitor.composition.ollama_cloud_connection import (
+    OllamaCloudConnectionServiceV1,
+)
+from agentmonitor.composition.ollama_cloud_worker import OllamaCloudWorkerSupervisorV1
 from agentmonitor.composition.ollama_local_catalog import read_ollama_local_catalog_v1
 from agentmonitor.composition.ollama_runtime_collection import (
     OllamaRuntimeCollectorV1,
@@ -227,7 +234,6 @@ from agentmonitor.modules.runtime_observation.application.queries import (
     ListAgentSessionsV1,
     ListLiveProcessLocationsV1,
 )
-from fastapi import FastAPI
 
 
 class LoopbackServerError(ValueError):
@@ -490,6 +496,7 @@ def _observation_ports(
     claude_connections: ClaudeDashboardConnectionV1,
     codex_connections: CodexDashboardConnectionV1,
     data_root: Path,
+    ollama_cloud_worker: OllamaCloudWorkerSupervisorV1,
 ) -> ObservationApiPortsV1:
     registry = SqliteRegistryRepositoryV1(reference)
     collection = SqliteCollectionRepositoryV1(reference)
@@ -554,6 +561,12 @@ def _observation_ports(
         list_account_resources=ListAccountResourcesV1(registry),
         capacity_health_policy=ClassifyCapacityProjectionV1().policy,
         ollama_local_catalog=read_ollama_local_catalog_v1,
+        ollama_cloud_connection=OllamaCloudConnectionServiceV1(
+            reference,
+            ready=lambda: (
+                cloud_connection_ready(data_root) and ollama_cloud_worker.is_available()
+            ),
+        ),
     )
 
 
@@ -574,6 +587,7 @@ def create_iam_application(
         reference, managed_profiles_root=data_root / "profiles" / "codex"
     )
     ollama_runtime_collector = OllamaRuntimeCollectorV1(reference, data_root=data_root)
+    ollama_cloud_worker = OllamaCloudWorkerSupervisorV1(data_root)
     claude_connections = ClaudeDashboardConnectionV1(reference, data_root)
     codex_connections = CodexDashboardConnectionV1(reference, data_root)
     alert_delivery = CapacityAlertDeliveryV1(reference)
@@ -584,6 +598,7 @@ def create_iam_application(
             claude_collector.run,
             codex_collector.run,
             ollama_runtime_collector.run,
+            ollama_cloud_worker.run,
             claude_connections.run,
             codex_connections.run,
             alert_delivery.run,
@@ -615,6 +630,7 @@ def create_iam_application(
             claude_connections,
             codex_connections,
             data_root,
+            ollama_cloud_worker,
         ),
         service_lock_path=data_root / ".agentmonitor-service.lock",
     )

@@ -17,3 +17,54 @@ def test_probe_identifies_documented_api_without_claiming_supported_capability()
     assert not source.is_experimental
     assert len(ollama_cloud_probe_fingerprint()) == 64
     assert ollama_cloud_probe_fingerprint() == ollama_cloud_probe_fingerprint()
+
+
+def test_scheduled_policy_is_documented_rate_bounded_and_digest_bound() -> None:
+    from agentmonitor.adapters.providers.ollama.cloud_balance.probe_descriptor import (
+        ollama_cloud_scheduled_policy,
+    )
+
+    policy = ollama_cloud_scheduled_policy()
+    assert policy.source_fingerprint == ollama_cloud_probe_fingerprint()
+    assert policy.minimum_interval_seconds == 60
+    assert policy.maximum_concurrency == 1
+    assert policy.automatic_retry_count == 0
+
+
+def test_scheduled_proof_is_bound_to_current_account_and_policy() -> None:
+    from dataclasses import replace
+    from datetime import timedelta
+
+    import pytest
+    from backend.tests.provider_system.test_scheduled_source_admission import (
+        NOW,
+        lineage,
+    )
+
+    from agentmonitor.adapters.providers.ollama.cloud_balance.probe_descriptor import (
+        ollama_cloud_scheduled_policy,
+        require_matching_scheduled_proof,
+    )
+    from agentmonitor.contracts.registry_v1 import ActiveCredentialBindingRefV1
+    from agentmonitor.modules.provider_system.domain.protocol import (
+        derive_scheduled_source_admission_v1,
+    )
+
+    policy = ollama_cloud_scheduled_policy()
+    origin = replace(
+        lineage(),
+        adapter_version=policy.adapter_version,
+        run_adapter_version=policy.adapter_version,
+        source_fingerprint=policy.source_fingerprint,
+    )
+    proof = derive_scheduled_source_admission_v1(
+        policy, origin, evaluated_at=NOW + timedelta(seconds=2)
+    )
+    binding = ActiveCredentialBindingRefV1(
+        proof.account_id, proof.binding_id, proof.binding_generation
+    )
+    require_matching_scheduled_proof(binding, proof)
+    with pytest.raises(ValueError):
+        require_matching_scheduled_proof(
+            replace(binding, generation=binding.generation + 1), proof
+        )

@@ -62,6 +62,7 @@ from agentmonitor.modules.collection_control.application.executor import (
 from agentmonitor.modules.collection_control.application.runner import (
     RequestManualCollectionV1,
     RunOneCollectionV1,
+    v1_normalizer,
 )
 
 
@@ -125,7 +126,7 @@ class ClaudeQuotaCollectionRouteV1:
         result = self.run_one(
             admission,
             lambda: self.adapter.collect_subscription_quota(provider_request),
-            self._prepare,
+            v1_normalizer(self._prepare),
             started_at=started_at,
             completed_at=completed_at,
         )
@@ -191,7 +192,7 @@ class CodexQuotaCollectionRouteV1:
         result = self.run_one(
             admission,
             lambda: self.adapter.collect_subscription_quota(provider_request),
-            self._prepare,
+            v1_normalizer(self._prepare),
             started_at=started_at,
             completed_at=completed_at,
         )

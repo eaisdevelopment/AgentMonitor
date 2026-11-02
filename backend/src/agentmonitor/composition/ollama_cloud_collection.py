@@ -7,6 +7,7 @@ import secrets
 import time
 import uuid
 from datetime import UTC, datetime, timedelta
+from pathlib import Path
 from typing import Literal, cast
 
 from agentmonitor.adapters.persistence._shared.sqlite.core.policy import DatabaseRefV1
@@ -45,9 +46,11 @@ from agentmonitor.adapters.providers.ollama.cloud_balance.probe_descriptor impor
 from agentmonitor.adapters.providers.ollama.cloud_balance.source import (
     CLOUD_BALANCE_POLICY_V1,
     CloudBalanceSourceResultV1,
+    probe_cloud_balance_for_binding_v1,
     read_cloud_balance_for_binding_v1,
 )
 from agentmonitor.adapters.providers.ollama.cloud_balance.verification_run import (
+    build_scheduled_cloud_run,
     build_verification_run,
     source_budget_seconds,
 )
@@ -57,6 +60,7 @@ from agentmonitor.adapters.providers.ollama.manifest import (
     build_ollama_manifest,
 )
 from agentmonitor.composition.ollama_capacity_commit import ollama_capacity_repository
+from agentmonitor.composition.ollama_cloud_authority import cloud_access_authorized
 from agentmonitor.contracts.capacity_v1 import (
     CapacityCommitRequestV1,
     CapacityCommitRequestV2,
@@ -104,17 +108,36 @@ class OllamaCloudTargetIneligible(ValueError):
     """Known target is not currently eligible for cloud monitoring."""
 
 
-def require_source_admitted() -> None:
-    """Never schedule provider I/O without all approved source bounds."""
+def require_probe_authorized(owner_authorized: bool = False) -> None:
+    """An owner grant permits only a bounded one-shot verification probe."""
     policy = CLOUD_BALANCE_POLICY_V1
     if not (
-        policy.authenticated_collection_admitted
+        owner_authorized
         and policy.wire_header_limit_strict
         and policy.binding_worker_process_isolated
         and policy.binding_worker_deadline_strict
+    ):
+        raise ValueError("ollama_cloud_source_not_admitted")
+
+
+def require_source_admitted(owner_authorized: bool = False) -> None:
+    """Scheduled reads also require technical scheduled-source admission."""
+    require_probe_authorized(owner_authorized)
+    policy = CLOUD_BALANCE_POLICY_V1
+    if not (
+        policy.authenticated_collection_admitted
         and policy.binding_worker_authenticated_validated
     ):
         raise ValueError("ollama_cloud_source_not_admitted")
+
+
+def cloud_connection_ready(data_root: Path) -> bool:
+    """Report whether the local owner grant and fixed transport bounds permit work."""
+    try:
+        require_probe_authorized(cloud_access_authorized(data_root))
+    except ValueError:
+        return False
+    return True
 
 
 def require_cloud_manifest():
@@ -147,8 +170,15 @@ class OllamaCloudCollectionV1:
     dispatch remain disabled until the actual source and manifest are admitted.
     """
 
-    def __init__(self, reference: DatabaseRefV1) -> None:
+    def __init__(
+        self, reference: DatabaseRefV1, *, data_root: Path | None = None
+    ) -> None:
+        if data_root is not None and reference != DatabaseRefV1(
+            data_root / "agentmonitor.db", data_root
+        ):
+            raise ValueError("ollama_cloud_authority_root_mismatch")
         self._reference = reference
+        self._data_root = data_root
         self._admission = SqliteOllamaCloudAdmissionRepositoryV1(reference)
         self._runs = SqliteCollectionRepositoryV1(reference)
         self._registry = SqliteRegistryRepositoryV1(reference)
@@ -203,13 +233,14 @@ class OllamaCloudCollectionV1:
         run: CollectionRunAdmissionV1 | CollectionRunAdmissionV2,
         source: CloudBalanceSourceResultV1,
     ) -> ObservationProvenanceV1:
-        is_probe = (
-            isinstance(run, CollectionRunAdmissionV2)
-            and run.trigger == "reauth_verification"
-        )
-        if is_probe:
+        is_cloud = isinstance(run, CollectionRunAdmissionV2)
+        if is_cloud:
             native = ollama_cloud_probe_source()
-            decision_reference = "M6-OLLAMA-CLOUD-PROBE"
+            decision_reference = (
+                "M6-OLLAMA-CLOUD-PROBE"
+                if run.trigger == "reauth_verification"
+                else "M6-OLLAMA-CLOUD-VERIFIED"
+            )
         else:
             manifest = require_cloud_manifest()
             declaration = next(
@@ -253,7 +284,7 @@ class OllamaCloudCollectionV1:
             confidence="confirmed",
             confidence_reason_code="provider_reported_balance",
             value_kind="provider_reported",
-            is_experimental=is_probe,
+            is_experimental=is_cloud,
             fallback_lineage=(),
             warnings=(),
             operation_id=run.run_id,
@@ -267,7 +298,7 @@ class OllamaCloudCollectionV1:
         self, account, profile, resource, now: datetime
     ) -> CollectionRunAdmissionV1:
         """Derive one run from existing M02 account, profile and resource views."""
-        require_source_admitted()
+        require_source_admitted(cloud_access_authorized(self._data_root))
         manifest = require_cloud_manifest()
         if (
             not eligible_cloud_account(
@@ -352,7 +383,7 @@ class OllamaCloudCollectionV1:
         This candidate is not registered with the service. The source and
         manifest admission checks happen before a job can be claimed.
         """
-        require_source_admitted()
+        require_probe_authorized(cloud_access_authorized(self._data_root))
         now = datetime.now(UTC)
         claim = self._admission.claim_verification(
             OllamaCloudVerificationClaimRequestV1(
@@ -456,8 +487,7 @@ class OllamaCloudCollectionV1:
 
     def tick(self):
         """Select eligible M02 targets, reserve the fair gate, then collect once."""
-        require_source_admitted()
-        require_cloud_manifest()
+        require_source_admitted(cloud_access_authorized(self._data_root))
         accounts = []
         cursor = None
         scanned = 0
@@ -481,6 +511,36 @@ class OllamaCloudCollectionV1:
                 account.identity_state,
             ):
                 continue
+            graph = self._cloud_registry.read_monitoring_target(account.account_id)
+            if graph is not None:
+                if (
+                    graph.lifecycle != "active"
+                    or graph.identity_state != "owner_confirmed"
+                ):
+                    continue
+                try:
+                    run = build_scheduled_cloud_run(
+                        graph,
+                        self._instance,
+                        account.registry_revision,
+                        ollama_cloud_probe_fingerprint(),
+                        datetime.now(UTC),
+                    )
+                    self._eligible_binding(run)
+                except OllamaCloudTargetIneligible:
+                    continue
+                candidates.append(
+                    (
+                        run,
+                        CapacitySubjectV2(
+                            "ollama",
+                            run.provider_target,
+                            account.account_id,
+                            graph.resource_id,
+                        ),
+                    )
+                )
+                continue
             matches = []
             for profile in self._registry.list_monitoring_profiles(account.account_id):
                 for resource in self._registry.list_account_resources(
@@ -497,14 +557,24 @@ class OllamaCloudCollectionV1:
                         )
                     except OllamaCloudTargetIneligible:
                         continue
-                    matches.append((run, profile, resource))
+                    matches.append(
+                        (
+                            run,
+                            CapacitySubjectV1(
+                                "ollama",
+                                profile.provider_installation_id,
+                                account.account_id,
+                                resource.resource_id,
+                            ),
+                        )
+                    )
             if len(matches) > 1:
                 raise ValueError("ollama_cloud_target_ambiguous")
             candidates.extend(matches)
-        for run, _, _ in candidates:
+        for run, _ in candidates:
             self.register_target(run)
         self._admission.reconcile_source_lane(
-            tuple(run.schedule_id for run, _, _ in candidates)
+            tuple(run.schedule_id for run, _ in candidates)
         )
         if not candidates:
             return "ollama_cloud_no_eligible_accounts"
@@ -523,13 +593,7 @@ class OllamaCloudCollectionV1:
                 datetime.now(UTC), expected=lease, reserved_only=True
             )
             raise ValueError("ollama_cloud_target_changed")
-        run, profile, resource = selected[0]
-        subject = CapacitySubjectV1(
-            "ollama",
-            profile.provider_installation_id,
-            lease.account_id,
-            resource.resource_id,
-        )
+        run, subject = selected[0]
         try:
             return self.execute_admitted(lease, run, subject)
         except BaseException:
@@ -583,9 +647,10 @@ class OllamaCloudCollectionV1:
                 or account.lifecycle != "active"
                 or account.registry_revision != run.registry_revision
                 or run.provider_target.target_kind != "cloud_service"
-                # Scheduled cloud collection needs a verified-current receipt
-                # predicate and is not enabled by this verification-only path.
-                or run.trigger != "reauth_verification"
+                or (
+                    run.trigger != "reauth_verification"
+                    and not account.is_effective_monitoring_enabled
+                )
             ):
                 raise OllamaCloudTargetIneligible("ollama_cloud_target_ineligible")
             graph = self._cloud_registry.read_monitoring_target(run.account_id)
@@ -604,6 +669,35 @@ class OllamaCloudCollectionV1:
                 or active.generation != run.target_generation
             ):
                 raise OllamaCloudTargetIneligible("ollama_cloud_target_ineligible")
+            if run.trigger != "reauth_verification":
+                verification = self._cloud_registry.read_current_verification(active)
+                if (
+                    verification is None
+                    or verification.access_target_id != graph.access_target_id
+                    or verification.adapter_version != OLLAMA_ADAPTER_VERSION
+                    or verification.manifest_fingerprint
+                    != ollama_cloud_probe_fingerprint()
+                ):
+                    raise OllamaCloudTargetIneligible(
+                        "ollama_cloud_verification_required"
+                    )
+                verified_run = self._runs.get_run(verification.run_id)
+                capacity = SqliteCapacityRepositoryV1(
+                    self._reference
+                ).get_commit_status(verification.run_id, "subscription.quota")
+                if (
+                    verified_run.state not in {"succeeded", "partial"}
+                    or verified_run.account_id != run.account_id
+                    or verified_run.resource_id != graph.resource_id
+                    or verified_run.source_id != verification.source_id
+                    or verified_run.payload_digest != verification.payload_digest
+                    or capacity.state != "committed"
+                    or capacity.receipt is None
+                    or capacity.receipt.payload_digest != verification.payload_digest
+                ):
+                    raise OllamaCloudTargetIneligible(
+                        "ollama_cloud_verification_required"
+                    )
             return active
         if (
             account is None
@@ -648,9 +742,11 @@ class OllamaCloudCollectionV1:
             raise OllamaCloudTargetIneligible("ollama_cloud_target_ineligible")
         return active
 
-    def register_target(self, run: CollectionRunAdmissionV1) -> None:
+    def register_target(
+        self, run: CollectionRunAdmissionV1 | CollectionRunAdmissionV2
+    ) -> None:
         """Register a genuine eligible account schedule without creating a run."""
-        require_source_admitted()
+        require_source_admitted(cloud_access_authorized(self._data_root))
         self._eligible_binding(run)
         self._admission.register_schedule(run)
 
@@ -661,7 +757,11 @@ class OllamaCloudCollectionV1:
         subject: CapacitySubjectV1 | CapacitySubjectV2,
     ):
         """Create and progress an M04 run around one admitted real source read."""
-        require_source_admitted()
+        authority = cloud_access_authorized(self._data_root)
+        if run.trigger == "reauth_verification":
+            require_probe_authorized(authority)
+        else:
+            require_source_admitted(authority)
         binding = self._eligible_binding(run)
         validate_cloud_target(
             lease.account_id.value,
@@ -732,7 +832,21 @@ class OllamaCloudCollectionV1:
         except ValueError:
             self._admission.revert_undispatched(lease)
             raise
-        source = read_cloud_balance_for_binding_v1(
+        try:
+            authority = cloud_access_authorized(self._data_root)
+            if run.trigger == "reauth_verification":
+                require_probe_authorized(authority)
+            else:
+                require_source_admitted(authority)
+        except ValueError:
+            self._admission.revert_undispatched(lease)
+            raise
+        source_reader = (
+            probe_cloud_balance_for_binding_v1
+            if run.trigger == "reauth_verification"
+            else read_cloud_balance_for_binding_v1
+        )
+        source = source_reader(
             binding=binding, deadline_monotonic=time.monotonic() + source_budget
         )
         completed = datetime.now(UTC)
@@ -1049,7 +1163,7 @@ class OllamaCloudCollectionV1:
 
     def acquire_next(self, now: datetime) -> OllamaCloudAdmissionDecisionV1:
         """Use M04's durable round-robin schedule selector, once admitted."""
-        require_source_admitted()
+        require_source_admitted(cloud_access_authorized(self._data_root))
         return self._admission.acquire(
             OllamaCloudRequestAcquireV1(
                 admission_id=OpaqueIdV1("ollama-cloud-attempt-" + uuid.uuid4().hex),
@@ -1059,6 +1173,10 @@ class OllamaCloudCollectionV1:
                 jitter_seconds=secrets.randbelow(11),
             )
         )
+
+    def preferred_work_lane(self) -> str:
+        """Use the durable global admission history across worker restarts."""
+        return self._admission.preferred_work_lane()
 
     def commit_reading(
         self,
