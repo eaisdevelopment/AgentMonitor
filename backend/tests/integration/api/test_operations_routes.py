@@ -79,7 +79,7 @@ def test_operations_diagnostics_use_real_schema_and_closed_safe_output(
             )
             assert result[0] == 200
             payload = json.loads(result[2])
-            assert payload["versions"]["schema_version"]["value"] == "v1_0708"
+            assert payload["versions"]["schema_version"]["value"] == "v1_0709"
             revision = payload["versions"]["source_revision"]
             assert set(revision) == {"value", "availability", "source"}
             assert revision["source"] == "build_manifest"

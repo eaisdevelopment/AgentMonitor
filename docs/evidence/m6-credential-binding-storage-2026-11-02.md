@@ -11,3 +11,5 @@ Archive correction: an Ollama account archive invokes binding invalidation insid
 Integration candidate verification: the real empty SQLite schema and pure
 binding lifecycle suite passed, 13 tests. This does not establish the
 unexecuted real-account and concurrent-transition scenarios above.
+
+`AUTO-MIGRATE` now supports the explicit offline paths `v1_0603`, `v1_0707`, and `v1_0708` to `v1_0709`. Against separate real empty prior-revision SQLite databases, the canonical command produced and verified a private pre-upgrade backup and reached the new head for each source; the previous `v1_0603` test also verified an already-current retry. The `v1_0708` case failed before the change because the source revision was not accepted, then passed. These tests do not exercise existing business records, a deployed service, recovery by actually restoring a backup, or Secret Service items. The procedure retains its original offline/quiescence, backup, and forward-fix/restore limitations; it does not restart services or automatically restore a failed upgrade.
