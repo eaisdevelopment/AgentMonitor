@@ -666,7 +666,7 @@ with _hold_transition_locks(root) as lease:
             view = InspectSchemaCompatibilityV1(
                 ref, application_schema_range(), "runtime_read_write"
             )
-            assert view.state == "compatible" and view.current_revision == "v1_0716"
+            assert view.state == "compatible" and view.current_revision == "v1_0717"
             assert (
                 len(
                     list((root / "backups").glob("migration-preflight-*/manifest.json"))
@@ -756,3 +756,21 @@ def test_recovery_command_is_cataloged_and_rejects_target_arguments() -> None:
     )
     assert result.returncode == 3
     assert "no target arguments are accepted" in result.stdout
+
+
+def test_candidate_override_selects_existing_credential_file() -> None:
+    from pathlib import Path
+
+    from tools.automation.implementations.m6_cutover import (
+        _FIXED_BASELINE,
+        _candidate_override,
+    )
+
+    candidate = _candidate_override(
+        Path("/home/dev/.local/share/agentmonitor/releases/example")
+    )
+    assert (
+        "--credential-env-file /home/dev/Nextcloud/Code/AI/AgentMonitor/.env"
+        in candidate
+    )
+    assert "--credential-env-file" not in _candidate_override(_FIXED_BASELINE)

@@ -609,7 +609,8 @@ _FIXED_UNIT = "agentmonitor-dashboard.service"
 _FIXED_HOME = Path("/home/dev")
 _FIXED_DATA = _FIXED_HOME / ".local/share/agentmonitor"
 _FIXED_BASELINE = _FIXED_DATA / "worktrees/m6-integration"
-_FIXED_SOURCE = _FIXED_DATA / "worktrees/m6-cloud-final"
+_FIXED_SOURCE = _FIXED_DATA / "worktrees/m6-signal-composition"
+_FIXED_CREDENTIAL_ENV_FILE = _FIXED_HOME / "Nextcloud/Code/AI/AgentMonitor/.env"
 _FIXED_RELEASES = _FIXED_DATA / "releases"
 _FIXED_UNIT_FILE = _FIXED_HOME / ".config/systemd/user" / _FIXED_UNIT
 _FIXED_OVERRIDE = _FIXED_UNIT_FILE.parent / (_FIXED_UNIT + ".d") / "90-m6-local.conf"
@@ -635,6 +636,8 @@ def _candidate_override(candidate: Path) -> str:
         + str(_FIXED_DATA)
         + " --host 127.0.0.1 --port 43110 --authenticated-dashboard --lan-host 192.168.1.18 --lan-network 192.168.1.0/24"
     )
+    if candidate != _FIXED_BASELINE:
+        command += " --credential-env-file " + str(_FIXED_CREDENTIAL_ENV_FILE)
     return build_override(candidate) + "ExecStart=\nExecStart=" + command + "\n"
 
 
