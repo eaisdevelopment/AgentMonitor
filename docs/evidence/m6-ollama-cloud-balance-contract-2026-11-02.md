@@ -113,18 +113,25 @@ uv run --project backend pytest -q \
   backend/tests/adapters/providers/ollama/test_cloud_balance_source_security.py
 ```
 
-Result: five failures and one pass. Invalid JSON raised an exception chained
-to `JSONDecodeError`; an excessive Decimal exponent escaped as
-`InvalidOperation`; an arbitrary authorization failure code was accepted; a
-valid 31,536,001-second retry wait became absent; and `2**63` seconds did not
-fail closed. A separate TLS subprocess test failed because the secure context
-helper did not exist. The authenticated-source fail-closed Red returned
-`deadline_exceeded` instead of `source_not_admitted`.
+The first exploratory run had five failures and one pass, but two cases used
+constructed provider-shaped JSON. Those two cases conflict with the project
+rule against fabricated provider responses; they were removed and are **not
+admissible evidence**. The admissible subset had three failures and one pass:
+an arbitrary authorization failure code was accepted, a valid
+31,536,001-second retry wait became absent, and `2**63` seconds did not fail
+closed; malformed/absent retry advice already remained fallback eligible. A
+separate real local TLS-context subprocess test failed because the secure
+context helper did not exist. The authenticated-source fail-closed Red
+returned `deadline_exceeded` instead of `source_not_admitted` without making a
+network request.
 
-The correction now returns a typed parse value or stable failure code after
-raw parser frames unwind, catches Decimal conversion failure, validates the
-two authorization-store codes at runtime, retains every decimal-seconds retry
-through `2**63 - 1`, and maps a larger syntactically valid value to explicit
+Code review corrected the parser to return a typed value or stable failure
+code after raw parser frames unwind and to sanitize Decimal conversion
+failure. No fabricated response test is used to claim that behavior; real
+authenticated parser compatibility remains Not Run. Admissible pure tests
+prove that the two authorization-store codes are runtime constrained, every
+decimal-seconds retry through `2**63 - 1` is retained, and a larger
+syntactically valid value maps to explicit
 `ollama_cloud_retry_after_unrepresentable`. Malformed or absent retry advice
 remains distinguishable and fallback-eligible. TLS uses a client context with
 the platform trust store and explicitly disabled key logging; a real local
@@ -146,8 +153,11 @@ evidence, and its real test moved to
 local-only adapter selector. Authenticated 200 and credential containment at a
 real runtime boundary remain **Not Run**.
 
-Final focused Green at `2026-11-02T15:56:28Z` ran the balance contract, status,
-source-policy, source-security and moved real anonymous endpoint tests: `20
-passed in 1.36s`. The real boundary again observed sanitized HTTP 401. No
-credential, keyring item, provider profile, authenticated response body or
-application service was accessed.
+The final focused Green below excludes the removed inadmissible parser cases.
+It runs the balance contract, status, source-policy, admissible source-security
+and moved real anonymous endpoint tests. The real boundary observes sanitized
+HTTP 401. No credential, keyring item, provider profile, authenticated
+response body or application service is accessed.
+
+Final admissible focused Green at `2026-11-02T15:57:33Z`: `18 passed in
+1.71s`.

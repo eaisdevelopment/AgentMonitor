@@ -8,34 +8,7 @@ import pytest
 from agentmonitor.adapters.providers.ollama.cloud_balance.source import (
     CloudBalanceAuthorizationUnavailable,
     _retry_after,
-    parse_cloud_balance_v1,
 )
-
-
-def test_invalid_json_cannot_escape_in_an_exception_chain() -> None:
-    marker = "provider-payload-must-not-escape"
-
-    result = parse_cloud_balance_v1(("{" + marker).encode())
-
-    assert result.balance is None
-    assert result.reason_code == "ollama_cloud_json_invalid"
-    assert marker not in repr(result)
-
-
-def test_unrepresentable_decimal_is_sanitized_provider_data_failure() -> None:
-    exponent = "9" * 40
-    payload = (
-        '{"included":{"balance_usd":1e'
-        + exponent
-        + ',"allowance_usd":1,"period":{"from":"2026-01-01T00:00:00Z",'
-        '"until":"2026-02-01T00:00:00Z"}},"purchased":{"balance_usd":1}}'
-    ).encode()
-
-    result = parse_cloud_balance_v1(payload)
-
-    assert result.balance is None
-    assert result.reason_code == "ollama_cloud_number_invalid"
-    assert exponent not in repr(result)
 
 
 def test_authorization_failure_code_is_runtime_closed() -> None:
