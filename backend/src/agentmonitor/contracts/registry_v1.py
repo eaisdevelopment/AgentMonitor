@@ -1108,7 +1108,13 @@ class RegistryScopeSnapshotV2(TechnicalValueV1):
             or self.scope_kind == "provider"
             and any(
                 item.provider_key != self.scope_id.value
-                for item in (*self.cloud_resources, *self.local_targets)
+                for item in self.cloud_resources
+                if self.scope_id is not None
+            )
+            or self.scope_kind == "provider"
+            and any(
+                item.provider_key != self.scope_id.value
+                for item in self.local_targets
                 if self.scope_id is not None
             )
             or self.scope_kind == "account"

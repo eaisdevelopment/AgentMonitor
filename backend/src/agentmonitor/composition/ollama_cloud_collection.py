@@ -7,6 +7,7 @@ import secrets
 import time
 import uuid
 from datetime import UTC, datetime, timedelta
+from typing import Literal, cast
 
 from agentmonitor.adapters.persistence._shared.sqlite.core.policy import DatabaseRefV1
 from agentmonitor.adapters.persistence.capacity.sqlite.repository import (
@@ -71,9 +72,14 @@ from agentmonitor.contracts.collection_control_v1 import (
     OllamaCloudVerificationAcquireV1,
     OllamaCloudVerificationClaimRequestV1,
     OllamaCloudVerificationClaimTerminalV1,
+    OllamaCloudVerificationInterruptionProofV1,
 )
 from agentmonitor.contracts.common_provenance_v1 import ObservationProvenanceV1
-from agentmonitor.contracts.common_v1 import FieldAvailabilityV1, OpaqueIdV1
+from agentmonitor.contracts.common_v1 import (
+    FieldAvailabilityV1,
+    OpaqueIdV1,
+    TechnicalValueV1,
+)
 from agentmonitor.contracts.registry_v1 import (
     ActiveCredentialBindingRefV1,
     ProviderTargetRefV1,
@@ -741,7 +747,16 @@ class OllamaCloudCollectionV1:
                 reason_code="store_unavailable"
                 if authorization_not_sent
                 else "source_not_started",
-                source_state=source.state,
+                source_state=cast(
+                    Literal[
+                        "authorization_unavailable",
+                        "deadline_exceeded",
+                        "provider_unavailable",
+                        "internal_adapter_error",
+                        "source_not_admitted",
+                    ],
+                    source.state,
+                ),
             )
             self._admission.finish_no_response(lease, terminal)
             failure_code = (
@@ -842,7 +857,85 @@ class OllamaCloudCollectionV1:
             completed_at=datetime.now(UTC),
             fencing_token=admitted.fencing_token,
         )
+        if (
+            isinstance(run, CollectionRunAdmissionV2)
+            and run.trigger == "reauth_verification"
+        ):
+            self._finalize_verified_job(run.run_id, lease.admission_id)
         return receipt
+
+    def _finalize_verified_job(
+        self,
+        run_id: OpaqueIdV1,
+        admission_id: OpaqueIdV1,
+    ) -> None:
+        """Reconcile only existing M02 and M05 receipts; never call a provider."""
+        verified = self._cloud_registry.read_verification_by_run(run_id, admission_id)
+        if (
+            verified is None
+            or verified.run_id != run_id
+            or verified.admission_id != admission_id
+        ):
+            raise ValueError("ollama_cloud_verification_receipt_unavailable")
+        capacity = SqliteCapacityRepositoryV1(self._reference).get_commit_status(
+            run_id, "subscription.quota"
+        )
+        if (
+            capacity.state != "committed"
+            or capacity.receipt is None
+            or capacity.receipt.run_id != run_id
+            or capacity.receipt.payload_digest != verified.payload_digest
+        ):
+            raise ValueError("ollama_cloud_capacity_receipt_unavailable")
+        self._admission.finalize_verification_success(verified)
+
+    def reconcile_verification_successes(self, maximum_jobs: int = 32) -> int:
+        """Page durable terminal jobs and reconcile receipts without provider I/O."""
+        completed = 0
+        cursor = None
+        for _ in range(32):
+            jobs = self._admission.pending_verification_finalizations(
+                maximum_jobs, after_job_id=cursor
+            )
+            for job in jobs:
+                if job.run_id is None or job.admission_id is None:
+                    raise ValueError("ollama_cloud_verification_lineage_invalid")
+                run = self._runs.get_run(job.run_id)
+                receipt = self._cloud_registry.read_verification_by_run(
+                    job.run_id, job.admission_id
+                )
+                if run.state in {"failed", "blocked", "cancelled", "unsupported"}:
+                    capacity = SqliteCapacityRepositoryV1(
+                        self._reference
+                    ).get_commit_status(job.run_id, "subscription.quota")
+                    if receipt is not None or capacity.state != "not_committed":
+                        raise ValueError("ollama_cloud_verification_receipt_conflict")
+                    self._admission.finalize_verification_interrupted(
+                        OllamaCloudVerificationInterruptionProofV1(
+                            job.job_id,
+                            job.run_id,
+                            job.admission_id,
+                            "not_committed",
+                            "absent",
+                            datetime.now(UTC),
+                        )
+                    )
+                elif run.state in {"succeeded", "partial"}:
+                    if (
+                        receipt is None
+                        or receipt.access_target_id != job.access_target_id
+                    ):
+                        raise ValueError(
+                            "ollama_cloud_verification_receipt_unavailable"
+                        )
+                    self._finalize_verified_job(job.run_id, job.admission_id)
+                else:
+                    raise ValueError("ollama_cloud_verification_run_not_terminal")
+                completed += 1
+            if len(jobs) < maximum_jobs:
+                return completed
+            cursor = jobs[-1].job_id
+        raise ValueError("ollama_cloud_verification_recovery_batch_incomplete")
 
     def recover_committing_runs(
         self,
@@ -856,8 +949,10 @@ class OllamaCloudCollectionV1:
 
         An unresolved global rate lease stays blocked for separate reconciliation.
         """
-        executor = ExecuteCollectionRunV1(
-            self._runs, SqliteCapacityRepositoryV1(self._reference)
+        executor = ExecuteCollectionRunV1[TechnicalValueV1, ProviderQuotaInputV2](
+            self._runs,
+            # Recovery only calls get_commit_status; commit has a narrower typed port.
+            SqliteCapacityRepositoryV1(self._reference),  # type: ignore[arg-type]
         )
         return executor.recover_pending_commits(
             provider_key="ollama",
@@ -936,6 +1031,7 @@ class OllamaCloudCollectionV1:
                 )
         if len(orphaned) == maximum_runs:
             raise ValueError("ollama_cloud_recovery_batch_incomplete")
+        self.reconcile_verification_successes()
         return rate, len(committed), len(orphaned)
 
     def acquire_next(self, now: datetime) -> OllamaCloudAdmissionDecisionV1:
@@ -1004,6 +1100,7 @@ class OllamaCloudCollectionV1:
             raise ValueError("ollama_cloud_source_binding_invalid")
         payload = cloud_balance_to_capacity(source.balance, subject, registry_revision)
         payload_digest = capacity_payload_digest(payload)
+        request: CapacityCommitRequestV1 | CapacityCommitRequestV2
         if isinstance(payload, ProviderQuotaInputV2):
             if not isinstance(run, CollectionRunAdmissionV2):
                 raise ValueError("ollama_cloud_target_mismatch")

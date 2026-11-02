@@ -1,5 +1,7 @@
 """Pure account and capacity conversion for one Ollama cloud reading."""
 
+from typing import Literal
+
 from agentmonitor.contracts.capacity_v1 import (
     CapacitySubjectV1,
     CapacitySubjectV2,
@@ -61,7 +63,9 @@ def cloud_balance_to_capacity(
     )
 
 
-def admission_outcome_for_source(state: str) -> str:
+def admission_outcome_for_source(
+    state: str,
+) -> Literal["succeeded", "rate_limited", "failed"]:
     if state == "success":
         return "succeeded"
     if state == "rate_limited":
@@ -100,14 +104,14 @@ def cloud_failure_policy(state: str, retry_after: int | None):
         )
     if state == "rate_limited":
         delay = max(1, retry_after if retry_after is not None else 60)
-        precision = (
+        precision: Literal["exact", "estimated"] = (
             "exact" if retry_after is not None and retry_after >= 1 else "estimated"
         )
         return CollectionFailurePolicyV1(
             "rate_limited", RetryAdviceV1("after_delay", delay, precision)
         )
     if state in {"provider_unavailable", "deadline_exceeded"}:
-        outcome = (
+        outcome: Literal["deadline_exceeded", "provider_unavailable"] = (
             "deadline_exceeded"
             if state == "deadline_exceeded"
             else "provider_unavailable"

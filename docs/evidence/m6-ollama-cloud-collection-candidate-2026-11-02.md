@@ -154,3 +154,14 @@ and all 12 alert-table counts preserved; postcommit integrity, FK enforcement,
 FK checks and schema validation passed. No rows were printed and the copies
 were deleted. No event with the new non-constraining reason was manufactured;
 its real persistence remains Not Run. Installed activation is also Not Run.
+
+The unwired transient worker candidate now checks queued verification before
+scheduled collection. HTTP success remains pending until the exact historical
+M02 verification receipt, M05 commit receipt and terminal M04 run reconcile;
+interrupted terminal runs are finalized only after authoritative absence checks.
+Recovery pages the bounded M04 query and fails closed on inconsistent or
+excessive backlog. Focused domain/contract and real owned-worker boundary tests
+pass; populated SQLite finalization, interruption races, authenticated provider
+I/O and dashboard integration remain Not Run. Source and manifest admission
+remain closed, and no key operation was executed. Worker time limits and
+shutdown quarantine require independent review before activation.
