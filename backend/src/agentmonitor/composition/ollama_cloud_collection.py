@@ -39,6 +39,10 @@ from agentmonitor.adapters.providers.ollama.cloud_balance.collection import (
     eligible_cloud_account,
     validate_cloud_target,
 )
+from agentmonitor.adapters.providers.ollama.cloud_balance.env_capability import (
+    EnvCredentialFileError,
+    approve_env_credential_file_v1,
+)
 from agentmonitor.adapters.providers.ollama.cloud_balance.freshness import (
     cloud_freshness_deadline_v1,
 )
@@ -152,7 +156,10 @@ def cloud_connection_ready(credential_env_file: Path | None) -> bool:
     """Report whether the configured credential source and fixed transport bounds permit work."""
     try:
         require_probe_authorized(credential_env_file is not None)
-    except ValueError:
+        if credential_env_file is None:
+            return False
+        approve_env_credential_file_v1(credential_env_file)
+    except (ValueError, EnvCredentialFileError):
         return False
     return True
 
@@ -201,6 +208,14 @@ class OllamaCloudCollectionV1:
         self._reference = reference
         self._data_root = data_root
         self._credential_env_file = credential_env_file
+        self._credential_authority = None
+        if credential_env_file is not None:
+            try:
+                self._credential_authority = approve_env_credential_file_v1(
+                    credential_env_file
+                )
+            except EnvCredentialFileError:
+                pass
         self._admission = SqliteOllamaCloudAdmissionRepositoryV1(reference)
         self._runs = SqliteCollectionRepositoryV1(reference)
         self._registry = SqliteRegistryRepositoryV1(reference)
@@ -1052,6 +1067,7 @@ class OllamaCloudCollectionV1:
             source = probe_cloud_balance_for_binding_v1(
                 binding=binding,
                 credential_lock=credential_lock,
+                credential_authority=self._credential_authority,
                 deadline_monotonic=deadline,
             )
         elif isinstance(run, CollectionRunAdmissionV2):
@@ -1062,12 +1078,14 @@ class OllamaCloudCollectionV1:
                 binding=binding,
                 proof=scheduled_proof,
                 credential_lock=credential_lock,
+                credential_authority=self._credential_authority,
                 deadline_monotonic=deadline,
             )
         else:
             source = read_cloud_balance_for_binding_v1(
                 binding=binding,
                 credential_lock=credential_lock,
+                credential_authority=self._credential_authority,
                 deadline_monotonic=deadline,
             )
         completed = datetime.now(UTC)

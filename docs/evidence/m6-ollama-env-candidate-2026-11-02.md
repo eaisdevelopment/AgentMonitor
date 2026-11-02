@@ -29,6 +29,12 @@ M6-A03, M6-A04, M6-A09; the M02 binding and M03 source contracts/fingerprint
 require reconciliation. No database migration or new dependency is introduced
 by the file writer. The full M6 completion gate has not passed.
 
+The candidate provider now receives a sealed file authority for the same
+explicit path, acquires the shared writer lock, streams the selected binding
+entry, and reloads per attempt. Forty-eight focused pure and provider-free
+checks passed after integration; the populated credential boundary and exact
+concurrent replay path remain Not Run and require independent review.
+
 The candidate local operator is invoked with the installed Python environment:
 
 ```text

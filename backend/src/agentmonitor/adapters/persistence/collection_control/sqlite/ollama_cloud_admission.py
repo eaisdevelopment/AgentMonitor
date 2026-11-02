@@ -1431,19 +1431,24 @@ class SqliteOllamaCloudAdmissionRepositoryV1:
                         .one_or_none()
                     )
                     if existing is not None:
-                        if (
-                            existing["schedule_id"] != request.schedule_id.value
-                            or existing["account_id"] != request.account_id.value
-                            or existing["access_target_id"]
-                            != request.access_target_id.value
-                            or int(existing["binding_generation"])
-                            != request.binding_generation
-                            or existing["expected_account_record_version"]
-                            != request.expected_account_record_version
-                        ):
+                        try:
+                            decide_cloud_verification_replay(
+                                existing_account_id=str(existing["account_id"]),
+                                existing_expected_account_record_version=(
+                                    int(existing["expected_account_record_version"])
+                                    if existing["expected_account_record_version"]
+                                    is not None
+                                    else None
+                                ),
+                                request_account_id=request.account_id.value,
+                                request_expected_account_record_version=(
+                                    request.expected_account_record_version
+                                ),
+                            )
+                        except ValueError:
                             raise OllamaCloudAdmissionRepositoryErrorV1(
                                 "ollama_cloud_verification_idempotency_conflict"
-                            )
+                            ) from None
                         connection.rollback()
                         return _verification_job(existing)
                     target = (

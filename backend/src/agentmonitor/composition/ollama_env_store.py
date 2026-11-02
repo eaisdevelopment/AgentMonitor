@@ -11,8 +11,11 @@ from agentmonitor.adapters.providers.ollama.cloud_balance.env_format import (
     edit_credential_entry,
     encode_credential_value,
 )
+from agentmonitor.adapters.providers.ollama.cloud_balance.env_policy import (
+    ENV_AUTHORIZATION_POLICY_V1,
+)
 
-_MAX_ENV_BYTES = 1024 * 1024
+_MAX_ENV_BYTES = ENV_AUTHORIZATION_POLICY_V1.maximum_file_bytes
 
 
 def _private_file(info: os.stat_result) -> bool:
