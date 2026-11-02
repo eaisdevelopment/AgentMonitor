@@ -6,9 +6,12 @@ from agentmonitor.adapters.providers.ollama.cloud_balance.source import (
     CLOUD_BALANCE_POLICY_V1,
     CloudBalanceAuthorizationSinkV1,
     CloudBalanceAuthorizationV1,
+    probe_cloud_balance_for_binding_v1,
     read_cloud_balance_for_binding_v1,
     read_cloud_balance_once_v1,
 )
+from agentmonitor.contracts.common_v1 import OpaqueIdV1
+from agentmonitor.contracts.registry_v1 import ActiveCredentialBindingRefV1
 
 
 class _MustNotApplyAuthorization:
@@ -54,6 +57,10 @@ def test_cloud_balance_source_is_one_fixed_bounded_request() -> None:
         "binding",
         "deadline_monotonic",
     )
+    assert tuple(signature(probe_cloud_balance_for_binding_v1).parameters) == (
+        "binding",
+        "deadline_monotonic",
+    )
     assert {
         name
         for name in CloudBalanceAuthorizationSinkV1.__dict__
@@ -64,6 +71,22 @@ def test_cloud_balance_source_is_one_fixed_bounded_request() -> None:
 def test_authenticated_source_fails_closed_before_authorization_or_network() -> None:
     result = read_cloud_balance_once_v1(
         authorization=_MustNotApplyAuthorization(),
+        deadline_monotonic=0.0,
+    )
+
+    assert result.state == "source_not_admitted"
+    assert result.reason_code == "ollama_cloud_authenticated_source_not_admitted"
+    assert result.http_status is None
+    assert result.balance is None
+
+
+def test_binding_source_fails_closed_before_admission_probe_or_network() -> None:
+    result = read_cloud_balance_for_binding_v1(
+        binding=ActiveCredentialBindingRefV1(
+            account_id=OpaqueIdV1("account-policy-check"),
+            binding_id=OpaqueIdV1("amcb_" + "a" * 32),
+            generation=1,
+        ),
         deadline_monotonic=0.0,
     )
 

@@ -205,8 +205,9 @@ Scope: `M6-T004/T005/T011/T016`, `M6-A03/A04/A09`, internal M02
 candidate, not scheduled authenticated collection or M6 completion.
 
 The command/policy Red failed collection because `build_lookup_command` and
-`read_cloud_balance_for_binding_v1` did not exist. The implementation accepts
-one validated `ActiveCredentialBindingRefV1`, passes only its non-secret closed
+`read_cloud_balance_for_binding_v1` did not exist. A later fail-closed policy
+Red failed because the separate admission probe did not exist. The explicit
+probe accepts one validated `ActiveCredentialBindingRefV1`, passes only its non-secret closed
 `amcb_[0-9a-f]{32}` binding ID and the absolute monotonic deadline to the
 isolated worker, and retains account/generation for the required transactional
 commit fence. A successful read proves endpoint access only; the binding and
@@ -249,8 +250,12 @@ lookup, 401/403/429, typed 200 compatibility, locked-store behavior and key
 containment with an owner-provisioned item are likewise **Not Run** until the
 end-to-end owner setup. Policy therefore keeps
 `binding_worker_authenticated_validated=false` and production scheduling is
-not admitted.
+not admitted. `read_cloud_balance_for_binding_v1` returns
+`ollama_cloud_authenticated_source_not_admitted` before deadline validation,
+process launch, Secret Service access or network I/O; only the separately named
+admission probe can exercise the candidate during the future owner-controlled
+live gate.
 
-Final admissible focused Green at `2026-11-02T16:12:37Z`: `24 passed in
-1.10s`. This includes the real anonymous endpoint but no Secret Service lookup
+Final admissible focused Green at `2026-11-02T16:13:38Z`: `25 passed in
+2.46s`. This includes the real anonymous endpoint but no Secret Service lookup
 or authenticated provider call.

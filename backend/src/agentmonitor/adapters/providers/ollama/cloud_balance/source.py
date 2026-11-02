@@ -969,12 +969,12 @@ def probe_cloud_balance_endpoint_v1(
     return _run_isolated_worker(deadline)
 
 
-def read_cloud_balance_for_binding_v1(
+def probe_cloud_balance_for_binding_v1(
     *,
     binding: ActiveCredentialBindingRefV1,
     deadline_monotonic: float | None = None,
 ) -> CloudBalanceSourceResultV1:
-    """Run the candidate binding lookup and HTTPS read in one isolated child.
+    """Run the explicit admission probe in one isolated child.
 
     The reference is owner asserted and proves no provider identity. Its exact
     generation must be rechecked transactionally before any observation commit.
@@ -996,3 +996,23 @@ def read_cloud_balance_for_binding_v1(
         else started + CLOUD_BALANCE_POLICY_V1.operation_timeout_seconds,
     )
     return _run_isolated_worker(deadline, binding_id=binding.binding_id.value)
+
+
+def read_cloud_balance_for_binding_v1(
+    *,
+    binding: ActiveCredentialBindingRefV1,
+    deadline_monotonic: float | None = None,
+) -> CloudBalanceSourceResultV1:
+    """Fail closed until the isolated authenticated source is live-validated."""
+    if (
+        not CLOUD_BALANCE_POLICY_V1.authenticated_collection_admitted
+        or not CLOUD_BALANCE_POLICY_V1.binding_worker_authenticated_validated
+    ):
+        return _result(
+            "source_not_admitted",
+            "ollama_cloud_authenticated_source_not_admitted",
+        )
+    return probe_cloud_balance_for_binding_v1(
+        binding=binding,
+        deadline_monotonic=deadline_monotonic,
+    )
