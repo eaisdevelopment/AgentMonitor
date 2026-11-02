@@ -1162,3 +1162,11 @@ live acceptance criteria, or product readiness.
 Plan snapshot SHA-256: `8895ce0ea3dda5004af1b4bc3323b5c5ff73b4d8dd3430bb126847a8093787ac`
 
 Planning validator SHA-256: `c9ba3f027ca8cc38441cac49e167e5d063b146c8511f14af99006f22c26a2c05`
+
+## 2026-11-02 integrated automation structural rebind
+
+This records catalog and snapshot synchronization for the integrated M6 technical gate and existing same-schema routines. It does not assert renewed semantic review, live provider evidence, or M6 completion.
+
+Plan snapshot SHA-256: `2ebb3c6b7ed3f40a6e3c30b11afab2fe1ba822d5353e44e5bfb2cb9eee4e092e`
+
+Planning validator SHA-256: `a245e3da4bff6efc405751b53574677c2de6a34ff2899b3d2fb92f9784eae159`
