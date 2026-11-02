@@ -13,8 +13,10 @@ from agentmonitor.adapters.persistence.registry.sqlite.repository import (
     SqliteRegistryRepositoryV1,
 )
 from agentmonitor.composition.ollama_credential_enrollment import (
+    disconnect_ollama_credential,
     enroll_ollama_credential,
 )
+from agentmonitor.contracts.registry_v1 import AccountViewV1, OrganizationViewV1
 
 
 def safe_label(value: str) -> str:
@@ -38,7 +40,7 @@ def main(argv: list[str] | None = None) -> int:
     try:
         reference = DatabaseRefV1(args.data_root / "agentmonitor.db", args.data_root)
         registry = SqliteRegistryRepositoryV1(reference)
-        organizations = []
+        organizations: list[OrganizationViewV1] = []
         cursor = None
         while True:
             page = registry.list_organizations(page_size=100, after_key=cursor)
@@ -50,27 +52,33 @@ def main(argv: list[str] | None = None) -> int:
                 return 2
             cursor = page[-1].organization_id.value
         names = {item.organization_id: item.name for item in organizations}
-        accounts = []
+        accounts: list[AccountViewV1] = []
         cursor = None
         scanned = 0
         while True:
-            page = registry.list_accounts(
+            account_page = registry.list_accounts(
                 provider_key="ollama", page_size=100, after_key=cursor
             )
-            scanned += len(page)
-            accounts.extend(item for item in page if item.lifecycle != "archived")
-            if len(page) < 100:
+            scanned += len(account_page)
+            accounts.extend(
+                item for item in account_page if item.lifecycle != "archived"
+            )
+            if len(account_page) < 100:
                 break
             if scanned >= 1000:
                 print("Too many accounts to display safely.")
                 return 2
-            cursor = page[-1].account_id.value
+            cursor = account_page[-1].account_id.value
         if not accounts:
             print("No Ollama accounts found. Add an account in the dashboard first.")
             return 1
         print("Choose an Ollama account to connect or rotate:")
         for index, account in enumerate(accounts, 1):
-            organization = names.get(account.organization_id, "No organization")
+            organization = (
+                names.get(account.organization_id, "No organization")
+                if account.organization_id is not None
+                else "No organization"
+            )
             label = safe_label(account.friendly_name)
             print(f"{index}. {safe_label(organization)} / {label}")
         choice = input("Account number (or Enter to cancel): ").strip()
@@ -96,16 +104,26 @@ def main(argv: list[str] | None = None) -> int:
                 "A credential is connected. Continuing will replace it "
                 "after the new item is stored."
             )
-        if input("Continue? [y/N]: ").strip().lower() != "y":
+        action = input(
+            "Choose connect/rotate (1), disconnect (2), or Enter to cancel: "
+        ).strip()
+        if not action:
             return 0
-        print("Enter the Ollama API key only at the Secret Service password prompt.")
-        enroll_ollama_credential(reference, account.account_id)
-        print("Credential stored. The account association remains owner-asserted.")
+        if action == "1":
+            print("Enter the Ollama API key at the hidden prompt.")
+            enroll_ollama_credential(reference, account.account_id)
+            print("Credential stored. The account association remains owner-asserted.")
+        elif action == "2":
+            disconnect_ollama_credential(reference, account.account_id)
+            print("Account disconnected and its managed credential removed.")
+        else:
+            print("Invalid selection.")
+            return 2
         return 0
     except (OSError, ValueError, EOFError, KeyboardInterrupt):
         print(
-            "Connection did not complete. Retry in a local terminal; "
-            "pending setup is retained."
+            "The operation could not finish. Check the account status and retry; "
+            "pending cleanup remains recorded."
         )
         return 1
 

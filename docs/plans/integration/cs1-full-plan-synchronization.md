@@ -1072,3 +1072,19 @@ An independent review checked the 100 unique contract records and exact adoption
 Plan snapshot SHA-256: `184e4f355e9d6da989a3673745d95982c718d64fca5e44b9d45a5e2b3d01559d`
 
 Planning validator SHA-256: `633281f56affb4a4c8d6fef7b607bb464de99d60d5544b832970f174c958e311`
+
+## 2026-11-02 scoped control snapshot update
+
+The snapshot was regenerated for the current automation routine catalog and standard. The owner separately selected protected `.env` storage for Ollama keys; that plan amendment is approved but implementation, contract reconciliation, independent review and live verification remain incomplete. This records snapshot alignment only and does not assert a fresh independent semantic audit or product readiness.
+
+Plan snapshot SHA-256: `0d9d79e070077704eccdacec04a237c8641c604e1a8a260b44aa4e53033a139c`
+
+Planning validator SHA-256: `633281f56affb4a4c8d6fef7b607bb464de99d60d5544b832970f174c958e311`
+
+## 2026-11-02 M6 candidate contract registration
+
+This structural reconciliation registers the proposed M02 cloud status and M04 verification job and schedule status contracts, with exact producer/consumer mappings. The owner approved the protected `.env` direction. Candidate contract semantics, migration, security, independent review, real provider behavior and full M6 completion remain unverified. This does not represent an independent semantic audit or a product release.
+
+Plan snapshot SHA-256: `2b6186107c86e264aa80098ab32f5a83844eff251675bee6160daf8e40cee875`
+
+Planning validator SHA-256: `00e57977aa12da0d5c6ecc2f3129132212ffd9d8466a0787c29abc2cb60fd661`

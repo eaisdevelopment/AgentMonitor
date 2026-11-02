@@ -1,5 +1,9 @@
 # M6 Ollama cloud implementation contract and dependency review
 
+**Storage amendment:** the owner selected protected managed `.env` storage
+instead of Secret Service. Keyring-specific statements below are historical;
+the [M6 cloud plan](m6-ollama-cloud-implementation-change.md) is authoritative.
+
 **Status: engineering decision for the owner-approved cloud plan; implementation and live validation not yet complete.** Baseline: commit `3d26b69` and [cloud plan](m6-ollama-cloud-implementation-change.md). This specifies the contract/architecture handoff; it is not a claim that credentials, accounts, data, a keyring item or provider responses were accessed. Owner approval and the narrow runtime exception are recorded in `AGENTS.md`. Requirements: M6-A01/A03/A04/A05/A07/A08/A09/A10, tickets M6-T004–007/T010–012/T014–018. M6-A02/A06 and M6 closure remain governed by the full execution plan.
 
 ## ADR: narrow Linux credential and cloud source boundary

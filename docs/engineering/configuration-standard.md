@@ -56,7 +56,7 @@ Examples include the dashboard bootstrap/password inputs, session signing/encryp
 
 ### Provider-managed credentials
 
-Claude, Codex, Ollama, Anthropic, OpenAI, and future provider OAuth/API credentials remain in provider-supported stores or explicitly approved AgentMonitor-managed provider profiles. AgentMonitor stores only opaque references and must not copy credential values into `.env`, logs, database rows, exports, backups, or diagnostics unless a future separately approved secret architecture explicitly requires it.
+Claude, Codex, Anthropic, OpenAI, and future provider OAuth/API credentials remain in provider-supported stores or explicitly approved AgentMonitor-managed provider profiles. The owner separately approved Ollama cloud API keys in the protected AgentMonitor-managed `.env` on 2 November 2026. Ollama entries are binding-scoped and owner-only; credentials must not appear in logs, database rows, exports, backups, diagnostics, screenshots, arguments, or chat. The default Ollama profile remains untouched. Do not load unrelated `.env` values into the cloud worker's environment.
 
 ### Development-service credentials
 

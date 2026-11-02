@@ -1,5 +1,9 @@
 # M6 Ollama cloud credentials and account scope
 
+**Historical storage design:** the owner's later protected `.env` decision
+supersedes Secret Service proposals in this document. The current approved
+boundary is in the [M6 cloud plan](m6-ollama-cloud-implementation-change.md).
+
 **Status: Draft.** No key creation, secret-store access, provider sign-in or
 cloud API operation is authorized by this document. This design supports
 M6-T004/T005/T006/T010/T011 and M6-A03/A04/A09, but does not replace the

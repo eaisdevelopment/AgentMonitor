@@ -182,3 +182,5 @@ a proposal whose support/shape still depends on real provider/platform evidence.
    contracts; DB implements module repository ports; adapters remain isolated.
 7. Implementation starts only after the semantic planning gate and exact owner
    approval. This Draft baseline alone provides neither.
+
+CTR-REG-012 records owner-asserted cloud connection status and exact-binding verification evidence. CTR-COL-010 records durable verification jobs and idempotent initiation. CTR-COL-011 is the read-only scheduled-lane status. All are candidate contracts under review; populated live behavior remains unverified.

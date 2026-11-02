@@ -5,7 +5,7 @@ owner = "integration_steward"
 source_audit = "CAA-2026-09-18-01"
 source_audit_path = "docs/plans/integration/contract-alignment-audit.md"
 contract_version_policy = "Every contract in this Draft proposes version 1.0.0."
-contract_count = 100
+contract_count = 103
 owner_approved = false
 implementation_authorized = false
 synchronized = false
@@ -540,6 +540,16 @@ maturity = "evidence_blocked"
 decision_reference = "Owner-approved M6 Ollama cloud plan and contract review, 2026-11-02"
 checklist = { field_state_null = true, units_time = true, auth = true, side_effects = true, idempotency = true, events = true, retention = true, errors = true, compatibility = true }
 
+[[contracts]]
+id = "CTR-REG-012"
+name = "CredentialConnectionStatusV1"
+version = "1.0.0"
+producer = "PLAN-M02"
+consumers = ["PLAN-M04", "PLAN-M05", "PLAN-P01", "PLAN-INT"]
+maturity = "evidence_blocked"
+decision_reference = "Owner-approved M6 Ollama cloud integration; candidate remains under review, 2026-11-02"
+checklist = { field_state_null = true, units_time = true, auth = true, side_effects = true, idempotency = true, events = true, retention = true, errors = true, compatibility = true }
+
 # Provider-system contracts
 
 [[contracts]]
@@ -712,6 +722,26 @@ producer = "PLAN-M04"
 consumers = ["PLAN-A03", "PLAN-INT"]
 maturity = "proposed_aligned"
 decision_reference = "Owner-approved M6 Ollama cloud plan, Rate and failure behavior; no-response terminal correction"
+checklist = { field_state_null = true, units_time = true, auth = true, side_effects = true, idempotency = true, events = true, retention = true, errors = true, compatibility = true }
+
+[[contracts]]
+id = "CTR-COL-010"
+name = "OllamaCloudVerificationJobV1"
+version = "1.0.0"
+producer = "PLAN-M04"
+consumers = ["PLAN-INT"]
+maturity = "evidence_blocked"
+decision_reference = "Owner-approved M6 Ollama cloud integration; candidate remains under review, 2026-11-02"
+checklist = { field_state_null = true, units_time = true, auth = true, side_effects = true, idempotency = true, events = true, retention = true, errors = true, compatibility = true }
+
+[[contracts]]
+id = "CTR-COL-011"
+name = "CloudScheduleStatusV1"
+version = "1.0.0"
+producer = "PLAN-M04"
+consumers = ["PLAN-INT"]
+maturity = "evidence_blocked"
+decision_reference = "Owner-approved M6 Ollama cloud integration; candidate remains under review, 2026-11-02"
 checklist = { field_state_null = true, units_time = true, auth = true, side_effects = true, idempotency = true, events = true, retention = true, errors = true, compatibility = true }
 
 # Capacity contracts

@@ -1,5 +1,9 @@
 # M6 Ollama Secret Service system-dependency admission
 
+**Historical; superseded:** the owner selected the protected managed `.env`
+instead of Secret Service on 2 November 2026. This dependency is not required
+for the current M6 cloud credential architecture.
+
 - Record: `M6-KEYRING-DEP-001`, reviewed 2 November 2026.
 - Status: **admitted for Ubuntu 24.04 amd64 local implementation only**.
   This does not admit bundled binaries, another distribution, macOS, public

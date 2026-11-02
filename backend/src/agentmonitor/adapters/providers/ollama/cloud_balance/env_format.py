@@ -3,6 +3,7 @@
 import base64
 import binascii
 import re
+from typing import cast
 
 _BINDING = re.compile(r"amcb_[0-9a-f]{32}\Z")
 _NAME = re.compile(rb"OLLAMA_API_KEY_AMCB_[0-9A-F]{32}\Z")
@@ -42,7 +43,8 @@ def _target_lines(content: bytes | bytearray, name: bytes) -> list[int]:
     if _NAME.fullmatch(name) is None:
         raise ValueError("ollama_env_binding_invalid")
     matches = []
-    for index, line in enumerate(content.splitlines(keepends=True)):
+    lines = cast(list[bytes | bytearray], content.splitlines(keepends=True))
+    for index, line in enumerate(lines):
         stripped = line.lstrip()
         if stripped.startswith(b"export "):
             stripped = stripped[7:].lstrip()

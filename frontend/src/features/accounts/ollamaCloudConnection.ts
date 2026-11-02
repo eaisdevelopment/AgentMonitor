@@ -29,9 +29,9 @@ export function ollamaCloudConnectionCopy(state: string): OllamaCloudConnectionC
     case "rate_limited":
       return { title: "Ollama temporarily limited requests", description: "The next check must wait until Ollama's limit allows it." };
     case "store_locked":
-      return { title: "Credential store locked", description: "Unlock the local credential store on the AgentMonitor computer, then check the connection again." };
+      return { title: "Credential unavailable", description: "Reconnect the account locally on the AgentMonitor computer." };
     case "authorization_unavailable":
-      return { title: "Credential unavailable", description: "Unlock the local credential store or reconnect the account on the AgentMonitor computer." };
+      return { title: "Credential unavailable", description: "Reconnect the account locally on the AgentMonitor computer." };
     default:
       return { title: "Connection status unavailable", description: "AgentMonitor cannot currently confirm this account's connection." };
   }
