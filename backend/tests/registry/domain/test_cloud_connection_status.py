@@ -50,3 +50,16 @@ def test_historical_verification_is_not_current_when_authorization_is_unavailabl
         "unavailable",
         False,
     )
+
+
+def test_current_signal_can_invalidate_historical_access() -> None:
+    from agentmonitor.modules.provider_system.domain.protocol import (
+        current_access_from_signal,
+    )
+
+    assert current_access_from_signal("verified_success")
+    assert not current_access_from_signal("rate_limited")
+    assert not current_access_from_signal("transient_failure")
+    assert not current_access_from_signal("credential_unauthorized")
+    assert not current_access_from_signal("provider_schema_incompatible")
+    assert not current_access_from_signal("outcome_unresolved")

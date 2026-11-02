@@ -201,3 +201,9 @@ fingerprint. The pure target-fence test failed before the validator existed and
 passes afterward; 50 focused contract/domain tests pass. A real populated
 SQLite fence race, worker/helper credential-lock survival and authenticated
 provider/dashboard flow remain Not Run. The candidate is not activated.
+
+The account connection status candidate also reads the exact M04 latest signal
+before presenting an older successful receipt as current access. Unauthorized,
+incompatible or unresolved later outcomes are not displayed as current. The
+pure status policy test failed before this mapping and passes afterward; real
+account status/API and browser checks remain Not Run.

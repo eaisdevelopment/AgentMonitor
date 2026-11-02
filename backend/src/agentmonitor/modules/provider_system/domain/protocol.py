@@ -72,6 +72,11 @@ def scheduled_source_policy_digest_v1(
     return hashlib.sha256(encoded).hexdigest()
 
 
+def current_access_from_signal(signal: str) -> bool:
+    """A current positive status requires a current successful source signal."""
+    return signal == "verified_success"
+
+
 def derive_scheduled_source_admission_v1(
     policy: provider_contracts.ScheduledSourceAdmissionPolicyV1,
     lineage: provider_contracts.ScheduledSourceLineageV1,

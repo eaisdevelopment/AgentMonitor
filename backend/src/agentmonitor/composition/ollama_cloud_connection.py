@@ -26,7 +26,9 @@ from agentmonitor.adapters.persistence.registry.sqlite.repository import (
 from agentmonitor.adapters.providers.ollama.cloud_balance.probe_descriptor import (
     ollama_cloud_probe_fingerprint,
 )
+from agentmonitor.adapters.providers.ollama.manifest import OLLAMA_ADAPTER_VERSION
 from agentmonitor.contracts.collection_control_v1 import (
+    OllamaCloudLatestSourceSignalQueryV1,
     OllamaCloudVerificationEnqueueV1,
     OllamaCloudVerificationTargetV1,
 )
@@ -37,6 +39,9 @@ from agentmonitor.contracts.registry_v1 import (
     CredentialConnectionStatusV1,
     InitiateOllamaCloudVerificationCommandV1,
     ProviderTargetRefV1,
+)
+from agentmonitor.modules.provider_system.domain.protocol import (
+    current_access_from_signal,
 )
 from agentmonitor.modules.registry.application.accounts import (
     AssertCredentialAccountOwnershipV1,
@@ -114,12 +119,48 @@ class OllamaCloudConnectionServiceV1:
             account_id, binding.generation, as_of
         )
         job = status.job
+        verified = self._verified(binding)
+        signal_reason = job.reason_code if job else None
+        job_state = job.state if job else None
+        gate_state = status.gate_state
+        if verified:
+            graph = self._cloud.read_monitoring_target(account_id)
+            if graph is None:
+                verified = False
+                gate_state = "unresolved"
+            else:
+                signal = self._admission.read_latest_source_signal(
+                    OllamaCloudLatestSourceSignalQueryV1(
+                        account_id,
+                        binding.generation,
+                        graph.access_target_id,
+                        "subscription.quota",
+                        "ollama.cloud.balance.v1",
+                        OLLAMA_ADAPTER_VERSION,
+                        ollama_cloud_probe_fingerprint(),
+                        "ProviderQuotaInputV2@2",
+                        as_of,
+                    )
+                )
+                verified = current_access_from_signal(signal.signal)
+                if not verified:
+                    if signal.signal == "credential_unauthorized":
+                        signal_reason, job_state = "unauthorized", "terminal"
+                    elif signal.signal == "rate_limited":
+                        signal_reason, job_state = "rate_limited", "terminal"
+                    elif signal.signal == "authorization_unavailable":
+                        signal_reason, job_state = (
+                            "authorization_unavailable",
+                            "terminal",
+                        )
+                    else:
+                        gate_state = "unresolved"
         state, can_verify = derive_connection_status(
             True,
-            self._verified(binding),
-            job.state if job else None,
-            job.reason_code if job else None,
-            status.gate_state,
+            verified,
+            job_state,
+            signal_reason,
+            gate_state,
             self._ready(),
         )
         return CredentialConnectionStatusV1(
