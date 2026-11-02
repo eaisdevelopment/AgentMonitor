@@ -1031,3 +1031,11 @@ The active eighth revision has a passing owner/alert witness but a blocked
 quota prerequisite; candidate activation and M5 completion remain Not Run.
 
 Plan snapshot SHA-256: `02c3719d98084c2d43c33d4f1b007eba2087e7d883e762637db70183a97f1266`
+
+## 2026-11-02 scoped snapshot reconciliation
+
+An independent review checked the 100 unique contract records and exact adoption mapping, the three cataloged M6 local routines and their bounded descriptions, and the checksums binding the 20 unchanged plan bodies and nine controls. This is a structural reconciliation only; it is not a renewed semantic review of all plans or product readiness. The draft owner-approval and implementation-authorization fields remain false; all unrun M6 live, recovery and completion checks remain unrun.
+
+Plan snapshot SHA-256: `184e4f355e9d6da989a3673745d95982c718d64fca5e44b9d45a5e2b3d01559d`
+
+Planning validator SHA-256: `633281f56affb4a4c8d6fef7b607bb464de99d60d5544b832970f174c958e311`
