@@ -1,7 +1,7 @@
 """M04 application boundary for global Ollama cloud request admission."""
 
 from datetime import datetime
-from typing import Protocol
+from typing import ClassVar, Protocol
 
 from agentmonitor.contracts.collection_control_v1 import (
     OllamaCloudAdmissionDecisionV1,
@@ -13,6 +13,7 @@ from agentmonitor.contracts.collection_control_v1 import (
     OllamaCloudVerificationAcquireV1,
     OllamaCloudVerificationClaimRequestV1,
     OllamaCloudVerificationClaimTerminalV1,
+    OllamaCloudVerificationEnqueueV1,
     OllamaCloudVerificationEnqueueV2,
     OllamaCloudVerificationInterruptionProofV1,
     OllamaCloudVerificationJobClaimV1,
@@ -23,6 +24,7 @@ from agentmonitor.contracts.collection_control_v1 import (
 )
 from agentmonitor.contracts.common_v1 import OpaqueIdV1
 from agentmonitor.contracts.registry_v1 import (
+    ActiveCredentialBindingRefV1,
     CredentialBindingVerificationReceiptV1,
 )
 
@@ -43,7 +45,7 @@ class OllamaCloudAdmissionRepositoryV1(Protocol):
     ) -> OllamaCloudAdmissionDecisionV1: ...
 
     def enqueue_verification(
-        self, request: OllamaCloudVerificationEnqueueV2
+        self, request: OllamaCloudVerificationEnqueueV1
     ) -> OllamaCloudVerificationJobViewV1: ...
 
     def replay_verification(
@@ -99,6 +101,22 @@ class OllamaCloudAdmissionRepositoryV1(Protocol):
     ) -> OllamaCloudRateGateViewV1: ...
 
 
+class OllamaCloudVerificationEnqueueRepositoryV2(Protocol):
+    """Atomic V2 enqueue port; persistence owns every transaction detail."""
+
+    CONTRACT_ID: ClassVar[str] = "CTR-COL-010"
+    CONTRACT_VERSION: ClassVar[str] = "2.0.0"
+    OWNER: ClassVar[str] = "PLAN-M04"
+
+    def enqueue_verification_v2(
+        self,
+        request: OllamaCloudVerificationEnqueueV2,
+        authority_account_record_version: int,
+        binding: ActiveCredentialBindingRefV1,
+        expected_manifest_fingerprint: str,
+    ) -> OllamaCloudVerificationJobViewV1: ...
+
+
 class AcquireOllamaCloudRequestV1:
     """Admit one exact request start; all other decisions prohibit dispatch."""
 
@@ -132,16 +150,37 @@ class AcquireOllamaCloudVerificationV1:
         return self._repository.acquire_verification(request)
 
 
-class EnqueueOllamaCloudVerificationV2:
-    """Persist a version-fenced owner request without provider I/O."""
+class EnqueueOllamaCloudVerificationV1:
+    """Preserve the V1 port; unsafe new work may still fail closed."""
 
     def __init__(self, repository: OllamaCloudAdmissionRepositoryV1) -> None:
         self._repository = repository
 
     def __call__(
-        self, request: OllamaCloudVerificationEnqueueV2
+        self, request: OllamaCloudVerificationEnqueueV1
     ) -> OllamaCloudVerificationJobViewV1:
         return self._repository.enqueue_verification(request)
+
+
+class EnqueueOllamaCloudVerificationV2:
+    """Persist a version-fenced owner request through one atomic V2 port."""
+
+    def __init__(self, repository: OllamaCloudVerificationEnqueueRepositoryV2) -> None:
+        self._repository = repository
+
+    def __call__(
+        self,
+        request: OllamaCloudVerificationEnqueueV2,
+        authority_account_record_version: int,
+        binding: ActiveCredentialBindingRefV1,
+        expected_manifest_fingerprint: str,
+    ) -> OllamaCloudVerificationJobViewV1:
+        return self._repository.enqueue_verification_v2(
+            request,
+            authority_account_record_version,
+            binding,
+            expected_manifest_fingerprint,
+        )
 
 
 class ClaimOllamaCloudVerificationV1:

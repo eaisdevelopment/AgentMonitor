@@ -217,8 +217,11 @@ def _validate_contract_baseline(
         contract_id = item.get("id", "<missing>")
         if not re.fullmatch(r"CTR-[A-Z]+-\d{3}", str(contract_id)):
             violations.append(f"contract baseline has invalid ID {contract_id!r}")
-        if item.get("version") != "1.0.0":
-            violations.append(f"{contract_id}: expected proposed version 1.0.0")
+        expected_version = "2.0.0" if contract_id == "CTR-COL-010" else "1.0.0"
+        if item.get("version") != expected_version:
+            violations.append(
+                f"{contract_id}: expected proposed version {expected_version}"
+            )
         if item.get("producer") not in plan_ids:
             violations.append(f"{contract_id}: invalid semantic producer")
         consumers = item.get("consumers", [])

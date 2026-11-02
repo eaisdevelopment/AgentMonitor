@@ -443,6 +443,8 @@ class OllamaCloudVerificationEnqueueV1(TechnicalValueV1):
 class OllamaCloudVerificationEnqueueV2(OllamaCloudVerificationEnqueueV1):
     """V2 initiation identity retains the external account version."""
 
+    CONTRACT_VERSION: ClassVar[str] = "2.0.0"
+
     expected_account_record_version: int
 
     def __post_init__(self) -> None:

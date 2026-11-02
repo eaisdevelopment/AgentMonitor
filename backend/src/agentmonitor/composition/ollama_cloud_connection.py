@@ -7,30 +7,29 @@ from collections.abc import Callable
 from datetime import datetime
 from typing import Literal
 
-from sqlalchemy.engine import Connection
-
 from agentmonitor.adapters.persistence._shared.sqlite.core.policy import (
     DatabaseRefV1,
-    open_sqlite_database,
 )
 from agentmonitor.adapters.persistence.capacity.sqlite.repository import (
     SqliteCapacityRepositoryV1,
-)
-from agentmonitor.adapters.persistence.collection_control.sqlite.cloud_schedule_status import (  # noqa: E501
-    SqliteCloudScheduleStatusV1,
 )
 from agentmonitor.adapters.persistence.collection_control.sqlite.ollama_cloud_admission import (  # noqa: E501
     OllamaCloudAdmissionRepositoryErrorV1,
     SqliteOllamaCloudAdmissionRepositoryV1,
 )
+from agentmonitor.adapters.persistence.collection_control.sqlite.ollama_cloud_enqueue_v2 import (  # noqa: E501
+    SqliteOllamaCloudVerificationEnqueueRepositoryV2,
+)
+from agentmonitor.adapters.persistence.collection_control.sqlite.ollama_cloud_status_snapshot import (  # noqa: E501
+    OllamaCloudScheduleSnapshotErrorV1,
+    SqliteOllamaCloudScheduleSnapshotRepositoryV1,
+)
 from agentmonitor.adapters.persistence.collection_control.sqlite.repository import (
     SqliteCollectionRepositoryV1,
 )
 from agentmonitor.adapters.persistence.registry.sqlite.credential_bindings import (
-    CredentialBindingRepositoryErrorV1,
     SqliteCloudCredentialRegistryV1,
     SqliteCredentialBindingsV1,
-    ensure_cloud_verification_enqueue_authority_in_transaction,
 )
 from agentmonitor.adapters.persistence.registry.sqlite.repository import (
     SqliteRegistryRepositoryV1,
@@ -61,6 +60,9 @@ from agentmonitor.contracts.registry_v1 import (
     InitiateOllamaCloudVerificationCommandV1,
     ProviderTargetRefV1,
 )
+from agentmonitor.modules.collection_control.application.ollama_cloud_admission import (
+    EnqueueOllamaCloudVerificationV2,
+)
 from agentmonitor.modules.provider_system.domain.protocol import (
     current_access_from_signal,
 )
@@ -90,57 +92,6 @@ def _enqueue_conflict(
     return None
 
 
-class _AtomicVerificationEnqueueRepositoryV1(SqliteOllamaCloudAdmissionRepositoryV1):
-    """Bind a new M04 job to current M02 authority in the same transaction."""
-
-    def __init__(
-        self,
-        reference: DatabaseRefV1,
-        *,
-        expected_account_record_version: int,
-        binding: ActiveCredentialBindingRefV1,
-        expected_manifest_fingerprint: str,
-    ) -> None:
-        super().__init__(reference)
-        self._expected_account_record_version = expected_account_record_version
-        self._binding = binding
-        self._expected_manifest_fingerprint = expected_manifest_fingerprint
-
-    def _fence_new_verification_job(
-        self,
-        connection: Connection,
-        request: OllamaCloudVerificationEnqueueV2,
-        *,
-        profile_id: OpaqueIdV1,
-        resource_id: OpaqueIdV1,
-    ) -> None:
-        if (
-            request.account_id != self._binding.account_id
-            or request.binding_generation != self._binding.generation
-        ):
-            raise OllamaCloudAdmissionRepositoryErrorV1(
-                "ollama_cloud_verification_authority_unavailable"
-            )
-        try:
-            ensure_cloud_verification_enqueue_authority_in_transaction(
-                connection,
-                account_id=request.account_id,
-                expected_account_record_version=(self._expected_account_record_version),
-                profile_id=profile_id,
-                resource_id=resource_id,
-                access_target_id=request.access_target_id,
-                binding=self._binding,
-                expected_manifest_fingerprint=self._expected_manifest_fingerprint,
-            )
-        except CredentialBindingRepositoryErrorV1 as error:
-            code = (
-                "ollama_cloud_verification_account_version_conflict"
-                if str(error) == "credential_binding_account_version_conflict"
-                else "ollama_cloud_verification_authority_unavailable"
-            )
-            raise OllamaCloudAdmissionRepositoryErrorV1(code) from None
-
-
 class OllamaCloudConnectionServiceV1:
     """Prepare one owner-asserted request; the worker owns all later I/O.
 
@@ -165,7 +116,9 @@ class OllamaCloudConnectionServiceV1:
         self._capacity = SqliteCapacityRepositoryV1(reference)
         self._ready = ready
         self._monitoring_ready = monitoring_ready
-        self._schedules = SqliteCloudScheduleStatusV1(reference)
+        self._schedule_snapshot = SqliteOllamaCloudScheduleSnapshotRepositoryV1(
+            reference
+        )
         self._collector = OllamaCloudCollectionV1(reference)
 
     def _monitoring_status(
@@ -199,23 +152,15 @@ class OllamaCloudConnectionServiceV1:
         )
         fingerprint = ollama_cloud_probe_fingerprint()
         try:
-            with open_sqlite_database(self._reference, "runtime_read_only") as handle:
-                with handle.connect() as connection:
-                    connection.exec_driver_sql("BEGIN")
-                    ensure_cloud_verification_enqueue_authority_in_transaction(
-                        connection,
-                        account_id=graph.account_id,
-                        expected_account_record_version=account_record_version,
-                        profile_id=graph.profile_id,
-                        resource_id=graph.resource_id,
-                        access_target_id=graph.access_target_id,
-                        binding=binding,
-                        expected_manifest_fingerprint=fingerprint,
-                    )
-                    registered, reading, latest = self._schedules.read_snapshot(
-                        connection, target, fingerprint
-                    )
-        except CredentialBindingRepositoryErrorV1:
+            registered, reading, latest = (
+                self._schedule_snapshot.read_authorized_snapshot(
+                    target,
+                    account_record_version,
+                    binding,
+                    fingerprint,
+                )
+            )
+        except OllamaCloudScheduleSnapshotErrorV1:
             return "unavailable", "source_not_admitted"
         admitted = (
             proof is not None and latest == proof.authorization_signal_run_id.value
@@ -467,14 +412,9 @@ class OllamaCloudConnectionServiceV1:
             )
         )
         try:
-            _AtomicVerificationEnqueueRepositoryV1(
-                self._reference,
-                expected_account_record_version=(
-                    expected_enqueue_account_record_version
-                ),
-                binding=binding,
-                expected_manifest_fingerprint=ollama_cloud_probe_fingerprint(),
-            ).enqueue_verification(
+            EnqueueOllamaCloudVerificationV2(
+                SqliteOllamaCloudVerificationEnqueueRepositoryV2(self._reference)
+            )(
                 OllamaCloudVerificationEnqueueV2(
                     idempotency_key=command.idempotency_key,
                     principal_id=command.principal_id,
@@ -486,7 +426,10 @@ class OllamaCloudConnectionServiceV1:
                     expected_account_record_version=(
                         command.expected_account_record_version
                     ),
-                )
+                ),
+                expected_enqueue_account_record_version,
+                binding,
+                ollama_cloud_probe_fingerprint(),
             )
         except OllamaCloudAdmissionRepositoryErrorV1 as error:
             if error.code == "ollama_cloud_verification_account_version_conflict":

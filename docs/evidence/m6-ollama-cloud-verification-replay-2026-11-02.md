@@ -3,7 +3,7 @@
 - Evidence ID: `M6-CLOUD-REPLAY-20261102`
 - Module/plan/increment: M04 under the approved M6 Ollama cloud plan
 - Requirements/acceptance IDs: `FR-COL-003`, `FR-COL-005`, `FR-COL-007`, `FR-SAFE-001`, `M6-A07`, `M6-A09`, `NFR-DATA-001`
-- Contract versions: additive `OllamaCloudVerificationEnqueueV2`; database `v1_0717`
+- Contract versions: `CTR-COL-010` V1 enqueue retained; additive `OllamaCloudVerificationEnqueueV2@2.0.0`; database `v1_0717`
 - Commit/worktree reference: `4a756dd` in `codex/m6-atomic-enqueue-fence`
 - Recorder/date: Codex sub-agent, 2026-11-02
 
