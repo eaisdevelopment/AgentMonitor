@@ -968,6 +968,13 @@ class OllamaCloudCollectionV1:
         credential_lock: AccountCredentialLockLeaseV1,
     ):
         """Progress one admitted run while the exact account lock is held."""
+        if self._credential_authority is None and self._credential_env_file is not None:
+            try:
+                self._credential_authority = approve_env_credential_file_v1(
+                    self._credential_env_file
+                )
+            except EnvCredentialFileError:
+                pass
         source_configured = self._credential_env_file is not None
         if run.trigger == "reauth_verification":
             require_probe_authorized(source_configured)

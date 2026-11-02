@@ -1,9 +1,11 @@
 """Owner-local Ollama credential enrollment and cleanup."""
 
+import ctypes
 import getpass
 import os
 import resource
 import warnings
+from collections.abc import Callable
 from pathlib import Path
 
 from agentmonitor.adapters.persistence._shared.sqlite.core.policy import DatabaseRefV1
@@ -25,15 +27,26 @@ class EnrollmentError(ValueError):
 
 def _disable_core_dumps() -> None:
     try:
+        if os.getuid() != os.geteuid():
+            raise ValueError("credential_operator_uid_invalid")
         resource.setrlimit(resource.RLIMIT_CORE, (0, 0))
         if resource.getrlimit(resource.RLIMIT_CORE) != (0, 0):
             raise ValueError("core_dump_protection_unavailable")
-    except (OSError, ValueError):
+        libc = ctypes.CDLL(None, use_errno=True)
+        libc.prctl.argtypes = [ctypes.c_int] * 5
+        libc.prctl.restype = ctypes.c_int
+        if libc.prctl(4, 0, 0, 0, 0) != 0 or libc.prctl(3, 0, 0, 0, 0) != 0:
+            raise ValueError("core_dump_protection_unavailable")
+    except (OSError, ValueError, AttributeError):
         raise EnrollmentError("credential_store_unavailable") from None
 
 
 def enroll_ollama_credential(
-    reference: DatabaseRefV1, account_id: OpaqueIdV1, env_path: Path
+    reference: DatabaseRefV1,
+    account_id: OpaqueIdV1,
+    env_path: Path,
+    *,
+    selection_current: Callable[[], bool],
 ) -> None:
     """Prompt privately and atomically activate an account-scoped .env entry.
 
@@ -70,14 +83,23 @@ def enroll_ollama_credential(
             token = bytearray(entered, "ascii")
             del entered
             try:
+                if not selection_current():
+                    raise EnrollmentError("credential_selection_changed")
                 lock_lease.inherited_lock(account_id)
-                update_ollama_env(env_path, item.binding_id.value, token)
+                update_ollama_env(
+                    env_path,
+                    item.binding_id.value,
+                    token,
+                    staging_root=reference._approved_root,
+                )
             finally:
                 token[:] = b"\0" * len(token)
             lock_lease.inherited_lock(account_id)
         except (OSError, ValueError, UnicodeError, getpass.GetPassWarning):
             raise EnrollmentError("credential_store_unavailable") from None
         current = repository.read(account_id)
+        if not selection_current():
+            raise EnrollmentError("credential_selection_changed")
         if current.record_version != pending.record_version:
             raise EnrollmentError("credential_binding_changed")
         repository.transition_locked(
@@ -86,19 +108,22 @@ def enroll_ollama_credential(
             binding_id=item.binding_id,
             expected_record_version=current.record_version,
         )
-        _cleanup_pending(env_path, repository, account_id)
+        _cleanup_pending(env_path, repository, account_id, reference._approved_root)
 
 
 def _cleanup_pending(
     env_path: Path,
     repository: SqliteCredentialBindingsV1,
     account_id: OpaqueIdV1,
+    staging_root: Path,
 ) -> None:
     state = repository.read(account_id)
     for item in state.bindings:
         if item.lifecycle != "cleanup_pending":
             continue
-        update_ollama_env(env_path, item.binding_id.value, None)
+        update_ollama_env(
+            env_path, item.binding_id.value, None, staging_root=staging_root
+        )
         state = repository.transition_locked(
             account_id,
             action="cleanup",
@@ -108,11 +133,17 @@ def _cleanup_pending(
 
 
 def disconnect_ollama_credential(
-    reference: DatabaseRefV1, account_id: OpaqueIdV1, env_path: Path
+    reference: DatabaseRefV1,
+    account_id: OpaqueIdV1,
+    env_path: Path,
+    *,
+    selection_current: Callable[[], bool],
 ) -> None:
     """Disable the binding before removing only its managed entries."""
     _disable_core_dumps()
     with account_credential_lock(reference, account_id):
+        if not selection_current():
+            raise EnrollmentError("credential_selection_changed")
         repository = SqliteCredentialBindingsV1(reference)
         state = repository.read(account_id)
         repository.transition_locked(
@@ -120,4 +151,24 @@ def disconnect_ollama_credential(
             action="disconnect",
             expected_record_version=state.record_version,
         )
-        _cleanup_pending(env_path, repository, account_id)
+        _cleanup_pending(env_path, repository, account_id, reference._approved_root)
+
+
+def cleanup_ollama_credential(
+    reference: DatabaseRefV1,
+    account_id: OpaqueIdV1,
+    env_path: Path,
+    *,
+    selection_current: Callable[[], bool],
+) -> None:
+    """Retry recorded cleanup, including for an archived account."""
+    _disable_core_dumps()
+    with account_credential_lock(reference, account_id):
+        if not selection_current():
+            raise EnrollmentError("credential_selection_changed")
+        _cleanup_pending(
+            env_path,
+            SqliteCredentialBindingsV1(reference),
+            account_id,
+            reference._approved_root,
+        )

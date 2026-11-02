@@ -2,6 +2,8 @@
 
 import argparse
 import os
+import shlex
+import subprocess
 import sys
 from pathlib import Path
 
@@ -13,6 +15,7 @@ from agentmonitor.adapters.persistence.registry.sqlite.repository import (
     SqliteRegistryRepositoryV1,
 )
 from agentmonitor.composition.ollama_credential_enrollment import (
+    cleanup_ollama_credential,
     disconnect_ollama_credential,
     enroll_ollama_credential,
 )
@@ -27,19 +30,91 @@ def safe_label(value: str) -> str:
     return result[:160] or "Unnamed"
 
 
+def selected_env_from_argv(argv: tuple[str, ...]) -> Path:
+    """Extract one explicit credential-file setting from the deployed service."""
+    positions = [i for i, item in enumerate(argv) if item == "--credential-env-file"]
+    if len(positions) != 1 or positions[0] + 1 >= len(argv):
+        raise ValueError("ollama_env_selection_unavailable")
+    path = Path(argv[positions[0] + 1])
+    if not path.is_absolute() or path.name != ".env" or ".." in path.parts:
+        raise ValueError("ollama_env_selection_unavailable")
+    return path
+
+
+def selected_env_from_service(data_root: Path) -> Path:
+    """Read only the active systemd unit's non-secret launch configuration."""
+    runtime = f"/run/user/{os.getuid()}"
+    try:
+        result = subprocess.run(
+            (
+                "/usr/bin/systemctl",
+                "--user",
+                "show",
+                "agentmonitor-dashboard.service",
+                "--property=ExecStart,ActiveState,MainPID",
+            ),
+            stdin=subprocess.DEVNULL,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.DEVNULL,
+            timeout=5,
+            check=True,
+            env={
+                "PATH": "/usr/bin:/bin",
+                "XDG_RUNTIME_DIR": runtime,
+                "DBUS_SESSION_BUS_ADDRESS": f"unix:path={runtime}/bus",
+                "LC_ALL": "C.UTF-8",
+            },
+        )
+        if len(result.stdout) > 16384:
+            raise ValueError("ollama_env_selection_unavailable")
+        fields = dict(
+            line.split("=", 1)
+            for line in result.stdout.decode().splitlines()
+            if "=" in line
+        )
+        pid = int(fields.get("MainPID", "0"))
+        if fields.get("ActiveState") != "active" or pid <= 1:
+            raise ValueError("ollama_env_selection_unavailable")
+        raw = (
+            fields.get("ExecStart", "")
+            .partition(" ; argv[]=")[2]
+            .partition(" ; ignore_errors=")[0]
+        )
+        argv = tuple(shlex.split(raw))
+        if argv.count("--data-root") != 1 or argv[argv.index("--data-root") + 1] != str(
+            data_root
+        ):
+            raise ValueError("ollama_env_selection_unavailable")
+        selected = selected_env_from_argv(argv)
+        with Path(f"/proc/{pid}/cmdline").open("rb") as stream:
+            command = stream.read(16385)
+        if len(command) > 16384:
+            raise ValueError("ollama_env_selection_unavailable")
+        running = tuple(item.decode() for item in command.split(b"\0") if item)
+        if (
+            selected_env_from_argv(running) != selected
+            or running.count("--data-root") != 1
+            or running[running.index("--data-root") + 1] != str(data_root)
+        ):
+            raise ValueError("ollama_env_selection_unavailable")
+        return selected
+    except (OSError, subprocess.SubprocessError, ValueError, IndexError, UnicodeError):
+        raise ValueError("ollama_env_selection_unavailable") from None
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Connect an Ollama account locally")
     parser.add_argument("--data-root", required=True, type=Path)
-    parser.add_argument("--env-file", required=True, type=Path)
     args = parser.parse_args(argv)
     if not all(os.isatty(fd) for fd in (0, 1, 2)):
         print("Open this command in a local terminal.")
         return 2
-    if not args.data_root.is_absolute() or not args.env_file.is_absolute():
-        print("The data directory and configured .env must use absolute paths.")
+    if not args.data_root.is_absolute():
+        print("The data directory must use an absolute path.")
         return 2
     try:
         reference = DatabaseRefV1(args.data_root / "agentmonitor.db", args.data_root)
+        env_file = selected_env_from_service(args.data_root)
         registry = SqliteRegistryRepositoryV1(reference)
         organizations: list[OrganizationViewV1] = []
         cursor = None
@@ -61,9 +136,14 @@ def main(argv: list[str] | None = None) -> int:
                 provider_key="ollama", page_size=100, after_key=cursor
             )
             scanned += len(account_page)
-            accounts.extend(
-                item for item in account_page if item.lifecycle != "archived"
-            )
+            for item in account_page:
+                if item.lifecycle != "archived" or any(
+                    binding.lifecycle == "cleanup_pending"
+                    for binding in SqliteCredentialBindingsV1(reference)
+                    .read(item.account_id)
+                    .bindings
+                ):
+                    accounts.append(item)
             if len(account_page) < 100:
                 break
             if scanned >= 1000:
@@ -81,7 +161,10 @@ def main(argv: list[str] | None = None) -> int:
                 else "No organization"
             )
             label = safe_label(account.friendly_name)
-            print(f"{index}. {safe_label(organization)} / {label}")
+            suffix = (
+                " (archived; cleanup only)" if account.lifecycle == "archived" else ""
+            )
+            print(f"{index}. {safe_label(organization)} / {label}{suffix}")
         choice = input("Account number (or Enter to cancel): ").strip()
         if not choice:
             return 0
@@ -93,6 +176,17 @@ def main(argv: list[str] | None = None) -> int:
             print("Invalid account number.")
             return 2
         account = accounts[int(choice) - 1]
+        if account.lifecycle == "archived":
+            cleanup_ollama_credential(
+                reference,
+                account.account_id,
+                env_file,
+                selection_current=lambda: (
+                    selected_env_from_service(args.data_root) == env_file
+                ),
+            )
+            print("Archived account credential cleanup completed.")
+            return 0
         state = SqliteCredentialBindingsV1(reference).read(account.account_id)
         if any(item.lifecycle == "cleanup_pending" for item in state.bindings):
             print(
@@ -112,10 +206,24 @@ def main(argv: list[str] | None = None) -> int:
             return 0
         if action == "1":
             print("Enter the Ollama API key at the hidden prompt.")
-            enroll_ollama_credential(reference, account.account_id, args.env_file)
+            enroll_ollama_credential(
+                reference,
+                account.account_id,
+                env_file,
+                selection_current=lambda: (
+                    selected_env_from_service(args.data_root) == env_file
+                ),
+            )
             print("Credential stored. The account association remains owner-asserted.")
         elif action == "2":
-            disconnect_ollama_credential(reference, account.account_id, args.env_file)
+            disconnect_ollama_credential(
+                reference,
+                account.account_id,
+                env_file,
+                selection_current=lambda: (
+                    selected_env_from_service(args.data_root) == env_file
+                ),
+            )
             print("Account disconnected and its managed credential removed.")
         else:
             print("Invalid selection.")

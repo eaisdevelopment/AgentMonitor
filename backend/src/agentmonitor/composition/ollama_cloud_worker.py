@@ -18,6 +18,7 @@ from agentmonitor.composition.ollama_cloud_collection import (
     OllamaCloudCollectionV1,
     require_probe_authorized,
 )
+from agentmonitor.composition.ollama_env_store import recover_ollama_env_staging
 
 _PREFIX = "agentmonitor-cloud-worker-"
 _SYSTEMCTL = "/usr/bin/systemctl"
@@ -421,7 +422,10 @@ class OllamaCloudWorkerSupervisorV1:
     async def _run_transient(self) -> str:
         # systemctl flattens argv, so whitespace would make identity ambiguous.
         if any(
-            character.isspace() for character in sys.executable + str(self._data_root)
+            character.isspace()
+            for character in sys.executable
+            + str(self._data_root)
+            + (str(self._credential_env_file) if self._credential_env_file else "")
         ):
             self._quarantined = True
             return "quarantined"
@@ -458,8 +462,6 @@ class OllamaCloudWorkerSupervisorV1:
         command += [
             "--setenv=" + key + "=" + value for key, value in environment.items()
         ]
-        if self._credential_env_file is not None:
-            command += ["--credential-env-file", str(self._credential_env_file)]
         command += [
             sys.executable,
             "-m",
@@ -467,6 +469,8 @@ class OllamaCloudWorkerSupervisorV1:
             "--data-root",
             str(self._data_root),
         ]
+        if self._credential_env_file is not None:
+            command += ["--credential-env-file", str(self._credential_env_file)]
         if self._active_recovery_only:
             command.append("--recovery-only")
         self._mark_start(unit)
@@ -574,6 +578,7 @@ def main() -> int:
             return 0
         if args.credential_env_file is None:
             return 3
+        recover_ollama_env_staging(args.credential_env_file, args.data_root)
         if recovery_exit_code(rate) == 0:
             try:
                 require_probe_authorized(args.credential_env_file is not None)

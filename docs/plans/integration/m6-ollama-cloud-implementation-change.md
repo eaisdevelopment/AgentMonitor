@@ -11,8 +11,7 @@ installation the selected project directory is group-writable (`0775`): pinned
 identity checks detect replacement but cannot prevent malicious same-group
 directory changes. The owner accepted this documented limitation without
 changing directory permissions. Each binding has a distinct named
-entry with a base64-encoded value; encoding is not encryption. The worker reads
-only its exact current binding entry afresh for each request, through a bounded
+entry with a base64-encoded value; encoding is not encryption. The worker scans the shared file and retains only its exact current binding entry for each request, through a bounded
 private boundary, with no restart after rotation. The agent never sees the key.
 Atomic replacement preserves unrelated entries, with a shared writer lock and
 per-account credential lock; rotation activates the new binding before cleanup

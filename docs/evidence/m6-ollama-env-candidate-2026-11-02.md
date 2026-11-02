@@ -38,11 +38,12 @@ concurrent replay path remain Not Run and require independent review.
 The candidate local operator is invoked with the installed Python environment:
 
 ```text
-python -m agentmonitor.composition.ollama_credential_operator --data-root DATA_ROOT --env-file APPROVED_ENV_FILE
+python -m agentmonitor.composition.ollama_credential_operator --data-root DATA_ROOT
 ```
 
 It presents account names and accepts the key only through the no-echo prompt.
-For this installation `APPROVED_ENV_FILE` is the owner's existing project
-`.env`; the running service must receive the same file via its explicit
+The operator reads the path selected by the active dashboard service. For this
+installation it is the owner's existing project `.env`; the service must receive
+that path via its explicit
 `--credential-env-file` setting. This is a candidate instruction, not evidence
 that the operator, runtime capability or service deployment has been verified.
