@@ -25,7 +25,11 @@ def _amount(value: Decimal | None, *, percent: bool = False) -> None:
 
 @dataclass(frozen=True, slots=True)
 class SourcePeriodV1(TechnicalValueV1):
-    """Source period: inclusive start and exclusive end, independently unknown."""
+    """Source period: start inclusive, end exclusive, independently unknown.
+
+    Ollama documents these UTC boundary semantics at
+    https://docs.ollama.com/api/balance.
+    """
 
     CONTRACT_ID: ClassVar[str] = 'OLLAMA-CLOUD-BALANCE-V1'
     OWNER: ClassVar[str] = 'PLAN-A03'
@@ -120,10 +124,11 @@ def _field(value: Decimal | None, unit: str, *, derived: bool = False) -> ExactM
 
 
 def _window(key: str, label: str, remaining: Decimal | None, limit: Decimal | None,
-            ratio: Decimal | None, reset: datetime | None, *, derived: bool = False
+            ratio: Decimal | None, reset: datetime | None, *, derived: bool = False,
+            constraining: bool = False
             ) -> ProviderQuotaWindowInputV1:
     return ProviderQuotaWindowInputV1(
-        window_key=key, safe_label=label, semantic_role='capacity', is_constraining=True,
+        window_key=key, safe_label=label, semantic_role='capacity', is_constraining=constraining,
         used=_field(None, 'usd'), remaining=_field(remaining, 'usd'),
         limit=_field(limit, 'usd'), remaining_ratio=_field(ratio, 'ratio', derived=derived),
         reset_at=reset, reset_precision='exact' if reset is not None else 'unknown',
@@ -147,6 +152,8 @@ def _included_ratio(balance: Decimal | None, allowance: Decimal | None) -> Decim
 
 def to_capacity_windows(balance: OllamaCloudBalanceV1) -> BalanceProjectionV1:
     """Project amounts without losing source period at this module boundary."""
+    # Monetary pools are not independent constraints: either can be empty
+    # while the other still has funds. Do not infer aggregate exhaustion.
     windows: list[ProviderQuotaWindowInputV1] = []
     period = None
     if isinstance(balance.included, IncludedCreditsV1):
@@ -163,7 +170,7 @@ def to_capacity_windows(balance: OllamaCloudBalanceV1) -> BalanceProjectionV1:
                 with localcontext() as context:
                     context.prec = 100
                     ratio = item.remaining_percent / 100 if item.remaining_percent is not None else None
-                windows.append(_window('ollama_' + name, label, None, None, ratio, item.resets_at))
+                windows.append(_window('ollama_' + name, label, None, None, ratio, item.resets_at, constraining=True))
     windows.append(_window('ollama_purchased_credits', 'Purchased credits',
                            balance.purchased_usd, None, None, None))
     return BalanceProjectionV1(tuple(windows), period)

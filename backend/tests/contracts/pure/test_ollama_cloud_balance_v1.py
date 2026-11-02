@@ -89,3 +89,33 @@ def test_reset_and_period_fields_require_timestamps() -> None:
         SourcePeriodV1('not a timestamp', None)
     with pytest.raises(ValueError):
         LegacyWindowV1(Decimal('50'), 'not a timestamp')
+
+
+def test_credit_pools_do_not_individually_trigger_exhaustion() -> None:
+    """Separate balances do not establish each is an independent limit."""
+    for included, purchased in ((Decimal('20'), Decimal('0')), (Decimal('0'), Decimal('20'))):
+        result = to_capacity_windows(OllamaCloudBalanceV1(
+            included=IncludedCreditsV1(included, Decimal('25'), None), purchased_usd=purchased,
+        ))
+        assert all(not window.is_constraining for window in result.windows)
+
+
+def test_legacy_limits_remain_constraining() -> None:
+    result = to_capacity_windows(OllamaCloudBalanceV1(
+        included=LegacyLimitsV1(LegacyWindowV1(Decimal('10'), None), None),
+        purchased_usd=Decimal('0'),
+    ))
+    assert result.windows[0].is_constraining
+    assert not result.windows[1].is_constraining
+
+
+def test_period_and_reset_reject_non_utc_timestamps() -> None:
+    from datetime import timedelta, timezone
+
+    non_utc = datetime(2026, 2, 1, tzinfo=timezone(timedelta(hours=1)))
+    with pytest.raises(ValueError, match='timestamp-must-be-aware-utc'):
+        SourcePeriodV1(None, non_utc)
+    with pytest.raises(ValueError, match='timestamp-must-be-aware-utc'):
+        LegacyWindowV1(Decimal('5'), non_utc)
+    with pytest.raises(ValueError, match='timestamp-must-be-aware-utc'):
+        LegacyWindowV1(Decimal('5'), datetime(2026, 2, 1))
