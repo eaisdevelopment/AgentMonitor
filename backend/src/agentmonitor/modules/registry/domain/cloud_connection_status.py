@@ -26,6 +26,8 @@ def derive_connection_status(
         return "unavailable", False
     can_verify = ready and gate_state == "ready"
     reasons: dict[str, CredentialConnectionStateV1] = {
+        "last_check_stale": "stale",
+        "transient_failure": "retry_available",
         "unauthorized": "unauthorized",
         "rate_limited": "rate_limited",
         "authorization_unavailable": "authorization_unavailable",
@@ -35,5 +37,5 @@ def derive_connection_status(
     if gate_state not in {"ready", "not_due", "busy"}:
         return "unavailable", False
     if state == "rate_limited" and can_verify:
-        return "pending", True
+        return "retry_available", True
     return state, can_verify

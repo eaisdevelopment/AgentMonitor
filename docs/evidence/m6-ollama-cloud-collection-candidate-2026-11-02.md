@@ -207,3 +207,10 @@ before presenting an older successful receipt as current access. Unauthorized,
 incompatible or unresolved later outcomes are not displayed as current. The
 pure status policy test failed before this mapping and passes afterward; real
 account status/API and browser checks remain Not Run.
+
+Connection status treats a verified signal as current only when monitoring is
+on and an exact-run capacity window is fresh. Stale and transient-failure states
+are distinct and retryable only when the durable gate permits; unknown freshness
+stays unavailable. The new unshipped status states were checked against public
+GitHub main rather than the intermediate candidate schema. Pure status checks
+went red then green; real cloud status and browser behavior remain Not Run.

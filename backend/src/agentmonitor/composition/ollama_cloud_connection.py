@@ -123,6 +123,7 @@ class OllamaCloudConnectionServiceV1:
         signal_reason = job.reason_code if job else None
         job_state = job.state if job else None
         gate_state = status.gate_state
+        observed_at = as_of
         if verified:
             graph = self._cloud.read_monitoring_target(account_id)
             if graph is None:
@@ -142,7 +143,31 @@ class OllamaCloudConnectionServiceV1:
                         as_of,
                     )
                 )
+                if signal.signal_observed_at is not None:
+                    observed_at = signal.signal_observed_at
                 verified = current_access_from_signal(signal.signal)
+                if verified:
+                    windows = self._capacity.list_quota_windows(
+                        account_id, graph.resource_id, "subscription.quota", as_of
+                    )
+                    current_windows = tuple(
+                        item
+                        for item in windows
+                        if item.collection_run_id == signal.run_id
+                    )
+                    verified = account.is_effective_monitoring_enabled and any(
+                        item.freshness == "fresh" for item in current_windows
+                    )
+                    if not verified:
+                        signal_reason, job_state = "last_check_stale", "terminal"
+                        if (
+                            not account.is_effective_monitoring_enabled
+                            or not current_windows
+                            or any(
+                                item.freshness != "stale" for item in current_windows
+                            )
+                        ):
+                            gate_state = "unresolved"
                 if not verified:
                     if signal.signal == "credential_unauthorized":
                         signal_reason, job_state = "unauthorized", "terminal"
@@ -153,6 +178,10 @@ class OllamaCloudConnectionServiceV1:
                             "authorization_unavailable",
                             "terminal",
                         )
+                    elif signal.signal == "transient_failure":
+                        signal_reason, job_state = "transient_failure", "terminal"
+                    elif signal.signal == "verified_success":
+                        signal_reason, job_state = "last_check_stale", "terminal"
                     else:
                         gate_state = "unresolved"
         state, can_verify = derive_connection_status(
@@ -168,7 +197,7 @@ class OllamaCloudConnectionServiceV1:
             state,
             can_verify,
             binding.generation,
-            as_of,
+            observed_at,
             "cloud_connection_" + state,
         )
 

@@ -7,6 +7,10 @@ export function ollamaCloudConnectionCopy(state: string): OllamaCloudConnectionC
       return { title: "Ollama cloud not connected", description: "Connect this account to start monitoring its cloud balance." };
     case "pending":
       return { title: "Waiting for a connection check", description: "The balance check has not completed yet." };
+    case "stale":
+      return { title: "Last connection check is stale", description: "The last successful reading is too old to confirm current access." };
+    case "retry_available":
+      return { title: "Last connection check failed", description: "The service was temporarily unavailable. Check the connection again when ready." };
     case "access_valid_owner_confirmed":
     case "access_valid_identity_unresolved":
       return { title: "Ollama cloud access confirmed", description: "Ollama accepted the connection. The account name and organization are the ones you provided; Ollama has not verified them." };
@@ -26,6 +30,6 @@ export function ollamaCloudConnectionCopy(state: string): OllamaCloudConnectionC
 /** Show an action only when the server explicitly permits a known retry state. */
 export function ollamaCloudConnectionAction(state: string, canVerify: boolean): string | null {
   if (!canVerify) return null;
-  if (["pending", "unauthorized", "rate_limited", "store_locked", "authorization_unavailable"].includes(state)) return "Check connection";
+  if (["pending", "stale", "retry_available", "unauthorized", "rate_limited", "store_locked", "authorization_unavailable"].includes(state)) return "Check connection";
   return null;
 }

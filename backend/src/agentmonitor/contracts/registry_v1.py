@@ -77,6 +77,8 @@ CredentialBindingReasonV1 = Literal[
 CredentialConnectionStateV1 = Literal[
     "not_configured",
     "pending",
+    "stale",
+    "retry_available",
     "access_valid_identity_unresolved",
     "access_valid_owner_confirmed",
     "unauthorized",
@@ -610,6 +612,8 @@ class CredentialConnectionStatusV1(TechnicalValueV1):
             and self.state
             not in {
                 "pending",
+                "stale",
+                "retry_available",
                 "unauthorized",
                 "store_locked",
                 "authorization_unavailable",
