@@ -141,12 +141,13 @@ def main(argv: list[str] | None = None) -> int:
         offline_cleanup = False
         try:
             env_file = selected_env_from_service(args.data_root)
-            if SqliteCredentialBindingsV1(
-                reference
-            ).has_unfinished_bindings() and not env_location_matches(
-                args.data_root, env_file
-            ):
-                raise ValueError("ollama_env_selection_changed")
+            try:
+                retained = read_env_location(args.data_root)
+            except FileNotFoundError:
+                retained = None
+            if retained is not None and retained != env_file:
+                env_file = retained
+                offline_cleanup = True
         except (OSError, ValueError):
             env_file = read_env_location(args.data_root)
             offline_cleanup = True

@@ -3,14 +3,17 @@
 # ruff: noqa: E501 -- SQL predicates remain explicit.
 
 import hashlib
+import os
 import secrets
-from collections.abc import Callable
 from datetime import UTC, datetime, timedelta
 from typing import Literal
 
 from sqlalchemy.engine import Connection, RowMapping
 from sqlalchemy.exc import SQLAlchemyError
 
+from agentmonitor.adapters.persistence._shared.sqlite.core.credential_guard import (
+    acquire_credential_staging_guard,
+)
 from agentmonitor.adapters.persistence._shared.sqlite.core.policy import (
     DatabaseRefV1,
     SqlitePolicyError,
@@ -786,29 +789,6 @@ class SqliteCredentialBindingsV1:
                 "credential_binding_unavailable"
             ) from None
 
-    def while_no_unfinished_bindings(self, operation: Callable[[], None]) -> None:
-        """Fence bounded orphan cleanup against concurrent binding creation."""
-        try:
-            with open_sqlite_database(self._reference, "runtime_read_write") as handle:
-                with handle.connect() as connection:
-                    connection.exec_driver_sql("BEGIN IMMEDIATE")
-                    unfinished = connection.exec_driver_sql(
-                        "SELECT EXISTS(SELECT 1 FROM reg_credential_binding "
-                        "WHERE lifecycle IN ('pending','active','cleanup_pending'))"
-                    ).scalar_one()
-                    if unfinished:
-                        raise CredentialBindingRepositoryErrorV1(
-                            "credential_binding_cleanup_busy"
-                        )
-                    operation()
-                    connection.rollback()
-        except CredentialBindingRepositoryErrorV1:
-            raise
-        except (SqlitePolicyError, SQLAlchemyError):
-            raise CredentialBindingRepositoryErrorV1(
-                "credential_binding_unavailable"
-            ) from None
-
     def transition(
         self,
         account_id: OpaqueIdV1,
@@ -830,6 +810,39 @@ class SqliteCredentialBindingsV1:
             )
 
     def transition_locked(
+        self,
+        account_id: OpaqueIdV1,
+        *,
+        expected_record_version: int,
+        action: Literal["prepare", "activate", "abandon", "disconnect", "cleanup"],
+        binding_id: OpaqueIdV1 | None = None,
+        reason: Literal[
+            "owner_disconnected", "account_archived", "account_deleted"
+        ] = "owner_disconnected",
+    ) -> CredentialBindingAggregateV1:
+        """Fence binding creation against orphan cleanup before database I/O."""
+        if action != "prepare":
+            return self._transition_locked_under_guard(
+                account_id,
+                expected_record_version=expected_record_version,
+                action=action,
+                binding_id=binding_id,
+                reason=reason,
+            )
+        root, guard = acquire_credential_staging_guard(self._reference._approved_root)
+        try:
+            return self._transition_locked_under_guard(
+                account_id,
+                expected_record_version=expected_record_version,
+                action=action,
+                binding_id=binding_id,
+                reason=reason,
+            )
+        finally:
+            os.close(guard)
+            os.close(root)
+
+    def _transition_locked_under_guard(
         self,
         account_id: OpaqueIdV1,
         *,

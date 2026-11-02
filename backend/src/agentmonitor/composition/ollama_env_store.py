@@ -9,6 +9,9 @@ import stat
 from collections.abc import Callable
 from pathlib import Path
 
+from agentmonitor.adapters.persistence._shared.sqlite.core.credential_guard import (
+    acquire_credential_staging_guard,
+)
 from agentmonitor.adapters.providers.ollama.cloud_balance.env_capability import (
     require_safe_env_parent_metadata_v1,
 )
@@ -23,6 +26,7 @@ from agentmonitor.adapters.providers.ollama.cloud_balance.env_policy import (
 
 _MAX_ENV_BYTES = ENV_AUTHORIZATION_POLICY_V1.maximum_file_bytes
 _STAGING_NAME = re.compile(r"\.ollama-env-tmp-[0-9a-f]{32}\Z")
+_LOCATION_STAGING_NAME = re.compile(r"\.ollama-env-location-tmp-[0-9a-f]{32}\Z")
 _LOCATION_NAME = ".ollama-env-location"
 
 
@@ -35,40 +39,41 @@ def _private_file(info: os.stat_result) -> bool:
     )
 
 
-def _acquire_staging_guard(staging_root: Path) -> tuple[int, int]:
-    """Serialize all staging operations independently of the .env parent."""
-    root = os.open(staging_root, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
-    lock = None
-    try:
-        metadata = os.fstat(root)
-        current = os.stat(staging_root, follow_symlinks=False)
-        if (
-            not stat.S_ISDIR(metadata.st_mode)
-            or metadata.st_uid != os.getuid()
-            or stat.S_IMODE(metadata.st_mode) != 0o700
-            or (metadata.st_dev, metadata.st_ino) != (current.st_dev, current.st_ino)
-        ):
-            raise ValueError("ollama_env_staging_root_invalid")
-        lock = os.open(
-            ".ollama-env-staging.lock",
-            os.O_RDWR | os.O_CREAT | os.O_NOFOLLOW | os.O_NONBLOCK | os.O_CLOEXEC,
-            0o600,
-            dir_fd=root,
+def _remove_location_staging(root: int) -> None:
+    names = os.listdir(root)
+    if len(names) > 4096:
+        raise ValueError("ollama_env_directory_too_large")
+    removed = False
+    for name in names:
+        if _LOCATION_STAGING_NAME.fullmatch(name) is None:
+            continue
+        descriptor = os.open(
+            name, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK, dir_fd=root
         )
-        fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
-        held = os.fstat(lock)
-        entry = os.stat(".ollama-env-staging.lock", dir_fd=root, follow_symlinks=False)
-        if (
-            not _private_file(held)
-            or not _private_file(entry)
-            or (held.st_dev, held.st_ino) != (entry.st_dev, entry.st_ino)
-        ):
-            raise ValueError("ollama_env_staging_lock_invalid")
+        try:
+            held = os.fstat(descriptor)
+            entry = os.stat(name, dir_fd=root, follow_symlinks=False)
+            if (
+                not _private_file(held)
+                or not _private_file(entry)
+                or (held.st_dev, held.st_ino) != (entry.st_dev, entry.st_ino)
+            ):
+                raise ValueError("ollama_env_staging_invalid")
+            os.unlink(name, dir_fd=root)
+            removed = True
+        finally:
+            os.close(descriptor)
+    if removed:
         os.fsync(root)
+
+
+def _acquire_staging_guard(staging_root: Path) -> tuple[int, int]:
+    root, lock = acquire_credential_staging_guard(staging_root)
+    try:
+        _remove_location_staging(root)
         return root, lock
     except BaseException:
-        if lock is not None:
-            os.close(lock)
+        os.close(lock)
         os.close(root)
         raise
 
@@ -188,11 +193,15 @@ def read_env_location(staging_root: Path) -> Path:
 def _managed_binding_ids(env_path: Path) -> tuple[str, ...]:
     """Scan entry names only; never retain, return or print credential values."""
     root = _open_env_parent(env_path)
+    parent_identity = os.fstat(root)
     lock = None
     source = None
     try:
         lock = os.open(
-            ".ollama-env.lock", os.O_RDWR | os.O_NOFOLLOW | os.O_NONBLOCK, dir_fd=root
+            ".ollama-env.lock",
+            os.O_RDWR | os.O_CREAT | os.O_NOFOLLOW | os.O_NONBLOCK,
+            0o600,
+            dir_fd=root,
         )
         fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
         held = os.fstat(lock)
@@ -236,18 +245,37 @@ def _managed_binding_ids(env_path: Path) -> tuple[str, ...]:
                     raise ValueError("ollama_env_entry_name_invalid")
                 name.extend(byte)
         entry = os.stat(".env", dir_fd=root, follow_symlinks=False)
-        if not _private_file(entry) or (
-            entry.st_dev,
-            entry.st_ino,
-            entry.st_size,
-            entry.st_mtime_ns,
-            entry.st_ctime_ns,
-        ) != (
-            metadata.st_dev,
-            metadata.st_ino,
-            metadata.st_size,
-            metadata.st_mtime_ns,
-            metadata.st_ctime_ns,
+        current_parent = os.stat(env_path.parent, follow_symlinks=False)
+        if (
+            not _private_file(entry)
+            or (
+                entry.st_dev,
+                entry.st_ino,
+                entry.st_size,
+                entry.st_mtime_ns,
+                entry.st_ctime_ns,
+            )
+            != (
+                metadata.st_dev,
+                metadata.st_ino,
+                metadata.st_size,
+                metadata.st_mtime_ns,
+                metadata.st_ctime_ns,
+            )
+            or (
+                current_parent.st_dev,
+                current_parent.st_ino,
+                current_parent.st_uid,
+                current_parent.st_gid,
+                stat.S_IMODE(current_parent.st_mode),
+            )
+            != (
+                parent_identity.st_dev,
+                parent_identity.st_ino,
+                parent_identity.st_uid,
+                parent_identity.st_gid,
+                stat.S_IMODE(parent_identity.st_mode),
+            )
         ):
             raise ValueError("ollama_env_file_changed")
         if len(set(bindings)) != len(bindings):
@@ -272,6 +300,8 @@ def release_env_location_if_unused(
             return
         if not has_unfinished_bindings() and not _managed_binding_ids(env_path):
             _validate_staging_guard(root, lock)
+            if not _location_matches(root, env_path, create=False):
+                raise ValueError("ollama_env_location_mismatch")
             os.unlink(_LOCATION_NAME, dir_fd=root)
             os.fsync(root)
     finally:
@@ -293,9 +323,12 @@ def recover_env_location_if_unused(
             return
         if not _private_file(entry):
             raise ValueError("ollama_env_location_invalid")
-        if _managed_binding_ids(_read_location_at(root)):
+        retained = _read_location_at(root)
+        if _managed_binding_ids(retained):
             return
         _validate_staging_guard(root, lock)
+        if not _location_matches(root, retained, create=False):
+            raise ValueError("ollama_env_location_mismatch")
         os.unlink(_LOCATION_NAME, dir_fd=root)
         os.fsync(root)
     finally:
@@ -472,20 +505,30 @@ def recover_ollama_env_staging(env_path: Path, staging_root: Path) -> None:
 
 
 def update_ollama_env(
-    env_path: Path, binding_id: str, token: bytearray | None, *, staging_root: Path
+    env_path: Path,
+    binding_id: str,
+    token: bytearray | None,
+    *,
+    staging_root: Path,
+    _held_guard: tuple[int, int] | None = None,
 ) -> None:
     """Set/remove one entry, retaining unrelated bytes and failing closed on races."""
     name = credential_variable_name(binding_id)
     encoded = encode_credential_value(token) if token is not None else None
-    guard_root, guard_lock = _acquire_staging_guard(staging_root)
+    owns_guard = _held_guard is None
+    if _held_guard is None:
+        guard_root, guard_lock = _acquire_staging_guard(staging_root)
+    else:
+        guard_root, guard_lock = _held_guard
     try:
         if not _location_matches(guard_root, env_path, create=True):
             raise ValueError("ollama_env_location_mismatch")
         root_fd = _open_env_parent(env_path)
         _validate_staging_guard(guard_root, guard_lock)
     except BaseException:
-        os.close(guard_lock)
-        os.close(guard_root)
+        if owns_guard:
+            os.close(guard_lock)
+            os.close(guard_root)
         raise
     staging_fd = None
     lock_fd = None
@@ -644,16 +687,44 @@ def update_ollama_env(
                 except FileNotFoundError:
                     pass
         finally:
-            for descriptor in (
+            descriptors: tuple[int | None, ...] = (
                 temp_fd,
                 staging_fd,
                 lock_fd,
                 root_fd,
-                guard_lock,
-                guard_root,
-            ):
+            )
+            if owns_guard:
+                descriptors += (guard_lock, guard_root)
+            for descriptor in descriptors:
                 if descriptor is not None:
                     try:
                         os.close(descriptor)
                     except OSError:
                         pass
+
+
+def cleanup_untracked_env_entries(
+    staging_root: Path, env_path: Path, *, has_unfinished_bindings: Callable[[], bool]
+) -> None:
+    """Clean reserved orphan entries under the binding-creation/writer guard."""
+    root, lock = _acquire_staging_guard(staging_root)
+    try:
+        if has_unfinished_bindings():
+            raise ValueError("credential_binding_cleanup_busy")
+        if not _location_matches(root, env_path, create=True):
+            raise ValueError("ollama_env_location_mismatch")
+        for binding_id in _managed_binding_ids(env_path):
+            update_ollama_env(
+                env_path,
+                binding_id,
+                None,
+                staging_root=staging_root,
+                _held_guard=(root, lock),
+            )
+        if not has_unfinished_bindings() and not _managed_binding_ids(env_path):
+            _validate_staging_guard(root, lock)
+            os.unlink(_LOCATION_NAME, dir_fd=root)
+            os.fsync(root)
+    finally:
+        os.close(lock)
+        os.close(root)

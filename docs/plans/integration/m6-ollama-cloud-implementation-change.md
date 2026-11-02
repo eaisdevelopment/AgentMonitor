@@ -40,10 +40,11 @@ recovery requires no new approval.
 
 After restoring an older database, managed `.env` entries may outlive their
 binding records. The app retains the non-secret location while such entries
-exist. The local operator can remove only leftover AgentMonitor-managed entries
-when M02 proves no pending, active or cleanup-pending binding exists; account
-creation is fenced during that cleanup. Reconnect the account afterward if it
-is still needed. No entry values or opaque identifiers are shown to the owner.
+exist. The local operator can remove reserved-prefix orphan entries under a
+shared binding-creation and credential-writer guard after M02 reports no
+unfinished bindings; it can then reconnect the account. No SQLite transaction
+spans file I/O. This candidate remains subject to real concurrency/crash and
+security review; no entry values or opaque identifiers are shown to the owner.
 
 ## Outcome and scope
 

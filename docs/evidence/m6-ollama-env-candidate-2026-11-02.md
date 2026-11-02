@@ -30,10 +30,11 @@ require reconciliation. No database migration or new dependency is introduced
 by the file writer. The full M6 completion gate has not passed.
 
 Restore recovery retains the location while managed entry names remain, even
-if an older database contains no binding. The local operator can request
-reserved-prefix orphan cleanup only under an M02 zero-unfinished-binding write
-fence. This new cross-module boundary, real restore, file update, process races
-and crash recovery remain unreviewed or Not Run.
+if an older database contains no binding. Candidate untracked-entry cleanup
+and binding preparation now use a shared data-root guard; a real empty-directory
+guard-exclusion test failed before implementation and passed afterward. The
+cleanup uses short M02 reads and does not hold SQLite during file I/O. Real
+restore, file update, binding race and crash recovery remain Not Run.
 
 A real isolated systemd worker completed with the configured project `.env`
 path and an empty migrated database. A separate isolated dashboard started on

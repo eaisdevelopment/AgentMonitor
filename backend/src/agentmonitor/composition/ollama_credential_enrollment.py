@@ -16,7 +16,7 @@ from agentmonitor.adapters.persistence.registry.sqlite.credential_lock import (
     account_credential_lock,
 )
 from agentmonitor.composition.ollama_env_store import (
-    _managed_binding_ids,
+    cleanup_untracked_env_entries,
     release_env_location_if_unused,
     update_ollama_env,
 )
@@ -184,17 +184,11 @@ def cleanup_ollama_credential(
 def cleanup_untracked_ollama_credentials(
     reference: DatabaseRefV1, env_path: Path
 ) -> None:
-    """Remove only managed orphan entries while M02 blocks new bindings."""
+    """Remove reserved orphan entries under the creation/writer guard."""
     _disable_core_dumps()
     repository = SqliteCredentialBindingsV1(reference)
-
-    def cleanup() -> None:
-        for binding_id in _managed_binding_ids(env_path):
-            update_ollama_env(
-                env_path, binding_id, None, staging_root=reference._approved_root
-            )
-        release_env_location_if_unused(
-            reference._approved_root, env_path, has_unfinished_bindings=lambda: False
-        )
-
-    repository.while_no_unfinished_bindings(cleanup)
+    cleanup_untracked_env_entries(
+        reference._approved_root,
+        env_path,
+        has_unfinished_bindings=repository.has_unfinished_bindings,
+    )
