@@ -33,3 +33,10 @@ private copy of real Claude/Codex data found identical V1/V2 wire output for
 12 account-capacity views, 19 windows and 4,800 sampled history points at the
 same observation time. No account values were printed and the copy was deleted.
 Live authenticated browser verification and real cloud data remain Not Run.
+
+A pure-domain regression check showed that an explicitly non-constraining window
+with zero remaining ratio was incorrectly marked current and exhausted. The
+change returns unavailable without a numeric threshold or exhaustion for that
+case; all 13 alert-domain tests pass, and an independent reviewer found no
+blocker in this scope. Legacy windows with unknown constraint status retain
+their prior behavior. No real alert lifecycle was exercised by this check.

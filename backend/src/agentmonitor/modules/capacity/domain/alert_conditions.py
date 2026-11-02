@@ -33,7 +33,9 @@ def derive_capacity_alert_condition_v1(
     deadline = window.provenance.freshness_deadline
     availability: CapacityAlertAvailabilityV1 = "unknown"
     reason: CapacityAlertReasonV1 = "capacity_ratio_unknown"
-    if window.freshness == "conflicted":
+    if window.is_constraining is False:
+        availability, reason = "unavailable", "capacity_ratio_unavailable"
+    elif window.freshness == "conflicted":
         reason = "capacity_reading_conflicted"
     elif window.freshness == "stale" or deadline is not None and as_of >= deadline:
         availability, reason = "stale", "capacity_reading_stale"
