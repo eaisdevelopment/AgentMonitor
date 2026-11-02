@@ -44,6 +44,28 @@ This runbook governs future planning and implementation by independent agents. T
 - executes real provider/platform scenario matrix;
 - records sanitized Passed/Failed/Blocked evidence.
 
+## Root responsibility for delegated work
+
+The root retains the owner's requested outcome and existing authorizations.
+Before delegating, include their approved scope and the exact expected result in
+the task packet. Agents may recommend checks or escalation; their suggestions,
+new plan versions and status reports do not themselves create approval
+requirements or prove completion.
+
+Review an alleged blocker against its cited rule or observed failure. If it is
+an implementation gap within the approved scope, assign or perform the fix and
+continue independent work. Do not ask the owner to repeat an approval or carry
+out routine data entry merely because an internal artifact changed. Where the
+owner must authenticate, supply a secret through the official local flow, or
+make a genuinely unresolved decision, prepare the relevant workflow first and
+ask only for that necessary action.
+
+On handoff, verify the actual target and user-visible outcome as well as the
+stated evidence. Clearly distinguish committed code from code pushed or deployed
+to a particular target. If a delegated result is partial, failed or not run,
+integrate only what is justified, state the limitation, and continue toward the
+original outcome rather than silently redefining it.
+
 ## Mandatory task packet
 
 Every delegated module task includes:
