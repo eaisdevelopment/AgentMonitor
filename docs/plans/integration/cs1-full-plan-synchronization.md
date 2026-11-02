@@ -1120,3 +1120,11 @@ This binds the three fixed-target recovery routines and their catalog controls o
 Plan snapshot SHA-256: `090c40c613ff7a50f3ed672b2b33495149be4cde2ad6f1390992cdf507dfe69c`
 
 Planning validator SHA-256: `7bd0f715b03073444ab9d6dd57caddd4ac2122368f1b07089f2a138449c3c08b`
+
+## 2026-11-02 candidate readiness continuation
+
+This binds the fixed-target candidate readiness continuation. It does not claim deployment or M6 completion.
+
+Plan snapshot SHA-256: `443d0bff8639fecff7d55a95c726bbbaa081d77cf46ac4eece2005c393ef7a1e`
+
+Planning validator SHA-256: `5b8ab642405c0e78c9d2b7d1652bcf444bec139b11e5cd1b597588a6d80e0f92`

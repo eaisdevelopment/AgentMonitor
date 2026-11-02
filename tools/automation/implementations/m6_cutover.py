@@ -1282,11 +1282,17 @@ def _finish_restored_baseline_engine(
     expected_restart: str,
     verify_ready=None,
     verify_after=None,
+    candidate: bool = False,
 ) -> str:
     """Restore restart policy and archive the successful transition."""
     transition.validate(root)
     data = _read_journal_at(transition)[0]
-    if data.get("phase") not in {"baseline_start_attempted", "baseline_http_ready"}:
+    start_phase, ready_phase = (
+        ("candidate_started", "candidate_http_ready")
+        if candidate
+        else ("baseline_start_attempted", "baseline_http_ready")
+    )
+    if data.get("phase") not in {start_phase, ready_phase}:
         raise CutoverError("baseline_finish_journal_invalid")
     original_phase = data["phase"]
     before = _properties(unit)
@@ -1295,8 +1301,8 @@ def _finish_restored_baseline_engine(
         raise CutoverError("baseline_start_unverified")
     if verify_ready is not None:
         verify_ready()
-    if data["phase"] == "baseline_start_attempted":
-        updated = {**data, "phase": "baseline_http_ready"}
+    if data["phase"] == start_phase:
+        updated = {**data, "phase": ready_phase}
         _replace_journal(transition, data, updated)
         data = updated
     directory = os.open(
@@ -1312,7 +1318,7 @@ def _finish_restored_baseline_engine(
             )
         except FileNotFoundError:
             descriptor = None
-        if descriptor is None and original_phase != "baseline_http_ready":
+        if descriptor is None and original_phase != ready_phase:
             raise CutoverError("baseline_restart_guard_changed")
         if descriptor is not None:
             try:
@@ -1400,7 +1406,87 @@ def _finish_restored_baseline_engine(
             raise CutoverError("baseline_restart_archive_changed")
     finally:
         os.close(archive)
-    return "baseline_ready_restart_restored"
+    return (
+        "candidate_ready_restart_restored"
+        if candidate
+        else "baseline_ready_restart_restored"
+    )
+
+
+def finalize_candidate() -> str:
+    """Verify the fixed running candidate before restoring its restart policy."""
+    root = _FIXED_DATA
+    controller_revision = _trusted_checkout_revision(ROOT)
+    with _hold_transition_locks(root) as transition:
+        data = _read_journal_at(transition)[0]
+        phase = data.get("phase")
+        if phase not in {"candidate_started", "candidate_http_ready"}:
+            raise CutoverError("candidate_finish_journal_invalid")
+        revision, build, _ = _fixed_journal_facts(data, phase=phase)
+        checkout = _FIXED_RELEASES / ("m6-candidate-" + revision + "-" + build)
+        guard = _FIXED_OVERRIDE.parent / "95-m6-cutover-restart.conf"
+        blocked = b"[Unit]\nRefuseManualStart=yes\n[Service]\nRestart=no\n"
+        relaxed = b"[Service]\nRestart=no\n"
+        if guard.is_symlink():
+            raise CutoverError("candidate_restart_guard_changed")
+        if not guard.exists():
+            if phase != "candidate_http_ready":
+                raise CutoverError("candidate_restart_guard_changed")
+            _ctl("daemon-reload")
+
+        def verify() -> None:
+            if _trusted_checkout_revision(ROOT) != controller_revision:
+                raise CutoverError("operator_checkout_changed")
+            present = guard.exists()
+            if guard.is_symlink() or (
+                present and guard.read_bytes() not in {blocked, relaxed}
+            ):
+                raise CutoverError("candidate_restart_guard_changed")
+            _fixed_unit_preflight(
+                revision,
+                build,
+                guarded=present,
+                candidate=True,
+                start_block=present and guard.read_bytes() == blocked,
+            )
+            current = _properties(_FIXED_UNIT)
+            if current.get("ActiveState") != "active" or _cwd(_FIXED_UNIT) != str(
+                checkout
+            ):
+                raise CutoverError("candidate_start_unverified")
+            _verify_fixed_candidate_process(current, checkout=checkout)
+            ref = DatabaseRefV1(root / "agentmonitor.db", root)
+            view = InspectSchemaCompatibilityV1(
+                ref, application_schema_range(), "runtime_read_write"
+            )
+            if (
+                view.state != "compatible"
+                or view.current_revision != load_migration_catalog().head
+                or view.integrity_state != "passed"
+                or view.policy_state != "passed"
+            ):
+                raise CutoverError("candidate_schema_unverified")
+            status, body = request("http://127.0.0.1:43110", "/login")
+            if status != 200 or b"agentmonitor-dashboard-root" not in body:
+                raise CutoverError("candidate_http_unverified")
+
+        try:
+            return _finish_restored_baseline_engine(
+                root,
+                transition,
+                unit=_FIXED_UNIT,
+                guard=guard,
+                expected_restart=data["baseline_restart"],
+                verify_ready=verify,
+                verify_after=verify,
+                candidate=True,
+            )
+        except Exception:
+            # Do not stop an unverified process or roll back a database after start.
+            if not guard.exists() and (root / ".m6-cutover-journal.json").exists():
+                _create(guard, blocked)
+                _ctl("daemon-reload")
+            raise
 
 
 def start_restored_baseline() -> str:

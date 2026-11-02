@@ -51,6 +51,9 @@ from tools.automation.implementations.m6_transition_lease import _hold_transitio
     "case",
     [
         "normal",
+        "candidate_finalize",
+        "candidate_finalize_interrupted",
+        "candidate_finalize_no",
         "child",
         "writer",
         "restore",
@@ -131,7 +134,11 @@ def test_disposable_unit_and_real_backup_migration(
             unit,
             f"--property=WorkingDirectory={baseline}",
             "--property=Restart="
-            + ("no" if case == "restore_restart_no" else "on-failure"),
+            + (
+                "no"
+                if case in {"restore_restart_no", "candidate_finalize_no"}
+                else "on-failure"
+            ),
             *(
                 ["/bin/bash", "-c", "sleep 60 & wait"]
                 if case == "child"
@@ -673,6 +680,83 @@ with _hold_transition_locks(root) as lease:
                 )
                 == 1
             )
+            if case in {
+                "candidate_finalize",
+                "candidate_finalize_interrupted",
+                "candidate_finalize_no",
+            }:
+                if case == "candidate_finalize_interrupted":
+                    code = """
+import os, sys
+from pathlib import Path
+from tools.automation.implementations.m6_transition_lease import _hold_transition_locks
+from tools.automation.implementations.m6_cutover import _finish_restored_baseline_engine
+root, guard = Path(sys.argv[1]), Path(sys.argv[3])
+print(os.getpid(), flush=True)
+with _hold_transition_locks(root) as lease:
+    _finish_restored_baseline_engine(root, lease, unit=sys.argv[2], guard=guard, expected_restart="on-failure", candidate=True)
+"""
+                    guard = directory / "95-m6-cutover-restart.conf"
+                    journal = root / ".m6-cutover-journal.json"
+                    tracer = subprocess.Popen(
+                        [
+                            "/usr/bin/strace",
+                            "-q",
+                            "-o",
+                            str(tmp_path / "candidate-finish-trace"),
+                            "-e",
+                            "trace=unlinkat",
+                            "-e",
+                            "inject=unlinkat:delay_exit=10s",
+                            sys.executable,
+                            "-c",
+                            code,
+                            str(root),
+                            unit,
+                            str(guard),
+                        ],
+                        stdout=subprocess.PIPE,
+                        stderr=subprocess.PIPE,
+                        text=True,
+                    )
+                    try:
+                        assert tracer.stdout is not None
+                        worker_pid = int(tracer.stdout.readline())
+                        deadline = time.monotonic() + 20
+                        while time.monotonic() < deadline:
+                            if (
+                                not guard.exists()
+                                and json.loads(journal.read_text())["phase"]
+                                == "candidate_http_ready"
+                            ):
+                                break
+                            if tracer.poll() is not None:
+                                raise AssertionError(
+                                    "candidate finish worker exited before boundary"
+                                )
+                            time.sleep(0.05)
+                        else:
+                            raise AssertionError(
+                                "candidate finish interruption boundary not reached"
+                            )
+                        os.kill(worker_pid, signal.SIGKILL)
+                    finally:
+                        tracer.communicate(timeout=20)
+                with _hold_transition_locks(root) as lease:
+                    assert (
+                        _finish_restored_baseline_engine(
+                            root,
+                            lease,
+                            unit=unit,
+                            guard=directory / "95-m6-cutover-restart.conf",
+                            expected_restart="no"
+                            if case == "candidate_finalize_no"
+                            else "on-failure",
+                            candidate=True,
+                        )
+                        == "candidate_ready_restart_restored"
+                    )
+                assert not (root / ".m6-cutover-journal.json").exists()
         if case in {
             "child",
             "writer",
@@ -681,6 +765,9 @@ with _hold_transition_locks(root) as lease:
             "restore_restart_no",
             "restore_restart_retry",
             "restore_ready_retry",
+            "candidate_finalize",
+            "candidate_finalize_interrupted",
+            "candidate_finalize_no",
         }:
             assert not (directory / "95-m6-cutover-restart.conf").exists()
         else:
@@ -743,6 +830,22 @@ def test_recovery_command_is_cataloged_and_rejects_target_arguments() -> None:
     assert "AUTO-M6-RECOVER-MIGRATION\toperational_limited\t" in catalog.stdout
     assert "AUTO-M6-RESTORE-PRESTART\toperational_limited\t" in catalog.stdout
     assert "AUTO-M6-START-RESTORED\toperational_limited\t" in catalog.stdout
+    assert "AUTO-M6-FINALIZE-CANDIDATE\toperational_limited\t" in catalog.stdout
+    denied = subprocess.run(
+        [
+            "/usr/bin/python3",
+            "tools/automation/implementations/auto_m6_finalize_candidate.py",
+            "--target",
+            "example",
+        ],
+        cwd=root,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert (
+        denied.returncode == 3 and "no target arguments are accepted" in denied.stdout
+    )
     result = subprocess.run(
         [
             "/usr/bin/python3",
