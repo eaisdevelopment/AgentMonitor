@@ -5,8 +5,12 @@
 ## Owner-approved credential storage amendment
 
 The owner selects an existing account by name in a local, non-echoing terminal
-and enters the key there. The managed data directory and `.env` must be
-owner-only (`0700` and `0600` respectively). Each binding has a distinct named
+and enters the key there. The deployment explicitly selects the existing `.env`
+and the file must be owner-only (`0600`); no second `.env` is created. On this
+installation the selected project directory is group-writable (`0775`): pinned
+identity checks detect replacement but cannot prevent malicious same-group
+directory changes. The owner accepted this documented limitation without
+changing directory permissions. Each binding has a distinct named
 entry with a base64-encoded value; encoding is not encryption. The worker reads
 only its exact current binding entry afresh for each request, through a bounded
 private boundary, with no restart after rotation. The agent never sees the key.
@@ -19,6 +23,12 @@ in arguments, environment variables passed to the worker, dashboard HTTP,
 screenshots, tests, evidence or chat. Successful real-owner setup and rotation
 remain Not Run until actually performed. Existing Secret Service sections below
 are historical and do not authorize a keyring-only implementation.
+
+For the existing installation the owner selected
+`/home/dev/Nextcloud/Code/AI/AgentMonitor/.env`. The dashboard currently starts
+with the separate `service.env` configuration path; deployment must explicitly
+bind the selected `.env` to both operator and worker, without copying values or
+creating a second `.env`.
 
 ## Outcome and scope
 

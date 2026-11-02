@@ -7,7 +7,9 @@ binding lifecycle must be reviewed together before activation.
 
 The candidate local operator selects an existing account by name, reads the
 key at a non-echoing terminal prompt, and stores its binding-specific entry
-in the data directory's owner-only `.env`. Rotation prepares a new binding,
+in the explicitly selected existing owner-only `.env`. On this installation
+its parent is group-writable, so identity checks cannot eliminate malicious
+same-group replacement. Rotation prepares a new binding,
 writes its entry, then activates it and cleans up prior entries. Disconnect
 disables the binding before deleting its entries. Interrupted cleanup remains
 recorded. File replacement is serialized by a shared local writer lock and

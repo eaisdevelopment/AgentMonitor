@@ -12,7 +12,7 @@ from agentmonitor.adapters.providers.ollama.cloud_balance.env_format import (
 
 def test_binding_name_and_codec_are_closed() -> None:
     name = credential_variable_name("amcb_" + "a" * 32)
-    assert name == b"OLLAMA_API_KEY_AMCB_" + b"A" * 32
+    assert name == b"AGENTMONITOR_OLLAMA_API_KEY_AMCB_" + b"A" * 32
     token = bytearray(b"ordinary-test-input")
     assert decode_credential_value(encode_credential_value(token)) == token
     with pytest.raises(ValueError):

@@ -4,8 +4,8 @@ import fcntl
 import os
 import secrets
 import stat
+from pathlib import Path
 
-from agentmonitor.adapters.persistence._shared.sqlite.core.policy import DatabaseRefV1
 from agentmonitor.adapters.providers.ollama.cloud_balance.env_format import (
     credential_variable_name,
     edit_credential_entry,
@@ -24,21 +24,19 @@ def _private_file(info: os.stat_result) -> bool:
     )
 
 
-def update_ollama_env(
-    reference: DatabaseRefV1, binding_id: str, token: bytearray | None
-) -> None:
+def update_ollama_env(env_path: Path, binding_id: str, token: bytearray | None) -> None:
     """Set/remove one entry, retaining unrelated bytes and failing closed on races."""
     name = credential_variable_name(binding_id)
     encoded = encode_credential_value(token) if token is not None else None
-    root_fd = os.open(
-        reference._approved_root, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW
-    )
+    if not env_path.is_absolute() or env_path.name != ".env" or ".." in env_path.parts:
+        raise ValueError("ollama_env_path_invalid")
+    root_fd = os.open(env_path.parent, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
     lock_fd = None
     temp_name = ".ollama-env-tmp-" + secrets.token_hex(16)
     temp_created = False
     try:
         root = os.fstat(root_fd)
-        if root.st_uid != os.getuid() or stat.S_IMODE(root.st_mode) != 0o700:
+        if root.st_uid != os.getuid() or root.st_mode & stat.S_IWOTH:
             raise ValueError("ollama_env_root_invalid")
         lock_fd = os.open(
             ".ollama-env.lock",
@@ -58,7 +56,7 @@ def update_ollama_env(
         try:
             source_fd = os.open(".env", os.O_RDONLY | os.O_NOFOLLOW, dir_fd=root_fd)
         except FileNotFoundError:
-            source_fd = None
+            raise ValueError("ollama_env_file_missing") from None
         old_identity = None
         content = b""
         if source_fd is not None:
@@ -96,6 +94,9 @@ def update_ollama_env(
         )
         temp_created = True
         try:
+            os.fchmod(temp_fd, 0o600)
+            if not _private_file(os.fstat(temp_fd)):
+                raise ValueError("ollama_env_file_invalid")
             view = memoryview(updated)
             while view:
                 written = os.write(temp_fd, view)
@@ -105,7 +106,7 @@ def update_ollama_env(
             os.fsync(temp_fd)
         finally:
             os.close(temp_fd)
-        current_root = os.stat(reference._approved_root, follow_symlinks=False)
+        current_root = os.stat(env_path.parent, follow_symlinks=False)
         current_lock = os.stat(
             ".ollama-env.lock", dir_fd=root_fd, follow_symlinks=False
         )
@@ -113,7 +114,7 @@ def update_ollama_env(
             (
                 not stat.S_ISDIR(current_root.st_mode)
                 or current_root.st_uid != os.getuid()
-                or stat.S_IMODE(current_root.st_mode) != 0o700
+                or current_root.st_mode & stat.S_IWOTH
                 or (root.st_dev, root.st_ino)
                 != (current_root.st_dev, current_root.st_ino)
             )

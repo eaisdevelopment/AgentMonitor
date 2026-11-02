@@ -2,7 +2,9 @@
 
 import getpass
 import os
+import resource
 import warnings
+from pathlib import Path
 
 from agentmonitor.adapters.persistence._shared.sqlite.core.policy import DatabaseRefV1
 from agentmonitor.adapters.persistence.registry.sqlite.credential_bindings import (
@@ -21,7 +23,18 @@ class EnrollmentError(ValueError):
     """Sanitized local enrollment failure."""
 
 
-def enroll_ollama_credential(reference: DatabaseRefV1, account_id: OpaqueIdV1) -> None:
+def _disable_core_dumps() -> None:
+    try:
+        resource.setrlimit(resource.RLIMIT_CORE, (0, 0))
+        if resource.getrlimit(resource.RLIMIT_CORE) != (0, 0):
+            raise ValueError("core_dump_protection_unavailable")
+    except (OSError, ValueError):
+        raise EnrollmentError("credential_store_unavailable") from None
+
+
+def enroll_ollama_credential(
+    reference: DatabaseRefV1, account_id: OpaqueIdV1, env_path: Path
+) -> None:
     """Prompt privately and atomically activate an account-scoped .env entry.
 
     A failure after preparation intentionally leaves the pending reference so it
@@ -31,6 +44,7 @@ def enroll_ollama_credential(reference: DatabaseRefV1, account_id: OpaqueIdV1) -
         raise EnrollmentError("owner_terminal_required")
     if len({os.ttyname(fd) for fd in (0, 1, 2)}) != 1:
         raise EnrollmentError("owner_terminal_required")
+    _disable_core_dumps()
     with account_credential_lock(reference, account_id) as lock_lease:
         repository = SqliteCredentialBindingsV1(reference)
         before = repository.read(account_id)
@@ -57,7 +71,7 @@ def enroll_ollama_credential(reference: DatabaseRefV1, account_id: OpaqueIdV1) -
             del entered
             try:
                 lock_lease.inherited_lock(account_id)
-                update_ollama_env(reference, item.binding_id.value, token)
+                update_ollama_env(env_path, item.binding_id.value, token)
             finally:
                 token[:] = b"\0" * len(token)
             lock_lease.inherited_lock(account_id)
@@ -72,11 +86,11 @@ def enroll_ollama_credential(reference: DatabaseRefV1, account_id: OpaqueIdV1) -
             binding_id=item.binding_id,
             expected_record_version=current.record_version,
         )
-        _cleanup_pending(reference, repository, account_id)
+        _cleanup_pending(env_path, repository, account_id)
 
 
 def _cleanup_pending(
-    reference: DatabaseRefV1,
+    env_path: Path,
     repository: SqliteCredentialBindingsV1,
     account_id: OpaqueIdV1,
 ) -> None:
@@ -84,7 +98,7 @@ def _cleanup_pending(
     for item in state.bindings:
         if item.lifecycle != "cleanup_pending":
             continue
-        update_ollama_env(reference, item.binding_id.value, None)
+        update_ollama_env(env_path, item.binding_id.value, None)
         state = repository.transition_locked(
             account_id,
             action="cleanup",
@@ -94,9 +108,10 @@ def _cleanup_pending(
 
 
 def disconnect_ollama_credential(
-    reference: DatabaseRefV1, account_id: OpaqueIdV1
+    reference: DatabaseRefV1, account_id: OpaqueIdV1, env_path: Path
 ) -> None:
     """Disable the binding before removing only its managed entries."""
+    _disable_core_dumps()
     with account_credential_lock(reference, account_id):
         repository = SqliteCredentialBindingsV1(reference)
         state = repository.read(account_id)
@@ -105,4 +120,4 @@ def disconnect_ollama_credential(
             action="disconnect",
             expected_record_version=state.record_version,
         )
-        _cleanup_pending(reference, repository, account_id)
+        _cleanup_pending(env_path, repository, account_id)

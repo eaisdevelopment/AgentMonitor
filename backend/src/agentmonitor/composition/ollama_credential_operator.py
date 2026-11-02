@@ -30,12 +30,13 @@ def safe_label(value: str) -> str:
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Connect an Ollama account locally")
     parser.add_argument("--data-root", required=True, type=Path)
+    parser.add_argument("--env-file", required=True, type=Path)
     args = parser.parse_args(argv)
     if not all(os.isatty(fd) for fd in (0, 1, 2)):
         print("Open this command in a local terminal.")
         return 2
-    if not args.data_root.is_absolute():
-        print("The data directory must be an absolute path.")
+    if not args.data_root.is_absolute() or not args.env_file.is_absolute():
+        print("The data directory and configured .env must use absolute paths.")
         return 2
     try:
         reference = DatabaseRefV1(args.data_root / "agentmonitor.db", args.data_root)
@@ -111,10 +112,10 @@ def main(argv: list[str] | None = None) -> int:
             return 0
         if action == "1":
             print("Enter the Ollama API key at the hidden prompt.")
-            enroll_ollama_credential(reference, account.account_id)
+            enroll_ollama_credential(reference, account.account_id, args.env_file)
             print("Credential stored. The account association remains owner-asserted.")
         elif action == "2":
-            disconnect_ollama_credential(reference, account.account_id)
+            disconnect_ollama_credential(reference, account.account_id, args.env_file)
             print("Account disconnected and its managed credential removed.")
         else:
             print("Invalid selection.")

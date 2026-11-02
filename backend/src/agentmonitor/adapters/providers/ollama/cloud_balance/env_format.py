@@ -6,14 +6,14 @@ import re
 from typing import cast
 
 _BINDING = re.compile(r"amcb_[0-9a-f]{32}\Z")
-_NAME = re.compile(rb"OLLAMA_API_KEY_AMCB_[0-9A-F]{32}\Z")
+_NAME = re.compile(rb"AGENTMONITOR_OLLAMA_API_KEY_AMCB_[0-9A-F]{32}\Z")
 _MAX_TOKEN_BYTES = 4096
 
 
 def credential_variable_name(binding_id: str) -> bytes:
     if not isinstance(binding_id, str) or _BINDING.fullmatch(binding_id) is None:
         raise ValueError("ollama_env_binding_invalid")
-    return b"OLLAMA_API_KEY_AMCB_" + binding_id[5:].upper().encode("ascii")
+    return b"AGENTMONITOR_OLLAMA_API_KEY_AMCB_" + binding_id[5:].upper().encode("ascii")
 
 
 def encode_credential_value(token: bytearray) -> bytes:

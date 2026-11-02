@@ -152,7 +152,7 @@ class OllamaCloudWorkerSupervisorV1:
             "--user",
             "show",
             unit,
-            "--property=Id,LoadState,Description,Transient,FragmentPath,InvocationID,KillMode,ActiveState,ControlGroup,ExecMainStatus,ExecStart,RuntimeMaxUSec,TimeoutStopUSec,RemainAfterExit",
+            "--property=Id,LoadState,Description,Transient,FragmentPath,InvocationID,KillMode,ActiveState,ControlGroup,ExecMainStatus,ExecStart,RuntimeMaxUSec,TimeoutStopUSec,RemainAfterExit,LimitCORE",
             "--no-pager",
         )
         pairs = [line.partition("=") for line in output.splitlines() if "=" in line]
@@ -192,6 +192,7 @@ class OllamaCloudWorkerSupervisorV1:
             or properties.get("FragmentPath") != fragment
             or properties.get("KillMode") != "control-group"
             or properties.get("RuntimeMaxUSec") != "30s"
+            or properties.get("LimitCORE") != "0"
             or properties.get("TimeoutStopUSec") != "3s"
             or properties.get("RemainAfterExit") != "yes"
             or not exec_start.startswith("{ path=" + executable + " ;")
@@ -430,6 +431,7 @@ class OllamaCloudWorkerSupervisorV1:
             "--description=" + description,
             "--property=KillMode=control-group",
             "--property=RuntimeMaxSec=30s",
+            "--property=LimitCORE=0",
             "--property=TimeoutStopSec=3s",
             "--property=RemainAfterExit=yes",
         ]
