@@ -51,7 +51,10 @@ from tools.automation.implementations.m5_service_activation import (
     release_m5_service_activation_lock_v1,
     validate_m5_service_activation_lock_v1,
 )
-from tools.automation.implementations.m6_frontend_build import build_clean_frontend
+from tools.automation.implementations.m6_candidate_release import (
+    prepare_candidate_release,
+    verify_candidate_release,
+)
 from tools.automation.implementations.m6_migration_recovery import (
     _receipt,
     _recover_migration_before_start,
@@ -518,7 +521,7 @@ def _cutover_engine(
         ):
             raise CutoverError("candidate_start_unverified")
         if unit == _FIXED_UNIT:
-            _verify_fixed_candidate_process(current)
+            _verify_fixed_candidate_process(current, checkout=candidate)
         _journal(journal, "candidate_started", backup_id, facts=facts)
         # Keep restart disabled until a separate real product readiness check.
         return "candidate_started_product_verification_required"
@@ -606,7 +609,8 @@ _FIXED_UNIT = "agentmonitor-dashboard.service"
 _FIXED_HOME = Path("/home/dev")
 _FIXED_DATA = _FIXED_HOME / ".local/share/agentmonitor"
 _FIXED_BASELINE = _FIXED_DATA / "worktrees/m6-integration"
-_FIXED_CANDIDATE = _FIXED_DATA / "worktrees/m6-cloud-final"
+_FIXED_SOURCE = _FIXED_DATA / "worktrees/m6-cloud-final"
+_FIXED_RELEASES = _FIXED_DATA / "releases"
 _FIXED_UNIT_FILE = _FIXED_HOME / ".config/systemd/user" / _FIXED_UNIT
 _FIXED_OVERRIDE = _FIXED_UNIT_FILE.parent / (_FIXED_UNIT + ".d") / "90-m6-local.conf"
 _FIXED_BASELINE_REVISION = "86f27012275c8c2f52fa48098b53fae60a352c55"
@@ -683,6 +687,12 @@ def _fixed_unit_preflight(
     private_baseline: bool = False,
     start_block: bool = True,
 ) -> None:
+    candidate_path = _FIXED_RELEASES / (
+        "m6-candidate-" + expected_revision + "-" + expected_build
+    )
+    verify_candidate_release(
+        candidate_path, _FIXED_RELEASES, expected_revision, expected_build
+    )
     if os.getuid() != _FIXED_HOME.stat().st_uid:
         raise CutoverError("target_uid_mismatch")
     release_parent = _FIXED_VENV.parent.lstat()
@@ -696,7 +706,7 @@ def _fixed_unit_preflight(
         (_FIXED_UNIT_FILE, _FIXED_UNIT_SHA256),
         (
             _FIXED_OVERRIDE,
-            hashlib.sha256(_candidate_override(_FIXED_CANDIDATE).encode()).hexdigest()
+            hashlib.sha256(_candidate_override(candidate_path).encode()).hexdigest()
             if candidate
             else hashlib.sha256(
                 _candidate_override(_FIXED_BASELINE).encode()
@@ -763,7 +773,7 @@ def _fixed_unit_preflight(
         or fields.get("DropInPaths")
         != (str(_FIXED_OVERRIDE) + (" " + str(guard_path) if guarded else ""))
         or fields.get("WorkingDirectory")
-        != str(_FIXED_CANDIDATE if candidate else _FIXED_BASELINE)
+        != str(candidate_path if candidate else _FIXED_BASELINE)
         or not fields.get("ExecStart", "").startswith(
             "{ path="
             + expected_start
@@ -775,8 +785,8 @@ def _fixed_unit_preflight(
         raise CutoverError("target_unit_changed")
     if (
         _revision(_FIXED_BASELINE) != _FIXED_BASELINE_REVISION
-        or _revision(_FIXED_CANDIDATE) != expected_revision
-        or tree_digest(_FIXED_CANDIDATE / "frontend/dist") != expected_build
+        or _revision(candidate_path) != expected_revision
+        or tree_digest(candidate_path / "frontend/dist") != expected_build
         or _runtime_digest(_FIXED_VENV) != _FIXED_VENV_SHA256
         or hashlib.sha256(_FIXED_EXECUTABLE.read_bytes()).hexdigest()
         != _FIXED_PYTHON_SHA256
@@ -784,11 +794,11 @@ def _fixed_unit_preflight(
         raise CutoverError("release_identity_changed")
     # Do not execute candidate or private-runtime code until the pinned files
     # and clean source revision have passed the static checks above.
-    _check_candidate_schema(_FIXED_CANDIDATE)
+    _check_candidate_schema(candidate_path)
 
 
 def _verify_fixed_candidate_process(
-    properties: dict[str, str], *, checkout: Path = _FIXED_CANDIDATE
+    properties: dict[str, str], *, checkout: Path
 ) -> None:
     pid = int(properties.get("MainPID", "0"))
     group = properties.get("ControlGroup", "")
@@ -833,8 +843,13 @@ def _verify_fixed_candidate_process(
 def cutover() -> str:
     """Cut over only the code-owned AgentMonitor service and pinned releases."""
     with _hold_transition_locks(_FIXED_DATA) as transition:
-        candidate_revision, candidate_build = build_clean_frontend(
-            _FIXED_CANDIDATE, _FIXED_DATA, TOOL_ROOT / "frontend/node_modules"
+        retained_candidate, candidate_revision, candidate_build = (
+            prepare_candidate_release(
+                _FIXED_SOURCE,
+                _FIXED_RELEASES,
+                _FIXED_DATA,
+                TOOL_ROOT / "frontend/node_modules",
+            )
         )
         transition.validate(_FIXED_DATA)
         original = build_override(_FIXED_BASELINE).encode()
@@ -850,7 +865,7 @@ def cutover() -> str:
         unit=_FIXED_UNIT,
         data_root=_FIXED_DATA,
         baseline=_FIXED_BASELINE,
-        candidate=_FIXED_CANDIDATE,
+        candidate=retained_candidate,
         override=_FIXED_OVERRIDE,
         source="v1_0707",
         expected_revision=candidate_revision,
