@@ -85,3 +85,11 @@ failed before that wait. No account, credential, or telemetry was created;
 the isolated process and database were removed. This does not verify a
 signed-in account, credential operations, provider collection, or the M6 exit
 gate. No installed service, live database, or `.env` contents were changed.
+
+A 96-test provider-free candidate selection covering the local operator,
+credential guards, cloud scheduling/verification contracts, recovery policy,
+API guards and worker boundary passed. The previous unattended-enrollment test
+failed with a `TypeError` because it used the superseded function signature;
+it was replaced with a real noninteractive operator process, which refused the
+request and created no database. This evidence does not exercise a credential,
+an authenticated provider response, or a real account verification.
