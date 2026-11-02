@@ -2,7 +2,10 @@
 
 import unittest
 
-from tools.planning.validate_m6_tickets import validate_status_dependencies
+from tools.planning.validate_m6_tickets import (
+    complete_stage_reasons,
+    validate_status_dependencies,
+)
 
 
 class TicketStatusTest(unittest.TestCase):
@@ -29,3 +32,23 @@ class TicketStatusTest(unittest.TestCase):
             "M6-T002": {"status": "done", "depends_on": ["M6-T001"]},
         }
         self.assertEqual([], validate_status_dependencies(tickets))
+
+    def test_complete_stage_is_data_driven_not_permanently_blocked(self):
+        self.assertEqual(
+            (),
+            complete_stage_reasons(
+                [
+                    {"id": "M6-T001", "status": "done", "evidence": ["e1"]},
+                    {"id": "M6-T002", "status": "done", "evidence": ["e2"]},
+                ]
+            ),
+        )
+        self.assertEqual(
+            ("m6_tickets_not_complete",),
+            complete_stage_reasons(
+                [
+                    {"id": "M6-T001", "status": "done", "evidence": ["e1"]},
+                    {"id": "M6-T002", "status": "in_progress", "evidence": []},
+                ]
+            ),
+        )

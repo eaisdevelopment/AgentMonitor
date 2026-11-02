@@ -149,6 +149,14 @@ implementation_command = ["python3", "tools/discovery/m6_local_inventory.py"]
 blockers = []
 
 [[routines]]
+id = "AUTO-M6-EXIT"
+owner = "PLAN-INT"
+status = "operational"
+scope = "exact V1-M6 technical acceptance and story catalog at one clean revision: run approved local/static checks, invoke each available cataloged evidence producer, select only its bounded machine receipt, reject incomplete evidence, and emit one privacy-minimized technical receipt while leaving M6-A10 owner review pending"
+implementation_command = ["python3", "-m", "tools.automation.implementations.auto_m6_exit"]
+blockers = []
+
+[[routines]]
 id = "AUTO-DOCS-CHECK"
 owner = "PLAN-FND"
 status = "operational"

@@ -31,6 +31,19 @@ def validate_status_dependencies(tickets: dict[str, dict]) -> list[str]:
     return errors
 
 
+def complete_stage_reasons(tickets: list[dict]) -> tuple[str, ...]:
+    """Report whether the ticket ledger is complete without claiming M6 passed."""
+
+    if any(
+        not isinstance(ticket, dict)
+        or ticket.get("status") != "done"
+        or not ticket.get("evidence")
+        for ticket in tickets
+    ):
+        return ("m6_tickets_not_complete",)
+    return ()
+
+
 def validate(catalog: object) -> list[str]:
     """Check identity, links, coverage and dependency graph of the fixed catalog."""
     errors: list[str] = []
@@ -150,11 +163,18 @@ def main() -> int:
         return 1
     tickets = catalog["tickets"]
     if args.stage == "complete":
+        reasons = complete_stage_reasons(tickets)
+        if reasons:
+            print(
+                "M6 TICKETS: BLOCKED — ticket ledger is not complete; "
+                "planning validation is not completion evidence"
+            )
+            return 3
         print(
-            "M6 TICKETS: BLOCKED — AUTO-M6-EXIT is not implemented; "
-            "planning validation is not completion evidence"
+            f"M6 TICKETS: PASSED — {len(tickets)} completed tickets have evidence; "
+            "AUTO-M6-EXIT remains the milestone authority"
         )
-        return 3
+        return 0
     print(
         f"M6 TICKETS: PASSED — {len(tickets)} proposed tickets; "
         "five stories and ten M6 acceptance items traced; "

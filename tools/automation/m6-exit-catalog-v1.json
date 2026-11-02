@@ -1,0 +1,205 @@
+{
+  "schema_version": "1.0.0",
+  "record_type": "agentmonitor.m6_exit_catalog.v1",
+  "milestone_id": "V1-M6",
+  "acceptance_ids": [
+    "M6-A01",
+    "M6-A02",
+    "M6-A03",
+    "M6-A04",
+    "M6-A05",
+    "M6-A06",
+    "M6-A07",
+    "M6-A08",
+    "M6-A09",
+    "M6-A10"
+  ],
+  "story_ids": [
+    "ST-OLL-001",
+    "ST-OLL-002",
+    "ST-OLL-003",
+    "ST-OLL-004",
+    "ST-OLL-005"
+  ],
+  "required_checks": [
+    "AUTO-BUILD",
+    "AUTO-M6-LOCAL-ADMIT",
+    "AUTO-QUALITY",
+    "AUTO-DOCS-CHECK",
+    "AUTO-PLAN-CHECK"
+  ],
+  "selectors": [
+    {
+      "scope_id": "M6-A01",
+      "selector_id": "M6-SEL-A01",
+      "boundary": "registry_account_admin",
+      "producer_command_id": "AUTO-M6-EVIDENCE-A01",
+      "producer_version": "1.0.0",
+      "selection_policy_id": "M6-SELECTION-A01-V1",
+      "source_versions_policy_id": "M6-SOURCE-VERSIONS-A01-V1",
+      "selection_sha256": null,
+      "source_versions_sha256": null,
+      "required_limitations": []
+    },
+    {
+      "scope_id": "M6-A02",
+      "selector_id": "M6-SEL-A02",
+      "boundary": "local_service_model_hosts",
+      "producer_command_id": "AUTO-M6-EVIDENCE-A02",
+      "producer_version": "1.0.0",
+      "selection_policy_id": "M6-SELECTION-A02-V1",
+      "source_versions_policy_id": "M6-SOURCE-VERSIONS-A02-V1",
+      "selection_sha256": null,
+      "source_versions_sha256": null,
+      "required_limitations": []
+    },
+    {
+      "scope_id": "M6-A03",
+      "selector_id": "M6-SEL-A03",
+      "boundary": "cloud_identity_scope",
+      "producer_command_id": "AUTO-M6-EVIDENCE-A03",
+      "producer_version": "1.0.0",
+      "selection_policy_id": "M6-SELECTION-A03-V1",
+      "source_versions_policy_id": "M6-SOURCE-VERSIONS-A03-V1",
+      "selection_sha256": null,
+      "source_versions_sha256": null,
+      "required_limitations": []
+    },
+    {
+      "scope_id": "M6-A04",
+      "selector_id": "M6-SEL-A04",
+      "boundary": "cloud_balance_reconciliation",
+      "producer_command_id": "AUTO-M6-EVIDENCE-A04",
+      "producer_version": "1.0.0",
+      "selection_policy_id": "M6-SELECTION-A04-V1",
+      "source_versions_policy_id": "M6-SOURCE-VERSIONS-A04-V1",
+      "selection_sha256": null,
+      "source_versions_sha256": null,
+      "required_limitations": []
+    },
+    {
+      "scope_id": "M6-A05",
+      "selector_id": "M6-SEL-A05",
+      "boundary": "capacity_history_alert_lineage",
+      "producer_command_id": "AUTO-M6-EVIDENCE-A05",
+      "producer_version": "1.0.0",
+      "selection_policy_id": "M6-SELECTION-A05-V1",
+      "source_versions_policy_id": "M6-SOURCE-VERSIONS-A05-V1",
+      "selection_sha256": null,
+      "source_versions_sha256": null,
+      "required_limitations": []
+    },
+    {
+      "scope_id": "M6-A06",
+      "selector_id": "M6-SEL-A06",
+      "boundary": "process_model_relationships",
+      "producer_command_id": "AUTO-M6-EVIDENCE-A06",
+      "producer_version": "1.0.0",
+      "selection_policy_id": "M6-SELECTION-A06-V1",
+      "source_versions_policy_id": "M6-SOURCE-VERSIONS-A06-V1",
+      "selection_sha256": null,
+      "source_versions_sha256": null,
+      "required_limitations": [
+        "sampled_process_coverage"
+      ]
+    },
+    {
+      "scope_id": "M6-A07",
+      "selector_id": "M6-SEL-A07",
+      "boundary": "natural_failure_recovery",
+      "producer_command_id": "AUTO-M6-EVIDENCE-A07",
+      "producer_version": "1.0.0",
+      "selection_policy_id": "M6-SELECTION-A07-V1",
+      "source_versions_policy_id": "M6-SOURCE-VERSIONS-A07-V1",
+      "selection_sha256": null,
+      "source_versions_sha256": null,
+      "required_limitations": []
+    },
+    {
+      "scope_id": "M6-A08",
+      "selector_id": "M6-SEL-A08",
+      "boundary": "built_browser_accessibility",
+      "producer_command_id": "AUTO-M6-EVIDENCE-A08",
+      "producer_version": "1.0.0",
+      "selection_policy_id": "M6-SELECTION-A08-V1",
+      "source_versions_policy_id": "M6-SOURCE-VERSIONS-A08-V1",
+      "selection_sha256": null,
+      "source_versions_sha256": null,
+      "required_limitations": []
+    },
+    {
+      "scope_id": "M6-A09",
+      "selector_id": "M6-SEL-A09",
+      "boundary": "security_privacy_source_limits",
+      "producer_command_id": "AUTO-M6-EVIDENCE-A09",
+      "producer_version": "1.0.0",
+      "selection_policy_id": "M6-SELECTION-A09-V1",
+      "source_versions_policy_id": "M6-SOURCE-VERSIONS-A09-V1",
+      "selection_sha256": null,
+      "source_versions_sha256": null,
+      "required_limitations": []
+    },
+    {
+      "scope_id": "ST-OLL-001",
+      "selector_id": "M6-SEL-ST-OLL-001",
+      "boundary": "provider_admission_installation",
+      "producer_command_id": "AUTO-M6-EVIDENCE-ST-OLL-001",
+      "producer_version": "1.0.0",
+      "selection_policy_id": "M6-SELECTION-ST-OLL-001-V1",
+      "source_versions_policy_id": "M6-SOURCE-VERSIONS-ST-OLL-001-V1",
+      "selection_sha256": null,
+      "source_versions_sha256": null,
+      "required_limitations": []
+    },
+    {
+      "scope_id": "ST-OLL-002",
+      "selector_id": "M6-SEL-ST-OLL-002",
+      "boundary": "local_model_runtime",
+      "producer_command_id": "AUTO-M6-EVIDENCE-ST-OLL-002",
+      "producer_version": "1.0.0",
+      "selection_policy_id": "M6-SELECTION-ST-OLL-002-V1",
+      "source_versions_policy_id": "M6-SOURCE-VERSIONS-ST-OLL-002-V1",
+      "selection_sha256": null,
+      "source_versions_sha256": null,
+      "required_limitations": []
+    },
+    {
+      "scope_id": "ST-OLL-003",
+      "selector_id": "M6-SEL-ST-OLL-003",
+      "boundary": "cloud_identity_authentication",
+      "producer_command_id": "AUTO-M6-EVIDENCE-ST-OLL-003",
+      "producer_version": "1.0.0",
+      "selection_policy_id": "M6-SELECTION-ST-OLL-003-V1",
+      "source_versions_policy_id": "M6-SOURCE-VERSIONS-ST-OLL-003-V1",
+      "selection_sha256": null,
+      "source_versions_sha256": null,
+      "required_limitations": []
+    },
+    {
+      "scope_id": "ST-OLL-004",
+      "selector_id": "M6-SEL-ST-OLL-004",
+      "boundary": "cloud_subscription_capacity",
+      "producer_command_id": "AUTO-M6-EVIDENCE-ST-OLL-004",
+      "producer_version": "1.0.0",
+      "selection_policy_id": "M6-SELECTION-ST-OLL-004-V1",
+      "source_versions_policy_id": "M6-SOURCE-VERSIONS-ST-OLL-004-V1",
+      "selection_sha256": null,
+      "source_versions_sha256": null,
+      "required_limitations": []
+    },
+    {
+      "scope_id": "ST-OLL-005",
+      "selector_id": "M6-SEL-ST-OLL-005",
+      "boundary": "integrated_runtime_dashboard_closure",
+      "producer_command_id": "AUTO-M6-EVIDENCE-ST-OLL-005",
+      "producer_version": "1.0.0",
+      "selection_policy_id": "M6-SELECTION-ST-OLL-005-V1",
+      "source_versions_policy_id": "M6-SOURCE-VERSIONS-ST-OLL-005-V1",
+      "selection_sha256": null,
+      "source_versions_sha256": null,
+      "required_limitations": [
+        "sampled_process_coverage"
+      ]
+    }
+  ]
+}

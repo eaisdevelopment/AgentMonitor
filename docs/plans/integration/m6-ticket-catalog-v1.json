@@ -220,7 +220,7 @@
       "id": "M6-T007",
       "story": "ST-OLL-005",
       "title": "Define canonical M6 completion gate",
-      "status": "planned",
+      "status": "in_progress",
       "owner": "M6 integration steward",
       "depends_on": [
         "M6-T006"
@@ -242,9 +242,12 @@
       "work": "Build versioned M6 completeness catalog and canonical AUTO-M6-EXIT before dependent closure; test blocked/failed/missing evidence.",
       "done_when": "Gate checks M6-A01..A10 and five story deliverables, rejects skipped/missing evidence, emits one sanitized receipt; no repeated owner copy-paste.",
       "verification": [
-        "python3 tools/automation/run.py AUTO-M6-EXIT (to be implemented; not yet runnable)"
+        "python3 tools/automation/run.py AUTO-M6-EXIT"
       ],
-      "evidence": []
+      "evidence": [
+        "tools/automation/m6-exit-catalog-v1.json",
+        "tools/automation/implementations/auto_m6_exit.py"
+      ]
     },
     {
       "id": "M6-T008",
@@ -602,7 +605,7 @@
       "work": "Run fixed real test catalog and source-to-history/dashboard comparisons across SDK, EAIS and model host.",
       "done_when": "Record exact observed pass/block outcomes, no hidden skips and no repeated owner attestations for unchanged evidence.",
       "verification": [
-        "python3 tools/automation/run.py AUTO-M6-EXIT (to be implemented; not yet runnable)"
+        "python3 tools/automation/run.py AUTO-M6-EXIT"
       ],
       "evidence": []
     },
@@ -633,7 +636,7 @@
       "work": "Run canonical gate, one bounded independent review, safe dashboard rollout/rollback and owner demonstration; record acceptance.",
       "done_when": "Gate passed at exact revision, service responds, promotion retained, runbook updated, owner reviews once; M7/M8 remain separate.",
       "verification": [
-        "python3 tools/automation/run.py AUTO-M6-EXIT (to be implemented; not yet runnable)",
+        "python3 tools/automation/run.py AUTO-M6-EXIT",
         "python3 tools/automation/run.py AUTO-DOCS-CHECK"
       ],
       "evidence": []

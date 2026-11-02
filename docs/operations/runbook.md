@@ -940,6 +940,71 @@ credential, provider payload, prompt, response, source content or arbitrary
 environment value. Missing live prerequisites return **Blocked**; a failing
 implemented boundary returns **Failed**. Neither result is M5 completion.
 
+### Canonical M6 technical exit gate
+
+Run the canonical M6 technical evidence command from the exact candidate
+checkout:
+
+```bash
+python3 tools/automation/run.py AUTO-M6-EXIT
+```
+
+The command is non-interactive. It never asks the owner to repeat an account
+disposition, enter an opaque ID, or provide a credential, and it does not
+activate or restart the dashboard. It runs the already cataloged
+`AUTO-BUILD`, `AUTO-M6-LOCAL-ADMIT`, `AUTO-QUALITY`, `AUTO-DOCS-CHECK`,
+and `AUTO-PLAN-CHECK` checks directly. It independently requires the checkout
+to remain at one exact clean revision before and after evidence collection and
+receipt publication; ordinary Git branch, upstream, and author configuration
+are not M6 acceptance criteria.
+Those commands retain their documented real read-only boundaries and limited
+scope. Still-valid owner-guided account/scope outcomes are reused by the real
+evidence producers that own those boundaries.
+
+The versioned selector catalog is
+`tools/automation/m6-exit-catalog-v1.json`. After running the available checks,
+the command invokes each implemented producer command named by the catalog,
+then selects only that command's bounded machine-produced receipt from the
+owner-only `.agentmonitor-local/m6-evidence/selectors/` directory. A receipt
+whose producer was not actually run is ignored; an unavailable producer is
+`not_run`, and a blocked cataloged producer is `blocked`. The catalog maps one
+exact filename, boundary, producer command/version, selection policy,
+source-version policy, frozen selection/source digests, and required limitation
+set to each of nine external `M6-A01..A09` acceptance entries and five
+`ST-OLL-001..005` story entries. No single receipt can claim more than its one
+cataloged scope, and no operator assembles or approves another bundle. Do not
+hand-edit a selector receipt or create a status row to force
+completion. Receipts must come from the real canonical verifiers for the
+selected revision and
+must contain no account identity, email, key, raw provider value/payload,
+profile/path, screenshot, prompt, response, or arbitrary environment value.
+Each reference is content-digested and must equal the selection and
+source-version digests frozen in the catalog for its exact policy IDs. It binds
+the implementation revision, producer command/version, observation time,
+expiry, exit code, positive test count, zero skip count, and the one
+acceptance/story scope it proves. Process-related selectors must disclose
+`sampled_process_coverage`, as required by M6-A06.
+
+An absent selector receipt or never-executed required selector is reported as
+`not_run` in the structured result and exits 3. A naturally unavailable,
+ambiguous, expired, or skipped real prerequisite is reported as `blocked` and
+also exits 3. An executed behavioral failure, malformed/duplicate record,
+digest mismatch, wrong scope, or unsafe evidence artifact is `failed` and
+exits 1. No one of those outcomes is completion.
+
+The command rechecks the clean revision, catalog, selector bytes, current
+expiry, and every referenced artifact before and after its receipt write. Only
+when all checks and all 14 external selectors pass does it create one
+owner-only receipt at
+`.agentmonitor-local/m6-exit-receipts/<implementation-revision>.json`. The
+receipt contains only safe counts, digests, check IDs, times, and declared
+limitation codes. The successful durable receipt records nine technically
+passed acceptance entries and explicitly lists `M6-A10` as pending. It is the
+evidence presented for the formal owner review required by M6-A10; the command
+does not grant that review to itself and therefore does not claim milestone
+completion. The owner review follows the receipt without an interactive prompt,
+repeated technical run, or extra attestation inside this command.
+
 ### Connect Codex from the dashboard
 
 1. In **Accounts**, create a pending Codex account record through admin CRUD,

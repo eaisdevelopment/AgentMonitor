@@ -1144,3 +1144,21 @@ This binds fixed-target same-schema update and recovery routines in the automati
 Plan snapshot SHA-256: `26962ca2c1dbf18145b409c2eb2a716fd7b8f2b8a16fb232d49a31b3545b009f`
 
 Planning validator SHA-256: `c0dc83782c63316f31310335d1bfb9f40a6946ab7660afb045f457d554697f08`
+## 2026-11-02 M6 technical-exit control rebind
+
+Independent scoped review verified the exact `AUTO-M6-EXIT` technical-evidence
+catalog and orchestrator against the current automation routine and completion
+standard. It confirmed one-scope selector coverage for nine external M6
+acceptance entries and five stories, actual producer invocation binding,
+fail-closed evidence validation, safe artifact/receipt handling, bounded child
+cleanup, and explicit preservation of pending `M6-A10`.
+
+Only structural control synchronization is asserted here. The selector
+producers and frozen real selections are not yet available, the canonical live
+command remains Not Run, no provider, key, service, or live boundary was used,
+formal owner review remains pending, and neither M6 completion nor product
+readiness is claimed.
+
+Plan snapshot SHA-256: `9311930b0a0d4cb3ecc62eb5aeac637375f709dfb3aca38d73bf90337e364292`
+
+Planning validator SHA-256: `1af257b664a10dfdbf0c4d35607aaa68da309c3e64414c383da36b799cc37827`

@@ -1,6 +1,6 @@
 # M6 ticket register
 
-**State: local slice in progress.** M6-T001 is done; M6-T002, T008, T009 and T014 are in progress. The local adapter/API/dashboard candidate has narrow real-system evidence; cloud work and the M6 completion gate remain unfinished.
+**State: implementation in progress.** M6-T001 is done; M6-T002, T007, T008, T009 and T014 are in progress. The local adapter/API/dashboard candidate has narrow real-system evidence; the canonical M6 technical-exit orchestrator is implemented but has not received a complete set of real selector receipts, M6-A10 remains pending, and cloud work remains unfinished.
 
 The machine-readable [ticket catalog](m6-ticket-catalog-v1.json) is the source for the IDs and links below. Validate it with `python3 tools/planning/validate_m6_tickets.py --stage plan`. The validator rejects a completed ticket whose prerequisite is unfinished. It does not verify the substance of linked evidence or establish milestone completion. See the [execution plan](m6-execution-plan-2026-10-31.md) for the acceptance criteria M6-A01–M6-A10, assumptions, scope control and risks.
 
@@ -86,7 +86,7 @@ The machine-readable [ticket catalog](m6-ticket-catalog-v1.json) is the source f
 
 ### M6-T006 — Freeze capability and contract decisions
 
-- **Status / owner:** planned / M6 integration steward
+- **Status / owner:** in progress / M6 integration steward
 - **Story:** ST-OLL-001; **depends on:** M6-T002, M6-T003, M6-T004, M6-T005.
 - **Requirements:** FR-ACC-004, FR-COL-004, FR-COL-006.
 - **Acceptance:** AC-V1-002, AC-UI-006; M6: M6-A09.
@@ -103,8 +103,8 @@ The machine-readable [ticket catalog](m6-ticket-catalog-v1.json) is the source f
 - **Acceptance:** AC-TEST-001, AC-TEST-006; M6: M6-A10.
 - **Work:** Build versioned M6 completeness catalog and canonical AUTO-M6-EXIT before dependent closure; test blocked/failed/missing evidence.
 - **Done when:** Gate checks M6-A01..A10 and five story deliverables, rejects skipped/missing evidence, emits one sanitized receipt; no repeated owner copy-paste.
-- **Verification:** python3 tools/automation/run.py AUTO-M6-EXIT (to be implemented; not yet runnable).
-- **Evidence:** not yet recorded.
+- **Verification:** `python3 tools/automation/run.py AUTO-M6-EXIT`.
+- **Evidence:** [versioned completeness catalog](../../../tools/automation/m6-exit-catalog-v1.json) and canonical command implementation; the complete real selector set and passing receipt remain Not Run.
 
 ### M6-T008 — Implement installation and capability admission
 
@@ -213,7 +213,7 @@ The machine-readable [ticket catalog](m6-ticket-catalog-v1.json) is the source f
 - **Acceptance:** AC-LIVE-004, AC-LIVE-005, AC-HIST-001, AC-TEST-003, AC-TEST-006; M6: M6-A02, M6-A04, M6-A05, M6-A06, M6-A08.
 - **Work:** Run fixed real test catalog and source-to-history/dashboard comparisons across SDK, EAIS and model host.
 - **Done when:** Record exact observed pass/block outcomes, no hidden skips and no repeated owner attestations for unchanged evidence.
-- **Verification:** python3 tools/automation/run.py AUTO-M6-EXIT (to be implemented; not yet runnable).
+- **Verification:** `python3 tools/automation/run.py AUTO-M6-EXIT`.
 - **Evidence:** not yet recorded.
 
 ### M6-T018 — Deploy, operate and close M6
@@ -224,5 +224,5 @@ The machine-readable [ticket catalog](m6-ticket-catalog-v1.json) is the source f
 - **Acceptance:** AC-OPS-003, AC-TEST-006; M6: M6-A10.
 - **Work:** Run canonical gate, one bounded independent review, safe dashboard rollout/rollback and owner demonstration; record acceptance.
 - **Done when:** Gate passed at exact revision, service responds, promotion retained, runbook updated, owner reviews once; M7/M8 remain separate.
-- **Verification:** python3 tools/automation/run.py AUTO-M6-EXIT (to be implemented; not yet runnable); python3 tools/automation/run.py AUTO-DOCS-CHECK.
+- **Verification:** `python3 tools/automation/run.py AUTO-M6-EXIT`; `python3 tools/automation/run.py AUTO-DOCS-CHECK`.
 - **Evidence:** not yet recorded.

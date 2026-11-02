@@ -1019,6 +1019,7 @@ class AutomationRoutineTests(unittest.TestCase):
                 "AUTO-M6-LOCAL-INVENTORY",
                 "AUTO-M6-LOCAL-ADMIT",
                 "AUTO-M6-LOCAL-ACTIVATE",
+                "AUTO-M6-EXIT",
                 "AUTO-DOCS-CHECK",
                 "AUTO-M3-LIVE",
                 "AUTO-M3-EXIT",
