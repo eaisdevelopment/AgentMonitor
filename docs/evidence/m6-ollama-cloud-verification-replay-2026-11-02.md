@@ -140,8 +140,9 @@ AUTO-MIGRATE: PASSED — v1_0707 to v1_0717; service activation Not Run
 ## Refactor evidence
 
 ```text
-mypy --strict --explicit-package-bases [five contract/application/adapter files]
-Success: no issues found in 5 source files
+MYPYPATH=backend/src mypy --strict --explicit-package-bases [four changed sources]
+FAILED: 16 pre-existing errors in collection.py and ollama_cloud_collection.py;
+no error was reported in a file changed by this correction
 
 python -m py_compile backend/src/agentmonitor/composition/ollama_cloud_connection.py
 passed
