@@ -182,3 +182,13 @@ semantic change therefore requires an adapter-version or fingerprint-schema
 version bump before a grant or receipt can be reused. Revocation prevents new
 dispatch but does not interrupt an already dispatched request. Marker creation,
 revocation, authenticated probing and scheduled-source admission are Not Run.
+
+The isolated signal-composition candidate rederives per-binding M03 scheduled
+permission from the exact current M02 authority and credential generation,
+terminal M04 verification job, M05 commit receipt, and latest M04 source
+signal. Its final pre-dispatch query excludes only the caller's exact reserved
+lease. Focused contract/domain tests and static checks pass. A credential
+rotation race remains: the shared account lock must stay held through the
+network helper and nested Secret Service subprocess, including parent death.
+The populated SQL, race, authorization, provider and dashboard paths remain
+Not Run; this candidate must not be activated.

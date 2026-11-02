@@ -42,12 +42,15 @@ from agentmonitor.adapters.providers.ollama.cloud_balance.freshness import (
 from agentmonitor.adapters.providers.ollama.cloud_balance.probe_descriptor import (
     ollama_cloud_probe_fingerprint,
     ollama_cloud_probe_source,
+    ollama_cloud_scheduled_policy,
+    require_matching_scheduled_proof,
 )
 from agentmonitor.adapters.providers.ollama.cloud_balance.source import (
     CLOUD_BALANCE_POLICY_V1,
     CloudBalanceSourceResultV1,
     probe_cloud_balance_for_binding_v1,
     read_cloud_balance_for_binding_v1,
+    read_scheduled_cloud_balance_v1,
 )
 from agentmonitor.adapters.providers.ollama.cloud_balance.verification_run import (
     build_scheduled_cloud_run,
@@ -73,6 +76,7 @@ from agentmonitor.contracts.collection_control_v1 import (
     CollectionRunAdmissionV1,
     CollectionRunAdmissionV2,
     OllamaCloudAdmissionDecisionV1,
+    OllamaCloudLatestSourceSignalQueryV1,
     OllamaCloudNoResponseCompletionV2,
     OllamaCloudRequestAcquireV1,
     OllamaCloudRequestCompletionV1,
@@ -88,6 +92,13 @@ from agentmonitor.contracts.common_v1 import (
     OpaqueIdV1,
     TechnicalValueV1,
 )
+from agentmonitor.contracts.provider_system_v1 import (
+    ScheduledSourceAdmissionProofV1,
+    ScheduledSourceLineageV1,
+    ScheduledSourceRunStateV1,
+    ScheduledSourceSignalDispatchCertaintyV1,
+    ScheduledSourceSignalRunStateV1,
+)
 from agentmonitor.contracts.registry_v1 import (
     ActiveCredentialBindingRefV1,
     ProviderTargetRefV1,
@@ -98,6 +109,9 @@ from agentmonitor.modules.collection_control.application.executor import (
 )
 from agentmonitor.modules.provider_system.application.gateway import (
     get_manifest_fingerprint_v1,
+)
+from agentmonitor.modules.provider_system.domain.protocol import (
+    derive_scheduled_source_admission_v1,
 )
 from agentmonitor.modules.registry.domain.credential_binding import (
     resolve_active_credential_binding,
@@ -487,7 +501,7 @@ class OllamaCloudCollectionV1:
 
     def tick(self):
         """Select eligible M02 targets, reserve the fair gate, then collect once."""
-        require_source_admitted(cloud_access_authorized(self._data_root))
+        require_probe_authorized(cloud_access_authorized(self._data_root))
         accounts = []
         cursor = None
         scanned = 0
@@ -557,6 +571,10 @@ class OllamaCloudCollectionV1:
                         )
                     except OllamaCloudTargetIneligible:
                         continue
+                    except ValueError as error:
+                        if str(error) != "ollama_cloud_source_not_admitted":
+                            raise
+                        continue
                     matches.append(
                         (
                             run,
@@ -571,8 +589,14 @@ class OllamaCloudCollectionV1:
             if len(matches) > 1:
                 raise ValueError("ollama_cloud_target_ambiguous")
             candidates.extend(matches)
-        for run, _ in candidates:
-            self.register_target(run)
+        registered = []
+        for run, subject in candidates:
+            try:
+                self.register_target(run)
+            except OllamaCloudTargetIneligible:
+                continue
+            registered.append((run, subject))
+        candidates = registered
         self._admission.reconcile_source_lane(
             tuple(run.schedule_id for run, _ in candidates)
         )
@@ -742,12 +766,148 @@ class OllamaCloudCollectionV1:
             raise OllamaCloudTargetIneligible("ollama_cloud_target_ineligible")
         return active
 
+    def _scheduled_proof(
+        self,
+        run: CollectionRunAdmissionV2,
+        binding: ActiveCredentialBindingRefV1,
+        lease: OllamaCloudRequestLeaseV1 | None = None,
+    ) -> ScheduledSourceAdmissionProofV1:
+        """Rebuild M03 permission from current M02 and durable M04/M05 facts."""
+        graph = self._cloud_registry.read_monitoring_target(binding.account_id)
+        verification = self._cloud_registry.read_current_verification(binding)
+        if graph is None or verification is None or graph.binding != binding:
+            raise OllamaCloudTargetIneligible("ollama_cloud_verification_required")
+        target = self._cloud_registry.read_active_access_target(graph.access_target_id)
+        if (
+            target is None
+            or target.manifest_fingerprint != verification.manifest_fingerprint
+        ):
+            raise OllamaCloudTargetIneligible("ollama_cloud_verification_required")
+        probe_job = self._admission.read_verification_job(
+            verification.run_id, verification.admission_id
+        )
+        probe_run = self._runs.get_run(verification.run_id)
+        capacity = SqliteCapacityRepositoryV1(self._reference).get_commit_status(
+            verification.run_id, "subscription.quota"
+        )
+        if (
+            probe_job is None
+            or probe_job.state != "terminal"
+            or probe_job.outcome != "succeeded"
+            or probe_job.dispatch_certainty != "response_received"
+            or probe_job.account_id != binding.account_id
+            or probe_job.binding_generation != binding.generation
+            or probe_job.access_target_id != graph.access_target_id
+            or probe_run.state not in {"succeeded", "partial"}
+            or probe_run.account_id is None
+            or probe_run.payload_digest is None
+            or capacity.state != "committed"
+            or capacity.receipt is None
+        ):
+            raise OllamaCloudTargetIneligible("ollama_cloud_verification_required")
+        policy = ollama_cloud_scheduled_policy()
+        now = datetime.now(UTC)
+        signal = self._admission.read_latest_source_signal(
+            OllamaCloudLatestSourceSignalQueryV1(
+                account_id=binding.account_id,
+                binding_generation=binding.generation,
+                access_target_id=graph.access_target_id,
+                capability_id=policy.capability_id,
+                source_id=policy.source_id,
+                adapter_version=policy.adapter_version,
+                source_fingerprint=policy.source_fingerprint,
+                payload_schema=policy.payload_schema,
+                queried_at=now,
+                exclude_active_lease=lease,
+            )
+        )
+        if (
+            signal.run_id is None
+            or signal.admission_id is None
+            or signal.run_state is None
+            or signal.dispatch_certainty is None
+            or signal.run_requested_at is None
+        ):
+            raise OllamaCloudTargetIneligible("ollama_cloud_source_signal_unavailable")
+        commit = capacity.receipt
+        lineage = ScheduledSourceLineageV1(
+            verification_id=verification.verification_id,
+            account_id=verification.binding.account_id,
+            binding_id=verification.binding.binding_id,
+            binding_generation=verification.binding.generation,
+            current_account_id=binding.account_id,
+            current_binding_id=binding.binding_id,
+            current_binding_generation=binding.generation,
+            access_target_id=verification.access_target_id,
+            current_access_target_id=graph.access_target_id,
+            target_kind="cloud_service",
+            provider_key=target.provider_key,
+            authority_id=target.authority_id,
+            capability_id=probe_run.capability_id,
+            source_id=verification.source_id,
+            adapter_version=verification.adapter_version,
+            source_fingerprint=verification.manifest_fingerprint,
+            payload_schema=commit.payload_schema,
+            probe_run_id=verification.run_id,
+            probe_admission_id=verification.admission_id,
+            dispatch_certainty="response_received",
+            run_state=cast(ScheduledSourceRunStateV1, probe_run.state),
+            run_account_id=probe_run.account_id,
+            run_target_generation=probe_run.target_generation,
+            run_source_id=probe_run.source_id,
+            run_adapter_version=probe_run.adapter_version,
+            run_payload_digest=probe_run.payload_digest,
+            payload_digest=verification.payload_digest,
+            commit_state="committed",
+            commit_run_id=commit.run_id,
+            commit_target_generation=commit.target_generation,
+            commit_payload_schema=commit.payload_schema,
+            commit_payload_digest=commit.payload_digest,
+            verified_at=verification.verified_at,
+            commit_stored_at=commit.stored_at,
+            identity_provenance="owner_asserted",
+            authorization_signal=signal.signal,
+            authorization_signal_run_id=signal.run_id,
+            authorization_signal_admission_id=signal.admission_id,
+            authorization_signal_account_id=signal.account_id,
+            authorization_signal_binding_generation=signal.binding_generation,
+            authorization_signal_access_target_id=signal.access_target_id,
+            authorization_signal_source_id=signal.source_id,
+            authorization_signal_adapter_version=signal.adapter_version,
+            authorization_signal_source_fingerprint=signal.source_fingerprint,
+            authorization_signal_payload_schema=signal.payload_schema,
+            authorization_signal_run_state=cast(
+                ScheduledSourceSignalRunStateV1, signal.run_state
+            ),
+            authorization_signal_dispatch_certainty=cast(
+                ScheduledSourceSignalDispatchCertaintyV1, signal.dispatch_certainty
+            ),
+            authorization_signal_run_requested_at=signal.run_requested_at,
+            authorization_signal_observed_at=signal.signal_observed_at,
+        )
+        try:
+            proof = derive_scheduled_source_admission_v1(
+                policy, lineage, evaluated_at=now
+            )
+            require_matching_scheduled_proof(binding, proof)
+            return proof
+        except ValueError:
+            raise OllamaCloudTargetIneligible(
+                "ollama_cloud_verification_required"
+            ) from None
+
     def register_target(
         self, run: CollectionRunAdmissionV1 | CollectionRunAdmissionV2
     ) -> None:
         """Register a genuine eligible account schedule without creating a run."""
-        require_source_admitted(cloud_access_authorized(self._data_root))
-        self._eligible_binding(run)
+        authority = cloud_access_authorized(self._data_root)
+        if isinstance(run, CollectionRunAdmissionV2):
+            require_probe_authorized(authority)
+            binding = self._eligible_binding(run)
+            self._scheduled_proof(run, binding)
+        else:
+            require_source_admitted(authority)
+            self._eligible_binding(run)
         self._admission.register_schedule(run)
 
     def execute_admitted(
@@ -759,6 +919,8 @@ class OllamaCloudCollectionV1:
         """Create and progress an M04 run around one admitted real source read."""
         authority = cloud_access_authorized(self._data_root)
         if run.trigger == "reauth_verification":
+            require_probe_authorized(authority)
+        elif isinstance(run, CollectionRunAdmissionV2):
             require_probe_authorized(authority)
         else:
             require_source_admitted(authority)
@@ -808,6 +970,12 @@ class OllamaCloudCollectionV1:
         )
         if remaining <= 1:
             raise ValueError("ollama_cloud_lease_expired")
+        scheduled_proof = None
+        if isinstance(run, CollectionRunAdmissionV2) and run.trigger == "scheduled":
+            current_binding = self._eligible_binding(run)
+            if current_binding != binding:
+                raise OllamaCloudTargetIneligible("ollama_cloud_target_ineligible")
+            scheduled_proof = self._scheduled_proof(run, binding, lease)
         self._admission.mark_dispatched(lease, datetime.now(UTC))
         current = datetime.now(UTC)
         remaining = min(
@@ -836,19 +1004,29 @@ class OllamaCloudCollectionV1:
             authority = cloud_access_authorized(self._data_root)
             if run.trigger == "reauth_verification":
                 require_probe_authorized(authority)
+            elif isinstance(run, CollectionRunAdmissionV2):
+                require_probe_authorized(authority)
             else:
                 require_source_admitted(authority)
         except ValueError:
             self._admission.revert_undispatched(lease)
             raise
-        source_reader = (
-            probe_cloud_balance_for_binding_v1
-            if run.trigger == "reauth_verification"
-            else read_cloud_balance_for_binding_v1
-        )
-        source = source_reader(
-            binding=binding, deadline_monotonic=time.monotonic() + source_budget
-        )
+        deadline = time.monotonic() + source_budget
+        if run.trigger == "reauth_verification":
+            source = probe_cloud_balance_for_binding_v1(
+                binding=binding, deadline_monotonic=deadline
+            )
+        elif isinstance(run, CollectionRunAdmissionV2):
+            if scheduled_proof is None:
+                self._admission.revert_undispatched(lease)
+                raise ValueError("ollama_cloud_scheduled_proof_invalid")
+            source = read_scheduled_cloud_balance_v1(
+                binding=binding, proof=scheduled_proof, deadline_monotonic=deadline
+            )
+        else:
+            source = read_cloud_balance_for_binding_v1(
+                binding=binding, deadline_monotonic=deadline
+            )
         completed = datetime.now(UTC)
         authorization_not_sent = (
             source.dispatch_certainty == "not_started"
@@ -1163,7 +1341,7 @@ class OllamaCloudCollectionV1:
 
     def acquire_next(self, now: datetime) -> OllamaCloudAdmissionDecisionV1:
         """Use M04's durable round-robin schedule selector, once admitted."""
-        require_source_admitted(cloud_access_authorized(self._data_root))
+        require_probe_authorized(cloud_access_authorized(self._data_root))
         return self._admission.acquire(
             OllamaCloudRequestAcquireV1(
                 admission_id=OpaqueIdV1("ollama-cloud-attempt-" + uuid.uuid4().hex),
