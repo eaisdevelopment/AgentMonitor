@@ -3,8 +3,9 @@
 from datetime import datetime
 from typing import Literal
 
-from agentmonitor.api.v1.schemas.registry import AvailabilityV1, PageMetaV1
 from pydantic import BaseModel, ConfigDict
+
+from agentmonitor.api.v1.schemas.registry import AvailabilityV1, PageMetaV1
 
 
 class _ClosedV1(BaseModel):
@@ -83,6 +84,7 @@ class QuotaWindowViewV1(_ClosedV1):
     window_key: str
     safe_label: str | None
     semantic_role: str | None = None
+    is_constraining: bool | None = None
     reset_at: datetime | None = None
     reset_precision: Literal["exact", "rounded", "range", "estimated", "unknown"] = (
         "unknown"

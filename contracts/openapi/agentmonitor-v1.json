@@ -5829,6 +5829,17 @@
             "title": "Freshness",
             "type": "string"
           },
+          "is_constraining": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Is Constraining"
+          },
           "limit": {
             "$ref": "#/components/schemas/ExactMetricFieldWireV1"
           },
@@ -21130,7 +21141,7 @@
     "generator_sha256": "0387918338b9b6180629a048c884838a628ab6afd7375eb2a285c5ce167072b9",
     "generator_version": "2.0.8",
     "openapi_version": "3.1.0",
-    "schema_sha256": "402145806bd50d1edbe28a7c298704162d9321d210d8cd9f5ff8e33940567399",
-    "source_sha256": "704788f96a339438eb5d7da73e8c7ff4702b8e4abfafe0c09ecfc18966beabd8"
+    "schema_sha256": "264ddf49a9f60b3f8b79f6ddbc90414eb58cd8b05744ca7974bdc15b6ae84a96",
+    "source_sha256": "5f4f4261f5e5f94fafb98b4fcacde4b2b7ef392400685c0b6f94b02b3a8168c4"
   }
 }

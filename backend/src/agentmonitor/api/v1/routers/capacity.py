@@ -3,6 +3,8 @@
 from datetime import UTC, datetime
 from typing import Annotated, Literal
 
+from fastapi import APIRouter, Query, Request
+
 from agentmonitor.api.problem import ProblemError
 from agentmonitor.api.v1.dependencies import authorize_request, observation_ports
 from agentmonitor.api.v1.routers._observation import (
@@ -52,7 +54,6 @@ from agentmonitor.modules.capacity.application.queries import (
     CapacityQueryUnavailableV1,
     GetQuotaAllowanceV1,
 )
-from fastapi import APIRouter, Query, Request
 
 router = APIRouter(tags=["capacity"])
 
@@ -125,6 +126,7 @@ def _window(item: DomainWindow) -> QuotaWindowViewV1:
         window_key=item.window_key,
         safe_label=item.safe_label,
         semantic_role=item.semantic_role,
+        is_constraining=item.is_constraining,
         reset_at=item.reset_at,
         reset_precision=item.reset_precision,
         allowance=QuotaAllowanceViewV1(
