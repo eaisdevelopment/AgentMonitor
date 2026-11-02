@@ -56,3 +56,14 @@ is evidence of bus-name reachability from a user-service context only. It does
 not prove the login collection is unlocked, that unattended lookup succeeds,
 or that behavior survives logout or reboot; no secret items were created,
 listed, read, or changed. The transient service was collected after exit.
+
+The installed recursive apt dependency-candidate inventory is recorded in
+[`m6-keyring-system-dependency-inventory.json`](../../evidence/m6-keyring-system-dependency-inventory.json).
+It contains 150 installed packages; 41 did not expose a machine-readable
+`License:` field in their installed copyright file and need manual review.
+It includes potential alternatives and is not a verified runtime-only graph
+or a release SBOM. Ubuntu's local package-status tool reported pending security
+updates on this host, without attributing them to this dependency; no package
+updates or reboots were performed. Owner approval covers the specifically
+named Secret Service/libsecret/keyring architecture from the approved plan;
+it does not by itself complete package security and redistribution review.
