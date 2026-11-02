@@ -3,7 +3,6 @@
 from datetime import UTC, datetime, timedelta
 
 import pytest
-
 from agentmonitor.contracts.collection_control_v1 import (
     InvalidCollectionControlV1,
     OllamaCloudVerificationClaimRequestV1,
@@ -26,6 +25,8 @@ def claim() -> OllamaCloudVerificationJobClaimV1:
     return OllamaCloudVerificationJobClaimV1(
         job_id=oid("amvj_" + "1" * 32),
         worker_instance_id=oid("worker-1"),
+        request_principal_id=oid("principal-1"),
+        idempotency_key_digest="a" * 64,
         schedule_id=oid("schedule-1"),
         account_id=oid("account-1"),
         access_target_id=oid("amat_" + "2" * 32),
@@ -55,7 +56,10 @@ def test_verification_enqueue_and_claim_are_exact_bounded_values() -> None:
 
     assert enqueue.binding_generation == 3
     assert request.claim_expires_at - request.claimed_at == timedelta(seconds=45)
-    assert claim().fencing_token == 4
+    claimed = claim()
+    assert claimed.fencing_token == 4
+    assert claimed.request_principal_id == enqueue.principal_id
+    assert claimed.idempotency_key_digest == "a" * 64
 
 
 def test_verification_claim_cannot_outlive_the_bounded_worker_lease() -> None:

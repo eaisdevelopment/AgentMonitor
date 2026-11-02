@@ -6,9 +6,6 @@ import hashlib
 import secrets
 from datetime import UTC, datetime, timedelta
 
-from sqlalchemy.engine import Connection, RowMapping
-from sqlalchemy.exc import SQLAlchemyError
-
 from agentmonitor.adapters.persistence._shared.sqlite.core.policy import (
     DatabaseRefV1,
     SqlitePolicyError,
@@ -42,6 +39,8 @@ from agentmonitor.modules.collection_control.domain.ollama_rate_policy import (
     cloud_schedule_generation_action,
     reserve_after_lease,
 )
+from sqlalchemy.engine import Connection, RowMapping
+from sqlalchemy.exc import SQLAlchemyError
 
 _GATE_ID = "ollama-cloud-balance-v1"
 _PROVIDER_KEY = "ollama"
@@ -169,6 +168,8 @@ def _verification_claim(row: RowMapping) -> OllamaCloudVerificationJobClaimV1:
     return OllamaCloudVerificationJobClaimV1(
         job_id=OpaqueIdV1(str(row["job_id"])),
         worker_instance_id=OpaqueIdV1(str(row["claim_owner_id"])),
+        request_principal_id=OpaqueIdV1(str(row["principal_id"])),
+        idempotency_key_digest=str(row["idempotency_digest"]),
         schedule_id=OpaqueIdV1(str(row["schedule_id"])),
         account_id=OpaqueIdV1(str(row["account_id"])),
         access_target_id=OpaqueIdV1(str(row["access_target_id"])),
@@ -1555,6 +1556,8 @@ class SqliteOllamaCloudAdmissionRepositoryV1:
                     )
                     if row is None or (
                         row["claim_owner_id"] != claim.worker_instance_id.value
+                        or row["principal_id"] != claim.request_principal_id.value
+                        or row["idempotency_digest"] != claim.idempotency_key_digest
                         or int(row["claim_fencing_token"]) != claim.fencing_token
                         or _utc_value(row["claimed_at"]) != claim.claimed_at
                         or _utc_value(row["claim_expires_at"]) != claim.claim_expires_at

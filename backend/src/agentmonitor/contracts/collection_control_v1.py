@@ -439,6 +439,8 @@ class OllamaCloudVerificationJobClaimV1(TechnicalValueV1):
 
     job_id: OpaqueIdV1
     worker_instance_id: OpaqueIdV1
+    request_principal_id: OpaqueIdV1
+    idempotency_key_digest: str
     schedule_id: OpaqueIdV1
     account_id: OpaqueIdV1
     access_target_id: OpaqueIdV1
@@ -452,6 +454,8 @@ class OllamaCloudVerificationJobClaimV1(TechnicalValueV1):
         TechnicalValueV1.__post_init__(self)
         if (
             not _verification_job_id(self.job_id)
+            or not isinstance(self.request_principal_id, OpaqueIdV1)
+            or _SHA256.fullmatch(self.idempotency_key_digest) is None
             or not _cloud_access_target_id(self.access_target_id)
             or type(self.binding_generation) is not int
             or self.binding_generation < 1
