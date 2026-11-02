@@ -100,8 +100,9 @@ try {
   while (Date.now() < processDeadline) {
     const response = await page.request.get(
       `${origin}/api/v1/process-metrics?provider_key=ollama&limit=200`,
+      { headers: { Origin: origin } },
     );
-    if (!response.ok()) throw new Error("ollama_process_api_unavailable");
+    if (!response.ok()) throw new Error(`ollama_process_api_unavailable_${response.status()}`);
     processPayload = await response.json();
     if (processPayload.items?.length > 0) break;
     await page.waitForTimeout(100);

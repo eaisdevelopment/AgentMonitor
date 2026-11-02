@@ -158,3 +158,14 @@ table already renders persisted Ollama rows; its real browser scenario was
 extended but is **Not Run** in this isolated worktree and remains required after
 integration. Capability admission, model/process relationship, browser proof,
 and other-host coverage remain open.
+
+On the integration candidate, the real built-browser Ollama catalog/Sessions
+scenario passed on 2 November 2026. It verified a live persisted Ollama
+process row and source, automatic catalog refresh, and desktop/mobile widths.
+An earlier attempt received HTTP 403 because the test's direct request omitted
+the required same-origin header; adding that header fixed the test, not a
+production authentication policy. The real local service and temporary test
+database were used; the installed dashboard was not restarted. A separate
+focused integration run passed 53 tests. Review subsequently identified
+lifecycle cancellation and provider-availability concerns, which are still
+being corrected; this browser pass does not establish full M6 completion.
