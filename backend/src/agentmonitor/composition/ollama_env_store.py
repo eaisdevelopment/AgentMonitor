@@ -723,6 +723,8 @@ def cleanup_untracked_env_entries(
             )
         if not has_unfinished_bindings() and not _managed_binding_ids(env_path):
             _validate_staging_guard(root, lock)
+            if not _location_matches(root, env_path, create=False):
+                raise ValueError("ollama_env_location_mismatch")
             os.unlink(_LOCATION_NAME, dir_fd=root)
             os.fsync(root)
     finally:

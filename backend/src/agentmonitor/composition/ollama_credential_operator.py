@@ -217,16 +217,27 @@ def main(argv: list[str] | None = None) -> int:
                 " (archived; cleanup only)" if account.lifecycle == "archived" else ""
             )
             print(f"{index}. {safe_label(organization)} / {label}{suffix}")
+        can_clean_orphans = not SqliteCredentialBindingsV1(
+            reference
+        ).has_unfinished_bindings()
+        if can_clean_orphans:
+            print(
+                f"{len(accounts) + 1}. Remove leftover AgentMonitor credential entries"
+            )
         choice = input("Account number (or Enter to cancel): ").strip()
         if not choice:
             return 0
         if (
             not choice.isascii()
             or not choice.isdecimal()
-            or not 1 <= int(choice) <= len(accounts)
+            or not 1 <= int(choice) <= len(accounts) + int(can_clean_orphans)
         ):
             print("Invalid account number.")
             return 2
+        if can_clean_orphans and int(choice) == len(accounts) + 1:
+            cleanup_untracked_ollama_credentials(reference, env_file)
+            print("Leftover AgentMonitor credential entries removed.")
+            return 0
         account = accounts[int(choice) - 1]
         if account.lifecycle == "archived":
             cleanup_ollama_credential(

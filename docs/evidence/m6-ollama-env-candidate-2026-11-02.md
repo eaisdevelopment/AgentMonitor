@@ -44,6 +44,11 @@ No administrator, account, credential or telemetry was fabricated. The
 isolated processes and temporary databases were removed afterward. This does
 not validate authenticated onboarding, provider access or any `.env` update.
 
+The account form labels its free-form identifier as “Provider” and explains
+that it is not an API key; suggestions do not restrict other provider names.
+The frontend typecheck and build passed; an authenticated browser check of
+this form remains Not Run.
+
 After the unshipped credential-contention schema amendment, canonical
 `AUTO-MIGRATE` passed from a private read-only backup of the installed real
 v1_0707 database to v1_0717, with its verified private pre-migration backup.

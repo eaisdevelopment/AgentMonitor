@@ -308,10 +308,12 @@ export function AccountPage({
       <p className="provenance-line">{state.data.availability.reason_code.replaceAll("_", " ")} · as of {new Date(state.data.availability.as_of).toLocaleString()}</p>
       {displayMode === "page" && <section aria-labelledby="add-account-title">
         <h2 id="add-account-title">Add pending account</h2>
-        <p>The record can be grouped now. Monitoring stays disabled until provider identity is confirmed.</p>
+        <p>The record can be grouped now. Monitoring starts after the account is connected.</p>
         <form onSubmit={create}>
-          <label htmlFor="provider-key">Provider key</label>
-          <input id="provider-key" value={providerKey} onChange={(event) => setProviderKey(event.target.value)} maxLength={64} required autoComplete="off" />
+          <label htmlFor="provider-key">Provider</label>
+          <input id="provider-key" value={providerKey} onChange={(event) => setProviderKey(event.target.value)} maxLength={64} required autoComplete="off" list="provider-options" placeholder="e.g. ollama" aria-describedby="provider-help" />
+          <datalist id="provider-options"><option value="ollama" /><option value="claude" /><option value="codex" /></datalist>
+          <small id="provider-help">Enter the provider name, not an API key.</small>
           <label htmlFor="account-name">Account name</label>
           <input id="account-name" value={accountName} onChange={(event) => setAccountName(event.target.value)} maxLength={256} required autoComplete="off" />
           <label htmlFor="account-organization">Organization</label>
