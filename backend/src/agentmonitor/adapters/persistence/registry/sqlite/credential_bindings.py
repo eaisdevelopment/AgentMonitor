@@ -22,7 +22,10 @@ from agentmonitor.contracts.registry_v1 import (
     CredentialBindingAggregateV1,
     CredentialBindingRecordV1,
 )
-from agentmonitor.modules.registry.domain.account import RegistryPolicyErrorV1
+from agentmonitor.modules.registry.domain.account import (
+    RegistryPolicyErrorV1,
+    decide_account_monitoring,
+)
 from agentmonitor.modules.registry.domain.credential_binding import (
     activate_prepared_credential_binding,
     complete_credential_binding_cleanup,
@@ -81,7 +84,50 @@ def ensure_active_binding_in_transaction(
             "credential_binding_transaction_required"
         )
     aggregate = _load(connection, reference.account_id)
+    account = connection.exec_driver_sql(
+        "SELECT lifecycle,monitoring_preference,identity_state FROM reg_account WHERE account_id=?",
+        (reference.account_id.value,),
+    ).first()
+    if (
+        account is None
+        or not decide_account_monitoring(
+            lifecycle=account[0],
+            monitoring_preference=account[1],
+            identity_state=account[2],
+        ).is_enabled
+    ):
+        raise CredentialBindingRepositoryErrorV1(
+            "credential_binding_monitoring_disabled"
+        )
     ensure_credential_binding_commit_current(aggregate, reference)
+
+
+def ensure_monitored_graph_in_transaction(
+    connection: Connection,
+    account_id: OpaqueIdV1,
+    profile_id: OpaqueIdV1,
+    resource_id: OpaqueIdV1,
+    installation_id: OpaqueIdV1,
+) -> None:
+    """M02 port for the live account/profile/resource monitoring graph."""
+    if not connection.in_transaction():
+        raise CredentialBindingRepositoryErrorV1(
+            "credential_binding_transaction_required"
+        )
+    found = connection.exec_driver_sql(
+        "SELECT 1 FROM reg_monitoring_profile p "
+        "JOIN reg_profile_resource_link l ON l.account_id=p.account_id AND l.profile_id=p.profile_id "
+        "JOIN reg_account_resource r ON r.account_id=l.account_id AND r.resource_id=l.resource_id "
+        "WHERE p.account_id=? AND p.profile_id=? AND r.resource_id=? AND p.provider_installation_id=? "
+        "AND p.lifecycle='active' AND p.management_state='managed' AND p.protected_default_profile=0 "
+        "AND p.compatibility_state='compatible' AND p.identity_verification_state IN ('owner_confirmed','provider_verified') "
+        "AND p.purpose IN ('subscription','combined') AND r.lifecycle='active' AND r.kind='subscription_pool'",
+        (account_id.value, profile_id.value, resource_id.value, installation_id.value),
+    ).first()
+    if found is None:
+        raise CredentialBindingRepositoryErrorV1(
+            "credential_binding_target_unavailable"
+        )
 
 
 def archive_bindings_in_transaction(

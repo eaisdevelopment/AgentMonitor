@@ -42,3 +42,15 @@ def admission_outcome_for_source(state: str) -> str:
     if state == "rate_limited":
         return "rate_limited"
     return "failed"
+
+
+def eligible_cloud_account(
+    provider: str, lifecycle: str, effective_monitoring: bool, identity_state: str
+) -> bool:
+    """Do not schedule archived, disabled or unassociated accounts."""
+    return (
+        provider == "ollama"
+        and lifecycle == "active"
+        and effective_monitoring is True
+        and identity_state in {"owner_confirmed", "matched"}
+    )

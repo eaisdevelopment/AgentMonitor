@@ -204,6 +204,104 @@ class SqliteOllamaCloudAdmissionRepositoryV1:
     def __init__(self, database_ref: DatabaseRefV1) -> None:
         self._database_ref = database_ref
 
+    def assert_active(self, lease: OllamaCloudRequestLeaseV1, now: datetime) -> None:
+        """Check the acquired gate before starting the one provider request."""
+        try:
+            with open_sqlite_database(
+                self._database_ref, "runtime_read_only"
+            ) as handle:
+                with handle.connect() as connection:
+                    connection.exec_driver_sql("BEGIN")
+                    ensure_ollama_lease_in_transaction(connection, lease, now)
+        except OllamaCloudAdmissionRepositoryErrorV1:
+            raise
+        except (SQLAlchemyError, SqlitePolicyError, OSError, ValueError, TypeError):
+            raise OllamaCloudAdmissionRepositoryErrorV1() from None
+
+    def register_schedule(self, admission: CollectionRunAdmissionV1) -> None:
+        """Register one genuine target for fair selection without creating a run."""
+        if (
+            admission.provider_key != _PROVIDER_KEY
+            or admission.capability_id != _CAPABILITY_ID
+            or admission.source_id != "ollama.cloud.balance.v1"
+            or admission.trigger != "scheduled"
+            or admission.account_id is None
+            or admission.profile_id is None
+            or admission.resource_id is None
+        ):
+            raise OllamaCloudAdmissionRepositoryErrorV1("ollama_cloud_schedule_invalid")
+        try:
+            with open_sqlite_database(
+                self._database_ref, "runtime_read_write"
+            ) as handle:
+                with handle.connect() as connection:
+                    connection.exec_driver_sql("BEGIN IMMEDIATE")
+                    row = (
+                        connection.exec_driver_sql(
+                            "SELECT * FROM collection_schedule WHERE schedule_id=?",
+                            (admission.schedule_id.value,),
+                        )
+                        .mappings()
+                        .one_or_none()
+                    )
+                    target = (
+                        admission.target_key_digest,
+                        admission.provider_key,
+                        admission.installation_id.value,
+                        admission.account_id.value,
+                        admission.profile_id.value,
+                        admission.resource_id.value,
+                        admission.capability_id,
+                    )
+                    if row is None:
+                        instant = _utc_text(admission.requested_at)
+                        connection.exec_driver_sql(
+                            "INSERT INTO collection_schedule "
+                            "(schedule_id,target_key_digest,provider_key,installation_id,"
+                            "account_id,profile_id,resource_id,capability_id,state,activity_class,"
+                            "base_interval_seconds,effective_interval_seconds,target_generation,"
+                            "next_due_at,not_before_at,backoff_kind,backoff_generation,"
+                            "consecutive_failure_count,last_attempted_run_id,last_successful_run_id,"
+                            "last_terminal_outcome_code,record_version,created_at,"
+                            "updated_at) "
+                            "VALUES (?,?,?,?,?,?,?,?,'enabled','unknown',300,300,?,?"
+                            ",NULL,NULL,"
+                            "0,0,NULL,NULL,NULL,1,?,?)",
+                            (
+                                admission.schedule_id.value,
+                                *target,
+                                admission.target_generation,
+                                instant,
+                                instant,
+                                instant,
+                            ),
+                        )
+                    else:
+                        actual = tuple(
+                            row[key]
+                            for key in (
+                                "target_key_digest",
+                                "provider_key",
+                                "installation_id",
+                                "account_id",
+                                "profile_id",
+                                "resource_id",
+                                "capability_id",
+                            )
+                        )
+                        if (
+                            actual != target
+                            or row["target_generation"] != admission.target_generation
+                        ):
+                            raise OllamaCloudAdmissionRepositoryErrorV1(
+                                "ollama_cloud_schedule_conflict"
+                            )
+                    connection.commit()
+        except OllamaCloudAdmissionRepositoryErrorV1:
+            raise
+        except (SQLAlchemyError, SqlitePolicyError, OSError, ValueError, TypeError):
+            raise OllamaCloudAdmissionRepositoryErrorV1() from None
+
     def acquire(
         self, request: OllamaCloudRequestAcquireV1
     ) -> OllamaCloudAdmissionDecisionV1:

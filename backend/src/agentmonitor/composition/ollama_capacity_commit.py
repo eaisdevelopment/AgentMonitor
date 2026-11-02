@@ -16,6 +16,7 @@ from agentmonitor.adapters.persistence.collection_control.sqlite.ollama_cloud_ad
 )
 from agentmonitor.adapters.persistence.registry.sqlite.credential_bindings import (
     ensure_active_binding_in_transaction,
+    ensure_monitored_graph_in_transaction,
 )
 from agentmonitor.contracts.collection_control_v1 import (
     CollectionRunAdmissionV1,
@@ -39,6 +40,15 @@ def ollama_capacity_repository(
         ensure_ollama_lease_in_transaction(connection, lease, now)
         ensure_ollama_run_in_transaction(connection, lease, run, payload_digest, now)
         ensure_active_binding_in_transaction(connection, binding)
+        if run.account_id is None or run.profile_id is None or run.resource_id is None:
+            raise ValueError("ollama_cloud_target_mismatch")
+        ensure_monitored_graph_in_transaction(
+            connection,
+            run.account_id,
+            run.profile_id,
+            run.resource_id,
+            run.installation_id,
+        )
 
     return SqliteCapacityRepositoryV1(
         reference,
