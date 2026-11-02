@@ -56,6 +56,8 @@ def test_scheduled_proof_is_bound_to_current_account_and_policy() -> None:
         adapter_version=policy.adapter_version,
         run_adapter_version=policy.adapter_version,
         source_fingerprint=policy.source_fingerprint,
+        authorization_signal_adapter_version=policy.adapter_version,
+        authorization_signal_source_fingerprint=policy.source_fingerprint,
     )
     proof = derive_scheduled_source_admission_v1(
         policy, origin, evaluated_at=NOW + timedelta(seconds=2)
