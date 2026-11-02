@@ -214,3 +214,10 @@ are distinct and retryable only when the durable gate permits; unknown freshness
 stays unavailable. The new unshipped status states were checked against public
 GitHub main rather than the intermediate candidate schema. Pure status checks
 went red then green; real cloud status and browser behavior remain Not Run.
+
+The candidate Ollama account page now reads the versioned connection status and
+can request a check only when the server permits it. It displays stale and
+retryable wording and the actual last-check time, and never accepts a credential.
+Frontend typecheck and production build pass. No authorized cloud account was available
+for a browser check; UI red/green, authenticated browser behavior and provider
+verification remain Not Run. The running dashboard was not changed.

@@ -4,7 +4,7 @@ export type OllamaCloudConnectionCopy = Readonly<{ title: string; description: s
 export function ollamaCloudConnectionCopy(state: string): OllamaCloudConnectionCopy {
   switch (state) {
     case "not_configured":
-      return { title: "Ollama cloud not connected", description: "Connect this account to start monitoring its cloud balance." };
+      return { title: "Ollama cloud not connected", description: "No credential is configured for this account." };
     case "pending":
       return { title: "Waiting for a connection check", description: "The balance check has not completed yet." };
     case "stale":
