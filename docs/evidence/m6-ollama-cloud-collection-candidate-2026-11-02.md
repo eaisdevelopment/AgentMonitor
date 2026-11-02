@@ -39,3 +39,14 @@ The V2 type and real empty-schema migration checks pass; the isolated v1_0711→
 The candidate adds CTR-COL-009 v1.0.0 and schema v1_0712 to record a proven no-request outcome without inventing a provider response time. It preserves the exact sanitized failure category and rate-limit outcome for journal recovery, releases the associated request budget only with fenced no-request evidence, and keeps unknown dispatched outcomes unresolved. This affects M04 collection contracts and persistence, the Ollama adapter and the M04/M05 collection composition; it does not enable cloud scheduling.
 
 Verification on this checkout: 16 focused domain, provider-policy, real empty-SQLite migration and registry tests passed, including an empty v1_0711-to-v1_0712 upgrade with a backup. Ruff and Git whitespace checks passed. The schema digest was recomputed from an isolated fresh Alembic migration. The V2 domain test had previously failed before its contract was added; the new persistence and recovery behavior has **not** received its required behavioral red/green or concurrency tests. Populated migration, crash and compare-and-set recovery, live Secret Service enrollment, authenticated provider collection, dashboard verification and the completion gate remain **not run**. The prior planning validator remains failing and must be reconciled before lifecycle approval. No dependency or license changes were made. The migration is forward-only and requires the documented backup; no live database, user profile or agent was modified. No provider credentials or response content were recorded.
+
+## Cloud-target migration checkpoint
+
+The offline `AUTO-MIGRATE` candidate now supports v1_0712 to v1_0713 and
+preserves the previously admitted upgrade sources. The v1_0712 upgrade test
+first failed because that source was not supported, then passed with a verified
+private backup after the update. The full isolated offline migration suite
+passed 13 tests, including prior source revisions. This exposed and corrected
+an earlier accidental change to the v1_0700–v1_0702 schema digest. These tests
+used empty real SQLite schemas; populated upgrades, installed activation and
+restore remain Not Run. No live application database was changed.
