@@ -12,7 +12,6 @@ import sys
 import threading
 import time
 import uuid
-from contextlib import closing
 from pathlib import Path
 
 import pytest
@@ -35,10 +34,9 @@ from tools.automation.implementations.auto_migrate import _hold_settings_lock
 from tools.automation.implementations.m6_cutover import (
     CutoverError,
     _cutover_engine,
+    _recover_migration_engine,
     cutover,
-)
-from tools.automation.implementations.m6_migration_recovery import (
-    _recover_migration_before_start,
+    recover_interrupted_migration,
 )
 from tools.automation.implementations.m6_offline_restore import (
     classify_restore_recovery,
@@ -192,15 +190,9 @@ _cutover_engine(unit=sys.argv[1], data_root=Path(sys.argv[2]), baseline=Path(sys
                         if data["phase"] == "stopped" and backup.is_dir():
                             if case == "migration_crash_backup":
                                 break
-                            with closing(
-                                sqlite3.connect(
-                                    f"file:{root / 'agentmonitor.db'}?mode=ro", uri=True
-                                )
-                            ) as db:
-                                marker = db.execute(
-                                    "SELECT version_num FROM alembic_version"
-                                ).fetchone()[0]
-                            if marker == load_migration_catalog().head:
+                            if (backup / "manifest.json").is_file() and (
+                                root / ".m6-cutover-journal.json.next"
+                            ).is_file():
                                 break
                     except (
                         FileNotFoundError,
@@ -221,21 +213,18 @@ _cutover_engine(unit=sys.argv[1], data_root=Path(sys.argv[2]), baseline=Path(sys
                     worker.terminate()
                     worker.wait(timeout=20)
             old_backup = data["backup_id"]
-            with (
-                _hold_transition_locks(root) as transition_lease,
-                exclusive_service_quiescence(root, ref) as service_lease,
-                _hold_settings_lock(root) as settings_lease,
-            ):
+            interrupted_journal = root / ".m6-cutover-journal.json.next"
+            if case == "migration_crash_committed":
+                assert interrupted_journal.is_file()
+            with _hold_transition_locks(root) as transition_lease:
                 assert (
-                    _recover_migration_before_start(
-                        root,
-                        transition_lease=transition_lease,
-                        service_lease=service_lease,
-                        settings_lease=settings_lease,
-                    )
+                    _recover_migration_engine(root, transition_lease, data)
                     == "migration_recovered"
                 )
             recovered = json.loads(journal.read_text())
+            if case == "migration_crash_committed":
+                assert not interrupted_journal.exists()
+                assert len(list((root / ".m6-journal-orphans").iterdir())) == 1
             assert recovered["phase"] == "migrated"
             if case == "migration_crash_backup":
                 assert old_backup in recovered["prior_backup_ids"]
@@ -525,6 +514,7 @@ with _hold_transition_locks(root) as transition, exclusive_service_quiescence(ro
 
 def test_public_cutover_target_is_not_caller_selectable() -> None:
     assert not inspect.signature(cutover).parameters
+    assert not inspect.signature(recover_interrupted_migration).parameters
     implementation = Path(__file__).resolve().parents[1] / "implementations"
     callers = []
     for path in implementation.glob("*.py"):
@@ -537,3 +527,28 @@ def test_public_cutover_target_is_not_caller_selectable() -> None:
             ):
                 callers.append(path.name)
     assert callers == ["m6_cutover.py"]
+
+
+def test_recovery_command_is_cataloged_and_rejects_target_arguments() -> None:
+    root = Path(__file__).resolve().parents[3]
+    catalog = subprocess.run(
+        ["/usr/bin/python3", "tools/automation/run.py", "--list"],
+        cwd=root,
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    assert "AUTO-M6-RECOVER-MIGRATION\toperational_limited\t" in catalog.stdout
+    result = subprocess.run(
+        [
+            "/usr/bin/python3",
+            "tools/automation/implementations/auto_m6_recover_migration.py",
+            "--target",
+        ],
+        cwd=root,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert result.returncode == 3
+    assert "no target arguments are accepted" in result.stdout

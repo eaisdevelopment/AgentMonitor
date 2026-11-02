@@ -77,6 +77,14 @@ implementation_command = ["python3", "-m", "tools.automation.implementations.aut
 blockers = ["Authenticated installed-browser verification remains separate", "A concurrent child-spawn race and crash interruption cannot be excluded", "This does not complete M6"]
 
 [[routines]]
+id = "AUTO-M6-RECOVER-MIGRATION"
+owner = "PLAN-INT"
+status = "operational_limited"
+scope = "fixed local dashboard stopped-phase migration recovery; retains the start block and does not start the service"
+implementation_command = ["python3", "tools/automation/implementations/auto_m6_recover_migration.py"]
+blockers = ["Only a matching stopped-phase journal and compatible pinned migration catalog are accepted", "Independent live deployment and dashboard readiness remain separate"]
+
+[[routines]]
 id = "AUTO-M6-LOCAL-ADMIT"
 owner = "PLAN-A03"
 status = "operational_limited"

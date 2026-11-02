@@ -51,6 +51,9 @@ from tools.automation.implementations.m5_service_activation import (
     validate_m5_service_activation_lock_v1,
 )
 from tools.automation.implementations.m6_frontend_build import build_clean_frontend
+from tools.automation.implementations.m6_migration_recovery import (
+    _recover_migration_before_start,
+)
 from tools.automation.implementations.m6_offline_restore import (
     _read_private_json,
 )
@@ -938,6 +941,61 @@ def cutover() -> str:
         expected_build=candidate_build,
         expected_executable=_FIXED_EXECUTABLE,
     )
+
+
+def recover_interrupted_migration() -> str:
+    """Recover only the fixed dashboard's recorded pre-start migration.
+
+    This retains the service start block and never starts a process. The
+    selected source/build and installed unit must still match the journal.
+    """
+    root = _FIXED_DATA
+    with _hold_transition_locks(root) as transition:
+        journal = root / ".m6-cutover-journal.json"
+        data = _read_private_json(journal)
+        receipt = data.get("stop_receipt")
+        candidate_revision = data.get("candidate_revision")
+        candidate_build = data.get("candidate_build_sha256")
+        if (
+            data.get("format") != "m6-cutover.v1"
+            or data.get("phase") != "stopped"
+            or data.get("unit") != _FIXED_UNIT
+            or data.get("source_revision") != "v1_0707"
+            or data.get("baseline_revision") != _FIXED_BASELINE_REVISION
+            or data.get("fixed_unit_sha256") != _FIXED_UNIT_SHA256
+            or data.get("fixed_baseline_override_sha256") != _FIXED_OVERRIDE_SHA256
+            or data.get("fixed_runtime_sha256") != _FIXED_VENV_SHA256
+            or data.get("fixed_python_sha256") != _FIXED_PYTHON_SHA256
+            or not isinstance(receipt, dict)
+            or receipt.get("unit") != _FIXED_UNIT
+            or not isinstance(candidate_revision, str)
+            or re.fullmatch(r"[a-f0-9]{40}", candidate_revision) is None
+            or not isinstance(candidate_build, str)
+            or re.fullmatch(r"[a-f0-9]{64}", candidate_build) is None
+        ):
+            raise CutoverError("migration_recovery_target_invalid")
+        transition.validate(root)
+        _fixed_unit_preflight(candidate_revision, candidate_build, guarded=True)
+        return _recover_migration_engine(root, transition, data)
+
+
+def _recover_migration_engine(root: Path, transition, expected_journal: dict) -> str:
+    """Hold the same service and settings locks for the entire recovery."""
+    journal = root / ".m6-cutover-journal.json"
+    reference = DatabaseRefV1(root / "agentmonitor.db", root)
+    with (
+        exclusive_service_quiescence(root, reference) as service,
+        _hold_settings_lock(root) as settings,
+    ):
+        transition.validate(root)
+        if _read_private_json(journal) != expected_journal:
+            raise CutoverError("migration_recovery_journal_changed")
+        return _recover_migration_before_start(
+            root,
+            transition_lease=transition,
+            service_lease=service,
+            settings_lease=settings,
+        )
 
 
 def main() -> int:

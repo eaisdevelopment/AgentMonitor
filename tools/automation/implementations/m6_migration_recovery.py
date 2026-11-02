@@ -6,6 +6,7 @@ import json
 import os
 import re
 import secrets
+import stat
 from pathlib import Path
 
 from agentmonitor.adapters.persistence._shared.sqlite.core.policy import (
@@ -72,6 +73,35 @@ def _replace_journal(path: Path, before: dict, after: dict) -> None:
     _fsync_dir(path.parent)
     if _read_private_json(path) != after:
         raise MigrationRecoveryError("migration_recovery_journal_changed")
+
+
+def _preserve_interrupted_journal(root: Path) -> None:
+    """Retain, rather than reuse or delete, a killed writer's temp journal."""
+    temporary = root / ".m6-cutover-journal.json.next"
+    try:
+        info = temporary.lstat()
+    except FileNotFoundError:
+        return
+    if (
+        not stat.S_ISREG(info.st_mode)
+        or info.st_uid != os.getuid()
+        or stat.S_IMODE(info.st_mode) != 0o600
+        or info.st_nlink != 1
+    ):
+        raise MigrationRecoveryError("migration_recovery_temp_unsafe")
+    directory = root / ".m6-journal-orphans"
+    directory.mkdir(mode=0o700, exist_ok=True)
+    _safe_directory(directory)
+    _fsync_dir(root)
+    destination = directory / ("journal-" + secrets.token_hex(16))
+    if destination.exists() or destination.is_symlink():
+        raise MigrationRecoveryError("migration_recovery_temp_unsafe")
+    os.rename(temporary, destination)
+    _fsync_dir(directory)
+    _fsync_dir(root)
+    moved = destination.lstat()
+    if (moved.st_dev, moved.st_ino) != (info.st_dev, info.st_ino):
+        raise MigrationRecoveryError("migration_recovery_temp_unsafe")
 
 
 def _receipt(data: dict) -> QuiescentStopReceipt:
@@ -195,6 +225,12 @@ def _recover_migration_before_start(
         )
         if view.integrity_state != "passed" or view.policy_state != "passed":
             raise MigrationRecoveryError("migration_recovery_database_invalid")
+        _preserve_interrupted_journal(root)
+        transition_lease.validate(root)
+        service_lease.validate(root)
+        settings_lease.validate(root)
+        if _verify_stopped(receipt) != current or _read_private_json(journal) != data:
+            raise MigrationRecoveryError("migration_recovery_service_changed")
         if view.current_revision == source and view.state == "upgrade_required":
             # The source is intact. Preserve any incomplete old backup and bind
             # a new ID durably before allowing another migration attempt.
