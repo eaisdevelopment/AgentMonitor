@@ -40,7 +40,9 @@ _READ_CHUNK_BYTES = 16 * 1024
 _MAX_JSON_DEPTH = 5
 _MAX_JSON_NODES = 24
 _MAX_JSON_STRING_BYTES = 64
-_MAX_RETRY_AFTER_SECONDS = 365 * 24 * 60 * 60
+_MAX_RETRY_AFTER_SECONDS = 2**63 - 1
+_MAX_RETRY_AFTER_TEXT = str(_MAX_RETRY_AFTER_SECONDS)
+_MAX_BEARER_BYTES = 4096
 _RETAINED_HEADERS = frozenset(
     {
         "content-encoding",
@@ -71,6 +73,10 @@ class CloudBalancePolicyV1:
     maximum_header_count: int
     maximum_header_bytes: int
     maximum_body_bytes: int
+    authenticated_collection_admitted: Literal[False]
+    operation_deadline_strict: Literal[False]
+    dns_deadline_strict: Literal[False]
+    wire_header_limit_strict: Literal[False]
 
 
 CLOUD_BALANCE_POLICY_V1 = CloudBalancePolicyV1(
@@ -89,21 +95,70 @@ CLOUD_BALANCE_POLICY_V1 = CloudBalancePolicyV1(
     maximum_header_count=64,
     maximum_header_bytes=16 * 1024,
     maximum_body_bytes=64 * 1024,
+    authenticated_collection_admitted=False,
+    operation_deadline_strict=False,
+    dns_deadline_strict=False,
+    wire_header_limit_strict=False,
 )
 
 
+class _AuthorizationContractInvalid(RuntimeError):
+    pass
+
+
+class CloudBalanceAuthorizationSinkV1:
+    """Single-use bearer sink with no transport or debug-control authority."""
+
+    __slots__ = ("__active", "__applied", "__connection")
+
+    def __init__(self, connection: http.client.HTTPSConnection) -> None:
+        self.__connection = connection
+        self.__active = True
+        self.__applied = False
+
+    def put_bearer_token_v1(self, token: bytearray) -> None:
+        """Consume one bounded visible-ASCII token and clear the caller buffer."""
+        if not self.__active or self.__applied:
+            raise _AuthorizationContractInvalid(
+                "ollama_cloud_authorization_contract_invalid"
+            )
+        if type(token) is not bytearray:
+            raise _AuthorizationContractInvalid(
+                "ollama_cloud_authorization_contract_invalid"
+            )
+        try:
+            if not 1 <= len(token) <= _MAX_BEARER_BYTES or any(
+                value < 0x21 or value > 0x7E for value in token
+            ):
+                raise _AuthorizationContractInvalid(
+                    "ollama_cloud_authorization_contract_invalid"
+                )
+            self.__connection.putheader("Authorization", b"Bearer " + bytes(token))
+            self.__applied = True
+        finally:
+            token[:] = b"\x00" * len(token)
+
+    def _finish_v1(self) -> None:
+        self.__active = False
+        if not self.__applied:
+            raise _AuthorizationContractInvalid(
+                "ollama_cloud_authorization_contract_invalid"
+            )
+
+    def _cancel_v1(self) -> None:
+        self.__active = False
+
+
 class CloudBalanceAuthorizationV1(Protocol):
-    """Private grant that writes only the header for an already-bound request.
+    """Resolved private grant limited to a single-use bearer sink.
 
     The provider key never appears in this method signature or return value.
     The future credential boundary owns transient retrieval and header
-    application.  The adapter has already fixed the TLS peer, request line and
-    ordinary headers before calling this method.
+    application. The grant receives no connection, destination, request,
+    logging, debug, redirect, or response authority.
     """
 
-    def apply_authorization_header_v1(
-        self, connection: http.client.HTTPSConnection
-    ) -> None: ...
+    def apply_authorization_v1(self, sink: CloudBalanceAuthorizationSinkV1) -> None: ...
 
 
 AuthorizationFailureCode = Literal[
@@ -116,11 +171,19 @@ class CloudBalanceAuthorizationUnavailable(RuntimeError):
     """Sanitized private-boundary failure with no provider or secret detail."""
 
     def __init__(self, code: AuthorizationFailureCode) -> None:
-        self.code = code
+        if type(code) is not str or code not in {
+            "ollama_cloud_store_locked",
+            "ollama_cloud_store_unavailable",
+        }:
+            raise ValueError(
+                "ollama_cloud_authorization_failure_code_invalid"
+            ) from None
+        self.code: AuthorizationFailureCode = code
         super().__init__(code)
 
 
 SourceState = Literal[
+    "source_not_admitted",
     "success",
     "unauthorized",
     "access_denied",
@@ -131,6 +194,13 @@ SourceState = Literal[
     "deadline_exceeded",
     "authorization_unavailable",
     "internal_adapter_error",
+]
+RetryAfterState = Literal[
+    "not_applicable",
+    "absent",
+    "invalid",
+    "available",
+    "unrepresentable",
 ]
 
 
@@ -145,6 +215,19 @@ class CloudBalanceSourceResultV1:
     http_status: int | None
     balance: OllamaCloudBalanceV1 | None
     retry_after_seconds: int | None
+    retry_after_state: RetryAfterState
+
+
+@dataclass(frozen=True, slots=True)
+class CloudBalanceParseResultV1:
+    """A parsed typed value or one stable code, never a payload exception."""
+
+    balance: OllamaCloudBalanceV1 | None
+    reason_code: str | None
+
+    def __post_init__(self) -> None:
+        if (self.balance is None) == (self.reason_code is None):
+            raise ValueError("ollama_cloud_parse_result_invalid")
 
 
 class _InvalidCloudBalance(ValueError):
@@ -229,7 +312,7 @@ def _utc_timestamp(value: object) -> datetime:
     return parsed
 
 
-def parse_cloud_balance_v1(payload: bytes) -> OllamaCloudBalanceV1:
+def _parse_cloud_balance_v1(payload: bytes) -> OllamaCloudBalanceV1:
     """Parse the documented closed response without retaining its raw form.
 
     Provider compatibility still requires a real authenticated response.  This
@@ -309,11 +392,40 @@ def parse_cloud_balance_v1(payload: bytes) -> OllamaCloudBalanceV1:
         raise _fail("ollama_cloud_schema_invalid") from error
 
 
+def parse_cloud_balance_v1(payload: bytes) -> CloudBalanceParseResultV1:
+    """Return only a typed value or stable code after all raw frames unwind."""
+    try:
+        balance = _parse_cloud_balance_v1(payload)
+    except _InvalidCloudBalance as error:
+        code = error.code
+    except InvalidOperation:
+        code = "ollama_cloud_number_invalid"
+    except (UnicodeDecodeError, json.JSONDecodeError, RecursionError):
+        code = "ollama_cloud_json_invalid"
+    except (TypeError, ValueError):
+        code = "ollama_cloud_schema_invalid"
+    else:
+        payload = b""
+        return CloudBalanceParseResultV1(balance=balance, reason_code=None)
+    payload = b""
+    return CloudBalanceParseResultV1(balance=None, reason_code=code)
+
+
 def _remaining(deadline: float, maximum: float) -> float:
     value = deadline - time.monotonic()
     if value <= 0:
         raise TimeoutError("ollama_cloud_deadline_exceeded")
     return min(value, maximum)
+
+
+def _secure_tls_context() -> ssl.SSLContext:
+    """Build verified TLS without honoring environment-requested key logging."""
+    context = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
+    context.check_hostname = True
+    context.verify_mode = ssl.CERT_REQUIRED
+    context.load_default_certs(ssl.Purpose.SERVER_AUTH)
+    context.keylog_filename = None  # type: ignore[assignment]
+    return context
 
 
 def _set_socket_timeout(
@@ -363,12 +475,27 @@ def _retry_after(headers: dict[str, tuple[str, ...]]) -> int | None:
     if values is None:
         return None
     value = values[0]
-    if not value.isascii() or not value.isdigit() or len(value) > 10:
+    if not value.isascii() or not value.isdigit():
         return None
-    seconds = int(value)
-    if not 0 <= seconds <= _MAX_RETRY_AFTER_SECONDS:
-        return None
-    return seconds
+    normalized = value.lstrip("0") or "0"
+    if len(normalized) > len(_MAX_RETRY_AFTER_TEXT) or (
+        len(normalized) == len(_MAX_RETRY_AFTER_TEXT)
+        and normalized > _MAX_RETRY_AFTER_TEXT
+    ):
+        raise _fail("ollama_cloud_retry_after_unrepresentable")
+    return int(normalized)
+
+
+def _retry_after_state(
+    headers: dict[str, tuple[str, ...]],
+) -> tuple[int | None, RetryAfterState]:
+    values = headers.get("retry-after")
+    if values is None:
+        return None, "absent"
+    value = values[0]
+    if not value.isascii() or not value.isdigit():
+        return None, "invalid"
+    return _retry_after(headers), "available"
 
 
 def _content_length(headers: dict[str, tuple[str, ...]]) -> int | None:
@@ -444,6 +571,7 @@ def _result(
     http_status: int | None = None,
     balance: OllamaCloudBalanceV1 | None = None,
     retry_after_seconds: int | None = None,
+    retry_after_state: RetryAfterState = "not_applicable",
 ) -> CloudBalanceSourceResultV1:
     return CloudBalanceSourceResultV1(
         state=state,
@@ -453,19 +581,16 @@ def _result(
         http_status=http_status,
         balance=balance,
         retry_after_seconds=retry_after_seconds,
+        retry_after_state=retry_after_state,
     )
 
 
-def read_cloud_balance_once_v1(
+def _read_cloud_balance_once_v1(
     *,
     authorization: CloudBalanceAuthorizationV1 | None,
     deadline_monotonic: float | None = None,
 ) -> CloudBalanceSourceResultV1:
-    """Perform exactly one fixed HTTPS GET and return only sanitized data.
-
-    ``None`` authorization is supported only for the real anonymous boundary
-    check; it cannot yield a successful balance under the documented API.
-    """
+    """Perform one fixed request; ``None`` is private to the admission probe."""
     policy = CLOUD_BALANCE_POLICY_V1
     started = time.monotonic()
     if deadline_monotonic is not None and (
@@ -483,15 +608,13 @@ def read_cloud_balance_once_v1(
     connection: http.client.HTTPSConnection | None = None
     response: http.client.HTTPResponse | None = None
     try:
-        context = ssl.create_default_context()
-        context.check_hostname = True
-        context.verify_mode = ssl.CERT_REQUIRED
         connection = http.client.HTTPSConnection(
             policy.host,
             port=policy.port,
             timeout=_remaining(deadline, policy.connect_timeout_seconds),
-            context=context,
+            context=_secure_tls_context(),
         )
+        connection.set_debuglevel(0)
         connection.connect()
         _set_socket_timeout(
             connection,
@@ -509,7 +632,16 @@ def read_cloud_balance_once_v1(
         connection.putheader("Accept-Encoding", "identity")
         connection.putheader("Connection", "close")
         if authorization is not None:
-            authorization.apply_authorization_header_v1(connection)
+            sink = CloudBalanceAuthorizationSinkV1(connection)
+            try:
+                authorization.apply_authorization_v1(sink)
+            except Exception:
+                sink._cancel_v1()
+                raise
+            sink._finish_v1()
+        # The resolved grant never receives the connection, and debug output is
+        # disabled again immediately before the buffered secret header is sent.
+        connection.set_debuglevel(0)
         _set_socket_timeout(
             connection,
             None,
@@ -522,27 +654,46 @@ def read_cloud_balance_once_v1(
             _remaining(deadline, policy.read_timeout_seconds),
         )
         response = connection.getresponse()
+        _remaining(deadline, policy.operation_timeout_seconds)
         headers = _headers(response)
         status = classify_status(response.status)
         if status != "success":
+            if status == "rate_limited":
+                try:
+                    retry_after_seconds, retry_after_state = _retry_after_state(headers)
+                except _InvalidCloudBalance as error:
+                    return _result(
+                        "invalid_provider_data",
+                        error.code,
+                        http_status=response.status,
+                        retry_after_state="unrepresentable",
+                    )
+            else:
+                retry_after_seconds = None
+                retry_after_state = "not_applicable"
             return _result(
                 status,
                 _STATUS_REASON[status],
                 http_status=response.status,
-                retry_after_seconds=(
-                    _retry_after(headers) if status == "rate_limited" else None
-                ),
+                retry_after_seconds=retry_after_seconds,
+                retry_after_state=retry_after_state,
             )
         body = _read_body(connection, response, headers, deadline)
         _remaining(deadline, policy.operation_timeout_seconds)
-        balance = parse_cloud_balance_v1(body)
+        parsed = parse_cloud_balance_v1(body)
         body = b""
         _remaining(deadline, policy.operation_timeout_seconds)
+        if parsed.balance is None:
+            return _result(
+                "invalid_provider_data",
+                parsed.reason_code or "ollama_cloud_schema_invalid",
+                http_status=response.status,
+            )
         return _result(
             "success",
             _STATUS_REASON["success"],
             http_status=response.status,
-            balance=balance,
+            balance=parsed.balance,
         )
     except CloudBalanceAuthorizationUnavailable as error:
         return _result("authorization_unavailable", error.code)
@@ -559,4 +710,35 @@ def read_cloud_balance_once_v1(
         if response is not None:
             response.close()
         if connection is not None:
+            buffer = getattr(connection, "_buffer", None)
+            if type(buffer) is list:
+                buffer.clear()
+            connection.set_debuglevel(0)
             connection.close()
+
+
+def read_cloud_balance_once_v1(
+    *,
+    authorization: CloudBalanceAuthorizationV1,
+    deadline_monotonic: float | None = None,
+) -> CloudBalanceSourceResultV1:
+    """Use one pre-resolved private grant; authenticated admission is pending."""
+    if not CLOUD_BALANCE_POLICY_V1.authenticated_collection_admitted:
+        return _result(
+            "source_not_admitted",
+            "ollama_cloud_authenticated_source_not_admitted",
+        )
+    return _read_cloud_balance_once_v1(
+        authorization=authorization,
+        deadline_monotonic=deadline_monotonic,
+    )
+
+
+def probe_cloud_balance_endpoint_v1(
+    *, deadline_monotonic: float | None = None
+) -> CloudBalanceSourceResultV1:
+    """Anonymous official-endpoint admission probe, never a balance read."""
+    return _read_cloud_balance_once_v1(
+        authorization=None,
+        deadline_monotonic=deadline_monotonic,
+    )

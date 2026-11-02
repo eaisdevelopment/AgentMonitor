@@ -4,8 +4,15 @@ from inspect import signature
 
 from agentmonitor.adapters.providers.ollama.cloud_balance.source import (
     CLOUD_BALANCE_POLICY_V1,
+    CloudBalanceAuthorizationSinkV1,
+    CloudBalanceAuthorizationV1,
     read_cloud_balance_once_v1,
 )
+
+
+class _MustNotApplyAuthorization:
+    def apply_authorization_v1(self, sink: CloudBalanceAuthorizationSinkV1) -> None:
+        raise AssertionError("unadmitted_authorization_was_applied")
 
 
 def test_cloud_balance_source_is_one_fixed_bounded_request() -> None:
@@ -26,7 +33,31 @@ def test_cloud_balance_source_is_one_fixed_bounded_request() -> None:
     assert 0 < policy.maximum_header_count <= 100
     assert 0 < policy.maximum_header_bytes <= 64 * 1024
     assert 0 < policy.maximum_body_bytes <= 256 * 1024
+    assert not policy.authenticated_collection_admitted
+    assert not policy.operation_deadline_strict
+    assert not policy.dns_deadline_strict
+    assert not policy.wire_header_limit_strict
     assert tuple(signature(read_cloud_balance_once_v1).parameters) == (
         "authorization",
         "deadline_monotonic",
     )
+    assert tuple(
+        signature(CloudBalanceAuthorizationV1.apply_authorization_v1).parameters
+    ) == ("self", "sink")
+    assert {
+        name
+        for name in CloudBalanceAuthorizationSinkV1.__dict__
+        if not name.startswith("_")
+    } == {"put_bearer_token_v1"}
+
+
+def test_authenticated_source_fails_closed_before_authorization_or_network() -> None:
+    result = read_cloud_balance_once_v1(
+        authorization=_MustNotApplyAuthorization(),
+        deadline_monotonic=0.0,
+    )
+
+    assert result.state == "source_not_admitted"
+    assert result.reason_code == "ollama_cloud_authenticated_source_not_admitted"
+    assert result.http_status is None
+    assert result.balance is None

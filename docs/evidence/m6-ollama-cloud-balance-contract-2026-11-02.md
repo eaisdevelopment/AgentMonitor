@@ -93,3 +93,61 @@ the pre-existing undeclared `OLLAMA-CLOUD-BALANCE-V1` dependency on
 `CTR-COMMON-003` and the resulting unresolved contract symbol at the new
 source import. Contract baseline/adoption registration is an integration
 prerequisite; these red gates are not reported as passed.
+
+## Security-review correction
+
+Independent review of the first HTTPS-source commit found that parser
+exception chains could retain raw input, authorization failure codes were only
+statically rather than runtime constrained, a valid long `Retry-After` was
+discarded above an invented one-year cap, `SSLKEYLOGFILE` could enable TLS key
+logging, and the authorization callback had the full mutable HTTP connection.
+It also found that the Python resolver and `http.client` header parser do not
+enforce the advertised absolute operation and wire-header limits. The real
+network test was under the local-only adapter test tree even though the local
+admission selector must not gain an Ollama cloud dependency.
+
+The pure security Red was:
+
+```text
+uv run --project backend pytest -q \
+  backend/tests/adapters/providers/ollama/test_cloud_balance_source_security.py
+```
+
+Result: five failures and one pass. Invalid JSON raised an exception chained
+to `JSONDecodeError`; an excessive Decimal exponent escaped as
+`InvalidOperation`; an arbitrary authorization failure code was accepted; a
+valid 31,536,001-second retry wait became absent; and `2**63` seconds did not
+fail closed. A separate TLS subprocess test failed because the secure context
+helper did not exist. The authenticated-source fail-closed Red returned
+`deadline_exceeded` instead of `source_not_admitted`.
+
+The correction now returns a typed parse value or stable failure code after
+raw parser frames unwind, catches Decimal conversion failure, validates the
+two authorization-store codes at runtime, retains every decimal-seconds retry
+through `2**63 - 1`, and maps a larger syntactically valid value to explicit
+`ollama_cloud_retry_after_unrepresentable`. Malformed or absent retry advice
+remains distinguishable and fallback-eligible. TLS uses a client context with
+the platform trust store and explicitly disabled key logging; a real local
+subprocess proves an `SSLKEYLOGFILE` request creates no keylog. The resolved
+credential grant receives only a one-shot bounded bearer sink, never the HTTP
+connection. The sink clears its caller-owned byte buffer, and HTTP debugging
+is forced off immediately before sending. This is not a reliable Python-memory
+zeroization claim.
+
+Authenticated collection now returns
+`ollama_cloud_authenticated_source_not_admitted` before authorization or
+network I/O. Its policy explicitly records that strict whole-operation DNS,
+authorization-callback and wire-header ingress guarantees are not established;
+the manifest remains unadmitted. The post-parse header acceptance limit and
+socket timeouts remain defense in depth, not the missing strict proof. The
+anonymous official-endpoint probe remains available solely as admission
+evidence, and its real test moved to
+`backend/tests/live/ollama/test_cloud_balance_endpoint.py`, outside the
+local-only adapter selector. Authenticated 200 and credential containment at a
+real runtime boundary remain **Not Run**.
+
+Final focused Green at `2026-11-02T15:56:28Z` ran the balance contract, status,
+source-policy, source-security and moved real anonymous endpoint tests: `20
+passed in 1.36s`. The real boundary again observed sanitized HTTP 401. No
+credential, keyring item, provider profile, authenticated response body or
+application service was accessed.
