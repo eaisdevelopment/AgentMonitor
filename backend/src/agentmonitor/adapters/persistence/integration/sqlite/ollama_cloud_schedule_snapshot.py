@@ -1,4 +1,4 @@
-"""Authorized Ollama schedule snapshot behind one read transaction."""
+"""PLAN-INT authorized Ollama schedule snapshot across M02 and M04."""
 
 from sqlalchemy.exc import SQLAlchemyError
 
@@ -26,8 +26,30 @@ class OllamaCloudScheduleSnapshotErrorV1(ValueError):
         super().__init__("ollama_cloud_schedule_snapshot_unavailable")
 
 
+def _require_authorized_snapshot_inputs_v1(
+    target: CloudScheduleStatusV1,
+    account_record_version: int,
+    binding: ActiveCredentialBindingRefV1,
+    expected_manifest_fingerprint: str,
+) -> None:
+    """Reject malformed runtime values before opening the database boundary."""
+    if (
+        not isinstance(target, CloudScheduleStatusV1)
+        or type(account_record_version) is not int
+        or account_record_version < 1
+        or not isinstance(binding, ActiveCredentialBindingRefV1)
+        or type(expected_manifest_fingerprint) is not str
+        or len(expected_manifest_fingerprint) != 64
+        or any(
+            character not in "0123456789abcdef"
+            for character in expected_manifest_fingerprint
+        )
+    ):
+        raise OllamaCloudScheduleSnapshotErrorV1() from None
+
+
 class SqliteOllamaCloudScheduleSnapshotRepositoryV1:
-    """Read M02 authority and M04 schedule facts in one owned transaction."""
+    """Read M02 authority and M04 schedule facts in one integration transaction."""
 
     def __init__(self, reference: DatabaseRefV1) -> None:
         self._reference = reference
@@ -40,6 +62,12 @@ class SqliteOllamaCloudScheduleSnapshotRepositoryV1:
         binding: ActiveCredentialBindingRefV1,
         expected_manifest_fingerprint: str,
     ) -> tuple[bool, bool, str | None]:
+        _require_authorized_snapshot_inputs_v1(
+            target,
+            account_record_version,
+            binding,
+            expected_manifest_fingerprint,
+        )
         try:
             with open_sqlite_database(self._reference, "runtime_read_only") as handle:
                 with handle.connect() as connection:
@@ -62,6 +90,7 @@ class SqliteOllamaCloudScheduleSnapshotRepositoryV1:
             SQLAlchemyError,
             SqlitePolicyError,
             OSError,
+            AttributeError,
             TypeError,
             ValueError,
         ):

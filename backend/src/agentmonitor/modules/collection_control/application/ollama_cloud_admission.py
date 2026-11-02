@@ -13,7 +13,6 @@ from agentmonitor.contracts.collection_control_v1 import (
     OllamaCloudVerificationAcquireV1,
     OllamaCloudVerificationClaimRequestV1,
     OllamaCloudVerificationClaimTerminalV1,
-    OllamaCloudVerificationEnqueueV1,
     OllamaCloudVerificationEnqueueV2,
     OllamaCloudVerificationInterruptionProofV1,
     OllamaCloudVerificationJobClaimV1,
@@ -45,7 +44,7 @@ class OllamaCloudAdmissionRepositoryV1(Protocol):
     ) -> OllamaCloudAdmissionDecisionV1: ...
 
     def enqueue_verification(
-        self, request: OllamaCloudVerificationEnqueueV1
+        self, request: OllamaCloudVerificationEnqueueV2
     ) -> OllamaCloudVerificationJobViewV1: ...
 
     def replay_verification(
@@ -101,14 +100,14 @@ class OllamaCloudAdmissionRepositoryV1(Protocol):
     ) -> OllamaCloudRateGateViewV1: ...
 
 
-class OllamaCloudVerificationEnqueueRepositoryV2(Protocol):
+class OllamaCloudVerificationAtomicEnqueueRepositoryV2(Protocol):
     """Atomic V2 enqueue port; persistence owns every transaction detail."""
 
     CONTRACT_ID: ClassVar[str] = "CTR-COL-010"
     CONTRACT_VERSION: ClassVar[str] = "2.0.0"
     OWNER: ClassVar[str] = "PLAN-M04"
 
-    def enqueue_verification_v2(
+    def enqueue_verification_atomically_v2(
         self,
         request: OllamaCloudVerificationEnqueueV2,
         authority_account_record_version: int,
@@ -150,22 +149,24 @@ class AcquireOllamaCloudVerificationV1:
         return self._repository.acquire_verification(request)
 
 
-class EnqueueOllamaCloudVerificationV1:
-    """Preserve the V1 port; unsafe new work may still fail closed."""
+class EnqueueOllamaCloudVerificationV2:
+    """Preserve the existing one-request V2 application boundary."""
 
     def __init__(self, repository: OllamaCloudAdmissionRepositoryV1) -> None:
         self._repository = repository
 
     def __call__(
-        self, request: OllamaCloudVerificationEnqueueV1
+        self, request: OllamaCloudVerificationEnqueueV2
     ) -> OllamaCloudVerificationJobViewV1:
         return self._repository.enqueue_verification(request)
 
 
-class EnqueueOllamaCloudVerificationV2:
-    """Persist a version-fenced owner request through one atomic V2 port."""
+class AtomicallyEnqueueOllamaCloudVerificationV2:
+    """Add the exact-authority transaction port without changing V2 callers."""
 
-    def __init__(self, repository: OllamaCloudVerificationEnqueueRepositoryV2) -> None:
+    def __init__(
+        self, repository: OllamaCloudVerificationAtomicEnqueueRepositoryV2
+    ) -> None:
         self._repository = repository
 
     def __call__(
@@ -175,7 +176,7 @@ class EnqueueOllamaCloudVerificationV2:
         binding: ActiveCredentialBindingRefV1,
         expected_manifest_fingerprint: str,
     ) -> OllamaCloudVerificationJobViewV1:
-        return self._repository.enqueue_verification_v2(
+        return self._repository.enqueue_verification_atomically_v2(
             request,
             authority_account_record_version,
             binding,

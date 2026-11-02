@@ -34,7 +34,6 @@ from agentmonitor.contracts.collection_control_v1 import (
     OllamaCloudVerificationClaimRequestV1,
     OllamaCloudVerificationClaimTerminalV1,
     OllamaCloudVerificationDispatchCertaintyV1,
-    OllamaCloudVerificationEnqueueV1,
     OllamaCloudVerificationEnqueueV2,
     OllamaCloudVerificationGateStateV1,
     OllamaCloudVerificationInterruptionProofV1,
@@ -510,7 +509,7 @@ class SqliteOllamaCloudAdmissionRepositoryV1:
     def _fence_new_verification_job(
         self,
         connection: Connection,
-        request: OllamaCloudVerificationEnqueueV1,
+        request: OllamaCloudVerificationEnqueueV2,
         *,
         profile_id: OpaqueIdV1,
         resource_id: OpaqueIdV1,
@@ -1409,7 +1408,7 @@ class SqliteOllamaCloudAdmissionRepositoryV1:
             raise OllamaCloudAdmissionRepositoryErrorV1() from None
 
     def enqueue_verification(
-        self, request: OllamaCloudVerificationEnqueueV1
+        self, request: OllamaCloudVerificationEnqueueV2
     ) -> OllamaCloudVerificationJobViewV1:
         """Create one private-idempotent job after rechecking the exact target."""
         digest = _idempotency_digest(
@@ -1432,35 +1431,24 @@ class SqliteOllamaCloudAdmissionRepositoryV1:
                         .one_or_none()
                     )
                     if existing is not None:
-                        if isinstance(request, OllamaCloudVerificationEnqueueV2):
-                            replay_matches = True
-                            try:
-                                decide_cloud_verification_replay(
-                                    existing_account_id=str(existing["account_id"]),
-                                    existing_expected_account_record_version=(
-                                        int(existing["expected_account_record_version"])
-                                        if existing["expected_account_record_version"]
-                                        is not None
-                                        else None
-                                    ),
-                                    request_account_id=request.account_id.value,
-                                    request_expected_account_record_version=(
-                                        request.expected_account_record_version
-                                    ),
-                                )
-                            except ValueError:
-                                replay_matches = False
-                        else:
-                            replay_matches = (
-                                existing["expected_account_record_version"] is None
-                                and existing["schedule_id"] == request.schedule_id.value
-                                and existing["account_id"] == request.account_id.value
-                                and existing["access_target_id"]
-                                == request.access_target_id.value
-                                and int(existing["binding_generation"])
-                                == request.binding_generation
+                        try:
+                            # Only external request identity participates in replay.
+                            # The first successful call freezes server-derived graph,
+                            # target and binding facts in the durable job.
+                            decide_cloud_verification_replay(
+                                existing_account_id=str(existing["account_id"]),
+                                existing_expected_account_record_version=(
+                                    int(existing["expected_account_record_version"])
+                                    if existing["expected_account_record_version"]
+                                    is not None
+                                    else None
+                                ),
+                                request_account_id=request.account_id.value,
+                                request_expected_account_record_version=(
+                                    request.expected_account_record_version
+                                ),
                             )
-                        if not replay_matches:
+                        except ValueError:
                             raise OllamaCloudAdmissionRepositoryErrorV1(
                                 "ollama_cloud_verification_idempotency_conflict"
                             ) from None
@@ -1524,11 +1512,7 @@ class SqliteOllamaCloudAdmissionRepositoryV1:
                             request.account_id.value,
                             request.access_target_id.value,
                             request.binding_generation,
-                            (
-                                request.expected_account_record_version
-                                if isinstance(request, OllamaCloudVerificationEnqueueV2)
-                                else None
-                            ),
+                            request.expected_account_record_version,
                             instant,
                             instant,
                         ),

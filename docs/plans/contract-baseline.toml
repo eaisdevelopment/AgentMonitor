@@ -4,7 +4,7 @@ status = "draft_aligned"
 owner = "integration_steward"
 source_audit = "CAA-2026-09-18-01"
 source_audit_path = "docs/plans/integration/contract-alignment-audit.md"
-contract_version_policy = "Draft contracts propose version 1.0.0 unless an explicit compatible V2 migration retains its V1 boundary; CTR-COL-010 is the currently reviewed exception."
+contract_version_policy = "Draft contracts propose version 1.0.0 unless an explicit compatible V2 migration retains its published boundary; CTR-COL-010 is the currently reviewed exception."
 contract_count = 103
 owner_approved = false
 implementation_authorized = false
@@ -731,7 +731,7 @@ version = "2.0.0"
 producer = "PLAN-M04"
 consumers = ["PLAN-INT"]
 maturity = "evidence_blocked"
-decision_reference = "Owner-approved M6 Ollama cloud integration; V1 enqueue remains compatible and V2 adds exact external request-version fencing; candidate remains under review, 2026-11-02"
+decision_reference = "Owner-approved M6 Ollama cloud integration; existing one-request V2 enqueue remains compatible and an additive atomic V2 port adds exact external request-version fencing; candidate remains under review, 2026-11-02"
 checklist = { field_state_null = true, units_time = true, auth = true, side_effects = true, idempotency = true, events = true, retention = true, errors = true, compatibility = true }
 
 [[contracts]]

@@ -1,4 +1,6 @@
-"""Atomic V2 Ollama verification enqueue across one SQLite transaction."""
+"""PLAN-INT atomic Ollama verification enqueue across M02 and M04."""
+
+from typing import ClassVar
 
 from sqlalchemy.engine import Connection
 
@@ -12,7 +14,6 @@ from agentmonitor.adapters.persistence.registry.sqlite.credential_bindings impor
     ensure_cloud_verification_enqueue_authority_in_transaction,
 )
 from agentmonitor.contracts.collection_control_v1 import (
-    OllamaCloudVerificationEnqueueV1,
     OllamaCloudVerificationEnqueueV2,
     OllamaCloudVerificationJobViewV1,
 )
@@ -23,7 +24,11 @@ from agentmonitor.contracts.registry_v1 import ActiveCredentialBindingRefV1
 class _BoundAtomicOllamaCloudVerificationEnqueueV2(
     SqliteOllamaCloudAdmissionRepositoryV1
 ):
-    """One-call transaction owner with immutable M02 authority facts."""
+    """Private transaction participant with immutable typed M02 facts.
+
+    The raw SQLite connection is confined to this integration adapter and the
+    two persistence participants. It never crosses the public application port.
+    """
 
     def __init__(
         self,
@@ -41,14 +46,13 @@ class _BoundAtomicOllamaCloudVerificationEnqueueV2(
     def _fence_new_verification_job(
         self,
         connection: Connection,
-        request: OllamaCloudVerificationEnqueueV1,
+        request: OllamaCloudVerificationEnqueueV2,
         *,
         profile_id: OpaqueIdV1,
         resource_id: OpaqueIdV1,
     ) -> None:
         if (
-            not isinstance(request, OllamaCloudVerificationEnqueueV2)
-            or request.account_id != self._binding.account_id
+            request.account_id != self._binding.account_id
             or request.binding_generation != self._binding.generation
         ):
             raise OllamaCloudAdmissionRepositoryErrorV1(
@@ -76,13 +80,17 @@ class _BoundAtomicOllamaCloudVerificationEnqueueV2(
             raise OllamaCloudAdmissionRepositoryErrorV1(code) from None
 
 
-class SqliteOllamaCloudVerificationEnqueueRepositoryV2:
-    """Narrow V2 adapter; no SQL connection crosses its public boundary."""
+class SqliteAtomicOllamaCloudVerificationEnqueueRepositoryV2:
+    """Integration-owned port implementation; callers pass typed values only."""
+
+    CONTRACT_ID: ClassVar[str] = "CTR-COL-010"
+    CONTRACT_VERSION: ClassVar[str] = "2.0.0"
+    OWNER: ClassVar[str] = "PLAN-INT"
 
     def __init__(self, reference: DatabaseRefV1) -> None:
         self._reference = reference
 
-    def enqueue_verification_v2(
+    def enqueue_verification_atomically_v2(
         self,
         request: OllamaCloudVerificationEnqueueV2,
         authority_account_record_version: int,

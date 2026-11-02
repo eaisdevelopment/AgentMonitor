@@ -441,7 +441,12 @@ class OllamaCloudVerificationEnqueueV1(TechnicalValueV1):
 
 @dataclass(frozen=True, slots=True)
 class OllamaCloudVerificationEnqueueV2(OllamaCloudVerificationEnqueueV1):
-    """V2 initiation identity retains the external account version."""
+    """V2 initiation retains the external account version.
+
+    The client identity is principal/idempotency/account/expected account
+    version. Schedule, target and binding generation are server-derived facts
+    frozen by the first successful insertion and are not recomputed for replay.
+    """
 
     CONTRACT_VERSION: ClassVar[str] = "2.0.0"
 

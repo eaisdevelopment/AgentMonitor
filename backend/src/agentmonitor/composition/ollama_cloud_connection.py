@@ -17,15 +17,15 @@ from agentmonitor.adapters.persistence.collection_control.sqlite.ollama_cloud_ad
     OllamaCloudAdmissionRepositoryErrorV1,
     SqliteOllamaCloudAdmissionRepositoryV1,
 )
-from agentmonitor.adapters.persistence.collection_control.sqlite.ollama_cloud_enqueue_v2 import (  # noqa: E501
-    SqliteOllamaCloudVerificationEnqueueRepositoryV2,
+from agentmonitor.adapters.persistence.collection_control.sqlite.repository import (
+    SqliteCollectionRepositoryV1,
 )
-from agentmonitor.adapters.persistence.collection_control.sqlite.ollama_cloud_status_snapshot import (  # noqa: E501
+from agentmonitor.adapters.persistence.integration.sqlite.ollama_cloud_schedule_snapshot import (  # noqa: E501
     OllamaCloudScheduleSnapshotErrorV1,
     SqliteOllamaCloudScheduleSnapshotRepositoryV1,
 )
-from agentmonitor.adapters.persistence.collection_control.sqlite.repository import (
-    SqliteCollectionRepositoryV1,
+from agentmonitor.adapters.persistence.integration.sqlite.ollama_cloud_verification_enqueue_v2 import (  # noqa: E501
+    SqliteAtomicOllamaCloudVerificationEnqueueRepositoryV2,
 )
 from agentmonitor.adapters.persistence.registry.sqlite.credential_bindings import (
     SqliteCloudCredentialRegistryV1,
@@ -61,7 +61,7 @@ from agentmonitor.contracts.registry_v1 import (
     ProviderTargetRefV1,
 )
 from agentmonitor.modules.collection_control.application.ollama_cloud_admission import (
-    EnqueueOllamaCloudVerificationV2,
+    AtomicallyEnqueueOllamaCloudVerificationV2,
 )
 from agentmonitor.modules.provider_system.domain.protocol import (
     current_access_from_signal,
@@ -416,8 +416,8 @@ class OllamaCloudConnectionServiceV1:
             )
         )
         try:
-            EnqueueOllamaCloudVerificationV2(
-                SqliteOllamaCloudVerificationEnqueueRepositoryV2(self._reference)
+            AtomicallyEnqueueOllamaCloudVerificationV2(
+                SqliteAtomicOllamaCloudVerificationEnqueueRepositoryV2(self._reference)
             )(
                 OllamaCloudVerificationEnqueueV2(
                     idempotency_key=command.idempotency_key,
