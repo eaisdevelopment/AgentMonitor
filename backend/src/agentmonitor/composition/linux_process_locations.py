@@ -70,6 +70,17 @@ def _merge_provider_discoveries_v1(
     )
 
 
+def _discovery_availability_v1(
+    *, usable: bool, provider_unavailable: bool
+) -> tuple[Literal["available", "partial", "unavailable"], str]:
+    """Report absent provider coverage separately from result truncation."""
+    if not usable:
+        return "unavailable", "process_source_unavailable"
+    if provider_unavailable:
+        return "partial", "provider_discovery_partial"
+    return "available", "same_user_exact_provider_executables"
+
+
 def _discover_claude_installations_v1() -> _ProviderDiscoveryResultV1:
     installations: list[_ProcessInstallation] = []
     try:
@@ -196,6 +207,7 @@ def _read_process_locations_v1(
         }
         items: list[LiveProcessLocationV1] = []
         usable = False
+        provider_unavailable = False
         truncated = False
         while pending and len(items) < 512:
             remaining = deadline_monotonic - time.monotonic()
@@ -216,6 +228,7 @@ def _read_process_locations_v1(
                     discovery = future.result()
                 except (OSError, RuntimeError, ValueError):
                     discovery = _ProviderDiscoveryResultV1("unavailable", (), False)
+                provider_unavailable = provider_unavailable or discovery.state == "unavailable"
                 installations, discovery_truncated = _merge_provider_discoveries_v1(
                     (discovery,)
                 )
@@ -282,13 +295,14 @@ def _read_process_locations_v1(
         if pending:
             truncated = True
         versions = {item.provider_version for item in items if item.provider_version}
+        state, reason = _discovery_availability_v1(
+            usable=usable, provider_unavailable=provider_unavailable
+        )
         return LiveProcessLocationsV1(
             tuple(items),
             QueryAvailabilityV1(
-                "available" if usable else "unavailable",
-                "same_user_exact_provider_executables"
-                if usable
-                else "process_source_unavailable",
+                state,
+                reason,
                 observed_at,
             ),
             next(iter(versions)) if len(versions) == 1 else None,

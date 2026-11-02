@@ -82,7 +82,7 @@ export function AccountWorkspaceSummary({ account, organizationName, liveProcess
   useEffect(() => { onIdentity(email); }, [email, onIdentity]);
   const hasMoreSessions = scoped?.sessions?.page.has_more;
   const sessionCount = scoped?.sessions?.items.length;
-  const linked = liveProcesses?.availability.state === "available" ? liveProcesses.items.filter(item => item.account_association?.account_id === account.account_id) : [];
+  const linked = (liveProcesses?.availability.state === "available" || liveProcesses?.availability.state === "partial") ? liveProcesses.items.filter(item => item.account_association?.account_id === account.account_id) : [];
   const paths = [...new Set(linked.flatMap(item => item.working_directory === null ? [] : [item.working_directory]))];
   const status = account.lifecycle === "archived" ? "Archived"
     : account.lifecycle === "pending" ? "Not connected"
@@ -125,7 +125,7 @@ export function AccountWorkspaceSummary({ account, organizationName, liveProcess
       </div>
       <div className="workspace-footnote">
         <span>{sessionCount === undefined ? "Session data unavailable" : `${sessionCount}${hasMoreSessions ? "+" : ""} linked session ${sessionCount === 1 ? "record" : "records"}`}</span>
-        <span>{liveProcesses?.availability.state !== "available" ? "Live agent links unavailable" : linked.length > 0 ? linked.length + " running " + (linked.length === 1 ? "agent" : "agents") + " · Owner confirmed" : "No running agents linked to this account."}{liveProcesses?.truncated ? " · Partial scan" : ""}</span>
+        <span>{(liveProcesses?.availability.state !== "available" && liveProcesses?.availability.state !== "partial") ? "Live agent links unavailable" : linked.length > 0 ? linked.length + " running " + (linked.length === 1 ? "agent" : "agents") + " · Owner confirmed" : liveProcesses?.availability.state === "partial" ? "No linked agents found in available sources." : "No running agents linked to this account."}{liveProcesses?.availability.state === "partial" ? " · Some provider sources unavailable" : ""}{liveProcesses?.truncated ? " · Partial scan" : ""}</span>
       </div>
       {email !== null && <details className="workspace-identity-details"><summary>How this account was identified</summary><p className="workspace-identity-note">{provider} reported this identity before and after this quota check.<span>{provider} organization: <strong>{receipt?.provider_organization ?? "Not reported"}</strong></span><span>Dashboard group: {organizationName} · Record: {account.friendly_name}</span><span>Quota collection: {receipt?.collection_run_id}</span></p></details>}
       {(state.kind === "error" || (state.kind === "ready" && state.refreshFailed)) && <p className="workspace-notice" role="status">Some readings could not be refreshed. Check the displayed update time.</p>}
