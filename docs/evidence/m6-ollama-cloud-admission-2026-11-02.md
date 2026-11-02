@@ -28,9 +28,10 @@ by this admission module.
 Independent review identified that lease expiry alone cannot prove a provider
 request has stopped, and an acquire-time reservation cannot guarantee spacing
 from a delayed dispatch. The candidate now reserves the next start at least
-60 seconds after the lease's latest possible dispatch and refuses to re-admit
+60 seconds after lease expiry and refuses to re-admit
 an expired unresolved request. This prevents automatic early re-admission but
 also means crash/expiry recovery is not implemented; that limitation must be
-visible and resolved before cloud delivery. The reservation calculation was
+visible and resolved before cloud delivery. The future provider consumer must also reject dispatch
+after lease expiry; that enforcement does not yet exist. The reservation calculation was
 first tested Red and now passes as a pure no-I/O test. The changed SQLite path
 has not yet been tested with real Ollama account/schedule state.
