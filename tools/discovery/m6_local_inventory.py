@@ -11,6 +11,7 @@ import re
 import sys
 import urllib.error
 import urllib.request
+from datetime import UTC, datetime
 
 BASE = "http://127.0.0.1:11434"
 LIMIT = 256 * 1024
@@ -52,6 +53,25 @@ def main() -> int:
         print("M6 LOCAL INVENTORY: BLOCKED — local source unavailable or invalid")
         return 3
     print(f"M6 LOCAL INVENTORY: OBSERVED — daemon {version}; installed {len(installed)}; loaded {len(loaded)}")
+    print(
+        json.dumps(
+            {
+                "schema_version": "1.0.0",
+                "record_type": "agentmonitor.m6_local_inventory.v1",
+                "status": "passed",
+                "host_id": "local_loopback",
+                "source_id": "ollama_loopback_127_0_0_1_11434",
+                "version": version,
+                "installed_model_count": len(installed),
+                "loaded_model_count": len(loaded),
+                "observed_at": datetime.now(UTC)
+                .isoformat(timespec="seconds")
+                .replace("+00:00", "Z"),
+            },
+            sort_keys=True,
+            separators=(",", ":"),
+        )
+    )
     print("Not a capability-admission or milestone-completion result.")
     return 0
 

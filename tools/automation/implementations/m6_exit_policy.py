@@ -27,7 +27,7 @@ SELECTOR_REQUIREMENTS = (
         "M6-A01",
         "M6-SEL-A01",
         "registry_account_admin",
-        "AUTO-M6-EVIDENCE-A01",
+        "AUTO-M6-EXIT",
         (),
         "M6-SELECTION-A01-V1",
         "M6-SOURCE-VERSIONS-A01-V1",
@@ -36,7 +36,7 @@ SELECTOR_REQUIREMENTS = (
         "M6-A02",
         "M6-SEL-A02",
         "local_service_model_hosts",
-        "AUTO-M6-EVIDENCE-A02",
+        "AUTO-M6-EXIT",
         (),
         "M6-SELECTION-A02-V1",
         "M6-SOURCE-VERSIONS-A02-V1",
@@ -45,7 +45,7 @@ SELECTOR_REQUIREMENTS = (
         "M6-A03",
         "M6-SEL-A03",
         "cloud_identity_scope",
-        "AUTO-M6-EVIDENCE-A03",
+        "AUTO-M6-EXIT",
         (),
         "M6-SELECTION-A03-V1",
         "M6-SOURCE-VERSIONS-A03-V1",
@@ -54,7 +54,7 @@ SELECTOR_REQUIREMENTS = (
         "M6-A04",
         "M6-SEL-A04",
         "cloud_balance_reconciliation",
-        "AUTO-M6-EVIDENCE-A04",
+        "AUTO-M6-EXIT",
         (),
         "M6-SELECTION-A04-V1",
         "M6-SOURCE-VERSIONS-A04-V1",
@@ -63,7 +63,7 @@ SELECTOR_REQUIREMENTS = (
         "M6-A05",
         "M6-SEL-A05",
         "capacity_history_alert_lineage",
-        "AUTO-M6-EVIDENCE-A05",
+        "AUTO-M6-EXIT",
         (),
         "M6-SELECTION-A05-V1",
         "M6-SOURCE-VERSIONS-A05-V1",
@@ -72,7 +72,7 @@ SELECTOR_REQUIREMENTS = (
         "M6-A06",
         "M6-SEL-A06",
         "process_model_relationships",
-        "AUTO-M6-EVIDENCE-A06",
+        "AUTO-M6-EXIT",
         ("sampled_process_coverage",),
         "M6-SELECTION-A06-V1",
         "M6-SOURCE-VERSIONS-A06-V1",
@@ -81,7 +81,7 @@ SELECTOR_REQUIREMENTS = (
         "M6-A07",
         "M6-SEL-A07",
         "natural_failure_recovery",
-        "AUTO-M6-EVIDENCE-A07",
+        "AUTO-M6-EXIT",
         (),
         "M6-SELECTION-A07-V1",
         "M6-SOURCE-VERSIONS-A07-V1",
@@ -90,7 +90,7 @@ SELECTOR_REQUIREMENTS = (
         "M6-A08",
         "M6-SEL-A08",
         "built_browser_accessibility",
-        "AUTO-M6-EVIDENCE-A08",
+        "AUTO-M6-EXIT",
         (),
         "M6-SELECTION-A08-V1",
         "M6-SOURCE-VERSIONS-A08-V1",
@@ -99,7 +99,7 @@ SELECTOR_REQUIREMENTS = (
         "M6-A09",
         "M6-SEL-A09",
         "security_privacy_source_limits",
-        "AUTO-M6-EVIDENCE-A09",
+        "AUTO-M6-EXIT",
         (),
         "M6-SELECTION-A09-V1",
         "M6-SOURCE-VERSIONS-A09-V1",
@@ -108,7 +108,7 @@ SELECTOR_REQUIREMENTS = (
         "ST-OLL-001",
         "M6-SEL-ST-OLL-001",
         "provider_admission_installation",
-        "AUTO-M6-EVIDENCE-ST-OLL-001",
+        "AUTO-M6-EXIT",
         (),
         "M6-SELECTION-ST-OLL-001-V1",
         "M6-SOURCE-VERSIONS-ST-OLL-001-V1",
@@ -117,7 +117,7 @@ SELECTOR_REQUIREMENTS = (
         "ST-OLL-002",
         "M6-SEL-ST-OLL-002",
         "local_model_runtime",
-        "AUTO-M6-EVIDENCE-ST-OLL-002",
+        "AUTO-M6-EXIT",
         (),
         "M6-SELECTION-ST-OLL-002-V1",
         "M6-SOURCE-VERSIONS-ST-OLL-002-V1",
@@ -126,7 +126,7 @@ SELECTOR_REQUIREMENTS = (
         "ST-OLL-003",
         "M6-SEL-ST-OLL-003",
         "cloud_identity_authentication",
-        "AUTO-M6-EVIDENCE-ST-OLL-003",
+        "AUTO-M6-EXIT",
         (),
         "M6-SELECTION-ST-OLL-003-V1",
         "M6-SOURCE-VERSIONS-ST-OLL-003-V1",
@@ -135,7 +135,7 @@ SELECTOR_REQUIREMENTS = (
         "ST-OLL-004",
         "M6-SEL-ST-OLL-004",
         "cloud_subscription_capacity",
-        "AUTO-M6-EVIDENCE-ST-OLL-004",
+        "AUTO-M6-EXIT",
         (),
         "M6-SELECTION-ST-OLL-004-V1",
         "M6-SOURCE-VERSIONS-ST-OLL-004-V1",
@@ -144,7 +144,7 @@ SELECTOR_REQUIREMENTS = (
         "ST-OLL-005",
         "M6-SEL-ST-OLL-005",
         "integrated_runtime_dashboard_closure",
-        "AUTO-M6-EVIDENCE-ST-OLL-005",
+        "AUTO-M6-EXIT",
         ("sampled_process_coverage",),
         "M6-SELECTION-ST-OLL-005-V1",
         "M6-SOURCE-VERSIONS-ST-OLL-005-V1",
@@ -243,7 +243,7 @@ _RECEIPT_KEYS = frozenset(
         "story_count",
         "evidence_count",
         "catalog_sha256",
-        "selector_receipts_sha256",
+        "direct_evidence_sha256",
         "selection_sha256",
         "source_versions_sha256",
         "required_checks",
@@ -913,7 +913,7 @@ def build_passed_receipt_v1(
     *,
     implementation_revision: str,
     catalog_sha256: str,
-    selector_receipts_sha256: str,
+    direct_evidence_sha256: str,
     selection_sha256: str,
     source_versions_sha256: str,
     completed_at: datetime,
@@ -929,7 +929,7 @@ def build_passed_receipt_v1(
             _SHA256.fullmatch(value) is None
             for value in (
                 catalog_sha256,
-                selector_receipts_sha256,
+                direct_evidence_sha256,
                 selection_sha256,
                 source_versions_sha256,
             )
@@ -958,7 +958,7 @@ def build_passed_receipt_v1(
         "story_count": len(STORY_IDS),
         "evidence_count": evidence_count,
         "catalog_sha256": catalog_sha256,
-        "selector_receipts_sha256": selector_receipts_sha256,
+        "direct_evidence_sha256": direct_evidence_sha256,
         "selection_sha256": selection_sha256,
         "source_versions_sha256": source_versions_sha256,
         "required_checks": [
@@ -984,9 +984,14 @@ def validate_existing_passed_receipt_v1(
     completed_at = _utc_datetime(receipt.get("completed_at"))
     if not _is_utc(now) or completed_at is None or completed_at > now:
         return ("m6_receipt_completed_at_invalid",)
+    direct_digest = receipt.get("direct_evidence_sha256")
+    if not isinstance(direct_digest, str) or _SHA256.fullmatch(direct_digest) is None:
+        return ("m6_receipt_evidence_digest_invalid",)
     mismatched = tuple(
         key
-        for key in sorted(_RECEIPT_KEYS - {"completed_at"})
+        for key in sorted(
+            _RECEIPT_KEYS - {"completed_at", "direct_evidence_sha256"}
+        )
         if receipt.get(key) != expected.get(key)
     )
     if mismatched:

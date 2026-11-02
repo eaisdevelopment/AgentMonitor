@@ -14,12 +14,16 @@ from pathlib import Path
 import pytest
 
 from tools.automation.implementations.auto_m6_exit import (
+    PROJECT_BACKEND_VENV,
     M6ExitErrorV1,
     _artifact_parts,
     _open_directory_chain,
     _print_result,
     _terminate_process_group,
     _unlink_created_receipt,
+)
+from tools.automation.implementations.m6_direct_evidence import (
+    direct_policy_hashes_v1,
 )
 from tools.automation.implementations.m6_exit_policy import (
     ACCEPTANCE_IDS,
@@ -62,8 +66,16 @@ def _catalog(*, frozen: bool = True) -> dict[str, object]:
                 "producer_version": "1.0.0",
                 "selection_policy_id": selection_policy_id,
                 "source_versions_policy_id": source_versions_policy_id,
-                "selection_sha256": "c" * 64 if frozen else None,
-                "source_versions_sha256": "d" * 64 if frozen else None,
+                "selection_sha256": direct_policy_hashes_v1(
+                    scope_id, selection_policy_id, source_versions_policy_id
+                )[0]
+                if frozen
+                else None,
+                "source_versions_sha256": direct_policy_hashes_v1(
+                    scope_id, selection_policy_id, source_versions_policy_id
+                )[1]
+                if frozen
+                else None,
                 "required_limitations": list(required_limitations),
             }
             for (
@@ -81,6 +93,9 @@ def _catalog(*, frozen: bool = True) -> dict[str, object]:
 
 def _selector(scope_id: str, *, status: str = "passed") -> dict[str, object]:
     requirement = next(item for item in SELECTOR_REQUIREMENTS if item[0] == scope_id)
+    selection, source_versions = direct_policy_hashes_v1(
+        scope_id, requirement[5], requirement[6]
+    )
     evidence = {
         "evidence_id": "E-" + requirement[1],
         "path": "docs/evidence/m6-completion-boundaries.json",
@@ -103,8 +118,8 @@ def _selector(scope_id: str, *, status: str = "passed") -> dict[str, object]:
         "boundary": requirement[2],
         "selection_policy_id": requirement[5],
         "source_versions_policy_id": requirement[6],
-        "selection_sha256": "c" * 64,
-        "source_versions_sha256": "d" * 64,
+        "selection_sha256": selection,
+        "source_versions_sha256": source_versions,
         "evidence": evidence,
         "reason_code": None if status == "passed" else "real_boundary_not_available",
         "declared_limitations": list(requirement[4]),
@@ -145,7 +160,7 @@ def test_repository_catalog_is_exact_and_versioned() -> None:
     )
 
     assert validate_catalog_v1(catalog) == ()
-    assert catalog == _catalog(frozen=False)
+    assert catalog == _catalog()
     selector_scopes = {item["scope_id"] for item in catalog["selectors"]}
     assert "M6-A10" not in selector_scopes
 
@@ -211,6 +226,34 @@ def test_canonical_dispatcher_registers_operational_m6_exit() -> None:
         "tools.automation.implementations.auto_m6_exit",
     ]
     assert routine["blockers"] == []
+
+
+def test_gate_never_uses_the_sealed_release_runtime_as_a_build_tool() -> None:
+    assert PROJECT_BACKEND_VENV == Path(
+        "/home/dev/Nextcloud/Code/AI/AgentMonitor/backend/.venv"
+    )
+    assert "/releases/" not in str(PROJECT_BACKEND_VENV)
+
+
+def test_m6_exit_owns_direct_selector_checks_without_fourteen_subroutines() -> None:
+    routines = tomllib.loads(
+        (ROOT / "tools/automation/routines.toml").read_text(encoding="utf-8")
+    )["routines"]
+    routine_ids = {item["id"] for item in routines}
+    catalog = json.loads(
+        (ROOT / "tools/automation/m6-exit-catalog-v1.json").read_text(
+            encoding="utf-8"
+        )
+    )
+
+    assert not any(item.startswith("AUTO-M6-EVIDENCE-") for item in routine_ids)
+    assert {item["producer_command_id"] for item in catalog["selectors"]} == {
+        "AUTO-M6-EXIT"
+    }
+    assert all(item["selection_sha256"] is not None for item in catalog["selectors"])
+    assert all(
+        item["source_versions_sha256"] is not None for item in catalog["selectors"]
+    )
 
 
 def test_success_output_is_explicitly_technical_not_milestone_completion(
@@ -466,7 +509,7 @@ def test_passed_receipt_contains_only_counts_digests_and_safe_outcomes() -> None
     receipt = build_passed_receipt_v1(
         implementation_revision=REVISION,
         catalog_sha256=DIGEST,
-        selector_receipts_sha256="c" * 64,
+        direct_evidence_sha256="c" * 64,
         selection_sha256="d" * 64,
         source_versions_sha256="e" * 64,
         completed_at=NOW,
@@ -489,7 +532,7 @@ def test_passed_receipt_contains_only_counts_digests_and_safe_outcomes() -> None
         build_passed_receipt_v1(
             implementation_revision=REVISION,
             catalog_sha256=DIGEST,
-            selector_receipts_sha256="c" * 64,
+            direct_evidence_sha256="c" * 64,
             selection_sha256="d" * 64,
             source_versions_sha256="e" * 64,
             completed_at=NOW,

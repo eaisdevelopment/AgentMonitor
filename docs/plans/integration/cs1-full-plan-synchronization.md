@@ -1162,3 +1162,18 @@ readiness is claimed.
 Plan snapshot SHA-256: `9311930b0a0d4cb3ecc62eb5aeac637375f709dfb3aca38d73bf90337e364292`
 
 Planning validator SHA-256: `1af257b664a10dfdbf0c4d35607aaa68da309c3e64414c383da36b799cc37827`
+
+## 2026-11-02 direct M6 evidence truthfulness rebind
+
+This structural reconciliation binds the direct M6 technical-gate catalog and
+automation controls after independent review required A02, A04/A05 and A07 to
+remain Not Run where the real second-host, provider-authoritative comparison,
+duplicate-event, or exact natural recovery evidence is absent. The corrected
+gate no longer promotes internal DB/API/DOM agreement or unrelated historical
+runs into those external results. Those real outcomes and M6-A10 remain Not
+Run; this snapshot binding is not a product-readiness or milestone-completion
+claim.
+
+Plan snapshot SHA-256: `81b4ef0fb6a9e97e2954589daae24d39fbfc5fa851feb3e5e00f54cc078c6b77`
+
+Planning validator SHA-256: `c9ba3f027ca8cc38441cac49e167e5d063b146c8511f14af99006f22c26a2c05`

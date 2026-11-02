@@ -8,15 +8,12 @@ quota values, provider payloads and credentials never cross this boundary.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
-import sys
 from dataclasses import asdict, dataclass
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Literal
-
-ROOT = Path(__file__).resolve().parents[3]
-sys.path.insert(0, str(ROOT / "backend/src"))
 
 from agentmonitor.adapters.persistence._shared.sqlite.core.policy import (
     DatabaseRefV1,
@@ -39,9 +36,6 @@ from agentmonitor.adapters.persistence.collection_control.sqlite.cloud_schedule_
 from agentmonitor.adapters.persistence.collection_control.sqlite.ollama_cloud_admission import (
     SqliteOllamaCloudAdmissionRepositoryV1,
 )
-from agentmonitor.adapters.persistence.collection_control.sqlite.repository import (
-    SqliteCollectionRepositoryV1,
-)
 from agentmonitor.adapters.persistence.registry.sqlite.credential_bindings import (
     SqliteCloudCredentialRegistryV1,
     SqliteCredentialBindingsV1,
@@ -56,6 +50,7 @@ from agentmonitor.adapters.providers.ollama.cloud_balance.probe_descriptor impor
     ollama_cloud_scheduled_policy,
 )
 from agentmonitor.contracts.alerting_v1 import (
+    AlertHistoryQueryV1,
     AlertListQueryV1,
     AlertRuleListQueryV1,
     AlertRuleViewV1,
@@ -68,7 +63,6 @@ from agentmonitor.contracts.capacity_v1 import (
     QuotaWindowViewV1OrV2,
 )
 from agentmonitor.contracts.collection_control_v1 import (
-    CollectionRunViewV1,
     OllamaCloudLatestSourceSignalQueryV1,
 )
 from agentmonitor.contracts.common_v1 import OpaqueIdV1
@@ -80,6 +74,15 @@ from agentmonitor.contracts.registry_v1 import (
 )
 
 SnapshotStatusV1 = Literal["passed", "blocked", "not_run"]
+_EMPTY_LINEAGE_SHA256 = hashlib.sha256(b"").hexdigest()
+
+
+def _lineage_digest(rows: set[tuple[str, ...]]) -> str:
+    digest = hashlib.sha256()
+    for row in sorted(rows):
+        digest.update("\0".join(row).encode("utf-8"))
+        digest.update(b"\n")
+    return digest.hexdigest()
 
 
 @dataclass(frozen=True, slots=True)
@@ -94,6 +97,7 @@ class M6EvidenceSnapshotV1:
     observed_local_installations: int = 0
     active_cloud_targets: int = 0
     owner_confirmed_cloud_targets: int = 0
+    owner_confirmed_required_scopes: int = 0
     verified_cloud_targets: int = 0
     current_balance_targets: int = 0
     history_targets: int = 0
@@ -102,17 +106,25 @@ class M6EvidenceSnapshotV1:
     process_observation_count: int = 0
     natural_recovery_targets: int = 0
     cross_provider_continuity_targets: int = 0
+    current_balance_lineage_sha256: str = _EMPTY_LINEAGE_SHA256
+    current_history_lineage_sha256: str = _EMPTY_LINEAGE_SHA256
 
     def __post_init__(self) -> None:
-        counts = tuple(
-            value
-            for name, value in asdict(self).items()
-            if name
-            not in {
-                "status",
-                "reason_code",
-                "schema_state",
-            }
+        counts = (
+            self.active_ollama_accounts,
+            self.registered_local_installations,
+            self.observed_local_installations,
+            self.active_cloud_targets,
+            self.owner_confirmed_cloud_targets,
+            self.owner_confirmed_required_scopes,
+            self.verified_cloud_targets,
+            self.current_balance_targets,
+            self.history_targets,
+            self.configured_alert_targets,
+            self.alerted_targets,
+            self.process_observation_count,
+            self.natural_recovery_targets,
+            self.cross_provider_continuity_targets,
         )
         if (
             self.status not in {"passed", "blocked", "not_run"}
@@ -122,6 +134,8 @@ class M6EvidenceSnapshotV1:
             or self.observed_local_installations
             > self.registered_local_installations
             or self.owner_confirmed_cloud_targets > self.active_cloud_targets
+            or self.owner_confirmed_required_scopes
+            > self.owner_confirmed_cloud_targets
             or self.verified_cloud_targets > self.active_cloud_targets
             or self.current_balance_targets > self.verified_cloud_targets
             or self.history_targets > self.current_balance_targets
@@ -129,6 +143,14 @@ class M6EvidenceSnapshotV1:
             or self.natural_recovery_targets > self.active_cloud_targets
             or self.cross_provider_continuity_targets
             > self.natural_recovery_targets
+            or any(
+                len(value) != 64
+                or any(character not in "0123456789abcdef" for character in value)
+                for value in (
+                    self.current_balance_lineage_sha256,
+                    self.current_history_lineage_sha256,
+                )
+            )
         ):
             raise ValueError("m6_snapshot_contract_invalid")
 
@@ -146,6 +168,14 @@ class M6EvidenceSnapshotV1:
 
     def as_json(self) -> dict[str, object]:
         values = asdict(self)
+        digests = {
+            "current_balance_lineage_sha256": values.pop(
+                "current_balance_lineage_sha256"
+            ),
+            "current_history_lineage_sha256": values.pop(
+                "current_history_lineage_sha256"
+            ),
+        }
         return {
             "schema_version": "1.0.0",
             "record_type": "agentmonitor.m6_real_snapshot.v1",
@@ -153,6 +183,7 @@ class M6EvidenceSnapshotV1:
             "reason_code": values.pop("reason_code"),
             "schema_state": values.pop("schema_state"),
             "counts": values,
+            "digests": digests,
         }
 
 
@@ -212,12 +243,15 @@ def _current_cloud_windows(
     )
 
 
-def _has_history(
+def _current_history_lineage(
     capacity: SqliteCapacityRepositoryV1,
     graph: CloudMonitoringTargetV1,
     windows: tuple[QuotaWindowViewV1OrV2, ...],
     as_of: datetime,
-) -> bool:
+) -> set[tuple[str, ...]]:
+    """Return only current observations proven present in retained history."""
+
+    lineage: set[tuple[str, ...]] = set()
     for window in windows:
         metrics: tuple[CapacityHistoryMetricV1, ...] = tuple(
             metric
@@ -250,36 +284,31 @@ def _has_history(
                 and point.subject.provider_target.target_kind == "cloud_service"
                 and point.subject.provider_target.target_id == graph.access_target_id
                 and point.provenance.source_id == "ollama.cloud.balance.v1"
+                and point.window_id == window.window_id
             )
-            if len(exact) >= 2:
-                return True
-    return False
-
-
-def _recovery_interval(
-    runs: tuple[CollectionRunViewV1, ...],
-) -> tuple[datetime, datetime] | None:
-    """Return an actual older failure followed by a later successful request."""
-
-    cloud = tuple(
-        run
-        for run in runs
-        if run.source_id == "ollama.cloud.balance.v1"
-        and run.capability_id == "subscription.quota"
-    )
-    for success in cloud:
-        if success.state not in {"succeeded", "partial"}:
-            continue
-        older_failures = tuple(
-            run
-            for run in cloud
-            if run.requested_at < success.requested_at
-            and run.state in {"failed", "blocked", "cancelled", "unsupported"}
-        )
-        if older_failures:
-            failure = max(older_failures, key=lambda item: item.requested_at)
-            return failure.requested_at, success.requested_at
-    return None
+            if (
+                len(exact) >= 2
+                and len({point.observation_id for point in exact}) >= 2
+                and len({point.collection_run_id for point in exact}) >= 2
+                and sum(
+                    point.observation_id == window.current_observation_id
+                    and point.collection_run_id == window.collection_run_id
+                    for point in exact
+                )
+                == 1
+            ):
+                lineage.add(
+                    (
+                        graph.account_id.value,
+                        graph.resource_id.value,
+                        graph.access_target_id.value,
+                        window.window_id.value,
+                        window.current_observation_id.value,
+                        window.collection_run_id.value,
+                    )
+                )
+                break
+    return lineage
 
 
 def _configured_alert_accounts(
@@ -312,6 +341,64 @@ def _configured_alert_accounts(
         ):
             configured.append(account)
     return tuple(configured)
+
+
+def _has_deduplicated_current_observation_alert(
+    repository: SqliteAlertActionRepositoryV1,
+    account: AccountViewV1,
+    observation_ids: frozenset[OpaqueIdV1],
+    as_of: datetime,
+) -> bool:
+    """Require one durable transition per matching current alert source event."""
+
+    if not observation_ids:
+        return False
+    page = repository.list_alerts(
+        AlertListQueryV1(
+            as_of=as_of,
+            condition_type="capacity_remaining",
+            scope=AlertScopeRefV1("account", account.account_id.value),
+            limit=200,
+        )
+    )
+    if page.has_more:
+        raise ValueError("m6_snapshot_alert_limit_exceeded")
+    matching = tuple(
+        alert
+        for alert in page.items
+        if alert.subject.provider_key == "ollama"
+        and alert.subject.account_id == account.account_id
+        and bool(observation_ids.intersection(alert.decision.source.observation_ids))
+    )
+    if not matching:
+        return False
+    event_keys: list[tuple[str, str]] = []
+    for alert in matching:
+        source_event_id = alert.decision.source.event_id
+        if not isinstance(source_event_id, OpaqueIdV1):
+            return False
+        history = repository.list_history(
+            AlertHistoryQueryV1(alert.alert_id, as_of, 200)
+        )
+        if history.has_more:
+            raise ValueError("m6_snapshot_alert_history_limit_exceeded")
+        if (
+            sum(
+                item.source_event_id == source_event_id
+                for item in history.items
+            )
+            != 1
+        ):
+            return False
+        rule_key = (
+            alert.rule.rule_id.value
+            if alert.rule.rule_id is not None
+            else alert.rule.builtin_policy_version
+        )
+        if rule_key is None:
+            return False
+        event_keys.append((rule_key, source_event_id.value))
+    return len(set(event_keys)) == len(event_keys)
 
 
 def read_m6_evidence_snapshot_v1(
@@ -360,7 +447,6 @@ def read_m6_evidence_snapshot_v1(
         cloud_registry = SqliteCloudCredentialRegistryV1(reference)
         admission = SqliteOllamaCloudAdmissionRepositoryV1(reference)
         capacity = SqliteCapacityRepositoryV1(reference)
-        collection = SqliteCollectionRepositoryV1(reference)
         runtime = SqliteRuntimeObservationRepositoryV1(reference)
         policy = ollama_cloud_scheduled_policy()
 
@@ -372,12 +458,21 @@ def read_m6_evidence_snapshot_v1(
         installations = registry.list_provider_installations(
             "ollama", page_size=201
         )
-        if len(accounts) >= 201 or len(installations) >= 201:
+        organizations = registry.list_organizations(page_size=201)
+        if (
+            len(accounts) >= 201
+            or len(installations) >= 201
+            or len(organizations) >= 201
+        ):
             raise ValueError("m6_snapshot_registry_limit_exceeded")
         observed_installations = tuple(
             item
             for item in installations
-            if item.presence_state == "present" and item.version.state == "known_masked"
+            if item.presence_state == "present"
+            and item.version.state == "known_masked"
+            and instant - timedelta(minutes=10)
+            <= item.last_seen_at
+            <= instant + timedelta(seconds=5)
         )
         schedules = SqliteCloudScheduleStatusV1(reference).list_registered()
         process_rows = runtime.list_processes("ollama", instant, 500)
@@ -388,13 +483,6 @@ def read_m6_evidence_snapshot_v1(
             for item in process_rows
             if item.presence == "running"
         )
-        other_runs = tuple(
-            run
-            for provider in ("claude", "codex")
-            for run in collection.list_runs(provider, None, instant, 500)
-            if run.state in {"succeeded", "partial"}
-        )
-
         active_targets = 0
         owner_confirmed = 0
         verified = 0
@@ -403,6 +491,15 @@ def read_m6_evidence_snapshot_v1(
         recovery = 0
         continuity = 0
         cloud_accounts: list[AccountViewV1] = []
+        owner_scope_ids: set[OpaqueIdV1] = set()
+        current_observations: dict[OpaqueIdV1, frozenset[OpaqueIdV1]] = {}
+        current_balance_lineage: set[tuple[str, ...]] = set()
+        current_history_lineage: set[tuple[str, ...]] = set()
+        required_organizations = {
+            item.organization_id
+            for item in organizations
+            if item.lifecycle == "active" and item.name.casefold() in {"sdk", "eais"}
+        }
         for account in accounts:
             aggregate = binding_repository.read(account.account_id)
             binding = _active_binding(aggregate)
@@ -418,6 +515,8 @@ def read_m6_evidence_snapshot_v1(
             ):
                 continue
             owner_confirmed += 1
+            if account.organization_id in required_organizations:
+                owner_scope_ids.add(account.organization_id)
             receipt = cloud_registry.read_current_verification(binding)
             if (
                 receipt is None
@@ -452,18 +551,30 @@ def read_m6_evidence_snapshot_v1(
             if not windows:
                 continue
             current += 1
-            if _has_history(capacity, graph, windows, instant):
-                history += 1
-
-            account_runs = collection.list_runs(
-                "ollama", account.account_id, instant, 500
+            current_observations[account.account_id] = frozenset(
+                item.current_observation_id for item in windows
             )
-            interval = _recovery_interval(account_runs)
-            if interval is not None:
-                recovery += 1
-                start, end = interval
-                if any(start <= run.requested_at <= end for run in other_runs):
-                    continuity += 1
+            current_balance_lineage.update(
+                (
+                    account.account_id.value,
+                    graph.resource_id.value,
+                    graph.access_target_id.value,
+                    item.window_id.value,
+                    item.current_observation_id.value,
+                    item.collection_run_id.value,
+                )
+                for item in windows
+            )
+            history_lineage = _current_history_lineage(
+                capacity, graph, windows, instant
+            )
+            if history_lineage:
+                history += 1
+                current_history_lineage.update(history_lineage)
+
+            # CTR-COL-002 does not expose the access target, source fingerprint,
+            # or candidate revision needed to bind an older failure to this exact
+            # current source.  Do not infer M6-A07 from unrelated historical runs.
 
         alert_rules_page = SqliteAlertingRepositoryV1(reference).list_rules(
             AlertRuleListQueryV1(
@@ -480,15 +591,11 @@ def read_m6_evidence_snapshot_v1(
         )
         alert_repository = SqliteAlertActionRepositoryV1(reference)
         alerted = sum(
-            bool(
-                alert_repository.list_alerts(
-                    AlertListQueryV1(
-                        as_of=instant,
-                        condition_type="capacity_remaining",
-                        scope=AlertScopeRefV1("account", account.account_id.value),
-                        limit=1,
-                    )
-                ).items
+            _has_deduplicated_current_observation_alert(
+                alert_repository,
+                account,
+                current_observations.get(account.account_id, frozenset()),
+                instant,
             )
             for account in configured_accounts
         )
@@ -499,9 +606,12 @@ def read_m6_evidence_snapshot_v1(
             schema_state=schema_state,
             active_ollama_accounts=len(accounts),
             registered_local_installations=len(installations),
+            # Each item is a real M02 reconciliation; a second host cannot be
+            # inferred merely from a second account or process row.
             observed_local_installations=len(observed_installations),
             active_cloud_targets=active_targets,
             owner_confirmed_cloud_targets=owner_confirmed,
+            owner_confirmed_required_scopes=len(owner_scope_ids),
             verified_cloud_targets=verified,
             current_balance_targets=current,
             history_targets=history,
@@ -510,6 +620,12 @@ def read_m6_evidence_snapshot_v1(
             process_observation_count=len(processes),
             natural_recovery_targets=recovery,
             cross_provider_continuity_targets=continuity,
+            current_balance_lineage_sha256=_lineage_digest(
+                current_balance_lineage
+            ),
+            current_history_lineage_sha256=_lineage_digest(
+                current_history_lineage
+            ),
         )
     except (OSError, TypeError, ValueError):
         return M6EvidenceSnapshotV1.blocked(

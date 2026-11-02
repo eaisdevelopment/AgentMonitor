@@ -152,7 +152,7 @@ blockers = []
 id = "AUTO-M6-EXIT"
 owner = "PLAN-INT"
 status = "operational"
-scope = "exact V1-M6 technical acceptance and story catalog at one clean revision: run approved local/static checks, invoke each available cataloged evidence producer, select only its bounded machine receipt, reject incomplete evidence, and emit one privacy-minimized technical receipt while leaving M6-A10 owner review pending"
+scope = "exact V1-M6 technical acceptance and story catalog at one clean revision: directly run the approved shared real checks once, classify each criterion independently, retain one privacy-minimized machine artifact, and emit one technical receipt while leaving M6-A10 owner review pending"
 implementation_command = ["python3", "-m", "tools.automation.implementations.auto_m6_exit"]
 blockers = []
 

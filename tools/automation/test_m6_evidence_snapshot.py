@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 import subprocess
 import sys
@@ -15,7 +16,7 @@ from tools.automation.implementations.m6_real_snapshot import (
 REAL_DATA_ROOT = Path("/home/dev/.local/share/agentmonitor")
 
 
-def test_snapshot_contract_exposes_only_sanitized_counts() -> None:
+def test_snapshot_contract_exposes_only_sanitized_aggregates() -> None:
     snapshot = M6EvidenceSnapshotV1.not_run(
         schema_state="upgrade_required",
         reason_code="m6_snapshot_schema_upgrade_required",
@@ -33,6 +34,7 @@ def test_snapshot_contract_exposes_only_sanitized_counts() -> None:
             "observed_local_installations": 0,
             "active_cloud_targets": 0,
             "owner_confirmed_cloud_targets": 0,
+            "owner_confirmed_required_scopes": 0,
             "verified_cloud_targets": 0,
             "current_balance_targets": 0,
             "history_targets": 0,
@@ -41,6 +43,10 @@ def test_snapshot_contract_exposes_only_sanitized_counts() -> None:
             "process_observation_count": 0,
             "natural_recovery_targets": 0,
             "cross_provider_continuity_targets": 0,
+        },
+        "digests": {
+            "current_balance_lineage_sha256": hashlib.sha256(b"").hexdigest(),
+            "current_history_lineage_sha256": hashlib.sha256(b"").hexdigest(),
         },
     }
 
@@ -65,6 +71,7 @@ def test_real_installed_database_is_inspected_without_mutation() -> None:
         "reason_code",
         "schema_state",
         "counts",
+        "digests",
     }
     assert set(snapshot.as_json()["counts"]) == {
         "active_ollama_accounts",
@@ -72,6 +79,7 @@ def test_real_installed_database_is_inspected_without_mutation() -> None:
         "observed_local_installations",
         "active_cloud_targets",
         "owner_confirmed_cloud_targets",
+        "owner_confirmed_required_scopes",
         "verified_cloud_targets",
         "current_balance_targets",
         "history_targets",
@@ -81,6 +89,16 @@ def test_real_installed_database_is_inspected_without_mutation() -> None:
         "natural_recovery_targets",
         "cross_provider_continuity_targets",
     }
+    assert set(snapshot.as_json()["digests"]) == {
+        "current_balance_lineage_sha256",
+        "current_history_lineage_sha256",
+    }
+    assert all(
+        isinstance(value, str) and len(value) == 64
+        for value in snapshot.as_json()["digests"].values()
+    )
+    assert snapshot.natural_recovery_targets == 0
+    assert snapshot.cross_provider_continuity_targets == 0
 
 
 def test_real_snapshot_cli_emits_one_bounded_json_document() -> None:

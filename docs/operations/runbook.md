@@ -958,42 +958,48 @@ to remain at one exact clean revision before and after evidence collection and
 receipt publication; ordinary Git branch, upstream, and author configuration
 are not M6 acceptance criteria.
 Those commands retain their documented real read-only boundaries and limited
-scope. Still-valid owner-guided account/scope outcomes are reused by the real
-evidence producers that own those boundaries.
+scope. The same gate also runs the local inventory, provider-security checks,
+responsive browser, signed-in installed Ollama dashboard check, and one
+privacy-minimized read-only database snapshot. Each check is attempted
+independently; a missing cloud prerequisite does not erase a valid local
+result. Still-valid owner-guided account/scope outcomes are read through the
+application's versioned state rather than requested again.
+
+The gate does not promote a narrower proxy into acceptance evidence. M6-A02
+remains `not_run` until both available machines have their own fresh real
+inventory observation. M6-A04 requires the separate provider-authoritative
+comparison from the approved catalog; equality between AgentMonitor's SQLite,
+API and DOM proves only internal lineage. M6-A05 binds retained history to the
+exact current observation and collection run and accepts an alert only when
+its matching source event has one durable transition. M6-A07 remains
+`not_run` unless a natural failure and recovery can be bound to the exact
+target, binding generation, source and candidate interval while Claude, Codex
+and dashboard continuity are evidenced through that same interval. Missing
+sources stay visible and never trigger another owner prompt inside this gate.
 
 The versioned selector catalog is
-`tools/automation/m6-exit-catalog-v1.json`. After running the available checks,
-the command invokes each implemented producer command named by the catalog,
-then selects only that command's bounded machine-produced receipt from the
-owner-only `.agentmonitor-local/m6-evidence/selectors/` directory. A receipt
-whose producer was not actually run is ignored; an unavailable producer is
-`not_run`, and a blocked cataloged producer is `blocked`. The catalog maps one
-exact filename, boundary, producer command/version, selection policy,
-source-version policy, frozen selection/source digests, and required limitation
-set to each of nine external `M6-A01..A09` acceptance entries and five
-`ST-OLL-001..005` story entries. No single receipt can claim more than its one
-cataloged scope, and no operator assembles or approves another bundle. Do not
-hand-edit a selector receipt or create a status row to force
-completion. Receipts must come from the real canonical verifiers for the
-selected revision and
-must contain no account identity, email, key, raw provider value/payload,
-profile/path, screenshot, prompt, response, or arbitrary environment value.
-Each reference is content-digested and must equal the selection and
-source-version digests frozen in the catalog for its exact policy IDs. It binds
-the implementation revision, producer command/version, observation time,
-expiry, exit code, positive test count, zero skip count, and the one
-acceptance/story scope it proves. Process-related selectors must disclose
+`tools/automation/m6-exit-catalog-v1.json`. It freezes the exact boundary,
+selection policy, source-version policy and required limitation set for each
+of nine external `M6-A01..A09` acceptance entries and five
+`ST-OLL-001..005` story entries. `AUTO-M6-EXIT` owns these direct selections;
+there are no fourteen subsidiary producer routines and no manually assembled
+bundle. The command records one owner-only shared artifact below
+`.agentmonitor-local/m6-evidence/`, containing only bounded statuses, counts,
+digests, times and reason/limitation codes. It contains no account identity,
+email, key, raw provider value/payload, profile path, screenshot, prompt,
+response, source content or arbitrary environment value. Every scope binds the
+same artifact digest plus its own frozen selection/source-version digests,
+exact result and test count. Process-related results disclose
 `sampled_process_coverage`, as required by M6-A06.
 
-An absent selector receipt or never-executed required selector is reported as
-`not_run` in the structured result and exits 3. A naturally unavailable,
-ambiguous, expired, or skipped real prerequisite is reported as `blocked` and
-also exits 3. An executed behavioral failure, malformed/duplicate record,
-digest mismatch, wrong scope, or unsafe evidence artifact is `failed` and
-exits 1. No one of those outcomes is completion.
+An unavailable real scenario is reported as `not_run` in that criterion and
+the overall command exits 3. A naturally ambiguous, busy or inaccessible
+boundary is `blocked` and also exits 3. An executed behavioral failure,
+malformed result, digest mismatch, wrong scope or unsafe evidence artifact is
+`failed` and exits 1. No one of those outcomes is completion.
 
-The command rechecks the clean revision, catalog, selector bytes, current
-expiry, and every referenced artifact before and after its receipt write. Only
+The command rechecks the clean revision, catalog, current evidence times, and
+the shared artifact before and after its receipt write. Only
 when all checks and all 14 external selectors pass does it create one
 owner-only receipt at
 `.agentmonitor-local/m6-exit-receipts/<implementation-revision>.json`. The
