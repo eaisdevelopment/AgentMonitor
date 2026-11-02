@@ -23,13 +23,14 @@ from agentmonitor.contracts.runtime_observation_v1 import (
     RuntimeFieldStateV1,
 )
 
-LINUX_PROCESS_ADAPTER_VERSION = "1.1.0"
+LINUX_PROCESS_ADAPTER_VERSION = "1.2.0"
 LINUX_PROCESS_SOURCE_VERSION = "linux-procfs-stat-exe-v1"
 _MAX_STAT_BYTES = 16 * 1024
 _MAX_BOOT_SCOPE_BYTES = 128
 _ADMITTED_SELECTOR_IDENTITIES = {
     "linux.proc.claude-process.v1": "claude",
     "linux.proc.codex-process.v1": "codex",
+    "linux.proc.ollama-process.v1": "ollama",
 }
 type LinuxExecutableFileIdentityV1 = tuple[int, int, int, int, int, int, int, int]
 

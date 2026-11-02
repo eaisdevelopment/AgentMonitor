@@ -18,6 +18,9 @@ from agentmonitor.adapters.providers.claude.installation import (
 from agentmonitor.adapters.providers.codex.installation import (
     discover_default_installation as discover_codex_installation,
 )
+from agentmonitor.adapters.providers.ollama.installation import (
+    discover_installation as discover_ollama_installation,
+)
 from agentmonitor.contracts.common_v1 import QueryAvailabilityV1
 from agentmonitor.contracts.runtime_observation_v1 import (
     LiveProcessLocationsV1,
@@ -38,7 +41,7 @@ class _ProcessInstallation:
 
 
 def _discover_installations(
-    *, include_claude: bool, include_codex: bool
+    *, include_claude: bool, include_codex: bool, include_ollama: bool
 ) -> tuple[tuple[_ProcessInstallation, ...], bool]:
     installations: list[_ProcessInstallation] = []
     incomplete = False
@@ -82,16 +85,43 @@ def _discover_installations(
             )
         except (OSError, RuntimeError, ValueError):
             incomplete = True
+    if include_ollama:
+        try:
+            ollama_installation = discover_ollama_installation()
+            if (
+                ollama_installation.outcome != "success"
+                or ollama_installation.installation_ref is None
+                or ollama_installation.cli_version is None
+            ):
+                raise ValueError("ollama_process_installation_unavailable")
+            executable, expected_file_identity = (
+                ollama_installation.executable_for_process_observation()
+            )
+            installations.append(
+                _ProcessInstallation(
+                    "ollama",
+                    "linux.proc.ollama-process.v1",
+                    "ollama",
+                    ollama_installation.installation_ref.value,
+                    ollama_installation.cli_version,
+                    executable,
+                    expected_file_identity,
+                )
+            )
+        except (OSError, RuntimeError, ValueError):
+            incomplete = True
     return tuple(installations), incomplete
 
 
 def _read_process_locations_v1(
-    *, include_claude: bool, include_codex: bool
+    *, include_claude: bool, include_codex: bool, include_ollama: bool
 ) -> LiveProcessLocationsV1:
     observed_at = datetime.now(UTC)
     try:
         installations, truncated = _discover_installations(
-            include_claude=include_claude, include_codex=include_codex
+            include_claude=include_claude,
+            include_codex=include_codex,
+            include_ollama=include_ollama,
         )
         items: list[LiveProcessLocationV1] = []
         usable = False
@@ -178,10 +208,18 @@ def _read_process_locations_v1(
 
 
 def read_live_process_locations_v1() -> LiveProcessLocationsV1:
-    """Read exact Claude and Codex processes for the provider-neutral API view."""
-    return _read_process_locations_v1(include_claude=True, include_codex=True)
+    """Read exact Claude, Codex and Ollama processes for the neutral API view."""
+    return _read_process_locations_v1(
+        include_claude=True,
+        include_codex=True,
+        include_ollama=True,
+    )
 
 
 def read_live_claude_process_locations_v1() -> LiveProcessLocationsV1:
     """Compatibility wrapper retained for the existing Claude-only automation."""
-    return _read_process_locations_v1(include_claude=True, include_codex=False)
+    return _read_process_locations_v1(
+        include_claude=True,
+        include_codex=False,
+        include_ollama=False,
+    )

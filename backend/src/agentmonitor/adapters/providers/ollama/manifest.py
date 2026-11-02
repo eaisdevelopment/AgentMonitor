@@ -14,7 +14,7 @@ from agentmonitor.contracts.provider_system_v1 import (
 
 OLLAMA_PROVIDER_VERSION = "0.24.0"
 OLLAMA_ADAPTER_ID = "agentmonitor.ollama"
-OLLAMA_ADAPTER_VERSION = "1.0.0"
+OLLAMA_ADAPTER_VERSION = "1.1.0"
 _PLAN_ID = "M6-OLL-LOCAL-PLAN-001"
 # Digest of the owner-approved plan as it stood on 1 November 2026; this is
 # provenance for a pending decision, not an admission or completion receipt.
