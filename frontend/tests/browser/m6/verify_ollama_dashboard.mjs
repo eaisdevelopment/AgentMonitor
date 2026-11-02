@@ -399,20 +399,58 @@ try {
     }
   }
 
-  await page.getByRole("button", { name: "Sessions", exact: true }).click();
-  const table = page.getByRole("region", { name: "Process observations table" });
-  if (!await table.isVisible().catch(() => false)) {
-    setResult("process_visibility", "not_run", "real_ollama_process_unavailable");
-  } else {
-    const rows = table.locator('tbody tr[data-process-row="true"]').filter({
-      has: page.getByRole("rowheader", { name: "ollama", exact: true }),
-    });
-    if (await rows.count() < 1) {
+  try {
+    const processResponse = page.waitForResponse(response => {
+      const url = new URL(response.url());
+      return url.origin === origin && url.pathname === "/api/v1/process-metrics" && response.request().method() === "GET";
+    }, { timeout: 15_000 });
+    await page.getByRole("button", { name: "Sessions", exact: true }).click();
+    const response = await processResponse;
+    if (!response.ok()) {
       setResult("process_visibility", "not_run", "real_ollama_process_unavailable");
     } else {
-      const explicit = await rows.first().getByText(/account (unknown|unresolved)/i).isVisible().catch(() => false);
-      setResult("process_visibility", explicit ? "passed" : "failed", explicit ? null : "ollama_account_link_state_missing");
+      const payload = await response.json();
+      if (!boundedPage(payload)) throw new Error("process_page_invalid");
+      const filteredResponse = await page.request.get(
+        `${origin}/api/v1/process-metrics?provider_key=ollama&limit=200`,
+        { headers: { Origin: origin } },
+      );
+      if (!filteredResponse.ok()) throw new Error("process_filter_unavailable");
+      const filtered = await filteredResponse.json();
+      if (!boundedPage(filtered) || filtered.items.some(item => item.provider_key !== "ollama")) throw new Error("process_filter_invalid");
+      const filteredIds = new Set(filtered.items.filter(item => item.presence === "running" && item.provenance?.source_id === "linux.proc.process.v1").map(item => item.process_id));
+      const observed = payload.items.filter(item => item.provider_key === "ollama" && item.presence === "running" && item.provenance?.source_id === "linux.proc.process.v1" && filteredIds.has(item.process_id));
+      const table = page.getByRole("region", { name: "Process observations table" });
+      if (observed.length === 0) {
+        setResult("process_visibility", "not_run", payload.page.has_more
+          ? "ollama_process_not_in_displayed_page" : "real_ollama_process_unavailable");
+      } else {
+        const visible = await table.waitFor({ state: "visible", timeout: 15_000 }).then(() => true, () => false);
+        if (!visible) {
+          setResult("process_visibility", "failed", "ollama_process_ui_missing");
+        } else {
+          const rows = table.locator('tbody tr[data-process-row="true"]').filter({
+            has: page.getByRole("rowheader", { name: "ollama", exact: true }),
+          });
+          const expectedIds = new Set(observed.map(item => item.process_id));
+          let foundRow = false;
+          let foundLabels = false;
+          for (const row of await rows.all()) {
+            const processId = await row.getAttribute("data-process-id");
+            if (!expectedIds.has(processId)) continue;
+            foundRow = true;
+            const account = await row.getByText("Account unresolved", { exact: true }).isVisible();
+            const model = await row.getByText("Model unresolved", { exact: true }).isVisible();
+            if (account && model) foundLabels = true;
+          }
+          if (!foundRow) setResult("process_visibility", "failed", "ollama_process_ui_missing");
+          else if (!foundLabels) setResult("process_visibility", "failed", "ollama_process_relationship_state_missing");
+          else setResult("process_visibility", "passed", null);
+        }
+      }
     }
+  } catch {
+    setResult("process_visibility", "not_run", "ollama_process_evidence_unavailable");
   }
   if (mutationRequests !== 0) {
     for (const name of Object.keys(results)) setResult(name, "failed", "dashboard_mutation_request_observed");

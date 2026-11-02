@@ -136,6 +136,10 @@ try {
       !await ollamaRows.first().getByText("linux.proc.process.v1", { exact: true }).isVisible()) {
     throw new Error("ollama_process_row_missing");
   }
+  if (!await ollamaRows.first().getByText("Account unresolved", { exact: true }).isVisible() ||
+      !await ollamaRows.first().getByText("Model unresolved", { exact: true }).isVisible()) {
+    throw new Error("ollama_process_relationship_state_missing");
+  }
   console.log("P02 OLLAMA CATALOG: PASSED");
 } finally {
   await browser.close();

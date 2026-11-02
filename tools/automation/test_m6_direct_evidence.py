@@ -296,3 +296,31 @@ def test_direct_bundle_rejects_a_different_catalog_policy_digest() -> None:
         assert str(error) == "m6_direct_catalog_policy_mismatch"
     else:
         raise AssertionError("changed direct policy digest was accepted")
+
+
+def test_unavailable_browser_stays_not_run_with_process_observations() -> None:
+    facts = replace(
+        _complete_facts(),
+        process_browser=BoundaryCheckV1(
+            "not_run", 0, reason_code="signed_in_dashboard_unavailable"
+        ),
+    )
+
+    outcome = classify_direct_m6_evidence_v1(facts)["M6-A06"]
+
+    assert outcome.status == "not_run"
+    assert outcome.reason_code == "signed_in_dashboard_unavailable"
+
+
+def test_disappeared_process_stays_not_run_after_database_observation() -> None:
+    facts = replace(
+        _complete_facts(),
+        process_browser=BoundaryCheckV1(
+            "not_run", 0, reason_code="real_ollama_process_unavailable"
+        ),
+    )
+
+    outcome = classify_direct_m6_evidence_v1(facts)["M6-A06"]
+
+    assert outcome.status == "not_run"
+    assert outcome.reason_code == "real_ollama_process_unavailable"

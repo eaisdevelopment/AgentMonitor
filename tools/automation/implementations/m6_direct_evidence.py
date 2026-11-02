@@ -468,12 +468,6 @@ def classify_direct_m6_evidence_v1(
 
     process_limit = ("sampled_process_coverage",)
     process_browser = facts.process_browser
-    if process_browser.status == "not_run" and facts.process_observation_count > 0:
-        process_browser = BoundaryCheckV1(
-            "failed",
-            1,
-            reason_code="ollama_process_ui_missing",
-        )
     process_base = _combined(
         facts.local_admission,
         facts.database_snapshot,
