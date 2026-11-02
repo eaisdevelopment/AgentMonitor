@@ -28,15 +28,22 @@ successful M04 projection and a successful M03 lineage incorrectly accepted
 `transient_failure`. A separate pure Red (`1 failed, 14 passed`) proved that an
 unclassified unexpected HTTP response was incorrectly labelled as provider
 schema incompatibility instead of remaining unresolved. No I/O or
-provider-shaped payload was constructed.
+provider-shaped payload was constructed. Integration review then found that a
+newly admitted scheduled run would shadow the prior terminal signal; the pure
+contract Red failed `1 failed, 15 passed` because no exact active-lease
+exclusion existed.
 
 ## Green evidence
 
 The same focused command passed `45 passed` after the projection, lineage,
 proof and derivation boundaries required a failed run and a known-start
 certainty for transient signals. The final coordinated M02/M03/M04 focused set
-passed `77 passed`. Ruff, mypy over the eight changed source modules,
-`AUTO-DOCS-CHECK`, and `git diff --check` passed.
+passed `78 passed`. The exclusion accepts only the exact live account lease;
+the repository additionally requires the active global gate, exact target and
+source lineage, fencing identity and a reserved pre-dispatch journal. An exact
+verification-job read by original run/admission IDs was added for probe
+lineage. Ruff, mypy over the eight changed source modules, `AUTO-DOCS-CHECK`,
+and `git diff --check` passed.
 
 ## Real-system evidence
 

@@ -24,6 +24,16 @@ authoritative provider-global rate-gate state.
 
 A changed source fingerprint or target has no matching signal and therefore
 returns unresolved. An active or uncertain attempt also remains unresolved.
-The projection is a read-only composition input; it does not grant a request,
-replace M04 admission, or establish provider identity. Actual scheduled
-dispatch must still acquire the durable global gate.
+The sole exclusion is the caller's own still-active, exact, pre-dispatch rate
+lease: M04 revalidates the global gate, schedule, account, target, credential
+generation, source lineage, fencing token and reserved journal phase before it
+can look past that one attempt. A bare admission ID, dispatched attempt,
+expired lease or mismatched source cannot be excluded. The projection is a
+read-only composition input; it does not grant a request, replace M04
+admission, or establish provider identity. Actual scheduled dispatch must
+still use that same durable lease.
+
+The companion exact verification-job read accepts the original probe's
+`(run_id, admission_id)` from the M02 receipt. Composition must require its
+terminal response-received success and matching M05 commit; a later scheduled
+signal cannot substitute for the original probe result.

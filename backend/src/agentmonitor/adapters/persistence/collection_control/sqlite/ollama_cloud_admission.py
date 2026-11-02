@@ -1902,40 +1902,103 @@ class SqliteOllamaCloudAdmissionRepositoryV1:
                 self._database_ref, "runtime_read_only"
             ) as handle:
                 with handle.connect() as connection:
+                    connection.exec_driver_sql("BEGIN")
+                    excluded_admission_id = None
+                    if query.exclude_active_lease is not None:
+                        lease = query.exclude_active_lease
+                        ensure_ollama_lease_in_transaction(
+                            connection, lease, query.queried_at
+                        )
+                        current = (
+                            connection.exec_driver_sql(
+                                "SELECT j.phase,r.state,r.schedule_id,r.account_id,"
+                                "r.provider_key,r.provider_target_kind,"
+                                "r.provider_target_id,r.target_generation,"
+                                "r.capability_id,r.source_id,r.adapter_version,"
+                                "r.manifest_fingerprint,r.payload_schema,"
+                                "r.fencing_token,l.owner_instance_id "
+                                "FROM collection_cloud_attempt_journal j "
+                                "JOIN collection_run r ON r.run_id=j.run_id "
+                                "JOIN collection_lease l ON l.run_id=r.run_id "
+                                "WHERE j.admission_id=?",
+                                (lease.admission_id.value,),
+                            )
+                            .mappings()
+                            .one_or_none()
+                        )
+                        if (
+                            current is None
+                            or current["phase"] != "reserved"
+                            or current["state"] not in {"queued", "running"}
+                            or current["schedule_id"] != lease.schedule_id.value
+                            or current["account_id"] != query.account_id.value
+                            or current["account_id"] != lease.account_id.value
+                            or current["provider_key"] != "ollama"
+                            or current["provider_target_kind"] != "cloud_service"
+                            or current["provider_target_id"]
+                            != query.access_target_id.value
+                            or int(current["target_generation"])
+                            != query.binding_generation
+                            or current["capability_id"] != query.capability_id
+                            or current["source_id"] != query.source_id
+                            or current["adapter_version"] != query.adapter_version
+                            or current["manifest_fingerprint"]
+                            != query.source_fingerprint
+                            or current["payload_schema"] != query.payload_schema
+                            or int(current["fencing_token"]) != lease.fencing_token
+                            or current["owner_instance_id"]
+                            != lease.scheduler_instance_id.value
+                        ):
+                            raise OllamaCloudAdmissionRepositoryErrorV1(
+                                "ollama_cloud_source_signal_exclusion_invalid"
+                            )
+                        excluded_admission_id = lease.admission_id.value
+                    exclusion_sql = (
+                        "AND (j.admission_id IS NULL OR j.admission_id<>?) "
+                        if excluded_admission_id is not None
+                        else ""
+                    )
+                    parameters: tuple[object, ...] = (
+                        query.account_id.value,
+                        query.access_target_id.value,
+                        query.binding_generation,
+                        query.capability_id,
+                        query.source_id,
+                        query.adapter_version,
+                        query.source_fingerprint,
+                        query.payload_schema,
+                    )
+                    if excluded_admission_id is not None:
+                        parameters += (excluded_admission_id,)
+                    statement = (
+                        "SELECT r.run_id,r.schedule_id,r.state,r.requested_at,"
+                        "j.admission_id,j.phase,j.outcome,j.response_received_at,"
+                        "j.failure_code,a.state AS admission_state,"
+                        "a.account_id AS admission_account_id,"
+                        "a.schedule_id AS admission_schedule_id,"
+                        "t.terminal_at AS no_response_terminal_at,"
+                        "t.source_state AS no_response_source_state,"
+                        "t.dispatch_certainty AS no_response_certainty "
+                        "FROM collection_run r "
+                        "LEFT JOIN collection_cloud_attempt_journal j "
+                        "ON j.run_id=r.run_id "
+                        "LEFT JOIN collection_ollama_cloud_admission a "
+                        "ON a.admission_id=j.admission_id "
+                        "LEFT JOIN collection_cloud_no_response_terminal t "
+                        "ON t.admission_id=j.admission_id "
+                        "WHERE r.provider_key='ollama' AND r.account_id=? "
+                        "AND r.provider_target_kind='cloud_service' "
+                        "AND r.provider_target_id=? AND r.target_generation=? "
+                        "AND r.capability_id=? AND r.source_id=? "
+                        "AND r.adapter_version=? AND r.manifest_fingerprint=? "
+                        "AND r.payload_schema=? "
+                        + exclusion_sql
+                        + "ORDER BY r.requested_at DESC,r.run_id DESC LIMIT 1"
+                    )
                     row = (
                         connection.exec_driver_sql(
-                            "SELECT r.run_id,r.schedule_id,r.state,r.requested_at,"
-                            "j.admission_id,j.phase,j.outcome,j.response_received_at,"
-                            "j.failure_code,a.state AS admission_state,"
-                            "a.account_id AS admission_account_id,"
-                            "a.schedule_id AS admission_schedule_id,"
-                            "t.terminal_at AS no_response_terminal_at,"
-                            "t.source_state AS no_response_source_state,"
-                            "t.dispatch_certainty AS no_response_certainty "
-                            "FROM collection_run r "
-                            "LEFT JOIN collection_cloud_attempt_journal j "
-                            "ON j.run_id=r.run_id "
-                            "LEFT JOIN collection_ollama_cloud_admission a "
-                            "ON a.admission_id=j.admission_id "
-                            "LEFT JOIN collection_cloud_no_response_terminal t "
-                            "ON t.admission_id=j.admission_id "
-                            "WHERE r.provider_key='ollama' AND r.account_id=? "
-                            "AND r.provider_target_kind='cloud_service' "
-                            "AND r.provider_target_id=? AND r.target_generation=? "
-                            "AND r.capability_id=? AND r.source_id=? "
-                            "AND r.adapter_version=? AND r.manifest_fingerprint=? "
-                            "AND r.payload_schema=? "
-                            "ORDER BY r.requested_at DESC,r.run_id DESC LIMIT 1",
-                            (
-                                query.account_id.value,
-                                query.access_target_id.value,
-                                query.binding_generation,
-                                query.capability_id,
-                                query.source_id,
-                                query.adapter_version,
-                                query.source_fingerprint,
-                                query.payload_schema,
-                            ),
+                            statement,
+                            parameters,
                         )
                         .mappings()
                         .one_or_none()
@@ -2035,6 +2098,36 @@ class SqliteOllamaCloudAdmissionRepositoryV1:
                         retry_at=retry_at,
                         queried_at=query.queried_at,
                     )
+        except OllamaCloudAdmissionRepositoryErrorV1:
+            raise
+        except (SQLAlchemyError, SqlitePolicyError, OSError, ValueError, TypeError):
+            raise OllamaCloudAdmissionRepositoryErrorV1() from None
+
+    def read_verification_job(
+        self, run_id: OpaqueIdV1, admission_id: OpaqueIdV1
+    ) -> OllamaCloudVerificationJobViewV1 | None:
+        """Read one exact sanitized M04 verification job without provider I/O."""
+        if not isinstance(run_id, OpaqueIdV1) or not isinstance(
+            admission_id, OpaqueIdV1
+        ):
+            raise OllamaCloudAdmissionRepositoryErrorV1(
+                "ollama_cloud_verification_query_invalid"
+            )
+        try:
+            with open_sqlite_database(
+                self._database_ref, "runtime_read_only"
+            ) as handle:
+                with handle.connect() as connection:
+                    row = (
+                        connection.exec_driver_sql(
+                            "SELECT * FROM collection_cloud_verification_job "
+                            "WHERE run_id=? AND admission_id=?",
+                            (run_id.value, admission_id.value),
+                        )
+                        .mappings()
+                        .one_or_none()
+                    )
+                    return _verification_job(row) if row is not None else None
         except OllamaCloudAdmissionRepositoryErrorV1:
             raise
         except (SQLAlchemyError, SqlitePolicyError, OSError, ValueError, TypeError):

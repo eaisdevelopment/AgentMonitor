@@ -38,8 +38,11 @@ membership or sharing scope.
 This is a compatible additive use of `CTR-PROV-003` V1. It adds no database,
 HTTP, generated-client, event or dependency change. M04 now publishes the
 narrow closed latest-signal read and M02 publishes an active access-target
-read; the Ollama composition still must join those reads to the actual M02 and
-M05 receipts and rederive the proof immediately before M04 acquisition.
+read. M04 also provides an exact verification-job read by the M02 receipt's
+original run/admission IDs, so the original response-received probe success is
+not inferred from a later scheduled outcome. The Ollama composition still must
+join these reads to the actual M02 and M05 receipts and rederive the proof
+immediately before dispatch using the same active pre-dispatch M04 lease.
 
 ## Exact Claude Code 2.1.289 admission
 

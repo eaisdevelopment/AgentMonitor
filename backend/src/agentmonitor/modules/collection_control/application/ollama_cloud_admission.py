@@ -70,6 +70,10 @@ class OllamaCloudAdmissionRepositoryV1(Protocol):
         self, query: OllamaCloudLatestSourceSignalQueryV1
     ) -> OllamaCloudLatestSourceSignalV1: ...
 
+    def read_verification_job(
+        self, run_id: OpaqueIdV1, admission_id: OpaqueIdV1
+    ) -> OllamaCloudVerificationJobViewV1 | None: ...
+
     def pending_verification_finalizations(
         self,
         limit: int = 32,
@@ -200,6 +204,18 @@ class ReadLatestOllamaCloudSourceSignalV1:
         self, query: OllamaCloudLatestSourceSignalQueryV1
     ) -> OllamaCloudLatestSourceSignalV1:
         return self._repository.read_latest_source_signal(query)
+
+
+class ReadExactOllamaCloudVerificationJobV1:
+    """Read the exact M04 verification job named by an M02 receipt."""
+
+    def __init__(self, repository: OllamaCloudAdmissionRepositoryV1) -> None:
+        self._repository = repository
+
+    def __call__(
+        self, run_id: OpaqueIdV1, admission_id: OpaqueIdV1
+    ) -> OllamaCloudVerificationJobViewV1 | None:
+        return self._repository.read_verification_job(run_id, admission_id)
 
 
 class CompleteOllamaCloudRequestV1:

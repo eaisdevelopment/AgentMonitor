@@ -677,6 +677,7 @@ class OllamaCloudLatestSourceSignalQueryV1(TechnicalValueV1):
     source_fingerprint: str
     payload_schema: str
     queried_at: datetime
+    exclude_active_lease: "OllamaCloudRequestLeaseV1 | None" = None
 
     def __post_init__(self) -> None:
         TechnicalValueV1.__post_init__(self)
@@ -696,6 +697,13 @@ class OllamaCloudLatestSourceSignalQueryV1(TechnicalValueV1):
             )
             or _SHA256.fullmatch(self.source_fingerprint) is None
             or not _utc(self.queried_at)
+            or self.exclude_active_lease is not None
+            and (
+                not isinstance(self.exclude_active_lease, OllamaCloudRequestLeaseV1)
+                or self.exclude_active_lease.account_id != self.account_id
+                or self.queried_at < self.exclude_active_lease.started_at
+                or self.queried_at >= self.exclude_active_lease.lease_expires_at
+            )
         ):
             raise InvalidCollectionControlV1("ollama_cloud_source_signal_query_invalid")
 

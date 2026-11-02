@@ -9,6 +9,7 @@ from agentmonitor.contracts.collection_control_v1 import (
     InvalidCollectionControlV1,
     OllamaCloudLatestSourceSignalQueryV1,
     OllamaCloudLatestSourceSignalV1,
+    OllamaCloudRequestLeaseV1,
 )
 from agentmonitor.contracts.common_v1 import OpaqueIdV1
 from agentmonitor.modules.collection_control.domain.ollama_verification import (
@@ -29,6 +30,20 @@ def query() -> OllamaCloudLatestSourceSignalQueryV1:
         source_fingerprint="a" * 64,
         payload_schema="ProviderQuotaInputV2@2",
         queried_at=NOW,
+    )
+
+
+def active_lease() -> OllamaCloudRequestLeaseV1:
+    return OllamaCloudRequestLeaseV1(
+        admission_id=OpaqueIdV1("current-admission"),
+        scheduler_instance_id=OpaqueIdV1("scheduler"),
+        schedule_id=OpaqueIdV1("schedule"),
+        account_id=OpaqueIdV1("account"),
+        fencing_token=7,
+        gate_record_version=9,
+        started_at=NOW - timedelta(seconds=5),
+        lease_expires_at=NOW + timedelta(seconds=25),
+        next_allowed_at=NOW + timedelta(seconds=55),
     )
 
 
@@ -164,3 +179,28 @@ def test_transient_projection_requires_a_failed_run() -> None:
         InvalidCollectionControlV1, match="ollama_cloud_source_signal_invalid"
     ):
         replace(signal, signal="transient_failure")
+
+
+def test_current_attempt_exclusion_requires_the_exact_live_account_lease() -> None:
+    request = replace(query(), exclude_active_lease=active_lease())
+
+    assert request.exclude_active_lease is not None
+    assert request.exclude_active_lease.admission_id == OpaqueIdV1("current-admission")
+    with pytest.raises(
+        InvalidCollectionControlV1, match="ollama_cloud_source_signal_query_invalid"
+    ):
+        replace(
+            request,
+            exclude_active_lease=replace(
+                active_lease(), account_id=OpaqueIdV1("other-account")
+            ),
+        )
+    with pytest.raises(
+        InvalidCollectionControlV1, match="ollama_cloud_source_signal_query_invalid"
+    ):
+        replace(
+            request,
+            exclude_active_lease=replace(
+                active_lease(), lease_expires_at=NOW - timedelta(seconds=1)
+            ),
+        )
