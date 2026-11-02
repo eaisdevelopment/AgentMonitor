@@ -327,7 +327,7 @@ class OllamaCloudConnectionServiceV1:
             raise
         if replay is not None:
             return self.read(command.account_id, command.requested_at)
-        if not self._ready():
+        if not self._ready() or not self._location_current():
             # Readiness may have changed after a concurrent identical request
             # committed. Recheck its durable replay before refusing new work.
             try:
@@ -339,8 +339,6 @@ class OllamaCloudConnectionServiceV1:
                 raise
             if replay is not None:
                 return self.read(command.account_id, command.requested_at)
-            raise ValueError("ollama_cloud_verification_unavailable")
-        if not self._location_current():
             raise ValueError("ollama_cloud_verification_unavailable")
         try:
             AtomicallyInitiateOllamaCloudVerificationV2(
