@@ -14,7 +14,7 @@ export function ollamaMonitoringCopy(state: string, reason: string): string {
 export function ollamaCloudConnectionCopy(state: string): OllamaCloudConnectionCopy {
   switch (state) {
     case "not_configured":
-      return { title: "Ollama cloud not connected", description: "No credential is configured for this account." };
+      return { title: "Ollama cloud not connected", description: "Connect this account with the local setup command on the AgentMonitor computer." };
     case "pending":
       return { title: "Waiting for a connection check", description: "The balance check has not completed yet." };
     case "stale":

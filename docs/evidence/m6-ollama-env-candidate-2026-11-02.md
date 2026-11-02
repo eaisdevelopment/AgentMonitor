@@ -28,3 +28,15 @@ browser and provider verification are Not Run. The change affects M6-A01,
 M6-A03, M6-A04, M6-A09; the M02 binding and M03 source contracts/fingerprint
 require reconciliation. No database migration or new dependency is introduced
 by the file writer. The full M6 completion gate has not passed.
+
+The candidate local operator is invoked with the installed Python environment:
+
+```text
+python -m agentmonitor.composition.ollama_credential_operator --data-root DATA_ROOT --env-file APPROVED_ENV_FILE
+```
+
+It presents account names and accepts the key only through the no-echo prompt.
+For this installation `APPROVED_ENV_FILE` is the owner's existing project
+`.env`; the running service must receive the same file via its explicit
+`--credential-env-file` setting. This is a candidate instruction, not evidence
+that the operator, runtime capability or service deployment has been verified.
