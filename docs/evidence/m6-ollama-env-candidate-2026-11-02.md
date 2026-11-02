@@ -35,6 +35,14 @@ reserved-prefix orphan cleanup only under an M02 zero-unfinished-binding write
 fence. This new cross-module boundary, real restore, file update, process races
 and crash recovery remain unreviewed or Not Run.
 
+A real isolated systemd worker completed with the configured project `.env`
+path and an empty migrated database. A separate isolated dashboard started on
+loopback; headless Playwright received HTTP 200 on `/`, `/login` and `/accounts`
+and showed the expected administrator-setup screen for that empty database.
+No administrator, account, credential or telemetry was fabricated. The
+isolated processes and temporary databases were removed afterward. This does
+not validate authenticated onboarding, provider access or any `.env` update.
+
 The candidate provider now receives a sealed file authority for the same
 explicit path, acquires the shared writer lock, streams the selected binding
 entry, and reloads per attempt. Forty-eight focused pure and provider-free
