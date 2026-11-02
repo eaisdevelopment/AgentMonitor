@@ -31,10 +31,12 @@ from agentmonitor.adapters.persistence._shared.sqlite.core.policy import (
 from agentmonitor.adapters.persistence._shared.sqlite.schema.compatibility import (
     InspectSchemaCompatibilityV1,
     application_schema_range,
+    load_migration_catalog,
 )
 from agentmonitor.composition.iam_operator import exclusive_service_quiescence
 
 from tools.automation.implementations.auto_m6_local_activate import (
+    TOOL_ROOT,
     build_override,
     tree_digest,
 )
@@ -48,6 +50,7 @@ from tools.automation.implementations.m5_service_activation import (
     release_m5_service_activation_lock_v1,
     validate_m5_service_activation_lock_v1,
 )
+from tools.automation.implementations.m6_frontend_build import build_clean_frontend
 from tools.automation.implementations.m6_offline_restore import (
     _read_private_json,
 )
@@ -56,6 +59,7 @@ from tools.automation.implementations.m6_quiescent_stop import (
     _properties,
     stop_quiescent_unit,
 )
+from tools.automation.implementations.m6_transition_lease import _hold_transition_locks
 
 
 def _systemd_environment() -> dict[str, str]:
@@ -728,6 +732,46 @@ def _candidate_override(candidate: Path) -> str:
     return build_override(candidate) + "ExecStart=\nExecStart=" + command + "\n"
 
 
+def _check_candidate_schema(candidate: Path) -> None:
+    """Refuse a candidate whose schema differs from this migration controller."""
+    code = (
+        "import json; from dataclasses import asdict; "
+        "from agentmonitor.adapters.persistence._shared.sqlite.schema.compatibility "
+        "import load_migration_catalog, application_schema_range; "
+        "c=load_migration_catalog(); "
+        "print(json.dumps({'head':c.head,'digest':c.digest,'range':asdict(application_schema_range())},sort_keys=True))"
+    )
+    env = {
+        "PATH": "/usr/bin:/bin",
+        "LANG": "C",
+        "PYTHONDONTWRITEBYTECODE": "1",
+        "PYTHONPATH": str(candidate / "backend/src"),
+    }
+    result = subprocess.run(
+        [str(_FIXED_VENV / "bin/python"), "-c", code],
+        cwd=candidate,
+        env=env,
+        capture_output=True,
+        text=True,
+        timeout=20,
+        check=False,
+    )
+    if result.returncode or len(result.stdout) > 8192:
+        raise CutoverError("candidate_schema_unavailable")
+    catalog = load_migration_catalog()
+    expected = {
+        "head": catalog.head,
+        "digest": catalog.digest,
+        "range": asdict(application_schema_range()),
+    }
+    try:
+        observed = json.loads(result.stdout)
+    except json.JSONDecodeError:
+        raise CutoverError("candidate_schema_unavailable") from None
+    if observed != expected:
+        raise CutoverError("candidate_schema_mismatch")
+
+
 def _fixed_unit_preflight(
     expected_revision: str,
     expected_build: str,
@@ -822,6 +866,7 @@ def _fixed_unit_preflight(
         )
     ):
         raise CutoverError("target_unit_changed")
+    _check_candidate_schema(_FIXED_CANDIDATE)
     if (
         _revision(_FIXED_BASELINE) != _FIXED_BASELINE_REVISION
         or _revision(_FIXED_CANDIDATE) != expected_revision
@@ -876,9 +921,12 @@ def _verify_fixed_candidate_process(properties: dict[str, str]) -> None:
 
 def cutover() -> str:
     """Cut over only the code-owned AgentMonitor service and pinned releases."""
-    candidate_revision = _revision(_FIXED_CANDIDATE)
-    candidate_build = tree_digest(_FIXED_CANDIDATE / "frontend/dist")
-    _fixed_unit_preflight(candidate_revision, candidate_build)
+    with _hold_transition_locks(_FIXED_DATA) as transition:
+        candidate_revision, candidate_build = build_clean_frontend(
+            _FIXED_CANDIDATE, _FIXED_DATA, TOOL_ROOT / "frontend/node_modules"
+        )
+        transition.validate(_FIXED_DATA)
+        _fixed_unit_preflight(candidate_revision, candidate_build)
     return _cutover_engine(
         unit=_FIXED_UNIT,
         data_root=_FIXED_DATA,
