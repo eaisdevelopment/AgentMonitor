@@ -4,6 +4,8 @@ from dataclasses import fields
 from datetime import UTC, datetime
 
 import pytest
+from backend.tests.capacity.pure.test_alert_conditions import _window
+
 from agentmonitor.contracts.capacity_v1 import (
     AccountCapacityViewV2,
     CapacityAggregateQueryV2,
@@ -23,8 +25,6 @@ from agentmonitor.modules.capacity.domain.aggregation import aggregate_capacity_
 from agentmonitor.modules.capacity.domain.health import (
     default_capacity_health_policy_v1,
 )
-
-from backend.tests.capacity.pure.test_alert_conditions import _window
 
 NOW = datetime(2026, 11, 2, 20, 0, tzinfo=UTC)
 TARGET = ProviderTargetRefV1(
@@ -176,6 +176,51 @@ def test_cloud_capacity_target_must_match_the_exact_registry_membership() -> Non
                 ),
             ),
         )
+
+
+def test_retained_nonmember_projection_does_not_hide_the_active_scope() -> None:
+    query = _query()
+    first, second = query.scope_snapshot.cloud_resources
+    retained = RegistryCloudResourceMembershipV2(
+        resource_id=OpaqueIdV1("retired-cloud-resource"),
+        account_id=first.account_id,
+        provider_key=first.provider_key,
+        provider_target=first.provider_target,
+        relationship_state="unresolved",
+        registry_revision=query.scope_snapshot.registry_revision,
+    )
+
+    result = aggregate_capacity_v2(
+        query,
+        (
+            _capacity(first, "a"),
+            _capacity(second, "b"),
+            _capacity(retained, "retired"),
+        ),
+    )
+
+    assert result.covered_account_count == 2
+    assert all(
+        window.subject.resource_id != retained.resource_id
+        for account in result.accounts
+        for window in account.windows
+    )
+    assert retained.resource_id not in {
+        resource_id
+        for group in result.window_groups
+        for resource_id in group.resource_ids
+    }
+
+
+def test_projection_for_an_account_outside_scope_remains_rejected() -> None:
+    query = _query()
+    outside = _membership(_account("account-outside"), "outside")
+
+    with pytest.raises(
+        InvalidCapacityContractV1,
+        match="capacity_aggregate_subject_outside_scope",
+    ):
+        aggregate_capacity_v2(query, (_capacity(outside, "outside"),))
 
 
 def test_cloud_membership_revision_is_fenced_by_the_scope_snapshot() -> None:

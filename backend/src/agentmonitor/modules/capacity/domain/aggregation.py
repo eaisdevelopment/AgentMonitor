@@ -320,7 +320,10 @@ def aggregate_capacity_v2(
                     "capacity_aggregate_subject_outside_scope"
                 )
         else:
-            raise InvalidCapacityContractV1("capacity_aggregate_subject_outside_scope")
+            # M05 retains the latest projection independently of M02 resource
+            # lifecycle.  A retired resource can therefore remain readable for
+            # history after it has left this exact active-membership snapshot.
+            continue
         for window in capacity.windows:
             if window.subject != subject or window.window_id in window_ids:
                 raise InvalidCapacityContractV1("capacity_aggregate_window_invalid")
