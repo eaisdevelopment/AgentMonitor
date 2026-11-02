@@ -84,3 +84,13 @@ def test_unrepresentable_wait_is_a_distinct_blocking_error():
     started = datetime(2026, 11, 2, 12, tzinfo=UTC)
     with pytest.raises(ValueError, match="ollama_rate_wait_unrepresentable"):
         after_ollama_attempt(started, 1, 10**30, 0, response_received_at=started)
+
+
+def test_gate_reservation_covers_latest_possible_dispatch():
+    from agentmonitor.modules.collection_control.domain.ollama_rate_policy import (
+        reserve_after_lease,
+    )
+
+    started = datetime(2026, 11, 2, 12, tzinfo=UTC)
+    lease_expiry = started + timedelta(seconds=30)
+    assert reserve_after_lease(lease_expiry, 4) == lease_expiry + timedelta(seconds=64)

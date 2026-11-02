@@ -24,3 +24,13 @@ The previous binary reports `unknown_revision` for `v1_0708` and fails closed;
 that is not a verified rollback. Do not deploy the migration based on these
 isolated tests alone. No new runtime dependency or license impact is introduced
 by this admission module.
+
+Independent review identified that lease expiry alone cannot prove a provider
+request has stopped, and an acquire-time reservation cannot guarantee spacing
+from a delayed dispatch. The candidate now reserves the next start at least
+60 seconds after the lease's latest possible dispatch and refuses to re-admit
+an expired unresolved request. This prevents automatic early re-admission but
+also means crash/expiry recovery is not implemented; that limitation must be
+visible and resolved before cloud delivery. The reservation calculation was
+first tested Red and now passes as a pure no-I/O test. The changed SQLite path
+has not yet been tested with real Ollama account/schedule state.

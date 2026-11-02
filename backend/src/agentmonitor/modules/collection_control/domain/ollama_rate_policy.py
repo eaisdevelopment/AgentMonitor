@@ -59,3 +59,14 @@ def after_ollama_attempt(
         # The caller must block admission; an unrepresentable provider wait is
         # not an invalid header that can fall back to a shorter delay.
         raise ValueError("ollama_rate_wait_unrepresentable") from exc
+
+
+def reserve_after_lease(lease_expires_at: datetime, jitter_seconds: int) -> datetime:
+    """Space next admission after the latest allowed request dispatch."""
+    return after_ollama_attempt(
+        lease_expires_at,
+        0,
+        None,
+        jitter_seconds,
+        response_received_at=lease_expires_at,
+    )

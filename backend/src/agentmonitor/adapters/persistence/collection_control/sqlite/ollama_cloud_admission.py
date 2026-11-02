@@ -20,6 +20,7 @@ from agentmonitor.contracts.collection_control_v1 import (
 from agentmonitor.contracts.common_v1 import OpaqueIdV1
 from agentmonitor.modules.collection_control.domain.ollama_rate_policy import (
     after_ollama_attempt,
+    reserve_after_lease,
 )
 
 _GATE_ID = "ollama-cloud-balance-v1"
@@ -206,21 +207,12 @@ class SqliteOllamaCloudAdmissionRepositoryV1:
                 return OllamaCloudAdmissionDecisionV1(
                     "busy", None, max(active_expiry, next_allowed)
                 )
-            connection.exec_driver_sql(
-                "UPDATE collection_ollama_cloud_admission SET state='expired',"
-                "response_received_at=?,outcome='expired',"
-                "completion_jitter_seconds=0 WHERE admission_id=? AND state='active'",
-                (requested_text, active_id),
+            # Fencing protects commits, not an HTTP request still in flight.
+            # Never re-admit solely because a clock-based lease expired: an
+            # unobserved late 429 could otherwise lose its retry deadline.
+            raise OllamaCloudAdmissionRepositoryErrorV1(
+                "ollama_cloud_expired_request_unresolved"
             )
-            connection.exec_driver_sql(
-                "UPDATE collection_ollama_cloud_gate SET active_admission_id=NULL,"
-                "record_version=record_version+1,updated_at=? WHERE gate_id=? "
-                "AND active_admission_id=?",
-                (requested_text, _GATE_ID, active_id),
-            )
-            gate = _gate_row(connection)
-            if gate is None:
-                raise OllamaCloudAdmissionRepositoryErrorV1()
 
         next_allowed = _utc_value(gate["next_allowed_at"])
         if request.requested_at < next_allowed:
@@ -253,12 +245,8 @@ class SqliteOllamaCloudAdmissionRepositoryV1:
             return OllamaCloudAdmissionDecisionV1("no_candidate", None, None)
 
         try:
-            reserved_until = after_ollama_attempt(
-                request.requested_at,
-                0,
-                None,
-                request.jitter_seconds,
-                response_received_at=request.requested_at,
+            reserved_until = reserve_after_lease(
+                request.lease_expires_at, request.jitter_seconds
             )
         except ValueError as error:
             code = str(error)
