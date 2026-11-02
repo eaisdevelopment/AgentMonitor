@@ -222,7 +222,10 @@ def _revision(root: Path) -> str:
 
 def _verify_active_source_schema(reference: DatabaseRefV1, source: str) -> None:
     state, revision = InspectActiveSchemaCompatibilityV1(reference)
-    if state != "upgrade_required" or revision != source:
+    expected_state = (
+        "compatible" if source == load_migration_catalog().head else "upgrade_required"
+    )
+    if state != expected_state or revision != source:
         raise CutoverError("source_schema_invalid")
 
 

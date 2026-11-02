@@ -560,3 +560,22 @@ def test_cutover_source_preflight_allows_active_wal(tmp_path: Path) -> None:
         reader.execute("SELECT count(*) FROM sqlite_schema").fetchone()
         assert (tmp_path / "agentmonitor.db-wal").exists()
         _verify_active_source_schema(reference, "v1_0708")
+
+
+def test_same_schema_update_source_preflight_with_active_wal(tmp_path: Path) -> None:
+    import sqlite3
+
+    from tools.automation.implementations.m6_cutover import _verify_active_source_schema
+
+    from agentmonitor.adapters.persistence._shared.sqlite.schema.compatibility import (
+        migrate_to_head,
+    )
+
+    tmp_path.chmod(0o700)
+    reference = DatabaseRefV1(tmp_path / "agentmonitor.db", tmp_path)
+    migrate_to_head(reference)
+    with sqlite3.connect(tmp_path / "agentmonitor.db") as reader:
+        reader.execute("BEGIN")
+        reader.execute("SELECT count(*) FROM sqlite_schema").fetchone()
+        assert (tmp_path / "agentmonitor.db-wal").exists()
+        _verify_active_source_schema(reference, "v1_0717")
