@@ -466,7 +466,11 @@ def _marker(connection: Connection) -> str:
 def _preflight_catalog(source: str) -> tuple[MigrationCatalogV1, tuple[str, ...]]:
     catalog = load_migration_catalog()
     revisions = [item.revision for item in catalog.revisions]
-    if catalog.head != TARGET or source not in SOURCES or revisions[-1] != TARGET:
+    if (
+        catalog.head != TARGET
+        or (source not in SOURCES and source != TARGET)
+        or revisions[-1] != TARGET
+    ):
         _refuse("migration_catalog_not_m4")
     tail = catalog.revisions[revisions.index(source) + 1 :]
     expected_chain = (

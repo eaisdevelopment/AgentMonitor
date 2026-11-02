@@ -35,3 +35,14 @@ acceptance remain Not Run. Rollback returns to the previous adapter, which will
 again fail to locate `/usr/local/bin/ollama` if it is absent from the service
 PATH. The earlier test harness import-path error was corrected before the
 recorded behavioral Red above.
+
+The installed dashboard now uses schema v1_0717, so the original v1_0707
+migration cutover cannot be reused as a claimed migration. An internal,
+currently unexposed same-schema engine records `schema_verified` with no
+backup ID, verifies the current schema under the existing stop and SQLite
+leases, and then uses the guarded candidate-start/finalization sequence. A
+real disposable baseline and candidate dashboard on an empty v1_0717 SQLite
+database failed before this engine option existed and passed afterward.
+Fixed-target update admission, interrupted-update recovery, independent
+review, and live installation remain Not Run; this is not authorization or a
+claim of safe deployment by itself.

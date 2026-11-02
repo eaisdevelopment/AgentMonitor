@@ -241,6 +241,7 @@ def _cutover_engine(
     expected_executable: Path,
     expected_build: str | None = None,
     baseline_private: bool = False,
+    same_schema_update: bool = False,
 ) -> str:
     """Migrate one selected unit. Call only after candidate has been reviewed.
 
@@ -248,7 +249,11 @@ def _cutover_engine(
     caller must never rerun over that journal; inspect state first. The baseline
     override must be the exact existing generated override.
     """
-    if source not in {"v1_0603", "v1_0707", "v1_0708"} or baseline == candidate:
+    if (
+        source != load_migration_catalog().head
+        if same_schema_update
+        else source not in {"v1_0603", "v1_0707", "v1_0708"}
+    ) or baseline == candidate:
         raise CutoverError("cutover_selection_invalid")
     if not all(
         path.is_absolute() and path.resolve() == path
@@ -349,7 +354,9 @@ def _cutover_engine(
     stopped = False
     journal_created = False
     guard_created = False
-    backup_id = "migration-preflight-" + secrets.token_hex(16)
+    backup_id = (
+        None if same_schema_update else "migration-preflight-" + secrets.token_hex(16)
+    )
     stop_receipt = None
     stop_attempted = False
     candidate_start_attempted = False
@@ -471,9 +478,17 @@ def _cutover_engine(
             settings_lease=settings_lease,
             planned_backup_id=backup_id,
         )
-        if outcome != "upgraded" or actual_backup_id != backup_id:
+        if same_schema_update:
+            if outcome != "already_current" or actual_backup_id is not None:
+                raise CutoverError("current_schema_unverified")
+        elif outcome != "upgraded" or actual_backup_id != backup_id:
             raise CutoverError("migration_not_applied")
-        _journal(journal, "migrated", backup_id, facts=facts)
+        _journal(
+            journal,
+            "schema_verified" if same_schema_update else "migrated",
+            backup_id,
+            facts=facts,
+        )
         if not replace_override(override, before, after):
             raise CutoverError("override_changed")
         _ctl("daemon-reload")
