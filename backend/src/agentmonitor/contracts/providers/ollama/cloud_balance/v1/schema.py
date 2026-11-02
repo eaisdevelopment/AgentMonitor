@@ -152,6 +152,7 @@ def _window(
     *,
     derived: bool = False,
     constraining: bool = False,
+    source_period_start: datetime | None = None,
 ) -> ProviderQuotaWindowInputV1:
     return ProviderQuotaWindowInputV1(
         window_key=key,
@@ -164,6 +165,7 @@ def _window(
         remaining_ratio=_field(ratio, "ratio", derived=derived),
         reset_at=reset,
         reset_precision="exact" if reset is not None else "unknown",
+        source_period_start=source_period_start,
     )
 
 
@@ -202,6 +204,7 @@ def to_capacity_windows(balance: OllamaCloudBalanceV1) -> BalanceProjectionV1:
                 _included_ratio(included.balance_usd, included.allowance_usd),
                 period.end if period else None,
                 derived=True,
+                source_period_start=period.start if period else None,
             )
         )
     elif isinstance(balance.included, LegacyLimitsV1):

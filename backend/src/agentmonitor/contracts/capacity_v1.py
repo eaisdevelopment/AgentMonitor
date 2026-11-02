@@ -137,6 +137,7 @@ class ProviderQuotaWindowInputV1(TechnicalValueV1):
     remaining_ratio: ExactMetricFieldV1
     reset_at: datetime | None
     reset_precision: PrecisionV1
+    source_period_start: datetime | None = None
 
     def __post_init__(self) -> None:
         TechnicalValueV1.__post_init__(self)
@@ -152,6 +153,18 @@ class ProviderQuotaWindowInputV1(TechnicalValueV1):
             raise InvalidCapacityContractV1("capacity_window_constraint_invalid")
         if (self.reset_at is None) != (self.reset_precision == "unknown"):
             raise InvalidCapacityContractV1("capacity_reset_pair_invalid")
+        if self.source_period_start is not None and (
+            not isinstance(self.source_period_start, datetime)
+            or self.source_period_start.utcoffset() != timedelta(0)
+            or (
+                self.reset_at is not None
+                and (
+                    self.reset_at.utcoffset() is None
+                    or self.source_period_start >= self.reset_at
+                )
+            )
+        ):
+            raise InvalidCapacityContractV1("capacity_source_period_invalid")
         ratio = self.remaining_ratio.value
         if ratio is not None:
             if ratio.unit != "ratio" or not (0 <= ratio.as_decimal() <= 1):
@@ -423,6 +436,7 @@ class CapacityHistoryPointV1(TechnicalValueV1):
     reset_precision: PrecisionV1
     collected_at: datetime
     stored_at: datetime
+    source_period_start: datetime | None = None
 
     def __post_init__(self) -> None:
         TechnicalValueV1.__post_init__(self)

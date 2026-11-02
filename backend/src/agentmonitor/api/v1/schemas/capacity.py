@@ -166,6 +166,7 @@ class CapacityHistoryPointV1(_ClosedV1):
     reset_precision: Literal["exact", "rounded", "range", "estimated", "unknown"]
     collected_at: datetime
     stored_at: datetime
+    source_period_start: datetime | None = None
 
 
 class CapacityHistoryPageV1(_ClosedV1):

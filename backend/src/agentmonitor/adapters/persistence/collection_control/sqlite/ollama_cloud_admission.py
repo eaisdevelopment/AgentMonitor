@@ -21,6 +21,7 @@ from agentmonitor.contracts.collection_control_v1 import (
 from agentmonitor.contracts.common_v1 import OpaqueIdV1
 from agentmonitor.modules.collection_control.domain.ollama_rate_policy import (
     after_ollama_attempt,
+    cloud_schedule_generation_action,
     reserve_after_lease,
 )
 
@@ -182,7 +183,20 @@ def ensure_ollama_run_in_transaction(
         or run_lease["fencing_token"] != row["fencing_token"]
         or _utc_value(run_lease["expires_at"]) < now
         or row["state"] != "committing"
+        or run.scheduler_instance_id != lease.scheduler_instance_id
+        or run.schedule_id != lease.schedule_id
+        or run.account_id != lease.account_id
+        or run.provider_key != "ollama"
+        or run.capability_id != "subscription.quota"
+        or run.source_id != "ollama.cloud.balance.v1"
         or row["schedule_id"] != lease.schedule_id.value
+        or row["profile_id"] != (run.profile_id.value if run.profile_id else None)
+        or row["request_digest"] != run.request_digest
+        or row["manifest_fingerprint"] != run.manifest_fingerprint
+        or row["adapter_version"] != run.adapter_version
+        or row["adapter_protocol_version"] != run.adapter_protocol_version
+        or row["collection_policy_version"] != run.collection_policy_version
+        or row["deadline_at"] != _utc_text(run.deadline_at)
         or row["account_id"] != lease.account_id.value
         or row["provider_key"] != "ollama"
         or row["capability_id"] != "subscription.quota"
@@ -289,13 +303,51 @@ class SqliteOllamaCloudAdmissionRepositoryV1:
                                 "capability_id",
                             )
                         )
-                        if (
-                            actual != target
-                            or row["target_generation"] != admission.target_generation
-                        ):
+                        if actual != target:
                             raise OllamaCloudAdmissionRepositoryErrorV1(
                                 "ollama_cloud_schedule_conflict"
                             )
+                        active_work = (
+                            connection.exec_driver_sql(
+                                "SELECT 1 FROM collection_lease WHERE schedule_id=? "
+                                "UNION ALL SELECT 1 FROM "
+                                "collection_ollama_cloud_admission "
+                                "WHERE schedule_id=? AND state='active' LIMIT 1",
+                                (
+                                    admission.schedule_id.value,
+                                    admission.schedule_id.value,
+                                ),
+                            ).first()
+                            is not None
+                        )
+                        try:
+                            action = cloud_schedule_generation_action(
+                                row["target_generation"],
+                                admission.target_generation,
+                                active_work,
+                            )
+                        except ValueError as error:
+                            raise OllamaCloudAdmissionRepositoryErrorV1(
+                                str(error)
+                            ) from None
+                        if action == "advance":
+                            updated = connection.exec_driver_sql(
+                                "UPDATE collection_schedule SET target_generation=?,"
+                                "record_version=record_version+1,updated_at=? "
+                                "WHERE schedule_id=? AND target_generation=? "
+                                "AND record_version=?",
+                                (
+                                    admission.target_generation,
+                                    _utc_text(admission.requested_at),
+                                    admission.schedule_id.value,
+                                    row["target_generation"],
+                                    row["record_version"],
+                                ),
+                            )
+                            if updated.rowcount != 1:
+                                raise OllamaCloudAdmissionRepositoryErrorV1(
+                                    "ollama_cloud_schedule_conflict"
+                                )
                     connection.commit()
         except OllamaCloudAdmissionRepositoryErrorV1:
             raise

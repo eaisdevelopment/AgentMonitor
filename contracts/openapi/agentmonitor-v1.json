@@ -2344,6 +2344,18 @@
             "title": "Series Kind",
             "type": "string"
           },
+          "source_period_start": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Period Start"
+          },
           "stored_at": {
             "format": "date-time",
             "title": "Stored At",
@@ -21141,7 +21153,7 @@
     "generator_sha256": "0387918338b9b6180629a048c884838a628ab6afd7375eb2a285c5ce167072b9",
     "generator_version": "2.0.8",
     "openapi_version": "3.1.0",
-    "schema_sha256": "264ddf49a9f60b3f8b79f6ddbc90414eb58cd8b05744ca7974bdc15b6ae84a96",
-    "source_sha256": "5f4f4261f5e5f94fafb98b4fcacde4b2b7ef392400685c0b6f94b02b3a8168c4"
+    "schema_sha256": "87bae13a7725b302d4a8f498064778032007f3c78c4d452fcda8789779bc186e",
+    "source_sha256": "b939e02f487e332343f5f67109882925f43a733dca42b6212cd2b59329a0dc55"
   }
 }

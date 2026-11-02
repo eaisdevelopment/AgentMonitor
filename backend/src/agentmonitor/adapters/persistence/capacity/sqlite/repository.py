@@ -467,6 +467,11 @@ def _history_point(row: RowMapping, as_of: datetime) -> CapacityHistoryPointV1:
         reset_precision=row["reset_precision"],
         collected_at=collected_at,
         stored_at=_utc_value(str(row["stored_at"])),
+        source_period_start=(
+            _utc_value(str(row["source_period_start"]))
+            if row["source_period_start"] is not None
+            else None
+        ),
     )
 
 
@@ -953,7 +958,7 @@ class SqliteCapacityRepositoryV1:
                             "d.native_unit, d.definition_version, "
                             "d.reset_precision, o.observation_id, "
                             "o.observation_kind, o.completeness, o.observed_at, "
-                            "o.reset_at, o.data_through_start, "
+                            "o.reset_at, o.source_period_start, o.data_through_start, "
                             "o.data_through_end, o.collected_at, o.stored_at, "
                             "o.collection_run_id, o.capability_schema_version, "
                             "m.metric_kind, m.field_state, m.coefficient, m.scale, "
@@ -1538,9 +1543,9 @@ class SqliteCapacityRepositoryV1:
                 "provider_status_state, provider_status_code, observed_at, "
                 "reset_at, data_through_start, data_through_end, collected_at, "
                 "stored_at, provenance_id, collection_run_id, payload_digest, "
-                "capability_schema_version, current_candidate, invalidation_reason) "
+                "capability_schema_version, current_candidate, invalidation_reason, source_period_start) "
                 "VALUES (?, ?, ?, ?, ?, 'poll_snapshot', ?, 'available', NULL, ?, "
-                "?, NULL, NULL, ?, ?, ?, ?, ?, ?, 1, NULL)",
+                "?, NULL, NULL, ?, ?, ?, ?, ?, ?, 1, NULL, ?)",
                 (
                     observation_id.value,
                     window_definition_id,
@@ -1562,6 +1567,9 @@ class SqliteCapacityRepositoryV1:
                     request.run_id.value,
                     request.payload_digest,
                     payload.capability_schema_version,
+                    _utc_text(window.source_period_start)
+                    if window.source_period_start is not None
+                    else None,
                 ),
             )
             for metric_kind, field in (

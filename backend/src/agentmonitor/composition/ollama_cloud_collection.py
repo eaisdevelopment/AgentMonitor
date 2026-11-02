@@ -68,6 +68,10 @@ from agentmonitor.modules.registry.domain.credential_binding import (
 )
 
 
+class OllamaCloudTargetIneligible(ValueError):
+    """Known target is not currently eligible for cloud monitoring."""
+
+
 def require_source_admitted() -> None:
     """Never schedule provider I/O without all approved source bounds."""
     policy = CLOUD_BALANCE_POLICY_V1
@@ -182,7 +186,7 @@ class OllamaCloudCollectionV1:
             or account.account_id != profile.account_id
             or account.account_id != resource.account_id
         ):
-            raise ValueError("ollama_cloud_target_ineligible")
+            raise OllamaCloudTargetIneligible("ollama_cloud_target_ineligible")
         target = _digest(
             "ollama",
             profile.provider_installation_id.value,
@@ -249,7 +253,7 @@ class OllamaCloudCollectionV1:
         self._eligible_binding(result)
         return result
 
-    def tick(self, now: datetime):
+    def tick(self):
         """Select eligible M02 targets, reserve the fair gate, then collect once."""
         require_source_admitted()
         require_cloud_manifest()
@@ -287,8 +291,10 @@ class OllamaCloudCollectionV1:
                     ):
                         continue
                     try:
-                        run = self.prepare_run(account, profile, resource, now)
-                    except ValueError:
+                        run = self.prepare_run(
+                            account, profile, resource, datetime.now(UTC)
+                        )
+                    except OllamaCloudTargetIneligible:
                         continue
                     matches.append((run, profile, resource))
             if len(matches) > 1:
@@ -298,7 +304,7 @@ class OllamaCloudCollectionV1:
             return "ollama_cloud_no_eligible_accounts"
         for run, _, _ in candidates:
             self.register_target(run)
-        decision = self.acquire_next(now)
+        decision = self.acquire_next(datetime.now(UTC))
         if decision.lease is None:
             return decision.state
         lease = decision.lease
@@ -346,7 +352,7 @@ class OllamaCloudCollectionV1:
             or run.capability_id != "subscription.quota"
             or run.source_id != "ollama.cloud.balance.v1"
         ):
-            raise ValueError("ollama_cloud_target_ineligible")
+            raise OllamaCloudTargetIneligible("ollama_cloud_target_ineligible")
         account = self._registry.get_account(run.account_id)
         if (
             account is None
@@ -358,7 +364,7 @@ class OllamaCloudCollectionV1:
             )
             or account.registry_revision != run.registry_revision
         ):
-            raise ValueError("ollama_cloud_target_ineligible")
+            raise OllamaCloudTargetIneligible("ollama_cloud_target_ineligible")
         profiles = self._registry.list_monitoring_profiles(run.account_id)
         resources = self._registry.list_account_resources(run.account_id)
         matches = [
@@ -370,7 +376,7 @@ class OllamaCloudCollectionV1:
             if resource.resource_id == run.resource_id
         ]
         if len(matches) != 1 or len(matching_resources) != 1:
-            raise ValueError("ollama_cloud_target_ineligible")
+            raise OllamaCloudTargetIneligible("ollama_cloud_target_ineligible")
         profile, resource = matches[0], matching_resources[0]
         if (
             profile.lifecycle != "active"
@@ -385,10 +391,10 @@ class OllamaCloudCollectionV1:
             or resource.resource_id not in profile.resource_ids
             or profile.profile_id not in resource.linked_profile_ids
         ):
-            raise ValueError("ollama_cloud_target_ineligible")
+            raise OllamaCloudTargetIneligible("ollama_cloud_target_ineligible")
         active = resolve_active_credential_binding(self._bindings.read(run.account_id))
         if active is None:
-            raise ValueError("ollama_cloud_target_ineligible")
+            raise OllamaCloudTargetIneligible("ollama_cloud_target_ineligible")
         return active
 
     def register_target(self, run: CollectionRunAdmissionV1) -> None:
@@ -428,7 +434,12 @@ class OllamaCloudCollectionV1:
         self._admission.assert_active(lease, datetime.now(UTC))
         # A thrown or interrupted source leaves the rate lease unresolved; do not
         # infer that no 429 happened or open the gate to another request.
-        remaining = (lease.lease_expires_at - datetime.now(UTC)).total_seconds()
+        current = datetime.now(UTC)
+        remaining = min(
+            (lease.lease_expires_at - current).total_seconds(),
+            (run.deadline_at - current).total_seconds(),
+            CLOUD_BALANCE_POLICY_V1.operation_timeout_seconds,
+        )
         if remaining <= 1:
             raise ValueError("ollama_cloud_lease_expired")
         source = read_cloud_balance_for_binding_v1(

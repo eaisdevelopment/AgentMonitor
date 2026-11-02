@@ -1,4 +1,4 @@
-"""Bounded offline AgentMonitor v1_0603/v1_0707/v1_0708 to v1_0709 upgrade.
+"""Bounded offline AgentMonitor v1_0603/v1_0707/v1_0708/v1_0709 to v1_0710 upgrade.
 
 This operator command never starts/stops the service or restores a database.
 It acts only on an explicitly selected owner-only data root and retains its
@@ -56,8 +56,8 @@ from agentmonitor.modules.runtime_observation.application.ports import (
     OwnerAssociationErrorV1,
 )
 
-SOURCES = ("v1_0603", "v1_0707", "v1_0708")
-TARGET = "v1_0709"
+SOURCES = ("v1_0603", "v1_0707", "v1_0708", "v1_0709")
+TARGET = "v1_0710"
 SETTINGS = "owner-process-account-associations-v1.json"
 SETTINGS_LOCK = ".owner-process-account-associations-v1.lock"
 MAX_SETTINGS_BYTES = 1024 * 1024
@@ -362,11 +362,13 @@ def _preflight_catalog(source: str) -> tuple[MigrationCatalogV1, tuple[str, ...]
         _refuse("migration_catalog_not_m4")
     tail = catalog.revisions[revisions.index(source) + 1 :]
     expected_tail = (
-        tuple(f"v1_070{index}" for index in range(10))
+        (*tuple(f"v1_070{index}" for index in range(10)), "v1_0710")
         if source == "v1_0603"
-        else ("v1_0708", "v1_0709")
+        else ("v1_0708", "v1_0709", "v1_0710")
         if source == "v1_0707"
-        else ("v1_0709",)
+        else ("v1_0709", "v1_0710")
+        if source == "v1_0708"
+        else ("v1_0710",)
     )
     if tuple(item.revision for item in tail) != expected_tail or any(
         item.backup_prerequisite != "required_existing_database"

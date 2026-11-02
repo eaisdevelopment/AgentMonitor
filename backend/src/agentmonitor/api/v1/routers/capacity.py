@@ -178,6 +178,7 @@ def _history_point(item: DomainHistoryPoint) -> CapacityHistoryPointV1:
         reset_precision=item.reset_precision,
         collected_at=item.collected_at,
         stored_at=item.stored_at,
+        source_period_start=item.source_period_start,
     )
 
 

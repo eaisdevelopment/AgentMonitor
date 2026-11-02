@@ -52,6 +52,15 @@ def capacity_payload_digest(payload: ProviderQuotaInputV1) -> str:
                     else None
                 ),
                 "reset_precision": window.reset_precision,
+                **(
+                    {
+                        "source_period_start": window.source_period_start.isoformat(
+                            timespec="microseconds"
+                        )
+                    }
+                    if window.source_period_start is not None
+                    else {}
+                ),
             }
             for window in sorted(payload.windows, key=lambda item: item.window_key)
         ],

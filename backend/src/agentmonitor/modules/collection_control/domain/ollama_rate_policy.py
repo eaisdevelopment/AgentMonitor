@@ -70,3 +70,23 @@ def reserve_after_lease(lease_expires_at: datetime, jitter_seconds: int) -> date
         jitter_seconds,
         response_received_at=lease_expires_at,
     )
+
+
+def cloud_schedule_generation_action(
+    current: int, proposed: int, active_work: bool
+) -> str:
+    """Advance a stable schedule only when no prior generation is in flight."""
+    if (
+        type(current) is not int
+        or type(proposed) is not int
+        or current < 1
+        or proposed < 1
+        or type(active_work) is not bool
+        or proposed < current
+    ):
+        raise ValueError("ollama_cloud_schedule_conflict")
+    if proposed == current:
+        return "unchanged"
+    if active_work:
+        raise ValueError("ollama_cloud_schedule_busy")
+    return "advance"
