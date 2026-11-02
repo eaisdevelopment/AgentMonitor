@@ -113,6 +113,9 @@ This index is the entry point for product, architecture, engineering, and operat
 - [Duplicate identity overview correction](plans/integration/duplicate-account-overview-change.md): one quota row for fresh identical observed identities, with separate connection review.
 - [Live account agents progress](evidence/live-account-agents.md): real terminal detection, HTTP guards, duplicate presentation, and a verified owner-authorized process/account link after restart.
 - [M2 Argon2 admission](dependencies/m2-argon2-admission.md): approved exact Linux dependency graph, work profile, and platform limitations.
+- [M6 Ollama Secret Service admission](dependencies/m6-ollama-secret-service-admission.md):
+  Ubuntu 24.04-local `secret-tool`/libsecret/GNOME Keyring origin, runtime
+  closure, license/security review, and unverified unlock/redistribution gates.
 - [Configuration standard](engineering/configuration-standard.md): ownership, naming, precedence, secret classes, and compatibility.
 - [Documentation standard](engineering/documentation-standard.md): required documentation and traceability.
 - [Sub-agent runbook](engineering/subagent-runbook.md): module planning, ownership, synchronization, and handoff rules.

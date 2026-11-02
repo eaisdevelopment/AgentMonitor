@@ -103,3 +103,13 @@ link; the real link, controls and post-restart persistence gate Passed following
 explicit owner delegation. Duplicate presentation passed independently. Full M4,
 automatic retrospective attribution and process/account switching are not
 accepted by this bounded change.
+
+## 2026-11-02 M6 Ollama Secret Service dependency admission
+
+`M6-KEYRING-DEP-001` contributes dependency evidence to `M6-T016`, `M6-A09`,
+`NFR-LIC-001`, `NFR-SEC-001`, `FR-SAFE-001/002` and `FR-COL-007`. The
+[admission record](dependencies/m6-ollama-secret-service-admission.md) permits
+Ubuntu 24.04 amd64 local implementation using the external OS packages only.
+It does not pass M6-T016 or any live/operational criterion: unlock behavior,
+logout/reboot, secret-leak verification, release SBOM/notices and redistribution
+remain Not Run or Blocked as recorded there.

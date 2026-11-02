@@ -74,15 +74,21 @@ retention/purge policy remains follow-up work before claiming indefinite
 operational storage. This implementation work uses isolated real SQLite files;
 it does not migrate the live dashboard database or restart its service.
 
-## Dependency and license review — admission still open
+## Dependency and license review — Ubuntu-local admission recorded
 
-`/usr/bin/secret-tool` is installed on the examined workstation from Ubuntu `libsecret-tools 0.21.4-1build3`; `libsecret-1-0 0.21.4-1build3` and `gnome-keyring 46.1-2ubuntu0.2` are installed. No keyring items were accessed and service-session compatibility is not proven. Direct dependencies reported by `dpkg-query` are: libsecret-tools: libc6, libglib2.0-0t64, libsecret-1-0; libsecret-1-0: libc6, libgcrypt20, libglib2.0-0t64, libsecret-common; gnome-keyring: dconf/gsettings backend, init-system-helpers, libc6, libgck-1-0, libgcr-base-3-1, libgcrypt20, libglib2.0-0t64, libsystemd0, gcr, a D-Bus session bus, p11-kit and pinentry-gnome3. This is **not a complete transitive/license inventory**; enumerate installed closure and release-platform equivalents before admission.
-
-Ubuntu copyright files report libsecret core LGPL-2.1+, with separately identified BSD-3-Clause, GPL-2+ and Apache-2.0 source components, and GNOME Keyring GPL-2+ with LGPL and BSD components. Determine which files/binaries are actually shipped and notices/source obligations for the chosen distribution; system-process use is not automatically a legal conclusion about product licensing. Policy requires explicit owner approval for GPL/LGPL dependencies and a recorded reviewer/date, full transitive licenses, vulnerability/maintenance review, SBOM/notices, platform support, update strategy and redistribution review. The owner's cloud-plan approval is not an explicit blanket approval of those license facts. No new Python/frontend library is proposed; stdlib HTTPS and existing OS tools reduce added packages but do not waive system dependency review. GNOME is upstream for both components; verify package security advisories and upstream release/maintenance before use. Do not claim zero vulnerabilities or headless support. Runtime need is the approved persistent owner-managed key without credentials in web transport, CLI arguments or `.env`; a plaintext file and default Ollama profile are rejected. OS package management supplies updates; record compatibility and rollback, do not bundle native binaries without additional review. A suitable Secret Service provider must be installed and available to the service user; other platforms remain unsupported pending design. External balance polling discloses bearer credential to the official endpoint and account consumption information to Ollama; no inference or purchases are initiated. Billing and plan eligibility remain provider-account dependent.
+The owner-approved GPL/LGPL system dependency is admitted for Ubuntu 24.04
+amd64 local implementation in the
+[M6 Secret Service dependency record](../../dependencies/m6-ollama-secret-service-admission.md).
+It records exact installed origins, the resolved ELF closure, the conservative
+150-package APT surface, all 41 legacy copyright-label gaps, current
+maintenance/security evidence, alternatives and limitations. AgentMonitor
+does not bundle or link the OS binaries. Unlock behavior, logout/reboot,
+dynamic prompt paths, release SBOM/notices, redistribution and other platforms
+remain unverified and are not admitted by that record.
 
 ## Verification and implementation order
 
-1. Complete dependency admission and security review, confirm actual user-service session access without inspecting items, and resolve the exact enrollment/cleanup contract and schema migrations. Nothing here claims dependency approval.
+1. Implement within the Ubuntu-local dependency admission conditions, confirm actual user-service session access without inspecting unrelated items, and resolve the exact enrollment/cleanup contract and schema migrations. Dependency admission is not runtime behavior evidence.
 2. Land M02 and credential boundary, M03 source + capability, M04 durable limiter, M05 native windows/history/alerts, versioned API and generated UI as one coordinated end-to-end change. Keep provider implementation in its adapter, no direct cross-module table access. Design account identity as owner asserted unless independently proved. Preserve fallback/recovery without stopping agents.
 3. Red-green-refactor meaningful no-I/O pure contract tests; use real SQLite, actual app/service/browser and real owner-provisioned source for boundary behavior; no mocks, recording, seeded telemetry or fabricated provider states. Verify rotation/crash/cleanup, no secret leak, DST/UTC and exact numbers, period fidelity, unauthorized/rate-limited/locked paths when naturally available, safe backoff/restart, history and alert deduplication, existing provider health. Record omitted scenarios accurately as blocked/not run. Verify with owner in official Ollama views, never request key in chat or screenshots.
 4. Run the canonical full M6 completion gate against deployed clean revision, account for the local and cloud requirements and record sanitized evidence, not a partial success. This review supplies neither a completed executable gate nor live verification.
@@ -98,11 +104,9 @@ listed, read, or changed. The transient service was collected after exit.
 
 The installed recursive apt dependency-candidate inventory is recorded in
 [`m6-keyring-system-dependency-inventory.json`](../../evidence/m6-keyring-system-dependency-inventory.json).
-It contains 150 installed packages; 41 did not expose a machine-readable
-`License:` field in their installed copyright file and need manual review.
-It includes potential alternatives and is not a verified runtime-only graph
-or a release SBOM. Ubuntu's local package-status tool reported pending security
-updates on this host, without attributing them to this dependency; no package
-updates or reboots were performed. Owner approval covers the specifically
-named Secret Service/libsecret/keyring architecture from the approved plan;
-it does not by itself complete package security and redistribution review.
+It contains 150 installed packages; all 41 packages without a machine-readable
+`License:` field now have a grouped manual copyright review and exact installed
+file hash. The inventory still includes potential alternatives and is not a
+runtime trace or release SBOM. Ubuntu's machine-readable security status at
+the recorded review time had no pending update intersecting the inventory,
+which is not proof of no vulnerability. No package update or reboot occurred.
