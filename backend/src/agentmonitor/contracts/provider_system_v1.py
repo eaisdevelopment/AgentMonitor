@@ -505,6 +505,244 @@ class SourcePolicyV1(TechnicalValueV1):
             raise InvalidProviderContract("source_policy_invalid")
 
 
+ScheduledSourceRunStateV1 = Literal["succeeded", "partial"]
+ScheduledSourceAuthorizationSignalV1 = Literal[
+    "verified_success",
+    "credential_unauthorized",
+    "provider_schema_incompatible",
+    "rate_limited",
+    "transient_failure",
+    "authorization_unavailable",
+    "outcome_unresolved",
+]
+
+
+@dataclass(frozen=True, slots=True)
+class ScheduledSourceAdmissionPolicyV1(TechnicalValueV1):
+    """Reviewed source and scheduling policy, independent of any credential."""
+
+    CONTRACT_ID: ClassVar[str] = "CTR-PROV-003"
+    OWNER: ClassVar[str] = "PLAN-M03"
+
+    policy_ref: OpaqueIdV1
+    provider_key: str
+    authority_id: str
+    capability_id: str
+    source_id: str
+    adapter_version: str
+    source_fingerprint: str
+    payload_schema: str
+    minimum_interval_seconds: int
+    maximum_concurrency: Literal[1]
+    automatic_retry_count: Literal[0]
+    provider_request_count: Literal[1]
+    collection_policy_id: str
+    collection_policy_version: str
+    rate_policy_id: str
+    rate_policy_version: str
+    fairness_policy_id: str
+    fairness_policy_version: str
+    invalidation_policy_id: str
+    invalidation_policy_version: str
+
+    def __post_init__(self) -> None:
+        TechnicalValueV1.__post_init__(self)
+        tokens = (
+            self.provider_key,
+            self.authority_id,
+            self.source_id,
+            self.adapter_version,
+            self.payload_schema,
+            self.collection_policy_id,
+            self.rate_policy_id,
+            self.fairness_policy_id,
+            self.invalidation_policy_id,
+        )
+        versions = (
+            self.collection_policy_version,
+            self.rate_policy_version,
+            self.fairness_policy_version,
+            self.invalidation_policy_version,
+        )
+        if (
+            not isinstance(self.policy_ref, OpaqueIdV1)
+            or not all(_bounded_token(value) for value in tokens)
+            or _CAPABILITY_ID.fullmatch(self.capability_id) is None
+            or _SHA256.fullmatch(self.source_fingerprint) is None
+            or not all(_SEMVER.fullmatch(value) for value in versions)
+            or type(self.minimum_interval_seconds) is not int
+            or self.minimum_interval_seconds < 60
+            or type(self.maximum_concurrency) is not int
+            or self.maximum_concurrency != 1
+            or type(self.automatic_retry_count) is not int
+            or self.automatic_retry_count != 0
+            or type(self.provider_request_count) is not int
+            or self.provider_request_count != 1
+        ):
+            raise InvalidProviderContract("scheduled_source_policy_invalid")
+
+
+@dataclass(frozen=True, slots=True)
+class ScheduledSourceLineageV1(TechnicalValueV1):
+    """Cross-module proof projection; contains no key or provider identity."""
+
+    CONTRACT_ID: ClassVar[str] = "CTR-PROV-003"
+    OWNER: ClassVar[str] = "PLAN-M03"
+
+    verification_id: OpaqueIdV1
+    account_id: OpaqueIdV1
+    binding_id: OpaqueIdV1
+    binding_generation: int
+    current_account_id: OpaqueIdV1
+    current_binding_id: OpaqueIdV1
+    current_binding_generation: int
+    access_target_id: OpaqueIdV1
+    current_access_target_id: OpaqueIdV1
+    target_kind: Literal["cloud_service"]
+    provider_key: str
+    authority_id: str
+    capability_id: str
+    source_id: str
+    adapter_version: str
+    source_fingerprint: str
+    payload_schema: str
+    probe_run_id: OpaqueIdV1
+    probe_admission_id: OpaqueIdV1
+    dispatch_certainty: Literal["response_received"]
+    run_state: ScheduledSourceRunStateV1
+    run_account_id: OpaqueIdV1
+    run_target_generation: int
+    run_source_id: str
+    run_adapter_version: str
+    run_payload_digest: str
+    payload_digest: str
+    commit_state: Literal["committed"]
+    commit_run_id: OpaqueIdV1
+    commit_target_generation: int
+    commit_payload_schema: str
+    commit_payload_digest: str
+    verified_at: datetime
+    commit_stored_at: datetime
+    identity_provenance: Literal["owner_asserted"]
+    authorization_signal: ScheduledSourceAuthorizationSignalV1
+
+    def __post_init__(self) -> None:
+        TechnicalValueV1.__post_init__(self)
+        identifiers = (
+            self.verification_id,
+            self.account_id,
+            self.binding_id,
+            self.current_account_id,
+            self.current_binding_id,
+            self.access_target_id,
+            self.current_access_target_id,
+            self.probe_run_id,
+            self.probe_admission_id,
+            self.run_account_id,
+            self.commit_run_id,
+        )
+        if (
+            not all(isinstance(value, OpaqueIdV1) for value in identifiers)
+            or type(self.binding_generation) is not int
+            or self.binding_generation < 1
+            or type(self.current_binding_generation) is not int
+            or self.current_binding_generation < 1
+            or type(self.commit_target_generation) is not int
+            or self.commit_target_generation < 1
+            or type(self.run_target_generation) is not int
+            or self.run_target_generation < 1
+            or not all(
+                _bounded_token(value)
+                for value in (
+                    self.provider_key,
+                    self.authority_id,
+                    self.source_id,
+                    self.adapter_version,
+                    self.payload_schema,
+                    self.run_source_id,
+                    self.run_adapter_version,
+                    self.commit_payload_schema,
+                )
+            )
+            or _CAPABILITY_ID.fullmatch(self.capability_id) is None
+            or _SHA256.fullmatch(self.source_fingerprint) is None
+            or _SHA256.fullmatch(self.payload_digest) is None
+            or _SHA256.fullmatch(self.run_payload_digest) is None
+            or _SHA256.fullmatch(self.commit_payload_digest) is None
+            or not isinstance(self.verified_at, datetime)
+            or not isinstance(self.commit_stored_at, datetime)
+            or self.commit_stored_at < self.verified_at
+        ):
+            raise InvalidProviderContract("scheduled_source_lineage_invalid")
+
+
+@dataclass(frozen=True, slots=True)
+class ScheduledSourceAdmissionProofV1(TechnicalValueV1):
+    """Ephemeral proof; callers rederive it after every current-state read."""
+
+    CONTRACT_ID: ClassVar[str] = "CTR-PROV-003"
+    OWNER: ClassVar[str] = "PLAN-M03"
+
+    policy_ref: OpaqueIdV1
+    policy_digest: str
+    verification_id: OpaqueIdV1
+    account_id: OpaqueIdV1
+    binding_id: OpaqueIdV1
+    binding_generation: int
+    access_target_id: OpaqueIdV1
+    provider_key: str
+    authority_id: str
+    capability_id: str
+    source_id: str
+    adapter_version: str
+    source_fingerprint: str
+    payload_schema: str
+    payload_digest: str
+    probe_run_id: OpaqueIdV1
+    probe_admission_id: OpaqueIdV1
+    verified_at: datetime
+    evaluated_at: datetime
+    identity_provenance: Literal["owner_asserted"]
+    authorization_signal: ScheduledSourceAuthorizationSignalV1
+
+    def __post_init__(self) -> None:
+        TechnicalValueV1.__post_init__(self)
+        if (
+            not all(
+                isinstance(value, OpaqueIdV1)
+                for value in (
+                    self.policy_ref,
+                    self.verification_id,
+                    self.account_id,
+                    self.binding_id,
+                    self.access_target_id,
+                    self.probe_run_id,
+                    self.probe_admission_id,
+                )
+            )
+            or _SHA256.fullmatch(self.policy_digest) is None
+            or _SHA256.fullmatch(self.source_fingerprint) is None
+            or _SHA256.fullmatch(self.payload_digest) is None
+            or type(self.binding_generation) is not int
+            or self.binding_generation < 1
+            or not all(
+                _bounded_token(value)
+                for value in (
+                    self.provider_key,
+                    self.authority_id,
+                    self.source_id,
+                    self.adapter_version,
+                    self.payload_schema,
+                )
+            )
+            or _CAPABILITY_ID.fullmatch(self.capability_id) is None
+            or not isinstance(self.verified_at, datetime)
+            or not isinstance(self.evaluated_at, datetime)
+            or self.evaluated_at < self.verified_at
+        ):
+            raise InvalidProviderContract("scheduled_source_proof_invalid")
+
+
 @dataclass(frozen=True, slots=True)
 class ProviderOperationRequestHeaderV1(TechnicalValueV1):
     CONTRACT_ID: ClassVar[str] = "CTR-PROV-004"

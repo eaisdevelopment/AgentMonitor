@@ -10,6 +10,34 @@ Contracts: `CTR-PROV-001..008` V1
 
 Database revision: `v1_0300`
 
+## Conditional scheduled cloud-source admission
+
+The additive `CTR-PROV-003` V1 scheduled-source policy and proof values keep a
+one-shot owner-authorized probe distinct from recurring collection. M03 admits
+recurring work only for the exact current account, credential-binding
+generation and cloud target whose real probe lineage has a response-received
+successful M04 run and a matching committed M05 payload. The reviewed policy
+binds the provider authority, source and adapter fingerprint, payload schema,
+request count, concurrency, retry, minimum interval, rate, fairness and
+invalidation policy versions.
+
+The proof is an ephemeral composition value, not a database permission or a
+global provider-manifest claim. Composition must rebuild it before every
+dispatch from current M02, M04 and M05 views. Rotation, disconnect, archive,
+monitoring disable, target change, owner-authorization removal, source-policy
+change, an unresolved outcome, 401/403, or incompatible provider data blocks
+admission. Rate limiting, temporary provider/network failure and a temporarily
+unavailable credential store retain the prior generation-bound admission but
+remain subject to M04's durable gate and backoff. The value carries only
+`owner_asserted` identity provenance and cannot claim provider identity, team
+membership or sharing scope.
+
+This is a compatible additive use of `CTR-PROV-003` V1. It adds no database,
+HTTP, generated-client, event or dependency change. The Ollama composition
+still needs a narrow M04 read that classifies the latest exact binding/source
+outcome without interpreting free-form reason text, then projects the actual
+M02/M04/M05 receipts into this proof.
+
 ## Exact Claude Code 2.1.289 admission
 
 The owner-approved

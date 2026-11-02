@@ -1,6 +1,9 @@
 """Pure M03 manifest registration and capability negotiation policies."""
 
+import hashlib
+import json
 from dataclasses import dataclass
+from datetime import datetime, timedelta
 from itertools import pairwise
 from typing import ClassVar, Literal
 from uuid import NAMESPACE_URL, uuid5
@@ -32,6 +35,119 @@ def resolve_one_exact_observation[ObservationT](
     if any(value != first for value in values[1:]):
         return None
     return first
+
+
+def scheduled_source_policy_digest_v1(
+    policy: provider_contracts.ScheduledSourceAdmissionPolicyV1,
+) -> str:
+    """Hash one closed non-secret policy; this is not a signature."""
+    if not isinstance(policy, provider_contracts.ScheduledSourceAdmissionPolicyV1):
+        raise provider_contracts.InvalidProviderContract(
+            "scheduled_source_policy_invalid"
+        )
+    material = (
+        "agentmonitor-scheduled-source-policy-v1",
+        policy.policy_ref.value,
+        policy.provider_key,
+        policy.authority_id,
+        policy.capability_id,
+        policy.source_id,
+        policy.adapter_version,
+        policy.source_fingerprint,
+        policy.payload_schema,
+        policy.minimum_interval_seconds,
+        policy.maximum_concurrency,
+        policy.automatic_retry_count,
+        policy.provider_request_count,
+        policy.collection_policy_id,
+        policy.collection_policy_version,
+        policy.rate_policy_id,
+        policy.rate_policy_version,
+        policy.fairness_policy_id,
+        policy.fairness_policy_version,
+        policy.invalidation_policy_id,
+        policy.invalidation_policy_version,
+    )
+    encoded = json.dumps(material, separators=(",", ":"), ensure_ascii=True).encode()
+    return hashlib.sha256(encoded).hexdigest()
+
+
+def derive_scheduled_source_admission_v1(
+    policy: provider_contracts.ScheduledSourceAdmissionPolicyV1,
+    lineage: provider_contracts.ScheduledSourceLineageV1,
+    *,
+    evaluated_at: datetime,
+) -> provider_contracts.ScheduledSourceAdmissionProofV1:
+    """Admit one exact current binding from matched probe/run/commit lineage.
+
+    The caller owns the current M02/M04/M05 reads. This pure decision never
+    turns owner assertion into provider identity and must be rerun before every
+    scheduled dispatch.
+    """
+    if (
+        not isinstance(policy, provider_contracts.ScheduledSourceAdmissionPolicyV1)
+        or not isinstance(lineage, provider_contracts.ScheduledSourceLineageV1)
+        or not isinstance(evaluated_at, datetime)
+        or evaluated_at.utcoffset() != timedelta(0)
+    ):
+        raise provider_contracts.InvalidProviderContract(
+            "scheduled_source_not_admitted"
+        )
+    revoked = {
+        "credential_unauthorized",
+        "provider_schema_incompatible",
+        "outcome_unresolved",
+    }
+    if (
+        lineage.authorization_signal in revoked
+        or lineage.account_id != lineage.current_account_id
+        or lineage.binding_id != lineage.current_binding_id
+        or lineage.binding_generation != lineage.current_binding_generation
+        or lineage.access_target_id != lineage.current_access_target_id
+        or lineage.provider_key != policy.provider_key
+        or lineage.authority_id != policy.authority_id
+        or lineage.capability_id != policy.capability_id
+        or lineage.source_id != policy.source_id
+        or lineage.adapter_version != policy.adapter_version
+        or lineage.source_fingerprint != policy.source_fingerprint
+        or lineage.payload_schema != policy.payload_schema
+        or lineage.run_account_id != lineage.account_id
+        or lineage.run_target_generation != lineage.binding_generation
+        or lineage.run_source_id != lineage.source_id
+        or lineage.run_adapter_version != lineage.adapter_version
+        or lineage.run_payload_digest != lineage.payload_digest
+        or lineage.commit_run_id != lineage.probe_run_id
+        or lineage.commit_target_generation != lineage.binding_generation
+        or lineage.commit_payload_schema != lineage.payload_schema
+        or lineage.commit_payload_digest != lineage.payload_digest
+        or evaluated_at < lineage.commit_stored_at
+    ):
+        raise provider_contracts.InvalidProviderContract(
+            "scheduled_source_not_admitted"
+        )
+    return provider_contracts.ScheduledSourceAdmissionProofV1(
+        policy_ref=policy.policy_ref,
+        policy_digest=scheduled_source_policy_digest_v1(policy),
+        verification_id=lineage.verification_id,
+        account_id=lineage.account_id,
+        binding_id=lineage.binding_id,
+        binding_generation=lineage.binding_generation,
+        access_target_id=lineage.access_target_id,
+        provider_key=lineage.provider_key,
+        authority_id=lineage.authority_id,
+        capability_id=lineage.capability_id,
+        source_id=lineage.source_id,
+        adapter_version=lineage.adapter_version,
+        source_fingerprint=lineage.source_fingerprint,
+        payload_schema=lineage.payload_schema,
+        payload_digest=lineage.payload_digest,
+        probe_run_id=lineage.probe_run_id,
+        probe_admission_id=lineage.probe_admission_id,
+        verified_at=lineage.verified_at,
+        evaluated_at=evaluated_at,
+        identity_provenance=lineage.identity_provenance,
+        authorization_signal=lineage.authorization_signal,
+    )
 
 
 @dataclass(frozen=True, slots=True)
