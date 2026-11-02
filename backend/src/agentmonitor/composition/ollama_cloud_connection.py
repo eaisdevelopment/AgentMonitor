@@ -78,6 +78,8 @@ def _enqueue_conflict(
 ) -> RegistryCommandConflictV1 | None:
     if error.code == "ollama_cloud_verification_idempotency_conflict":
         return RegistryCommandConflictV1("registry_idempotency_conflict")
+    if error.code == "ollama_cloud_verification_credential_update_in_progress":
+        return RegistryCommandConflictV1("registry_credential_update_in_progress")
     return None
 
 
@@ -310,15 +312,14 @@ class OllamaCloudConnectionServiceV1:
     def initiate(
         self, command: InitiateOllamaCloudVerificationCommandV1
     ) -> CredentialConnectionStatusV1:
+        query = OllamaCloudVerificationReplayQueryV1(
+            command.idempotency_key,
+            command.principal_id,
+            command.account_id,
+            command.expected_account_record_version,
+        )
         try:
-            replay = self._admission.replay_verification(
-                OllamaCloudVerificationReplayQueryV1(
-                    command.idempotency_key,
-                    command.principal_id,
-                    command.account_id,
-                    command.expected_account_record_version,
-                )
-            )
+            replay = self._admission.replay_verification(query)
         except OllamaCloudAdmissionRepositoryErrorV1 as error:
             conflict = _enqueue_conflict(error)
             if conflict is not None:
@@ -327,6 +328,17 @@ class OllamaCloudConnectionServiceV1:
         if replay is not None:
             return self.read(command.account_id, command.requested_at)
         if not self._ready():
+            # Readiness may have changed after a concurrent identical request
+            # committed. Recheck its durable replay before refusing new work.
+            try:
+                replay = self._admission.replay_verification(query)
+            except OllamaCloudAdmissionRepositoryErrorV1 as error:
+                conflict = _enqueue_conflict(error)
+                if conflict is not None:
+                    raise conflict from None
+                raise
+            if replay is not None:
+                return self.read(command.account_id, command.requested_at)
             raise ValueError("ollama_cloud_verification_unavailable")
         if not self._location_current():
             raise ValueError("ollama_cloud_verification_unavailable")
@@ -334,12 +346,7 @@ class OllamaCloudConnectionServiceV1:
             AtomicallyInitiateOllamaCloudVerificationV2(
                 SqliteAtomicOllamaCloudVerificationEnqueueRepositoryV2(self._reference)
             )(
-                OllamaCloudVerificationReplayQueryV1(
-                    command.idempotency_key,
-                    command.principal_id,
-                    command.account_id,
-                    command.expected_account_record_version,
-                ),
+                query,
                 command.requested_at,
                 ollama_cloud_probe_fingerprint(),
             )

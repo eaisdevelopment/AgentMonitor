@@ -146,6 +146,18 @@ class SqliteAtomicOllamaCloudVerificationEnqueueRepositoryV2:
             expected_manifest_fingerprint=expected_manifest_fingerprint,
         ).enqueue_verification(request)
 
+    def _replay_verification_serialized(
+        self, query: OllamaCloudVerificationReplayQueryV1
+    ) -> OllamaCloudVerificationJobViewV1 | None:
+        """Serialize one short replay read without any filesystem operation."""
+        base = SqliteOllamaCloudAdmissionRepositoryV1(self._reference)
+        with open_sqlite_database(self._reference, "runtime_read_write") as handle:
+            with handle.connect() as connection:
+                connection.exec_driver_sql("BEGIN IMMEDIATE")
+                result = base._replay_verification_in_transaction(connection, query)
+                connection.rollback()
+                return result
+
     def initiate_verification_atomically_v2(
         self,
         query: OllamaCloudVerificationReplayQueryV1,
@@ -170,100 +182,122 @@ class SqliteAtomicOllamaCloudVerificationEnqueueRepositoryV2:
         base = SqliteOllamaCloudAdmissionRepositoryV1(self._reference)
         registry = SqliteRegistryRepositoryV1(self._reference)
         try:
-            with open_sqlite_database(self._reference, "runtime_read_write") as handle:
-                with handle.connect() as connection:
-                    # The SQLite writer serialization makes a concurrent caller
-                    # observe the first job before it needs the account lock.
-                    connection.exec_driver_sql("BEGIN IMMEDIATE")
-                    replay = base._replay_verification_in_transaction(connection, query)
-                    if replay is not None:
-                        connection.rollback()
-                        return replay
-                    # Rotation takes this lock before its DB transaction. This
-                    # acquisition is non-blocking, so the inverse order cannot
-                    # deadlock; a real rotation remains a temporary busy result.
-                    with account_credential_lock(self._reference, query.account_id):
-                        target = reconcile_access_target_in_transaction(
-                            connection,
-                            provider_key="ollama",
-                            authority_id="ollama.com",
-                            manifest_fingerprint=expected_manifest_fingerprint,
-                            as_of=requested_at,
-                        )
-                        binding = resolve_active_credential_binding_in_transaction(
-                            connection, query.account_id
-                        )
-                        if binding is None:
-                            raise OllamaCloudAdmissionRepositoryErrorV1(
-                                "ollama_cloud_verification_authority_unavailable"
+            replay = self._replay_verification_serialized(query)
+            if replay is not None:
+                return replay
+
+            lock_acquired = False
+            try:
+                # The filesystem lock is acquired before the write transaction.
+                # Rotation uses the same order, and acquisition remains non-blocking.
+                with account_credential_lock(self._reference, query.account_id):
+                    lock_acquired = True
+                    with open_sqlite_database(
+                        self._reference, "runtime_read_write"
+                    ) as handle:
+                        with handle.connect() as connection:
+                            connection.exec_driver_sql("BEGIN IMMEDIATE")
+                            # The first serialized replay may have released the writer
+                            # while this caller acquired the account lock. Recheck
+                            # before deriving or writing any related state.
+                            replay = base._replay_verification_in_transaction(
+                                connection, query
                             )
-                        account, graph, authority_version = (
-                            registry._prepare_cloud_verification_graph_in_transaction(
+                            if replay is not None:
+                                connection.rollback()
+                                return replay
+                            target = reconcile_access_target_in_transaction(
                                 connection,
-                                AssertCredentialAccountOwnershipCommandV1(
-                                    query.idempotency_key,
-                                    query.principal_id,
+                                provider_key="ollama",
+                                authority_id="ollama.com",
+                                manifest_fingerprint=expected_manifest_fingerprint,
+                                as_of=requested_at,
+                            )
+                            binding = resolve_active_credential_binding_in_transaction(
+                                connection, query.account_id
+                            )
+                            if binding is None:
+                                raise OllamaCloudAdmissionRepositoryErrorV1(
+                                    "ollama_cloud_verification_authority_unavailable"
+                                )
+                            account, graph, authority_version = (
+                                registry._prepare_cloud_verification_graph_in_transaction(
+                                    connection,
+                                    AssertCredentialAccountOwnershipCommandV1(
+                                        query.idempotency_key,
+                                        query.principal_id,
+                                        query.account_id,
+                                        target.access_target_id,
+                                        query.expected_account_record_version,
+                                        binding,
+                                        requested_at,
+                                    ),
+                                )
+                            )
+                            if (
+                                account.account_id != query.account_id
+                                or graph.account_id != query.account_id
+                                or graph.access_target_id != target.access_target_id
+                                or graph.binding != binding
+                                or graph.lifecycle != "active"
+                                or graph.identity_state != "owner_confirmed"
+                            ):
+                                raise OllamaCloudAdmissionRepositoryErrorV1(
+                                    "ollama_cloud_verification_authority_unavailable"
+                                )
+                            digest = cloud_schedule_target_digest(graph)
+                            schedule_id = OpaqueIdV1("ollama-cloud-" + digest[:40])
+                            request = OllamaCloudVerificationEnqueueV2(
+                                idempotency_key=query.idempotency_key,
+                                principal_id=query.principal_id,
+                                schedule_id=schedule_id,
+                                account_id=query.account_id,
+                                access_target_id=target.access_target_id,
+                                binding_generation=binding.generation,
+                                requested_at=requested_at,
+                                expected_account_record_version=(
+                                    query.expected_account_record_version
+                                ),
+                            )
+                            bound = _BoundAtomicOllamaCloudVerificationEnqueueV2(
+                                self._reference,
+                                authority_account_record_version=authority_version,
+                                binding=binding,
+                                expected_manifest_fingerprint=(
+                                    expected_manifest_fingerprint
+                                ),
+                            )
+                            bound._register_verification_target_in_transaction(
+                                connection,
+                                OllamaCloudVerificationTargetV1(
+                                    schedule_id,
                                     query.account_id,
-                                    target.access_target_id,
-                                    query.expected_account_record_version,
-                                    binding,
+                                    graph.profile_id,
+                                    graph.resource_id,
+                                    ProviderTargetRefV1(
+                                        "cloud_service", target.access_target_id
+                                    ),
+                                    digest,
+                                    binding.generation,
                                     requested_at,
                                 ),
                             )
-                        )
-                        if (
-                            account.account_id != query.account_id
-                            or graph.account_id != query.account_id
-                            or graph.access_target_id != target.access_target_id
-                            or graph.binding != binding
-                            or graph.lifecycle != "active"
-                            or graph.identity_state != "owner_confirmed"
-                        ):
-                            raise OllamaCloudAdmissionRepositoryErrorV1(
-                                "ollama_cloud_verification_authority_unavailable"
+                            result = bound._enqueue_new_verification_in_transaction(
+                                connection, request
                             )
-                        digest = cloud_schedule_target_digest(graph)
-                        schedule_id = OpaqueIdV1("ollama-cloud-" + digest[:40])
-                        request = OllamaCloudVerificationEnqueueV2(
-                            idempotency_key=query.idempotency_key,
-                            principal_id=query.principal_id,
-                            schedule_id=schedule_id,
-                            account_id=query.account_id,
-                            access_target_id=target.access_target_id,
-                            binding_generation=binding.generation,
-                            requested_at=requested_at,
-                            expected_account_record_version=(
-                                query.expected_account_record_version
-                            ),
-                        )
-                        bound = _BoundAtomicOllamaCloudVerificationEnqueueV2(
-                            self._reference,
-                            authority_account_record_version=authority_version,
-                            binding=binding,
-                            expected_manifest_fingerprint=(
-                                expected_manifest_fingerprint
-                            ),
-                        )
-                        bound._register_verification_target_in_transaction(
-                            connection,
-                            OllamaCloudVerificationTargetV1(
-                                schedule_id,
-                                query.account_id,
-                                graph.profile_id,
-                                graph.resource_id,
-                                ProviderTargetRefV1(
-                                    "cloud_service", target.access_target_id
-                                ),
-                                digest,
-                                binding.generation,
-                                requested_at,
-                            ),
-                        )
-                        result = bound._enqueue_new_verification_in_transaction(
-                            connection, request
-                        )
-                        connection.commit()
-                        return result
+                            connection.commit()
+                            return result
+            except ValueError as error:
+                if lock_acquired or str(error) != "credential_account_busy":
+                    raise
+                # A concurrent identical request may have committed while this
+                # caller observed the filesystem lock. Prefer its durable replay.
+                replay = self._replay_verification_serialized(query)
+                if replay is not None:
+                    return replay
+                raise OllamaCloudAdmissionRepositoryErrorV1(
+                    "ollama_cloud_verification_credential_update_in_progress"
+                ) from None
         except OllamaCloudAdmissionRepositoryErrorV1:
             raise
         except RegistryCommandConflictV1 as error:

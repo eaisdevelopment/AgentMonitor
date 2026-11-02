@@ -12,8 +12,10 @@
 
 | Test/scenario ID | Layer | Real dependencies | Status | Evidence reference | Notes |
 |---|---|---|---|---|---|
-| `M6-REPLAY-PURE` | Pure | None | Passed | focused pytest, 45 passed | Exact account/version replays; changed and legacy-null identities fail closed; server-derived graph/binding facts remain frozen from the first call |
-| `M6-ENQUEUE-V2-COMPAT` | Pure | None | Passed | focused pytest, 45 passed | Existing one-request V2 call surface retained; atomic initiation is additive; malformed snapshot inputs fail closed before DB access |
+| `M6-REPLAY-PURE` | Pure | None | Passed | focused pytest, 53 passed | Exact account/version replays; changed and legacy-null identities fail closed; server-derived graph/binding facts remain frozen from the first call |
+| `M6-ENQUEUE-V2-COMPAT` | Pure | None | Passed | focused pytest, 53 passed | Existing one-request V2 call surface retained; atomic initiation is additive; malformed snapshot inputs fail closed before DB access |
+| `M6-REPLAY-LOCK-ORDER` | Source architecture | Real production source | Passed | focused source inspection | No account filesystem lock is acquired beneath a SQLite writer; the locked new-work path repeats replay before any derived write |
+| `M6-REPLAY-BUSY` | Pure/API mapping | None | Passed | focused API guard | Lock contention maps to `credential_update_in_progress` and the closed safe copy `Another account update is in progress.` |
 | `M6-REPLAY-MIGRATE-716` | DB | Private copy of real dashboard data migrated to `v1_0716` | Passed | `AUTO-MIGRATE` | Exact `v1_0716` to `v1_0717` transition, verified backup; activation Not Run |
 | `M6-REPLAY-MIGRATE-707` | DB | Private backup of real dashboard database at `v1_0707` | Passed | `AUTO-MIGRATE` | Full admitted chain reached `v1_0717`; activation Not Run |
 | `M6-REPLAY-SQLITE-JOB` | DB | Natural credential-backed Ollama verification job | Not Run | unavailable real state | No real job exists; no account, graph, credential, or telemetry row was fabricated |
@@ -32,12 +34,33 @@ conflicting account request could leave an inert derived schedule.
 The corrected boundary adds an additive `CTR-COL-010@2.0.0` atomic-initiation
 port. Its integration implementation opens one `BEGIN IMMEDIATE` transaction
 and evaluates the external principal/idempotency/account/expected-version
-replay before any M02 or M04 write. Only a genuine miss acquires and revalidates
-the existing account credential lock before it may reconcile the code-owned
-access target, apply or replay the owner assertion, register the exact schedule,
-recheck current M02 authority and insert the M04 job; all of those mutations
-commit or roll back together. The implementation retains M04 as the semantic
-owner of `CTR-COL-010`; integration placement does not create a second producer.
+replay before any M02 or M04 write, then closes that transaction. Only a genuine
+miss acquires and revalidates the existing account credential lock outside any
+SQLite transaction. It then opens a new writer, repeats the exact replay, and
+only on another miss may reconcile the code-owned access target, apply or replay
+the owner assertion, register the exact schedule, recheck current M02 authority
+and insert the M04 job; all of those database mutations commit or roll back
+together. The implementation retains M04 as the semantic owner of
+`CTR-COL-010`; integration placement does not create a second producer.
+
+Independent review rejected the first implementation at `7fd2cb0`: it held
+`BEGIN IMMEDIATE` while `account_credential_lock` performed filesystem
+open/create/stat/flock work, contrary to the approved SQLite transaction plan.
+The review also found a readiness-replay window and generic lock-contention
+mapping. Before the correction, the three exact regression checks failed:
+
+```text
+test_atomic_initiation_never_acquires_filesystem_lock_under_sqlite_writer FAILED
+test_connection_readiness_refusal_rechecks_durable_replay FAILED
+test_cloud_credential_update_contention_is_actionable_temporary_busy FAILED
+3 failed, 9 deselected
+```
+
+After correction, the account lock surrounds the new-work transaction, replay
+is repeated after lock acquisition, a readiness refusal rechecks durable replay,
+and a busy lock is rechecked for replay before returning the safe actionable
+conflict. Those three checks passed; natural cross-process contention with a real
+Ollama verification job remains Not Run.
 
 The pure contract Red failed with:
 
@@ -46,7 +69,7 @@ AttributeError: module 'agentmonitor.modules.collection_control.application.olla
 1 failed, 3 passed
 ```
 
-After the correction, the expanded focused suite passed `45 passed`. There is
+After the correction, the expanded focused suite passed `53 passed`. There is
 still no natural real verification job, so cross-process SQLite replay and
 credential-rotation concurrency remain **Not Run**, not inferred from the pure
 port check. `ruff check`, `git diff --check`, Python compilation and
@@ -96,12 +119,13 @@ Focused pure, contract, schedule, and API-surface checks:
 ```text
 /home/dev/.local/share/agentmonitor/worktrees/m6-cloud-final/backend/.venv/bin/pytest -q \
   backend/tests/contracts/test_ollama_cloud_verification_enqueue_versions.py \
+  backend/tests/contracts/test_ollama_cloud_api_guards.py \
   backend/tests/contracts/test_ollama_cloud_schedule_snapshot_inputs.py \
   backend/tests/contracts/test_ollama_cloud_verification_jobs.py \
   backend/tests/collection_control/domain/test_ollama_verification_completion.py \
   backend/tests/registry/domain/test_cloud_owner_assertion.py \
   backend/tests/api/test_ollama_cloud_connection_surface.py
-44 passed in 1.70s
+53 passed in 1.97s
 ```
 
 The final catalog and migration command passed against private copies of real
@@ -121,6 +145,9 @@ Success: no issues found in 5 source files
 
 python -m py_compile backend/src/agentmonitor/composition/ollama_cloud_connection.py
 passed
+
+tooling/foundation/openapi_client.py --check
+compatible · 74 operations · generated pair current
 
 ruff format --check [affected Python files]
 passed

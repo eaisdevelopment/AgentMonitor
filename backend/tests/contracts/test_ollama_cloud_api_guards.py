@@ -70,3 +70,24 @@ def test_cloud_enqueue_idempotency_conflict_maps_to_http_409() -> None:
     )
     assert error is not None
     assert _ollama_cloud_conflict(error).status == 409
+
+
+def test_cloud_credential_update_contention_is_actionable_temporary_busy() -> None:
+    from agentmonitor.adapters.persistence.collection_control.sqlite.ollama_cloud_admission import (  # noqa: E501
+        OllamaCloudAdmissionRepositoryErrorV1,
+    )
+    from agentmonitor.api.problem import PROBLEM_DESCRIPTIONS
+    from agentmonitor.composition.ollama_cloud_connection import _enqueue_conflict
+
+    conflict = _enqueue_conflict(
+        OllamaCloudAdmissionRepositoryErrorV1(
+            "ollama_cloud_verification_credential_update_in_progress"
+        )
+    )
+    assert conflict is not None
+    problem = _ollama_cloud_conflict(conflict)
+    assert problem.status == 409
+    assert problem.code == "credential_update_in_progress"
+    assert (
+        PROBLEM_DESCRIPTIONS[problem.code] == "Another account update is in progress."
+    )

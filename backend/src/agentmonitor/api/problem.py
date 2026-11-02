@@ -72,6 +72,7 @@ _TITLES = {
 # accepts a code copied from submitted input or an unrecognized port outcome.
 PROBLEM_DESCRIPTIONS: dict[str, str] = {
     "capacity_v2_required": "This capacity reading requires the V2 endpoint.",
+    "credential_update_in_progress": "Another account update is in progress.",
     "ollama_cloud_connection_unavailable": "Ollama cloud connection is unavailable.",
     "request_body_not_allowed": "This request does not accept a body.",
     "alert_not_found": "The alert is unavailable.",

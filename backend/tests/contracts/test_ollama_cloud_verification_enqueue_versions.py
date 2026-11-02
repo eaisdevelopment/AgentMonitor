@@ -1,5 +1,8 @@
 """Pure compatibility checks for versioned Ollama verification enqueue ports."""
 
+import ast
+import inspect
+import textwrap
 from inspect import signature
 from typing import get_type_hints
 
@@ -98,4 +101,87 @@ def test_atomic_initiation_port_checks_replay_before_server_derived_work() -> No
         "query",
         "requested_at",
         "expected_manifest_fingerprint",
+    )
+
+
+def test_atomic_initiation_never_acquires_filesystem_lock_under_sqlite_writer() -> None:
+    """The account filesystem lock must surround, never run inside, DB work."""
+    source = textwrap.dedent(
+        inspect.getsource(
+            SqliteAtomicOllamaCloudVerificationEnqueueRepositoryV2.initiate_verification_atomically_v2
+        )
+    )
+    tree = ast.parse(source)
+
+    def call_name(node: ast.AST) -> str | None:
+        if not isinstance(node, ast.Call):
+            return None
+        if isinstance(node.func, ast.Name):
+            return node.func.id
+        if isinstance(node.func, ast.Attribute):
+            return node.func.attr
+        return None
+
+    sqlite_scopes = [
+        node
+        for node in ast.walk(tree)
+        if isinstance(node, (ast.With, ast.AsyncWith))
+        and any(
+            call_name(item.context_expr) == "open_sqlite_database"
+            for item in node.items
+        )
+    ]
+    account_lock_scopes = [
+        node
+        for node in ast.walk(tree)
+        if isinstance(node, (ast.With, ast.AsyncWith))
+        and any(
+            call_name(item.context_expr) == "account_credential_lock"
+            for item in node.items
+        )
+    ]
+    assert sqlite_scopes
+    assert account_lock_scopes
+    assert all(
+        all(
+            call_name(candidate) != "account_credential_lock"
+            for candidate in ast.walk(scope)
+        )
+        for scope in sqlite_scopes
+    )
+    assert any(
+        any(
+            call_name(candidate) == "open_sqlite_database"
+            for candidate in ast.walk(scope)
+        )
+        for scope in account_lock_scopes
+    )
+
+
+def test_connection_readiness_refusal_rechecks_durable_replay() -> None:
+    """A readiness change cannot hide an identical concurrently committed job."""
+    from agentmonitor.composition.ollama_cloud_connection import (
+        OllamaCloudConnectionServiceV1,
+    )
+
+    source = textwrap.dedent(inspect.getsource(OllamaCloudConnectionServiceV1.initiate))
+    tree = ast.parse(source)
+    readiness_refusals = [
+        node
+        for node in ast.walk(tree)
+        if isinstance(node, ast.If)
+        and any(
+            isinstance(candidate, ast.Call)
+            and isinstance(candidate.func, ast.Attribute)
+            and candidate.func.attr == "_ready"
+            for candidate in ast.walk(node.test)
+        )
+    ]
+    assert len(readiness_refusals) == 1
+    refusal = readiness_refusals[0]
+    assert any(
+        isinstance(candidate, ast.Call)
+        and isinstance(candidate.func, ast.Attribute)
+        and candidate.func.attr == "replay_verification"
+        for candidate in ast.walk(ast.Module(body=refusal.body, type_ignores=[]))
     )

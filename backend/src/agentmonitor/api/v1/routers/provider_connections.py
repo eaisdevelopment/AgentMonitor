@@ -217,6 +217,8 @@ def _ollama_cloud_conflict(error: RegistryCommandConflictV1) -> ProblemError:
         return ProblemError(412, "precondition_failed")
     if str(error) == "registry_idempotency_conflict":
         return ProblemError(409, "idempotency_key_reused")
+    if str(error) == "registry_credential_update_in_progress":
+        return ProblemError(409, "credential_update_in_progress")
     return ProblemError(503, "ollama_cloud_connection_unavailable")
 
 
