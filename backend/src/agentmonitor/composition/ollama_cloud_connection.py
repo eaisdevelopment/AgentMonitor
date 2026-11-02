@@ -106,6 +106,7 @@ class OllamaCloudConnectionServiceV1:
         *,
         ready: Callable[[], bool],
         monitoring_ready: Callable[[], bool] = lambda: False,
+        location_current: Callable[[], bool] = lambda: False,
     ) -> None:
         self._reference = reference
         self._registry = SqliteRegistryRepositoryV1(reference)
@@ -116,6 +117,7 @@ class OllamaCloudConnectionServiceV1:
         self._capacity = SqliteCapacityRepositoryV1(reference)
         self._ready = ready
         self._monitoring_ready = monitoring_ready
+        self._location_current = location_current
         self._schedule_snapshot = SqliteOllamaCloudScheduleSnapshotRepositoryV1(
             reference
         )
@@ -127,7 +129,7 @@ class OllamaCloudConnectionServiceV1:
         binding: ActiveCredentialBindingRefV1 | None,
         account_record_version: int,
     ) -> tuple[Literal["off", "waiting", "scheduled", "unavailable", "reading"], str]:
-        ready = self._ready() and self._monitoring_ready()
+        ready = self._ready() and self._monitoring_ready() and self._location_current()
         if not enabled or not ready or binding is None:
             return scheduled_monitoring_state(
                 enabled, ready, binding is not None, False, False
@@ -298,7 +300,7 @@ class OllamaCloudConnectionServiceV1:
             job_state,
             signal_reason,
             gate_state,
-            self._ready(),
+            self._ready() and self._location_current(),
         )
         return CredentialConnectionStatusV1(
             account_id,
@@ -344,6 +346,8 @@ class OllamaCloudConnectionServiceV1:
         )
         if binding is None:
             raise ValueError("ollama_cloud_binding_unavailable")
+        if not self._location_current():
+            raise ValueError("ollama_cloud_verification_unavailable")
         target = self._cloud.reconcile_access_target(
             provider_key="ollama",
             authority_id="ollama.com",

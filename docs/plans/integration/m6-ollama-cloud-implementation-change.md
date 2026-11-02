@@ -9,8 +9,8 @@ and enters the key there. The deployment explicitly selects the existing `.env`
 and the file must be owner-only (`0600`); no second `.env` is created. On this
 installation the selected project directory is group-writable (`0775`): pinned
 identity checks detect replacement but cannot prevent malicious same-group
-directory changes. The owner accepted this documented limitation without
-changing directory permissions. Each binding has a distinct named
+directory changes. The existing directory permissions are preserved and this
+residual risk remains documented. Each binding has a distinct named
 entry with a base64-encoded value; encoding is not encryption. The worker scans the shared file and retains only its exact current binding entry for each request, through a bounded
 private boundary, with no restart after rotation. The agent never sees the key.
 Atomic replacement preserves unrelated entries, with a shared writer lock and
@@ -28,6 +28,15 @@ For the existing installation the owner selected
 with the separate `service.env` configuration path; deployment must explicitly
 bind the selected `.env` to both operator and worker, without copying values or
 creating a second `.env`.
+
+The service keeps a non-secret location fence while any binding is pending,
+active or awaiting cleanup. If the configured path is changed while bindings
+remain, restore the previous service path, disconnect or clean up every Ollama
+binding, then configure the new path. Once all bindings are clean, the location
+fence is released automatically. If the dashboard is down or its configured
+path has changed, the local operator can use the retained non-secret location
+for disconnect and cleanup only; it cannot enroll a new key in that mode. This
+recovery requires no new approval.
 
 ## Outcome and scope
 

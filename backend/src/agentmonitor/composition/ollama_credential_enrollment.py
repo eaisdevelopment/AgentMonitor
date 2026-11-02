@@ -16,6 +16,7 @@ from agentmonitor.adapters.persistence.registry.sqlite.credential_lock import (
     account_credential_lock,
 )
 from agentmonitor.composition.ollama_env_store import (
+    release_env_location_if_unused,
     update_ollama_env,
 )
 from agentmonitor.contracts.common_v1 import OpaqueIdV1
@@ -130,6 +131,11 @@ def _cleanup_pending(
             binding_id=item.binding_id,
             expected_record_version=state.record_version,
         )
+    release_env_location_if_unused(
+        staging_root,
+        env_path,
+        has_unfinished_bindings=repository.has_unfinished_bindings,
+    )
 
 
 def disconnect_ollama_credential(

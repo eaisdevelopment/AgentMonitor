@@ -735,6 +735,22 @@ class SqliteCredentialBindingsV1:
                 "credential_binding_unavailable"
             ) from None
 
+    def has_unfinished_bindings(self) -> bool:
+        """Return whether any local credential still needs authority or cleanup."""
+        try:
+            with open_sqlite_database(self._reference, "runtime_read_only") as handle:
+                with handle.connect() as connection:
+                    return bool(
+                        connection.exec_driver_sql(
+                            "SELECT EXISTS(SELECT 1 FROM reg_credential_binding "
+                            "WHERE lifecycle IN ('pending','active','cleanup_pending'))"
+                        ).scalar_one()
+                    )
+        except (SqlitePolicyError, SQLAlchemyError):
+            raise CredentialBindingRepositoryErrorV1(
+                "credential_binding_unavailable"
+            ) from None
+
     def transition(
         self,
         account_id: OpaqueIdV1,

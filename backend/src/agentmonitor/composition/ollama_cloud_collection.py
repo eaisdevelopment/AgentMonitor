@@ -70,6 +70,7 @@ from agentmonitor.adapters.providers.ollama.manifest import (
     build_ollama_manifest,
 )
 from agentmonitor.composition.ollama_capacity_commit import ollama_capacity_repository
+from agentmonitor.composition.ollama_env_store import env_location_matches
 from agentmonitor.contracts.capacity_v1 import (
     CapacityCommitRequestV1,
     CapacityCommitRequestV2,
@@ -1070,11 +1071,18 @@ class OllamaCloudCollectionV1:
             self._admission.revert_undispatched(lease)
             raise
         deadline = time.monotonic() + source_budget
+        credential_authority = None
+        if self._data_root is not None and self._credential_env_file is not None:
+            try:
+                if env_location_matches(self._data_root, self._credential_env_file):
+                    credential_authority = self._credential_authority
+            except (OSError, ValueError):
+                pass
         if run.trigger == "reauth_verification":
             source = probe_cloud_balance_for_binding_v1(
                 binding=binding,
                 credential_lock=credential_lock,
-                credential_authority=self._credential_authority,
+                credential_authority=credential_authority,
                 deadline_monotonic=deadline,
             )
         elif isinstance(run, CollectionRunAdmissionV2):
@@ -1085,14 +1093,14 @@ class OllamaCloudCollectionV1:
                 binding=binding,
                 proof=scheduled_proof,
                 credential_lock=credential_lock,
-                credential_authority=self._credential_authority,
+                credential_authority=credential_authority,
                 deadline_monotonic=deadline,
             )
         else:
             source = read_cloud_balance_for_binding_v1(
                 binding=binding,
                 credential_lock=credential_lock,
-                credential_authority=self._credential_authority,
+                credential_authority=credential_authority,
                 deadline_monotonic=deadline,
             )
         completed = datetime.now(UTC)

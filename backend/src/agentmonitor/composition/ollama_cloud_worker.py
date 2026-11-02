@@ -14,11 +14,17 @@ from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 from agentmonitor.adapters.persistence._shared.sqlite.core.policy import DatabaseRefV1
+from agentmonitor.adapters.persistence.registry.sqlite.credential_bindings import (
+    SqliteCredentialBindingsV1,
+)
 from agentmonitor.composition.ollama_cloud_collection import (
     OllamaCloudCollectionV1,
     require_probe_authorized,
 )
-from agentmonitor.composition.ollama_env_store import recover_ollama_env_staging
+from agentmonitor.composition.ollama_env_store import (
+    recover_env_location_if_unused,
+    recover_ollama_env_staging,
+)
 
 _PREFIX = "agentmonitor-cloud-worker-"
 _SYSTEMCTL = "/usr/bin/systemctl"
@@ -578,6 +584,12 @@ def main() -> int:
             return 0
         if args.credential_env_file is None:
             return 3
+        recover_env_location_if_unused(
+            args.data_root,
+            has_unfinished_bindings=SqliteCredentialBindingsV1(
+                DatabaseRefV1(args.data_root / "agentmonitor.db", args.data_root)
+            ).has_unfinished_bindings,
+        )
         recover_ollama_env_staging(args.credential_env_file, args.data_root)
         if recovery_exit_code(rate) == 0:
             try:

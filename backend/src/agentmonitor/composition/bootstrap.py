@@ -113,6 +113,7 @@ from agentmonitor.composition.ollama_cloud_connection import (
     OllamaCloudConnectionServiceV1,
 )
 from agentmonitor.composition.ollama_cloud_worker import OllamaCloudWorkerSupervisorV1
+from agentmonitor.composition.ollama_env_store import env_location_matches
 from agentmonitor.composition.ollama_local_catalog import read_ollama_local_catalog_v1
 from agentmonitor.composition.ollama_runtime_collection import (
     OllamaRuntimeCollectorV1,
@@ -498,6 +499,15 @@ def _observation_ports(
     data_root: Path,
     ollama_cloud_worker: OllamaCloudWorkerSupervisorV1,
 ) -> ObservationApiPortsV1:
+    def current_ollama_env_location() -> bool:
+        selected = ollama_cloud_worker.credential_env_file()
+        if selected is None:
+            return False
+        try:
+            return env_location_matches(data_root, selected)
+        except (OSError, ValueError):
+            return False
+
     registry = SqliteRegistryRepositoryV1(reference)
     collection = SqliteCollectionRepositoryV1(reference)
     capacity = SqliteCapacityRepositoryV1(reference)
@@ -569,6 +579,7 @@ def _observation_ports(
                 and ollama_cloud_worker.is_configured()
             ),
             monitoring_ready=ollama_cloud_worker.is_monitoring_available,
+            location_current=current_ollama_env_location,
         ),
     )
 
