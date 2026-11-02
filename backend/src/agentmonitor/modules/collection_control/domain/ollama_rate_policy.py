@@ -4,7 +4,7 @@ Persistence and atomic admission are separate responsibilities: this function
 alone does not prevent concurrent requests or enforce a provider's rate limit.
 """
 
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 
 _MIN_SPACING_SECONDS = 60
 _MAX_BACKOFF_SECONDS = 300
@@ -17,11 +17,19 @@ def after_ollama_attempt(
     retry_after_seconds: int | None,
     jitter_seconds: int,
     *,
-    observed_at: datetime,
+    response_received_at: datetime,
 ) -> datetime:
     """Calculate a next start, preserving longer provider-directed waits."""
-    if started_at.utcoffset() is None or observed_at.utcoffset() is None:
+    if not isinstance(started_at, datetime) or not isinstance(
+        response_received_at, datetime
+    ):
+        raise ValueError("ollama_rate_time_invalid")
+    if started_at.utcoffset() is None or response_received_at.utcoffset() is None:
         raise ValueError("ollama_rate_time_requires_timezone")
+    started_at = started_at.astimezone(UTC)
+    response_received_at = response_received_at.astimezone(UTC)
+    if response_received_at < started_at:
+        raise ValueError("ollama_rate_time_order_invalid")
     if (
         type(consecutive_rate_limits) is not int
         or not 0 <= consecutive_rate_limits <= 100
@@ -33,7 +41,7 @@ def after_ollama_attempt(
     ):
         raise ValueError("ollama_rate_jitter_invalid")
     if retry_after_seconds is not None and (
-        type(retry_after_seconds) is not int or not 0 <= retry_after_seconds <= 2678400
+        type(retry_after_seconds) is not int or retry_after_seconds < 0
     ):
         raise ValueError("ollama_retry_after_invalid")
     fallback = (
@@ -41,8 +49,13 @@ def after_ollama_attempt(
         if consecutive_rate_limits
         else 0
     )
-    minimum = started_at + timedelta(seconds=_MIN_SPACING_SECONDS)
-    provider_wait = observed_at + timedelta(
-        seconds=max(retry_after_seconds or 0, fallback)
-    )
-    return max(minimum, provider_wait) + timedelta(seconds=jitter_seconds)
+    try:
+        minimum = started_at + timedelta(seconds=_MIN_SPACING_SECONDS)
+        provider_wait = response_received_at + timedelta(
+            seconds=max(retry_after_seconds or 0, fallback)
+        )
+        return max(minimum, provider_wait) + timedelta(seconds=jitter_seconds)
+    except OverflowError as exc:
+        # The caller must block admission; an unrepresentable provider wait is
+        # not an invalid header that can fall back to a shorter delay.
+        raise ValueError("ollama_rate_wait_unrepresentable") from exc
