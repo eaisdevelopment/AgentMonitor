@@ -104,7 +104,7 @@ def test_disposable_unit_and_real_backup_migration(
             command.upgrade(config, "v1_0708")
             connection.commit()
     baseline = Path("/home/dev/.local/share/agentmonitor/worktrees/m6-integration")
-    candidate = Path("/home/dev/.local/share/agentmonitor/worktrees/m6-next")
+    candidate = Path("/home/dev/.local/share/agentmonitor/worktrees/m6-cloud-final")
     revision = subprocess.run(
         ["git", "rev-parse", "HEAD"],
         cwd=candidate,
@@ -661,7 +661,7 @@ with _hold_transition_locks(root) as lease:
             view = InspectSchemaCompatibilityV1(
                 ref, application_schema_range(), "runtime_read_write"
             )
-            assert view.state == "compatible" and view.current_revision == "v1_0709"
+            assert view.state == "compatible" and view.current_revision == "v1_0716"
             assert (
                 len(
                     list((root / "backups").glob("migration-preflight-*/manifest.json"))
