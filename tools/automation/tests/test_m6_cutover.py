@@ -12,6 +12,7 @@ import sys
 import threading
 import time
 import uuid
+from contextlib import closing
 from pathlib import Path
 
 import pytest
@@ -36,6 +37,9 @@ from tools.automation.implementations.m6_cutover import (
     _cutover_engine,
     cutover,
 )
+from tools.automation.implementations.m6_migration_recovery import (
+    _recover_migration_before_start,
+)
 from tools.automation.implementations.m6_offline_restore import (
     classify_restore_recovery,
     restore_before_candidate_start,
@@ -55,6 +59,8 @@ from tools.automation.implementations.m6_transition_lease import _hold_transitio
         "crash_pre",
         "crash_post",
         "real_source_restore",
+        "migration_crash_backup",
+        "migration_crash_committed",
     ],
 )
 def test_disposable_unit_and_real_backup_migration(
@@ -132,7 +138,118 @@ def test_disposable_unit_and_real_backup_migration(
         subprocess.run(
             ["systemctl", "--user", "daemon-reload"], check=True, capture_output=True
         )
-        if case in {"restore", "crash_pre", "crash_post", "real_source_restore"}:
+        if case in {"migration_crash_backup", "migration_crash_committed"}:
+            worker_code = """
+import os,sys
+from pathlib import Path
+from tools.automation.implementations.m6_cutover import _cutover_engine
+print(os.getpid(),flush=True)
+_cutover_engine(unit=sys.argv[1], data_root=Path(sys.argv[2]), baseline=Path(sys.argv[3]), candidate=Path(sys.argv[4]), override=Path(sys.argv[5]), source=sys.argv[6], expected_revision=sys.argv[7], expected_executable=Path('/bin/sleep'))
+"""
+            worker_command = [
+                sys.executable,
+                "-c",
+                worker_code,
+                unit,
+                str(root),
+                str(baseline),
+                str(candidate),
+                str(override),
+                source_revision,
+                revision,
+            ]
+            if case == "migration_crash_committed":
+                worker_command = [
+                    "/usr/bin/strace",
+                    "-q",
+                    "-o",
+                    str(tmp_path / "trace-migration"),
+                    "-e",
+                    "trace=rename",
+                    "-e",
+                    "inject=rename:when=3:delay_enter=10s",
+                    *worker_command,
+                ]
+            worker = subprocess.Popen(
+                worker_command,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.DEVNULL,
+                text=True,
+            )
+            try:
+                assert worker.stdout is not None
+                pid = int(worker.stdout.readline())
+                deadline = time.monotonic() + 20
+                journal = root / ".m6-cutover-journal.json"
+                while time.monotonic() < deadline:
+                    if worker.poll() is not None:
+                        raise AssertionError(
+                            "migration worker exited before interruption"
+                        )
+                    try:
+                        data = json.loads(journal.read_text())
+                        backup = root / "backups" / data["backup_id"]
+                        if data["phase"] == "stopped" and backup.is_dir():
+                            if case == "migration_crash_backup":
+                                break
+                            with closing(
+                                sqlite3.connect(
+                                    f"file:{root / 'agentmonitor.db'}?mode=ro", uri=True
+                                )
+                            ) as db:
+                                marker = db.execute(
+                                    "SELECT version_num FROM alembic_version"
+                                ).fetchone()[0]
+                            if marker == load_migration_catalog().head:
+                                break
+                    except (
+                        FileNotFoundError,
+                        KeyError,
+                        json.JSONDecodeError,
+                        sqlite3.OperationalError,
+                    ):
+                        pass
+                    time.sleep(0.001)
+                else:
+                    raise AssertionError(
+                        "migration worker did not reach the requested boundary"
+                    )
+                os.kill(pid, signal.SIGKILL)
+                worker.wait(timeout=20)
+            finally:
+                if worker.poll() is None:
+                    worker.terminate()
+                    worker.wait(timeout=20)
+            old_backup = data["backup_id"]
+            with (
+                _hold_transition_locks(root) as transition_lease,
+                exclusive_service_quiescence(root, ref) as service_lease,
+                _hold_settings_lock(root) as settings_lease,
+            ):
+                assert (
+                    _recover_migration_before_start(
+                        root,
+                        transition_lease=transition_lease,
+                        service_lease=service_lease,
+                        settings_lease=settings_lease,
+                    )
+                    == "migration_recovered"
+                )
+            recovered = json.loads(journal.read_text())
+            assert recovered["phase"] == "migrated"
+            if case == "migration_crash_backup":
+                assert old_backup in recovered["prior_backup_ids"]
+                assert (root / "backups" / old_backup).is_dir()
+            else:
+                assert recovered["backup_id"] == old_backup
+            view = InspectSchemaCompatibilityV1(
+                ref, application_schema_range(), "runtime_read_write"
+            )
+            assert (
+                view.current_revision == load_migration_catalog().head
+                and view.state == "compatible"
+            )
+        elif case in {"restore", "crash_pre", "crash_post", "real_source_restore"}:
             pid = int(
                 subprocess.run(
                     ["systemctl", "--user", "show", unit, "-p", "MainPID", "--value"],
