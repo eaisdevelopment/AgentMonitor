@@ -1079,3 +1079,11 @@ This binds the amended unshipped M6 credential-contention outcome and contract m
 Plan snapshot SHA-256: `9fadb566c5e5b0742bee20767e2a56351e270f7cba1f6c8152319e5ee88a43c9`
 
 Planning validator SHA-256: `da03531949b5beb574529dfbe41690b69097cd60f7a987b291c2d9ecbbf0c1c6`
+
+## 2026-11-02 recovery routine structural rebind
+
+This binds the three fixed-target recovery routines and their catalog controls only. It does not claim independent semantic review, deployment, real credential verification, or M6 completion. Existing owner approval and acceptance scope remain unchanged.
+
+Plan snapshot SHA-256: `090c40c613ff7a50f3ed672b2b33495149be4cde2ad6f1390992cdf507dfe69c`
+
+Planning validator SHA-256: `7bd0f715b03073444ab9d6dd57caddd4ac2122368f1b07089f2a138449c3c08b`

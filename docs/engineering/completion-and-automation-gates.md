@@ -149,6 +149,9 @@ the lifecycle stage that needs it remains Not Ready.
 | `AUTO-M6-LOCAL-INVENTORY` | Read bounded local Ollama version and installed/loaded model counts | Provider adapter | Preliminary inventory only |
 | `AUTO-M6-LOCAL-ADMIT` | Verify the real loopback adapter, authenticated API and built browser | Provider adapter | Limited local admission; real model-present and natural failure evidence remains separate; no cloud or milestone completion claim |
 | `AUTO-M6-LOCAL-ACTIVATE` | Perform reversible owner-local dashboard activation after local admission | Integration | Limited activation; authenticated installed-browser evidence remains separate and child-spawn/crash races cannot be excluded; no M6 completion claim |
+| `AUTO-M6-RECOVER-MIGRATION` | Recover a fixed local dashboard migration before service startup | Integration | Limited recovery; start block remains in place |
+| `AUTO-M6-RESTORE-PRESTART` | Restore the fixed dashboard backup before service startup | Integration | Limited recovery; start block remains in place |
+| `AUTO-M6-START-RESTORED` | Start the fixed restored baseline and verify local sign-in HTTP | Integration | Limited recovery of the existing baseline; not M6 completion |
 | `AUTO-MUTATION` | Mutate the exact admitted critical M05/M06 pure-policy surface and fail on every survivor or result not covered by an exact independently reviewed equivalence binding | Foundation/test steward | V1-M3 completion claim |
 | `AUTO-MIGRATE` | Preflight schema range, lock migration, take required backup, apply explicit revisions, verify integrity, and fail safely | Persistence/operations | upgrade/start on new schema |
 | `AUTO-DEPLOY` | Install or upgrade the native user service and frontend/backend artifacts using the approved paths, permissions, preflight, and rollback | Deployment | installed release |

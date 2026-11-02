@@ -93,3 +93,14 @@ failed with a `TypeError` because it used the superseded function signature;
 it was replaced with a real noninteractive operator process, which refused the
 request and created no database. This evidence does not exercise a credential,
 an authenticated provider response, or a real account verification.
+
+The fixed-target recovery candidate was ported alongside the v1_0717 schema.
+A real disposable cutover/restore scenario against a private SQLite backup of
+the installed v1_0707 database passed with the M6 candidate selected; the
+installed service and database were unchanged. A separate private migration
+attempt failed with `target_schema_invalid`, while a subsequent private run
+passed; the first failure is not yet explained. The candidate override selects
+the owner's existing project `.env`, while the retained baseline override does
+not pass this new argument. A pure command-construction check failed before
+this correction and passed afterward. Fixed-target live activation, owner
+credential operations, authenticated collection, and complete M6 remain Not Run.
