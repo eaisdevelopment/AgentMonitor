@@ -41,6 +41,7 @@ from tools.automation.implementations.m6_quiescent_stop import (
     QuiescentStopReceipt,
     _properties,
 )
+from tools.automation.implementations.m6_transition_lease import _TransitionLease
 
 
 class OfflineRestoreError(RuntimeError):
@@ -172,6 +173,7 @@ def classify_restore_recovery(root: Path, journal: Path) -> str:
             "preserved_sha256",
             "source_revision",
             "stop_receipt",
+            "cutover_facts",
         }
         if (
             set(data) != expected_keys
@@ -188,6 +190,16 @@ def classify_restore_recovery(root: Path, journal: Path) -> str:
         ):
             raise OfflineRestoreError("restore_recovery_journal_invalid")
         receipt = data.get("stop_receipt")
+        original = data.get("cutover_facts")
+        if (
+            not isinstance(original, dict)
+            or original.get("format") != "m6-cutover.v1"
+            or original.get("phase") != "migrated"
+            or original.get("backup_id") != data.get("backup_id")
+            or original.get("stop_receipt") != receipt
+            or original.get("source_revision") != data.get("source_revision")
+        ):
+            raise OfflineRestoreError("restore_recovery_journal_invalid")
         receipt_keys = {
             "unit",
             "pid",
@@ -292,6 +304,110 @@ def classify_restore_recovery(root: Path, journal: Path) -> str:
         raise OfflineRestoreError("restore_recovery_unavailable") from None
 
 
+def resume_prepared_restore(
+    root: Path,
+    *,
+    transition_lease: _TransitionLease,
+    service_lease: ServiceQuiescenceLeaseV1,
+    settings_lease: _SettingsLockLeaseV1,
+) -> str:
+    """Finish a durably recorded exchange once, with both live locks held.
+
+    This does not start a service, remove its start block, or decide whether a
+    candidate may have run. The validated restore journal is the only input.
+    """
+    try:
+        journal = root / ".m6-cutover-journal.json"
+        transition_lease.validate(root)
+        service_lease.validate(root)
+        settings_lease.validate(root)
+        data = _read_private_json(journal)
+        phase = classify_restore_recovery(root, journal)
+        if phase == "activated":
+            reference = DatabaseRefV1(root / "agentmonitor.db", root)
+            view = InspectSchemaCompatibilityV1(
+                reference, application_schema_range(), "runtime_read_write"
+            )
+            if (
+                view.current_revision != data["source_revision"]
+                or view.state != "upgrade_required"
+            ):
+                raise OfflineRestoreError("restore_revision_invalid")
+            transition_lease.validate(root)
+            service_lease.validate(root)
+            settings_lease.validate(root)
+            if (
+                _read_private_json(journal) != data
+                or classify_restore_recovery(root, journal) != "activated"
+            ):
+                raise OfflineRestoreError("restore_recovery_changed")
+            return "already_activated"
+        if phase == "prepared_not_activated":
+            restored = (
+                root
+                / "restore-generations"
+                / data["generation"]
+                / "restored"
+                / "agentmonitor.db"
+            )
+            transition_lease.validate(root)
+            service_lease.validate(root)
+            settings_lease.validate(root)
+            if (
+                _read_private_json(journal) != data
+                or classify_restore_recovery(root, journal) != phase
+            ):
+                raise OfflineRestoreError("restore_recovery_changed")
+            _exchange(root / "agentmonitor.db", restored)
+            _fsync_dir(root)
+            _fsync_dir(restored.parent)
+        if classify_restore_recovery(root, journal) != "activated_unconfirmed":
+            raise OfflineRestoreError("restore_recovery_changed")
+        # The previous process may have died after rename but before either
+        # directory fsync; make the exchange durable before recording success.
+        restored = (
+            root
+            / "restore-generations"
+            / data["generation"]
+            / "restored"
+            / "agentmonitor.db"
+        )
+        _fsync_dir(root)
+        _fsync_dir(restored.parent)
+        reference = DatabaseRefV1(root / "agentmonitor.db", root)
+        view = InspectSchemaCompatibilityV1(
+            reference, application_schema_range(), "runtime_read_write"
+        )
+        if (
+            view.current_revision != data["source_revision"]
+            or view.state != "upgrade_required"
+        ):
+            raise OfflineRestoreError("restore_revision_invalid")
+        transition_lease.validate(root)
+        service_lease.validate(root)
+        settings_lease.validate(root)
+        if (
+            _read_private_json(journal) != data
+            or classify_restore_recovery(root, journal) != "activated_unconfirmed"
+        ):
+            raise OfflineRestoreError("restore_recovery_changed")
+        data["phase"] = "restore_activated"
+        _write_journal(journal, data)
+        transition_lease.validate(root)
+        service_lease.validate(root)
+        settings_lease.validate(root)
+        if (
+            _read_private_json(journal) != data
+            or classify_restore_recovery(root, journal) != "activated"
+        ):
+            raise OfflineRestoreError("restore_recovery_changed")
+        return "activated"
+    except OfflineRestoreError:
+        raise
+    except Exception:  # noqa: BLE001 -- sanitize recovery boundary failures.
+        raise OfflineRestoreError("restore_recovery_unavailable") from None
+
+
 def _exchange(first: Path, second: Path) -> None:
     """Atomic same-filesystem exchange, preserving both inode generations."""
     libc = ctypes.CDLL(None, use_errno=True)
@@ -314,6 +430,7 @@ def restore_before_candidate_start(
     *,
     receipt: QuiescentStopReceipt,
     journal: Path,
+    transition_lease: _TransitionLease,
     service_lease: ServiceQuiescenceLeaseV1,
     settings_lease: _SettingsLockLeaseV1,
 ) -> str:
@@ -363,6 +480,7 @@ def restore_before_candidate_start(
             raise OfflineRestoreError("restore_backup_invalid")
         _verify_sqlite_backup(backup, load_migration_catalog().digest, source)
         reference = DatabaseRefV1(root / "agentmonitor.db", root)
+        transition_lease.validate(root)
         service_lease.validate(root)
         settings_lease.validate(root)
         if _properties(unit) != current or not _journal_matches(
@@ -453,6 +571,12 @@ def restore_before_candidate_start(
         preserved_info = (preserved_dir / "agentmonitor.db").stat()
         if active_identity is None or staged_info.st_dev != active_identity[0]:
             raise OfflineRestoreError("restore_generation_invalid")
+        cutover_facts = _read_private_json(journal)
+        if (
+            not _journal_matches(journal, backup_id, receipt)
+            or cutover_facts.get("source_revision") != source
+        ):
+            raise OfflineRestoreError("restore_journal_changed")
         prepared = {
             "format": "m6-cutover.v1",
             "phase": "restore_prepared",
@@ -466,6 +590,7 @@ def restore_before_candidate_start(
             "preserved_sha256": _digest_file(preserved_dir / "agentmonitor.db"),
             "source_revision": source,
             "stop_receipt": asdict(receipt),
+            "cutover_facts": cutover_facts,
         }
         # Persist both generations before publishing the recoverable journal.
         _fsync_dir(preserved_dir)
@@ -475,6 +600,7 @@ def restore_before_candidate_start(
         _write_journal(journal, prepared)
         if _read_private_json(journal) != json.loads(json.dumps(prepared)):
             raise OfflineRestoreError("restore_journal_changed")
+        transition_lease.validate(root)
         service_lease.validate(root)
         settings_lease.validate(root)
         if (
@@ -520,6 +646,7 @@ def restore_before_candidate_start(
         )
         if view.current_revision != source or view.state != "upgrade_required":
             raise OfflineRestoreError("restore_revision_invalid")
+        transition_lease.validate(root)
         service_lease.validate(root)
         settings_lease.validate(root)
         retained = (restored_dir / "agentmonitor.db").stat()
