@@ -2,6 +2,8 @@
 
 from dataclasses import dataclass
 
+from fastapi import Request
+
 from agentmonitor.api.problem import ProblemError
 from agentmonitor.contracts.capacity_v1 import CapacityHealthPolicyV1
 from agentmonitor.contracts.common_v1 import OpaqueIdV1
@@ -11,6 +13,7 @@ from agentmonitor.contracts.identity_access_v1 import (
     SessionSummaryV1,
     TokenCallerProofV1,
 )
+from agentmonitor.contracts.ollama_local_catalog_v1 import LocalCatalogPortV1
 from agentmonitor.contracts.provider_system_v1 import ProviderConnectionPortV1
 from agentmonitor.modules.alerting.application.commands import (
     AcknowledgeAlertV1,
@@ -98,7 +101,6 @@ from agentmonitor.modules.runtime_observation.application.queries import (
     ListAgentSessionsV1,
     ListLiveProcessLocationsV1,
 )
-from fastapi import Request
 
 SESSION_COOKIE = "agentmonitor_session"
 CSRF_COOKIE = "agentmonitor_csrf"
@@ -154,6 +156,7 @@ class ObservationApiPortsV1:
     registry_scope: AlertScopeAndSubjectQueryV1 | None = None
     list_account_resources: ListAccountResourcesV1 | None = None
     capacity_health_policy: CapacityHealthPolicyV1 | None = None
+    ollama_local_catalog: LocalCatalogPortV1 | None = None
 
 
 @dataclass(frozen=True, slots=True)

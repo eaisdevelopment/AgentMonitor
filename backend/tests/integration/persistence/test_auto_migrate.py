@@ -31,7 +31,7 @@ from agentmonitor.composition.iam_operator import (  # noqa: E402
 )
 
 
-def _prior_database(root: Path) -> DatabaseRefV1:
+def _prior_database(root: Path, revision: str = "v1_0603") -> DatabaseRefV1:
     root.chmod(0o700)
     reference = DatabaseRefV1(root / "agentmonitor.db", root)
     catalog = load_migration_catalog()
@@ -45,7 +45,7 @@ def _prior_database(root: Path) -> DatabaseRefV1:
                 migrations_path=MIGRATIONS_PATH,
                 catalog_digest=catalog.digest,
             )
-            command.upgrade(config, "v1_0603")
+            command.upgrade(config, revision)
             connection.commit()
     return reference
 
@@ -75,12 +75,12 @@ def test_auto_migrate_keeps_verified_prior_backup_and_reaches_exact_m4_head(
         reference, application_schema_range(), "runtime_read_write"
     )
     assert view.state == "compatible"
-    assert view.current_revision == "v1_0707"
+    assert view.current_revision == "v1_0708"
     backups = list((tmp_path / "backups").glob("migration-preflight-*/manifest.json"))
     assert len(backups) == 1
     manifest = json.loads(backups[0].read_text())
     assert manifest["source_revision"] == "v1_0603"
-    assert manifest["target_revision"] == "v1_0707"
+    assert manifest["target_revision"] == "v1_0708"
     backup_root = backups[0].parent
     assert (
         manifest["database_sha256"]
@@ -94,8 +94,34 @@ def test_auto_migrate_keeps_verified_prior_backup_and_reaches_exact_m4_head(
     assert prior_view.current_revision == "v1_0603"
     retry = _run(tmp_path)
     assert retry.returncode == 0, retry.stdout + retry.stderr
-    assert "already at v1_0707" in retry.stdout
+    assert "already at v1_0708" in retry.stdout
     assert len(list((tmp_path / "backups").glob("migration-preflight-*"))) == 1
+
+
+def test_auto_migrate_upgrades_installed_v1_0707_with_verified_backup(
+    tmp_path: Path,
+) -> None:
+    reference = _prior_database(tmp_path, "v1_0707")
+
+    result = _run(tmp_path, expected="v1_0707")
+
+    assert result.returncode == 0, result.stdout + result.stderr
+    view = InspectSchemaCompatibilityV1(
+        reference, application_schema_range(), "runtime_read_write"
+    )
+    assert view.state == "compatible"
+    assert view.current_revision == "v1_0708"
+    manifests = list((tmp_path / "backups").glob("migration-preflight-*/manifest.json"))
+    assert len(manifests) == 1
+    manifest = json.loads(manifests[0].read_text())
+    assert manifest["source_revision"] == "v1_0707"
+    assert manifest["target_revision"] == "v1_0708"
+    copy = DatabaseRefV1(manifests[0].parent / "agentmonitor.db", manifests[0].parent)
+    prior = InspectSchemaCompatibilityV1(
+        copy, application_schema_range(), "runtime_read_write"
+    )
+    assert prior.state == "upgrade_required"
+    assert prior.current_revision == "v1_0707"
 
 
 def test_auto_migrate_refuses_occupied_service_lock_before_backup(

@@ -1,7 +1,7 @@
-"""One real read-only Linux Claude process collection through M04 into M06.
+"""Real read-only Linux provider process collection through M04 into M06.
 
 The composition resolves a registered installation through M02's published
-application port, verifies the exact installed Claude executable, and admits a
+application port, verifies the exact installed provider executable, and admits a
 durable M04 run before reading procfs.  Executable evidence attributes a process
 to the installation only; no account, profile, or resource is inferred.
 """
@@ -11,6 +11,7 @@ from __future__ import annotations
 import hashlib
 import sys
 import uuid
+from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
@@ -31,9 +32,16 @@ from agentmonitor.adapters.platform.linux.processes import (
     LINUX_PROCESS_SOURCE_VERSION,
     ApprovedLinuxExecutableSelectorV1,
     InspectLinuxProcessesV1,
+    LinuxExecutableFileIdentityV1,
 )
 from agentmonitor.adapters.providers.claude.installation import (
     discover_default_installation,
+)
+from agentmonitor.adapters.providers.ollama.installation import (
+    OllamaInstallationUnavailable,
+)
+from agentmonitor.adapters.providers.ollama.installation import (
+    discover_installation as discover_ollama_installation,
 )
 from agentmonitor.contracts.collection_control_v1 import (
     CollectionCommitReceiptV1,
@@ -61,6 +69,7 @@ from agentmonitor.modules.collection_control.application.executor import (
     ExecuteCollectionRunV1,
 )
 from agentmonitor.modules.collection_control.application.runner import (
+    AdmitScheduledCollectionV1,
     RequestManualCollectionV1,
     RunOneCollectionV1,
 )
@@ -78,7 +87,6 @@ from agentmonitor.modules.runtime_observation.application.queries import (
 )
 
 _SOURCE_ID = "linux.proc.process.v1"
-_SELECTOR_ID = "linux.proc.claude-process.v1"
 _CAPABILITY_ID = "local.process.observation"
 _PAYLOAD_SCHEMA = "runtime-observation-batch.v1"
 _OWNER_PRINCIPAL_ID = "agentmonitor-owner"
@@ -99,6 +107,10 @@ class LinuxRuntimeMonitoringErrorV1(RuntimeError):
     """Safe composition failure without paths, process data, or provider output."""
 
 
+class LinuxRuntimeMonitoringCancelledV1(RuntimeError):
+    """The optional scheduled collector was stopped before durable admission."""
+
+
 @dataclass(frozen=True, slots=True)
 class LinuxRuntimeMonitoringResultV1:
     """Safe persisted receipts and projections from one real inspection."""
@@ -110,6 +122,97 @@ class LinuxRuntimeMonitoringResultV1:
     processes: tuple[AgentProcessRecordV1, ...]
 
 
+def empty_process_observation_is_valid_v1(
+    *, provider_key: str, inspection_state: str, process_count: int
+) -> bool:
+    """Admit only a complete exact Ollama scan as truthful empty activity."""
+
+    if type(process_count) is not int or process_count < 0:
+        raise ValueError("linux_runtime_process_count_invalid")
+    return (
+        provider_key == "ollama"
+        and inspection_state == "success"
+        and process_count == 0
+    )
+
+
+@dataclass(frozen=True, slots=True)
+class _RuntimeProviderSpecV1:
+    provider_key: str
+    selector_id: str
+    executable_identity: str
+    decision_reference: str
+    freshness_duration: timedelta
+    discover_installation: Callable[
+        [],
+        tuple[
+            str,
+            str,
+            Path,
+            LinuxExecutableFileIdentityV1 | None,
+        ],
+    ]
+
+
+def _discover_claude_process_installation_v1() -> tuple[
+    str, str, Path, LinuxExecutableFileIdentityV1 | None
+]:
+    discovered = discover_default_installation()
+    return (
+        discovered.platform_id,
+        discovered.provider_version,
+        discovered.executable_for_adapter,
+        None,
+    )
+
+
+def _discover_ollama_process_installation_v1() -> tuple[
+    str, str, Path, LinuxExecutableFileIdentityV1 | None
+]:
+    discovered = discover_ollama_installation()
+    if discovered.outcome != "success" or discovered.cli_version is None:
+        raise OllamaInstallationUnavailable("ollama_installation_unavailable")
+    executable, identity = discovered.executable_for_process_observation()
+    return discovered.platform_id, discovered.cli_version, executable, identity
+
+
+_CLAUDE_RUNTIME_SPEC = _RuntimeProviderSpecV1(
+    "claude",
+    "linux.proc.claude-process.v1",
+    "claude",
+    "REF-M0-LNX-CAPABILITY-DECISIONS-001",
+    timedelta(minutes=1),
+    _discover_claude_process_installation_v1,
+)
+_OLLAMA_RUNTIME_SPEC = _RuntimeProviderSpecV1(
+    "ollama",
+    "linux.proc.ollama-process.v1",
+    "ollama",
+    "M6-OLL-PROCESS-PLAN-001",
+    timedelta(minutes=5),
+    _discover_ollama_process_installation_v1,
+)
+
+
+@dataclass(frozen=True, slots=True)
+class _RuntimeInvocationV1:
+    trigger: Literal["manual", "scheduled"]
+    schedule_id: OpaqueIdV1
+    request_auth_method: str
+    request_principal_id: OpaqueIdV1 | None
+    scheduler_instance_id: OpaqueIdV1
+
+
+def _manual_invocation_v1(provider_key: str) -> _RuntimeInvocationV1:
+    return _RuntimeInvocationV1(
+        "manual",
+        OpaqueIdV1(f"{provider_key}-linux-runtime-manual-schedule"),
+        "owner_local_operator",
+        OpaqueIdV1(_OWNER_PRINCIPAL_ID),
+        OpaqueIdV1("agentmonitor-local-manual"),
+    )
+
+
 def _digest(*values: str) -> str:
     return hashlib.sha256("\x00".join(values).encode("utf-8")).hexdigest()
 
@@ -118,16 +221,16 @@ def _operation_id(prefix: str) -> str:
     return f"{prefix}-{uuid.uuid4().hex}"
 
 
-def _registered_claude_installation(
-    reference: DatabaseRefV1,
+def _registered_installation(
+    reference: DatabaseRefV1, spec: _RuntimeProviderSpecV1
 ) -> tuple[OpaqueIdV1, str, int]:
     installations = ListProviderInstallationsV1(SqliteRegistryRepositoryV1(reference))(
-        "claude"
+        spec.provider_key
     )
     current = tuple(
         installation
         for installation in installations
-        if installation.provider_key == "claude"
+        if installation.provider_key == spec.provider_key
         and installation.platform_key == "linux-x86_64"
         and installation.presence_state == "present"
         and installation.version.state == "known_masked"
@@ -148,6 +251,8 @@ def _registered_claude_installation(
 
 def _build_admission(
     *,
+    spec: _RuntimeProviderSpecV1,
+    invocation: _RuntimeInvocationV1,
     installation_id: OpaqueIdV1,
     provider_version: str,
     registry_revision: int,
@@ -155,28 +260,34 @@ def _build_admission(
     run_id: str,
     request_id: str,
     correlation_id: str,
+    operation_deadline_at: datetime | None = None,
 ) -> CollectionRunAdmissionV1:
     target_digest = _digest(
         "linux-runtime-target-v1",
-        "claude",
+        spec.provider_key,
         installation_id.value,
         _SOURCE_ID,
-        _SELECTOR_ID,
+        spec.selector_id,
     )
+    deadline_at = requested_at + timedelta(seconds=10)
+    if operation_deadline_at is not None:
+        deadline_at = min(deadline_at, operation_deadline_at)
+    if deadline_at <= requested_at:
+        raise LinuxRuntimeMonitoringErrorV1("linux_runtime_operation_deadline")
     return CollectionRunAdmissionV1(
         run_id=OpaqueIdV1(run_id),
-        schedule_id=OpaqueIdV1("claude-linux-runtime-manual-schedule"),
+        schedule_id=invocation.schedule_id,
         request_id=OpaqueIdV1(request_id),
-        trigger="manual",
+        trigger=invocation.trigger,
         operation_family="collect.local.process.observation",
         requested_capability_ids=(_CAPABILITY_ID,),
         capability_set_version="1.0.0",
-        request_auth_method="owner_local_operator",
-        request_principal_id=OpaqueIdV1(_OWNER_PRINCIPAL_ID),
+        request_auth_method=invocation.request_auth_method,
+        request_principal_id=invocation.request_principal_id,
         correlation_id=OpaqueIdV1(correlation_id),
         causation_id=None,
         target_key_digest=target_digest,
-        provider_key="claude",
+        provider_key=spec.provider_key,
         installation_id=installation_id,
         account_id=None,
         profile_id=None,
@@ -188,6 +299,8 @@ def _build_admission(
         adapter_protocol_version="1.0.0",
         manifest_fingerprint=_digest(
             "linux-process-manifest-v1",
+            spec.provider_key,
+            spec.selector_id,
             LINUX_PROCESS_ADAPTER_VERSION,
             LINUX_PROCESS_SOURCE_VERSION,
             provider_version,
@@ -197,7 +310,7 @@ def _build_admission(
         retry_chain_id=OpaqueIdV1(_operation_id("linux-runtime-retry-chain")),
         attempt_ordinal=1,
         target_generation=registry_revision,
-        scheduler_instance_id=OpaqueIdV1("agentmonitor-local-manual"),
+        scheduler_instance_id=invocation.scheduler_instance_id,
         lease_policy_version="1.0.0",
         budget_policy_id="local-process-inspection-v1",
         budget_policy_version="1.0.0",
@@ -207,17 +320,20 @@ def _build_admission(
         budget_units=1,
         budget_limit_units=1,
         budget_window_start=requested_at,
-        budget_window_end=requested_at + timedelta(minutes=1),
+        budget_window_end=requested_at + spec.freshness_duration,
         payload_schema=_PAYLOAD_SCHEMA,
-        idempotency_key_digest=_digest(request_id),
+        idempotency_key_digest=(
+            _digest(request_id) if invocation.trigger == "manual" else None
+        ),
         request_digest=_digest(request_id, target_digest, _CAPABILITY_ID),
         requested_at=requested_at,
-        deadline_at=requested_at + timedelta(seconds=10),
+        deadline_at=deadline_at,
     )
 
 
 def _provenance(
     *,
+    spec: _RuntimeProviderSpecV1,
     outcome: PlatformInspectionOutcomeV1,
     provider_version: str,
     operation_id: str,
@@ -225,7 +341,7 @@ def _provenance(
     collected_at: datetime,
 ) -> ObservationProvenanceV1:
     return ObservationProvenanceV1(
-        provider_key="claude",
+        provider_key=spec.provider_key,
         capability_id=_CAPABILITY_ID,
         capability_schema_version="1.0",
         adapter_id="agentmonitor.linux",
@@ -240,9 +356,13 @@ def _provenance(
         observed_at=outcome.observed_at,
         observed_at_availability=FieldAvailabilityV1("available"),
         collected_at=collected_at,
-        freshness_deadline=collected_at + timedelta(minutes=1),
+        freshness_deadline=collected_at + spec.freshness_duration,
         freshness_availability=FieldAvailabilityV1("available"),
-        freshness_policy_id="runtime-process-one-minute-v1",
+        freshness_policy_id=(
+            "runtime-process-five-minute-v1"
+            if spec.freshness_duration == timedelta(minutes=5)
+            else "runtime-process-one-minute-v1"
+        ),
         precision="exact",
         confidence="confirmed",
         confidence_reason_code="exact_executable_verified_account_unresolved",
@@ -252,7 +372,7 @@ def _provenance(
         warnings=outcome.omission_codes,
         operation_id=OpaqueIdV1(operation_id),
         correlation_id=OpaqueIdV1(correlation_id),
-        decision_reference="REF-M0-LNX-CAPABILITY-DECISIONS-001",
+        decision_reference=spec.decision_reference,
         derivation_method=None,
         input_observation_ids=(),
     )
@@ -260,12 +380,20 @@ def _provenance(
 
 def _inspection_outcome(
     *,
+    spec: _RuntimeProviderSpecV1,
     inspector: InspectLinuxProcessesV1,
     request: PlatformInspectionRequestV1,
     provider_version: str,
 ) -> CollectionOutcomeV1[RuntimeObservationBatchV1]:
     inspected = inspector(request)
-    if inspected.state not in {"success", "partial"} or not inspected.processes:
+    valid_empty = empty_process_observation_is_valid_v1(
+        provider_key=spec.provider_key,
+        inspection_state=inspected.state,
+        process_count=len(inspected.processes),
+    )
+    if inspected.state not in {"success", "partial"} or (
+        not inspected.processes and not valid_empty
+    ):
         state: Literal[
             "unsupported",
             "unverified_provider_version",
@@ -298,7 +426,8 @@ def _inspection_outcome(
         )
         return CollectionOutcomeV1.failure(
             state=state,
-            code=inspected.error_code or "linux_claude_process_not_observed",
+            code=inspected.error_code
+            or f"linux_{spec.provider_key}_process_not_observed",
             retry=retry,
         )
 
@@ -313,6 +442,7 @@ def _inspection_outcome(
         omission_codes=inspected.omission_codes,
     )
     provenance = _provenance(
+        spec=spec,
         outcome=inspected,
         provider_version=provider_version,
         operation_id=request.operation_id,
@@ -372,9 +502,10 @@ def _prepare_commit(
     )
 
 
-def recover_pending_linux_runtime_commits(
+def _recover_pending_linux_runtime_commits(
     reference: DatabaseRefV1,
     *,
+    spec: _RuntimeProviderSpecV1,
     as_of: datetime,
     maximum_runs: int = _MAXIMUM_RECOVERY_RUNS,
 ) -> tuple[CollectionCommitReceiptV1 | CollectionFailedV1, ...]:
@@ -388,7 +519,7 @@ def recover_pending_linux_runtime_commits(
         CommitRuntimeCollectionOutcomeV1(runtime_repository),
     )
     return executor.recover_pending_commits(
-        provider_key="claude",
+        provider_key=spec.provider_key,
         capability_id=_CAPABILITY_ID,
         source_id=_SOURCE_ID,
         as_of=as_of,
@@ -399,8 +530,48 @@ def recover_pending_linux_runtime_commits(
     )
 
 
-def run_linux_runtime_collection(data_root: Path) -> LinuxRuntimeMonitoringResultV1:
-    """Inspect and persist current real Claude processes without account guessing."""
+def recover_pending_linux_runtime_commits(
+    reference: DatabaseRefV1,
+    *,
+    as_of: datetime,
+    maximum_runs: int = _MAXIMUM_RECOVERY_RUNS,
+) -> tuple[CollectionCommitReceiptV1 | CollectionFailedV1, ...]:
+    """Compatibility entry point for prior Claude runtime recovery."""
+
+    return _recover_pending_linux_runtime_commits(
+        reference,
+        spec=_CLAUDE_RUNTIME_SPEC,
+        as_of=as_of,
+        maximum_runs=maximum_runs,
+    )
+
+
+def recover_pending_ollama_runtime_commits(
+    reference: DatabaseRefV1,
+    *,
+    as_of: datetime,
+    maximum_runs: int = _MAXIMUM_RECOVERY_RUNS,
+) -> tuple[CollectionCommitReceiptV1 | CollectionFailedV1, ...]:
+    """Recover bounded Ollama runtime commits without provider or procfs I/O."""
+
+    return _recover_pending_linux_runtime_commits(
+        reference,
+        spec=_OLLAMA_RUNTIME_SPEC,
+        as_of=as_of,
+        maximum_runs=maximum_runs,
+    )
+
+
+def _run_linux_runtime_collection(
+    data_root: Path,
+    spec: _RuntimeProviderSpecV1,
+    invocation: _RuntimeInvocationV1,
+    *,
+    cancellation_requested: Callable[[], bool] | None = None,
+    operation_deadline_at: datetime | None = None,
+    recover_pending: bool = True,
+) -> LinuxRuntimeMonitoringResultV1:
+    """Inspect and persist one provider's real processes without guessing."""
     if not data_root.is_absolute() or data_root in {Path("/"), Path.home()}:
         raise LinuxRuntimeMonitoringErrorV1("linux_runtime_data_root_invalid")
     database_path = data_root / "agentmonitor.db"
@@ -408,36 +579,58 @@ def run_linux_runtime_collection(data_root: Path) -> LinuxRuntimeMonitoringResul
         raise LinuxRuntimeMonitoringErrorV1("linux_runtime_database_missing")
     reference = DatabaseRefV1(database_path, data_root)
 
+    def checkpoint() -> None:
+        if cancellation_requested is not None and cancellation_requested():
+            raise LinuxRuntimeMonitoringCancelledV1(
+                "linux_runtime_collection_cancelled"
+            )
+        if (
+            operation_deadline_at is not None
+            and datetime.now(UTC) >= operation_deadline_at
+        ):
+            raise LinuxRuntimeMonitoringErrorV1("linux_runtime_operation_deadline")
+
     # Crash recovery is strictly database-to-database reconciliation. It runs
     # before a new run ID exists, before durable admission, and before procfs.
-    recover_pending_linux_runtime_commits(reference, as_of=datetime.now(UTC))
+    checkpoint()
+    if recover_pending:
+        _recover_pending_linux_runtime_commits(
+            reference,
+            spec=spec,
+            as_of=datetime.now(UTC),
+        )
+        checkpoint()
 
-    registered_id, registered_version, registry_revision = (
-        _registered_claude_installation(reference)
+    registered_id, registered_version, registry_revision = _registered_installation(
+        reference, spec
     )
-    discovered = discover_default_installation()
-    if (
-        discovered.platform_id != "linux-x86_64"
-        or discovered.provider_version != registered_version
-    ):
+    checkpoint()
+    platform_id, discovered_version, executable, expected_identity = (
+        spec.discover_installation()
+    )
+    checkpoint()
+    if platform_id != "linux-x86_64" or discovered_version != registered_version:
         raise LinuxRuntimeMonitoringErrorV1(
             "linux_runtime_installation_version_mismatch"
         )
     selector = ApprovedLinuxExecutableSelectorV1.from_executable(
-        selector_id=_SELECTOR_ID,
-        executable_identity="claude",
-        provider_key="claude",
+        selector_id=spec.selector_id,
+        executable_identity=spec.executable_identity,
+        provider_key=spec.provider_key,
         installation_id=registered_id.value,
         provider_version=registered_version,
-        executable=discovered.executable_for_adapter,
+        executable=executable,
+        expected_file_identity=expected_identity,
     )
     inspector = InspectLinuxProcessesV1(approved_executable_selectors=(selector,))
 
     requested_at = datetime.now(UTC)
-    run_id = _operation_id("claude-runtime-run")
-    request_id = _operation_id("claude-runtime-request")
-    correlation_id = _operation_id("claude-runtime-correlation")
+    run_id = _operation_id(f"{spec.provider_key}-runtime-run")
+    request_id = _operation_id(f"{spec.provider_key}-runtime-request")
+    correlation_id = _operation_id(f"{spec.provider_key}-runtime-correlation")
     admission = _build_admission(
+        spec=spec,
+        invocation=invocation,
         installation_id=registered_id,
         provider_version=registered_version,
         registry_revision=registry_revision,
@@ -445,22 +638,24 @@ def run_linux_runtime_collection(data_root: Path) -> LinuxRuntimeMonitoringResul
         run_id=run_id,
         request_id=request_id,
         correlation_id=correlation_id,
+        operation_deadline_at=operation_deadline_at,
     )
     inspection_request = PlatformInspectionRequestV1(
         operation_id=run_id,
         correlation_id=correlation_id,
-        provider_key="claude",
+        provider_key=spec.provider_key,
         installation_id=registered_id.value,
         provider_version=registered_version,
         source_id=_SOURCE_ID,
-        selector_id=_SELECTOR_ID,
-        executable_identity="claude",
+        selector_id=spec.selector_id,
+        executable_identity=spec.executable_identity,
         requested_fields=_REQUESTED_FIELDS,
         maximum_candidates=16_384,
         maximum_results=512,
         deadline_at=admission.deadline_at,
     )
 
+    checkpoint()
     collection_repository = SqliteCollectionRepositoryV1(reference)
     runtime_repository = SqliteRuntimeObservationRepositoryV1(reference)
     sink = CommitRuntimeCollectionOutcomeV1(runtime_repository)
@@ -470,11 +665,16 @@ def run_linux_runtime_collection(data_root: Path) -> LinuxRuntimeMonitoringResul
         collection_repository,
         sink,
     )
-    queued = RequestManualCollectionV1(collection_repository)(admission)
+    queued = (
+        RequestManualCollectionV1(collection_repository)(admission)
+        if invocation.trigger == "manual"
+        else AdmitScheduledCollectionV1(collection_repository)(admission)
+    )
     started_at = datetime.now(UTC)
     result = RunOneCollectionV1(executor)(
         admission,
         lambda: _inspection_outcome(
+            spec=spec,
             inspector=inspector,
             request=inspection_request,
             provider_version=registered_version,
@@ -491,13 +691,15 @@ def run_linux_runtime_collection(data_root: Path) -> LinuxRuntimeMonitoringResul
         raise LinuxRuntimeMonitoringErrorV1("linux_runtime_receipt_invalid")
     completed = collection_repository.get_run(admission.run_id)
     processes = ListAgentProcessesV1(runtime_repository)(
-        provider_key="claude", as_of=datetime.now(UTC), page_size=500
+        provider_key=spec.provider_key, as_of=datetime.now(UTC), page_size=500
     )
     current_ids = set(result.observation_ids)
     current_processes = tuple(
         process for process in processes if process.current_snapshot_id in current_ids
     )
-    if not current_processes:
+    if not current_processes and not (
+        spec.provider_key == "ollama" and not result.observation_ids
+    ):
         raise LinuxRuntimeMonitoringErrorV1("linux_runtime_projection_missing")
     return LinuxRuntimeMonitoringResultV1(
         inspected_process_count=len(current_processes),
@@ -505,6 +707,52 @@ def run_linux_runtime_collection(data_root: Path) -> LinuxRuntimeMonitoringResul
         completed_run=completed,
         receipt=result,
         processes=current_processes,
+    )
+
+
+def run_linux_runtime_collection(data_root: Path) -> LinuxRuntimeMonitoringResultV1:
+    """Retain the existing Claude collection entry point."""
+
+    return _run_linux_runtime_collection(
+        data_root,
+        _CLAUDE_RUNTIME_SPEC,
+        _manual_invocation_v1(_CLAUDE_RUNTIME_SPEC.provider_key),
+    )
+
+
+def run_ollama_runtime_collection(data_root: Path) -> LinuxRuntimeMonitoringResultV1:
+    """Inspect and persist exact real Ollama processes with unresolved ownership."""
+
+    return _run_linux_runtime_collection(
+        data_root,
+        _OLLAMA_RUNTIME_SPEC,
+        _manual_invocation_v1(_OLLAMA_RUNTIME_SPEC.provider_key),
+    )
+
+
+def run_scheduled_ollama_runtime_collection(
+    data_root: Path,
+    *,
+    scheduler_instance_id: OpaqueIdV1,
+    cancellation_requested: Callable[[], bool] | None = None,
+    operation_deadline_at: datetime | None = None,
+    recover_pending: bool = True,
+) -> LinuxRuntimeMonitoringResultV1:
+    """Persist one due Ollama scan through the scheduler admission boundary."""
+
+    return _run_linux_runtime_collection(
+        data_root,
+        _OLLAMA_RUNTIME_SPEC,
+        _RuntimeInvocationV1(
+            "scheduled",
+            OpaqueIdV1("ollama-linux-runtime-scheduled"),
+            "internal_scheduler",
+            None,
+            scheduler_instance_id,
+        ),
+        cancellation_requested=cancellation_requested,
+        operation_deadline_at=operation_deadline_at,
+        recover_pending=recover_pending,
     )
 
 

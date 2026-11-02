@@ -1,5 +1,5 @@
-version = "1.7.7"
-head = "v1_0707"
+version = "1.7.8"
+head = "v1_0708"
 env_sha256 = "27449e3ed3984acde690510f9e4974eb6412f5f1b7e62af65bc8bb616879a7d7"
 
 [[revisions]]
@@ -573,3 +573,26 @@ backup_prerequisite = "required_existing_database"
 validation_ids = ["single_head", "m05_durable_current_forecast_availability", "foreign_key_check", "full_integrity"]
 recovery_policy = "preserve_failed_database_and_restore_verified_backup_or_forward_fix"
 reviewer = "root-M05-PLAN-DB-security-review"
+
+
+[[revisions]]
+ordinal = 708
+filename = "v1_0708_m04_ollama_cloud_admission.py"
+sha256 = "a12f931a62c1b259faa3ee61d7eaa1ca8e93d63a9fc371869ca6e4c11d7306b7"
+status = "shared"
+reviewed_at = "2026-11-02"
+revision = "v1_0708"
+parent_revision = "v1_0707"
+owner = "M04"
+plan_id = "PLAN-M04"
+requirement_ids = ["FR-COL-003", "FR-COL-005", "FR-COL-006", "FR-COL-008", "M6-A07", "M6-A09", "NFR-DATA-001"]
+schema_range = ["v1_0708", "v1_0708", "v1_0708", "v1_0708", "v1_0708"]
+tables = ["collection_ollama_cloud_gate", "collection_ollama_cloud_admission"]
+portability_notes = ["One provider-global row serializes request starts per deployed SQLite instance", "Create-once admission rows retain fencing and fair scheduling evidence"]
+lock_policy = "exclusive_migration_and_begin_immediate"
+downtime_policy = "offline_additive_schema_migration"
+expected_data_volume = "one_gate_row;one_admission_row_per_attempt"
+backup_prerequisite = "required_existing_database"
+validation_ids = ["single_head", "m04_ollama_cloud_global_admission", "foreign_key_check", "full_integrity"]
+recovery_policy = "preserve_failed_database_and_restore_verified_backup_or_forward_fix"
+reviewer = "M04-M6-cloud-security-review"

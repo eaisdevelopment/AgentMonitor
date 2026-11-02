@@ -61,6 +61,28 @@ ProfileCompatibilityStateV1 = Literal[
 ]
 RegistryScopeKindV1 = Literal["global", "organization", "provider", "account"]
 ProviderIdentityResolutionStateV1 = Literal["resolved", "unresolved", "conflict"]
+CredentialBindingLifecycleV1 = Literal[
+    "pending", "active", "cleanup_pending", "cleanup_complete"
+]
+CredentialBindingReasonV1 = Literal[
+    "owner_prepared",
+    "owner_activated",
+    "rotation_replaced",
+    "pending_cleanup_requested",
+    "owner_disconnected",
+    "account_archived",
+    "account_deleted",
+    "local_cleanup_completed",
+]
+
+
+def _valid_credential_binding_id(value: OpaqueIdV1) -> bool:
+    binding_id = value.value
+    return (
+        len(binding_id) == 37
+        and binding_id.startswith("amcb_")
+        and all(character in "0123456789abcdef" for character in binding_id[5:])
+    )
 
 
 def _bounded(value: object, *, maximum: int = 256) -> bool:
@@ -272,6 +294,91 @@ class AccountViewV1(TechnicalValueV1):
             )
         ):
             raise ValueError("registry_account_invalid")
+
+
+@dataclass(frozen=True, slots=True)
+class CredentialBindingRecordV1(TechnicalValueV1):
+    """Internal non-secret lifecycle record for one managed credential item.
+
+    ``binding_id`` is a closed-shape application handle, not owner input. The
+    application must generate it internally; this contract is not an API view.
+    """
+
+    CONTRACT_ID: ClassVar[str] = "CTR-REG-011"
+    OWNER: ClassVar[str] = "PLAN-M02"
+
+    account_id: OpaqueIdV1
+    binding_id: OpaqueIdV1
+    lifecycle: CredentialBindingLifecycleV1
+    generation: int
+    association_provenance: Literal["owner_asserted"]
+    reason_code: CredentialBindingReasonV1
+
+    def __post_init__(self) -> None:
+        TechnicalValueV1.__post_init__(self)
+        if not _valid_credential_binding_id(self.binding_id):
+            raise ValueError("registry_credential_binding_id_invalid")
+        if type(self.generation) is not int or self.generation < 1:
+            raise ValueError("registry_credential_binding_generation_invalid")
+
+
+@dataclass(frozen=True, slots=True)
+class CredentialBindingAggregateV1(TechnicalValueV1):
+    """One account's serialized binding state and current collection fence."""
+
+    CONTRACT_ID: ClassVar[str] = "CTR-REG-011"
+    OWNER: ClassVar[str] = "PLAN-M02"
+
+    account_id: OpaqueIdV1
+    record_version: int
+    binding_generation: int
+    bindings: tuple[CredentialBindingRecordV1, ...]
+
+    def __post_init__(self) -> None:
+        TechnicalValueV1.__post_init__(self)
+        if (
+            type(self.record_version) is not int
+            or self.record_version < 0
+            or type(self.binding_generation) is not int
+            or self.binding_generation < 0
+        ):
+            raise ValueError("registry_credential_binding_version_invalid")
+        if any(item.account_id != self.account_id for item in self.bindings):
+            raise ValueError("registry_credential_binding_account_mismatch")
+        binding_ids = tuple(item.binding_id for item in self.bindings)
+        if len(set(binding_ids)) != len(binding_ids):
+            raise ValueError("registry_credential_binding_duplicate")
+        active = tuple(item for item in self.bindings if item.lifecycle == "active")
+        pending = tuple(item for item in self.bindings if item.lifecycle == "pending")
+        if len(active) > 1 or len(pending) > 1:
+            raise ValueError("registry_credential_binding_conflict")
+        if active and active[0].generation != self.binding_generation:
+            raise ValueError("registry_credential_binding_generation_invalid")
+        if pending and pending[0].generation != self.binding_generation + 1:
+            raise ValueError("registry_credential_binding_generation_invalid")
+        if any(item.generation > self.binding_generation + 1 for item in self.bindings):
+            raise ValueError("registry_credential_binding_generation_invalid")
+        if self.record_version == 0 and (self.binding_generation != 0 or self.bindings):
+            raise ValueError("registry_credential_binding_version_invalid")
+
+
+@dataclass(frozen=True, slots=True)
+class ActiveCredentialBindingRefV1(TechnicalValueV1):
+    """Internal non-secret exact generation captured before one provider read."""
+
+    CONTRACT_ID: ClassVar[str] = "CTR-REG-011"
+    OWNER: ClassVar[str] = "PLAN-M02"
+
+    account_id: OpaqueIdV1
+    binding_id: OpaqueIdV1
+    generation: int
+
+    def __post_init__(self) -> None:
+        TechnicalValueV1.__post_init__(self)
+        if not _valid_credential_binding_id(self.binding_id):
+            raise ValueError("registry_credential_binding_id_invalid")
+        if type(self.generation) is not int or self.generation < 1:
+            raise ValueError("registry_credential_binding_generation_invalid")
 
 
 @dataclass(frozen=True, slots=True)

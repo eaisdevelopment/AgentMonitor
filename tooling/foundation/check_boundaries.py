@@ -510,6 +510,13 @@ def _bounded_health_read_module(source: str, target: str) -> bool:
 def _approved_owner_adapter_domain_module(source: str, target: str) -> bool:
     return (source, target) in {
         (
+            (
+                "agentmonitor.adapters.persistence.collection_control.sqlite."
+                "ollama_cloud_admission"
+            ),
+            "agentmonitor.modules.collection_control.domain.ollama_rate_policy",
+        ),
+        (
             "agentmonitor.adapters.persistence.collection_control.sqlite.alert_conditions",
             "agentmonitor.modules.collection_control.domain.alert_conditions",
         ),

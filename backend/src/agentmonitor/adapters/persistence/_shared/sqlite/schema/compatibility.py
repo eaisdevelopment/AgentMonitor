@@ -15,6 +15,10 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Literal
 
+from alembic import command
+from alembic.config import Config
+from sqlalchemy.engine import Connection
+
 from agentmonitor.adapters.persistence._shared.sqlite.core.policy import (
     DatabaseOpenModeV1,
     DatabaseRefV1,
@@ -24,12 +28,9 @@ from agentmonitor.adapters.persistence._shared.sqlite.core.policy import (
 )
 from agentmonitor.contracts.database_v1 import SchemaCompatibilityV1
 from agentmonitor.contracts.foundation_v1 import MigrationMetadataV1
-from alembic import command
-from alembic.config import Config
-from sqlalchemy.engine import Connection
 
 MIGRATIONS_PATH = Path(__file__).resolve().parents[7] / "migrations"
-CATALOG_SHA256 = "d64793d4f591eeed306e0b2290766d5d0618f883b8457923f7415852df2d271d"
+CATALOG_SHA256 = "d74ec7de4417968931d0ae80ec696d22ae38612b8bc245682930c50df18285b1"
 IAM_TABLES = frozenset(
     {
         "iam_administrator",
@@ -142,6 +143,18 @@ COLLECTION_INDEXES = frozenset(
         "ix_collection_budget_scope_window",
         "ix_collection_outbox_available",
         "ix_collection_delivery_due",
+    }
+)
+OLLAMA_CLOUD_ADMISSION_TABLES = frozenset(
+    {
+        "collection_ollama_cloud_gate",
+        "collection_ollama_cloud_admission",
+    }
+)
+OLLAMA_CLOUD_ADMISSION_INDEXES = frozenset(
+    {
+        "ix_collection_ollama_cloud_admission_state",
+        "ix_collection_ollama_cloud_admission_schedule",
     }
 )
 CAPACITY_TABLES = frozenset(
@@ -299,6 +312,9 @@ M4_COLLECTOR_SCHEMA_SHA256 = (
 M4_CURRENT_SCHEMA_SHA256 = (
     "bb7fc3101bff956f452a2fd79b8c085c3c930dee9d90f0e25bb931a5dbf7ebfb"
 )
+M4_OLLAMA_CLOUD_SCHEMA_SHA256 = (
+    "409e2c902f5bb18f027cd545ad6187fd9f9819bc0d4db122a344efd688a977e0"
+)
 CAPACITY_PROJECTION_TRIGGERS = frozenset(
     {
         "tr_capacity_forecast_snapshot_insert",
@@ -349,6 +365,7 @@ REVISION_ORDER = {
     "v1_0705": 705,
     "v1_0706": 706,
     "v1_0707": 707,
+    "v1_0708": 708,
 }
 ApplicationSchemaRangeV1 = SchemaCompatibilityV1
 SchemaState = Literal[
@@ -511,10 +528,10 @@ def load_migration_catalog(
             raise SchemaCompatibilityError("migration_catalog_invalid")
         records = document["revisions"]
         if (
-            document["version"] != "1.7.7"
-            or document["head"] != "v1_0707"
+            document["version"] != "1.7.8"
+            or document["head"] != "v1_0708"
             or not isinstance(records, list)
-            or len(records) != 26
+            or len(records) != 27
             or not all(isinstance(record, dict) for record in records)
         ):
             raise SchemaCompatibilityError("migration_catalog_invalid")
@@ -546,6 +563,7 @@ def load_migration_catalog(
             "v1_0705_m07_rule_configuration_guards.py",
             "v1_0706_m04_collector_alerts.py",
             "v1_0707_m05_current_capacity_projections.py",
+            "v1_0708_m04_ollama_cloud_admission.py",
         ) or tuple(record.get("ordinal") for record in records) != (
             0,
             100,
@@ -573,6 +591,7 @@ def load_migration_catalog(
             705,
             706,
             707,
+            708,
         ):
             raise SchemaCompatibilityError("migration_catalog_invalid")
         inventory = {path.name for path in (migrations_path / "versions").glob("*.py")}
@@ -687,7 +706,11 @@ def load_migration_catalog(
                 "capacity_event_outbox",
                 "capacity_availability_current",
             }
-            or any(record.get("status") != "shared" for record in records[18:26])
+            or metadata[26].parent_revision != "v1_0707"
+            or metadata[26].owner != "M04"
+            or metadata[26].plan_id != "PLAN-M04"
+            or set(metadata[26].tables) != OLLAMA_CLOUD_ADMISSION_TABLES
+            or any(record.get("status") != "shared" for record in records[18:27])
             or any(
                 item.backup_prerequisite
                 not in {"none_empty_bootstrap", "required_existing_database"}
@@ -695,7 +718,7 @@ def load_migration_catalog(
             )
         ):
             raise SchemaCompatibilityError("migration_catalog_invalid")
-        result = MigrationCatalogV1("1.7.7", digest, "v1_0707", metadata)
+        result = MigrationCatalogV1("1.7.8", digest, "v1_0708", metadata)
     except SchemaCompatibilityError as error:
         failure = error.code
     except (OSError, ValueError, KeyError, TypeError, SyntaxError, UnicodeError):
@@ -872,7 +895,14 @@ def _inspect(
             return "migration_failed", current
     if current in {"v1_0700", "v1_0701", "v1_0702"}:
         return "upgrade_required", current
-    if current in {"v1_0703", "v1_0704", "v1_0705", "v1_0706", "v1_0707"}:
+    if current in {
+        "v1_0703",
+        "v1_0704",
+        "v1_0705",
+        "v1_0706",
+        "v1_0707",
+        "v1_0708",
+    }:
         table_names = {name for kind, name in objects if kind == "table"}
         explicit_indexes = {
             name
@@ -897,31 +927,50 @@ def _inspect(
             | RUNTIME_INDEXES
             | ALERT_INDEXES
         )
-        guarded = current in {"v1_0705", "v1_0706", "v1_0707"}
-        collector_guarded = current in {"v1_0706", "v1_0707"}
-        projection_guarded = current == "v1_0707"
+        guarded = current in {"v1_0705", "v1_0706", "v1_0707", "v1_0708"}
+        collector_guarded = current in {"v1_0706", "v1_0707", "v1_0708"}
+        projection_guarded = current in {"v1_0707", "v1_0708"}
+        ollama_admission_guarded = current == "v1_0708"
         expected_triggers = (
             (ALERT_CONFIGURATION_TRIGGERS if guarded else frozenset())
             | (COLLECTOR_DELIVERY_TRIGGERS if collector_guarded else frozenset())
             | (CAPACITY_PROJECTION_TRIGGERS if projection_guarded else frozenset())
         )
         additional_tables = (
-            frozenset({"collection_alert_condition"})
-            if collector_guarded
-            else frozenset()
-        ) | (
-            frozenset({"capacity_availability_current"})
-            if projection_guarded
-            else frozenset()
+            (
+                frozenset({"collection_alert_condition"})
+                if collector_guarded
+                else frozenset()
+            )
+            | (
+                frozenset({"capacity_availability_current"})
+                if projection_guarded
+                else frozenset()
+            )
+            | (
+                OLLAMA_CLOUD_ADMISSION_TABLES
+                if ollama_admission_guarded
+                else frozenset()
+            )
         )
         additional_indexes = (
-            frozenset({"ix_collection_alert_subject", "ix_collection_alert_freshness"})
-            if collector_guarded
-            else frozenset()
-        ) | (
-            frozenset({"ix_capacity_availability_account"})
-            if projection_guarded
-            else frozenset()
+            (
+                frozenset(
+                    {"ix_collection_alert_subject", "ix_collection_alert_freshness"}
+                )
+                if collector_guarded
+                else frozenset()
+            )
+            | (
+                frozenset({"ix_capacity_availability_account"})
+                if projection_guarded
+                else frozenset()
+            )
+            | (
+                OLLAMA_CLOUD_ADMISSION_INDEXES
+                if ollama_admission_guarded
+                else frozenset()
+            )
         )
         triggers = {name for kind, name in objects if kind == "trigger"}
         if (
@@ -931,7 +980,9 @@ def _inspect(
             or any(kind not in {"table", "index", "trigger"} for kind, _ in objects)
             or not _m4_owned_structure_is_valid(
                 connection,
-                M4_CURRENT_SCHEMA_SHA256
+                M4_OLLAMA_CLOUD_SCHEMA_SHA256
+                if ollama_admission_guarded
+                else M4_CURRENT_SCHEMA_SHA256
                 if projection_guarded
                 else M4_COLLECTOR_SCHEMA_SHA256
                 if collector_guarded

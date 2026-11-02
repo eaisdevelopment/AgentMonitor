@@ -26,6 +26,8 @@ from functools import partial
 from pathlib import Path
 
 import uvicorn
+from fastapi import FastAPI
+
 from agentmonitor.adapters.identity_access.argon2_password import Argon2PasswordV1
 from agentmonitor.adapters.persistence._shared.sqlite.core.policy import (
     DatabaseRefV1,
@@ -83,6 +85,7 @@ from agentmonitor.adapters.persistence.runtime_observation.sqlite.repository imp
 )
 from agentmonitor.adapters.providers.claude.manifest import build_claude_manifest
 from agentmonitor.adapters.providers.codex.manifest import build_codex_manifest
+from agentmonitor.adapters.providers.ollama.manifest import build_ollama_manifest
 from agentmonitor.api.app import create_application
 from agentmonitor.api.v1.dependencies import (
     AlertApiPortsV1,
@@ -104,6 +107,10 @@ from agentmonitor.composition.codex_dashboard_connection import (
 )
 from agentmonitor.composition.linux_process_locations import (
     read_live_process_locations_v1,
+)
+from agentmonitor.composition.ollama_local_catalog import read_ollama_local_catalog_v1
+from agentmonitor.composition.ollama_runtime_collection import (
+    OllamaRuntimeCollectorV1,
 )
 from agentmonitor.composition.operations_health import (
     CodexProviderHealthLeafV1,
@@ -220,7 +227,6 @@ from agentmonitor.modules.runtime_observation.application.queries import (
     ListAgentSessionsV1,
     ListLiveProcessLocationsV1,
 )
-from fastapi import FastAPI
 
 
 class LoopbackServerError(ValueError):
@@ -516,7 +522,13 @@ def _observation_ports(
         GetAccountV1(registry),
         ListAccountsV1(registry),
         ListProviderInstallationsV1(registry),
-        GetProviderCapabilitiesV1((build_claude_manifest(), build_codex_manifest())),
+        GetProviderCapabilitiesV1(
+            (
+                build_claude_manifest(),
+                build_codex_manifest(),
+                build_ollama_manifest(),
+            )
+        ),
         ListCollectionRunsV1(collection),
         GetAccountCapacityV1(capacity),
         ListQuotaWindowsV1(capacity),
@@ -536,6 +548,7 @@ def _observation_ports(
         registry_scope=AlertScopeAndSubjectQueryV1(registry),
         list_account_resources=ListAccountResourcesV1(registry),
         capacity_health_policy=ClassifyCapacityProjectionV1().policy,
+        ollama_local_catalog=read_ollama_local_catalog_v1,
     )
 
 
@@ -555,6 +568,7 @@ def create_iam_application(
     codex_collector = CodexDashboardCollectorV1(
         reference, managed_profiles_root=data_root / "profiles" / "codex"
     )
+    ollama_runtime_collector = OllamaRuntimeCollectorV1(reference, data_root=data_root)
     claude_connections = ClaudeDashboardConnectionV1(reference, data_root)
     codex_connections = CodexDashboardConnectionV1(reference, data_root)
     alert_delivery = CapacityAlertDeliveryV1(reference)
@@ -564,6 +578,7 @@ def create_iam_application(
         + (
             claude_collector.run,
             codex_collector.run,
+            ollama_runtime_collector.run,
             claude_connections.run,
             codex_connections.run,
             alert_delivery.run,

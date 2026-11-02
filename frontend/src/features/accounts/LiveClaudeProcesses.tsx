@@ -134,7 +134,7 @@ export function LiveProviderProcesses({
     </form>;
   }
 
-  const unavailable = failed || (data !== null && data.availability.state !== "available");
+  const unavailable = failed || (data !== null && data.availability.state !== "available" && data.availability.state !== "partial");
   const current = unavailable ? [] : (data?.items ?? []).filter(item => item.provider_key === account.provider_key);
   const linked = current.filter(item => item.account_association?.account_id === account.account_id);
   const unlinked = current.filter(item => !item.account_association);
@@ -169,7 +169,7 @@ export function LiveProviderProcesses({
     </div>
     {data === null && !failed ? <p role="status">Reading running {provider} processes…</p>
       : unavailable ? <p role="status">Live process information could not be refreshed. Current account links are unavailable.</p>
-      : linked.length === 0 ? <p>No agents linked to this account yet.</p>
+      : linked.length === 0 ? <p>{data?.availability.state === "partial" ? "No linked agents found in the available sources." : "No agents linked to this account yet."}</p>
       : table(linked, "Agents using this account", true)}
     {!unavailable && data !== null && unlinked.length > 0 && <details className="unlinked-agents" data-unlinked-agents="true">
       <summary>Identify other {provider} terminals <span>{unlinked.length} unlinked</span></summary>
@@ -178,6 +178,7 @@ export function LiveProviderProcesses({
     </details>}
     {message && <p role="status">{message}</p>}
     {data !== null && <p className="live-process-note">Updated {time(data.availability.as_of)} · Running means present; working or waiting is unknown. Reconfirm the link if you change the account inside a terminal.</p>}
+    {data?.availability.state === "partial" && <p className="live-process-note" role="status">Some provider process sources are unavailable; agents may be missing.</p>}
     {data?.truncated && <p className="live-process-note">This scan is partial; some processes may be missing.</p>}
   </section>;
 }

@@ -5,6 +5,7 @@ import { PasswordChangePanel } from "../features/auth/PasswordChangePanel";
 import { ProtectedRoute } from "../features/auth/ProtectedRoute";
 import { ApiTokensPage } from "../features/settings/security/ApiTokensPage";
 import { OverviewPage } from "../features/overview/OverviewPage";
+import { ProductPromotion } from "../features/overview/ProductPromotion";
 import { AccountPage } from "../features/accounts/AccountPage";
 import { OrganizationsPage } from "../features/organizations/OrganizationsPage";
 import { CollectionRunPanel } from "../features/collectors/CollectionRunPanel";
@@ -437,6 +438,8 @@ export function DashboardApp() {
       >
         <header className="dashboard-header">
           <div><p className="eyebrow">Local operations console</p><span className="brand">AgentMonitor</span></div>
+          <ProductPromotion />
+          <a className="header-support-link" href="https://buy.stripe.com/dRm4gBfGo59L4enf167EQ00" target="_blank" rel="noopener noreferrer">Help to keep Agent Monitor Project Free! ↗</a>
           <div className="header-actions">
             <button type="button" className="quiet-button" disabled={passwordFlowOpen || headerSessionActionOpen} onClick={() => { void checkSession(); }}>{headerSessionAction === "checking" ? "Checking…" : "Check session"}</button>
             <button type="button" className="quiet-button" disabled={passwordFlowOpen || headerSessionActionOpen} onClick={() => { void logout(); }}>{headerSessionAction === "logging-out" ? "Signing out…" : "Sign out"}</button>
@@ -507,6 +510,7 @@ export function DashboardApp() {
               onProofUnavailable={protectedProofUnavailable}
             />
           )}
+          <footer className="dashboard-company-footer">Developed and delivered by <a href="https://essentialai.uk/" target="_blank" rel="noopener noreferrer">Essential AI Solutions Ltd</a> · © {new Date().getFullYear()}</footer>
         </main>
       </div>
     </ProtectedRoute>

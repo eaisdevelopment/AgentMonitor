@@ -3,15 +3,16 @@
 from copy import deepcopy
 
 import pytest
-from agentmonitor.composition.bootstrap import create_iam_schema_application
 from fastapi.openapi.models import OpenAPI
-
 from tooling.foundation.openapi_client import (
     OpenApiGenerationError,
     validate_iam_openapi,
 )
 
+from agentmonitor.composition.bootstrap import create_iam_schema_application
+
 EXPECTED_SUCCESS = {
+    "provider_get_ollama_local_catalog_v1": ("200", "OllamaLocalCatalogViewV1"),
     "runtime_set_process_account_association_v1": ("200", "LiveProcessLocationViewV1"),
     "provider_get_connection_v1": ("200", "ProviderConnectionViewV1"),
     "provider_start_connection_v1": ("202", "ProviderConnectionViewV1"),
@@ -152,7 +153,7 @@ def test_generator_rejects_changed_policy_on_every_frozen_operation() -> None:
 
 def test_generator_rejects_success_schema_drift_for_all_operations() -> None:
     schema = create_iam_schema_application().openapi()
-    assert len(validate_iam_openapi(schema)) == len(EXPECTED_SUCCESS) == 67
+    assert len(validate_iam_openapi(schema)) == len(EXPECTED_SUCCESS) == 68
     seen: set[str] = set()
     for path, methods in schema["paths"].items():
         for method, operation in methods.items():

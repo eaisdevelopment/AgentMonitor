@@ -404,6 +404,75 @@ def test_capabilities_come_from_registered_m03_manifest(tmp_path: Path) -> None:
     asyncio.run(exercise())
 
 
+def test_real_ollama_installation_has_registered_truthful_manifest(
+    tmp_path: Path,
+) -> None:
+    """M6-T008/T010: real discovery publishes only admitted Ollama claims."""
+    from agentmonitor.adapters.providers.ollama.manifest import build_ollama_manifest
+
+    app, credential = _installation(tmp_path)
+    manifest = build_ollama_manifest()
+
+    async def exercise() -> None:
+        async with _running(app) as origin:
+            jar = http.cookiejar.CookieJar()
+            assert (
+                await asyncio.to_thread(
+                    _request,
+                    origin,
+                    "POST",
+                    "/api/v1/session",
+                    body={"password": credential},
+                    headers={"Origin": origin},
+                    cookies=jar,
+                )
+            )[0] == 204
+
+            deadline = asyncio.get_running_loop().time() + 12
+            installations: dict[str, object] = {}
+            while asyncio.get_running_loop().time() < deadline:
+                response = await asyncio.to_thread(
+                    _request,
+                    origin,
+                    "GET",
+                    "/api/v1/provider-installations?provider_key=ollama&limit=200",
+                    cookies=jar,
+                )
+                assert response[0] == 200, response[2]
+                installations = json.loads(response[2])
+                if installations["items"]:
+                    break
+                await asyncio.sleep(0.05)
+            assert len(installations["items"]) == 1
+            installation = installations["items"][0]
+            assert installation["provider_key"] == "ollama"
+            assert installation["presence_state"] == "present"
+
+            response = await asyncio.to_thread(
+                _request,
+                origin,
+                "GET",
+                "/api/v1/providers/ollama/capabilities",
+                cookies=jar,
+            )
+            assert response[0] == 200, response[2]
+            payload = json.loads(response[2])
+            assert payload["provider_key"] == manifest.descriptor.provider_key
+            assert payload["adapter_version"] == manifest.descriptor.adapter_version
+            assert [item["capability_id"] for item in payload["items"]] == [
+                item.capability_id for item in manifest.declarations
+            ]
+            assert all(item["support_state"] == "unknown" for item in payload["items"])
+            assert not any(
+                "cloud" in item["capability_id"]
+                or "balance" in item["capability_id"]
+                or "quota" in item["capability_id"]
+                for item in payload["items"]
+            )
+
+    asyncio.run(exercise())
+
+
 def test_provider_capability_selector_is_bounded_and_closed(tmp_path: Path) -> None:
     app, credential = _installation(tmp_path)
 

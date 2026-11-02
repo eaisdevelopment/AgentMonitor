@@ -79,7 +79,7 @@
   <noscript><p class="fallback">Explore <a href="https://cogent.tools/">Cogent</a>, <a href="https://all2wiki.com/">All2WIKI</a>, <a href="https://clonedetector.com/">Clone Detector</a>, <a href="https://marvinpda.com/">Marvin</a>, <a href="https://klaire.pro/">KLAIRE</a>, <a href="https://megaprompting.com/">Megaprompting</a>, <a href="https://github.com/eaisdevelopment/jevmcp">Jev MCP</a>, <a href="https://github.com/eaisdevelopment/skills">Agent Skills</a> and <a href="https://github.com/eaisdevelopment/mcp-multi-edit">MCP Multi-Edit</a>. AgentMonitor is coming soon.</p></noscript>
   <script>
     (() => {
-      // To add or update a product, edit this list.
+      // To add or update a product, edit this list. Set AgentMonitor's URL when public.
       const products = [
         { id: 'cogent', name: 'Cogent', category: 'Collaborative AI', tagline: 'Bring your AI agents together.', description: 'Give agents a shared way to communicate and collaborate across your tools and teams.', url: 'https://cogent.tools/', mark: 'C', accent: '#a9edcf', rgb: '169,237,207' },
         { id: 'all2wiki', name: 'All2WIKI', category: 'Knowledge for agents', tagline: 'Give your agents a source of truth.', description: 'Turn books, documents and URLs into linked, searchable knowledge your AI can use.', url: 'https://all2wiki.com/', mark: 'A2', accent: '#b9c8ff', rgb: '185,200,255' },
@@ -90,7 +90,7 @@
         { id: 'jevmcp', name: 'Jev MCP', category: 'Open source', tagline: 'Find the issues that need attention.', description: 'Screen spec drift, CI failures and code-rule violations so your agent can focus its investigation.', url: 'https://github.com/eaisdevelopment/jevmcp', mark: 'J', accent: '#a5e7e7', rgb: '165,231,231' },
         { id: 'skills', name: 'Agent Skills', category: 'Open source', tagline: 'Give your agents useful skills.', description: 'Explore reusable skills for AI agents and coding workflows.', url: 'https://github.com/eaisdevelopment/skills', mark: 'S', accent: '#b6e4bb', rgb: '182,228,187' },
         { id: 'multi-edit', name: 'MCP Multi-Edit', category: 'Open source', tagline: 'Make more edits in one step.', description: 'Let coding agents apply multiple edits to a file together and reduce repetitive tool calls.', url: 'https://github.com/eaisdevelopment/mcp-multi-edit', mark: 'ME', accent: '#ffd0b1', rgb: '255,208,177' },
-        { id: 'agentmonitor', name: 'AgentMonitor', category: 'Agent visibility', tagline: 'Know which agent is using what.', description: 'See your AI accounts, available capacity and linked agents in one dashboard.', url: 'https://github.com/eaisdevelopment/AgentMonitor', mark: 'AM', accent: '#9ddccf', rgb: '157,220,207' }
+        { id: 'agentmonitor', name: 'AgentMonitor', category: 'Agent visibility', tagline: 'Know which agent is using what.', description: 'See your AI accounts, available capacity and linked agents in one dashboard.', url: null, mark: 'AM', accent: '#9ddccf', rgb: '157,220,207' }
       ];
       const byId = id => document.getElementById(id);
       const promo = byId('product-promo');

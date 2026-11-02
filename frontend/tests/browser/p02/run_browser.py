@@ -42,6 +42,8 @@ from agentmonitor.modules.identity_access.application.bootstrap import (  # noqa
 )
 
 SCENARIOS = {
+    "ollama_catalog",
+    "support_checkout",
     "auth",
     "api_tokens",
     "idle_expiry",

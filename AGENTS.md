@@ -18,7 +18,8 @@ These instructions apply to every human or coding agent working anywhere in this
 - Never modify, log out, relocate, or rewrite a user's default Claude, Codex, or Ollama profile.
 - Provider-owned state is read-only unless a separately approved, official authentication flow explicitly writes to an AgentMonitor-managed profile.
 - Do not read or persist prompts, responses, source-code content, arbitrary process environment values, OAuth tokens, API keys, passwords, or one-time codes.
-- Do not put secrets in source, tests, fixtures, logs, diagnostics, screenshots, documentation, commits, or chat. AgentMonitor-managed secrets belong in `.env`; provider OAuth credentials remain provider-managed.
+- Owner-approved M6 exception (2 November 2026): the AgentMonitor runtime may store an owner-provided Ollama API key in an OS Secret Service item and read it transiently only to authenticate the approved Ollama balance request. Coding agents must not view keys; keys must not enter chat, browser, logs, source, database, evidence, or command arguments. This exception does not authorize reading or altering provider profiles.
+- Do not put secrets in source, tests, fixtures, logs, diagnostics, screenshots, documentation, commits, or chat. AgentMonitor-managed secrets belong in `.env` except for the owner-approved M6 Ollama API-key exception above; provider OAuth credentials remain provider-managed.
 - The UI consumes only the versioned API. It must not import backend internals, read the database, or inspect provider files directly.
 - Provider-specific behavior must remain in provider adapters. The domain must not import provider SDKs, CLI packages, FastAPI, SQLAlchemy, operating-system APIs, or UI code.
 - Cross-module changes require a contract-impact assessment. Breaking public changes require a versioned migration path and an ADR.

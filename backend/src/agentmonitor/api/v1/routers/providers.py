@@ -2,6 +2,8 @@
 
 from datetime import UTC, datetime
 
+from fastapi import APIRouter, Path, Request
+
 from agentmonitor.api.problem import ProblemError
 from agentmonitor.api.v1.dependencies import authorize_request, observation_ports
 from agentmonitor.api.v1.routers._observation import (
@@ -12,7 +14,9 @@ from agentmonitor.api.v1.routers._observation import (
 )
 from agentmonitor.api.v1.schemas.providers import (
     CapabilitySourceViewV1,
+    LocalCatalogItemViewV1,
     ObservedAccountIdentityViewV1,
+    OllamaLocalCatalogViewV1,
     ProviderAccountIdentityViewV1,
     ProviderCapabilityDeclarationPageV1,
     ProviderCapabilityDeclarationViewV1,
@@ -21,9 +25,46 @@ from agentmonitor.contracts.common_v1 import OpaqueIdV1
 from agentmonitor.modules.provider_system.application.queries import (
     ProviderCapabilitiesNotFoundV1,
 )
-from fastapi import APIRouter, Path, Request
 
 router = APIRouter(tags=["providers"])
+
+
+@router.get(
+    "/providers/ollama/local-catalog",
+    operation_id="provider_get_ollama_local_catalog_v1",
+    response_model=OllamaLocalCatalogViewV1,
+    responses=ERROR_RESPONSES,
+    openapi_extra=policy("read:telemetry", "LocalCatalogPortV1"),
+)
+def get_ollama_local_catalog(request: Request) -> OllamaLocalCatalogViewV1:
+    authorize_request(request, "read:telemetry")
+    reject_unknown_query(request, frozenset())
+    port = observation_ports(request).ollama_local_catalog
+    if port is None:
+        raise ProblemError(503, "provider_unavailable")
+    value = port()
+
+    def items(snapshot):
+        return (
+            tuple(LocalCatalogItemViewV1(name=item.name) for item in snapshot.items)
+            if snapshot.items is not None
+            else None
+        )
+
+    return OllamaLocalCatalogViewV1(
+        outcome=value.outcome,
+        daemon_version=value.daemon_version,
+        source=value.source,
+        observed_at=value.observed_at,
+        installed_state=value.installed.state,
+        installed_reason=value.installed.reason,
+        installed_observed_at=value.installed.observed_at,
+        installed=items(value.installed),
+        loaded_state=value.loaded.state,
+        loaded_reason=value.loaded.reason,
+        loaded_observed_at=value.loaded.observed_at,
+        loaded=items(value.loaded),
+    )
 
 
 @router.get(

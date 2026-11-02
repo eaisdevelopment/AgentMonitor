@@ -3,13 +3,54 @@
 from datetime import datetime
 from typing import Literal
 
+from pydantic import BaseModel, ConfigDict, Field
+
 from agentmonitor.api.v1.schemas.registry import AvailabilityV1
 from agentmonitor.contracts.provider_system_v1 import ProviderConnectionStateV1
-from pydantic import BaseModel, ConfigDict, Field
 
 
 class _ClosedV1(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True)
+
+
+class LocalCatalogItemViewV1(_ClosedV1):
+    name: str = Field(min_length=1, max_length=256)
+
+
+class OllamaLocalCatalogViewV1(_ClosedV1):
+    outcome: Literal[
+        "success",
+        "partial",
+        "provider_unavailable",
+        "unverified_provider_version",
+        "invalid_provider_data",
+        "deadline_exceeded",
+    ]
+    daemon_version: str | None
+    source: Literal["ollama.local.catalog.v1"]
+    observed_at: datetime
+    installed_state: Literal["available", "unavailable"]
+    installed_reason: Literal[
+        "source_available",
+        "source_unavailable",
+        "invalid_provider_data",
+        "unverified_provider_version",
+        "collection_in_progress",
+        "operation_deadline_exceeded",
+    ]
+    installed_observed_at: datetime | None
+    installed: tuple[LocalCatalogItemViewV1, ...] | None
+    loaded_state: Literal["available", "unavailable"]
+    loaded_reason: Literal[
+        "source_available",
+        "source_unavailable",
+        "invalid_provider_data",
+        "unverified_provider_version",
+        "collection_in_progress",
+        "operation_deadline_exceeded",
+    ]
+    loaded_observed_at: datetime | None
+    loaded: tuple[LocalCatalogItemViewV1, ...] | None
 
 
 class ObservedAccountIdentityViewV1(_ClosedV1):

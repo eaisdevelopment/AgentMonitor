@@ -184,6 +184,10 @@ IAM_OPERATIONS = {
         "get",
     ): "provider_get_capabilities_v1",
     (
+        "/api/v1/providers/ollama/local-catalog",
+        "get",
+    ): "provider_get_ollama_local_catalog_v1",
+    (
         "/api/v1/accounts/{account_id}/observed-identity",
         "get",
     ): "provider_get_observed_account_identity_v1",
@@ -896,6 +900,18 @@ IAM_POLICY: dict[str, IamPolicyRow] = {
         _M2_REQUIRED_ERROR_STATUSES,
         None,
     ),
+    "provider_get_ollama_local_catalog_v1": (
+        "cookie_or_bearer",
+        "read:telemetry",
+        "LocalCatalogPortV1",
+        "safe_query_repeat",
+        _COOKIE_BEARER,
+        "200",
+        "OllamaLocalCatalogViewV1",
+        "SafeProblemV1",
+        _M2_REQUIRED_ERROR_STATUSES,
+        None,
+    ),
     "provider_get_observed_account_identity_v1": (
         "cookie_or_bearer",
         "read:accounts",
@@ -1246,7 +1262,7 @@ def validate_iam_openapi(document: object) -> tuple[str, ...]:
     if (
         actual != IAM_OPERATIONS
         or set(IAM_POLICY) != set(IAM_OPERATIONS.values())
-        or len(identifiers) != 67
+        or len(identifiers) != 68
     ):
         raise OpenApiGenerationError("operation_surface_invalid")
 
