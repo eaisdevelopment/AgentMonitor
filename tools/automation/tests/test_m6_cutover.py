@@ -942,10 +942,29 @@ def test_recovery_command_is_cataloged_and_rejects_target_arguments() -> None:
         check=True,
     )
     assert "AUTO-M6-CUTOVER\toperational_limited\t" in catalog.stdout
+    assert "AUTO-M6-CURRENT-UPDATE\toperational_limited\t" in catalog.stdout
+    assert "AUTO-M6-RECOVER-CURRENT-UPDATE\toperational_limited\t" in catalog.stdout
     assert "AUTO-M6-RECOVER-MIGRATION\toperational_limited\t" in catalog.stdout
     assert "AUTO-M6-RESTORE-PRESTART\toperational_limited\t" in catalog.stdout
     assert "AUTO-M6-START-RESTORED\toperational_limited\t" in catalog.stdout
     assert "AUTO-M6-FINALIZE-CANDIDATE\toperational_limited\t" in catalog.stdout
+    for script in ("auto_m6_current_update.py", "auto_m6_recover_current_update.py"):
+        rejected_update = subprocess.run(
+            [
+                "/usr/bin/python3",
+                "tools/automation/implementations/" + script,
+                "--target",
+                "example",
+            ],
+            cwd=root,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        assert (
+            rejected_update.returncode == 3
+            and "no target arguments are accepted" in rejected_update.stdout
+        )
     rejected = subprocess.run(
         [
             "/usr/bin/python3",

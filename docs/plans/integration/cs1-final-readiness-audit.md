@@ -1103,3 +1103,11 @@ This binds the existing approved fixed-target cutover routine in the automation 
 Plan snapshot SHA-256: `34cc1ce8fe8341d67539b2a20dab9cebb9664a9604889362a159d732f4596058`
 
 Planning validator SHA-256: `c22d377bd74692731f2bac2bf8b1f87bef2b35e7ef2df50e473da3d2ebcd2db5`
+
+## 2026-11-02 same-schema update routine structural rebind
+
+This binds fixed-target same-schema update and recovery routines in the automation catalog. Structural synchronization does not claim independent review, installed execution, provider verification or M6 completion; the existing acceptance scope is unchanged.
+
+Plan snapshot SHA-256: `26962ca2c1dbf18145b409c2eb2a716fd7b8f2b8a16fb232d49a31b3545b009f`
+
+Planning validator SHA-256: `c0dc83782c63316f31310335d1bfb9f40a6946ab7660afb045f457d554697f08`

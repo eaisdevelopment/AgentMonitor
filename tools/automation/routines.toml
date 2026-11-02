@@ -77,6 +77,22 @@ implementation_command = ["python3", "-m", "tools.automation.implementations.aut
 blockers = ["Authenticated installed-browser verification remains separate", "A concurrent child-spawn race and crash interruption cannot be excluded", "This does not complete M6"]
 
 [[routines]]
+id = "AUTO-M6-CURRENT-UPDATE"
+owner = "PLAN-INT"
+status = "operational_limited"
+scope = "update the fixed dashboard between sealed releases on the unchanged current schema"
+implementation_command = ["python3", "-B", "tools/automation/implementations/auto_m6_current_update.py"]
+blockers = ["Only the fixed user service and selected sealed releases are accepted", "Live provider verification and full M6 acceptance remain separate"]
+
+[[routines]]
+id = "AUTO-M6-RECOVER-CURRENT-UPDATE"
+owner = "PLAN-INT"
+status = "operational_limited"
+scope = "recover a journaled fixed dashboard same-schema update without database rollback"
+implementation_command = ["python3", "-B", "tools/automation/implementations/auto_m6_recover_current_update.py"]
+blockers = ["Only the matching fixed-target update journal and sealed releases are accepted", "Authenticated and provider verification remain separate"]
+
+[[routines]]
 id = "AUTO-M6-CUTOVER"
 owner = "PLAN-INT"
 status = "operational_limited"

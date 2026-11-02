@@ -55,5 +55,6 @@ process was frozen, after it exited, after stop receipt, and around candidate
 start; guard replacement before reload; guard removal before reload; and
 readiness-failure reblocking. Only disposable controller and dashboard processes
 were signalled. The fixed installed wrapper and real deployment remain Not Run.
-The update and recovery wrappers are not catalogued or enabled pending
-independent review; the live service and database remain unchanged.
+The fixed-target update and recovery wrappers are registered as limited
+automation commands; execution is pending independent review. The live service
+and database remain unchanged.
