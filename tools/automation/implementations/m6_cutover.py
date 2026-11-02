@@ -280,6 +280,17 @@ def _cutover_engine(
     baseline_props = _properties(unit)
     if baseline_props.get("ActiveState") != "active" or _cwd(unit) != str(baseline):
         raise CutoverError("service_identity_invalid")
+    baseline_restart = baseline_props.get("Restart")
+    if baseline_restart not in {
+        "no",
+        "always",
+        "on-success",
+        "on-failure",
+        "on-abnormal",
+        "on-watchdog",
+        "on-abort",
+    }:
+        raise CutoverError("baseline_restart_policy_invalid")
     pid = int(baseline_props["MainPID"])
     group = baseline_props["ControlGroup"]
     ticks = _ticks(pid)
@@ -336,6 +347,7 @@ def _cutover_engine(
     barrier_stack = ExitStack()
     facts = {
         "unit": unit,
+        "baseline_restart": baseline_restart,
         "baseline_revision": _revision(baseline),
         "candidate_revision": expected_revision,
         "source_revision": source,
@@ -371,6 +383,8 @@ def _cutover_engine(
         ):
             raise CutoverError("cutover_lock_changed")
         validate_m5_service_activation_lock_v1(shared_lock)
+        if _properties(unit).get("Restart") != baseline_restart:
+            raise CutoverError("baseline_restart_policy_changed")
         _create(
             journal,
             json.dumps(
@@ -1375,7 +1389,7 @@ def start_restored_baseline() -> str:
                 transition,
                 unit=_FIXED_UNIT,
                 guard=guard,
-                expected_restart="on-failure",
+                expected_restart=facts["baseline_restart"],
                 verify_ready=verify_ready,
                 verify_after=lambda: verify_ready(after_guard=True),
             )

@@ -151,6 +151,7 @@ def _validate_stopped_journal(data: dict, receipt: QuiescentStopReceipt) -> None
         "phase",
         "backup_id",
         "unit",
+        "baseline_restart",
         "baseline_revision",
         "candidate_revision",
         "source_revision",
@@ -167,6 +168,16 @@ def _validate_stopped_journal(data: dict, receipt: QuiescentStopReceipt) -> None
         "stop_receipt",
     }
     if set(data) not in (required, required | {"prior_backup_ids"}):
+        raise MigrationRecoveryError("migration_recovery_journal_invalid")
+    if data.get("baseline_restart") not in {
+        "no",
+        "always",
+        "on-success",
+        "on-failure",
+        "on-abnormal",
+        "on-watchdog",
+        "on-abort",
+    }:
         raise MigrationRecoveryError("migration_recovery_journal_invalid")
     for field in ("baseline_revision", "candidate_revision"):
         value = data.get(field)

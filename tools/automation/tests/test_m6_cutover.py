@@ -56,6 +56,7 @@ from tools.automation.implementations.m6_transition_lease import _hold_transitio
         "restore",
         "restore_restart",
         "restore_restart_interrupted",
+        "restore_restart_no",
         "crash_pre",
         "crash_post",
         "real_source_restore",
@@ -122,7 +123,8 @@ def test_disposable_unit_and_real_backup_migration(
             "--unit",
             unit,
             f"--property=WorkingDirectory={baseline}",
-            "--property=Restart=on-failure",
+            "--property=Restart="
+            + ("no" if case == "restore_restart_no" else "on-failure"),
             *(
                 ["/bin/bash", "-c", "sleep 60 & wait"]
                 if case == "child"
@@ -244,6 +246,7 @@ _cutover_engine(unit=sys.argv[1], data_root=Path(sys.argv[2]), baseline=Path(sys
             "restore",
             "restore_restart",
             "restore_restart_interrupted",
+            "restore_restart_no",
             "crash_pre",
             "crash_post",
             "real_source_restore",
@@ -389,7 +392,11 @@ with _hold_transition_locks(root) as transition, exclusive_service_quiescence(ro
                 original.st_dev,
                 original.st_ino,
             )
-            if case in {"restore_restart", "restore_restart_interrupted"}:
+            if case in {
+                "restore_restart",
+                "restore_restart_interrupted",
+                "restore_restart_no",
+            }:
                 before = build_override(baseline).encode()
                 with _hold_transition_locks(root) as transition_lease:
                     assert (
@@ -412,7 +419,7 @@ with _hold_transition_locks(root) as transition, exclusive_service_quiescence(ro
                     == "baseline_start_attempted"
                 )
                 if case == "restore_restart_interrupted":
-                    code = '''
+                    code = """
 import os, sys
 from pathlib import Path
 from tools.automation.implementations.m6_transition_lease import _hold_transition_locks
@@ -421,26 +428,49 @@ root, guard = Path(sys.argv[1]), Path(sys.argv[3])
 print(os.getpid(), flush=True)
 with _hold_transition_locks(root) as lease:
     _finish_restored_baseline_engine(root, lease, unit=sys.argv[2], guard=guard, expected_restart="on-failure")
-'''
+"""
                     guard = directory / "95-m6-cutover-restart.conf"
                     tracer = subprocess.Popen(
-                        ["/usr/bin/strace", "-q", "-o", str(tmp_path / "finish-trace"),
-                         "-e", "trace=unlinkat", "-e", "inject=unlinkat:delay_exit=10s",
-                         sys.executable, "-c", code, str(root), unit, str(guard)],
-                        stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True,
+                        [
+                            "/usr/bin/strace",
+                            "-q",
+                            "-o",
+                            str(tmp_path / "finish-trace"),
+                            "-e",
+                            "trace=unlinkat",
+                            "-e",
+                            "inject=unlinkat:delay_exit=10s",
+                            sys.executable,
+                            "-c",
+                            code,
+                            str(root),
+                            unit,
+                            str(guard),
+                        ],
+                        stdout=subprocess.PIPE,
+                        stderr=subprocess.PIPE,
+                        text=True,
                     )
                     try:
                         assert tracer.stdout is not None
                         worker_pid = int(tracer.stdout.readline())
                         deadline = time.monotonic() + 20
                         while time.monotonic() < deadline:
-                            if not guard.exists() and json.loads(journal.read_text())["phase"] == "baseline_http_ready":
+                            if (
+                                not guard.exists()
+                                and json.loads(journal.read_text())["phase"]
+                                == "baseline_http_ready"
+                            ):
                                 break
                             if tracer.poll() is not None:
-                                raise AssertionError("finish worker exited before boundary")
+                                raise AssertionError(
+                                    "finish worker exited before boundary"
+                                )
                             time.sleep(0.05)
                         else:
-                            raise AssertionError("finish interruption boundary not reached")
+                            raise AssertionError(
+                                "finish interruption boundary not reached"
+                            )
                         os.kill(worker_pid, signal.SIGKILL)
                     finally:
                         tracer.communicate(timeout=20)
@@ -451,7 +481,7 @@ with _hold_transition_locks(root) as lease:
                             transition_lease,
                             unit=unit,
                             guard=directory / "95-m6-cutover-restart.conf",
-                            expected_restart="on-failure",
+                            expected_restart=recorded["baseline_restart"],
                         )
                         == "baseline_ready_restart_restored"
                     )
@@ -544,7 +574,13 @@ with _hold_transition_locks(root) as lease:
                 )
                 == 1
             )
-        if case in {"child", "writer", "restore_restart", "restore_restart_interrupted"}:
+        if case in {
+            "child",
+            "writer",
+            "restore_restart",
+            "restore_restart_interrupted",
+            "restore_restart_no",
+        }:
             assert not (directory / "95-m6-cutover-restart.conf").exists()
         else:
             assert (directory / "95-m6-cutover-restart.conf").is_file()
