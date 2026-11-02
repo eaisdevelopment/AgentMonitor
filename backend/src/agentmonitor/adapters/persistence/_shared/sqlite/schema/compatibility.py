@@ -30,7 +30,7 @@ from agentmonitor.contracts.database_v1 import SchemaCompatibilityV1
 from agentmonitor.contracts.foundation_v1 import MigrationMetadataV1
 
 MIGRATIONS_PATH = Path(__file__).resolve().parents[7] / "migrations"
-CATALOG_SHA256 = "d74ec7de4417968931d0ae80ec696d22ae38612b8bc245682930c50df18285b1"
+CATALOG_SHA256 = "71581ff7097a62720f82548a1283daf66634ad636fd85a7bcd0207f9a4d96cf0"
 IAM_TABLES = frozenset(
     {
         "iam_administrator",
@@ -366,6 +366,7 @@ REVISION_ORDER = {
     "v1_0706": 706,
     "v1_0707": 707,
     "v1_0708": 708,
+    "v1_0709": 709,
 }
 ApplicationSchemaRangeV1 = SchemaCompatibilityV1
 SchemaState = Literal[
@@ -528,10 +529,10 @@ def load_migration_catalog(
             raise SchemaCompatibilityError("migration_catalog_invalid")
         records = document["revisions"]
         if (
-            document["version"] != "1.7.8"
-            or document["head"] != "v1_0708"
+            document["version"] != "1.7.9"
+            or document["head"] != "v1_0709"
             or not isinstance(records, list)
-            or len(records) != 27
+            or len(records) != 28
             or not all(isinstance(record, dict) for record in records)
         ):
             raise SchemaCompatibilityError("migration_catalog_invalid")
@@ -564,6 +565,7 @@ def load_migration_catalog(
             "v1_0706_m04_collector_alerts.py",
             "v1_0707_m05_current_capacity_projections.py",
             "v1_0708_m04_ollama_cloud_admission.py",
+            "v1_0709_m02_credential_bindings.py",
         ) or tuple(record.get("ordinal") for record in records) != (
             0,
             100,
@@ -592,6 +594,7 @@ def load_migration_catalog(
             706,
             707,
             708,
+            709,
         ):
             raise SchemaCompatibilityError("migration_catalog_invalid")
         inventory = {path.name for path in (migrations_path / "versions").glob("*.py")}
@@ -710,7 +713,11 @@ def load_migration_catalog(
             or metadata[26].owner != "M04"
             or metadata[26].plan_id != "PLAN-M04"
             or set(metadata[26].tables) != OLLAMA_CLOUD_ADMISSION_TABLES
-            or any(record.get("status") != "shared" for record in records[18:27])
+            or metadata[27].parent_revision != "v1_0708"
+            or metadata[27].owner != "M02"
+            or set(metadata[27].tables)
+            != {"reg_credential_binding_state", "reg_credential_binding"}
+            or any(record.get("status") != "shared" for record in records[18:28])
             or any(
                 item.backup_prerequisite
                 not in {"none_empty_bootstrap", "required_existing_database"}
@@ -718,7 +725,7 @@ def load_migration_catalog(
             )
         ):
             raise SchemaCompatibilityError("migration_catalog_invalid")
-        result = MigrationCatalogV1("1.7.8", digest, "v1_0708", metadata)
+        result = MigrationCatalogV1("1.7.9", digest, "v1_0709", metadata)
     except SchemaCompatibilityError as error:
         failure = error.code
     except (OSError, ValueError, KeyError, TypeError, SyntaxError, UnicodeError):
@@ -902,6 +909,7 @@ def _inspect(
         "v1_0706",
         "v1_0707",
         "v1_0708",
+        "v1_0709",
     }:
         table_names = {name for kind, name in objects if kind == "table"}
         explicit_indexes = {
@@ -927,10 +935,10 @@ def _inspect(
             | RUNTIME_INDEXES
             | ALERT_INDEXES
         )
-        guarded = current in {"v1_0705", "v1_0706", "v1_0707", "v1_0708"}
-        collector_guarded = current in {"v1_0706", "v1_0707", "v1_0708"}
-        projection_guarded = current in {"v1_0707", "v1_0708"}
-        ollama_admission_guarded = current == "v1_0708"
+        guarded = current in {"v1_0705", "v1_0706", "v1_0707", "v1_0708", "v1_0709"}
+        collector_guarded = current in {"v1_0706", "v1_0707", "v1_0708", "v1_0709"}
+        projection_guarded = current in {"v1_0707", "v1_0708", "v1_0709"}
+        ollama_admission_guarded = current in {"v1_0708", "v1_0709"}
         expected_triggers = (
             (ALERT_CONFIGURATION_TRIGGERS if guarded else frozenset())
             | (COLLECTOR_DELIVERY_TRIGGERS if collector_guarded else frozenset())
@@ -945,6 +953,11 @@ def _inspect(
             | (
                 frozenset({"capacity_availability_current"})
                 if projection_guarded
+                else frozenset()
+            )
+            | (
+                frozenset({"reg_credential_binding_state", "reg_credential_binding"})
+                if current == "v1_0709"
                 else frozenset()
             )
             | (
@@ -967,6 +980,17 @@ def _inspect(
                 else frozenset()
             )
             | (
+                frozenset(
+                    {
+                        "uq_reg_binding_one_active",
+                        "uq_reg_binding_one_pending",
+                        "ix_reg_binding_cleanup",
+                    }
+                )
+                if current == "v1_0709"
+                else frozenset()
+            )
+            | (
                 OLLAMA_CLOUD_ADMISSION_INDEXES
                 if ollama_admission_guarded
                 else frozenset()
@@ -980,7 +1004,9 @@ def _inspect(
             or any(kind not in {"table", "index", "trigger"} for kind, _ in objects)
             or not _m4_owned_structure_is_valid(
                 connection,
-                M4_OLLAMA_CLOUD_SCHEMA_SHA256
+                "6523acffee5ccec7c07f8c0e2b0531f632bf1c6ad27640374a026041b8198274"
+                if current == "v1_0709"
+                else M4_OLLAMA_CLOUD_SCHEMA_SHA256
                 if ollama_admission_guarded
                 else M4_CURRENT_SCHEMA_SHA256
                 if projection_guarded

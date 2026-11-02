@@ -1,0 +1,7 @@
+# M6 credential binding storage slice
+
+This M02 slice implements `CTR-REG-011` 1.0.0 storage and additive SQLite revision `v1_0709` after `v1_0708`. The new tables contain non-secret binding handles, generation, owner-asserted association and lifecycle state; partial unique indexes enforce one active and one pending item per account, and the binding primary key is globally unique. `BEGIN IMMEDIATE` serializes transitions and version/generation comparisons. New handles are generated internally. No provider account or secret was created for testing.
+
+The real empty-file migration schema test failed first because both new tables were absent, then passed with the schema installed. Domain lifecycle tests passed. Real account transition, concurrent rotation, OS Secret Service interaction, atomic cross-module observation-commit fencing, provider and dashboard validation are **not run**. The repository is not yet wired to production collection or a keyring workflow and the slice is not an M6 completion claim. In particular, cross-module generation validation must be part of the same observation-commit transaction; a prior read is not sufficient.
+
+Existing databases require the approved offline backup and upgrade workflow; this migration does not support downgrade. Recovery is forward repair or restoring a verified pre-upgrade backup, which loses post-backup changes. Deployment and backup/restore verification remain outstanding. No live database or service was changed.
