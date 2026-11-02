@@ -10,8 +10,8 @@ failed first because the policy module did not exist, then passed. A separate
 regression test failed because the first implementation measured the provider's
 retry delay from request start rather than response receipt; after correction,
 all five pure tests pass. Ruff formatting and lint pass. Input includes
-explicit timezone-aware timestamps and bounded jitter; too-large retry delays
-raise an error and must not be interpreted as permission to poll early.
+explicit timezone-aware timestamps and bounded jitter; waits that cannot be represented by a timestamp
+raise a distinct blocking error and must never be replaced by a shorter wait.
 
 Persistence, atomic cross-task admission, fair selection, clock-change
 handling, request execution, actual provider rate-limit behavior, and
@@ -22,3 +22,9 @@ blocked admission, never as an immediately eligible poll.
 Collection-control regression run on 2 November 2026: the complete existing
 `backend/tests/collection_control` suite passed, 37 tests. This does not add
 provider-boundary, scheduler persistence, or live rate-limit evidence.
+
+Independent review identified and reproduced three failures: a backwards clock
+was accepted, valid waits longer than 31 days were rejected, and timezone
+offsets were not normalized. They were fixed with real red/green pure tests;
+the collection-control suite now passes 41 tests. Durable clock-change
+protection across restarts still requires integration-level evidence.
