@@ -688,6 +688,7 @@ CapacityAlertReasonV1 = Literal[
     "capacity_ratio_unsupported",
     "capacity_ratio_unavailable",
     "capacity_ratio_unknown",
+    "capacity_nonconstraining",
 ]
 CAPACITY_ALERT_REASON_CODES = frozenset(
     {
@@ -700,6 +701,7 @@ CAPACITY_ALERT_REASON_CODES = frozenset(
         "capacity_ratio_unsupported",
         "capacity_ratio_unavailable",
         "capacity_ratio_unknown",
+        "capacity_nonconstraining",
     }
 )
 

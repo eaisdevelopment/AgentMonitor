@@ -182,3 +182,16 @@ def test_nonconstraining_zero_ratio_cannot_trigger_exhaustion() -> None:
     assert fact.availability != "current"
     assert fact.remaining_basis_points is None
     assert fact.exhausted is None
+
+
+def test_current_nonconstraining_window_reports_not_applicable() -> None:
+    fact = _derive(replace(_window(), is_constraining=False))
+    assert fact.availability == "unavailable"
+    assert fact.reason_code == "capacity_nonconstraining"
+    assert fact.remaining_basis_points is None
+    assert fact.exhausted is None
+
+
+def test_stale_nonconstraining_window_cannot_prove_resolution() -> None:
+    fact = _derive(replace(_window(), is_constraining=False, freshness="stale"))
+    assert fact.reason_code == "capacity_reading_stale"

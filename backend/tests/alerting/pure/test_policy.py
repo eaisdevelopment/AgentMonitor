@@ -6,6 +6,7 @@ from decimal import Decimal
 from typing import Literal
 
 import pytest
+
 from agentmonitor.contracts.alerting_v1 import (
     AcknowledgeAlertCommandV1,
     AlertDecisionSummaryV1,
@@ -559,3 +560,28 @@ def test_retention_cutoff_and_active_pending_boundary_guards() -> None:
         has_retained_dependencies=False,
         replay_safe=False,
     )
+
+
+def test_explicit_nonconstraining_evidence_resolves_an_open_alert() -> None:
+    alert = opened()
+    candidate = signal(
+        generation=2,
+        value=None,
+        truth="unavailable",
+        transition="recovered",
+        severity=None,
+    )
+    candidate = replace(
+        candidate,
+        decision=replace(
+            candidate.decision,
+            reason_code="source_recovery",
+            source=replace(
+                candidate.decision.source, reason_code="capacity_nonconstraining"
+            ),
+        ),
+    )
+    result = reduce_alert_signal(alert, candidate, alert.rule, alert.alert_id, NOW)
+    assert result.alert is not None
+    assert result.alert.lifecycle == "recovered"
+    assert result.alert.decision.remaining_basis_points is None

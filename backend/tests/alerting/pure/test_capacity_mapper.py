@@ -5,6 +5,7 @@ from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 
 import pytest
+
 from agentmonitor.contracts.capacity_v1 import (
     CapacityAlertAvailabilityV1,
     CapacityAlertConditionV1,
@@ -147,3 +148,24 @@ def test_current_expired_fact_is_rejected_without_inventing_stale_generation() -
             policy.builtin_rule("capacity_remaining"),
             as_of=NOW + timedelta(minutes=10),
         )
+
+
+def test_explicit_nonconstraining_fact_resolves_capacity_conditions() -> None:
+    source = replace(
+        fact(),
+        availability="unavailable",
+        remaining_basis_points=None,
+        exhausted=None,
+        reason_code="capacity_nonconstraining",
+    )
+    for condition in ("capacity_remaining", "capacity_exhausted"):
+        actual = policy.map_capacity_alert_condition(
+            source,
+            SCOPE,
+            OpaqueIdV1("trigger-event"),
+            policy.builtin_rule(condition),
+            as_of=NOW,
+        )
+        assert actual.transition == "recovered"
+        assert actual.decision.reason_code == "source_recovery"
+        assert actual.decision.remaining_basis_points is None

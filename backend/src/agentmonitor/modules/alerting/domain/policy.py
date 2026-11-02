@@ -187,8 +187,16 @@ def map_capacity_alert_condition(
         if isinstance(configuration, CapacityRemainingRuleConfigurationV1)
         else (None, None)
     )
+    nonconstraining = (
+        fact.reason_code == "capacity_nonconstraining"
+        and fact.availability == "unavailable"
+        and fact.freshness_deadline is not None
+        and as_of < fact.freshness_deadline
+    )
     decision = AlertDecisionSummaryV1(
-        "source_not_evaluable"
+        "source_recovery"
+        if nonconstraining
+        else "source_not_evaluable"
         if fact.availability != "current"
         else "quota_remaining"
         if rule.condition_type == "capacity_remaining"
@@ -216,7 +224,9 @@ def map_capacity_alert_condition(
         rule.condition_type,
         subject,
         "not_evaluable"
-        if fact.availability != "current" or not rule.enabled
+        if (fact.availability != "current" and not nonconstraining) or not rule.enabled
+        else "recovered"
+        if nonconstraining
         else "active"
         if severity is not None
         else "recovered",

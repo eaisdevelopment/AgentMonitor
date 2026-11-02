@@ -104,6 +104,7 @@ AlertReasonCodeV1 = Literal[
     "capacity_ratio_unsupported",
     "capacity_ratio_unavailable",
     "capacity_ratio_unknown",
+    "capacity_nonconstraining",
 ]
 _TOKEN = re.compile(r"[A-Za-z0-9_.:-]{1,128}\Z")
 

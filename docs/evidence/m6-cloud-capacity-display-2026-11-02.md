@@ -40,3 +40,10 @@ change returns unavailable without a numeric threshold or exhaustion for that
 case; all 13 alert-domain tests pass, and an independent reviewer found no
 blocker in this scope. Legacy windows with unknown constraint status retain
 their prior behavior. No real alert lifecycle was exercised by this check.
+
+A follow-up pure-domain change distinguishes fresh, complete evidence that a
+window is explicitly non-constraining from unknown or stale readings. It can
+resolve an existing capacity alert as no longer applicable without inventing a
+remaining percentage. Four new domain checks failed before the change; 59
+related capacity/alerting domain checks pass. Independent review is pending;
+no real alert lifecycle was exercised.

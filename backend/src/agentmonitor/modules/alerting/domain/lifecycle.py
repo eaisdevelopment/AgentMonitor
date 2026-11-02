@@ -125,12 +125,23 @@ def reduce_alert_signal(
             unread=False,
             last_seen_at=as_of,
         )
+    nonconstraining = (
+        signal.condition_type in ("capacity_remaining", "capacity_exhausted")
+        and signal.transition == "recovered"
+        and signal.decision.truth_state == "unavailable"
+        and signal.decision.reason_code == "source_recovery"
+        and source.producer_key == "capacity"
+        and source.reason_code == "capacity_nonconstraining"
+        and source.freshness_deadline is not None
+        and as_of < source.freshness_deadline
+        and signal.decision.remaining_basis_points is None
+    )
     if signal.transition == "not_evaluable" or signal.decision.truth_state in (
         "unknown",
         "unsupported",
     ):
         return AlertTransitionDecisionV1(existing, None, "not_evaluable")
-    if signal.condition_type == "capacity_remaining":
+    if signal.condition_type == "capacity_remaining" and not nonconstraining:
         if (
             signal.decision.truth_state != "current"
             or signal.decision.remaining_basis_points is None
@@ -142,7 +153,7 @@ def reduce_alert_signal(
         if signal.transition == "active" and signal.severity != expected:
             raise ValueError("alert_active_decision_conflict")
     if signal.transition == "recovered":
-        if signal.decision.truth_state != "current":
+        if signal.decision.truth_state != "current" and not nonconstraining:
             return AlertTransitionDecisionV1(existing, None, "not_evaluable")
         if existing is None or existing.lifecycle != "open":
             return AlertTransitionDecisionV1(existing, None, "not_evaluable")
