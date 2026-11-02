@@ -546,3 +546,17 @@ def test_candidate_runtime_readiness_on_real_disposable_service(tmp_path: Path) 
             check=False,
             timeout=10,
         )
+
+
+def test_cutover_source_preflight_allows_active_wal(tmp_path: Path) -> None:
+    import sqlite3
+
+    from tools.automation.implementations.m6_cutover import _verify_active_source_schema
+
+    reference = _prior_database(tmp_path, "v1_0708")
+    with sqlite3.connect(tmp_path / "agentmonitor.db") as reader:
+        reader.execute("PRAGMA journal_mode=WAL")
+        reader.execute("BEGIN")
+        reader.execute("SELECT count(*) FROM sqlite_schema").fetchone()
+        assert (tmp_path / "agentmonitor.db-wal").exists()
+        _verify_active_source_schema(reference, "v1_0708")

@@ -31,7 +31,6 @@ from agentmonitor.adapters.persistence._shared.sqlite.core.policy import (
 )
 from agentmonitor.adapters.persistence._shared.sqlite.schema.compatibility import (
     InspectActiveSchemaCompatibilityV1,
-    InspectSchemaCompatibilityV1,
     application_schema_range,
     load_migration_catalog,
 )
@@ -221,6 +220,12 @@ def _revision(root: Path) -> str:
     return value
 
 
+def _verify_active_source_schema(reference: DatabaseRefV1, source: str) -> None:
+    state, revision = InspectActiveSchemaCompatibilityV1(reference)
+    if state != "upgrade_required" or revision != source:
+        raise CutoverError("source_schema_invalid")
+
+
 def _cutover_engine(
     *,
     unit: str,
@@ -278,11 +283,7 @@ def _cutover_engine(
         raise CutoverError("override_changed")
     ref = DatabaseRefV1(data_root / "agentmonitor.db", data_root)
     ref.validate()
-    view = InspectSchemaCompatibilityV1(
-        ref, application_schema_range(), "runtime_read_write"
-    )
-    if view.current_revision != source or view.state != "upgrade_required":
-        raise CutoverError("source_schema_invalid")
+    _verify_active_source_schema(ref, source)
     baseline_props = _properties(unit)
     if baseline_props.get("ActiveState") != "active" or _cwd(unit) != str(baseline):
         raise CutoverError("service_identity_invalid")
