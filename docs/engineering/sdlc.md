@@ -4,6 +4,43 @@
 
 This lifecycle is the mandatory path from an idea to a released AgentMonitor behavior. It optimizes for correctness, traceability, independent module ownership, and truthful live-provider evidence rather than speed of code production.
 
+## Owner authority and delivery
+
+The owner's requested outcome and applicable governing instructions control the
+work. An agent's plan, task list, gate, version label, interpretation, or
+preference does not acquire authority merely because the agent wrote it.
+
+- Check existing owner approvals and their scope before asking again. An
+  approval remains valid for the scope approved; routine implementation and
+  documentation changes inside that scope do not require a new approval just
+  because a version, commit, artifact, or test result changed. Respect an
+  explicit revision-bound approval without inventing such a condition. An actual
+  requirement for a new approval must identify its source and explain why it
+  applies to the proposed change.
+- Do not invent a mandatory gate, approval, prerequisite, or scope change.
+  Apply the requirements that actually govern the task. When a required
+  executable routine is missing or broken, implement or repair it within the
+  authorized scope and continue other independent work; its absence is not a
+  reason to repeatedly ask the owner to perform mechanical steps.
+- For a claimed blocker, identify the actual rule, failed command or external
+  condition and the evidence. Distinguish a requirement from an assumption or
+  preferred approach. Ask the owner only for information, an action or a
+  decision that is genuinely necessary and cannot be obtained within the
+  existing authority; prepare the concrete choice before asking.
+- Review the requested outcome against the real target, not only internal
+  artifacts. State whether a change is local, committed, pushed, deployed or
+  publicly accessible, based on verification of the relevant target. Do not
+  describe a locally staged result as an external result. Disclose material
+  incompleteness and failures without calling them passed.
+- When the owner reports a broken or missing outcome, investigate that outcome
+  first. Correct mistaken claims and fix the problem within authorized scope;
+  do not treat previous plans, historical receipts or agent status reports as
+  proof that the current user-visible result works.
+
+These directions do not waive the approved module plan, security, test or
+completion requirements in `AGENTS.md`. They do not themselves enforce agent
+tool calls; a reviewer must inspect actual actions and evidence.
+
 ## Lifecycle states
 
 ```text
