@@ -169,3 +169,12 @@ database were used; the installed dashboard was not restarted. A separate
 focused integration run passed 53 tests. Review subsequently identified
 lifecycle cancellation and provider-availability concerns, which are still
 being corrected; this browser pass does not establish full M6 completion.
+
+After integrating lifecycle hardening, `AUTO-M6-LOCAL-ADMIT` passed on
+2 November 2026 against the real local service and built browser. Selected
+source/test digest:
+`4e4f3215bdb8f208436b841501fefa69308711df7a09ee0e70550563abf526c8`.
+It includes the Ollama process, registry, lifecycle and authenticated API
+checks. This is a limited candidate result, not a deployment or full M6 pass.
+The thread-shutdown worst case, natural idle/failure states and other host
+remain unverified; the live dashboard and its database were not changed.
