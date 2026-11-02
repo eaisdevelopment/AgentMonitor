@@ -7,6 +7,7 @@ is attempted it will not restore an old database snapshot automatically.
 
 from __future__ import annotations
 
+import ctypes
 import fcntl
 import hashlib
 import json
@@ -37,6 +38,7 @@ from agentmonitor.composition.iam_operator import exclusive_service_quiescence
 from tools.automation.implementations.auto_m6_local_activate import (
     TOOL_ROOT,
     build_override,
+    request,
     tree_digest,
 )
 from tools.automation.implementations.auto_m6_local_update import replace_override
@@ -51,10 +53,16 @@ from tools.automation.implementations.m5_service_activation import (
 )
 from tools.automation.implementations.m6_frontend_build import build_clean_frontend
 from tools.automation.implementations.m6_migration_recovery import (
+    _receipt,
     _recover_migration_before_start,
+    _validate_stopped_journal,
+    _verify_stopped,
 )
 from tools.automation.implementations.m6_offline_restore import (
     _read_private_json,
+    classify_restore_recovery,
+    restore_before_candidate_start,
+    resume_prepared_restore,
 )
 from tools.automation.implementations.m6_quiescent_stop import (
     _process_identity,
@@ -64,6 +72,10 @@ from tools.automation.implementations.m6_quiescent_stop import (
 from tools.automation.implementations.m6_runtime_integrity import (
     _runtime_digest,
     _trusted_checkout_revision,
+)
+from tools.automation.implementations.m6_transition_journal import (
+    _read_journal_at,
+    _replace_journal,
 )
 from tools.automation.implementations.m6_transition_lease import _hold_transition_locks
 
@@ -214,6 +226,7 @@ def _cutover_engine(
     expected_revision: str,
     expected_executable: Path,
     expected_build: str | None = None,
+    baseline_private: bool = False,
 ) -> str:
     """Migrate one selected unit. Call only after candidate has been reviewed.
 
@@ -245,7 +258,11 @@ def _cutover_engine(
     build_digest = tree_digest(candidate / "frontend/dist")
     if expected_build is not None and build_digest != expected_build:
         raise CutoverError("candidate_build_changed")
-    before = build_override(baseline).encode()
+    before = (
+        _candidate_override(baseline)
+        if baseline_private and unit == _FIXED_UNIT
+        else build_override(baseline)
+    ).encode()
     after = (
         _candidate_override(candidate)
         if unit == _FIXED_UNIT
@@ -324,7 +341,7 @@ def _cutover_engine(
         "source_revision": source,
         "candidate_build_sha256": build_digest,
         "fixed_unit_sha256": _FIXED_UNIT_SHA256 if unit == _FIXED_UNIT else None,
-        "fixed_baseline_override_sha256": _FIXED_OVERRIDE_SHA256
+        "fixed_baseline_override_sha256": hashlib.sha256(before).hexdigest()
         if unit == _FIXED_UNIT
         else None,
         "fixed_runtime_sha256": _FIXED_VENV_SHA256 if unit == _FIXED_UNIT else None,
@@ -394,7 +411,12 @@ def _cutover_engine(
         barrier.exec_driver_sql("BEGIN IMMEDIATE")
         validate_m5_service_activation_lock_v1(shared_lock)
         if unit == _FIXED_UNIT:
-            _fixed_unit_preflight(expected_revision, build_digest, guarded=True)
+            _fixed_unit_preflight(
+                expected_revision,
+                build_digest,
+                guarded=True,
+                private_baseline=baseline_private,
+            )
         _journal(journal, "stop_attempted", backup_id, facts=facts)
         stop_attempted = True
         executable_stat = expected_executable.stat()
@@ -643,6 +665,7 @@ def _fixed_unit_preflight(
     *,
     guarded: bool = False,
     candidate: bool = False,
+    private_baseline: bool = False,
     start_block: bool = True,
 ) -> None:
     if os.getuid() != _FIXED_HOME.stat().st_uid:
@@ -660,6 +683,10 @@ def _fixed_unit_preflight(
             _FIXED_OVERRIDE,
             hashlib.sha256(_candidate_override(_FIXED_CANDIDATE).encode()).hexdigest()
             if candidate
+            else hashlib.sha256(
+                _candidate_override(_FIXED_BASELINE).encode()
+            ).hexdigest()
+            if private_baseline
             else _FIXED_OVERRIDE_SHA256,
         ),
     ):
@@ -711,7 +738,7 @@ def _fixed_unit_preflight(
     )
     expected_start = (
         str(_FIXED_VENV / "bin/python")
-        if candidate
+        if candidate or private_baseline
         else str(
             _FIXED_DATA / "worktrees/m5-scheduled-quota-fix/backend/.venv/bin/python"
         )
@@ -745,7 +772,9 @@ def _fixed_unit_preflight(
     _check_candidate_schema(_FIXED_CANDIDATE)
 
 
-def _verify_fixed_candidate_process(properties: dict[str, str]) -> None:
+def _verify_fixed_candidate_process(
+    properties: dict[str, str], *, checkout: Path = _FIXED_CANDIDATE
+) -> None:
     pid = int(properties.get("MainPID", "0"))
     group = properties.get("ControlGroup", "")
     invocation = properties.get("InvocationID", "")
@@ -764,7 +793,7 @@ def _verify_fixed_candidate_process(properties: dict[str, str]) -> None:
         finally:
             os.close(fd)
         expected_command = (
-            _candidate_override(_FIXED_CANDIDATE)
+            _candidate_override(checkout)
             .split("ExecStart=\nExecStart=", 1)[1]
             .strip()
             .split()
@@ -793,7 +822,15 @@ def cutover() -> str:
             _FIXED_CANDIDATE, _FIXED_DATA, TOOL_ROOT / "frontend/node_modules"
         )
         transition.validate(_FIXED_DATA)
-        _fixed_unit_preflight(candidate_revision, candidate_build)
+        original = build_override(_FIXED_BASELINE).encode()
+        private = _candidate_override(_FIXED_BASELINE).encode()
+        active_override = _FIXED_OVERRIDE.read_bytes()
+        if active_override not in {original, private}:
+            raise CutoverError("target_unit_changed")
+        baseline_private = active_override == private
+        _fixed_unit_preflight(
+            candidate_revision, candidate_build, private_baseline=baseline_private
+        )
     return _cutover_engine(
         unit=_FIXED_UNIT,
         data_root=_FIXED_DATA,
@@ -804,7 +841,40 @@ def cutover() -> str:
         expected_revision=candidate_revision,
         expected_build=candidate_build,
         expected_executable=_FIXED_EXECUTABLE,
+        baseline_private=baseline_private,
     )
+
+
+def _fixed_journal_facts(data: dict, *, phase: str) -> tuple[str, str, bool]:
+    receipt = data.get("stop_receipt")
+    candidate_revision = data.get("candidate_revision")
+    candidate_build = data.get("candidate_build_sha256")
+    executable = _FIXED_EXECUTABLE.stat()
+    private_hash = hashlib.sha256(
+        _candidate_override(_FIXED_BASELINE).encode()
+    ).hexdigest()
+    baseline_hash = data.get("fixed_baseline_override_sha256")
+    if (
+        data.get("format") != "m6-cutover.v1"
+        or data.get("phase") != phase
+        or data.get("unit") != _FIXED_UNIT
+        or data.get("source_revision") != "v1_0707"
+        or data.get("baseline_revision") != _FIXED_BASELINE_REVISION
+        or data.get("fixed_unit_sha256") != _FIXED_UNIT_SHA256
+        or baseline_hash not in {_FIXED_OVERRIDE_SHA256, private_hash}
+        or data.get("fixed_runtime_sha256") != _FIXED_VENV_SHA256
+        or data.get("fixed_python_sha256") != _FIXED_PYTHON_SHA256
+        or not isinstance(receipt, dict)
+        or receipt.get("unit") != _FIXED_UNIT
+        or receipt.get("executable_identity") != [executable.st_dev, executable.st_ino]
+        or not isinstance(candidate_revision, str)
+        or re.fullmatch(r"[a-f0-9]{40}", candidate_revision) is None
+        or not isinstance(candidate_build, str)
+        or re.fullmatch(r"[a-f0-9]{64}", candidate_build) is None
+    ):
+        raise CutoverError("migration_recovery_target_invalid")
+    _validate_stopped_journal(data, _receipt(data))
+    return candidate_revision, candidate_build, baseline_hash == private_hash
 
 
 def recover_interrupted_migration() -> str:
@@ -823,36 +893,25 @@ def recover_interrupted_migration() -> str:
     with _hold_transition_locks(root) as transition:
         journal = root / ".m6-cutover-journal.json"
         data = _read_private_json(journal)
-        receipt = data.get("stop_receipt")
-        candidate_revision = data.get("candidate_revision")
-        candidate_build = data.get("candidate_build_sha256")
-        executable = _FIXED_EXECUTABLE.stat()
-        if (
-            data.get("format") != "m6-cutover.v1"
-            or data.get("phase") != "stopped"
-            or data.get("unit") != _FIXED_UNIT
-            or data.get("source_revision") != "v1_0707"
-            or data.get("baseline_revision") != _FIXED_BASELINE_REVISION
-            or data.get("fixed_unit_sha256") != _FIXED_UNIT_SHA256
-            or data.get("fixed_baseline_override_sha256") != _FIXED_OVERRIDE_SHA256
-            or data.get("fixed_runtime_sha256") != _FIXED_VENV_SHA256
-            or data.get("fixed_python_sha256") != _FIXED_PYTHON_SHA256
-            or not isinstance(receipt, dict)
-            or receipt.get("unit") != _FIXED_UNIT
-            or receipt.get("executable_identity")
-            != [executable.st_dev, executable.st_ino]
-            or not isinstance(candidate_revision, str)
-            or re.fullmatch(r"[a-f0-9]{40}", candidate_revision) is None
-            or not isinstance(candidate_build, str)
-            or re.fullmatch(r"[a-f0-9]{64}", candidate_build) is None
-        ):
-            raise CutoverError("migration_recovery_target_invalid")
+        candidate_revision, candidate_build, baseline_private = _fixed_journal_facts(
+            data, phase="stopped"
+        )
         transition.validate(root)
-        _fixed_unit_preflight(candidate_revision, candidate_build, guarded=True)
+        _fixed_unit_preflight(
+            candidate_revision,
+            candidate_build,
+            guarded=True,
+            private_baseline=baseline_private,
+        )
 
         def verify_recovery_provenance() -> None:
             verify_controller()
-            _fixed_unit_preflight(candidate_revision, candidate_build, guarded=True)
+            _fixed_unit_preflight(
+                candidate_revision,
+                candidate_build,
+                guarded=True,
+                private_baseline=baseline_private,
+            )
 
         return _recover_migration_engine(
             root,
@@ -882,6 +941,459 @@ def _recover_migration_engine(
             settings_lease=settings,
             verify_provenance=verify_provenance,
         )
+
+
+def restore_interrupted_migration() -> str:
+    """Restore the fixed dashboard backup before any candidate start."""
+    root = _FIXED_DATA
+    controller_revision = _trusted_checkout_revision(ROOT)
+    with _hold_transition_locks(root) as transition:
+        data = _read_private_json(root / ".m6-cutover-journal.json")
+        phase = data.get("phase")
+        if phase == "migrated":
+            facts = data
+        elif phase in {"restore_prepared", "restore_activated"}:
+            facts = data.get("cutover_facts")
+        else:
+            raise CutoverError("restore_recovery_phase_invalid")
+        if not isinstance(facts, dict):
+            raise CutoverError("restore_recovery_journal_invalid")
+        candidate_revision, candidate_build, baseline_private = _fixed_journal_facts(
+            facts, phase="migrated"
+        )
+
+        def verify_provenance() -> None:
+            if _trusted_checkout_revision(ROOT) != controller_revision:
+                raise CutoverError("operator_checkout_changed")
+            _fixed_unit_preflight(
+                candidate_revision,
+                candidate_build,
+                guarded=True,
+                private_baseline=baseline_private,
+            )
+
+        verify_provenance()
+        return _restore_interrupted_migration_engine(
+            root, transition, data, facts, verify_provenance=verify_provenance
+        )
+
+
+def _restore_interrupted_migration_engine(
+    root: Path,
+    transition,
+    expected_journal: dict,
+    facts: dict,
+    *,
+    verify_provenance=None,
+) -> str:
+    """Restore/reconcile genuine pre-start backup while every lock is held."""
+    journal = root / ".m6-cutover-journal.json"
+    reference = DatabaseRefV1(root / "agentmonitor.db", root)
+    with (
+        exclusive_service_quiescence(root, reference) as service,
+        _hold_settings_lock(root) as settings,
+    ):
+        transition.validate(root)
+        if _read_private_json(journal) != expected_journal:
+            raise CutoverError("restore_recovery_journal_changed")
+        if verify_provenance is not None:
+            verify_provenance()
+        if expected_journal.get("phase") == "migrated":
+            receipt = _receipt(facts)
+            status = restore_before_candidate_start(
+                root,
+                facts["backup_id"],
+                receipt=receipt,
+                journal=journal,
+                transition_lease=transition,
+                service_lease=service,
+                settings_lease=settings,
+                verify_provenance=verify_provenance,
+            )
+            if status != "restored":
+                raise CutoverError("restore_recovery_unverified")
+        else:
+            status = resume_prepared_restore(
+                root,
+                transition_lease=transition,
+                service_lease=service,
+                settings_lease=settings,
+                verify_provenance=verify_provenance,
+            )
+            if status not in {"activated", "already_activated"}:
+                raise CutoverError("restore_recovery_unverified")
+        if verify_provenance is not None:
+            verify_provenance()
+        transition.validate(root)
+        service.validate(root)
+        settings.validate(root)
+        return "baseline_restored_service_stopped"
+
+
+def _start_restored_baseline_engine(
+    root: Path,
+    transition,
+    facts: dict,
+    *,
+    unit: str,
+    guard: Path,
+    override: Path,
+    expected_override: bytes,
+    start_override: bytes,
+    baseline: Path,
+    executable: Path,
+    verify_before=None,
+    verify_after=None,
+) -> str:
+    """Start only the selected restored unit after a durable no-rollback fence.
+
+    On error a start block is restored when possible; no unknown process is
+    signalled and no old snapshot is restored after the start boundary.
+    """
+    reference = DatabaseRefV1(root / "agentmonitor.db", root)
+    receipt = _receipt(facts)
+    if receipt.unit != unit:
+        raise CutoverError("baseline_restart_target_invalid")
+    blocked = b"[Unit]\nRefuseManualStart=yes\n[Service]\nRestart=no\n"
+    relaxed = b"[Service]\nRestart=no\n"
+    guard_relaxed = False
+    try:
+        with (
+            exclusive_service_quiescence(root, reference) as service,
+            _hold_settings_lock(root) as settings,
+        ):
+            transition.validate(root)
+            service.validate(root)
+            settings.validate(root)
+            data = _read_journal_at(transition)[0]
+            if (
+                data.get("phase") != "restore_activated"
+                or data.get("cutover_facts") != facts
+            ):
+                raise CutoverError("baseline_restart_journal_invalid")
+            if (
+                classify_restore_recovery(root, root / ".m6-cutover-journal.json")
+                != "activated"
+            ):
+                raise CutoverError("baseline_restore_unverified")
+            _verify_stopped(receipt)
+            if verify_before is not None:
+                verify_before()
+            transition.validate(root)
+            service.validate(root)
+            settings.validate(root)
+            if _read_journal_at(transition)[0] != data:
+                raise CutoverError("baseline_restart_journal_changed")
+            _replace_journal(
+                transition, data, {**data, "phase": "baseline_start_attempted"}
+            )
+            if expected_override != start_override and not replace_override(
+                override, expected_override, start_override
+            ):
+                raise CutoverError("baseline_restart_override_changed")
+            if not replace_override(guard, blocked, relaxed):
+                raise CutoverError("baseline_restart_guard_changed")
+            guard_relaxed = True
+            _ctl("daemon-reload")
+        transition.validate(root)
+        if verify_after is not None:
+            verify_after()
+        _ctl("start", unit)
+        current = _properties(unit)
+        pid = int(current.get("MainPID", "0"))
+        if (
+            current.get("ActiveState") != "active"
+            or pid <= 1
+            or current.get("ControlGroup") != receipt.cgroup
+        ):
+            raise CutoverError("baseline_start_unverified")
+        descriptor = os.pidfd_open(pid, 0)
+        try:
+            identity = _process_identity(pid, receipt.cgroup)
+            expected = executable.stat()
+            if (
+                identity[1:] != (expected.st_dev, expected.st_ino)
+                or Path(f"/proc/{pid}/cwd").resolve() != baseline
+            ):
+                raise CutoverError("baseline_start_unverified")
+            if _process_identity(pid, receipt.cgroup) != identity or _properties(
+                unit
+            ).get("MainPID") != str(pid):
+                raise CutoverError("baseline_start_unverified")
+        finally:
+            os.close(descriptor)
+        return "baseline_started_readiness_unverified"
+    except Exception:
+        if guard_relaxed:
+            try:
+                if not replace_override(guard, relaxed, blocked):
+                    raise CutoverError("baseline_restart_guard_changed")
+                _ctl("daemon-reload")
+            except Exception:  # noqa: BLE001 -- preserve closed recovery result.
+                raise CutoverError("baseline_restart_block_unverified") from None
+        raise
+
+
+def _finish_restored_baseline_engine(
+    root: Path,
+    transition,
+    *,
+    unit: str,
+    guard: Path,
+    expected_restart: str,
+    verify_ready=None,
+    verify_after=None,
+) -> str:
+    """Restore restart policy and archive the successful transition."""
+    transition.validate(root)
+    data = _read_journal_at(transition)[0]
+    if data.get("phase") not in {"baseline_start_attempted", "baseline_http_ready"}:
+        raise CutoverError("baseline_finish_journal_invalid")
+    original_phase = data["phase"]
+    before = _properties(unit)
+    pid = int(before.get("MainPID", "0"))
+    if before.get("ActiveState") != "active" or pid <= 1:
+        raise CutoverError("baseline_start_unverified")
+    if verify_ready is not None:
+        verify_ready()
+    if data["phase"] == "baseline_start_attempted":
+        updated = {**data, "phase": "baseline_http_ready"}
+        _replace_journal(transition, data, updated)
+        data = updated
+    directory = os.open(
+        guard.parent, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW | os.O_CLOEXEC
+    )
+    try:
+        root_info = os.fstat(directory)
+        if root_info.st_uid != os.getuid() or root_info.st_mode & 0o022:
+            raise CutoverError("baseline_restart_guard_changed")
+        try:
+            descriptor = os.open(
+                guard.name, os.O_RDONLY | os.O_NOFOLLOW | os.O_CLOEXEC, dir_fd=directory
+            )
+        except FileNotFoundError:
+            descriptor = None
+        if descriptor is None and original_phase != "baseline_http_ready":
+            raise CutoverError("baseline_restart_guard_changed")
+        if descriptor is not None:
+            try:
+                state = os.fstat(descriptor)
+                content = os.read(descriptor, 128)
+                if (
+                    not stat.S_ISREG(state.st_mode)
+                    or state.st_uid != os.getuid()
+                    or stat.S_IMODE(state.st_mode) != 0o600
+                    or state.st_nlink != 1
+                    or content
+                    not in {
+                        b"[Service]\nRestart=no\n",
+                        b"[Unit]\nRefuseManualStart=yes\n[Service]\nRestart=no\n",
+                    }
+                ):
+                    raise CutoverError("baseline_restart_guard_changed")
+                current = os.stat(guard.name, dir_fd=directory, follow_symlinks=False)
+                if (current.st_dev, current.st_ino) != (state.st_dev, state.st_ino):
+                    raise CutoverError("baseline_restart_guard_changed")
+                os.unlink(guard.name, dir_fd=directory)
+                os.fsync(directory)
+            finally:
+                os.close(descriptor)
+    finally:
+        os.close(directory)
+    # A previous attempt may have removed the guard and died before reload.
+    _ctl("daemon-reload")
+    after = _properties(unit)
+    if (
+        after.get("ActiveState") != "active"
+        or after.get("MainPID") != str(pid)
+        or after.get("InvocationID") != before.get("InvocationID")
+        or after.get("Restart") != expected_restart
+        or after.get("RefuseManualStart") != "no"
+    ):
+        raise CutoverError("baseline_restart_policy_unverified")
+    if verify_after is not None:
+        verify_after()
+    transition.validate(root)
+    current, identity = _read_journal_at(transition)
+    if current != data:
+        raise CutoverError("baseline_restart_journal_changed")
+    archive_name = ".m6-completed-journals"
+    try:
+        os.mkdir(archive_name, 0o700, dir_fd=transition.directory)
+    except FileExistsError:
+        pass
+    archive = os.open(
+        archive_name,
+        os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW | os.O_CLOEXEC,
+        dir_fd=transition.directory,
+    )
+    try:
+        state = os.fstat(archive)
+        if state.st_uid != os.getuid() or stat.S_IMODE(state.st_mode) != 0o700:
+            raise CutoverError("baseline_restart_archive_unsafe")
+        os.fsync(transition.directory)
+        target = "journal-" + secrets.token_hex(16)
+        libc = ctypes.CDLL(None, use_errno=True)
+        renameat2 = libc.renameat2
+        renameat2.argtypes = (
+            ctypes.c_int,
+            ctypes.c_char_p,
+            ctypes.c_int,
+            ctypes.c_char_p,
+            ctypes.c_uint,
+        )
+        renameat2.restype = ctypes.c_int
+        if (
+            renameat2(
+                transition.directory,
+                b".m6-cutover-journal.json",
+                archive,
+                os.fsencode(target),
+                1,
+            )
+            != 0
+        ):
+            raise CutoverError("baseline_restart_archive_failed")
+        os.fsync(archive)
+        os.fsync(transition.directory)
+        moved = os.stat(target, dir_fd=archive, follow_symlinks=False)
+        if (moved.st_dev, moved.st_ino) != identity:
+            raise CutoverError("baseline_restart_archive_changed")
+    finally:
+        os.close(archive)
+    return "baseline_ready_restart_restored"
+
+
+def start_restored_baseline() -> str:
+    """Start the verified restored dashboard and restore its restart policy."""
+    root = _FIXED_DATA
+    controller_revision = _trusted_checkout_revision(ROOT)
+    with _hold_transition_locks(root) as transition:
+        data = _read_journal_at(transition)[0]
+        phase = data.get("phase")
+        facts = data.get("cutover_facts")
+        if phase not in {
+            "restore_activated",
+            "baseline_start_attempted",
+            "baseline_http_ready",
+        } or not isinstance(facts, dict):
+            raise CutoverError("baseline_restart_journal_invalid")
+        candidate_revision, candidate_build, baseline_private = _fixed_journal_facts(
+            facts, phase="migrated"
+        )
+        guard = _FIXED_OVERRIDE.parent / "95-m6-cutover-restart.conf"
+        blocked = b"[Unit]\nRefuseManualStart=yes\n[Service]\nRestart=no\n"
+        relaxed = b"[Service]\nRestart=no\n"
+
+        def verify_controller() -> None:
+            if _trusted_checkout_revision(ROOT) != controller_revision:
+                raise CutoverError("operator_checkout_changed")
+
+        def verify_before() -> None:
+            verify_controller()
+            _fixed_unit_preflight(
+                candidate_revision,
+                candidate_build,
+                guarded=True,
+                private_baseline=baseline_private,
+            )
+
+        def verify_after() -> None:
+            verify_controller()
+            _fixed_unit_preflight(
+                candidate_revision,
+                candidate_build,
+                guarded=True,
+                private_baseline=True,
+                start_block=False,
+            )
+
+        try:
+            if phase == "restore_activated":
+                status = _start_restored_baseline_engine(
+                    root,
+                    transition,
+                    facts,
+                    unit=_FIXED_UNIT,
+                    guard=guard,
+                    override=_FIXED_OVERRIDE,
+                    expected_override=(
+                        _candidate_override(_FIXED_BASELINE)
+                        if baseline_private
+                        else build_override(_FIXED_BASELINE)
+                    ).encode(),
+                    start_override=_candidate_override(_FIXED_BASELINE).encode(),
+                    baseline=_FIXED_BASELINE,
+                    executable=_FIXED_EXECUTABLE,
+                    verify_before=verify_before,
+                    verify_after=verify_after,
+                )
+                if status != "baseline_started_readiness_unverified":
+                    raise CutoverError("baseline_start_unverified")
+            else:
+                # A prior process may have started the baseline already. Never
+                # restore an old database or issue another start on this path.
+                if guard.is_symlink():
+                    raise CutoverError("baseline_restart_guard_changed")
+                guard_present = guard.exists()
+                if not guard_present and phase != "baseline_http_ready":
+                    raise CutoverError("baseline_restart_guard_changed")
+                if guard_present and guard.read_bytes() not in {blocked, relaxed}:
+                    raise CutoverError("baseline_restart_guard_changed")
+                if not guard_present:
+                    _ctl("daemon-reload")
+                _fixed_unit_preflight(
+                    candidate_revision,
+                    candidate_build,
+                    guarded=guard_present,
+                    private_baseline=True,
+                    start_block=guard_present and guard.read_bytes() == blocked,
+                )
+
+            def verify_ready(*, after_guard: bool = False) -> None:
+                verify_controller()
+                present = guard.exists()
+                if after_guard and present:
+                    raise CutoverError("baseline_restart_guard_changed")
+                _fixed_unit_preflight(
+                    candidate_revision,
+                    candidate_build,
+                    guarded=present,
+                    private_baseline=True,
+                    start_block=present and guard.read_bytes() == blocked,
+                )
+                current = _properties(_FIXED_UNIT)
+                if current.get("ActiveState") != "active":
+                    raise CutoverError("baseline_start_unverified")
+                _verify_fixed_candidate_process(current, checkout=_FIXED_BASELINE)
+                status, body = request("http://127.0.0.1:43110", "/login")
+                if status != 200 or b"agentmonitor-dashboard-root" not in body:
+                    raise CutoverError("baseline_http_unverified")
+
+            return _finish_restored_baseline_engine(
+                root,
+                transition,
+                unit=_FIXED_UNIT,
+                guard=guard,
+                expected_restart="on-failure",
+                verify_ready=verify_ready,
+                verify_after=lambda: verify_ready(after_guard=True),
+            )
+        except Exception:
+            # Never signal a process whose identity or readiness is uncertain.
+            # Once started, an old database snapshot must not be restored.
+            try:
+                if (
+                    guard.is_file()
+                    and not guard.is_symlink()
+                    and guard.read_bytes() == relaxed
+                ):
+                    if not replace_override(guard, relaxed, blocked):
+                        raise CutoverError("baseline_restart_guard_changed")
+                    _ctl("daemon-reload")
+            except Exception:  # noqa: BLE001 -- preserve closed recovery result.
+                raise CutoverError("baseline_restart_block_unverified") from None
+            raise
 
 
 def main() -> int:

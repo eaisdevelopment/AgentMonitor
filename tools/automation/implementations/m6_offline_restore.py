@@ -10,6 +10,7 @@ import re
 import sqlite3
 import stat
 import tempfile
+from collections.abc import Callable
 from contextlib import closing
 from dataclasses import asdict
 from pathlib import Path
@@ -40,6 +41,10 @@ from tools.automation.implementations.auto_migrate import (
 from tools.automation.implementations.m6_quiescent_stop import (
     QuiescentStopReceipt,
     _properties,
+)
+from tools.automation.implementations.m6_transition_journal import (
+    _read_journal_at,
+    _replace_journal,
 )
 from tools.automation.implementations.m6_transition_lease import _TransitionLease
 
@@ -117,23 +122,6 @@ def _fd_digest(fd: int) -> str:
             break
         digest.update(data)
     return digest.hexdigest()
-
-
-def _write_journal(path: Path, document: dict) -> None:
-    raw = json.dumps(document, sort_keys=True, separators=(",", ":")).encode() + b"\n"
-    if len(raw) > MAX_MANIFEST_BYTES:
-        raise OfflineRestoreError("restore_journal_invalid")
-    temporary = path.with_name(path.name + ".restore-next")
-    fd = os.open(temporary, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o600)
-    try:
-        with os.fdopen(fd, "wb", closefd=False) as stream:
-            stream.write(raw)
-            stream.flush()
-        os.fsync(fd)
-    finally:
-        os.close(fd)
-    os.replace(temporary, path)
-    _fsync_dir(path.parent)
 
 
 def _ensure_cgroup_empty(stopped_cgroup: str) -> None:
@@ -310,6 +298,7 @@ def resume_prepared_restore(
     transition_lease: _TransitionLease,
     service_lease: ServiceQuiescenceLeaseV1,
     settings_lease: _SettingsLockLeaseV1,
+    verify_provenance: Callable[[], None] | None = None,
 ) -> str:
     """Finish a durably recorded exchange once, with both live locks held.
 
@@ -321,7 +310,9 @@ def resume_prepared_restore(
         transition_lease.validate(root)
         service_lease.validate(root)
         settings_lease.validate(root)
-        data = _read_private_json(journal)
+        if verify_provenance is not None:
+            verify_provenance()
+        data = _read_journal_at(transition_lease)[0]
         phase = classify_restore_recovery(root, journal)
         if phase == "activated":
             reference = DatabaseRefV1(root / "agentmonitor.db", root)
@@ -337,7 +328,7 @@ def resume_prepared_restore(
             service_lease.validate(root)
             settings_lease.validate(root)
             if (
-                _read_private_json(journal) != data
+                _read_journal_at(transition_lease)[0] != data
                 or classify_restore_recovery(root, journal) != "activated"
             ):
                 raise OfflineRestoreError("restore_recovery_changed")
@@ -354,10 +345,12 @@ def resume_prepared_restore(
             service_lease.validate(root)
             settings_lease.validate(root)
             if (
-                _read_private_json(journal) != data
+                _read_journal_at(transition_lease)[0] != data
                 or classify_restore_recovery(root, journal) != phase
             ):
                 raise OfflineRestoreError("restore_recovery_changed")
+            if verify_provenance is not None:
+                verify_provenance()
             _exchange(root / "agentmonitor.db", restored)
             _fsync_dir(root)
             _fsync_dir(restored.parent)
@@ -387,17 +380,20 @@ def resume_prepared_restore(
         service_lease.validate(root)
         settings_lease.validate(root)
         if (
-            _read_private_json(journal) != data
+            _read_journal_at(transition_lease)[0] != data
             or classify_restore_recovery(root, journal) != "activated_unconfirmed"
         ):
             raise OfflineRestoreError("restore_recovery_changed")
-        data["phase"] = "restore_activated"
-        _write_journal(journal, data)
+        if verify_provenance is not None:
+            verify_provenance()
+        activated = {**data, "phase": "restore_activated"}
+        _replace_journal(transition_lease, data, activated)
+        data = activated
         transition_lease.validate(root)
         service_lease.validate(root)
         settings_lease.validate(root)
         if (
-            _read_private_json(journal) != data
+            _read_journal_at(transition_lease)[0] != data
             or classify_restore_recovery(root, journal) != "activated"
         ):
             raise OfflineRestoreError("restore_recovery_changed")
@@ -433,6 +429,7 @@ def restore_before_candidate_start(
     transition_lease: _TransitionLease,
     service_lease: ServiceQuiescenceLeaseV1,
     settings_lease: _SettingsLockLeaseV1,
+    verify_provenance: Callable[[], None] | None = None,
 ) -> str:
     """Stage and validate both SQLite generations before atomic activation.
 
@@ -483,6 +480,8 @@ def restore_before_candidate_start(
         transition_lease.validate(root)
         service_lease.validate(root)
         settings_lease.validate(root)
+        if verify_provenance is not None:
+            verify_provenance()
         if _properties(unit) != current or not _journal_matches(
             journal, backup_id, receipt
         ):
@@ -571,7 +570,7 @@ def restore_before_candidate_start(
         preserved_info = (preserved_dir / "agentmonitor.db").stat()
         if active_identity is None or staged_info.st_dev != active_identity[0]:
             raise OfflineRestoreError("restore_generation_invalid")
-        cutover_facts = _read_private_json(journal)
+        cutover_facts = _read_journal_at(transition_lease)[0]
         if (
             not _journal_matches(journal, backup_id, receipt)
             or cutover_facts.get("source_revision") != source
@@ -597,8 +596,8 @@ def restore_before_candidate_start(
         _fsync_dir(restored_dir)
         _fsync_dir(generation)
         _fsync_dir(generations)
-        _write_journal(journal, prepared)
-        if _read_private_json(journal) != json.loads(json.dumps(prepared)):
+        _replace_journal(transition_lease, cutover_facts, prepared)
+        if _read_journal_at(transition_lease)[0] != json.loads(json.dumps(prepared)):
             raise OfflineRestoreError("restore_journal_changed")
         transition_lease.validate(root)
         service_lease.validate(root)
@@ -623,6 +622,8 @@ def restore_before_candidate_start(
             or _properties(unit) != current
         ):
             raise OfflineRestoreError("restore_boundary_changed")
+        if verify_provenance is not None:
+            verify_provenance()
         _exchange(root / "agentmonitor.db", restored_dir / "agentmonitor.db")
         _fsync_dir(root)
         _fsync_dir(restored_dir)
@@ -664,10 +665,12 @@ def restore_before_candidate_start(
             or _properties(unit) != current
         ):
             raise OfflineRestoreError("restore_activation_unverified")
-        if _read_private_json(journal) != json.loads(json.dumps(prepared)):
+        if _read_journal_at(transition_lease)[0] != json.loads(json.dumps(prepared)):
             raise OfflineRestoreError("restore_journal_changed")
-        prepared["phase"] = "restore_activated"
-        _write_journal(journal, prepared)
+        if verify_provenance is not None:
+            verify_provenance()
+        activated = {**prepared, "phase": "restore_activated"}
+        _replace_journal(transition_lease, json.loads(json.dumps(prepared)), activated)
         return "restored"
     except OfflineRestoreError:
         raise
