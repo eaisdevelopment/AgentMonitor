@@ -234,3 +234,28 @@ def test_ambiguous_systemd_arguments_quarantine_space_path(tmp_path: Path) -> No
     assert asyncio.run(worker.run_once()) == "quarantined"
     assert worker.last_unit == ""
     assert not (data_root / "agentmonitor.db").exists()
+
+
+def test_real_replaced_lock_inode_is_rejected(tmp_path: Path) -> None:
+    import os
+
+    worker = OllamaCloudWorkerSupervisorV1(tmp_path)
+    descriptor = worker._acquire_lock()
+    worker._lock_fd = descriptor
+    try:
+        original = tmp_path / ".ollama-cloud-worker.lock"
+        original.rename(tmp_path / "displaced-lock")
+        replacement = os.open(original, os.O_CREAT | os.O_EXCL | os.O_RDWR, 0o600)
+        os.close(replacement)
+        try:
+            worker._verify_lock()
+        except ValueError:
+            pass
+        else:
+            raise AssertionError("replaced lock was accepted")
+    finally:
+        os.close(descriptor)
+        worker._lock_fd = None
+        if worker._root_fd is not None:
+            os.close(worker._root_fd)
+            worker._root_fd = None

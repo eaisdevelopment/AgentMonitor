@@ -93,3 +93,11 @@ arguments ambiguously. The unwired supervisor now quarantines such executable or
 data-root paths before creating a unit. The follow-up real-path check passes;
 its defensive pre-start behavior does not have separate Red evidence. This is a
 known portability limitation until exact argument inspection is admitted.
+
+The candidate now pins and revalidates the data-root and locked inode; a real
+lock-path replacement check failed before that verification existed and passes
+now. Cancellation cleanup uses one 20-second monotonic deadline and attempts
+exact-unit cleanup even after a manager-start failure, preserving the durable
+uncertainty marker on ambiguity. Nine real process/user-manager checks pass.
+A real manager hang after queueing and an aggregate slow-manager shutdown have
+not been reproduced; independent review and live service wiring remain open.

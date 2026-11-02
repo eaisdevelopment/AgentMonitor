@@ -27,6 +27,7 @@ _PREFIX = "agentmonitor-cloud-worker-"
 _SYSTEMCTL = "/usr/bin/systemctl"
 _SYSTEMD_RUN = "/usr/bin/systemd-run"
 _COMMAND_TIMEOUT_SECONDS = 8
+_CLEANUP_TIMEOUT_SECONDS = 20
 
 
 class OllamaCloudWorkerSupervisorV1:
@@ -40,6 +41,7 @@ class OllamaCloudWorkerSupervisorV1:
         self._running = False
         self.last_unit = ""
         self._lock_fd: int | None = None
+        self._root_fd: int | None = None
 
     @staticmethod
     async def _command(*args: str, pass_fds: tuple[int, ...] = ()) -> tuple[int, str]:
@@ -144,18 +146,52 @@ class OllamaCloudWorkerSupervisorV1:
             return False
 
     @staticmethod
-    async def _finish_cleanup(task: asyncio.Task):
+    async def _finish_cleanup(task: asyncio.Task, deadline: float):
+        """Bound all cleanup steps by one monotonic deadline despite cancellation."""
         while not task.done():
+            remaining = deadline - asyncio.get_running_loop().time()
+            if remaining <= 0:
+                task.cancel()
+                return None
             try:
-                await asyncio.shield(task)
+                return await asyncio.wait_for(asyncio.shield(task), remaining)
             except asyncio.CancelledError:
                 continue
+            except TimeoutError:
+                task.cancel()
+                return None
         return task.result()
+
+    async def _cancelled_cleanup(
+        self, unit: str, description: str, start: asyncio.Task
+    ) -> None:
+        deadline = asyncio.get_running_loop().time() + _CLEANUP_TIMEOUT_SECONDS
+        try:
+            try:
+                await self._finish_cleanup(start, deadline)
+            except (OSError, ValueError, RuntimeError, TimeoutError):
+                # A timed-out manager client may nevertheless have queued the unit.
+                pass
+            if asyncio.get_running_loop().time() >= deadline:
+                return
+            properties = await self._finish_cleanup(
+                asyncio.create_task(self._show(unit)), deadline
+            )
+            if properties is None:
+                return
+            invocation = self._identity(unit, description, properties)
+            await self._finish_cleanup(
+                asyncio.create_task(self._stop_owned(unit, description, invocation)),
+                deadline,
+            )
+        except (OSError, ValueError, RuntimeError, TimeoutError):
+            return
 
     def _acquire_lock(self) -> int:
         directory = os.open(
             self._data_root, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW
         )
+        descriptor = None
         try:
             root = os.fstat(directory)
             if root.st_uid != os.getuid() or stat.S_IMODE(root.st_mode) != 0o700:
@@ -166,14 +202,7 @@ class OllamaCloudWorkerSupervisorV1:
                 0o600,
                 dir_fd=directory,
             )
-            try:
-                os.fsync(directory)
-            except OSError:
-                os.close(descriptor)
-                raise
-        finally:
-            os.close(directory)
-        try:
+            os.fsync(directory)
             state = os.fstat(descriptor)
             if (
                 not stat.S_ISREG(state.st_mode)
@@ -184,16 +213,44 @@ class OllamaCloudWorkerSupervisorV1:
             ):
                 raise ValueError("ollama_cloud_lock_unsafe")
             fcntl.flock(descriptor, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            self._root_fd = directory
+            self._lock_fd = descriptor
+            self._verify_lock()
             if os.read(descriptor, 129):
                 raise ValueError("ollama_cloud_previous_start_unresolved")
             return descriptor
         except BaseException:
-            os.close(descriptor)
+            if descriptor is not None:
+                os.close(descriptor)
+            os.close(directory)
+            self._root_fd = None
+            self._lock_fd = None
             raise
+
+    def _verify_lock(self) -> None:
+        if self._root_fd is None or self._lock_fd is None:
+            raise ValueError("ollama_cloud_lock_missing")
+        pinned_root = os.fstat(self._root_fd)
+        path_root = os.stat(self._data_root, follow_symlinks=False)
+        pinned_lock = os.fstat(self._lock_fd)
+        path_lock = os.stat(
+            ".ollama-cloud-worker.lock", dir_fd=self._root_fd, follow_symlinks=False
+        )
+        if (
+            not stat.S_ISDIR(path_root.st_mode)
+            or (pinned_root.st_dev, pinned_root.st_ino)
+            != (path_root.st_dev, path_root.st_ino)
+            or not stat.S_ISREG(path_lock.st_mode)
+            or pinned_lock.st_nlink != 1
+            or (pinned_lock.st_dev, pinned_lock.st_ino)
+            != (path_lock.st_dev, path_lock.st_ino)
+        ):
+            raise ValueError("ollama_cloud_lock_replaced")
 
     def _mark_start(self, unit: str) -> None:
         if self._lock_fd is None:
             raise ValueError("ollama_cloud_lock_missing")
+        self._verify_lock()
         data = (unit + "\n").encode("ascii")
         if os.write(self._lock_fd, data) != len(data):
             raise ValueError("ollama_cloud_marker_write_failed")
@@ -202,6 +259,7 @@ class OllamaCloudWorkerSupervisorV1:
     def _clear_marker(self) -> None:
         if self._lock_fd is None:
             raise ValueError("ollama_cloud_lock_missing")
+        self._verify_lock()
         os.ftruncate(self._lock_fd, 0)
         os.fsync(self._lock_fd)
 
@@ -225,6 +283,9 @@ class OllamaCloudWorkerSupervisorV1:
             if self._lock_fd is not None:
                 os.close(self._lock_fd)
                 self._lock_fd = None
+            if self._root_fd is not None:
+                os.close(self._root_fd)
+                self._root_fd = None
             self._running = False
 
     async def _run_transient(self) -> str:
@@ -276,25 +337,15 @@ class OllamaCloudWorkerSupervisorV1:
         self._mark_start(unit)
         if self._lock_fd is None:
             raise ValueError("ollama_cloud_lock_missing")
+        self._verify_lock()
         start = asyncio.create_task(self._command(*command, pass_fds=(self._lock_fd,)))
-        cancelled = False
         try:
-            try:
-                code, _ = await asyncio.shield(start)
-            except asyncio.CancelledError:
-                cancelled = True
-                self._quarantined = True
-                code, _ = await self._finish_cleanup(start)
+            code, _ = await asyncio.shield(start)
             if code:
                 self._quarantined = True
                 return "quarantined"
             properties = await self._show(unit)
             invocation = self._identity(unit, description, properties)
-            if cancelled:
-                await self._finish_cleanup(
-                    asyncio.create_task(self._stop_owned(unit, description, invocation))
-                )
-                raise asyncio.CancelledError
             for _ in range(300):
                 properties = await self._show(unit)
                 if self._identity(unit, description, properties) != invocation:
@@ -322,19 +373,11 @@ class OllamaCloudWorkerSupervisorV1:
             return "worker_timeout"
         except asyncio.CancelledError:
             self._quarantined = True
-            try:
-                properties = await self._finish_cleanup(
-                    asyncio.create_task(self._show(unit))
-                )
-                invocation = self._identity(unit, description, properties)
-                await self._finish_cleanup(
-                    asyncio.create_task(self._stop_owned(unit, description, invocation))
-                )
-            except (OSError, ValueError, RuntimeError, TimeoutError):
-                pass
+            await self._cancelled_cleanup(unit, description, start)
             raise
         except (OSError, ValueError, RuntimeError, TimeoutError):
             self._quarantined = True
+            await self._cancelled_cleanup(unit, description, start)
             return "quarantined"
 
     async def run(self) -> None:
