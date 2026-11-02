@@ -97,6 +97,7 @@ def test_real_dashboard_cutover_and_finalization(tmp_path: Path) -> None:
             unit,
             f"--property=WorkingDirectory={baseline}",
             "--property=Restart=on-failure",
+            "--setenv=PYTHONDONTWRITEBYTECODE=1",
             *argv,
         ],
         capture_output=True,
