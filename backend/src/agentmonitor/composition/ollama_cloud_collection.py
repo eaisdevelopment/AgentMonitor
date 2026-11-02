@@ -419,8 +419,8 @@ class OllamaCloudCollectionV1:
     def verification_tick(self):
         """Progress at most one queued owner request under the existing M04 gate.
 
-        This candidate is not registered with the service. The source and
-        manifest admission checks happen before a job can be claimed.
+        The supervised worker invokes this lane when selected. Source policy
+        and current target eligibility are checked before provider dispatch.
         """
         require_probe_authorized(self._credential_env_file is not None)
         now = datetime.now(UTC)
