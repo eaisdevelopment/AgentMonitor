@@ -224,9 +224,9 @@ No aggregate green status may conceal a Blocked or Not Run T5/T6/T7 scenario.
 ## 8. Deployment and recovery routines
 
 `AUTO-MIGRATE` is operational only for the cataloged offline
-`v1_0603` to `v1_0707` M4 upgrade with its verified private pre-migration
-backup. Other source revisions and installed activation remain outside that
-bounded command. `AUTO-DEPLOY`, `AUTO-BACKUP`, and `AUTO-RESTORE` remain
+`v1_0603` or `v1_0707` to `v1_0708` offline upgrade with a verified private
+pre-migration backup. Installed activation and a verified restore/prior-binary
+rollback remain outside that bounded command. `AUTO-DEPLOY`, `AUTO-BACKUP`, and `AUTO-RESTORE` remain
 Blocked on their cataloged prerequisites. This keeps broader
 deployment/recovery readiness red; prose procedures alone cannot make the gate
 green.

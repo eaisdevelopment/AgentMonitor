@@ -55,15 +55,19 @@ existing IAM, registry, provider, collection, capacity, runtime or alert rows.
 A real `v1_0707` database remains readable by the current inspector as
 `upgrade_required`; the offline `AUTO-MIGRATE` path accepts either `v1_0603` or
 `v1_0707`, creates and verifies an owner-only pre-migration backup, and then
-applies the immutable chain to `v1_0708`. A current binary requires `v1_0708`
-for writes. An older binary correctly treats `v1_0708` as newer than itself and
-must not write it.
+applies the immutable chain to `v1_0708`. The candidate binary requires `v1_0708`
+for writes. The actual prior binary does not recognize `v1_0708` and reports
+`unknown_revision`; it must not write that database. A prior-binary runtime
+rollback test has not yet been performed.
 
 There is no in-place downgrade and the migration never drops the new tables.
 Binary rollback after applying `v1_0708` therefore requires stopping the
 service and restoring the verified pre-migration `v1_0707` backup, or a
 reviewed forward fix; merely starting an older binary against the newer file
-is not a rollback. Disabling the Ollama cloud integration leaves the additive
+is not a rollback. The canonical `AUTO-RESTORE` command remains blocked, and
+no executable restore/prior-binary rollback has been proven, so live migration
+is not yet ready. An upgrade preserving populated `v1_0707` data also remains
+unverified. Disabling the Ollama cloud integration leaves the additive
 technical rows in place and does not affect Claude/Codex schedules or provider
 profiles. Admission rows grow by one bounded technical record per attempt, so
 retention/purge policy remains follow-up work before claiming indefinite
