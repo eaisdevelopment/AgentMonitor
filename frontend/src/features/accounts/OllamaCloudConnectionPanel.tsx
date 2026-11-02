@@ -31,7 +31,7 @@ export function OllamaCloudConnectionPanel({ state, canVerify, busy, checkedAt, 
     <p>{copy.description}</p>
     <details open={state === "not_configured"}>
       <summary>Set up or replace the local key</summary>
-      <p>Run this command in a terminal on the AgentMonitor computer, then select this account and enter the key at the hidden prompt.</p>
+      <p>Run this command in a terminal on the AgentMonitor computer as the same Linux user that runs AgentMonitor. Select this account and enter the key at the hidden prompt.</p>
       <code className="ollama-setup-command">{ollamaLocalSetupCommand}</code>
       <button type="button" className="quiet-button" onClick={() => { void copyCommand(); }}>Copy setup command</button>
       {copyStatus && <p role="status">{copyStatus}</p>}
