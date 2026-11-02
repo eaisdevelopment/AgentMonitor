@@ -1055,3 +1055,11 @@ This structural reconciliation registers the proposed M02 cloud status and M04 v
 Plan snapshot SHA-256: `2b6186107c86e264aa80098ab32f5a83844eff251675bee6160daf8e40cee875`
 
 Planning validator SHA-256: `00e57977aa12da0d5c6ecc2f3129132212ffd9d8466a0787c29abc2cb60fd661`
+
+## 2026-11-02 verification enqueue V2 structural rebind
+
+This structural record binds the additive M04 verification enqueue V2 contract and transaction port while retaining V1. It does not assert an independent semantic review, a successful populated replay, credential operation, deployment, or M6 completion. The owner-approved `.env` direction and remaining review and verification requirements are unchanged.
+
+Plan snapshot SHA-256: `874137e1557267fedfd23a748e5089b4f2be19f2fd370e13c10921c1e7a3a1cb`
+
+Planning validator SHA-256: `708b8d29fefc68fdf39d9c8e529ffd923fafd02f7e4b0ea55482540192b03d2e`
