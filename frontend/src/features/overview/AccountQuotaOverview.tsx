@@ -6,7 +6,7 @@ import {
   type ProviderAccountIdentityViewV1, type OrganizationPageV1,
 } from "../../shared/api/client";
 import { providerDisplayName } from "../accounts/providerPresentation";
-import { metricAvailability, quotaResetPresentation, remainingPercentage } from "../command/quotaPresentation";
+import { exactUsd, isLowQuota, metricAvailability, quotaResetPresentation, remainingPercentage } from "../command/quotaPresentation";
 
 type AccountReading = Readonly<{
   account: AccountViewV1;
@@ -40,7 +40,7 @@ function organizationFilterKey(account: AccountViewV1, organizations: Organizati
 
 function lowestRemainingPercentage(reading: AccountReading): number {
   return Math.min(Infinity, ...(reading.quota?.items.flatMap(item => item.windows) ?? [])
-    .map(window => remainingPercentage(window.allowance?.remaining_percentage ?? window.remaining_ratio)?.value ?? Infinity));
+    .map(window => window.is_constraining === false ? Infinity : remainingPercentage(window.allowance?.remaining_percentage ?? window.remaining_ratio)?.value ?? Infinity));
 }
 
 function verifiedIdentity(reading: AccountReading): ProviderAccountIdentityViewV1 | null {
@@ -274,12 +274,14 @@ export function AccountQuotaOverview({ onExpired, onOpenAccount }: Readonly<{
                 <td data-label="Quota left"><div className="overview-quota-list">
                   {windows.length === 0 ? <span>{quota === null ? "Unavailable" : "No reading yet"}</span> : windows.map(window => {
                     const percentage = remainingPercentage(window.allowance?.remaining_percentage ?? window.remaining_ratio);
-                    const low = percentage !== null && percentage.value <= 20;
+                    const low = isLowQuota(percentage?.value ?? null, window.is_constraining);
+                    const amount = ["available", "stale"].includes(window.remaining.availability) ? exactUsd(window.remaining.value) : null;
+                    const limit = ["available", "stale"].includes(window.limit.availability) ? exactUsd(window.limit.value) : null;
                     const calculated = window.allowance !== null && window.allowance !== undefined;
                     const precision = calculated && window.allowance?.remaining_percentage.precision === "rounded" ? " · rounded" : "";
                     const reset = quotaResetPresentation(window.reset_at ?? null, window.reset_precision ?? "unknown");
                     return <div className={`overview-quota${low ? " overview-quota-low" : ""}`} key={window.window_id} data-window-id={window.window_id} data-window-key={window.window_key} data-semantic-role={window.semantic_role ?? "unknown"}>
-                      <div className="overview-quota-label"><span>{window.safe_label ?? window.window_key}</span><span className="overview-quota-value">{low && <span className="overview-quota-warning">Low</span>}<strong title={calculated ? `${window.allowance?.calculation === "100_minus_used_percent" ? "Calculated: 100% minus reported usage" : "Calculated from reported remaining ratio"}${precision}.` : "Provider-reported remaining allowance."}>{percentage?.label ?? metricAvailability(window.remaining_ratio)}</strong></span></div>
+                      <div className="overview-quota-label"><span>{window.safe_label ?? window.window_key}</span><span className="overview-quota-value">{low && <span className="overview-quota-warning">Low</span>}<strong title={calculated ? `${window.allowance?.calculation === "100_minus_used_percent" ? "Calculated: 100% minus reported usage" : "Calculated from reported remaining ratio"}${precision}.` : "Provider-reported remaining allowance."}>{amount === null ? percentage?.label ?? metricAvailability(window.remaining_ratio) : <>{amount}{limit !== null && ` / ${limit}`}{percentage !== null && ` · ${percentage.label}`}</>}</strong></span></div>
                       {percentage !== null && <div className="overview-quota-meter" role="meter" aria-label={`${window.safe_label ?? window.window_key} remaining allowance`} aria-valuemin={0} aria-valuemax={100} aria-valuenow={percentage.value} aria-valuetext={`${percentage.label} left${low ? " · low" : ""}${calculated ? " · calculated" : ""}${precision}`}><span style={{ width: `${percentage.value}%` }} /></div>}
                       <small className="quota-reset" data-reset-precision={reset.precision}>{reset.dateTime === null ? reset.label : <>{reset.label} <time dateTime={reset.dateTime}>{new Date(reset.dateTime).toLocaleString()}</time></>} · {reset.precision}</small>
                       {window.freshness !== "fresh" && <small>{window.freshness.replaceAll("_", " ")}</small>}

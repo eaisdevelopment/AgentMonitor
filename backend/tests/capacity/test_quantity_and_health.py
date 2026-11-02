@@ -685,3 +685,14 @@ def test_quota_window_health_preserves_incomplete_and_reauth_precedence() -> Non
         "reauthentication_required",
         "unknown",
     )
+
+
+def test_capacity_wire_preserves_constraint_state() -> None:
+    """Pure projection does not turn non-constraining money into a quota limit."""
+    from agentmonitor.api.v1.routers.capacity import _window as to_wire
+
+    for constraint in (False, True, None):
+        assert (
+            to_wire(replace(_quota_view(), is_constraining=constraint)).is_constraining
+            is constraint
+        )

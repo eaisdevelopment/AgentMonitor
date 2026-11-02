@@ -10,7 +10,7 @@ import {
   type LiveProcessLocationPageV1,
   type ProviderAccountIdentityViewV1,
 } from "../../shared/api/client";
-import { metricAvailability, quotaResetPresentation, remainingPercentage } from "../command/quotaPresentation";
+import { exactUsd, metricAvailability, quotaResetPresentation, remainingPercentage } from "../command/quotaPresentation";
 import { providerDisplayName } from "./providerPresentation";
 
 type SummaryState =
@@ -73,7 +73,8 @@ export function AccountWorkspaceSummary({ account, organizationName, liveProcess
   const capacityItems = scoped?.capacity?.items ?? [];
   const readings = capacityItems.flatMap((item) => {
     const constraining = item.windows.find((window) => window.window_id === item.health?.constraining_window_id);
-    return constraining === undefined ? item.windows : [constraining];
+    const hasMoney = item.windows.some(window => exactUsd(window.remaining.value) !== null || exactUsd(window.limit.value) !== null);
+    return hasMoney || constraining === undefined ? item.windows : [constraining];
   });
   const receipt = scoped?.identity ?? null;
   const verified = receipt?.state === "verified" && receipt.account_id === account.account_id && receipt.email !== null && readings.length > 0 &&
@@ -109,8 +110,10 @@ export function AccountWorkspaceSummary({ account, organizationName, liveProcess
               {state.kind === "loading" ? <span role="status">Reading quota…</span> : readings.length === 0 ? <strong>Unavailable</strong> : readings.map((window) => {
                 const percentage = remainingPercentage(window.allowance?.remaining_percentage ?? window.remaining_ratio);
                 const reset = quotaResetPresentation(window.reset_at ?? null, window.reset_precision ?? "unknown");
+                const amount = ["available", "stale"].includes(window.remaining.availability) ? exactUsd(window.remaining.value) : null;
+                const limit = ["available", "stale"].includes(window.limit.availability) ? exactUsd(window.limit.value) : null;
                 return <div className="workspace-reading" key={window.window_id} data-window-id={window.window_id} data-window-key={window.window_key} data-semantic-role={window.semantic_role ?? "unknown"}>
-                  <strong>{percentage?.label ?? metricAvailability(window.remaining_ratio)}</strong>
+                  <strong>{amount === null ? percentage?.label ?? metricAvailability(window.remaining_ratio) : <>{amount}{limit !== null && ` / ${limit}`}{percentage !== null && ` · ${percentage.label}`}</>}</strong>
                   <small>{window.safe_label ?? window.window_key}{window.freshness !== "fresh" ? ` · ${window.freshness.replaceAll("_", " ")}` : ""}</small>
                   <small className="quota-reset" data-reset-precision={reset.precision}>{reset.dateTime === null ? reset.label : <>{reset.label} <time dateTime={reset.dateTime}>{new Date(reset.dateTime).toLocaleString()}</time></>} · {reset.precision}</small>
                   {window.allowance !== null && window.allowance !== undefined && <small className="calculated-label">Calculated{window.allowance.remaining_percentage.precision === "rounded" ? " · rounded" : ""}</small>}
