@@ -7,3 +7,7 @@ The real empty-file migration schema test failed first because both new tables w
 Existing databases require the approved offline backup and upgrade workflow; this migration does not support downgrade. Recovery is forward repair or restoring a verified pre-upgrade backup, which loses post-backup changes. Deployment and backup/restore verification remain outstanding. No live database or service was changed.
 
 Archive correction: an Ollama account archive invokes binding invalidation inside the same `BEGIN IMMEDIATE` account transaction, before the account update. Nonterminal bindings become `cleanup_pending` and the binding generation advances; an update mismatch aborts the whole archive. A binding read for an archived account fails closed if nonterminal bindings are found. The new pure visibility test failed before its implementation and passed afterward. Real account archive, concurrent archive/rotation, cleanup in Secret Service and cross-module commit fencing remain **Not Run**; no synthetic account was inserted into SQLite.
+
+Integration candidate verification: the real empty SQLite schema and pure
+binding lifecycle suite passed, 13 tests. This does not establish the
+unexecuted real-account and concurrent-transition scenarios above.
