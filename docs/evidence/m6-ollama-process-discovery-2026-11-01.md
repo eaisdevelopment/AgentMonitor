@@ -121,3 +121,11 @@ does not prove daemon versus active client or active work, and no safe source
 currently links it to a loaded model or cloud account. Those relationships stay
 Unknown until independent real evidence exists. Built-browser and second-host
 verification are **Not Run** for this increment.
+
+Integration verification on `m6-next` after cherry-picking the process
+contribution: 47 focused live Ollama process, real SQLite registry/runtime,
+authenticated HTTP and collection-control tests passed. The running dashboard
+was not restarted; its `/login` endpoint returned HTTP 200. The contribution
+remains intermediate: no production lifecycle currently invokes durable Ollama
+collection, and the provider capability admission, built-browser proof,
+model/process relationship and other-host coverage remain open.
