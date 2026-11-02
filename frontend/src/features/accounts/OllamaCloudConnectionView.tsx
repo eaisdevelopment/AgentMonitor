@@ -41,7 +41,7 @@ export function OllamaCloudConnectionView({ account, onExpired, onProofUnavailab
   }, [refresh]);
 
   useEffect(() => {
-    if (connection?.state !== "pending" || connection.can_verify) return;
+    if (!connection || connection.can_verify || !["pending", "stale", "retry_available", "rate_limited"].includes(connection.state)) return;
     const timer = window.setTimeout(() => { void refresh(); }, 15000);
     return () => window.clearTimeout(timer);
   }, [connection, refresh]);
