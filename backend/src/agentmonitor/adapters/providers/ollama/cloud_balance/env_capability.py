@@ -444,26 +444,31 @@ def env_credential_file_lease_v1(
     file_descriptor: int | None = None
     state = _EnvCredentialLeaseStateV1()
     try:
-        parent = _open_parent(authority._path)
-        parent_identity = _parent_identity(os.fstat(parent))
-        if parent_identity != authority._parent_identity:
-            raise ValueError("ollama_env_parent_replaced")
-        lock_descriptor = os.open(
-            _LOCK_NAME,
-            os.O_RDWR | os.O_NONBLOCK | os.O_NOFOLLOW | os.O_CLOEXEC,
-            dir_fd=parent,
-        )
-        lock_identity = _lock_identity(os.fstat(lock_descriptor))
         try:
-            fcntl.flock(lock_descriptor, fcntl.LOCK_EX | fcntl.LOCK_NB)
-        except BlockingIOError:
-            raise EnvCredentialFileError("ollama_cloud_store_locked") from None
-        file_descriptor = os.open(
-            _ENV_NAME,
-            os.O_RDONLY | os.O_NONBLOCK | os.O_NOFOLLOW | os.O_CLOEXEC,
-            dir_fd=parent,
-        )
-        file_identity = _file_identity(os.fstat(file_descriptor))
+            parent = _open_parent(authority._path)
+            parent_identity = _parent_identity(os.fstat(parent))
+            if parent_identity != authority._parent_identity:
+                raise ValueError("ollama_env_parent_replaced")
+            lock_descriptor = os.open(
+                _LOCK_NAME,
+                os.O_RDWR | os.O_NONBLOCK | os.O_NOFOLLOW | os.O_CLOEXEC,
+                dir_fd=parent,
+            )
+            lock_identity = _lock_identity(os.fstat(lock_descriptor))
+            try:
+                fcntl.flock(lock_descriptor, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            except BlockingIOError:
+                raise EnvCredentialFileError("ollama_cloud_store_locked") from None
+            file_descriptor = os.open(
+                _ENV_NAME,
+                os.O_RDONLY | os.O_NONBLOCK | os.O_NOFOLLOW | os.O_CLOEXEC,
+                dir_fd=parent,
+            )
+            file_identity = _file_identity(os.fstat(file_descriptor))
+        except EnvCredentialFileError:
+            raise
+        except (BlockingIOError, OSError, ValueError):
+            raise EnvCredentialFileError("ollama_cloud_store_unavailable") from None
         parent_fd = parent
         lock_fd = lock_descriptor
         file_fd = file_descriptor
@@ -492,10 +497,6 @@ def env_credential_file_lease_v1(
             yield lease
         finally:
             lease.invalidate()
-    except EnvCredentialFileError:
-        raise
-    except (BlockingIOError, OSError, ValueError):
-        raise EnvCredentialFileError("ollama_cloud_store_unavailable") from None
     finally:
         state.active = False
         if file_descriptor is not None:
