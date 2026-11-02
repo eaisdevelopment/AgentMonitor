@@ -203,6 +203,7 @@ def _cutover_engine(
     source: str,
     expected_revision: str,
     expected_executable: Path,
+    expected_build: str | None = None,
 ) -> str:
     """Migrate one selected unit. Call only after candidate has been reviewed.
 
@@ -232,6 +233,8 @@ def _cutover_engine(
     if built_page.is_symlink() or not built_page.is_file():
         raise CutoverError("candidate_build_unavailable")
     build_digest = tree_digest(candidate / "frontend/dist")
+    if expected_build is not None and build_digest != expected_build:
+        raise CutoverError("candidate_build_changed")
     before = build_override(baseline).encode()
     after = (
         _candidate_override(candidate)
@@ -381,7 +384,7 @@ def _cutover_engine(
         barrier.exec_driver_sql("BEGIN IMMEDIATE")
         validate_m5_service_activation_lock_v1(shared_lock)
         if unit == _FIXED_UNIT:
-            _fixed_unit_preflight(guarded=True)
+            _fixed_unit_preflight(expected_revision, build_digest, guarded=True)
         _journal(journal, "stop_attempted", backup_id, facts=facts)
         stop_attempted = True
         executable_stat = expected_executable.stat()
@@ -426,7 +429,9 @@ def _cutover_engine(
             raise CutoverError("candidate_changed")
         validate_m5_service_activation_lock_v1(shared_lock)
         if unit == _FIXED_UNIT:
-            _fixed_unit_preflight(guarded=True, candidate=True)
+            _fixed_unit_preflight(
+                expected_revision, build_digest, guarded=True, candidate=True
+            )
         _journal(journal, "candidate_start_attempted", backup_id, facts=facts)
         candidate_start_attempted = True
         # Keep restart disabled, but permit the intended start after durable boundary.
@@ -438,11 +443,23 @@ def _cutover_engine(
         guard_content = replacement
         _ctl("daemon-reload")
         if unit == _FIXED_UNIT:
-            _fixed_unit_preflight(guarded=True, candidate=True, start_block=False)
+            _fixed_unit_preflight(
+                expected_revision,
+                build_digest,
+                guarded=True,
+                candidate=True,
+                start_block=False,
+            )
         operation_stack.close()
         _ctl("start", unit)
         if unit == _FIXED_UNIT:
-            _fixed_unit_preflight(guarded=True, candidate=True, start_block=False)
+            _fixed_unit_preflight(
+                expected_revision,
+                build_digest,
+                guarded=True,
+                candidate=True,
+                start_block=False,
+            )
         current = _properties(unit)
         candidate_pid = int(current.get("MainPID", "0"))
         if (
@@ -536,8 +553,8 @@ def _cutover_engine(
                 release_m5_service_activation_lock_v1(shared_lock)
 
 
-# These identities describe one reviewed candidate and the currently installed
-# unit. A new release needs a separately reviewed change to these constants.
+# Installed target and private runtime are code-owned. Candidate revision and
+# build are selected from the clean fixed worktree and pinned per operation.
 _FIXED_UNIT = "agentmonitor-dashboard.service"
 _FIXED_HOME = Path("/home/dev")
 _FIXED_DATA = _FIXED_HOME / ".local/share/agentmonitor"
@@ -546,12 +563,10 @@ _FIXED_CANDIDATE = _FIXED_DATA / "worktrees/m6-next"
 _FIXED_UNIT_FILE = _FIXED_HOME / ".config/systemd/user" / _FIXED_UNIT
 _FIXED_OVERRIDE = _FIXED_UNIT_FILE.parent / (_FIXED_UNIT + ".d") / "90-m6-local.conf"
 _FIXED_BASELINE_REVISION = "86f27012275c8c2f52fa48098b53fae60a352c55"
-_FIXED_CANDIDATE_REVISION = "2fedf0809fc9cfb23f0cfb147477d040a76c3f65"
 _FIXED_UNIT_SHA256 = "7c233a1117a96e997ed81b5205e52c5e3e66a8efedb2c95aba0b80dada186852"
 _FIXED_OVERRIDE_SHA256 = (
     "cd2445d6e6ab04fbe432c88aa21301d9fbd17dbebd053fba6406f5d5559acfcb"
 )
-_FIXED_BUILD_SHA256 = "625d27573c998c41c8e9b6c1429af9a96c1c26e3d76184c4ca8613844ac7325d"
 _FIXED_EXECUTABLE = Path("/usr/bin/python3.12")
 _FIXED_VENV = _FIXED_DATA / "releases/m6-runtime-2fedf0809fc9"
 _FIXED_VENV_SHA256 = "84112363e7525a6ff42764bfaf7f9dfacbfb22399dfe8275898ac105b3d7edbc"
@@ -714,7 +729,12 @@ def _candidate_override(candidate: Path) -> str:
 
 
 def _fixed_unit_preflight(
-    *, guarded: bool = False, candidate: bool = False, start_block: bool = True
+    expected_revision: str,
+    expected_build: str,
+    *,
+    guarded: bool = False,
+    candidate: bool = False,
+    start_block: bool = True,
 ) -> None:
     if os.getuid() != _FIXED_HOME.stat().st_uid:
         raise CutoverError("target_uid_mismatch")
@@ -804,8 +824,8 @@ def _fixed_unit_preflight(
         raise CutoverError("target_unit_changed")
     if (
         _revision(_FIXED_BASELINE) != _FIXED_BASELINE_REVISION
-        or _revision(_FIXED_CANDIDATE) != _FIXED_CANDIDATE_REVISION
-        or tree_digest(_FIXED_CANDIDATE / "frontend/dist") != _FIXED_BUILD_SHA256
+        or _revision(_FIXED_CANDIDATE) != expected_revision
+        or tree_digest(_FIXED_CANDIDATE / "frontend/dist") != expected_build
         or _runtime_digest(_FIXED_VENV) != _FIXED_VENV_SHA256
         or hashlib.sha256(_FIXED_EXECUTABLE.read_bytes()).hexdigest()
         != _FIXED_PYTHON_SHA256
@@ -856,7 +876,9 @@ def _verify_fixed_candidate_process(properties: dict[str, str]) -> None:
 
 def cutover() -> str:
     """Cut over only the code-owned AgentMonitor service and pinned releases."""
-    _fixed_unit_preflight()
+    candidate_revision = _revision(_FIXED_CANDIDATE)
+    candidate_build = tree_digest(_FIXED_CANDIDATE / "frontend/dist")
+    _fixed_unit_preflight(candidate_revision, candidate_build)
     return _cutover_engine(
         unit=_FIXED_UNIT,
         data_root=_FIXED_DATA,
@@ -864,7 +886,8 @@ def cutover() -> str:
         candidate=_FIXED_CANDIDATE,
         override=_FIXED_OVERRIDE,
         source="v1_0707",
-        expected_revision=_FIXED_CANDIDATE_REVISION,
+        expected_revision=candidate_revision,
+        expected_build=candidate_build,
         expected_executable=_FIXED_EXECUTABLE,
     )
 
