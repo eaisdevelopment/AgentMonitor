@@ -39,10 +39,12 @@ def derive_capacity_alert_condition_v1(
         availability, reason = "stale", "capacity_reading_stale"
     elif window.freshness != "fresh" or deadline is None:
         reason = "capacity_freshness_unknown"
+    elif window.is_constraining is False:
+        # This window's explicit constraint flag is distinct from completeness
+        # of the provider's entire account scope.
+        availability, reason = "unavailable", "capacity_nonconstraining"
     elif window.completeness != "complete":
         reason = "capacity_reading_partial"
-    elif window.is_constraining is False:
-        availability, reason = "unavailable", "capacity_nonconstraining"
     elif allowance is not None and allowance[0].availability.state == "available":
         availability = "current"
         reason = (

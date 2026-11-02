@@ -33,6 +33,9 @@ from agentmonitor.adapters.providers.ollama.cloud_balance.collection import (
     eligible_cloud_account,
     validate_cloud_target,
 )
+from agentmonitor.adapters.providers.ollama.cloud_balance.freshness import (
+    cloud_freshness_deadline_v1,
+)
 from agentmonitor.adapters.providers.ollama.cloud_balance.source import (
     CLOUD_BALANCE_POLICY_V1,
     CloudBalanceSourceResultV1,
@@ -131,8 +134,52 @@ class OllamaCloudCollectionV1:
         self._bindings = SqliteCredentialBindingsV1(reference)
         self._instance = OpaqueIdV1("ollama-cloud-" + uuid.uuid4().hex)
 
+    def _monitored_cloud_account_count(
+        self, run: CollectionRunAdmissionV1 | CollectionRunAdmissionV2
+    ) -> int | None:
+        """Count a revision-stable scope; unknown remains unknown on any failure."""
+        if run.account_id is None:
+            return None
+        try:
+            current = self._registry.get_account(run.account_id)
+            if current is None or current.registry_revision != run.registry_revision:
+                return None
+            cursor = None
+            scanned = 0
+            monitored = 0
+            while True:
+                page = self._registry.list_accounts(
+                    provider_key="ollama", page_size=100, after_key=cursor
+                )
+                scanned += len(page)
+                if scanned > 1000 or any(
+                    item.registry_revision != run.registry_revision for item in page
+                ):
+                    return None
+                monitored += sum(
+                    item.lifecycle == "active" and item.is_effective_monitoring_enabled
+                    for item in page
+                )
+                if len(page) < 100:
+                    break
+                if scanned >= 1000:
+                    return None
+                cursor = page[-1].account_id.value
+            latest = self._registry.get_account(run.account_id)
+            if latest is None or latest.registry_revision != run.registry_revision:
+                return None
+            # The current one-shot verification is one real cloud participant
+            # even before normal monitoring is enabled.
+            if not current.is_effective_monitoring_enabled:
+                monitored += 1
+            return monitored if monitored > 0 else None
+        except (OSError, RuntimeError, ValueError):
+            return None
+
     def _source_provenance(
-        self, run: CollectionRunAdmissionV1, source: CloudBalanceSourceResultV1
+        self,
+        run: CollectionRunAdmissionV1 | CollectionRunAdmissionV2,
+        source: CloudBalanceSourceResultV1,
     ) -> ObservationProvenanceV1:
         manifest = require_cloud_manifest()
         declaration = next(
@@ -142,6 +189,9 @@ class OllamaCloudCollectionV1:
         )
         native = next(
             item for item in declaration.sources if item.source_id == source.source_id
+        )
+        deadline = cloud_freshness_deadline_v1(
+            source.observed_at, self._monitored_cloud_account_count(run)
         )
         return ObservationProvenanceV1(
             provider_key="ollama",
@@ -159,9 +209,11 @@ class OllamaCloudCollectionV1:
             observed_at=source.observed_at,
             observed_at_availability=FieldAvailabilityV1("available"),
             collected_at=datetime.now(UTC),
-            freshness_deadline=None,
-            freshness_availability=FieldAvailabilityV1("unknown"),
-            freshness_policy_id="ollama-cloud-freshness-unknown-v1",
+            freshness_deadline=deadline,
+            freshness_availability=FieldAvailabilityV1(
+                "available" if deadline is not None else "unknown"
+            ),
+            freshness_policy_id="agentmonitor-ollama-round-robin-freshness-v1",
             precision="exact",
             confidence="confirmed",
             confidence_reason_code="provider_reported_balance",

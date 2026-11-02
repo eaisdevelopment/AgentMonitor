@@ -195,3 +195,11 @@ def test_current_nonconstraining_window_reports_not_applicable() -> None:
 def test_stale_nonconstraining_window_cannot_prove_resolution() -> None:
     fact = _derive(replace(_window(), is_constraining=False, freshness="stale"))
     assert fact.reason_code == "capacity_reading_stale"
+
+
+def test_current_nonconstraining_window_can_resolve_with_partial_scope() -> None:
+    fact = _derive(replace(_window(), is_constraining=False, completeness="partial"))
+    assert fact.availability == "unavailable"
+    assert fact.reason_code == "capacity_nonconstraining"
+    assert fact.remaining_basis_points is None
+    assert fact.exhausted is None

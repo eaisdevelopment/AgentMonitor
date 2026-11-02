@@ -47,3 +47,12 @@ resolve an existing capacity alert as no longer applicable without inventing a
 remaining percentage. Four new domain checks failed before the change; 59
 related capacity/alerting domain checks pass. Independent review is pending;
 no real alert lifecycle was exercised.
+
+The candidate now defines an application-owned cloud freshness policy: at
+least 15 minutes or two nominal round-robin turns including the bounded jitter,
+whichever is longer. It is not a provider guarantee; an unknown/inconsistent
+account count yields unknown freshness and a long cooldown may produce a stale
+reading. Pure policy tests failed before the policy existed and pass afterward.
+The repository has no existing audited general freshness-setting use case, so
+the default is not yet administrator-editable. Real provider provenance,
+registry-count races and live stale/current display remain Not Run.

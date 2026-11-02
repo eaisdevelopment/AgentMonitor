@@ -1267,3 +1267,19 @@ with `AGENTMONITOR_TEST_DASHBOARD_CDP_ENDPOINT`,
 `AGENTMONITOR_TEST_AGENT_PID`, and `AGENTMONITOR_TEST_AGENT_DATA_ROOT`. Use only
 local AgentMonitor browser/data-root selectors, no provider paths/credentials.
 The command requires a real owner-completed confirmation and never creates one.
+
+### Ollama cloud reading freshness
+
+The candidate Ollama cloud freshness deadline is an AgentMonitor policy, not
+an Ollama guarantee. It is the observation time plus the greater of 15 minutes
+or two nominal round-robin turns per monitored cloud account, allowing 70
+seconds per account per turn (the 60-second minimum gap plus up to 10 seconds
+of jitter). A one-shot verification counts as a participant even before normal
+monitoring is enabled. If the account count cannot be read consistently, the
+freshness is unknown. A longer provider cooldown can make a reading stale
+before its next permitted poll; the policy never shortens that cooldown.
+
+The current candidate has no audited administrator setting for this policy;
+the default is not editable in the dashboard. Provider access, a live cloud
+reading and the resulting stale/current display remain unverified until the
+owner's credential-policy conflict and live verification are resolved.
