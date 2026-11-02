@@ -50,3 +50,14 @@ passed 13 tests, including prior source revisions. This exposed and corrected
 an earlier accidental change to the v1_0700–v1_0702 schema digest. These tests
 used empty real SQLite schemas; populated upgrades, installed activation and
 restore remain Not Run. No live application database was changed.
+
+## Unwired owned-worker candidate
+
+The cloud worker supervisor launches a separate AgentMonitor-owned process and
+uses bounded termination waits; it is not registered with the dashboard and
+source admission remains disabled. The real unadmitted-worker test failed before
+the worker module existed and passed afterwards without creating a database or
+sending a provider request. Ruff passed. Timeout, cancellation and orphan-helper
+races, real credential use, authenticated reads, crash recovery and the
+completion gate remain Not Run. Pending independent review, this is not an
+activation or shutdown-safety claim. No dependency or license changed.
