@@ -43,6 +43,12 @@ No administrator, account, credential or telemetry was fabricated. The
 isolated processes and temporary databases were removed afterward. This does
 not validate authenticated onboarding, provider access or any `.env` update.
 
+After the unshipped credential-contention schema amendment, canonical
+`AUTO-MIGRATE` passed from a private read-only backup of the installed real
+v1_0707 database to v1_0717, with its verified private pre-migration backup.
+Temporary copies were deleted; installed database and service were unchanged.
+This proves that migration path only, not activation or credential behavior.
+
 The candidate provider now receives a sealed file authority for the same
 explicit path, acquires the shared writer lock, streams the selected binding
 entry, and reloads per attempt. Forty-eight focused pure and provider-free

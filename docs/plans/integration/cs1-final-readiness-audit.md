@@ -1071,3 +1071,11 @@ This binds the versioned integration-owned verification coordinator and schedule
 Plan snapshot SHA-256: `d58d2eb5ae130a730d25d48f3b39947bb497fa3d7d4dd378c26527251351fb4f`
 
 Planning validator SHA-256: `708b8d29fefc68fdf39d9c8e529ffd923fafd02f7e4b0ea55482540192b03d2e`
+
+## 2026-11-02 credential contention structural rebind
+
+This binds the amended unshipped M6 credential-contention outcome and contract metadata. Structural synchronization is not an independent semantic audit or evidence of authenticated provider behavior, owner setup, deployment, or M6 completion.
+
+Plan snapshot SHA-256: `9fadb566c5e5b0742bee20767e2a56351e270f7cba1f6c8152319e5ee88a43c9`
+
+Planning validator SHA-256: `da03531949b5beb574529dfbe41690b69097cd60f7a987b291c2d9ecbbf0c1c6`
