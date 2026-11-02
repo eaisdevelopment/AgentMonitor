@@ -3,6 +3,7 @@
 from datetime import UTC, datetime
 
 from fastapi import APIRouter, Path, Request, Response
+from starlette.concurrency import run_in_threadpool
 
 from agentmonitor.api.problem import ProblemError
 from agentmonitor.api.v1.dependencies import (
@@ -39,6 +40,9 @@ from agentmonitor.contracts.provider_system_v1 import (
 from agentmonitor.contracts.registry_v1 import (
     CredentialConnectionStatusV1,
     InitiateOllamaCloudVerificationCommandV1,
+)
+from agentmonitor.modules.registry.application.organizations import (
+    RegistryCommandConflictV1,
 )
 
 router = APIRouter(tags=["providers"])
@@ -194,13 +198,24 @@ def _ollama_cloud_service(request: Request) -> OllamaCloudConnectionPortV1:
 
 def _ollama_cloud_view(
     value: CredentialConnectionStatusV1,
+    expected_account: OpaqueIdV1,
 ) -> OllamaCloudConnectionStatusV1:
+    if value.account_id != expected_account:
+        raise ProblemError(503, "ollama_cloud_connection_unavailable")
     return OllamaCloudConnectionStatusV1(
         account_id=value.account_id.value,
         state=value.state,
         can_verify=value.can_verify,
         observed_at=value.observed_at,
     )
+
+
+def _ollama_cloud_conflict(error: RegistryCommandConflictV1) -> ProblemError:
+    if str(error) in {"registry_account_version_conflict", "registry_version_conflict"}:
+        return ProblemError(412, "precondition_failed")
+    if str(error) == "registry_idempotency_conflict":
+        return ProblemError(409, "idempotency_key_reused")
+    return ProblemError(503, "ollama_cloud_connection_unavailable")
 
 
 @router.get(
@@ -222,7 +237,8 @@ def get_ollama_cloud_connection(
         return _ollama_cloud_view(
             _ollama_cloud_service(request).read(
                 OpaqueIdV1(account_id), datetime.now(UTC)
-            )
+            ),
+            OpaqueIdV1(account_id),
         )
     except (OSError, ValueError, RuntimeError):
         raise ProblemError(503, "ollama_cloud_connection_unavailable") from None
@@ -242,21 +258,21 @@ def get_ollama_cloud_connection(
         "x-agentmonitor-replay-policy": "replay_safe_connection_receipt",
     },
 )
-def initiate_ollama_cloud_connection(
+async def initiate_ollama_cloud_connection(
     request: Request,
     response: Response,
     account_id: str = Path(min_length=1, max_length=64, pattern=r"^[A-Za-z0-9_-]+$"),
 ) -> OllamaCloudConnectionStatusV1:
-    caller = authorize_request(
-        request, "write:reauth", cookie_only=True, require_csrf=True
+    caller = await run_in_threadpool(
+        authorize_request, request, "write:reauth", cookie_only=True, require_csrf=True
     )
     reject_unknown_query(request, frozenset())
     # This endpoint has no request body and must not accept credentials over HTTP.
-    if (
-        request.headers.get("content-length") != "0"
-        or request.headers.get("transfer-encoding") is not None
-    ):
+    if request.headers.get("content-length") not in {None, "0"}:
         raise ProblemError(400, "request_body_not_allowed")
+    async for chunk in request.stream():
+        if chunk:
+            raise ProblemError(400, "request_body_not_allowed")
     command = InitiateOllamaCloudVerificationCommandV1(
         idempotency_key=_idempotency_key(request),
         principal_id=caller.principal.principal_id,
@@ -265,8 +281,12 @@ def initiate_ollama_cloud_connection(
         requested_at=datetime.now(UTC),
     )
     try:
-        value = _ollama_cloud_service(request).initiate(command)
+        value = await run_in_threadpool(
+            _ollama_cloud_service(request).initiate, command
+        )
         response.headers["Cache-Control"] = "no-store, private"
-        return _ollama_cloud_view(value)
+        return _ollama_cloud_view(value, command.account_id)
+    except RegistryCommandConflictV1 as error:
+        raise _ollama_cloud_conflict(error) from None
     except (OSError, ValueError, RuntimeError):
         raise ProblemError(503, "ollama_cloud_connection_unavailable") from None

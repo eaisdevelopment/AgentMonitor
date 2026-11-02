@@ -4,6 +4,8 @@ import re
 from datetime import UTC, datetime
 from typing import Literal, cast
 
+from fastapi import APIRouter, Query, Request, Response
+
 from agentmonitor.api.problem import ProblemError
 from agentmonitor.api.v1.dependencies import (
     authorize_request,
@@ -62,7 +64,6 @@ from agentmonitor.modules.registry.application.organizations import (
     RegistryCommandConflictV1,
     ReorderOrganizationsCommandV1,
 )
-from fastapi import APIRouter, Query, Request, Response
 
 router = APIRouter(tags=["registry"])
 
@@ -228,6 +229,11 @@ def _masked(item: MaskedRegistryFieldV1) -> MaskedRegistryFieldWireV1:
         masked_value=item.masked_value,
         reason_code=item.reason_code,
     )
+
+
+def _assert_account_matches(item: SourceAccountViewV1, account_id: OpaqueIdV1) -> None:
+    if item.account_id != account_id:
+        raise ProblemError(503, "registry_repository_unavailable")
 
 
 @router.get(
@@ -596,6 +602,7 @@ def get_account(account_id: str, request: Request, response: Response) -> Accoun
         raise ProblemError(503, "registry_repository_unavailable") from None
     if item is None:
         raise ProblemError(404, "registry_subject_not_found")
+    _assert_account_matches(item, OpaqueIdV1(account_id))
     response.headers["ETag"] = f'"{item.account_id.value}.{item.record_version}"'
     return _account(item)
 

@@ -228,3 +228,11 @@ helper and nested fixed Secret Service process inherit the same sealed lock;
 real disposable-process checks cover lock survival without entering a key.
 Authenticated source lookup, rotation during a real request, populated SQLite
 fences and live dashboard behavior remain Not Run. No credential was read.
+
+The account API candidate now binds registry and cloud status responses to the
+requested account, reports only actual job/signal timestamps, accepts genuinely
+empty request bodies without requiring a Content-Length header, and runs IAM and
+SQLite work off the async event loop. Pure red/green checks cover response
+mismatch, stale-version precedence and idempotency conflict mapping. A new-job
+atomic account/version/graph/binding fence and real authenticated HTTP/browser
+checks remain outstanding.

@@ -11,6 +11,7 @@ from agentmonitor.adapters.persistence.capacity.sqlite.repository import (
     SqliteCapacityRepositoryV1,
 )
 from agentmonitor.adapters.persistence.collection_control.sqlite.ollama_cloud_admission import (  # noqa: E501
+    OllamaCloudAdmissionRepositoryErrorV1,
     SqliteOllamaCloudAdmissionRepositoryV1,
 )
 from agentmonitor.adapters.persistence.collection_control.sqlite.repository import (
@@ -46,12 +47,23 @@ from agentmonitor.modules.provider_system.domain.protocol import (
 from agentmonitor.modules.registry.application.accounts import (
     AssertCredentialAccountOwnershipV1,
 )
+from agentmonitor.modules.registry.application.organizations import (
+    RegistryCommandConflictV1,
+)
 from agentmonitor.modules.registry.domain.cloud_connection_status import (
     derive_connection_status,
 )
 from agentmonitor.modules.registry.domain.credential_binding import (
     resolve_active_credential_binding,
 )
+
+
+def _enqueue_conflict(
+    error: OllamaCloudAdmissionRepositoryErrorV1,
+) -> RegistryCommandConflictV1 | None:
+    if error.code == "ollama_cloud_verification_idempotency_conflict":
+        return RegistryCommandConflictV1("registry_idempotency_conflict")
+    return None
 
 
 class OllamaCloudConnectionServiceV1:
@@ -113,7 +125,7 @@ class OllamaCloudConnectionServiceV1:
         binding = resolve_active_credential_binding(self._bindings.read(account_id))
         if binding is None:
             return CredentialConnectionStatusV1(
-                account_id, "not_configured", False, None, as_of, "binding_absent"
+                account_id, "not_configured", False, None, None, "binding_absent"
             )
         status = self._admission.read_verification_status(
             account_id, binding.generation, as_of
@@ -123,7 +135,7 @@ class OllamaCloudConnectionServiceV1:
         signal_reason = job.reason_code if job else None
         job_state = job.state if job else None
         gate_state = status.gate_state
-        observed_at = as_of
+        observed_at = job.terminal_at if job is not None else None
         if verified:
             graph = self._cloud.read_monitoring_target(account_id)
             if graph is None:
@@ -274,15 +286,21 @@ class OllamaCloudConnectionServiceV1:
                 command.requested_at,
             )
         )
-        self._admission.enqueue_verification(
-            OllamaCloudVerificationEnqueueV1(
-                command.idempotency_key,
-                command.principal_id,
-                schedule_id,
-                command.account_id,
-                target.access_target_id,
-                binding.generation,
-                command.requested_at,
+        try:
+            self._admission.enqueue_verification(
+                OllamaCloudVerificationEnqueueV1(
+                    command.idempotency_key,
+                    command.principal_id,
+                    schedule_id,
+                    command.account_id,
+                    target.access_target_id,
+                    binding.generation,
+                    command.requested_at,
+                )
             )
-        )
+        except OllamaCloudAdmissionRepositoryErrorV1 as error:
+            conflict = _enqueue_conflict(error)
+            if conflict is not None:
+                raise conflict from None
+            raise
         return self.read(command.account_id, command.requested_at)

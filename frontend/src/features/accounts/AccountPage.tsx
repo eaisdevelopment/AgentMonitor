@@ -74,6 +74,10 @@ export function AccountPage({
         else setState({ kind: "error", message: "Accounts could not be loaded from the local service." });
         return;
       }
+      if (detail !== null && detail.data.account_id !== accountId) {
+        setState({ kind: "error", message: "Account details did not match the requested account." });
+        return;
+      }
       setState({
         kind: "ready",
         data: result.data,
