@@ -23,6 +23,8 @@ from agentmonitor.contracts.collection_control_v1 import (
     CollectionRunAdmissionV2,
     CollectionRunStateV1,
     OllamaCloudAdmissionDecisionV1,
+    OllamaCloudLatestSourceSignalQueryV1,
+    OllamaCloudLatestSourceSignalV1,
     OllamaCloudNoResponseCompletionV2,
     OllamaCloudRateGateViewV1,
     OllamaCloudRequestAcquireV1,
@@ -31,7 +33,9 @@ from agentmonitor.contracts.collection_control_v1 import (
     OllamaCloudVerificationAcquireV1,
     OllamaCloudVerificationClaimRequestV1,
     OllamaCloudVerificationClaimTerminalV1,
+    OllamaCloudVerificationDispatchCertaintyV1,
     OllamaCloudVerificationEnqueueV1,
+    OllamaCloudVerificationGateStateV1,
     OllamaCloudVerificationInterruptionProofV1,
     OllamaCloudVerificationJobClaimV1,
     OllamaCloudVerificationJobViewV1,
@@ -52,6 +56,7 @@ from agentmonitor.modules.collection_control.domain.ollama_rate_policy import (
 from agentmonitor.modules.collection_control.domain.ollama_verification import (
     RECONCILABLE_VERIFICATION_RUN_STATES_V1,
     VERIFICATION_RESPONSE_OUTCOME_V1,
+    classify_latest_ollama_cloud_source_signal_v1,
     verification_completion_decision,
     verification_lineage_matches,
 )
@@ -176,6 +181,28 @@ def _gate_view(row: RowMapping) -> OllamaCloudRateGateViewV1:
         record_version=int(row["record_version"]),
         updated_at=_utc_value(row["updated_at"]),
     )
+
+
+def _gate_status(
+    connection: Connection, queried_at: datetime
+) -> tuple[str, datetime | None]:
+    """Read the provider-global gate without guessing an expired active lease."""
+    _assert_terminal_gate_consistency(connection)
+    gate = _gate_row(connection)
+    if gate is None:
+        return "ready", None
+    if gate["active_admission_id"] is not None:
+        active = _admission_row(connection, str(gate["active_admission_id"]))
+        if active is None or active["state"] != "active":
+            raise OllamaCloudAdmissionRepositoryErrorV1("ollama_cloud_fencing_conflict")
+        expiry = _utc_value(active["lease_expires_at"])
+        if expiry <= queried_at:
+            return "unresolved", None
+        return "busy", max(expiry, _utc_value(gate["next_allowed_at"]))
+    next_allowed = _utc_value(gate["next_allowed_at"])
+    if next_allowed > queried_at:
+        return "not_due", next_allowed
+    return "ready", None
 
 
 def _idempotency_digest(principal_id: str, idempotency_key: str) -> str:
@@ -1856,6 +1883,157 @@ class SqliteOllamaCloudAdmissionRepositoryV1:
                         gate_state=gate_state,  # type: ignore[arg-type]
                         retry_at=retry_at,
                         queried_at=queried_at,
+                    )
+        except OllamaCloudAdmissionRepositoryErrorV1:
+            raise
+        except (SQLAlchemyError, SqlitePolicyError, OSError, ValueError, TypeError):
+            raise OllamaCloudAdmissionRepositoryErrorV1() from None
+
+    def read_latest_source_signal(
+        self, query: OllamaCloudLatestSourceSignalQueryV1
+    ) -> OllamaCloudLatestSourceSignalV1:
+        """Read one exact target/source's latest sanitized M04 outcome."""
+        if not isinstance(query, OllamaCloudLatestSourceSignalQueryV1):
+            raise OllamaCloudAdmissionRepositoryErrorV1(
+                "ollama_cloud_source_signal_query_invalid"
+            )
+        try:
+            with open_sqlite_database(
+                self._database_ref, "runtime_read_only"
+            ) as handle:
+                with handle.connect() as connection:
+                    row = (
+                        connection.exec_driver_sql(
+                            "SELECT r.run_id,r.schedule_id,r.state,r.requested_at,"
+                            "j.admission_id,j.phase,j.outcome,j.response_received_at,"
+                            "j.failure_code,a.state AS admission_state,"
+                            "a.account_id AS admission_account_id,"
+                            "a.schedule_id AS admission_schedule_id,"
+                            "t.terminal_at AS no_response_terminal_at,"
+                            "t.source_state AS no_response_source_state,"
+                            "t.dispatch_certainty AS no_response_certainty "
+                            "FROM collection_run r "
+                            "LEFT JOIN collection_cloud_attempt_journal j "
+                            "ON j.run_id=r.run_id "
+                            "LEFT JOIN collection_ollama_cloud_admission a "
+                            "ON a.admission_id=j.admission_id "
+                            "LEFT JOIN collection_cloud_no_response_terminal t "
+                            "ON t.admission_id=j.admission_id "
+                            "WHERE r.provider_key='ollama' AND r.account_id=? "
+                            "AND r.provider_target_kind='cloud_service' "
+                            "AND r.provider_target_id=? AND r.target_generation=? "
+                            "AND r.capability_id=? AND r.source_id=? "
+                            "AND r.adapter_version=? AND r.manifest_fingerprint=? "
+                            "AND r.payload_schema=? "
+                            "ORDER BY r.requested_at DESC,r.run_id DESC LIMIT 1",
+                            (
+                                query.account_id.value,
+                                query.access_target_id.value,
+                                query.binding_generation,
+                                query.capability_id,
+                                query.source_id,
+                                query.adapter_version,
+                                query.source_fingerprint,
+                                query.payload_schema,
+                            ),
+                        )
+                        .mappings()
+                        .one_or_none()
+                    )
+                    gate_state, retry_at = _gate_status(connection, query.queried_at)
+                    if row is None:
+                        return OllamaCloudLatestSourceSignalV1(
+                            account_id=query.account_id,
+                            binding_generation=query.binding_generation,
+                            access_target_id=query.access_target_id,
+                            capability_id=query.capability_id,
+                            source_id=query.source_id,
+                            adapter_version=query.adapter_version,
+                            source_fingerprint=query.source_fingerprint,
+                            payload_schema=query.payload_schema,
+                            signal="outcome_unresolved",
+                            run_id=None,
+                            admission_id=None,
+                            run_state=None,
+                            dispatch_certainty=None,
+                            run_requested_at=None,
+                            signal_observed_at=None,
+                            gate_state=cast(
+                                OllamaCloudVerificationGateStateV1, gate_state
+                            ),
+                            retry_at=retry_at,
+                            queried_at=query.queried_at,
+                        )
+                    if (
+                        row["admission_id"] is None
+                        or row["admission_state"] is None
+                        or row["admission_account_id"] != query.account_id.value
+                        or row["admission_schedule_id"] != row["schedule_id"]
+                    ):
+                        raise OllamaCloudAdmissionRepositoryErrorV1(
+                            "ollama_cloud_fencing_conflict"
+                        )
+                    phase = str(row["phase"])
+                    if row["no_response_terminal_at"] is not None:
+                        certainty = str(row["no_response_certainty"])
+                        outcome = None
+                        failure = (
+                            str(row["no_response_source_state"])
+                            if row["no_response_source_state"] is not None
+                            else None
+                        )
+                        observed_at = _utc_value(row["no_response_terminal_at"])
+                    elif phase == "outcome":
+                        certainty = "response_received"
+                        outcome = str(row["outcome"])
+                        failure = (
+                            str(row["failure_code"])
+                            if row["failure_code"] is not None
+                            else None
+                        )
+                        observed_at = _utc_value(row["response_received_at"])
+                    elif phase == "reserved":
+                        certainty = "not_started"
+                        outcome = None
+                        failure = None
+                        observed_at = None
+                    elif phase in {"dispatched", "legacy_unresolved"}:
+                        certainty = "may_have_started"
+                        outcome = None
+                        failure = None
+                        observed_at = None
+                    else:
+                        raise OllamaCloudAdmissionRepositoryErrorV1(
+                            "ollama_cloud_fencing_conflict"
+                        )
+                    run_state = str(row["state"])
+                    signal = classify_latest_ollama_cloud_source_signal_v1(
+                        run_state=run_state,
+                        dispatch_certainty=certainty,
+                        outcome=outcome,
+                        failure_code=failure,
+                    )
+                    return OllamaCloudLatestSourceSignalV1(
+                        account_id=query.account_id,
+                        binding_generation=query.binding_generation,
+                        access_target_id=query.access_target_id,
+                        capability_id=query.capability_id,
+                        source_id=query.source_id,
+                        adapter_version=query.adapter_version,
+                        source_fingerprint=query.source_fingerprint,
+                        payload_schema=query.payload_schema,
+                        signal=signal,
+                        run_id=OpaqueIdV1(str(row["run_id"])),
+                        admission_id=OpaqueIdV1(str(row["admission_id"])),
+                        run_state=cast(CollectionRunStateV1, run_state),
+                        dispatch_certainty=cast(
+                            OllamaCloudVerificationDispatchCertaintyV1, certainty
+                        ),
+                        run_requested_at=_utc_value(row["requested_at"]),
+                        signal_observed_at=observed_at,
+                        gate_state=cast(OllamaCloudVerificationGateStateV1, gate_state),
+                        retry_at=retry_at,
+                        queried_at=query.queried_at,
                     )
         except OllamaCloudAdmissionRepositoryErrorV1:
             raise

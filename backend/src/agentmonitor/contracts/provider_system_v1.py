@@ -506,6 +506,12 @@ class SourcePolicyV1(TechnicalValueV1):
 
 
 ScheduledSourceRunStateV1 = Literal["succeeded", "partial"]
+ScheduledSourceSignalRunStateV1 = Literal[
+    "succeeded", "partial", "failed", "blocked", "cancelled", "unsupported"
+]
+ScheduledSourceSignalDispatchCertaintyV1 = Literal[
+    "not_started", "may_have_started", "response_received"
+]
 ScheduledSourceAuthorizationSignalV1 = Literal[
     "verified_success",
     "credential_unauthorized",
@@ -625,6 +631,19 @@ class ScheduledSourceLineageV1(TechnicalValueV1):
     commit_stored_at: datetime
     identity_provenance: Literal["owner_asserted"]
     authorization_signal: ScheduledSourceAuthorizationSignalV1
+    authorization_signal_run_id: OpaqueIdV1
+    authorization_signal_admission_id: OpaqueIdV1
+    authorization_signal_account_id: OpaqueIdV1
+    authorization_signal_binding_generation: int
+    authorization_signal_access_target_id: OpaqueIdV1
+    authorization_signal_source_id: str
+    authorization_signal_adapter_version: str
+    authorization_signal_source_fingerprint: str
+    authorization_signal_payload_schema: str
+    authorization_signal_run_state: ScheduledSourceSignalRunStateV1
+    authorization_signal_dispatch_certainty: ScheduledSourceSignalDispatchCertaintyV1
+    authorization_signal_run_requested_at: datetime
+    authorization_signal_observed_at: datetime | None
 
     def __post_init__(self) -> None:
         TechnicalValueV1.__post_init__(self)
@@ -640,6 +659,10 @@ class ScheduledSourceLineageV1(TechnicalValueV1):
             self.probe_admission_id,
             self.run_account_id,
             self.commit_run_id,
+            self.authorization_signal_run_id,
+            self.authorization_signal_admission_id,
+            self.authorization_signal_account_id,
+            self.authorization_signal_access_target_id,
         )
         if (
             not all(isinstance(value, OpaqueIdV1) for value in identifiers)
@@ -651,6 +674,8 @@ class ScheduledSourceLineageV1(TechnicalValueV1):
             or self.commit_target_generation < 1
             or type(self.run_target_generation) is not int
             or self.run_target_generation < 1
+            or type(self.authorization_signal_binding_generation) is not int
+            or self.authorization_signal_binding_generation < 1
             or not all(
                 _bounded_token(value)
                 for value in (
@@ -662,6 +687,9 @@ class ScheduledSourceLineageV1(TechnicalValueV1):
                     self.run_source_id,
                     self.run_adapter_version,
                     self.commit_payload_schema,
+                    self.authorization_signal_source_id,
+                    self.authorization_signal_adapter_version,
+                    self.authorization_signal_payload_schema,
                 )
             )
             or _CAPABILITY_ID.fullmatch(self.capability_id) is None
@@ -669,9 +697,29 @@ class ScheduledSourceLineageV1(TechnicalValueV1):
             or _SHA256.fullmatch(self.payload_digest) is None
             or _SHA256.fullmatch(self.run_payload_digest) is None
             or _SHA256.fullmatch(self.commit_payload_digest) is None
+            or _SHA256.fullmatch(self.authorization_signal_source_fingerprint) is None
             or not isinstance(self.verified_at, datetime)
             or not isinstance(self.commit_stored_at, datetime)
             or self.commit_stored_at < self.verified_at
+            or not isinstance(self.authorization_signal_run_requested_at, datetime)
+            or (
+                self.authorization_signal_observed_at is not None
+                and (
+                    not isinstance(self.authorization_signal_observed_at, datetime)
+                    or self.authorization_signal_observed_at
+                    < self.authorization_signal_run_requested_at
+                )
+            )
+            or (
+                self.authorization_signal != "outcome_unresolved"
+                and self.authorization_signal_observed_at is None
+            )
+            or self.authorization_signal == "transient_failure"
+            and (
+                self.authorization_signal_run_state != "failed"
+                or self.authorization_signal_dispatch_certainty
+                not in {"not_started", "response_received"}
+            )
         ):
             raise InvalidProviderContract("scheduled_source_lineage_invalid")
 
@@ -704,6 +752,12 @@ class ScheduledSourceAdmissionProofV1(TechnicalValueV1):
     evaluated_at: datetime
     identity_provenance: Literal["owner_asserted"]
     authorization_signal: ScheduledSourceAuthorizationSignalV1
+    authorization_signal_run_id: OpaqueIdV1
+    authorization_signal_admission_id: OpaqueIdV1
+    authorization_signal_run_state: ScheduledSourceSignalRunStateV1
+    authorization_signal_dispatch_certainty: ScheduledSourceSignalDispatchCertaintyV1
+    authorization_signal_run_requested_at: datetime
+    authorization_signal_observed_at: datetime | None
 
     def __post_init__(self) -> None:
         TechnicalValueV1.__post_init__(self)
@@ -718,6 +772,8 @@ class ScheduledSourceAdmissionProofV1(TechnicalValueV1):
                     self.access_target_id,
                     self.probe_run_id,
                     self.probe_admission_id,
+                    self.authorization_signal_run_id,
+                    self.authorization_signal_admission_id,
                 )
             )
             or _SHA256.fullmatch(self.policy_digest) is None
@@ -739,6 +795,27 @@ class ScheduledSourceAdmissionProofV1(TechnicalValueV1):
             or not isinstance(self.verified_at, datetime)
             or not isinstance(self.evaluated_at, datetime)
             or self.evaluated_at < self.verified_at
+            or not isinstance(self.authorization_signal_run_requested_at, datetime)
+            or self.authorization_signal_run_requested_at > self.evaluated_at
+            or (
+                self.authorization_signal_observed_at is not None
+                and (
+                    not isinstance(self.authorization_signal_observed_at, datetime)
+                    or self.authorization_signal_observed_at
+                    < self.authorization_signal_run_requested_at
+                    or self.authorization_signal_observed_at > self.evaluated_at
+                )
+            )
+            or (
+                self.authorization_signal != "outcome_unresolved"
+                and self.authorization_signal_observed_at is None
+            )
+            or self.authorization_signal == "transient_failure"
+            and (
+                self.authorization_signal_run_state != "failed"
+                or self.authorization_signal_dispatch_certainty
+                not in {"not_started", "response_received"}
+            )
         ):
             raise InvalidProviderContract("scheduled_source_proof_invalid")
 

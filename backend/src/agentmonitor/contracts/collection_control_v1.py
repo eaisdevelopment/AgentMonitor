@@ -48,6 +48,15 @@ OllamaCloudVerificationGateStateV1 = Literal["ready", "not_due", "busy", "unreso
 OllamaCloudVerificationDispatchCertaintyV1 = Literal[
     "not_started", "may_have_started", "response_received"
 ]
+OllamaCloudSourceAuthorizationSignalV1 = Literal[
+    "verified_success",
+    "credential_unauthorized",
+    "provider_schema_incompatible",
+    "rate_limited",
+    "transient_failure",
+    "authorization_unavailable",
+    "outcome_unresolved",
+]
 
 CollectorHealthStateV1 = Literal[
     "healthy",
@@ -650,6 +659,154 @@ class OllamaCloudVerificationStatusV1(TechnicalValueV1):
             )
         ):
             raise InvalidCollectionControlV1("ollama_cloud_verification_status_invalid")
+
+
+@dataclass(frozen=True, slots=True)
+class OllamaCloudLatestSourceSignalQueryV1(TechnicalValueV1):
+    """Exact current cloud source whose latest M04 signal is requested."""
+
+    CONTRACT_ID: ClassVar[str] = "CTR-COL-008"
+    OWNER: ClassVar[str] = "PLAN-M04"
+
+    account_id: OpaqueIdV1
+    binding_generation: int
+    access_target_id: OpaqueIdV1
+    capability_id: str
+    source_id: str
+    adapter_version: str
+    source_fingerprint: str
+    payload_schema: str
+    queried_at: datetime
+
+    def __post_init__(self) -> None:
+        TechnicalValueV1.__post_init__(self)
+        if (
+            not isinstance(self.account_id, OpaqueIdV1)
+            or not _cloud_access_target_id(self.access_target_id)
+            or type(self.binding_generation) is not int
+            or self.binding_generation < 1
+            or not all(
+                _bounded(value)
+                for value in (
+                    self.capability_id,
+                    self.source_id,
+                    self.adapter_version,
+                    self.payload_schema,
+                )
+            )
+            or _SHA256.fullmatch(self.source_fingerprint) is None
+            or not _utc(self.queried_at)
+        ):
+            raise InvalidCollectionControlV1("ollama_cloud_source_signal_query_invalid")
+
+
+@dataclass(frozen=True, slots=True)
+class OllamaCloudLatestSourceSignalV1(TechnicalValueV1):
+    """Latest exact-source outcome plus the authoritative global gate state."""
+
+    CONTRACT_ID: ClassVar[str] = "CTR-COL-008"
+    OWNER: ClassVar[str] = "PLAN-M04"
+
+    account_id: OpaqueIdV1
+    binding_generation: int
+    access_target_id: OpaqueIdV1
+    capability_id: str
+    source_id: str
+    adapter_version: str
+    source_fingerprint: str
+    payload_schema: str
+    signal: OllamaCloudSourceAuthorizationSignalV1
+    run_id: OpaqueIdV1 | None
+    admission_id: OpaqueIdV1 | None
+    run_state: CollectionRunStateV1 | None
+    dispatch_certainty: OllamaCloudVerificationDispatchCertaintyV1 | None
+    run_requested_at: datetime | None
+    signal_observed_at: datetime | None
+    gate_state: OllamaCloudVerificationGateStateV1
+    retry_at: datetime | None
+    queried_at: datetime
+
+    def __post_init__(self) -> None:
+        TechnicalValueV1.__post_init__(self)
+        has_run = self.run_id is not None
+        non_terminal = self.run_state in {
+            "requested",
+            "queued",
+            "running",
+            "committing",
+        }
+        terminal_signal = self.signal != "outcome_unresolved"
+        requires_retry = self.gate_state in {"not_due", "busy"}
+        if (
+            not isinstance(self.account_id, OpaqueIdV1)
+            or not _cloud_access_target_id(self.access_target_id)
+            or type(self.binding_generation) is not int
+            or self.binding_generation < 1
+            or not all(
+                _bounded(value)
+                for value in (
+                    self.capability_id,
+                    self.source_id,
+                    self.adapter_version,
+                    self.payload_schema,
+                )
+            )
+            or _SHA256.fullmatch(self.source_fingerprint) is None
+            or has_run
+            != (
+                self.admission_id is not None
+                and self.run_state is not None
+                and self.dispatch_certainty is not None
+                and self.run_requested_at is not None
+            )
+            or terminal_signal
+            and (not has_run or non_terminal or self.signal_observed_at is None)
+            or self.signal == "verified_success"
+            and (
+                self.run_state not in {"succeeded", "partial"}
+                or self.dispatch_certainty != "response_received"
+            )
+            or self.signal
+            in {
+                "credential_unauthorized",
+                "provider_schema_incompatible",
+                "rate_limited",
+            }
+            and (
+                self.run_state != "failed"
+                or self.dispatch_certainty != "response_received"
+            )
+            or self.signal == "authorization_unavailable"
+            and (self.run_state != "failed" or self.dispatch_certainty != "not_started")
+            or self.signal == "transient_failure"
+            and (
+                self.run_state != "failed"
+                or self.dispatch_certainty not in {"not_started", "response_received"}
+            )
+            or not _utc(self.queried_at)
+            or (
+                self.run_requested_at is not None
+                and (
+                    not _utc(self.run_requested_at)
+                    or self.run_requested_at > self.queried_at
+                )
+            )
+            or (
+                self.signal_observed_at is not None
+                and (
+                    not _utc(self.signal_observed_at)
+                    or self.run_requested_at is None
+                    or self.signal_observed_at < self.run_requested_at
+                    or self.signal_observed_at > self.queried_at
+                )
+            )
+            or requires_retry != (self.retry_at is not None)
+            or (
+                self.retry_at is not None
+                and (not _utc(self.retry_at) or self.retry_at <= self.queried_at)
+            )
+        ):
+            raise InvalidCollectionControlV1("ollama_cloud_source_signal_invalid")
 
 
 @dataclass(frozen=True, slots=True)

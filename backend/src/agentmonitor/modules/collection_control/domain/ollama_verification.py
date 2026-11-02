@@ -5,6 +5,7 @@ from typing import Literal
 from agentmonitor.contracts.collection_control_v1 import (
     CollectionRunStateV1,
     OllamaCloudAdmissionOutcomeV1,
+    OllamaCloudSourceAuthorizationSignalV1,
 )
 
 OllamaVerificationCompletionDecisionV1 = Literal[
@@ -23,6 +24,77 @@ RECONCILABLE_VERIFICATION_RUN_STATES_V1: tuple[CollectionRunStateV1, ...] = (
     "cancelled",
     "unsupported",
 )
+
+
+def classify_latest_ollama_cloud_source_signal_v1(
+    *,
+    run_state: str,
+    dispatch_certainty: str | None,
+    outcome: str | None,
+    failure_code: str | None,
+) -> OllamaCloudSourceAuthorizationSignalV1:
+    """Classify only M04's closed sanitized journal facts, never reason text."""
+    if (
+        run_state
+        not in {
+            "requested",
+            "queued",
+            "running",
+            "committing",
+            "succeeded",
+            "partial",
+            "failed",
+            "blocked",
+            "cancelled",
+            "unsupported",
+        }
+        or dispatch_certainty
+        not in {None, "not_started", "may_have_started", "response_received"}
+        or outcome not in {None, "succeeded", "rate_limited", "failed"}
+        or failure_code
+        not in {
+            None,
+            "authorization_unavailable",
+            "unauthorized",
+            "access_denied",
+            "rate_limited",
+            "provider_unavailable",
+            "unexpected_response",
+            "invalid_provider_data",
+            "deadline_exceeded",
+            "internal_adapter_error",
+            "source_not_admitted",
+        }
+    ):
+        raise ValueError("ollama_cloud_source_signal_invalid")
+    if run_state in _NONTERMINAL_RUNS:
+        return "outcome_unresolved"
+    if dispatch_certainty == "response_received":
+        if (
+            run_state in _COMMITTED_RUNS
+            and outcome == "succeeded"
+            and failure_code is None
+        ):
+            return "verified_success"
+        if run_state != "failed":
+            return "outcome_unresolved"
+        if outcome == "rate_limited" and failure_code == "rate_limited":
+            return "rate_limited"
+        if outcome != "failed":
+            return "outcome_unresolved"
+        if failure_code in {"unauthorized", "access_denied"}:
+            return "credential_unauthorized"
+        if failure_code == "invalid_provider_data":
+            return "provider_schema_incompatible"
+        if failure_code in {"provider_unavailable", "deadline_exceeded"}:
+            return "transient_failure"
+        return "outcome_unresolved"
+    if dispatch_certainty == "not_started" and run_state == "failed":
+        if failure_code == "authorization_unavailable":
+            return "authorization_unavailable"
+        if failure_code in {"provider_unavailable", "deadline_exceeded"}:
+            return "transient_failure"
+    return "outcome_unresolved"
 
 
 def verification_lineage_matches(

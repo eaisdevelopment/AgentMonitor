@@ -456,6 +456,17 @@ class ProviderAccessTargetV1(TechnicalValueV1):
             raise ValueError("registry_provider_access_target_invalid")
 
 
+class ProviderAccessTargetReadPortV1(Protocol):
+    """Read one active code-owned cloud target without reconciling or writing."""
+
+    CONTRACT_ID: ClassVar[str] = "CTR-REG-012"
+    OWNER: ClassVar[str] = "PLAN-M02"
+
+    def read_active_access_target(
+        self, access_target_id: OpaqueIdV1
+    ) -> ProviderAccessTargetV1 | None: ...
+
+
 @dataclass(frozen=True, slots=True)
 class CloudMonitoringTargetV1(TechnicalValueV1):
     """Owner-confirmed cloud graph independent of a local installation."""

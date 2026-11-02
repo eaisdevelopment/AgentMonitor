@@ -120,6 +120,44 @@ def derive_scheduled_source_admission_v1(
         or lineage.commit_target_generation != lineage.binding_generation
         or lineage.commit_payload_schema != lineage.payload_schema
         or lineage.commit_payload_digest != lineage.payload_digest
+        or lineage.authorization_signal_account_id != lineage.account_id
+        or lineage.authorization_signal_binding_generation != lineage.binding_generation
+        or lineage.authorization_signal_access_target_id != lineage.access_target_id
+        or lineage.authorization_signal_source_id != lineage.source_id
+        or lineage.authorization_signal_adapter_version != lineage.adapter_version
+        or lineage.authorization_signal_source_fingerprint != lineage.source_fingerprint
+        or lineage.authorization_signal_payload_schema != lineage.payload_schema
+        or lineage.authorization_signal_run_requested_at > evaluated_at
+        or (
+            lineage.authorization_signal_observed_at is not None
+            and lineage.authorization_signal_observed_at > evaluated_at
+        )
+        or lineage.authorization_signal == "verified_success"
+        and (
+            lineage.authorization_signal_run_state not in {"succeeded", "partial"}
+            or lineage.authorization_signal_dispatch_certainty != "response_received"
+        )
+        or lineage.authorization_signal
+        in {
+            "credential_unauthorized",
+            "provider_schema_incompatible",
+            "rate_limited",
+        }
+        and (
+            lineage.authorization_signal_run_state != "failed"
+            or lineage.authorization_signal_dispatch_certainty != "response_received"
+        )
+        or lineage.authorization_signal == "authorization_unavailable"
+        and (
+            lineage.authorization_signal_run_state != "failed"
+            or lineage.authorization_signal_dispatch_certainty != "not_started"
+        )
+        or lineage.authorization_signal == "transient_failure"
+        and (
+            lineage.authorization_signal_run_state != "failed"
+            or lineage.authorization_signal_dispatch_certainty
+            not in {"not_started", "response_received"}
+        )
         or evaluated_at < lineage.commit_stored_at
     ):
         raise provider_contracts.InvalidProviderContract(
@@ -147,6 +185,16 @@ def derive_scheduled_source_admission_v1(
         evaluated_at=evaluated_at,
         identity_provenance=lineage.identity_provenance,
         authorization_signal=lineage.authorization_signal,
+        authorization_signal_run_id=lineage.authorization_signal_run_id,
+        authorization_signal_admission_id=lineage.authorization_signal_admission_id,
+        authorization_signal_run_state=lineage.authorization_signal_run_state,
+        authorization_signal_dispatch_certainty=(
+            lineage.authorization_signal_dispatch_certainty
+        ),
+        authorization_signal_run_requested_at=(
+            lineage.authorization_signal_run_requested_at
+        ),
+        authorization_signal_observed_at=lineage.authorization_signal_observed_at,
     )
 
 

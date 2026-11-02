@@ -84,6 +84,19 @@ def lineage() -> ScheduledSourceLineageV1:
         commit_stored_at=NOW + timedelta(seconds=1),
         identity_provenance="owner_asserted",
         authorization_signal="verified_success",
+        authorization_signal_run_id=OpaqueIdV1("probe-run"),
+        authorization_signal_admission_id=OpaqueIdV1("probe-admission"),
+        authorization_signal_account_id=OpaqueIdV1("account"),
+        authorization_signal_binding_generation=3,
+        authorization_signal_access_target_id=OpaqueIdV1("amat_" + "3" * 32),
+        authorization_signal_source_id="ollama.cloud.balance.v1",
+        authorization_signal_adapter_version="1.1.0",
+        authorization_signal_source_fingerprint=SOURCE_FINGERPRINT,
+        authorization_signal_payload_schema="ProviderQuotaInputV2@2",
+        authorization_signal_run_state="partial",
+        authorization_signal_dispatch_certainty="response_received",
+        authorization_signal_run_requested_at=NOW - timedelta(seconds=1),
+        authorization_signal_observed_at=NOW,
     )
 
 
@@ -100,6 +113,7 @@ def test_exact_probe_lineage_derives_ephemeral_scheduled_admission() -> None:
     assert proof.probe_run_id == OpaqueIdV1("probe-run")
     assert proof.source_fingerprint == SOURCE_FINGERPRINT
     assert proof.identity_provenance == "owner_asserted"
+    assert proof.authorization_signal_run_id == OpaqueIdV1("probe-run")
 
 
 @pytest.mark.parametrize(
@@ -117,6 +131,13 @@ def test_exact_probe_lineage_derives_ephemeral_scheduled_admission() -> None:
         {"commit_target_generation": 4},
         {"commit_payload_schema": "OtherPayloadV1@1"},
         {"commit_payload_digest": "d" * 64},
+        {"authorization_signal_account_id": OpaqueIdV1("other-account")},
+        {"authorization_signal_binding_generation": 4},
+        {"authorization_signal_access_target_id": OpaqueIdV1("amat_" + "4" * 32)},
+        {"authorization_signal_source_id": "other.source.v1"},
+        {"authorization_signal_adapter_version": "2.0.0"},
+        {"authorization_signal_source_fingerprint": "d" * 64},
+        {"authorization_signal_payload_schema": "OtherPayloadV1@1"},
     ),
 )
 def test_mismatched_current_or_commit_lineage_is_not_admitted(
@@ -178,9 +199,24 @@ def test_authoritative_auth_or_schema_failure_revokes_scheduled_admission(
     "signal", ("rate_limited", "transient_failure", "authorization_unavailable")
 )
 def test_temporary_failure_preserves_generation_bound_admission(signal: str) -> None:
+    certainty = (
+        "not_started" if signal == "authorization_unavailable" else "response_received"
+    )
     proof = derive_scheduled_source_admission_v1(
         policy(),
-        replace(lineage(), authorization_signal=signal),  # type: ignore[arg-type]
+        replace(
+            lineage(),
+            authorization_signal=signal,  # type: ignore[arg-type]
+            authorization_signal_run_state="failed",
+            authorization_signal_dispatch_certainty=certainty,  # type: ignore[arg-type]
+        ),
         evaluated_at=NOW + timedelta(seconds=2),
     )
     assert proof.authorization_signal == signal
+
+
+def test_transient_signal_cannot_preserve_admission_from_a_successful_run() -> None:
+    with pytest.raises(
+        InvalidProviderContract, match="scheduled_source_lineage_invalid"
+    ):
+        replace(lineage(), authorization_signal="transient_failure")

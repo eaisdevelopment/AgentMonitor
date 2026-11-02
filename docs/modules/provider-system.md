@@ -23,7 +23,10 @@ invalidation policy versions.
 
 The proof is an ephemeral composition value, not a database permission or a
 global provider-manifest claim. Composition must rebuild it before every
-dispatch from current M02, M04 and M05 views. Rotation, disconnect, archive,
+dispatch from current M02, M04 and M05 views. Its authorization signal binds
+the exact M04 run/admission, account, credential generation, access target,
+source, adapter, source-policy fingerprint, payload schema, run state,
+dispatch certainty and observed time. Rotation, disconnect, archive,
 monitoring disable, target change, owner-authorization removal, source-policy
 change, an unresolved outcome, 401/403, or incompatible provider data blocks
 admission. Rate limiting, temporary provider/network failure and a temporarily
@@ -33,10 +36,10 @@ remain subject to M04's durable gate and backoff. The value carries only
 membership or sharing scope.
 
 This is a compatible additive use of `CTR-PROV-003` V1. It adds no database,
-HTTP, generated-client, event or dependency change. The Ollama composition
-still needs a narrow M04 read that classifies the latest exact binding/source
-outcome without interpreting free-form reason text, then projects the actual
-M02/M04/M05 receipts into this proof.
+HTTP, generated-client, event or dependency change. M04 now publishes the
+narrow closed latest-signal read and M02 publishes an active access-target
+read; the Ollama composition still must join those reads to the actual M02 and
+M05 receipts and rederive the proof immediately before M04 acquisition.
 
 ## Exact Claude Code 2.1.289 admission
 

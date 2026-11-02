@@ -23,6 +23,16 @@ credential contents, or expose private provider/profile locators. Provider I/O
 belongs to provider adapters through M03. API and UI integration belong to P01
 and P02 and are outside this implementation slice.
 
+For the M6 cloud increment, the additive registry V1 access-target contract
+keeps an official cloud access target distinct from every local provider
+installation. The read-only
+`ProviderAccessTargetReadPortV1` returns one exact target only while both the
+target and its provider definition are active. It never reconciles, creates or
+updates a target and exposes no credential reference. Composition must still
+verify the returned provider authority and manifest fingerprint against the
+reviewed source policy; the port itself neither authorizes provider I/O nor
+claims provider identity.
+
 Allowed dependencies are foundation/common and provider-system V1 contracts,
 plus the SQLite persistence adapter. Domain and application code contain no
 FastAPI, SQLAlchemy, provider SDK/CLI, operating-system, or UI dependency.

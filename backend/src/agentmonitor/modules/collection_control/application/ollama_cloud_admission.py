@@ -5,6 +5,8 @@ from typing import Protocol
 
 from agentmonitor.contracts.collection_control_v1 import (
     OllamaCloudAdmissionDecisionV1,
+    OllamaCloudLatestSourceSignalQueryV1,
+    OllamaCloudLatestSourceSignalV1,
     OllamaCloudRateGateViewV1,
     OllamaCloudRequestAcquireV1,
     OllamaCloudRequestCompletionV1,
@@ -63,6 +65,10 @@ class OllamaCloudAdmissionRepositoryV1(Protocol):
         binding_generation: int,
         queried_at: datetime,
     ) -> OllamaCloudVerificationStatusV1: ...
+
+    def read_latest_source_signal(
+        self, query: OllamaCloudLatestSourceSignalQueryV1
+    ) -> OllamaCloudLatestSourceSignalV1: ...
 
     def pending_verification_finalizations(
         self,
@@ -182,6 +188,18 @@ class ReadOllamaCloudVerificationStatusV1:
         return self._repository.read_verification_status(
             account_id, binding_generation, queried_at
         )
+
+
+class ReadLatestOllamaCloudSourceSignalV1:
+    """Read M04's latest exact-source outcome and global gate projection."""
+
+    def __init__(self, repository: OllamaCloudAdmissionRepositoryV1) -> None:
+        self._repository = repository
+
+    def __call__(
+        self, query: OllamaCloudLatestSourceSignalQueryV1
+    ) -> OllamaCloudLatestSourceSignalV1:
+        return self._repository.read_latest_source_signal(query)
 
 
 class CompleteOllamaCloudRequestV1:

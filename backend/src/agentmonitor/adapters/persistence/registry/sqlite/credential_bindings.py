@@ -26,6 +26,7 @@ from agentmonitor.contracts.registry_v1 import (
     CredentialBindingRecordV1,
     CredentialBindingVerificationReceiptV1,
     ProviderAccessTargetV1,
+    ProviderTargetRefV1,
 )
 from agentmonitor.modules.registry.domain.account import (
     RegistryPolicyErrorV1,
@@ -435,6 +436,39 @@ class SqliteCloudCredentialRegistryV1:
 
     def __init__(self, reference: DatabaseRefV1) -> None:
         self._reference = reference
+
+    def read_active_access_target(
+        self, access_target_id: OpaqueIdV1
+    ) -> ProviderAccessTargetV1 | None:
+        """Return one exact active target without creating or updating it."""
+        try:
+            ProviderTargetRefV1("cloud_service", access_target_id)
+        except (TypeError, ValueError):
+            raise CredentialBindingRepositoryErrorV1(
+                "credential_binding_target_query_invalid"
+            ) from None
+        try:
+            with open_sqlite_database(self._reference, "runtime_read_only") as handle:
+                with handle.connect() as connection:
+                    row = (
+                        connection.exec_driver_sql(
+                            "SELECT t.* FROM reg_provider_access_target t "
+                            "JOIN reg_provider_definition p "
+                            "ON p.provider_key=t.provider_key "
+                            "WHERE t.access_target_id=? AND t.lifecycle='active' "
+                            "AND p.lifecycle='active'",
+                            (access_target_id.value,),
+                        )
+                        .mappings()
+                        .one_or_none()
+                    )
+                    return _access_target(row) if row is not None else None
+        except CredentialBindingRepositoryErrorV1:
+            raise
+        except (SqlitePolicyError, SQLAlchemyError, ValueError, TypeError):
+            raise CredentialBindingRepositoryErrorV1(
+                "credential_binding_unavailable"
+            ) from None
 
     def reconcile_access_target(
         self,
