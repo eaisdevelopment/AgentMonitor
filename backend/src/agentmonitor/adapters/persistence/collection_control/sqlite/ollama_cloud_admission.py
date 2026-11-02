@@ -1137,6 +1137,77 @@ class SqliteOllamaCloudAdmissionRepositoryV1:
         except (SQLAlchemyError, SqlitePolicyError, OSError, ValueError, TypeError):
             raise OllamaCloudAdmissionRepositoryErrorV1() from None
 
+    def _register_verification_target_in_transaction(
+        self, connection: Connection, target: OllamaCloudVerificationTargetV1
+    ) -> None:
+        """Register one target inside the caller-owned M04 transaction."""
+        if not connection.in_transaction():
+            raise OllamaCloudAdmissionRepositoryErrorV1(
+                "ollama_cloud_verification_transaction_required"
+            )
+        _assert_terminal_gate_consistency(connection)
+        row = (
+            connection.exec_driver_sql(
+                "SELECT * FROM collection_schedule WHERE schedule_id=?",
+                (target.schedule_id.value,),
+            )
+            .mappings()
+            .one_or_none()
+        )
+        expected = (
+            target.target_key_digest,
+            _PROVIDER_KEY,
+            None,
+            target.provider_target.target_kind,
+            target.provider_target.target_id.value,
+            target.account_id.value,
+            target.profile_id.value,
+            target.resource_id.value,
+            _CAPABILITY_ID,
+            target.target_generation,
+        )
+        instant = _utc_text(target.requested_at)
+        if row is None:
+            connection.exec_driver_sql(
+                "INSERT INTO collection_schedule "
+                "(schedule_id,target_key_digest,provider_key,installation_id,"
+                "provider_target_kind,provider_target_id,account_id,profile_id,"
+                "resource_id,capability_id,state,activity_class,"
+                "base_interval_seconds,effective_interval_seconds,target_generation,"
+                "next_due_at,not_before_at,backoff_kind,backoff_generation,"
+                "consecutive_failure_count,last_attempted_run_id,last_successful_run_id,"
+                "last_terminal_outcome_code,record_version,created_at,updated_at) "
+                "VALUES (?,?,?,?,?,?,?,?,?,?,'enabled','unknown',300,300,?,?,"
+                "NULL,NULL,0,0,NULL,NULL,NULL,1,?,?)",
+                (
+                    target.schedule_id.value,
+                    *expected,
+                    instant,
+                    instant,
+                    instant,
+                ),
+            )
+            return
+        actual = tuple(
+            row[key]
+            for key in (
+                "target_key_digest",
+                "provider_key",
+                "installation_id",
+                "provider_target_kind",
+                "provider_target_id",
+                "account_id",
+                "profile_id",
+                "resource_id",
+                "capability_id",
+                "target_generation",
+            )
+        )
+        if actual != expected:
+            raise OllamaCloudAdmissionRepositoryErrorV1(
+                "ollama_cloud_schedule_conflict"
+            )
+
     def register_verification_target(
         self, target: OllamaCloudVerificationTargetV1
     ) -> None:
@@ -1147,68 +1218,9 @@ class SqliteOllamaCloudAdmissionRepositoryV1:
             ) as handle:
                 with handle.connect() as connection:
                     connection.exec_driver_sql("BEGIN IMMEDIATE")
-                    _assert_terminal_gate_consistency(connection)
-                    row = (
-                        connection.exec_driver_sql(
-                            "SELECT * FROM collection_schedule WHERE schedule_id=?",
-                            (target.schedule_id.value,),
-                        )
-                        .mappings()
-                        .one_or_none()
+                    self._register_verification_target_in_transaction(
+                        connection, target
                     )
-                    expected = (
-                        target.target_key_digest,
-                        _PROVIDER_KEY,
-                        None,
-                        target.provider_target.target_kind,
-                        target.provider_target.target_id.value,
-                        target.account_id.value,
-                        target.profile_id.value,
-                        target.resource_id.value,
-                        _CAPABILITY_ID,
-                        target.target_generation,
-                    )
-                    instant = _utc_text(target.requested_at)
-                    if row is None:
-                        connection.exec_driver_sql(
-                            "INSERT INTO collection_schedule "
-                            "(schedule_id,target_key_digest,provider_key,installation_id,"
-                            "provider_target_kind,provider_target_id,account_id,profile_id,"
-                            "resource_id,capability_id,state,activity_class,"
-                            "base_interval_seconds,effective_interval_seconds,target_generation,"
-                            "next_due_at,not_before_at,backoff_kind,backoff_generation,"
-                            "consecutive_failure_count,last_attempted_run_id,last_successful_run_id,"
-                            "last_terminal_outcome_code,record_version,created_at,updated_at) "
-                            "VALUES (?,?,?,?,?,?,?,?,?,?,'enabled','unknown',300,300,?,?,"
-                            "NULL,NULL,0,0,NULL,NULL,NULL,1,?,?)",
-                            (
-                                target.schedule_id.value,
-                                *expected,
-                                instant,
-                                instant,
-                                instant,
-                            ),
-                        )
-                    else:
-                        actual = tuple(
-                            row[key]
-                            for key in (
-                                "target_key_digest",
-                                "provider_key",
-                                "installation_id",
-                                "provider_target_kind",
-                                "provider_target_id",
-                                "account_id",
-                                "profile_id",
-                                "resource_id",
-                                "capability_id",
-                                "target_generation",
-                            )
-                        )
-                        if actual != expected:
-                            raise OllamaCloudAdmissionRepositoryErrorV1(
-                                "ollama_cloud_schedule_conflict"
-                            )
                     connection.commit()
         except OllamaCloudAdmissionRepositoryErrorV1:
             raise
@@ -1362,171 +1374,181 @@ class SqliteOllamaCloudAdmissionRepositoryV1:
         except (SQLAlchemyError, SqlitePolicyError, OSError, ValueError, TypeError):
             raise OllamaCloudAdmissionRepositoryErrorV1() from None
 
+    def _replay_verification_in_transaction(
+        self,
+        connection: Connection,
+        query: OllamaCloudVerificationReplayQueryV1,
+    ) -> OllamaCloudVerificationJobViewV1 | None:
+        """Resolve external replay before any server-derived write."""
+        if not connection.in_transaction():
+            raise OllamaCloudAdmissionRepositoryErrorV1(
+                "ollama_cloud_verification_transaction_required"
+            )
+        digest = _idempotency_digest(
+            query.principal_id.value, query.idempotency_key.value
+        )
+        row = (
+            connection.exec_driver_sql(
+                "SELECT * FROM collection_cloud_verification_job "
+                "WHERE principal_id=? AND idempotency_digest=?",
+                (query.principal_id.value, digest),
+            )
+            .mappings()
+            .one_or_none()
+        )
+        if row is None:
+            return None
+        try:
+            decide_cloud_verification_replay(
+                existing_account_id=str(row["account_id"]),
+                existing_expected_account_record_version=(
+                    int(row["expected_account_record_version"])
+                    if row["expected_account_record_version"] is not None
+                    else None
+                ),
+                request_account_id=query.account_id.value,
+                request_expected_account_record_version=(
+                    query.expected_account_record_version
+                ),
+            )
+        except ValueError:
+            raise OllamaCloudAdmissionRepositoryErrorV1(
+                "ollama_cloud_verification_idempotency_conflict"
+            ) from None
+        return _verification_job(row)
+
     def replay_verification(
         self, query: OllamaCloudVerificationReplayQueryV1
     ) -> OllamaCloudVerificationJobViewV1 | None:
         """Return only the exact original initiation request, before new-work fencing."""
-        digest = _idempotency_digest(
-            query.principal_id.value, query.idempotency_key.value
-        )
         try:
             with open_sqlite_database(
                 self._database_ref, "runtime_read_only"
             ) as handle:
                 with handle.connect() as connection:
-                    row = (
-                        connection.exec_driver_sql(
-                            "SELECT * FROM collection_cloud_verification_job "
-                            "WHERE principal_id=? AND idempotency_digest=?",
-                            (query.principal_id.value, digest),
-                        )
-                        .mappings()
-                        .one_or_none()
-                    )
-                    if row is None:
-                        return None
-                    decide_cloud_verification_replay(
-                        existing_account_id=str(row["account_id"]),
-                        existing_expected_account_record_version=(
-                            int(row["expected_account_record_version"])
-                            if row["expected_account_record_version"] is not None
-                            else None
-                        ),
-                        request_account_id=query.account_id.value,
-                        request_expected_account_record_version=(
-                            query.expected_account_record_version
-                        ),
-                    )
-                    return _verification_job(row)
+                    connection.exec_driver_sql("BEGIN")
+                    result = self._replay_verification_in_transaction(connection, query)
+                    connection.rollback()
+                    return result
         except OllamaCloudAdmissionRepositoryErrorV1:
             raise
-        except ValueError as error:
-            if str(error) == "ollama_cloud_verification_idempotency_conflict":
-                raise OllamaCloudAdmissionRepositoryErrorV1(str(error)) from None
+        except (SQLAlchemyError, SqlitePolicyError, OSError, ValueError, TypeError):
             raise OllamaCloudAdmissionRepositoryErrorV1() from None
-        except (SQLAlchemyError, SqlitePolicyError, OSError, TypeError):
-            raise OllamaCloudAdmissionRepositoryErrorV1() from None
+
+    def _enqueue_new_verification_in_transaction(
+        self,
+        connection: Connection,
+        request: OllamaCloudVerificationEnqueueV2,
+    ) -> OllamaCloudVerificationJobViewV1:
+        """Fence and insert one known-new request in the caller transaction."""
+        if not connection.in_transaction():
+            raise OllamaCloudAdmissionRepositoryErrorV1(
+                "ollama_cloud_verification_transaction_required"
+            )
+        target = (
+            connection.exec_driver_sql(
+                "SELECT profile_id,resource_id FROM collection_schedule WHERE schedule_id=? "
+                "AND account_id=? AND provider_key=? AND capability_id=? "
+                "AND provider_target_kind='cloud_service' "
+                "AND provider_target_id=? AND target_generation=? "
+                "AND state='enabled'",
+                (
+                    request.schedule_id.value,
+                    request.account_id.value,
+                    _PROVIDER_KEY,
+                    _CAPABILITY_ID,
+                    request.access_target_id.value,
+                    request.binding_generation,
+                ),
+            )
+            .mappings()
+            .one_or_none()
+        )
+        if target is None:
+            raise OllamaCloudAdmissionRepositoryErrorV1(
+                "ollama_cloud_verification_target_unavailable"
+            )
+        self._fence_new_verification_job(
+            connection,
+            request,
+            profile_id=OpaqueIdV1(str(target["profile_id"])),
+            resource_id=OpaqueIdV1(str(target["resource_id"])),
+        )
+        active = connection.exec_driver_sql(
+            "SELECT 1 FROM collection_cloud_verification_job "
+            "WHERE account_id=? AND binding_generation=? "
+            "AND state IN ('queued','claimed','admitted')",
+            (request.account_id.value, request.binding_generation),
+        ).first()
+        if active is not None:
+            raise OllamaCloudAdmissionRepositoryErrorV1(
+                "ollama_cloud_verification_already_pending"
+            )
+        digest = _idempotency_digest(
+            request.principal_id.value, request.idempotency_key.value
+        )
+        instant = _utc_text(request.requested_at)
+        job_id = "amvj_" + secrets.token_hex(16)
+        connection.exec_driver_sql(
+            "INSERT INTO collection_cloud_verification_job "
+            "(job_id,principal_id,idempotency_digest,schedule_id,account_id,"
+            "access_target_id,binding_generation,expected_account_record_version,"
+            "state,requested_at,not_before_at,"
+            "claim_owner_id,claim_fencing_token,claimed_at,claim_expires_at,"
+            "admission_id,run_id,dispatch_certainty,terminal_at,outcome,"
+            "reason_code,retry_after_seconds,record_version) "
+            "VALUES (?,?,?,?,?,?,?,?,'queued',?,?,NULL,0,NULL,NULL,NULL,NULL,"
+            "NULL,NULL,NULL,NULL,NULL,1)",
+            (
+                job_id,
+                request.principal_id.value,
+                digest,
+                request.schedule_id.value,
+                request.account_id.value,
+                request.access_target_id.value,
+                request.binding_generation,
+                request.expected_account_record_version,
+                instant,
+                instant,
+            ),
+        )
+        row = (
+            connection.exec_driver_sql(
+                "SELECT * FROM collection_cloud_verification_job WHERE job_id=?",
+                (job_id,),
+            )
+            .mappings()
+            .one()
+        )
+        return _verification_job(row)
 
     def enqueue_verification(
         self, request: OllamaCloudVerificationEnqueueV2
     ) -> OllamaCloudVerificationJobViewV1:
         """Create one private-idempotent job after rechecking the exact target."""
-        digest = _idempotency_digest(
-            request.principal_id.value, request.idempotency_key.value
-        )
-        instant = _utc_text(request.requested_at)
         try:
             with open_sqlite_database(
                 self._database_ref, "runtime_read_write"
             ) as handle:
                 with handle.connect() as connection:
                     connection.exec_driver_sql("BEGIN IMMEDIATE")
-                    existing = (
-                        connection.exec_driver_sql(
-                            "SELECT * FROM collection_cloud_verification_job "
-                            "WHERE principal_id=? AND idempotency_digest=?",
-                            (request.principal_id.value, digest),
-                        )
-                        .mappings()
-                        .one_or_none()
-                    )
-                    if existing is not None:
-                        try:
-                            # Only external request identity participates in replay.
-                            # The first successful call freezes server-derived graph,
-                            # target and binding facts in the durable job.
-                            decide_cloud_verification_replay(
-                                existing_account_id=str(existing["account_id"]),
-                                existing_expected_account_record_version=(
-                                    int(existing["expected_account_record_version"])
-                                    if existing["expected_account_record_version"]
-                                    is not None
-                                    else None
-                                ),
-                                request_account_id=request.account_id.value,
-                                request_expected_account_record_version=(
-                                    request.expected_account_record_version
-                                ),
-                            )
-                        except ValueError:
-                            raise OllamaCloudAdmissionRepositoryErrorV1(
-                                "ollama_cloud_verification_idempotency_conflict"
-                            ) from None
-                        connection.rollback()
-                        return _verification_job(existing)
-                    target = (
-                        connection.exec_driver_sql(
-                            "SELECT profile_id,resource_id FROM collection_schedule WHERE schedule_id=? "
-                            "AND account_id=? AND provider_key=? AND capability_id=? "
-                            "AND provider_target_kind='cloud_service' "
-                            "AND provider_target_id=? AND target_generation=? "
-                            "AND state='enabled'",
-                            (
-                                request.schedule_id.value,
-                                request.account_id.value,
-                                _PROVIDER_KEY,
-                                _CAPABILITY_ID,
-                                request.access_target_id.value,
-                                request.binding_generation,
-                            ),
-                        )
-                        .mappings()
-                        .one_or_none()
-                    )
-                    if target is None:
-                        raise OllamaCloudAdmissionRepositoryErrorV1(
-                            "ollama_cloud_verification_target_unavailable"
-                        )
-                    self._fence_new_verification_job(
+                    existing = self._replay_verification_in_transaction(
                         connection,
-                        request,
-                        profile_id=OpaqueIdV1(str(target["profile_id"])),
-                        resource_id=OpaqueIdV1(str(target["resource_id"])),
-                    )
-                    active = connection.exec_driver_sql(
-                        "SELECT 1 FROM collection_cloud_verification_job "
-                        "WHERE account_id=? AND binding_generation=? "
-                        "AND state IN ('queued','claimed','admitted')",
-                        (request.account_id.value, request.binding_generation),
-                    ).first()
-                    if active is not None:
-                        raise OllamaCloudAdmissionRepositoryErrorV1(
-                            "ollama_cloud_verification_already_pending"
-                        )
-                    job_id = "amvj_" + secrets.token_hex(16)
-                    connection.exec_driver_sql(
-                        "INSERT INTO collection_cloud_verification_job "
-                        "(job_id,principal_id,idempotency_digest,schedule_id,account_id,"
-                        "access_target_id,binding_generation,expected_account_record_version,"
-                        "state,requested_at,not_before_at,"
-                        "claim_owner_id,claim_fencing_token,claimed_at,claim_expires_at,"
-                        "admission_id,run_id,dispatch_certainty,terminal_at,outcome,"
-                        "reason_code,retry_after_seconds,record_version) "
-                        "VALUES (?,?,?,?,?,?,?,?,'queued',?,?,NULL,0,NULL,NULL,NULL,NULL,"
-                        "NULL,NULL,NULL,NULL,NULL,1)",
-                        (
-                            job_id,
-                            request.principal_id.value,
-                            digest,
-                            request.schedule_id.value,
-                            request.account_id.value,
-                            request.access_target_id.value,
-                            request.binding_generation,
+                        OllamaCloudVerificationReplayQueryV1(
+                            request.idempotency_key,
+                            request.principal_id,
+                            request.account_id,
                             request.expected_account_record_version,
-                            instant,
-                            instant,
                         ),
                     )
-                    row = (
-                        connection.exec_driver_sql(
-                            "SELECT * FROM collection_cloud_verification_job WHERE job_id=?",
-                            (job_id,),
-                        )
-                        .mappings()
-                        .one()
+                    if existing is not None:
+                        connection.rollback()
+                        return existing
+                    result = self._enqueue_new_verification_in_transaction(
+                        connection, request
                     )
                     connection.commit()
-                    return _verification_job(row)
+                    return result
         except OllamaCloudAdmissionRepositoryErrorV1:
             raise
         except (SQLAlchemyError, SqlitePolicyError, OSError, ValueError, TypeError):

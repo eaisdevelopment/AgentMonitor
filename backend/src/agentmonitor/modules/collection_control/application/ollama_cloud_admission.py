@@ -116,6 +116,21 @@ class OllamaCloudVerificationAtomicEnqueueRepositoryV2(Protocol):
     ) -> OllamaCloudVerificationJobViewV1: ...
 
 
+class OllamaCloudVerificationAtomicInitiationRepositoryV2(Protocol):
+    """Atomic initiation starts with replay before any server-derived write."""
+
+    CONTRACT_ID: ClassVar[str] = "CTR-COL-010"
+    CONTRACT_VERSION: ClassVar[str] = "2.0.0"
+    OWNER: ClassVar[str] = "PLAN-M04"
+
+    def initiate_verification_atomically_v2(
+        self,
+        query: OllamaCloudVerificationReplayQueryV1,
+        requested_at: datetime,
+        expected_manifest_fingerprint: str,
+    ) -> OllamaCloudVerificationJobViewV1: ...
+
+
 class AcquireOllamaCloudRequestV1:
     """Admit one exact request start; all other decisions prohibit dispatch."""
 
@@ -181,6 +196,25 @@ class AtomicallyEnqueueOllamaCloudVerificationV2:
             authority_account_record_version,
             binding,
             expected_manifest_fingerprint,
+        )
+
+
+class AtomicallyInitiateOllamaCloudVerificationV2:
+    """Serialize replay and all new-work derivation in one transaction."""
+
+    def __init__(
+        self, repository: OllamaCloudVerificationAtomicInitiationRepositoryV2
+    ) -> None:
+        self._repository = repository
+
+    def __call__(
+        self,
+        query: OllamaCloudVerificationReplayQueryV1,
+        requested_at: datetime,
+        expected_manifest_fingerprint: str,
+    ) -> OllamaCloudVerificationJobViewV1:
+        return self._repository.initiate_verification_atomically_v2(
+            query, requested_at, expected_manifest_fingerprint
         )
 
 

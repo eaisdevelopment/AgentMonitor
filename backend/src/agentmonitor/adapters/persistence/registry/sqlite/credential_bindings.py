@@ -210,6 +210,17 @@ def ensure_current_binding_in_transaction(
     )
 
 
+def resolve_active_credential_binding_in_transaction(
+    connection: Connection, account_id: OpaqueIdV1
+) -> ActiveCredentialBindingRefV1 | None:
+    """Resolve the current non-secret generation under a caller transaction."""
+    if not connection.in_transaction():
+        raise CredentialBindingRepositoryErrorV1(
+            "credential_binding_transaction_required"
+        )
+    return resolve_active_credential_binding(_load(connection, account_id))
+
+
 def ensure_access_target_in_transaction(
     connection: Connection, access_target_id: OpaqueIdV1
 ) -> ProviderAccessTargetV1:
@@ -236,6 +247,72 @@ def ensure_access_target_in_transaction(
             "credential_binding_target_unavailable"
         )
     return _access_target(row)
+
+
+def reconcile_access_target_in_transaction(
+    connection: Connection,
+    *,
+    provider_key: str,
+    authority_id: str,
+    manifest_fingerprint: str,
+    as_of: datetime,
+) -> ProviderAccessTargetV1:
+    """Create/replay one code-owned access target in the caller transaction."""
+    if not connection.in_transaction():
+        raise CredentialBindingRepositoryErrorV1(
+            "credential_binding_transaction_required"
+        )
+    target_id = _access_target_id(provider_key, authority_id)
+    candidate = ProviderAccessTargetV1(
+        access_target_id=target_id,
+        provider_key=provider_key,
+        target_kind="cloud_service",
+        authority_id=authority_id,
+        manifest_fingerprint=manifest_fingerprint,
+        lifecycle="active",
+        record_version=1,
+    )
+    instant = _utc_text(as_of)
+    provider = connection.exec_driver_sql(
+        "SELECT lifecycle FROM reg_provider_definition WHERE provider_key=?",
+        (provider_key,),
+    ).scalar_one_or_none()
+    if provider != "active":
+        raise CredentialBindingRepositoryErrorV1(
+            "credential_binding_target_unavailable"
+        )
+    row = (
+        connection.exec_driver_sql(
+            "SELECT * FROM reg_provider_access_target "
+            "WHERE provider_key=? AND authority_id=?",
+            (provider_key, authority_id),
+        )
+        .mappings()
+        .one_or_none()
+    )
+    if row is not None:
+        existing = _access_target(row)
+        if existing != candidate:
+            raise CredentialBindingRepositoryErrorV1(
+                "credential_binding_target_conflict"
+            )
+        return existing
+    connection.exec_driver_sql(
+        "INSERT INTO reg_provider_access_target "
+        "(access_target_id,provider_key,target_kind,authority_id,"
+        "manifest_fingerprint,lifecycle,record_version,created_at,updated_at) "
+        "VALUES (?,?,?,?,?,'active',1,?,?)",
+        (
+            target_id.value,
+            provider_key,
+            "cloud_service",
+            authority_id,
+            manifest_fingerprint,
+            instant,
+            instant,
+        ),
+    )
+    return candidate
 
 
 def ensure_cloud_verification_enqueue_authority_in_transaction(
@@ -575,62 +652,19 @@ class SqliteCloudCredentialRegistryV1:
         manifest_fingerprint: str,
         as_of: datetime,
     ) -> ProviderAccessTargetV1:
-        target_id = _access_target_id(provider_key, authority_id)
-        candidate = ProviderAccessTargetV1(
-            access_target_id=target_id,
-            provider_key=provider_key,
-            target_kind="cloud_service",
-            authority_id=authority_id,
-            manifest_fingerprint=manifest_fingerprint,
-            lifecycle="active",
-            record_version=1,
-        )
-        instant = _utc_text(as_of)
         try:
             with open_sqlite_database(self._reference, "runtime_read_write") as handle:
                 with handle.connect() as connection:
                     connection.exec_driver_sql("BEGIN IMMEDIATE")
-                    provider = connection.exec_driver_sql(
-                        "SELECT lifecycle FROM reg_provider_definition WHERE provider_key=?",
-                        (provider_key,),
-                    ).scalar_one_or_none()
-                    if provider != "active":
-                        raise CredentialBindingRepositoryErrorV1(
-                            "credential_binding_target_unavailable"
-                        )
-                    row = (
-                        connection.exec_driver_sql(
-                            "SELECT * FROM reg_provider_access_target WHERE provider_key=? AND authority_id=?",
-                            (provider_key, authority_id),
-                        )
-                        .mappings()
-                        .one_or_none()
-                    )
-                    if row is not None:
-                        existing = _access_target(row)
-                        if existing != candidate:
-                            raise CredentialBindingRepositoryErrorV1(
-                                "credential_binding_target_conflict"
-                            )
-                        connection.rollback()
-                        return existing
-                    connection.exec_driver_sql(
-                        "INSERT INTO reg_provider_access_target "
-                        "(access_target_id,provider_key,target_kind,authority_id,"
-                        "manifest_fingerprint,lifecycle,record_version,created_at,updated_at) "
-                        "VALUES (?,?,?,?,?,'active',1,?,?)",
-                        (
-                            target_id.value,
-                            provider_key,
-                            "cloud_service",
-                            authority_id,
-                            manifest_fingerprint,
-                            instant,
-                            instant,
-                        ),
+                    result = reconcile_access_target_in_transaction(
+                        connection,
+                        provider_key=provider_key,
+                        authority_id=authority_id,
+                        manifest_fingerprint=manifest_fingerprint,
+                        as_of=as_of,
                     )
                     connection.commit()
-                    return candidate
+                    return result
         except CredentialBindingRepositoryErrorV1:
             raise
         except (SqlitePolicyError, SQLAlchemyError, ValueError, TypeError):

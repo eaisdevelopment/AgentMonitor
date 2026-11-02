@@ -69,6 +69,7 @@ from agentmonitor.modules.registry.application.organizations import (
     ReorderOrganizationsCommandV1,
 )
 from agentmonitor.modules.registry.domain.cloud_verification import (
+    cloud_verification_enqueue_account_version,
     decide_cloud_owner_assertion,
 )
 
@@ -2580,10 +2581,14 @@ class SqliteRegistryRepositoryV1:
             record_version=int(row["record_version"]),
         )
 
-    def assert_credential_account_ownership(
-        self, command: AssertCredentialAccountOwnershipCommandV1
+    def _assert_credential_account_ownership_in_transaction(
+        self,
+        connection: Connection,
+        command: AssertCredentialAccountOwnershipCommandV1,
     ) -> tuple[AccountViewV1, CloudMonitoringTargetV1]:
-        """Record one signed-in owner assertion without a provider identity claim."""
+        """Apply/replay one M02 assertion inside an integration transaction."""
+        if not connection.in_transaction():
+            raise RegistryCommandConflictV1("registry_transaction_required")
         operation = "assert_credential_account_ownership"
         command_digest = _digest(command.command_id.value)
         request_fingerprint = _fingerprint(
@@ -2599,6 +2604,193 @@ class SqliteRegistryRepositoryV1:
             }
         )
         instant = _utc_text(command.requested_at)
+        receipt = (
+            connection.exec_driver_sql(
+                "SELECT request_fingerprint,outcome_subject_id "
+                "FROM reg_command_receipt WHERE principal_id=? "
+                "AND operation_key=? AND idempotency_key_digest=?",
+                (
+                    command.principal_id.value,
+                    operation,
+                    command_digest,
+                ),
+            )
+            .mappings()
+            .one_or_none()
+        )
+        if receipt is not None:
+            if receipt["request_fingerprint"] != request_fingerprint:
+                raise RegistryCommandConflictV1("registry_idempotency_conflict")
+            return (
+                self._account_by_id(connection, receipt["outcome_subject_id"]),
+                self._cloud_target_by_account(
+                    connection, receipt["outcome_subject_id"]
+                ),
+            )
+        account_row = (
+            connection.exec_driver_sql(
+                "SELECT * FROM reg_account WHERE account_id=?",
+                (command.account_id.value,),
+            )
+            .mappings()
+            .one_or_none()
+        )
+        if account_row is None:
+            raise RegistryCommandConflictV1("registry_subject_not_found")
+        access_target = ensure_access_target_in_transaction(
+            connection, command.access_target_id
+        )
+        try:
+            ensure_current_binding_in_transaction(connection, command.binding)
+            lifecycle, identity, preference, version = decide_cloud_owner_assertion(
+                account_provider=account_row["provider_key"],
+                account_lifecycle=account_row["lifecycle"],
+                account_identity_state=account_row["identity_state"],
+                account_monitoring_preference=account_row["monitoring_preference"],
+                account_record_version=int(account_row["record_version"]),
+                expected_account_record_version=(
+                    command.expected_account_record_version
+                ),
+                target_provider=access_target.provider_key,
+                target_lifecycle=access_target.lifecycle,
+                binding_is_current=True,
+            )
+        except ValueError as error:
+            raise RegistryCommandConflictV1(str(error)) from None
+        updated = connection.exec_driver_sql(
+            "UPDATE reg_account SET lifecycle=?,identity_state=?,"
+            "monitoring_preference=?,record_version=?,updated_at=? "
+            "WHERE account_id=? AND record_version=? AND lifecycle='pending' "
+            "AND identity_state='unresolved'",
+            (
+                lifecycle,
+                identity,
+                preference,
+                version,
+                instant,
+                command.account_id.value,
+                command.expected_account_record_version,
+            ),
+        )
+        if updated.rowcount != 1:
+            raise RegistryCommandConflictV1("registry_account_version_conflict")
+        profile_id = _identifier()
+        resource_id = _identifier()
+        connection.exec_driver_sql(
+            "INSERT INTO reg_cloud_monitoring_target "
+            "(profile_id,resource_id,account_id,access_target_id,"
+            "binding_id,binding_generation,lifecycle,identity_state,"
+            "owner_principal_id,owner_asserted_at,record_version,"
+            "created_at,updated_at) VALUES (?,?,?,?,?,?,'active',"
+            "'owner_confirmed',?,?,1,?,?)",
+            (
+                profile_id,
+                resource_id,
+                command.account_id.value,
+                command.access_target_id.value,
+                command.binding.binding_id.value,
+                command.binding.generation,
+                command.principal_id.value,
+                instant,
+                instant,
+                instant,
+            ),
+        )
+        revision = _next_revision(connection, instant)
+        _append_change(
+            connection,
+            subject_type="account",
+            subject_id=command.account_id.value,
+            aggregate_version=version,
+            revision=revision,
+            change_kind="owner_confirmed",
+            actor_id=command.principal_id.value,
+            correlation_id=command.command_id.value,
+            command_digest=command_digest,
+            instant=instant,
+            previous_lifecycle=account_row["lifecycle"],
+            new_lifecycle=lifecycle,
+        )
+        _append_outbox(
+            connection,
+            subject_type="account",
+            subject_id=command.account_id.value,
+            aggregate_version=version,
+            revision=revision,
+            change_kind="owner_confirmed",
+            correlation_id=command.command_id.value,
+            causation_id=command.command_id.value,
+            instant=instant,
+        )
+        connection.exec_driver_sql(
+            "INSERT INTO reg_command_receipt "
+            "(receipt_id,principal_id,operation_key,"
+            "idempotency_key_digest,request_fingerprint,"
+            "outcome_subject_type,outcome_subject_id,"
+            "outcome_record_version,registry_revision,created_at,"
+            "expires_at) VALUES (?,?,?,?,?,'account',?,?,?,?,?)",
+            (
+                _identifier(),
+                command.principal_id.value,
+                operation,
+                command_digest,
+                request_fingerprint,
+                command.account_id.value,
+                version,
+                revision,
+                instant,
+                _utc_text(command.requested_at + timedelta(days=365)),
+            ),
+        )
+        return (
+            self._account_by_id(connection, command.account_id.value),
+            self._cloud_target_by_account(connection, command.account_id.value),
+        )
+
+    def _prepare_cloud_verification_graph_in_transaction(
+        self,
+        connection: Connection,
+        command: AssertCredentialAccountOwnershipCommandV1,
+    ) -> tuple[AccountViewV1, CloudMonitoringTargetV1, int]:
+        """Read or create the exact owner graph for one atomic initiation."""
+        if not connection.in_transaction():
+            raise RegistryCommandConflictV1("registry_transaction_required")
+        account_version = connection.exec_driver_sql(
+            "SELECT record_version FROM reg_account WHERE account_id=?",
+            (command.account_id.value,),
+        ).scalar_one_or_none()
+        graph_exists = (
+            connection.exec_driver_sql(
+                "SELECT 1 FROM reg_cloud_monitoring_target WHERE account_id=?",
+                (command.account_id.value,),
+            ).first()
+            is not None
+        )
+        owner_assertion_required = (
+            not graph_exists
+            or account_version is None
+            or int(account_version) != command.expected_account_record_version
+        )
+        if owner_assertion_required:
+            account, graph = self._assert_credential_account_ownership_in_transaction(
+                connection, command
+            )
+        else:
+            account = self._account_by_id(connection, command.account_id.value)
+            graph = self._cloud_target_by_account(connection, command.account_id.value)
+        return (
+            account,
+            graph,
+            cloud_verification_enqueue_account_version(
+                command_expected_version=command.expected_account_record_version,
+                owner_assertion_required=owner_assertion_required,
+            ),
+        )
+
+    def assert_credential_account_ownership(
+        self, command: AssertCredentialAccountOwnershipCommandV1
+    ) -> tuple[AccountViewV1, CloudMonitoringTargetV1]:
+        """Record one signed-in owner assertion without a provider identity claim."""
         try:
             with account_credential_lock(self._database_ref, command.account_id):
                 with open_sqlite_database(
@@ -2606,170 +2798,13 @@ class SqliteRegistryRepositoryV1:
                 ) as handle:
                     with handle.connect() as connection:
                         connection.exec_driver_sql("BEGIN IMMEDIATE")
-                        receipt = (
-                            connection.exec_driver_sql(
-                                "SELECT request_fingerprint,outcome_subject_id "
-                                "FROM reg_command_receipt WHERE principal_id=? "
-                                "AND operation_key=? AND idempotency_key_digest=?",
-                                (
-                                    command.principal_id.value,
-                                    operation,
-                                    command_digest,
-                                ),
+                        result = (
+                            self._assert_credential_account_ownership_in_transaction(
+                                connection, command
                             )
-                            .mappings()
-                            .one_or_none()
-                        )
-                        if receipt is not None:
-                            if receipt["request_fingerprint"] != request_fingerprint:
-                                raise RegistryCommandConflictV1(
-                                    "registry_idempotency_conflict"
-                                )
-                            account = self._account_by_id(
-                                connection, receipt["outcome_subject_id"]
-                            )
-                            cloud_target = self._cloud_target_by_account(
-                                connection, receipt["outcome_subject_id"]
-                            )
-                            connection.rollback()
-                            return account, cloud_target
-                        account_row = (
-                            connection.exec_driver_sql(
-                                "SELECT * FROM reg_account WHERE account_id=?",
-                                (command.account_id.value,),
-                            )
-                            .mappings()
-                            .one_or_none()
-                        )
-                        if account_row is None:
-                            raise RegistryCommandConflictV1(
-                                "registry_subject_not_found"
-                            )
-                        access_target = ensure_access_target_in_transaction(
-                            connection, command.access_target_id
-                        )
-                        try:
-                            ensure_current_binding_in_transaction(
-                                connection, command.binding
-                            )
-                            lifecycle, identity, preference, version = (
-                                decide_cloud_owner_assertion(
-                                    account_provider=account_row["provider_key"],
-                                    account_lifecycle=account_row["lifecycle"],
-                                    account_identity_state=account_row[
-                                        "identity_state"
-                                    ],
-                                    account_monitoring_preference=account_row[
-                                        "monitoring_preference"
-                                    ],
-                                    account_record_version=int(
-                                        account_row["record_version"]
-                                    ),
-                                    expected_account_record_version=(
-                                        command.expected_account_record_version
-                                    ),
-                                    target_provider=access_target.provider_key,
-                                    target_lifecycle=access_target.lifecycle,
-                                    binding_is_current=True,
-                                )
-                            )
-                        except ValueError as error:
-                            raise RegistryCommandConflictV1(str(error)) from None
-                        updated = connection.exec_driver_sql(
-                            "UPDATE reg_account SET lifecycle=?,identity_state=?,"
-                            "monitoring_preference=?,record_version=?,updated_at=? "
-                            "WHERE account_id=? AND record_version=? AND lifecycle='pending' "
-                            "AND identity_state='unresolved'",
-                            (
-                                lifecycle,
-                                identity,
-                                preference,
-                                version,
-                                instant,
-                                command.account_id.value,
-                                command.expected_account_record_version,
-                            ),
-                        )
-                        if updated.rowcount != 1:
-                            raise RegistryCommandConflictV1(
-                                "registry_account_version_conflict"
-                            )
-                        profile_id = _identifier()
-                        resource_id = _identifier()
-                        connection.exec_driver_sql(
-                            "INSERT INTO reg_cloud_monitoring_target "
-                            "(profile_id,resource_id,account_id,access_target_id,"
-                            "binding_id,binding_generation,lifecycle,identity_state,"
-                            "owner_principal_id,owner_asserted_at,record_version,"
-                            "created_at,updated_at) VALUES (?,?,?,?,?,?,'active',"
-                            "'owner_confirmed',?,?,1,?,?)",
-                            (
-                                profile_id,
-                                resource_id,
-                                command.account_id.value,
-                                command.access_target_id.value,
-                                command.binding.binding_id.value,
-                                command.binding.generation,
-                                command.principal_id.value,
-                                instant,
-                                instant,
-                                instant,
-                            ),
-                        )
-                        revision = _next_revision(connection, instant)
-                        _append_change(
-                            connection,
-                            subject_type="account",
-                            subject_id=command.account_id.value,
-                            aggregate_version=version,
-                            revision=revision,
-                            change_kind="owner_confirmed",
-                            actor_id=command.principal_id.value,
-                            correlation_id=command.command_id.value,
-                            command_digest=command_digest,
-                            instant=instant,
-                            previous_lifecycle=account_row["lifecycle"],
-                            new_lifecycle=lifecycle,
-                        )
-                        _append_outbox(
-                            connection,
-                            subject_type="account",
-                            subject_id=command.account_id.value,
-                            aggregate_version=version,
-                            revision=revision,
-                            change_kind="owner_confirmed",
-                            correlation_id=command.command_id.value,
-                            causation_id=command.command_id.value,
-                            instant=instant,
-                        )
-                        connection.exec_driver_sql(
-                            "INSERT INTO reg_command_receipt "
-                            "(receipt_id,principal_id,operation_key,"
-                            "idempotency_key_digest,request_fingerprint,"
-                            "outcome_subject_type,outcome_subject_id,"
-                            "outcome_record_version,registry_revision,created_at,"
-                            "expires_at) VALUES (?,?,?,?,?,'account',?,?,?,?,?)",
-                            (
-                                _identifier(),
-                                command.principal_id.value,
-                                operation,
-                                command_digest,
-                                request_fingerprint,
-                                command.account_id.value,
-                                version,
-                                revision,
-                                instant,
-                                _utc_text(command.requested_at + timedelta(days=365)),
-                            ),
-                        )
-                        account = self._account_by_id(
-                            connection, command.account_id.value
-                        )
-                        cloud_target = self._cloud_target_by_account(
-                            connection, command.account_id.value
                         )
                         connection.commit()
-                        return account, cloud_target
+                        return result
         except RegistryCommandConflictV1:
             raise
         except (SqlitePolicyError, SQLAlchemyError, ValueError, TypeError):

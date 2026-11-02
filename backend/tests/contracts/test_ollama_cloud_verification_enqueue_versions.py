@@ -3,9 +3,13 @@
 from inspect import signature
 from typing import get_type_hints
 
+from agentmonitor.adapters.persistence.integration.sqlite.ollama_cloud_verification_enqueue_v2 import (  # noqa: E501
+    SqliteAtomicOllamaCloudVerificationEnqueueRepositoryV2,
+)
 from agentmonitor.contracts.collection_control_v1 import (
     OllamaCloudVerificationEnqueueV1,
     OllamaCloudVerificationEnqueueV2,
+    OllamaCloudVerificationReplayQueryV1,
 )
 from agentmonitor.modules.collection_control.application import (
     ollama_cloud_admission,
@@ -67,4 +71,31 @@ def test_replay_identity_excludes_server_derived_graph_values() -> None:
         "existing_expected_account_record_version",
         "request_account_id",
         "request_expected_account_record_version",
+    )
+
+
+def test_atomic_initiation_port_checks_replay_before_server_derived_work() -> None:
+    """The transaction coordinator starts from external request identity only."""
+    assert (
+        ollama_cloud_admission.OllamaCloudVerificationAtomicInitiationRepositoryV2.CONTRACT_ID
+        == "CTR-COL-010"
+    )
+    assert (
+        ollama_cloud_admission.OllamaCloudVerificationAtomicInitiationRepositoryV2.OWNER
+        == "PLAN-M04"
+    )
+    assert SqliteAtomicOllamaCloudVerificationEnqueueRepositoryV2.OWNER == "PLAN-M04"
+    atomic = get_type_hints(
+        ollama_cloud_admission.OllamaCloudVerificationAtomicInitiationRepositoryV2.initiate_verification_atomically_v2
+    )
+    assert atomic["query"] is OllamaCloudVerificationReplayQueryV1
+    assert tuple(
+        signature(
+            ollama_cloud_admission.AtomicallyInitiateOllamaCloudVerificationV2.__call__
+        ).parameters
+    ) == (
+        "self",
+        "query",
+        "requested_at",
+        "expected_manifest_fingerprint",
     )

@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import hashlib
 from collections.abc import Callable
 from datetime import datetime
 from typing import Literal
@@ -48,26 +47,19 @@ from agentmonitor.composition.ollama_cloud_collection import (
 from agentmonitor.contracts.cloud_schedule_status_v1 import CloudScheduleStatusV1
 from agentmonitor.contracts.collection_control_v1 import (
     OllamaCloudLatestSourceSignalQueryV1,
-    OllamaCloudVerificationEnqueueV2,
     OllamaCloudVerificationReplayQueryV1,
-    OllamaCloudVerificationTargetV1,
 )
 from agentmonitor.contracts.common_v1 import OpaqueIdV1
 from agentmonitor.contracts.registry_v1 import (
     ActiveCredentialBindingRefV1,
-    AssertCredentialAccountOwnershipCommandV1,
     CredentialConnectionStatusV1,
     InitiateOllamaCloudVerificationCommandV1,
-    ProviderTargetRefV1,
 )
 from agentmonitor.modules.collection_control.application.ollama_cloud_admission import (
-    AtomicallyEnqueueOllamaCloudVerificationV2,
+    AtomicallyInitiateOllamaCloudVerificationV2,
 )
 from agentmonitor.modules.provider_system.domain.protocol import (
     current_access_from_signal,
-)
-from agentmonitor.modules.registry.application.accounts import (
-    AssertCredentialAccountOwnershipV1,
 )
 from agentmonitor.modules.registry.application.organizations import (
     RegistryCommandConflictV1,
@@ -75,9 +67,6 @@ from agentmonitor.modules.registry.application.organizations import (
 from agentmonitor.modules.registry.domain.cloud_connection_status import (
     derive_connection_status,
     scheduled_monitoring_state,
-)
-from agentmonitor.modules.registry.domain.cloud_verification import (
-    cloud_verification_enqueue_account_version,
 )
 from agentmonitor.modules.registry.domain.credential_binding import (
     resolve_active_credential_binding,
@@ -334,105 +323,19 @@ class OllamaCloudConnectionServiceV1:
             return self.read(command.account_id, command.requested_at)
         if not self._ready():
             raise ValueError("ollama_cloud_verification_unavailable")
-        account = self._registry.get_account(command.account_id)
-        if (
-            account is None
-            or account.provider_key != "ollama"
-            or account.lifecycle == "archived"
-        ):
-            raise ValueError("ollama_cloud_account_unavailable")
-        binding = resolve_active_credential_binding(
-            self._bindings.read(command.account_id)
-        )
-        if binding is None:
-            raise ValueError("ollama_cloud_binding_unavailable")
         if not self._location_current():
             raise ValueError("ollama_cloud_verification_unavailable")
-        target = self._cloud.reconcile_access_target(
-            provider_key="ollama",
-            authority_id="ollama.com",
-            manifest_fingerprint=ollama_cloud_probe_fingerprint(),
-            as_of=command.requested_at,
-        )
-        graph = self._cloud.read_monitoring_target(command.account_id)
-        owner_assertion_required = (
-            graph is None
-            or account.record_version != command.expected_account_record_version
-        )
-        if owner_assertion_required:
-            account, graph = AssertCredentialAccountOwnershipV1(self._registry)(
-                AssertCredentialAccountOwnershipCommandV1(
+        try:
+            AtomicallyInitiateOllamaCloudVerificationV2(
+                SqliteAtomicOllamaCloudVerificationEnqueueRepositoryV2(self._reference)
+            )(
+                OllamaCloudVerificationReplayQueryV1(
                     command.idempotency_key,
                     command.principal_id,
                     command.account_id,
-                    target.access_target_id,
                     command.expected_account_record_version,
-                    binding,
-                    command.requested_at,
-                )
-            )
-        expected_enqueue_account_record_version = (
-            cloud_verification_enqueue_account_version(
-                command_expected_version=command.expected_account_record_version,
-                owner_assertion_required=owner_assertion_required,
-            )
-        )
-        if account.record_version != expected_enqueue_account_record_version:
-            raise RegistryCommandConflictV1("registry_account_version_conflict")
-        if graph is None:
-            raise ValueError("ollama_cloud_target_changed")
-        if (
-            graph.account_id != command.account_id
-            or graph.access_target_id != target.access_target_id
-            or graph.binding != binding
-            or graph.lifecycle != "active"
-            or graph.identity_state != "owner_confirmed"
-        ):
-            raise ValueError("ollama_cloud_target_changed")
-        digest = hashlib.sha256(
-            "\0".join(
-                (
-                    "ollama",
-                    target.access_target_id.value,
-                    command.account_id.value,
-                    graph.profile_id.value,
-                    graph.resource_id.value,
-                    binding.binding_id.value,
-                    str(binding.generation),
-                )
-            ).encode()
-        ).hexdigest()
-        schedule_id = OpaqueIdV1("ollama-cloud-" + digest[:40])
-        self._admission.register_verification_target(
-            OllamaCloudVerificationTargetV1(
-                schedule_id,
-                command.account_id,
-                graph.profile_id,
-                graph.resource_id,
-                ProviderTargetRefV1("cloud_service", target.access_target_id),
-                digest,
-                binding.generation,
-                command.requested_at,
-            )
-        )
-        try:
-            AtomicallyEnqueueOllamaCloudVerificationV2(
-                SqliteAtomicOllamaCloudVerificationEnqueueRepositoryV2(self._reference)
-            )(
-                OllamaCloudVerificationEnqueueV2(
-                    idempotency_key=command.idempotency_key,
-                    principal_id=command.principal_id,
-                    schedule_id=schedule_id,
-                    account_id=command.account_id,
-                    access_target_id=target.access_target_id,
-                    binding_generation=binding.generation,
-                    requested_at=command.requested_at,
-                    expected_account_record_version=(
-                        command.expected_account_record_version
-                    ),
                 ),
-                expected_enqueue_account_record_version,
-                binding,
+                command.requested_at,
                 ollama_cloud_probe_fingerprint(),
             )
         except OllamaCloudAdmissionRepositoryErrorV1 as error:
