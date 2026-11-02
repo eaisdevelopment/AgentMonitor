@@ -18,6 +18,9 @@ from agentmonitor.adapters.persistence._shared.sqlite.core.policy import (
 from agentmonitor.adapters.persistence.registry.sqlite.credential_bindings import (
     archive_bindings_in_transaction,
 )
+from agentmonitor.adapters.persistence.registry.sqlite.credential_lock import (
+    account_credential_lock,
+)
 from agentmonitor.contracts.common_v1 import OpaqueIdV1
 from agentmonitor.contracts.provider_system_v1 import DiscoveryOutcomeV1
 from agentmonitor.contracts.registry_v1 import (
@@ -1191,6 +1194,14 @@ class SqliteRegistryRepositoryV1:
             raise RegistryRepositoryErrorV1() from None
 
     def edit_account(self, command: EditAccountCommandV1) -> AccountViewV1:
+        if command.action == "archive":
+            account = self.get_account(command.account_id)
+            if account is not None and account.provider_key == "ollama":
+                with account_credential_lock(self._database_ref, command.account_id):
+                    return self._edit_account_locked(command)
+        return self._edit_account_locked(command)
+
+    def _edit_account_locked(self, command: EditAccountCommandV1) -> AccountViewV1:
         operation = "edit_account_" + command.action
         command_digest = _digest(command.command_id.value)
         request_fingerprint = _fingerprint(

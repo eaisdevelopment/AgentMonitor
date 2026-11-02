@@ -13,6 +13,9 @@ from agentmonitor.adapters.persistence._shared.sqlite.core.policy import (
     SqlitePolicyError,
     open_sqlite_database,
 )
+from agentmonitor.adapters.persistence.registry.sqlite.credential_lock import (
+    account_credential_lock,
+)
 from agentmonitor.contracts.common_v1 import OpaqueIdV1
 from agentmonitor.contracts.registry_v1 import (
     CredentialBindingAggregateV1,
@@ -134,6 +137,27 @@ class SqliteCredentialBindingsV1:
             "owner_disconnected", "account_archived", "account_deleted"
         ] = "owner_disconnected",
     ) -> CredentialBindingAggregateV1:
+        with account_credential_lock(self._reference, account_id):
+            return self.transition_locked(
+                account_id,
+                expected_record_version=expected_record_version,
+                action=action,
+                binding_id=binding_id,
+                reason=reason,
+            )
+
+    def transition_locked(
+        self,
+        account_id: OpaqueIdV1,
+        *,
+        expected_record_version: int,
+        action: Literal["prepare", "activate", "abandon", "disconnect", "cleanup"],
+        binding_id: OpaqueIdV1 | None = None,
+        reason: Literal[
+            "owner_disconnected", "account_archived", "account_deleted"
+        ] = "owner_disconnected",
+    ) -> CredentialBindingAggregateV1:
+        """Caller must hold account_credential_lock until external work completes."""
         try:
             with open_sqlite_database(self._reference, "runtime_read_write") as handle:
                 with handle.connect() as connection:
