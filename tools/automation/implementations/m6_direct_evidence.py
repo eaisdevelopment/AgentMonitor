@@ -485,11 +485,7 @@ def classify_direct_m6_evidence_v1(
         )
     official = facts.authoritative_comparison
     proof = facts.authoritative_observation
-    if official.status == "passed" and (
-        proof is None
-        or proof.status != "passed"
-        or proof.compared_targets < facts.authoritative_balance_reconciled_targets
-    ):
+    if official.status == "passed" and (proof is None or proof.status != "passed"):
         official = BoundaryCheckV1(
             "not_run", 0, reason_code="official_usage_not_observed"
         )
@@ -498,6 +494,8 @@ def classify_direct_m6_evidence_v1(
         facts.verified_cloud_targets < facts.active_cloud_targets
         or facts.current_balance_targets < facts.active_cloud_targets
         or facts.authoritative_balance_reconciled_targets < facts.active_cloud_targets
+        or proof is None
+        or proof.compared_targets != facts.authoritative_balance_reconciled_targets
     ):
         outcomes["M6-A04"] = _missing(
             "authoritative_cloud_balance_not_observed", cloud_balance

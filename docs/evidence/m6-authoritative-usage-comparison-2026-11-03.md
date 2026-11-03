@@ -64,7 +64,11 @@ cannot be reconciled.
 - `test_counts_without_an_official_comparison_cannot_pass_a04` first failed
   because summary counts alone yielded Passed. The classifier now requires the
   actual comparison envelope and successful producer boundary.
-- Focused canonical policy/catalog/envelope tests: **44 passed** using
+- Independent review found that an envelope count greater than the reconciled
+  target count could still pass the pure classifier. The exact-count regression
+  failed with `passed` instead of `not_run`; the classifier now rejects both
+  smaller and greater envelope counts.
+- Focused canonical policy/catalog/envelope tests: **45 passed** using
   `python -B -m pytest tools/automation/test_m6_authoritative_evidence.py
   tools/automation/test_m6_direct_evidence.py tools/automation/test_m6_exit.py -q`.
 - Real provider browser comparison **Passed at 13:42:32 UTC** against running

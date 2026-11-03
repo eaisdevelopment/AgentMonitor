@@ -404,3 +404,19 @@ def test_counts_without_an_official_comparison_cannot_pass_a04() -> None:
         )["M6-A04"].status
         == "not_run"
     )
+
+
+def test_official_comparison_count_must_exactly_match_reconciled_targets() -> None:
+    facts = _complete_facts()
+    proof = facts.authoritative_observation
+    assert proof is not None
+    for compared_targets in (1, 3):
+        outcome = classify_direct_m6_evidence_v1(
+            replace(
+                facts,
+                authoritative_observation=replace(
+                    proof, compared_targets=compared_targets
+                ),
+            )
+        )["M6-A04"]
+        assert outcome.status == "not_run"
