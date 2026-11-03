@@ -72,3 +72,44 @@ existing active read-only schema inspector, not new migration authority.
 The focused catalog test passed and strict mypy passed for compatibility and
 the two new migration test files. Asset preparation and disposable recovery
 verification remain the next bounded checks.
+
+## Disposable activation and recovery verification
+
+Built frontend assets from clean candidate `822f50c` with the existing
+`build_clean_frontend` helper. Build SHA-256:
+`a30e03e1723834982a833ff20e7ec42c343a12ba122fb8d41392348894eae8f5`.
+The previously asset-blocked disposable dashboard readiness check passed,
+as did the normal same-schema 0719 update check.
+
+Five cutover checks initially stopped before migration/journal creation with
+`candidate_checkout_not_clean`: the temporary dependency helper had added
+untracked links. The clean-checkout guard was retained. Running only these
+five cases directly with the developer interpreter, without dependency links,
+passed: **5 passed in 113.42 seconds**.
+
+Invocation from the clean candidate, with `PYTHONDONTWRITEBYTECODE=1`,
+`PYTHONPATH=backend/src:.`, and `AGENTMONITOR_TEST_CANDIDATE` pointing to that
+checkout:
+
+```sh
+/home/dev/Nextcloud/Code/AI/AgentMonitor/backend/.venv/bin/python -B -m pytest -q \
+  'tools/automation/tests/test_m6_cutover.py::test_disposable_unit_and_real_backup_migration[normal]' \
+  'tools/automation/tests/test_m6_cutover.py::test_disposable_unit_and_real_backup_migration[real_source_restore]' \
+  'tools/automation/tests/test_m6_cutover.py::test_disposable_unit_and_real_backup_migration[migration_crash_backup]' \
+  'tools/automation/tests/test_m6_cutover.py::test_disposable_unit_and_real_backup_migration[migration_crash_committed]' \
+  'tools/automation/tests/test_m6_cutover.py::test_disposable_unit_and_real_backup_migration[candidate_attempt_recovery]'
+```
+
+These exercise normal 0718-to-0719 cutover, restoration of a private actual
+0718 source copy, and the existing migration/interrupted-activation recovery
+paths. They use owned disposable units and private databases; no installed
+service or database is changed. Other cutover parameter cases were not run
+for this change. Historical 0718 migration bytes, schema fingerprint and
+retained backup/controller identities remain unchanged.
+
+This is bounded migration evidence, not an M6 completion claim. Root still
+owns combined integration, OpenAPI/client provenance regeneration, routine
+catalog wording, planning metadata, canonical deployment and the milestone
+gate. M02 repository coverage assertions/history behavior has its separate
+implementation and real-data checks. No new dependency, credential access,
+provider request, fabricated coverage record or telemetry was introduced.
