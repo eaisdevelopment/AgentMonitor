@@ -26,6 +26,10 @@ from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import NoReturn
 
+from tools.automation.implementations.m6_authoritative_evidence import (
+    AuthoritativeComparisonV1,
+    parse_authoritative_comparison_v1,
+)
 from tools.automation.implementations.m6_direct_evidence import (
     DIRECT_EXECUTABLE_SELECTION_V1,
     BoundaryCheckV1,
@@ -69,6 +73,8 @@ DIRECT_CHECK_TIMEOUT_SECONDS = {
     "source_security": 300,
     "database_snapshot": 60,
     "recovery_interval": 660,
+    "authoritative_comparison": 90,
+    "authoritative_policy": 15,
 }
 DIRECT_SNAPSHOT_KEYS = (
     "active_ollama_accounts",
@@ -1117,6 +1123,41 @@ def _run_real_snapshot() -> tuple[BoundaryCheckV1, dict[str, int], dict[str, str
     )
 
 
+def _run_authoritative_comparison(
+    revision: str,
+) -> tuple[BoundaryCheckV1, AuthoritativeComparisonV1 | None]:
+    policy = _run_direct_argv(
+        _direct_command("authoritative_policy", revision),
+        timeout_seconds=DIRECT_CHECK_TIMEOUT_SECONDS["authoritative_policy"],
+    )
+    if _simple_process_status(policy) != "passed":
+        return _boundary(
+            _simple_process_status(policy), "official_usage_policy_unavailable"
+        ), None
+    result = _run_direct_argv(
+        _direct_command("authoritative_comparison", revision),
+        timeout_seconds=DIRECT_CHECK_TIMEOUT_SECONDS["authoritative_comparison"],
+        capture_output=True,
+    )
+    if not result.launched:
+        return _boundary("blocked", "official_usage_producer_unavailable"), None
+    if result.timed_out or not result.cleanup_confirmed:
+        return _boundary("failed", "official_usage_producer_timeout"), None
+    try:
+        evidence = parse_authoritative_comparison_v1(
+            _load_json_bytes(result.output.strip()),
+            revision=revision,
+            return_code=result.return_code,
+            now=datetime.now(UTC),
+        )
+        return _boundary(
+            evidence.status,
+            None if evidence.status == "passed" else evidence.reason_code,
+        ), evidence
+    except (M6ExitErrorV1, ValueError):
+        return _boundary("failed", "official_usage_producer_invalid"), None
+
+
 def _run_recovery_interval(
     revision: str,
 ) -> tuple[BoundaryCheckV1, RecoveryIntervalEvidenceV1 | None]:
@@ -1161,6 +1202,9 @@ def _run_direct_checks(checks: dict[str, StatusV1], revision: str) -> DirectM6Fa
         dashboard_continuity,
         browser_facts,
     ) = _run_ollama_dashboard_browser(revision)
+    authoritative_comparison, authoritative_observation = _run_authoritative_comparison(
+        revision
+    )
     database_snapshot, counts, snapshot_digests = _run_real_snapshot()
     # Historical rows alone cannot attest HTTP continuity. Only this invocation's
     # bounded, revision-bound interval producer supplies recovery counts.
@@ -1172,11 +1216,29 @@ def _run_direct_checks(checks: dict[str, StatusV1], revision: str) -> DirectM6Fa
         if recovery_interval is None
         else recovery_interval.cross_provider_continuity_targets
     )
-    # DB/API/DOM equality proves internal source lineage, not the separate
-    # provider-authoritative comparison required by M6-A04.  The canonical
-    # command leaves that count at zero until a genuine provider comparison is
-    # available; it never upgrades internal agreement into external evidence.
+    # A provider DOM comparison is accepted only for the exact current API/DOM/DB
+    # observation set. The DB query owns current credential-binding/source proof;
+    # no key or invented provider identity is exposed to the browser producer.
     authoritative_balance_reconciled_targets = 0
+    if (
+        authoritative_comparison.status == "passed"
+        and authoritative_observation is not None
+    ):
+        if (
+            authoritative_observation.compared_targets
+            == counts["current_balance_targets"]
+            == browser_facts["current_lineage_targets"]
+            and authoritative_observation.current_balance_lineage_sha256
+            == snapshot_digests["current_balance_lineage_sha256"]
+            == browser_facts["current_balance_lineage_sha256"]
+        ):
+            authoritative_balance_reconciled_targets = (
+                authoritative_observation.compared_targets
+            )
+        else:
+            authoritative_comparison = _boundary(
+                "not_run", "official_usage_current_lineage_not_reconciled"
+            )
     history_lineage_reconciled_targets = 0
     if (
         browser_facts["history_lineage_targets"] == counts["history_targets"]
@@ -1194,6 +1256,8 @@ def _run_direct_checks(checks: dict[str, StatusV1], revision: str) -> DirectM6Fa
         dashboard_continuity_browser=dashboard_continuity,
         source_security=_boundary(_simple_process_status(source_security)),
         database_snapshot=database_snapshot,
+        authoritative_comparison=authoritative_comparison,
+        authoritative_observation=authoritative_observation,
         recovery_interval=recovery_interval,
         recovery_observation=recovery_observation,
         observed_model_hosts=len(model_hosts),

@@ -37,6 +37,24 @@ HOSTS = (
 
 
 def _complete_facts() -> DirectM6FactsV1:
+    from tools.automation.implementations.m6_authoritative_evidence import (
+        AuthoritativeComparisonV1,
+    )
+
+    official = AuthoritativeComparisonV1(
+        "agentmonitor.m6_authoritative_comparison.v1",
+        "1.0.0",
+        "passed",
+        "official_usage_compared",
+        "a" * 40,
+        2,
+        "b" * 64,
+        "c" * 64,
+        "2026-11-03T12:00:00Z",
+        "2026-11-03T12:00:10Z",
+        "2026-11-03T12:00:09Z",
+        "2026-11-03T11:59:00Z",
+    )
     from tools.automation.implementations.m6_recovery_evidence import (
         RecoveryIntervalEvidenceV1,
     )
@@ -68,6 +86,8 @@ def _complete_facts() -> DirectM6FactsV1:
         dashboard_continuity_browser=PASSED,
         source_security=PASSED,
         database_snapshot=PASSED,
+        authoritative_comparison=PASSED,
+        authoritative_observation=official,
         recovery_interval=interval,
         recovery_observation=PASSED,
         active_ollama_accounts=2,
@@ -375,3 +395,12 @@ def test_invalid_recovery_producer_is_not_hidden_by_positive_counts() -> None:
         ),
     )
     assert classify_direct_m6_evidence_v1(facts)["M6-A07"].status == "failed"
+
+
+def test_counts_without_an_official_comparison_cannot_pass_a04() -> None:
+    assert (
+        classify_direct_m6_evidence_v1(
+            replace(_complete_facts(), authoritative_observation=None)
+        )["M6-A04"].status
+        == "not_run"
+    )

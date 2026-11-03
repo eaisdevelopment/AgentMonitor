@@ -13,6 +13,9 @@ from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from typing import Literal
 
+from tools.automation.implementations.m6_authoritative_evidence import (
+    AuthoritativeComparisonV1,
+)
 from tools.automation.implementations.m6_recovery_evidence import (
     RecoveryIntervalEvidenceV1,
 )
@@ -57,6 +60,22 @@ DIRECT_EXECUTABLE_SELECTION_V1: tuple[tuple[str, tuple[str, ...]], ...] = (
         (
             "/usr/bin/node",
             "frontend/tests/browser/m6/verify_ollama_dashboard.mjs",
+            "{revision}",
+        ),
+    ),
+    (
+        "authoritative_policy",
+        (
+            "/usr/bin/node",
+            "--test",
+            "frontend/tests/pure/ollama-authoritative-comparison.mjs",
+        ),
+    ),
+    (
+        "authoritative_comparison",
+        (
+            "/usr/bin/node",
+            "frontend/tests/browser/m6/compare_official_ollama_usage.mjs",
             "{revision}",
         ),
     ),
@@ -299,6 +318,10 @@ class DirectM6FactsV1:
     process_observation_count: int
     natural_recovery_targets: int
     cross_provider_continuity_targets: int
+    authoritative_observation: AuthoritativeComparisonV1 | None = None
+    authoritative_comparison: BoundaryCheckV1 = BoundaryCheckV1(
+        "not_run", 0, reason_code="official_usage_not_observed"
+    )
     recovery_interval: RecoveryIntervalEvidenceV1 | None = None
     recovery_observation: BoundaryCheckV1 = BoundaryCheckV1(
         "not_run", 0, reason_code="recovery_interval_not_observed"
@@ -460,7 +483,17 @@ def classify_direct_m6_evidence_v1(
             1,
             reason_code="ollama_capacity_ui_missing",
         )
-    cloud_balance = _combined(outcomes["M6-A03"], cloud_browser)
+    official = facts.authoritative_comparison
+    proof = facts.authoritative_observation
+    if official.status == "passed" and (
+        proof is None
+        or proof.status != "passed"
+        or proof.compared_targets < facts.authoritative_balance_reconciled_targets
+    ):
+        official = BoundaryCheckV1(
+            "not_run", 0, reason_code="official_usage_not_observed"
+        )
+    cloud_balance = _combined(outcomes["M6-A03"], cloud_browser, official)
     if cloud_balance.status == "passed" and (
         facts.verified_cloud_targets < facts.active_cloud_targets
         or facts.current_balance_targets < facts.active_cloud_targets
