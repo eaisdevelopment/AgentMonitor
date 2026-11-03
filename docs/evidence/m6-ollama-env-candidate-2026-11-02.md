@@ -31,6 +31,22 @@ when the existing gate is ready. This contributes to M6-A03/A07/A09; the public
 registry contract is unchanged. Deployment and the corrected failure display
 remain to be verified for this increment.
 
+A second real connection check was requested only after the server returned
+`can_verify=true`. It also ended `provider_unavailable` with response received;
+no third request was issued. The first current-update invocation exited 3 and
+left the baseline dashboard active with HTTP 200. Read-only baseline, unit and
+schema preflights passed afterward. One diagnostic invocation of the unchanged
+registered implementation, using its required private runtime and logging only
+allowlisted transition error codes, succeeded without an error code. The first
+failure's cause remains unknown; it is not classified as a provider prerequisite.
+
+The running application is now `fda6ce7`, verified through the authenticated
+version API. The real owner browser shows Last connection check failed and the
+temporary-unavailability explanation with the actual last-check timestamp.
+The service is active with `Restart=on-failure` and local HTTP 200. The import
+and truthful failure display are verified; authentication success, actual
+balance, cloud history and full M6 acceptance remain unproven.
+
 The owner selected the protected AgentMonitor-managed `.env` for Ollama cloud
 credentials on 2 November 2026. This replaces the earlier Secret Service
 design; provider profiles are not used or changed. The M03 helper and M02
