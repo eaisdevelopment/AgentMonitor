@@ -54,6 +54,7 @@ def derive_connection_status(
     reasons: dict[str, CredentialConnectionStateV1] = {
         "last_check_stale": "stale",
         "transient_failure": "retry_available",
+        "provider_unavailable": "retry_available",
         "unauthorized": "unauthorized",
         "rate_limited": "rate_limited",
         "credential_update_in_progress": "credential_update_in_progress",

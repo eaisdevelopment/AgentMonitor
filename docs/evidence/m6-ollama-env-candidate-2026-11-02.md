@@ -1,5 +1,36 @@
 # M6 managed Ollama credential candidate
 
+## Owner-provided file import, 3 November 2026
+
+The owner supplied an Ollama key in the existing protected `.env` and explicitly
+requested use of that entry. The named-import CLI was added with no API, schema,
+dependency or provider-profile changes. Before implementation the real command
+rejected its two new options; pure parser and operator tests subsequently passed.
+The root reviewed the guarded writer reuse, explicit account selection, literal
+quote handling, absence of shell evaluation, and post-prompt selection checks.
+
+The first real import could not acquire the account lock held by the earlier
+interactive AgentMonitor setup command. Its exact command, UID and live PID
+were verified before sending that command SIGINT through a pidfd. The subsequent
+named import succeeded through the normal prepare/activate/cleanup lifecycle.
+The original source entry and unrelated file content are retained by the guarded
+writer. No key was printed, passed in process arguments or placed in diagnostics.
+
+The real dashboard connection action then activated monitoring preference and
+created a real verification run. The run ended failed with
+`ollama_cloud_provider_unavailable` and recorded `response_received`; this is
+not proof of accepted authentication or a successful balance reading. The
+durable backoff remained in force. Cloud balances and history are not yet proven.
+
+That real failure exposed a presentation defect: the terminal
+`provider_unavailable` reason mapped to pending. A pure regression test failed
+with pending instead of retry_available before adding the missing mapping.
+The status, import-parser and operator tests then passed all 18 tests. The
+mapping retains disabled retry during busy/not-due gates and enables it only
+when the existing gate is ready. This contributes to M6-A03/A07/A09; the public
+registry contract is unchanged. Deployment and the corrected failure display
+remain to be verified for this increment.
+
 The owner selected the protected AgentMonitor-managed `.env` for Ollama cloud
 credentials on 2 November 2026. This replaces the earlier Secret Service
 design; provider profiles are not used or changed. The M03 helper and M02
