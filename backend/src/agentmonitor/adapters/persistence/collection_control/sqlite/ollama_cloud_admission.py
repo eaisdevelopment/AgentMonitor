@@ -2024,7 +2024,8 @@ class SqliteOllamaCloudAdmissionRepositoryV1:
                                 "r.provider_target_id,r.target_generation,"
                                 "r.capability_id,r.source_id,r.adapter_version,"
                                 "r.manifest_fingerprint,r.payload_schema,"
-                                "r.fencing_token,l.owner_instance_id "
+                                "r.fencing_token,l.owner_instance_id,"
+                                "l.fencing_token AS collection_fencing_token "
                                 "FROM collection_cloud_attempt_journal j "
                                 "JOIN collection_run r ON r.run_id=j.run_id "
                                 "JOIN collection_lease l ON l.run_id=r.run_id "
@@ -2053,7 +2054,8 @@ class SqliteOllamaCloudAdmissionRepositoryV1:
                             or current["manifest_fingerprint"]
                             != query.source_fingerprint
                             or current["payload_schema"] != query.payload_schema
-                            or int(current["fencing_token"]) != lease.fencing_token
+                            or int(current["fencing_token"])
+                            != int(current["collection_fencing_token"])
                             or current["owner_instance_id"]
                             != lease.scheduler_instance_id.value
                         ):
