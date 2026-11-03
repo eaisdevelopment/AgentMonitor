@@ -5,7 +5,6 @@ import sys
 from pathlib import Path
 
 import pytest
-
 from agentmonitor.composition.ollama_credential_operator import main
 
 

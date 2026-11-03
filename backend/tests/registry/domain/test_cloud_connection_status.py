@@ -74,7 +74,9 @@ def test_stale_and_transient_states_are_not_reported_as_pending() -> None:
     ) == ("retry_available", True)
 
 
-def test_terminal_provider_unavailable_reports_failure_while_respecting_backoff() -> None:
+def test_terminal_provider_unavailable_reports_failure_while_respecting_backoff() -> (
+    None
+):
     for gate, allowed in (("not_due", False), ("busy", False), ("ready", True)):
         assert derive_connection_status(
             True, False, "terminal", "provider_unavailable", gate, True

@@ -55,3 +55,24 @@ authorization and did not request key re-entry.
 Deployment, actual authenticated cloud balance, dashboard history and the full
 M6 completion command remain to be verified after this change. The local
 daemon regression is not itself proof of a successful cloud balance.
+
+## Deployment and whole-scope check
+
+`AUTO-M6-CURRENT-UPDATE` passed for `3807977`; the authenticated Operations API
+reported that exact revision, and the dashboard remained HTTP 200. The cloud
+connection POST then returned 503 before dispatch. Inspection found the M02
+access-target reconciler rejects a changed source fingerprint for an existing
+target; the required upgrade correction is separate from the body-reader fix.
+No successful cloud reading is claimed at this point.
+
+`AUTO-M6-EXIT` ran on `3807977` and retained
+`.agentmonitor-local/m6-evidence/direct-3807977ab1288113b47d521f8be7b0d7c91f4181-44334151d9c3567f.json`.
+M6-A01/A06/A08 passed; the other acceptance lanes remained Not Run. Local
+admission, documentation and planning checks passed. Build failed on stale
+generated provenance; quality failed on three test-formatting issues. The
+generator was rerun through `tooling/foundation/openapi_client.py --write`:
+the API schema digest and all 74 operations were unchanged, only generated
+source/artifact digests changed. After formatting the three tests, canonical
+`AUTO-BUILD` and `AUTO-QUALITY` both passed, including strict mypy on 501 source
+files, boundary checks, TypeScript and production build. This repairs those
+technical failures, not the remaining real M6 coverage.
