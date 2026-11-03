@@ -74,6 +74,20 @@ that path via its explicit
 `--credential-env-file` setting. This is a candidate instruction, not evidence
 that the operator, runtime capability or service deployment has been verified.
 
+The owner later authorized a noninteractive import of one explicitly named
+literal entry from that same service-selected `.env`:
+
+```text
+python -B -m agentmonitor.composition.ollama_credential_operator --data-root DATA_ROOT --account-id ACCOUNT_ID --from-env-variable VARIABLE
+```
+
+The selectors are non-secret; the key does not enter arguments, process
+environment, or output. The source and unrelated entries remain unchanged, and
+the managed entry uses the existing locked prepare/activate/cleanup lifecycle.
+A real CLI Red returned argparse exit 2 before these flags existed. Focused
+parser and CLI-policy tests then passed with ordinary non-secret pure inputs.
+The actual owner file import and provider response remain Not Run here.
+
 At candidate commit `576046f`, the frontend typecheck and build passed using
 the existing installed dependencies, and the planning synchronization and
 `AUTO-DOCS-CHECK` gates passed. A fresh private empty database and 0600 empty

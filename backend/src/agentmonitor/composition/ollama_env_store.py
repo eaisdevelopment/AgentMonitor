@@ -29,6 +29,73 @@ _MAX_ENV_BYTES = ENV_AUTHORIZATION_POLICY_V1.maximum_file_bytes
 _STAGING_NAME = re.compile(r"\.ollama-env-tmp-[0-9a-f]{32}\Z")
 _LOCATION_STAGING_NAME = re.compile(r"\.ollama-env-location-tmp-[0-9a-f]{32}\Z")
 _LOCATION_NAME = ".ollama-env-location"
+_IMPORT_NAME = re.compile(rb"[A-Z_][A-Z0-9_]{0,127}\Z")
+_MANAGED_PREFIX = ENV_AUTHORIZATION_POLICY_V1.variable_prefix.encode("ascii")
+
+
+def _import_name_bytes(variable_name: str) -> bytes:
+    try:
+        name = variable_name.encode("ascii")
+    except (AttributeError, UnicodeError):
+        raise ValueError("ollama_env_import_name_invalid") from None
+    if (
+        type(variable_name) is not str
+        or _IMPORT_NAME.fullmatch(name) is None
+        or name.startswith(_MANAGED_PREFIX)
+    ):
+        raise ValueError("ollama_env_import_name_invalid")
+    return name
+
+
+def validate_ollama_env_import_variable(variable_name: str) -> None:
+    """Validate a literal source name without reading the credential file."""
+    _import_name_bytes(variable_name)
+
+
+def read_literal_env_value(content: bytes | bytearray, variable_name: str) -> bytearray:
+    """Select one canonical literal value from an already-bounded snapshot."""
+    name = _import_name_bytes(variable_name)
+    if (
+        type(content) not in {bytes, bytearray}
+        or len(content) > ENV_AUTHORIZATION_POLICY_V1.maximum_file_bytes
+    ):
+        raise ValueError("ollama_env_import_stream_invalid")
+    selected: bytearray | None = None
+    try:
+        for line in content.splitlines():
+            candidate = line.lstrip()
+            if candidate.startswith(b"export "):
+                candidate = candidate[7:].lstrip()
+            if candidate.split(b"=", 1)[0].strip() != name:
+                continue
+            if selected is not None:
+                raise ValueError("ollama_env_import_entry_ambiguous") from None
+            if not line.startswith(name + b"="):
+                raise ValueError("ollama_env_import_entry_invalid") from None
+            selected = bytearray(line[len(name) + 1 :])
+        if selected is None:
+            raise ValueError("ollama_env_import_entry_missing") from None
+        if (
+            len(selected) >= 2
+            and selected[0] in {0x22, 0x27}
+            and selected[-1] == selected[0]
+        ):
+            del selected[-1]
+            del selected[0]
+        elif selected.startswith((b'"', b"'")) or selected.endswith((b'"', b"'")):
+            raise ValueError("ollama_env_import_value_invalid") from None
+        if not 1 <= len(
+            selected
+        ) <= ENV_AUTHORIZATION_POLICY_V1.maximum_token_bytes or any(
+            item < 0x21 or item > 0x7E for item in selected
+        ):
+            raise ValueError("ollama_env_import_value_invalid") from None
+        result = selected
+        selected = None
+        return result
+    finally:
+        if selected is not None:
+            selected[:] = b"\0" * len(selected)
 
 
 def _private_file(info: os.stat_result) -> bool:
@@ -613,9 +680,14 @@ def update_ollama_env(
     *,
     staging_root: Path,
     _held_guard: tuple[int, int] | None = None,
+    _import_variable: str | None = None,
 ) -> None:
     """Set/remove one entry, retaining unrelated bytes and failing closed on races."""
     name = credential_variable_name(binding_id)
+    if token is not None and _import_variable is not None:
+        raise ValueError("ollama_env_import_invalid")
+    if _import_variable is not None:
+        validate_ollama_env_import_variable(_import_variable)
     encoded = encode_credential_value(token) if token is not None else None
     owns_guard = _held_guard is None
     if _held_guard is None:
@@ -713,6 +785,12 @@ def update_ollama_env(
                 content = b"".join(chunks)
             finally:
                 os.close(source_fd)
+        if _import_variable is not None:
+            imported = read_literal_env_value(content, _import_variable)
+            try:
+                encoded = encode_credential_value(imported)
+            finally:
+                imported[:] = b"\0" * len(imported)
         updated = edit_credential_entry(content, name, encoded)
         if len(updated) > _MAX_ENV_BYTES:
             raise ValueError("ollama_env_file_invalid")
@@ -831,6 +909,23 @@ def update_ollama_env(
                         os.close(descriptor)
                     except OSError:
                         pass
+
+
+def import_ollama_env_variable(
+    env_path: Path,
+    binding_id: str,
+    variable_name: str,
+    *,
+    staging_root: Path,
+) -> None:
+    """Copy one literal source entry into one managed binding entry atomically."""
+    update_ollama_env(
+        env_path,
+        binding_id,
+        None,
+        staging_root=staging_root,
+        _import_variable=variable_name,
+    )
 
 
 def cleanup_untracked_env_entries(

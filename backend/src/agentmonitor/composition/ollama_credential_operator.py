@@ -20,11 +20,13 @@ from agentmonitor.composition.ollama_credential_enrollment import (
     cleanup_untracked_ollama_credentials,
     disconnect_ollama_credential,
     enroll_ollama_credential,
+    enroll_ollama_credential_from_env,
 )
 from agentmonitor.composition.ollama_env_store import (
     env_location_matches,
     read_env_location,
 )
+from agentmonitor.contracts.common_v1 import OpaqueIdV1
 from agentmonitor.contracts.registry_v1 import AccountViewV1, OrganizationViewV1
 
 
@@ -129,8 +131,13 @@ def selected_env_from_service(data_root: Path) -> Path:
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Connect an Ollama account locally")
     parser.add_argument("--data-root", required=True, type=Path)
+    parser.add_argument("--from-env-variable", metavar="VARIABLE")
+    parser.add_argument("--account-id", metavar="ID")
     args = parser.parse_args(argv)
-    if not all(os.isatty(fd) for fd in (0, 1, 2)):
+    import_mode = args.from_env_variable is not None or args.account_id is not None
+    if (args.from_env_variable is None) != (args.account_id is None):
+        parser.error("--from-env-variable and --account-id must be used together")
+    if not import_mode and not all(os.isatty(fd) for fd in (0, 1, 2)):
         print("Open this command in a local terminal.")
         return 2
     if not args.data_root.is_absolute():
@@ -139,18 +146,21 @@ def main(argv: list[str] | None = None) -> int:
     try:
         reference = DatabaseRefV1(args.data_root / "agentmonitor.db", args.data_root)
         offline_cleanup = False
-        try:
+        if import_mode:
             env_file = selected_env_from_service(args.data_root)
+        else:
             try:
-                retained = read_env_location(args.data_root)
-            except FileNotFoundError:
-                retained = None
-            if retained is not None and retained != env_file:
-                env_file = retained
+                env_file = selected_env_from_service(args.data_root)
+                try:
+                    retained = read_env_location(args.data_root)
+                except FileNotFoundError:
+                    retained = None
+                if retained is not None and retained != env_file:
+                    env_file = retained
+                    offline_cleanup = True
+            except (OSError, ValueError):
+                env_file = read_env_location(args.data_root)
                 offline_cleanup = True
-        except (OSError, ValueError):
-            env_file = read_env_location(args.data_root)
-            offline_cleanup = True
 
         def selection_current() -> bool:
             if offline_cleanup:
@@ -158,6 +168,24 @@ def main(argv: list[str] | None = None) -> int:
             return selected_env_from_service(args.data_root) == env_file
 
         registry = SqliteRegistryRepositoryV1(reference)
+        if import_mode:
+            account = registry.get_account(OpaqueIdV1(args.account_id))
+            if (
+                account is None
+                or account.provider_key != "ollama"
+                or account.lifecycle == "archived"
+            ):
+                print("The selected Ollama account is unavailable.")
+                return 1
+            enroll_ollama_credential_from_env(
+                reference,
+                account.account_id,
+                env_file,
+                args.from_env_variable,
+                selection_current=selection_current,
+            )
+            print("Credential stored. The account association remains owner-asserted.")
+            return 0
         organizations: list[OrganizationViewV1] = []
         cursor = None
         while True:

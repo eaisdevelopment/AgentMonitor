@@ -17,8 +17,10 @@ from agentmonitor.adapters.persistence.registry.sqlite.credential_lock import (
 )
 from agentmonitor.composition.ollama_env_store import (
     cleanup_untracked_env_entries,
+    import_ollama_env_variable,
     release_env_location_if_unused,
     update_ollama_env,
+    validate_ollama_env_import_variable,
 )
 from agentmonitor.contracts.common_v1 import OpaqueIdV1
 
@@ -59,6 +61,42 @@ def enroll_ollama_credential(
         raise EnrollmentError("owner_terminal_required")
     if len({os.ttyname(fd) for fd in (0, 1, 2)}) != 1:
         raise EnrollmentError("owner_terminal_required")
+    _enroll_ollama_credential(
+        reference,
+        account_id,
+        env_path,
+        selection_current=selection_current,
+        import_variable=None,
+    )
+
+
+def enroll_ollama_credential_from_env(
+    reference: DatabaseRefV1,
+    account_id: OpaqueIdV1,
+    env_path: Path,
+    variable_name: str,
+    *,
+    selection_current: Callable[[], bool],
+) -> None:
+    """Import one literal entry into the normal guarded binding lifecycle."""
+    validate_ollama_env_import_variable(variable_name)
+    _enroll_ollama_credential(
+        reference,
+        account_id,
+        env_path,
+        selection_current=selection_current,
+        import_variable=variable_name,
+    )
+
+
+def _enroll_ollama_credential(
+    reference: DatabaseRefV1,
+    account_id: OpaqueIdV1,
+    env_path: Path,
+    *,
+    selection_current: Callable[[], bool],
+    import_variable: str | None,
+) -> None:
     _disable_core_dumps()
     with account_credential_lock(reference, account_id) as lock_lease:
         repository = SqliteCredentialBindingsV1(reference)
@@ -79,23 +117,34 @@ def enroll_ollama_credential(
                 item for item in pending.bindings if item.lifecycle == "pending"
             )
         try:
-            with warnings.catch_warnings():
-                warnings.simplefilter("error", getpass.GetPassWarning)
-                entered = getpass.getpass("Ollama API key: ")
-            token = bytearray(entered, "ascii")
-            del entered
-            try:
-                if not selection_current():
-                    raise EnrollmentError("credential_selection_changed")
-                lock_lease.inherited_lock(account_id)
-                update_ollama_env(
+            if not selection_current():
+                raise EnrollmentError("credential_selection_changed")
+            lock_lease.inherited_lock(account_id)
+            if import_variable is None:
+                with warnings.catch_warnings():
+                    warnings.simplefilter("error", getpass.GetPassWarning)
+                    entered = getpass.getpass("Ollama API key: ")
+                token = bytearray(entered, "ascii")
+                del entered
+                try:
+                    if not selection_current():
+                        raise EnrollmentError("credential_selection_changed")
+                    lock_lease.inherited_lock(account_id)
+                    update_ollama_env(
+                        env_path,
+                        item.binding_id.value,
+                        token,
+                        staging_root=reference._approved_root,
+                    )
+                finally:
+                    token[:] = b"\0" * len(token)
+            else:
+                import_ollama_env_variable(
                     env_path,
                     item.binding_id.value,
-                    token,
+                    import_variable,
                     staging_root=reference._approved_root,
                 )
-            finally:
-                token[:] = b"\0" * len(token)
             lock_lease.inherited_lock(account_id)
         except (OSError, ValueError, UnicodeError, getpass.GetPassWarning):
             raise EnrollmentError("credential_store_unavailable") from None
