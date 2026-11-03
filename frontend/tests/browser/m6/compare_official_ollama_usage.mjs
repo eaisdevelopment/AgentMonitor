@@ -1,9 +1,9 @@
-/** Read the already open official Usage credit card and one owner-selected account.
+/** Read the already open official Usage credit card and uniquely owner-paired accounts across existing browser contexts.
  * No provider requests/navigation, keys, requests table, billing or settings writes.
  */
 import { chromium } from '@playwright/test';
 import { createHash } from 'node:crypto';
-import { compareCreditView, parseCreditView } from './authoritative_credit_policy.mjs';
+import { parseCreditView, pairVisibleCreditViews, comparePairedCreditViews } from './authoritative_credit_policy.mjs';
 
 const revision = process.argv[2];
 const origin = 'http://127.0.0.1:43110';
@@ -27,9 +27,9 @@ function timeout() {
   return Math.min(5000, remaining);
 }
 function digest(value) { return createHash('sha256').update(JSON.stringify(value)).digest('hex'); }
-function lineage(account, quotas) {
-  const rows = quotas.items.map(item => [account.account_id, item.subject.resource_id,
-    item.subject.provider_target_id, item.window_id, item.current_observation_id, item.collection_run_id].join('\0'));
+function lineage(snapshots) {
+  const rows = snapshots.flatMap(({ account, quotas }) => quotas.items.map(item => [account.account_id, item.subject.resource_id,
+    item.subject.provider_target_id, item.window_id, item.current_observation_id, item.collection_run_id].join('\0')));
   return createHash('sha256').update([...new Set(rows)].sort().map(row => row + '\n').join('')).digest('hex');
 }
 async function localJson(path) {
@@ -80,10 +80,13 @@ async function officialView(page) {
   if (view === null) fail('official_usage_credit_view_unavailable');
   return { principal: emails[0].toLowerCase(), view, observedAt: new Date().toISOString() };
 }
-async function accountSnapshot(accountId, principal) {
+async function registryAccounts() {
   const registry = await localJson('/api/v1/accounts?limit=200');
-  if (!Array.isArray(registry?.items) || registry.page?.has_more !== false) fail('official_usage_pairing_unproven');
-  const matches = registry.items.filter(account => account.provider_key === 'ollama'
+  if (!Array.isArray(registry?.items) || registry.items.length > 200 || registry.page?.has_more !== false) fail('official_usage_pairing_unproven');
+  return registry.items;
+}
+async function accountSnapshot(accountId, principal) {
+  const matches = (await registryAccounts()).filter(account => account.provider_key === 'ollama'
     && account.lifecycle === 'active' && account.is_effective_monitoring_enabled === true
     && account.identity_state === 'owner_confirmed' && typeof account.friendly_name === 'string'
     && account.friendly_name.trim().toLowerCase() === principal);
@@ -119,46 +122,56 @@ try {
   browser = await chromium.connectOverCDP('http://127.0.0.1:9225', { timeout: timeout() });
   const pages = browser.contexts().flatMap(context => context.pages());
   const official = pages.filter(providerUrl);
-  const selected = pages.filter(page => {
-    try { const url = new URL(page.url()); return url.origin === origin && /^\/accounts\/[^/]+$/.test(url.pathname); }
+  const dashboard = pages.find(page => {
+    try { return new URL(page.url()).origin === origin; }
     catch { return false; }
   });
-  if (official.length !== 1 || selected.length !== 1) fail('official_usage_pairing_unproven');
-  const accountId = decodeURIComponent(new URL(selected[0].url()).pathname.split('/').at(-1));
-  disposable = await selected[0].context().newPage();
+  if (official.length < 1 || official.length > 100 || dashboard === undefined) fail('official_usage_pairing_unproven');
+  disposable = await dashboard.context().newPage();
   disposable.setDefaultTimeout(5000);
   await disposable.goto(origin + '/', { waitUntil: 'domcontentloaded', timeout: timeout() });
   await currentRevision();
   for (let attempt = 0; attempt < 2; attempt += 1) {
-    const providerBefore = await officialView(official[0]);
-    const before = await accountSnapshot(accountId, providerBefore.principal);
-    const amounts = nativeAmounts(before.quotas);
-    if (amounts === null) fail('official_usage_capacity_unavailable');
-    const decision = compareCreditView(providerBefore.view, amounts);
-    const after = await accountSnapshot(accountId, providerBefore.principal);
-    const providerAfter = await officialView(official[0]);
+    const providerBefore = [];
+    for (const page of official) providerBefore.push(await officialView(page));
+    const pairs = pairVisibleCreditViews(providerBefore, await registryAccounts());
+    if (pairs === null) fail('official_usage_pairing_unproven');
+    const before = [];
+    const sources = [];
+    for (const pair of pairs) {
+      const snapshot = await accountSnapshot(pair.accountId, pair.principal);
+      const amounts = nativeAmounts(snapshot.quotas);
+      if (amounts === null) fail('official_usage_capacity_unavailable');
+      before.push(snapshot);
+      sources.push({ accountId: pair.accountId, amounts });
+    }
+    const comparison = comparePairedCreditViews(providerBefore, pairs, sources);
+    const after = [];
+    for (const pair of pairs) after.push(await accountSnapshot(pair.accountId, pair.principal));
+    const providerAfter = [];
+    for (const page of official) providerAfter.push(await officialView(page));
+    const afterPairs = pairVisibleCreditViews(providerAfter, await registryAccounts());
     await currentRevision();
-    const stable = digest(before) === digest(after)
-      && providerBefore.principal === providerAfter.principal
-      && digest(providerBefore.view) === digest(providerAfter.view)
-      && selected[0].url() === origin + '/accounts/' + encodeURIComponent(accountId);
+    const stable = digest(before) === digest(after) && digest(pairs) === digest(afterPairs)
+      && digest(providerBefore.map(({ principal, view }) => ({ principal, view })))
+        === digest(providerAfter.map(({ principal, view }) => ({ principal, view })));
     if (!stable) {
       if (attempt === 0) continue; // One read-only retry; never dispatch a provider check.
       fail('official_usage_lineage_changed');
     }
-    result.provider_observed_at = providerAfter.observedAt;
-    result.source_observed_at = before.quotas.items[0].observed_at;
-    if (decision !== 'matched') {
-      result.status = decision === 'mismatch' ? 'failed' : 'not_run';
-      result.reason_code = decision === 'mismatch' ? 'official_usage_value_mismatch' : 'official_usage_capacity_unavailable';
+    result.provider_observed_at = providerAfter.at(-1).observedAt;
+    result.source_observed_at = before.map(item => item.quotas.items[0].observed_at)
+      .sort((left, right) => Date.parse(left) - Date.parse(right))[0];
+    if (comparison.decision !== 'matched') {
+      const mismatch = comparison.decision === 'mismatch';
+      result.status = mismatch ? 'failed' : 'not_run';
+      result.reason_code = mismatch ? 'official_usage_value_mismatch' : 'official_usage_capacity_unavailable';
       break;
     }
-    result.status = 'passed'; result.reason_code = 'official_usage_compared'; result.compared_targets = 1;
-    result.current_balance_lineage_sha256 = lineage(before.account, before.quotas);
+    result.status = 'passed'; result.reason_code = 'official_usage_compared'; result.compared_targets = comparison.comparedTargets;
+    result.current_balance_lineage_sha256 = lineage(before);
     result.comparison_sha256 = digest({ revision, pairing: 'owner_asserted_visible_principal',
-      account: before.account, connection: before.connection, provider: providerBefore.view,
-      principal: providerBefore.principal, quotas: before.quotas,
-      providerBefore: providerBefore.observedAt, providerAfter: providerAfter.observedAt });
+      snapshots: before, providerBefore, providerAfter, pairs });
     break;
   }
 } catch (error) {

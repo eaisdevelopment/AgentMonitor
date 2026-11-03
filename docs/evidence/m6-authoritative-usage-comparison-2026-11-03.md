@@ -12,13 +12,17 @@ schema, API, provider adapter, dependency, credential or service change.
 ## Approved pairing and comparison
 
 The integration steward approved this pairing before implementation: read the
-visible non-secret principal on the already signed-in official Ollama Usage
-page, require one active owner-confirmed monitored Registry account with that
-exact email label, and require its existing owner-selected dashboard account
-page. This remains **owner-asserted pairing**, not provider verification of the
+visible non-secret principal on each already signed-in official Ollama Usage
+tab across existing browser contexts, and require one active owner-confirmed
+monitored Registry account with that exact email label. The existing owner
+confirmation supplies the pairing; no particular account page must be pre-opened.
+This remains **owner-asserted pairing**, not provider verification of the
 API key's identity or organization membership. The artifact explicitly retains
 that provenance. No email, organization name, amount or raw provider DOM is
-persisted or printed by the producer.
+persisted or printed by the producer. Consistent duplicate tabs for the same
+principal count once; conflicting displays, ambiguous Registry labels or unmapped
+principals remain unproven. Different amounts are never used to infer identity
+or distinct shared pools. No login, browser context, account or profile is created.
 
 At narrow screen widths the provider shows only an avatar. The producer opens
 only the account menu to read its visible principal and restores its previous
@@ -46,6 +50,10 @@ to match both the built dashboard verifier and the real DB snapshot, whose
 existing public ports prove current binding and approved source. Root approved
 this compatible fence without adding an API field.
 
+The producer aggregates lineage only after every visible, uniquely paired
+account has a stable successful comparison. It reports the exact target count;
+with one official view and two current targets the canonical gate stays Not Run.
+With both real official views present it can compare and reconcile both together.
 The producer permits one read-only retry if facts move. Its internal deadline
 is 60 seconds and canonical subprocess deadline 90 seconds. No owner ceremony,
 attestation file or independent subgate was added. Existing AUTO-M6-EXIT runs
@@ -57,7 +65,12 @@ cannot be reconciled.
 
 - The new pure decimal/date suite first failed with `ERR_MODULE_NOT_FOUND`.
   The official full-month-name case then failed `unavailable` versus `matched`
-  before full month names were supported. Final Node suite: **7 passed**.
+  before full month names were supported. Final Node suite: **13 passed**.
+- Multi-principal pairing and aggregation tests first failed with missing exports.
+  They now cover two exact account/source mappings, duplicate tabs counted once,
+  inconsistent duplicates, ambiguous/unmapped labels, swapped account amounts,
+  missing sources and absent scopes not fabricated. These are pure no-I/O values;
+  they are not provider fixtures or simulated live multi-account evidence.
 - The closed comparison-envelope suite first failed with the expected missing
   module. It now rejects absent timestamps, wrong revision, overlong intervals,
   bad digests, excessive counts and added raw amount fields.
@@ -75,7 +88,10 @@ cannot be reconciled.
   revision `22d572c102f9684f38feaa1af4d99d7008c5d405`, for **one target** and a
   genuine source observation at **13:41:05 UTC**. Before/after principal, values
   and source lineage agreed. This is a candidate observer checking the existing
-  deployed revision, not a claim that this new observer was deployed.
+  deployed revision, not a claim that this new observer was deployed. The
+  multi-context implementation also passed its real one-account regression at
+  13:51:40 UTC. Positive multi-account live evidence remains Not Run because only
+  one paired official account is currently available; no extra account was seeded.
 - Earlier real executions truthfully reported a revision mismatch, temporarily
   unavailable connection and changing request-as-of metadata. They were not
   presented as passing comparisons. The as-of issue was corrected by fencing
