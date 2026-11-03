@@ -3,6 +3,15 @@
 Status: candidate implementation; natural recovery positive scenario Not Run.
 No M6 completion claim. Root integration retains rollout and canonical exit.
 
+Combined integration exposed seven import/ownership violations: the new
+technical contract lacked its central-writer allocation and closed contract
+module admission, and its M04 adapter lacked access to the existing bounded
+read factory/type. The exact module/source/symbol mappings were added; no
+generic import exception was introduced. The real foundation boundary suite
+then passed **190 tests in 7.89 seconds**. Independent review verified that
+foreign adapters, unrelated exports and private contract symbols remain
+rejected, and the reader retains its five-table M04-only allowlist.
+
 Requirements: FR-COL-003..008, M6-A07, AC-LIVE-007, AC-OPS-003.
 Modules/contracts: M04 and integration; additive CTR-COL-012 1.0.0, existing
 CTR-COL-008 1.1.0, CTR-REG-012 1.1.0 and versioned operations API unchanged.

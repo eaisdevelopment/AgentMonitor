@@ -48,6 +48,7 @@ CONTRACT_MODULES = frozenset(
         "provider_system_v1",
         "common_provenance_v1",
         "collection_control_v1",
+        "collection_recovery_v1",
         "capacity_v1",
         "common_quantity_v1",
         "runtime_observation_v1",
@@ -531,6 +532,7 @@ def _bounded_health_read_module(source: str, target: str) -> bool:
             "agentmonitor.adapters.persistence.registry.sqlite.health",
             "agentmonitor.adapters.persistence.collection_control.sqlite.health",
             "agentmonitor.adapters.persistence.collection_control.sqlite.alert_conditions",
+            "agentmonitor.adapters.persistence.collection_control.sqlite.recovery",
         }
         and target
         == "agentmonitor.adapters.persistence._shared.sqlite.core.bounded_read"
@@ -644,7 +646,12 @@ def _allowed(source: str, target: str, *, symbol_import: bool = False) -> bool:
     if symbol_import and (
         (
             _bounded_health_read_module(source, target.rpartition(".")[0])
-            and target.rpartition(".")[2] == "open_bounded_sqlite_read"
+            and (
+                target.rpartition(".")[2] == "open_bounded_sqlite_read"
+                or source
+                == "agentmonitor.adapters.persistence.collection_control.sqlite.recovery"
+                and target.rpartition(".")[2] == "BoundedSqliteReadConnectionV1"
+            )
         )
         or _approved_owner_adapter_domain_module(source, target.rpartition(".")[0])
         or _approved_composition_sqlite_symbol(source, target)

@@ -93,6 +93,10 @@ worker-isolation tests passed after deployment (2 tests, 2.75 seconds); the
 live connection still reported `scheduled` with fresh observations afterward.
 A later automatic cycle remains required for sustained collection evidence.
 
+That subsequent service-owned cycle committed both windows at **13:36:00 UTC**
+after the overlap tests, with a received provider response and two committed
+observations. Overview also rendered both real native USD amounts as Current.
+
 The official Ollama Usage page is now signed in. Its visible balance comparison
 is being integrated into the canonical command with owner-asserted pairing and
 the provider's displayed precision; it is not yet a passing M6-A04 artifact.

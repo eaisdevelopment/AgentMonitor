@@ -1206,3 +1206,16 @@ review and real natural-recovery acceptance are still pending.
 Plan snapshot SHA-256: `42c4d9a3f963b001782ee2668383cbc8cc745bcd5b003d57d6bd12a4bdc9734c`
 
 Planning validator SHA-256: `a07b3b5a8202785c2495cebb5c4ffac0344e1c3dfe605de150a240101af1fd60`
+
+## 2026-11-03 recovery contract ownership correction
+
+The combined boundary check exposed the missing source-owner allocation for
+CTR-COL-012. The integration steward reviewed its pure technical contract and
+M04-only bounded reader, added the exact contract module to the central writer
+allocation, and admitted only that adapter to the existing bounded-read
+mechanism. No generic import exception or additional module access was added.
+This binds the changed ownership control; it does not assert live recovery.
+
+Plan snapshot SHA-256: `6d71bea74e4ca205780a4ff5a22755c9068141ce53217e3c8ad79f5966dc2c28`
+
+Planning validator SHA-256: `a07b3b5a8202785c2495cebb5c4ffac0344e1c3dfe605de150a240101af1fd60`
