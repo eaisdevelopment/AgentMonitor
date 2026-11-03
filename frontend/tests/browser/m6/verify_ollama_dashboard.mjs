@@ -65,7 +65,9 @@ function lineageDigest(rows) {
 
 async function reconcileQuotaDom(page, accountId, quotas) {
   if (!boundedPage(quotas) || quotas.page.has_more || quotas.items.length < 1) return false;
-  const quotaRows = await page.locator('table[aria-label="Quota windows table"] tbody tr').evaluateAll(rows => rows.map(row => ({
+  const table = page.getByRole("region", { name: "Quota windows table", exact: true });
+  if (!await table.isVisible()) return false;
+  const quotaRows = await table.locator("tbody tr").evaluateAll(rows => rows.map(row => ({
     key: row.dataset.windowKey ?? "",
     role: row.dataset.semanticRole ?? "",
     observation: row.querySelector(".quota-observation-id")?.textContent?.trim() ?? "",
@@ -96,6 +98,7 @@ async function reconcileQuotaDom(page, accountId, quotas) {
 
 async function reconcileHistoryDom(page, accountId, history) {
   if (!boundedPage(history) || history.items.length < 2) return false;
+  if (!await page.getByRole("table", { name: "Capacity history exact values", exact: true }).isVisible()) return false;
   const historyRows = await page.locator('table[aria-label="Capacity history exact values"] tbody tr').evaluateAll(rows => rows.map(row => ({
     key: row.dataset.windowKey ?? "",
     role: row.dataset.semanticRole ?? "",
@@ -170,6 +173,12 @@ async function openAccountWithCapacityResponses(page, card) {
     await card.getByRole("button", { name: "Open account" }).click();
     await page.getByRole("region", { name: "Ollama cloud connection" }).waitFor();
     await page.getByText("Reading account capacity…", { exact: true }).waitFor({ state: "detached" });
+    // Positive readiness avoids accepting an absent loading label before mount.
+    await page.locator(".usage-allowance").waitFor({ state: "visible" });
+    for (const selector of ["details.quota-technical", "details.quota-history"]) {
+      const details = page.locator(selector);
+      if (!await details.evaluate(element => element.open)) await details.locator("summary").click();
+    }
   } finally {
     page.off("response", onResponse);
   }

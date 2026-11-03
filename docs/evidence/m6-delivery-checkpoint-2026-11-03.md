@@ -139,3 +139,40 @@ The local inventory at **13:38:43 UTC** still observed Ollama 0.24.0 with zero
 installed and loaded models. The model-present source and SDK cloud relationship
 remain owner/environment prerequisites. No unavailable scenario is counted as
 passed, and this checkpoint does not close M6.
+
+## Canonical browser lineage correction
+
+At deployed revision `9de11440e73afa05908e2e91a856ec6e15126b58`,
+`AUTO-M6-EXIT` passed build, local admission, quality, documentation and planning,
+but its installed browser checker reported `ollama_dashboard_lineage_mismatch`.
+The focused command reproduced that failure with one confirmed cloud target
+and zero reconciled targets:
+
+```bash
+node frontend/tests/browser/m6/verify_ollama_dashboard.mjs \
+  9de11440e73afa05908e2e91a856ec6e15126b58
+```
+
+The checker selected a table labelled `Quota windows table`; the actual P02
+markup labels its surrounding region. The technical table and exact source
+observations existed. The correction selects that actual region, waits for
+positive ready-state markup, opens Technical details and Usage history using
+their real controls, and requires both tables to be visible. Exact value,
+window/role, source, account, freshness, observation, historical-run and digest
+checks remain intact. The technical renderer still includes exact coefficient
+and scale beside readable USD, so no comparison precision was relaxed.
+
+The same focused command then passed all five browser results: account admin,
+cloud capacity, history, process visibility and dashboard continuity. One real
+cloud target reconciled to both current and historical observations with equal
+nonempty lineage digests. These are candidate checker results against the
+existing deployed product, not a full M6 pass.
+
+Owner: integration verification/P02 boundary. Requirements: FR-QUOTA-001/002/004/006,
+M6-A04/A05/A09 and AC-UI-005. Consumed quota/history V2 API contracts are unchanged.
+Changed artifact: `frontend/tests/browser/m6/verify_ollama_dashboard.mjs` and this
+record. No production, migration, dependency, license or secret-handling change.
+The check only navigates its own authenticated tab and reads the actual API/DOM;
+it preserves the owner tabs and performs no registry or provider mutation.
+Full current-revision acceptance still requires canonical execution and the
+previously documented missing environment/provider outcomes.
