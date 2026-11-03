@@ -83,3 +83,24 @@ source/artifact digests changed. After formatting the three tests, canonical
 `AUTO-BUILD` and `AUTO-QUALITY` both passed, including strict mypy on 501 source
 files, boundary checks, TypeScript and production build. This repairs those
 technical failures, not the remaining real M6 coverage.
+
+## First real cloud success
+
+After the conformance-classification correction, `AUTO-M6-CURRENT-UPDATE`
+passed for `1e6eb7d`. The actual dashboard connection action returned 202;
+the admitted verification used the existing owner-provided key and returned
+`success`, HTTP 200, `response_received`, and a genuine M05 capacity commit.
+The source observation was at **2026-11-03 09:29:43 UTC**. The account API and
+real browser showed fresh included and purchased USD balances, the reported
+included-credit reset, and “Ollama cloud access confirmed”. The connection API
+subsequently reported `monitoring_state=scheduled`. Identity remains owner
+asserted; endpoint access does not prove the account email or organization.
+
+This proves the corrected cloud request, parsing and first persistence path.
+It does not yet prove repeated automatic reads or provider-UI reconciliation.
+The real browser exposed remaining UI defects: secondary allowance cards said
+Unknown for available USD balances, history selected only the ratio metric,
+and summary wording confused missing provider identity with missing quota.
+Those defects are being corrected separately using this actual observation.
+Repeated verification on an already verified binding also requires retaining
+receipt history; no existing receipt has been deleted or replaced to bypass it.
