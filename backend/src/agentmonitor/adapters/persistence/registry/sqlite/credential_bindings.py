@@ -8,6 +8,9 @@ import secrets
 from datetime import UTC, datetime, timedelta
 from typing import Literal
 
+from sqlalchemy.engine import Connection, RowMapping
+from sqlalchemy.exc import SQLAlchemyError
+
 from agentmonitor.adapters.persistence._shared.sqlite.core.policy import (
     DatabaseRefV1,
     SqlitePolicyError,
@@ -48,8 +51,6 @@ from agentmonitor.modules.registry.domain.credential_binding import (
     prepare_credential_binding,
     resolve_active_credential_binding,
 )
-from sqlalchemy.engine import Connection, RowMapping
-from sqlalchemy.exc import SQLAlchemyError
 
 
 class CredentialBindingRepositoryErrorV1(ValueError):
@@ -295,11 +296,71 @@ def reconcile_access_target_in_transaction(
     )
     if row is not None:
         existing = _access_target(row)
-        if existing != candidate:
+        if (
+            existing.access_target_id != target_id
+            or existing.provider_key != candidate.provider_key
+            or existing.target_kind != candidate.target_kind
+            or existing.authority_id != candidate.authority_id
+        ):
             raise CredentialBindingRepositoryErrorV1(
                 "credential_binding_target_conflict"
             )
-        return existing
+        if existing.lifecycle != "active":
+            raise CredentialBindingRepositoryErrorV1(
+                "credential_binding_target_unavailable"
+            )
+        if existing.manifest_fingerprint == manifest_fingerprint:
+            return existing
+        # V1 stores one current verification receipt per binding generation.
+        # Replacing or deleting one here would break its run/admission recovery
+        # lineage. A previously verified target therefore needs a separately
+        # versioned receipt-history migration before its fingerprint can move.
+        if (
+            connection.exec_driver_sql(
+                "SELECT 1 FROM reg_credential_binding_verification "
+                "WHERE access_target_id=? LIMIT 1",
+                (existing.access_target_id.value,),
+            ).first()
+            is not None
+        ):
+            raise CredentialBindingRepositoryErrorV1(
+                "credential_binding_target_conflict"
+            )
+        if _utc_value(row["updated_at"]) > as_of:
+            raise CredentialBindingRepositoryErrorV1(
+                "credential_binding_target_conflict"
+            )
+        next_version = existing.record_version + 1
+        updated = connection.exec_driver_sql(
+            "UPDATE reg_provider_access_target SET manifest_fingerprint=?,"
+            "record_version=?,updated_at=? WHERE access_target_id=? "
+            "AND provider_key=? AND target_kind='cloud_service' "
+            "AND authority_id=? AND manifest_fingerprint=? "
+            "AND lifecycle='active' AND record_version=?",
+            (
+                manifest_fingerprint,
+                next_version,
+                instant,
+                existing.access_target_id.value,
+                existing.provider_key,
+                existing.authority_id,
+                existing.manifest_fingerprint,
+                existing.record_version,
+            ),
+        )
+        if updated.rowcount != 1:
+            raise CredentialBindingRepositoryErrorV1(
+                "credential_binding_target_conflict"
+            )
+        return ProviderAccessTargetV1(
+            access_target_id=existing.access_target_id,
+            provider_key=existing.provider_key,
+            target_kind=existing.target_kind,
+            authority_id=existing.authority_id,
+            manifest_fingerprint=manifest_fingerprint,
+            lifecycle=existing.lifecycle,
+            record_version=next_version,
+        )
     connection.exec_driver_sql(
         "INSERT INTO reg_provider_access_target "
         "(access_target_id,provider_key,target_kind,authority_id,"
@@ -464,7 +525,11 @@ def record_credential_binding_verification_in_transaction(
             "credential_binding_transaction_required"
         )
     ensure_current_binding_in_transaction(connection, binding)
-    ensure_access_target_in_transaction(connection, access_target_id)
+    target = ensure_access_target_in_transaction(connection, access_target_id)
+    if target.manifest_fingerprint != manifest_fingerprint:
+        raise CredentialBindingRepositoryErrorV1(
+            "credential_binding_verification_conflict"
+        )
     graph = connection.exec_driver_sql(
         "SELECT 1 FROM reg_cloud_monitoring_target WHERE account_id=? "
         "AND access_target_id=? AND binding_id=? AND binding_generation=? "
