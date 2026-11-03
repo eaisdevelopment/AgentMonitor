@@ -100,6 +100,8 @@ def test_optional_ollama_failure_backs_off_without_hot_looping(
     database.rename(unavailable)
 
     assert collector.tick() == "ollama_runtime_unavailable"
+    assert collector.last_failure is not None
+    assert collector.last_failure.phase == "recovery"
     assert collector.tick() == "ollama_runtime_backoff"
 
 
@@ -190,7 +192,9 @@ def test_real_ollama_collector_reuses_registry_and_schedule_between_ticks(
     registry = SqliteRegistryRepositoryV1(reference)
     collection = SqliteCollectionRepositoryV1(reference)
 
-    assert collector.tick() in {"ollama_runtime_collected", "ollama_runtime_partial"}
+    assert collector.tick() in {"ollama_runtime_collected", "ollama_runtime_partial"}, (
+        collector.last_failure
+    )
     installations = registry.list_provider_installations("ollama")
     runs = collection.list_runs("ollama", None, datetime.now(UTC), 20)
     assert len(installations) == 1

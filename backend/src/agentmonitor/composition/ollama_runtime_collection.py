@@ -6,7 +6,9 @@ import asyncio
 import json
 import time
 import uuid
+from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
+from enum import StrEnum
 from pathlib import Path
 from threading import Event
 
@@ -55,6 +57,59 @@ _TRANSIENT_READ_FAILURES = frozenset(
 )
 
 
+class OllamaRuntimeFailurePhaseV1(StrEnum):
+    BACKOFF = "backoff"
+    RECOVERY = "recovery"
+    SCHEDULE = "schedule"
+    INSTALLATION = "installation"
+    COLLECTION = "collection"
+    INTERNAL = "internal"
+
+
+class OllamaRuntimeFailureReasonV1(StrEnum):
+    INTERNAL = "internal_error"
+    BACKOFF = "ollama_runtime_backoff_store_unavailable"
+    DEADLINE = "ollama_runtime_tick_deadline"
+    AMBIGUOUS_INSTALLATION = "ollama_runtime_installation_ambiguous"
+    DISCOVERY = "ollama_installation_discovery_invalid"
+    RECONCILIATION = "ollama_installation_reconciliation_invalid"
+    INSTALLATION = "ollama_installation_unavailable"
+    EXECUTABLE_CHANGED = "ollama_process_executable_changed"
+    REGISTRY = "registry_repository_unavailable"
+    REGISTERED_INSTALLATION = "linux_runtime_registered_installation_unresolved"
+    VERSION = "linux_runtime_installation_version_mismatch"
+    DATABASE = "linux_runtime_database_missing"
+    OPERATION_DEADLINE = "linux_runtime_operation_deadline"
+    RECEIPT = "linux_runtime_receipt_invalid"
+    PROJECTION = "linux_runtime_projection_missing"
+    PROCESS_DEADLINE = "linux_runtime_collection_linux_deadline_exceeded"
+    PROCESS_SOURCE = "linux_runtime_collection_linux_procfs_unavailable"
+    PROCESS_BOOT = "linux_runtime_collection_linux_boot_scope_unavailable"
+    PROCESS_EMPTY = "linux_runtime_collection_linux_ollama_process_not_observed"
+
+
+@dataclass(frozen=True, slots=True)
+class OllamaRuntimeFailureV1:
+    phase: OllamaRuntimeFailurePhaseV1
+    reason: OllamaRuntimeFailureReasonV1
+
+
+def classify_ollama_runtime_failure_v1(
+    phase: str, error_code: str
+) -> OllamaRuntimeFailureV1:
+    """Retain only closed diagnostic values, never an exception message."""
+
+    try:
+        safe_phase = OllamaRuntimeFailurePhaseV1(phase)
+    except ValueError:
+        safe_phase = OllamaRuntimeFailurePhaseV1.INTERNAL
+    try:
+        safe_reason = OllamaRuntimeFailureReasonV1(error_code)
+    except ValueError:
+        safe_reason = OllamaRuntimeFailureReasonV1.INTERNAL
+    return OllamaRuntimeFailureV1(safe_phase, safe_reason)
+
+
 class OllamaRuntimeCollectorV1:
     """Collect exact local process facts without publishing an M03 capability."""
 
@@ -71,6 +126,14 @@ class OllamaRuntimeCollectorV1:
         self._next_attempt_at: datetime | None = None
         self._recovery_complete = False
         self._stop_requested = Event()
+        self._failure_phase = OllamaRuntimeFailurePhaseV1.INTERNAL
+        self._last_failure: OllamaRuntimeFailureV1 | None = None
+
+    @property
+    def last_failure(self) -> OllamaRuntimeFailureV1 | None:
+        """An allowlisted in-memory diagnostic; no provider output is retained."""
+
+        return self._last_failure
 
     def _checkpoint(self, deadline_monotonic: float) -> None:
         if self._stop_requested.is_set():
@@ -116,6 +179,7 @@ class OllamaRuntimeCollectorV1:
             raise ValueError("ollama_runtime_installation_ambiguous")
 
     def _tick(self, now: datetime, *, deadline_monotonic: float) -> str:
+        self._failure_phase = OllamaRuntimeFailurePhaseV1.RECOVERY
         self._checkpoint(deadline_monotonic)
         if not self._recovery_complete:
             recover_pending_ollama_runtime_commits(
@@ -126,6 +190,7 @@ class OllamaRuntimeCollectorV1:
             self._recovery_complete = True
         self._checkpoint(deadline_monotonic)
 
+        self._failure_phase = OllamaRuntimeFailurePhaseV1.SCHEDULE
         latest = GetLatestSourceRunV1(self._collection)(
             "ollama", _CAPABILITY_ID, _SOURCE_ID, now
         )
@@ -145,6 +210,7 @@ class OllamaRuntimeCollectorV1:
                 else "ollama_runtime_waiting"
             )
 
+        self._failure_phase = OllamaRuntimeFailurePhaseV1.INSTALLATION
         self._reject_ambiguous_installation()
         self._checkpoint(deadline_monotonic)
         # An existing registry row is not a fresh installation observation.
@@ -155,6 +221,7 @@ class OllamaRuntimeCollectorV1:
         remaining_seconds = deadline_monotonic - time.monotonic()
         if remaining_seconds <= 0:
             raise RuntimeError("ollama_runtime_tick_deadline")
+        self._failure_phase = OllamaRuntimeFailurePhaseV1.COLLECTION
         result = run_scheduled_ollama_runtime_collection(
             self._data_root,
             scheduler_instance_id=self._instance,
@@ -175,15 +242,26 @@ class OllamaRuntimeCollectorV1:
         now = datetime.now(UTC)
         deadline_monotonic = time.monotonic() + _TICK_BUDGET_SECONDS
         try:
+            self._failure_phase = OllamaRuntimeFailurePhaseV1.BACKOFF
             backoff = self._backoff_deadline()
             if backoff is not None and now < backoff:
                 return "ollama_runtime_backoff"
             result = self._tick(now, deadline_monotonic=deadline_monotonic)
+            self._failure_phase = OllamaRuntimeFailurePhaseV1.BACKOFF
             self._clear_backoff(backoff)
+            self._last_failure = None
             return result
         except LinuxRuntimeMonitoringCancelledV1:
             return "ollama_runtime_stopping"
-        except Exception:  # noqa: BLE001 - optional task boundary emits only safe state.
+        except Exception as error:  # noqa: BLE001 - closed diagnostic only.
+            error_code = (
+                error.args[0]
+                if len(error.args) == 1 and isinstance(error.args[0], str)
+                else ""
+            )
+            self._last_failure = classify_ollama_runtime_failure_v1(
+                self._failure_phase, error_code
+            )
             self._record_failure(now)
             return "ollama_runtime_unavailable"
 
@@ -205,7 +283,11 @@ class OllamaRuntimeCollectorV1:
                 status = "ollama_runtime_unavailable"
             if output_available and status != previous:
                 try:
-                    print(json.dumps({"event": status}), flush=True)
+                    event = {"event": status}
+                    if status == "ollama_runtime_unavailable" and self.last_failure:
+                        event["failure_phase"] = self.last_failure.phase.value
+                        event["failure_reason"] = self.last_failure.reason.value
+                    print(json.dumps(event), flush=True)
                 except (OSError, ValueError):
                     output_available = False
                 previous = status

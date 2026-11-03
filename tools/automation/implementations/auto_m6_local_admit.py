@@ -2,10 +2,13 @@
 
 from __future__ import annotations
 
+import ast
 import hashlib
 import os
+import re
 import subprocess
 import sys
+from collections.abc import Mapping
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[3]
@@ -34,6 +37,8 @@ FILES = (
     "backend/tests/integration/registry/test_ollama_installation_reconciliation.py",
     "backend/tests/integration/collection_control/test_ollama_runtime_run.py",
     "backend/tests/integration/collection_control/test_ollama_runtime_lifecycle.py",
+    "backend/tests/collection_control/test_ollama_runtime_diagnostics.py",
+    "tools/automation/test_m6_local_admit.py",
     "backend/tests/integration/api/test_ollama_process_observation_http.py",
     "backend/tests/integration/api/test_observation_http.py",
     "backend/tests/runtime_observation/test_linux_process_location_discovery.py",
@@ -76,6 +81,90 @@ FILES = (
     "tools/automation/routines.toml",
     "tools/automation/implementations/auto_m6_local_admit.py",
 )
+
+_RUNTIME_FAILURE_CODES = frozenset(
+    {
+        "internal_error",
+        "ollama_runtime_backoff_store_unavailable",
+        "ollama_runtime_tick_deadline",
+        "ollama_runtime_installation_ambiguous",
+        "ollama_installation_discovery_invalid",
+        "ollama_installation_reconciliation_invalid",
+        "ollama_installation_unavailable",
+        "ollama_process_executable_changed",
+        "registry_repository_unavailable",
+        "linux_runtime_registered_installation_unresolved",
+        "linux_runtime_installation_version_mismatch",
+        "linux_runtime_database_missing",
+        "linux_runtime_operation_deadline",
+        "linux_runtime_receipt_invalid",
+        "linux_runtime_projection_missing",
+        "linux_runtime_collection_linux_deadline_exceeded",
+        "linux_runtime_collection_linux_procfs_unavailable",
+        "linux_runtime_collection_linux_boot_scope_unavailable",
+        "linux_runtime_collection_linux_ollama_process_not_observed",
+    }
+)
+_TEST_PATH = re.compile(r"(?:backend/tests|tools/automation)/[A-Za-z0-9_/]+\.py\Z")
+_TEST_NAME = re.compile(r"test_[A-Za-z0-9_]+\Z")
+
+
+def declared_test_ids(sources: Mapping[str, str]) -> frozenset[str]:
+    """Allow only actual named tests in selected, checked-out project sources."""
+
+    found = set()
+    for path, source in sources.items():
+        if _TEST_PATH.fullmatch(path) is None:
+            continue
+        try:
+            parsed = ast.parse(source)
+        except SyntaxError:
+            continue
+        for node in parsed.body:
+            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                if _TEST_NAME.fullmatch(node.name):
+                    found.add(f"{path}::{node.name}")
+            elif isinstance(node, ast.ClassDef) and re.fullmatch(
+                r"[A-Za-z_][A-Za-z0-9_]*", node.name
+            ):
+                for method in node.body:
+                    if isinstance(method, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                        if _TEST_NAME.fullmatch(method.name):
+                            found.add(f"{path}::{node.name}::{method.name}")
+    return frozenset(found)
+
+
+def safe_failure_summary(
+    output: bytes, allowed_test_ids: frozenset[str]
+) -> tuple[tuple[str, ...], tuple[str, ...]]:
+    """Filter transient pytest output; never return messages or parameter values."""
+
+    if len(output) > 2_097_152:
+        return (), ()
+    text = output.decode("utf-8", errors="replace")
+    tests = {
+        match.group(1)
+        for match in re.finditer(r"^(?:FAILED|ERROR) ([A-Za-z0-9_/:.]+)", text, re.M)
+        if match.group(1) in allowed_test_ids
+    }
+    tokens = set(re.findall(r"(?<![A-Za-z0-9_])[a-z][a-z0-9_]+(?![A-Za-z0-9_])", text))
+    return tuple(sorted(tests)), tuple(sorted(tokens & _RUNTIME_FAILURE_CODES))
+
+
+def _selected_test_ids(command: list[str]) -> frozenset[str]:
+    sources = {}
+    for argument in command:
+        relative = argument.partition("::")[0]
+        if not relative.startswith(("backend/tests/", "tools/automation/")):
+            continue
+        selected = ROOT / relative
+        paths = selected.rglob("test_*.py") if selected.is_dir() else (selected,)
+        for path in paths:
+            if path.is_symlink() or not path.resolve().is_relative_to(ROOT.resolve()):
+                continue
+            if path.is_file() and path.stat().st_size <= 2_097_152:
+                sources[path.relative_to(ROOT).as_posix()] = path.read_text()
+    return declared_test_ids(sources)
 
 
 def same_source(before: str, after: str) -> bool:
@@ -137,6 +226,8 @@ def main() -> int:
                 "backend/tests/integration/registry/test_ollama_installation_reconciliation.py",
                 "backend/tests/integration/collection_control/test_ollama_runtime_run.py",
                 "backend/tests/integration/collection_control/test_ollama_runtime_lifecycle.py",
+                "backend/tests/collection_control/test_ollama_runtime_diagnostics.py",
+                "tools/automation/test_m6_local_admit.py",
                 "backend/tests/integration/api/test_ollama_process_observation_http.py",
                 "backend/tests/integration/api/test_observation_http.py::test_real_ollama_installation_has_registered_truthful_manifest",
                 "backend/tests/runtime_observation/test_linux_process_location_discovery.py",
@@ -166,6 +257,15 @@ def main() -> int:
             return 3
         if result.returncode:
             print(f"M6 LOCAL ADMISSION: FAILED — {label}")
+            try:
+                allowed = _selected_test_ids(command)
+            except (OSError, UnicodeError, ValueError):
+                allowed = frozenset()
+            tests, codes = safe_failure_summary(result.stdout, allowed)
+            for test in tests:
+                print(f"Failed project test: {test}")
+            if codes:
+                print("Closed runtime codes observed: " + ", ".join(codes))
             return 1
     try:
         after = source_digest()
