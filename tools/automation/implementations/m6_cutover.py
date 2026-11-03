@@ -268,8 +268,8 @@ def _cutover_engine(
     """
     catalog_head = load_migration_catalog().head
     migration_sources = {"v1_0603", "v1_0707", "v1_0708"}
-    if catalog_head == "v1_0718":
-        migration_sources.add("v1_0717")
+    if catalog_head == "v1_0719":
+        migration_sources.add("v1_0718")
     if (
         source != catalog_head
         if same_schema_update
@@ -996,9 +996,9 @@ def cutover() -> str:
         retained_baseline = active_baseline != _FIXED_BASELINE
         if retained_baseline:
             _verify_retained_baseline(active_baseline)
-            if load_migration_catalog().head != "v1_0718":
+            if load_migration_catalog().head != "v1_0719":
                 raise CutoverError("cutover_selection_invalid")
-            source = "v1_0717"
+            source = "v1_0718"
             accepted_overrides = {_candidate_override(active_baseline).encode()}
         else:
             source = "v1_0707"
@@ -1424,8 +1424,8 @@ def _recover_same_schema_candidate_attempt_inner(
     backup_id = data.get("backup_id")
     same_schema = source == load_migration_catalog().head and backup_id is None
     retained_migration = (
-        source == "v1_0717"
-        and load_migration_catalog().head == "v1_0718"
+        source == "v1_0718"
+        and load_migration_catalog().head == "v1_0719"
         and isinstance(backup_id, str)
         and re.fullmatch(r"migration-preflight-[a-f0-9]{32}", backup_id) is not None
     )
@@ -1749,7 +1749,7 @@ def _fixed_journal_facts(
     backup_id = data.get("backup_id")
     is_update = allow_update and source == load_migration_catalog().head
     retained_migration = (
-        source == "v1_0717" and load_migration_catalog().head == "v1_0718"
+        source == "v1_0718" and load_migration_catalog().head == "v1_0719"
     )
     baseline = _FIXED_BASELINE
     if is_update:

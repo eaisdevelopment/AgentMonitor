@@ -1,5 +1,5 @@
-version = "1.7.18"
-head = "v1_0718"
+version = "1.7.19"
+head = "v1_0719"
 env_sha256 = "27449e3ed3984acde690510f9e4974eb6412f5f1b7e62af65bc8bb616879a7d7"
 
 [[revisions]]
@@ -816,3 +816,25 @@ backup_prerequisite = "required_existing_database"
 validation_ids = ["single_head", "m02_credential_verification_history_schema", "foreign_key_check", "full_integrity"]
 recovery_policy = "preserve_failed_database_and_restore_verified_backup_or_forward_fix"
 reviewer = "M02-M6-verification-history-independent-review"
+
+[[revisions]]
+ordinal = 719
+filename = "v1_0719_m02_organization_coverage.py"
+sha256 = "044b662bc34ea2cbef8923ab59c22f23ba34c96ae057f2f0ccc4297951b2a9b4"
+status = "implemented"
+reviewed_at = "2026-11-03"
+revision = "v1_0719"
+parent_revision = "v1_0718"
+owner = "M02"
+plan_id = "PLAN-M02"
+requirement_ids = ["FR-ACC-001", "FR-ACC-002", "FR-ACC-004", "FR-ACC-006", "FR-ORG-001", "FR-SAFE-001", "FR-SAFE-002", "M6-A03", "M6-A04", "M6-A05", "M6-A09", "NFR-DATA-001"]
+schema_range = ["v1_0719", "v1_0719", "v1_0719", "v1_0719", "v1_0719"]
+tables = ["reg_organization_provider_coverage", "reg_organization_provider_coverage_revision"]
+portability_notes = ["Owner assertions contain only M02 references and closed disposition metadata", "Immutable revisions retain source organization fences without mutable source foreign keys", "Existing accounts and telemetry are unchanged and no coverage is inferred"]
+lock_policy = "exclusive_migration_and_begin_immediate"
+downtime_policy = "offline_additive_schema_migration"
+expected_data_volume = "zero_coverage_rows_until_explicit_owner_action"
+backup_prerequisite = "required_existing_database"
+validation_ids = ["single_head", "m02_organization_coverage_schema", "m02_coverage_revision_immutable", "foreign_key_check", "full_integrity"]
+recovery_policy = "preserve_failed_database_and_restore_verified_backup_or_forward_fix"
+reviewer = "M02-M6-organization-coverage-independent-review"

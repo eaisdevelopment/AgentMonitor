@@ -83,7 +83,7 @@ def test_disposable_unit_and_real_backup_migration(
     if case == "real_source_restore":
         request.addfinalizer(lambda: shutil.rmtree(root) if root.exists() else None)
     ref = DatabaseRefV1(root / "agentmonitor.db", root)
-    source_revision = "v1_0717"
+    source_revision = "v1_0718"
     if case == "real_source_restore":
         live_uri = "file:/home/dev/.local/share/agentmonitor/agentmonitor.db?mode=ro"
         with (
