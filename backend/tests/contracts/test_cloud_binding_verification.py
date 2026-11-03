@@ -175,7 +175,7 @@ def test_newer_receipt_supersedes_without_relabelling_binding_lineage() -> None:
             current, replace(newer, verified_at=current.verified_at)
         )
     with pytest.raises(ValueError, match="unsupported-field-state"):
-        replace(newer, source_id="other")
+        replace(newer, source_id="other")  # type: ignore[arg-type]
     for changed_policy in (
         replace(newer, adapter_version="1.0.1"),
         replace(newer, manifest_fingerprint="f" * 64),

@@ -44,12 +44,13 @@ def _private_real_copy(tmp_path: Path) -> DatabaseRefV1:
 def _current_receipts(reference: DatabaseRefV1) -> list[tuple[object, ...]]:
     with open_sqlite_database(reference, "runtime_read_only") as database:
         with database.connect() as connection:
-            return connection.exec_driver_sql(
+            rows = connection.exec_driver_sql(
                 "SELECT verification_id,account_id,binding_id,binding_generation,"
                 "access_target_id,run_id,admission_id,source_id,adapter_version,"
                 "manifest_fingerprint,payload_digest,verified_at,record_version "
                 "FROM reg_credential_binding_verification ORDER BY verification_id"
             ).fetchall()
+            return [tuple(row) for row in rows]
 
 
 def test_real_v1_0717_receipt_survives_verified_v1_0718_upgrade(
@@ -109,11 +110,13 @@ def test_real_v1_0717_receipt_survives_verified_v1_0718_upgrade(
             )
 
     row = before[0]
+    generation = row[3]
+    assert isinstance(generation, int)
     repository = SqliteCloudCredentialRegistryV1(reference)
     binding = ActiveCredentialBindingRefV1(
         account_id=OpaqueIdV1(str(row[1])),
         binding_id=OpaqueIdV1(str(row[2])),
-        generation=int(row[3]),
+        generation=generation,
     )
     current = repository.read_current_verification(binding)
     exact = repository.read_verification_by_run(
