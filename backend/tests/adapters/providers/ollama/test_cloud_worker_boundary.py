@@ -8,6 +8,7 @@ import time
 import uuid
 from pathlib import Path
 
+import pytest
 from agentmonitor.adapters.persistence._shared.sqlite.core.policy import DatabaseRefV1
 from agentmonitor.adapters.persistence._shared.sqlite.schema.compatibility import (
     migrate_to_head,
@@ -96,7 +97,7 @@ def test_cancelled_start_replayed_late_is_revoked_before_worker_io(
         return worker.last_unit
 
     unit = asyncio.run(interrupt())
-    token = unit.removeprefix("agentmonitor-cloud-worker-").removesuffix(".service")
+    token = unit.removesuffix(".service").rsplit("-", 1)[1]
     database_path = tmp_path / "agentmonitor.db"
     reference = DatabaseRefV1(database_path, tmp_path)
     migrate_to_head(reference)
@@ -302,6 +303,150 @@ def test_real_supervisors_serialize_unit_startup(tmp_path: Path) -> None:
     asyncio.run(exercise())
 
 
+def test_real_supervisors_in_different_roots_do_not_quarantine_each_other(
+    tmp_path: Path,
+) -> None:
+    """A second private installation may start while the first real unit exists."""
+    first_root = tmp_path / "first"
+    second_root = tmp_path / "second"
+    first_root.mkdir(mode=0o700)
+    second_root.mkdir(mode=0o700)
+
+    async def exercise() -> None:
+        first = OllamaCloudWorkerSupervisorV1(first_root)
+        second = OllamaCloudWorkerSupervisorV1(second_root)
+        first_task = asyncio.create_task(first.run_once())
+        try:
+            deadline = asyncio.get_running_loop().time() + 8
+            observed = False
+            while (
+                asyncio.get_running_loop().time() < deadline and not first_task.done()
+            ):
+                if first.last_unit:
+                    properties = await first._show(first.last_unit)
+                    if properties.get("LoadState") == "loaded":
+                        observed = True
+                        break
+                await asyncio.sleep(0.001)
+            assert observed, "first actual private worker was not observed"
+            assert not first_task.done()
+            second_status = await second.run_once()
+            first_status = await first_task
+            assert first_status == "not_admitted"
+            assert second_status == "not_admitted"
+            assert first.is_available() and second.is_available()
+        finally:
+            if not first_task.done():
+                first_task.cancel()
+                try:
+                    await first_task
+                except asyncio.CancelledError:
+                    pass
+
+    asyncio.run(exercise())
+    assert not (first_root / "agentmonitor.db").exists()
+    assert not (second_root / "agentmonitor.db").exists()
+
+
+def test_exact_legacy_marker_recovers_only_its_own_real_unit(tmp_path: Path) -> None:
+    first_root = tmp_path / "legacy"
+    second_root = tmp_path / "other"
+    first_root.mkdir(mode=0o700)
+    second_root.mkdir(mode=0o700)
+    worker = OllamaCloudWorkerSupervisorV1(first_root)
+    token = uuid.uuid4().hex
+    unit = "agentmonitor-cloud-worker-" + token + ".service"
+    descriptor = worker._acquire_lock()
+    try:
+        worker._mark_start(unit)
+    finally:
+        os.close(descriptor)
+        worker._lock_fd = None
+        assert worker._root_fd is not None
+        os.close(worker._root_fd)
+        worker._root_fd = None
+    command = [
+        "/usr/bin/systemd-run",
+        "--user",
+        "--quiet",
+        "--pipe",
+        "--unit=" + unit,
+        "--description=AgentMonitor cloud worker " + token,
+        "--property=KillMode=control-group",
+        "--property=RuntimeMaxSec=30s",
+        "--property=LimitCORE=0",
+        "--property=TimeoutStopSec=3s",
+        "--property=RemainAfterExit=yes",
+    ]
+    command += [
+        "--setenv=" + key + "=" + value
+        for key, value in _test_runtime_environment().items()
+    ]
+    command += [
+        sys.executable,
+        "-m",
+        "agentmonitor.composition.ollama_cloud_worker",
+        "--data-root",
+        str(first_root),
+        "--start-authority",
+        token,
+    ]
+    try:
+        actual = subprocess.run(
+            command,
+            stdin=subprocess.DEVNULL,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            check=False,
+            timeout=12,
+        )
+        assert actual.returncode == 5
+        other = OllamaCloudWorkerSupervisorV1(second_root)
+        assert asyncio.run(other.run_once()) == "not_admitted"
+        # The other root neither quarantines nor stops this real legacy unit.
+        properties = asyncio.run(worker._show(unit))
+        assert properties["LoadState"] == "loaded"
+        assert properties["ExecMainStatus"] == "5"
+        assert asyncio.run(worker.run_once()) == "recovered"
+        assert asyncio.run(worker.run_once()) == "not_admitted"
+        assert asyncio.run(worker._show(unit))["LoadState"] == "not-found"
+    finally:
+        # Exact owned identity is checked before cleanup; never stop a global match.
+        asyncio.run(worker._recover_recorded_start(unit, allow_legacy=True))
+    assert not (first_root / "agentmonitor.db").exists()
+    assert not (second_root / "agentmonitor.db").exists()
+
+
+def test_oversized_or_foreign_root_marker_is_rejected(tmp_path: Path) -> None:
+    own = tmp_path / "own"
+    other = tmp_path / "other"
+    own.mkdir(mode=0o700)
+    other.mkdir(mode=0o700)
+    worker = OllamaCloudWorkerSupervisorV1(own)
+    foreign = OllamaCloudWorkerSupervisorV1(other)
+    marker = own / ".ollama-cloud-worker.lock"
+    unit = worker._unit_prefix + uuid.uuid4().hex + ".service\n"
+    marker.write_text(unit + "\n", encoding="ascii")
+    marker.chmod(0o600)
+    assert asyncio.run(worker.run_once()) == "quarantined"
+    assert worker.last_unit == ""
+    marker.write_text(
+        foreign._unit_prefix + uuid.uuid4().hex + ".service\n", encoding="ascii"
+    )
+    restarted = OllamaCloudWorkerSupervisorV1(own)
+    assert asyncio.run(restarted.run_once()) == "quarantined"
+    assert restarted.last_unit == ""
+
+
+def test_data_root_namespace_rejects_noncanonical_alias(tmp_path: Path) -> None:
+    root = tmp_path / "root"
+    root.mkdir(mode=0o700)
+    alias = tmp_path / "alias"
+    alias.symlink_to(root, target_is_directory=True)
+    with pytest.raises(ValueError, match="ollama_cloud_data_root_invalid"):
+        OllamaCloudWorkerSupervisorV1(alias)
+
+
 def test_independent_real_processes_serialize_unit_startup(tmp_path: Path) -> None:
     async def exercise() -> None:
         program = (
@@ -447,7 +592,8 @@ def test_ambiguous_systemd_arguments_quarantine_space_path(tmp_path: Path) -> No
 
 
 def test_real_lookalike_unit_is_never_stopped(tmp_path: Path) -> None:
-    unit = "agentmonitor-cloud-worker-" + uuid.uuid4().hex + ".service"
+    worker = OllamaCloudWorkerSupervisorV1(tmp_path)
+    unit = worker._unit_prefix + uuid.uuid4().hex + ".service"
     started = subprocess.run(
         [
             "/usr/bin/systemd-run",
@@ -463,7 +609,6 @@ def test_real_lookalike_unit_is_never_stopped(tmp_path: Path) -> None:
     )
     assert started.returncode == 0
     try:
-        worker = OllamaCloudWorkerSupervisorV1(tmp_path)
         assert asyncio.run(worker.run_once()) == "quarantined"
         state = subprocess.run(
             [

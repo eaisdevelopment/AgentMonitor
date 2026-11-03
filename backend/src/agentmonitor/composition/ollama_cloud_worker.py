@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import asyncio
 import fcntl
+import hashlib
 import os
 import select
 import shlex
@@ -30,6 +31,7 @@ from agentmonitor.composition.ollama_env_store import (
 )
 
 _PREFIX = "agentmonitor-cloud-worker-"
+_MAX_MARKER_BYTES = len(_PREFIX) + 64 + 1 + 32 + len(".service\n")
 _SYSTEMCTL = "/usr/bin/systemctl"
 _SYSTEMD_RUN = "/usr/bin/systemd-run"
 
@@ -99,9 +101,16 @@ class OllamaCloudWorkerSupervisorV1:
     def __init__(
         self, data_root: Path, *, credential_env_file: Path | None = None
     ) -> None:
-        if not data_root.is_absolute() or data_root in {Path("/"), Path.home()}:
+        if (
+            not data_root.is_absolute()
+            or data_root in {Path("/"), Path.home()}
+            or data_root != data_root.resolve()
+        ):
             raise ValueError("ollama_cloud_data_root_invalid")
         self._data_root = data_root
+        self._unit_prefix = (
+            _PREFIX + hashlib.sha256(os.fsencode(data_root)).hexdigest() + "-"
+        )
         if credential_env_file is not None and (
             not credential_env_file.is_absolute()
             or credential_env_file.name != ".env"
@@ -455,7 +464,7 @@ class OllamaCloudWorkerSupervisorV1:
                 or state.st_uid != os.getuid()
                 or state.st_nlink != 1
                 or stat.S_IMODE(state.st_mode) != 0o600
-                or state.st_size > 128
+                or state.st_size > _MAX_MARKER_BYTES
             ):
                 raise ValueError("ollama_cloud_lock_unsafe")
             fcntl.flock(descriptor, fcntl.LOCK_EX | fcntl.LOCK_NB)
@@ -512,8 +521,8 @@ class OllamaCloudWorkerSupervisorV1:
             raise ValueError("ollama_cloud_lock_missing")
         self._verify_lock()
         os.lseek(self._lock_fd, 0, os.SEEK_SET)
-        data = os.read(self._lock_fd, 129)
-        if len(data) > 128:
+        data = os.read(self._lock_fd, _MAX_MARKER_BYTES + 1)
+        if len(data) > _MAX_MARKER_BYTES:
             raise ValueError("ollama_cloud_marker_invalid")
         try:
             marker = data.decode("ascii")
@@ -524,7 +533,7 @@ class OllamaCloudWorkerSupervisorV1:
         if marker.count("\n") != 1 or not marker.endswith("\n"):
             raise ValueError("ollama_cloud_marker_invalid")
         unit = marker[:-1]
-        self._unit_token(unit)
+        self._unit_token(unit, allow_legacy=True)
         return unit
 
     def _clear_marker(self) -> None:
@@ -535,18 +544,22 @@ class OllamaCloudWorkerSupervisorV1:
         os.lseek(self._lock_fd, 0, os.SEEK_SET)
         os.fsync(self._lock_fd)
 
-    @staticmethod
-    def _unit_token(unit: str) -> str:
+    def _unit_token(self, unit: str, *, allow_legacy: bool = False) -> str:
         suffix = ".service"
-        if not unit.startswith(_PREFIX) or not unit.endswith(suffix):
+        prefix = self._unit_prefix
+        if allow_legacy and not unit.startswith(prefix):
+            prefix = _PREFIX
+        if not unit.startswith(prefix) or not unit.endswith(suffix):
             raise ValueError("ollama_cloud_unit_identity_invalid")
-        token = unit[len(_PREFIX) : -len(suffix)]
+        token = unit[len(prefix) : -len(suffix)]
         if not _valid_start_token(token):
             raise ValueError("ollama_cloud_unit_identity_invalid")
         return token
 
-    async def _recover_recorded_start(self, unit: str) -> bool:
-        token = self._unit_token(unit)
+    async def _recover_recorded_start(
+        self, unit: str, *, allow_legacy: bool = False
+    ) -> bool:
+        token = self._unit_token(unit, allow_legacy=allow_legacy)
         description = "AgentMonitor cloud worker " + token
         properties = await self._show(unit)
         if (
@@ -584,7 +597,9 @@ class OllamaCloudWorkerSupervisorV1:
                 marker = self._read_marker()
                 if marker:
                     self._recovery_unresolved = True
-                    if not await self._recover_recorded_start(marker):
+                    if not await self._recover_recorded_start(
+                        marker, allow_legacy=True
+                    ):
                         return "recovery_unresolved"
                     self._clear_marker()
                     self._recovery_unresolved = False
@@ -622,7 +637,7 @@ class OllamaCloudWorkerSupervisorV1:
             "--all",
             "--plain",
             "--no-legend",
-            _PREFIX + "*.service",
+            self._unit_prefix + "*.service",
         )
         if code:
             self._quarantined = True
@@ -636,7 +651,7 @@ class OllamaCloudWorkerSupervisorV1:
             self._quarantined = True
             return "quarantined"
         token = uuid.uuid4().hex
-        unit = _PREFIX + token + ".service"
+        unit = self._unit_prefix + token + ".service"
         self.last_unit = unit
         description = "AgentMonitor cloud worker " + token
         environment = _manager_environment()
