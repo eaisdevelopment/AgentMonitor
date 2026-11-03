@@ -77,3 +77,28 @@ error. After the [bounded-range correction](m6-history-snapshot-bound-2026-11-03
 the actual read-only snapshot passed and reported one verified, current cloud
 target with matching history lineage. No observation was manufactured to
 make that check pass.
+
+## Deployed correction and actual re-verification
+
+`22d572c` was deployed using `AUTO-M6-CUTOVER` and
+`AUTO-M6-FINALIZE-CANDIDATE`, both successful. The installed database is now
+`v1_0718`; the dashboard is active and `Restart=on-failure` is restored. An
+automatic cloud success at **13:26:51 UTC** made both monetary windows fresh.
+The actual native-USD browser test passed for both windows and history.
+
+The real repeated-verification test subsequently passed in 6.26 seconds,
+proving that a later receipt becomes current while the previous one remains
+readable with its original lineage. Both private-root overlap and legacy
+worker-isolation tests passed after deployment (2 tests, 2.75 seconds); the
+live connection still reported `scheduled` with fresh observations afterward.
+A later automatic cycle remains required for sustained collection evidence.
+
+The official Ollama Usage page is now signed in. Its visible balance comparison
+is being integrated into the canonical command with owner-asserted pairing and
+the provider's displayed precision; it is not yet a passing M6-A04 artifact.
+The recovery producer has been integrated locally. Review found that the
+durable `provider_unavailable` code cannot distinguish a remote outage from
+a local body-read error after HTTP 200; that ambiguous code is excluded from
+natural recovery evidence. Exact 401/403/429 response outcomes remain eligible.
+The final invocation and latest-recovery checks are under correction before
+any positive M6-A07 claim.

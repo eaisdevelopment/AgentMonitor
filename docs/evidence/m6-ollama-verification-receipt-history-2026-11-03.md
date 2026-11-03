@@ -55,11 +55,31 @@ backend/tests/live/ollama/test_verification_receipt_history_migration.py
 1 passed
 ```
 
-A natural second successful owner verification is still required to exercise
-the SQLite supersession branch with two real receipts. That provider boundary is
-Not Run in this change; no provider response or account data was fabricated.
-The canonical dispatcher form remains Not Run until the change is integrated
-into a checkout with its reviewed local runtime.
+## Installed supersession verification
+
+On 3 November 2026, the canonical retained cutover and candidate finalizer
+deployed `22d572c` with schema `v1_0718`. The real signed-in browser then
+submitted one new connection check through the versioned API; ordinary service
+dispatch and its rate gate performed the provider request. The new explicit
+live test passed in 6.26 seconds:
+
+```text
+backend/tests/live/ollama/test_repeated_verification.py
+1 passed
+```
+
+The test reads the real current receipt before initiation and verifies a newer
+receipt afterward, unchanged binding/source/target lineage, exact retrieval of
+both prior and current receipts by run/admission, and an unchanged monitoring
+target. No receipt or provider response was fabricated. Browser session/CSRF
+credentials remain inside the existing browser and are never returned or
+recorded. The helper is an explicit operator test, not an automatic provider
+request in a generic unit-test suite. It requires exactly one active target
+and an already signed-in local dashboard browser.
+
+The earlier isolated candidate had not exercised real supersession or the
+installed dispatcher. The installed run above now covers those boundaries;
+it does not establish the separate natural failure/recovery acceptance case.
 
 ## Impact and deployment boundary
 
