@@ -96,14 +96,14 @@ export function AccountWorkspaceSummary({ account, organizationName, liveProcess
   return (
     <section className="account-workspace" aria-labelledby="account-activity-title" aria-busy={state.kind === "loading"}>
       <div className="workspace-heading">
-        <div><h2 id="account-activity-title">Account activity</h2><p>{verified ? "Account identified with the latest quota reading." : "Waiting for a verified quota reading."}</p></div>
+        <div><h2 id="account-activity-title">Account activity</h2><p>{verified ? "Account identified with the latest quota reading." : readings.length > 0 ? "Provider readings available. Account name and organization are owner-provided." : "No quota reading available yet."}</p></div>
         <span className="workspace-updated">{updatedAt === null ? "No quota reading yet" : <>Quota updated <time dateTime={updatedAt}>{new Date(updatedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</time></>}</span>
       </div>
       <div className="workspace-table-scroll">
         <table className="workspace-table" aria-label="Account activity">
           <thead><tr><th scope="col">Account</th><th scope="col">State</th><th scope="col">Left</th><th scope="col">Path</th></tr></thead>
           <tbody><tr>
-            <th scope="row" data-label="Account"><strong className="workspace-account-name">{email ?? account.friendly_name}</strong><span className="workspace-account-meta"><span className="organization-tag">{organizationName}</span><span className="provider-name">{account.provider_key}</span></span><small>{email === null ? (account.lifecycle === "pending" ? "Not connected to a provider profile" : "Admin account name · awaiting verified quota") : `Account reported by ${provider}`}</small></th>
+            <th scope="row" data-label="Account"><strong className="workspace-account-name">{email ?? account.friendly_name}</strong><span className="workspace-account-meta"><span className="organization-tag">{organizationName}</span><span className="provider-name">{account.provider_key}</span></span><small>{email === null ? (account.lifecycle === "pending" ? "Not connected to a provider profile" : "Owner-provided account name · identity not verified by provider") : `Account reported by ${provider}`}</small></th>
             <td data-label="State"><span className={`activity-state ${account.is_effective_monitoring_enabled ? "activity-unknown" : "activity-paused"}`}><span aria-hidden="true">{account.is_effective_monitoring_enabled ? "◌" : "○"}</span>{status}</span><small>{monitoring}</small></td>
             <td data-label="Left" className="workspace-remaining">
               <div className="workspace-readings">

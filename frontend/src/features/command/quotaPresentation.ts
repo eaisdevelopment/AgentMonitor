@@ -40,6 +40,19 @@ export function exactUsd(quantity: Readonly<{ coefficient: string; scale: number
   return `$${whole}.${fraction}`;
 }
 
+export function readableUsd(field: Pick<ExactMetricFieldWireV1, "availability" | "value">): string | null {
+  return ["available", "stale"].includes(field.availability) ? exactUsd(field.value) : null;
+}
+
+export type CapacityHistoryMetric = "remaining_ratio" | "remaining";
+
+/** Prefer native money without deriving a ratio or discarding percentage history. */
+export function capacityHistoryMetric(
+  windows: readonly Readonly<{ remaining: Pick<ExactMetricFieldWireV1, "availability" | "value"> }>[],
+): CapacityHistoryMetric {
+  return windows.some(window => readableUsd(window.remaining) !== null) ? "remaining" : "remaining_ratio";
+}
+
 export function isLowQuota(value: number | null, constraining: boolean | null | undefined): boolean {
   return constraining !== false && value !== null && value <= 20;
 }

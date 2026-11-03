@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { metricAvailability, quotaResetPresentation, remainingPercentage } from "./quotaPresentation";
+import { capacityHistoryMetric, metricAvailability, quotaResetPresentation, readableUsd, remainingPercentage, type CapacityHistoryMetric } from "./quotaPresentation";
 
 import {
   appendCapacityHistoryPage,
@@ -16,7 +16,7 @@ type CapacityHistoryQuery = Readonly<{
   accountId: string;
   rangeFrom: string;
   before: string;
-  metric: "remaining_ratio";
+  metric: CapacityHistoryMetric;
   seriesKind: "poll_snapshot";
 }>;
 
@@ -47,7 +47,8 @@ function exactMetricValue(field: ExactMetricFieldWireV1): string {
 }
 
 function ExactMetric({ field }: Readonly<{ field: ExactMetricFieldWireV1 }>) {
-  return <>{exactMetricValue(field)}<small>{field.availability.replaceAll("_", " ")} · {field.precision} · {field.confidence} · {field.value_kind.replaceAll("_", " ")}</small></>;
+  const amount = readableUsd(field);
+  return <>{amount !== null && <>{amount} USD · </>}{exactMetricValue(field)}<small>{field.availability.replaceAll("_", " ")} · {field.precision} · {field.confidence} · {field.value_kind.replaceAll("_", " ")}</small></>;
 }
 
 function chartNumber(point: CapacityHistoryPointV2): number | null {
@@ -84,6 +85,7 @@ function CapacityHistory({
   const lastPage = pages[pages.length - 1]!;
   const items = pages.flatMap((page) => page.items);
   const continuation = capacityHistoryContinuation(lastPage.page);
+  const units = new Set(items.flatMap(point => point.value.availability === "available" && point.value.value !== null ? [point.value.value.unit] : []));
   const plotted = items.flatMap((point, index) => {
     const value = chartNumber(point);
     const observed = Date.parse(point.observed_at);
@@ -111,7 +113,7 @@ function CapacityHistory({
       {items.length === 0 ? (
         <div className="empty-telemetry"><div><strong>No retained observations in this range.</strong><p>{history.availability.reason_code.replaceAll("_", " ")}.</p></div></div>
       ) : <>
-        <svg
+        {units.size > 1 ? <p>These readings use different units. Compare the exact values below; no combined trend is shown.</p> : <svg
           className="history-chart"
           viewBox="0 0 600 140"
           role="img"
@@ -127,7 +129,8 @@ function CapacityHistory({
               <title>{entry.point.safe_label ?? entry.point.window_key}: {exactMetricValue(entry.point.value)} at {new Date(entry.point.observed_at).toLocaleString()}</title>
             </g>
           ))}
-        </svg>
+        </svg>}
+        {units.size === 1 && <p className="provenance-line">Unit: {[...units][0]!.toUpperCase()} · {history.metric === "remaining" ? "balance remaining" : "remaining ratio"}. Windows remain separate; no balances are added together.</p>}
         <p className="provenance-line">Points are not interpolated. Exact values, units, timestamps, and lineage are listed below.</p>
         <div className="table-scroll" tabIndex={0} role="region" aria-label="Capacity history table">
           <table aria-label="Capacity history exact values">
@@ -173,6 +176,7 @@ export function CapacityPanel({
   const [state, setState] = useState<CapacityState>({ kind: "loading" });
   const [rangeDays, setRangeDays] = useState(1);
   const [historyExpanded, setHistoryExpanded] = useState(false);
+  const [selectedHistoryMetric, setSelectedHistoryMetric] = useState<CapacityHistoryMetric | null>(null);
   const historyPageController = useRef<AbortController | null>(null);
 
   const load = useCallback(async (signal?: AbortSignal) => {
@@ -181,20 +185,9 @@ export function CapacityPanel({
     setState({ kind: "loading" });
     try {
       const now = Date.now();
-      const historyQuery: CapacityHistoryQuery = {
-        accountId,
-        rangeFrom: new Date(now - (rangeDays * 24 * 60 * 60 * 1000)).toISOString(),
-        before: new Date(now).toISOString(),
-        metric: "remaining_ratio",
-        seriesKind: "poll_snapshot",
-      };
-      const [account, quotas, history] = await Promise.all([
+      const [account, quotas] = await Promise.all([
         capacity.account(accountId, signal),
         capacity.quotaWindows(accountId, signal),
-        capacity.history({
-          ...historyQuery,
-          signal,
-        }),
       ]);
       if (!account.ok) {
         if (account.problem.code === "dashboard_authentication_required") onExpired();
@@ -206,6 +199,14 @@ export function CapacityPanel({
         else setState({ kind: "error", message: "Quota windows are unavailable from the local service." });
         return;
       }
+      const historyQuery: CapacityHistoryQuery = {
+        accountId,
+        rangeFrom: new Date(now - (rangeDays * 24 * 60 * 60 * 1000)).toISOString(),
+        before: new Date(now).toISOString(),
+        metric: selectedHistoryMetric ?? capacityHistoryMetric(quotas.data.items),
+        seriesKind: "poll_snapshot",
+      };
+      const history = await capacity.history({ ...historyQuery, signal });
       if (!history.ok && history.problem.code === "dashboard_authentication_required") {
         onExpired();
         return;
@@ -225,7 +226,7 @@ export function CapacityPanel({
       if (error instanceof DOMException && error.name === "AbortError") return;
       setState({ kind: "error", message: "The local capacity service is unavailable." });
     }
-  }, [accountId, onExpired, rangeDays]);
+  }, [accountId, onExpired, rangeDays, selectedHistoryMetric]);
 
   const refreshCurrent = useCallback(async (signal: AbortSignal) => {
     try {
@@ -373,9 +374,12 @@ export function CapacityPanel({
       {state.quotas.items.length > 0 && <div className="allowance-cards">{state.quotas.items.map((window) => {
         const percentage = remainingPercentage(window.allowance?.remaining_percentage ?? window.remaining_ratio);
         const reset = quotaResetPresentation(window.reset_at ?? null, window.reset_precision ?? "unknown");
+        const amount = readableUsd(window.remaining);
+        const limit = readableUsd(window.limit);
         return <article className="allowance-card" key={window.window_id} data-window-id={window.window_id} data-window-key={window.window_key} data-semantic-role={window.semantic_role ?? "unknown"}>
           <div className="allowance-card-heading"><h3>{window.safe_label ?? window.window_key}</h3><span className={`reading-freshness reading-${window.freshness}`}>{window.freshness === "fresh" ? "Up to date" : window.freshness.replaceAll("_", " ")}</span></div>
-          <p className="allowance-value"><strong>{percentage?.label ?? metricAvailability(window.remaining_ratio)}</strong><span>left</span></p>
+          <p className="allowance-value"><strong>{amount ?? percentage?.label ?? metricAvailability(window.remaining_ratio)}</strong><span>{amount === null ? "left" : "USD left"}</span></p>
+          {limit !== null && <p className="allowance-time">Allowance: {limit} USD</p>}
           {percentage !== null && <div className="allowance-track" role="meter" aria-label={`${window.safe_label ?? window.window_key} remaining allowance`} aria-valuemin={0} aria-valuemax={100} aria-valuenow={percentage.value} aria-valuetext={`${percentage.label} left`}><span style={{ width: `${percentage.value}%` }} /></div>}
           <p className="allowance-time quota-reset" data-reset-precision={reset.precision}>{reset.dateTime === null ? reset.label : <>{reset.label} <time dateTime={reset.dateTime}>{new Date(reset.dateTime).toLocaleString()}</time></>} · {reset.precision}</p>
           <p className="allowance-time">Updated <time dateTime={window.collected_at}>{new Date(window.collected_at).toLocaleString()}</time></p>
@@ -450,6 +454,12 @@ export function CapacityPanel({
       </details>
       <details className="account-secondary quota-history" open={historyExpanded} onToggle={(event) => setHistoryExpanded(event.currentTarget.open)}>
       <summary>Usage history <span>Previous allowance readings</span></summary>
+      <label>History metric{" "}
+        <select aria-label="History metric" value={state.historyQuery.metric} onChange={(event) => setSelectedHistoryMetric(event.target.value === "remaining" ? "remaining" : "remaining_ratio")}>
+          <option value="remaining">Balance remaining · native units</option>
+          <option value="remaining_ratio">Remaining ratio · ratio or percent</option>
+        </select>
+      </label>
       <label>History range{" "}
         <select aria-label="History range" value={rangeDays} onChange={(event) => setRangeDays(Number(event.target.value))}>
           <option value={1}>Last 24 hours</option>
