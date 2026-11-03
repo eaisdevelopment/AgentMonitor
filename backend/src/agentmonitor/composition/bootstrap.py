@@ -320,7 +320,9 @@ def read_clean_source_revision_v1(root: Path) -> str | None:
         before = _git_revision_command_v1(root)
         if before is None or _git_exit_v1(
             root,
-            "diff-index",
+            "diff",
+            "--no-ext-diff",
+            "--no-textconv",
             "--quiet",
             "--ignore-submodules=none",
             "HEAD",
