@@ -69,7 +69,6 @@ class OllamaRuntimeCollectorV1:
         self._backoff = OllamaRuntimeBackoffStoreV1(data_root)
         self._instance = OpaqueIdV1("ollama-runtime-" + uuid.uuid4().hex)
         self._next_attempt_at: datetime | None = None
-        self._installation_ready = False
         self._recovery_complete = False
         self._stop_requested = Event()
 
@@ -82,7 +81,6 @@ class OllamaRuntimeCollectorV1:
             raise RuntimeError("ollama_runtime_tick_deadline")
 
     def _record_failure(self, now: datetime) -> None:
-        self._installation_ready = False
         self._recovery_complete = False
         self._next_attempt_at = now + _FAILURE_BACKOFF
         try:
@@ -104,7 +102,7 @@ class OllamaRuntimeCollectorV1:
         if prior is not None:
             self._backoff.write(None)
 
-    def _registered_installation_is_current(self) -> bool:
+    def _reject_ambiguous_installation(self) -> None:
         matches = tuple(
             item
             for item in ListProviderInstallationsV1(self._registry)("ollama")
@@ -116,7 +114,6 @@ class OllamaRuntimeCollectorV1:
         )
         if len(matches) > 1:
             raise ValueError("ollama_runtime_installation_ambiguous")
-        return len(matches) == 1
 
     def _tick(self, now: datetime, *, deadline_monotonic: float) -> str:
         self._checkpoint(deadline_monotonic)
@@ -148,13 +145,12 @@ class OllamaRuntimeCollectorV1:
                 else "ollama_runtime_waiting"
             )
 
-        if not self._installation_ready:
-            self._installation_ready = self._registered_installation_is_current()
-            self._checkpoint(deadline_monotonic)
-            if not self._installation_ready:
-                reconcile_ollama_installation_v1(self._reference)
-                self._installation_ready = True
-            self._checkpoint(deadline_monotonic)
+        self._reject_ambiguous_installation()
+        self._checkpoint(deadline_monotonic)
+        # An existing registry row is not a fresh installation observation.
+        # Refresh from the real CLI only when this collection is due.
+        reconcile_ollama_installation_v1(self._reference)
+        self._checkpoint(deadline_monotonic)
 
         remaining_seconds = deadline_monotonic - time.monotonic()
         if remaining_seconds <= 0:
