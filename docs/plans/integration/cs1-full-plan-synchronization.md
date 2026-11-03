@@ -1202,3 +1202,15 @@ This records catalog and snapshot synchronization for the integrated M6 technica
 Plan snapshot SHA-256: `2ebb3c6b7ed3f40a6e3c30b11afab2fe1ba822d5353e44e5bfb2cb9eee4e092e`
 
 Planning validator SHA-256: `a245e3da4bff6efc405751b53574677c2de6a34ff2899b3d2fb92f9784eae159`
+
+## 2026-11-03 v1_0718 receipt-history automation rebind
+
+Independent scoped review verified the additive M02 receipt-history catalog
+inventory and the bounded offline `v1_0717` to `v1_0718` migration routine.
+This binds only the changed automation catalog and completion-standard controls;
+it does not claim deployment, live supersession evidence, broader rollback
+readiness, M6 completion, or product readiness.
+
+Plan snapshot SHA-256: `78d35c337c8cabd3a3fd935775d1d17c4d207de8ed218f2800fdf4078fa8dff6`
+
+Planning validator SHA-256: `a245e3da4bff6efc405751b53574677c2de6a34ff2899b3d2fb92f9784eae159`

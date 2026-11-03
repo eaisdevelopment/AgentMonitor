@@ -2,6 +2,41 @@
 
 from typing import Literal
 
+from agentmonitor.contracts.registry_v1 import (
+    CredentialBindingVerificationReceiptV1,
+)
+
+VerificationReceiptTransitionV1 = Literal["install", "replay", "supersede"]
+
+
+def verification_receipt_transition(
+    current: CredentialBindingVerificationReceiptV1 | None,
+    proposed: CredentialBindingVerificationReceiptV1,
+) -> VerificationReceiptTransitionV1:
+    """Preserve exact replay and replace only a newer receipt for one binding."""
+    if not isinstance(proposed, CredentialBindingVerificationReceiptV1) or (
+        current is not None
+        and not isinstance(current, CredentialBindingVerificationReceiptV1)
+    ):
+        raise ValueError("credential_binding_verification_conflict")
+    if current is None:
+        return "install"
+    if current == proposed:
+        return "replay"
+    if (
+        current.binding != proposed.binding
+        or current.access_target_id != proposed.access_target_id
+        or current.source_id != proposed.source_id
+        or current.adapter_version != proposed.adapter_version
+        or current.manifest_fingerprint != proposed.manifest_fingerprint
+        or current.verification_id == proposed.verification_id
+        or current.run_id == proposed.run_id
+        or current.admission_id == proposed.admission_id
+        or proposed.verified_at <= current.verified_at
+    ):
+        raise ValueError("credential_binding_verification_conflict")
+    return "supersede"
+
 
 def cloud_verification_enqueue_account_version(
     *, command_expected_version: int, owner_assertion_required: bool

@@ -20,6 +20,9 @@ from agentmonitor.contracts.registry_v1 import (
     ProviderAccessTargetV1,
     ProviderTargetRefV1,
 )
+from agentmonitor.modules.registry.domain.cloud_verification import (
+    verification_receipt_transition,
+)
 
 
 def _binding() -> ActiveCredentialBindingRefV1:
@@ -127,6 +130,60 @@ def test_generation_verification_receipt_is_closed_and_non_secret() -> None:
         replace(receipt, source_id="other.source")  # type: ignore[arg-type]
     with pytest.raises(ValueError, match="registry_credential_verification_invalid"):
         replace(receipt, payload_digest="d" * 63)
+
+
+def test_newer_receipt_supersedes_without_relabelling_binding_lineage() -> None:
+    current = CredentialBindingVerificationReceiptV1(
+        verification_id=OpaqueIdV1("amvr_" + "b" * 32),
+        binding=_binding(),
+        access_target_id=OpaqueIdV1("amat_" + "e" * 32),
+        run_id=OpaqueIdV1("run-1"),
+        admission_id=OpaqueIdV1("admission-1"),
+        source_id="ollama.cloud.balance.v1",
+        adapter_version="1.0.0",
+        manifest_fingerprint="c" * 64,
+        payload_digest="d" * 64,
+        verified_at=datetime(2026, 11, 2, 12, tzinfo=UTC),
+        record_version=1,
+    )
+    newer = replace(
+        current,
+        verification_id=OpaqueIdV1("amvr_" + "f" * 32),
+        run_id=OpaqueIdV1("run-2"),
+        admission_id=OpaqueIdV1("admission-2"),
+        payload_digest="e" * 64,
+        verified_at=current.verified_at + timedelta(minutes=1),
+    )
+
+    assert verification_receipt_transition(None, current) == "install"
+    assert verification_receipt_transition(current, current) == "replay"
+    assert verification_receipt_transition(current, newer) == "supersede"
+    with pytest.raises(ValueError, match="credential_binding_verification_conflict"):
+        verification_receipt_transition(
+            current,
+            replace(
+                newer,
+                binding=ActiveCredentialBindingRefV1(
+                    current.binding.account_id,
+                    current.binding.binding_id,
+                    current.binding.generation + 1,
+                ),
+            ),
+        )
+    with pytest.raises(ValueError, match="credential_binding_verification_conflict"):
+        verification_receipt_transition(
+            current, replace(newer, verified_at=current.verified_at)
+        )
+    with pytest.raises(ValueError, match="unsupported-field-state"):
+        replace(newer, source_id="other")
+    for changed_policy in (
+        replace(newer, adapter_version="1.0.1"),
+        replace(newer, manifest_fingerprint="f" * 64),
+    ):
+        with pytest.raises(
+            ValueError, match="credential_binding_verification_conflict"
+        ):
+            verification_receipt_transition(current, changed_policy)
 
 
 def test_targeted_verification_acquire_is_exact_and_short_lived() -> None:

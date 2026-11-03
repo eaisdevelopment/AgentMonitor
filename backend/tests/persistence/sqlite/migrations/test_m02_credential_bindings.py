@@ -24,6 +24,7 @@ def test_migrated_database_has_guarded_credential_binding_schema(
                 "reg_credential_binding_state",
                 "reg_credential_binding",
                 "reg_credential_binding_verification",
+                "reg_credential_binding_verification_history",
                 "reg_provider_access_target",
                 "reg_cloud_monitoring_target",
             } <= set(inspector.get_table_names())
@@ -45,3 +46,16 @@ def test_migrated_database_has_guarded_credential_binding_schema(
                 for item in inspector.get_indexes("reg_credential_binding_verification")
             }
             assert verification_indexes["ix_reg_binding_verification_current"]
+            history_indexes = {
+                item["name"]: item
+                for item in inspector.get_indexes(
+                    "reg_credential_binding_verification_history"
+                )
+            }
+            assert history_indexes["ix_reg_binding_verification_history_binding"]
+            assert {
+                item["referred_table"]
+                for item in inspector.get_foreign_keys(
+                    "reg_credential_binding_verification_history"
+                )
+            } == {"reg_credential_binding", "reg_provider_access_target"}

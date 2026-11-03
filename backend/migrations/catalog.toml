@@ -1,5 +1,5 @@
-version = "1.7.17"
-head = "v1_0717"
+version = "1.7.18"
+head = "v1_0718"
 env_sha256 = "27449e3ed3984acde690510f9e4974eb6412f5f1b7e62af65bc8bb616879a7d7"
 
 [[revisions]]
@@ -794,3 +794,25 @@ backup_prerequisite = "required_existing_database"
 validation_ids = ["single_head", "m04_cloud_verification_replay_schema", "foreign_key_check", "full_integrity"]
 recovery_policy = "preserve_failed_database_and_restore_verified_backup_or_forward_fix"
 reviewer = "pending-M04-independent-review"
+
+[[revisions]]
+ordinal = 718
+filename = "v1_0718_m02_verification_history.py"
+sha256 = "09d1b825533009c91578dd303a2c991d33d1bd234d96de06c2433bc78dd557d1"
+status = "implemented"
+reviewed_at = "2026-11-03"
+revision = "v1_0718"
+parent_revision = "v1_0717"
+owner = "M02"
+plan_id = "PLAN-M02"
+requirement_ids = ["FR-ACC-001", "FR-COL-004", "FR-SAFE-001", "M6-A03", "M6-A04", "M6-A07", "M6-A09", "NFR-DATA-001"]
+schema_range = ["v1_0718", "v1_0718", "v1_0718", "v1_0718", "v1_0718"]
+tables = ["reg_credential_binding_verification_history"]
+portability_notes = ["The current receipt remains one row per credential generation", "Superseded exact run and admission lineage remains immutable and queryable"]
+lock_policy = "exclusive_migration_and_begin_immediate"
+downtime_policy = "offline_additive_schema_migration"
+expected_data_volume = "one historical row per superseded successful verification"
+backup_prerequisite = "required_existing_database"
+validation_ids = ["single_head", "m02_credential_verification_history_schema", "foreign_key_check", "full_integrity"]
+recovery_policy = "preserve_failed_database_and_restore_verified_backup_or_forward_fix"
+reviewer = "M02-M6-verification-history-independent-review"

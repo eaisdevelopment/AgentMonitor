@@ -36,6 +36,7 @@ from agentmonitor.modules.registry.domain.account import (
 )
 from agentmonitor.modules.registry.domain.cloud_verification import (
     require_cloud_verification_enqueue_authority,
+    verification_receipt_transition,
 )
 from agentmonitor.modules.registry.domain.credential_binding import (
     activate_prepared_credential_binding,
@@ -310,15 +311,19 @@ def reconcile_access_target_in_transaction(
             )
         if existing.manifest_fingerprint == manifest_fingerprint:
             return existing
-        # V1 stores one current verification receipt per binding generation.
-        # Replacing or deleting one here would break its run/admission recovery
-        # lineage. A previously verified target therefore needs a separately
-        # versioned receipt-history migration before its fingerprint can move.
+        # v1_0718 preserves repeated receipts only under one exact source policy.
+        # A manifest change needs a separately reviewed policy migration; never
+        # reinterpret either current or historical proof as authorizing it.
         if (
             connection.exec_driver_sql(
                 "SELECT 1 FROM reg_credential_binding_verification "
+                "WHERE access_target_id=? UNION ALL SELECT 1 FROM "
+                "reg_credential_binding_verification_history "
                 "WHERE access_target_id=? LIMIT 1",
-                (existing.access_target_id.value,),
+                (
+                    existing.access_target_id.value,
+                    existing.access_target_id.value,
+                ),
             ).first()
             is not None
         ):
@@ -546,9 +551,17 @@ def record_credential_binding_verification_in_transaction(
         )
     existing = (
         connection.exec_driver_sql(
-            "SELECT * FROM reg_credential_binding_verification "
+            "SELECT verification_id,account_id,binding_id,binding_generation,"
+            "access_target_id,run_id,admission_id,source_id,adapter_version,"
+            "manifest_fingerprint,payload_digest,verified_at,record_version "
+            "FROM reg_credential_binding_verification "
+            "WHERE run_id=? OR admission_id=? UNION ALL "
+            "SELECT verification_id,account_id,binding_id,binding_generation,"
+            "access_target_id,run_id,admission_id,source_id,adapter_version,"
+            "manifest_fingerprint,payload_digest,verified_at,record_version "
+            "FROM reg_credential_binding_verification_history "
             "WHERE run_id=? OR admission_id=?",
-            (run_id.value, admission_id.value),
+            (run_id.value, admission_id.value, run_id.value, admission_id.value),
         )
         .mappings()
         .all()
@@ -587,6 +600,87 @@ def record_credential_binding_verification_in_transaction(
         verified_at=verified_at,
         record_version=1,
     )
+    current_row = (
+        connection.exec_driver_sql(
+            "SELECT * FROM reg_credential_binding_verification "
+            "WHERE account_id=? AND binding_id=? AND binding_generation=?",
+            (
+                binding.account_id.value,
+                binding.binding_id.value,
+                binding.generation,
+            ),
+        )
+        .mappings()
+        .one_or_none()
+    )
+    current = _verification_receipt(current_row) if current_row is not None else None
+    try:
+        transition = verification_receipt_transition(current, receipt)
+    except ValueError:
+        raise CredentialBindingRepositoryErrorV1(
+            "credential_binding_verification_conflict"
+        ) from None
+    if transition == "replay":
+        if current is None:
+            raise CredentialBindingRepositoryErrorV1(
+                "credential_binding_verification_conflict"
+            )
+        return current
+    if transition == "supersede":
+        if current is None:
+            raise CredentialBindingRepositoryErrorV1(
+                "credential_binding_verification_conflict"
+            )
+        deleted = connection.exec_driver_sql(
+            "DELETE FROM reg_credential_binding_verification "
+            "WHERE verification_id=? AND account_id=? AND binding_id=? "
+            "AND binding_generation=? AND access_target_id=? AND run_id=? "
+            "AND admission_id=? AND source_id=? AND adapter_version=? "
+            "AND manifest_fingerprint=? AND payload_digest=? AND verified_at=? "
+            "AND record_version=?",
+            (
+                current.verification_id.value,
+                current.binding.account_id.value,
+                current.binding.binding_id.value,
+                current.binding.generation,
+                current.access_target_id.value,
+                current.run_id.value,
+                current.admission_id.value,
+                current.source_id,
+                current.adapter_version,
+                current.manifest_fingerprint,
+                current.payload_digest,
+                _utc_text(current.verified_at),
+                current.record_version,
+            ),
+        )
+        if deleted.rowcount != 1:
+            raise CredentialBindingRepositoryErrorV1(
+                "credential_binding_verification_conflict"
+            )
+        connection.exec_driver_sql(
+            "INSERT INTO reg_credential_binding_verification_history "
+            "(verification_id,account_id,binding_id,binding_generation,access_target_id,"
+            "run_id,admission_id,source_id,adapter_version,manifest_fingerprint,"
+            "payload_digest,verified_at,superseded_at,record_version) "
+            "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+            (
+                current.verification_id.value,
+                current.binding.account_id.value,
+                current.binding.binding_id.value,
+                current.binding.generation,
+                current.access_target_id.value,
+                current.run_id.value,
+                current.admission_id.value,
+                current.source_id,
+                current.adapter_version,
+                current.manifest_fingerprint,
+                current.payload_digest,
+                _utc_text(current.verified_at),
+                _utc_text(receipt.verified_at),
+                current.record_version,
+            ),
+        )
     connection.exec_driver_sql(
         "INSERT INTO reg_credential_binding_verification "
         "(verification_id,account_id,binding_id,binding_generation,access_target_id,"
@@ -797,16 +891,33 @@ class SqliteCloudCredentialRegistryV1:
         try:
             with open_sqlite_database(self._reference, "runtime_read_only") as handle:
                 with handle.connect() as connection:
-                    row = (
+                    rows = (
                         connection.exec_driver_sql(
-                            "SELECT * FROM reg_credential_binding_verification "
+                            "SELECT verification_id,account_id,binding_id,binding_generation,"
+                            "access_target_id,run_id,admission_id,source_id,adapter_version,"
+                            "manifest_fingerprint,payload_digest,verified_at,record_version "
+                            "FROM reg_credential_binding_verification "
+                            "WHERE run_id=? AND admission_id=? UNION ALL "
+                            "SELECT verification_id,account_id,binding_id,binding_generation,"
+                            "access_target_id,run_id,admission_id,source_id,adapter_version,"
+                            "manifest_fingerprint,payload_digest,verified_at,record_version "
+                            "FROM reg_credential_binding_verification_history "
                             "WHERE run_id=? AND admission_id=?",
-                            (run_id.value, admission_id.value),
+                            (
+                                run_id.value,
+                                admission_id.value,
+                                run_id.value,
+                                admission_id.value,
+                            ),
                         )
                         .mappings()
-                        .one_or_none()
+                        .all()
                     )
-                    return _verification_receipt(row) if row is not None else None
+                    if len(rows) > 1:
+                        raise CredentialBindingRepositoryErrorV1(
+                            "credential_binding_verification_conflict"
+                        )
+                    return _verification_receipt(rows[0]) if rows else None
         except CredentialBindingRepositoryErrorV1:
             raise
         except (SqlitePolicyError, SQLAlchemyError, ValueError, TypeError):
