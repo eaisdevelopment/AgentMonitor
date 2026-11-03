@@ -54,19 +54,18 @@ def committed_recovery_after(
     matches = [
         run
         for run in runs
-        if (
-            _matches(run, scope)
-            and run.requested_at > failure.completed_at
-            and run.state in {"succeeded", "partial"}
-            and run.dispatch_certainty == "response_received"
-            and run.response_outcome == "succeeded"
-            and run.failure_code is None
-            and run.payload_digest is not None
-            and bool(run.observation_ids)
-        )
+        if (_matches(run, scope) and run.requested_at > failure.completed_at)
     ]
-    return (
-        min(matches, key=lambda run: (run.requested_at, run.run_id.value))
-        if matches
-        else None
-    )
+    if not matches:
+        return None
+    latest = max(matches, key=lambda run: (run.requested_at, run.run_id.value))
+    if (
+        latest.state in {"succeeded", "partial"}
+        and latest.dispatch_certainty == "response_received"
+        and latest.response_outcome == "succeeded"
+        and latest.failure_code is None
+        and latest.payload_digest is not None
+        and bool(latest.observation_ids)
+    ):
+        return latest
+    return None

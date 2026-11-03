@@ -37,7 +37,9 @@ repository access, not a new unauthenticated HTTP route.
 
 Pure M04 policy accepts only a received authoritative authentication,
 authorization or rate-limit response and a later committed successful/partial
-run under the identical scope. `provider_unavailable` does not qualify: the
+run under the identical scope. That committed run must remain the latest
+terminal exact-scope state at publication; a later failure removes the target
+from the recovered set. `provider_unavailable` does not qualify: the
 durable M04 facts do not preserve the HTTP status and therefore cannot
 distinguish an upstream unavailable response from a local post-header transport
 or body-read failure. Pre-dispatch failures, parser/internal errors, uncertain
@@ -58,11 +60,18 @@ triggers a collection, changes an account, or manipulates provider availability.
 A positive result requires the same service invocation and revision throughout,
 the failed target still failing at the first browser observation, genuine exact
 recovery during the observed interval, and actual Claude and Codex committed
-quota runs in that interval. The artifact includes invocation/revision identity,
-UTC interval, actual dashboard sample count, counts and a lineage digest. A
-probe proves availability only when sampled; it does not claim uninterrupted
-HTTP availability between samples. Historical dashboard availability is never
-inferred from database rows. Missing conditions remain `not_run` or `blocked`.
+quota runs in that interval. Service identity is rechecked after the final
+supporting database reads and immediately before publication. The artifact
+includes invocation/revision identity, UTC interval, actual dashboard sample
+count, counts and a lineage digest. A probe proves availability only when
+sampled; it does not claim uninterrupted HTTP availability between samples,
+and that limitation is declared in the machine-readable selector and final
+receipt. Historical dashboard availability is never inferred from database
+rows. Missing conditions remain `not_run` or `blocked`.
+
+`cross_provider_continuity_targets` counts recovered Ollama targets covered by
+the same sampled interval in which one actual Claude and one actual Codex run
+committed. It is not a count of distinct Claude/Codex accounts or agents.
 
 ## Acceptance evidence and rollout
 

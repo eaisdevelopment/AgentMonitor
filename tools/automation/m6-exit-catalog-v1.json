@@ -113,7 +113,9 @@
       "source_versions_policy_id": "M6-SOURCE-VERSIONS-A07-V1",
       "selection_sha256": "4b5106b82c783e11eefdef017e29ca4f9219bcacecb16b341962e6a985dbdc59",
       "source_versions_sha256": "d32beb4cbeaabe703ab4f3728683e5a0c5573581faea048470a06ae2c14dc8ad",
-      "required_limitations": []
+      "required_limitations": [
+        "sampled_dashboard_and_collection_continuity"
+      ]
     },
     {
       "scope_id": "M6-A08",
@@ -198,7 +200,8 @@
       "selection_sha256": "35153bcff534947f6c0ccba78f4d07260a02e660f3282698588a43ee3e4fd65b",
       "source_versions_sha256": "b414c552340621433d5561e442ca725741258c256328a9990a58af4b7eed23a1",
       "required_limitations": [
-        "sampled_process_coverage"
+        "sampled_process_coverage",
+        "sampled_dashboard_and_collection_continuity"
       ]
     }
   ]

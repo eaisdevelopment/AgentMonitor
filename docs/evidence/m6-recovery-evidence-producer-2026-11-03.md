@@ -29,6 +29,18 @@ and its exact-source and bounded sampled-continuity semantics.
   correction, the complete pure recovery-policy file passed **24 tests in
   0.06 seconds**. The corrected policy excludes the ambiguous state;
   authoritative 401, 403 and 429 outcomes remain eligible.
+- A second review regression proved that `failure -> committed success -> later
+  failure` was still reported as recovered. It failed by returning the earlier
+  success. The corrected pure policy requires the latest exact-scope terminal
+  state to be the committed success, and the interval producer rebuilds the
+  recovered set on every sample. The producer now also rechecks the exact
+  service identity after all positive-supporting database reads and immediately
+  before publication. The recovery/direct/gate pure suite passed **74 tests in
+  0.43 seconds**.
+- M6-A07 and the integrated Story now carry the machine-readable
+  `sampled_dashboard_and_collection_continuity` limitation. One Claude and one
+  Codex run cover the sampled interval for every recovered Ollama target; the
+  target count is not presented as a distinct provider-account or agent count.
 - The closed artifact parser initially failed collection because its module did
   not exist. Its tests now reject absent invocation identity, incorrect
   revisions, old/overlong intervals, incomplete sample/count evidence and
@@ -63,6 +75,13 @@ provider recovery. A separate actual read-only query found Codex history but no
 Claude terminal quota run in the preceding hour; future positive continuity
 requires both providers to have genuine successful quota runs in the observed
 interval.
+
+After the independent corrections, the same read-only command against running
+revision `22d572c102f9684f38feaa1af4d99d7008c5d405` again returned exit 3 /
+`not_run` with `m6_recovery_current_natural_failure_absent` in under one second.
+It performed no provider request or write. The positive final-identity and
+latest-success publication path remains **Not Run** until a qualifying natural
+condition exists.
 
 The maximum observation budget is 600 seconds, with a 660-second canonical
 subprocess-group deadline. Only the owned evidence subprocesses may be stopped;

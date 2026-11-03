@@ -505,6 +505,7 @@ def classify_direct_m6_evidence_v1(
     else:
         outcomes["M6-A06"] = process_base
 
+    recovery_limit = ("sampled_dashboard_and_collection_continuity",)
     interval = facts.recovery_interval
     interval_check = facts.recovery_observation
     if interval is not None:
@@ -530,13 +531,16 @@ def classify_direct_m6_evidence_v1(
         facts.dashboard_continuity_browser,
         facts.recovery_observation,
         interval_check,
+        limitation=recovery_limit,
     )
     if recovery_base.status == "passed" and (
         facts.natural_recovery_targets < 1
         or facts.cross_provider_continuity_targets < 1
     ):
         outcomes["M6-A07"] = _missing(
-            "natural_failure_recovery_not_observed", recovery_base
+            "natural_failure_recovery_not_observed",
+            recovery_base,
+            limitation=recovery_limit,
         )
     else:
         outcomes["M6-A07"] = recovery_base
@@ -571,7 +575,7 @@ def classify_direct_m6_evidence_v1(
     outcomes["ST-OLL-004"] = _combined(outcomes["M6-A04"], outcomes["M6-A05"])
     outcomes["ST-OLL-005"] = _combined(
         *(outcomes[f"M6-A{index:02}"] for index in range(1, 10)),
-        limitation=process_limit,
+        limitation=process_limit + recovery_limit,
     )
     return outcomes
 

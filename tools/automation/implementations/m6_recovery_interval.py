@@ -279,6 +279,9 @@ def observe_recovery_interval(revision: str) -> dict[str, object]:
             current_scopes = _scopes(reference)
             if any(scope not in current_scopes for scope, _ in candidates):
                 raise ValueError("m6_recovery_scope_changed")
+            current_recovered: dict[
+                CollectionRecoveryScopeV1, CollectionRecoveryRunV1
+            ] = {}
             for scope, failed in candidates:
                 recovery = committed_recovery_after(
                     _runs(repository, "ollama", start, observed, scope),
@@ -286,7 +289,8 @@ def observe_recovery_interval(revision: str) -> dict[str, object]:
                     scope,
                 )
                 if recovery is not None and recovery.completed_at >= first_probe:
-                    recovered[scope] = recovery
+                    current_recovered[scope] = recovery
+            recovered = current_recovered
             if not recovered:
                 continue
             continuity_runs = tuple(
@@ -327,10 +331,15 @@ def observe_recovery_interval(revision: str) -> dict[str, object]:
                                 recovered[scope].run_id.value,
                             )
                         )
+                if _identity() != identity:
+                    raise ValueError("m6_recovery_service_changed")
                 result.update(
                     status="passed",
                     reason_code="m6_recovery_observed",
                     natural_recovery_targets=len(recovered),
+                    # This is the number of recovered Ollama targets covered by
+                    # the same sampled interval containing one actual Claude and
+                    # one actual Codex committed run, not a provider-account count.
                     cross_provider_continuity_targets=len(recovered),
                     dashboard_sample_count=samples,
                     continuity_run_ids=continuity_ids,

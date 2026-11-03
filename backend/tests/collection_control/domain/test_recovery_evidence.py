@@ -111,20 +111,21 @@ def test_superseded_failure_is_not_a_current_failed_target() -> None:
 
 
 @pytest.mark.parametrize(
-    "field,value",
+    "changed",
     [
-        ("account_id", OpaqueIdV1("other-account")),
-        ("access_target_id", OpaqueIdV1("other-target")),
-        ("binding_generation", 4),
-        ("source_id", "other.source.v1"),
-        ("provider_key", "codex"),
-        ("adapter_version", "2.0.0"),
-        ("source_fingerprint", "c" * 64),
-        ("payload_schema", "ProviderQuotaInputV3@3"),
+        replace(SCOPE, account_id=OpaqueIdV1("other-account")),
+        replace(SCOPE, access_target_id=OpaqueIdV1("other-target")),
+        replace(SCOPE, binding_generation=4),
+        replace(SCOPE, source_id="other.source.v1"),
+        replace(SCOPE, provider_key="codex"),
+        replace(SCOPE, adapter_version="2.0.0"),
+        replace(SCOPE, source_fingerprint="c" * 64),
+        replace(SCOPE, payload_schema="ProviderQuotaInputV3@3"),
     ],
 )
-def test_changed_scope_does_not_reuse_old_failure(field: str, value: object) -> None:
-    changed = replace(SCOPE, **{field: value})
+def test_changed_scope_does_not_reuse_old_failure(
+    changed: CollectionRecoveryScopeV1,
+) -> None:
     assert latest_natural_failure((failure(),), changed) is None
     assert committed_recovery_after((success(),), failure(), changed) is None
 
@@ -138,6 +139,19 @@ def test_missing_commit_or_out_of_order_success_is_not_recovery() -> None:
         replace(success(), requested_at=NOW, completed_at=NOW + timedelta(seconds=1)),
     ):
         assert committed_recovery_after((candidate,), failed, SCOPE) is None
+
+
+def test_later_exact_scope_failure_invalidates_prior_recovery() -> None:
+    failed = failure()
+    recovered = success()
+    relapse = replace(
+        failed,
+        run_id=OpaqueIdV1("relapse"),
+        requested_at=recovered.completed_at + timedelta(seconds=1),
+        completed_at=recovered.completed_at + timedelta(seconds=2),
+    )
+
+    assert committed_recovery_after((failed, recovered, relapse), failed, SCOPE) is None
 
 
 def test_query_rejects_mixed_provider_scope_before_io() -> None:

@@ -100,7 +100,13 @@ def test_direct_policy_can_pass_the_original_external_catalog() -> None:
     }
     assert {item.status for item in outcomes.values()} == {"passed"}
     assert outcomes["M6-A06"].declared_limitations == ("sampled_process_coverage",)
-    assert outcomes["ST-OLL-005"].declared_limitations == ("sampled_process_coverage",)
+    assert outcomes["M6-A07"].declared_limitations == (
+        "sampled_dashboard_and_collection_continuity",
+    )
+    assert outcomes["ST-OLL-005"].declared_limitations == (
+        "sampled_process_coverage",
+        "sampled_dashboard_and_collection_continuity",
+    )
     assert all(item.test_count > 0 for item in outcomes.values())
 
 
