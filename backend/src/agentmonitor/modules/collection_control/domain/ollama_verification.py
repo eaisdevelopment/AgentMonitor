@@ -88,6 +88,7 @@ def classify_latest_ollama_cloud_source_signal_v1(
             "deadline_exceeded",
             "internal_adapter_error",
             "source_not_admitted",
+            "pre_dispatch_failed",
         }
     ):
         raise ValueError("ollama_cloud_source_signal_invalid")
@@ -114,6 +115,8 @@ def classify_latest_ollama_cloud_source_signal_v1(
             return "transient_failure"
         return "outcome_unresolved"
     if dispatch_certainty == "not_started" and run_state == "failed":
+        if failure_code == "pre_dispatch_failed" and outcome is None:
+            return "transient_failure"
         if failure_code == "credential_update_in_progress":
             return "credential_update_in_progress"
         if failure_code == "authorization_unavailable":

@@ -5,7 +5,7 @@
 - Requirements: FR-QUOTA-001/002/004/006; acceptance M6-A04/A05/A08, AC-UI-005
 - Candidate base: `1e6eb7d`
 - Recorder/date: AgentMonitor engineering, 3 November 2026
-- Status: implementation candidate; actual deployed-browser Green pending
+- Status: deployed-browser Green at `67527dd`; full M6 acceptance remains open
 
 ## Behavior
 
@@ -117,3 +117,14 @@ was used. No production database or service was changed. There are no new
 dependencies, license implications or secret-handling paths. Rollback is a
 frontend code revert and rebuild; no data migration is necessary. This
 candidate does not close M6.
+
+## Root integration verification
+
+`AUTO-M6-CURRENT-UPDATE` deployed `67527dd` successfully on the unchanged
+v1_0717 schema. The canonical build and quality checks passed. The browser
+command above passed against the actual owner-authenticated service: two real
+USD windows, matching native history, explicit owner-provided identity,
+keyboard expansion, and desktop/mobile overflow checks. The observations were
+stale and remained labelled stale; this UI check is not evidence that automatic
+collection had recovered. That separate M04 defect is recorded in
+[pre-dispatch recovery](m6-ollama-pre-dispatch-recovery-2026-11-03.md).

@@ -2150,7 +2150,9 @@ class SqliteOllamaCloudAdmissionRepositoryV1:
                         certainty = str(row["no_response_certainty"])
                         outcome = None
                         failure = (
-                            "credential_update_in_progress"
+                            "pre_dispatch_failed"
+                            if row["no_response_reason_code"] == "pre_dispatch_failed"
+                            else "credential_update_in_progress"
                             if row["no_response_reason_code"]
                             == "credential_update_in_progress"
                             else str(row["no_response_source_state"])

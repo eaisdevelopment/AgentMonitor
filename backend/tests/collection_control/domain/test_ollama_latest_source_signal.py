@@ -72,6 +72,7 @@ def active_lease() -> OllamaCloudRequestLeaseV1:
             "transient_failure",
         ),
         ("not_started", None, "deadline_exceeded", "transient_failure"),
+        ("not_started", None, "pre_dispatch_failed", "transient_failure"),
         (
             "not_started",
             None,
@@ -110,6 +111,11 @@ def test_terminal_exact_source_state_maps_to_closed_signal(
         ("failed", "response_received", "failed", "internal_adapter_error"),
         ("failed", "not_started", None, "source_not_admitted"),
         ("failed", "response_received", "failed", None),
+        ("failed", "may_have_started", None, "pre_dispatch_failed"),
+        ("failed", "response_received", "failed", "pre_dispatch_failed"),
+        ("running", "not_started", None, "pre_dispatch_failed"),
+        ("failed", "not_started", None, None),
+        ("failed", "not_started", "failed", "pre_dispatch_failed"),
     ),
 )
 def test_ambiguous_or_unclassified_state_fails_closed(
