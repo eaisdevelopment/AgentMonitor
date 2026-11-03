@@ -600,7 +600,9 @@ def _read_body(
 
     result = bytearray()
     maximum = CLOUD_BALANCE_POLICY_V1.maximum_body_bytes
-    while True:
+    # HTTPResponse closes its file after the last Content-Length byte. Do not
+    # require another live socket just to discover EOF on a complete response.
+    while expected is None or len(result) < expected:
         _set_socket_timeout(
             connection,
             response,
