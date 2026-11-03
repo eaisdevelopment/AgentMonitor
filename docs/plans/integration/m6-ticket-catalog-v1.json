@@ -121,7 +121,7 @@
       "id": "M6-T004",
       "story": "ST-OLL-003",
       "title": "Discover SDK and EAIS account scopes",
-      "status": "planned",
+      "status": "in_progress",
       "owner": "A03 adapter",
       "depends_on": [
         "M6-T001"
@@ -146,13 +146,15 @@
       "verification": [
         "official account and team views; owner-guided once"
       ],
-      "evidence": []
+      "evidence": [
+        "docs/evidence/m6-delivery-checkpoint-2026-11-03.md"
+      ]
     },
     {
       "id": "M6-T005",
       "story": "ST-OLL-004",
       "title": "Validate official cloud balance behavior",
-      "status": "planned",
+      "status": "in_progress",
       "owner": "A03 adapter",
       "depends_on": [
         "M6-T004"
@@ -178,7 +180,9 @@
       "verification": [
         "bounded official read-only balance request through approved credentials"
       ],
-      "evidence": []
+      "evidence": [
+        "docs/evidence/m6-delivery-checkpoint-2026-11-03.md"
+      ]
     },
     {
       "id": "M6-T006",
@@ -321,7 +325,7 @@
       "id": "M6-T010",
       "story": "ST-OLL-003",
       "title": "Integrate accounts, identity and authentication health",
-      "status": "planned",
+      "status": "in_progress",
       "owner": "M02 Registry + A03",
       "depends_on": [
         "M6-T004",
@@ -351,13 +355,15 @@
       "verification": [
         "real SQLite/API and real account identity checks (to be defined)"
       ],
-      "evidence": []
+      "evidence": [
+        "docs/evidence/m6-delivery-checkpoint-2026-11-03.md"
+      ]
     },
     {
       "id": "M6-T011",
       "story": "ST-OLL-004",
       "title": "Map real cloud balance and legacy windows",
-      "status": "planned",
+      "status": "in_progress",
       "owner": "A03 adapter + M05",
       "depends_on": [
         "M6-T005",
@@ -385,13 +391,15 @@
       "verification": [
         "pure mapping tests plus real cloud reconciliation (to be defined)"
       ],
-      "evidence": []
+      "evidence": [
+        "docs/evidence/m6-delivery-checkpoint-2026-11-03.md"
+      ]
     },
     {
       "id": "M6-T012",
       "story": "ST-OLL-004",
       "title": "Persist capacity history and alert events",
-      "status": "planned",
+      "status": "in_progress",
       "owner": "M04 collection + M05 capacity + M07 alerts",
       "depends_on": [
         "M6-T011"
@@ -416,13 +424,15 @@
       "verification": [
         "real SQLite, HTTP and built-browser history/alert tests (to be defined)"
       ],
-      "evidence": []
+      "evidence": [
+        "docs/evidence/m6-delivery-checkpoint-2026-11-03.md"
+      ]
     },
     {
       "id": "M6-T013",
       "story": "ST-OLL-005",
       "title": "Discover real Ollama processes and correlation",
-      "status": "planned",
+      "status": "in_progress",
       "owner": "M06 runtime + Linux platform",
       "depends_on": [
         "M6-T003",
@@ -451,7 +461,9 @@
       "verification": [
         "real Linux process and provider checks (to be defined)"
       ],
-      "evidence": []
+      "evidence": [
+        "docs/evidence/m6-delivery-checkpoint-2026-11-03.md"
+      ]
     },
     {
       "id": "M6-T014",
@@ -498,7 +510,7 @@
       "id": "M6-T015",
       "story": "ST-OLL-005",
       "title": "Verify failure isolation and natural recovery",
-      "status": "planned",
+      "status": "in_progress",
       "owner": "M6 integration steward",
       "depends_on": [
         "M6-T009",
@@ -526,13 +538,15 @@
       "verification": [
         "real service and provider failure-isolation checks (to be defined)"
       ],
-      "evidence": []
+      "evidence": [
+        "docs/evidence/m6-delivery-checkpoint-2026-11-03.md"
+      ]
     },
     {
       "id": "M6-T016",
       "story": "ST-OLL-005",
       "title": "Security, compatibility and dependency review",
-      "status": "planned",
+      "status": "in_progress",
       "owner": "M6 integration steward",
       "depends_on": [
         "M6-T006",
@@ -564,13 +578,15 @@
         "python3 tools/automation/run.py AUTO-QUALITY",
         "project privacy/security review (to be defined)"
       ],
-      "evidence": []
+      "evidence": [
+        "docs/evidence/m6-delivery-checkpoint-2026-11-03.md"
+      ]
     },
     {
       "id": "M6-T017",
       "story": "ST-OLL-005",
       "title": "Run live end-to-end M6 scenarios",
-      "status": "planned",
+      "status": "in_progress",
       "owner": "M6 integration steward",
       "depends_on": [
         "M6-T007",
@@ -607,13 +623,15 @@
       "verification": [
         "python3 tools/automation/run.py AUTO-M6-EXIT"
       ],
-      "evidence": []
+      "evidence": [
+        "docs/evidence/m6-delivery-checkpoint-2026-11-03.md"
+      ]
     },
     {
       "id": "M6-T018",
       "story": "ST-OLL-005",
       "title": "Deploy, operate and close M6",
-      "status": "planned",
+      "status": "in_progress",
       "owner": "M6 integration steward",
       "depends_on": [
         "M6-T017"
@@ -639,7 +657,9 @@
         "python3 tools/automation/run.py AUTO-M6-EXIT",
         "python3 tools/automation/run.py AUTO-DOCS-CHECK"
       ],
-      "evidence": []
+      "evidence": [
+        "docs/evidence/m6-delivery-checkpoint-2026-11-03.md"
+      ]
     }
   ]
 }
