@@ -9,7 +9,7 @@ from __future__ import annotations
 import hashlib
 import json
 import re
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
 from datetime import UTC, datetime, timedelta
 from typing import Literal
 
@@ -101,7 +101,8 @@ DIRECT_EXECUTABLE_SELECTION_V1: tuple[tuple[str, tuple[str, ...]], ...] = (
             "PYTHONDONTWRITEBYTECODE=1",
             "{checkout_python}",
             "-B",
-            "tools/automation/implementations/m6_real_snapshot.py",
+            "-m",
+            "tools.automation.implementations.m6_real_snapshot",
             "--data-root",
             "/home/dev/.local/share/agentmonitor",
         ),
@@ -155,7 +156,7 @@ _SOURCE_VERSIONS: dict[str, tuple[str, ...]] = {
         "CTR-REG-004:1.0.0",
         "CTR-RUN-002:1.0.0",
     ),
-    "M6-A03": ("CTR-REG-011:1.0.0", "CTR-REG-012:1.1.0"),
+    "M6-A03": ("CTR-REG-011:1.0.0", "CTR-REG-012:1.1.0", "CTR-REG-013:1.0.0"),
     "M6-A04": (
         "ollama.cloud.balance.v1:1.0.0",
         "CTR-COL-008:1.1.0",
@@ -287,6 +288,283 @@ class LocalModelHostEvidenceV1:
             raise ValueError("m6_direct_model_host_invalid")
 
 
+_CLOUD_DISPOSITIONS = frozenset(
+    {"account", "shared", "unavailable", "missing", "invalidated"}
+)
+_CLOUD_UNAVAILABLE_REASONS = frozenset(
+    {
+        "account_unavailable",
+        "subscription_unavailable",
+        "access_unavailable",
+        "owner_unavailable",
+    }
+)
+_CLOUD_INVALIDATION_REASONS = frozenset(
+    {
+        "owner_revoked",
+        "account_archived",
+        "account_reassigned",
+        "organization_archived",
+        "source_organization_archived",
+        "provider_withdrawn",
+    }
+)
+
+
+def cloud_reference_digest_v1(kind: str, value: str) -> str:
+    """Domain-separated digest of a non-secret runtime registry reference."""
+    if (
+        kind not in {"organization", "account", "target"}
+        or not isinstance(value, str)
+        or not value
+    ):
+        raise ValueError("m6_cloud_reference_invalid")
+    return hashlib.sha256(
+        ("m6_cloud_scope:" + kind + "\0" + value).encode()
+    ).hexdigest()
+
+
+def _sha256(value: object) -> bool:
+    return isinstance(value, str) and re.fullmatch(r"[a-f0-9]{64}", value) is not None
+
+
+@dataclass(frozen=True, slots=True)
+class CloudOrganizationScopeV1:
+    organization_sha256: str
+    disposition: str
+    account_sha256: str | None
+    target_sha256: str | None
+    record_version: int
+    reason_code: str | None = None
+
+    def __post_init__(self) -> None:
+        if (
+            not _sha256(self.organization_sha256)
+            or not isinstance(self.disposition, str)
+            or self.disposition not in _CLOUD_DISPOSITIONS
+            or self.reason_code is not None
+            and not isinstance(self.reason_code, str)
+            or type(self.record_version) is not int
+            or self.record_version < 0
+            or any(
+                value is not None and not _sha256(value)
+                for value in (self.account_sha256, self.target_sha256)
+            )
+        ):
+            raise ValueError("m6_cloud_scope_invalid")
+        if self.disposition in {"account", "shared"}:
+            valid = (
+                self.account_sha256 is not None
+                and self.record_version > 0
+                and self.reason_code is None
+            )
+        elif self.disposition == "unavailable":
+            valid = (
+                self.account_sha256 is None
+                and self.target_sha256 is None
+                and self.record_version > 0
+                and self.reason_code in _CLOUD_UNAVAILABLE_REASONS
+            )
+        elif self.disposition == "invalidated":
+            valid = (
+                self.target_sha256 is None
+                and self.record_version > 0
+                and self.reason_code in _CLOUD_INVALIDATION_REASONS
+            )
+        else:
+            valid = (
+                self.account_sha256 is None
+                and self.target_sha256 is None
+                and self.record_version == 0
+                and self.reason_code is None
+            )
+        if not valid:
+            raise ValueError("m6_cloud_scope_invalid")
+
+
+@dataclass(frozen=True, slots=True)
+class CloudScopeEvidenceV1:
+    """Current intended scope classification, separate from actual target proofs."""
+
+    scopes: tuple[CloudOrganizationScopeV1, ...]
+    active_target_sha256s: tuple[str, ...]
+    owner_confirmed_target_sha256s: tuple[str, ...]
+    verified_target_sha256s: tuple[str, ...]
+    registry_revision: int
+    as_of: str
+    complete: bool
+
+    def __post_init__(self) -> None:
+        try:
+            instant = datetime.fromisoformat(self.as_of)
+        except (ValueError, TypeError):
+            raise ValueError("m6_cloud_scope_evidence_invalid") from None
+        if (
+            not isinstance(self.scopes, tuple)
+            or not 1 <= len(self.scopes) <= 200
+            or not all(
+                isinstance(item, CloudOrganizationScopeV1) for item in self.scopes
+            )
+            or len({item.organization_sha256 for item in self.scopes})
+            != len(self.scopes)
+            or type(self.registry_revision) is not int
+            or self.registry_revision < 0
+            or type(self.complete) is not bool
+            or instant.utcoffset() != timedelta(0)
+        ):
+            raise ValueError("m6_cloud_scope_evidence_invalid")
+        sets = (
+            self.active_target_sha256s,
+            self.owner_confirmed_target_sha256s,
+            self.verified_target_sha256s,
+        )
+        if any(
+            not isinstance(values, tuple)
+            or len(values) > 200
+            or not all(_sha256(value) for value in values)
+            or tuple(sorted(set(values))) != values
+            for values in sets
+        ):
+            raise ValueError("m6_cloud_scope_evidence_invalid")
+        if (
+            not set(self.verified_target_sha256s)
+            <= set(self.owner_confirmed_target_sha256s)
+            or not set(self.owner_confirmed_target_sha256s)
+            <= set(self.active_target_sha256s)
+            or any(
+                item.target_sha256 is not None
+                and item.target_sha256 not in self.active_target_sha256s
+                for item in self.scopes
+            )
+            or not self.complete
+            and any(item.disposition != "missing" for item in self.scopes)
+        ):
+            raise ValueError("m6_cloud_scope_evidence_invalid")
+        account_targets: dict[str | None, str | None] = {}
+        target_accounts: dict[str, str | None] = {}
+        for item in self.scopes:
+            if item.disposition in {"account", "shared"}:
+                if (
+                    item.account_sha256 in account_targets
+                    and account_targets[item.account_sha256] != item.target_sha256
+                ):
+                    raise ValueError("m6_cloud_scope_evidence_invalid")
+                account_targets[item.account_sha256] = item.target_sha256
+                if item.target_sha256 is not None:
+                    if (
+                        item.target_sha256 in target_accounts
+                        and target_accounts[item.target_sha256] != item.account_sha256
+                    ):
+                        raise ValueError("m6_cloud_scope_evidence_invalid")
+                    target_accounts[item.target_sha256] = item.account_sha256
+
+    @property
+    def owner_confirmed_scopes(self) -> int:
+        return sum(
+            item.disposition in {"account", "shared"}
+            and item.target_sha256 in self.owner_confirmed_target_sha256s
+            for item in self.scopes
+        )
+
+    @property
+    def selection_sha256(self) -> str:
+        return _policy_digest(
+            {
+                "provider_key": "ollama",
+                "organization_sha256s": [
+                    item.organization_sha256 for item in self.scopes
+                ],
+            }
+        )
+
+    def as_json(self) -> dict[str, object]:
+        value = asdict(self)
+        value["scopes"] = [asdict(item) for item in self.scopes]
+        for key in (
+            "active_target_sha256s",
+            "owner_confirmed_target_sha256s",
+            "verified_target_sha256s",
+        ):
+            value[key] = list(value[key])
+        value.update(
+            schema_version="1.0.0",
+            record_type="agentmonitor.m6_cloud_scope.v1",
+            selection_sha256=self.selection_sha256,
+        )
+        return value
+
+
+def parse_cloud_scope_evidence_v1(
+    value: object, *, expected_organization_ids: tuple[str, ...]
+) -> CloudScopeEvidenceV1 | None:
+    """Closed parser fenced to the caller's persistent intended organization IDs."""
+    if value is None:
+        return None
+    expected_fields = {
+        "scopes",
+        "active_target_sha256s",
+        "owner_confirmed_target_sha256s",
+        "verified_target_sha256s",
+        "registry_revision",
+        "as_of",
+        "complete",
+        "schema_version",
+        "record_type",
+        "selection_sha256",
+    }
+    if (
+        not isinstance(value, dict)
+        or set(value) != expected_fields
+        or value.get("schema_version") != "1.0.0"
+        or value.get("record_type") != "agentmonitor.m6_cloud_scope.v1"
+        or not isinstance(value.get("scopes"), list)
+        or not 1 <= len(value["scopes"]) <= 200
+        or not isinstance(expected_organization_ids, tuple)
+        or not 1 <= len(expected_organization_ids) <= 200
+        or not all(isinstance(item, str) and item for item in expected_organization_ids)
+        or len(set(expected_organization_ids)) != len(expected_organization_ids)
+    ):
+        raise ValueError("m6_cloud_scope_evidence_invalid")
+    rows = []
+    for item in value["scopes"]:
+        if not isinstance(item, dict) or set(item) != {
+            "organization_sha256",
+            "disposition",
+            "account_sha256",
+            "target_sha256",
+            "record_version",
+            "reason_code",
+        }:
+            raise ValueError("m6_cloud_scope_evidence_invalid")
+        rows.append(CloudOrganizationScopeV1(**item))
+    for key in (
+        "active_target_sha256s",
+        "owner_confirmed_target_sha256s",
+        "verified_target_sha256s",
+    ):
+        if not isinstance(value[key], list) or len(value[key]) > 200:
+            raise ValueError("m6_cloud_scope_evidence_invalid")
+    result = CloudScopeEvidenceV1(
+        tuple(rows),
+        tuple(value["active_target_sha256s"]),
+        tuple(value["owner_confirmed_target_sha256s"]),
+        tuple(value["verified_target_sha256s"]),
+        value["registry_revision"],
+        value["as_of"],
+        value["complete"],
+    )
+    expected = tuple(
+        cloud_reference_digest_v1("organization", item)
+        for item in expected_organization_ids
+    )
+    if (
+        tuple(item.organization_sha256 for item in result.scopes) != expected
+        or value["selection_sha256"] != result.selection_sha256
+    ):
+        raise ValueError("m6_cloud_scope_selection_mismatch")
+    return result
+
+
 @dataclass(frozen=True, slots=True)
 class DirectM6FactsV1:
     """Privacy-minimized facts read from real commands and one SQLite snapshot."""
@@ -318,6 +596,7 @@ class DirectM6FactsV1:
     process_observation_count: int
     natural_recovery_targets: int
     cross_provider_continuity_targets: int
+    cloud_scope_evidence: CloudScopeEvidenceV1 | None = None
     authoritative_observation: AuthoritativeComparisonV1 | None = None
     authoritative_comparison: BoundaryCheckV1 = BoundaryCheckV1(
         "not_run", 0, reason_code="official_usage_not_observed"
@@ -355,7 +634,6 @@ class DirectM6FactsV1:
             or len({item.host_id for item in self.model_host_evidence})
             != len(self.model_host_evidence)
             or self.owner_confirmed_cloud_targets > self.active_cloud_targets
-            or self.owner_confirmed_required_scopes > self.owner_confirmed_cloud_targets
             or self.verified_cloud_targets > self.active_cloud_targets
             or self.current_balance_targets > self.active_cloud_targets
             or self.authoritative_balance_reconciled_targets > self.active_cloud_targets
@@ -367,6 +645,15 @@ class DirectM6FactsV1:
             or self.alerted_targets > self.configured_alert_targets
         ):
             raise ValueError("m6_direct_fact_relationship_invalid")
+        scope = self.cloud_scope_evidence
+        if scope is not None and (
+            len(scope.active_target_sha256s) != self.active_cloud_targets
+            or len(scope.owner_confirmed_target_sha256s)
+            != self.owner_confirmed_cloud_targets
+            or len(scope.verified_target_sha256s) != self.verified_cloud_targets
+            or scope.owner_confirmed_scopes != self.owner_confirmed_required_scopes
+        ):
+            raise ValueError("m6_direct_scope_count_mismatch")
 
 
 @dataclass(frozen=True, slots=True)
@@ -467,11 +754,21 @@ def classify_direct_m6_evidence_v1(
         outcomes["M6-A02"] = local
 
     cloud_base = _combined(facts.database_snapshot)
-    if cloud_base.status == "passed" and (
-        facts.active_ollama_accounts < 2
-        or facts.active_cloud_targets < 2
-        or facts.owner_confirmed_cloud_targets < facts.active_cloud_targets
-        or facts.owner_confirmed_required_scopes < 2
+    scope = facts.cloud_scope_evidence
+    if cloud_base.status != "passed":
+        outcomes["M6-A03"] = cloud_base
+    elif scope is None:
+        outcomes["M6-A03"] = _missing("intended_cloud_scope_not_selected", cloud_base)
+    elif not scope.complete:
+        outcomes["M6-A03"] = _missing("cloud_scope_query_unavailable", cloud_base)
+    elif len(scope.scopes) < 2:
+        outcomes["M6-A03"] = _missing("intended_cloud_scopes_incomplete", cloud_base)
+    elif any(item.disposition == "unavailable" for item in scope.scopes):
+        outcomes["M6-A03"] = _missing("required_cloud_scope_unavailable", cloud_base)
+    elif (
+        scope.owner_confirmed_scopes != len(scope.scopes)
+        or facts.owner_confirmed_cloud_targets != facts.active_cloud_targets
+        or facts.active_cloud_targets < 1
     ):
         outcomes["M6-A03"] = _missing(
             "owner_confirmed_cloud_scope_not_observed", cloud_base

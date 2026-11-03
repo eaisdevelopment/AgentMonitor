@@ -8,9 +8,12 @@ from datetime import UTC, datetime
 from tools.automation.implementations.m6_direct_evidence import (
     DIRECT_EXECUTABLE_SELECTION_V1,
     BoundaryCheckV1,
+    CloudOrganizationScopeV1,
+    CloudScopeEvidenceV1,
     DirectM6FactsV1,
     LocalModelHostEvidenceV1,
     classify_direct_m6_evidence_v1,
+    cloud_reference_digest_v1,
     direct_bundle_v1,
 )
 from tools.automation.implementations.m6_exit_policy import evaluate_evidence_bundle_v1
@@ -34,6 +37,25 @@ HOSTS = (
         "2026-11-02T12:00:00Z",
     ),
 )
+
+
+def _scope(shared: bool = False) -> CloudScopeEvidenceV1:
+    targets = ("a" * 64,) if shared else ("a" * 64, "b" * 64)
+    rows = tuple(
+        CloudOrganizationScopeV1(
+            cloud_reference_digest_v1("organization", organization),
+            "shared" if shared and index else "account",
+            cloud_reference_digest_v1(
+                "account", "account-a" if shared or index == 0 else "account-b"
+            ),
+            targets[0 if shared else index],
+            1,
+        )
+        for index, organization in enumerate(("org-a", "org-b"))
+    )
+    return CloudScopeEvidenceV1(
+        rows, targets, targets, targets, 1, "2026-11-03T12:00:00Z", True
+    )
 
 
 def _complete_facts() -> DirectM6FactsV1:
@@ -86,6 +108,7 @@ def _complete_facts() -> DirectM6FactsV1:
         dashboard_continuity_browser=PASSED,
         source_security=PASSED,
         database_snapshot=PASSED,
+        cloud_scope_evidence=_scope(),
         authoritative_comparison=PASSED,
         authoritative_observation=official,
         recovery_interval=interval,
@@ -123,11 +146,37 @@ def test_direct_policy_can_pass_the_original_external_catalog() -> None:
     assert outcomes["M6-A07"].declared_limitations == (
         "sampled_dashboard_and_collection_continuity",
     )
+
     assert outcomes["ST-OLL-005"].declared_limitations == (
         "sampled_process_coverage",
         "sampled_dashboard_and_collection_continuity",
     )
     assert all(item.test_count > 0 for item in outcomes.values())
+
+
+def test_counts_alone_cannot_prove_the_intended_organization_selection() -> None:
+    outcomes = classify_direct_m6_evidence_v1(
+        replace(_complete_facts(), cloud_scope_evidence=None)
+    )
+    assert outcomes["M6-A03"].status == "not_run"
+    assert outcomes["M6-A03"].reason_code == "intended_cloud_scope_not_selected"
+
+
+def test_two_owner_scopes_may_reference_one_real_cloud_target() -> None:
+    facts = replace(
+        _complete_facts(),
+        cloud_scope_evidence=_scope(True),
+        active_ollama_accounts=1,
+        active_cloud_targets=1,
+        owner_confirmed_cloud_targets=1,
+        owner_confirmed_required_scopes=2,
+        verified_cloud_targets=1,
+        current_balance_targets=1,
+        authoritative_balance_reconciled_targets=1,
+        history_targets=1,
+        history_lineage_reconciled_targets=1,
+    )
+    assert facts.owner_confirmed_required_scopes == 2
 
 
 def test_every_python_evidence_command_disables_bytecode_writes() -> None:
@@ -146,6 +195,7 @@ def test_every_python_evidence_command_disables_bytecode_writes() -> None:
 def test_absent_real_cloud_state_does_not_hide_local_results() -> None:
     facts = replace(
         _complete_facts(),
+        cloud_scope_evidence=None,
         active_ollama_accounts=0,
         active_cloud_targets=0,
         owner_confirmed_cloud_targets=0,

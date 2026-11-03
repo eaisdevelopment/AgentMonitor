@@ -37,6 +37,7 @@ def test_snapshot_contract_exposes_only_sanitized_aggregates() -> None:
         "status": "not_run",
         "reason_code": "m6_snapshot_schema_upgrade_required",
         "schema_state": "upgrade_required",
+        "cloud_scope_evidence": None,
         "counts": {
             "active_ollama_accounts": 0,
             "registered_local_installations": 0,
@@ -81,6 +82,7 @@ def test_real_installed_database_is_inspected_without_mutation() -> None:
         "schema_state",
         "counts",
         "digests",
+        "cloud_scope_evidence",
     }
     assert set(snapshot.as_json()["counts"]) == {
         "active_ollama_accounts",

@@ -36,6 +36,9 @@ from agentmonitor.adapters.persistence.collection_control.sqlite.cloud_schedule_
 from agentmonitor.adapters.persistence.collection_control.sqlite.ollama_cloud_admission import (  # noqa: E501
     SqliteOllamaCloudAdmissionRepositoryV1,
 )
+from agentmonitor.adapters.persistence.registry.sqlite.coverage import (
+    SqliteOrganizationProviderCoverageRepositoryV1,
+)
 from agentmonitor.adapters.persistence.registry.sqlite.credential_bindings import (
     SqliteCloudCredentialRegistryV1,
     SqliteCredentialBindingsV1,
@@ -66,11 +69,22 @@ from agentmonitor.contracts.collection_control_v1 import (
     OllamaCloudLatestSourceSignalQueryV1,
 )
 from agentmonitor.contracts.common_v1 import OpaqueIdV1
+from agentmonitor.contracts.registry_coverage_v1 import (
+    OrganizationProviderCoverageReadPortV1,
+    OrganizationProviderCoverageSelectionV1,
+    OrganizationProviderCoverageSnapshotV1,
+)
 from agentmonitor.contracts.registry_v1 import (
     AccountViewV1,
     ActiveCredentialBindingRefV1,
     CloudMonitoringTargetV1,
     CredentialBindingAggregateV1,
+)
+
+from tools.automation.implementations.m6_direct_evidence import (
+    CloudOrganizationScopeV1,
+    CloudScopeEvidenceV1,
+    cloud_reference_digest_v1,
 )
 
 SnapshotStatusV1 = Literal["passed", "blocked", "not_run"]
@@ -108,6 +122,7 @@ class M6EvidenceSnapshotV1:
     cross_provider_continuity_targets: int = 0
     current_balance_lineage_sha256: str = _EMPTY_LINEAGE_SHA256
     current_history_lineage_sha256: str = _EMPTY_LINEAGE_SHA256
+    cloud_scope_evidence: CloudScopeEvidenceV1 | None = None
 
     def __post_init__(self) -> None:
         counts = (
@@ -133,7 +148,6 @@ class M6EvidenceSnapshotV1:
             or any(type(value) is not int or value < 0 for value in counts)
             or self.observed_local_installations > self.registered_local_installations
             or self.owner_confirmed_cloud_targets > self.active_cloud_targets
-            or self.owner_confirmed_required_scopes > self.owner_confirmed_cloud_targets
             or self.verified_cloud_targets > self.active_cloud_targets
             or self.current_balance_targets > self.verified_cloud_targets
             or self.history_targets > self.current_balance_targets
@@ -161,6 +175,7 @@ class M6EvidenceSnapshotV1:
 
     def as_json(self) -> dict[str, object]:
         values = asdict(self)
+        values.pop("cloud_scope_evidence")
         digests = {
             "current_balance_lineage_sha256": values.pop(
                 "current_balance_lineage_sha256"
@@ -177,6 +192,11 @@ class M6EvidenceSnapshotV1:
             "schema_state": values.pop("schema_state"),
             "counts": values,
             "digests": digests,
+            "cloud_scope_evidence": (
+                self.cloud_scope_evidence.as_json()
+                if self.cloud_scope_evidence is not None
+                else None
+            ),
         }
 
 
@@ -388,8 +408,64 @@ def _has_deduplicated_current_observation_alert(
     return len(set(event_keys)) == len(event_keys)
 
 
+def cloud_scope_evidence_from_registry_v1(
+    snapshot: OrganizationProviderCoverageSnapshotV1,
+    active_targets: dict[OpaqueIdV1, str],
+    owner_confirmed_targets: set[str],
+    verified_targets: set[str],
+) -> CloudScopeEvidenceV1:
+    """Pure privacy projection; every intended scope survives missing evidence."""
+    if snapshot.selection.provider_key != "ollama":
+        raise ValueError("m6_cloud_scope_provider_invalid")
+    records = {item.organization_id: item for item in snapshot.items}
+    scopes = []
+    for organization_id in snapshot.selection.organization_ids:
+        organization_digest = cloud_reference_digest_v1(
+            "organization", organization_id.value
+        )
+        item = records.get(organization_id)
+        if item is None:
+            scopes.append(
+                CloudOrganizationScopeV1(organization_digest, "missing", None, None, 0)
+            )
+            continue
+        account_digest = (
+            cloud_reference_digest_v1("account", item.account_id.value)
+            if item.account_id
+            else None
+        )
+        disposition = "invalidated" if item.invalidated_at is not None else item.outcome
+        target = (
+            active_targets.get(item.account_id)
+            if item.account_id is not None and item.invalidated_at is None
+            else None
+        )
+        scopes.append(
+            CloudOrganizationScopeV1(
+                organization_digest,
+                disposition,
+                account_digest,
+                target,
+                item.record_version,
+                item.invalidation_reason or item.unavailable_reason,
+            )
+        )
+    return CloudScopeEvidenceV1(
+        tuple(scopes),
+        tuple(sorted(active_targets.values())),
+        tuple(sorted(owner_confirmed_targets)),
+        tuple(sorted(verified_targets)),
+        snapshot.registry_revision,
+        snapshot.as_of.isoformat(),
+        snapshot.completeness == "complete",
+    )
+
+
 def read_m6_evidence_snapshot_v1(
-    data_root: Path, *, as_of: datetime | None = None
+    data_root: Path,
+    *,
+    as_of: datetime | None = None,
+    coverage_selection: OrganizationProviderCoverageSelectionV1 | None = None,
 ) -> M6EvidenceSnapshotV1:
     """Read one bounded real snapshot; never creates, migrates or collects."""
 
@@ -398,6 +474,11 @@ def read_m6_evidence_snapshot_v1(
         not isinstance(data_root, Path)
         or not data_root.is_absolute()
         or instant.utcoffset() != timedelta(0)
+        or coverage_selection is not None
+        and (
+            not isinstance(coverage_selection, OrganizationProviderCoverageSelectionV1)
+            or coverage_selection.provider_key != "ollama"
+        )
     ):
         return M6EvidenceSnapshotV1.blocked(
             schema_state="unknown",
@@ -472,15 +553,20 @@ def read_m6_evidence_snapshot_v1(
         recovery = 0
         continuity = 0
         cloud_accounts: list[AccountViewV1] = []
-        owner_scope_ids: set[OpaqueIdV1] = set()
+        coverage_reader: OrganizationProviderCoverageReadPortV1 = (
+            SqliteOrganizationProviderCoverageRepositoryV1(reference)
+        )
+        scope_before = (
+            coverage_reader.read_coverage(coverage_selection)
+            if coverage_selection is not None
+            else None
+        )
+        active_target_references: dict[OpaqueIdV1, str] = {}
+        owner_target_references: set[str] = set()
+        verified_target_references: set[str] = set()
         current_observations: dict[OpaqueIdV1, frozenset[OpaqueIdV1]] = {}
         current_balance_lineage: set[tuple[str, ...]] = set()
         current_history_lineage: set[tuple[str, ...]] = set()
-        required_organizations = {
-            item.organization_id
-            for item in organizations
-            if item.lifecycle == "active" and item.name.casefold() in {"sdk", "eais"}
-        }
         for account in accounts:
             aggregate = binding_repository.read(account.account_id)
             binding = _active_binding(aggregate)
@@ -488,6 +574,17 @@ def read_m6_evidence_snapshot_v1(
             if graph is None or graph.lifecycle != "active":
                 continue
             active_targets += 1
+            target_digest = cloud_reference_digest_v1(
+                "target",
+                "\0".join(
+                    (
+                        graph.account_id.value,
+                        graph.resource_id.value,
+                        graph.access_target_id.value,
+                    )
+                ),
+            )
+            active_target_references[account.account_id] = target_digest
             cloud_accounts.append(account)
             if (
                 graph.identity_state != "owner_confirmed"
@@ -496,8 +593,7 @@ def read_m6_evidence_snapshot_v1(
             ):
                 continue
             owner_confirmed += 1
-            if account.organization_id in required_organizations:
-                owner_scope_ids.add(account.organization_id)
+            owner_target_references.add(target_digest)
             receipt = cloud_registry.read_current_verification(binding)
             if (
                 receipt is None
@@ -511,6 +607,7 @@ def read_m6_evidence_snapshot_v1(
             ):
                 continue
             verified += 1
+            verified_target_references.add(target_digest)
             signal = admission.read_latest_source_signal(
                 OllamaCloudLatestSourceSignalQueryV1(
                     account_id=account.account_id,
@@ -579,6 +676,27 @@ def read_m6_evidence_snapshot_v1(
             for account in configured_accounts
         )
 
+        scope_evidence = None
+        if coverage_selection is not None and scope_before is not None:
+            scope_after = coverage_reader.read_coverage(coverage_selection)
+            if (
+                scope_before.items != scope_after.items
+                or scope_before.registry_revision != scope_after.registry_revision
+                or scope_before.completeness != "complete"
+            ):
+                scope_after = OrganizationProviderCoverageSnapshotV1(
+                    coverage_selection,
+                    (),
+                    scope_after.registry_revision,
+                    "unavailable",
+                    scope_after.as_of,
+                )
+            scope_evidence = cloud_scope_evidence_from_registry_v1(
+                scope_after,
+                active_target_references,
+                owner_target_references,
+                verified_target_references,
+            )
         return M6EvidenceSnapshotV1(
             status="passed",
             reason_code="m6_snapshot_query_complete",
@@ -590,7 +708,11 @@ def read_m6_evidence_snapshot_v1(
             observed_local_installations=len(observed_installations),
             active_cloud_targets=active_targets,
             owner_confirmed_cloud_targets=owner_confirmed,
-            owner_confirmed_required_scopes=len(owner_scope_ids),
+            owner_confirmed_required_scopes=(
+                scope_evidence.owner_confirmed_scopes
+                if scope_evidence is not None
+                else 0
+            ),
             verified_cloud_targets=verified,
             current_balance_targets=current,
             history_targets=history,
@@ -601,6 +723,7 @@ def read_m6_evidence_snapshot_v1(
             cross_provider_continuity_targets=continuity,
             current_balance_lineage_sha256=_lineage_digest(current_balance_lineage),
             current_history_lineage_sha256=_lineage_digest(current_history_lineage),
+            cloud_scope_evidence=scope_evidence,
         )
     except (OSError, TypeError, ValueError):
         return M6EvidenceSnapshotV1.blocked(
@@ -612,8 +735,25 @@ def read_m6_evidence_snapshot_v1(
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--data-root", required=True, type=Path)
+    parser.add_argument("--required-organization-id", action="append", default=[])
     args = parser.parse_args(argv)
-    snapshot = read_m6_evidence_snapshot_v1(args.data_root)
+    try:
+        selection = (
+            OrganizationProviderCoverageSelectionV1(
+                tuple(OpaqueIdV1(value) for value in args.required_organization_id),
+                "ollama",
+            )
+            if args.required_organization_id
+            else None
+        )
+    except (TypeError, ValueError):
+        snapshot = M6EvidenceSnapshotV1.blocked(
+            schema_state="unknown", reason_code="m6_snapshot_scope_selection_invalid"
+        )
+    else:
+        snapshot = read_m6_evidence_snapshot_v1(
+            args.data_root, coverage_selection=selection
+        )
     print(json.dumps(snapshot.as_json(), sort_keys=True, separators=(",", ":")))
     return 0 if snapshot.status == "passed" else 3
 
