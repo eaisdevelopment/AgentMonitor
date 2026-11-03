@@ -1,6 +1,6 @@
 # M6 ticket register
 
-**State: implementation in progress.** M6-T001 and M6-T002 are done. Other implementation and verification tickets are in progress except M6-T003, whose real model-host evidence remains pending. See the [3 November delivery checkpoint](../../evidence/m6-delivery-checkpoint-2026-11-03.md) for deployed results and remaining work. The local adapter/API/dashboard candidate has narrow real-system evidence; the canonical M6 technical-exit orchestrator directly runs the available checks but does not yet have all required real outcomes, M6-A10 remains pending, and cloud work remains unfinished.
+**State: implementation in progress.** M6-T001 and M6-T002 are done. Other implementation and verification tickets are in progress including M6-T003, whose real model-present evidence remains pending. See the [3 November delivery checkpoint](../../evidence/m6-delivery-checkpoint-2026-11-03.md) for deployed results and remaining work. The local adapter/API/dashboard candidate has narrow real-system evidence; the canonical M6 technical-exit orchestrator directly runs the available checks but does not yet have all required real outcomes, M6-A10 remains pending, and cloud work remains unfinished.
 
 The machine-readable [ticket catalog](m6-ticket-catalog-v1.json) is the source for the IDs and links below. Validate it with `python3 tools/planning/validate_m6_tickets.py --stage plan`. The validator rejects a completed ticket whose prerequisite is unfinished. It does not verify the substance of linked evidence or establish milestone completion. See the [execution plan](m6-execution-plan-2026-10-31.md) for the acceptance criteria M6-A01–M6-A10, assumptions, scope control and risks.
 
@@ -53,14 +53,14 @@ The machine-readable [ticket catalog](m6-ticket-catalog-v1.json) is the source f
 
 ### M6-T003 — Verify model-host read-only access
 
-- **Status / owner:** planned / A03 adapter
+- **Status / owner:** in progress / A03 adapter
 - **Story:** ST-OLL-002; **depends on:** M6-T002.
 - **Requirements:** FR-DISC-003, FR-SAFE-002.
 - **Acceptance:** AC-PROC-001, AC-PROC-004; M6: M6-A02, M6-A09.
-- **Work:** Confirm owner-selected remote host and safe access to existing model; document exposed surface, authentication and transport before requests.
+- **Work:** Confirm the owner-selected local workstation endpoint and safe read-only access to its existing model; document the exposed surface before requests. The earlier remote-host assumption is superseded.
 - **Done when:** One approved reachable real host and model state, or specific documented blocker; no daemon change or LAN exposure.
 - **Verification:** read-only host and API discovery; exact command selected after host/trust review.
-- **Evidence:** not yet recorded.
+- **Evidence:** [current read-only inventory and unresolved Desktop endpoint](../../evidence/m6-delivery-checkpoint-2026-11-03.md).
 
 ### M6-T004 — Discover SDK and EAIS account scopes
 

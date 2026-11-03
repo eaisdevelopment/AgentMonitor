@@ -283,3 +283,44 @@ versus `not_run`. The count-based coverage fence now requires exact equality
 between observed host evidence and registered installations, preventing that
 extra host from supplying acceptance. Final focused result: **48 passed**.
 This is policy evidence, not a claim of live model presence or remote transport.
+
+## Current deployed canonical result — 15:25 UTC
+
+`AUTO-M6-CURRENT-UPDATE` activated
+`2baaabebc0c07b5985f7790835df61bc199b15b9` on schema v1_0719.
+The service is active with its restart policy restored; localhost and LAN
+returned HTTP 200. The subsequent `AUTO-M6-EXIT` returned **3**, with zero
+failed criteria, zero skipped checks and no completion receipt. Build, local
+adapter/API/browser admission, quality, documentation and planning passed.
+
+- **Passed:** M6-A01, M6-A06, M6-A08 and ST-OLL-001.
+- **Not Run / incomplete:** M6-A02 requires a real model-present observation;
+  M6-A03 requires the unresolved SDK account arrangement; M6-A04/A05/A09
+  inherit that missing intended scope. M6-A07 has no current qualifying natural
+  failure/recovery. M6-A10 remains pending technical completion and owner review.
+- The installed account, capacity, history, process and dashboard browser
+  checks all passed. The one EAIS account reconciled with the official Ollama
+  Usage page at 15:25:12 UTC against the actual 15:19:30 UTC source reading.
+  Both current and history lineage reconciled. This is not evidence for SDK.
+- The new scope read retained both intended organizations, showing SDK missing
+  and EAIS's owner-confirmed account declaration at version 1. No sharing or
+  unavailable outcome was invented. The implementation now supports these
+  alternatives through ordinary organization administration; the actual
+  SDK arrangement still needs the owner's answer.
+- Ollama 0.24.0 at the registered loopback endpoint reported zero installed
+  and zero loaded models at 15:24:57 UTC. One current process observation was
+  represented with sampled coverage. Safe discovery found no second serving
+  endpoint; the model-serving address in the owner's Desktop app is unresolved.
+- Zero configured Ollama alert targets were present, so no positive live alert
+  lifecycle is claimed. Natural recovery returned
+  `m6_recovery_current_natural_failure_absent`; the service or agents were not
+  interrupted to manufacture this condition. Prior Claude continuity limits
+  remain unresolved.
+
+Retained private artifact:
+`.agentmonitor-local/m6-evidence/direct-2baaabebc0c07b5985f7790835df61bc199b15b9-8c3aca9f66f161f7.json`.
+SHA-256: `8c3aca9f66f161f7bfa194f6b115082d966316f7b56732bb3c982ccb32c3a6ca`.
+The [coverage integration evidence](m6-coverage-scope-integration-2026-11-03.md)
+records contract ownership, Red/Green tests and review. This subsequent
+documentation update records the exact deployed result; it does not alter
+the implementation revision or convert missing live evidence into Passed.

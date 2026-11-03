@@ -90,7 +90,7 @@
       "id": "M6-T003",
       "story": "ST-OLL-002",
       "title": "Verify model-host read-only access",
-      "status": "planned",
+      "status": "in_progress",
       "owner": "A03 adapter",
       "depends_on": [
         "M6-T002"
@@ -111,12 +111,14 @@
         "min": 3,
         "max": 5
       },
-      "work": "Confirm owner-selected remote host and safe access to existing model; document exposed surface, authentication and transport before requests.",
+      "work": "Confirm the owner-selected local workstation endpoint and safe read-only access to its existing model; document the exposed surface before requests. The earlier remote-host assumption is superseded.",
       "done_when": "One approved reachable real host and model state, or specific documented blocker; no daemon change or LAN exposure.",
       "verification": [
         "read-only host and API discovery; exact command selected after host/trust review"
       ],
-      "evidence": []
+      "evidence": [
+        "docs/evidence/m6-delivery-checkpoint-2026-11-03.md"
+      ]
     },
     {
       "id": "M6-T004",

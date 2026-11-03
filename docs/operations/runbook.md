@@ -965,9 +965,28 @@ independently; a missing cloud prerequisite does not erase a valid local
 result. Still-valid owner-guided account/scope outcomes are read through the
 application's versioned state rather than requested again.
 
+For organization coverage, open **Organizations**, expand **Provider coverage**,
+and select the actual arrangement: an existing account owned by that
+organization, use of another organization's existing account, or an explicit
+unavailable reason. Save the declaration using the normal admin form. Do not
+copy credentials or create a duplicate account to express sharing. Removing a
+declaration preserves its history and does not disconnect the account.
+
+The current fixed workstation gate reads its owner-only non-secret intended
+organization selection from
+`/home/dev/.local/share/agentmonitor/m6-required-organizations.json` and consumes
+CTR-REG-013 through the public registry port. The selection identifies the two
+intended organizations; it does not assert either organization's coverage.
+Missing, invalidated or unavailable declarations remain explicit. Existing
+owner declarations survive deployments and do not require repeated attestation.
+A shared declaration expresses use of one account, not proof of a pooled
+provider balance. See the [scope evidence](../evidence/m6-coverage-scope-integration-2026-11-03.md).
+
 The gate does not promote a narrower proxy into acceptance evidence. M6-A02
-remains `not_run` until both available machines have their own fresh real
-inventory observation. M6-A04 requires the separate provider-authoritative
+remains `not_run` until every registered host has a fresh real inventory
+observation and at least one actual installed or loaded model is observed.
+The owner-selected model host is this workstation; a second machine is not
+a prerequisite. Loaded model state does not prove active work. M6-A04 requires the separate provider-authoritative
 comparison from the approved catalog; equality between AgentMonitor's SQLite,
 API and DOM proves only internal lineage. M6-A05 binds retained history to the
 exact current observation and collection run and accepts an alert only when
