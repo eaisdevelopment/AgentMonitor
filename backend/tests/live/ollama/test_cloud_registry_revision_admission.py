@@ -83,11 +83,7 @@ def test_real_current_policy_admits_after_unrelated_registry_revision(
                     "SELECT 1 FROM collection_lease WHERE schedule_id=? LIMIT 1",
                     (schedule_id,),
                 ).first()
-        if (
-            prior is not None
-            and instance is not None
-            and active is None
-        ):
+        if prior is not None and instance is not None and active is None:
             candidates.append((account, graph, prior, str(instance)))
     assert candidates
     account, graph, prior, instance = candidates[0]
