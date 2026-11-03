@@ -29,11 +29,13 @@ from alembic import command
 from alembic.config import Config
 
 from tools.automation.implementations.auto_m6_local_activate import build_override
+from tools.automation.implementations.auto_m6_local_update import replace_override
 from tools.automation.implementations.m6_cutover import (
     CutoverError,
     _cutover_engine,
     _finish_restored_baseline_engine,
     _recover_migration_engine,
+    _recover_same_schema_candidate_attempt,
     _restore_interrupted_migration_engine,
     _start_restored_baseline_engine,
     cutover,
@@ -69,6 +71,8 @@ from tools.automation.implementations.m6_transition_lease import _hold_transitio
         "real_source_restore",
         "migration_crash_backup",
         "migration_crash_committed",
+        "candidate_attempt_recovery",
+        "override_installed_restore",
     ],
 )
 def test_disposable_unit_and_real_backup_migration(
@@ -79,7 +83,7 @@ def test_disposable_unit_and_real_backup_migration(
     if case == "real_source_restore":
         request.addfinalizer(lambda: shutil.rmtree(root) if root.exists() else None)
     ref = DatabaseRefV1(root / "agentmonitor.db", root)
-    source_revision = "v1_0707" if case == "real_source_restore" else "v1_0708"
+    source_revision = "v1_0717"
     if case == "real_source_restore":
         live_uri = "file:/home/dev/.local/share/agentmonitor/agentmonitor.db?mode=ro"
         with (
@@ -106,7 +110,7 @@ def test_disposable_unit_and_real_backup_migration(
                 migrations_path=MIGRATIONS_PATH,
                 catalog_digest=catalog.digest,
             )
-            command.upgrade(config, "v1_0708")
+            command.upgrade(config, source_revision)
             connection.commit()
     baseline = Path("/home/dev/.local/share/agentmonitor/worktrees/m6-integration")
     candidate = Path(
@@ -170,13 +174,238 @@ def test_disposable_unit_and_real_backup_migration(
         subprocess.run(
             ["systemctl", "--user", "daemon-reload"], check=True, capture_output=True
         )
-        if case in {"migration_crash_backup", "migration_crash_committed"}:
+        if case == "override_installed_restore":
             worker_code = """
 import os,sys
 from pathlib import Path
 from tools.automation.implementations.m6_cutover import _cutover_engine
 print(os.getpid(),flush=True)
-_cutover_engine(unit=sys.argv[1], data_root=Path(sys.argv[2]), baseline=Path(sys.argv[3]), candidate=Path(sys.argv[4]), override=Path(sys.argv[5]), source=sys.argv[6], expected_revision=sys.argv[7], expected_executable=Path('/bin/sleep'))
+_cutover_engine(
+    unit=sys.argv[1],
+    data_root=Path(sys.argv[2]),
+    baseline=Path(sys.argv[3]),
+    candidate=Path(sys.argv[4]),
+    override=Path(sys.argv[5]),
+    source=sys.argv[6],
+    expected_revision=sys.argv[7],
+    expected_executable=Path('/bin/sleep'),
+)
+"""
+            worker = subprocess.Popen(
+                [
+                    "/usr/bin/strace",
+                    "-q",
+                    "-o",
+                    str(tmp_path / "trace-override-installed"),
+                    "-e",
+                    "trace=rename",
+                    "-e",
+                    "inject=rename:delay_exit=100ms",
+                    sys.executable,
+                    "-c",
+                    worker_code,
+                    unit,
+                    str(root),
+                    str(baseline),
+                    str(candidate),
+                    str(override),
+                    source_revision,
+                    revision,
+                ],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+            )
+            journal = root / ".m6-cutover-journal.json"
+            before = build_override(baseline).encode()
+            after = build_override(candidate).encode()
+            try:
+                assert worker.stdout is not None
+                worker_pid = int(worker.stdout.readline())
+                deadline = time.monotonic() + 30
+                while time.monotonic() < deadline:
+                    if worker.poll() is not None:
+                        assert worker.stderr is not None
+                        raise AssertionError(
+                            "override worker exited before interruption: "
+                            + worker.stderr.read()
+                        )
+                    try:
+                        data = json.loads(journal.read_text())
+                        if (
+                            data["phase"] == "migrated"
+                            and override.read_bytes() == after
+                        ):
+                            break
+                    except (FileNotFoundError, json.JSONDecodeError):
+                        pass
+                    time.sleep(0.005)
+                else:
+                    raise AssertionError("override-installed boundary not reached")
+                os.kill(worker_pid, signal.SIGKILL)
+                worker.wait(timeout=20)
+            finally:
+                if worker.poll() is None:
+                    worker.terminate()
+                    worker.wait(timeout=20)
+
+            def prepare_restore() -> None:
+                current = override.read_bytes()
+                if current == after:
+                    assert replace_override(override, after, before)
+                assert override.read_bytes() == before
+                subprocess.run(
+                    ["systemctl", "--user", "daemon-reload"],
+                    check=True,
+                    capture_output=True,
+                )
+
+            with _hold_transition_locks(root) as transition_lease:
+                assert (
+                    _restore_interrupted_migration_engine(
+                        root,
+                        transition_lease,
+                        data,
+                        data,
+                        prepare_restore=prepare_restore,
+                    )
+                    == "baseline_restored_service_stopped"
+                )
+            assert override.read_bytes() == before
+            view = InspectSchemaCompatibilityV1(
+                ref, application_schema_range(), "runtime_read_write"
+            )
+            assert view.current_revision == source_revision
+        elif case == "candidate_attempt_recovery":
+            worker_code = """
+import os,sys
+from pathlib import Path
+from tools.automation.implementations.m6_cutover import _cutover_engine
+print(os.getpid(),flush=True)
+_cutover_engine(
+    unit=sys.argv[1],
+    data_root=Path(sys.argv[2]),
+    baseline=Path(sys.argv[3]),
+    candidate=Path(sys.argv[4]),
+    override=Path(sys.argv[5]),
+    source=sys.argv[6],
+    expected_revision=sys.argv[7],
+    expected_executable=Path('/bin/sleep'),
+)
+"""
+            worker = subprocess.Popen(
+                [
+                    "/usr/bin/strace",
+                    "-q",
+                    "-o",
+                    str(tmp_path / "trace-candidate-attempt"),
+                    "-e",
+                    "trace=rename",
+                    "-e",
+                    "inject=rename:delay_exit=100ms",
+                    sys.executable,
+                    "-c",
+                    worker_code,
+                    unit,
+                    str(root),
+                    str(baseline),
+                    str(candidate),
+                    str(override),
+                    source_revision,
+                    revision,
+                ],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+            )
+            try:
+                assert worker.stdout is not None
+                worker_pid = int(worker.stdout.readline())
+                journal = root / ".m6-cutover-journal.json"
+                deadline = time.monotonic() + 30
+                while time.monotonic() < deadline:
+                    if worker.poll() is not None:
+                        assert worker.stderr is not None
+                        raise AssertionError(
+                            "candidate worker exited before interruption: "
+                            + worker.stderr.read()
+                        )
+                    try:
+                        if json.loads(journal.read_text())["phase"] == (
+                            "candidate_start_attempted"
+                        ):
+                            break
+                    except (FileNotFoundError, json.JSONDecodeError):
+                        pass
+                    time.sleep(0.005)
+                else:
+                    raise AssertionError("candidate boundary not reached")
+                os.kill(worker_pid, signal.SIGKILL)
+                worker.wait(timeout=20)
+            finally:
+                if worker.poll() is None:
+                    worker.terminate()
+                    worker.wait(timeout=20)
+
+            def verify_candidate() -> None:
+                properties = subprocess.run(
+                    [
+                        "systemctl",
+                        "--user",
+                        "show",
+                        unit,
+                        "-p",
+                        "ActiveState",
+                        "-p",
+                        "WorkingDirectory",
+                    ],
+                    capture_output=True,
+                    text=True,
+                    check=True,
+                ).stdout
+                assert "ActiveState=active" in properties
+                assert f"WorkingDirectory={candidate}" in properties
+
+            with _hold_transition_locks(root) as transition_lease:
+                assert (
+                    _recover_same_schema_candidate_attempt(
+                        root,
+                        transition_lease,
+                        unit=unit,
+                        baseline=baseline,
+                        candidate=candidate,
+                        override=override,
+                        guard=directory / "95-m6-cutover-restart.conf",
+                        verify_candidate=verify_candidate,
+                    )
+                    == "candidate_started_product_verification_required"
+                )
+            recovered = json.loads(journal.read_text())
+            assert recovered["phase"] == "candidate_started"
+            assert recovered["backup_id"] is not None
+            view = InspectSchemaCompatibilityV1(
+                ref, application_schema_range(), "runtime_read_write"
+            )
+            assert (
+                view.current_revision == load_migration_catalog().head
+                and view.state == "compatible"
+            )
+        elif case in {"migration_crash_backup", "migration_crash_committed"}:
+            worker_code = """
+import os,sys
+from pathlib import Path
+from tools.automation.implementations.m6_cutover import _cutover_engine
+print(os.getpid(),flush=True)
+_cutover_engine(
+    unit=sys.argv[1],
+    data_root=Path(sys.argv[2]),
+    baseline=Path(sys.argv[3]),
+    candidate=Path(sys.argv[4]),
+    override=Path(sys.argv[5]),
+    source=sys.argv[6],
+    expected_revision=sys.argv[7],
+    expected_executable=Path('/bin/sleep'),
+)
 """
             worker_command = [
                 sys.executable,
@@ -326,7 +555,9 @@ from pathlib import Path
 from agentmonitor.adapters.persistence._shared.sqlite.core.policy import DatabaseRefV1
 from agentmonitor.composition.iam_operator import exclusive_service_quiescence
 from tools.automation.implementations.auto_migrate import _hold_settings_lock
-from tools.automation.implementations.m6_offline_restore import restore_before_candidate_start
+from tools.automation.implementations.m6_offline_restore import (
+    restore_before_candidate_start,
+)
 from tools.automation.implementations.m6_quiescent_stop import QuiescentStopReceipt
 from tools.automation.implementations.m6_transition_lease import _hold_transition_locks
 root = Path(sys.argv[1])
@@ -336,8 +567,22 @@ raw = data['stop_receipt']
 raw['executable_identity'] = tuple(raw['executable_identity'])
 receipt = QuiescentStopReceipt(**raw)
 print(os.getpid(), flush=True)
-with _hold_transition_locks(root) as transition, exclusive_service_quiescence(root, DatabaseRefV1(root / 'agentmonitor.db', root)) as service, _hold_settings_lock(root) as settings:
-    restore_before_candidate_start(root, data['backup_id'], receipt=receipt, journal=journal, transition_lease=transition, service_lease=service, settings_lease=settings)
+with (
+    _hold_transition_locks(root) as transition,
+    exclusive_service_quiescence(
+        root, DatabaseRefV1(root / 'agentmonitor.db', root)
+    ) as service,
+    _hold_settings_lock(root) as settings,
+):
+    restore_before_candidate_start(
+        root,
+        data['backup_id'],
+        receipt=receipt,
+        journal=journal,
+        transition_lease=transition,
+        service_lease=service,
+        settings_lease=settings,
+    )
 """
                 delay = "delay_enter" if case == "crash_pre" else "delay_exit"
                 tracer = subprocess.Popen(
@@ -559,7 +804,13 @@ from tools.automation.implementations.m6_cutover import _finish_restored_baselin
 root, guard = Path(sys.argv[1]), Path(sys.argv[3])
 print(os.getpid(), flush=True)
 with _hold_transition_locks(root) as lease:
-    _finish_restored_baseline_engine(root, lease, unit=sys.argv[2], guard=guard, expected_restart="on-failure")
+    _finish_restored_baseline_engine(
+        root,
+        lease,
+        unit=sys.argv[2],
+        guard=guard,
+        expected_restart="on-failure",
+    )
 """
                     guard = directory / "95-m6-cutover-restart.conf"
                     tracer = subprocess.Popen(
@@ -738,7 +989,10 @@ with _hold_transition_locks(root) as lease:
             view = InspectSchemaCompatibilityV1(
                 ref, application_schema_range(), "runtime_read_write"
             )
-            assert view.state == "compatible" and view.current_revision == "v1_0717"
+            assert (
+                view.state == "compatible"
+                and view.current_revision == load_migration_catalog().head
+            )
             assert (
                 len(
                     list((root / "backups").glob("migration-preflight-*/manifest.json"))
@@ -806,7 +1060,14 @@ from tools.automation.implementations.m6_cutover import _finish_restored_baselin
 root, guard = Path(sys.argv[1]), Path(sys.argv[3])
 print(os.getpid(), flush=True)
 with _hold_transition_locks(root) as lease:
-    _finish_restored_baseline_engine(root, lease, unit=sys.argv[2], guard=guard, expected_restart="on-failure", candidate=True)
+    _finish_restored_baseline_engine(
+        root,
+        lease,
+        unit=sys.argv[2],
+        guard=guard,
+        expected_restart="on-failure",
+        candidate=True,
+    )
 """
                     guard = directory / "95-m6-cutover-restart.conf"
                     journal = root / ".m6-cutover-journal.json"

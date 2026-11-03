@@ -68,8 +68,8 @@ The new binary continues to validate the old exact schema as upgrade-required;
 the retained prior binary does not admit the newer revision. `AUTO-MIGRATE` now
 supports the bounded offline `v1_0717` to `v1_0718` path with its verified
 pre-migration backup. The ordinary same-schema current updater cannot deploy
-this schema change; reviewed offline migration/cutover sequencing remains an
-integration requirement.
+this schema change. The reviewed retained-release cutover and recovery evidence
+is recorded in `m6-v0718-retained-cutover-2026-11-03.md`.
 
 Before rollout, the operator must also prove that no interrupted older
 cutover/migration journal is active or extend its exact recovery classifier for

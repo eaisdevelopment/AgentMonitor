@@ -70,7 +70,7 @@ def test_real_same_schema_dashboard_update_and_finalization(
             migrations_path=MIGRATIONS_PATH,
             catalog_digest=catalog.digest,
         )
-        command.upgrade(config, "v1_0717")
+        command.upgrade(config, load_migration_catalog().head)
         connection.commit()
     config_path = root / "config.toml"
     config_path.write_text("")
@@ -146,9 +146,22 @@ def test_real_same_schema_dashboard_update_and_finalization(
             code = """
 import os,sys
 from pathlib import Path
+from agentmonitor.adapters.persistence._shared.sqlite.schema.compatibility import (
+    load_migration_catalog,
+)
 from tools.automation.implementations.m6_cutover import _cutover_engine
 print(os.getpid(), flush=True)
-_cutover_engine(unit=sys.argv[1],data_root=Path(sys.argv[2]),baseline=Path(sys.argv[3]),candidate=Path(sys.argv[4]),override=Path(sys.argv[5]),source="v1_0717",same_schema_update=True,expected_revision=sys.argv[6],expected_executable=Path(sys.executable))
+_cutover_engine(
+    unit=sys.argv[1],
+    data_root=Path(sys.argv[2]),
+    baseline=Path(sys.argv[3]),
+    candidate=Path(sys.argv[4]),
+    override=Path(sys.argv[5]),
+    source=load_migration_catalog().head,
+    same_schema_update=True,
+    expected_revision=sys.argv[6],
+    expected_executable=Path(sys.executable),
+)
 """
             worker = subprocess.Popen(
                 [
@@ -335,12 +348,53 @@ _cutover_engine(unit=sys.argv[1],data_root=Path(sys.argv[2]),baseline=Path(sys.a
 import os,sys
 from pathlib import Path
 from tools.automation.implementations.m6_transition_lease import _hold_transition_locks
-from tools.automation.implementations.m6_cutover import _recover_same_schema_update_engine,_verify_candidate_runtime
-root,unit,baseline,candidate,override,guard,origin=Path(sys.argv[1]),sys.argv[2],Path(sys.argv[3]),Path(sys.argv[4]),Path(sys.argv[5]),Path(sys.argv[6]),sys.argv[7]
-argv=[sys.executable,"-m","agentmonitor.composition.bootstrap","--config",str(root/"config.toml"),"--data-root",str(root),"--host","127.0.0.1","--port",origin.rsplit(":",1)[1],"--authenticated-dashboard"]
-def verify(): _verify_candidate_runtime(root=root,unit=unit,checkout=baseline,origin=origin,executable=Path(sys.executable),expected_command=argv)
+from tools.automation.implementations.m6_cutover import (
+    _recover_same_schema_update_engine,
+    _verify_candidate_runtime,
+)
+root = Path(sys.argv[1])
+unit = sys.argv[2]
+baseline = Path(sys.argv[3])
+candidate = Path(sys.argv[4])
+override = Path(sys.argv[5])
+guard = Path(sys.argv[6])
+origin = sys.argv[7]
+argv = [
+    sys.executable,
+    "-m",
+    "agentmonitor.composition.bootstrap",
+    "--config",
+    str(root / "config.toml"),
+    "--data-root",
+    str(root),
+    "--host",
+    "127.0.0.1",
+    "--port",
+    origin.rsplit(":", 1)[1],
+    "--authenticated-dashboard",
+]
+def verify():
+    _verify_candidate_runtime(
+        root=root,
+        unit=unit,
+        checkout=baseline,
+        origin=origin,
+        executable=Path(sys.executable),
+        expected_command=argv,
+    )
 print(os.getpid(),flush=True)
-with _hold_transition_locks(root) as lease: _recover_same_schema_update_engine(root,lease,unit=unit,baseline=baseline,candidate=candidate,override=override,guard=guard,verify_baseline=verify,expected_executable=Path(sys.executable))
+with _hold_transition_locks(root) as lease:
+    _recover_same_schema_update_engine(
+        root,
+        lease,
+        unit=unit,
+        baseline=baseline,
+        candidate=candidate,
+        override=override,
+        guard=guard,
+        verify_baseline=verify,
+        expected_executable=Path(sys.executable),
+    )
 """
                 guard = directory / "95-m6-cutover-restart.conf"
                 tracer = subprocess.Popen(
@@ -444,7 +498,7 @@ with _hold_transition_locks(root) as lease: _recover_same_schema_update_engine(r
                 baseline=baseline,
                 candidate=candidate,
                 override=override,
-                source="v1_0717",
+                source=load_migration_catalog().head,
                 same_schema_update=True,
                 expected_revision=revision,
                 expected_executable=Path(sys.executable),

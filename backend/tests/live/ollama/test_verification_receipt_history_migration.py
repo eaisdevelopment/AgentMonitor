@@ -75,7 +75,7 @@ def test_real_v1_0717_receipt_survives_verified_v1_0718_upgrade(
         "PYTHONDONTWRITEBYTECODE": "1",
     }
     result = subprocess.run(
-        [sys.executable, "tools/automation/implementations/auto_migrate.py"],
+        [sys.executable, "tools/automation/run.py", "AUTO-MIGRATE"],
         cwd=ROOT,
         env=environment,
         capture_output=True,

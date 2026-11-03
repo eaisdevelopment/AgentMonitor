@@ -68,6 +68,7 @@ from tools.automation.implementations.m6_migration_recovery import (
     _preserve_interrupted_journal,
     _receipt,
     _recover_migration_before_start,
+    _validate_backup,
     _validate_stopped_journal,
     _verify_stopped,
 )
@@ -265,10 +266,14 @@ def _cutover_engine(
     caller must never rerun over that journal; inspect state first. The baseline
     override must be the exact existing generated override.
     """
+    catalog_head = load_migration_catalog().head
+    migration_sources = {"v1_0603", "v1_0707", "v1_0708"}
+    if catalog_head == "v1_0718":
+        migration_sources.add("v1_0717")
     if (
-        source != load_migration_catalog().head
+        source != catalog_head
         if same_schema_update
-        else source not in {"v1_0603", "v1_0707", "v1_0708"}
+        else source not in migration_sources
     ) or baseline == candidate:
         raise CutoverError("cutover_selection_invalid")
     if not all(
@@ -359,7 +364,13 @@ def _cutover_engine(
         os.close(root_fd)
         raise CutoverError("cutover_lock_unsafe")
     try:
-        shared_lock = acquire_m5_service_activation_lock_v1()
+        shared_lock = (
+            acquire_m5_service_activation_lock_v1()
+            if unit == _FIXED_UNIT
+            else acquire_m5_service_activation_lock_v1(
+                data_root / ".m5-service-activation"
+            )
+        )
     except Exception:  # noqa: BLE001 -- release local descriptor on refusal.
         os.close(lock_fd)
         os.close(root_fd)
@@ -457,13 +468,18 @@ def _cutover_engine(
         barrier = barrier_stack.enter_context(barrier_handle.connect())
         barrier.exec_driver_sql("BEGIN IMMEDIATE")
         validate_m5_service_activation_lock_v1(shared_lock)
+        retained_baseline = (
+            baseline
+            if unit == _FIXED_UNIT and baseline != _FIXED_BASELINE
+            else None
+        )
         if unit == _FIXED_UNIT:
             _fixed_unit_preflight(
                 expected_revision,
                 build_digest,
                 guarded=True,
-                private_baseline=baseline_private,
-                update_baseline=baseline if same_schema_update else None,
+                private_baseline=baseline_private and retained_baseline is None,
+                update_baseline=retained_baseline,
             )
         _journal(journal, "stop_attempted", backup_id, facts=facts)
         stop_attempted = True
@@ -506,10 +522,10 @@ def _cutover_engine(
             backup_id,
             facts=facts,
         )
-        if not replace_override(override, before, after):
-            raise CutoverError("override_changed")
-        _ctl("daemon-reload")
-        # Mark before submitting the start job; never restore after this point.
+        # The migrated phase remains a pre-start rollback boundary even if a
+        # crash occurs while replacing the override. Fixed-target restore
+        # reconciles either exact baseline or candidate override before
+        # restoring the verified backup.
         if (
             _revision(candidate) != expected_revision
             or tree_digest(candidate / "frontend/dist") != build_digest
@@ -521,9 +537,21 @@ def _cutover_engine(
                 expected_revision,
                 build_digest,
                 guarded=True,
-                candidate=True,
-                update_baseline=baseline if same_schema_update else None,
+                private_baseline=baseline_private and retained_baseline is None,
+                update_baseline=retained_baseline,
             )
+        if not replace_override(override, before, after):
+            raise CutoverError("override_changed")
+        _ctl("daemon-reload")
+        if unit == _FIXED_UNIT:
+            _fixed_unit_preflight(
+                expected_revision,
+                build_digest,
+                guarded=True,
+                candidate=True,
+                update_baseline=retained_baseline,
+            )
+        # Mark before submitting the start job; never restore after this point.
         _journal(journal, "candidate_start_attempted", backup_id, facts=facts)
         candidate_start_attempted = True
         # Keep restart disabled, but permit the intended start after durable boundary.
@@ -541,7 +569,7 @@ def _cutover_engine(
                 guarded=True,
                 candidate=True,
                 start_block=False,
-                update_baseline=baseline if same_schema_update else None,
+                update_baseline=retained_baseline,
             )
         operation_stack.close()
         _ctl("start", unit)
@@ -552,7 +580,7 @@ def _cutover_engine(
                 guarded=True,
                 candidate=True,
                 start_block=False,
-                update_baseline=baseline if same_schema_update else None,
+                update_baseline=retained_baseline,
             )
         current = _properties(unit)
         candidate_pid = int(current.get("MainPID", "0"))
@@ -966,22 +994,44 @@ def cutover() -> str:
             )
         )
         transition.validate(_FIXED_DATA)
-        original = build_override(_FIXED_BASELINE).encode()
-        private = _candidate_override(_FIXED_BASELINE).encode()
+        active_baseline = Path(_cwd(_FIXED_UNIT))
+        retained_baseline = active_baseline != _FIXED_BASELINE
+        if retained_baseline:
+            _verify_retained_baseline(active_baseline)
+            if load_migration_catalog().head != "v1_0718":
+                raise CutoverError("cutover_selection_invalid")
+            source = "v1_0717"
+            accepted_overrides = {_candidate_override(active_baseline).encode()}
+        else:
+            source = "v1_0707"
+            accepted_overrides = {
+                build_override(_FIXED_BASELINE).encode(),
+                _candidate_override(_FIXED_BASELINE).encode(),
+            }
         active_override = _FIXED_OVERRIDE.read_bytes()
-        if active_override not in {original, private}:
+        if active_override not in accepted_overrides:
             raise CutoverError("target_unit_changed")
-        baseline_private = active_override == private
+        baseline_private = retained_baseline or active_override == _candidate_override(
+            _FIXED_BASELINE
+        ).encode()
         _fixed_unit_preflight(
-            candidate_revision, candidate_build, private_baseline=baseline_private
+            candidate_revision,
+            candidate_build,
+            private_baseline=baseline_private and not retained_baseline,
+            update_baseline=active_baseline if retained_baseline else None,
         )
+        properties = _properties(_FIXED_UNIT)
+        if properties.get("ActiveState") != "active":
+            raise CutoverError("service_identity_invalid")
+        if retained_baseline:
+            _verify_fixed_candidate_process(properties, checkout=active_baseline)
     return _cutover_engine(
         unit=_FIXED_UNIT,
         data_root=_FIXED_DATA,
-        baseline=_FIXED_BASELINE,
+        baseline=active_baseline,
         candidate=retained_candidate,
         override=_FIXED_OVERRIDE,
-        source="v1_0707",
+        source=source,
         expected_revision=candidate_revision,
         expected_build=candidate_build,
         expected_executable=_FIXED_EXECUTABLE,
@@ -990,7 +1040,7 @@ def cutover() -> str:
 
 
 def update_current_schema() -> str:
-    """Prepare one sealed release and update the fixed v1_0717 service."""
+    """Prepare one sealed release and update the fixed current-schema service."""
     with _hold_transition_locks(_FIXED_DATA) as transition:
         retained, revision, build = prepare_candidate_release(
             _FIXED_SOURCE,
@@ -1368,14 +1418,22 @@ def _recover_same_schema_candidate_attempt_inner(
     guard: Path,
     verify_candidate: Callable[[], None],
 ) -> str:
-    """Reconcile only the same candidate after an uncertain start request."""
+    """Reconcile only the recorded candidate after the no-rollback fence."""
     transition.validate(root)
     data = _read_journal_at(transition)[0]
+    source = data.get("source_revision")
+    backup_id = data.get("backup_id")
+    same_schema = source == load_migration_catalog().head and backup_id is None
+    retained_migration = (
+        source == "v1_0717"
+        and load_migration_catalog().head == "v1_0718"
+        and isinstance(backup_id, str)
+        and re.fullmatch(r"migration-preflight-[a-f0-9]{32}", backup_id) is not None
+    )
     if (
         data.get("format") != "m6-cutover.v1"
         or data.get("phase") != "candidate_start_attempted"
-        or data.get("source_revision") != load_migration_catalog().head
-        or data.get("backup_id") is not None
+        or not (same_schema or retained_migration)
         or data.get("unit") != unit
         or data.get("baseline_revision") != _revision(baseline)
         or data.get("candidate_revision") != _revision(candidate)
@@ -1385,17 +1443,43 @@ def _recover_same_schema_candidate_attempt_inner(
         raise CutoverError("update_recovery_journal_invalid")
     receipt = _receipt(data)
     _validate_stopped_journal(data, receipt)
+    reference = DatabaseRefV1(root / "agentmonitor.db", root)
+    view = InspectSchemaCompatibilityV1(
+        reference, application_schema_range(), "runtime_read_write"
+    )
+    if (
+        view.state != "compatible"
+        or view.current_revision != load_migration_catalog().head
+        or view.integrity_state != "passed"
+        or view.policy_state != "passed"
+    ):
+        raise CutoverError("update_recovery_schema_invalid")
+    if retained_migration:
+        assert isinstance(source, str) and isinstance(backup_id, str)
+        try:
+            _validate_backup(root, backup_id, source)
+        except Exception:  # noqa: BLE001 -- expose one closed recovery refusal.
+            raise CutoverError("update_recovery_backup_invalid") from None
+    before = (
+        _candidate_override(baseline)
+        if unit == _FIXED_UNIT
+        else build_override(baseline)
+    ).encode()
     after = (
         _candidate_override(candidate)
         if unit == _FIXED_UNIT
         else build_override(candidate)
     ).encode()
-    if override.is_symlink() or override.read_bytes() != after:
+    if override.is_symlink() or override.read_bytes() not in {before, after}:
         raise CutoverError("update_recovery_override_changed")
     blocked = b"[Unit]\nRefuseManualStart=yes\n[Service]\nRestart=no\n"
     relaxed = b"[Service]\nRestart=no\n"
     if guard.is_symlink() or guard.read_bytes() not in {blocked, relaxed}:
         raise CutoverError("update_recovery_guard_changed")
+    if override.read_bytes() == before:
+        if not replace_override(override, before, after):
+            raise CutoverError("update_recovery_override_changed")
+        _ctl("daemon-reload")
     if unit == _FIXED_UNIT:
         _ctl("daemon-reload")
         _verify_fixed_update_prestart(data, baseline, candidate, guard)
@@ -1653,7 +1737,7 @@ def recover_current_schema_update() -> str:
 
 def _fixed_journal_facts(
     data: dict[str, Any], *, phase: str, allow_update: bool = False
-) -> tuple[str, str, bool]:
+) -> tuple[str, str, Path, bool]:
     receipt = data.get("stop_receipt")
     candidate_revision = data.get("candidate_revision")
     candidate_build = data.get("candidate_build_sha256")
@@ -1662,22 +1746,39 @@ def _fixed_journal_facts(
         _candidate_override(_FIXED_BASELINE).encode()
     ).hexdigest()
     baseline_hash = data.get("fixed_baseline_override_sha256")
-    is_update = (
-        allow_update and data.get("source_revision") == load_migration_catalog().head
+    source = data.get("source_revision")
+    backup_id = data.get("backup_id")
+    is_update = allow_update and source == load_migration_catalog().head
+    retained_migration = (
+        source == "v1_0717" and load_migration_catalog().head == "v1_0718"
     )
+    baseline = _FIXED_BASELINE
     if is_update:
-        _journal_update_baseline(data)
-        if data.get("backup_id") is not None:
+        baseline = _journal_update_baseline(data)
+        if backup_id is not None:
             raise CutoverError("migration_recovery_target_invalid")
+    elif retained_migration:
+        baseline = _journal_update_baseline(data)
+        if (
+            not isinstance(backup_id, str)
+            or re.fullmatch(r"migration-preflight-[a-f0-9]{32}", backup_id) is None
+        ):
+            raise CutoverError("migration_recovery_target_invalid")
+    elif (
+        source != "v1_0707"
+        or data.get("baseline_revision") != _FIXED_BASELINE_REVISION
+        or not isinstance(backup_id, str)
+        or re.fullmatch(r"migration-preflight-[a-f0-9]{32}", backup_id) is None
+    ):
+        raise CutoverError("migration_recovery_target_invalid")
     if (
         data.get("format") != "m6-cutover.v1"
         or data.get("phase") != phase
         or data.get("unit") != _FIXED_UNIT
-        or (not is_update and data.get("source_revision") != "v1_0707")
-        or (not is_update and data.get("baseline_revision") != _FIXED_BASELINE_REVISION)
         or data.get("fixed_unit_sha256") != _FIXED_UNIT_SHA256
         or (
             not is_update
+            and not retained_migration
             and baseline_hash not in {_FIXED_OVERRIDE_SHA256, private_hash}
         )
         or data.get("fixed_runtime_sha256") != _FIXED_VENV_SHA256
@@ -1692,7 +1793,12 @@ def _fixed_journal_facts(
     ):
         raise CutoverError("migration_recovery_target_invalid")
     _validate_stopped_journal(data, _receipt(data))
-    return candidate_revision, candidate_build, baseline_hash == private_hash
+    return (
+        candidate_revision,
+        candidate_build,
+        baseline,
+        baseline != _FIXED_BASELINE or baseline_hash == private_hash,
+    )
 
 
 def recover_interrupted_migration() -> str:
@@ -1711,15 +1817,19 @@ def recover_interrupted_migration() -> str:
     with _hold_transition_locks(root) as transition:
         journal = root / ".m6-cutover-journal.json"
         data = _read_private_json(journal)
-        candidate_revision, candidate_build, baseline_private = _fixed_journal_facts(
-            data, phase="stopped"
-        )
+        (
+            candidate_revision,
+            candidate_build,
+            baseline,
+            baseline_private,
+        ) = _fixed_journal_facts(data, phase="stopped")
         transition.validate(root)
         _fixed_unit_preflight(
             candidate_revision,
             candidate_build,
             guarded=True,
             private_baseline=baseline_private,
+            update_baseline=baseline if baseline != _FIXED_BASELINE else None,
         )
 
         def verify_recovery_provenance() -> None:
@@ -1729,6 +1839,7 @@ def recover_interrupted_migration() -> str:
                 candidate_build,
                 guarded=True,
                 private_baseline=baseline_private,
+                update_baseline=baseline if baseline != _FIXED_BASELINE else None,
             )
 
         return _recover_migration_engine(
@@ -1782,23 +1893,71 @@ def restore_interrupted_migration() -> str:
             facts = nested
         else:
             raise CutoverError("restore_recovery_phase_invalid")
-        candidate_revision, candidate_build, baseline_private = _fixed_journal_facts(
-            facts, phase="migrated"
+        (
+            candidate_revision,
+            candidate_build,
+            baseline,
+            baseline_private,
+        ) = _fixed_journal_facts(facts, phase="migrated")
+        candidate = _FIXED_RELEASES / (
+            "m6-candidate-" + candidate_revision + "-" + candidate_build
         )
+        baseline_override = (
+            _candidate_override(baseline)
+            if baseline_private
+            else build_override(baseline)
+        ).encode()
+        candidate_override = _candidate_override(candidate).encode()
+        baseline_selected = phase != "migrated"
 
         def verify_provenance() -> None:
+            nonlocal baseline_selected
             if _trusted_checkout_revision(ROOT) != controller_revision:
                 raise CutoverError("operator_checkout_changed")
-            _fixed_unit_preflight(
-                candidate_revision,
-                candidate_build,
-                guarded=True,
-                private_baseline=baseline_private,
-            )
+            current = _FIXED_OVERRIDE.read_bytes()
+            if current == baseline_override:
+                _fixed_unit_preflight(
+                    candidate_revision,
+                    candidate_build,
+                    guarded=True,
+                    private_baseline=baseline_private,
+                    update_baseline=baseline
+                    if baseline != _FIXED_BASELINE
+                    else None,
+                )
+            elif not baseline_selected and current == candidate_override:
+                _fixed_unit_preflight(
+                    candidate_revision,
+                    candidate_build,
+                    guarded=True,
+                    candidate=True,
+                    update_baseline=baseline
+                    if baseline != _FIXED_BASELINE
+                    else None,
+                )
+            else:
+                raise CutoverError("restore_recovery_override_changed")
+
+        def prepare_restore() -> None:
+            nonlocal baseline_selected
+            current = _FIXED_OVERRIDE.read_bytes()
+            if current == candidate_override and not replace_override(
+                _FIXED_OVERRIDE, candidate_override, baseline_override
+            ):
+                raise CutoverError("restore_recovery_override_changed")
+            if current not in {baseline_override, candidate_override}:
+                raise CutoverError("restore_recovery_override_changed")
+            _ctl("daemon-reload")
+            baseline_selected = True
 
         verify_provenance()
         return _restore_interrupted_migration_engine(
-            root, transition, data, facts, verify_provenance=verify_provenance
+            root,
+            transition,
+            data,
+            facts,
+            verify_provenance=verify_provenance,
+            prepare_restore=prepare_restore if phase == "migrated" else None,
         )
 
 
@@ -1809,6 +1968,7 @@ def _restore_interrupted_migration_engine(
     facts: dict[str, Any],
     *,
     verify_provenance: Callable[[], None] | None = None,
+    prepare_restore: Callable[[], None] | None = None,
 ) -> str:
     """Restore/reconcile genuine pre-start backup while every lock is held."""
     journal = root / ".m6-cutover-journal.json"
@@ -1823,6 +1983,10 @@ def _restore_interrupted_migration_engine(
         if verify_provenance is not None:
             verify_provenance()
         if expected_journal.get("phase") == "migrated":
+            if prepare_restore is not None:
+                prepare_restore()
+                if verify_provenance is not None:
+                    verify_provenance()
             receipt = _receipt(facts)
             status = restore_before_candidate_start(
                 root,
@@ -2333,15 +2497,17 @@ def finalize_candidate() -> str:
     with _hold_transition_locks(root) as transition:
         data = _read_journal_at(transition)[0]
         phase = data.get("phase")
-        if phase not in {"candidate_started", "candidate_http_ready"}:
+        if phase not in {
+            "candidate_start_attempted",
+            "candidate_started",
+            "candidate_http_ready",
+        }:
             raise CutoverError("candidate_finish_journal_invalid")
-        revision, build, _ = _fixed_journal_facts(data, phase=phase, allow_update=True)
-        checkout = _FIXED_RELEASES / ("m6-candidate-" + revision + "-" + build)
-        update_baseline = (
-            _journal_update_baseline(data)
-            if data.get("source_revision") == load_migration_catalog().head
-            else None
+        revision, build, baseline, _ = _fixed_journal_facts(
+            data, phase=phase, allow_update=True
         )
+        checkout = _FIXED_RELEASES / ("m6-candidate-" + revision + "-" + build)
+        update_baseline = baseline if baseline != _FIXED_BASELINE else None
         guard = _FIXED_OVERRIDE.parent / "95-m6-cutover-restart.conf"
         blocked = b"[Unit]\nRefuseManualStart=yes\n[Service]\nRestart=no\n"
         relaxed = b"[Service]\nRestart=no\n"
@@ -2381,6 +2547,17 @@ def finalize_candidate() -> str:
             )
 
         try:
+            if phase == "candidate_start_attempted":
+                _recover_same_schema_candidate_attempt(
+                    root,
+                    transition,
+                    unit=_FIXED_UNIT,
+                    baseline=baseline,
+                    candidate=checkout,
+                    override=_FIXED_OVERRIDE,
+                    guard=guard,
+                    verify_candidate=verify,
+                )
             return _finish_restored_baseline_engine(
                 root,
                 transition,
@@ -2411,9 +2588,13 @@ def start_restored_baseline() -> str:
             "baseline_http_ready",
         } or not isinstance(facts, dict):
             raise CutoverError("baseline_restart_journal_invalid")
-        candidate_revision, candidate_build, baseline_private = _fixed_journal_facts(
-            facts, phase="migrated"
-        )
+        (
+            candidate_revision,
+            candidate_build,
+            baseline,
+            baseline_private,
+        ) = _fixed_journal_facts(facts, phase="migrated")
+        retained_baseline = baseline if baseline != _FIXED_BASELINE else None
         guard = _FIXED_OVERRIDE.parent / "95-m6-cutover-restart.conf"
         blocked = b"[Unit]\nRefuseManualStart=yes\n[Service]\nRestart=no\n"
         relaxed = b"[Service]\nRestart=no\n"
@@ -2429,6 +2610,7 @@ def start_restored_baseline() -> str:
                 candidate_build,
                 guarded=True,
                 private_baseline=baseline_private,
+                update_baseline=retained_baseline,
             )
 
         def verify_after() -> None:
@@ -2437,8 +2619,9 @@ def start_restored_baseline() -> str:
                 candidate_revision,
                 candidate_build,
                 guarded=True,
-                private_baseline=True,
+                private_baseline=retained_baseline is None,
                 start_block=False,
+                update_baseline=retained_baseline,
             )
 
         try:
@@ -2451,12 +2634,12 @@ def start_restored_baseline() -> str:
                     guard=guard,
                     override=_FIXED_OVERRIDE,
                     expected_override=(
-                        _candidate_override(_FIXED_BASELINE)
+                        _candidate_override(baseline)
                         if baseline_private
-                        else build_override(_FIXED_BASELINE)
+                        else build_override(baseline)
                     ).encode(),
-                    start_override=_candidate_override(_FIXED_BASELINE).encode(),
-                    baseline=_FIXED_BASELINE,
+                    start_override=_candidate_override(baseline).encode(),
+                    baseline=baseline,
                     executable=_FIXED_EXECUTABLE,
                     verify_before=verify_before,
                     verify_after=verify_after,
@@ -2483,8 +2666,8 @@ def start_restored_baseline() -> str:
                     guard_present = True
                 _ctl("daemon-reload")
                 current_override = _FIXED_OVERRIDE.read_bytes()
-                private_override = _candidate_override(_FIXED_BASELINE).encode()
-                original_override = build_override(_FIXED_BASELINE).encode()
+                private_override = _candidate_override(baseline).encode()
+                original_override = build_override(baseline).encode()
                 if current_override not in {private_override, original_override}:
                     raise CutoverError("baseline_restart_override_changed")
                 private_now = current_override == private_override
@@ -2494,6 +2677,7 @@ def start_restored_baseline() -> str:
                     guarded=guard_present,
                     private_baseline=private_now,
                     start_block=guard_present and guard.read_bytes() == blocked,
+                    update_baseline=retained_baseline,
                 )
                 if phase in {
                     "baseline_start_attempted",
@@ -2513,13 +2697,14 @@ def start_restored_baseline() -> str:
                         unit=_FIXED_UNIT,
                         guard=guard,
                         override=_FIXED_OVERRIDE,
-                        baseline=_FIXED_BASELINE,
+                        baseline=baseline,
                         executable=_FIXED_EXECUTABLE,
                         verify_before=lambda: _fixed_unit_preflight(
                             candidate_revision,
                             candidate_build,
                             guarded=True,
                             private_baseline=private_now,
+                            update_baseline=retained_baseline,
                         ),
                         verify_after=verify_after,
                     )
@@ -2533,13 +2718,14 @@ def start_restored_baseline() -> str:
                     candidate_revision,
                     candidate_build,
                     guarded=present,
-                    private_baseline=True,
+                    private_baseline=retained_baseline is None,
                     start_block=present and guard.read_bytes() == blocked,
+                    update_baseline=retained_baseline,
                 )
                 current = _properties(_FIXED_UNIT)
                 if current.get("ActiveState") != "active":
                     raise CutoverError("baseline_start_unverified")
-                _verify_fixed_candidate_process(current, checkout=_FIXED_BASELINE)
+                _verify_fixed_candidate_process(current, checkout=baseline)
                 status, body = request("http://127.0.0.1:43110", "/login")
                 if status != 200 or b"agentmonitor-dashboard-root" not in body:
                     raise CutoverError("baseline_http_unverified")
