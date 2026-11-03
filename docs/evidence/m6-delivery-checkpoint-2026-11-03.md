@@ -106,3 +106,36 @@ a local body-read error after HTTP 200; that ambiguous code is excluded from
 natural recovery evidence. Exact 401/403/429 response outcomes remain eligible.
 The final invocation and latest-recovery checks are under correction before
 any positive M6-A07 claim.
+
+## Subsequent verification and remaining technical failure
+
+The final-invocation/latest-terminal-state corrections and exact bounded-reader
+ownership mappings are integrated. The combined recovery/direct/gate suite
+passed **75 tests**. Canonical quality, planning and documentation checks passed
+at `8bfcbda`. A signed-in official Usage comparison passed at **13:42:32 UTC**
+for the one connected account, with explicit owner-asserted pairing and provider
+display precision. Multi-scope aggregation remains under integration.
+
+`AUTO-M6-LOCAL-ADMIT` at `a611cd7` failed its real adapter/HTTP lane. Its failed
+test cache identifies the direct Ollama runtime-collection test, which passed
+alone in 0.82 seconds. A separate run of the exact suite reproduced a first-tick
+collector failure: **114 passed, 1 failed**, zero skips. The failed private
+database had no collection runs. Instrumented and focused diagnostic runs
+passed, so the cause is unresolved; no timeout increase, assertion weakening,
+or passing-suite substitution is accepted. A closed failure-reason diagnostic
+is being added to expose the next real occurrence.
+
+For existing Claude continuity, three managed targets are due but stop at the
+identity check; three have prior `usage_process_exited_before_complete_render`
+outcomes that the existing approved retry policy treats as non-transient. One
+bounded official managed-profile status check at **13:39:17 UTC** returned
+`loggedIn=false` using the service-pinned Claude 2.1.289 executable. This proves
+that one profile needs official sign-in; it does not prove token expiry or the
+state of the other profiles. No login, enrollment, profile alteration or agent
+restart was performed. The registry/executable version mismatch also prevents
+treating blanket reenrollment as a verified remedy.
+
+The local inventory at **13:38:43 UTC** still observed Ollama 0.24.0 with zero
+installed and loaded models. The model-present source and SDK cloud relationship
+remain owner/environment prerequisites. No unavailable scenario is counted as
+passed, and this checkpoint does not close M6.
