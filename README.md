@@ -9,7 +9,8 @@ running agents without interrupting them.
 
 ![AgentMonitor dashboard overview](docs/images/dashboard-demo.png)
 
-The screenshot is a point-in-time example of the dashboard.
+The screenshot is a point-in-time example of the dashboard, with account emails
+and organization names blurred for privacy.
 
 ## Project status
 
