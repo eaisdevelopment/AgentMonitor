@@ -4,6 +4,17 @@
 
 ## Owner-approved credential storage amendment
 
+On 3 November 2026 the owner placed the Ollama key in the selected `.env`
+and explicitly instructed AgentMonitor to use it there. This also authorizes
+runtime import from an explicitly named entry in that same protected file,
+bound to the explicitly selected real account, without a terminal prompt.
+The operator must not print the value or place it in arguments, environment,
+logs or evidence. Import uses the existing guarded account-binding lifecycle,
+preserves the original entry and unrelated configuration, and rejects unsafe,
+missing, empty or ambiguous entries. This is an alternative to retyping the key,
+not permission to inspect other credentials or provider profiles. Real import
+and subsequent provider verification still require actual evidence.
+
 The owner selects an existing account by name in a local, non-echoing terminal
 and enters the key there. The deployment explicitly selects the existing `.env`
 and the file must be owner-only (`0600`); no second `.env` is created. On this
