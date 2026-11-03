@@ -97,7 +97,7 @@ The machine-readable [ticket catalog](m6-ticket-catalog-v1.json) is the source f
 
 ### M6-T007 — Define canonical M6 completion gate
 
-- **Status / owner:** planned / M6 integration steward
+- **Status / owner:** in progress / M6 integration steward
 - **Story:** ST-OLL-005; **depends on:** M6-T006.
 - **Requirements:** FR-COL-008.
 - **Acceptance:** AC-TEST-001, AC-TEST-006; M6: M6-A10.
@@ -115,7 +115,7 @@ The machine-readable [ticket catalog](m6-ticket-catalog-v1.json) is the source f
 - **Work:** Implement provider manifest and installation discovery with separate client/daemon versions, source and compatibility.
 - **Done when:** Each lane independently admits exact supported version/source; invalid lane fails before I/O; real installation produces provenance.
 - **Verification:** adapter pure policy tests; real installation test (to be defined).
-- **Evidence:** [local preview](../../evidence/m6-ollama-local-preview-2026-11-01.md); installation discovery remains unwired and admission is limited.
+- **Evidence:** [local preview](../../evidence/m6-ollama-local-preview-2026-11-01.md); installation discovery is now wired and the real local admission passed at `9ac684c`; see the [current checkpoint](../../evidence/m6-delivery-checkpoint-2026-11-03.md). Populated-model and second-host acceptance remain pending.
 
 ### M6-T009 — Implement local catalog and loaded-model observation
 
@@ -181,7 +181,7 @@ The machine-readable [ticket catalog](m6-ticket-catalog-v1.json) is the source f
 - **Work:** Render Ollama account, organization, resource type, values, source, freshness, model/process and failure states via versioned API.
 - **Done when:** Real Overview/detail/filter/history accessible on desktop and mobile; no placeholder values; existing promotion retained.
 - **Verification:** npm --prefix frontend run typecheck; real dashboard browser checks (to be defined).
-- **Evidence:** [local preview](../../evidence/m6-ollama-local-preview-2026-11-01.md); the cloud and account-dependent views remain unfinished.
+- **Evidence:** [local preview](../../evidence/m6-ollama-local-preview-2026-11-01.md); the [native USD account/history browser check](../../evidence/m6-native-usd-account-ui-2026-11-03.md) and installed Overview now show fresh real monetary values; remaining account-scope and model-host acceptance are explicit in the [checkpoint](../../evidence/m6-delivery-checkpoint-2026-11-03.md).
 
 ### M6-T015 — Verify failure isolation and natural recovery
 

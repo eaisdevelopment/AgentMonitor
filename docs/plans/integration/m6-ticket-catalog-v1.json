@@ -189,7 +189,7 @@
       "id": "M6-T006",
       "story": "ST-OLL-001",
       "title": "Freeze capability and contract decisions",
-      "status": "planned",
+      "status": "in_progress",
       "owner": "M6 integration steward",
       "depends_on": [
         "M6-T002",
@@ -219,7 +219,10 @@
         "python3 tools/automation/run.py AUTO-PLAN-CHECK",
         "python3 tools/automation/run.py AUTO-DOCS-CHECK"
       ],
-      "evidence": []
+      "evidence": [
+        "docs/plans/integration/m6-ollama-cloud-implementation-change.md",
+        "docs/plans/integration/m6-recovery-evidence-contract-impact.md"
+      ]
     },
     {
       "id": "M6-T007",
@@ -285,7 +288,9 @@
         "adapter pure policy tests; real installation test (to be defined)"
       ],
       "evidence": [
-        "docs/evidence/m6-ollama-local-preview-2026-11-01.md"
+        "docs/evidence/m6-ollama-local-preview-2026-11-01.md",
+        "docs/evidence/m6-delivery-checkpoint-2026-11-03.md",
+        "docs/evidence/m6-native-usd-account-ui-2026-11-03.md"
       ]
     },
     {
@@ -504,7 +509,9 @@
         "real dashboard browser checks (to be defined)"
       ],
       "evidence": [
-        "docs/evidence/m6-ollama-local-preview-2026-11-01.md"
+        "docs/evidence/m6-ollama-local-preview-2026-11-01.md",
+        "docs/evidence/m6-delivery-checkpoint-2026-11-03.md",
+        "docs/evidence/m6-native-usd-account-ui-2026-11-03.md"
       ]
     },
     {
