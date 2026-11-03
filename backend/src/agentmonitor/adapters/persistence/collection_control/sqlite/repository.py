@@ -336,7 +336,7 @@ class SqliteCollectionRepositoryV1:
                         )
                     latest_policy = (
                         connection.exec_driver_sql(
-                            "SELECT target_generation, registry_revision, source_id, "
+                            "SELECT target_generation, source_id, "
                             "manifest_fingerprint, collection_policy_version FROM "
                             "collection_run WHERE schedule_id=? ORDER BY "
                             "target_generation DESC, attempt_ordinal DESC LIMIT 1",
@@ -351,9 +351,7 @@ class SqliteCollectionRepositoryV1:
                             latest_policy["target_generation"]
                             == admission.target_generation
                             and (
-                                latest_policy["registry_revision"]
-                                != admission.registry_revision
-                                or latest_policy["source_id"] != admission.source_id
+                                latest_policy["source_id"] != admission.source_id
                                 or latest_policy["manifest_fingerprint"]
                                 != admission.manifest_fingerprint
                                 or latest_policy["collection_policy_version"]

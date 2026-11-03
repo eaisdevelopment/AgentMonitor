@@ -287,15 +287,6 @@ def test_concurrent_scoped_budget_admission_has_one_winner(tmp_path: Path) -> No
                 idempotency_digest="1" * 64,
                 budget_units=0,
             ),
-            registry_revision=2,
-        ),
-        replace(
-            _admission(
-                run_id="collection-run-two",
-                request_id="collection-request-two",
-                idempotency_digest="1" * 64,
-                budget_units=0,
-            ),
             source_id="source-two",
         ),
         replace(
@@ -317,13 +308,13 @@ def test_concurrent_scoped_budget_admission_has_one_winner(tmp_path: Path) -> No
             collection_policy_version="1.0.1",
         ),
     ),
-    ids=("registry-revision", "source", "manifest", "collection-policy"),
+    ids=("source", "manifest", "collection-policy"),
 )
 def test_same_schedule_generation_rejects_changed_policy_snapshot(
     tmp_path: Path,
     changed: CollectionRunAdmissionV1,
 ) -> None:
-    """M4-GEN-003: one generation cannot change any policy input."""
+    """M4-GEN-003: one generation cannot change source-policy identity."""
     repository = _repository(tmp_path)
     first = repository.admit_run(_admission(budget_units=0))
     repository.mark_running(first.run_id, NOW, fencing_token=first.fencing_token)
