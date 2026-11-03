@@ -21,6 +21,14 @@ and its exact-source and bounded sampled-continuity semantics.
   interval evidence. The new producer envelope is now required by the gate.
 - `test_query_rejects_mixed_provider_scope_before_io` initially failed with
   `DID NOT RAISE`; the pure contract now rejects a mismatched provider scope.
+- Independent review found that the durable `provider_unavailable` shape could
+  also represent a local failure after an HTTP 200 response because CTR-COL-012
+  carries no HTTP status. The pure regression
+  `test_provider_unavailable_without_durable_http_status_is_not_natural`
+  failed by returning that ambiguous run as natural. After the minimum policy
+  correction, the complete pure recovery-policy file passed **24 tests in
+  0.06 seconds**. The corrected policy excludes the ambiguous state;
+  authoritative 401, 403 and 429 outcomes remain eligible.
 - The closed artifact parser initially failed collection because its module did
   not exist. Its tests now reject absent invocation identity, incorrect
   revisions, old/overlong intervals, incomplete sample/count evidence and

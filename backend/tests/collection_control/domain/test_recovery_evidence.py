@@ -46,7 +46,7 @@ def failure() -> CollectionRecoveryRunV1:
         "failed",
         "response_received",
         "failed",
-        "provider_unavailable",
+        "unauthorized",
         None,
         (),
     )
@@ -86,6 +86,12 @@ def test_local_parser_or_unknown_failure_is_not_natural(code: str | None) -> Non
     assert (
         latest_natural_failure((replace(failure(), failure_code=code),), SCOPE) is None
     )
+
+
+def test_provider_unavailable_without_durable_http_status_is_not_natural() -> None:
+    """The same durable shape can represent a local HTTP-200 body-read failure."""
+    unavailable = replace(failure(), failure_code="provider_unavailable")
+    assert latest_natural_failure((unavailable,), SCOPE) is None
 
 
 @pytest.mark.parametrize("certainty", ["not_started", "may_have_started", None])

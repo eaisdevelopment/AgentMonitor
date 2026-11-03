@@ -35,9 +35,12 @@ repository access, not a new unauthenticated HTTP route.
 
 ## Recovery and continuity decision
 
-Pure M04 policy accepts only a received natural unavailable/auth/authorization/
-rate-limit response and a later committed successful/partial run under the
-identical scope. Pre-dispatch failures, parser/internal errors, uncertain
+Pure M04 policy accepts only a received authoritative authentication,
+authorization or rate-limit response and a later committed successful/partial
+run under the identical scope. `provider_unavailable` does not qualify: the
+durable M04 facts do not preserve the HTTP status and therefore cannot
+distinguish an upstream unavailable response from a local post-header transport
+or body-read failure. Pre-dispatch failures, parser/internal errors, uncertain
 requests, changed keys/generations/sources and older superseded failures do not
 qualify. Provider response journals and commit observation references are
 required; a successful HTTP request without a committed observation is not

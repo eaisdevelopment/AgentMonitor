@@ -34,8 +34,7 @@ def latest_natural_failure(
         and latest.dispatch_certainty == "response_received"
         and (
             latest.response_outcome == "failed"
-            and latest.failure_code
-            in {"provider_unavailable", "unauthorized", "access_denied"}
+            and latest.failure_code in {"unauthorized", "access_denied"}
             or latest.response_outcome == "rate_limited"
             and latest.failure_code == "rate_limited"
         )
