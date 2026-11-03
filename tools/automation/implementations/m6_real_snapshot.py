@@ -259,7 +259,7 @@ def _current_history_lineage(
                 metric=metric,
                 series_kind="poll_snapshot",
                 range_start=as_of - timedelta(days=365),
-                range_before=as_of + timedelta(microseconds=1),
+                range_before=as_of,
                 as_of=as_of,
                 limit=2,
                 after_key=None,

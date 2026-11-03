@@ -16,6 +16,15 @@ from tools.automation.implementations.m6_real_snapshot import (
 REAL_DATA_ROOT = Path("/home/dev/.local/share/agentmonitor")
 
 
+def test_actual_current_cloud_reading_reconciles_to_retained_history() -> None:
+    """Requires genuine current monitoring and at least two retained reads."""
+    snapshot = read_m6_evidence_snapshot_v1(REAL_DATA_ROOT)
+
+    assert snapshot.status == "passed", snapshot.reason_code
+    assert snapshot.current_balance_targets > 0
+    assert snapshot.history_targets == snapshot.current_balance_targets
+
+
 def test_snapshot_contract_exposes_only_sanitized_aggregates() -> None:
     snapshot = M6EvidenceSnapshotV1.not_run(
         schema_state="upgrade_required",
