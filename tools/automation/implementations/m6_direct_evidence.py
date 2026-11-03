@@ -27,6 +27,24 @@ _VERSION = re.compile(r"[0-9]+\.[0-9]+\.[0-9]+\Z")
 
 DIRECT_EXECUTABLE_SELECTION_V1: tuple[tuple[str, tuple[str, ...]], ...] = (
     (
+        "scope_policy",
+        (
+            "/usr/bin/env",
+            "PYTHONPATH=backend/src",
+            "PYTHONDONTWRITEBYTECODE=1",
+            "{checkout_python}",
+            "-B",
+            "-m",
+            "pytest",
+            "-q",
+            "-p",
+            "tools.automation.pytest_no_skip",
+            "tools/automation/test_m6_scope_selection.py",
+            "tools/automation/test_m6_cloud_scope_evidence.py",
+            "tools/automation/test_m6_direct_evidence.py",
+        ),
+    ),
+    (
         "local_inventory",
         (
             "{gate_python}",
@@ -180,7 +198,7 @@ _SOURCE_VERSIONS: dict[str, tuple[str, ...]] = {
         "ollama.local.catalog.v1:1.0.0",
         "linux.proc.process.v1:1.0.0",
     ),
-    "ST-OLL-003": ("CTR-REG-012:1.1.0", "CTR-COL-010:2.0.0"),
+    "ST-OLL-003": ("CTR-REG-012:1.1.0", "CTR-REG-013:1.0.0", "CTR-COL-010:2.0.0"),
     "ST-OLL-004": (
         "ollama.cloud.balance.v1:1.0.0",
         "CTR-CAP-001:1.0.0",

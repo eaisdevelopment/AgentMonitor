@@ -33,11 +33,13 @@ from tools.automation.implementations.m6_authoritative_evidence import (
 from tools.automation.implementations.m6_direct_evidence import (
     DIRECT_EXECUTABLE_SELECTION_V1,
     BoundaryCheckV1,
+    CloudScopeEvidenceV1,
     DirectM6FactsV1,
     DirectM6OutcomeV1,
     LocalModelHostEvidenceV1,
     classify_direct_m6_evidence_v1,
     direct_bundle_v1,
+    parse_cloud_scope_evidence_v1,
 )
 from tools.automation.implementations.m6_exit_policy import (
     ACCEPTANCE_IDS,
@@ -68,6 +70,7 @@ CHECK_TIMEOUT_SECONDS = {
     "AUTO-PLAN-CHECK": 1800,
 }
 DIRECT_CHECK_TIMEOUT_SECONDS = {
+    "scope_policy": 60,
     "local_inventory": 120,
     "account_admin_browser": 120,
     "source_security": 300,
@@ -1062,22 +1065,95 @@ def _run_local_inventory() -> tuple[
     return _boundary("failed", "local_inventory_execution_failed"), ()
 
 
-def _run_real_snapshot() -> tuple[BoundaryCheckV1, dict[str, int], dict[str, str]]:
+def parse_required_organization_selection_v1(value: object) -> tuple[str, ...]:
+    """Parse explicit owner scope; names and inferred registry subsets are forbidden."""
+    if (
+        not isinstance(value, dict)
+        or set(value) != {"schema_version", "provider_key", "organization_ids"}
+        or value.get("schema_version") != "1.0.0"
+        or value.get("provider_key") != "ollama"
+        or not isinstance(value.get("organization_ids"), list)
+    ):
+        raise ValueError("m6_scope_selection_invalid")
+    ids = value["organization_ids"]
+    if (
+        not 2 <= len(ids) <= 200
+        or not all(
+            isinstance(item, str) and re.fullmatch(r"[A-Za-z0-9_-]{1,64}", item)
+            for item in ids
+        )
+        or len(set(ids)) != len(ids)
+    ):
+        raise ValueError("m6_scope_selection_invalid")
+    return tuple(ids)
+
+
+def _read_required_organization_selection() -> tuple[str, ...] | None:
+    """Read only fixed non-secret verification IDs, never runtime credentials."""
+    try:
+        with _open_directory_chain(
+            (".local", "share", "agentmonitor"),
+            private=False,
+            root_path=Path("/home/dev"),
+        ) as chain:
+            metadata = os.fstat(chain.leaf_fd)
+            if (
+                metadata.st_uid != os.getuid()
+                or stat.S_IMODE(metadata.st_mode) != 0o700
+            ):
+                raise M6ExitErrorV1("m6_scope_selection_invalid")
+            payload = _read_regular_at(
+                chain,
+                "m6-required-organizations.json",
+                private=True,
+                limit=16384,
+                missing_reason="m6_scope_selection_missing",
+            )
+    except FileNotFoundError:
+        return None
+    except M6ExitErrorV1 as error:
+        if str(error) == "m6_scope_selection_missing":
+            return None
+        raise
+    return parse_required_organization_selection_v1(_load_json_bytes(payload))
+
+
+def _run_real_snapshot() -> tuple[
+    BoundaryCheckV1, dict[str, int], dict[str, str], CloudScopeEvidenceV1 | None
+]:
     empty = {key: 0 for key in DIRECT_SNAPSHOT_KEYS}
     empty_digests = {key: _EMPTY_LINEAGE_SHA256 for key in DIRECT_SNAPSHOT_DIGEST_KEYS}
+    policy_result = _run_direct_argv(
+        _direct_command("scope_policy", "0" * 40),
+        timeout_seconds=DIRECT_CHECK_TIMEOUT_SECONDS["scope_policy"],
+    )
+    if _simple_process_status(policy_result) != "passed":
+        return _boundary("failed", "m6_scope_policy_failed"), empty, empty_digests, None
+    try:
+        selected = _read_required_organization_selection()
+    except (M6ExitErrorV1, OSError, ValueError):
+        return (
+            _boundary("blocked", "m6_scope_selection_invalid"),
+            empty,
+            empty_digests,
+            None,
+        )
+    command = _direct_command("database_snapshot", "0" * 40)
+    for organization_id in selected or ():
+        command.extend(("--required-organization-id", organization_id))
     result = _run_direct_argv(
-        _direct_command("database_snapshot", "0" * 40),
+        command,
         timeout_seconds=DIRECT_CHECK_TIMEOUT_SECONDS["database_snapshot"],
         capture_output=True,
     )
     if not result.launched:
-        return _boundary("blocked"), empty, empty_digests
+        return _boundary("blocked"), empty, empty_digests, None
     if result.timed_out or not result.cleanup_confirmed:
-        return _boundary("failed"), empty, empty_digests
+        return _boundary("failed"), empty, empty_digests, None
     try:
         parsed = _load_json_bytes(result.output.strip())
     except M6ExitErrorV1:
-        return _boundary("failed"), empty, empty_digests
+        return _boundary("failed"), empty, empty_digests, None
     if (
         not isinstance(parsed, dict)
         or set(parsed)
@@ -1089,6 +1165,7 @@ def _run_real_snapshot() -> tuple[BoundaryCheckV1, dict[str, int], dict[str, str
             "schema_state",
             "counts",
             "digests",
+            "cloud_scope_evidence",
         }
         or parsed.get("schema_version") != "1.0.0"
         or parsed.get("record_type") != "agentmonitor.m6_real_snapshot.v1"
@@ -1111,15 +1188,36 @@ def _run_real_snapshot() -> tuple[BoundaryCheckV1, dict[str, int], dict[str, str
             for value in parsed["digests"].values()
         )
     ):
-        return _boundary("failed"), empty, empty_digests
+        return _boundary("failed"), empty, empty_digests, None
     parsed_status = parsed["status"]
     expected_return_code = 0 if parsed_status == "passed" else 3
     if result.return_code != expected_return_code:
-        return _boundary("failed"), empty, empty_digests
+        return _boundary("failed"), empty, empty_digests, None
+    try:
+        if _read_required_organization_selection() != selected:
+            raise ValueError("m6_scope_selection_changed")
+        scope = parse_cloud_scope_evidence_v1(
+            parsed["cloud_scope_evidence"], expected_organization_ids=selected or ()
+        )
+        if selected is not None and parsed_status == "passed" and scope is None:
+            raise ValueError("m6_scope_evidence_missing")
+        if scope is not None:
+            observed = datetime.fromisoformat(scope.as_of)
+            now = datetime.now(UTC)
+            if observed > now or now - observed > timedelta(minutes=2):
+                raise ValueError("m6_scope_evidence_stale")
+    except (M6ExitErrorV1, OSError, ValueError, TypeError):
+        return (
+            _boundary("failed", "m6_scope_evidence_invalid"),
+            empty,
+            empty_digests,
+            None,
+        )
     return (
         _boundary(parsed_status),
         dict(parsed["counts"]),
         dict(parsed["digests"]),
+        scope,
     )
 
 
@@ -1170,6 +1268,8 @@ def _run_recovery_interval(
         return _boundary("blocked", "m6_recovery_producer_unavailable"), None
     if result.timed_out or not result.cleanup_confirmed:
         return _boundary("failed", "m6_recovery_producer_timeout"), None
+    if result.return_code is None:
+        return _boundary("failed", "m6_recovery_producer_invalid"), None
     try:
         evidence = parse_recovery_interval_v1(
             _load_json_bytes(result.output.strip()),
@@ -1205,7 +1305,7 @@ def _run_direct_checks(checks: dict[str, StatusV1], revision: str) -> DirectM6Fa
     authoritative_comparison, authoritative_observation = _run_authoritative_comparison(
         revision
     )
-    database_snapshot, counts, snapshot_digests = _run_real_snapshot()
+    database_snapshot, counts, snapshot_digests, scope_evidence = _run_real_snapshot()
     # Historical rows alone cannot attest HTTP continuity. Only this invocation's
     # bounded, revision-bound interval producer supplies recovery counts.
     counts["natural_recovery_targets"] = (
@@ -1256,6 +1356,7 @@ def _run_direct_checks(checks: dict[str, StatusV1], revision: str) -> DirectM6Fa
         dashboard_continuity_browser=dashboard_continuity,
         source_security=_boundary(_simple_process_status(source_security)),
         database_snapshot=database_snapshot,
+        cloud_scope_evidence=scope_evidence,
         authoritative_comparison=authoritative_comparison,
         authoritative_observation=authoritative_observation,
         recovery_interval=recovery_interval,

@@ -111,3 +111,24 @@ creates no coverage assertion. Its SHA-256 is
 `995499fd1a277c03aacab086ee9beefd4e97c14fc643c263a969ad891dfd21d3`.
 Repeated gates will use the stable IDs, not infer scope from organization names.
 Installed activation and full M6 acceptance remain unclaimed at this checkpoint.
+
+
+## Installed activation
+
+Committed application increment `1b889b18b4f0eba881f70bcb7e9fbce30cc08056`
+was activated using AUTO-M6-CUTOVER and AUTO-M6-FINALIZE-CANDIDATE. Both
+commands returned 0. The first preflight attempt stopped before service change
+because temporary development links made the source checkout non-clean; no
+journal existed and the old service remained active. The clean retry created
+a verified private backup, migrated 0718→0719 and started the sealed candidate.
+The original on-failure restart policy was restored.
+
+The installed service is active; loopback and LAN each returned HTTP 200.
+The installed `coverage_endpoint.mjs` and `coverage_editor.mjs` both passed.
+The shared browser's Organizations form was then used to record the existing
+owner-confirmed EAIS own-account relationship, without another key, provider
+request or identity claim. SDK's actual arrangement remains pending owner
+clarification; no shared/unavailable declaration was fabricated.
+
+The full M6 exit is still incomplete. This is an installed administrative
+increment plus bounded actual checks, not a milestone completion claim.
