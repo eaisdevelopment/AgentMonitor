@@ -47,6 +47,10 @@ from tools.automation.implementations.m6_exit_policy import (
     validate_catalog_v1,
     validate_existing_passed_receipt_v1,
 )
+from tools.automation.implementations.m6_recovery_evidence import (
+    RecoveryIntervalEvidenceV1,
+    parse_recovery_interval_v1,
+)
 
 ROOT = Path(__file__).resolve().parents[3]
 CATALOG_NAME = "m6-exit-catalog-v1.json"
@@ -64,6 +68,7 @@ DIRECT_CHECK_TIMEOUT_SECONDS = {
     "account_admin_browser": 120,
     "source_security": 300,
     "database_snapshot": 60,
+    "recovery_interval": 660,
 }
 DIRECT_SNAPSHOT_KEYS = (
     "active_ollama_accounts",
@@ -1112,9 +1117,37 @@ def _run_real_snapshot() -> tuple[BoundaryCheckV1, dict[str, int], dict[str, str
     )
 
 
+def _run_recovery_interval(
+    revision: str,
+) -> tuple[BoundaryCheckV1, RecoveryIntervalEvidenceV1 | None]:
+    result = _run_direct_argv(
+        _direct_command("recovery_interval", revision),
+        timeout_seconds=DIRECT_CHECK_TIMEOUT_SECONDS["recovery_interval"],
+        capture_output=True,
+    )
+    if not result.launched:
+        return _boundary("blocked", "m6_recovery_producer_unavailable"), None
+    if result.timed_out or not result.cleanup_confirmed:
+        return _boundary("failed", "m6_recovery_producer_timeout"), None
+    try:
+        evidence = parse_recovery_interval_v1(
+            _load_json_bytes(result.output.strip()),
+            revision=revision,
+            return_code=result.return_code,
+            now=datetime.now(UTC),
+        )
+        return _boundary(
+            evidence.status,
+            None if evidence.status == "passed" else evidence.reason_code,
+        ), evidence
+    except (M6ExitErrorV1, ValueError):
+        return _boundary("failed", "m6_recovery_producer_invalid"), None
+
+
 def _run_direct_checks(checks: dict[str, StatusV1], revision: str) -> DirectM6FactsV1:
     """Run every available real check once, independent of sibling outcomes."""
 
+    recovery_observation, recovery_interval = _run_recovery_interval(revision)
     local_inventory, model_hosts = _run_local_inventory()
     source_security = _run_direct_argv(
         _direct_command("source_security", revision),
@@ -1129,6 +1162,16 @@ def _run_direct_checks(checks: dict[str, StatusV1], revision: str) -> DirectM6Fa
         browser_facts,
     ) = _run_ollama_dashboard_browser(revision)
     database_snapshot, counts, snapshot_digests = _run_real_snapshot()
+    # Historical rows alone cannot attest HTTP continuity. Only this invocation's
+    # bounded, revision-bound interval producer supplies recovery counts.
+    counts["natural_recovery_targets"] = (
+        0 if recovery_interval is None else recovery_interval.natural_recovery_targets
+    )
+    counts["cross_provider_continuity_targets"] = (
+        0
+        if recovery_interval is None
+        else recovery_interval.cross_provider_continuity_targets
+    )
     # DB/API/DOM equality proves internal source lineage, not the separate
     # provider-authoritative comparison required by M6-A04.  The canonical
     # command leaves that count at zero until a genuine provider comparison is
@@ -1151,6 +1194,8 @@ def _run_direct_checks(checks: dict[str, StatusV1], revision: str) -> DirectM6Fa
         dashboard_continuity_browser=dashboard_continuity,
         source_security=_boundary(_simple_process_status(source_security)),
         database_snapshot=database_snapshot,
+        recovery_interval=recovery_interval,
+        recovery_observation=recovery_observation,
         observed_model_hosts=len(model_hosts),
         model_host_evidence=model_hosts,
         authoritative_balance_reconciled_targets=(

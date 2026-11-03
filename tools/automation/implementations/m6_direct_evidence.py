@@ -13,6 +13,10 @@ from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from typing import Literal
 
+from tools.automation.implementations.m6_recovery_evidence import (
+    RecoveryIntervalEvidenceV1,
+)
+
 StatusV1 = Literal["passed", "failed", "blocked", "not_run"]
 _SAFE_REASON = re.compile(r"[a-z][a-z0-9_]{0,95}\Z")
 _SAFE_HOST_ID = re.compile(r"[a-z][a-z0-9_]{0,63}\Z")
@@ -53,6 +57,20 @@ DIRECT_EXECUTABLE_SELECTION_V1: tuple[tuple[str, tuple[str, ...]], ...] = (
         (
             "/usr/bin/node",
             "frontend/tests/browser/m6/verify_ollama_dashboard.mjs",
+            "{revision}",
+        ),
+    ),
+    (
+        "recovery_interval",
+        (
+            "/usr/bin/env",
+            "PYTHONPATH=backend/src",
+            "PYTHONDONTWRITEBYTECODE=1",
+            "{checkout_python}",
+            "-B",
+            "-m",
+            "tools.automation.implementations.m6_recovery_interval",
+            "--revision",
             "{revision}",
         ),
     ),
@@ -126,7 +144,7 @@ _SOURCE_VERSIONS: dict[str, tuple[str, ...]] = {
     ),
     "M6-A05": ("CTR-CAP-006:1.0.0", "CTR-ALERT-002:1.0.0"),
     "M6-A06": ("linux.proc.process.v1:1.0.0", "CTR-RUN-002:1.0.0"),
-    "M6-A07": ("CTR-COL-002:1.0.0", "CTR-COL-008:1.1.0"),
+    "M6-A07": ("CTR-COL-012:1.0.0", "CTR-COL-008:1.1.0"),
     "M6-A08": ("CTR-API-001:1.0.0", "CTR-UI-001:1.0.0"),
     "M6-A09": (
         "ollama.cloud.balance.v1:1.0.0",
@@ -281,6 +299,10 @@ class DirectM6FactsV1:
     process_observation_count: int
     natural_recovery_targets: int
     cross_provider_continuity_targets: int
+    recovery_interval: RecoveryIntervalEvidenceV1 | None = None
+    recovery_observation: BoundaryCheckV1 = BoundaryCheckV1(
+        "not_run", 0, reason_code="recovery_interval_not_observed"
+    )
 
     def __post_init__(self) -> None:
         counts = (
@@ -483,7 +505,32 @@ def classify_direct_m6_evidence_v1(
     else:
         outcomes["M6-A06"] = process_base
 
-    recovery_base = _combined(cloud_base, facts.dashboard_continuity_browser)
+    interval = facts.recovery_interval
+    interval_check = facts.recovery_observation
+    if interval is not None:
+        interval_check = BoundaryCheckV1(
+            interval.status,
+            1 if interval.status == "passed" else 0,
+            reason_code=None if interval.status == "passed" else interval.reason_code,
+        )
+        if (
+            interval.natural_recovery_targets != facts.natural_recovery_targets
+            or interval.cross_provider_continuity_targets
+            != facts.cross_provider_continuity_targets
+        ):
+            interval_check = BoundaryCheckV1(
+                "failed", 1, reason_code="recovery_interval_count_mismatch"
+            )
+    elif interval_check.status == "passed":
+        interval_check = BoundaryCheckV1(
+            "failed", 1, reason_code="recovery_interval_missing"
+        )
+    recovery_base = _combined(
+        cloud_base,
+        facts.dashboard_continuity_browser,
+        facts.recovery_observation,
+        interval_check,
+    )
     if recovery_base.status == "passed" and (
         facts.natural_recovery_targets < 1
         or facts.cross_provider_continuity_targets < 1

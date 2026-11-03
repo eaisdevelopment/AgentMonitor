@@ -187,3 +187,17 @@ a proposal whose support/shape still depends on real provider/platform evidence.
    approval. This Draft baseline alone provides neither.
 
 CTR-REG-012 records owner-asserted cloud connection status and exact-binding verification evidence. CTR-COL-010 records durable verification jobs and idempotent initiation; its existing one-request V2 application boundary remains available while an additive atomic V2 port (`2.0.0`) adds exact external request-version fencing. Replay uses only the original client identity and preserves the first call's server-derived graph/binding snapshot. CTR-COL-011 is the read-only scheduled-lane status. All are candidate contracts under review; populated live behavior remains unverified.
+
+
+## M6 exact recovery evidence addition — 2026-11-03
+
+CTR-COL-012 `CollectionRecoveryQueryV1` 1.0.0 is the additive, read-only M04
+port consumed by the M6 integration gate. It returns bounded terminal runs with
+exact account/access target/binding generation/source/adapter/fingerprint,
+durable dispatch certainty and committed observation references. It does not
+expose provider bodies, credentials or account labels. The
+[contract-impact assessment](integration/m6-recovery-evidence-contract-impact.md)
+defines null states, limits, compatibility and evidence requirements. Existing
+CTR-COL-002 callers and the public API are unchanged. The executable producer
+remains Not Run when the genuine natural-failure interval has not occurred;
+registering this contract does not claim M6-A07 acceptance.

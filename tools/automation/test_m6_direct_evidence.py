@@ -37,6 +37,27 @@ HOSTS = (
 
 
 def _complete_facts() -> DirectM6FactsV1:
+    from tools.automation.implementations.m6_recovery_evidence import (
+        RecoveryIntervalEvidenceV1,
+    )
+
+    interval = RecoveryIntervalEvidenceV1(
+        "agentmonitor.m6_recovery_interval.v1",
+        "1.0.0",
+        "passed",
+        "m6_recovery_observed",
+        "a" * 40,
+        "b" * 32,
+        1,
+        1,
+        2,
+        "c" * 64,
+        "2026-11-03T12:00:00+00:00",
+        "2026-11-03T12:01:00+00:00",
+        ("2026-11-03T12:00:10+00:00", "2026-11-03T12:01:00+00:00"),
+        (("claude", "run-claude"), ("codex", "run-codex")),
+        (("run-failed", "run-recovered"),),
+    )
     return DirectM6FactsV1(
         local_admission=PASSED,
         local_inventory=PASSED,
@@ -47,6 +68,8 @@ def _complete_facts() -> DirectM6FactsV1:
         dashboard_continuity_browser=PASSED,
         source_security=PASSED,
         database_snapshot=PASSED,
+        recovery_interval=interval,
+        recovery_observation=PASSED,
         active_ollama_accounts=2,
         registered_local_installations=2,
         observed_local_installations=2,
@@ -76,12 +99,8 @@ def test_direct_policy_can_pass_the_original_external_catalog() -> None:
         *(f"ST-OLL-{index:03}" for index in range(1, 6)),
     }
     assert {item.status for item in outcomes.values()} == {"passed"}
-    assert outcomes["M6-A06"].declared_limitations == (
-        "sampled_process_coverage",
-    )
-    assert outcomes["ST-OLL-005"].declared_limitations == (
-        "sampled_process_coverage",
-    )
+    assert outcomes["M6-A06"].declared_limitations == ("sampled_process_coverage",)
+    assert outcomes["ST-OLL-005"].declared_limitations == ("sampled_process_coverage",)
     assert all(item.test_count > 0 for item in outcomes.values())
 
 
@@ -114,6 +133,10 @@ def test_absent_real_cloud_state_does_not_hide_local_results() -> None:
         alerted_targets=0,
         natural_recovery_targets=0,
         cross_provider_continuity_targets=0,
+        recovery_interval=None,
+        recovery_observation=BoundaryCheckV1(
+            "not_run", 0, reason_code="recovery_interval_not_observed"
+        ),
     )
 
     outcomes = classify_direct_m6_evidence_v1(facts)
@@ -207,13 +230,15 @@ def test_unbound_historical_runs_never_substitute_for_exact_recovery() -> None:
             _complete_facts(),
             natural_recovery_targets=0,
             cross_provider_continuity_targets=0,
+            recovery_interval=None,
+            recovery_observation=BoundaryCheckV1(
+                "not_run", 0, reason_code="recovery_interval_not_observed"
+            ),
         )
     )
 
     assert outcomes["M6-A07"].status == "not_run"
-    assert outcomes["M6-A07"].reason_code == (
-        "natural_failure_recovery_not_observed"
-    )
+    assert outcomes["M6-A07"].reason_code == ("recovery_interval_not_observed")
 
 
 def test_direct_bundle_uses_one_shared_artifact_without_producer_receipts() -> None:
@@ -234,9 +259,7 @@ def test_direct_bundle_uses_one_shared_artifact_without_producer_receipts() -> N
     assert {item["path"] for item in bundle["evidence"]} == {
         ".agentmonitor-local/m6-evidence/direct-a.json"
     }
-    assert {item["producer_id"] for item in bundle["evidence"]} == {
-        "AUTO-M6-EXIT"
-    }
+    assert {item["producer_id"] for item in bundle["evidence"]} == {"AUTO-M6-EXIT"}
     assert len(bundle["evidence"]) == 14
 
 
@@ -324,3 +347,25 @@ def test_disappeared_process_stays_not_run_after_database_observation() -> None:
 
     assert outcome.status == "not_run"
     assert outcome.reason_code == "real_ollama_process_unavailable"
+
+
+def test_recovery_counts_without_actual_interval_are_not_evidence() -> None:
+    facts = replace(
+        _complete_facts(),
+        recovery_interval=None,
+        recovery_observation=BoundaryCheckV1(
+            "not_run", 0, reason_code="recovery_interval_not_observed"
+        ),
+    )
+    outcomes = classify_direct_m6_evidence_v1(facts)
+    assert outcomes["M6-A07"].status == "not_run"
+
+
+def test_invalid_recovery_producer_is_not_hidden_by_positive_counts() -> None:
+    facts = replace(
+        _complete_facts(),
+        recovery_observation=BoundaryCheckV1(
+            "failed", 1, reason_code="m6_recovery_producer_invalid"
+        ),
+    )
+    assert classify_direct_m6_evidence_v1(facts)["M6-A07"].status == "failed"

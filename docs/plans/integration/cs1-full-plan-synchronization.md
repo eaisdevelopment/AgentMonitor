@@ -1214,3 +1214,26 @@ readiness, M6 completion, or product readiness.
 Plan snapshot SHA-256: `78d35c337c8cabd3a3fd935775d1d17c4d207de8ed218f2800fdf4078fa8dff6`
 
 Planning validator SHA-256: `a245e3da4bff6efc405751b53574677c2de6a34ff2899b3d2fb92f9784eae159`
+
+## M6 recovery query addition — scoped integration review, 2026-11-03
+
+The root integration steward reviewed and accepted the additive read-only
+CTR-COL-012 1.0.0 contract-impact assessment and bounded sampled-continuity
+protocol. No blocking contract, privacy or dependency issue was identified.
+This entry binds the 104-contract registry/adoption update and preserves prior
+reviews as historical; it does not rerun or extend the original full audit.
+Natural recovery acceptance remains Not Run until the actual event occurs.
+
+Plan snapshot SHA-256: `d47dbcf781a0cd17438d4e6ec0bcdfd0560d54460dbc82363e2c6427ec9bc9e7`
+
+## 2026-11-03 combined receipt-history and recovery-query controls
+
+The integration steward reconciled the reviewed v1_0718 migration controls
+and additive CTR-COL-012 adoption. The source query and pure recovery policy
+were inspected against their bounded contract. Prior review records remain
+historical. This records combined structural consistency; independent producer
+review and real natural-recovery acceptance are still pending.
+
+Plan snapshot SHA-256: `42c4d9a3f963b001782ee2668383cbc8cc745bcd5b003d57d6bd12a4bdc9734c`
+
+Planning validator SHA-256: `a07b3b5a8202785c2495cebb5c4ffac0344e1c3dfe605de150a240101af1fd60`

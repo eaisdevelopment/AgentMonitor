@@ -5,7 +5,7 @@ owner = "integration_steward"
 source_audit = "CAA-2026-09-18-01"
 source_audit_path = "docs/plans/integration/contract-alignment-audit.md"
 contract_version_policy = "Draft contracts propose version 1.0.0 unless an explicit compatible V2 migration retains its published boundary; CTR-COL-010 is the currently reviewed exception."
-contract_count = 103
+contract_count = 104
 owner_approved = false
 implementation_authorized = false
 synchronized = false
@@ -1228,4 +1228,15 @@ producer = "PLAN-M08"
 consumers = ["PLAN-P01", "PLAN-P02", "PLAN-INT"]
 maturity = "proposed_aligned"
 decision_reference = "CAA-2026-09-18-01 sections 6, 10, and 11.2"
+checklist = { field_state_null = true, units_time = true, auth = true, side_effects = true, idempotency = true, events = true, retention = true, errors = true, compatibility = true }
+
+# Additive M6 recovery evidence read port; no schema or public API change.
+[[contracts]]
+id = "CTR-COL-012"
+name = "CollectionRecoveryQueryV1"
+version = "1.0.0"
+producer = "PLAN-M04"
+consumers = ["PLAN-INT"]
+maturity = "evidence_blocked"
+decision_reference = "docs/plans/integration/m6-recovery-evidence-contract-impact.md"
 checklist = { field_state_null = true, units_time = true, auth = true, side_effects = true, idempotency = true, events = true, retention = true, errors = true, compatibility = true }
