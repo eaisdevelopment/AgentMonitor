@@ -201,3 +201,13 @@ defines null states, limits, compatibility and evidence requirements. Existing
 CTR-COL-002 callers and the public API are unchanged. The executable producer
 remains Not Run when the genuine natural-failure interval has not occurred;
 registering this contract does not claim M6-A07 acceptance.
+
+## M6 organization coverage extension
+
+CTR-REG-013 1.0.0 adds an M02-owned owner-asserted organization/provider
+coverage contract for existing own/shared accounts and explicit unavailable
+outcomes. It does not change credential identity, monitoring, resource
+aggregation or successful live evidence. The [contract impact and implementation
+plan](integration/m6-cloud-scope-outcomes-contract-impact.md) records the
+existing approval, bounded read/write interfaces, versioning, invalidation,
+migration and real-boundary verification still required.

@@ -1219,3 +1219,15 @@ This binds the changed ownership control; it does not assert live recovery.
 Plan snapshot SHA-256: `6d71bea74e4ca205780a4ff5a22755c9068141ce53217e3c8ad79f5966dc2c28`
 
 Planning validator SHA-256: `a07b3b5a8202785c2495cebb5c4ffac0344e1c3dfe605de150a240101af1fd60`
+
+## 2026-11-03 organization coverage contract allocation
+
+The integration steward reviewed additive CTR-REG-013 1.0.0 under the existing
+M6 cloud approval. The 105-contract catalog retains every existing contract
+and adds the exact M02 owner and FND/P01/P02/integration consumers. Ownership
+adds only the pure coverage contract file. This structural record does not
+approve the unrelated Draft baseline or claim repository/API/live completion.
+
+Plan snapshot SHA-256: `39c3369aff483acf27fa4b93160a4c07d24139fc638834c578a941ace0a5af46`
+
+Planning validator SHA-256: `b8aeb132b2cd14900757d4f8e553702fbbd5a3954d21008aff7e77d7202c29c7`

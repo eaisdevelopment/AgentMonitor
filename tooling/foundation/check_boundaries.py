@@ -45,6 +45,7 @@ CONTRACT_MODULES = frozenset(
         "database_v1",
         "identity_access_v1",
         "registry_v1",
+        "registry_coverage_v1",
         "provider_system_v1",
         "common_provenance_v1",
         "collection_control_v1",
@@ -105,6 +106,11 @@ SUPPORT_SYMBOLS = {
         "OllamaCloudSourceAuthorizationSignalV1",
         "OllamaCloudVerificationDispatchCertaintyV1",
         "OllamaCloudVerificationGateStateV1",
+    },
+    "agentmonitor.contracts.registry_coverage_v1": {
+        "CoverageOutcomeV1",
+        "CoverageUnavailableReasonV1",
+        "CoverageInvalidationReasonV1",
     },
     "agentmonitor.contracts.registry_v1": {
         "ConfirmIdentityAssociationCommandV1",

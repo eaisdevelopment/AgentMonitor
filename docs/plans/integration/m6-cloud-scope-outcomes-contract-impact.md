@@ -1,7 +1,8 @@
 # M6 organization/provider coverage: M02 contract impact and implementation plan
 
-Status: **Design for root contract review; no production implementation in this
-change.** Prepared 3 November 2026 against `894f092`. This is one focused M02
+Status: **Contract design reviewed by the integration steward on 3 November
+2026 for implementation within the existing owner-approved cloud scope.**
+Prepared against `894f092`; production and live completion remain unproven. This is one focused M02
 amendment within the [owner-approved cloud plan](m6-ollama-cloud-implementation-change.md),
 not a new owner approval request or a change to M6 acceptance. Root proposed
 `CTR-REG-013` version `1.0.0` and allocated migration `v1_0719`; neither is
@@ -66,7 +67,7 @@ version and registry revision. Fields:
 
 - `outcome`: `account`, `shared`, or `unavailable`.
 - `account_id`: required for `account/shared`; absent for `unavailable`.
-- `reason_code`: required only for `unavailable`; closed initial reasons
+- `unavailable_reason`: required only for `unavailable`; closed initial reasons
   `account_unavailable`, `subscription_unavailable`, `access_unavailable`,
   `owner_unavailable`. Unknown/missing choice is not an unavailable outcome.
 - `provenance`: exactly `owner_asserted`; `confirmed_by` principal ID and server
@@ -81,7 +82,8 @@ version and registry revision. Fields:
   Normal authorized UI resolves display names through existing registry reads.
 
 `SetOrganizationProviderCoverageCommandV1` takes org/provider, outcome,
-account/reason, expected version (`0` only for initial creation), command ID,
+account/reason, expected version (`0` only for initial creation), the selected
+account record version for account/shared writes (absent for unavailable), command ID,
 authenticated principal and server timestamp. The caller cannot send a
 `provider_proven` or successful quota flag. A separate
 `RevokeOrganizationProviderCoverageCommandV1` applies to an existing version;
@@ -277,7 +279,7 @@ mutation tests. Do not invent a shared relationship or unavailable owner outcome
 to make a live test run. Positive shared/unavailable I/O evidence is NotRun until
 the owner actually supplies that disposition; protocol errors and pure policy
 coverage do not substitute for it. Capture behavioral Red before production
-changes, Green and post-refactor results; import/setup failures are not Red.
+changes, Green and post-refactor results; unrelated import/setup failures are not Red.
 The canonical gate may remain blocked on other real conditions after this code
 gap is repaired.
 
@@ -316,3 +318,75 @@ information is the actual second organization's distinct/shared/unavailable
 relationship if it cannot be established from existing explicit direction;
 another API key is necessary only if its actual distinct scope is available
 and requires monitoring. Prepare the normal UI before asking for that fact.
+
+## Root contract review decisions
+
+Existing owner approval of the M6 cloud plan authorizes this implementation;
+no approval is inferred from this document alone. Root reviewed the existing
+registry, capacity, API and gate contracts and freezes the additive contract
+and v1_0719 allocation above. Existing capacity/credential contracts stay intact.
+The current registry audit shape cannot retain all assertion fields, so the
+expand migration will include an M02-owned immutable coverage revision table
+alongside the current row, with no credential/telemetry data. Set, revoke and
+lasting semantic invalidation append the resulting version atomically.
+The read selection is bounded to 200 explicit organization IDs for one provider
+and returns one consistent registry revision and as-of time; missing rows are
+missing assertions, never unavailable dispositions or silently removed scopes.
+
+First implementation work is the I/O-free typed contract and shape rules.
+Repository, migration, HTTP, UI and canonical evidence remain separate real
+boundaries to implement and verify before any feature or milestone completion
+claim. Shared and unavailable assertions will never be manufactured for live
+verification; their actual owner declarations remain necessary.
+
+## Contract increment evidence (implementation remains partial)
+
+The new immutable CTR-REG-013 values and read/write protocols are implemented;
+repository, migration, HTTP, UI and live dispositions are not yet implemented.
+The first six pure shape checks passed after the previously absent module was
+introduced. Independent review then exposed three behavioral defects: a raw
+source-organization string, invalidation after the snapshot observation time,
+and out-of-selection-order rows were accepted. Their regression checks each
+failed `DID NOT RAISE ValueError` before correction. The final focused suite
+has **11 passing tests**, including malformed row rejection and refusal to
+persist a transient access failure as lasting invalidation.
+
+The read query now carries only explicit organization IDs and provider key.
+Snapshot `as_of` is derived by the repository producer, not supplied in the
+request. Snapshot rows must follow selection order, belong to that selection,
+and have confirmation/invalidation timestamps no later than the producer time.
+`provider_withdrawn` is a structural invalidation reason; provider/network or
+credential unavailability is not. Set commands additionally fence the selected
+account's displayed record version to prevent a reassignment race at save.
+
+Commands executed from the integration checkout:
+
+```bash
+PYTHONPATH=backend/src python -B -m pytest backend/tests/registry/test_organization_provider_coverage.py -q
+MYPYPATH=backend/src python -B -m mypy --explicit-package-bases --strict backend/src/agentmonitor/contracts/registry_coverage_v1.py backend/tests/registry/test_organization_provider_coverage.py
+python -B tools/automation/run.py AUTO-PLAN-CHECK
+python -B tools/automation/run.py AUTO-DOCS-CHECK
+python -B tooling/foundation/check_boundaries.py .
+```
+
+Focused tests and strict types passed. The synchronized planning and documentation
+checks passed after registering the exact 105th contract, its central file owner
+and its FND/P01/P02/integration consumers; the boundary scan found zero violations.
+The earlier combined six-test/contract-boundary run passed 196 tests. These are
+contract/structural results, not SQLite, API, browser or provider evidence.
+The planning baseline remains Draft and its approval flags stay false; the
+separately approved M6 cloud scope is the implementation authority.
+
+Changes are the new contract and pure tests, exact boundary/ownership/catalog
+registration, generated adoption/snapshot records and this impact document.
+No dependency, runtime configuration, credential path, provider action, schema
+or live service was changed by this increment. v1_0719 is reserved, not applied.
+Existing API/money/credential contracts keep their versions and behavior.
+
+Final contract review cleared all four findings. The combined pure and actual
+source-boundary suite passed **201 tests**; `AUTO-QUALITY` then passed (571 files
+formatted, strict types across 515 files, zero boundary violations, unchanged
+74-operation API and successful frontend build). Its initial import-order
+failure was corrected using the canonical explicit Ruff configuration; no
+check was disabled. Planning and documentation checks passed. The live service
+remained active with HTTP 200; the new feature is not deployed or exposed yet.
