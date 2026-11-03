@@ -282,7 +282,8 @@ try {
     try { return new URL(candidate.url()).origin === origin; } catch { return false; }
   });
   if (sharedPage === undefined) await finish();
-  if (!await sharedPage.getByRole("heading", { name: "AgentMonitor", exact: true }).isVisible().catch(() => false)) await finish();
+  // The application name is branding, not an authenticated-page heading.
+  if (!await sharedPage.getByRole("button", { name: "Sign out", exact: true }).isVisible().catch(() => false)) await finish();
   signedIn = true;
   verificationPage = await sharedPage.context().newPage();
   const page = verificationPage;
