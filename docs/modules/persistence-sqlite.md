@@ -23,3 +23,18 @@ The verified deadline scope is local SQLite lock/VM work. OS scheduling and stal
 ## Limits and rollback
 
 No schema migration, persistent object, dependency or configuration setting was added. Root composition, producer adoption and real HTTP/browser verification are separate handoff work. macOS filesystem and OS-stall behavior were not verified. Removing this additive leaf/helper changes no owner data, provider profile or running agent.
+
+
+## M6 organization coverage migration
+
+The reviewed additive v1_0718→v1_0719 upgrade creates M02 coverage/current
+and immutable-history tables without backfilling owner declarations. The
+canonical `AUTO-MIGRATE` command retains its explicit source-revision selection
+and verified private backup. Installed service changes use `AUTO-M6-CUTOVER`
+and `AUTO-M6-FINALIZE-CANDIDATE`; same-schema update is not a migration path.
+Historical migration bytes, fingerprints and backup manifests remain intact.
+
+[Migration evidence](../evidence/m6-coverage-migration-2026-11-03.md) records
+actual SQLite Red/Green, installed-data-copy preservation, pre-start restore
+and interrupted-transition recovery. Only an inactive private copy was used
+for those checks; installed activation is a separate recorded operation.

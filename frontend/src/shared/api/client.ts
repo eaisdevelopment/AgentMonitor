@@ -34,6 +34,9 @@ import {
   type OrganizationPageV1,
   type OrganizationOrderingViewV1,
   type OrganizationViewV1,
+  type OrganizationCoverageResourceV1,
+  type OrganizationCoverageWireV1,
+  type SetOrganizationCoverageInputV1,
   type OllamaLocalCatalogViewV1,
   type OllamaCloudConnectionStatusV1,
   type ProviderCapabilityDeclarationPageV1,
@@ -84,6 +87,9 @@ export type {
   OrganizationPageV1,
   OrganizationOrderingViewV1,
   OrganizationViewV1,
+  OrganizationCoverageResourceV1,
+  OrganizationCoverageWireV1,
+  SetOrganizationCoverageInputV1,
   OllamaLocalCatalogViewV1,
   OllamaCloudConnectionStatusV1,
   ProviderCapabilityDeclarationPageV1,
@@ -253,7 +259,33 @@ export const iam = Object.freeze({
     }),
 });
 
+function coverageHeaders(resource: OrganizationCoverageResourceV1): Readonly<Record<string, string>> {
+  const version = resource.coverage?.record_version ?? 0;
+  if (!/^[A-Za-z0-9_-]{1,64}$/.test(resource.organization_id) ||
+      !/^[A-Za-z0-9_-]{1,64}$/.test(resource.provider_key) ||
+      !Number.isSafeInteger(version) || version < 0) throw new Error("invalid_coverage_version");
+  return {
+    ...mutationHeaders(undefined, true),
+    "If-Match": `"${resource.organization_id}.${resource.provider_key}.${version}"`,
+  };
+}
+
 export const registry = Object.freeze({
+  coverage: (organizationId: string, providerKey: string, signal?: AbortSignal): Promise<ClientResult<OrganizationCoverageResourceV1>> =>
+    apiClient.registry_get_organization_coverage_v1({
+      path: { organization_id: organizationId, provider_key: providerKey }, signal,
+    }),
+  setCoverage: (resource: OrganizationCoverageResourceV1, body: SetOrganizationCoverageInputV1): Promise<ClientResult<OrganizationCoverageWireV1>> =>
+    apiClient.registry_set_organization_coverage_v1({
+      path: { organization_id: resource.organization_id, provider_key: resource.provider_key },
+      body, headers: coverageHeaders(resource),
+    }),
+  revokeCoverage: (resource: OrganizationCoverageResourceV1): Promise<ClientResult<OrganizationCoverageWireV1>> =>
+    apiClient.registry_revoke_organization_coverage_v1({
+      path: { organization_id: resource.organization_id, provider_key: resource.provider_key },
+      headers: coverageHeaders(resource),
+    }),
+
   organizations: (signal?: AbortSignal): Promise<ClientResult<OrganizationPageV1>> =>
     apiClient.registry_list_organizations_v1({ query: { limit: 200 }, signal }),
   createOrganization: (

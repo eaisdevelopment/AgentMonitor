@@ -310,6 +310,9 @@ M03_M06_SQLITE_POLICY_SYMBOLS = frozenset(
     {"DatabaseRefV1", "SqlitePolicyError", "open_sqlite_database"}
 )
 M02_SQLITE_LAYER_SYMBOLS = {
+    "agentmonitor.modules.registry.application.coverage": frozenset(
+        {"coverage_reference_failure"}
+    ),
     "agentmonitor.modules.registry.application.accounts": frozenset(
         {
             "CreatePendingAccountCommandV1",

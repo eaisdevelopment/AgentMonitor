@@ -8,6 +8,8 @@ import {
   type OrganizationViewV1,
 } from "../../shared/api/client";
 
+import { ProviderCoverageEditor } from "./ProviderCoverageEditor";
+
 type OrganizationsState =
   | Readonly<{ kind: "loading" }>
   | Readonly<{ kind: "error"; message: string }>
@@ -183,6 +185,7 @@ export function OrganizationsPage({
                 <strong>{organization.name}</strong>
                 <p>{organization.active_account_count} active accounts</p>
                 <p className="record-meta">{organization.lifecycle}</p>
+                <ProviderCoverageEditor organization={organization} organizations={state.page.items} organizationsComplete={!state.page.page.has_more && state.page.availability.state === "available"} onExpired={onExpired} onProofUnavailable={onProofUnavailable} />
                 {organization.lifecycle === "active" && (
                   <div>
                     <button type="button" className="quiet-button" aria-label={`Move ${organization.name} up`} disabled={busy || state.page.page.has_more || index === 0} onClick={() => { void move(organization.organization_id, -1); }}>Move up</button>

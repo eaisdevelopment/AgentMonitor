@@ -269,3 +269,26 @@ registration records owner-entered metadata only and does not assert provider
 identity. Monitoring enablement checks a confirmed identity and eligible active
 profile/resource. See [M4 interim evidence](../evidence/m4-st-fleet-001-interim.md)
 for real-boundary results and the unresolved six-account gate.
+
+
+## Organization provider coverage (M6 increment)
+
+CTR-REG-013 1.0.0 adds durable owner declarations for an organization's own
+account, use of another organization's account, or an explicit unavailable
+reason. The reviewed scope is recorded in
+[the M6 coverage impact plan](../plans/integration/m6-cloud-scope-outcomes-contract-impact.md).
+These declarations are separate from provider identity, credential access,
+quota, and financial pool aggregation.
+
+Schema v1_0719 adds current and immutable revision tables without backfill.
+The runtime API uses `read:accounts` / `write:accounts`; writes require ordinary
+CSRF proof, an operation key and the current ETag. Version zero creates only an
+absent declaration. Revocation retains history and never disconnects an account.
+The selected account version fences reassignment races. Structural changes
+invalidate declarations permanently; renames and monitoring toggles preserve them.
+
+Organizations contains a collapsible **Provider coverage** editor with named
+account/source-organization choices. An incomplete organization list disables
+shared choices explicitly; no unavailable declaration is selected automatically.
+The editor distinguishes a committed write from a failed refresh. This increment
+remains intermediate until its installed-service and canonical M6 checks pass.

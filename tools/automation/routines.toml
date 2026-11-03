@@ -272,7 +272,7 @@ blockers = ["explicit real LAN interface/subnet and exact frontend build require
 id = "AUTO-MIGRATE"
 owner = "PLAN-DB"
 status = "operational_limited"
-scope = "explicit offline v1_0603, v1_0707, v1_0708, v1_0709, v1_0710, v1_0711, v1_0712, v1_0713, v1_0714, v1_0715, v1_0716 or v1_0717 to v1_0718 schema upgrade with verified private pre-migration backup"
+scope = "explicit offline v1_0603, v1_0707, v1_0708, v1_0709, v1_0710, v1_0711, v1_0712, v1_0713, v1_0714, v1_0715, v1_0716, v1_0717 or v1_0718 to v1_0719 schema upgrade with verified private pre-migration backup"
 implementation_command = ["backend/.venv/bin/python", "tools/automation/implementations/auto_migrate.py"]
 blockers = ["installed owner upgrade, service activation/restricted start, broader backup/restore and unlisted source revisions remain separate"]
 

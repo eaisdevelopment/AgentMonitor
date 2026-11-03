@@ -12,6 +12,13 @@ from tooling.foundation.openapi_client import (
 )
 
 EXPECTED_SUCCESS = {
+    "registry_list_organization_coverage_v1": (
+        "200",
+        "OrganizationCoverageSnapshotWireV1",
+    ),
+    "registry_get_organization_coverage_v1": ("200", "OrganizationCoverageResourceV1"),
+    "registry_set_organization_coverage_v1": ("200", "OrganizationCoverageWireV1"),
+    "registry_revoke_organization_coverage_v1": ("200", "OrganizationCoverageWireV1"),
     "provider_get_ollama_local_catalog_v1": ("200", "OllamaLocalCatalogViewV1"),
     "runtime_set_process_account_association_v1": ("200", "LiveProcessLocationViewV1"),
     "provider_get_connection_v1": ("200", "ProviderConnectionViewV1"),
@@ -116,6 +123,7 @@ EXPECTED_ERRORS = frozenset(
     }
 )
 EXPECTED_REQUESTS = {
+    "registry_set_organization_coverage_v1": "SetOrganizationCoverageInputV1",
     "runtime_set_process_account_association_v1": "SetProcessAccountAssociationInputV1",
     "provider_start_connection_v1": "StartProviderConnectionInputV1",
     "provider_cancel_connection_v1": "CancelProviderConnectionInputV1",
@@ -165,7 +173,7 @@ def test_generator_rejects_changed_policy_on_every_frozen_operation() -> None:
 
 def test_generator_rejects_success_schema_drift_for_all_operations() -> None:
     schema = create_iam_schema_application().openapi()
-    assert len(validate_iam_openapi(schema)) == len(EXPECTED_SUCCESS) == 74
+    assert len(validate_iam_openapi(schema)) == len(EXPECTED_SUCCESS) == 78
     seen: set[str] = set()
     for path, methods in schema["paths"].items():
         for method, operation in methods.items():

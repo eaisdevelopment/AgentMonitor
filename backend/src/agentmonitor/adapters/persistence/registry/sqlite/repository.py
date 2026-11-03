@@ -18,7 +18,9 @@ from agentmonitor.adapters.persistence.registry.sqlite.credential_lock import (
     account_credential_lock,
 )
 from agentmonitor.adapters.persistence.registry.sqlite.registry_transaction import (
-    RegistryRepositoryErrorV1,
+    RegistryRepositoryErrorV1 as RegistryRepositoryErrorV1,
+)
+from agentmonitor.adapters.persistence.registry.sqlite.registry_transaction import (
     _append_change,
     _append_outbox,
     _current_revision,

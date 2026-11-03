@@ -1262,3 +1262,15 @@ approve the unrelated Draft baseline or claim repository/API/live completion.
 Plan snapshot SHA-256: `39c3369aff483acf27fa4b93160a4c07d24139fc638834c578a941ace0a5af46`
 
 Planning validator SHA-256: `b8aeb132b2cd14900757d4f8e553702fbbd5a3954d21008aff7e77d7202c29c7`
+
+
+## 2026-11-03 organization coverage integration controls
+
+The integration steward synchronized the routine catalog's explicit 0718→0719
+migration description with the reviewed additive migration. Existing owner
+approval is unchanged; prior review records remain historical. This control
+record does not assert installed deployment or full M6 acceptance.
+
+Plan snapshot SHA-256: `e84df1c349c6aeb2a3482d7955351bb3f6014a8a2b61866bdc57b9b692d67a33`
+
+Planning validator SHA-256: `b8aeb132b2cd14900757d4f8e553702fbbd5a3954d21008aff7e77d7202c29c7`

@@ -170,10 +170,14 @@ service or cross-module table reader is introduced.
 
 Add compatible `/api/v1` endpoints:
 
-- `GET /organizations/{organization_id}/provider-coverage`: bounded coverage
-  list with current validity and ETags.
+- `GET /provider-coverage/{provider_key}?organization_ids=...`: one bounded,
+  ordered selection of 1..200 distinct comma-separated organization IDs. The
+  response preserves the full selection and sparse assertions, completeness,
+  registry revision and producer observation time. It performs one contract
+  read, without independently looping organization reads.
 - `GET /organizations/{organization_id}/provider-coverage/{provider_key}`:
-  one current assertion, or typed absent state/404.
+  one current assertion, or typed absent state (`coverage: null`) with a
+  create-only version-zero ETag. An absent organization is 404.
 - `PUT` on that resource: replace the complete disposition; `Idempotency-Key`
   plus `If-Match` required. A typed absent read/create precondition represents
   version zero; it is not permission to overwrite an existing record.

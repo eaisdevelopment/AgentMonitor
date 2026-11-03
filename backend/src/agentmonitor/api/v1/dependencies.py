@@ -16,6 +16,10 @@ from agentmonitor.contracts.ollama_local_catalog_v1 import (
     LocalCatalogPortV1,
 )
 from agentmonitor.contracts.provider_system_v1 import ProviderConnectionPortV1
+from agentmonitor.contracts.registry_coverage_v1 import (
+    OrganizationProviderCoverageReadPortV1,
+    OrganizationProviderCoverageWritePortV1,
+)
 from agentmonitor.modules.alerting.application.commands import (
     AcknowledgeAlertV1,
     MarkAlertReadV1,
@@ -164,6 +168,8 @@ class ObservationApiPortsV1:
     capacity_health_policy: CapacityHealthPolicyV1 | None = None
     ollama_local_catalog: LocalCatalogPortV1 | None = None
     ollama_cloud_connection: OllamaCloudConnectionPortV1 | None = None
+    organization_coverage_read: OrganizationProviderCoverageReadPortV1 | None = None
+    organization_coverage_write: OrganizationProviderCoverageWritePortV1 | None = None
 
 
 @dataclass(frozen=True, slots=True)

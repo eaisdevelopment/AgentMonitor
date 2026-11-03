@@ -69,6 +69,9 @@ from agentmonitor.adapters.persistence.identity_access.sqlite.repository import 
 from agentmonitor.adapters.persistence.identity_access.sqlite.sessions import (
     SqliteIdentityAccessSessionRepositoryV1,
 )
+from agentmonitor.adapters.persistence.registry.sqlite.coverage import (
+    SqliteOrganizationProviderCoverageRepositoryV1,
+)
 from agentmonitor.adapters.persistence.registry.sqlite.health import (
     GetRegistryComponentHealthV1,
 )
@@ -510,6 +513,7 @@ def _observation_ports(
             return False
 
     registry = SqliteRegistryRepositoryV1(reference)
+    coverage = SqliteOrganizationProviderCoverageRepositoryV1(reference)
     collection = SqliteCollectionRepositoryV1(reference)
     capacity = SqliteCapacityRepositoryV1(reference)
     runtime = SqliteRuntimeObservationRepositoryV1(reference)
@@ -571,6 +575,8 @@ def _observation_ports(
         registry_scope_v2=CapacityScopeMembershipQueryV2(registry),
         list_account_resources=ListAccountResourcesV1(registry),
         capacity_health_policy=ClassifyCapacityProjectionV1().policy,
+        organization_coverage_read=coverage,
+        organization_coverage_write=coverage,
         ollama_local_catalog=read_ollama_local_catalog_v1,
         ollama_cloud_connection=OllamaCloudConnectionServiceV1(
             reference,

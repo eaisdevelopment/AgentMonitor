@@ -15,6 +15,10 @@ from agentmonitor.adapters.persistence._shared.sqlite.core.policy import (
     DatabaseRefV1,
     open_sqlite_database,
 )
+from agentmonitor.adapters.persistence._shared.sqlite.schema.compatibility import (
+    InspectSchemaCompatibilityV1,
+    application_schema_range,
+)
 from agentmonitor.adapters.persistence.registry.sqlite.credential_bindings import (
     SqliteCloudCredentialRegistryV1,
 )
@@ -27,11 +31,16 @@ from agentmonitor.contracts.registry_coverage_v1 import (
     RevokeOrganizationProviderCoverageCommandV1,
     SetOrganizationProviderCoverageCommandV1,
 )
+from agentmonitor.contracts.registry_v1 import AccountViewV1, CloudMonitoringTargetV1
 from agentmonitor.modules.registry.application.accounts import EditAccountCommandV1
 from agentmonitor.modules.registry.application.organizations import (
     EditOrganizationCommandV1,
     RegistryCommandConflictV1,
 )
+
+ActualCoverageRegistry = tuple[
+    DatabaseRefV1, SqliteRegistryRepositoryV1, AccountViewV1, CloudMonitoringTargetV1
+]
 
 ROOT = Path(__file__).resolve().parents[4]
 LIVE = Path("/home/dev/.local/share/agentmonitor/agentmonitor.db")
@@ -42,7 +51,7 @@ def _id() -> OpaqueIdV1:
 
 
 @pytest.fixture(scope="module")
-def coverage_source(tmp_path_factory):
+def coverage_source(tmp_path_factory: pytest.TempPathFactory) -> Path:
     """The published SQLite backup API copies real state without table inspection."""
     tmp_path = tmp_path_factory.mktemp("coverage-source")
     tmp_path.chmod(0o700)
@@ -51,6 +60,15 @@ def coverage_source(tmp_path_factory):
         with sqlite3.connect(copied) as target:
             source.backup(target)
     copied.chmod(0o600)
+    state = InspectSchemaCompatibilityV1(
+        DatabaseRefV1(copied, tmp_path),
+        application_schema_range(),
+        "runtime_read_write",
+    )
+    if state.current_revision == "v1_0719":
+        assert state.state == "compatible", "actual_private_copy_schema_incompatible"
+        return copied
+    assert state.current_revision == "v1_0718", "actual_private_copy_source_unsupported"
     environment = os.environ.copy()
     environment["AGENTMONITOR_MIGRATE_DATA_ROOT"] = str(tmp_path)
     environment["AGENTMONITOR_MIGRATE_EXPECTED_HEAD"] = "v1_0718"
@@ -74,7 +92,7 @@ def coverage_source(tmp_path_factory):
 
 
 @pytest.fixture
-def actual_registry(tmp_path: Path, coverage_source: Path):
+def actual_registry(tmp_path: Path, coverage_source: Path) -> ActualCoverageRegistry:
     tmp_path.chmod(0o700)
     copied = tmp_path / "agentmonitor.db"
     with sqlite3.connect(f"file:{coverage_source}?mode=ro", uri=True) as source:
@@ -95,10 +113,14 @@ def actual_registry(tmp_path: Path, coverage_source: Path):
             selected.append((account, graph))
     assert len(selected) == 1, "actual_owner_confirmed_account_selection_ambiguous"
     account, graph = selected[0]
+    assert account.organization_id is not None
     return reference, registry, account, graph
 
 
-def _command(account, graph, version=0):
+def _command(
+    account: AccountViewV1, graph: CloudMonitoringTargetV1, version: int = 0
+) -> SetOrganizationProviderCoverageCommandV1:
+    assert account.organization_id is not None
     return SetOrganizationProviderCoverageCommandV1(
         organization_id=account.organization_id,
         provider_key=account.provider_key,
@@ -113,12 +135,15 @@ def _command(account, graph, version=0):
     )
 
 
-def test_real_own_account_set_replay_revoke_and_history(actual_registry) -> None:
+def test_real_own_account_set_replay_revoke_and_history(
+    actual_registry: ActualCoverageRegistry,
+) -> None:
     from agentmonitor.adapters.persistence.registry.sqlite.coverage import (
         SqliteOrganizationProviderCoverageRepositoryV1,
     )
 
     reference, registry, account, graph = actual_registry
+    assert account.organization_id is not None
     repository = SqliteOrganizationProviderCoverageRepositoryV1(reference)
     command = _command(account, graph)
     selected = OrganizationProviderCoverageSelectionV1(
@@ -164,13 +189,14 @@ def test_real_own_account_set_replay_revoke_and_history(actual_registry) -> None
 
 
 def test_real_account_version_and_replay_conflicts_do_not_write(
-    actual_registry,
+    actual_registry: ActualCoverageRegistry,
 ) -> None:
     from agentmonitor.adapters.persistence.registry.sqlite.coverage import (
         SqliteOrganizationProviderCoverageRepositoryV1,
     )
 
     reference, registry, account, graph = actual_registry
+    assert account.organization_id is not None
     repository = SqliteOrganizationProviderCoverageRepositoryV1(reference)
     command = _command(account, graph)
     with pytest.raises(
@@ -189,12 +215,15 @@ def test_real_account_version_and_replay_conflicts_do_not_write(
     assert current_account.record_version == account.record_version
 
 
-def test_real_reassignment_and_return_never_revive_coverage(actual_registry) -> None:
+def test_real_reassignment_and_return_never_revive_coverage(
+    actual_registry: ActualCoverageRegistry,
+) -> None:
     from agentmonitor.adapters.persistence.registry.sqlite.coverage import (
         SqliteOrganizationProviderCoverageRepositoryV1,
     )
 
     reference, registry, account, graph = actual_registry
+    assert account.organization_id is not None
     repository = SqliteOrganizationProviderCoverageRepositoryV1(reference)
     first = repository.set_coverage(_command(account, graph))
     moved = registry.edit_account(
@@ -226,12 +255,15 @@ def test_real_reassignment_and_return_never_revive_coverage(actual_registry) -> 
     assert snapshot.items[0].record_version == first.record_version + 1
 
 
-def test_real_account_archive_restore_keeps_invalidation(actual_registry) -> None:
+def test_real_account_archive_restore_keeps_invalidation(
+    actual_registry: ActualCoverageRegistry,
+) -> None:
     from agentmonitor.adapters.persistence.registry.sqlite.coverage import (
         SqliteOrganizationProviderCoverageRepositoryV1,
     )
 
     reference, registry, account, graph = actual_registry
+    assert account.organization_id is not None
     repository = SqliteOrganizationProviderCoverageRepositoryV1(reference)
     first = repository.set_coverage(_command(account, graph))
     archived = registry.edit_account(
@@ -262,13 +294,14 @@ def test_real_account_archive_restore_keeps_invalidation(actual_registry) -> Non
 
 
 def test_real_rename_and_monitoring_edits_preserve_owner_assertion(
-    actual_registry,
+    actual_registry: ActualCoverageRegistry,
 ) -> None:
     from agentmonitor.adapters.persistence.registry.sqlite.coverage import (
         SqliteOrganizationProviderCoverageRepositoryV1,
     )
 
     reference, registry, account, graph = actual_registry
+    assert account.organization_id is not None
     repository = SqliteOrganizationProviderCoverageRepositoryV1(reference)
     first = repository.set_coverage(_command(account, graph))
     renamed = registry.edit_account(
@@ -313,13 +346,14 @@ def test_real_rename_and_monitoring_edits_preserve_owner_assertion(
 
 
 def test_real_invalidating_transaction_rolls_back_account_and_history(
-    actual_registry,
+    actual_registry: ActualCoverageRegistry,
 ) -> None:
     from agentmonitor.adapters.persistence.registry.sqlite.coverage import (
         SqliteOrganizationProviderCoverageRepositoryV1,
     )
 
     reference, registry, account, graph = actual_registry
+    assert account.organization_id is not None
     repository = SqliteOrganizationProviderCoverageRepositoryV1(reference)
     first = repository.set_coverage(_command(account, graph))
     with pytest.raises(
@@ -352,7 +386,7 @@ def test_real_invalidating_transaction_rolls_back_account_and_history(
 
 
 def test_real_same_request_concurrent_writers_produce_one_revision(
-    actual_registry,
+    actual_registry: ActualCoverageRegistry,
 ) -> None:
     from agentmonitor.adapters.persistence.registry.sqlite.coverage import (
         SqliteOrganizationProviderCoverageRepositoryV1,

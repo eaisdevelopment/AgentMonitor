@@ -160,6 +160,12 @@ PROBLEM_DESCRIPTIONS: dict[str, str] = {
     "registry_subject_archived": "The registry record is archived.",
     "registry_subject_not_archived": "The registry record is not archived.",
     "registry_subject_not_found": "The registry record is unavailable.",
+    "registry_account_version_conflict": (
+        "The selected account changed. Refresh before saving."
+    ),
+    "registry_coverage_reference_invalid": (
+        "The selected account or organization cannot provide this coverage."
+    ),
     "registry_version_conflict": "The registry record version no longer matches.",
     "resource_not_found": "The requested local resource is unavailable.",
     "scope_escalation_denied": "The requested token scopes exceed caller authority.",

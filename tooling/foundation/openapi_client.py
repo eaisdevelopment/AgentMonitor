@@ -47,6 +47,7 @@ SOURCE_FILES = (
     "backend/src/agentmonitor/api/v1/routers/iam.py",
     "backend/src/agentmonitor/api/v1/routers/_observation.py",
     "backend/src/agentmonitor/api/v1/routers/registry.py",
+    "backend/src/agentmonitor/api/v1/routers/coverage.py",
     "backend/src/agentmonitor/api/v1/routers/providers.py",
     "backend/src/agentmonitor/api/v1/routers/provider_connections.py",
     "backend/src/agentmonitor/api/v1/routers/collection.py",
@@ -57,6 +58,7 @@ SOURCE_FILES = (
     "backend/src/agentmonitor/api/v1/serialization.py",
     "backend/src/agentmonitor/api/v1/schemas/iam.py",
     "backend/src/agentmonitor/api/v1/schemas/registry.py",
+    "backend/src/agentmonitor/api/v1/schemas/coverage.py",
     "backend/src/agentmonitor/api/v1/schemas/providers.py",
     "backend/src/agentmonitor/api/v1/schemas/collection.py",
     "backend/src/agentmonitor/api/v1/schemas/capacity.py",
@@ -81,6 +83,7 @@ SOURCE_FILES = (
     "backend/src/agentmonitor/contracts/database_v1.py",
     "backend/src/agentmonitor/contracts/identity_access_v1.py",
     "backend/src/agentmonitor/contracts/registry_v1.py",
+    "backend/src/agentmonitor/contracts/registry_coverage_v1.py",
     "backend/src/agentmonitor/contracts/provider_system_v1.py",
     "backend/src/agentmonitor/contracts/collection_control_v1.py",
     "backend/src/agentmonitor/contracts/capacity_v1.py",
@@ -102,6 +105,9 @@ SOURCE_FILES = (
     "backend/src/agentmonitor/adapters/providers/claude/installation.py",
     "backend/src/agentmonitor/adapters/providers/claude/manifest.py",
     "backend/src/agentmonitor/adapters/persistence/registry/sqlite/repository.py",
+    "backend/src/agentmonitor/adapters/persistence/registry/sqlite/coverage.py",
+    "backend/src/agentmonitor/adapters/persistence/registry/sqlite/coverage_records.py",
+    "backend/src/agentmonitor/adapters/persistence/registry/sqlite/registry_transaction.py",
     "backend/src/agentmonitor/adapters/persistence/collection_control/sqlite/repository.py",
     "backend/src/agentmonitor/adapters/persistence/capacity/sqlite/repository.py",
     "backend/src/agentmonitor/adapters/persistence/runtime_observation/sqlite/repository.py",
@@ -114,6 +120,10 @@ SOURCE_FILES = (
 )
 
 IAM_OPERATIONS = {
+    (
+        "/api/v1/provider-coverage/{provider_key}",
+        "get",
+    ): "registry_list_organization_coverage_v1",
     ("/api/v1/operations/liveness", "get"): "operations_get_liveness_v1",
     ("/api/v1/operations/readiness", "get"): "operations_get_readiness_v1",
     ("/api/v1/operations/health", "get"): "operations_get_health_v1",
@@ -163,6 +173,18 @@ IAM_OPERATIONS = {
     ("/api/v1/organizations", "get"): "registry_list_organizations_v1",
     ("/api/v1/organizations", "post"): "registry_create_organization_v1",
     ("/api/v1/organization-orderings", "post"): "registry_reorder_organizations_v1",
+    (
+        "/api/v1/organizations/{organization_id}/provider-coverage/{provider_key}",
+        "get",
+    ): "registry_get_organization_coverage_v1",
+    (
+        "/api/v1/organizations/{organization_id}/provider-coverage/{provider_key}",
+        "put",
+    ): "registry_set_organization_coverage_v1",
+    (
+        "/api/v1/organizations/{organization_id}/provider-coverage/{provider_key}",
+        "delete",
+    ): "registry_revoke_organization_coverage_v1",
     ("/api/v1/organizations/{organization_id}", "get"): "registry_get_organization_v1",
     (
         "/api/v1/organizations/{organization_id}",
@@ -772,6 +794,54 @@ IAM_POLICY: dict[str, IamPolicyRow] = {
         _M2_REQUIRED_ERROR_STATUSES,
         "CreateOrganizationInputV1",
     ),
+    "registry_list_organization_coverage_v1": (
+        "cookie_or_bearer",
+        "read:accounts",
+        "OrganizationProviderCoverageReadPortV1",
+        "safe_query_repeat",
+        _COOKIE_BEARER,
+        "200",
+        "OrganizationCoverageSnapshotWireV1",
+        "SafeProblemV1",
+        _M2_REQUIRED_ERROR_STATUSES,
+        None,
+    ),
+    "registry_get_organization_coverage_v1": (
+        "cookie_or_bearer",
+        "read:accounts",
+        "OrganizationProviderCoverageReadPortV1",
+        "safe_query_repeat",
+        _COOKIE_BEARER,
+        "200",
+        "OrganizationCoverageResourceV1",
+        "SafeProblemV1",
+        _M2_REQUIRED_ERROR_STATUSES,
+        None,
+    ),
+    "registry_set_organization_coverage_v1": (
+        "cookie_or_bearer",
+        "write:accounts",
+        "OrganizationProviderCoverageWritePortV1",
+        "replay_safe_representation",
+        _COOKIE_CSRF_BEARER,
+        "200",
+        "OrganizationCoverageWireV1",
+        "SafeProblemV1",
+        _M2_REQUIRED_ERROR_STATUSES,
+        "SetOrganizationCoverageInputV1",
+    ),
+    "registry_revoke_organization_coverage_v1": (
+        "cookie_or_bearer",
+        "write:accounts",
+        "OrganizationProviderCoverageWritePortV1",
+        "replay_safe_representation",
+        _COOKIE_CSRF_BEARER,
+        "200",
+        "OrganizationCoverageWireV1",
+        "SafeProblemV1",
+        _M2_REQUIRED_ERROR_STATUSES,
+        None,
+    ),
     "registry_get_organization_v1": (
         "cookie_or_bearer",
         "read:accounts",
@@ -1350,7 +1420,7 @@ def validate_iam_openapi(document: object) -> tuple[str, ...]:
     if (
         actual != IAM_OPERATIONS
         or set(IAM_POLICY) != set(IAM_OPERATIONS.values())
-        or len(identifiers) != 74
+        or len(identifiers) != 78
     ):
         raise OpenApiGenerationError("operation_surface_invalid")
 
