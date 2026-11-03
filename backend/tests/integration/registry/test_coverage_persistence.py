@@ -19,6 +19,9 @@ from agentmonitor.adapters.persistence._shared.sqlite.schema.compatibility impor
     InspectSchemaCompatibilityV1,
     application_schema_range,
 )
+from agentmonitor.adapters.persistence.registry.sqlite.coverage import (
+    SqliteOrganizationProviderCoverageRepositoryV1,
+)
 from agentmonitor.adapters.persistence.registry.sqlite.credential_bindings import (
     SqliteCloudCredentialRegistryV1,
 )
@@ -135,6 +138,47 @@ def _command(
     )
 
 
+def _initial_version(
+    repository: SqliteOrganizationProviderCoverageRepositoryV1,
+    account: AccountViewV1,
+) -> int:
+    """Preserve actual owner outcomes; never replace a different declaration."""
+    assert account.organization_id is not None
+    snapshot = repository.read_coverage(
+        OrganizationProviderCoverageSelectionV1(
+            (account.organization_id,), account.provider_key
+        )
+    )
+    assert snapshot.completeness == "complete", "coverage_baseline_unavailable"
+    if not snapshot.items:
+        return 0
+    existing = snapshot.items[0]
+    assert (
+        existing.outcome == "account"
+        and existing.account_id == account.account_id
+        and existing.account_organization_id == account.organization_id
+        and existing.provenance == "owner_asserted"
+    ), "existing_owner_outcome_differs"
+    return existing.record_version
+
+
+def _history(
+    reference: DatabaseRefV1, account: AccountViewV1
+) -> tuple[tuple[object, ...], ...]:
+    assert account.organization_id is not None
+    with open_sqlite_database(reference, "runtime_read_only") as handle:
+        with handle.connect() as connection:
+            return tuple(
+                tuple(row)
+                for row in connection.exec_driver_sql(
+                    "SELECT * FROM reg_organization_provider_coverage_revision "
+                    "WHERE organization_id=? AND provider_key=? "
+                    "ORDER BY record_version",
+                    (account.organization_id.value, account.provider_key),
+                ).all()
+            )
+
+
 def test_real_own_account_set_replay_revoke_and_history(
     actual_registry: ActualCoverageRegistry,
 ) -> None:
@@ -145,12 +189,16 @@ def test_real_own_account_set_replay_revoke_and_history(
     reference, registry, account, graph = actual_registry
     assert account.organization_id is not None
     repository = SqliteOrganizationProviderCoverageRepositoryV1(reference)
-    command = _command(account, graph)
+    baseline_version = _initial_version(repository, account)
+    command = _command(account, graph, baseline_version)
     selected = OrganizationProviderCoverageSelectionV1(
         (account.organization_id,), "ollama"
     )
-    assert repository.read_coverage(selected).items == ()
+    baseline_history = _history(reference, account)
+    baseline = repository.read_coverage(selected).items
     first = repository.set_coverage(command)
+    assert first.record_version == baseline_version + 1
+    assert not baseline or first.coverage_id == baseline[0].coverage_id
     assert first.provenance == "owner_asserted"
     assert repository.set_coverage(command) == first
     assert repository.read_coverage(selected).items == (first,)
@@ -169,20 +217,24 @@ def test_real_own_account_set_replay_revoke_and_history(
     with pytest.raises(RegistryCommandConflictV1, match="registry_replay_stale"):
         repository.set_coverage(command)
     again = repository.set_coverage(_command(account, graph, revoked.record_version))
-    assert again.coverage_id == first.coverage_id and again.record_version == 3
+    assert again.coverage_id == first.coverage_id
+    assert again.record_version == baseline_version + 3
+    history = _history(reference, account)
+    assert history[: len(baseline_history)] == baseline_history
+    assert len(history) == len(baseline_history) + 3
     with open_sqlite_database(reference, "runtime_read_only") as handle:
         with handle.connect() as connection:
             versions = (
                 connection.exec_driver_sql(
                     "SELECT record_version "
                     "FROM reg_organization_provider_coverage_revision "
-                    "WHERE coverage_id=? ORDER BY record_version",
-                    (first.coverage_id.value,),
+                    "WHERE coverage_id=? AND record_version>? ORDER BY record_version",
+                    (first.coverage_id.value, baseline_version),
                 )
                 .scalars()
                 .all()
             )
-    assert versions == [1, 2, 3]
+    assert versions == [baseline_version + offset for offset in (1, 2, 3)]
     current_account = registry.get_account(account.account_id)
     assert current_account is not None
     assert current_account.record_version == account.record_version
@@ -198,7 +250,8 @@ def test_real_account_version_and_replay_conflicts_do_not_write(
     reference, registry, account, graph = actual_registry
     assert account.organization_id is not None
     repository = SqliteOrganizationProviderCoverageRepositoryV1(reference)
-    command = _command(account, graph)
+    baseline_version = _initial_version(repository, account)
+    command = _command(account, graph, baseline_version)
     with pytest.raises(
         RegistryCommandConflictV1, match="registry_account_version_conflict"
     ):
@@ -225,7 +278,9 @@ def test_real_reassignment_and_return_never_revive_coverage(
     reference, registry, account, graph = actual_registry
     assert account.organization_id is not None
     repository = SqliteOrganizationProviderCoverageRepositoryV1(reference)
-    first = repository.set_coverage(_command(account, graph))
+    first = repository.set_coverage(
+        _command(account, graph, _initial_version(repository, account))
+    )
     moved = registry.edit_account(
         EditAccountCommandV1(
             account.account_id,
@@ -265,7 +320,9 @@ def test_real_account_archive_restore_keeps_invalidation(
     reference, registry, account, graph = actual_registry
     assert account.organization_id is not None
     repository = SqliteOrganizationProviderCoverageRepositoryV1(reference)
-    first = repository.set_coverage(_command(account, graph))
+    first = repository.set_coverage(
+        _command(account, graph, _initial_version(repository, account))
+    )
     archived = registry.edit_account(
         EditAccountCommandV1(
             account.account_id,
@@ -303,7 +360,9 @@ def test_real_rename_and_monitoring_edits_preserve_owner_assertion(
     reference, registry, account, graph = actual_registry
     assert account.organization_id is not None
     repository = SqliteOrganizationProviderCoverageRepositoryV1(reference)
-    first = repository.set_coverage(_command(account, graph))
+    first = repository.set_coverage(
+        _command(account, graph, _initial_version(repository, account))
+    )
     renamed = registry.edit_account(
         EditAccountCommandV1(
             account.account_id,
@@ -355,7 +414,9 @@ def test_real_invalidating_transaction_rolls_back_account_and_history(
     reference, registry, account, graph = actual_registry
     assert account.organization_id is not None
     repository = SqliteOrganizationProviderCoverageRepositoryV1(reference)
-    first = repository.set_coverage(_command(account, graph))
+    first = repository.set_coverage(
+        _command(account, graph, _initial_version(repository, account))
+    )
     with pytest.raises(
         RegistryCommandConflictV1, match="registry_coverage_timestamp_conflict"
     ):
@@ -394,11 +455,12 @@ def test_real_same_request_concurrent_writers_produce_one_revision(
 
     reference, _registry, account, graph = actual_registry
     repository = SqliteOrganizationProviderCoverageRepositoryV1(reference)
-    command = _command(account, graph)
+    baseline_version = _initial_version(repository, account)
+    command = _command(account, graph, baseline_version)
     with ThreadPoolExecutor(max_workers=2) as executor:
         writes = tuple(
             executor.submit(repository.set_coverage, command) for _ in range(2)
         )
         results = tuple(write.result() for write in writes)
     assert results[0] == results[1]
-    assert results[0].record_version == 1
+    assert results[0].record_version == baseline_version + 1
