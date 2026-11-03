@@ -176,3 +176,38 @@ The check only navigates its own authenticated tab and reads the actual API/DOM;
 it preserves the owner tabs and performs no registry or provider mutation.
 Full current-revision acceptance still requires canonical execution and the
 previously documented missing environment/provider outcomes.
+
+## Current deployed canonical result — 14:10 UTC
+
+`AUTO-M6-CURRENT-UPDATE` successfully activated
+`894f092ebcdb5beaa545eaf185a6fead14b0b234` on schema v1_0718 and restored the
+original restart policy. The subsequent `AUTO-M6-EXIT` returned **3**, with no
+failed criterion and no completion receipt. Build, local admission, quality,
+documentation and planning all passed. Independent review of the browser
+correction found no weakened assertion or blocking issue.
+
+- **Passed:** M6-A01, M6-A06, M6-A08 and ST-OLL-001.
+- **Not Run / incomplete:** M6-A02 (second local host not observed), M6-A03
+  (required owner-confirmed cloud scope missing), M6-A04/A05/A09 (depend on that
+  missing scope), M6-A07 (no current qualifying natural failure to observe
+  recovery), and M6-A10 (technical completion and owner review still pending).
+- Real installed browser results all passed. One cloud target reconciled
+  current values, retained history and the official Usage display with the
+  same source lineage. The official comparison finished at 14:10:40 UTC and
+  used the actual 14:06:59 UTC provider observation. This is one account, not
+  evidence of the missing organization or a shared pool.
+- One Ollama 0.24.0 loopback host was observed at 14:10:27 UTC: zero installed
+  and zero loaded models. Two real process observations were present. Zero
+  configured alert targets were observed; no live alert lifecycle is claimed.
+- The earlier intermittent runtime admission failure did not recur in this
+  run; its underlying cause remains unresolved. The added diagnostics are not
+  represented as a behavioral fix. Existing Claude continuity limitations
+  above also remain unresolved.
+
+Retained private artifact:
+`.agentmonitor-local/m6-evidence/direct-894f092ebcdb5beaa545eaf185a6fead14b0b234-b4ec9f387c007935.json`.
+SHA-256: `b4ec9f387c007935510c8eaadfad4aed3c82bdab52e002bd0dbbae12d56b9679`.
+The documentation index and machine-readable V1 implementation overlay now
+reflect this in-progress state instead of claiming M6 has never started.
+This documentation-only follow-up does not change the deployed code revision
+or convert the incomplete canonical result into a pass.
