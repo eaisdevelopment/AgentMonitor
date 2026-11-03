@@ -96,8 +96,7 @@ def test_real_v1_0717_receipt_survives_verified_v1_0718_upgrade(
         with database.connect() as connection:
             assert (
                 connection.exec_driver_sql(
-                    "SELECT count(*) FROM "
-                    "reg_credential_binding_verification_history"
+                    "SELECT count(*) FROM reg_credential_binding_verification_history"
                 ).scalar_one()
                 == 0
             )

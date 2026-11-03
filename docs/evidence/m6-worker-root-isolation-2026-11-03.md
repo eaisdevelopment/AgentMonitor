@@ -32,7 +32,7 @@ markers and unknown/lookalike units in the current root namespace fail closed.
 Unmarked global legacy units are never stopped or adopted by discovery.
 
 The marker read and size checks use the computed maximum of the fixed supported
-format: 131 bytes including newline. Oversized and malformed content remains
+format: 132 bytes including newline (131 bytes for the unit name). Oversized and malformed content remains
 rejected. No public contract, database schema, API, dependency or credential
 format changed.
 

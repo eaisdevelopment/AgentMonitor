@@ -469,9 +469,7 @@ def _cutover_engine(
         barrier.exec_driver_sql("BEGIN IMMEDIATE")
         validate_m5_service_activation_lock_v1(shared_lock)
         retained_baseline = (
-            baseline
-            if unit == _FIXED_UNIT and baseline != _FIXED_BASELINE
-            else None
+            baseline if unit == _FIXED_UNIT and baseline != _FIXED_BASELINE else None
         )
         if unit == _FIXED_UNIT:
             _fixed_unit_preflight(
@@ -1011,9 +1009,10 @@ def cutover() -> str:
         active_override = _FIXED_OVERRIDE.read_bytes()
         if active_override not in accepted_overrides:
             raise CutoverError("target_unit_changed")
-        baseline_private = retained_baseline or active_override == _candidate_override(
-            _FIXED_BASELINE
-        ).encode()
+        baseline_private = (
+            retained_baseline
+            or active_override == _candidate_override(_FIXED_BASELINE).encode()
+        )
         _fixed_unit_preflight(
             candidate_revision,
             candidate_build,
@@ -1921,9 +1920,7 @@ def restore_interrupted_migration() -> str:
                     candidate_build,
                     guarded=True,
                     private_baseline=baseline_private,
-                    update_baseline=baseline
-                    if baseline != _FIXED_BASELINE
-                    else None,
+                    update_baseline=baseline if baseline != _FIXED_BASELINE else None,
                 )
             elif not baseline_selected and current == candidate_override:
                 _fixed_unit_preflight(
@@ -1931,9 +1928,7 @@ def restore_interrupted_migration() -> str:
                     candidate_build,
                     guarded=True,
                     candidate=True,
-                    update_baseline=baseline
-                    if baseline != _FIXED_BASELINE
-                    else None,
+                    update_baseline=baseline if baseline != _FIXED_BASELINE else None,
                 )
             else:
                 raise CutoverError("restore_recovery_override_changed")
