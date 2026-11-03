@@ -453,11 +453,16 @@ def classify_direct_m6_evidence_v1(
         facts.local_admission, facts.local_inventory, facts.database_snapshot
     )
     if local.status == "passed" and (
-        facts.registered_local_installations < 2
+        facts.registered_local_installations < 1
         or facts.observed_local_installations < facts.registered_local_installations
-        or facts.observed_model_hosts < 2
+        or facts.observed_model_hosts != facts.registered_local_installations
     ):
-        outcomes["M6-A02"] = _missing("second_local_host_not_observed", local)
+        outcomes["M6-A02"] = _missing("registered_local_host_not_observed", local)
+    elif local.status == "passed" and not any(
+        host.installed_model_count > 0 or host.loaded_model_count > 0
+        for host in facts.model_host_evidence
+    ):
+        outcomes["M6-A02"] = _missing("real_model_present_not_observed", local)
     else:
         outcomes["M6-A02"] = local
 

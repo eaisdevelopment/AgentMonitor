@@ -211,3 +211,75 @@ The documentation index and machine-readable V1 implementation overlay now
 reflect this in-progress state instead of claiming M6 has never started.
 This documentation-only follow-up does not change the deployed code revision
 or convert the incomplete canonical result into a pass.
+
+## Remaining implementation gaps found by scope audit
+
+The incomplete result above must not be described as only missing owner input.
+The initial audit at `894f092` found a host-scope contradiction and a cloud contract gap. The host contradiction is resolved by the subsequent owner-direction reconciliation below; it is not a current requirement for another machine:
+
+1. `auto_m6_exit._run_local_inventory` accepts one local inventory record and
+   returns one host. Its sole caller runs it once. Consequently A02's two-host
+   condition cannot pass through the current canonical producer, even with
+   another real machine available. The approved local slice intentionally
+   permits only the fixed loopback service. Model-present evidence on the owner-identified local host remains necessary.
+   If additional hosts are registered later, their transport/admission and
+   evidence collection need implementation; supplying an address alone would
+   not finish that additional path.
+2. A03 currently requires two credential-bound active targets. Its snapshot
+   counts organization scopes only through those targets. The written cloud
+   plan also allows actual shared relationships and explicitly unavailable
+   outcomes. Registry cloud membership currently represents only unresolved
+   relationships, so those alternatives have no adequate contract/evidence
+   path. Duplicating a key or inventing an account is not a solution. The
+   relationship/outcome contract and its real evidence producer remain work.
+
+A further pure-policy defect allowed two empty hosts to satisfy the required
+model-present scenario. The regression
+`test_two_empty_hosts_do_not_prove_the_required_model_present_scenario` failed
+with `passed` instead of `not_run`. The classifier now requires at least one
+actually reported installed or loaded model after checking the existing host
+coverage. It does not assume loaded means working, require a model on every
+host, or initiate inference. The positive pure input was corrected to contain
+an installed model; no constructed value crosses an I/O boundary.
+
+```bash
+python -B -m pytest tools/automation/test_m6_direct_evidence.py \
+  tools/automation/test_m6_exit.py \
+  tools/automation/test_m6_authoritative_evidence.py -q
+```
+
+Result: **46 passed**. This integration acceptance-policy correction preserves
+upstream failure states and existing contract/API versions; it adds no runtime,
+dependency, migration or secret handling. The already recorded deployed result
+at `894f092` remains historical and is not claimed to exercise this later
+policy correction. Shared/unavailable evidence remains incomplete. Additional-host transport is
+not provided by this local slice; the current owner-identified local source
+still needs a genuine model-present observation.
+
+### Resolution of the host-count contradiction
+
+The owner had already corrected the model location to **“this local machine”**
+and confirmed **“Ollama and model already available”**. The approved local plan
+retains that correction. Requiring an additional computer came from the older
+execution-plan assumption, not that owner direction. Execution-plan section 11
+and M6-A02 now explicitly reconcile this conflict: at least one real registered
+host, observation coverage for every registered host, and actual model presence.
+The required model-present check remains unproven by the current empty source.
+No remote access, download, model start or scope substitution was authorized or
+performed by this correction.
+
+The new pure single-host/model-present regression first failed `not_run` versus
+`passed`; the corrected classifier and updated bundle-reason assertion pass
+**47 tests** in the focused command above. Multiple registered hosts still
+require matching coverage, so a single observation cannot satisfy them. This
+removes the unreachable invented host count rather than manufacturing a second
+host. It does not resolve the cloud shared/unavailable representation gap or
+natural-recovery prerequisite.
+
+Independent review additionally reproduced a pure false pass when one empty
+registered host was accompanied by an extra unregistered model-present host.
+`test_extra_unregistered_host_cannot_supply_model_presence` failed `passed`
+versus `not_run`. The count-based coverage fence now requires exact equality
+between observed host evidence and registered installations, preventing that
+extra host from supplying acceptance. Final focused result: **48 passed**.
+This is policy evidence, not a claim of live model presence or remote transport.

@@ -115,7 +115,7 @@ The machine-readable [ticket catalog](m6-ticket-catalog-v1.json) is the source f
 - **Work:** Implement provider manifest and installation discovery with separate client/daemon versions, source and compatibility.
 - **Done when:** Each lane independently admits exact supported version/source; invalid lane fails before I/O; real installation produces provenance.
 - **Verification:** adapter pure policy tests; real installation test (to be defined).
-- **Evidence:** [local preview](../../evidence/m6-ollama-local-preview-2026-11-01.md); installation discovery is now wired and the real local admission passed at `9ac684c`; see the [current checkpoint](../../evidence/m6-delivery-checkpoint-2026-11-03.md). Populated-model and second-host acceptance remain pending.
+- **Evidence:** [local preview](../../evidence/m6-ollama-local-preview-2026-11-01.md); installation discovery is now wired and the real local admission passed at `9ac684c`; see the [current checkpoint](../../evidence/m6-delivery-checkpoint-2026-11-03.md). Populated-model acceptance on the owner-identified local machine remains pending; the earlier second-host assumption is reconciled in section 11 of the execution plan.
 
 ### M6-T009 — Implement local catalog and loaded-model observation
 

@@ -32,7 +32,7 @@ identity, process, history, alert, or validation requirements.
 
 | Item | Current evidence / assumption | Required action |
 |---|---|---|
-| Local server | This workstation: Ollama CLI/server 0.24.0; version, tags and ps respond; tags and ps returned zero models. | Preserve daemon. Verify empty-state. Owner reports an existing real local model on another machine; establish safe reachable read-only access and record its real version and loaded/installed state. Never install, load or stop a model as a test. |
+| Local server | This workstation: Ollama CLI/server 0.24.0; version, tags and ps respond; tags and ps returned zero models. | Preserve daemon. Verify empty-state. Owner subsequently identified this local machine as the model host; reconcile its actual endpoint and record real version and installed/loaded state. The earlier second-machine assumption is superseded. Never install, load or stop a model as a test. |
 | Cloud accounts | Owner states SDK and EAIS cloud accounts are available. Account role, identity relationship, plan type and key permissions are unverified. | Arrange one owner-guided official authorization or approved key setup per required account; no passwords or keys in chat. Record aliases/scope privately and sanitized outcomes once. |
 | Balance | Ollama documents `GET /api/balance` for included/purchased credits; legacy plan fields can be session/weekly limits. | Verify both real account types and authoritative UI; report actual variants, precision and sharing. No guessed ratios or resets. |
 | Usage | Ollama documents `GET /api/usage`, self/team scope, 24h/7d/30d and model grouping. | Discover role, latency, precision and extent; M7 owns comprehensive cost/budget workflows. Do not silently count shared team usage twice. |
@@ -56,7 +56,7 @@ Passed. Existing V1 criteria are contributions, not universal release claims.
 | ID | Observable acceptance | Evidence |
 |---|---|---|
 | M6-A01 | Ollama appears as a provider and can be added to existing organization/account administration without hardcoded account names. | Built dashboard, versioned API and real SQLite; `FR-ACC-001..005`, `AC-UI-002`. |
-| M6-A02 | The local service shows version, installed models and loaded models separately; a zero list is not an error, and loaded does not imply working. | Real local Ollama on both available machines, with sanitized version/time and read-only side-effect proof; `FR-DISC-001/003`, `AC-PROC-001/004`. |
+| M6-A02 | The local service shows version, installed models and loaded models separately; a zero list is not an error, and loaded does not imply working. | Real local Ollama on the owner-identified machine, including a genuine model-present observation and all registered host coverage, with sanitized version/time and read-only side-effect proof; `FR-DISC-001/003`, `AC-PROC-001/004`. |
 | M6-A03 | SDK and EAIS accounts or their actual team/shared relationship are identified with owner-confirmed, non-secret aliases; unavailable/ambiguous roles stay explicit. | Real owner-guided source check, per-account outcome, `AC-LIVE-003`; no need to enumerate every agent. |
 | M6-A04 | For each accessible account/scope, the native `balance` variant and timestamp are displayed and reconciled with the provider's authoritative view. Included and purchased balances and legacy windows remain distinct; team balance is not duplicated. | Real account/provider UI comparison with documented precision/lag; `AC-LIVE-005`, `FR-QUOTA-001/002/004/006`. No data or no documented access is explicitly unavailable/unsupported with evidence, not zero. |
 | M6-A05 | New real observations reach capacity history and appropriate configured alerts; no duplicate event or silent stale-as-current display. | Real source → M04 → M05 → API → built UI and real alert lifecycle as naturally available; `AC-HIST-001`, `AC-ALERT-002`. |
@@ -170,9 +170,9 @@ raise the reason and options then, instead of continuing silently for weeks.
 ## 7. Owner participation and decision checkpoints
 
 - **Now:** Owner has confirmed both SDK and EAIS cloud accounts and a real
-  local model elsewhere. We will not ask for credentials in chat or require a
-  list of every agent. The next practical need is identifying the model host
-  and whether its local Ollama endpoint is safely reachable; verify without
+  local model, subsequently identified as being on this machine. We will not ask for credentials in chat or require a
+  list of every agent. The next practical need is reconciling the identified local model
+  with the actual Ollama endpoint; verify without
   interrupting the host.
 - **Once during discovery:** owner uses official account UI/auth where
   necessary and confirms which organization/account is shown. Store no secret
@@ -235,3 +235,21 @@ evidence and the smallest fix. Other findings go into a separate follow-up
 list. At each checkpoint report completed ticket IDs, blocked IDs, hours used,
 forecast and the next deliverable; do not ask the owner to operate internal
 gates.
+
+## 11. Host clarification reconciled on 3 November 2026
+
+The owner answered the model-host question with **“this local machine”**, then
+confirmed **“Ollama and model already available”**. The approved local-service
+plan records that correction and permits the loopback source. This supersedes
+the earlier planning assumption that a second machine must exist. M6-A02
+therefore requires the identified local host and real model-present evidence,
+not an additional computer invented by planning. Every registered host still
+needs its own actual observations; one host cannot stand in for two registered
+hosts. Empty inventory remains valid operational data but does not establish
+the separate model-present scenario. Cloud scopes, process safety, recovery,
+history and all other M6 acceptance requirements are unchanged.
+
+This reconciliation uses existing owner direction, not a new approval or a
+waiver based on current empty data. The current source reports no models, so
+A02 remains unproven. See the [checkpoint](../../evidence/m6-delivery-checkpoint-2026-11-03.md)
+for the failing/passing pure-policy checks and real live limitations.

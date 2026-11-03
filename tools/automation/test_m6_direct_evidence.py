@@ -29,7 +29,7 @@ HOSTS = (
         "second_machine",
         "ollama_owner_configured_second_host",
         "1.2.3",
-        0,
+        1,
         0,
         "2026-11-02T12:00:00Z",
     ),
@@ -191,20 +191,45 @@ def test_real_boundary_failure_is_failed_not_absent() -> None:
     assert outcomes["ST-OLL-005"].status == "failed"
 
 
-def test_a_second_available_machine_is_required_for_local_acceptance() -> None:
+def test_every_registered_host_requires_local_inventory_evidence() -> None:
     outcomes = classify_direct_m6_evidence_v1(
         replace(
             _complete_facts(),
-            registered_local_installations=1,
-            observed_local_installations=1,
             observed_model_hosts=1,
             model_host_evidence=HOSTS[:1],
         )
     )
 
     assert outcomes["M6-A02"].status == "not_run"
-    assert outcomes["M6-A02"].reason_code == "second_local_host_not_observed"
+    assert outcomes["M6-A02"].reason_code == "registered_local_host_not_observed"
     assert outcomes["ST-OLL-002"].status == "not_run"
+
+
+def test_owner_identified_single_host_with_a_real_model_can_satisfy_a02() -> None:
+    outcomes = classify_direct_m6_evidence_v1(
+        replace(
+            _complete_facts(),
+            registered_local_installations=1,
+            observed_local_installations=1,
+            observed_model_hosts=1,
+            model_host_evidence=(replace(HOSTS[0], installed_model_count=1),),
+        )
+    )
+
+    assert outcomes["M6-A02"].status == "passed"
+
+
+def test_extra_unregistered_host_cannot_supply_model_presence() -> None:
+    outcomes = classify_direct_m6_evidence_v1(
+        replace(
+            _complete_facts(),
+            registered_local_installations=1,
+            observed_local_installations=1,
+        )
+    )
+
+    assert outcomes["M6-A02"].status == "not_run"
+    assert outcomes["M6-A02"].reason_code == "registered_local_host_not_observed"
 
 
 def test_no_alert_is_required_when_no_real_rule_targets_ollama() -> None:
@@ -217,6 +242,19 @@ def test_no_alert_is_required_when_no_real_rule_targets_ollama() -> None:
     )
 
     assert outcomes["M6-A05"].status == "passed"
+
+
+def test_two_empty_hosts_do_not_prove_the_required_model_present_scenario() -> None:
+    empty_hosts = tuple(
+        replace(host, installed_model_count=0, loaded_model_count=0) for host in HOSTS
+    )
+    outcomes = classify_direct_m6_evidence_v1(
+        replace(_complete_facts(), model_host_evidence=empty_hosts)
+    )
+
+    assert outcomes["M6-A02"].status == "not_run"
+    assert outcomes["M6-A02"].reason_code == "real_model_present_not_observed"
+    assert outcomes["ST-OLL-002"].status == "not_run"
 
 
 def test_missing_history_does_not_erase_a_reconciled_current_balance() -> None:
@@ -320,9 +358,9 @@ def test_direct_bundle_preserves_exact_not_run_reason() -> None:
     )
 
     assert evaluation.acceptance["M6-A02"] == "not_run"
-    assert "second_local_host_not_observed" not in evaluation.reason_codes
+    assert "real_model_present_not_observed" not in evaluation.reason_codes
     row = next(item for item in bundle["acceptance"] if item["id"] == "M6-A02")
-    assert row["reason_code"] == "second_local_host_not_observed"
+    assert row["reason_code"] == "real_model_present_not_observed"
 
 
 def test_direct_bundle_rejects_a_different_catalog_policy_digest() -> None:
