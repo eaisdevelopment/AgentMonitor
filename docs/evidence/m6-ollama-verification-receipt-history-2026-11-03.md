@@ -77,6 +77,18 @@ recorded. The helper is an explicit operator test, not an automatic provider
 request in a generic unit-test suite. It requires exactly one active target
 and an already signed-in local dashboard browser.
 
+After that successful run, the test was moved without changing its behavior to
+`backend/tests/live/ollama/verify_repeated_connection.py`. Its name keeps this
+explicit provider verification request out of generic `test_*.py` collection;
+explicit collection was checked without issuing another request. Run it when
+re-verification is the intended operator action, with the normal checkout tool
+environment available:
+
+```bash
+PYTHONPATH=backend/src backend/.venv/bin/python -B -m pytest -q \
+  backend/tests/live/ollama/verify_repeated_connection.py
+```
+
 The earlier isolated candidate had not exercised real supersession or the
 installed dispatcher. The installed run above now covers those boundaries;
 it does not establish the separate natural failure/recovery acceptance case.
