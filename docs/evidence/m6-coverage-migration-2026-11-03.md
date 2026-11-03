@@ -50,3 +50,25 @@ No installed database/service changes have been made. Root owns the routine
 catalog wording, OpenAPI/client regeneration and planning metadata updates.
 No fabricated coverage assertions were inserted; positive assertion/history
 behavior is the separately assigned M02 repository boundary.
+
+## Actual private installed-data upgrade
+
+`test_actual_private_0718_upgrade_preserves_registry_quota_and_history` passed
+in 32.55 seconds. It creates an owner-only copy using SQLite's read-only backup
+API, then compares M02 organization/account/installation projections, M05
+current quota and bounded 90-day history pages, and the 200 most recent M04
+runs through published read ports at one fixed real observation time. The
+canonical offline migration passed and these existing facts were unchanged.
+The final read-only schema inspection confirmed compatible 0719. The private
+copy is removed by the test finalizer; no live table was queried directly.
+
+The broader initial migration batch returned 52 passes and three failures:
+a missing explicit provider selection in the new test, an expected-owner list
+that had not yet gained the new M02 revision, and a disposable readiness test
+without built frontend assets. The first two test issues were corrected. The
+actual-copy check also initially used the offline inspector after published
+readers had opened WAL sidecars; the corrected post-read assertion uses the
+existing active read-only schema inspector, not new migration authority.
+The focused catalog test passed and strict mypy passed for compatibility and
+the two new migration test files. Asset preparation and disposable recovery
+verification remain the next bounded checks.

@@ -278,6 +278,7 @@ def test_catalog_and_revision_metadata_are_complete_and_immutable() -> None:
         "M04",
         "M04",
         "M02",
+        "M02",
     )
     ollama_admission = next(
         item for item in catalog.revisions if item.revision == "v1_0708"
