@@ -34,7 +34,7 @@ def ollama_cloud_probe_source() -> ProviderSourceV1:
         capability_id="subscription.quota",
         source_class="documented_api",
         stability="documented",
-        mechanism_version="1.0.5",
+        mechanism_version="1.0.4",
         credential_role="owner_supplied_api_key",
         side_effect_class="read_only",
         evidence_reference="ollama-balance-api-2026-11",

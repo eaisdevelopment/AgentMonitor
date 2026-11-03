@@ -37,15 +37,22 @@ Command (repository root, developer environment):
 PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=backend/src backend/.venv/bin/python -B -m pytest -q --tb=short backend/tests/live/ollama/test_balance_body_completion.py backend/tests/adapters/providers/ollama/test_cloud_balance_source_security.py backend/tests/adapters/providers/ollama/test_cloud_balance_source_policy.py backend/tests/adapters/providers/ollama/test_cloud_balance_status.py
 ```
 
-The cloud mechanism version advances from 1.0.4 to 1.0.5, changing its source
-fingerprint so earlier verification receipts cannot authorize the corrected
-mechanism. The provenance test first failed on 1.0.4 before this update.
-Source ID, public API, payload schema and database schema are unchanged.
+The first candidate advanced the cloud mechanism from 1.0.4 to 1.0.5; its
+provenance test first failed on 1.0.4 before that update. Subsequent independent
+review classified this as unnecessary versioning: the correction honors the
+existing complete-body semantics and changes no endpoint, parser/schema,
+authentication, response limit, retry policy or worker protocol. The fingerprint
+is a semantic-policy digest, not an executable hash. The corrected final
+classification therefore retains mechanism 1.0.4 and its existing fingerprint.
+No earlier successful verification receipt exists. Failed 1.0.5 attempts remain
+historical; no receipt is rewritten or accepted for a different semantic policy.
+Actual parser, protocol and policy changes still require versioning. Source ID,
+public API, payload schema and database schema are unchanged by this fix.
 
 ## Scope and remaining verification
 
 Requirements: FR-QUOTA-001/002, FR-COL-003..008; M6-A04/A07/A09.
-Affected source: `ollama.cloud.balance.v1`, mechanism 1.0.5;
+Affected source: `ollama.cloud.balance.v1`, mechanism 1.0.4;
 `OLLAMA-CLOUD-BALANCE-V1` and `ProviderQuotaInputV2@2` remain unchanged.
 Changes are confined to the M03 reader/provenance, their tests, and this record.
 No dependency, license, migration, provider-profile or credential-format change.
