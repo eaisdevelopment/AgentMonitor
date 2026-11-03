@@ -1,6 +1,6 @@
 # M6 ticket register
 
-**State: implementation in progress.** M6-T001 is done. Other implementation and verification tickets are in progress except M6-T003, whose real model-host evidence remains pending. See the [3 November delivery checkpoint](../../evidence/m6-delivery-checkpoint-2026-11-03.md) for deployed results and remaining work. The local adapter/API/dashboard candidate has narrow real-system evidence; the canonical M6 technical-exit orchestrator directly runs the available checks but does not yet have all required real outcomes, M6-A10 remains pending, and cloud work remains unfinished.
+**State: implementation in progress.** M6-T001 and M6-T002 are done. Other implementation and verification tickets are in progress except M6-T003, whose real model-host evidence remains pending. See the [3 November delivery checkpoint](../../evidence/m6-delivery-checkpoint-2026-11-03.md) for deployed results and remaining work. The local adapter/API/dashboard candidate has narrow real-system evidence; the canonical M6 technical-exit orchestrator directly runs the available checks but does not yet have all required real outcomes, M6-A10 remains pending, and cloud work remains unfinished.
 
 The machine-readable [ticket catalog](m6-ticket-catalog-v1.json) is the source for the IDs and links below. Validate it with `python3 tools/planning/validate_m6_tickets.py --stage plan`. The validator rejects a completed ticket whose prerequisite is unfinished. It does not verify the substance of linked evidence or establish milestone completion. See the [execution plan](m6-execution-plan-2026-10-31.md) for the acceptance criteria M6-A01–M6-A10, assumptions, scope control and risks.
 
@@ -42,14 +42,14 @@ The machine-readable [ticket catalog](m6-ticket-catalog-v1.json) is the source f
 
 ### M6-T002 — Inventory local Ollama installation
 
-- **Status / owner:** in progress / A03 adapter
+- **Status / owner:** done / A03 adapter
 - **Story:** ST-OLL-001; **depends on:** M6-T001.
 - **Requirements:** FR-ACC-005, FR-DISC-008.
 - **Acceptance:** AC-LIVE-004; M6: M6-A02.
 - **Work:** Record real CLI and daemon version, trusted host, process ownership and response bounds without profile or agent mutation.
 - **Done when:** Local version and availability have sanitized real evidence; missing or mismatched service is explicit.
 - **Verification:** ollama --version.
-- **Evidence:** [preliminary local observations](../../evidence/m6-baseline-discovery-2026-11-01.md); formal M0 preflight/capability admission is not yet evidenced.
+- **Evidence:** [local installation and canonical admission results](../../evidence/m6-delivery-checkpoint-2026-11-03.md): real CLI/server 0.24.0, present installation, and AUTO-M6-LOCAL-ADMIT passed at `9ac684c`; model-present host evidence remains M6-T003.
 
 ### M6-T003 — Verify model-host read-only access
 

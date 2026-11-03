@@ -48,3 +48,32 @@ Related evidence: [first cloud response](m6-ollama-body-completion-2026-11-03.md
 [native USD UI](m6-native-usd-account-ui-2026-11-03.md),
 [registry revision correction](m6-ollama-registry-revision-admission-2026-11-03.md),
 [pre-dispatch recovery](m6-ollama-pre-dispatch-recovery-2026-11-03.md).
+
+## Later observed progress
+
+The source/collection lease correction was deployed at `9ac684c`. The service
+itself collected a new successful cloud reading at **13:04:31 UTC**, without an
+operator-triggered provider request. Both USD windows became fresh and the
+actual account UI reported monitoring scheduled. The native-USD browser check
+passed again with those fresh readings. This is one automatic success, not
+yet proof of uninterrupted subsequent cycles.
+
+The bounded local admission command was rerun once on an isolated clean
+`9ac684c` checkout. `AUTO-M6-LOCAL-ADMIT` passed: **111 tests, zero failures,
+errors or skips**, plus real authenticated API and built-browser checks.
+Its source/test digest was
+`0f915a6fd9378d38bc3ade3e3fb46e05319c33cb4cd39a5958b571af14681597`.
+Together with the real version/installation observations, this completes
+M6-T002's local-installation inventory. It does not complete the separate
+model-host task or full M6 gate.
+
+Following that passing local test run, the live cloud supervisor reported
+`worker_unavailable`. Its global worker-name discovery crosses data-root
+boundaries; an isolated two-supervisor regression and namespace correction
+are being prepared. Thus sustained scheduled collection is still under test.
+
+The current-history evidence query also had an off-by-one-microsecond range
+error. After the [bounded-range correction](m6-history-snapshot-bound-2026-11-03.md),
+the actual read-only snapshot passed and reported one verified, current cloud
+target with matching history lineage. No observation was manufactured to
+make that check pass.

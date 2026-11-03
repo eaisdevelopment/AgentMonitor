@@ -57,7 +57,7 @@
       "id": "M6-T002",
       "story": "ST-OLL-001",
       "title": "Inventory local Ollama installation",
-      "status": "in_progress",
+      "status": "done",
       "owner": "A03 adapter",
       "depends_on": [
         "M6-T001"
@@ -82,7 +82,8 @@
         "ollama --version"
       ],
       "evidence": [
-        "docs/evidence/m6-baseline-discovery-2026-11-01.md"
+        "docs/evidence/m6-baseline-discovery-2026-11-01.md",
+        "docs/evidence/m6-delivery-checkpoint-2026-11-03.md"
       ]
     },
     {
