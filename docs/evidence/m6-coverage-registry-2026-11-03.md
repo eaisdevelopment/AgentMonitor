@@ -95,3 +95,26 @@ versions. Schema/recovery evidence remains with the migration owner. Root owns
 combined composition, authenticated HTTP/generated client/UI, canonical scope
 evidence consumption, metadata synchronization, deployment and full M6 gate.
 Those boundaries remain unverified by this lane.
+
+## Structural boundary correction
+
+Root integration found four canonical import violations after the first
+handoff: a persistence-module cycle and a direct adapter import of the new
+domain policy. `python3 tooling/foundation/check_boundaries.py .` reproduced
+all four. The correction extracts unchanged revision/event primitives into
+`registry_transaction.py`, and record/history/invalidation operations into
+`coverage_records.py`. Both registry repositories depend on these independent
+modules; neither imports the other. No cycle rule is relaxed.
+
+The pure reference policy is exposed through the owning application module
+`modules.registry.application.coverage`. Root approved admitting exactly
+`coverage_reference_failure` in that module's application-symbol allowlist.
+That shared scanner edit is root-owned. The isolated canonical rerun reports
+one remaining violation for this not-yet-integrated metadata and **zero cycle
+violations**. Combined boundary Green is required after root integration;
+it is not claimed by the isolated result.
+
+After the structural extraction, the combined seven actual-copy scenarios and
+18 policy/registry regressions passed together: **25 passed in 68.65 seconds**.
+Strict mypy passed five changed production files, Ruff passed, and the canonical
+documentation check passed for 295 Markdown files.

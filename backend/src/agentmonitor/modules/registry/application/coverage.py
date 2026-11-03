@@ -9,6 +9,9 @@ from agentmonitor.contracts.registry_coverage_v1 import (
     RevokeOrganizationProviderCoverageCommandV1,
     SetOrganizationProviderCoverageCommandV1,
 )
+from agentmonitor.modules.registry.domain.coverage import (
+    coverage_reference_failure as coverage_reference_failure,
+)
 
 
 class ReadOrganizationProviderCoverageV1:
