@@ -34,3 +34,18 @@ linking the existing development tools into the isolated checkout; the initial
 attempt without those tools failed its local control prerequisite. These
 results do not establish cloud onboarding, cloud balances, history, or full
 M6 acceptance.
+
+On deployed `3bb38f6`, the owner-authenticated browser check passed the exact
+revision check but initially failed `ollama_account_form_unavailable` because
+it checked the Provider control immediately after the Accounts heading,
+before the registry response had rendered the form. The corrected test waits
+up to 15 seconds for the real Provider control; it does not supply or replace
+any API data. The browser connection disappeared during the first rerun, so
+that attempt remained Not Run. Reopening the same dedicated browser profile
+retained the owner's session without reading credentials. The next run passed
+account-form availability, process visibility and dashboard continuity
+(including the product carousel, six viewport sizes, reduced motion and
+keyboard focus). Cloud capacity and history remained Not Run with
+`real_ollama_accounts_unavailable`; the script exited 3 rather than claiming a
+full pass. This used the corrected local test script against the exact deployed
+`3bb38f6` application, without registry mutations.

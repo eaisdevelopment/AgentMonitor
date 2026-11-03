@@ -112,3 +112,17 @@ change. Independent review, integration into the current M6 candidate,
 deployment through the existing reviewed update path, and the authenticated
 version API/browser witness remain required before `M6-A10` or M6 completion
 can be claimed.
+
+## Integrated deployment witness
+
+The correction was integrated as `3bb38f6` and deployed through
+`AUTO-M6-CURRENT-UPDATE`, which passed its limited operational scope. The
+service remained active with `Restart=on-failure`; local and LAN HTTP checks
+returned 200. The real owner-authenticated M6 browser check then passed its
+exact running-revision comparison through `/api/v1/operations/versions`.
+The previous `dashboard_revision_unavailable` result did not recur.
+
+The same browser check passed account-form availability, Ollama process
+visibility and dashboard continuity. Cloud capacity and history remained
+Not Run (`real_ollama_accounts_unavailable`). This is deployed revision
+evidence, not a passing full M6 gate.

@@ -309,7 +309,8 @@ try {
   await page.getByRole("button", { name: "Accounts", exact: true }).click();
   await page.getByRole("heading", { name: "Accounts", exact: true }).waitFor();
   const providerInput = page.getByLabel("Provider", { exact: true });
-  if (!await providerInput.isVisible()
+  const accountFormVisible = await providerInput.waitFor({ state: "visible", timeout: 15_000 }).then(() => true, () => false);
+  if (!accountFormVisible
       || !await page.locator('datalist#provider-options option[value="ollama"]').count()) {
     setResult("account_admin", "failed", "ollama_account_form_unavailable");
     setResult("cloud_capacity", "failed", "ollama_account_form_unavailable");
