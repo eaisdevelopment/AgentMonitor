@@ -48,6 +48,14 @@ REGISTRY_TABLES = {
     "reg_account_configuration_reference",
     "reg_command_receipt",
     "reg_event_outbox",
+    "reg_credential_binding_state",
+    "reg_credential_binding",
+    "reg_provider_access_target",
+    "reg_cloud_monitoring_target",
+    "reg_credential_binding_verification",
+    "reg_credential_binding_verification_history",
+    "reg_organization_provider_coverage",
+    "reg_organization_provider_coverage_revision",
 }
 
 
@@ -57,7 +65,7 @@ def _database(tmp_path: Path) -> DatabaseRefV1:
     return reference
 
 
-def test_v1_0200_through_v1_0204_create_owned_schema_without_rows(
+def test_current_registry_migrations_create_owned_schema_without_rows(
     tmp_path: Path,
 ) -> None:
     """M02-DB-001/DB-MIG-001: current chain preserves empty M02 schema."""

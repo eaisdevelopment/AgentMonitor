@@ -866,6 +866,20 @@ class SqliteRegistryRepositoryV1:
                             command.expected_version,
                         ),
                     )
+                    if command.action == "archive":
+                        from agentmonitor.adapters.persistence.registry.sqlite.coverage import (
+                            invalidate_coverage_in_transaction,
+                        )
+
+                        invalidate_coverage_in_transaction(
+                            connection,
+                            organization_id=command.organization_id.value,
+                            reason="organization_archived",
+                            revision=revision,
+                            principal_id=command.principal_id.value,
+                            command_id=command.command_id.value,
+                            instant=instant,
+                        )
                     _append_change(
                         connection,
                         subject_type="organization",
@@ -1387,6 +1401,27 @@ class SqliteRegistryRepositoryV1:
                             command.expected_version,
                         ),
                     )
+                    if command.action == "archive" or (
+                        command.action == "assign"
+                        and organization_id != row["organization_id"]
+                    ):
+                        from agentmonitor.adapters.persistence.registry.sqlite.coverage import (
+                            invalidate_coverage_in_transaction,
+                        )
+
+                        invalidate_coverage_in_transaction(
+                            connection,
+                            account_id=command.account_id.value,
+                            reason=(
+                                "account_archived"
+                                if command.action == "archive"
+                                else "account_reassigned"
+                            ),
+                            revision=revision,
+                            principal_id=command.principal_id.value,
+                            command_id=command.command_id.value,
+                            instant=instant,
+                        )
                     _append_change(
                         connection,
                         subject_type="account",
