@@ -85,7 +85,7 @@ were absent. The dashboard itself remained active and returned HTTP 200.
 
 | Category | Exact remaining action |
 |---|---|
-| Engineering verification | Run the final canonical check for the integrated corrections and record its actual result. |
+| Engineering verification | The combined check below ran after all identified corrections; no additional engineering defect was reported by that run. Preserve the remaining live prerequisites instead of adding scope. |
 | Installed browser | Restore the expired owner session and rerun connection-refresh/current-balance/history verification against the deployed revision. |
 | SDK scope | Owner adds/selects the actual account or declares the actual coverage through the dashboard. Knowing the account email is not an implementation prerequisite. No manual fabricated record is permitted. |
 | Model-present observation | Observe the actual model-present endpoint without loading/downloading/stopping a model. The currently approved fixed loopback source reports empty installed/loaded lists. |
@@ -96,3 +96,27 @@ Missing external observations constrain the associated acceptance claims;
 they do not justify stopping independently executable engineering work. The
 ticket register remains in progress where its dependencies or live criteria
 are not closed. Previously supplied approvals and account outcomes remain valid.
+
+## Final combined run for this correction batch
+
+The unchanged-schema update passed for deployed revision
+`5839f05e029005d72cff89ddba571b4794d11482`. On that clean revision,
+`AUTO-M6-EXIT` exited **3**, with overall **Not Run**, no Failed outcomes and
+no completion receipt. Build, local Ollama admission, static quality,
+documentation and planning all passed. ST-OLL-001 passed; the remaining Story
+and M6 acceptance outcomes retain unavailable live prerequisites. This does
+not erase earlier real results or convert unavailable checks into passes.
+
+The command retained
+`.agentmonitor-local/m6-evidence/direct-5839f05e029005d72cff89ddba571b4794d11482-d68ec1a77d922a05.json`,
+SHA-256 `d68ec1a77d922a0547ffb48531115d1f56bfc1d137029447285c4fd7df829ada`.
+Its real database snapshot and source/security checks passed. One verified
+cloud target still had current balance and matching history; no configured
+Ollama alert target or natural recovery was observed. Both loopback and the
+configured LAN address returned HTTP 200 after deployment. The shared browser
+still required sign-in, so installed connection-refresh Green and the full
+authenticated comparison remain unexecuted on this revision.
+
+This final evidence addition is documentation only. The exact deployed and
+checked implementation remains `5839f05`; it does not claim that a later
+documentation commit has been deployed or independently reverified.
