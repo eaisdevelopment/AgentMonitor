@@ -590,6 +590,8 @@ class OllamaCloudWorkerSupervisorV1:
         try:
             try:
                 self._lock_fd = self._acquire_lock()
+            except BlockingIOError:
+                return "worker_busy"
             except (OSError, ValueError):
                 self._quarantined = True
                 return "quarantined"

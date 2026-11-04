@@ -1,6 +1,7 @@
 """Exercise the real unadmitted local worker without a provider request."""
 
 import asyncio
+import fcntl
 import os
 import subprocess
 import sys
@@ -31,6 +32,47 @@ def _test_runtime_environment() -> dict[str, str]:
 def test_real_unadmitted_worker_does_not_create_database(tmp_path: Path) -> None:
     worker = OllamaCloudWorkerSupervisorV1(tmp_path)
     assert asyncio.run(worker.run_once()) == "not_admitted"
+    assert not (tmp_path / "agentmonitor.db").exists()
+
+
+def test_real_lock_contention_is_busy_and_recovers_without_restart(
+    tmp_path: Path,
+) -> None:
+    worker = OllamaCloudWorkerSupervisorV1(tmp_path)
+    lock = tmp_path / ".ollama-cloud-worker.lock"
+    descriptor = os.open(lock, os.O_CREAT | os.O_EXCL | os.O_RDWR, 0o600)
+    try:
+        fcntl.flock(descriptor, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        assert not worker.is_available()
+        assert asyncio.run(worker.run_once()) == "worker_busy"
+        assert asyncio.run(worker.run_once()) == "worker_busy"
+        assert worker.last_unit == ""
+        assert worker._lock_fd is None and worker._root_fd is None
+        assert not worker._running
+    finally:
+        os.close(descriptor)
+
+    assert worker.is_available()
+    assert lock.stat().st_size == 0
+    assert not (tmp_path / "agentmonitor.db").exists()
+
+
+def test_real_unsafe_contended_lock_still_quarantines(tmp_path: Path) -> None:
+    worker = OllamaCloudWorkerSupervisorV1(tmp_path)
+    lock = tmp_path / ".ollama-cloud-worker.lock"
+    descriptor = os.open(lock, os.O_CREAT | os.O_EXCL | os.O_RDWR, 0o600)
+    try:
+        os.fchmod(descriptor, 0o644)
+        fcntl.flock(descriptor, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        assert asyncio.run(worker.run_once()) == "quarantined"
+        assert worker.last_unit == ""
+        assert worker._lock_fd is None and worker._root_fd is None
+        os.fchmod(descriptor, 0o600)
+    finally:
+        os.close(descriptor)
+
+    assert not worker.is_available()
+    assert asyncio.run(worker.run_once()) == "quarantined"
     assert not (tmp_path / "agentmonitor.db").exists()
 
 
@@ -297,7 +339,7 @@ def test_real_supervisors_serialize_unit_startup(tmp_path: Path) -> None:
         first = OllamaCloudWorkerSupervisorV1(tmp_path)
         second = OllamaCloudWorkerSupervisorV1(tmp_path)
         results = await asyncio.gather(first.run_once(), second.run_once())
-        assert sorted(results) == ["not_admitted", "quarantined"]
+        assert sorted(results) == ["not_admitted", "worker_busy"]
         assert bool(first.last_unit) != bool(second.last_unit)
 
     asyncio.run(exercise())
@@ -489,7 +531,7 @@ def test_independent_real_processes_serialize_unit_startup(tmp_path: Path) -> No
                     .strip()
                 )
                 assert await asyncio.wait_for(process.wait(), 5) == 0
-            assert sorted(results) == ["not_admitted", "quarantined"]
+            assert sorted(results) == ["not_admitted", "worker_busy"]
         finally:
             for process in processes:
                 if process.returncode is None:

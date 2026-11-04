@@ -18,7 +18,7 @@ Validate with `python3 tools/planning/validate_m6_tickets.py --stage plan`. Plan
 | M6-T011 | ST-OLL-004 | Map real cloud balance and legacy windows | M6-T005, M6-T006, M6-T010 |
 | M6-T012 | ST-OLL-004 | Persist capacity history and alert events | M6-T011 |
 | M6-T014 | ST-OLL-005 | Implement dashboard views and provider filter | M6-T010, M6-T011 |
-| M6-T015 | ST-OLL-005 | Verify failure isolation and natural recovery | M6-T010, M6-T011, M6-T014 |
+| M6-T015 | ST-OLL-005 | Verify cloud failure isolation and recovery | M6-T010, M6-T011, M6-T014 |
 | M6-T016 | ST-OLL-005 | Security, compatibility and dependency review | M6-T006, M6-T010, M6-T011 |
 | M6-T017 | ST-OLL-005 | Run live end-to-end M6 scenarios | M6-T007, M6-T012, M6-T014, M6-T015, M6-T016 |
 | M6-T018 | ST-OLL-005 | Deploy, operate and close M6 | M6-T017 |
@@ -137,16 +137,18 @@ Original ticket-hour estimates remain historical planning inputs, not a remainin
 - **Verification:** npm --prefix frontend run typecheck; real dashboard browser checks (to be defined).
 - **Evidence:** [m6-ollama-local-preview-2026-11-01.md](../../../docs/evidence/m6-ollama-local-preview-2026-11-01.md), [m6-delivery-checkpoint-2026-11-03.md](../../../docs/evidence/m6-delivery-checkpoint-2026-11-03.md), [m6-native-usd-account-ui-2026-11-03.md](../../../docs/evidence/m6-native-usd-account-ui-2026-11-03.md), [m6-local-ollama-deferral-2026-11-04.md](../../../docs/plans/integration/m6-local-ollama-deferral-2026-11-04.md).
 
-### M6-T015 — Verify failure isolation and natural recovery
+### M6-T015 — Verify cloud failure isolation and recovery
 
 - **Status / owner:** in_progress / M6 integration steward
 - **Story:** ST-OLL-005; **depends on:** M6-T010, M6-T011, M6-T014.
 - **Requirements:** FR-COL-003, FR-COL-006.
 - **Acceptance:** AC-LIVE-007, AC-OPS-003; M6: M6-A07.
-- **Work:** Verify available real cloud auth/offline/throttle/recovery conditions without stopping a user service, and verify Claude/Codex/dashboard continuity. Local-daemon failure tests are deferred.
-- **Done when:** Observed conditions pass with source/time; absent natural conditions remain Blocked/Not Run without simulation.
-- **Verification:** real service and provider failure-isolation checks (to be defined).
+- **Work:** Verify real natural cloud failure/recovery or the approved single isolated-network collector request followed by normal scheduled recovery, with Claude/Codex/dashboard continuity. No account configuration, user-agent or host-network changes. Local-daemon tests remain deferred.
+- **Done when:** Exact target/binding/source and run lineage proves real failure then recovery with dashboard and Claude/Codex continuity; controlled namespace ownership and cleanup are witnessed separately from natural provider errors. Missing real evidence remains Blocked/Not Run.
+- **Verification:** AUTO-M6-EXIT: natural or controlled recovery producer, actual namespace/lock tests, versioned API and rendered dashboard probes.
 - **Evidence:** [m6-delivery-checkpoint-2026-11-03.md](../../../docs/evidence/m6-delivery-checkpoint-2026-11-03.md), [m6-local-ollama-deferral-2026-11-04.md](../../../docs/plans/integration/m6-local-ollama-deferral-2026-11-04.md).
+
+The [approved controlled-recovery amendment](m6-cloud-controlled-recovery-proposal-2026-11-04.md) governs this bounded alternative. Implementation and live execution are recorded separately.
 
 ### M6-T016 — Security, compatibility and dependency review
 

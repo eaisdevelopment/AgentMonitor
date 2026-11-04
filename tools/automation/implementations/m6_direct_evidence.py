@@ -16,6 +16,9 @@ from typing import Literal
 from tools.automation.implementations.m6_authoritative_evidence import (
     AuthoritativeComparisonV1,
 )
+from tools.automation.implementations.m6_controlled_recovery_evidence import (
+    ControlledRecoveryEvidenceV1,
+)
 from tools.automation.implementations.m6_recovery_evidence import (
     RecoveryIntervalEvidenceV1,
 )
@@ -43,6 +46,7 @@ DIRECT_EXECUTABLE_SELECTION_V1: tuple[tuple[str, tuple[str, ...]], ...] = (
             "tools/automation/test_m6_cloud_scope_evidence.py",
             "tools/automation/test_m6_direct_evidence.py",
             "tools/automation/test_m6_local_deferral.py",
+            "tools/automation/test_m6_controlled_recovery_evidence.py",
         ),
     ),
     (
@@ -55,6 +59,7 @@ DIRECT_EXECUTABLE_SELECTION_V1: tuple[tuple[str, tuple[str, ...]], ...] = (
             "-q",
             "-p",
             "tools.automation.pytest_no_skip",
+            "tools/automation/test_m6_controlled_recovery_interval.py",
             "backend/tests/adapters/providers/ollama/test_cloud_balance_source_policy.py",
             "backend/tests/adapters/providers/ollama/test_cloud_balance_source_security.py::test_authorization_failure_code_is_runtime_closed",
             "backend/tests/adapters/providers/ollama/test_cloud_balance_source_security.py::test_valid_long_retry_after_is_not_discarded_or_truncated",
@@ -105,6 +110,20 @@ DIRECT_EXECUTABLE_SELECTION_V1: tuple[tuple[str, tuple[str, ...]], ...] = (
         ),
     ),
     (
+        "controlled_recovery_interval",
+        (
+            "/usr/bin/env",
+            "PYTHONPATH=backend/src",
+            "PYTHONDONTWRITEBYTECODE=1",
+            "{checkout_python}",
+            "-B",
+            "-m",
+            "tools.automation.implementations.m6_controlled_recovery_interval",
+            "--revision",
+            "{revision}",
+        ),
+    ),
+    (
         "database_snapshot",
         (
             "/usr/bin/env",
@@ -136,7 +155,7 @@ _BOUNDARY_CHECKS: dict[str, tuple[str, ...]] = {
         "browser.ollama_capacity.v1",
     ),
     "M6-A07": (
-        "m04.exact_target_natural_recovery.v1",
+        "m04.exact_target_natural_or_witnessed_network_recovery.v1",
         "integration.interval_continuity.v1",
     ),
     "M6-A08": (
@@ -163,7 +182,11 @@ _SOURCE_VERSIONS: dict[str, tuple[str, ...]] = {
         "CTR-CAP-001:1.0.0",
     ),
     "M6-A05": ("CTR-CAP-006:1.0.0", "CTR-ALERT-002:1.0.0"),
-    "M6-A07": ("CTR-COL-012:1.0.0", "CTR-COL-008:1.1.0"),
+    "M6-A07": (
+        "CTR-COL-012:1.0.0",
+        "CTR-COL-008:1.1.0",
+        "agentmonitor.m6_controlled_recovery_interval.v1:1.0.0",
+    ),
     "M6-A08": ("CTR-API-001:1.0.0", "CTR-UI-001:1.0.0"),
     "M6-A09": (
         "ollama.cloud.balance.v1:1.0.0",
@@ -596,6 +619,11 @@ class DirectM6FactsV1:
     authoritative_comparison: BoundaryCheckV1 = BoundaryCheckV1(
         "not_run", 0, reason_code="official_usage_not_observed"
     )
+    controlled_recovery_targets: int = 0
+    controlled_recovery_interval: ControlledRecoveryEvidenceV1 | None = None
+    controlled_recovery_observation: BoundaryCheckV1 = BoundaryCheckV1(
+        "not_run", 0, reason_code="controlled_recovery_interval_not_observed"
+    )
     recovery_interval: RecoveryIntervalEvidenceV1 | None = None
     recovery_observation: BoundaryCheckV1 = BoundaryCheckV1(
         "not_run", 0, reason_code="recovery_interval_not_observed"
@@ -620,6 +648,7 @@ class DirectM6FactsV1:
             self.alert_no_transition_targets,
             self.process_observation_count,
             self.natural_recovery_targets,
+            self.controlled_recovery_targets,
             self.cross_provider_continuity_targets,
         )
         if any(type(value) is not int or value < 0 for value in counts):
@@ -843,6 +872,53 @@ def classify_direct_m6_evidence_v1(
         )
     else:
         outcomes["M6-A07"] = recovery_base
+
+    controlled = facts.controlled_recovery_interval
+    controlled_check = facts.controlled_recovery_observation
+    if (
+        controlled is not None
+        or facts.controlled_recovery_targets
+        or controlled_check.status != "not_run"
+        or controlled_check.reason_code != "controlled_recovery_interval_not_observed"
+    ):
+        recovery_limit += ("provider_side_401_403_429_not_observed",)
+        natural_absent = (
+            facts.recovery_observation.status == "not_run"
+            and facts.recovery_observation.reason_code
+            == "m6_recovery_current_natural_failure_absent"
+            and not facts.natural_recovery_targets
+            and (
+                interval is None
+                or interval.status == "not_run"
+                and not interval.natural_recovery_targets
+            )
+        )
+        if (
+            not natural_absent
+            or controlled is None
+            and (
+                facts.controlled_recovery_targets or controlled_check.status == "passed"
+            )
+            or controlled is not None
+            and (
+                not isinstance(controlled, ControlledRecoveryEvidenceV1)
+                or controlled.status != "passed"
+                or controlled.controlled_recovery_targets
+                != facts.controlled_recovery_targets
+                or controlled.cross_provider_continuity_targets
+                != facts.cross_provider_continuity_targets
+            )
+        ):
+            controlled_check = BoundaryCheckV1(
+                "failed", 1, reason_code="controlled_recovery_interval_mismatch"
+            )
+        outcomes["M6-A07"] = _combined(
+            cloud_base,
+            facts.dashboard_continuity_browser,
+            controlled_check,
+            facts.controlled_recovery_observation,
+            limitation=recovery_limit,
+        )
 
     outcomes["M6-A08"] = _combined(facts.dashboard_continuity_browser)
     outcomes["M6-A09"] = _combined(

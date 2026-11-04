@@ -379,7 +379,7 @@
     {
       "id": "M6-T015",
       "story": "ST-OLL-005",
-      "title": "Verify failure isolation and natural recovery",
+      "title": "Verify cloud failure isolation and recovery",
       "status": "in_progress",
       "owner": "M6 integration steward",
       "depends_on": [
@@ -402,14 +402,15 @@
         "min": 3,
         "max": 5
       },
-      "work": "Verify available real cloud auth/offline/throttle/recovery conditions without stopping a user service, and verify Claude/Codex/dashboard continuity. Local-daemon failure tests are deferred.",
-      "done_when": "Observed conditions pass with source/time; absent natural conditions remain Blocked/Not Run without simulation.",
+      "work": "Verify real natural cloud failure/recovery or the approved single isolated-network collector request followed by normal scheduled recovery, with Claude/Codex/dashboard continuity. No account configuration, user-agent or host-network changes. Local-daemon tests remain deferred.",
+      "done_when": "Exact target/binding/source and run lineage proves real failure then recovery with dashboard and Claude/Codex continuity; controlled namespace ownership and cleanup are witnessed separately from natural provider errors. Missing real evidence remains Blocked/Not Run.",
       "verification": [
-        "real service and provider failure-isolation checks (to be defined)"
+        "AUTO-M6-EXIT: natural or controlled recovery producer, actual namespace/lock tests, versioned API and rendered dashboard probes"
       ],
       "evidence": [
         "docs/evidence/m6-delivery-checkpoint-2026-11-03.md",
-        "docs/plans/integration/m6-local-ollama-deferral-2026-11-04.md"
+        "docs/plans/integration/m6-local-ollama-deferral-2026-11-04.md",
+        "docs/plans/integration/m6-cloud-controlled-recovery-proposal-2026-11-04.md"
       ]
     },
     {

@@ -593,3 +593,84 @@ def test_repeated_same_window_rule_and_event_is_still_duplicate() -> None:
     assert not _unique_alert_event_keys(
         (("rule", "window_one", "event"), ("rule", "window_one", "event"))
     )
+
+
+def _controlled_facts():
+    from tools.automation.implementations.m6_controlled_recovery_evidence import (
+        build_controlled_recovery_evidence_v1,
+    )
+    from tools.automation.test_m6_controlled_recovery_evidence import arguments
+
+    return replace(
+        _complete_facts(),
+        recovery_interval=None,
+        recovery_observation=BoundaryCheckV1(
+            "not_run", 0, reason_code="m6_recovery_current_natural_failure_absent"
+        ),
+        natural_recovery_targets=0,
+        controlled_recovery_targets=1,
+        controlled_recovery_interval=build_controlled_recovery_evidence_v1(
+            **arguments()
+        ),
+        controlled_recovery_observation=PASSED,
+    )
+
+
+def test_controlled_recovery_satisfies_a07_without_claiming_natural_failure():
+    facts = _controlled_facts()
+    outcomes = classify_direct_m6_evidence_v1(facts)
+    assert outcomes["M6-A07"].status == "passed"
+    assert outcomes["ST-OLL-005"].status == "passed"
+    assert facts.natural_recovery_targets == 0
+    assert (
+        "provider_side_401_403_429_not_observed"
+        in outcomes["M6-A07"].declared_limitations
+    )
+    assert (
+        "provider_side_401_403_429_not_observed"
+        in outcomes["ST-OLL-005"].declared_limitations
+    )
+
+
+@pytest.mark.parametrize(
+    "changes",
+    [
+        {"controlled_recovery_interval": None},
+        {"controlled_recovery_targets": 0},
+        {"natural_recovery_targets": 1},
+        {"cross_provider_continuity_targets": 0},
+        {
+            "controlled_recovery_observation": BoundaryCheckV1(
+                "failed", 1, reason_code="m6_controlled_recovery_producer_invalid"
+            )
+        },
+        {
+            "recovery_observation": BoundaryCheckV1(
+                "failed", 1, reason_code="m6_recovery_producer_invalid"
+            )
+        },
+    ],
+)
+def test_controlled_receipt_cannot_hide_invalid_or_incomplete_evidence(changes):
+    facts = replace(_controlled_facts(), **changes)
+    assert classify_direct_m6_evidence_v1(facts)["M6-A07"].status == "failed"
+
+
+def test_controlled_count_without_receipt_cannot_bypass_natural_path():
+    facts = replace(_complete_facts(), controlled_recovery_targets=1)
+    assert classify_direct_m6_evidence_v1(facts)["M6-A07"].status == "failed"
+
+
+def test_attempted_controlled_unavailability_keeps_its_specific_reason():
+    facts = replace(
+        _controlled_facts(),
+        controlled_recovery_targets=0,
+        controlled_recovery_interval=None,
+        cross_provider_continuity_targets=0,
+        controlled_recovery_observation=BoundaryCheckV1(
+            "not_run", 0, reason_code="m6_controlled_target_unavailable"
+        ),
+    )
+    outcome = classify_direct_m6_evidence_v1(facts)["M6-A07"]
+    assert outcome.status == "not_run"
+    assert outcome.reason_code == "m6_controlled_target_unavailable"

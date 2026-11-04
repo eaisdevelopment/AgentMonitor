@@ -1,11 +1,11 @@
 # M6 cloud recovery: bounded controlled verification proposal
 
-- Status: Proposed; not authorized or executed by this document.
+- Status: Approved for implementation and bounded execution by the owner’s direction to proceed after the pending proposal, 4 November 2026. The test has not yet run.
 - Owner: integration/completion automation, with M04/A03 contract review.
 - Requirement: M6-A07, M6-T015/T017, AC-LIVE-007, AC-OPS-003.
 - Existing authority: approved M6 cloud implementation. The
   [current execution plan](m6-execution-plan-2026-10-31.md) requires a natural
-  failure/recovery; substituting a controlled case needs an owner decision.
+  failure/recovery; the owner has now directed proceeding with this bounded amendment.
 - Local Ollama remains deferred. This concerns cloud monitoring only.
 
 ## Reason and observed state
@@ -18,7 +18,7 @@ source. A healthy service can therefore leave this scenario unexecuted
 indefinitely. It is not an implementation failure or a reason to ask the owner
 to repeat account setup.
 
-## Proposed observable test
+## Approved observable test
 
 1. Select one existing connected, owner-confirmed Ollama cloud target, without
    creating/editing an account or changing monitoring. Record only opaque
@@ -72,7 +72,7 @@ retry loop. The only application writes are genuine collection runs/signals
 and subsequent normal provider observations. Coding agents do not view keys;
 the approved runtime reads the existing binding transiently as normal.
 
-## Acceptance and contract change proposed
+## Acceptance and contract change
 
 Allow M6-A07 to be satisfied by either its existing natural scenario or this
 explicitly labelled controlled **network isolation and recovery** scenario.
@@ -95,10 +95,11 @@ no actual failed run, no later committed recovery, missing continuity,
 cleanup failure and stale/different revision. Then execute the real scenario
 once and retain only sanitized evidence. Failed setup is not behavioral Red.
 
-## Owner decision
+## Owner direction
 
-Approve this bounded acceptance amendment and its implementation/execution,
-or retain the existing natural-failure-only requirement. No account key,
+The owner directed continuing toward the unfinished goal immediately after the
+proposal and approval question. This is treated as authorization to implement
+and execute this specific bounded scenario; no repeated approval is required. No account key,
 terminal command, model installation or repeated sign-in is requested by this
 proposal. SDK configuration remains exclusively owner-operated.
 
@@ -110,3 +111,13 @@ provider call. Its network-namespace identity differed from the parent and
 it exited with status 0. This establishes namespace availability only; it is
 not the failed-request/recovery test and does not satisfy M6-A07. No credential
 was accessed or network/account/service configuration changed by this check.
+
+## Integration safety correction
+
+Read-only inspection found that the current worker supervisor treats any lock
+contention as permanent quarantine. For safe coexistence with one owned test
+attempt, ordinary `BlockingIOError` must instead return transient worker-busy;
+unsafe metadata and other lock errors must still quarantine. Verify with real
+owner-only lock files and actual flock contention, without a provider call,
+before deployment. This is a bounded M04 supervisory recovery correction, not
+a new configuration option or alternate provider implementation.

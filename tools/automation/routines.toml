@@ -152,7 +152,7 @@ blockers = []
 id = "AUTO-M6-EXIT"
 owner = "PLAN-INT"
 status = "operational"
-scope = "owner-approved cloud-only V1-M6 technical acceptance and story catalog at one clean revision: local Ollama inventory, models and processes are deferred; directly run the remaining approved real checks once, retain one privacy-minimized machine artifact, and emit one technical receipt while leaving M6-A10 owner review pending"
+scope = "owner-approved cloud-only V1-M6 technical acceptance and story catalog at one clean revision: local Ollama deferred; real shared/cloud checks and natural recovery or one approved isolated-network collection failure followed by normal scheduled recovery; no account configuration; retain one privacy-minimized artifact and technical receipt while leaving M6-A10 owner review pending"
 implementation_command = ["python3", "-m", "tools.automation.implementations.auto_m6_exit"]
 blockers = []
 

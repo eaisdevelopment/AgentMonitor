@@ -210,3 +210,48 @@ Files: `frontend/tests/browser/m6/registry_stability_policy.mjs`,
 dependency, license or migration change. Verification used normal authorized
 local dashboard sign-in; no provider key, account/organization configuration,
 monitoring preference, provider profile or running agent was changed.
+
+## Controlled cloud recovery implementation
+
+The owner-approved [bounded recovery amendment](../plans/integration/m6-cloud-controlled-recovery-proposal-2026-11-04.md)
+adds one genuine isolated-network collector request and normal scheduled
+recovery as an alternative to waiting for a natural provider error. This is
+M6-A07, M6-T015/T017, AC-LIVE-007 and AC-OPS-003, owned by integration with the
+M04 supervisor. CTR-COL-012 and CTR-COMMON-001 remain 1.0.0; the separate internal
+controlled receipt is 1.0.0. No public API, schema, dependency or license change.
+
+The supervisor's real held-flock regression failed with
+`'quarantined' != 'worker_busy'` before the correction. After catching ordinary
+`BlockingIOError` as transient contention, six focused tests and the broader
+18-test worker selection passed. Unsafe permissions still quarantine; releasing
+a competing lock restores availability without restarting the supervisor. The
+anonymous-provider helper test was not part of that lock-only selection.
+
+Pure controlled-evidence rejection tests first produced 70 expected failures
+and one pass before validation was implemented. The completed policy checks
+foreign nonce/revision/invocation, exact target/binding/source, failed and later
+committed runs, namespace separation, cleanup and continuity. Separate
+regressions caught an incorrect requirement that Claude/Codex carry Ollama-only
+response metadata; their real generic committed-run contract is now accepted.
+The focused policy/gate integration suite passed 172 tests. Controlled success
+always retains zero natural-recovery targets and declares unobserved
+provider-side 401/403/429 coverage.
+
+Real process tests establish distinct kernel network namespaces, refusal to
+collect before the GO handshake and cleanup of the owned namespace process.
+They use temporary protected files and no provider, credential or database
+substitute. The live browser probe was checked against the healthy installed
+`5839f05e029005d72cff89ddba571b4794d11482` account: it rejected that reading as a
+failed-connection observation and accepted its actual current connection,
+exact quota values, observation IDs and collection run. A source observation
+precedes durable commit, so its timestamp is checked within the real run's
+requested/completed interval.
+
+Files include the supervisor and real boundary tests; controlled runner,
+evidence policy and tests; M6 gate/direct classifier/catalog; the rendered
+account probe; and the execution plan, ticket register, runbook and automation
+scope. Account configuration, credentials, provider profiles and running user
+agents remain untouched. Local Ollama remains deferred. The actual isolated
+provider failure, ordinary recovery and complete canonical M6 result still
+require execution on the deployed candidate; implementation tests alone do
+not close M6. Subsequent machine receipts name their exact tested revision.

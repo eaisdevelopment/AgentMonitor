@@ -987,11 +987,25 @@ The gate does not promote a narrower proxy into acceptance evidence. M6-A04 requ
 comparison from the approved catalog; equality between AgentMonitor's SQLite,
 API and DOM proves only internal lineage. M6-A05 binds retained history to the
 exact current observation and collection run and accepts an alert only when
-its matching source event has one durable transition. M6-A07 remains
-`not_run` unless a natural failure and recovery can be bound to the exact
-target, binding generation, source and candidate interval while Claude, Codex
-and dashboard continuity are evidenced through that same interval. Missing
-sources stay visible and never trigger another owner prompt inside this gate.
+its matching source event has one durable transition. M6-A07 requires a real
+failure and recovery bound to the exact target, binding generation, source
+and candidate interval, with Claude, Codex and dashboard continuity during
+that interval. The [approved controlled scenario](../plans/integration/m6-cloud-controlled-recovery-proposal-2026-11-04.md)
+also permits one collector request in an isolated network namespace when no
+qualifying natural failure exists. This uses the normal production collection
+and admission path; its next normally scheduled request must recover. It does
+not change accounts, credentials, monitoring preferences, host networking or
+user agents. The test writes genuine collection failure and recovery records,
+and temporarily shows the failed check while retaining the last balance.
+
+Controlled evidence is separately labelled and binds a fresh attempt nonce,
+actual process/namespace ownership, cleanup, exact failure/recovery runs,
+rendered account states and cross-provider continuity. It never proves a
+natural provider-side 401/403/429 response. The attempt and observation are
+bounded to ten minutes plus source cleanup; inaccessible isolation, contention,
+missing recovery or missing continuity remain non-passing. The supervisor
+treats ordinary worker-lock contention as transient busy while unsafe lock
+metadata still quarantines. No owner input is requested inside this test.
 
 The versioned selector catalog is
 `tools/automation/m6-exit-catalog-v1.json`. It freezes the exact boundary,

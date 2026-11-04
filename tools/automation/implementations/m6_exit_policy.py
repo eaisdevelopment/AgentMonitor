@@ -61,7 +61,7 @@ SELECTOR_REQUIREMENTS = (
     (
         "M6-A07",
         "M6-SEL-A07",
-        "natural_failure_recovery",
+        "natural_or_controlled_network_recovery",
         "AUTO-M6-EXIT",
         ("sampled_dashboard_and_collection_continuity",),
         "M6-SELECTION-A07-V1",

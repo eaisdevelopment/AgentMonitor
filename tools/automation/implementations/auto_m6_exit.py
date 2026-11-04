@@ -19,6 +19,7 @@ import stat
 import subprocess
 import sys
 import time
+import uuid
 from collections.abc import Callable, Iterator
 from contextlib import contextmanager
 from dataclasses import asdict, dataclass
@@ -29,6 +30,10 @@ from typing import NoReturn
 from tools.automation.implementations.m6_authoritative_evidence import (
     AuthoritativeComparisonV1,
     parse_authoritative_comparison_v1,
+)
+from tools.automation.implementations.m6_controlled_recovery_evidence import (
+    ControlledRecoveryEvidenceV1,
+    parse_controlled_recovery_interval_v1,
 )
 from tools.automation.implementations.m6_direct_evidence import (
     DIRECT_EXECUTABLE_SELECTION_V1,
@@ -73,6 +78,7 @@ DIRECT_CHECK_TIMEOUT_SECONDS = {
     "source_security": 300,
     "database_snapshot": 60,
     "recovery_interval": 660,
+    "controlled_recovery_interval": 660,
     "authoritative_comparison": 90,
     "authoritative_policy": 15,
 }
@@ -1225,10 +1231,172 @@ def _run_recovery_interval(
         return _boundary("failed", "m6_recovery_producer_invalid"), None
 
 
+def parse_controlled_recovery_unavailable_v1(
+    value: object,
+    *,
+    revision: str,
+    service_invocation_id: str,
+    attempt_id: str,
+    return_code: int,
+    now: datetime,
+) -> BoundaryCheckV1:
+    """Pure classification of a nonpositive, invocation-bound producer result."""
+    try:
+        if not isinstance(value, dict) or set(value) != {
+            "record_type",
+            "schema_version",
+            "status",
+            "reason_code",
+            "source_revision",
+            "service_invocation_id",
+            "attempt_id",
+            "started_at",
+            "completed_at",
+        }:
+            raise ValueError
+        start = datetime.fromisoformat(value["started_at"])
+        end = datetime.fromisoformat(value["completed_at"])
+        if (
+            value["record_type"] != "agentmonitor.m6_controlled_recovery_unavailable.v1"
+            or value["schema_version"] != "1.0.0"
+            or value["status"] not in {"not_run", "blocked"}
+            or value["reason_code"]
+            not in {
+                "m6_controlled_target_unavailable",
+                "m6_controlled_worker_busy",
+                "m6_controlled_failure_unobserved",
+                "m6_controlled_recovery_incomplete",
+                "m6_controlled_boundary_unavailable",
+            }
+            or value["source_revision"] != revision
+            or value["service_invocation_id"] != service_invocation_id
+            or value["attempt_id"] != attempt_id
+            or re.fullmatch(r"[a-f0-9]{40}", revision) is None
+            or re.fullmatch(r"[a-f0-9]{32}", service_invocation_id) is None
+            or re.fullmatch(r"[a-f0-9]{32}", attempt_id) is None
+            or type(return_code) is not int
+            or return_code != 3
+            or any(item.utcoffset() != timedelta(0) for item in (start, end, now))
+            or not start <= end <= start + timedelta(seconds=660)
+            or not now - timedelta(seconds=30) <= end <= now
+        ):
+            raise ValueError
+        return _boundary(value["status"], value["reason_code"])
+    except (TypeError, ValueError, AttributeError, KeyError):
+        raise ValueError("m6_controlled_recovery_unavailable_invalid") from None
+
+
+def _controlled_service_invocation() -> str:
+    """Capture only service liveness and opaque invocation, never its environment."""
+    runtime = f"/run/user/{os.getuid()}"
+    result = _run_direct_argv(
+        [
+            "/usr/bin/env",
+            f"XDG_RUNTIME_DIR={runtime}",
+            f"DBUS_SESSION_BUS_ADDRESS=unix:path={runtime}/bus",
+            "/usr/bin/systemctl",
+            "--user",
+            "show",
+            "agentmonitor-dashboard.service",
+            "-p",
+            "ActiveState",
+            "-p",
+            "InvocationID",
+            "--no-pager",
+        ],
+        timeout_seconds=5,
+        capture_output=True,
+    )
+    if (
+        not result.launched
+        or result.return_code != 0
+        or result.timed_out
+        or not result.cleanup_confirmed
+        or len(result.output) > 4096
+    ):
+        raise ValueError("m6_controlled_service_unavailable")
+    try:
+        pairs = [
+            line.split("=", 1) for line in result.output.decode("ascii").splitlines()
+        ]
+        data = dict(pairs)
+        if (
+            len(pairs) != 2
+            or set(data) != {"ActiveState", "InvocationID"}
+            or data["ActiveState"] != "active"
+            or re.fullmatch(r"[a-f0-9]{32}", data["InvocationID"]) is None
+        ):
+            raise ValueError
+        return data["InvocationID"]
+    except (UnicodeError, ValueError):
+        raise ValueError("m6_controlled_service_unavailable") from None
+
+
+def _run_controlled_recovery_interval(
+    revision: str,
+) -> tuple[BoundaryCheckV1, ControlledRecoveryEvidenceV1 | None]:
+    attempt_id = uuid.uuid4().hex
+    try:
+        invocation = _controlled_service_invocation()
+    except ValueError:
+        return _boundary("blocked", "m6_controlled_service_unavailable"), None
+    command = _direct_command("controlled_recovery_interval", revision)
+    command.extend(("--attempt-id", attempt_id))
+    result = _run_direct_argv(
+        command,
+        timeout_seconds=DIRECT_CHECK_TIMEOUT_SECONDS["controlled_recovery_interval"],
+        capture_output=True,
+    )
+    if not result.launched:
+        return _boundary("blocked", "m6_controlled_recovery_producer_unavailable"), None
+    if result.timed_out or not result.cleanup_confirmed:
+        return _boundary("failed", "m6_controlled_recovery_producer_timeout"), None
+    try:
+        if _controlled_service_invocation() != invocation:
+            raise ValueError
+        value = _load_json_bytes(result.output.strip())
+        if (
+            isinstance(value, dict)
+            and value.get("record_type")
+            == "agentmonitor.m6_controlled_recovery_unavailable.v1"
+        ):
+            return parse_controlled_recovery_unavailable_v1(
+                value,
+                revision=revision,
+                service_invocation_id=invocation,
+                attempt_id=attempt_id,
+                return_code=result.return_code,
+                now=datetime.now(UTC),
+            ), None
+        evidence = parse_controlled_recovery_interval_v1(
+            value,
+            revision=revision,
+            service_invocation_id=invocation,
+            attempt_id=attempt_id,
+            return_code=result.return_code,
+            now=datetime.now(UTC),
+        )
+        return _boundary("passed"), evidence
+    except (ValueError, M6ExitErrorV1):
+        return _boundary("failed", "m6_controlled_recovery_producer_invalid"), None
+
+
 def _run_direct_checks(checks: dict[str, StatusV1], revision: str) -> DirectM6FactsV1:
     """Run every available real check once, independent of sibling outcomes."""
 
     recovery_observation, recovery_interval = _run_recovery_interval(revision)
+    controlled_observation = _boundary(
+        "not_run", "controlled_recovery_interval_not_observed"
+    )
+    controlled_interval = None
+    if (
+        recovery_observation.status == "not_run"
+        and recovery_observation.reason_code
+        == "m6_recovery_current_natural_failure_absent"
+    ):
+        controlled_observation, controlled_interval = _run_controlled_recovery_interval(
+            revision
+        )
     deferred_local = _boundary("not_run", "local_ollama_deferred")
     source_security = _run_direct_argv(
         _direct_command("source_security", revision),
@@ -1256,6 +1424,12 @@ def _run_direct_checks(checks: dict[str, StatusV1], revision: str) -> DirectM6Fa
         if recovery_interval is None
         else recovery_interval.cross_provider_continuity_targets
     )
+    controlled_count = 0
+    if controlled_interval is not None:
+        controlled_count = controlled_interval.controlled_recovery_targets
+        counts["cross_provider_continuity_targets"] = (
+            controlled_interval.cross_provider_continuity_targets
+        )
     # A provider DOM comparison is accepted only for the exact current API/DOM/DB
     # observation set. The DB query owns current credential-binding/source proof;
     # no key or invented provider identity is exposed to the browser producer.
@@ -1299,6 +1473,9 @@ def _run_direct_checks(checks: dict[str, StatusV1], revision: str) -> DirectM6Fa
         cloud_scope_evidence=scope_evidence,
         authoritative_comparison=authoritative_comparison,
         authoritative_observation=authoritative_observation,
+        controlled_recovery_targets=controlled_count,
+        controlled_recovery_interval=controlled_interval,
+        controlled_recovery_observation=controlled_observation,
         recovery_interval=recovery_interval,
         recovery_observation=recovery_observation,
         registered_local_installations=0,

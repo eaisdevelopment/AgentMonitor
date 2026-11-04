@@ -548,3 +548,60 @@ def test_passed_receipt_contains_only_counts_digests_and_safe_outcomes() -> None
     assert validate_existing_passed_receipt_v1(prior, expected=receipt, now=NOW) == (
         "m6_receipt_shape_invalid",
     )
+
+
+def _controlled_unavailable():
+    return {
+        "record_type": "agentmonitor.m6_controlled_recovery_unavailable.v1",
+        "schema_version": "1.0.0",
+        "status": "not_run",
+        "reason_code": "m6_controlled_target_unavailable",
+        "source_revision": REVISION,
+        "service_invocation_id": "b" * 32,
+        "attempt_id": "c" * 32,
+        "started_at": (NOW - timedelta(seconds=10)).isoformat(),
+        "completed_at": NOW.isoformat(),
+    }
+
+
+def _parse_unavailable(value):
+    from tools.automation.implementations.auto_m6_exit import (
+        parse_controlled_recovery_unavailable_v1,
+    )
+
+    return parse_controlled_recovery_unavailable_v1(
+        value,
+        revision=REVISION,
+        service_invocation_id="b" * 32,
+        attempt_id="c" * 32,
+        return_code=3,
+        now=NOW,
+    )
+
+
+def test_controlled_unavailable_preserves_no_positive_evidence():
+    result = _parse_unavailable(_controlled_unavailable())
+    assert result.status == "not_run"
+    assert result.test_count == 0
+
+
+@pytest.mark.parametrize(
+    "field,value",
+    [
+        ("record_type", "foreign"),
+        ("schema_version", "0.0.0"),
+        ("status", "passed"),
+        ("reason_code", "invented"),
+        ("source_revision", "d" * 40),
+        ("service_invocation_id", "d" * 32),
+        ("attempt_id", "d" * 32),
+        ("started_at", (NOW - timedelta(seconds=661)).isoformat()),
+        ("completed_at", (NOW - timedelta(seconds=31)).isoformat()),
+        ("controlled_recovery_targets", 1),
+    ],
+)
+def test_controlled_unavailable_is_closed_current_and_never_positive(field, value):
+    data = _controlled_unavailable()
+    data[field] = value
+    with pytest.raises(ValueError):
+        _parse_unavailable(data)

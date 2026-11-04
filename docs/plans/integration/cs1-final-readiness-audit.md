@@ -1250,3 +1250,12 @@ Planning validator SHA-256: `b8aeb132b2cd14900757d4f8e553702fbbd5a3954d21008aff7
 The current [scope amendment](m6-local-ollama-deferral-2026-11-04.md) moves local Ollama work to future versions. This synchronization refresh binds only the changed automation scope description and completion standard; it is not a new milestone acceptance or a provider verification result.
 
 Plan snapshot SHA-256: `179cc5f61ae2726c7da938ea06c4b41f65159e1922ac7d256944e360cf3fa9fb`
+
+## M6 controlled cloud recovery synchronization — 4 November 2026
+
+The approved controlled cloud recovery amendment updates the canonical M6
+command and its documented real-write boundary. The synchronized planning
+baseline is bound below.
+
+Plan snapshot SHA-256: `59509f3467a8c4a7f4363c8f2f8b4d58feac116c28f793c7080f631433c01bfc`. This records documentation binding,
+not a passed live recovery or milestone completion.
