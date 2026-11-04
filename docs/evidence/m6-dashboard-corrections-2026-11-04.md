@@ -6,13 +6,13 @@ owner approval or account name was required for the corrections below.
 
 ## Delivered batch and traceability
 
-The installed dashboard revision is `37ac828171026de2f3b2a408e7d62d4105595f80`.
+This batch was first deployed at `37ac828171026de2f3b2a408e7d62d4105595f80`.
 `AUTO-M6-CURRENT-UPDATE` passed for the unchanged v1_0719 schema, and the
 authenticated operations API reported that exact build revision with HTTP 200.
 
 | Change | Owning boundary and requirements | Evidence |
 |---|---|---|
-| Keep settled connection status refreshing while visible; retry after local read errors | P02, existing versioned Ollama connection GET; M6-T010/T014, M6-A01/A08, FR-COL-003, AC-UI-005 | Before the production change, the real installed browser failed `connection_refresh.mjs` with `settled_connection_not_refreshed`. Typecheck/build passed after the change. Installed Green is still required: the first post-rollout attempt lacked its settled-state prerequisite, and the shared session subsequently expired. |
+| Keep settled connection status refreshing while visible; retry after local read errors | P02, existing versioned Ollama connection GET; M6-T010/T014, M6-A01/A08, FR-COL-003, AC-UI-005 | Before the production change, the real installed browser failed `connection_refresh.mjs` with `settled_connection_not_refreshed`. Typecheck/build passed after the change. Installed Green is still required: the first post-rollout attempt could not establish its prerequisites (`connection_refresh_unavailable`), and the shared session subsequently returned an authentication-required response. |
 | Show provider-supplied period starts in history, with explicit absence | P02, existing `CapacityHistoryPointV2`; M6-T011/T014, M6-A04/A05/A08, FR-QUOTA-001/002/004/006, AC-HIST-001 | Real browser Red found supplied dates missing. Installed Green compared 200 actual observations, including 100 supplied starts, with no failures and no desktop/mobile document overflow. Current quota API does not supply this field; no start was inferred. |
 | Publish implemented local capabilities accurately | A03/M03, existing manifest and `CTR-PROV-OLLAMA-LOCAL-CATALOG-001` 1.0.0; M6-T006/T008, ST-OLL-001, FR-ACC-005, FR-DISC-008 | Two expected manifest/API failures preceded the correction. Six focused checks passed, including actual CLI 0.24.0, fixed loopback source and authenticated API. Cloud admission remains separate. |
 | Remove singleton account assumptions from real coverage tests | M02/P01/P02 test boundaries, `CTR-REG-013` 1.0.0; M6-T010/T014 | Pure Red reproduced two eligible accounts being rejected. Twelve checks passed, including private-copy real SQLite, HTTP and built UI. Multiple live connected accounts remain unobserved; no account or owner declaration was invented. |
@@ -59,6 +59,27 @@ conditions or recovery of open alerts. Deduplication distinguishes separate
 window streams within one event. Eighty-four focused checks passed, including
 the real read-only snapshot/history checks. No rule or alert was created; live
 configured-alert scenarios remain Not Run because no such rule is configured.
+
+## Combined check at 9bc2f8f
+
+`9bc2f8f7b01201256733bdfaebe5742eb2788819` was deployed through the same
+unchanged-schema command. `AUTO-M6-EXIT` ran at that clean revision. Build,
+local admission, quality, documentation and planning all passed. The direct
+source/security and real database snapshot also passed. Its private artifact is
+`.agentmonitor-local/m6-evidence/direct-9bc2f8f7b01201256733bdfaebe5742eb2788819-05aa9c508f0abc13.json`,
+SHA-256 `05aa9c508f0abc13fc8960dc1573e19590e2f20f4dd8b1aad2a62162ad23f437`.
+
+The command exited **1 (Failed)**, not a completion receipt. The artifact
+reports browser checks as Not Run (`signed_in_dashboard_unavailable`) and the
+official comparison as Not Run (`official_usage_dashboard_unavailable`). The
+result combiner incorrectly converted the former into `ollama_capacity_ui_missing`
+solely because current database readings existed. The correction from `b6c0baf`
+preserves this exact unavailable-session outcome as Not Run. Forty-two policy
+tests passed, including the prior failing case and controls that retain genuine
+authenticated missing-capacity failures and concurrent-change Blocked states.
+It changes no provider data and does not accept an unexecuted test.
+Separately, model-present, SDK coverage and natural failure/recovery evidence
+were absent. The dashboard itself remained active and returned HTTP 200.
 
 ## Remaining work is not one blanket blocker
 
