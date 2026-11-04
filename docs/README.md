@@ -33,10 +33,12 @@ Current program state:
   browser and technical checks. The [completion record](evidence/m5-completion-2026-10-30.md)
   explains the evidence. The owner accepted M5 on 30 October 2026; see the
   [acceptance record](evidence/m5-owner-acceptance-2026-10-30.md).
-- **V1-M6:** In progress and deployed locally. The canonical run at `2baaabe`
-  passed all shared checks and the real one-account balance/history comparison,
-  but remains unclosed for missing model-host, organization scope and natural
-  recovery evidence. See the [current checkpoint](evidence/m6-delivery-checkpoint-2026-11-03.md).
+- **V1-M6:** In progress and deployed locally. The historical canonical run at
+  `2baaabe` passed shared checks and the real one-account balance/history
+  comparison. The [4 November corrections](evidence/m6-dashboard-corrections-2026-11-04.md)
+  record the subsequent dashboard, capability, test and runbook changes and
+  distinguish remaining engineering checks from external acceptance evidence.
+  Model-present, SDK coverage and natural recovery outcomes remain unclosed.
 - **V1-M7 and V1-M8:** Planned; their canonical gates have not run.
 
 The approved [M3 scope correction](evidence/m3-scope-correction-2026-10-02.md)
