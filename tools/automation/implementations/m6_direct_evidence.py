@@ -79,6 +79,7 @@ DIRECT_EXECUTABLE_SELECTION_V1: tuple[tuple[str, tuple[str, ...]], ...] = (
             "/usr/bin/node",
             "--test",
             "frontend/tests/pure/ollama-authoritative-comparison.mjs",
+            "frontend/tests/pure/m6-registry-stability.mjs",
         ),
     ),
     (

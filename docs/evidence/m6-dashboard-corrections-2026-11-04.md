@@ -170,3 +170,43 @@ lineage digests. Only the verifier and documentation changed; no production
 schema, API, dependency, account, provider profile or service changed. These
 results close the authentication-related verification gap, not the separate
 SDK, model-present or natural-recovery acceptance requirements.
+
+## Cloud-only browser registry stability correction
+
+After local Ollama deferral, the installed browser check returned
+`dashboard_registry_changed_concurrently`. Inspection found that its digest
+included `registry_revision`, which is joined from the global
+`reg_registry_state` into every account and organization view. Background
+installation discovery advances that counter independently of account or
+organization edits. A global revision change therefore cannot by itself prove
+that the compared account/organization records changed.
+
+Under the existing M6 integration/browser verification scope (M6-A01/A08/A09,
+ST-OLL-005), the verifier now compares every returned record field except that
+one global counter. It retains per-record versions, timestamps, names,
+organizations, monitoring preferences, effective state, identity state,
+counts, additions/removals and unknown future fields. The separate zero-write
+request guard, full-page requirement and current/history lineage checks stay
+in force. Changed-and-restored edits still change record versions.
+
+The pure comparison regression produced one expected Red failure with the old
+whole-record digest, while two mutation-detection cases passed. After the
+correction all three passed; the existing authoritative comparison suite plus
+these tests passed 16 tests. Exit/direct/deferral policy checks passed 57 tests.
+The new pure checks are included in the existing canonical exit selection and
+its catalog hashes were regenerated.
+
+Real verification on installed revision
+`5839f05e029005d72cff89ddba571b4794d11482` then returned **Passed** for account
+administration, cloud capacity, capacity history and dashboard continuity.
+One actual confirmed cloud target had matching current/history lineage.
+Local process verification remained **Not Run — local_ollama_deferred**,
+outside M6 scope. SDK remains an owner-configured connection; this one-target
+browser result does not prove two-organization coverage or full M6 closure.
+
+Files: `frontend/tests/browser/m6/registry_stability_policy.mjs`,
+`frontend/tests/pure/m6-registry-stability.mjs`, the M6 browser verifier,
+`m6_direct_evidence.py` and the exit catalog. No production/API/database contract,
+dependency, license or migration change. Verification used normal authorized
+local dashboard sign-in; no provider key, account/organization configuration,
+monitoring preference, provider profile or running agent was changed.

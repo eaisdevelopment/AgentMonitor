@@ -2,6 +2,7 @@
 
 import { chromium } from "@playwright/test";
 import { createHash } from "node:crypto";
+import { registryContentDigest } from "./registry_stability_policy.mjs";
 
 const endpoint = "http://127.0.0.1:9225";
 const origin = "http://127.0.0.1:43110";
@@ -314,7 +315,7 @@ async function registryDigest(page) {
     }
     documents.push(payload.items);
   }
-  return createHash("sha256").update(JSON.stringify(documents)).digest("hex");
+  return registryContentDigest(documents);
 }
 
 async function dashboardContinuity(page) {
