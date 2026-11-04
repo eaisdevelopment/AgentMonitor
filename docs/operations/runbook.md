@@ -1358,6 +1358,21 @@ with `AGENTMONITOR_TEST_DASHBOARD_CDP_ENDPOINT`,
 local AgentMonitor browser/data-root selectors, no provider paths/credentials.
 The command requires a real owner-completed confirmation and never creates one.
 
+### Authorized local dashboard sign-in for verification
+
+On 4 November 2026 the owner explicitly confirmed permission for automated
+sign-in to the local AgentMonitor dashboard using its stored password. When
+the existing `AGENTMONITOR_DASHBOARD_PASSWORD` entry is available in the
+owner-selected project `.env`, verification may pass it directly to the normal
+browser login form without displaying it to the coding agent or putting it in
+logs, command arguments or source. Use the selected project file, not an absent
+`.env` in an isolated worktree. Session expiry alone does not require asking
+the owner to sign in manually. The normal login and authenticated API must
+still succeed; this does not authorize changing the password or bypassing IAM.
+Provider logins and credentials remain separate. The
+[actual successful login record](../evidence/m6-dashboard-corrections-2026-11-04.md)
+documents HTTP 204 followed by an authenticated HTTP 200.
+
 ### Connect, rotate or disconnect an Ollama cloud account
 
 This is the approved Linux local-server flow. Create the organization and an

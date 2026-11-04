@@ -86,7 +86,7 @@ were absent. The dashboard itself remained active and returned HTTP 200.
 | Category | Exact remaining action |
 |---|---|
 | Engineering verification | The combined check below ran after all identified corrections; no additional engineering defect was reported by that run. Preserve the remaining live prerequisites instead of adding scope. |
-| Installed browser | Restore the expired owner session and rerun connection-refresh/current-balance/history verification against the deployed revision. |
+| Installed browser | Authorized automatic login restored the session. Connection refresh and all five composite browser checks passed after the history verifier followed real pagination. |
 | SDK scope | Owner adds/selects the actual account or declares the actual coverage through the dashboard. Knowing the account email is not an implementation prerequisite. No manual fabricated record is permitted. |
 | Model-present observation | Observe the actual model-present endpoint without loading/downloading/stopping a model. The currently approved fixed loopback source reports empty installed/loaded lists. |
 | Natural recovery | Observe a qualifying real failure/recovery interval and existing-provider/dashboard continuity. Do not manufacture an outage or claim an absent scenario passed. |
@@ -120,3 +120,53 @@ authenticated comparison remain unexecuted on this revision.
 This final evidence addition is documentation only. The exact deployed and
 checked implementation remains `5839f05`; it does not claim that a later
 documentation commit has been deployed or independently reverified.
+
+## Automatic local login and resumed browser verification
+
+The owner's 4 November instruction explicitly confirms permission to
+authenticate to the local dashboard using its stored password. Requiring
+owner-operated sign-in was an overly restrictive interpretation, not a
+technical necessity. The existing local secret name is
+`AGENTMONITOR_DASHBOARD_PASSWORD`; the existing M3 operator already documents
+reading that exact entry for authorized verification. The browser can receive
+it directly without displaying its value to the coding agent or logging it.
+This authorization concerns the local dashboard, not other provider credentials.
+
+The normal login succeeded with HTTP 204 and the subsequent authenticated
+account query returned HTTP 200. No password reset, authentication bypass,
+database/session edit or service restart was used. No credential value was
+printed, committed or passed as a command argument.
+
+On the installed `5839f05` build, `connection_refresh.mjs` then passed with
+`local_status_refresh: true` and zero mutation requests. This supplies the
+previously outstanding installed Green for the connection refresh correction.
+The composite browser check passed account administration, current capacity,
+process visibility and dashboard continuity; its history reconciliation failed
+with `ollama_history_lineage_mismatch`; the bounded investigation is recorded below.
+
+The official Usage comparison initially failed because the already-open
+provider page displayed an older balance. An ordinary read-only browser refresh
+of that page resolved the discrepancy. The comparison subsequently passed for
+one target at `2026-11-04T10:25:13.576Z`, against source observation
+`2026-11-04T10:21:16.435907Z`, with comparison digest
+`20ffaf25934d148abb4e248bce15b4e4b54aa8870b2b74ec9c3c53bbbbf2a422`.
+No balance value, observation or comparison rule was changed to make it match.
+
+The history investigation found no incorrect displayed values: the initial API
+and DOM each contained 200 rows, every checked field matched, and the API
+explicitly reported another page. The verifier had incorrectly required the
+current observations in that first older-first page. The test-only correction
+from `04b9811` and `cb91bda` follows the visible **Load next history page** action,
+checks its exact cursor/query and each returned page, and matches all captured
+quota windows to exact observation/run identities. It reconciles the current
+quota DOM before pagination so a subsequent automatic refresh cannot invalidate
+that captured evidence. Repeated cursors, duplicate observations or invalid
+pages fail; a 32-page bound returns Not Run instead of inventing success.
+
+The real browser rerun against deployed `5839f05` then exited 0: account
+administration, current capacity, history, process visibility and dashboard
+continuity all passed for the connected target, with identical current/history
+lineage digests. Only the verifier and documentation changed; no production
+schema, API, dependency, account, provider profile or service changed. These
+results close the authentication-related verification gap, not the separate
+SDK, model-present or natural-recovery acceptance requirements.
