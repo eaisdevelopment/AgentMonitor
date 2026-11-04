@@ -479,7 +479,29 @@ def test_real_ollama_installation_has_registered_truthful_manifest(
             assert [item["capability_id"] for item in payload["items"]] == [
                 item.capability_id for item in manifest.declarations
             ]
-            assert all(item["support_state"] == "unknown" for item in payload["items"])
+            by_capability = {item["capability_id"]: item for item in payload["items"]}
+            assert set(by_capability) == {"installation.discovery", "model.catalog"}
+            assert all(
+                item["support_state"] == "supported" for item in by_capability.values()
+            )
+            assert by_capability["installation.discovery"]["port_type"] == (
+                "InstallationDiscoveryPortV1"
+            )
+            assert by_capability["installation.discovery"]["output_schema"] == (
+                "DiscoveryOutcomeV1"
+            )
+            assert [
+                source["source_id"]
+                for source in by_capability["installation.discovery"]["sources"]
+            ] == ["ollama.cli.version.v1"]
+            assert by_capability["model.catalog"]["port_type"] == ("LocalCatalogPortV1")
+            assert by_capability["model.catalog"]["output_schema"] == (
+                "LocalCatalogViewV1"
+            )
+            assert [
+                source["source_id"]
+                for source in by_capability["model.catalog"]["sources"]
+            ] == ["ollama.local.catalog.v1"]
             assert not any(
                 "cloud" in item["capability_id"]
                 or "balance" in item["capability_id"]
