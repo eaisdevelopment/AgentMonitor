@@ -135,13 +135,14 @@ function CapacityHistory({
         <div className="table-scroll" tabIndex={0} role="region" aria-label="Capacity history table">
           <table aria-label="Capacity history exact values">
             <caption>Real retained capacity observations matching the visible trend points</caption>
-            <thead><tr><th scope="col">Window</th><th scope="col">Exact value</th><th scope="col">Observed</th><th scope="col">Reset</th><th scope="col">State</th><th scope="col">Source</th><th scope="col">Trace</th></tr></thead>
+            <thead><tr><th scope="col">Window</th><th scope="col">Exact value</th><th scope="col">Observed</th><th scope="col">Period start</th><th scope="col">Reset</th><th scope="col">State</th><th scope="col">Source</th><th scope="col">Trace</th></tr></thead>
             <tbody>{items.map((point) => {
               const reset = quotaResetPresentation(point.reset_at, point.reset_precision);
               return <tr key={point.observation_id} data-window-key={point.window_key} data-semantic-role={point.semantic_role}>
                 <th scope="row">{point.safe_label ?? point.window_key}<small>{point.semantic_role} · definition {point.definition_version}</small></th>
                 <td className="history-exact-value"><ExactMetric field={point.value} /></td>
                 <td>{new Date(point.observed_at).toLocaleString()}<small>Stored {new Date(point.stored_at).toLocaleString()}</small></td>
+                <td className="quota-period-start">{point.source_period_start == null ? "Not reported" : <time dateTime={point.source_period_start}>{new Date(point.source_period_start).toLocaleString()}</time>}</td>
                 <td className="quota-reset" data-reset-precision={reset.precision}>{reset.dateTime === null ? reset.label : <>{reset.label} <time dateTime={reset.dateTime}>{new Date(reset.dateTime).toLocaleString()}</time></>}<small>{reset.precision}</small></td>
                 <td>{point.freshness}<small>{point.completeness} · {point.series_kind.replaceAll("_", " ")}</small></td>
                 <td>{point.provenance.source_id}<small>{point.provenance.source_class.replaceAll("_", " ")} · {point.provenance.precision} · {point.provenance.confidence}</small></td>
