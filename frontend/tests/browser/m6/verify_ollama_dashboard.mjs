@@ -166,6 +166,64 @@ function currentHistoryLineageRows(accountId, quotas, history) {
   return rows;
 }
 
+async function loadHistoryThroughCurrentObservation(page, accountId, quotas, firstPage) {
+  const pages = [firstPage];
+  const seenCursors = new Set();
+  const combined = () => ({
+    ...firstPage,
+    items: pages.flatMap(candidate => candidate.items),
+    page: pages.at(-1).page,
+  });
+  // One day at the admitted one-minute-or-slower cadence and two native
+  // windows fits within 15 200-row pages. Keep margin without an unbounded UI loop.
+  while (currentHistoryLineageRows(accountId, quotas, combined()).length < 1) {
+    const history = combined();
+    const cursor = history.page?.next_cursor;
+    if (history.page?.has_more !== true) return { state: "complete", history };
+    if (pages.length >= 32) return { state: "bounded", history };
+    if (typeof cursor !== "string" || cursor.length === 0 || seenCursors.has(cursor)) {
+      return { state: "invalid", history };
+    }
+    const loadMore = page.getByRole("button", { name: "Load next history page", exact: true });
+    if (!await loadMore.isVisible().catch(() => false)) return { state: "invalid", history };
+    seenCursors.add(cursor);
+    try {
+      const nextResponse = page.waitForResponse(response => {
+        const url = new URL(response.url());
+        return url.origin === origin
+          && url.pathname === "/api/v1/capacity/history/v2"
+          && url.searchParams.get("subject_id") === accountId
+          && url.searchParams.get("cursor") === cursor
+          && response.request().method() === "GET";
+      });
+      await loadMore.click();
+      const response = await nextResponse;
+      if (response.status() !== 200) return { state: "invalid", history };
+      const nextPage = await response.json();
+      if (!boundedPage(nextPage) || nextPage.items.length > 200
+          || nextPage.subject_id !== firstPage.subject_id
+          || nextPage.metric !== firstPage.metric
+          || nextPage.series_kind !== firstPage.series_kind) {
+        return { state: "invalid", history };
+      }
+      const priorObservationIds = new Set(history.items.map(item => item.observation_id));
+      const nextObservationIds = new Set(nextPage.items.map(item => item.observation_id));
+      if (nextObservationIds.size !== nextPage.items.length
+          || nextPage.items.some(item => priorObservationIds.has(item.observation_id))) {
+        return { state: "invalid", history };
+      }
+      pages.push(nextPage);
+      const expectedRows = combined().items.length;
+      await page.waitForFunction(expected => (
+        document.querySelectorAll('table[aria-label="Capacity history exact values"] tbody tr').length === expected
+      ), expectedRows);
+    } catch {
+      return { state: "invalid", history };
+    }
+  }
+  return { state: "complete", history: combined() };
+}
+
 async function openAccountWithCapacityResponses(page, card) {
   const observed = [];
   const onResponse = response => {
@@ -187,28 +245,33 @@ async function openAccountWithCapacityResponses(page, card) {
       const details = page.locator(selector);
       if (!await details.evaluate(element => element.open)) await details.locator("summary").click();
     }
-  } finally {
-    page.off("response", onResponse);
-  }
-  const match = new URL(page.url()).pathname.match(/^\/accounts\/([^/]+)$/);
-  if (match === null) return null;
-  const accountId = decodeURIComponent(match[1]);
-  const quotaResponse = [...observed].reverse().find(response => {
-    const url = new URL(response.url());
-    return url.pathname === `/api/v1/accounts/${encodeURIComponent(accountId)}/quotas/v2`;
-  });
-  const historyResponse = [...observed].reverse().find(response => {
-    const url = new URL(response.url());
-    return url.pathname === "/api/v1/capacity/history/v2"
-      && url.searchParams.get("subject_id") === accountId;
-  });
-  let quotas = null;
-  let history = null;
-  try {
+    const match = new URL(page.url()).pathname.match(/^\/accounts\/([^/]+)$/);
+    if (match === null) return null;
+    const accountId = decodeURIComponent(match[1]);
+    const quotaResponse = [...observed].reverse().find(response => {
+      const url = new URL(response.url());
+      return url.pathname === `/api/v1/accounts/${encodeURIComponent(accountId)}/quotas/v2`;
+    });
+    const historyResponse = [...observed].reverse().find(response => {
+      const url = new URL(response.url());
+      return url.pathname === "/api/v1/capacity/history/v2"
+        && url.searchParams.get("subject_id") === accountId;
+    });
+    let quotas = null;
+    let history = null;
+    let historyState = "complete";
     if (quotaResponse?.status() === 200) quotas = await quotaResponse.json();
     if (historyResponse?.status() === 200) history = await historyResponse.json();
+    if (boundedPage(quotas) && boundedPage(history)) {
+      const loaded = await loadHistoryThroughCurrentObservation(
+        page, accountId, quotas, history,
+      );
+      history = loaded.history;
+      historyState = loaded.state;
+    }
+    return { accountId, quotas, history, historyState };
   } catch { return null; }
-  return { accountId, quotas, history };
+  finally { page.off("response", onResponse); }
 }
 
 async function exactRunningRevision(page) {
@@ -377,7 +440,11 @@ try {
         } else {
           facts.current_lineage_targets += 1;
           currentLineage.push(...quotaLineageRows(captured.accountId, captured.quotas));
-          if (captured.history === null || !boundedPage(captured.history)
+          if (captured.historyState === "invalid") {
+            historyMismatch = true;
+          } else if (captured.historyState === "bounded") {
+            historyUnavailable = true;
+          } else if (captured.history === null || !boundedPage(captured.history)
               || captured.history.items.length < 2) {
             historyUnavailable = true;
           } else if (!await reconcileHistoryDom(
