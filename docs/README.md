@@ -38,7 +38,9 @@ Current program state:
   comparison. The [4 November corrections](evidence/m6-dashboard-corrections-2026-11-04.md)
   record the subsequent dashboard, capability, test and runbook changes and
   distinguish remaining engineering checks from external acceptance evidence.
-  Model-present, SDK coverage and natural recovery outcomes remain unclosed.
+  SDK cloud coverage and cloud recovery outcomes remain unclosed. The owner
+  [deferred all local Ollama work](plans/integration/m6-local-ollama-deferral-2026-11-04.md)
+  to future versions; model-present and local process evidence no longer block M6.
 - **V1-M7 and V1-M8:** Planned; their canonical gates have not run.
 
 The approved [M3 scope correction](evidence/m3-scope-correction-2026-10-02.md)

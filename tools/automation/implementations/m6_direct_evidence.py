@@ -42,15 +42,7 @@ DIRECT_EXECUTABLE_SELECTION_V1: tuple[tuple[str, tuple[str, ...]], ...] = (
             "tools/automation/test_m6_scope_selection.py",
             "tools/automation/test_m6_cloud_scope_evidence.py",
             "tools/automation/test_m6_direct_evidence.py",
-        ),
-    ),
-    (
-        "local_inventory",
-        (
-            "{gate_python}",
-            "-B",
-            "tools/automation/run.py",
-            "AUTO-M6-LOCAL-INVENTORY",
+            "tools/automation/test_m6_local_deferral.py",
         ),
     ),
     (
@@ -129,7 +121,6 @@ DIRECT_EXECUTABLE_SELECTION_V1: tuple[tuple[str, tuple[str, ...]], ...] = (
 
 _BOUNDARY_CHECKS: dict[str, tuple[str, ...]] = {
     "M6-A01": ("browser.ollama_account_admin.v1",),
-    "M6-A02": ("local.admission.v1", "local.inventory.v1", "m02.installations.v1"),
     "M6-A03": ("m02.cloud_owner_scope.v1", "m02.organization_scope.v1"),
     "M6-A04": (
         "m02.verification.v1",
@@ -143,7 +134,6 @@ _BOUNDARY_CHECKS: dict[str, tuple[str, ...]] = {
         "m07.alert_event_deduplication.v1",
         "browser.ollama_capacity.v1",
     ),
-    "M6-A06": ("m06.ollama_processes.v1", "browser.ollama_processes.v1"),
     "M6-A07": (
         "m04.exact_target_natural_recovery.v1",
         "integration.interval_continuity.v1",
@@ -153,27 +143,18 @@ _BOUNDARY_CHECKS: dict[str, tuple[str, ...]] = {
         "browser.responsive.v1",
     ),
     "M6-A09": ("m03.source_security.v1", "m02.verification.v1"),
-    "ST-OLL-001": ("m03.manifest.v1", "m02.installations.v1"),
-    "ST-OLL-002": ("local.admission.v1", "local.inventory.v1"),
+    "ST-OLL-001": ("m03.cloud_source_security.v1", "m02.cloud_registry.v1"),
     "ST-OLL-003": ("m02.cloud_owner_scope.v1", "m02.verification.v1"),
     "ST-OLL-004": (
         "m05.current_capacity.v2",
         "m05.capacity_history.v1",
         "browser.ollama_capacity.v1",
     ),
-    "ST-OLL-005": (
-        "m6.external_acceptance.v1",
-        "browser.ollama_processes.v1",
-    ),
+    "ST-OLL-005": ("m6.external_acceptance.v1",),
 }
 
 _SOURCE_VERSIONS: dict[str, tuple[str, ...]] = {
     "M6-A01": ("CTR-REG-002:1.0.0", "CTR-API-001:1.0.0", "CTR-UI-001:1.0.0"),
-    "M6-A02": (
-        "ollama.local.catalog.v1:1.0.0",
-        "CTR-REG-004:1.0.0",
-        "CTR-RUN-002:1.0.0",
-    ),
     "M6-A03": ("CTR-REG-011:1.0.0", "CTR-REG-012:1.1.0", "CTR-REG-013:1.0.0"),
     "M6-A04": (
         "ollama.cloud.balance.v1:1.0.0",
@@ -181,7 +162,6 @@ _SOURCE_VERSIONS: dict[str, tuple[str, ...]] = {
         "CTR-CAP-001:1.0.0",
     ),
     "M6-A05": ("CTR-CAP-006:1.0.0", "CTR-ALERT-002:1.0.0"),
-    "M6-A06": ("linux.proc.process.v1:1.0.0", "CTR-RUN-002:1.0.0"),
     "M6-A07": ("CTR-COL-012:1.0.0", "CTR-COL-008:1.1.0"),
     "M6-A08": ("CTR-API-001:1.0.0", "CTR-UI-001:1.0.0"),
     "M6-A09": (
@@ -192,11 +172,6 @@ _SOURCE_VERSIONS: dict[str, tuple[str, ...]] = {
     "ST-OLL-001": (
         "CTR-PROV-001:1.0.0",
         "CTR-PROV-005:1.0.0",
-        "CTR-REG-004:1.0.0",
-    ),
-    "ST-OLL-002": (
-        "ollama.local.catalog.v1:1.0.0",
-        "linux.proc.process.v1:1.0.0",
     ),
     "ST-OLL-003": ("CTR-REG-012:1.1.0", "CTR-REG-013:1.0.0", "CTR-COL-010:2.0.0"),
     "ST-OLL-004": (
@@ -204,7 +179,7 @@ _SOURCE_VERSIONS: dict[str, tuple[str, ...]] = {
         "CTR-CAP-001:1.0.0",
         "CTR-CAP-006:1.0.0",
     ),
-    "ST-OLL-005": ("M6-A01..A09:direct-v1", "CTR-UI-001:1"),
+    "ST-OLL-005": ("M6-CLOUD-SCOPE-2026-11-04:1.0.0", "CTR-UI-001:1"),
 }
 
 
@@ -757,23 +732,6 @@ def classify_direct_m6_evidence_v1(
     else:
         outcomes["M6-A01"] = account_admin
 
-    local = _combined(
-        facts.local_admission, facts.local_inventory, facts.database_snapshot
-    )
-    if local.status == "passed" and (
-        facts.registered_local_installations < 1
-        or facts.observed_local_installations < facts.registered_local_installations
-        or facts.observed_model_hosts != facts.registered_local_installations
-    ):
-        outcomes["M6-A02"] = _missing("registered_local_host_not_observed", local)
-    elif local.status == "passed" and not any(
-        host.installed_model_count > 0 or host.loaded_model_count > 0
-        for host in facts.model_host_evidence
-    ):
-        outcomes["M6-A02"] = _missing("real_model_present_not_observed", local)
-    else:
-        outcomes["M6-A02"] = local
-
     cloud_base = _combined(facts.database_snapshot)
     scope = facts.cloud_scope_evidence
     if cloud_base.status != "passed":
@@ -845,23 +803,6 @@ def classify_direct_m6_evidence_v1(
     else:
         outcomes["M6-A05"] = history_base
 
-    process_limit = ("sampled_process_coverage",)
-    process_browser = facts.process_browser
-    process_base = _combined(
-        facts.local_admission,
-        facts.database_snapshot,
-        process_browser,
-        limitation=process_limit,
-    )
-    if process_base.status == "passed" and facts.process_observation_count < 1:
-        outcomes["M6-A06"] = _missing(
-            "real_ollama_process_not_observed",
-            process_base,
-            limitation=process_limit,
-        )
-    else:
-        outcomes["M6-A06"] = process_base
-
     recovery_limit = ("sampled_dashboard_and_collection_continuity",)
     interval = facts.recovery_interval
     interval_check = facts.recovery_observation
@@ -904,22 +845,12 @@ def classify_direct_m6_evidence_v1(
 
     outcomes["M6-A08"] = _combined(facts.dashboard_continuity_browser)
     outcomes["M6-A09"] = _combined(
-        facts.local_admission,
         facts.source_security,
         outcomes["M6-A03"],
         outcomes["M6-A04"],
     )
 
-    installation = _combined(
-        facts.local_admission,
-        facts.local_inventory,
-        facts.database_snapshot,
-        facts.source_security,
-    )
-    if installation.status == "passed" and facts.observed_local_installations < 1:
-        installation = _missing("ollama_installation_not_observed", installation)
-    outcomes["ST-OLL-001"] = installation
-    outcomes["ST-OLL-002"] = _combined(outcomes["M6-A02"])
+    outcomes["ST-OLL-001"] = _combined(facts.database_snapshot, facts.source_security)
 
     if outcomes["M6-A03"].status == "passed" and (
         facts.verified_cloud_targets < facts.active_cloud_targets
@@ -931,8 +862,8 @@ def classify_direct_m6_evidence_v1(
         outcomes["ST-OLL-003"] = _combined(outcomes["M6-A03"])
     outcomes["ST-OLL-004"] = _combined(outcomes["M6-A04"], outcomes["M6-A05"])
     outcomes["ST-OLL-005"] = _combined(
-        *(outcomes[f"M6-A{index:02}"] for index in range(1, 10)),
-        limitation=process_limit + recovery_limit,
+        *(outcomes[f"M6-A{index:02}"] for index in (1, 3, 4, 5, 7, 8, 9)),
+        limitation=recovery_limit,
     )
     return outcomes
 

@@ -1,5 +1,10 @@
 # Traceability matrix
 
+## Active provider-scope correction
+
+The owner's [4 November decision](plans/integration/m6-local-ollama-deferral-2026-11-04.md) supersedes local Ollama assignments in the historical planning baseline. M6-A02/A06 and ST-OLL-002 move to FUT-OLL-LOCAL-001..004 in the [future backlog](plans/integration/future-local-ollama-backlog-v1.json); local portions of ST-OLL-001/005 move with them. Shared FR-DISC/FR-STATE/AC-PROC and collection/UI IDs still apply to Claude/Codex and retained cloud scope. The [active M6 ticket catalog](plans/integration/m6-ticket-catalog-v1.json) traces 14 cloud tickets to eight acceptance IDs and four stories. The frozen import backlog and prior receipts remain historical, not current local acceptance prerequisites.
+
+
 ## Purpose
 
 This document is a human-readable family summary. The machine-readable

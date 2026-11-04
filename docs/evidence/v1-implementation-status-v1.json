@@ -140,9 +140,10 @@
       "unresolved_dependency_ids": [],
       "evidence_paths": [
         "docs/evidence/m6-delivery-checkpoint-2026-11-03.md",
-        "docs/evidence/m6-coverage-scope-integration-2026-11-03.md"
+        "docs/evidence/m6-coverage-scope-integration-2026-11-03.md",
+        "docs/evidence/m6-local-ollama-deferral-2026-11-04.md"
       ],
-      "decision": "Local service/catalog/process, organization coverage administration and one real cloud account are deployed. AUTO-M6-EXIT on 2baaabe passed all shared checks and EAIS account browser/provider/history reconciliation, but returned exit 3: real model presence, SDK account arrangement and natural recovery evidence are missing. No M6 acceptance or receipt is claimed."
+      "decision": "M6 cloud work remains in progress. On 4 November the owner deferred every local Ollama task to FUT-OLL-LOCAL-001..004. Local models/processes and their prior missing evidence no longer block M6 or V1. SDK cloud coverage, cloud recovery and a current scoped gate/owner acceptance remain outstanding. Earlier local/cloud gate results are historical and are not reclassified as passes."
     },
     {
       "milestone_id": "V1-M7",
@@ -505,9 +506,10 @@
       "title": "Admit independently gated capabilities and installation evidence",
       "delivery_state": "implemented",
       "evidence_paths": [
-        "docs/evidence/m6-delivery-checkpoint-2026-11-03.md"
+        "docs/evidence/m6-delivery-checkpoint-2026-11-03.md",
+        "docs/evidence/m6-local-ollama-deferral-2026-11-04.md"
       ],
-      "decision": "Canonical ST-OLL-001 passed at 2baaabe for actual local installation and admitted capabilities; full M6 remains open."
+      "decision": "Active M6 scope is independent cloud capability/source admission. Local installation/admission is deferred to FUT-OLL-LOCAL-001. Historical local gate results do not prove the revised cloud scope."
     },
     {
       "story_id": "ST-OLL-002",
@@ -515,9 +517,10 @@
       "title": "Observe local service, metadata decision, catalog, and runtime safely",
       "delivery_state": "in_progress",
       "evidence_paths": [
-        "docs/evidence/m6-delivery-checkpoint-2026-11-03.md"
+        "docs/evidence/m6-delivery-checkpoint-2026-11-03.md",
+        "docs/evidence/m6-local-ollama-deferral-2026-11-04.md"
       ],
-      "decision": "Implemented scope has real local and one-account evidence; this Story remains incomplete in the canonical M6 result at 2baaabe. See the checkpoint for its missing live scope."
+      "decision": "Deferred out of M6 by the owner on 4 November to FUT-OLL-LOCAL-002/004. The retained implementation state describes historical work only; no local acceptance is claimed or required for M6."
     },
     {
       "story_id": "ST-OLL-003",
@@ -525,7 +528,8 @@
       "title": "Reconcile two cloud identities and authentication health",
       "delivery_state": "in_progress",
       "evidence_paths": [
-        "docs/evidence/m6-delivery-checkpoint-2026-11-03.md"
+        "docs/evidence/m6-delivery-checkpoint-2026-11-03.md",
+        "docs/evidence/m6-local-ollama-deferral-2026-11-04.md"
       ],
       "decision": "Implemented scope has real local and one-account evidence; this Story remains incomplete in the canonical M6 result at 2baaabe. See the checkpoint for its missing live scope."
     },
@@ -535,7 +539,8 @@
       "title": "Collect cloud subscription capacity as a separate pool",
       "delivery_state": "in_progress",
       "evidence_paths": [
-        "docs/evidence/m6-delivery-checkpoint-2026-11-03.md"
+        "docs/evidence/m6-delivery-checkpoint-2026-11-03.md",
+        "docs/evidence/m6-local-ollama-deferral-2026-11-04.md"
       ],
       "decision": "Implemented scope has real local and one-account evidence; this Story remains incomplete in the canonical M6 result at 2baaabe. See the checkpoint for its missing live scope."
     },
@@ -545,9 +550,10 @@
       "title": "Correlate, integrate, render, and close M6 evidence",
       "delivery_state": "in_progress",
       "evidence_paths": [
-        "docs/evidence/m6-delivery-checkpoint-2026-11-03.md"
+        "docs/evidence/m6-delivery-checkpoint-2026-11-03.md",
+        "docs/evidence/m6-local-ollama-deferral-2026-11-04.md"
       ],
-      "decision": "Implemented scope has real local and one-account evidence; this Story remains incomplete in the canonical M6 result at 2baaabe. See the checkpoint for its missing live scope."
+      "decision": "Active scope is cloud dashboard/history/alerts/recovery integration and closure. Local process/model/correlation and local UI/validation move to FUT-OLL-LOCAL-003/004. Full cloud M6 acceptance remains open."
     },
     {
       "story_id": "ST-BUDGET-001",

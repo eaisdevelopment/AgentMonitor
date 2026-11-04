@@ -1,5 +1,7 @@
 # M6 Ollama — research and delivery plan
 
+**Scope update:** the owner [deferred all local Ollama tasks](m6-local-ollama-deferral-2026-11-04.md) on 4 November 2026. Local references below are retained research/design history, not current M6 prerequisites. Cloud requirements remain active.
+
 **Status:** research and task proposal, 31 October 2026; implementation not
 approved by this document. **Primary owner:** A03 Ollama provider adapter;
 P02, M02–M06, P01, Linux platform and operations own their existing boundaries.

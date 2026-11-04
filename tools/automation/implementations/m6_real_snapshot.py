@@ -46,9 +46,6 @@ from agentmonitor.adapters.persistence.registry.sqlite.credential_bindings impor
 from agentmonitor.adapters.persistence.registry.sqlite.repository import (
     SqliteRegistryRepositoryV1,
 )
-from agentmonitor.adapters.persistence.runtime_observation.sqlite.repository import (
-    SqliteRuntimeObservationRepositoryV1,
-)
 from agentmonitor.adapters.providers.ollama.cloud_balance.probe_descriptor import (
     ollama_cloud_scheduled_policy,
 )
@@ -119,8 +116,6 @@ class M6EvidenceSnapshotV1:
     reason_code: str
     schema_state: str
     active_ollama_accounts: int = 0
-    registered_local_installations: int = 0
-    observed_local_installations: int = 0
     active_cloud_targets: int = 0
     owner_confirmed_cloud_targets: int = 0
     owner_confirmed_required_scopes: int = 0
@@ -130,7 +125,6 @@ class M6EvidenceSnapshotV1:
     configured_alert_targets: int = 0
     alerted_targets: int = 0
     alert_no_transition_targets: int = 0
-    process_observation_count: int = 0
     natural_recovery_targets: int = 0
     cross_provider_continuity_targets: int = 0
     current_balance_lineage_sha256: str = _EMPTY_LINEAGE_SHA256
@@ -140,8 +134,6 @@ class M6EvidenceSnapshotV1:
     def __post_init__(self) -> None:
         counts = (
             self.active_ollama_accounts,
-            self.registered_local_installations,
-            self.observed_local_installations,
             self.active_cloud_targets,
             self.owner_confirmed_cloud_targets,
             self.owner_confirmed_required_scopes,
@@ -151,7 +143,6 @@ class M6EvidenceSnapshotV1:
             self.configured_alert_targets,
             self.alerted_targets,
             self.alert_no_transition_targets,
-            self.process_observation_count,
             self.natural_recovery_targets,
             self.cross_provider_continuity_targets,
         )
@@ -160,7 +151,6 @@ class M6EvidenceSnapshotV1:
             or not self.reason_code.startswith("m6_snapshot_")
             or not self.schema_state
             or any(type(value) is not int or value < 0 for value in counts)
-            or self.observed_local_installations > self.registered_local_installations
             or self.owner_confirmed_cloud_targets > self.active_cloud_targets
             or self.verified_cloud_targets > self.active_cloud_targets
             or self.current_balance_targets > self.verified_cloud_targets
@@ -200,7 +190,7 @@ class M6EvidenceSnapshotV1:
             ),
         }
         return {
-            "schema_version": "1.0.0",
+            "schema_version": "1.1.0",
             "record_type": "agentmonitor.m6_real_snapshot.v1",
             "status": values.pop("status"),
             "reason_code": values.pop("reason_code"),
@@ -667,7 +657,6 @@ def read_m6_evidence_snapshot_v1(
         cloud_registry = SqliteCloudCredentialRegistryV1(reference)
         admission = SqliteOllamaCloudAdmissionRepositoryV1(reference)
         capacity = SqliteCapacityRepositoryV1(reference)
-        runtime = SqliteRuntimeObservationRepositoryV1(reference)
         policy = ollama_cloud_scheduled_policy()
 
         accounts = tuple(
@@ -675,28 +664,10 @@ def read_m6_evidence_snapshot_v1(
             for account in registry.list_accounts("ollama", page_size=201)
             if account.lifecycle == "active"
         )
-        installations = registry.list_provider_installations("ollama", page_size=201)
         organizations = registry.list_organizations(page_size=201)
-        if (
-            len(accounts) >= 201
-            or len(installations) >= 201
-            or len(organizations) >= 201
-        ):
+        if len(accounts) >= 201 or len(organizations) >= 201:
             raise ValueError("m6_snapshot_registry_limit_exceeded")
-        observed_installations = tuple(
-            item
-            for item in installations
-            if item.presence_state == "present"
-            and item.version.state == "known_masked"
-            and instant - timedelta(minutes=10)
-            <= item.last_seen_at
-            <= instant + timedelta(seconds=5)
-        )
         schedules = SqliteCloudScheduleStatusV1(reference).list_registered()
-        process_rows = runtime.list_processes("ollama", instant, 500)
-        if len(process_rows) >= 500:
-            raise ValueError("m6_snapshot_process_limit_exceeded")
-        processes = tuple(item for item in process_rows if item.presence == "running")
         active_targets = 0
         owner_confirmed = 0
         verified = 0
@@ -729,13 +700,7 @@ def read_m6_evidence_snapshot_v1(
             active_targets += 1
             target_digest = cloud_reference_digest_v1(
                 "target",
-                "\0".join(
-                    (
-                        graph.account_id.value,
-                        graph.resource_id.value,
-                        graph.access_target_id.value,
-                    )
-                ),
+                f"{graph.account_id.value}\0{graph.resource_id.value}\0{graph.access_target_id.value}",
             )
             active_target_references[account.account_id] = target_digest
             cloud_accounts.append(account)
@@ -887,10 +852,6 @@ def read_m6_evidence_snapshot_v1(
             reason_code="m6_snapshot_query_complete",
             schema_state=schema_state,
             active_ollama_accounts=len(accounts),
-            registered_local_installations=len(installations),
-            # Each item is a real M02 reconciliation; a second host cannot be
-            # inferred merely from a second account or process row.
-            observed_local_installations=len(observed_installations),
             active_cloud_targets=active_targets,
             owner_confirmed_cloud_targets=owner_confirmed,
             owner_confirmed_required_scopes=(
@@ -904,7 +865,6 @@ def read_m6_evidence_snapshot_v1(
             configured_alert_targets=len(configured_accounts),
             alerted_targets=alerted,
             alert_no_transition_targets=no_transition,
-            process_observation_count=len(processes),
             natural_recovery_targets=recovery,
             cross_provider_continuity_targets=continuity,
             current_balance_lineage_sha256=_lineage_digest(current_balance_lineage),

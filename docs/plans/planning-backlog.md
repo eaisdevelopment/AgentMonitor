@@ -1,5 +1,10 @@
 # Independent module planning packet catalog
 
+## Owner-directed future-version work
+
+The [local Ollama backlog](integration/future-local-ollama-backlog-v1.json) records FUT-OLL-LOCAL-001..004 under the [4 November decision](integration/m6-local-ollama-deferral-2026-11-04.md). All local Ollama discovery, model/process/resource monitoring, UI and validation is deferred and unscheduled. It does not block M6 or reappear as a requirement of M7/M8. The module-planning packets below remain historical architecture references where they describe that deferred scope.
+
+
 - Status: Synchronized reusable task-packet catalog; all listed plan artifacts exist
 - Owner: integration steward
 - Use with: sub-agent runbook, module-plan template, V1 planning program, and contract register

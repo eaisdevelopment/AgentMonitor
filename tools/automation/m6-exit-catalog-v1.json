@@ -1,14 +1,12 @@
 {
-  "schema_version": "1.0.0",
+  "schema_version": "1.1.0",
   "record_type": "agentmonitor.m6_exit_catalog.v1",
   "milestone_id": "V1-M6",
   "acceptance_ids": [
     "M6-A01",
-    "M6-A02",
     "M6-A03",
     "M6-A04",
     "M6-A05",
-    "M6-A06",
     "M6-A07",
     "M6-A08",
     "M6-A09",
@@ -16,14 +14,12 @@
   ],
   "story_ids": [
     "ST-OLL-001",
-    "ST-OLL-002",
     "ST-OLL-003",
     "ST-OLL-004",
     "ST-OLL-005"
   ],
   "required_checks": [
     "AUTO-BUILD",
-    "AUTO-M6-LOCAL-ADMIT",
     "AUTO-QUALITY",
     "AUTO-DOCS-CHECK",
     "AUTO-PLAN-CHECK"
@@ -37,20 +33,8 @@
       "producer_version": "1.0.0",
       "selection_policy_id": "M6-SELECTION-A01-V1",
       "source_versions_policy_id": "M6-SOURCE-VERSIONS-A01-V1",
-      "selection_sha256": "4b9aad34046368fc5d508a58acefaf632fecdb087002861e4c0f844cd2ccac62",
+      "selection_sha256": "f2addcd2df085ca9f110fa64d048b4a7c4563653ed5450b03d50b2234f70974b",
       "source_versions_sha256": "d22f052523aa118ae58d3617d1ffd139bf46a437a256291d37948d8bc55d533f",
-      "required_limitations": []
-    },
-    {
-      "scope_id": "M6-A02",
-      "selector_id": "M6-SEL-A02",
-      "boundary": "local_service_model_hosts",
-      "producer_command_id": "AUTO-M6-EXIT",
-      "producer_version": "1.0.0",
-      "selection_policy_id": "M6-SELECTION-A02-V1",
-      "source_versions_policy_id": "M6-SOURCE-VERSIONS-A02-V1",
-      "selection_sha256": "8fa068df45c12ab1413d968c6d94c6d5c7fddf5ffd52030d1904397403f64b83",
-      "source_versions_sha256": "3f0c410919766a7d32b9eab9bd4460211a927ca99125166c95b4f1769cdf0fb5",
       "required_limitations": []
     },
     {
@@ -61,7 +45,7 @@
       "producer_version": "1.0.0",
       "selection_policy_id": "M6-SELECTION-A03-V1",
       "source_versions_policy_id": "M6-SOURCE-VERSIONS-A03-V1",
-      "selection_sha256": "7d9942fb30515726707412cd2ec9ace0a5612df91abc7a1235db88d93c871d5b",
+      "selection_sha256": "fc4efacf2b6679d5a0c86bdbd865e27a4b3600884721034018449046abe4b67d",
       "source_versions_sha256": "610bac08dbda7cb87511d7596b07998485517be7584def4b78fe2a2fdbde0262",
       "required_limitations": []
     },
@@ -73,7 +57,7 @@
       "producer_version": "1.0.0",
       "selection_policy_id": "M6-SELECTION-A04-V1",
       "source_versions_policy_id": "M6-SOURCE-VERSIONS-A04-V1",
-      "selection_sha256": "28f6740c31d34583800a184a0da05507ca4eb5169431ca9b80c5131fdde5a62e",
+      "selection_sha256": "4b2c981eddea9cc004aeb83bc3b78feecbc915dae58c342c59ef8667b07bf589",
       "source_versions_sha256": "5b5eeb7782e81655cd16295863aef8fbf742916dd7a09338b0f27616db9e5907",
       "required_limitations": []
     },
@@ -85,23 +69,9 @@
       "producer_version": "1.0.0",
       "selection_policy_id": "M6-SELECTION-A05-V1",
       "source_versions_policy_id": "M6-SOURCE-VERSIONS-A05-V1",
-      "selection_sha256": "5edc6ea35c0cd3626b08e9b27e04be9126aa1be653302854efbcfad331c51ad6",
+      "selection_sha256": "39815e34b06ec4218fe710afdbdeed3e4c8768fdd0edf9aed1be33e53cacf1e8",
       "source_versions_sha256": "5555ffab2aca63d9bf45a1af83a84ac093bedcfbb08a6c9b06636904ec73ade5",
       "required_limitations": []
-    },
-    {
-      "scope_id": "M6-A06",
-      "selector_id": "M6-SEL-A06",
-      "boundary": "process_model_relationships",
-      "producer_command_id": "AUTO-M6-EXIT",
-      "producer_version": "1.0.0",
-      "selection_policy_id": "M6-SELECTION-A06-V1",
-      "source_versions_policy_id": "M6-SOURCE-VERSIONS-A06-V1",
-      "selection_sha256": "8d4b9ac12b61b1de8a60048df76e868806409c3d79a85228b4ab8766dbfa080d",
-      "source_versions_sha256": "366afacc245abf177f89811a55b081d5672caabb13fa43e0b71262d20a17c913",
-      "required_limitations": [
-        "sampled_process_coverage"
-      ]
     },
     {
       "scope_id": "M6-A07",
@@ -111,7 +81,7 @@
       "producer_version": "1.0.0",
       "selection_policy_id": "M6-SELECTION-A07-V1",
       "source_versions_policy_id": "M6-SOURCE-VERSIONS-A07-V1",
-      "selection_sha256": "b68f2d7368e5ecbe92e83b62464f28cc8b3c7caa08bc5e3959122ae4eba6b07e",
+      "selection_sha256": "a5d64eebc3153f8c71febd01f316929fc0aef0a6a861715a6667a4ce5d61d43d",
       "source_versions_sha256": "d32beb4cbeaabe703ab4f3728683e5a0c5573581faea048470a06ae2c14dc8ad",
       "required_limitations": [
         "sampled_dashboard_and_collection_continuity"
@@ -125,7 +95,7 @@
       "producer_version": "1.0.0",
       "selection_policy_id": "M6-SELECTION-A08-V1",
       "source_versions_policy_id": "M6-SOURCE-VERSIONS-A08-V1",
-      "selection_sha256": "a74955fe40866800a52152d78f8c8d3f857ff77c2dc42b656edb13a08b10a685",
+      "selection_sha256": "b5d06446ab2e406884f3d045397f50951b9d6fb6708dd74fab1aa0b2fb63f9b8",
       "source_versions_sha256": "c263367dde3936ce94d4c371259ebf76e3a52067da0cfaed8a6b846ca99da6cd",
       "required_limitations": []
     },
@@ -137,32 +107,20 @@
       "producer_version": "1.0.0",
       "selection_policy_id": "M6-SELECTION-A09-V1",
       "source_versions_policy_id": "M6-SOURCE-VERSIONS-A09-V1",
-      "selection_sha256": "a1b6487ac49719b2573c9951a8c07ef6663245acbacd00f783e0d596f28b9ca1",
+      "selection_sha256": "0fd56c9d0c6cca93dcfa9f913756411dd7151c1820510fecc089ca4c6e984cf1",
       "source_versions_sha256": "12593a37ddbe82c4334f89dcba218d5dd46f2e29cda77609b0e281324e8ff44a",
       "required_limitations": []
     },
     {
       "scope_id": "ST-OLL-001",
       "selector_id": "M6-SEL-ST-OLL-001",
-      "boundary": "provider_admission_installation",
+      "boundary": "cloud_provider_admission",
       "producer_command_id": "AUTO-M6-EXIT",
       "producer_version": "1.0.0",
       "selection_policy_id": "M6-SELECTION-ST-OLL-001-V1",
       "source_versions_policy_id": "M6-SOURCE-VERSIONS-ST-OLL-001-V1",
-      "selection_sha256": "79cd5492175f2f0b6fe542512b7b533f299d5d7466d1f34b99b8fd93f4352c0f",
-      "source_versions_sha256": "ecdc10a13cd46d4f8b9eacc409a93fe2b35b6d8d027a4782e3f2e7c4378da51c",
-      "required_limitations": []
-    },
-    {
-      "scope_id": "ST-OLL-002",
-      "selector_id": "M6-SEL-ST-OLL-002",
-      "boundary": "local_model_runtime",
-      "producer_command_id": "AUTO-M6-EXIT",
-      "producer_version": "1.0.0",
-      "selection_policy_id": "M6-SELECTION-ST-OLL-002-V1",
-      "source_versions_policy_id": "M6-SOURCE-VERSIONS-ST-OLL-002-V1",
-      "selection_sha256": "5578b7615fd11b95da7de6603e6e3fe917842a1be508cbc7197bc09528f957d4",
-      "source_versions_sha256": "17e9f2030ffbb34caebcbe47d1a805414ec0410a3abbfa18948fc1b51c1329ff",
+      "selection_sha256": "71fabb4b9c20fc0b64419e27edb3c531d04d3d0302367ec70273232b9cd2dfde",
+      "source_versions_sha256": "912650e75a9fb3687c78f4f73ffec05aa76d6aa8ef224a755901af5a2cf4b47e",
       "required_limitations": []
     },
     {
@@ -173,7 +131,7 @@
       "producer_version": "1.0.0",
       "selection_policy_id": "M6-SELECTION-ST-OLL-003-V1",
       "source_versions_policy_id": "M6-SOURCE-VERSIONS-ST-OLL-003-V1",
-      "selection_sha256": "a51e284afc51d27fb4778658b12d772ef2cf735bf7eb04732a7c6a37de3a55e8",
+      "selection_sha256": "805dc3d72a2fed9eb0301bf18f9ef8bb437e3665254ed570ea5b584e9ea0db93",
       "source_versions_sha256": "8cd5554d2d4e97319b86a25502bc307a3712e28b443f7f926771d2a6f3f2f08c",
       "required_limitations": []
     },
@@ -185,22 +143,21 @@
       "producer_version": "1.0.0",
       "selection_policy_id": "M6-SELECTION-ST-OLL-004-V1",
       "source_versions_policy_id": "M6-SOURCE-VERSIONS-ST-OLL-004-V1",
-      "selection_sha256": "f3b44cae351d1b0c0778015dae3df504b67bce56cbd0e499dfb55b345994f056",
+      "selection_sha256": "d1c99f46f960248f774de1af6e578a08c35eadb72abb1fac5bdb350a774f8bce",
       "source_versions_sha256": "7d5544a1c82ab489629cce92a91ccaa2532a564295528b557bbe55503bac67db",
       "required_limitations": []
     },
     {
       "scope_id": "ST-OLL-005",
       "selector_id": "M6-SEL-ST-OLL-005",
-      "boundary": "integrated_runtime_dashboard_closure",
+      "boundary": "integrated_cloud_dashboard_closure",
       "producer_command_id": "AUTO-M6-EXIT",
       "producer_version": "1.0.0",
       "selection_policy_id": "M6-SELECTION-ST-OLL-005-V1",
       "source_versions_policy_id": "M6-SOURCE-VERSIONS-ST-OLL-005-V1",
-      "selection_sha256": "bda33d01006b099bf87daf389d8db62b3517b688883eb606c79934d3a2a076bc",
-      "source_versions_sha256": "b414c552340621433d5561e442ca725741258c256328a9990a58af4b7eed23a1",
+      "selection_sha256": "ecc11c7ac6ad4c00840dcdecbd93589e5c3c7bec753567df674e77931da767e5",
+      "source_versions_sha256": "c26886ee0412985df8a334c1b50baa0659c692b754568f3a81befcfcd782e551",
       "required_limitations": [
-        "sampled_process_coverage",
         "sampled_dashboard_and_collection_continuity"
       ]
     }

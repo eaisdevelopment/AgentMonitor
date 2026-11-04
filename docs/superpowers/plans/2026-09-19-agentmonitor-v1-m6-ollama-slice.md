@@ -1,5 +1,7 @@
 # AgentMonitor V1-M6 Ollama Slice Implementation Plan
 
+**Current delivery scope, amended 4 November 2026:** [all local Ollama tasks are deferred](../../plans/integration/m6-local-ollama-deferral-2026-11-04.md). ST-OLL-002 and local portions of ST-OLL-001/005 are retained below as historical design, with future work tracked in [FUT-OLL-LOCAL-001..004](../../plans/integration/future-local-ollama-backlog-v1.json). Their file lists, tests and local prerequisites are not unconditional M6 deliverables after this decision. Active M6 stories are 001/003/004/005 for cloud admission, account scope, balances/history and integration; use the [current execution plan](../../plans/integration/m6-execution-plan-2026-10-31.md) and [ticket catalog](../../plans/integration/m6-ticket-catalog-v1.json).
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Add an evidence-backed Ollama local-runtime and cloud-subscription slice for two intended identities while keeping local compute, cloud subscription, and API billing as distinct resource pools.

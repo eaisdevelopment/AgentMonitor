@@ -143,21 +143,19 @@ def _complete_facts() -> DirectM6FactsV1:
     )
 
 
-def test_direct_policy_can_pass_the_original_external_catalog() -> None:
+def test_direct_policy_can_pass_the_cloud_external_catalog() -> None:
     outcomes = classify_direct_m6_evidence_v1(_complete_facts())
 
     assert set(outcomes) == {
-        *(f"M6-A{index:02}" for index in range(1, 10)),
-        *(f"ST-OLL-{index:03}" for index in range(1, 6)),
+        *(f"M6-A{index:02}" for index in (1, 3, 4, 5, 7, 8, 9)),
+        *(f"ST-OLL-{index:03}" for index in (1, 3, 4, 5)),
     }
     assert {item.status for item in outcomes.values()} == {"passed"}
-    assert outcomes["M6-A06"].declared_limitations == ("sampled_process_coverage",)
     assert outcomes["M6-A07"].declared_limitations == (
         "sampled_dashboard_and_collection_continuity",
     )
 
     assert outcomes["ST-OLL-005"].declared_limitations == (
-        "sampled_process_coverage",
         "sampled_dashboard_and_collection_continuity",
     )
     assert all(item.test_count > 0 for item in outcomes.values())
@@ -191,7 +189,7 @@ def test_two_owner_scopes_may_reference_one_real_cloud_target() -> None:
 def test_every_python_evidence_command_disables_bytecode_writes() -> None:
     commands = dict(DIRECT_EXECUTABLE_SELECTION_V1)
 
-    assert commands["local_inventory"][1] == "-B"
+    assert "local_inventory" not in commands
     assert commands["source_security"][1] == "-B"
     assert commands["database_snapshot"][0:3] == (
         "/usr/bin/env",
@@ -201,7 +199,7 @@ def test_every_python_evidence_command_disables_bytecode_writes() -> None:
     assert "-B" in commands["database_snapshot"]
 
 
-def test_absent_real_cloud_state_does_not_hide_local_results() -> None:
+def test_absent_real_cloud_state_preserves_security_and_continuity_results() -> None:
     facts = replace(
         _complete_facts(),
         cloud_scope_evidence=None,
@@ -226,11 +224,8 @@ def test_absent_real_cloud_state_does_not_hide_local_results() -> None:
 
     outcomes = classify_direct_m6_evidence_v1(facts)
 
-    assert outcomes["M6-A02"].status == "passed"
-    assert outcomes["M6-A06"].status == "passed"
     assert outcomes["M6-A08"].status == "passed"
     assert outcomes["ST-OLL-001"].status == "passed"
-    assert outcomes["ST-OLL-002"].status == "passed"
     assert outcomes["M6-A03"].status == "not_run"
     assert outcomes["M6-A04"].status == "not_run"
     assert outcomes["ST-OLL-003"].status == "not_run"
@@ -250,47 +245,6 @@ def test_real_boundary_failure_is_failed_not_absent() -> None:
     assert outcomes["ST-OLL-005"].status == "failed"
 
 
-def test_every_registered_host_requires_local_inventory_evidence() -> None:
-    outcomes = classify_direct_m6_evidence_v1(
-        replace(
-            _complete_facts(),
-            observed_model_hosts=1,
-            model_host_evidence=HOSTS[:1],
-        )
-    )
-
-    assert outcomes["M6-A02"].status == "not_run"
-    assert outcomes["M6-A02"].reason_code == "registered_local_host_not_observed"
-    assert outcomes["ST-OLL-002"].status == "not_run"
-
-
-def test_owner_identified_single_host_with_a_real_model_can_satisfy_a02() -> None:
-    outcomes = classify_direct_m6_evidence_v1(
-        replace(
-            _complete_facts(),
-            registered_local_installations=1,
-            observed_local_installations=1,
-            observed_model_hosts=1,
-            model_host_evidence=(replace(HOSTS[0], installed_model_count=1),),
-        )
-    )
-
-    assert outcomes["M6-A02"].status == "passed"
-
-
-def test_extra_unregistered_host_cannot_supply_model_presence() -> None:
-    outcomes = classify_direct_m6_evidence_v1(
-        replace(
-            _complete_facts(),
-            registered_local_installations=1,
-            observed_local_installations=1,
-        )
-    )
-
-    assert outcomes["M6-A02"].status == "not_run"
-    assert outcomes["M6-A02"].reason_code == "registered_local_host_not_observed"
-
-
 def test_no_alert_is_required_when_no_real_rule_targets_ollama() -> None:
     outcomes = classify_direct_m6_evidence_v1(
         replace(
@@ -301,19 +255,6 @@ def test_no_alert_is_required_when_no_real_rule_targets_ollama() -> None:
     )
 
     assert outcomes["M6-A05"].status == "passed"
-
-
-def test_two_empty_hosts_do_not_prove_the_required_model_present_scenario() -> None:
-    empty_hosts = tuple(
-        replace(host, installed_model_count=0, loaded_model_count=0) for host in HOSTS
-    )
-    outcomes = classify_direct_m6_evidence_v1(
-        replace(_complete_facts(), model_host_evidence=empty_hosts)
-    )
-
-    assert outcomes["M6-A02"].status == "not_run"
-    assert outcomes["M6-A02"].reason_code == "real_model_present_not_observed"
-    assert outcomes["ST-OLL-002"].status == "not_run"
 
 
 def test_missing_history_does_not_erase_a_reconciled_current_balance() -> None:
@@ -383,7 +324,7 @@ def test_direct_bundle_uses_one_shared_artifact_without_producer_receipts() -> N
         ".agentmonitor-local/m6-evidence/direct-a.json"
     }
     assert {item["producer_id"] for item in bundle["evidence"]} == {"AUTO-M6-EXIT"}
-    assert len(bundle["evidence"]) == 14
+    assert len(bundle["evidence"]) == 11
 
 
 def test_direct_bundle_preserves_exact_not_run_reason() -> None:
@@ -393,10 +334,7 @@ def test_direct_bundle_preserves_exact_not_run_reason() -> None:
     outcomes = classify_direct_m6_evidence_v1(
         replace(
             _complete_facts(),
-            registered_local_installations=1,
-            observed_local_installations=1,
-            observed_model_hosts=1,
-            model_host_evidence=HOSTS[:1],
+            cloud_scope_evidence=None,
         )
     )
     bundle = direct_bundle_v1(
@@ -416,10 +354,10 @@ def test_direct_bundle_preserves_exact_not_run_reason() -> None:
         now=recorded,
     )
 
-    assert evaluation.acceptance["M6-A02"] == "not_run"
-    assert "real_model_present_not_observed" not in evaluation.reason_codes
-    row = next(item for item in bundle["acceptance"] if item["id"] == "M6-A02")
-    assert row["reason_code"] == "real_model_present_not_observed"
+    assert evaluation.acceptance["M6-A03"] == "not_run"
+    assert "intended_cloud_scope_not_selected" not in evaluation.reason_codes
+    row = next(item for item in bundle["acceptance"] if item["id"] == "M6-A03")
+    assert row["reason_code"] == "intended_cloud_scope_not_selected"
 
 
 def test_direct_bundle_rejects_a_different_catalog_policy_digest() -> None:
@@ -442,20 +380,6 @@ def test_direct_bundle_rejects_a_different_catalog_policy_digest() -> None:
         assert str(error) == "m6_direct_catalog_policy_mismatch"
     else:
         raise AssertionError("changed direct policy digest was accepted")
-
-
-def test_unavailable_browser_stays_not_run_with_process_observations() -> None:
-    facts = replace(
-        _complete_facts(),
-        process_browser=BoundaryCheckV1(
-            "not_run", 0, reason_code="signed_in_dashboard_unavailable"
-        ),
-    )
-
-    outcome = classify_direct_m6_evidence_v1(facts)["M6-A06"]
-
-    assert outcome.status == "not_run"
-    assert outcome.reason_code == "signed_in_dashboard_unavailable"
 
 
 def test_unavailable_dashboard_session_does_not_become_a_missing_capacity_ui() -> None:
@@ -503,20 +427,6 @@ def test_blocked_dashboard_capacity_check_stays_blocked() -> None:
         assert outcomes[scope_id].reason_code == (
             "dashboard_registry_changed_concurrently"
         )
-
-
-def test_disappeared_process_stays_not_run_after_database_observation() -> None:
-    facts = replace(
-        _complete_facts(),
-        process_browser=BoundaryCheckV1(
-            "not_run", 0, reason_code="real_ollama_process_unavailable"
-        ),
-    )
-
-    outcome = classify_direct_m6_evidence_v1(facts)["M6-A06"]
-
-    assert outcome.status == "not_run"
-    assert outcome.reason_code == "real_ollama_process_unavailable"
 
 
 def test_recovery_counts_without_actual_interval_are_not_evidence() -> None:

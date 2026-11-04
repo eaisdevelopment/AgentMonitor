@@ -10,7 +10,7 @@ const results = {
   account_admin: { status: "not_run", reason_code: "signed_in_dashboard_unavailable" },
   cloud_capacity: { status: "not_run", reason_code: "signed_in_dashboard_unavailable" },
   capacity_history: { status: "not_run", reason_code: "signed_in_dashboard_unavailable" },
-  process_visibility: { status: "not_run", reason_code: "signed_in_dashboard_unavailable" },
+  process_visibility: { status: "not_run", reason_code: "local_ollama_deferred" },
   dashboard_continuity: { status: "not_run", reason_code: "signed_in_dashboard_unavailable" },
 };
 const facts = {
@@ -28,13 +28,14 @@ function setResult(name, status, reasonCode) {
 let verificationPage;
 async function finish() {
   if (verificationPage !== undefined) await verificationPage.close().catch(() => {});
+  results.process_visibility = { status: "not_run", reason_code: "local_ollama_deferred" };
   console.log(JSON.stringify({
     schema_version: "1.0.0",
     record_type: "agentmonitor.m6_ollama_dashboard_check.v1",
     results,
     facts,
   }));
-  const statuses = Object.values(results).map(result => result.status);
+  const statuses = Object.entries(results).filter(([name]) => name !== "process_visibility").map(([, result]) => result.status);
   process.exit(statuses.includes("failed") ? 1 : statuses.every(status => status === "passed") ? 0 : 3);
 }
 
@@ -504,73 +505,6 @@ try {
     }
   }
 
-  let processStage = "transport";
-  try {
-    const processResponse = page.waitForResponse(response => {
-      const url = new URL(response.url());
-      return url.origin === origin && url.pathname === "/api/v1/process-metrics" && response.request().method() === "GET";
-    }, { timeout: 15_000 });
-    await page.getByRole("button", { name: "Sessions", exact: true }).click();
-    const response = await processResponse;
-    if (!response.ok()) {
-      setResult("process_visibility", "not_run", "real_ollama_process_unavailable");
-    } else {
-      processStage = "payload";
-      const payload = await response.json();
-      if (!boundedPage(payload)) throw new Error("process_page_invalid");
-      processStage = "transport";
-      const filteredResponse = await page.request.get(
-        `${origin}/api/v1/process-metrics?provider_key=ollama&limit=200`,
-        { headers: { Origin: origin } },
-      );
-      if (!filteredResponse.ok()) throw new Error("process_filter_unavailable");
-      processStage = "payload";
-      const filtered = await filteredResponse.json();
-      if (!boundedPage(filtered) || filtered.items.some(item => item.provider_key !== "ollama")) throw new Error("process_filter_invalid");
-      const filteredIds = new Set(filtered.items.filter(item => item.presence === "running" && item.provenance?.source_id === "linux.proc.process.v1").map(item => item.process_id));
-      const observed = payload.items.filter(item => item.provider_key === "ollama" && item.presence === "running" && item.provenance?.source_id === "linux.proc.process.v1" && filteredIds.has(item.process_id));
-      const table = page.getByRole("region", { name: "Process observations table" });
-      if (observed.length === 0) {
-        setResult("process_visibility", "not_run", payload.page.has_more
-          ? "ollama_process_not_in_displayed_page" : "real_ollama_process_unavailable");
-      } else {
-        processStage = "dom";
-        const visible = await table.waitFor({ state: "visible", timeout: 15_000 }).then(() => true, () => false);
-        if (!visible) {
-          setResult("process_visibility", "failed", "ollama_process_ui_missing");
-        } else {
-          const rows = table.locator('tbody tr[data-process-row="true"]').filter({
-            has: page.getByRole("rowheader", { name: "ollama", exact: true }),
-          });
-          const expectedIds = new Set(observed.map(item => item.process_id));
-          let foundRow = false;
-          let foundLabels = false;
-          let foundExecutable = false;
-          for (const row of await rows.all()) {
-            const processId = await row.getAttribute("data-process-id");
-            if (!expectedIds.has(processId)) continue;
-            foundRow = true;
-            const expected = observed.find(item => item.process_id === processId);
-            const label = expected?.executable_label;
-            if (label?.state === "present" && typeof label.value === "string") {
-              foundExecutable = await row.getByRole("cell", { name: label.value, exact: true }).isVisible();
-            }
-            const account = await row.getByText("Account unresolved", { exact: true }).isVisible();
-            const model = await row.getByText("Model unresolved", { exact: true }).isVisible();
-            if (account && model) foundLabels = true;
-          }
-          if (!foundRow) setResult("process_visibility", "failed", "ollama_process_ui_missing");
-          else if (!foundLabels) setResult("process_visibility", "failed", "ollama_process_relationship_state_missing");
-          else if (!foundExecutable) setResult("process_visibility", "failed", "ollama_process_executable_label_missing");
-          else setResult("process_visibility", "passed", null);
-        }
-      }
-    }
-  } catch {
-    if (processStage === "transport") setResult("process_visibility", "not_run", "ollama_process_evidence_unavailable");
-    else if (processStage === "payload") setResult("process_visibility", "failed", "ollama_process_response_invalid");
-    else setResult("process_visibility", "failed", "ollama_process_ui_evaluation_failed");
-  }
   if (mutationRequests !== 0) {
     for (const name of Object.keys(results)) setResult(name, "failed", "dashboard_mutation_request_observed");
   } else if (await registryDigest(page) !== registryBefore) {

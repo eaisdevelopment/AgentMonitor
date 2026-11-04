@@ -1,5 +1,7 @@
 # Product requirements
 
+**Provider scope amendment (4 November 2026):** all local Ollama portions of the shared discovery, runtime, model, resource, UI and verification requirements are [deferred to future versions](../plans/integration/m6-local-ollama-deferral-2026-11-04.md). Stable shared requirement IDs remain active for Claude/Codex and applicable cloud behavior; this does not defer their other-provider scope or Ollama cloud accounts/balances. No local Ollama task is an M6/M7/M8 or V1 release prerequisite.
+
 ## Status vocabulary
 
 - **Approved:** agreed requirement for V1.
@@ -49,7 +51,7 @@
 
 ### Local process and session discovery
 
-- **FR-DISC-001 (Approved):** Discover running Claude, Codex, and Ollama agent processes without changing the owner's existing launch workflow.
+- **FR-DISC-001 (Approved):** Discover running Claude and Codex agent processes (local Ollama deferred) without changing the owner's existing launch workflow.
 - **FR-DISC-002 (Approved):** Collect read-only process metadata: executable/provider, PID, parent PID, working directory when permitted, start time, duration, CPU, memory, and observable process state.
 - **FR-DISC-003 (Approved):** Read allowlisted metadata from standard provider state/session directories without persisting prompt, response, tool, source-code, or secret content.
 - **FR-DISC-004 (Approved):** Relate processes and sessions to accounts only when supported by evidence; otherwise report Unresolved account.

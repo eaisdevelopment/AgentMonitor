@@ -1,5 +1,7 @@
 # M6 Ollama local-service vertical
 
+**Current status: Deferred to future versions by the owner on 4 November 2026.** The [scope decision](m6-local-ollama-deferral-2026-11-04.md) and [future backlog](future-local-ollama-backlog-v1.json) supersede this plan's M6 delivery/acceptance assignment. Earlier approval and evidence below remain historical. Do not resume local work or require it for M6 closure without future scheduling.
+
 - Status: Approved by the owner on 1 November 2026 for this local-service scope.
 - Owners: A03 adapter, M03 provider protocol, M06 runtime, P01 API, P02 UI;
   the integration steward serializes shared contracts and composition.

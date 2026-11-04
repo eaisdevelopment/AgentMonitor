@@ -138,11 +138,11 @@ def validate(catalog: object) -> list[str]:
     for key in by_id:
         visit(key)
     if covered_stories != set(catalog.get("story_ids", [])) or covered_stories != {
-        f"ST-OLL-{i:03}" for i in range(1, 6)
+        f"ST-OLL-{i:03}" for i in (1, 3, 4, 5)
     }:
         errors.append("story_coverage_incomplete")
     if covered_m6 != set(catalog.get("acceptance_ids", [])) or covered_m6 != {
-        f"M6-A{i:02}" for i in range(1, 11)
+        f"M6-A{i:02}" for i in (1, 3, 4, 5, 7, 8, 9, 10)
     }:
         errors.append("m6_acceptance_coverage_incomplete")
     return errors
@@ -177,7 +177,7 @@ def main() -> int:
         return 0
     print(
         f"M6 TICKETS: PASSED — {len(tickets)} proposed tickets; "
-        "five stories and ten M6 acceptance items traced; "
+        "four cloud stories and eight M6 acceptance items traced; "
         "not implementation approval or M6 completion"
     )
     return 0

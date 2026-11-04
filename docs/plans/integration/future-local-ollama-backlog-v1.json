@@ -1,0 +1,548 @@
+{
+  "schema_version": "1.0",
+  "record_type": "agentmonitor.future_local_ollama_backlog.v1",
+  "authority": "docs/plans/integration/m6-local-ollama-deferral-2026-11-04.md",
+  "status": "deferred",
+  "items": [
+    {
+      "id": "FUT-OLL-LOCAL-001",
+      "title": "Local installation and capability admission",
+      "status": "deferred",
+      "target_release": "future_version_unscheduled",
+      "owner": "A03 Ollama adapter / integration steward",
+      "authority": "docs/plans/integration/m6-local-ollama-deferral-2026-11-04.md",
+      "original_ticket_ids": [
+        "M6-T002",
+        "M6-T008"
+      ],
+      "original_acceptance_ids": [
+        "M6-A02"
+      ],
+      "original_story_ids": [
+        "ST-OLL-001"
+      ],
+      "scope": "Version and installation discovery, local capability admission and source compatibility.",
+      "reentry_condition": "Owner schedules the local Ollama scope in a future version; review retained implementation and actual sources before resuming. No automatic M7/M8 prerequisite.",
+      "historical_tickets": [
+        {
+          "id": "M6-T002",
+          "story": "ST-OLL-001",
+          "title": "Inventory local Ollama installation",
+          "status": "done",
+          "owner": "A03 adapter",
+          "depends_on": [
+            "M6-T001"
+          ],
+          "requirements": [
+            "FR-ACC-005",
+            "FR-DISC-008"
+          ],
+          "acceptance_criteria": [
+            "AC-LIVE-004"
+          ],
+          "m6_acceptance": [
+            "M6-A02"
+          ],
+          "estimate_hours": {
+            "min": 2,
+            "max": 4
+          },
+          "work": "Record real CLI and daemon version, trusted host, process ownership and response bounds without profile or agent mutation.",
+          "done_when": "Local version and availability have sanitized real evidence; missing or mismatched service is explicit.",
+          "verification": [
+            "ollama --version"
+          ],
+          "evidence": [
+            "docs/evidence/m6-baseline-discovery-2026-11-01.md",
+            "docs/evidence/m6-delivery-checkpoint-2026-11-03.md"
+          ]
+        },
+        {
+          "id": "M6-T008",
+          "story": "ST-OLL-001",
+          "title": "Implement installation and capability admission",
+          "status": "in_progress",
+          "owner": "A03 adapter",
+          "depends_on": [
+            "M6-T006"
+          ],
+          "requirements": [
+            "FR-ACC-005",
+            "FR-DISC-008"
+          ],
+          "acceptance_criteria": [
+            "AC-LIVE-004",
+            "AC-TEST-001"
+          ],
+          "m6_acceptance": [
+            "M6-A02",
+            "M6-A09"
+          ],
+          "estimate_hours": {
+            "min": 4,
+            "max": 6
+          },
+          "work": "Implement provider manifest and installation discovery with separate client/daemon versions, source and compatibility.",
+          "done_when": "Each lane independently admits exact supported version/source; invalid lane fails before I/O; real installation produces provenance.",
+          "verification": [
+            "adapter pure policy tests; real installation test (to be defined)"
+          ],
+          "evidence": [
+            "docs/evidence/m6-ollama-local-preview-2026-11-01.md",
+            "docs/evidence/m6-delivery-checkpoint-2026-11-03.md",
+            "docs/evidence/m6-native-usd-account-ui-2026-11-03.md"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "FUT-OLL-LOCAL-002",
+      "title": "Local host and model inventory",
+      "status": "deferred",
+      "target_release": "future_version_unscheduled",
+      "owner": "A03 Ollama adapter / integration steward",
+      "authority": "docs/plans/integration/m6-local-ollama-deferral-2026-11-04.md",
+      "original_ticket_ids": [
+        "M6-T003",
+        "M6-T009"
+      ],
+      "original_acceptance_ids": [
+        "M6-A02"
+      ],
+      "original_story_ids": [
+        "ST-OLL-002"
+      ],
+      "scope": "Endpoint discovery, local service health, installed/loaded model inventories, real empty and model-present verification.",
+      "reentry_condition": "Owner schedules the local Ollama scope in a future version; review retained implementation and actual sources before resuming. No automatic M7/M8 prerequisite.",
+      "historical_tickets": [
+        {
+          "id": "M6-T003",
+          "story": "ST-OLL-002",
+          "title": "Verify model-host read-only access",
+          "status": "in_progress",
+          "owner": "A03 adapter",
+          "depends_on": [
+            "M6-T002"
+          ],
+          "requirements": [
+            "FR-DISC-003",
+            "FR-SAFE-002"
+          ],
+          "acceptance_criteria": [
+            "AC-PROC-001",
+            "AC-PROC-004"
+          ],
+          "m6_acceptance": [
+            "M6-A02",
+            "M6-A09"
+          ],
+          "estimate_hours": {
+            "min": 3,
+            "max": 5
+          },
+          "work": "Confirm the owner-selected local workstation endpoint and safe read-only access to its existing model; document the exposed surface before requests. The earlier remote-host assumption is superseded.",
+          "done_when": "One approved reachable real host and model state, or specific documented blocker; no daemon change or LAN exposure.",
+          "verification": [
+            "read-only host and API discovery; exact command selected after host/trust review"
+          ],
+          "evidence": [
+            "docs/evidence/m6-delivery-checkpoint-2026-11-03.md"
+          ]
+        },
+        {
+          "id": "M6-T009",
+          "story": "ST-OLL-002",
+          "title": "Implement local catalog and loaded-model observation",
+          "status": "in_progress",
+          "owner": "A03 adapter",
+          "depends_on": [
+            "M6-T003",
+            "M6-T008"
+          ],
+          "requirements": [
+            "FR-DISC-003",
+            "FR-COL-004"
+          ],
+          "acceptance_criteria": [
+            "AC-UI-005",
+            "AC-LIVE-004"
+          ],
+          "m6_acceptance": [
+            "M6-A02"
+          ],
+          "estimate_hours": {
+            "min": 5,
+            "max": 8
+          },
+          "work": "Use bounded local GET version/tags/ps sources, map installed and loaded models with source/time and real empty/offline states.",
+          "done_when": "Actual empty and real model-present cases render distinctly; no inference/loading request or mutation.",
+          "verification": [
+            "real local service integration tests and browser checks (to be defined)"
+          ],
+          "evidence": [
+            "docs/evidence/m6-ollama-local-preview-2026-11-01.md"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "FUT-OLL-LOCAL-003",
+      "title": "Local processes, resources and correlation",
+      "status": "deferred",
+      "target_release": "future_version_unscheduled",
+      "owner": "A03 Ollama adapter / integration steward",
+      "authority": "docs/plans/integration/m6-local-ollama-deferral-2026-11-04.md",
+      "original_ticket_ids": [
+        "M6-T013"
+      ],
+      "original_acceptance_ids": [
+        "M6-A06"
+      ],
+      "original_story_ids": [
+        "ST-OLL-005"
+      ],
+      "scope": "Local Ollama process discovery, hierarchy, CPU/RAM/GPU where safely available, model/account correlation and representative process evidence.",
+      "reentry_condition": "Owner schedules the local Ollama scope in a future version; review retained implementation and actual sources before resuming. No automatic M7/M8 prerequisite.",
+      "historical_tickets": [
+        {
+          "id": "M6-T013",
+          "story": "ST-OLL-005",
+          "title": "Discover real Ollama processes and correlation",
+          "status": "in_progress",
+          "owner": "M06 runtime + Linux platform",
+          "depends_on": [
+            "M6-T003",
+            "M6-T008"
+          ],
+          "requirements": [
+            "FR-DISC-001",
+            "FR-DISC-004",
+            "FR-SAFE-002"
+          ],
+          "acceptance_criteria": [
+            "AC-PROC-001",
+            "AC-PROC-002",
+            "AC-PROC-003",
+            "AC-PROC-004"
+          ],
+          "m6_acceptance": [
+            "M6-A06"
+          ],
+          "estimate_hours": {
+            "min": 6,
+            "max": 10
+          },
+          "work": "Read approved process metadata, distinguish loaded model and active client, preserve evidence-backed hierarchy and unresolved links.",
+          "done_when": "Representative real processes display correct sampled state/paths where permitted; no environment, prompt, response, source or process mutation.",
+          "verification": [
+            "real Linux process and provider checks (to be defined)"
+          ],
+          "evidence": [
+            "docs/evidence/m6-delivery-checkpoint-2026-11-03.md"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "FUT-OLL-LOCAL-004",
+      "title": "Local dashboard and integrated verification",
+      "status": "deferred",
+      "target_release": "future_version_unscheduled",
+      "owner": "A03 Ollama adapter / integration steward",
+      "authority": "docs/plans/integration/m6-local-ollama-deferral-2026-11-04.md",
+      "original_ticket_ids": [
+        "M6-T006",
+        "M6-T007",
+        "M6-T014",
+        "M6-T015",
+        "M6-T016",
+        "M6-T017",
+        "M6-T018"
+      ],
+      "original_acceptance_ids": [
+        "M6-A02",
+        "M6-A06"
+      ],
+      "original_story_ids": [
+        "ST-OLL-005"
+      ],
+      "scope": "Local API/UI views, history/alerts where applicable, local failure/recovery, security, admission, deployment and live completion evidence. Cloud portions remain in M6.",
+      "reentry_condition": "Owner schedules the local Ollama scope in a future version; review retained implementation and actual sources before resuming. No automatic M7/M8 prerequisite.",
+      "historical_tickets": [
+        {
+          "id": "M6-T006",
+          "story": "ST-OLL-001",
+          "title": "Freeze capability and contract decisions",
+          "status": "in_progress",
+          "owner": "M6 integration steward",
+          "depends_on": [
+            "M6-T002",
+            "M6-T003",
+            "M6-T004",
+            "M6-T005"
+          ],
+          "requirements": [
+            "FR-ACC-004",
+            "FR-COL-004",
+            "FR-COL-006"
+          ],
+          "acceptance_criteria": [
+            "AC-V1-002",
+            "AC-UI-006"
+          ],
+          "m6_acceptance": [
+            "M6-A09"
+          ],
+          "estimate_hours": {
+            "min": 4,
+            "max": 6
+          },
+          "work": "Publish capability matrix and update A03 plan, data flow, source/version/rate, identity, contracts, migration and A03-M7 boundary.",
+          "done_when": "Every enabled lane has source decision and contract impact; owner approves exact implementation plan.",
+          "verification": [
+            "python3 tools/automation/run.py AUTO-PLAN-CHECK",
+            "python3 tools/automation/run.py AUTO-DOCS-CHECK"
+          ],
+          "evidence": [
+            "docs/plans/integration/m6-ollama-cloud-implementation-change.md",
+            "docs/plans/integration/m6-recovery-evidence-contract-impact.md",
+            "docs/plans/integration/m6-ollama-local-vertical-change.md",
+            "docs/plans/integration/m6-ollama-process-implementation-change.md"
+          ]
+        },
+        {
+          "id": "M6-T007",
+          "story": "ST-OLL-005",
+          "title": "Define canonical M6 completion gate",
+          "status": "in_progress",
+          "owner": "M6 integration steward",
+          "depends_on": [
+            "M6-T006"
+          ],
+          "requirements": [
+            "FR-COL-008"
+          ],
+          "acceptance_criteria": [
+            "AC-TEST-001",
+            "AC-TEST-006"
+          ],
+          "m6_acceptance": [
+            "M6-A10"
+          ],
+          "estimate_hours": {
+            "min": 3,
+            "max": 5
+          },
+          "work": "Build versioned M6 completeness catalog and canonical AUTO-M6-EXIT before dependent closure; test blocked/failed/missing evidence.",
+          "done_when": "Gate checks M6-A01..A10 and five story deliverables, rejects skipped/missing evidence, emits one sanitized receipt; no repeated owner copy-paste.",
+          "verification": [
+            "python3 tools/automation/run.py AUTO-M6-EXIT"
+          ],
+          "evidence": [
+            "tools/automation/m6-exit-catalog-v1.json",
+            "tools/automation/implementations/auto_m6_exit.py"
+          ]
+        },
+        {
+          "id": "M6-T014",
+          "story": "ST-OLL-005",
+          "title": "Implement dashboard views and provider filter",
+          "status": "in_progress",
+          "owner": "P02 dashboard",
+          "depends_on": [
+            "M6-T009",
+            "M6-T010",
+            "M6-T011",
+            "M6-T013"
+          ],
+          "requirements": [
+            "FR-ACC-002",
+            "FR-COL-006"
+          ],
+          "acceptance_criteria": [
+            "AC-UI-002",
+            "AC-UI-003",
+            "AC-UI-004",
+            "AC-UI-005",
+            "AC-UI-006"
+          ],
+          "m6_acceptance": [
+            "M6-A01",
+            "M6-A08"
+          ],
+          "estimate_hours": {
+            "min": 6,
+            "max": 9
+          },
+          "work": "Render Ollama account, organization, resource type, values, source, freshness, model/process and failure states via versioned API.",
+          "done_when": "Real Overview/detail/filter/history accessible on desktop and mobile; no placeholder values; existing promotion retained.",
+          "verification": [
+            "npm --prefix frontend run typecheck",
+            "real dashboard browser checks (to be defined)"
+          ],
+          "evidence": [
+            "docs/evidence/m6-ollama-local-preview-2026-11-01.md",
+            "docs/evidence/m6-delivery-checkpoint-2026-11-03.md",
+            "docs/evidence/m6-native-usd-account-ui-2026-11-03.md"
+          ]
+        },
+        {
+          "id": "M6-T015",
+          "story": "ST-OLL-005",
+          "title": "Verify failure isolation and natural recovery",
+          "status": "in_progress",
+          "owner": "M6 integration steward",
+          "depends_on": [
+            "M6-T009",
+            "M6-T010",
+            "M6-T011",
+            "M6-T014"
+          ],
+          "requirements": [
+            "FR-COL-003",
+            "FR-COL-006"
+          ],
+          "acceptance_criteria": [
+            "AC-LIVE-007",
+            "AC-OPS-003"
+          ],
+          "m6_acceptance": [
+            "M6-A07"
+          ],
+          "estimate_hours": {
+            "min": 3,
+            "max": 5
+          },
+          "work": "Exercise available real auth/offline/throttle/recovery conditions without stopping a user service, and verify Claude/Codex/dashboard continuity.",
+          "done_when": "Observed conditions pass with source/time; absent natural conditions remain Blocked/Not Run without simulation.",
+          "verification": [
+            "real service and provider failure-isolation checks (to be defined)"
+          ],
+          "evidence": [
+            "docs/evidence/m6-delivery-checkpoint-2026-11-03.md"
+          ]
+        },
+        {
+          "id": "M6-T016",
+          "story": "ST-OLL-005",
+          "title": "Security, compatibility and dependency review",
+          "status": "in_progress",
+          "owner": "M6 integration steward",
+          "depends_on": [
+            "M6-T006",
+            "M6-T009",
+            "M6-T010",
+            "M6-T011",
+            "M6-T013"
+          ],
+          "requirements": [
+            "FR-SAFE-001",
+            "FR-SAFE-002",
+            "FR-COL-007"
+          ],
+          "acceptance_criteria": [
+            "AC-V1-005",
+            "AC-V1-007",
+            "AC-PROC-004"
+          ],
+          "m6_acceptance": [
+            "M6-A09"
+          ],
+          "estimate_hours": {
+            "min": 4,
+            "max": 6
+          },
+          "work": "Review request scopes, secrets, allowed fields, no default-profile mutation, no agent control, dependencies/license and versioned contracts.",
+          "done_when": "Review names each finding and resolution; no mandatory security/privacy blocker remains; no new dependency without approval.",
+          "verification": [
+            "python3 tools/automation/run.py AUTO-QUALITY",
+            "bounded source and existing-evidence security/privacy review"
+          ],
+          "evidence": [
+            "docs/evidence/m6-delivery-checkpoint-2026-11-03.md",
+            "docs/evidence/m6-security-privacy-review-2026-11-04.md"
+          ]
+        },
+        {
+          "id": "M6-T017",
+          "story": "ST-OLL-005",
+          "title": "Run live end-to-end M6 scenarios",
+          "status": "in_progress",
+          "owner": "M6 integration steward",
+          "depends_on": [
+            "M6-T007",
+            "M6-T012",
+            "M6-T013",
+            "M6-T014",
+            "M6-T015",
+            "M6-T016"
+          ],
+          "requirements": [
+            "FR-COL-004",
+            "FR-COL-008"
+          ],
+          "acceptance_criteria": [
+            "AC-LIVE-004",
+            "AC-LIVE-005",
+            "AC-HIST-001",
+            "AC-TEST-003",
+            "AC-TEST-006"
+          ],
+          "m6_acceptance": [
+            "M6-A02",
+            "M6-A04",
+            "M6-A05",
+            "M6-A06",
+            "M6-A08"
+          ],
+          "estimate_hours": {
+            "min": 5,
+            "max": 8
+          },
+          "work": "Run fixed real test catalog and source-to-history/dashboard comparisons across SDK, EAIS and model host.",
+          "done_when": "Record exact observed pass/block outcomes, no hidden skips and no repeated owner attestations for unchanged evidence.",
+          "verification": [
+            "python3 tools/automation/run.py AUTO-M6-EXIT"
+          ],
+          "evidence": [
+            "docs/evidence/m6-delivery-checkpoint-2026-11-03.md"
+          ]
+        },
+        {
+          "id": "M6-T018",
+          "story": "ST-OLL-005",
+          "title": "Deploy, operate and close M6",
+          "status": "in_progress",
+          "owner": "M6 integration steward",
+          "depends_on": [
+            "M6-T017"
+          ],
+          "requirements": [
+            "FR-SAFE-002",
+            "FR-COL-008"
+          ],
+          "acceptance_criteria": [
+            "AC-OPS-003",
+            "AC-TEST-006"
+          ],
+          "m6_acceptance": [
+            "M6-A10"
+          ],
+          "estimate_hours": {
+            "min": 4,
+            "max": 7
+          },
+          "work": "Run canonical gate, one bounded independent review, safe dashboard rollout/rollback and owner demonstration; record acceptance.",
+          "done_when": "Gate passed at exact revision, service responds, promotion retained, runbook updated, owner reviews once; M7/M8 remain separate.",
+          "verification": [
+            "python3 tools/automation/run.py AUTO-M6-EXIT",
+            "python3 tools/automation/run.py AUTO-DOCS-CHECK"
+          ],
+          "evidence": [
+            "docs/evidence/m6-delivery-checkpoint-2026-11-03.md"
+          ]
+        }
+      ]
+    }
+  ]
+}

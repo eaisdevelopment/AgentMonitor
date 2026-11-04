@@ -952,17 +952,18 @@ python3 tools/automation/run.py AUTO-M6-EXIT
 The command is non-interactive. It never asks the owner to repeat an account
 disposition, enter an opaque ID, or provide a credential, and it does not
 activate or restart the dashboard. It runs the already cataloged
-`AUTO-BUILD`, `AUTO-M6-LOCAL-ADMIT`, `AUTO-QUALITY`, `AUTO-DOCS-CHECK`,
+`AUTO-BUILD`, `AUTO-QUALITY`, `AUTO-DOCS-CHECK`,
 and `AUTO-PLAN-CHECK` checks directly. It independently requires the checkout
 to remain at one exact clean revision before and after evidence collection and
 receipt publication; ordinary Git branch, upstream, and author configuration
 are not M6 acceptance criteria.
 Those commands retain their documented real read-only boundaries and limited
-scope. The same gate also runs the local inventory, provider-security checks,
+scope. The same gate also runs cloud provider-security checks,
 responsive browser, signed-in installed Ollama dashboard check, and one
 privacy-minimized read-only database snapshot. Each check is attempted
-independently; a missing cloud prerequisite does not erase a valid local
-result. Still-valid owner-guided account/scope outcomes are read through the
+independently; missing cloud evidence does not erase other valid cloud
+results. Local Ollama tasks are [deferred](../plans/integration/m6-local-ollama-deferral-2026-11-04.md);
+local admission, inventory, models and processes are not gate prerequisites. Still-valid owner-guided account/scope outcomes are read through the
 application's versioned state rather than requested again.
 
 For organization coverage, open **Organizations**, expand **Provider coverage**,
@@ -982,11 +983,7 @@ owner declarations survive deployments and do not require repeated attestation.
 A shared declaration expresses use of one account, not proof of a pooled
 provider balance. See the [scope evidence](../evidence/m6-coverage-scope-integration-2026-11-03.md).
 
-The gate does not promote a narrower proxy into acceptance evidence. M6-A02
-remains `not_run` until every registered host has a fresh real inventory
-observation and at least one actual installed or loaded model is observed.
-The owner-selected model host is this workstation; a second machine is not
-a prerequisite. Loaded model state does not prove active work. M6-A04 requires the separate provider-authoritative
+The gate does not promote a narrower proxy into acceptance evidence. M6-A04 requires the separate provider-authoritative
 comparison from the approved catalog; equality between AgentMonitor's SQLite,
 API and DOM proves only internal lineage. M6-A05 binds retained history to the
 exact current observation and collection run and accepts an alert only when
@@ -999,17 +996,19 @@ sources stay visible and never trigger another owner prompt inside this gate.
 The versioned selector catalog is
 `tools/automation/m6-exit-catalog-v1.json`. It freezes the exact boundary,
 selection policy, source-version policy and required limitation set for each
-of nine external `M6-A01..A09` acceptance entries and five
-`ST-OLL-001..005` story entries. `AUTO-M6-EXIT` owns these direct selections;
-there are no fourteen subsidiary producer routines and no manually assembled
+of seven external acceptance entries (`M6-A01/A03/A04/A05/A07/A08/A09`)
+and four story entries (`ST-OLL-001/003/004/005`). Schema 1.1.0 excludes
+M6-A02/A06 and ST-OLL-002 by the owner deferral; prior catalog receipts
+cannot attest this revised scope. `AUTO-M6-EXIT` owns these direct selections;
+there are no subsidiary producer routines and no manually assembled
 bundle. The command records one owner-only shared artifact below
 `.agentmonitor-local/m6-evidence/`, containing only bounded statuses, counts,
 digests, times and reason/limitation codes. It contains no account identity,
 email, key, raw provider value/payload, profile path, screenshot, prompt,
 response, source content or arbitrary environment value. Every scope binds the
 same artifact digest plus its own frozen selection/source-version digests,
-exact result and test count. Process-related results disclose
-`sampled_process_coverage`, as required by M6-A06.
+exact result and test count. Deferred local scopes are absent from active
+selectors; no local test is marked Passed because it was deferred.
 
 An unavailable real scenario is reported as `not_run` in that criterion and
 the overall command exits 3. A naturally ambiguous, busy or inaccessible
@@ -1019,7 +1018,7 @@ malformed result, digest mismatch, wrong scope or unsafe evidence artifact is
 
 The command rechecks the clean revision, catalog, current evidence times, and
 the shared artifact before and after its receipt write. Only
-when all checks and all 14 external selectors pass does it create one
+when all checks and all 11 external selectors pass does it create one
 owner-only receipt at
 `.agentmonitor-local/m6-exit-receipts/<implementation-revision>.json`. The
 receipt contains only safe counts, digests, check IDs, times, and declared
@@ -1439,6 +1438,6 @@ before its next permitted poll; the policy never shortens that cooldown.
 
 The default is not editable in the dashboard. The owner approved protected
 `.env` storage, and real provider access, balance/history and current/stale UI
-evidence are recorded in the M6 checkpoint linked above. Missing organization,
-model-present and natural recovery evidence remain separate acceptance items;
+evidence are recorded in the M6 checkpoint linked above. Missing organization
+coverage and natural cloud recovery evidence remain separate acceptance items;
 they do not make the credential-storage decision unresolved.

@@ -121,18 +121,17 @@ Scope:
 
 Exit: Codex requirements and the approved real capability matrix pass.
 
-## V1-M6 — Ollama local/cloud vertical slice
+## V1-M6 — Ollama cloud subscription vertical slice
 
-**Goal:** unify supported local runtime and cloud subscription visibility.
+**Goal:** provide supported cloud subscription visibility. All local Ollama
+work is deferred by the [4 November scope decision](plans/integration/m6-local-ollama-deferral-2026-11-04.md).
 
 Scope:
 
 - actual account, team, and workspace semantics;
 - current versus legacy subscription resource model;
-- local models, processes, and CPU/RAM/GPU metrics where officially and safely
-  exposed;
 - cloud credits, usage, concurrency, and API usage where supported;
-- representative concurrent agents, history, alerts, and diagnostics.
+- cloud history, alerts, failure isolation and diagnostics.
 
 Exit: the Ollama capability matrix is implemented honestly and unsupported
 billing fields remain explicit.
@@ -174,6 +173,14 @@ candidate.
 Begins only after V1-M8. The owner supplies email credentials locally in
 `.env`. A separate delivery adapter performs real email verification and does
 not change dashboard alert ownership.
+
+## Later — Local Ollama monitoring
+
+The [future local Ollama backlog](plans/integration/future-local-ollama-backlog-v1.json)
+contains FUT-OLL-LOCAL-001..004: local installation/service discovery, model
+inventory, process/resource/correlation observation, UI and local verification.
+These are unscheduled future-version tasks, not M6, M7, M8 or V1 release
+prerequisites. Existing code and historical results are retained.
 
 ## Later — Community and remote evolution
 

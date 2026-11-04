@@ -1,5 +1,7 @@
 # M6 Ollama cloud: account connection and balance delivery plan
 
+**Current scope amendment:** the [4 November local deferral](m6-local-ollama-deferral-2026-11-04.md) removes local model/process prerequisites from M6. The cloud account, balance, history/alert, security and recovery requirements in this plan remain active. References below to separate local acceptance are superseded by that explicit owner decision.
+
 **Status: Approved by the owner on 2 November 2026.** The owner subsequently selected the protected AgentMonitor-managed `.env` for Ollama cloud keys instead of OS Secret Service. This explicit decision supersedes the keyring-specific provisions below; it does not waive security review or constitute evidence of implementation or completion.
 
 ## Owner-approved credential storage amendment

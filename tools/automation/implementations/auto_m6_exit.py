@@ -36,7 +36,6 @@ from tools.automation.implementations.m6_direct_evidence import (
     CloudScopeEvidenceV1,
     DirectM6FactsV1,
     DirectM6OutcomeV1,
-    LocalModelHostEvidenceV1,
     classify_direct_m6_evidence_v1,
     direct_bundle_v1,
     parse_cloud_scope_evidence_v1,
@@ -64,14 +63,12 @@ MAX_JSON_BYTES = 1024 * 1024
 MAX_ARTIFACT_BYTES = 16 * 1024 * 1024
 CHECK_TIMEOUT_SECONDS = {
     "AUTO-BUILD": 1800,
-    "AUTO-M6-LOCAL-ADMIT": 1200,
     "AUTO-QUALITY": 1800,
     "AUTO-DOCS-CHECK": 1800,
     "AUTO-PLAN-CHECK": 1800,
 }
 DIRECT_CHECK_TIMEOUT_SECONDS = {
     "scope_policy": 60,
-    "local_inventory": 120,
     "account_admin_browser": 120,
     "source_security": 300,
     "database_snapshot": 60,
@@ -81,8 +78,6 @@ DIRECT_CHECK_TIMEOUT_SECONDS = {
 }
 DIRECT_SNAPSHOT_KEYS = (
     "active_ollama_accounts",
-    "registered_local_installations",
-    "observed_local_installations",
     "active_cloud_targets",
     "owner_confirmed_cloud_targets",
     "owner_confirmed_required_scopes",
@@ -92,7 +87,6 @@ DIRECT_SNAPSHOT_KEYS = (
     "configured_alert_targets",
     "alerted_targets",
     "alert_no_transition_targets",
-    "process_observation_count",
     "natural_recovery_targets",
     "cross_provider_continuity_targets",
 )
@@ -985,12 +979,18 @@ def _run_ollama_dashboard_browser(
         ):
             return failed
         boundaries.append(_boundary(result_status, reason))
-    statuses = [item.status for item in boundaries]
+    # Legacy result slot is explicit Not Run; it is outside the cloud scope.
+    if (
+        boundaries[3].status != "not_run"
+        or boundaries[3].reason_code != "local_ollama_deferred"
+    ):
+        return failed
+    statuses = [item.status for index, item in enumerate(boundaries) if index != 3]
     expected_return_code = (
         1
         if "failed" in statuses
         else 0
-        if statuses == ["passed", "passed", "passed", "passed", "passed"]
+        if statuses == ["passed", "passed", "passed", "passed"]
         else 3
     )
     if process_result.return_code != expected_return_code:
@@ -1003,67 +1003,6 @@ def _run_ollama_dashboard_browser(
         boundaries[4],
         dict(parsed["facts"]),
     )
-
-
-def _run_local_inventory() -> tuple[
-    BoundaryCheckV1, tuple[LocalModelHostEvidenceV1, ...]
-]:
-    result = _run_direct_argv(
-        _direct_command("local_inventory", "0" * 40),
-        timeout_seconds=DIRECT_CHECK_TIMEOUT_SECONDS["local_inventory"],
-        capture_output=True,
-    )
-    if not result.launched:
-        return _boundary("blocked", "local_inventory_unavailable"), ()
-    if result.timed_out or not result.cleanup_confirmed:
-        return _boundary("failed", "local_inventory_execution_failed"), ()
-    if result.return_code == 0:
-        candidates = [
-            line
-            for line in result.output.splitlines()
-            if line.startswith(b"{") and line.endswith(b"}")
-        ]
-        if len(candidates) != 1:
-            return _boundary("failed", "local_inventory_output_invalid"), ()
-        try:
-            parsed = _load_json_bytes(candidates[0])
-            if (
-                not isinstance(parsed, dict)
-                or set(parsed)
-                != {
-                    "schema_version",
-                    "record_type",
-                    "status",
-                    "host_id",
-                    "source_id",
-                    "version",
-                    "installed_model_count",
-                    "loaded_model_count",
-                    "observed_at",
-                }
-                or parsed.get("schema_version") != "1.0.0"
-                or parsed.get("record_type") != "agentmonitor.m6_local_inventory.v1"
-                or parsed.get("status") != "passed"
-            ):
-                raise ValueError("local_inventory_output_invalid")
-            host = LocalModelHostEvidenceV1(
-                host_id=parsed["host_id"],
-                source_id=parsed["source_id"],
-                version=parsed["version"],
-                installed_model_count=parsed["installed_model_count"],
-                loaded_model_count=parsed["loaded_model_count"],
-                observed_at=parsed["observed_at"],
-            )
-            observed = datetime.fromisoformat(host.observed_at)
-            now = datetime.now(UTC)
-            if observed > now or now - observed > timedelta(minutes=2):
-                raise ValueError("local_inventory_output_stale")
-        except (KeyError, TypeError, ValueError):
-            return _boundary("failed", "local_inventory_output_invalid"), ()
-        return _boundary("passed"), (host,)
-    if result.return_code == 3 and b"M6 LOCAL INVENTORY: BLOCKED " in result.output:
-        return _boundary("blocked", "local_inventory_source_unavailable"), ()
-    return _boundary("failed", "local_inventory_execution_failed"), ()
 
 
 def parse_required_organization_selection_v1(value: object) -> tuple[str, ...]:
@@ -1168,7 +1107,7 @@ def _run_real_snapshot() -> tuple[
             "digests",
             "cloud_scope_evidence",
         }
-        or parsed.get("schema_version") != "1.0.0"
+        or parsed.get("schema_version") != "1.1.0"
         or parsed.get("record_type") != "agentmonitor.m6_real_snapshot.v1"
         or parsed.get("status") not in {"passed", "blocked", "not_run"}
         or parsed.get("schema_state") not in DIRECT_SNAPSHOT_SCHEMA_STATES
@@ -1290,7 +1229,7 @@ def _run_direct_checks(checks: dict[str, StatusV1], revision: str) -> DirectM6Fa
     """Run every available real check once, independent of sibling outcomes."""
 
     recovery_observation, recovery_interval = _run_recovery_interval(revision)
-    local_inventory, model_hosts = _run_local_inventory()
+    deferred_local = _boundary("not_run", "local_ollama_deferred")
     source_security = _run_direct_argv(
         _direct_command("source_security", revision),
         timeout_seconds=DIRECT_CHECK_TIMEOUT_SECONDS["source_security"],
@@ -1348,8 +1287,8 @@ def _run_direct_checks(checks: dict[str, StatusV1], revision: str) -> DirectM6Fa
     ):
         history_lineage_reconciled_targets = counts["history_targets"]
     return DirectM6FactsV1(
-        local_admission=_boundary(checks["AUTO-M6-LOCAL-ADMIT"]),
-        local_inventory=local_inventory,
+        local_admission=deferred_local,
+        local_inventory=deferred_local,
         account_admin_browser=account_admin,
         cloud_capacity_browser=cloud_capacity,
         capacity_history_browser=capacity_history,
@@ -1362,8 +1301,11 @@ def _run_direct_checks(checks: dict[str, StatusV1], revision: str) -> DirectM6Fa
         authoritative_observation=authoritative_observation,
         recovery_interval=recovery_interval,
         recovery_observation=recovery_observation,
-        observed_model_hosts=len(model_hosts),
-        model_host_evidence=model_hosts,
+        registered_local_installations=0,
+        observed_local_installations=0,
+        process_observation_count=0,
+        observed_model_hosts=0,
+        model_host_evidence=(),
         authoritative_balance_reconciled_targets=(
             authoritative_balance_reconciled_targets
         ),

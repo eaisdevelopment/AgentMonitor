@@ -1,5 +1,7 @@
 # AgentMonitor V1 specification
 
+**Current scope amendment:** the owner [deferred all local Ollama tasks](../plans/integration/m6-local-ollama-deferral-2026-11-04.md) on 4 November 2026. Local service/model/process monitoring and associated validation belong to the future-version backlog, not V1 release acceptance. Ollama cloud account/balance monitoring remains in M6.
+
 - Status: **Complete product and module-planning baseline**
 - Product owner: Pavlo Sidelov <pavlo@sidelov.com>
 - Copyright: Copyright © 2026 Pavlo Sidelov. All rights reserved.
@@ -32,7 +34,7 @@ V1 answers four questions:
 | Area | V1 target |
 |---|---|
 | Subscription accounts | 6 Claude, 4 Codex, 2 Ollama |
-| Concurrent agents | 10–15 Claude, 5–6 Codex, 2–4 Ollama |
+| Concurrent agents | 10–15 Claude, 5–6 Codex; local Ollama deferred |
 | API billing | Anthropic, OpenAI, and supported Ollama API accounts |
 | Grouping | Accounts grouped by organization with parent-level status and usage |
 | Deployment | One developer workstation; native Linux first, macOS-compatible design |
@@ -72,7 +74,7 @@ provider facts.
 
 ### Running-agent monitoring
 
-- Automatically discover real Claude, Codex, and Ollama processes without
+- Automatically discover real Claude and Codex processes without
   changing how they were launched.
 - Represent parent agents, subagents, wrappers, orphans, and unresolved
   relationships as a hierarchy with evidence strength.
@@ -185,7 +187,7 @@ system, or UI dependencies. The UI has no database or backend-internal access.
    API, generated client, and dashboard.
 4. Claude fleet, history, reauthentication status, alerts, and diagnostics.
 5. Codex vertical slice and concurrent-agent coverage.
-6. Ollama local/cloud vertical slice.
+6. Ollama cloud subscription vertical slice; local Ollama is deferred.
 7. Anthropic, OpenAI, and supported Ollama API budget vertical slices.
 8. Retention, backup/restore, accessibility, responsiveness, performance,
    security/license review, Linux service lifecycle, and V1 release gate.

@@ -32,7 +32,7 @@ def test_snapshot_contract_exposes_only_sanitized_aggregates() -> None:
     )
 
     assert snapshot.as_json() == {
-        "schema_version": "1.0.0",
+        "schema_version": "1.1.0",
         "record_type": "agentmonitor.m6_real_snapshot.v1",
         "status": "not_run",
         "reason_code": "m6_snapshot_schema_upgrade_required",
@@ -40,8 +40,6 @@ def test_snapshot_contract_exposes_only_sanitized_aggregates() -> None:
         "cloud_scope_evidence": None,
         "counts": {
             "active_ollama_accounts": 0,
-            "registered_local_installations": 0,
-            "observed_local_installations": 0,
             "active_cloud_targets": 0,
             "owner_confirmed_cloud_targets": 0,
             "owner_confirmed_required_scopes": 0,
@@ -51,7 +49,6 @@ def test_snapshot_contract_exposes_only_sanitized_aggregates() -> None:
             "configured_alert_targets": 0,
             "alerted_targets": 0,
             "alert_no_transition_targets": 0,
-            "process_observation_count": 0,
             "natural_recovery_targets": 0,
             "cross_provider_continuity_targets": 0,
         },
@@ -87,8 +84,6 @@ def test_real_installed_database_is_inspected_without_mutation() -> None:
     }
     assert set(snapshot.as_json()["counts"]) == {
         "active_ollama_accounts",
-        "registered_local_installations",
-        "observed_local_installations",
         "active_cloud_targets",
         "owner_confirmed_cloud_targets",
         "owner_confirmed_required_scopes",
@@ -98,7 +93,6 @@ def test_real_installed_database_is_inspected_without_mutation() -> None:
         "configured_alert_targets",
         "alerted_targets",
         "alert_no_transition_targets",
-        "process_observation_count",
         "natural_recovery_targets",
         "cross_provider_continuity_targets",
     }
@@ -135,3 +129,15 @@ def test_real_snapshot_cli_emits_one_bounded_json_document() -> None:
     assert payload["record_type"] == "agentmonitor.m6_real_snapshot.v1"
     assert payload["status"] in {"passed", "blocked", "not_run"}
     assert result.returncode == (0 if payload["status"] == "passed" else 3)
+
+
+def test_real_cloud_snapshot_does_not_publish_deferred_local_observations() -> None:
+    snapshot = read_m6_evidence_snapshot_v1(REAL_DATA_ROOT)
+    assert snapshot.status == "passed", snapshot.reason_code
+    counts = snapshot.as_json()["counts"]
+    assert not {
+        "registered_local_installations",
+        "observed_local_installations",
+        "process_observation_count",
+    }.intersection(counts)
+    assert snapshot.current_balance_targets > 0

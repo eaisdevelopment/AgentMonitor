@@ -1,5 +1,7 @@
 # V1 acceptance criteria
 
+**Scope amendment (4 November 2026):** the owner [deferred all local Ollama tasks](../plans/integration/m6-local-ollama-deferral-2026-11-04.md) to future versions. Local Ollama installation, models, processes/resources and their UI/live verification do not block V1, M6, M7 or M8. Shared criteria below continue to govern their retained Claude/Codex and cloud scope. Deferred is not Passed; historical evidence is preserved.
+
 V1 is releasable only when every mandatory criterion below is Passed. A Blocked, Not Run, Skipped, Unsupported, or Unknown result is not a pass. Unsupported provider metrics may be honestly displayed as unsupported only when the relevant provider capability discovery and evidence are complete.
 
 ## Release-wide gates
@@ -35,7 +37,7 @@ V1 is releasable only when every mandatory criterion below is Passed. A Blocked,
 ## Process and session gates
 
 - **AC-PROC-001:** Running provider processes are discovered on the real Linux workstation without changing the launch workflow or injecting terminal input.
-- **AC-PROC-002:** Parent/subagent hierarchy is correct for representative real Claude, Codex, and Ollama process trees.
+- **AC-PROC-002:** Parent/subagent hierarchy is correct for representative real Claude and Codex process trees; local Ollama process trees are deferred.
 - **AC-PROC-003:** Account-session correlation never silently guesses. Unresolved mappings are visible and can be confirmed manually.
 - **AC-PROC-004:** Metadata-only extraction has been reviewed to prove prompts, responses, source content, arbitrary environment values, and secrets are not persisted.
 - **AC-PROC-005:** Ten-minute possible-stall logic operates on real observations and does not classify an observable user/permission wait as stuck.
@@ -84,4 +86,4 @@ cross-provider/release acceptance to V1-M8.
 
 ## Explicit post-V1 items
 
-The following do not block V1: email, native desktop notifications, messenger integrations, remote hosting, multi-user authorization, additional providers, full transcript storage, or agent control/routing.
+The following do not block V1: local Ollama monitoring and its verification, email, native desktop notifications, messenger integrations, remote hosting, multi-user authorization, additional providers, full transcript storage, or agent control/routing.

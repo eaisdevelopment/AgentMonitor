@@ -1,5 +1,7 @@
 # M6 Ollama cloud implementation contract and dependency review
 
+**Scope update:** the owner [deferred all local Ollama tasks](m6-local-ollama-deferral-2026-11-04.md) on 4 November 2026. Local references below are retained research/design history, not current M6 prerequisites. Cloud requirements remain active.
+
 **Storage amendment:** the owner selected protected managed `.env` storage
 instead of Secret Service. Keyring-specific statements below are historical;
 the [M6 cloud plan](m6-ollama-cloud-implementation-change.md) is authoritative.

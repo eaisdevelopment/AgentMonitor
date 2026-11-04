@@ -11,13 +11,12 @@ from typing import Literal, cast
 
 StatusV1 = Literal["passed", "failed", "blocked", "not_run"]
 
-ACCEPTANCE_IDS = tuple(f"M6-A{index:02}" for index in range(1, 11))
-STORY_IDS = tuple(f"ST-OLL-{index:03}" for index in range(1, 6))
+ACCEPTANCE_IDS = tuple(f"M6-A{index:02}" for index in (1, 3, 4, 5, 7, 8, 9, 10))
+STORY_IDS = tuple(f"ST-OLL-{index:03}" for index in (1, 3, 4, 5))
 ALL_SCOPE_IDS = (*ACCEPTANCE_IDS, *STORY_IDS)
 SELF_COMPLETION_SCOPE_ID = "M6-A10"
 REQUIRED_CHECKS = (
     "AUTO-BUILD",
-    "AUTO-M6-LOCAL-ADMIT",
     "AUTO-QUALITY",
     "AUTO-DOCS-CHECK",
     "AUTO-PLAN-CHECK",
@@ -31,15 +30,6 @@ SELECTOR_REQUIREMENTS = (
         (),
         "M6-SELECTION-A01-V1",
         "M6-SOURCE-VERSIONS-A01-V1",
-    ),
-    (
-        "M6-A02",
-        "M6-SEL-A02",
-        "local_service_model_hosts",
-        "AUTO-M6-EXIT",
-        (),
-        "M6-SELECTION-A02-V1",
-        "M6-SOURCE-VERSIONS-A02-V1",
     ),
     (
         "M6-A03",
@@ -67,15 +57,6 @@ SELECTOR_REQUIREMENTS = (
         (),
         "M6-SELECTION-A05-V1",
         "M6-SOURCE-VERSIONS-A05-V1",
-    ),
-    (
-        "M6-A06",
-        "M6-SEL-A06",
-        "process_model_relationships",
-        "AUTO-M6-EXIT",
-        ("sampled_process_coverage",),
-        "M6-SELECTION-A06-V1",
-        "M6-SOURCE-VERSIONS-A06-V1",
     ),
     (
         "M6-A07",
@@ -107,20 +88,11 @@ SELECTOR_REQUIREMENTS = (
     (
         "ST-OLL-001",
         "M6-SEL-ST-OLL-001",
-        "provider_admission_installation",
+        "cloud_provider_admission",
         "AUTO-M6-EXIT",
         (),
         "M6-SELECTION-ST-OLL-001-V1",
         "M6-SOURCE-VERSIONS-ST-OLL-001-V1",
-    ),
-    (
-        "ST-OLL-002",
-        "M6-SEL-ST-OLL-002",
-        "local_model_runtime",
-        "AUTO-M6-EXIT",
-        (),
-        "M6-SELECTION-ST-OLL-002-V1",
-        "M6-SOURCE-VERSIONS-ST-OLL-002-V1",
     ),
     (
         "ST-OLL-003",
@@ -143,12 +115,9 @@ SELECTOR_REQUIREMENTS = (
     (
         "ST-OLL-005",
         "M6-SEL-ST-OLL-005",
-        "integrated_runtime_dashboard_closure",
+        "integrated_cloud_dashboard_closure",
         "AUTO-M6-EXIT",
-        (
-            "sampled_process_coverage",
-            "sampled_dashboard_and_collection_continuity",
-        ),
+        ("sampled_dashboard_and_collection_continuity",),
         "M6-SELECTION-ST-OLL-005-V1",
         "M6-SOURCE-VERSIONS-ST-OLL-005-V1",
     ),
@@ -322,7 +291,7 @@ def validate_catalog_v1(catalog: object) -> tuple[str, ...]:
     if not isinstance(catalog, dict) or set(catalog) != _CATALOG_KEYS:
         return ("m6_catalog_shape_invalid",)
     if (
-        catalog.get("schema_version") != "1.0.0"
+        catalog.get("schema_version") != "1.1.0"
         or catalog.get("record_type") != "agentmonitor.m6_exit_catalog.v1"
         or catalog.get("milestone_id") != "V1-M6"
     ):

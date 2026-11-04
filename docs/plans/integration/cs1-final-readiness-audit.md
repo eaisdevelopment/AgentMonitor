@@ -1243,3 +1243,10 @@ record does not assert installed deployment or full M6 acceptance.
 Plan snapshot SHA-256: `e84df1c349c6aeb2a3482d7955351bb3f6014a8a2b61866bdc57b9b692d67a33`
 
 Planning validator SHA-256: `b8aeb132b2cd14900757d4f8e553702fbbd5a3954d21008aff7e77d7202c29c7`
+
+
+## 4 November 2026 — owner-directed local Ollama deferral
+
+The current [scope amendment](m6-local-ollama-deferral-2026-11-04.md) moves local Ollama work to future versions. This synchronization refresh binds only the changed automation scope description and completion standard; it is not a new milestone acceptance or a provider verification result.
+
+Plan snapshot SHA-256: `179cc5f61ae2726c7da938ea06c4b41f65159e1922ac7d256944e360cf3fa9fb`

@@ -45,14 +45,13 @@ NOW = datetime(2026, 11, 2, 12, 0, tzinfo=UTC)
 
 def _catalog(*, frozen: bool = True) -> dict[str, object]:
     return {
-        "schema_version": "1.0.0",
+        "schema_version": "1.1.0",
         "record_type": "agentmonitor.m6_exit_catalog.v1",
         "milestone_id": "V1-M6",
         "acceptance_ids": list(ACCEPTANCE_IDS),
         "story_ids": list(STORY_IDS),
         "required_checks": [
             "AUTO-BUILD",
-            "AUTO-M6-LOCAL-ADMIT",
             "AUTO-QUALITY",
             "AUTO-DOCS-CHECK",
             "AUTO-PLAN-CHECK",
@@ -241,9 +240,7 @@ def test_m6_exit_owns_direct_selector_checks_without_fourteen_subroutines() -> N
     )["routines"]
     routine_ids = {item["id"] for item in routines}
     catalog = json.loads(
-        (ROOT / "tools/automation/m6-exit-catalog-v1.json").read_text(
-            encoding="utf-8"
-        )
+        (ROOT / "tools/automation/m6-exit-catalog-v1.json").read_text(encoding="utf-8")
     )
 
     assert not any(item.startswith("AUTO-M6-EVIDENCE-") for item in routine_ids)
@@ -272,7 +269,7 @@ def test_success_output_is_explicitly_technical_not_milestone_completion(
         checks={key: "passed" for key in _catalog()["required_checks"]},
         reason_codes=(),
         evidence_count=len(SELECTOR_REQUIREMENTS),
-        declared_limitations=("sampled_process_coverage",),
+        declared_limitations=("sampled_dashboard_and_collection_continuity",),
         receipt_path=".agentmonitor-local/m6-exit-receipts/receipt.json",
     )
 
@@ -369,15 +366,15 @@ def test_selector_receipts_require_an_executed_cataloged_producer() -> None:
         )
 
 
-def test_sampled_process_coverage_must_be_disclosed() -> None:
-    selector = _selector("M6-A06")
+def test_sampled_recovery_coverage_must_be_disclosed() -> None:
+    selector = _selector("M6-A07")
     selector["declared_limitations"] = []
 
     with pytest.raises(ValueError, match="m6_selector_receipt_limitations_missing"):
         assemble_selector_bundle_v1(
             (selector,),
             catalog=_catalog(),
-            producer_statuses=_producer_statuses(passed_selector="M6-SEL-A06"),
+            producer_statuses=_producer_statuses(passed_selector="M6-SEL-A07"),
             expected_revision=REVISION,
             catalog_sha256=DIGEST,
             recorded_at=NOW,
@@ -515,16 +512,18 @@ def test_passed_receipt_contains_only_counts_digests_and_safe_outcomes() -> None
         completed_at=NOW,
         evidence_count=len(SELECTOR_REQUIREMENTS),
         required_checks=tuple(required_checks),
-        declared_limitations=("sampled_process_coverage",),
+        declared_limitations=("sampled_dashboard_and_collection_continuity",),
     )
 
     assert receipt["status"] == "passed"
     assert receipt["record_type"] == "agentmonitor.m6_technical_exit_receipt.v1"
-    assert receipt["technical_acceptance_count"] == 9
+    assert receipt["technical_acceptance_count"] == 7
     assert receipt["pending_acceptance_ids"] == ["M6-A10"]
-    assert receipt["story_count"] == 5
+    assert receipt["story_count"] == 4
     assert receipt["evidence_count"] == len(SELECTOR_REQUIREMENTS)
-    assert receipt["declared_limitations"] == ["sampled_process_coverage"]
+    assert receipt["declared_limitations"] == [
+        "sampled_dashboard_and_collection_continuity"
+    ]
     assert "accounts" not in receipt
     assert "identity" not in receipt
 
@@ -538,7 +537,7 @@ def test_passed_receipt_contains_only_counts_digests_and_safe_outcomes() -> None
             completed_at=NOW,
             evidence_count=len(SELECTOR_REQUIREMENTS) - 1,
             required_checks=tuple(required_checks),
-            declared_limitations=("sampled_process_coverage",),
+            declared_limitations=("sampled_dashboard_and_collection_continuity",),
         )
 
     prior = dict(receipt)

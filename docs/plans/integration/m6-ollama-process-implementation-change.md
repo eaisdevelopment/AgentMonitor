@@ -1,5 +1,7 @@
 # M6 Ollama process observation — implementation plan
 
+**Current status: Deferred to future versions by the owner on 4 November 2026.** The [scope decision](m6-local-ollama-deferral-2026-11-04.md) and [future backlog](future-local-ollama-backlog-v1.json) supersede this plan's M6 delivery/acceptance assignment. Earlier approval and evidence below remain historical. Do not resume local work or require it for M6 closure without future scheduling.
+
 **Status: Approved by the owner on 2 November 2026.** M6-T013, M6-A06 and AC-PROC-001..004. The approved local
 catalog plan leaves this separate owned path open. This plan does not claim
 process-to-model or process-to-account association from process names.

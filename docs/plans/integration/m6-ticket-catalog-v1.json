@@ -5,18 +5,15 @@
   "owner_approved": false,
   "story_ids": [
     "ST-OLL-001",
-    "ST-OLL-002",
     "ST-OLL-003",
     "ST-OLL-004",
     "ST-OLL-005"
   ],
   "acceptance_ids": [
     "M6-A01",
-    "M6-A02",
     "M6-A03",
     "M6-A04",
     "M6-A05",
-    "M6-A06",
     "M6-A07",
     "M6-A08",
     "M6-A09",
@@ -51,73 +48,6 @@
       ],
       "evidence": [
         "docs/evidence/m6-baseline-discovery-2026-11-01.md"
-      ]
-    },
-    {
-      "id": "M6-T002",
-      "story": "ST-OLL-001",
-      "title": "Inventory local Ollama installation",
-      "status": "done",
-      "owner": "A03 adapter",
-      "depends_on": [
-        "M6-T001"
-      ],
-      "requirements": [
-        "FR-ACC-005",
-        "FR-DISC-008"
-      ],
-      "acceptance_criteria": [
-        "AC-LIVE-004"
-      ],
-      "m6_acceptance": [
-        "M6-A02"
-      ],
-      "estimate_hours": {
-        "min": 2,
-        "max": 4
-      },
-      "work": "Record real CLI and daemon version, trusted host, process ownership and response bounds without profile or agent mutation.",
-      "done_when": "Local version and availability have sanitized real evidence; missing or mismatched service is explicit.",
-      "verification": [
-        "ollama --version"
-      ],
-      "evidence": [
-        "docs/evidence/m6-baseline-discovery-2026-11-01.md",
-        "docs/evidence/m6-delivery-checkpoint-2026-11-03.md"
-      ]
-    },
-    {
-      "id": "M6-T003",
-      "story": "ST-OLL-002",
-      "title": "Verify model-host read-only access",
-      "status": "in_progress",
-      "owner": "A03 adapter",
-      "depends_on": [
-        "M6-T002"
-      ],
-      "requirements": [
-        "FR-DISC-003",
-        "FR-SAFE-002"
-      ],
-      "acceptance_criteria": [
-        "AC-PROC-001",
-        "AC-PROC-004"
-      ],
-      "m6_acceptance": [
-        "M6-A02",
-        "M6-A09"
-      ],
-      "estimate_hours": {
-        "min": 3,
-        "max": 5
-      },
-      "work": "Confirm the owner-selected local workstation endpoint and safe read-only access to its existing model; document the exposed surface before requests. The earlier remote-host assumption is superseded.",
-      "done_when": "One approved reachable real host and model state, or specific documented blocker; no daemon change or LAN exposure.",
-      "verification": [
-        "read-only host and API discovery; exact command selected after host/trust review"
-      ],
-      "evidence": [
-        "docs/evidence/m6-delivery-checkpoint-2026-11-03.md"
       ]
     },
     {
@@ -194,8 +124,6 @@
       "status": "in_progress",
       "owner": "M6 integration steward",
       "depends_on": [
-        "M6-T002",
-        "M6-T003",
         "M6-T004",
         "M6-T005"
       ],
@@ -215,8 +143,8 @@
         "min": 4,
         "max": 6
       },
-      "work": "Publish capability matrix and update A03 plan, data flow, source/version/rate, identity, contracts, migration and A03-M7 boundary.",
-      "done_when": "Every enabled lane has source decision and contract impact; owner approves exact implementation plan.",
+      "work": "Publish cloud capability decisions, source/version/rate, identity, contracts, migration and M7 boundary. Local capability decisions are deferred.",
+      "done_when": "Every active cloud lane has a source decision and contract impact under the existing approved cloud plan.",
       "verification": [
         "python3 tools/automation/run.py AUTO-PLAN-CHECK",
         "python3 tools/automation/run.py AUTO-DOCS-CHECK"
@@ -225,7 +153,8 @@
         "docs/plans/integration/m6-ollama-cloud-implementation-change.md",
         "docs/plans/integration/m6-recovery-evidence-contract-impact.md",
         "docs/plans/integration/m6-ollama-local-vertical-change.md",
-        "docs/plans/integration/m6-ollama-process-implementation-change.md"
+        "docs/plans/integration/m6-ollama-process-implementation-change.md",
+        "docs/plans/integration/m6-local-ollama-deferral-2026-11-04.md"
       ]
     },
     {
@@ -252,19 +181,20 @@
         "max": 5
       },
       "work": "Build versioned M6 completeness catalog and canonical AUTO-M6-EXIT before dependent closure; test blocked/failed/missing evidence.",
-      "done_when": "Gate checks M6-A01..A10 and five story deliverables, rejects skipped/missing evidence, emits one sanitized receipt; no repeated owner copy-paste.",
+      "done_when": "Gate checks eight active M6 acceptance IDs and four active stories, rejects missing/skipped cloud evidence, and emits one scope-bound sanitized receipt; deferred local IDs are never counted Passed.",
       "verification": [
         "python3 tools/automation/run.py AUTO-M6-EXIT"
       ],
       "evidence": [
         "tools/automation/m6-exit-catalog-v1.json",
-        "tools/automation/implementations/auto_m6_exit.py"
+        "tools/automation/implementations/auto_m6_exit.py",
+        "docs/plans/integration/m6-local-ollama-deferral-2026-11-04.md"
       ]
     },
     {
       "id": "M6-T008",
       "story": "ST-OLL-001",
-      "title": "Implement installation and capability admission",
+      "title": "Implement cloud capability admission",
       "status": "in_progress",
       "owner": "A03 adapter",
       "depends_on": [
@@ -272,63 +202,29 @@
       ],
       "requirements": [
         "FR-ACC-005",
-        "FR-DISC-008"
+        "FR-COL-004"
       ],
       "acceptance_criteria": [
         "AC-LIVE-004",
         "AC-TEST-001"
       ],
       "m6_acceptance": [
-        "M6-A02",
         "M6-A09"
       ],
       "estimate_hours": {
         "min": 4,
         "max": 6
       },
-      "work": "Implement provider manifest and installation discovery with separate client/daemon versions, source and compatibility.",
-      "done_when": "Each lane independently admits exact supported version/source; invalid lane fails before I/O; real installation produces provenance.",
+      "work": "Admit the cloud provider capability and exact official balance source independently of local CLI or daemon installation.",
+      "done_when": "Cloud lane enforces its supported source/version and pre-I/O refusal policy without requiring local Ollama installation.",
       "verification": [
-        "adapter pure policy tests; real installation test (to be defined)"
+        "cloud source policy and security tests; real cloud account verification"
       ],
       "evidence": [
         "docs/evidence/m6-ollama-local-preview-2026-11-01.md",
         "docs/evidence/m6-delivery-checkpoint-2026-11-03.md",
-        "docs/evidence/m6-native-usd-account-ui-2026-11-03.md"
-      ]
-    },
-    {
-      "id": "M6-T009",
-      "story": "ST-OLL-002",
-      "title": "Implement local catalog and loaded-model observation",
-      "status": "in_progress",
-      "owner": "A03 adapter",
-      "depends_on": [
-        "M6-T003",
-        "M6-T008"
-      ],
-      "requirements": [
-        "FR-DISC-003",
-        "FR-COL-004"
-      ],
-      "acceptance_criteria": [
-        "AC-UI-005",
-        "AC-LIVE-004"
-      ],
-      "m6_acceptance": [
-        "M6-A02"
-      ],
-      "estimate_hours": {
-        "min": 5,
-        "max": 8
-      },
-      "work": "Use bounded local GET version/tags/ps sources, map installed and loaded models with source/time and real empty/offline states.",
-      "done_when": "Actual empty and real model-present cases render distinctly; no inference/loading request or mutation.",
-      "verification": [
-        "real local service integration tests and browser checks (to be defined)"
-      ],
-      "evidence": [
-        "docs/evidence/m6-ollama-local-preview-2026-11-01.md"
+        "docs/evidence/m6-native-usd-account-ui-2026-11-03.md",
+        "docs/plans/integration/m6-local-ollama-deferral-2026-11-04.md"
       ]
     },
     {
@@ -439,53 +335,14 @@
       ]
     },
     {
-      "id": "M6-T013",
-      "story": "ST-OLL-005",
-      "title": "Discover real Ollama processes and correlation",
-      "status": "in_progress",
-      "owner": "M06 runtime + Linux platform",
-      "depends_on": [
-        "M6-T003",
-        "M6-T008"
-      ],
-      "requirements": [
-        "FR-DISC-001",
-        "FR-DISC-004",
-        "FR-SAFE-002"
-      ],
-      "acceptance_criteria": [
-        "AC-PROC-001",
-        "AC-PROC-002",
-        "AC-PROC-003",
-        "AC-PROC-004"
-      ],
-      "m6_acceptance": [
-        "M6-A06"
-      ],
-      "estimate_hours": {
-        "min": 6,
-        "max": 10
-      },
-      "work": "Read approved process metadata, distinguish loaded model and active client, preserve evidence-backed hierarchy and unresolved links.",
-      "done_when": "Representative real processes display correct sampled state/paths where permitted; no environment, prompt, response, source or process mutation.",
-      "verification": [
-        "real Linux process and provider checks (to be defined)"
-      ],
-      "evidence": [
-        "docs/evidence/m6-delivery-checkpoint-2026-11-03.md"
-      ]
-    },
-    {
       "id": "M6-T014",
       "story": "ST-OLL-005",
       "title": "Implement dashboard views and provider filter",
       "status": "in_progress",
       "owner": "P02 dashboard",
       "depends_on": [
-        "M6-T009",
         "M6-T010",
-        "M6-T011",
-        "M6-T013"
+        "M6-T011"
       ],
       "requirements": [
         "FR-ACC-002",
@@ -506,7 +363,7 @@
         "min": 6,
         "max": 9
       },
-      "work": "Render Ollama account, organization, resource type, values, source, freshness, model/process and failure states via versioned API.",
+      "work": "Render cloud Ollama account, organization, resource type, balances/windows, source, freshness and failure states via versioned API. Local model/process views are deferred.",
       "done_when": "Real Overview/detail/filter/history accessible on desktop and mobile; no placeholder values; existing promotion retained.",
       "verification": [
         "npm --prefix frontend run typecheck",
@@ -515,7 +372,8 @@
       "evidence": [
         "docs/evidence/m6-ollama-local-preview-2026-11-01.md",
         "docs/evidence/m6-delivery-checkpoint-2026-11-03.md",
-        "docs/evidence/m6-native-usd-account-ui-2026-11-03.md"
+        "docs/evidence/m6-native-usd-account-ui-2026-11-03.md",
+        "docs/plans/integration/m6-local-ollama-deferral-2026-11-04.md"
       ]
     },
     {
@@ -525,7 +383,6 @@
       "status": "in_progress",
       "owner": "M6 integration steward",
       "depends_on": [
-        "M6-T009",
         "M6-T010",
         "M6-T011",
         "M6-T014"
@@ -545,13 +402,14 @@
         "min": 3,
         "max": 5
       },
-      "work": "Exercise available real auth/offline/throttle/recovery conditions without stopping a user service, and verify Claude/Codex/dashboard continuity.",
+      "work": "Verify available real cloud auth/offline/throttle/recovery conditions without stopping a user service, and verify Claude/Codex/dashboard continuity. Local-daemon failure tests are deferred.",
       "done_when": "Observed conditions pass with source/time; absent natural conditions remain Blocked/Not Run without simulation.",
       "verification": [
         "real service and provider failure-isolation checks (to be defined)"
       ],
       "evidence": [
-        "docs/evidence/m6-delivery-checkpoint-2026-11-03.md"
+        "docs/evidence/m6-delivery-checkpoint-2026-11-03.md",
+        "docs/plans/integration/m6-local-ollama-deferral-2026-11-04.md"
       ]
     },
     {
@@ -562,10 +420,8 @@
       "owner": "M6 integration steward",
       "depends_on": [
         "M6-T006",
-        "M6-T009",
         "M6-T010",
-        "M6-T011",
-        "M6-T013"
+        "M6-T011"
       ],
       "requirements": [
         "FR-SAFE-001",
@@ -584,7 +440,7 @@
         "min": 4,
         "max": 6
       },
-      "work": "Review request scopes, secrets, allowed fields, no default-profile mutation, no agent control, dependencies/license and versioned contracts.",
+      "work": "Review cloud request scopes, secrets, fields, rate limits, default-profile integrity, dependencies/license and versioned contracts; local-specific acceptance moves to the future backlog.",
       "done_when": "Review names each finding and resolution; no mandatory security/privacy blocker remains; no new dependency without approval.",
       "verification": [
         "python3 tools/automation/run.py AUTO-QUALITY",
@@ -592,7 +448,8 @@
       ],
       "evidence": [
         "docs/evidence/m6-delivery-checkpoint-2026-11-03.md",
-        "docs/evidence/m6-security-privacy-review-2026-11-04.md"
+        "docs/evidence/m6-security-privacy-review-2026-11-04.md",
+        "docs/plans/integration/m6-local-ollama-deferral-2026-11-04.md"
       ]
     },
     {
@@ -604,7 +461,6 @@
       "depends_on": [
         "M6-T007",
         "M6-T012",
-        "M6-T013",
         "M6-T014",
         "M6-T015",
         "M6-T016"
@@ -621,23 +477,22 @@
         "AC-TEST-006"
       ],
       "m6_acceptance": [
-        "M6-A02",
         "M6-A04",
         "M6-A05",
-        "M6-A06",
         "M6-A08"
       ],
       "estimate_hours": {
         "min": 5,
         "max": 8
       },
-      "work": "Run fixed real test catalog and source-to-history/dashboard comparisons across SDK, EAIS and model host.",
+      "work": "Run the active cloud test catalog and source-to-history/dashboard comparisons across SDK and EAIS; local models/processes are excluded by the owner decision.",
       "done_when": "Record exact observed pass/block outcomes, no hidden skips and no repeated owner attestations for unchanged evidence.",
       "verification": [
         "python3 tools/automation/run.py AUTO-M6-EXIT"
       ],
       "evidence": [
-        "docs/evidence/m6-delivery-checkpoint-2026-11-03.md"
+        "docs/evidence/m6-delivery-checkpoint-2026-11-03.md",
+        "docs/plans/integration/m6-local-ollama-deferral-2026-11-04.md"
       ]
     },
     {
@@ -671,8 +526,11 @@
         "python3 tools/automation/run.py AUTO-DOCS-CHECK"
       ],
       "evidence": [
-        "docs/evidence/m6-delivery-checkpoint-2026-11-03.md"
+        "docs/evidence/m6-delivery-checkpoint-2026-11-03.md",
+        "docs/plans/integration/m6-local-ollama-deferral-2026-11-04.md"
       ]
     }
-  ]
+  ],
+  "scope_decision": "docs/plans/integration/m6-local-ollama-deferral-2026-11-04.md",
+  "deferred_backlog": "docs/plans/integration/future-local-ollama-backlog-v1.json"
 }
