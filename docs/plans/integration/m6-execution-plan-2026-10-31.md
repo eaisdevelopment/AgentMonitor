@@ -1,6 +1,11 @@
 # M6 execution plan: Ollama monitoring
 
-**State:** Proposed for owner review; planning is not implementation approval.
+**State:** Execution in progress under the owner-approved
+[local](m6-ollama-local-vertical-change.md),
+[cloud](m6-ollama-cloud-implementation-change.md) and
+[process](m6-ollama-process-implementation-change.md) implementation plans.
+Those scoped approvals authorize implementation; they do not establish live
+acceptance or approve every historical discovery proposal.
 **Date:** 31 October 2026. **Owner:** A03 Ollama adapter; the integration
 steward owns cross-module contracts, deployment and the M6 completion command.
 **Prerequisite:** M3 accepted; M5 accepted. This plan uses the real evidence in
@@ -49,7 +54,7 @@ not proof that a specific credential/account exposes the data.
 
 ## 3. Fixed acceptance catalog
 
-These items form the proposed M6 closure checklist. Each is assessed with the
+These items form the M6 closure checklist used by `AUTO-M6-EXIT`. Each is assessed with the
 real system; Failed, Blocked, Skipped, Unknown and Not Run are never marked
 Passed. Existing V1 criteria are contributions, not universal release claims.
 

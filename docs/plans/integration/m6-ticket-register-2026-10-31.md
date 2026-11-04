@@ -93,7 +93,10 @@ The machine-readable [ticket catalog](m6-ticket-catalog-v1.json) is the source f
 - **Work:** Publish capability matrix and update A03 plan, data flow, source/version/rate, identity, contracts, migration and A03-M7 boundary.
 - **Done when:** Every enabled lane has source decision and contract impact; owner approves exact implementation plan.
 - **Verification:** python3 tools/automation/run.py AUTO-PLAN-CHECK; python3 tools/automation/run.py AUTO-DOCS-CHECK.
-- **Evidence:** not yet recorded.
+- **Evidence:** approved [local plan](m6-ollama-local-vertical-change.md),
+  [cloud plan](m6-ollama-cloud-implementation-change.md),
+  [process plan](m6-ollama-process-implementation-change.md) and
+  [recovery contract impact](m6-recovery-evidence-contract-impact.md).
 
 ### M6-T007 — Define canonical M6 completion gate
 
@@ -202,8 +205,8 @@ The machine-readable [ticket catalog](m6-ticket-catalog-v1.json) is the source f
 - **Acceptance:** AC-V1-005, AC-V1-007, AC-PROC-004; M6: M6-A09.
 - **Work:** Review request scopes, secrets, allowed fields, no default-profile mutation, no agent control, dependencies/license and versioned contracts.
 - **Done when:** Review names each finding and resolution; no mandatory security/privacy blocker remains; no new dependency without approval.
-- **Verification:** python3 tools/automation/run.py AUTO-QUALITY; project privacy/security review (to be defined).
-- **Evidence:** [3 November implementation checkpoint](../../evidence/m6-delivery-checkpoint-2026-11-03.md); remaining acceptance is explicit.
+- **Verification:** python3 tools/automation/run.py AUTO-QUALITY; bounded source and existing-evidence review.
+- **Evidence:** [4 November security/privacy review](../../evidence/m6-security-privacy-review-2026-11-04.md); integrated live acceptance remains separate.
 
 ### M6-T017 — Run live end-to-end M6 scenarios
 

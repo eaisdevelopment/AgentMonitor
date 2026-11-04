@@ -223,7 +223,9 @@
       ],
       "evidence": [
         "docs/plans/integration/m6-ollama-cloud-implementation-change.md",
-        "docs/plans/integration/m6-recovery-evidence-contract-impact.md"
+        "docs/plans/integration/m6-recovery-evidence-contract-impact.md",
+        "docs/plans/integration/m6-ollama-local-vertical-change.md",
+        "docs/plans/integration/m6-ollama-process-implementation-change.md"
       ]
     },
     {
@@ -586,10 +588,11 @@
       "done_when": "Review names each finding and resolution; no mandatory security/privacy blocker remains; no new dependency without approval.",
       "verification": [
         "python3 tools/automation/run.py AUTO-QUALITY",
-        "project privacy/security review (to be defined)"
+        "bounded source and existing-evidence security/privacy review"
       ],
       "evidence": [
-        "docs/evidence/m6-delivery-checkpoint-2026-11-03.md"
+        "docs/evidence/m6-delivery-checkpoint-2026-11-03.md",
+        "docs/evidence/m6-security-privacy-review-2026-11-04.md"
       ]
     },
     {

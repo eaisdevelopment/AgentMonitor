@@ -69,7 +69,8 @@ try {
   await capabilities.waitFor({ state: "visible", timeout: 10_000 });
   const capabilityIds = await capabilities.locator(":scope > div > span").allTextContents();
   if (JSON.stringify(capabilityIds) !== JSON.stringify(["installation.discovery", "model.catalog"]) ||
-      await capabilities.getByText("unknown", { exact: true }).count() !== 2 ||
+      await capabilities.getByText("supported", { exact: true }).count() !== 2 ||
+      await capabilities.getByText("unknown", { exact: true }).count() !== 0 ||
       await providerCard.getByText("Capability manifest unavailable.", { exact: true }).count() !== 0) {
     throw new Error("ollama_manifest_not_truthfully_published");
   }
