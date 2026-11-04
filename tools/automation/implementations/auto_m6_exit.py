@@ -91,6 +91,7 @@ DIRECT_SNAPSHOT_KEYS = (
     "history_targets",
     "configured_alert_targets",
     "alerted_targets",
+    "alert_no_transition_targets",
     "process_observation_count",
     "natural_recovery_targets",
     "cross_provider_continuity_targets",

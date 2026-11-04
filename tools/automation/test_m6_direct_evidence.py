@@ -3,8 +3,13 @@
 from __future__ import annotations
 
 from dataclasses import replace
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 
+import pytest
+from agentmonitor.contracts.capacity_v1 import CapacityAlertAvailabilityV1
+from agentmonitor.modules.alerting.domain.policy import builtin_rule
+
+from backend.tests.alerting.pure.test_capacity_mapper import NOW, fact
 from tools.automation.implementations.m6_direct_evidence import (
     DIRECT_EXECUTABLE_SELECTION_V1,
     BoundaryCheckV1,
@@ -17,6 +22,10 @@ from tools.automation.implementations.m6_direct_evidence import (
     direct_bundle_v1,
 )
 from tools.automation.implementations.m6_exit_policy import evaluate_evidence_bundle_v1
+from tools.automation.implementations.m6_real_snapshot import (
+    _alert_window_requirement,
+    _unique_alert_event_keys,
+)
 
 PASSED = BoundaryCheckV1("passed", 1)
 HOSTS = (
@@ -508,3 +517,122 @@ def test_official_comparison_count_must_exactly_match_reconciled_targets() -> No
             )
         )["M6-A04"]
         assert outcome.status == "not_run"
+
+
+def test_current_healthy_configured_targets_need_no_invented_alert() -> None:
+    outcomes = classify_direct_m6_evidence_v1(
+        replace(_complete_facts(), alerted_targets=0, alert_no_transition_targets=2)
+    )
+    assert outcomes["M6-A05"].status == "passed"
+
+
+def test_unproven_configured_target_still_requires_real_evidence() -> None:
+    outcomes = classify_direct_m6_evidence_v1(
+        replace(_complete_facts(), alerted_targets=0, alert_no_transition_targets=1)
+    )
+    assert outcomes["M6-A05"].status == "not_run"
+
+
+def test_no_transition_count_cannot_double_count_real_alerted_target() -> None:
+    with pytest.raises(ValueError, match="m6_direct_fact_relationship_invalid"):
+        replace(_complete_facts(), alert_no_transition_targets=1)
+
+
+@pytest.mark.parametrize(
+    ("value", "expected"),
+    [("3100", "none"), ("3000", "transition"), ("1500", "transition")],
+)
+def test_only_threshold_crossing_requires_a_transition(
+    value: str, expected: str
+) -> None:
+    assert (
+        _alert_window_requirement(
+            fact(value), builtin_rule("capacity_remaining"), False, False, NOW
+        )
+        == expected
+    )
+
+
+def test_recovery_of_an_open_alert_still_requires_actual_transition() -> None:
+    assert (
+        _alert_window_requirement(
+            fact("9000"), builtin_rule("capacity_remaining"), True, False, NOW
+        )
+        == "transition"
+    )
+
+
+def test_matching_current_alert_must_still_prove_deduplication() -> None:
+    assert (
+        _alert_window_requirement(
+            fact("9000"), builtin_rule("capacity_remaining"), False, True, NOW
+        )
+        == "transition"
+    )
+
+
+def test_fresh_nonconstraining_window_needs_no_initial_transition() -> None:
+    source = replace(
+        fact(),
+        availability="unavailable",
+        remaining_basis_points=None,
+        exhausted=None,
+        denominator_kind="unknown",
+        reason_code="capacity_nonconstraining",
+    )
+    assert (
+        _alert_window_requirement(
+            source, builtin_rule("capacity_remaining"), False, False, NOW
+        )
+        == "none"
+    )
+    assert (
+        _alert_window_requirement(
+            source, builtin_rule("capacity_remaining"), True, False, NOW
+        )
+        == "transition"
+    )
+
+
+@pytest.mark.parametrize("state", ["stale", "unknown", "unsupported", "unavailable"])
+def test_unevaluable_reading_cannot_prove_no_transition(
+    state: CapacityAlertAvailabilityV1,
+) -> None:
+    source = replace(
+        fact(),
+        availability=state,
+        remaining_basis_points=None,
+        exhausted=None,
+        denominator_kind="unknown",
+    )
+    assert (
+        _alert_window_requirement(
+            source, builtin_rule("capacity_remaining"), False, False, NOW
+        )
+        == "unavailable"
+    )
+
+
+def test_expired_current_reading_cannot_prove_no_transition() -> None:
+    assert (
+        _alert_window_requirement(
+            fact("9000"),
+            builtin_rule("capacity_remaining"),
+            False,
+            False,
+            NOW + timedelta(minutes=10),
+        )
+        == "unavailable"
+    )
+
+
+def test_same_capacity_event_can_have_two_distinct_window_alerts() -> None:
+    assert _unique_alert_event_keys(
+        (("rule", "window_one", "event"), ("rule", "window_two", "event"))
+    )
+
+
+def test_repeated_same_window_rule_and_event_is_still_duplicate() -> None:
+    assert not _unique_alert_event_keys(
+        (("rule", "window_one", "event"), ("rule", "window_one", "event"))
+    )

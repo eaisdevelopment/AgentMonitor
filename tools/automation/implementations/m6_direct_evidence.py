@@ -614,6 +614,7 @@ class DirectM6FactsV1:
     process_observation_count: int
     natural_recovery_targets: int
     cross_provider_continuity_targets: int
+    alert_no_transition_targets: int = 0
     cloud_scope_evidence: CloudScopeEvidenceV1 | None = None
     authoritative_observation: AuthoritativeComparisonV1 | None = None
     authoritative_comparison: BoundaryCheckV1 = BoundaryCheckV1(
@@ -640,6 +641,7 @@ class DirectM6FactsV1:
             self.history_lineage_reconciled_targets,
             self.configured_alert_targets,
             self.alerted_targets,
+            self.alert_no_transition_targets,
             self.process_observation_count,
             self.natural_recovery_targets,
             self.cross_provider_continuity_targets,
@@ -660,7 +662,8 @@ class DirectM6FactsV1:
             or self.history_targets > self.active_cloud_targets
             or self.history_lineage_reconciled_targets > self.active_cloud_targets
             or self.history_lineage_reconciled_targets > self.history_targets
-            or self.alerted_targets > self.configured_alert_targets
+            or self.alerted_targets + self.alert_no_transition_targets
+            > self.configured_alert_targets
         ):
             raise ValueError("m6_direct_fact_relationship_invalid")
         scope = self.cloud_scope_evidence
@@ -825,7 +828,8 @@ def classify_direct_m6_evidence_v1(
 
     alerts_complete = (
         facts.configured_alert_targets == 0
-        or facts.alerted_targets == facts.configured_alert_targets
+        or facts.alerted_targets + facts.alert_no_transition_targets
+        == facts.configured_alert_targets
     )
     history_base = _combined(outcomes["M6-A04"], facts.capacity_history_browser)
     if history_base.status == "passed" and (

@@ -58,8 +58,12 @@ from agentmonitor.contracts.alerting_v1 import (
     AlertRuleListQueryV1,
     AlertRuleViewV1,
     AlertScopeRefV1,
+    AlertSubjectV1,
+    CapacityRemainingRuleConfigurationV1,
 )
 from agentmonitor.contracts.capacity_v1 import (
+    CapacityAlertConditionQueryV1,
+    CapacityAlertConditionV1,
     CapacityHistoryMetricV1,
     CapacityHistoryQueryV1,
     CapacitySubjectV2,
@@ -79,6 +83,14 @@ from agentmonitor.contracts.registry_v1 import (
     ActiveCredentialBindingRefV1,
     CloudMonitoringTargetV1,
     CredentialBindingAggregateV1,
+)
+from agentmonitor.modules.alerting.application.rules import ResolveEffectiveAlertRuleV1
+from agentmonitor.modules.capacity.application.queries import (
+    ListCapacityAlertConditionsV1,
+)
+from agentmonitor.modules.registry.application.accounts import (
+    AlertScopeAndSubjectQueryV1,
+    ResolveAlertSubjectScopeV1,
 )
 
 from tools.automation.implementations.m6_direct_evidence import (
@@ -117,6 +129,7 @@ class M6EvidenceSnapshotV1:
     history_targets: int = 0
     configured_alert_targets: int = 0
     alerted_targets: int = 0
+    alert_no_transition_targets: int = 0
     process_observation_count: int = 0
     natural_recovery_targets: int = 0
     cross_provider_continuity_targets: int = 0
@@ -137,6 +150,7 @@ class M6EvidenceSnapshotV1:
             self.history_targets,
             self.configured_alert_targets,
             self.alerted_targets,
+            self.alert_no_transition_targets,
             self.process_observation_count,
             self.natural_recovery_targets,
             self.cross_provider_continuity_targets,
@@ -151,7 +165,8 @@ class M6EvidenceSnapshotV1:
             or self.verified_cloud_targets > self.active_cloud_targets
             or self.current_balance_targets > self.verified_cloud_targets
             or self.history_targets > self.current_balance_targets
-            or self.alerted_targets > self.configured_alert_targets
+            or self.alerted_targets + self.alert_no_transition_targets
+            > self.configured_alert_targets
             or self.natural_recovery_targets > self.active_cloud_targets
             or self.cross_provider_continuity_targets > self.natural_recovery_targets
             or any(
@@ -356,11 +371,137 @@ def _configured_alert_accounts(
     return tuple(configured)
 
 
+def _alert_window_requirement(
+    fact: CapacityAlertConditionV1,
+    rule: AlertRuleViewV1,
+    has_open_alert: bool,
+    has_current_alert: bool,
+    as_of: datetime,
+) -> Literal["transition", "none", "unavailable"]:
+    """A healthy first observation does not invent a prior alert to recover."""
+    if rule.condition_type != "capacity_remaining" or not isinstance(
+        rule.configuration, CapacityRemainingRuleConfigurationV1
+    ):
+        raise ValueError("m6_alert_capacity_rule_required")
+    if not rule.enabled:
+        return "none"
+    if (
+        fact.freshness_deadline is None
+        or as_of >= fact.freshness_deadline
+        or fact.recorded_at > as_of
+    ):
+        return "unavailable"
+    nonconstraining = (
+        fact.availability == "unavailable"
+        and fact.reason_code == "capacity_nonconstraining"
+    )
+    if not nonconstraining and (
+        fact.availability != "current" or fact.remaining_basis_points is None
+    ):
+        return "unavailable"
+    low = (
+        fact.remaining_basis_points is not None
+        and fact.remaining_basis_points.as_decimal()
+        <= rule.configuration.warning_remaining_basis_points
+    )
+    return "transition" if low or has_open_alert or has_current_alert else "none"
+
+
+def _account_alert_evidence(
+    repository: SqliteAlertActionRepositoryV1,
+    capacity: SqliteCapacityRepositoryV1,
+    account: AccountViewV1,
+    rule: AlertRuleViewV1,
+    observation_ids: frozenset[OpaqueIdV1],
+    as_of: datetime,
+) -> Literal["alerted", "none", "unavailable"]:
+    """Evaluate real conditions without creating rules, alerts or observations."""
+    if not observation_ids:
+        return "unavailable"
+    conditions = ListCapacityAlertConditionsV1(capacity)(
+        CapacityAlertConditionQueryV1(account.account_id, None, None, as_of, 200)
+    )
+    if conditions.has_more:
+        raise ValueError("m6_snapshot_alert_condition_limit_exceeded")
+    facts = tuple(
+        item
+        for item in conditions.items
+        if frozenset(item.observation_ids).issubset(observation_ids)
+    )
+    if (
+        not facts
+        or frozenset(value for item in facts for value in item.observation_ids)
+        != observation_ids
+        or any(
+            item.account_id != account.account_id or item.provider_key != "ollama"
+            for item in facts
+        )
+    ):
+        return "unavailable"
+    alerts = repository.list_alerts(
+        AlertListQueryV1(
+            as_of=as_of,
+            condition_type="capacity_remaining",
+            scope=AlertScopeRefV1("account", account.account_id.value),
+            limit=200,
+        )
+    )
+    if alerts.has_more:
+        raise ValueError("m6_snapshot_alert_limit_exceeded")
+    required: set[OpaqueIdV1] = set()
+    for fact in facts:
+        matching = tuple(
+            item
+            for item in alerts.items
+            if item.subject.provider_key == "ollama"
+            and item.subject.account_id == account.account_id
+            and item.subject.subject_id == fact.resource_id
+            and item.subject.dimension_kind == "quota_window"
+            and item.subject.dimension_id == fact.window_id.value
+        )
+        requirement = _alert_window_requirement(
+            fact,
+            rule,
+            any(item.lifecycle == "open" for item in matching),
+            any(
+                set(item.decision.source.observation_ids) == set(fact.observation_ids)
+                for item in matching
+            ),
+            as_of,
+        )
+        if requirement == "unavailable":
+            return "unavailable"
+        if requirement == "transition":
+            required.add(fact.window_id)
+    if not required:
+        return "none"
+    return (
+        "alerted"
+        if _has_deduplicated_current_observation_alert(
+            repository,
+            account,
+            observation_ids,
+            as_of,
+            expected_rule=rule,
+            required_window_ids=frozenset(required),
+        )
+        else "unavailable"
+    )
+
+
+def _unique_alert_event_keys(keys: tuple[tuple[str, str, str], ...]) -> bool:
+    """Distinguish actual window streams within the same capacity event."""
+    return len(set(keys)) == len(keys)
+
+
 def _has_deduplicated_current_observation_alert(
     repository: SqliteAlertActionRepositoryV1,
     account: AccountViewV1,
     observation_ids: frozenset[OpaqueIdV1],
     as_of: datetime,
+    *,
+    expected_rule: AlertRuleViewV1,
+    required_window_ids: frozenset[OpaqueIdV1],
 ) -> bool:
     """Require one durable transition per matching current alert source event."""
 
@@ -383,9 +524,14 @@ def _has_deduplicated_current_observation_alert(
         and alert.subject.account_id == account.account_id
         and bool(observation_ids.intersection(alert.decision.source.observation_ids))
     )
-    if not matching:
+    if (
+        not matching
+        or {item.subject.dimension_id for item in matching}
+        != {item.value for item in required_window_ids}
+        or any(item.rule != expected_rule for item in matching)
+    ):
         return False
-    event_keys: list[tuple[str, str]] = []
+    event_keys: list[tuple[str, str, str]] = []
     for alert in matching:
         source_event_id = alert.decision.source.event_id
         if not isinstance(source_event_id, OpaqueIdV1):
@@ -404,8 +550,14 @@ def _has_deduplicated_current_observation_alert(
         )
         if rule_key is None:
             return False
-        event_keys.append((rule_key, source_event_id.value))
-    return len(set(event_keys)) == len(event_keys)
+        event_keys.append(
+            (
+                rule_key,
+                alert.decision.source.condition_stream_key,
+                source_event_id.value,
+            )
+        )
+    return _unique_alert_event_keys(tuple(event_keys))
 
 
 def cloud_scope_evidence_from_registry_v1(
@@ -553,6 +705,7 @@ def read_m6_evidence_snapshot_v1(
         recovery = 0
         continuity = 0
         cloud_accounts: list[AccountViewV1] = []
+        cloud_graphs: dict[OpaqueIdV1, CloudMonitoringTargetV1] = {}
         coverage_reader: OrganizationProviderCoverageReadPortV1 = (
             SqliteOrganizationProviderCoverageRepositoryV1(reference)
         )
@@ -586,6 +739,7 @@ def read_m6_evidence_snapshot_v1(
             )
             active_target_references[account.account_id] = target_digest
             cloud_accounts.append(account)
+            cloud_graphs[account.account_id] = graph
             if (
                 graph.identity_state != "owner_confirmed"
                 or binding is None
@@ -662,19 +816,50 @@ def read_m6_evidence_snapshot_v1(
         )
         if alert_rules_page.has_more:
             raise ValueError("m6_snapshot_alert_rule_limit_exceeded")
-        configured_accounts = _configured_alert_accounts(
+        candidates = _configured_alert_accounts(
             tuple(cloud_accounts), alert_rules_page.items
         )
+        resolve_rule = ResolveEffectiveAlertRuleV1(
+            SqliteAlertingRepositoryV1(reference),
+            ResolveAlertSubjectScopeV1(registry),
+            AlertScopeAndSubjectQueryV1(registry),
+        )
         alert_repository = SqliteAlertActionRepositoryV1(reference)
-        alerted = sum(
-            _has_deduplicated_current_observation_alert(
+        configured_accounts = []
+        alerted = 0
+        no_transition = 0
+        for account in candidates:
+            graph = cloud_graphs[account.account_id]
+            subject = AlertSubjectV1(
+                "resource",
+                graph.resource_id,
+                "capacity_resource",
+                graph.resource_id.value,
+                account.account_id,
+                account.provider_key,
+                account.organization_id,
+                account.registry_revision,
+            )
+            rule = resolve_rule(subject, "capacity_remaining", as_of=instant).selected
+            if rule.is_builtin or not rule.enabled:
+                continue
+            configured_accounts.append(account)
+            outcome = _account_alert_evidence(
                 alert_repository,
+                capacity,
                 account,
+                rule,
                 current_observations.get(account.account_id, frozenset()),
                 instant,
             )
-            for account in configured_accounts
-        )
+            # A rule edited during the read cannot supply acceptance evidence.
+            if (
+                resolve_rule(subject, "capacity_remaining", as_of=instant).selected
+                != rule
+            ):
+                raise ValueError("m6_snapshot_alert_rule_changed")
+            alerted += outcome == "alerted"
+            no_transition += outcome == "none"
 
         scope_evidence = None
         if coverage_selection is not None and scope_before is not None:
@@ -718,6 +903,7 @@ def read_m6_evidence_snapshot_v1(
             history_targets=history,
             configured_alert_targets=len(configured_accounts),
             alerted_targets=alerted,
+            alert_no_transition_targets=no_transition,
             process_observation_count=len(processes),
             natural_recovery_targets=recovery,
             cross_provider_continuity_targets=continuity,
