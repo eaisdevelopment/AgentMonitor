@@ -190,7 +190,12 @@ def test_every_python_evidence_command_disables_bytecode_writes() -> None:
     commands = dict(DIRECT_EXECUTABLE_SELECTION_V1)
 
     assert "local_inventory" not in commands
-    assert commands["source_security"][1] == "-B"
+    assert commands["source_security"][0:3] == (
+        "/usr/bin/env",
+        "PYTHONPATH=backend/src",
+        "PYTHONDONTWRITEBYTECODE=1",
+    )
+    assert commands["source_security"][4] == "-B"
     assert commands["database_snapshot"][0:3] == (
         "/usr/bin/env",
         "PYTHONPATH=backend/src",

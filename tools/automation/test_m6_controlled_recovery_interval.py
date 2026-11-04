@@ -1,6 +1,8 @@
 """Real owned namespaces and kernel cleanup; no account or provider access."""
 
 import stat
+import subprocess
+import sys
 import uuid
 from pathlib import Path
 
@@ -8,6 +10,7 @@ import pytest
 
 from tools.automation.implementations.m6_controlled_recovery_interval import (
     _namespace,
+    _sandbox_prefix,
     _start_worker,
     _supervisor_lock,
 )
@@ -97,3 +100,34 @@ def test_real_unsafe_credential_lock_refused_without_changes(tmp_path: Path) -> 
     assert list(data_root.iterdir()) == []
     assert env_file.stat().st_size == 0
     assert stat.S_IMODE(lock.stat().st_mode) == 0o644
+
+
+def test_real_source_helper_can_start_with_expired_deadline_in_sandbox(
+    tmp_path: Path,
+) -> None:
+    """Exercise actual helper startup, with no time or credentials for a request."""
+    data_root = tmp_path / "data"
+    data_root.mkdir(mode=0o700)
+    env_file = tmp_path / ".env"
+    env_file.touch(mode=0o600)
+    (tmp_path / ".ollama-env.lock").touch(mode=0o600)
+    root = Path(__file__).resolve().parents[2]
+    script = (
+        "import time; "
+        "from agentmonitor.adapters.providers.ollama.cloud_balance.source "
+        "import _run_isolated_worker; "
+        "result = _run_isolated_worker(time.monotonic() - 1); "
+        "print(result.state, result.reason_code)"
+    )
+    result = subprocess.run(
+        _sandbox_prefix(data_root, env_file) + [sys.executable, "-B", "-c", script],
+        stdin=subprocess.DEVNULL,
+        capture_output=True,
+        timeout=10,
+        check=False,
+        env={"PYTHONPATH": str(root / "backend/src"), "LC_ALL": "C.UTF-8"},
+    )
+    assert result.returncode == 0
+    assert result.stdout.strip() == b"deadline_exceeded ollama_cloud_deadline_exceeded"
+    assert list(data_root.iterdir()) == []
+    assert env_file.stat().st_size == 0

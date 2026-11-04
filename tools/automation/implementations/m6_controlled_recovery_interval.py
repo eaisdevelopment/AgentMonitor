@@ -84,15 +84,8 @@ class IsolatedWorker:
                 self.process.stdout.close()
 
 
-def _start_worker(
-    data_root: Path,
-    env_file: Path,
-    attempt_id: str,
-    supervisor_fd: int | None = None,
-) -> IsolatedWorker:
-    """Start inert, owner-controlled child; no collection before the GO handshake."""
-    if re.fullmatch(r"[a-f0-9]{32}", attempt_id) is None:
-        raise ValueError("m6_controlled_attempt_invalid")
+def _sandbox_prefix(data_root: Path, env_file: Path) -> list[str]:
+    """Mount only approved storage and isolate the real worker's OS boundaries."""
     root = data_root.lstat()
     if (
         not stat.S_ISDIR(root.st_mode)
@@ -105,9 +98,7 @@ def _start_worker(
     lock = env_file.parent / ".ollama-env.lock"
     _file_metadata(env_file, mode=0o600)
     _file_metadata(lock, mode=0o600)
-    parent_namespace = _namespace("self")
-    info_read, info_write = os.pipe2(os.O_CLOEXEC)
-    command = [
+    return [
         "/usr/bin/bwrap",
         "--unshare-net",
         "--unshare-pid",
@@ -128,9 +119,26 @@ def _start_worker(
         str(env_file),
         "--proc",
         "/proc",
-        "--info-fd",
-        str(info_write),
+        # A read-only root bind makes host device nodes inaccessible. Give the
+        # helper private minimal devices for DEVNULL, never a writable host /dev.
+        "--dev",
+        "/dev",
     ]
+
+
+def _start_worker(
+    data_root: Path,
+    env_file: Path,
+    attempt_id: str,
+    supervisor_fd: int | None = None,
+) -> IsolatedWorker:
+    """Start inert, owner-controlled child; no collection before the GO handshake."""
+    if re.fullmatch(r"[a-f0-9]{32}", attempt_id) is None:
+        raise ValueError("m6_controlled_attempt_invalid")
+    command = _sandbox_prefix(data_root, env_file)
+    parent_namespace = _namespace("self")
+    info_read, info_write = os.pipe2(os.O_CLOEXEC)
+    command += ["--info-fd", str(info_write)]
     inherited = (info_write,)
     if supervisor_fd is not None:
         # bwrap retains the shared flock until its namespace is gone even if the

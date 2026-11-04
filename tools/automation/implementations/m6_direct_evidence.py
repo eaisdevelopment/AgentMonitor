@@ -52,6 +52,9 @@ DIRECT_EXECUTABLE_SELECTION_V1: tuple[tuple[str, tuple[str, ...]], ...] = (
     (
         "source_security",
         (
+            "/usr/bin/env",
+            "PYTHONPATH=backend/src",
+            "PYTHONDONTWRITEBYTECODE=1",
             "{checkout_python}",
             "-B",
             "-m",

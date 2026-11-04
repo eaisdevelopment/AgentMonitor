@@ -255,3 +255,28 @@ agents remain untouched. Local Ollama remains deferred. The actual isolated
 provider failure, ordinary recovery and complete canonical M6 result still
 require execution on the deployed candidate; implementation tests alone do
 not close M6. Subsequent machine receipts name their exact tested revision.
+
+### First controlled candidate: actual results and corrections
+
+Candidate `612ca93694bcdf36b5999ac40d9cc73ef118d796` was deployed through
+`AUTO-M6-CURRENT-UPDATE`. The dashboard remained HTTP 200. Its canonical
+`AUTO-M6-EXIT` run passed shared build/quality/docs/planning and M6-A01/A08,
+but did not pass M6. Missing SDK scope and the unavailable current official
+Usage pairing remained explicit. A09's source-security command lacked its
+explicit backend import path when invoked by system Python; its exact command
+was corrected and then passed 21 tests. The regression failed before that fix.
+
+The isolated attempt produced `internal_adapter_error`, not the required
+network failure. A real sandbox reproduction established that the read-only
+root made `/dev/null` inaccessible, preventing the production helper from
+starting. Adding private minimal sandbox devices fixes that boundary without
+exposing writable host devices. The actual production helper with an expired
+deadline gave Red `internal_adapter_error ollama_cloud_worker_unavailable`, then
+Green `deadline_exceeded ollama_cloud_deadline_exceeded`; no provider call or
+credential is possible in that regression. All six namespace/cleanup tests
+passed. The first attempt is not accepted as network-recovery evidence.
+
+The same live investigation found no recent completed Claude runs. Its exact
+managed identity/collection boundary is being checked without modifying any
+account, profile or running agent. This missing continuity remains explicit;
+it is not assumed to be caused by Ollama and is not counted as a pass.
