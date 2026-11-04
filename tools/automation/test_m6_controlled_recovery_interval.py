@@ -1,5 +1,6 @@
 """Real owned namespaces and kernel cleanup; no account or provider access."""
 
+import json
 import stat
 import subprocess
 import sys
@@ -131,3 +132,44 @@ def test_real_source_helper_can_start_with_expired_deadline_in_sandbox(
     assert result.stdout.strip() == b"deadline_exceeded ollama_cloud_deadline_exceeded"
     assert list(data_root.iterdir()) == []
     assert env_file.stat().st_size == 0
+
+
+@pytest.mark.parametrize("initialized", [False, True])
+def test_real_database_state_reports_closed_diagnostic_after_go(
+    tmp_path: Path,
+    initialized: bool,
+) -> None:
+    data_root = tmp_path / "data"
+    data_root.mkdir(mode=0o700)
+    env_file = tmp_path / ".env"
+    env_file.touch(mode=0o600)
+    (tmp_path / ".ollama-env.lock").touch(mode=0o600)
+    if initialized:
+        from agentmonitor.adapters.persistence._shared.sqlite.core.policy import (
+            DatabaseRefV1,
+        )
+        from agentmonitor.adapters.persistence._shared.sqlite.schema import (
+            compatibility,
+        )
+
+        compatibility.migrate_to_head(
+            DatabaseRefV1(data_root / "agentmonitor.db", data_root)
+        )
+    attempt = uuid.uuid4().hex
+    worker = _start_worker(data_root, env_file, attempt)
+    try:
+        assert worker.process.stdin is not None and worker.process.stdout is not None
+        worker.process.stdin.write(("GO " + attempt + "\n").encode())
+        worker.process.stdin.flush()
+        assert worker.process.wait(timeout=10) == 3
+        output = worker.process.stdout.read(4097)
+        assert output, "worker discarded the closed failure stage"
+        diagnostic = json.loads(output)
+        assert set(diagnostic) == {"stage", "error_type", "function", "line"}
+        assert diagnostic["stage"] == "collector_tick"
+        assert type(diagnostic["line"]) is int and diagnostic["line"] >= 0
+        if initialized:
+            assert diagnostic["error_type"] == "NoEligibleAccounts"
+        assert str(tmp_path) not in output.decode()
+    finally:
+        worker.close()

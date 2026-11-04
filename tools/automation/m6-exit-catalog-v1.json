@@ -33,7 +33,7 @@
       "producer_version": "1.0.0",
       "selection_policy_id": "M6-SELECTION-A01-V1",
       "source_versions_policy_id": "M6-SOURCE-VERSIONS-A01-V1",
-      "selection_sha256": "aa8745957d15f9a9e14f82be3d7adf69365034cebf0a0b7f417b2f4b0626702f",
+      "selection_sha256": "d395b0d65a6af7f53a90ea537e530f51384b48390f1a1f924af7d6883e2ebc71",
       "source_versions_sha256": "d22f052523aa118ae58d3617d1ffd139bf46a437a256291d37948d8bc55d533f",
       "required_limitations": []
     },
@@ -45,7 +45,7 @@
       "producer_version": "1.0.0",
       "selection_policy_id": "M6-SELECTION-A03-V1",
       "source_versions_policy_id": "M6-SOURCE-VERSIONS-A03-V1",
-      "selection_sha256": "44dd0b64268c70142ef020a4bb274688657bb4027cd87b583ed742349237f0b2",
+      "selection_sha256": "62eda4c0e453a09a3495d3f515bd89e0c373ad42b835bc08e8d36a3fea18f2e1",
       "source_versions_sha256": "610bac08dbda7cb87511d7596b07998485517be7584def4b78fe2a2fdbde0262",
       "required_limitations": []
     },
@@ -57,7 +57,7 @@
       "producer_version": "1.0.0",
       "selection_policy_id": "M6-SELECTION-A04-V1",
       "source_versions_policy_id": "M6-SOURCE-VERSIONS-A04-V1",
-      "selection_sha256": "1336c06b3b1bab96035e2b0cb160befc2f01dc7069f0ea5a63542cc4006c988c",
+      "selection_sha256": "74d537362bb4b73031bcf7d491f4eaf6a73249a8b2ab933731423dc7af29f76f",
       "source_versions_sha256": "5b5eeb7782e81655cd16295863aef8fbf742916dd7a09338b0f27616db9e5907",
       "required_limitations": []
     },
@@ -69,7 +69,7 @@
       "producer_version": "1.0.0",
       "selection_policy_id": "M6-SELECTION-A05-V1",
       "source_versions_policy_id": "M6-SOURCE-VERSIONS-A05-V1",
-      "selection_sha256": "cc0738381ba4d6936c6ba4db559e856f11efdf8af7059e3fd18ef691e5695fb8",
+      "selection_sha256": "81e04ee9dfb799be2273adbb89871edc1977e5c32319d4925bbfe2b728a31c56",
       "source_versions_sha256": "5555ffab2aca63d9bf45a1af83a84ac093bedcfbb08a6c9b06636904ec73ade5",
       "required_limitations": []
     },
@@ -81,7 +81,7 @@
       "producer_version": "1.0.0",
       "selection_policy_id": "M6-SELECTION-A07-V1",
       "source_versions_policy_id": "M6-SOURCE-VERSIONS-A07-V1",
-      "selection_sha256": "35bf8f9c641e0f0de60e92a3e623653e70dbdc1db4aa47a01c0d11178f79182b",
+      "selection_sha256": "a724bf6462c638a796cc3254d148e74a93c390a628ea2527b754a1f5d3f5d799",
       "source_versions_sha256": "1a194c3ec34bc0afd0e9570455d949413cf10f065cbfffe87ff8e79e6f3ee4b3",
       "required_limitations": [
         "sampled_dashboard_and_collection_continuity"
@@ -95,7 +95,7 @@
       "producer_version": "1.0.0",
       "selection_policy_id": "M6-SELECTION-A08-V1",
       "source_versions_policy_id": "M6-SOURCE-VERSIONS-A08-V1",
-      "selection_sha256": "3b89f7175acc1393a2747420108e4e4056f8c5e215f24a98cf6c5d09debf4872",
+      "selection_sha256": "e8183630b8940df92e6dc6b363ce3d75c32e66972cbbb87ccedd199f2603a581",
       "source_versions_sha256": "c263367dde3936ce94d4c371259ebf76e3a52067da0cfaed8a6b846ca99da6cd",
       "required_limitations": []
     },
@@ -107,7 +107,7 @@
       "producer_version": "1.0.0",
       "selection_policy_id": "M6-SELECTION-A09-V1",
       "source_versions_policy_id": "M6-SOURCE-VERSIONS-A09-V1",
-      "selection_sha256": "64788888b535bdc2eb22fd250b4c4875b90d01bccf2114b29ba0763c412837d5",
+      "selection_sha256": "74c7a7e2c9979bd08fba06ba48cea02dfe1cb05b81f3ff069e279e65faa5ae45",
       "source_versions_sha256": "12593a37ddbe82c4334f89dcba218d5dd46f2e29cda77609b0e281324e8ff44a",
       "required_limitations": []
     },
@@ -119,7 +119,7 @@
       "producer_version": "1.0.0",
       "selection_policy_id": "M6-SELECTION-ST-OLL-001-V1",
       "source_versions_policy_id": "M6-SOURCE-VERSIONS-ST-OLL-001-V1",
-      "selection_sha256": "cbad35b2ada6f6156a932c93ee7857be71e26af8137410649e5c63da96d1fb3c",
+      "selection_sha256": "5ad43aeccec29c5ad82cba88c9cebe1240a443f8a4566e4ceefb6440fc5457e4",
       "source_versions_sha256": "912650e75a9fb3687c78f4f73ffec05aa76d6aa8ef224a755901af5a2cf4b47e",
       "required_limitations": []
     },
@@ -131,7 +131,7 @@
       "producer_version": "1.0.0",
       "selection_policy_id": "M6-SELECTION-ST-OLL-003-V1",
       "source_versions_policy_id": "M6-SOURCE-VERSIONS-ST-OLL-003-V1",
-      "selection_sha256": "495fc921628df1dc4b3da5bc2c3ebe555e42fdfb35302b7942bf509386278338",
+      "selection_sha256": "5e10a32a05fd3575b2d39e647f2869a80fe3db5f78bd8ffd5d77652f1ae24506",
       "source_versions_sha256": "8cd5554d2d4e97319b86a25502bc307a3712e28b443f7f926771d2a6f3f2f08c",
       "required_limitations": []
     },
@@ -143,7 +143,7 @@
       "producer_version": "1.0.0",
       "selection_policy_id": "M6-SELECTION-ST-OLL-004-V1",
       "source_versions_policy_id": "M6-SOURCE-VERSIONS-ST-OLL-004-V1",
-      "selection_sha256": "6b44b0e5c9fccd4d3bf7f653ee0f05ddfc8cc355ade739750be05a77013ae75c",
+      "selection_sha256": "87176996c0b2a5b4c84853a3223afd35f353d3fd87b625946a3d5f7cef2ceec8",
       "source_versions_sha256": "7d5544a1c82ab489629cce92a91ccaa2532a564295528b557bbe55503bac67db",
       "required_limitations": []
     },
@@ -155,7 +155,7 @@
       "producer_version": "1.0.0",
       "selection_policy_id": "M6-SELECTION-ST-OLL-005-V1",
       "source_versions_policy_id": "M6-SOURCE-VERSIONS-ST-OLL-005-V1",
-      "selection_sha256": "e1a98b8ab8aee41c8f2750fb71b8cf2bbfe666bd59f8209bc2816a36fb8c94ee",
+      "selection_sha256": "2d13de7ca40faf96b36b1321e955ab5fef56d931a3b03d9b8b06c03ce9f6dc64",
       "source_versions_sha256": "c26886ee0412985df8a334c1b50baa0659c692b754568f3a81befcfcd782e551",
       "required_limitations": [
         "sampled_dashboard_and_collection_continuity"

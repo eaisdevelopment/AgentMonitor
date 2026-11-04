@@ -297,3 +297,36 @@ checks. The 299-second denial, blocked states and all authentication, trust,
 permission, onboarding, version, invalid-data and unknown-error exclusions
 remain enforced. This result does not claim the provider will render its next
 reading successfully; deployed scheduled collection is the next check.
+
+### Scheduled Ollama proof recovery
+
+The second candidate run on `e2a8911` passed shared checks, M6-A01/A08 and
+ST-OLL-001. It remained blocked. Read-only diagnosis identified why its
+controlled collector found no eligible target: the account/binding checks
+passed, but the earlier `failed/not_started/internal_adapter_error` had become
+`outcome_unresolved`, revoking scheduled admission. The apparent later partial
+runs did not belong to that exact current scope and were not accepted as
+recovery evidence.
+
+M04 now classifies that exact no-request/no-response internal failure as
+transient. Red reproduced `outcome_unresolved` against expected
+`transient_failure`; Green passed 35 domain checks plus 72 gate/direct tests.
+Eleven exclusion combinations retain the conservative handling of uncertain
+or received dispatch, nonfailed states and response outcomes. Existing
+credential/schema restrictions remain. CTR-COL-008 stays 1.1.0; no public
+contract, account configuration, dependency or schema migration changes.
+
+The runner also emits bounded diagnostic stage/type/function/line metadata
+when its owned child cannot proceed; it never emits exception messages,
+locals, paths, account labels, credentials or provider content. Eight real
+sandbox/database/cleanup tests passed, including Red/Green cases proving
+missing and empty databases produce a closed failure without a provider call.
+
+A bounded Claude timing adjustment is also under live verification: the three
+newly resumed 14-second reads ended `usage_deadline_after_command_echo`, not
+successful quota observations. Managed reads receive the existing default
+20-second source allowance, and optional cached-identity reattestation moves
+to ticks without due collection. The pinned-path owned-I/O bound is39s inside
+the existing45s drain. Forty focused tests and canonical quality passed;
+actual scheduled Green is still required. No parser change, new source version,
+authentication, default-profile mutation or user-agent action is inferred.

@@ -121,3 +121,17 @@ unsafe metadata and other lock errors must still quarantine. Verify with real
 owner-only lock files and actual flock contention, without a provider call,
 before deployment. This is a bounded M04 supervisory recovery correction, not
 a new configuration option or alternate provider implementation.
+
+## Pre-dispatch internal failure recovery correction
+
+The first real sandbox attempt exposed a production recovery bug: its source
+helper could not start and explicitly reported `not_started`, yet M04 classified
+that terminal internal error as `outcome_unresolved`. The resulting revoked
+scheduled-source proof prevented later collection even after the sandbox was
+fixed. The correction admits only `failed` + `not_started` + no outcome +
+`internal_adapter_error` as a transient failure for a distinct normally
+scheduled observation. It preserves unknown/may-have-started handling,
+credential and schema rejection, normal cadence and the existing credential
+binding. No account or authorization state is rewritten. This is part of the
+approved recovery implementation; a test must not silently leave monitoring
+permanently stopped after a proven pre-request failure.

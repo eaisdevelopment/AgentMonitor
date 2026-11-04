@@ -115,7 +115,10 @@ def classify_latest_ollama_cloud_source_signal_v1(
             return "transient_failure"
         return "outcome_unresolved"
     if dispatch_certainty == "not_started" and run_state == "failed":
-        if failure_code == "pre_dispatch_failed" and outcome is None:
+        if (
+            failure_code in {"pre_dispatch_failed", "internal_adapter_error"}
+            and outcome is None
+        ):
             return "transient_failure"
         if failure_code == "credential_update_in_progress":
             return "credential_update_in_progress"

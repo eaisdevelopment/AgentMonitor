@@ -206,6 +206,10 @@ def test_every_python_evidence_command_disables_bytecode_writes() -> None:
         "PYTHONDONTWRITEBYTECODE=1",
     )
     assert "-B" in commands["database_snapshot"]
+    assert (
+        "backend/tests/collection_control/domain/test_ollama_latest_source_signal.py"
+        in commands["source_security"]
+    )
 
 
 def test_absent_real_cloud_state_preserves_security_and_continuity_results() -> None:

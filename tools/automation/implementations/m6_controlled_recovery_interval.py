@@ -243,6 +243,35 @@ def _isolated_worker(args: argparse.Namespace) -> int:
     print(json.dumps({"ready": args.attempt_id}), flush=True)
     if _line(sys.stdin.fileno(), 60, 128) != ("GO " + args.attempt_id + "\n").encode():
         return 3
+    return _collector_loop(args)
+
+
+def _diagnostic(error: Exception, stage: str) -> dict[str, str | int]:
+    """Code location only: never exception messages, locals, paths or payloads."""
+    trace = error.__traceback__
+    while trace is not None and trace.tb_next is not None:
+        trace = trace.tb_next
+    name = type(error).__name__
+    function = trace.tb_frame.f_code.co_name if trace is not None else "unknown"
+    safe = r"[A-Za-z_][A-Za-z0-9_]{0,100}"
+    return {
+        "stage": stage,
+        "error_type": name if re.fullmatch(safe, name) else "OtherError",
+        "function": function if re.fullmatch(safe, function) else "unknown",
+        "line": trace.tb_lineno if trace is not None else 0,
+    }
+
+
+def _collector_loop(args: argparse.Namespace) -> int:
+    stage = ["collector_import"]
+    try:
+        return _collect(args, stage)
+    except Exception as error:
+        print(json.dumps(_diagnostic(error, stage[0])), flush=True)
+        return 3
+
+
+def _collect(args: argparse.Namespace, stage: list[str]) -> int:
     # Imports after authorization keep the inert preflight free of collector I/O.
     from agentmonitor.adapters.persistence._shared.sqlite.core.policy import (
         DatabaseRefV1,
@@ -250,12 +279,14 @@ def _isolated_worker(args: argparse.Namespace) -> int:
     from agentmonitor.composition.ollama_cloud_collection import OllamaCloudCollectionV1
     from agentmonitor.contracts.collection_control_v1 import CollectionFailedV1
 
+    stage[0] = "collector_init"
     collector = OllamaCloudCollectionV1(
         DatabaseRefV1(args.data_root / "agentmonitor.db", args.data_root),
         data_root=args.data_root,
         credential_env_file=args.env_file,
     )
     deadline = time.monotonic() + 300
+    stage[0] = "collector_tick"
     while time.monotonic() < deadline:
         outcome = collector.tick()
         if isinstance(outcome, CollectionFailedV1):
@@ -268,6 +299,19 @@ def _isolated_worker(args: argparse.Namespace) -> int:
             "replayed_active",
             "replayed_terminal",
         }:
+            print(
+                json.dumps(
+                    {
+                        "stage": "collector_tick",
+                        "error_type": "NoEligibleAccounts"
+                        if outcome == "ollama_cloud_no_eligible_accounts"
+                        else "UnexpectedOutcome",
+                        "function": "_collect",
+                        "line": 0,
+                    }
+                ),
+                flush=True,
+            )
             return 3
         time.sleep(min(5, max(0, deadline - time.monotonic())))
     return 3
@@ -424,6 +468,27 @@ def observe_controlled_recovery_interval(
                         worker.process.stdin.write(("GO " + attempt_id + "\n").encode())
                         worker.process.stdin.flush()
                         record = json.loads(_line(worker.process.stdout.fileno(), 325))
+                        if (
+                            isinstance(record, dict)
+                            and set(record)
+                            == {"stage", "error_type", "function", "line"}
+                            and record["stage"]
+                            in {"collector_import", "collector_init", "collector_tick"}
+                            and type(record["line"]) is int
+                            and 0 <= record["line"] <= 100000
+                            and all(
+                                isinstance(record[key], str)
+                                and re.fullmatch(
+                                    r"[A-Za-z_][A-Za-z0-9_]{0,100}", record[key]
+                                )
+                                for key in ("error_type", "function")
+                            )
+                        ):
+                            print(
+                                json.dumps(record, sort_keys=True),
+                                file=sys.stderr,
+                                flush=True,
+                            )
                         if (
                             not isinstance(record, dict)
                             or set(record) != {"failure_run_id"}

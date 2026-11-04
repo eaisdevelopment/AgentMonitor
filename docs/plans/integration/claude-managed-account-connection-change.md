@@ -432,3 +432,18 @@ A01 owns the classifier; M04 consumes its existing boolean without a contract,
 API, schema, dependency or migration change. This maintenance correction is
 within the owner's authorized implementation/fix scope and does not assert
 that the next provider observation will succeed.
+
+### Bounded live timeout correction under verification
+
+The resumed scheduled managed reads timed out at their 14-second source budget.
+Use the already admitted 20-second default source budget for managed reads too.
+Run optional cached-identity reattestation only in a tick without due quota
+collection, so the two bounded workloads do not stack. On the pinned service
+path, source 20s + four identity reads at 3s + owned-child cleanup 4s + discovery
+3s totals 39s within the existing 45s service drain, leaving 6s for repository
+work. The source's 30s maximum, admission deadline, five-minute cadence and
+identity checks stay unchanged. This adjustment must be evaluated through
+actual scheduled reads; it does not assume new provider output or claim that
+a timeout proves missing credentials. If the real read still fails, retain the
+failure honestly and reconsider the adjustment rather than widening budgets
+without evidence.
