@@ -176,7 +176,10 @@ async function loadHistoryThroughCurrentObservation(page, accountId, quotas, fir
   });
   // One day at the admitted one-minute-or-slower cadence and two native
   // windows fits within 15 200-row pages. Keep margin without an unbounded UI loop.
-  while (currentHistoryLineageRows(accountId, quotas, combined()).length < 1) {
+  while (
+    currentHistoryLineageRows(accountId, quotas, combined()).length
+      < quotas.items.length
+  ) {
     const history = combined();
     const cursor = history.page?.next_cursor;
     if (history.page?.has_more !== true) return { state: "complete", history };
@@ -260,8 +263,12 @@ async function openAccountWithCapacityResponses(page, card) {
     let quotas = null;
     let history = null;
     let historyState = "complete";
+    let quotaDomReconciled = false;
     if (quotaResponse?.status() === 200) quotas = await quotaResponse.json();
     if (historyResponse?.status() === 200) history = await historyResponse.json();
+    if (boundedPage(quotas)) {
+      quotaDomReconciled = await reconcileQuotaDom(page, accountId, quotas);
+    }
     if (boundedPage(quotas) && boundedPage(history)) {
       const loaded = await loadHistoryThroughCurrentObservation(
         page, accountId, quotas, history,
@@ -269,7 +276,7 @@ async function openAccountWithCapacityResponses(page, card) {
       history = loaded.history;
       historyState = loaded.state;
     }
-    return { accountId, quotas, history, historyState };
+    return { accountId, quotas, quotaDomReconciled, history, historyState };
   } catch { return null; }
   finally { page.off("response", onResponse); }
 }
@@ -434,7 +441,7 @@ try {
             || captured.quotas.items.length < 1) {
           currentUnavailable = true;
           historyUnavailable = true;
-        } else if (!await reconcileQuotaDom(page, captured.accountId, captured.quotas)) {
+        } else if (!captured.quotaDomReconciled) {
           currentMismatch = true;
           historyUnavailable = true;
         } else {
@@ -455,7 +462,7 @@ try {
             const lineage = currentHistoryLineageRows(
               captured.accountId, captured.quotas, captured.history,
             );
-            if (lineage.length < 1) {
+            if (lineage.length !== captured.quotas.items.length) {
               historyMismatch = true;
             } else {
               facts.history_lineage_targets += 1;
