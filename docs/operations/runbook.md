@@ -1358,6 +1358,59 @@ with `AGENTMONITOR_TEST_DASHBOARD_CDP_ENDPOINT`,
 local AgentMonitor browser/data-root selectors, no provider paths/credentials.
 The command requires a real owner-completed confirmation and never creates one.
 
+### Connect, rotate or disconnect an Ollama cloud account
+
+This is the approved Linux local-server flow. Create the organization and an
+account with provider **ollama** in **Accounts**, then select its organization
+in the dashboard. Account labels and organization membership are administrator
+declarations; a successful balance request does not verify an email address.
+No organization, account name or fixed account count is built into setup.
+
+1. Open the account and expand **Set up or replace the local key**. Use
+   **Copy setup command**. Run that command in a local terminal on the
+   AgentMonitor computer, as the same Linux user that runs the dashboard.
+   It selects the installed service's executable, working directory and
+   explicitly configured credential file; it does not print credential values.
+2. Select the numbered account by its displayed name and organization. Choose
+   **connect/rotate (1)** and enter the key at the hidden prompt. An empty
+   account/action selection cancels. Never place the key in browser fields,
+   command arguments, shell history, chat or diagnostics.
+3. Return to the account page. Connection status refreshes automatically while
+   visible and when returning to the tab. Use **Check connection** when offered;
+   provider access checks respect the persisted scheduler and cooldown rather
+   than forcing an immediate request. Enable monitoring through the account's
+   monitoring control if it is disabled. Check the reported monitoring state
+   and observation time; an enabled switch alone does not prove a fresh reading.
+
+The runtime stores only this binding's key in the selected owner-only (`0600`)
+AgentMonitor `.env`. It does not change the default Ollama profile. Rotation
+uses the same command and account selection: the new binding becomes active
+before cleanup of the old item. A restart is not required to read the new key.
+If setup was interrupted, the operator reports the pending item and retries
+it; pending cleanup remains visible until actually completed.
+
+To disconnect, run the same command, select the account and choose
+**disconnect (2)**. This disables access and removes its managed credential;
+it preserves account/history records and does not revoke the provider-side key.
+Revoke a key in Ollama's own account settings when that is intended. Archived
+accounts with unfinished cleanup remain selectable for cleanup only. The
+operator offers removal of leftover AgentMonitor credential entries only when
+there are no unfinished bindings; unrelated `.env` entries are preserved.
+
+If the service is unavailable or its credential-file selection changed, the
+operator can use the previously retained, pinned location for cleanup only.
+Do not copy or recreate credential files to bypass that check. Restore the
+intended service configuration and protected file access before connecting or
+rotating. Missing, unsafe or unreadable files remain explicit errors. The
+runtime's approved file boundary, including the selected directory's residual
+group-write risk, is documented in the
+[cloud implementation plan](../plans/integration/m6-ollama-cloud-implementation-change.md).
+
+The real one-account enrollment and subsequent balance/history verification
+are recorded in the [M6 checkpoint](../evidence/m6-delivery-checkpoint-2026-11-03.md).
+That evidence does not establish every live rotation, disconnection or failure
+scenario; unexercised scenarios remain Not Run.
+
 ### Ollama cloud reading freshness
 
 The candidate Ollama cloud freshness deadline is an AgentMonitor policy, not
@@ -1369,7 +1422,8 @@ monitoring is enabled. If the account count cannot be read consistently, the
 freshness is unknown. A longer provider cooldown can make a reading stale
 before its next permitted poll; the policy never shortens that cooldown.
 
-The current candidate has no audited administrator setting for this policy;
-the default is not editable in the dashboard. Provider access, a live cloud
-reading and the resulting stale/current display remain unverified until the
-owner's credential-policy conflict and live verification are resolved.
+The default is not editable in the dashboard. The owner approved protected
+`.env` storage, and real provider access, balance/history and current/stale UI
+evidence are recorded in the M6 checkpoint linked above. Missing organization,
+model-present and natural recovery evidence remain separate acceptance items;
+they do not make the credential-storage decision unresolved.

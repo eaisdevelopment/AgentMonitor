@@ -104,5 +104,5 @@ contract or uncertain side effect. Record blocked/not-run cases honestly and
 continue independent work. Completion requires the registered technical
 admission, all planned local tests and available real states, security and
 privacy review, actual dashboard verification and a reviewable handoff; full
-M6 still requires M6-A01–A10 and the M6 completion command. This Draft is not
-an approval or an implementation-completion claim.
+M6 still requires M6-A01–A10 and the M6 completion command. The owner's approval
+authorizes this local scope; it is not an implementation-completion claim.

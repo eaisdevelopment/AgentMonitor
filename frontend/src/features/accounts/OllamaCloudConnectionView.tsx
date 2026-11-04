@@ -69,10 +69,12 @@ export function OllamaCloudConnectionView({ account, onExpired, onProofUnavailab
   }, [refresh]);
 
   useEffect(() => {
-    if (busy || !connection || connection.can_verify || !["not_configured", "pending", "stale", "retry_available", "rate_limited"].includes(connection.state)) return;
-    const timer = window.setTimeout(() => { void refresh(); }, 15000);
-    return () => window.clearTimeout(timer);
-  }, [busy, connection, refresh]);
+    if (busy) return;
+    const timer = window.setInterval(() => {
+      if (document.visibilityState === "visible") void refresh();
+    }, 15000);
+    return () => window.clearInterval(timer);
+  }, [busy, refresh]);
 
   const verify = async () => {
     if (busy || !connection?.can_verify) return;

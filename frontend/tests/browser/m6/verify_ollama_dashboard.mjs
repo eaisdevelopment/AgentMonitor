@@ -103,6 +103,10 @@ async function reconcileHistoryDom(page, accountId, history) {
     key: row.dataset.windowKey ?? "",
     role: row.dataset.semanticRole ?? "",
     observation: row.querySelector(".history-observation-id")?.textContent?.trim() ?? "",
+    periodStart: row.querySelector(".quota-period-start time")?.getAttribute("datetime") ?? null,
+    periodLabel: row.querySelector(".quota-period-start")?.textContent ?? "",
+    resetAt: row.querySelector(".quota-reset time")?.getAttribute("datetime") ?? null,
+    resetPrecision: row.querySelector(".quota-reset")?.getAttribute("data-reset-precision") ?? null,
     text: row.textContent ?? "",
   })));
   if (historyRows.length !== history.items.length) return false;
@@ -122,6 +126,10 @@ async function reconcileHistoryDom(page, accountId, history) {
       && candidate.observation === item.observation_id);
     if (row === undefined
         || !row.text.includes(new Date(item.observed_at).toLocaleString())
+        || row.periodStart !== (item.source_period_start ?? null)
+        || (item.source_period_start == null && row.periodLabel !== "Not reported")
+        || row.resetAt !== (item.reset_at ?? null)
+        || row.resetPrecision !== item.reset_precision
         || !row.text.includes(exactMetricValue(item.value))) return false;
   }
   return collectionRunIds.size >= 2;
@@ -305,6 +313,7 @@ try {
     } catch { /* A non-URL browser request cannot satisfy the same-origin mutation check. */ }
   });
   await page.goto(origin + "/");
+  await page.bringToFront();
   const revisionResult = await exactRunningRevision(page);
   if (revisionResult.status !== "passed") {
     for (const name of Object.keys(results)) setResult(name, revisionResult.status, revisionResult.reason_code);
@@ -351,6 +360,7 @@ try {
     let currentUnavailable = false;
     let historyMismatch = false;
     let historyUnavailable = false;
+    let connectionRefreshChecked = false;
     for (let index = 0; index < count; index += 1) {
       const captured = await openAccountWithCapacityResponses(page, cards.nth(index));
       const confirmed = await page.getByRole("heading", { name: "Ollama cloud access confirmed", exact: true }).isVisible().catch(() => false);
@@ -385,6 +395,16 @@ try {
               currentHistoryLineage.push(...lineage);
             }
           }
+        }
+        if (!connectionRefreshChecked && captured !== null) {
+          connectionRefreshChecked = true;
+          const refreshed = await page.waitForResponse(response => {
+            const url = new URL(response.url());
+            return url.origin === origin
+              && url.pathname === `/api/v1/accounts/${encodeURIComponent(captured.accountId)}/ollama-cloud-connection`
+              && response.request().method() === "GET" && response.status() === 200;
+          }, { timeout: 22_000 }).then(() => true, () => false);
+          if (!refreshed) setResult("account_admin", "failed", "ollama_connection_status_not_refreshed");
         }
       }
       await page.getByRole("link", { name: "Accounts", exact: true }).click();
@@ -451,16 +471,23 @@ try {
           const expectedIds = new Set(observed.map(item => item.process_id));
           let foundRow = false;
           let foundLabels = false;
+          let foundExecutable = false;
           for (const row of await rows.all()) {
             const processId = await row.getAttribute("data-process-id");
             if (!expectedIds.has(processId)) continue;
             foundRow = true;
+            const expected = observed.find(item => item.process_id === processId);
+            const label = expected?.executable_label;
+            if (label?.state === "present" && typeof label.value === "string") {
+              foundExecutable = await row.getByRole("cell", { name: label.value, exact: true }).isVisible();
+            }
             const account = await row.getByText("Account unresolved", { exact: true }).isVisible();
             const model = await row.getByText("Model unresolved", { exact: true }).isVisible();
             if (account && model) foundLabels = true;
           }
           if (!foundRow) setResult("process_visibility", "failed", "ollama_process_ui_missing");
           else if (!foundLabels) setResult("process_visibility", "failed", "ollama_process_relationship_state_missing");
+          else if (!foundExecutable) setResult("process_visibility", "failed", "ollama_process_executable_label_missing");
           else setResult("process_visibility", "passed", null);
         }
       }
