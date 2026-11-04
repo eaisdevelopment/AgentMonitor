@@ -146,6 +146,12 @@ class ClaudeDashboardCollectorV1:
         targets = self._targets()
         if not targets:
             return "claude_poll_no_enabled_target"
+        try:
+            self._reattest_one_current_target(targets)
+        except (OSError, RuntimeError, ValueError):
+            # Identity read failure leaves this account unresolved; it must
+            # not postpone another account's due native quota collection.
+            pass
         blocked = False
         for offset in range(len(targets)):
             index = (self._next_target + offset) % len(targets)
@@ -175,13 +181,6 @@ class ClaudeDashboardCollectorV1:
             blocked = blocked or bool(
                 latest and latest.state not in {"succeeded", "partial"}
             )
-        try:
-            # Keep optional identity re-attestation in a separate tick from
-            # native quota work so their bounded reads cannot stack at shutdown.
-            self._reattest_one_current_target(targets)
-        except (OSError, RuntimeError, ValueError):
-            # An unresolved identity cannot prevent subsequent due collection.
-            pass
         return "claude_poll_blocked" if blocked else "claude_poll_waiting"
 
     def _reattest_one_current_target(
@@ -408,10 +407,9 @@ class ClaudeDashboardCollectorV1:
             resource_ref=resource.resource_id.value,
             requested_at=now,
         )
-        # Within the service's 45s drain, allow 20s for the source, four 3s
-        # identity checks, 4s cleanup and 3s pinned discovery; 6s remain for
-        # registry/collection work. Optional re-attestation uses a separate tick.
-        request = replace(request, deadline_ms=20_000)
+        # Leave time for provider cleanup inside the service's 30s shutdown drain.
+        # Managed reads include four bounded identity checks (3s each).
+        request = replace(request, deadline_ms=14_000 if managed_root else 20_000)
         result = route.collect_once(
             admission,
             request,
