@@ -31,6 +31,7 @@ from agentmonitor.adapters.persistence.registry.sqlite.repository import (
 from agentmonitor.contracts.common_v1 import OpaqueIdV1
 from agentmonitor.contracts.registry_coverage_v1 import (
     OrganizationProviderCoverageSelectionV1,
+    OrganizationProviderCoverageV1,
     RevokeOrganizationProviderCoverageCommandV1,
     SetOrganizationProviderCoverageCommandV1,
 )
@@ -94,6 +95,15 @@ def coverage_source(tmp_path_factory: pytest.TempPathFactory) -> Path:
     return copied
 
 
+def _select_eligible_coverage_account(candidates: tuple[tuple[str, bool], ...]) -> str:
+    """Select an actual account from prevalidated declaration eligibility."""
+    ids = [account_id for account_id, _ in candidates]
+    assert len(ids) == len(set(ids)), "actual_coverage_account_selection_duplicate"
+    selected = sorted(account_id for account_id, eligible in candidates if eligible)
+    assert selected, "actual_eligible_coverage_account_unavailable"
+    return selected[0]
+
+
 @pytest.fixture
 def actual_registry(tmp_path: Path, coverage_source: Path) -> ActualCoverageRegistry:
     tmp_path.chmod(0o700)
@@ -106,16 +116,36 @@ def actual_registry(tmp_path: Path, coverage_source: Path) -> ActualCoverageRegi
     registry = SqliteRegistryRepositoryV1(reference)
     cloud = SqliteCloudCredentialRegistryV1(reference)
     selected = []
-    for account in registry.list_accounts(provider_key="ollama", page_size=100):
+    coverage = SqliteOrganizationProviderCoverageRepositoryV1(reference)
+    accounts = registry.list_accounts(provider_key="ollama", page_size=100)
+    assert len(accounts) < 100, "actual_account_selection_incomplete"
+    for account in accounts:
         graph = cloud.read_monitoring_target(account.account_id)
         if (
             graph is not None
             and graph.identity_state == "owner_confirmed"
             and account.organization_id
+            and account.lifecycle == "active"
         ):
-            selected.append((account, graph))
-    assert len(selected) == 1, "actual_owner_confirmed_account_selection_ambiguous"
-    account, graph = selected[0]
+            organization = registry.get_organization(account.organization_id)
+            if organization is None or organization.lifecycle != "active":
+                continue
+            snapshot = coverage.read_coverage(
+                OrganizationProviderCoverageSelectionV1(
+                    (account.organization_id,), account.provider_key
+                )
+            )
+            assert snapshot.completeness == "complete", "coverage_baseline_unavailable"
+            eligible = not snapshot.items or _coverage_matches_account(
+                snapshot.items[0], account
+            )
+            selected.append((account, graph, eligible))
+    selected_id = _select_eligible_coverage_account(
+        tuple((account.account_id.value, eligible) for account, _, eligible in selected)
+    )
+    account, graph, _ = next(
+        item for item in selected if item[0].account_id.value == selected_id
+    )
     assert account.organization_id is not None
     return reference, registry, account, graph
 
@@ -138,6 +168,20 @@ def _command(
     )
 
 
+def _coverage_matches_account(
+    existing: OrganizationProviderCoverageV1, account: AccountViewV1
+) -> bool:
+    """Never replace another owner declaration, even in a private test copy."""
+    return (
+        existing.outcome == "account"
+        and existing.account_id == account.account_id
+        and existing.organization_id == account.organization_id
+        and existing.account_organization_id == account.organization_id
+        and existing.provider_key == account.provider_key
+        and existing.provenance == "owner_asserted"
+    )
+
+
 def _initial_version(
     repository: SqliteOrganizationProviderCoverageRepositoryV1,
     account: AccountViewV1,
@@ -153,12 +197,9 @@ def _initial_version(
     if not snapshot.items:
         return 0
     existing = snapshot.items[0]
-    assert (
-        existing.outcome == "account"
-        and existing.account_id == account.account_id
-        and existing.account_organization_id == account.organization_id
-        and existing.provenance == "owner_asserted"
-    ), "existing_owner_outcome_differs"
+    assert _coverage_matches_account(existing, account), (
+        "existing_owner_outcome_differs"
+    )
     return existing.record_version
 
 
