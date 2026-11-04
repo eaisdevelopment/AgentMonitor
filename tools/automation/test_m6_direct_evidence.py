@@ -458,6 +458,53 @@ def test_unavailable_browser_stays_not_run_with_process_observations() -> None:
     assert outcome.reason_code == "signed_in_dashboard_unavailable"
 
 
+def test_unavailable_dashboard_session_does_not_become_a_missing_capacity_ui() -> None:
+    facts = replace(
+        _complete_facts(),
+        cloud_capacity_browser=BoundaryCheckV1(
+            "not_run", 0, reason_code="signed_in_dashboard_unavailable"
+        ),
+    )
+
+    outcomes = classify_direct_m6_evidence_v1(facts)
+
+    for scope_id in ("M6-A04", "M6-A05", "M6-A09"):
+        assert outcomes[scope_id].status == "not_run"
+        assert outcomes[scope_id].reason_code == "signed_in_dashboard_unavailable"
+
+
+def test_authenticated_missing_capacity_ui_remains_a_failure() -> None:
+    facts = replace(
+        _complete_facts(),
+        cloud_capacity_browser=BoundaryCheckV1(
+            "not_run", 0, reason_code="real_ollama_balance_unavailable"
+        ),
+    )
+
+    outcomes = classify_direct_m6_evidence_v1(facts)
+
+    for scope_id in ("M6-A04", "M6-A05", "M6-A09"):
+        assert outcomes[scope_id].status == "failed"
+        assert outcomes[scope_id].reason_code == "ollama_capacity_ui_missing"
+
+
+def test_blocked_dashboard_capacity_check_stays_blocked() -> None:
+    facts = replace(
+        _complete_facts(),
+        cloud_capacity_browser=BoundaryCheckV1(
+            "blocked", 0, reason_code="dashboard_registry_changed_concurrently"
+        ),
+    )
+
+    outcomes = classify_direct_m6_evidence_v1(facts)
+
+    for scope_id in ("M6-A04", "M6-A05", "M6-A09"):
+        assert outcomes[scope_id].status == "blocked"
+        assert outcomes[scope_id].reason_code == (
+            "dashboard_registry_changed_concurrently"
+        )
+
+
 def test_disappeared_process_stays_not_run_after_database_observation() -> None:
     facts = replace(
         _complete_facts(),

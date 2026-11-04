@@ -798,8 +798,12 @@ def classify_direct_m6_evidence_v1(
         outcomes["M6-A03"] = cloud_base
 
     cloud_browser = facts.cloud_capacity_browser
-    if cloud_browser.status == "not_run" and (
-        facts.current_balance_targets > 0 or facts.history_targets > 0
+    if (
+        cloud_browser.status == "not_run"
+        and cloud_browser.reason_code != "signed_in_dashboard_unavailable"
+        and (
+            facts.current_balance_targets > 0 or facts.history_targets > 0
+        )
     ):
         cloud_browser = BoundaryCheckV1(
             "failed",
