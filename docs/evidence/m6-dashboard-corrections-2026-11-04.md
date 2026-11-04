@@ -330,3 +330,48 @@ to ticks without due collection. The pinned-path owned-I/O bound is39s inside
 the existing45s drain. Forty focused tests and canonical quality passed;
 actual scheduled Green is still required. No parser change, new source version,
 authentication, default-profile mutation or user-agent action is inferred.
+
+### Real scheduled recovery and remaining owner boundaries
+
+Candidate `796a988b0c39b6766d5d173bf38eb2ddeda6a070` restored the exact
+current Ollama scope to a committed partial reading at 18:36:00 UTC. The
+controlled isolated collector then recorded a genuine `provider_unavailable`
+failure at 18:41:02; the ordinary scheduler committed a fresh partial reading
+at 18:46:09 without forced retry, account changes or shortened cadence.
+These are real failure/recovery observations, not a passed M6-A07 receipt.
+The shared-browser holder expired during the canonical attempt, while the
+HTTP dashboard remained available. A01/A08 therefore reported unavailable
+browser evidence, and A07 remained blocked. Shared build, quality, docs and
+planning passed. The browser was reopened with a longer bounded lifetime.
+
+Claude continuity also remains unavailable. All six selected managed profiles
+now return `loggedIn=false` from the admitted official CLI; a previously
+matching profile's text status explicitly reports an expired login. Runtime
+and diagnostic profile roots were independently matched. Credential-file
+metadata changed during earlier native quota-reader invocations; credential
+contents were not read. Static inspection of the admitted CLI identifies a
+refresh-rejection path that clears unusable local credential fields. The
+original rejection reason was not captured and is not asserted. This is not
+proof of an owner logout, default-profile mutation or provider token revocation.
+Reconnection remains owner-operated; no old credentials were restored.
+
+The 20-second timing experiment was never exercised because the identity
+fence correctly prevented admission. Commit `eb88e58` reverts that experiment
+and its optional-reattest scheduling reorder. The separately verified
+premature-exit retry correction remains. No timeout benefit is claimed.
+
+The real SDK account page was inspected in the signed-in browser: its
+`Copy setup command` control is visible and enabled under `Set up or replace
+the local key`; there is no `Connect` button. The existing protected `.env`
+flow requires owner-local terminal entry. SDK remains pending/disabled and
+has not been configured by an agent. SDK coverage and the current official
+Ollama Usage comparison remain unclosed owner boundaries. Local Ollama remains
+deferred. No full M6 completion or acceptance is claimed.
+
+After the shared browser reopened, the standalone recovered-account probe
+passed against the actual 18:46 reading and still-deployed `796a988`: rendered
+quota values, current connection, observation IDs and collection lineage
+matched the versioned API. This later observation does not repair the missing
+continuous browser witness in the canonical attempt. After reverting the
+unexercised timing experiment, canonical quality and 60 focused Claude cadence,
+Ollama source-signal, and real sandbox tests passed; docs and planning passed.
