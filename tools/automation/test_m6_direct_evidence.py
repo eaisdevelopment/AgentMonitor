@@ -196,6 +196,10 @@ def test_every_python_evidence_command_disables_bytecode_writes() -> None:
         "PYTHONDONTWRITEBYTECODE=1",
     )
     assert commands["source_security"][4] == "-B"
+    assert (
+        "backend/tests/adapters/providers/claude/test_usage_failure_cadence.py"
+        in commands["source_security"]
+    )
     assert commands["database_snapshot"][0:3] == (
         "/usr/bin/env",
         "PYTHONPATH=backend/src",

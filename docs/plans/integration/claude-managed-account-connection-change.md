@@ -410,3 +410,25 @@ dependency/license, credential, provider-profile, or running-agent-control
 change beyond the already approved official managed login flow. Rollback
 restores the prior manifest/code and leaves registry history, quota history,
 provider profiles, and the default Claude installation untouched.
+
+## 4 November 2026 — scheduled-observation recovery correction
+
+During the approved M6 continuity verification, existing service records showed
+three identity-verified profiles permanently excluded after
+`usage_process_exited_before_complete_render`. A01 already maps this exact code
+to `provider_unavailable`, but its transient classifier recognized only
+`usage_deadline_*`. This is a correction to the existing approved periodic
+monitoring behavior, not an account setup or new provider capability.
+
+Admit that one exact premature-exit code for a distinct later observation after
+the full five-minute cadence. Keep the historical failed run and adapter retry
+advice unchanged. Do not retry the same run, change any schedule interval,
+identity/eligibility requirement, source version, provider profile, account
+configuration or running user agent. Authentication, onboarding, trust,
+permission, version, unknown and invalid-data failures remain blocked. Pure
+Red/Green tests must verify the added code and unchanged exclusions; current
+real scheduled observations and dashboard state remain required evidence.
+A01 owns the classifier; M04 consumes its existing boolean without a contract,
+API, schema, dependency or migration change. This maintenance correction is
+within the owner's authorized implementation/fix scope and does not assert
+that the next provider observation will succeed.

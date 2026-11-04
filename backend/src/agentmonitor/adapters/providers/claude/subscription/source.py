@@ -85,12 +85,15 @@ class _IncompleteRender(ValueError):
 
 
 def is_transient_claude_usage_failure_v1(code: str | None) -> bool:
-    """A timed-out read permits a later fresh observation, never run replay.
+    """An interrupted read permits a later fresh observation, never run replay.
 
     Authentication, onboarding, trust, permission, version, and invalid data
     remain blocked. No provider retry advice or historical outcome is changed.
     """
-    return code is not None and code.startswith("usage_deadline_")
+    return code is not None and (
+        code.startswith("usage_deadline_")
+        or code == "usage_process_exited_before_complete_render"
+    )
 
 
 def _plain_lines(raw: bytes) -> tuple[str, ...]:

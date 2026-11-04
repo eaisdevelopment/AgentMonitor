@@ -280,3 +280,20 @@ The same live investigation found no recent completed Claude runs. Its exact
 managed identity/collection boundary is being checked without modifying any
 account, profile or running agent. This missing continuity remains explicit;
 it is not assumed to be caused by Ollama and is not counted as a pass.
+
+Claude diagnosis found two distinct cases: three managed identities could not
+be confirmed through the existing reader, while three others matched their
+registry accounts but were excluded forever by historical
+`usage_process_exited_before_complete_render` failures. The service-pinned
+2.1.289 executable is present and valid; the shell's newer default version is
+irrelevant. The bounded [scheduled-observation correction](../plans/integration/claude-managed-account-connection-change.md#4-november-2026--scheduled-observation-recovery-correction)
+adds only that exact provider-unavailable code to the transient classifier.
+Unknown identity is not interpreted as expired authentication or bypassed.
+
+For that A01 correction, the new pure cadence regression was Red with one
+expected failure and 16 passes: the premature-exit code was still denied at
+300 seconds. Green/refactor passed all 40 new and existing polling/parser
+checks. The 299-second denial, blocked states and all authentication, trust,
+permission, onboarding, version, invalid-data and unknown-error exclusions
+remain enforced. This result does not claim the provider will render its next
+reading successfully; deployed scheduled collection is the next check.
