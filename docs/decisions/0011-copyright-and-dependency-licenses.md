@@ -3,6 +3,7 @@
 - Status: Accepted
 - Date: 2026-09-18
 - Owner: Pavlo Sidelov
+- Superseded by: [ADR 0016](0016-eais-copyright-and-personal-use-license.md) for the copyright holder and project terms only; the dependency admission gate below still applies
 
 ## Context
 

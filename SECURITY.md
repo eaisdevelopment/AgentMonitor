@@ -6,7 +6,7 @@ AgentMonitor is in specification phase and has no released production version. S
 
 ## Reporting
 
-Report a suspected vulnerability privately to Pavlo Sidelov at `pavlo@sidelov.com` with a minimal, sanitized description. Do not send passwords, API/OAuth tokens, session cookies, OTP/MFA/recovery codes, provider auth files, `.env`, raw prompts/responses/tool data, source content from monitored projects, process environments, or complete database/log/diagnostic files.
+Report a suspected vulnerability privately to Essential AI Solutions Ltd at `support@essentialai.uk` with a minimal, sanitized description. Do not send passwords, API/OAuth tokens, session cookies, OTP/MFA/recovery codes, provider auth files, `.env`, raw prompts/responses/tool data, source content from monitored projects, process environments, or complete database/log/diagnostic files.
 
 If proof requires sensitive evidence, first describe the evidence category and arrange a safe transfer method. Do not open a public issue or merge request containing exploitation details or affected-account identifiers before coordinated disclosure.
 

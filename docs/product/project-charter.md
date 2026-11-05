@@ -7,7 +7,7 @@
 - Owner: Pavlo Sidelov <pavlo@sidelov.com>
 - Deployment stage: local single-user
 - Initial platform: Linux; macOS-compatible by design
-- Public release: possible later, not currently licensed for public use
+- Public release: source published under the [AgentMonitor Personal Use License 1.0](../../LICENSE) ([ADR 0016](../decisions/0016-eais-copyright-and-personal-use-license.md)); organisational and commercial use is licensed by Essential AI Solutions Ltd
 
 ## Problem statement
 

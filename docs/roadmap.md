@@ -184,7 +184,7 @@ prerequisites. Existing code and historical results are retained.
 
 ## Later — Community and remote evolution
 
-- project license decision and contribution/copyright policy;
+- contribution and copyright-assignment policy (the project licence is decided in [ADR 0016](decisions/0016-eais-copyright-and-personal-use-license.md));
 - secure remote deployment, PostgreSQL, TLS, secret manager, and multi-user IAM;
 - Gemini, Grok, Muse, and other capability adapters;
 - messenger notification adapters;

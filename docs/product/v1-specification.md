@@ -4,7 +4,7 @@
 
 - Status: **Complete product and module-planning baseline**
 - Product owner: Pavlo Sidelov <pavlo@sidelov.com>
-- Copyright: Copyright © 2026 Pavlo Sidelov. All rights reserved.
+- Copyright: Copyright © 2026 Essential AI Solutions Ltd <support@essentialai.uk>. Licensed under the [AgentMonitor Personal Use License 1.0](../../LICENSE) ([ADR 0016](../decisions/0016-eais-copyright-and-personal-use-license.md)).
 - Delivery target: local, native, Linux-first application
 - Detailed requirements: [Product requirements](requirements.md)
 - Release gate: [V1 acceptance criteria](v1-acceptance-criteria.md)
