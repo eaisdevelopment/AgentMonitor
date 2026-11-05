@@ -114,3 +114,31 @@ Installed package copyright manifests enumerate LGPL-2.1+, BSD-3-Clause,
 GPL-2+, Apache-2.0 and other file-specific terms; the GNOME Keyring manifest
 also includes MPL and custom terms. This inventory is not a completed license
 or transitive-dependency review and does not approve adding a dependency.
+
+## 5 November 2026: verification after replacing a stored key
+
+This is a correction within the approved cloud connection/rotation behavior,
+not a new credential-entry method or a request for another owner approval.
+The owner stored a replacement SDK key and clicked **Check connection**. The
+real HTTP action returned `503 ollama_cloud_connection_unavailable`: the active
+credential binding was generation 2, while the monitoring graph still named
+generation 1. Initial enrollment had succeeded, but verification initiation
+reused the old graph when the account record version had not changed.
+
+M02 owns the correction. The existing atomic M02/M04 verification transaction
+must reconcile an already owner-confirmed active account's graph with its exact
+current binding before admitting the new check. Preserve the account's name,
+organization, enabled monitoring choice, profile/resource identifiers and all
+history; the earlier verification receipt must never validate the replacement
+key. Keep exact expected-account-version, active-binding, target, lifecycle,
+identity, idempotency and transaction guards. Retain the separate pending-only
+initial-enrollment policy. No public contract shape, schema, migration,
+dependency, credential store or provider-profile change is intended.
+
+Verify Red on an owner-private SQLite backup of the actual outstanding
+rotation using production ports, without reading keys, sending a provider
+request, seeding records or changing live configuration. Add pure policy
+rejections where applicable; verify Green and repeat/replay behavior, then
+exercise the real installed button and subsequent normal scheduled reading.
+The live check repeats the owner's already-requested verification action;
+it does not choose or replace credentials or account configuration.

@@ -65,6 +65,7 @@ DIRECT_EXECUTABLE_SELECTION_V1: tuple[tuple[str, tuple[str, ...]], ...] = (
             "tools/automation/test_m6_controlled_recovery_interval.py",
             "backend/tests/adapters/providers/claude/test_usage_failure_cadence.py",
             "backend/tests/collection_control/domain/test_ollama_latest_source_signal.py",
+            "backend/tests/registry/domain/test_cloud_owner_assertion.py",
             "backend/tests/adapters/providers/ollama/test_cloud_balance_source_policy.py",
             "backend/tests/adapters/providers/ollama/test_cloud_balance_source_security.py::test_authorization_failure_code_is_runtime_closed",
             "backend/tests/adapters/providers/ollama/test_cloud_balance_source_security.py::test_valid_long_retry_after_is_not_discarded_or_truncated",

@@ -125,3 +125,44 @@ def require_cloud_verification_enqueue_authority(
         raise ValueError("registry_cloud_graph_invalid")
     if binding_is_current is not True:
         raise ValueError("credential_binding_generation_conflict")
+
+
+def decide_cloud_binding_reassertion(
+    *,
+    account_provider: str,
+    account_lifecycle: str,
+    account_identity_state: str,
+    account_monitoring_preference: str,
+    account_record_version: int,
+    expected_account_record_version: int,
+    target_provider: str,
+    target_kind: str,
+    target_authority: str,
+    target_lifecycle: str,
+    graph_lifecycle: str,
+    graph_identity_state: str,
+    binding_is_current: bool,
+) -> int:
+    """Fence a fresh owner check after rotation without weakening enrollment."""
+    if (
+        type(account_record_version) is not int
+        or type(expected_account_record_version) is not int
+        or account_record_version < 1
+        or account_record_version != expected_account_record_version
+    ):
+        raise ValueError("registry_account_version_conflict")
+    if (
+        account_provider != "ollama"
+        or account_lifecycle != "active"
+        or account_identity_state != "owner_confirmed"
+        or account_monitoring_preference != "enabled"
+        or target_provider != "ollama"
+        or target_kind != "cloud_service"
+        or target_authority != "ollama.com"
+        or target_lifecycle != "active"
+        or graph_lifecycle != "active"
+        or graph_identity_state != "owner_confirmed"
+        or binding_is_current is not True
+    ):
+        raise ValueError("registry_cloud_reassertion_invalid")
+    return account_record_version + 1

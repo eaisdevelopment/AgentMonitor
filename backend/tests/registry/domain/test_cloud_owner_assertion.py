@@ -1,8 +1,11 @@
 """Pure M02 owner-assertion policy; no database, provider, or secret I/O."""
 
+from dataclasses import dataclass, replace
+
 import pytest
 from agentmonitor.modules.registry.domain.cloud_verification import (
     cloud_verification_enqueue_account_version,
+    decide_cloud_binding_reassertion,
     decide_cloud_owner_assertion,
     require_cloud_verification_enqueue_authority,
 )
@@ -125,3 +128,67 @@ def test_verification_enqueue_authority_fails_closed(
     values.update(overrides)
     with pytest.raises(ValueError, match=code):
         require_cloud_verification_enqueue_authority(**values)  # type: ignore[arg-type]
+
+
+@dataclass(frozen=True)
+class _ActiveReassertion:
+    account_provider: str = "ollama"
+    account_lifecycle: str = "active"
+    account_identity_state: str = "owner_confirmed"
+    account_monitoring_preference: str = "enabled"
+    account_record_version: int = 2
+    expected_account_record_version: int = 2
+    target_provider: str = "ollama"
+    target_kind: str = "cloud_service"
+    target_authority: str = "ollama.com"
+    target_lifecycle: str = "active"
+    graph_lifecycle: str = "active"
+    graph_identity_state: str = "owner_confirmed"
+    binding_is_current: bool = True
+
+    def decide(self) -> int:
+        return decide_cloud_binding_reassertion(
+            account_provider=self.account_provider,
+            account_lifecycle=self.account_lifecycle,
+            account_identity_state=self.account_identity_state,
+            account_monitoring_preference=self.account_monitoring_preference,
+            account_record_version=self.account_record_version,
+            expected_account_record_version=self.expected_account_record_version,
+            target_provider=self.target_provider,
+            target_kind=self.target_kind,
+            target_authority=self.target_authority,
+            target_lifecycle=self.target_lifecycle,
+            graph_lifecycle=self.graph_lifecycle,
+            graph_identity_state=self.graph_identity_state,
+            binding_is_current=self.binding_is_current,
+        )
+
+
+def test_active_binding_reassertion_advances_only_current_owned_cloud_account() -> None:
+    assert _ActiveReassertion().decide() == 3
+
+
+@pytest.mark.parametrize(
+    "values",
+    [
+        replace(_ActiveReassertion(), account_provider="claude"),
+        replace(_ActiveReassertion(), account_lifecycle="pending"),
+        replace(_ActiveReassertion(), account_lifecycle="archived"),
+        replace(_ActiveReassertion(), account_identity_state="unresolved"),
+        replace(_ActiveReassertion(), account_monitoring_preference="disabled"),
+        replace(_ActiveReassertion(), expected_account_record_version=1),
+        replace(_ActiveReassertion(), account_record_version=True),
+        replace(_ActiveReassertion(), target_provider="claude"),
+        replace(_ActiveReassertion(), target_kind="local_installation"),
+        replace(_ActiveReassertion(), target_authority="foreign.example"),
+        replace(_ActiveReassertion(), target_lifecycle="archived"),
+        replace(_ActiveReassertion(), graph_lifecycle="archived"),
+        replace(_ActiveReassertion(), graph_identity_state="unresolved"),
+        replace(_ActiveReassertion(), binding_is_current=False),
+    ],
+)
+def test_active_binding_reassertion_preserves_existing_authority_fences(
+    values: _ActiveReassertion,
+) -> None:
+    with pytest.raises(ValueError):
+        values.decide()

@@ -76,6 +76,7 @@ from agentmonitor.modules.registry.application.organizations import (
 )
 from agentmonitor.modules.registry.domain.cloud_verification import (
     cloud_verification_enqueue_account_version,
+    decide_cloud_binding_reassertion,
     decide_cloud_owner_assertion,
 )
 from sqlalchemy.engine import Connection, RowMapping
@@ -2616,6 +2617,109 @@ class SqliteRegistryRepositoryV1:
             self._cloud_target_by_account(connection, command.account_id.value),
         )
 
+    def _reassert_cloud_verification_graph_in_transaction(
+        self,
+        connection: Connection,
+        command: AssertCredentialAccountOwnershipCommandV1,
+        account: AccountViewV1,
+        graph: CloudMonitoringTargetV1,
+    ) -> tuple[AccountViewV1, CloudMonitoringTargetV1]:
+        """Rebind an existing owner graph inside the atomic verification request."""
+        if not connection.in_transaction():
+            raise RegistryCommandConflictV1("registry_transaction_required")
+        target = ensure_access_target_in_transaction(
+            connection, command.access_target_id
+        )
+        ensure_current_binding_in_transaction(connection, command.binding)
+        try:
+            version = decide_cloud_binding_reassertion(
+                account_provider=account.provider_key,
+                account_lifecycle=account.lifecycle,
+                account_identity_state=account.identity_state,
+                account_monitoring_preference=account.monitoring_preference,
+                account_record_version=account.record_version,
+                expected_account_record_version=command.expected_account_record_version,
+                target_provider=target.provider_key,
+                target_kind=target.target_kind,
+                target_authority=target.authority_id,
+                target_lifecycle=target.lifecycle,
+                graph_lifecycle=graph.lifecycle,
+                graph_identity_state=graph.identity_state,
+                binding_is_current=True,
+            )
+        except ValueError as error:
+            raise RegistryCommandConflictV1(str(error)) from None
+        instant = _utc_text(command.requested_at)
+        updated = connection.exec_driver_sql(
+            "UPDATE reg_account SET record_version=?,updated_at=? "
+            "WHERE account_id=? AND record_version=? AND provider_key='ollama' "
+            "AND lifecycle='active' AND identity_state='owner_confirmed' "
+            "AND monitoring_preference='enabled'",
+            (
+                version,
+                instant,
+                command.account_id.value,
+                command.expected_account_record_version,
+            ),
+        )
+        if updated.rowcount != 1:
+            raise RegistryCommandConflictV1("registry_account_version_conflict")
+        refreshed = connection.exec_driver_sql(
+            "UPDATE reg_cloud_monitoring_target SET access_target_id=?,binding_id=?,"
+            "binding_generation=?,owner_principal_id=?,owner_asserted_at=?,"
+            "record_version=record_version+1,updated_at=? "
+            "WHERE account_id=? AND profile_id=? AND resource_id=? "
+            "AND access_target_id=? AND binding_id=? AND binding_generation=? "
+            "AND record_version=? AND lifecycle='active' AND identity_state='owner_confirmed'",
+            (
+                command.access_target_id.value,
+                command.binding.binding_id.value,
+                command.binding.generation,
+                command.principal_id.value,
+                instant,
+                instant,
+                command.account_id.value,
+                graph.profile_id.value,
+                graph.resource_id.value,
+                graph.access_target_id.value,
+                graph.binding.binding_id.value,
+                graph.binding.generation,
+                graph.record_version,
+            ),
+        )
+        if refreshed.rowcount != 1:
+            raise RegistryCommandConflictV1("registry_cloud_graph_invalid")
+        revision = _next_revision(connection, instant)
+        _append_change(
+            connection,
+            subject_type="account",
+            subject_id=command.account_id.value,
+            aggregate_version=version,
+            revision=revision,
+            change_kind="owner_confirmed",
+            actor_id=command.principal_id.value,
+            correlation_id=command.command_id.value,
+            command_digest=_digest(command.command_id.value),
+            instant=instant,
+            previous_lifecycle=account.lifecycle,
+            new_lifecycle=account.lifecycle,
+        )
+        _append_outbox(
+            connection,
+            subject_type="account",
+            subject_id=command.account_id.value,
+            aggregate_version=version,
+            revision=revision,
+            change_kind="owner_confirmed",
+            correlation_id=command.command_id.value,
+            causation_id=command.command_id.value,
+            instant=instant,
+        )
+        return (
+            self._account_by_id(connection, command.account_id.value),
+            self._cloud_target_by_account(connection, command.account_id.value),
+        )
+
     def _prepare_cloud_verification_graph_in_transaction(
         self,
         connection: Connection,
@@ -2647,6 +2751,14 @@ class SqliteRegistryRepositoryV1:
         else:
             account = self._account_by_id(connection, command.account_id.value)
             graph = self._cloud_target_by_account(connection, command.account_id.value)
+            if (
+                graph.binding != command.binding
+                or graph.access_target_id != command.access_target_id
+            ):
+                account, graph = self._reassert_cloud_verification_graph_in_transaction(
+                    connection, command, account, graph
+                )
+                owner_assertion_required = True
         return (
             account,
             graph,
