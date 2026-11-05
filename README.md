@@ -40,6 +40,12 @@ Python 3.12.3 or later. See [CONTRIBUTING.md](CONTRIBUTING.md) and
 
 ## License
 
-Copyright (c) 2026 Pavlo Sidelov. All rights reserved. Public access to this
-source does not grant rights to use, copy, modify or redistribute it; see
-[LICENSE](LICENSE).
+AgentMonitor is **free for personal, non-commercial use** under the
+[AgentMonitor Personal Use License 1.0](LICENSE). Organizational, professional
+and commercial use requires a separate written licence from
+[Essential AI Solutions Ltd (EAIS)](https://essentialai.uk/).
+
+This is a source-available project. Public source access does not grant a
+commercial licence. Third-party components retain their own licences.
+
+Copyright (c) 2026 Pavlo Sidelov.
