@@ -1,6 +1,6 @@
 # Contributing to AgentMonitor
 
-AgentMonitor is currently a private, all-rights-reserved specification project. Possession of the source does not grant redistribution or relicensing rights. Contribution workflow and licensing may change before a community release.
+AgentMonitor is source-available under the [AgentMonitor Personal Use License 1.0](LICENSE). Personal, non-commercial use is free; organizational, professional and commercial use requires a separate written licence from [Essential AI Solutions Ltd (EAIS)](https://essentialai.uk/). Public source access does not grant redistribution or relicensing rights.
 
 ## Before proposing work
 

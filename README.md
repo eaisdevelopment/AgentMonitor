@@ -38,6 +38,14 @@ The controlling documents are:
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for the governed change process and [SECURITY.md](SECURITY.md) for private vulnerability reporting.
 
-## Ownership
+## License
 
-Copyright (c) 2026 Pavlo Sidelov <pavlo@sidelov.com>. All rights reserved. See [LICENSE](LICENSE).
+AgentMonitor is **free for personal, non-commercial use** under the
+[AgentMonitor Personal Use License 1.0](LICENSE). Organizational, professional
+and commercial use requires a separate written licence from
+[Essential AI Solutions Ltd (EAIS)](https://essentialai.uk/).
+
+This is a source-available project. Public source access does not grant a
+commercial licence. Third-party components retain their own licences.
+
+Copyright (c) 2026 Pavlo Sidelov.

@@ -1,10 +1,61 @@
+AgentMonitor Personal Use License 1.0
+
 Copyright (c) 2026 Pavlo Sidelov <pavlo@sidelov.com>
+All rights reserved except for the permissions expressly granted below.
 
-All rights reserved.
+1. Scope
 
-No permission is granted to use, copy, modify, merge, publish, distribute,
-sublicense, sell, or create derivative works from this software or its
-documentation without prior written permission from the copyright owner.
+This license covers the original AgentMonitor software and documentation
+provided with it (the "Software"). Licensing enquiries and requests for other
+uses should be directed to Essential AI Solutions Ltd ("EAIS"):
+https://essentialai.uk/
 
-This notice may be replaced or supplemented by a different license if and when
-the copyright owner chooses to release the project under other terms.
+2. Free personal use
+
+An individual may install, run, copy and privately modify the Software without
+paying a license fee, solely for that individual's personal, non-commercial
+use. This includes private study, learning, experimentation and hobby projects
+that are not undertaken for an employer, client, organization or commercial
+activity.
+
+This permission does not cover professional or business activity merely
+because an individual performs it, uses personal equipment, works from home
+or receives no payment for that activity.
+
+3. Other uses require an EAIS license
+
+Any use outside section 2 requires a separate written license from EAIS before
+that use begins. This includes use by or on behalf of a company, institution,
+nonprofit or other organization; internal business use; work for clients;
+commercial products or services; and making the Software available as a
+hosted service.
+
+Redistributing, selling or sublicensing the Software or modified versions
+also requires a separate written EAIS license. Public access to this
+repository and donations to the project do not grant these additional rights.
+A separate written license governs the uses it expressly authorizes.
+
+4. Notices and third-party material
+
+Retain this license and the existing copyright and attribution notices in
+copies and private modifications. No ownership of the Software or rights to
+EAIS or AgentMonitor names, logos or trademarks are transferred by this license.
+
+Dependencies and other third-party material remain governed by their own
+licenses and notices. This license does not replace those licenses or limit
+rights they grant. Rights available under applicable mandatory law are also
+unaffected.
+
+5. Warranty and responsibility
+
+The Software is supplied as it is, without a promise of fitness, reliability,
+availability, support or maintenance. To the extent permitted by applicable
+law, the copyright owner and EAIS disclaim warranties and liability for loss
+or damage arising from use of, or inability to use, the Software. Nothing here
+excludes liability or rights that applicable law does not permit to be excluded.
+
+6. Compliance
+
+The free permission in section 2 depends on compliance with this license and
+ends if its conditions are breached. Uses covered by a separate written EAIS
+license are governed by that agreement. All other rights remain reserved.
