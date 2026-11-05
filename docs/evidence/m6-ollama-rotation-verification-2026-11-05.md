@@ -72,3 +72,24 @@ planning checks passed. OpenAPI/client generation updated source/artifact hashes
 only: the schema digest and all 78 operations remained unchanged. No live
 credential or account mutation was part of these tests. Deployment and the
 owner-requested current-key check follow this clean candidate commit.
+
+## Installed result
+
+Implementation `e1fd838` passed `AUTO-M6-CURRENT-UPDATE`. Retrying the owner's
+same SDK **Check connection** action in the real signed-in browser returned
+HTTP 202 instead of 503. The current generation-2 key produced a successful
+balance reading at 14:26:38 UTC. Normal worker reconciliation then reported
+`access_valid_owner_confirmed` and `scheduled`; the exact active binding,
+monitoring graph, scheduled proof and latest-run snapshot matched. No further
+key entry, key replacement or account-setting change was required.
+
+The canonical installed-dashboard producer passed account administration,
+cloud capacity, history and dashboard continuity against this deployed
+implementation. Both real cloud targets were confirmed, both current balances
+matched their API lineage, and both history views matched. Local Ollama remained
+explicitly deferred. The real snapshot independently reported two verified,
+current cloud targets with history, but only one declared required organization
+scope. This closes the observed key-replacement verification defect; it does
+not close M6's organization-coverage, official comparison, cross-provider
+recovery or owner-acceptance requirements. Subsequent scheduled observations
+remain distinct from this successful connection-check reading.
