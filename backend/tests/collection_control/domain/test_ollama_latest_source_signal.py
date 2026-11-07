@@ -227,3 +227,32 @@ def test_current_attempt_exclusion_requires_the_exact_live_account_lease() -> No
                 active_lease(), lease_expires_at=NOW - timedelta(seconds=1)
             ),
         )
+
+
+def test_recovered_unknown_projection_keeps_dispatch_uncertainty() -> None:
+    request = query()
+    signal = OllamaCloudLatestSourceSignalV1(
+        account_id=request.account_id,
+        binding_generation=request.binding_generation,
+        access_target_id=request.access_target_id,
+        capability_id=request.capability_id,
+        source_id=request.source_id,
+        adapter_version=request.adapter_version,
+        source_fingerprint=request.source_fingerprint,
+        payload_schema=request.payload_schema,
+        signal="transient_failure",
+        run_id=OpaqueIdV1("run"),
+        admission_id=OpaqueIdV1("admission"),
+        run_state="failed",
+        dispatch_certainty="may_have_started",
+        run_requested_at=NOW - timedelta(seconds=2),
+        signal_observed_at=NOW - timedelta(seconds=1),
+        gate_state="ready",
+        retry_at=None,
+        queried_at=NOW,
+    )
+
+    assert signal.account_id == request.account_id
+    assert signal.signal == "transient_failure"
+    assert signal.dispatch_certainty == "may_have_started"
+    assert signal.signal_observed_at == NOW - timedelta(seconds=1)

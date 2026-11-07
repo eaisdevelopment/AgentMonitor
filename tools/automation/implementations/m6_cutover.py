@@ -246,6 +246,11 @@ def _verify_active_source_schema(reference: DatabaseRefV1, source: str) -> None:
         raise CutoverError("source_schema_invalid")
 
 
+def _retained_migration_source(catalog_head: str) -> str | None:
+    """Return the exact admitted predecessor, never a guessed schema range."""
+    return {"v1_0719": "v1_0718", "v1_0720": "v1_0719"}.get(catalog_head)
+
+
 def _cutover_engine(
     *,
     unit: str,
@@ -268,8 +273,9 @@ def _cutover_engine(
     """
     catalog_head = load_migration_catalog().head
     migration_sources = {"v1_0603", "v1_0707", "v1_0708"}
-    if catalog_head == "v1_0719":
-        migration_sources.add("v1_0718")
+    retained_source = _retained_migration_source(catalog_head)
+    if retained_source is not None:
+        migration_sources.add(retained_source)
     if (
         source != catalog_head
         if same_schema_update
@@ -996,9 +1002,10 @@ def cutover() -> str:
         retained_baseline = active_baseline != _FIXED_BASELINE
         if retained_baseline:
             _verify_retained_baseline(active_baseline)
-            if load_migration_catalog().head != "v1_0719":
+            retained_source = _retained_migration_source(load_migration_catalog().head)
+            if retained_source is None:
                 raise CutoverError("cutover_selection_invalid")
-            source = "v1_0718"
+            source = retained_source
             accepted_overrides = {_candidate_override(active_baseline).encode()}
         else:
             source = "v1_0707"
@@ -1424,8 +1431,8 @@ def _recover_same_schema_candidate_attempt_inner(
     backup_id = data.get("backup_id")
     same_schema = source == load_migration_catalog().head and backup_id is None
     retained_migration = (
-        source == "v1_0718"
-        and load_migration_catalog().head == "v1_0719"
+        isinstance(source, str)
+        and source == _retained_migration_source(load_migration_catalog().head)
         and isinstance(backup_id, str)
         and re.fullmatch(r"migration-preflight-[a-f0-9]{32}", backup_id) is not None
     )
@@ -1748,9 +1755,9 @@ def _fixed_journal_facts(
     source = data.get("source_revision")
     backup_id = data.get("backup_id")
     is_update = allow_update and source == load_migration_catalog().head
-    retained_migration = (
-        source == "v1_0718" and load_migration_catalog().head == "v1_0719"
-    )
+    retained_migration = isinstance(
+        source, str
+    ) and source == _retained_migration_source(load_migration_catalog().head)
     baseline = _FIXED_BASELINE
     if is_update:
         baseline = _journal_update_baseline(data)

@@ -142,3 +142,54 @@ rejections where applicable; verify Green and repeat/replay behavior, then
 exercise the real installed button and subsequent normal scheduled reading.
 The live check repeats the owner's already-requested verification action;
 it does not choose or replace credentials or account configuration.
+
+## Existing-scope recovery correction — 7 November 2026
+
+M6-T011/T012, M6-A07/A09 and FR-COL-003/007 require durable timeout/network
+recovery. An actual abandoned request exposed an indefinite `dispatched` gate
+with no durable response, after both its run deadline and owner lease expired.
+This correction implements that approved recovery behavior; it adds no provider,
+account, local-model scope or owner configuration step.
+
+M04 adds schema `v1_0720` and CTR-COL-008 1.2.0. Recovery requires the exact
+active gate, expired admission/run leases and deadline, matching run/owner/fences,
+and a scheduler heartbeat older than the supervisor's stale-owner threshold.
+The supervisor holds its existing exclusive worker lock; provider subprocess
+execution has a finite deadline. These are ownership evidence, not a claim that
+an arbitrary OS process was inspected. An unverified or current owner cannot be
+recovered through this path.
+
+A dedicated uncertainty receipt releases an abandoned dispatch after preserving
+all known next-start deadlines and adding the existing maximum fallback (300
+seconds plus bounded jitter) from recovery time. Original admission and journal response outcome/timestamps remain unchanged.
+The run records retry classification `provider_unavailable` under the existing
+collection failure policy; this does not assert a received provider response.
+Run failure is `ollama_cloud_outcome_unknown`; its typed source signal is `transient_failure`
+with `may_have_started`, never a fabricated received response or `not_started`.
+No new request is dispatched by recovery itself. The receipt makes replay
+idempotent and prevents recovery polling from extending the cooldown repeatedly.
+
+A newly observed Retry-After that cannot be represented safely instead persists
+a distinct unreleased hold. Recording this conservative hold retains exact
+owner/gate/lease identity checks but does not require an unexpired lease; a late
+response must not lose its known restriction. Such a hold never grants dispatch
+or commit and is never automatically released by abandoned-request recovery.
+
+The historical unknown outcome may include an unrecorded response or Retry-After.
+No local recovery can reconstruct it. This bounded fallback implements the
+approved absent-response policy; it cannot promise compliance with an unseen
+provider deadline. Known deadlines are never shortened. A future authoritative
+response is required before quota freshness or successful recovery can be claimed.
+
+Verification uses the actual orphan on a private SQLite backup, the full migration
+chain and composition recovery, plus pure policy/contract tests. No provider rows
+are seeded, no provider response is invented, and the live database is unchanged.
+Deployment, actual resumed polling and the M6 completion gate remain separate
+required evidence. See [the focused evidence](../../evidence/m6-unknown-outcome-recovery-2026-11-07.md).
+
+Representable Retry-After has the same preservation requirement: an actually
+received `rate_limited` outcome may be journaled after lease expiry under the
+unchanged exact active gate/owner/fence identity checks. Its response timestamp
+must remain between request start and the real persistence wall clock. Existing
+outcome recovery then applies its actual recorded deadline. This exception only
+preserves a provider restriction; it does not admit late success or quota writes.

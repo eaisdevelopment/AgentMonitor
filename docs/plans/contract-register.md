@@ -211,3 +211,15 @@ aggregation or successful live evidence. The [contract impact and implementation
 plan](integration/m6-cloud-scope-outcomes-contract-impact.md) records the
 existing approval, bounded read/write interfaces, versioning, invalidation,
 migration and real-boundary verification still required.
+
+### CTR-COL-008 1.2.0: abandoned unknown dispatch recovery
+
+The approved M6 timeout/network recovery scope adds an explicit receipt-backed
+`transient_failure` / `may_have_started` combination to the latest source signal.
+It does not assert a response, identity, quota value or permission to dispatch.
+Existing consumers already handle transient failures through the durable M04
+gate; the enum vocabulary and serialized fields are unchanged. The additive
+v1_0720 M04 table distinguishes released abandoned uncertainty from an unreleased
+known unrepresentable Retry-After hold. Older schema readers cannot read v1_0720;
+cutover requires backup and exact migration admission. Governing semantics and
+limits are in the cloud implementation plan's 7 November correction.

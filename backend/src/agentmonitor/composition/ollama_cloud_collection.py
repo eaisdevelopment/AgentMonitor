@@ -1176,15 +1176,17 @@ class OllamaCloudCollectionV1:
                 provider_policy=cloud_failure_policy(source.state, None),
             )
             return failed
-        if (
-            source.dispatch_certainty == "may_have_started"
-            or (
-                source.dispatch_certainty == "response_received"
-                and source.http_status is None
-            )
-            or source.retry_after_state == "unrepresentable"
+        if source.retry_after_state == "unrepresentable":
+            # Preserve a known provider restriction separately from an absent
+            # response. Abandoned-request recovery must never release this hold.
+            self._admission.hold_unrepresentable_retry_after(lease, completed)
+            raise ValueError("ollama_cloud_outcome_unresolved")
+        if source.dispatch_certainty == "may_have_started" or (
+            source.dispatch_certainty == "response_received"
+            and source.http_status is None
         ):
-            # We cannot infer whether an unobserved 429 imposed a longer wait.
+            # Keep the response unknown. A later expired-owner recovery uses
+            # an explicit uncertainty receipt and conservative local backoff.
             raise ValueError("ollama_cloud_outcome_unresolved")
         outcome = admission_outcome_for_source(source.state)
         completion = OllamaCloudRequestCompletionV1(
@@ -1429,7 +1431,12 @@ class OllamaCloudCollectionV1:
                     failure,
                     fencing_token=fence,
                     provider_policy=(
-                        cloud_failure_policy(source_failure, retry_after)
+                        cloud_failure_policy(
+                            "provider_unavailable"
+                            if source_failure == "outcome_unknown"
+                            else source_failure,
+                            retry_after,
+                        )
                         if source_failure
                         else None
                     ),

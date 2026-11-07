@@ -65,6 +65,7 @@ DIRECT_EXECUTABLE_SELECTION_V1: tuple[tuple[str, tuple[str, ...]], ...] = (
             "tools/automation/test_m6_controlled_recovery_interval.py",
             "backend/tests/adapters/providers/claude/test_usage_failure_cadence.py",
             "backend/tests/collection_control/domain/test_ollama_latest_source_signal.py",
+            "backend/tests/collection_control/domain/test_ollama_unknown_recovery.py",
             "backend/tests/registry/domain/test_cloud_owner_assertion.py",
             "backend/tests/adapters/providers/ollama/test_cloud_balance_source_policy.py",
             "backend/tests/adapters/providers/ollama/test_cloud_balance_source_security.py::test_authorization_failure_code_is_runtime_closed",
@@ -184,13 +185,13 @@ _SOURCE_VERSIONS: dict[str, tuple[str, ...]] = {
     "M6-A03": ("CTR-REG-011:1.0.0", "CTR-REG-012:1.1.0", "CTR-REG-013:1.0.0"),
     "M6-A04": (
         "ollama.cloud.balance.v1:1.0.0",
-        "CTR-COL-008:1.1.0",
+        "CTR-COL-008:1.2.0",
         "CTR-CAP-001:1.0.0",
     ),
     "M6-A05": ("CTR-CAP-006:1.0.0", "CTR-ALERT-002:1.0.0"),
     "M6-A07": (
         "CTR-COL-012:1.0.0",
-        "CTR-COL-008:1.1.0",
+        "CTR-COL-008:1.2.0",
         "agentmonitor.m6_controlled_recovery_interval.v1:1.0.0",
     ),
     "M6-A08": ("CTR-API-001:1.0.0", "CTR-UI-001:1.0.0"),

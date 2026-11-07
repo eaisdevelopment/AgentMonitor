@@ -47,8 +47,11 @@ from agentmonitor.contracts.registry_v1 import (
 )
 from agentmonitor.modules.collection_control.domain.ollama_rate_policy import (
     after_ollama_attempt,
+    after_unknown_ollama_attempt,
     cloud_schedule_generation_action,
     next_cloud_work_lane,
+    ollama_completion_time_allows_record,
+    ollama_lease_time_allows_action,
     reserve_after_lease,
 )
 from agentmonitor.modules.collection_control.domain.ollama_verification import (
@@ -125,15 +128,19 @@ def _admission_row(connection: Connection, admission_id: str) -> RowMapping | No
             "SELECT a.*, t.admission_id AS no_response_id, t.terminal_at AS v2_terminal_at, "
             "t.next_allowed_at AS v2_next_allowed_at, t.reason_code AS v2_reason_code, "
             "t.source_state AS v2_source_state, t.dispatch_certainty AS v2_certainty, "
-            "t.gate_record_version AS v2_gate_record_version FROM collection_ollama_cloud_admission a "
+            "t.gate_record_version AS v2_gate_record_version, u.released_at AS uncertain_terminal_at, u.next_allowed_at AS uncertain_next_allowed_at "
+            "FROM collection_ollama_cloud_admission a "
             "LEFT JOIN collection_cloud_no_response_terminal t ON t.admission_id=a.admission_id "
+            "LEFT JOIN collection_cloud_uncertain_outcome u ON u.admission_id=a.admission_id "
             "WHERE a.admission_id=?",
             (admission_id,),
         )
         .mappings()
         .one_or_none()
     )
-    if row is not None and row["no_response_id"] is not None:
+    if row is not None and (
+        row["no_response_id"] is not None or row["uncertain_terminal_at"] is not None
+    ):
         gate = _gate_row(connection)
         if gate is not None and gate["active_admission_id"] == admission_id:
             raise OllamaCloudAdmissionRepositoryErrorV1("ollama_cloud_fencing_conflict")
@@ -144,7 +151,10 @@ def _assert_terminal_gate_consistency(connection: Connection) -> None:
     """A V2 terminal must never simultaneously own the active rate gate."""
     conflict = connection.exec_driver_sql(
         "SELECT 1 FROM collection_cloud_no_response_terminal t "
-        "JOIN collection_ollama_cloud_gate g ON g.active_admission_id=t.admission_id LIMIT 1"
+        "JOIN collection_ollama_cloud_gate g ON g.active_admission_id=t.admission_id "
+        "UNION ALL SELECT 1 FROM collection_cloud_uncertain_outcome u "
+        "JOIN collection_ollama_cloud_gate g ON g.active_admission_id=u.admission_id "
+        "WHERE u.released_at IS NOT NULL LIMIT 1"
     ).first()
     if conflict is not None:
         raise OllamaCloudAdmissionRepositoryErrorV1("ollama_cloud_fencing_conflict")
@@ -288,7 +298,11 @@ def _same_acquire(row: RowMapping, request: OllamaCloudRequestAcquireV1) -> bool
 
 
 def ensure_ollama_lease_in_transaction(
-    connection: Connection, lease: OllamaCloudRequestLeaseV1, now: datetime
+    connection: Connection,
+    lease: OllamaCloudRequestLeaseV1,
+    now: datetime,
+    *,
+    conservative_hold: bool = False,
 ) -> None:
     """Fence a capacity commit against the same active durable cloud lease."""
     if not connection.in_transaction():
@@ -310,8 +324,12 @@ def ensure_ollama_lease_in_transaction(
         or _utc_value(row["next_allowed_at"]) != lease.next_allowed_at
         or _utc_value(gate["next_allowed_at"]) != lease.next_allowed_at
         or int(gate["record_version"]) != lease.gate_record_version
-        or now < lease.started_at
-        or now > lease.lease_expires_at
+        or not ollama_lease_time_allows_action(
+            lease.started_at,
+            lease.lease_expires_at,
+            now,
+            conservative_hold=conservative_hold,
+        )
     ):
         raise OllamaCloudAdmissionRepositoryErrorV1("ollama_cloud_fencing_conflict")
 
@@ -698,8 +716,13 @@ class SqliteOllamaCloudAdmissionRepositoryV1:
             or completion.schedule_id != lease.schedule_id
             or completion.fencing_token != lease.fencing_token
             or completion.started_at != lease.started_at
-            or completion.response_received_at > lease.lease_expires_at
-            or datetime.now(UTC) > lease.lease_expires_at
+            or not ollama_completion_time_allows_record(
+                lease.started_at,
+                lease.lease_expires_at,
+                completion.response_received_at,
+                datetime.now(UTC),
+                completion.outcome,
+            )
         ):
             raise OllamaCloudAdmissionRepositoryErrorV1(
                 "ollama_cloud_completion_conflict"
@@ -710,7 +733,13 @@ class SqliteOllamaCloudAdmissionRepositoryV1:
             ) as handle:
                 with handle.connect() as connection:
                     connection.exec_driver_sql("BEGIN IMMEDIATE")
-                    if datetime.now(UTC) > lease.lease_expires_at:
+                    if not ollama_completion_time_allows_record(
+                        lease.started_at,
+                        lease.lease_expires_at,
+                        completion.response_received_at,
+                        datetime.now(UTC),
+                        completion.outcome,
+                    ):
                         raise OllamaCloudAdmissionRepositoryErrorV1(
                             "ollama_cloud_fencing_conflict"
                         )
@@ -914,6 +943,123 @@ class SqliteOllamaCloudAdmissionRepositoryV1:
                     "ollama_cloud_completion_conflict"
                 )
 
+    def hold_unrepresentable_retry_after(
+        self, lease: OllamaCloudRequestLeaseV1, observed_at: datetime
+    ) -> None:
+        """Persist a known unsafe provider wait before the source outcome escapes."""
+        try:
+            with open_sqlite_database(
+                self._database_ref, "runtime_read_write"
+            ) as handle:
+                with handle.connect() as connection:
+                    connection.exec_driver_sql("BEGIN IMMEDIATE")
+                    ensure_ollama_lease_in_transaction(
+                        connection, lease, observed_at, conservative_hold=True
+                    )
+                    phase = connection.exec_driver_sql(
+                        "SELECT phase FROM collection_cloud_attempt_journal WHERE admission_id=?",
+                        (lease.admission_id.value,),
+                    ).scalar_one_or_none()
+                    if phase != "dispatched":
+                        raise OllamaCloudAdmissionRepositoryErrorV1(
+                            "ollama_cloud_fencing_conflict"
+                        )
+                    previous = connection.exec_driver_sql(
+                        "SELECT reason FROM collection_cloud_uncertain_outcome WHERE admission_id=?",
+                        (lease.admission_id.value,),
+                    ).scalar_one_or_none()
+                    if previous is None:
+                        connection.exec_driver_sql(
+                            "INSERT INTO collection_cloud_uncertain_outcome (admission_id,reason,recorded_at) VALUES (?,'retry_after_unrepresentable',?)",
+                            (lease.admission_id.value, _utc_text(observed_at)),
+                        )
+                    elif previous != "retry_after_unrepresentable":
+                        raise OllamaCloudAdmissionRepositoryErrorV1(
+                            "ollama_cloud_fencing_conflict"
+                        )
+                    connection.commit()
+        except OllamaCloudAdmissionRepositoryErrorV1:
+            raise
+        except (SQLAlchemyError, SqlitePolicyError, OSError, ValueError, TypeError):
+            raise OllamaCloudAdmissionRepositoryErrorV1() from None
+
+    def _recover_unknown_outcome(
+        self,
+        connection: Connection,
+        row: RowMapping,
+        journal: RowMapping,
+        gate: RowMapping,
+        now: datetime,
+        owner_stale_before: datetime | None,
+    ) -> str:
+        """Release an abandoned unknown dispatch; keep historical response fields null."""
+        existing = connection.exec_driver_sql(
+            "SELECT reason FROM collection_cloud_uncertain_outcome WHERE admission_id=?",
+            (row["admission_id"],),
+        ).scalar_one_or_none()
+        if existing == "retry_after_unrepresentable":
+            return "outcome_unknown"
+        if existing is not None:
+            raise OllamaCloudAdmissionRepositoryErrorV1("ollama_cloud_fencing_conflict")
+        run = (
+            connection.exec_driver_sql(
+                "SELECT r.state,r.deadline_at,r.schedule_id,r.account_id,r.fencing_token,l.owner_instance_id,l.fencing_token AS lease_fence,l.expires_at "
+                "FROM collection_run r JOIN collection_lease l ON l.run_id=r.run_id WHERE r.run_id=?",
+                (journal["run_id"],),
+            )
+            .mappings()
+            .one_or_none()
+        )
+        if (
+            owner_stale_before is None
+            or run is None
+            or run["state"] != "running"
+            or run["schedule_id"] != row["schedule_id"]
+            or run["account_id"] != row["account_id"]
+            or run["owner_instance_id"] != row["scheduler_instance_id"]
+            or run["fencing_token"] != run["lease_fence"]
+            or _utc_value(run["expires_at"]) > now
+            or _utc_value(run["deadline_at"]) > now
+        ):
+            return "owner_active_or_unverified"
+        deadline = after_unknown_ollama_attempt(
+            max(
+                _utc_value(gate["next_allowed_at"]), _utc_value(row["next_allowed_at"])
+            ),
+            now,
+            int(row["admission_jitter_seconds"]),
+        )
+        connection.exec_driver_sql(
+            "INSERT INTO collection_cloud_uncertain_outcome (admission_id,reason,recorded_at,released_at,next_allowed_at,gate_record_version) "
+            "VALUES (?,'abandoned_outcome_unknown',?,?,?,?)",
+            (
+                row["admission_id"],
+                _utc_text(now),
+                _utc_text(now),
+                _utc_text(deadline),
+                gate["record_version"],
+            ),
+        )
+        changed = connection.exec_driver_sql(
+            "UPDATE collection_ollama_cloud_gate SET active_admission_id=NULL,next_allowed_at=?,record_version=record_version+1,updated_at=? "
+            "WHERE gate_id=? AND active_admission_id=? AND fencing_token=? AND record_version=?",
+            (
+                _utc_text(deadline),
+                _utc_text(now),
+                _GATE_ID,
+                row["admission_id"],
+                row["fencing_token"],
+                gate["record_version"],
+            ),
+        )
+        if changed.rowcount != 1:
+            raise OllamaCloudAdmissionRepositoryErrorV1("ollama_cloud_fencing_conflict")
+        connection.exec_driver_sql(
+            "UPDATE collection_cloud_verification_job SET state='terminal',dispatch_certainty='may_have_started',terminal_at=?,outcome=NULL,reason_code='request_outcome_unknown',retry_after_seconds=NULL,record_version=record_version+1 WHERE state='admitted' AND admission_id=?",
+            (_utc_text(now), row["admission_id"]),
+        )
+        return "recovered"
+
     def recover_rate_gate(
         self,
         now: datetime,
@@ -983,7 +1129,7 @@ class SqliteOllamaCloudAdmissionRepositoryV1:
                             raise OllamaCloudAdmissionRepositoryErrorV1(
                                 "ollama_cloud_fencing_conflict"
                             )
-                    elif journal["phase"] in {"reserved", "outcome"}:
+                    elif journal["phase"] in {"reserved", "outcome", "dispatched"}:
                         if (
                             owner_stale_before is None
                             or _utc_value(row["lease_expires_at"]) > now
@@ -1004,8 +1150,11 @@ class SqliteOllamaCloudAdmissionRepositoryV1:
                         connection.commit()
                         return "legacy_unresolved"
                     if journal["phase"] == "dispatched":
+                        recovered = self._recover_unknown_outcome(
+                            connection, row, journal, gate, now, owner_stale_before
+                        )
                         connection.commit()
-                        return "outcome_unknown"
+                        return recovered
                     if journal["phase"] == "reserved":
                         lease = _lease(row, int(gate["record_version"]))
                         terminal = OllamaCloudNoResponseCompletionV2(
@@ -1078,14 +1227,15 @@ class SqliteOllamaCloudAdmissionRepositoryV1:
                 with handle.connect() as connection:
                     _assert_terminal_gate_consistency(connection)
                     rows = connection.exec_driver_sql(
-                        "SELECT r.run_id,r.state,r.fencing_token,COALESCE(t.source_state,j.failure_code),j.retry_after_seconds,t.admission_id,t.reason_code "
+                        "SELECT r.run_id,r.state,r.fencing_token,CASE WHEN u.released_at IS NOT NULL THEN 'outcome_unknown' ELSE COALESCE(t.source_state,j.failure_code) END,j.retry_after_seconds,t.admission_id,t.reason_code "
                         "FROM collection_cloud_attempt_journal j "
                         "JOIN collection_ollama_cloud_admission a ON a.admission_id=j.admission_id "
                         "LEFT JOIN collection_cloud_no_response_terminal t ON t.admission_id=a.admission_id "
+                        "LEFT JOIN collection_cloud_uncertain_outcome u ON u.admission_id=a.admission_id "
                         "JOIN collection_run r ON r.run_id=j.run_id "
                         "JOIN collection_lease l ON l.run_id=r.run_id "
                         "JOIN collection_scheduler_instance owner ON owner.instance_id=l.owner_instance_id "
-                        "WHERE ((j.phase='outcome' AND a.state='completed') OR t.admission_id IS NOT NULL) "
+                        "WHERE ((j.phase='outcome' AND a.state='completed') OR t.admission_id IS NOT NULL OR u.released_at IS NOT NULL) "
                         "AND r.provider_key='ollama' AND r.capability_id='subscription.quota' "
                         "AND r.source_id='ollama.cloud.balance.v1' AND r.state IN ('queued','running') "
                         "AND r.schedule_id=a.schedule_id AND r.account_id=a.account_id "
@@ -1323,7 +1473,8 @@ class SqliteOllamaCloudAdmissionRepositoryV1:
                                 "collection_ollama_cloud_admission "
                                 "WHERE schedule_id=? AND state='active' "
                                 "AND NOT EXISTS (SELECT 1 FROM collection_cloud_no_response_terminal t "
-                                "WHERE t.admission_id=collection_ollama_cloud_admission.admission_id) LIMIT 1",
+                                "WHERE t.admission_id=collection_ollama_cloud_admission.admission_id) "
+                                "AND NOT EXISTS (SELECT 1 FROM collection_cloud_uncertain_outcome u WHERE u.admission_id=collection_ollama_cloud_admission.admission_id AND u.released_at IS NOT NULL) LIMIT 1",
                                 (
                                     admission.schedule_id.value,
                                     admission.schedule_id.value,
@@ -2089,7 +2240,7 @@ class SqliteOllamaCloudAdmissionRepositoryV1:
                         "t.terminal_at AS no_response_terminal_at,"
                         "t.reason_code AS no_response_reason_code,"
                         "t.source_state AS no_response_source_state,"
-                        "t.dispatch_certainty AS no_response_certainty "
+                        "t.dispatch_certainty AS no_response_certainty, u.released_at AS uncertain_terminal_at "
                         "FROM collection_run r "
                         "LEFT JOIN collection_cloud_attempt_journal j "
                         "ON j.run_id=r.run_id "
@@ -2097,6 +2248,7 @@ class SqliteOllamaCloudAdmissionRepositoryV1:
                         "ON a.admission_id=j.admission_id "
                         "LEFT JOIN collection_cloud_no_response_terminal t "
                         "ON t.admission_id=j.admission_id "
+                        "LEFT JOIN collection_cloud_uncertain_outcome u ON u.admission_id=j.admission_id "
                         "WHERE r.provider_key='ollama' AND r.account_id=? "
                         "AND r.provider_target_kind='cloud_service' "
                         "AND r.provider_target_id=? AND r.target_generation=? "
@@ -2148,7 +2300,13 @@ class SqliteOllamaCloudAdmissionRepositoryV1:
                             "ollama_cloud_fencing_conflict"
                         )
                     phase = str(row["phase"])
-                    if row["no_response_terminal_at"] is not None:
+                    failure: str | None
+                    if row["uncertain_terminal_at"] is not None:
+                        certainty = "may_have_started"
+                        outcome = None
+                        failure = "outcome_unknown"
+                        observed_at = _utc_value(row["uncertain_terminal_at"])
+                    elif row["no_response_terminal_at"] is not None:
                         certainty = str(row["no_response_certainty"])
                         outcome = None
                         failure = (
@@ -2671,11 +2829,18 @@ class SqliteOllamaCloudAdmissionRepositoryV1:
                     "ollama_cloud_admission_conflict"
                 )
             next_allowed = _utc_value(existing["next_allowed_at"])
-            if existing["no_response_id"] is not None:
+            if (
+                existing["no_response_id"] is not None
+                or existing["uncertain_terminal_at"] is not None
+            ):
                 return OllamaCloudAdmissionDecisionV1(
                     "replayed_terminal",
                     None,
-                    _utc_value(existing["v2_next_allowed_at"]),
+                    _utc_value(
+                        existing["v2_next_allowed_at"]
+                        if existing["no_response_id"] is not None
+                        else existing["uncertain_next_allowed_at"]
+                    ),
                 )
             if existing["state"] == "active":
                 if gate["active_admission_id"] != request.admission_id.value:

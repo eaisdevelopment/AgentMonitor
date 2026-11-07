@@ -100,3 +100,67 @@ def cloud_schedule_generation_action(
     if active_work:
         raise ValueError("ollama_cloud_schedule_busy")
     return "advance"
+
+
+def after_unknown_ollama_attempt(
+    known_deadline: datetime, recovered_at: datetime, jitter_seconds: int
+) -> datetime:
+    """Wait the full fallback cap after recovery without erasing known waits.
+
+    This is a local retry policy for an unknown response, never evidence of a
+    provider response, absence of throttling, or a provider-directed deadline.
+    """
+    if (
+        known_deadline.utcoffset() != timedelta(0)
+        or recovered_at.utcoffset() != timedelta(0)
+        or type(jitter_seconds) is not int
+        or not 0 <= jitter_seconds <= _MAX_JITTER_SECONDS
+    ):
+        raise ValueError("ollama_unknown_recovery_invalid")
+    try:
+        return max(
+            known_deadline, recovered_at + timedelta(seconds=_MAX_BACKOFF_SECONDS)
+        ) + timedelta(seconds=jitter_seconds)
+    except OverflowError:
+        raise ValueError("ollama_rate_wait_unrepresentable") from None
+
+
+def ollama_lease_time_allows_action(
+    started_at: datetime,
+    expires_at: datetime,
+    observed_at: datetime,
+    *,
+    conservative_hold: bool = False,
+) -> bool:
+    """Check lease time; a conservative hold never grants dispatch or commit."""
+    return (
+        all(
+            value.utcoffset() == timedelta(0)
+            for value in (started_at, expires_at, observed_at)
+        )
+        and started_at <= expires_at
+        and started_at <= observed_at
+        and (conservative_hold or observed_at <= expires_at)
+    )
+
+
+def ollama_completion_time_allows_record(
+    started_at: datetime,
+    expires_at: datetime,
+    received_at: datetime,
+    recorded_at: datetime,
+    outcome: str,
+) -> bool:
+    """Fence response time without discarding an observed provider restriction."""
+    return (
+        all(
+            value.utcoffset() == timedelta(0)
+            for value in (started_at, expires_at, received_at, recorded_at)
+        )
+        and started_at <= expires_at
+        and started_at <= received_at <= recorded_at
+        and (
+            outcome == "rate_limited"
+            or (received_at <= expires_at and recorded_at <= expires_at)
+        )
+    )

@@ -37,3 +37,11 @@ The companion exact verification-job read accepts the original probe's
 `(run_id, admission_id)` from the M02 receipt. Composition must require its
 terminal response-received success and matching M05 commit; a later scheduled
 signal cannot substitute for the original probe result.
+
+CTR-COL-008 1.2.0 adds one combination: an explicitly recovered, failed unknown
+attempt can be `transient_failure` with `may_have_started`. M04 requires its
+released `collection_cloud_uncertain_outcome` receipt; a bare dispatched journal
+still projects unresolved. Schema v1_0720 preserves the original provider
+response fields and keeps known unrepresentable Retry-After holds unreleased.
+The signal's observation time is recovery time, not provider response time.
+The global gate retains every known deadline and a full conservative cooldown.

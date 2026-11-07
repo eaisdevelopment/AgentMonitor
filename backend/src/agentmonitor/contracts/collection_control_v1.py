@@ -800,7 +800,7 @@ class OllamaCloudLatestSourceSignalV1(TechnicalValueV1):
     """Latest exact-source outcome plus the authoritative global gate state."""
 
     CONTRACT_ID: ClassVar[str] = "CTR-COL-008"
-    CONTRACT_VERSION: ClassVar[str] = "1.1.0"
+    CONTRACT_VERSION: ClassVar[str] = "1.2.0"
     OWNER: ClassVar[str] = "PLAN-M04"
 
     account_id: OpaqueIdV1
@@ -878,7 +878,8 @@ class OllamaCloudLatestSourceSignalV1(TechnicalValueV1):
             or self.signal == "transient_failure"
             and (
                 self.run_state != "failed"
-                or self.dispatch_certainty not in {"not_started", "response_received"}
+                or self.dispatch_certainty
+                not in {"not_started", "response_received", "may_have_started"}
             )
             or not _utc(self.queried_at)
             or (

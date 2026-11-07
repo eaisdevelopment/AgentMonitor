@@ -89,6 +89,7 @@ def classify_latest_ollama_cloud_source_signal_v1(
             "internal_adapter_error",
             "source_not_admitted",
             "pre_dispatch_failed",
+            "outcome_unknown",
         }
     ):
         raise ValueError("ollama_cloud_source_signal_invalid")
@@ -114,6 +115,13 @@ def classify_latest_ollama_cloud_source_signal_v1(
         if failure_code in {"provider_unavailable", "deadline_exceeded"}:
             return "transient_failure"
         return "outcome_unresolved"
+    if (
+        dispatch_certainty == "may_have_started"
+        and run_state == "failed"
+        and outcome is None
+        and failure_code == "outcome_unknown"
+    ):
+        return "transient_failure"
     if dispatch_certainty == "not_started" and run_state == "failed":
         if (
             failure_code in {"pre_dispatch_failed", "internal_adapter_error"}

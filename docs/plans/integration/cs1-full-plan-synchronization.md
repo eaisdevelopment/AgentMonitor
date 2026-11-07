@@ -1290,3 +1290,16 @@ baseline is bound below.
 
 Plan snapshot SHA-256: `59509f3467a8c4a7f4363c8f2f8b4d58feac116c28f793c7080f631433c01bfc`. This records documentation binding,
 not a passed live recovery or milestone completion.
+
+## M6 unknown outcome recovery synchronization — 7 November 2026
+
+Canonical renderers regenerated contract adoption and the planning snapshot after
+CTR-COL-008 1.2.0 and the v1_0720 migration command update. This binds the exact
+control files for the existing approved cloud-recovery correction. It records
+mechanical synchronization, not renewed whole-baseline semantic approval, live
+provider verification or milestone acceptance. The focused independent code
+review is recorded in the recovery evidence; prior audit findings remain intact.
+
+Plan snapshot SHA-256: `34366833c0ca4d85df81d149d067be3917cc45b7f38abad46021fc22933cf4b4`
+
+Planning validator SHA-256: `f3798fa04b4431e46f2eb3417717c0bc77eb106f23a49f584c1ea0065d0e013d`

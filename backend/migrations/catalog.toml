@@ -1,5 +1,5 @@
-version = "1.7.19"
-head = "v1_0719"
+version = "1.7.20"
+head = "v1_0720"
 env_sha256 = "27449e3ed3984acde690510f9e4974eb6412f5f1b7e62af65bc8bb616879a7d7"
 
 [[revisions]]
@@ -838,3 +838,25 @@ backup_prerequisite = "required_existing_database"
 validation_ids = ["single_head", "m02_organization_coverage_schema", "m02_coverage_revision_immutable", "foreign_key_check", "full_integrity"]
 recovery_policy = "preserve_failed_database_and_restore_verified_backup_or_forward_fix"
 reviewer = "M02-M6-organization-coverage-independent-review"
+
+[[revisions]]
+ordinal = 720
+filename = "v1_0720_m04_uncertain_outcome.py"
+sha256 = "64d555c6c3ed5d49f2f974ca2fae10073bcb7fde478b37053850fba4b59aecbf"
+status = "implemented"
+reviewed_at = "2026-11-07"
+revision = "v1_0720"
+parent_revision = "v1_0719"
+owner = "M04"
+plan_id = "PLAN-M04"
+requirement_ids = ["FR-COL-003", "FR-COL-007", "M6-A07", "M6-A09"]
+schema_range = ["v1_0720", "v1_0720", "v1_0720", "v1_0720", "v1_0720"]
+tables = ["collection_cloud_uncertain_outcome"]
+portability_notes = ["Additive uncertainty receipt leaves original dispatch and response fields unchanged", "Known unrepresentable Retry-After remains an unreleased hold"]
+lock_policy = "exclusive_migration_and_begin_immediate"
+downtime_policy = "offline_additive_schema_migration"
+expected_data_volume = "zero_rows_until_actual_uncertain_outcome"
+backup_prerequisite = "required_existing_database"
+validation_ids = ["single_head", "m04_uncertain_outcome_schema", "foreign_key_check", "full_integrity"]
+recovery_policy = "preserve_failed_database_and_restore_verified_backup_or_forward_fix"
+reviewer = "M04-M6-uncertain-outcome-review"

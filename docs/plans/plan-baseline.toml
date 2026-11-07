@@ -159,13 +159,13 @@ bytes = 4124
 [[controls]]
 id = "contract-baseline"
 path = "docs/plans/contract-baseline.toml"
-sha256 = "17decf1bfcb3fd601c20bbc86d9c4e39a8027152924191294e71308e4d6f9f38"
+sha256 = "25462b25801d32746cdcabf403c6c443957d43cce4e35cbac29949998b30363d"
 bytes = 63152
 
 [[controls]]
 id = "contract-adoption"
 path = "docs/plans/contract-adoption.toml"
-sha256 = "09fe7b934aba3b1168a9968e1cb5325271cd0eaac4f36275e34a4db3e7dd4647"
+sha256 = "5daa38e6c505c5ab851d9863e1ed0b94d437974106e3d5aedac24caf81eaabe9"
 bytes = 17194
 
 [[controls]]
@@ -189,8 +189,8 @@ bytes = 23341
 [[controls]]
 id = "automation-routines"
 path = "tools/automation/routines.toml"
-sha256 = "92ad8cda3d6384521e5cc3f3cb9cdb4e7bac1a4cd70c28ca8facf78b7ddfa46f"
-bytes = 20982
+sha256 = "caf8142e4e4a294de864ac62d8e2e4f36b5cb4d96dab60df04c6f17fbe646ae3"
+bytes = 20991
 
 [[controls]]
 id = "automation-standard"
