@@ -60,6 +60,74 @@ export function compareCreditView(view, source) {
     && source.included.resetAt.slice(0, 10) === date ? 'matched' : 'mismatch';
 }
 
+function exactKeys(value, keys) {
+  return value !== null && typeof value === 'object' && !Array.isArray(value)
+    && Object.keys(value).length === keys.length && keys.every(key => Object.hasOwn(value, key));
+}
+
+function displayedUsed(value) {
+  if (typeof value !== 'string') return null;
+  const match = /^(0|[1-9]\d{0,2})(?:\.(\d{1,18}))?% used$/.exec(value);
+  if (match === null) return null;
+  const scale = match[2]?.length ?? 0;
+  const coefficient = BigInt(match[1] + (match[2] ?? ''));
+  return coefficient <= 100n * 10n ** BigInt(scale) ? { coefficient, scale } : null;
+}
+
+function exactQuantity(value, unit) {
+  return exactKeys(value, ['coefficient', 'scale', 'unit']) && value.unit === unit
+    && typeof value.coefficient === 'string' && /^(?:0|[1-9]\d{0,31})$/.test(value.coefficient)
+    && Number.isInteger(value.scale) && Math.abs(value.scale) <= 18;
+}
+
+function remainingRatio(value) {
+  if (!exactQuantity(value, 'ratio')) return null;
+  const coefficient = BigInt(value.coefficient) * 10n ** BigInt(Math.max(0, -value.scale));
+  const denominator = 10n ** BigInt(Math.max(0, value.scale));
+  return coefficient <= denominator ? { coefficient, denominator } : null;
+}
+
+function exactReset(value) {
+  if (typeof value !== 'string') return null;
+  const match = /^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2})(?:\.(\d{1,9}))?(?:Z|\+00:00)$/.exec(value);
+  if (match === null) return null;
+  const instant = Date.parse(`${match[1]}Z`);
+  if (!Number.isFinite(instant) || new Date(instant).toISOString().slice(0, 19) !== match[1]) return null;
+  return BigInt(instant) * 1_000_000n + BigInt((match[2] ?? '').padEnd(9, '0'));
+}
+
+export function parsePercentageView(sessionUsed, weeklyUsed, purchased, sessionReset, weeklyReset) {
+  if (displayedUsed(sessionUsed) === null || displayedUsed(weeklyUsed) === null
+      || displayedMoney(purchased) === null || exactReset(sessionReset) === null
+      || exactReset(weeklyReset) === null) return null;
+  return { kind: 'percentage', sessionUsed, weeklyUsed, purchased, sessionReset, weeklyReset };
+}
+
+function matchesDisplayedUsed(display, ratio) {
+  const used = (ratio.denominator - ratio.coefficient) * 100n * 10n ** BigInt(display.scale);
+  return (2n * used + ratio.denominator) / (2n * ratio.denominator) === display.coefficient;
+}
+
+export function comparePercentageView(view, source) {
+  if (!exactKeys(view, ['kind', 'sessionUsed', 'weeklyUsed', 'purchased', 'sessionReset', 'weeklyReset'])
+      || view.kind !== 'percentage'
+      || parsePercentageView(view.sessionUsed, view.weeklyUsed, view.purchased, view.sessionReset, view.weeklyReset) === null
+      || !exactKeys(source, ['kind', 'session', 'weekly', 'purchased']) || source.kind !== 'percentage'
+      || !exactKeys(source.purchased, ['remaining', 'limit', 'resetAt'])
+      || !exactQuantity(source.purchased.remaining, 'usd') || source.purchased.limit !== null
+      || source.purchased.resetAt !== null) return 'unavailable';
+  for (const name of ['session', 'weekly']) {
+    const window = source[name];
+    if (!exactKeys(window, ['remainingRatio', 'resetAt', 'resetPrecision'])
+        || remainingRatio(window.remainingRatio) === null || window.resetPrecision !== 'exact'
+        || exactReset(window.resetAt) === null) return 'unavailable';
+  }
+  return ['session', 'weekly'].every(name =>
+    matchesDisplayedUsed(displayedUsed(view[`${name}Used`]), remainingRatio(source[name].remainingRatio))
+      && exactReset(view[`${name}Reset`]) === exactReset(source[name].resetAt))
+    && matchesDisplayedUsd(view.purchased, source.purchased.remaining) ? 'matched' : 'mismatch';
+}
+
 /** Pair visible, consistent official principals to unique owner-confirmed labels.
  * Distinct principals are comparison subjects, never proof of distinct pools.
  */
@@ -98,7 +166,13 @@ export function comparePairedCreditViews(views, pairs, sources) {
     const matches = sources.filter(source => source.accountId === pair.accountId);
     const observed = views[pair.viewIndices[0]];
     if (matches.length !== 1 || observed?.principal.toLowerCase() !== pair.principal) return unavailable;
-    decisions.push(compareCreditView(observed.view, matches[0].amounts));
+    const source = matches[0].amounts;
+    if (observed.view?.kind === 'percentage' && source?.kind === 'percentage') {
+      decisions.push(comparePercentageView(observed.view, source));
+    } else if (exactKeys(observed.view, ['monthly', 'allowance', 'added', 'refillDate'])
+        && exactKeys(source, ['included', 'purchased'])) {
+      decisions.push(compareCreditView(observed.view, source));
+    } else return unavailable;
   }
   if (decisions.includes('mismatch')) return { decision: 'mismatch', comparedTargets: 0 };
   return decisions.every(decision => decision === 'matched')

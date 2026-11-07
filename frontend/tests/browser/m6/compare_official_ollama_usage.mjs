@@ -3,7 +3,7 @@
  */
 import { chromium } from '@playwright/test';
 import { createHash } from 'node:crypto';
-import { parseCreditView, pairVisibleCreditViews, comparePairedCreditViews } from './authoritative_credit_policy.mjs';
+import { parseCreditView, parsePercentageView, pairVisibleCreditViews, comparePairedCreditViews } from './authoritative_credit_policy.mjs';
 
 const revision = process.argv[2];
 const origin = 'http://127.0.0.1:43110';
@@ -69,6 +69,31 @@ async function officialView(page) {
   const emails = principalText.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi) ?? [];
   if (emails.length !== 1) fail('official_usage_pairing_unproven');
   const button = page.getByRole('button', { name: 'Usage credits breakdown', exact: true });
+  if (await button.count() === 0) {
+    // Read only balance labels and provider-authored reset metadata. Never read
+    // the neighboring model/request history, payment controls or page body.
+    const heading = page.getByRole('heading', { name: /^Usage credits/ });
+    if (await heading.count() !== 1) fail('official_usage_credit_view_unavailable');
+    const balance = heading.locator('xpath=..').locator(':scope > span');
+    const cloud = page.getByRole('heading', { name: 'Cloud usage', exact: true }).locator('xpath=../..');
+    async function usage(label) {
+      const row = cloud.locator(':scope > div').filter({ has: page.getByText(label, { exact: true }) });
+      const used = row.getByText(/^\s*\d+(?:\.\d+)?% used\s*$/);
+      const reset = row.locator('[data-time]').filter({ hasText: /Resets in/ });
+      if (await row.count() !== 1 || await used.count() !== 1 || await reset.count() !== 1
+          || !await used.isVisible() || !await reset.isVisible()) fail('official_usage_credit_view_unavailable');
+      return { used: (await used.innerText({ timeout: timeout() })).trim(),
+        reset: await reset.getAttribute('data-time', { timeout: timeout() }) };
+    }
+    if (await balance.count() !== 1 || !await balance.isVisible()) fail('official_usage_credit_view_unavailable');
+    const session = await usage('Session usage');
+    const weekly = await usage('Weekly usage');
+    const view = parsePercentageView(session.used, weekly.used,
+      (await balance.innerText({ timeout: timeout() })).trim(), session.reset, weekly.reset);
+    if (view === null) fail('official_usage_credit_view_unavailable');
+    return { principal: emails[0].toLowerCase(), view, observedAt: new Date().toISOString() };
+  }
+  if (await button.count() !== 1) fail('official_usage_credit_view_unavailable');
   await button.hover({ timeout: timeout() });
   const tooltip = button.locator('xpath=..').locator('[role="tooltip"]');
   if (await tooltip.count() !== 1) fail('official_usage_credit_view_unavailable');
@@ -94,14 +119,13 @@ async function accountSnapshot(accountId, principal) {
   const connection = await localJson(`/api/v1/accounts/${encodeURIComponent(accountId)}/ollama-cloud-connection`);
   if (connection.state !== 'access_valid_owner_confirmed' || !['scheduled', 'reading'].includes(connection.monitoring_state)) fail('official_usage_connection_unavailable');
   const quotas = await localJson(`/api/v1/accounts/${encodeURIComponent(accountId)}/quotas/v2`);
-  if (!Array.isArray(quotas?.items) || quotas.items.length !== 2 || quotas.page?.has_more !== false
-      || new Set(quotas.items.map(item => item.window_key)).size !== 2) fail('official_usage_capacity_unavailable');
+  if (!Array.isArray(quotas?.items) || ![2, 3].includes(quotas.items.length) || quotas.page?.has_more !== false
+      || new Set(quotas.items.map(item => item.window_key)).size !== quotas.items.length) fail('official_usage_capacity_unavailable');
   for (const item of quotas.items) {
     if (item.subject?.account_id !== accountId || item.subject.provider_key !== 'ollama'
         || item.subject.provider_target_kind !== 'cloud_service' || item.semantic_role !== 'capacity'
         || item.freshness !== 'fresh' || item.provenance?.source_id !== 'ollama.cloud.balance.v1'
-        || !Number.isFinite(Date.parse(item.observed_at)) || Date.parse(item.observed_at) > Date.now()
-        || item.remaining?.availability !== 'available') fail('official_usage_capacity_unavailable');
+        || !Number.isFinite(Date.parse(item.observed_at)) || Date.parse(item.observed_at) > Date.now()) fail('official_usage_capacity_unavailable');
   }
   if (new Set(quotas.items.map(item => item.subject.provider_target_id)).size !== 1
       || new Set(quotas.items.map(item => item.collection_run_id)).size !== 1
@@ -111,8 +135,19 @@ async function accountSnapshot(accountId, principal) {
 function nativeAmounts(quotas) {
   const included = quotas.items.find(item => item.window_key === 'ollama_included_credits');
   const purchased = quotas.items.find(item => item.window_key === 'ollama_purchased_credits');
-  if (!included || !purchased || included.limit?.availability !== 'available'
+  if (!purchased || purchased.remaining?.availability !== 'available'
       || purchased.limit?.availability !== 'unknown') return null;
+  if (quotas.items.length === 3) {
+    const session = quotas.items.find(item => item.window_key === 'ollama_session');
+    const weekly = quotas.items.find(item => item.window_key === 'ollama_weekly');
+    if (included || !session || !weekly || session.remaining_ratio?.availability !== 'available'
+        || weekly.remaining_ratio?.availability !== 'available') return null;
+    return { kind: 'percentage',
+      session: { remainingRatio: session.remaining_ratio.value, resetAt: session.reset_at, resetPrecision: session.reset_precision },
+      weekly: { remainingRatio: weekly.remaining_ratio.value, resetAt: weekly.reset_at, resetPrecision: weekly.reset_precision },
+      purchased: { remaining: purchased.remaining.value, limit: null, resetAt: purchased.reset_at ?? null } };
+  }
+  if (!included || included.remaining?.availability !== 'available' || included.limit?.availability !== 'available') return null;
   return { included: { remaining: included.remaining.value, limit: included.limit.value,
     resetAt: included.reset_at, resetPrecision: included.reset_precision },
   purchased: { remaining: purchased.remaining.value, limit: null, resetAt: purchased.reset_at ?? null } };

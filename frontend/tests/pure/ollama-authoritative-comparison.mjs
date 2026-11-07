@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { compareCreditView, matchesDisplayedUsd, parseCreditView, pairVisibleCreditViews, comparePairedCreditViews } from '../browser/m6/authoritative_credit_policy.mjs';
+import { compareCreditView, matchesDisplayedUsd, parseCreditView, pairVisibleCreditViews, comparePairedCreditViews, parsePercentageView, comparePercentageView } from '../browser/m6/authoritative_credit_policy.mjs';
 
 // Constructed values remain entirely inside these pure decimal/date decisions.
 const money = (coefficient, scale = 2) => ({ coefficient, scale, unit: 'usd' });
@@ -104,4 +104,91 @@ test('all exact paired sources aggregate once and swapped accounts fail', () => 
   ]), { decision: 'mismatch', comparedTargets: 0 });
   assert.deepEqual(comparePairedCreditViews(views, pairs, [{ accountId: 'one', amounts: source }]),
     { decision: 'unavailable', comparedTargets: 0 });
+});
+
+const ratio = (coefficient, scale = 4) => ({ coefficient, scale, unit: 'ratio' });
+const percentageView = { kind: 'percentage', sessionUsed: '100% used', weeklyUsed: '27.9% used',
+  purchased: '$0', sessionReset: '2026-11-05T17:00:00Z', weeklyReset: '2026-11-09T00:00:00Z' };
+const percentageSource = { kind: 'percentage',
+  session: { remainingRatio: ratio('0'), resetAt: percentageView.sessionReset, resetPrecision: 'exact' },
+  weekly: { remainingRatio: ratio('7213'), resetAt: percentageView.weeklyReset, resetPrecision: 'exact' },
+  purchased: { remaining: money('0', 0), limit: null, resetAt: null } };
+
+test('paired comparison supports simultaneous USD and percentage plans without changing units', () => {
+  const views = [visible('one@example.invalid'), visible('two@example.invalid', percentageView)];
+  const pairs = pairVisibleCreditViews(views, [account('one', 'one@example.invalid'), account('two', 'two@example.invalid')]);
+  assert.deepEqual(comparePairedCreditViews(views, pairs, [
+    { accountId: 'one', amounts: source }, { accountId: 'two', amounts: percentageSource },
+  ]), { decision: 'matched', comparedTargets: 2 });
+});
+
+test('percentage parser retains the official used labels and exact reset metadata', () => {
+  assert.deepEqual(parsePercentageView('100% used', '27.9% used', '$0', percentageView.sessionReset, percentageView.weeklyReset), percentageView);
+  for (const value of ['100.1% used', '-1% used', '027.9% used', '27.9% left', '27.9%', ' 27.9% used', 27.9, null]) {
+    assert.equal(parsePercentageView(value, '27.9% used', '$0', percentageView.sessionReset, percentageView.weeklyReset), null);
+  }
+  for (const reset of [null, 'tomorrow', '2026-02-30T00:00:00Z', '2026-11-05T17:00:00', '2026-11-05T17:00:00+01:00']) {
+    assert.equal(parsePercentageView('100% used', '27.9% used', '$0', reset, percentageView.weeklyReset), null);
+  }
+  assert.equal(parsePercentageView('100% used', '27.9% used', '0', percentageView.sessionReset, percentageView.weeklyReset), null);
+});
+
+test('remaining ratios are complemented to used percentages with decimal half-up rounding', () => {
+  assert.equal(comparePercentageView(percentageView, percentageSource), 'matched');
+  assert.equal(comparePercentageView({ ...percentageView, weeklyUsed: '72.1% used' }, percentageSource), 'mismatch');
+  const withWeekly = remainingRatio => ({ ...percentageSource, weekly: { ...percentageSource.weekly, remainingRatio } });
+  assert.equal(comparePercentageView(percentageView, withWeekly(ratio('7215'))), 'matched');
+  assert.equal(comparePercentageView(percentageView, withWeekly(ratio('721500000000000001', 18))), 'mismatch');
+  assert.equal(comparePercentageView({ ...percentageView, weeklyUsed: '28% used' }, withWeekly(ratio('725'))), 'mismatch');
+  assert.equal(comparePercentageView({ ...percentageView, weeklyUsed: '28% used' }, withWeekly(ratio('725', 3))), 'matched');
+  assert.equal(comparePercentageView({ ...percentageView, sessionUsed: '0% used' }, {
+    ...percentageSource, session: { ...percentageSource.session, remainingRatio: ratio('1', 0) },
+  }), 'matched');
+});
+
+test('invalid, missing, mixed or out-of-range percentage inputs remain unavailable', () => {
+  for (const remainingRatio of [null, ratio('-1'), ratio('10001'), ratio('01'), ratio(7213), ratio('1', -1), ratio('1', 19),
+    { ...ratio('7213'), unit: 'percent' }, { ...ratio('7213'), used: '27.87' }]) {
+    assert.equal(comparePercentageView(percentageView, { ...percentageSource,
+      weekly: { ...percentageSource.weekly, remainingRatio } }), 'unavailable');
+  }
+  for (const invalid of [null, { ...percentageSource, kind: 'other' }, { ...percentageSource, included: source.included },
+    { ...percentageSource, session: null }, { ...percentageSource, purchased: { ...percentageSource.purchased, limit: money('1') } },
+    { ...percentageSource, purchased: { ...percentageSource.purchased, remaining: money('-1') } },
+    { ...percentageSource, purchased: { ...percentageSource.purchased, resetAt: percentageView.sessionReset } }]) {
+    assert.equal(comparePercentageView(percentageView, invalid), 'unavailable');
+  }
+  assert.equal(comparePercentageView({ ...percentageView, monthly: '$0' }, percentageSource), 'unavailable');
+  assert.equal(comparePercentageView({ ...percentageView, weeklyUsed: undefined }, percentageSource), 'unavailable');
+});
+
+test('percentage reset checks preserve exact instants and never substitute calendar dates', () => {
+  assert.equal(comparePercentageView(percentageView, { ...percentageSource,
+    session: { ...percentageSource.session, resetAt: '2026-11-05T17:00:00.000000000+00:00' } }), 'matched');
+  for (const resetAt of ['2026-11-05T18:00:00Z', '2026-11-05T17:00:00.000001Z']) {
+    assert.equal(comparePercentageView(percentageView, { ...percentageSource,
+      session: { ...percentageSource.session, resetAt } }), 'mismatch');
+  }
+  for (const resetPrecision of ['rounded', 'unknown', null]) {
+    assert.equal(comparePercentageView(percentageView, { ...percentageSource,
+      session: { ...percentageSource.session, resetPrecision } }), 'unavailable');
+  }
+  assert.equal(comparePercentageView(percentageView, { ...percentageSource,
+    weekly: { ...percentageSource.weekly, resetAt: '2026-02-30T00:00:00Z' } }), 'unavailable');
+});
+
+test('percentage purchased credits use the existing exact USD rules', () => {
+  assert.equal(comparePercentageView(percentageView, { ...percentageSource,
+    purchased: { ...percentageSource.purchased, remaining: money('4', 1) } }), 'mismatch');
+  assert.equal(comparePercentageView({ ...percentageView, purchased: '$2.50' }, { ...percentageSource,
+    purchased: { ...percentageSource.purchased, remaining: money('2504', 3) } }), 'matched');
+});
+
+test('paired comparison rejects mixed source kinds and legacy shapes with percentage fields', () => {
+  const views = [visible('one@example.invalid')];
+  const pairs = pairVisibleCreditViews(views, [account('one', 'one@example.invalid')]);
+  for (const amounts of [percentageSource, { ...source, kind: 'percentage' }, { ...source, session: percentageSource.session }]) {
+    assert.deepEqual(comparePairedCreditViews(views, pairs, [{ accountId: 'one', amounts }]),
+      { decision: 'unavailable', comparedTargets: 0 });
+  }
 });
