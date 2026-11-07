@@ -193,3 +193,19 @@ unchanged exact active gate/owner/fence identity checks. Its response timestamp
 must remain between request start and the real persistence wall clock. Existing
 outcome recovery then applies its actual recorded deadline. This exception only
 preserves a provider restriction; it does not admit late success or quota writes.
+
+### Scheduled readmission compatibility correction
+
+CTR-PROV-003 1.2.0 consumes CTR-COL-008's receipt-backed failed/transient signal
+with `may_have_started` through all three guards: source lineage, domain proof
+derivation and the resulting admission-proof DTO. It preserves the original
+successful verification/commit, exact current binding/target/source and M04's
+durable request gate. It does not turn unknown telemetry into a successful
+reading. The actual recovered target must traverse `scheduled_proof_for_binding`
+in verification; merely finalizing the old run is insufficient evidence.
+
+This correction releases only abandoned scheduled attempts. A verification job
+attached to an unknown dispatch retains the previous unresolved, fail-closed
+behavior; no retry deadline or release receipt is created. CTR-COL-010 remains
+2.0.0 and the immutable v1_0716 terminal-job constraint remains intact. General
+post-dispatch verification recovery is not delivered or accepted by this patch.

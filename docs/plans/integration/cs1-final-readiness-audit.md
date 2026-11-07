@@ -1272,3 +1272,14 @@ review is recorded in the recovery evidence; prior audit findings remain intact.
 Plan snapshot SHA-256: `34366833c0ca4d85df81d149d067be3917cc45b7f38abad46021fc22933cf4b4`
 
 Planning validator SHA-256: `f3798fa04b4431e46f2eb3417717c0bc77eb106f23a49f584c1ea0065d0e013d`
+
+## Scheduled uncertainty consumer synchronization — 7 November 2026
+
+Canonical renderers bind CTR-PROV-003 1.2.0 to the corrected M03 consumer
+contracts and existing M6 recovery scope. CTR-COL-010 remains 2.0.0; unknown
+verification jobs remain unresolved. This is mechanical control synchronization,
+not renewed whole-baseline acceptance or a live milestone result.
+
+Plan snapshot SHA-256: `bdf15684ae441e8144c894daa9afc7118aae0aec8e119f9367133507a664201e`
+
+Planning validator SHA-256: `9cc9f832a89f08d48dac0d654b2318fd0da029ab88167625fe88ad69bec8446d`

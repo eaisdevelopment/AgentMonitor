@@ -227,3 +227,48 @@ def test_transient_signal_cannot_preserve_admission_from_a_successful_run() -> N
         InvalidProviderContract, match="scheduled_source_lineage_invalid"
     ):
         replace(lineage(), authorization_signal="transient_failure")
+
+
+def test_recovered_unknown_failure_preserves_exact_prior_verification() -> None:
+    recovered = replace(
+        lineage(),
+        authorization_signal="transient_failure",
+        authorization_signal_run_state="failed",
+        authorization_signal_dispatch_certainty="may_have_started",
+    )
+    proof = derive_scheduled_source_admission_v1(
+        policy(),
+        recovered,
+        evaluated_at=NOW + timedelta(seconds=2),
+    )
+    assert proof.authorization_signal == "transient_failure"
+    assert proof.authorization_signal_dispatch_certainty == "may_have_started"
+    assert proof.verification_id == recovered.verification_id
+    assert proof.probe_run_id == recovered.probe_run_id
+
+
+@pytest.mark.parametrize("state", ("partial", "succeeded"))
+def test_recovered_unknown_must_have_terminal_failure(state: str) -> None:
+    with pytest.raises(
+        InvalidProviderContract, match="scheduled_source_lineage_invalid"
+    ):
+        replace(
+            lineage(),
+            authorization_signal="transient_failure",
+            authorization_signal_run_state=state,  # type: ignore[arg-type]
+            authorization_signal_dispatch_certainty="may_have_started",
+        )
+
+
+def test_unrecovered_unknown_cannot_use_prior_verification() -> None:
+    with pytest.raises(InvalidProviderContract, match="scheduled_source_not_admitted"):
+        derive_scheduled_source_admission_v1(
+            policy(),
+            replace(
+                lineage(),
+                authorization_signal="outcome_unresolved",
+                authorization_signal_run_state="failed",
+                authorization_signal_dispatch_certainty="may_have_started",
+            ),
+            evaluated_at=NOW + timedelta(seconds=2),
+        )

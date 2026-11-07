@@ -1022,13 +1022,20 @@ class SqliteOllamaCloudAdmissionRepositoryV1:
             or _utc_value(run["deadline_at"]) > now
         ):
             return "owner_active_or_unverified"
+        verification_job_state = connection.exec_driver_sql(
+            "SELECT state FROM collection_cloud_verification_job WHERE admission_id=?",
+            (row["admission_id"],),
+        ).scalar_one_or_none()
         deadline = after_unknown_ollama_attempt(
             max(
                 _utc_value(gate["next_allowed_at"]), _utc_value(row["next_allowed_at"])
             ),
             now,
             int(row["admission_jitter_seconds"]),
+            verification_job_state=verification_job_state,
         )
+        if deadline is None:
+            return "outcome_unknown"
         connection.exec_driver_sql(
             "INSERT INTO collection_cloud_uncertain_outcome (admission_id,reason,recorded_at,released_at,next_allowed_at,gate_record_version) "
             "VALUES (?,'abandoned_outcome_unknown',?,?,?,?)",
@@ -1054,10 +1061,6 @@ class SqliteOllamaCloudAdmissionRepositoryV1:
         )
         if changed.rowcount != 1:
             raise OllamaCloudAdmissionRepositoryErrorV1("ollama_cloud_fencing_conflict")
-        connection.exec_driver_sql(
-            "UPDATE collection_cloud_verification_job SET state='terminal',dispatch_certainty='may_have_started',terminal_at=?,outcome=NULL,reason_code='request_outcome_unknown',retry_after_seconds=NULL,record_version=record_version+1 WHERE state='admitted' AND admission_id=?",
-            (_utc_text(now), row["admission_id"]),
-        )
         return "recovered"
 
     def recover_rate_gate(

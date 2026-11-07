@@ -45,3 +45,8 @@ still projects unresolved. Schema v1_0720 preserves the original provider
 response fields and keeps known unrepresentable Retry-After holds unreleased.
 The signal's observation time is recovery time, not provider response time.
 The global gate retains every known deadline and a full conservative cooldown.
+
+The released-uncertainty path applies only to scheduled requests. Any associated
+verification job keeps an unknown dispatch unresolved, preserving CTR-COL-010's
+existing terminal certainty constraint. This implementation does not promise
+automatic post-dispatch verification recovery.

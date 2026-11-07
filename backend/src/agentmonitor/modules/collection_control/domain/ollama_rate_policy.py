@@ -103,8 +103,12 @@ def cloud_schedule_generation_action(
 
 
 def after_unknown_ollama_attempt(
-    known_deadline: datetime, recovered_at: datetime, jitter_seconds: int
-) -> datetime:
+    known_deadline: datetime,
+    recovered_at: datetime,
+    jitter_seconds: int,
+    *,
+    verification_job_state: str | None = None,
+) -> datetime | None:
     """Wait the full fallback cap after recovery without erasing known waits.
 
     This is a local retry policy for an unknown response, never evidence of a
@@ -117,6 +121,8 @@ def after_unknown_ollama_attempt(
         or not 0 <= jitter_seconds <= _MAX_JITTER_SECONDS
     ):
         raise ValueError("ollama_unknown_recovery_invalid")
+    if verification_job_state is not None:
+        return None
     try:
         return max(
             known_deadline, recovered_at + timedelta(seconds=_MAX_BACKOFF_SECONDS)

@@ -103,3 +103,13 @@ def test_late_known_rate_limit_is_recorded_without_allowing_late_quota() -> None
     assert not ollama_completion_time_allows_record(
         started, expired, started - timedelta(seconds=1), NOW, "rate_limited"
     )
+
+
+@pytest.mark.parametrize("job_state", ("admitted", "terminal", "claimed", "queued"))
+def test_unknown_verification_attempt_never_receives_scheduled_retry_deadline(
+    job_state: str,
+) -> None:
+    assert (
+        after_unknown_ollama_attempt(NOW, NOW, 0, verification_job_state=job_state)
+        is None
+    )

@@ -162,7 +162,7 @@ def derive_scheduled_source_admission_v1(
         and (
             lineage.authorization_signal_run_state != "failed"
             or lineage.authorization_signal_dispatch_certainty
-            not in {"not_started", "response_received"}
+            not in {"not_started", "response_received", "may_have_started"}
         )
         or evaluated_at < lineage.commit_stored_at
     ):

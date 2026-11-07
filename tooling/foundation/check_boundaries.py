@@ -70,7 +70,7 @@ CONTRACT_VERSION_EXCEPTIONS = {
     "CTR-COL-008": "1.2.0",
     "CTR-COL-009": "1.1.0",
     "CTR-COL-010": "2.0.0",
-    "CTR-PROV-003": "1.1.0",
+    "CTR-PROV-003": "1.2.0",
     "CTR-REG-012": "1.1.0",
 }
 # Published supporting values have no independent catalog ID. This closed list

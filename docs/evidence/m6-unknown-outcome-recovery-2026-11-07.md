@@ -70,3 +70,35 @@ were corrected, and `AUTO-QUALITY` passed, including strict typing, module
 boundaries, generated API compatibility, frontend typecheck and build.
 `AUTO-DOCS-CHECK`, `AUTO-PLAN-CHECK` and local `AUTO-GIT-PREFLIGHT` passed.
 These are pre-rollout results, not evidence of restored live provider collection.
+
+## Downstream scheduled readmission correction
+
+After deployment recovered the actual orphan, its next scheduled attempt exposed
+three downstream M03 guards that still rejected failed/transient uncertainty.
+The new actual-state backup test `test_actual_recovered_target_can_rederive_scheduled_proof`
+failed with `scheduled_source_lineage_invalid` through the public composition
+method before correction. The pure lineage-to-proof test failed at the same
+contract guard. CTR-PROV-003 1.2.0 now accepts this exact combination throughout
+lineage, domain derivation and proof construction, retaining all original
+verification/binding/source checks. The pure suite is included in the canonical
+M6 source-security selection; the state-dependent real backup test is retained
+as explicit evidence rather than a permanently assumed provider state.
+
+Independent review also found that terminal unknown verification jobs conflict
+with the immutable v1_0716 database constraint. No such job is fabricated for
+testing. Recovery now refuses to release a request associated with a verification
+job and retains its prior unresolved state; the invalid terminal UPDATE was
+removed. Pure Red produced a retry deadline for four verification-job states;
+Green requires no deadline for every one. CTR-COL-010 remains 2.0.0. This is an
+explicit limitation, not a claim that verification interruption recovery passed.
+The earlier three orphan-copy tests are historical pre-repair evidence; after
+the live orphan recovered they can skip and are not claimed as a new pass.
+
+Final focused consumer verification: **55 passed, zero skips** in 9.87 seconds
+(provider scheduled admission, actual recovered-target proof, unknown-recovery
+policy and existing strict verification-job contracts). Focused mypy passed all
+seven changed source/test files; Ruff check and format check passed.
+`AUTO-PLAN-CHECK` passed after canonical adoption/snapshot regeneration;
+architectural boundaries passed with zero violations. OpenAPI/client generation
+passed with compatible output. No live DB, account, key or provider request was
+mutated by this verification.

@@ -223,3 +223,13 @@ v1_0720 M04 table distinguishes released abandoned uncertainty from an unrelease
 known unrepresentable Retry-After hold. Older schema readers cannot read v1_0720;
 cutover requires backup and exact migration admission. Governing semantics and
 limits are in the cloud implementation plan's 7 November correction.
+
+### CTR-PROV-003 1.2.0: recovered scheduled-source uncertainty
+
+The lineage DTO, domain admission derivation and proof DTO now consume the
+M04 receipt-backed `transient_failure` / `may_have_started` signal for a failed
+run. The original verified run and capacity commit, source/binding matching and
+durable global gate remain required. No field or enum is added; unresolved
+outcomes and nonfailed transient signals remain rejected. CTR-COL-010 2.0.0
+retains its existing terminal certainty contract; unknown verification jobs
+remain unresolved rather than being incorrectly rewritten as terminal.
