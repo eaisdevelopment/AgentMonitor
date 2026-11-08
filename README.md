@@ -1,42 +1,46 @@
 # AgentMonitor
 
-AgentMonitor is a local-first, API-first operations dashboard for observing AI coding-agent accounts, subscription quotas, API budgets, authentication health, and running local sessions across multiple providers.
+AgentMonitor is a local-first dashboard for monitoring AI agent accounts,
+subscription capacity, quota history, alerts and representative running
+processes. It uses an authenticated, versioned API and is designed to observe
+running agents without interrupting them.
 
-The project is currently in its specification phase. No production application has been implemented. The first delivery milestone is a read-only discovery exercise against real Claude, Codex, and Ollama installations and accounts.
+## Dashboard demo
 
-## Approved direction
+![AgentMonitor dashboard overview](docs/images/dashboard-demo.png)
 
-- FastAPI backend with an OpenAPI 3.x contract and Swagger UI.
-- React, TypeScript, Vite, and Apache ECharts frontend.
-- Native Linux deployment first; macOS-compatible design.
-- Responsive mission-control dashboard backed only by real data.
-- Modular-monolith architecture with independently owned modules and versioned contracts.
-- Strict TDD. No mocks, fakes, emulators, demo telemetry, or simulated provider responses.
-- Single-user authenticated dashboard and token-authenticated API.
-- SQLite for the local deployment, with migration discipline and PostgreSQL portability.
-- One year of operational history and automated local backups.
-- Claude first, followed by Codex, Ollama, and API-budget integrations.
+The screenshot is a point-in-time example of the dashboard, with account emails
+and organization names blurred for privacy.
 
-## Documentation
+## Project status
 
-Start with [the documentation index](docs/README.md). Contributors and coding agents must also follow [AGENTS.md](AGENTS.md).
+Claude monitoring and the bounded Codex milestone have been implemented and
+accepted. Ollama cloud monitoring is implemented and deployed locally, including
+organization/account administration, balances, history and scheduled recovery.
+M6 remains in progress: the second organization's official usage comparison,
+Claude continuity verification, the full completion check and owner acceptance
+are still outstanding. Local Ollama models and processes are deferred to future
+versions. See the [latest delivery checkpoint](docs/evidence/m6-publication-checkpoint-2026-11-08.md).
+Observations that cannot be verified are shown as unknown or unavailable.
 
-The controlling documents are:
+This repository contains the current project source, including work in
+progress. It is not yet a packaged V1 release. A verified one-command
+installation is not yet available; see the [roadmap](docs/roadmap.md),
+[implementation status](docs/evidence/v1-implementation-status-v1.json) and
+[operations runbook](docs/operations/runbook.md) for current capabilities and
+limitations. Do not commit credentials or provider profiles.
 
-- [Project charter](docs/product/project-charter.md)
-- [Product requirements](docs/product/requirements.md)
-- [V1 acceptance criteria](docs/product/v1-acceptance-criteria.md)
-- [Architecture](docs/architecture/system-architecture.md)
-- [Module boundaries](docs/architecture/modules.md)
-- [Contracts and versioning](docs/architecture/contracts-and-versioning.md)
-- [Testing strategy](docs/engineering/testing-strategy.md)
-- [SDLC](docs/engineering/sdlc.md)
-- [Sub-agent runbook](docs/engineering/subagent-runbook.md)
-- [Module planning registry](docs/plans/README.md)
-- [Operations runbook](docs/operations/runbook.md)
-- [Roadmap](docs/roadmap.md)
+## Repository
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) for the governed change process and [SECURITY.md](SECURITY.md) for private vulnerability reporting.
+- [Backend](backend/) — API, provider adapters, domain modules and tests.
+- [Frontend](frontend/) — dashboard and product-family promotion.
+- [Contracts](contracts/) — versioned API specifications.
+- [Documentation](docs/README.md) — architecture, requirements and runbooks.
+- [Tools](tools/) — development and verification commands.
+
+The frontend uses Node.js 22.23.3 and npm 10.9.9; the Python project requires
+Python 3.12.3 or later. See [CONTRIBUTING.md](CONTRIBUTING.md) and
+[AGENTS.md](AGENTS.md) for the development process.
 
 ## License
 

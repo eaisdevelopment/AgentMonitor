@@ -38,7 +38,10 @@ Current program state:
   comparison. The [4 November corrections](evidence/m6-dashboard-corrections-2026-11-04.md)
   record the subsequent dashboard, capability, test and runbook changes and
   distinguish remaining engineering checks from external acceptance evidence.
-  SDK cloud coverage and cloud recovery outcomes remain unclosed. The owner
+  Both cloud organizations have verified coverage and fresh balances. The
+  [8 November publication checkpoint](evidence/m6-publication-checkpoint-2026-11-08.md)
+  records the deployed recovery fixes, passing two-account browser recheck and
+  remaining official usage/Claude continuity checks. M6 is not yet accepted. The owner
   [deferred all local Ollama work](plans/integration/m6-local-ollama-deferral-2026-11-04.md)
   to future versions; model-present and local process evidence no longer block M6.
 - **V1-M7 and V1-M8:** Planned; their canonical gates have not run.
