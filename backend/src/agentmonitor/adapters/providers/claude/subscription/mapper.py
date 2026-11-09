@@ -33,7 +33,7 @@ class SanitizedClaudeUsageWindow:
     """Allowlisted source output; no arbitrary terminal field can be carried."""
 
     window_key: SanitizedWindowKey
-    percent_used: Decimal
+    percent_used: Decimal | None
     reset_display: str | None
 
 
@@ -72,7 +72,9 @@ def map_subscription_quota(
             percent_used=ClaudePercentUsedV1(
                 value=item.percent_used,
                 unit="percent",
-                availability=FieldAvailabilityV1("available"),
+                availability=FieldAvailabilityV1(
+                    "available" if item.percent_used is not None else "unknown"
+                ),
             ),
             reset_display=ClaudeResetDisplayV1(
                 value=item.reset_display,

@@ -1,0 +1,108 @@
+{
+  "record_type": "M0ToM03ClaudeVersionAdmissionV1",
+  "schema_version": "1.0.0",
+  "admission_id": "A01-M03-CLAUDE-2-1-289-002",
+  "status": "approved",
+  "approved_at": "2026-11-09",
+  "authority": "owner-approved M6 provider-display compatibility correction, 9 November 2026",
+  "scope": {
+    "provider_key": "claude",
+    "product": "Claude Code",
+    "provider_version": "2.1.289",
+    "platform": "linux-x86_64",
+    "adapter_version": "1.0.4",
+    "parser_version": "1.0.4",
+    "capabilities": [
+      {
+        "capability_id": "installation.discovery",
+        "source_id": "claude.version.banner.v1",
+        "side_effect_class": "read_only",
+        "output_contract": "DiscoveryOutcomeV1@1.0"
+      },
+      {
+        "capability_id": "subscription.quota",
+        "source_id": "claude.usage.ax-screen-reader.v1",
+        "side_effect_class": "read_only",
+        "output_contract": "ClaudeSubscriptionQuotaV1@1.0"
+      },
+      {
+        "capability_id": "authentication.health",
+        "source_id": "claude.usage.ax-screen-reader.v1",
+        "side_effect_class": "read_only",
+        "output_contract": "AuthHealthObservationV1@1.0"
+      },
+      {
+        "capability_id": "identity.verification",
+        "source_id": "claude.auth.status",
+        "side_effect_class": "read_only",
+        "output_contract": "ObservedProfileIdentityV1@1"
+      },
+      {
+        "capability_id": "authentication.reauthenticate",
+        "source_id": "claude.auth.login",
+        "side_effect_class": "managed_profile_write",
+        "output_contract": "ProviderConnectionViewV1@1"
+      }
+    ]
+  },
+  "compatibility_policy": {
+    "version_scheme": "opaque_exact",
+    "verified_versions": [
+      "2.1.289"
+    ],
+    "unknown_version_outcome": "unverified_provider_version",
+    "maximum_quota_concurrency": 1,
+    "minimum_quota_interval_ms": 300000,
+    "automatic_quota_retry_count": 0,
+    "quota_deadline_ms": 30000
+  },
+  "managed_authentication_policy": {
+    "owner_browser_interaction_required": true,
+    "target_profile": "agentmonitor_managed_only",
+    "protected_default_profile_write": false,
+    "credential_read_or_persistence": false,
+    "identity_match_required": true,
+    "protected_default_identity_recheck_required": true
+  },
+  "quota_parser_policy": {
+    "required_windows": [
+      "current_session",
+      "current_week_all_models"
+    ],
+    "fixed_optional_windows": [
+      "current_week_sonnet_only"
+    ],
+    "missing_reset_display": "field_unknown",
+    "model_specific_window": "bounded_omission",
+    "model_specific_omission_code": "claude_model_specific_window_unsupported",
+    "multiple_or_unallowlisted_model_windows": "fail_closed",
+    "required_reported_windows": [
+      "current_week_all_models"
+    ],
+    "missing_session": "unknown_after_settled_fresh_deadline_capture",
+    "missing_session_omission_code": "claude_current_session_not_reported",
+    "minimum_quiet_seconds": 1,
+    "post_command_values_must_match_current_surface": true,
+    "session_label_anywhere_in_capture": "fail_closed"
+  },
+  "evidence": {
+    "status": "passed",
+    "path": "docs/evidence/claude-weekly-only-admission-2026-11-09.md",
+    "sha256": "9b66b85f75a4df69da34e0d517235d842f99aa62d1dd761a61f81e39189479be"
+  },
+  "historical_predecessor": {
+    "provider_version": "2.1.289",
+    "adapter_version": "1.0.3",
+    "mapping_id": "A01-M03-CLAUDE-2-1-289-001",
+    "mutation_policy": "preserve_historical_bytes"
+  },
+  "excluded": [
+    "claude.otel.metrics.http-json.v1 on 2.1.289",
+    "generic Linux process observation owned by A04/M06",
+    "protected default profile writes",
+    "credential reads or persistence",
+    "new API or database contracts",
+    "running agent control",
+    "compatibility with any other Claude Code version"
+  ]
+}

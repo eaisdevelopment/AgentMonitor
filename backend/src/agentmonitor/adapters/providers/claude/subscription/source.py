@@ -35,6 +35,7 @@ from agentmonitor.adapters.providers.claude.subscription.terminal_screen import 
 _MAX_OUTPUT_BYTES = 4 * 1024 * 1024
 _USAGE_TERMINAL_ROWS = 40
 _ANSI_OSC = re.compile(r"\x1b\][^\x07]*(?:\x07|\x1b\\)")
+_ANSI_CSI = re.compile(r"\x1b\[[0-?]*[ -/]*[@-~]")
 _PERCENT_USED = re.compile(
     r"(?:Esc to cancel)?(?:[0-9]{1,3}% )?"
     r"([0-9]{1,3}(?:\.[0-9]+)?)% used\Z"
@@ -96,19 +97,23 @@ def is_transient_claude_usage_failure_v1(code: str | None) -> bool:
     )
 
 
-def _plain_lines(raw: bytes) -> tuple[str, ...]:
+def _plain_lines(raw: bytes, *, reject_session: bool = False) -> tuple[str, ...]:
     try:
         rendered = raw.decode("utf-8", errors="strict")
     except UnicodeDecodeError as error:
         raise _IncompleteRender("usage_output_encoding_invalid") from error
     rendered = _ANSI_OSC.sub("", rendered)
     try:
-        return visible_terminal_lines_v1(rendered)
+        return visible_terminal_lines_v1(
+            rendered, reject_seen_label="Current session" if reject_session else None
+        )
     except ValueError as error:
         raise _IncompleteRender("usage_terminal_control_unsupported") from error
 
 
-def _parse_latest_complete_render(raw: bytes) -> SanitizedClaudeUsageSnapshot:
+def _parse_latest_complete_render(
+    raw: bytes, *, missing_session: bool = False
+) -> SanitizedClaudeUsageSnapshot:
     lines = _plain_lines(raw)
     markers = tuple(
         index for index, line in enumerate(lines) if line == "Usage credits"
@@ -118,11 +123,57 @@ def _parse_latest_complete_render(raw: bytes) -> SanitizedClaudeUsageSnapshot:
 
     marker = markers[-1]
     start = markers[-2] + 1 if len(markers) > 1 else 0
-    return _parse_complete_usage_segment(lines[start:marker])
+    return _parse_complete_usage_segment(
+        lines[start:marker], missing_session=missing_session
+    )
+
+
+def _parse_missing_session_at_deadline(
+    raw: bytes,
+    *,
+    post_command_offset: int,
+    deadline_reached: bool,
+    quiet_seconds: float,
+) -> SanitizedClaudeUsageSnapshot:
+    """Only a settled, fresh weekly surface may retain an unknown session."""
+    if (
+        not deadline_reached
+        or not quiet_seconds >= 1
+        or not 0 <= post_command_offset < len(raw) <= _MAX_OUTPUT_BYTES
+        or b"Usage credits" not in raw[post_command_offset:]
+    ):
+        raise _IncompleteRender("usage_window_set_invalid")
+    # Validate terminal controls/encoding before examining the whole capture.
+    # Whole-capture absence prevents accepting a session lost to scrolling or
+    # redraw as a provider omission. Never retain the text outside this call.
+    lines = _plain_lines(raw, reject_session=True)
+    text = _ANSI_CSI.sub("", _ANSI_OSC.sub("", raw.decode("utf-8"))).lower()
+    if (
+        re.search(r"current\s+session", text) is not None
+        or any(
+            len(line) >= 3 and "current session".startswith(line.lower())
+            for line in lines
+        )
+        or classify_auth_failure(raw.lower()) != "unclassified"
+        or any(word in text for word in ("error", "failed", "unable", "loading"))
+    ):
+        raise _IncompleteRender("usage_window_set_invalid")
+    current = _parse_latest_complete_render(raw, missing_session=True)
+    fresh = _parse_latest_complete_render(
+        raw[post_command_offset:], missing_session=True
+    )
+    if (current.windows, current.omission_codes) != (
+        fresh.windows,
+        fresh.omission_codes,
+    ):
+        raise _IncompleteRender("usage_window_set_invalid")
+    return current
 
 
 def _parse_complete_usage_segment(
     final: tuple[str, ...],
+    *,
+    missing_session: bool = False,
 ) -> SanitizedClaudeUsageSnapshot:
     if len(final) > _USAGE_TERMINAL_ROWS:
         raise _IncompleteRender("usage_window_set_invalid")
@@ -183,6 +234,11 @@ def _parse_complete_usage_segment(
                     reset_display=reset_display,
                 )
             )
+    session_absent = missing_session and not any(
+        item.window_key == "current_session" for item in parsed
+    )
+    if session_absent:
+        parsed.insert(0, SanitizedClaudeUsageWindow("current_session", None, None))
     parsed_keys = tuple(item.window_key for item in parsed)
     if (
         not 2 <= len(parsed) <= 3
@@ -192,11 +248,13 @@ def _parse_complete_usage_segment(
     ):
         raise _IncompleteRender("usage_window_set_invalid")
     now = datetime.now(UTC)
-    omission_codes = (
+    omission_codes: tuple[str, ...] = (
         ("claude_model_specific_window_unsupported",)
         if "current_week_model_specific" in keys
         else ()
     )
+    if session_absent:
+        omission_codes += ("claude_current_session_not_reported",)
     return SanitizedClaudeUsageSnapshot(
         tuple(parsed), now, now, omission_codes=omission_codes
     )
@@ -282,6 +340,7 @@ def collect_usage_once(
     raw = bytearray()
     started = time.monotonic()
     command_sent = False
+    post_command_offset = 0
     last_output = started
     try:
         process = subprocess.Popen(
@@ -331,6 +390,7 @@ def collect_usage_once(
                 (application_ready and time.monotonic() - last_output >= 0.35)
                 or elapsed >= 8
             ):
+                post_command_offset = len(raw)
                 os.write(master_fd, b"/usage\r")
                 command_sent = True
             if command_sent and raw:
@@ -347,6 +407,20 @@ def collect_usage_once(
         raw_lower = bytes(raw).lower()
         auth = classify_auth_failure(raw_lower)
         deadline_code = _safe_deadline_code(bytes(raw))
+        if command_sent and auth == "unclassified" and process.poll() is None:
+            try:
+                snapshot = _parse_missing_session_at_deadline(
+                    bytes(raw),
+                    post_command_offset=post_command_offset,
+                    deadline_reached=(time.monotonic() - started) * 1000 >= deadline_ms,
+                    quiet_seconds=time.monotonic() - last_output,
+                )
+            except _IncompleteRender:
+                pass
+            else:
+                os.write(master_fd, b"\x1b/exit\r")
+                raw[:] = b""
+                return snapshot
         raw[:] = b""
         if auth == "reauthentication_required":
             return ClaudeUsageSourceFailure(auth, "claude_reauthentication_required")

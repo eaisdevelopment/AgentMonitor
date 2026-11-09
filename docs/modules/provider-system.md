@@ -47,23 +47,25 @@ immediately before dispatch using the same active pre-dispatch M04 lease.
 ## Exact Claude Code 2.1.289 admission
 
 The owner-approved
-[`A01-M03-CLAUDE-2-1-289-001`](../discovery/m0/m0-to-m03-claude-2.1.289-v1.json)
+[`A01-M03-CLAUDE-2-1-289-002`](../discovery/m0/m0-to-m03-claude-2.1.289-v2.json)
 record admits only Claude Code `2.1.289` on Linux x86-64 for read-only
 installation discovery, subscription quota, authentication health, identity
 verification, and owner-interactive official login to an AgentMonitor-managed
-profile. The quota adapter and parser are `1.0.3` and the source remains
+profile. The quota adapter and parser are `1.0.4` and the source remains
 `claude.usage.ax-screen-reader.v1`. Unknown versions fail closed;
 protected-default writes, credential handling, and running-agent control are
 outside the admission. Generic `local.process.observation` remains an A04/M06
 platform/runtime capability and is not published by the A01 manifest.
 
-The workstation default `claude` command observed on 2026-10-11 is `2.1.296`
-and remains outside this admission. The retained exact `2.1.289` native
-executable is currently absent, so quota, identity and authentication reads
-remain unavailable until a separately approved exact-version admission is
-completed. Historical `2.1.289` observations stay visible as stale and are not
-presented as current. The unretained `2.1.282` executable remains the separate
-OTLP requirement; no version is substituted for another.
+The installed dashboard selects the retained exact `2.1.289` executable;
+real managed identity and quota reads were verified on 9 November 2026.
+Other workstation CLI versions remain outside this quota admission. The
+[weekly-only compatibility evidence](../evidence/claude-weekly-only-admission-2026-11-09.md)
+documents a bounded partial outcome when the provider omits its session card:
+weekly values remain available and session values become unknown. The prior
+admission and historical M3/M4 receipts remain unchanged. The unretained
+`2.1.282` executable remains the separate OTLP requirement; no version is
+substituted for another.
 
 Process-only discovery is independent of that quota/auth admission. For
 `local.process.observation`, A01 may enumerate at most 32 owner-controlled

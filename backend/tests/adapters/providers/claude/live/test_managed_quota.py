@@ -49,7 +49,18 @@ def test_real_managed_quota_uses_its_authenticated_identity() -> None:
         observed.code if isinstance(observed, ClaudeUsageSourceFailure) else ""
     )
     assert len(observed.windows) >= 2
-    assert all(0 <= window.percent_used <= 100 for window in observed.windows)
+    assert any(
+        window.window_key == "current_week_all_models"
+        and window.percent_used is not None
+        for window in observed.windows
+    )
+    for window in observed.windows:
+        if window.percent_used is None:
+            assert window.window_key == "current_session"
+            assert window.reset_display is None
+            assert "claude_current_session_not_reported" in observed.omission_codes
+        else:
+            assert 0 <= window.percent_used <= 100
     after = read_default_profile_identity_v1(installation, managed_profile_root=root)
     protected_after = read_default_profile_identity_v1(installation)
     assert after is not None and before.fingerprint == after.fingerprint
@@ -70,6 +81,71 @@ def test_managed_quota_rejects_public_directory_before_provider_io(
             deadline_ms=20_000,
             managed_profile_root=root,
         )
+
+
+def test_real_weekly_only_managed_adapter_reports_partial_unknown() -> None:
+    """M6-A07: real selected weekly-only profile, versioned partial outcome."""
+    from agentmonitor.adapters.persistence._shared.sqlite.core.policy import (
+        DatabaseRefV1,
+    )
+    from agentmonitor.adapters.persistence.registry.sqlite.repository import (
+        SqliteRegistryRepositoryV1,
+    )
+    from agentmonitor.contracts.common_v1 import OpaqueIdV1
+    from agentmonitor.modules.registry.application.accounts import (
+        ListAccountResourcesV1,
+        ListMonitoringProfilesV1,
+    )
+
+    root = selected_managed_root()
+    data_root = Path(os.environ["AGENTMONITOR_TEST_OWNER_DATA_ROOT"])
+    registry = SqliteRegistryRepositoryV1(
+        DatabaseRefV1(data_root / "agentmonitor.db", data_root)
+    )
+    account = OpaqueIdV1(os.environ["AGENTMONITOR_TEST_MANAGED_ACCOUNT_ID"])
+    profiles = ListMonitoringProfilesV1(registry)(account)
+    resources = ListAccountResourcesV1(registry)(account)
+    assert len(profiles) == len(resources) == 1
+    installation = discover_default_installation()
+    protected_before = read_default_profile_identity_v1(installation)
+    identity = read_default_profile_identity_v1(installation, managed_profile_root=root)
+    assert identity is not None and protected_before is not None
+    adapter = ClaudeAdapterV1(
+        installation,
+        managed_profile_root=root,
+        expected_identity_fingerprint=identity.fingerprint,
+    )
+    result = adapter.collect_subscription_quota(
+        adapter.subscription_request(
+            operation_id="weekly-only-live-read",
+            correlation_id="weekly-only-live-read",
+            installation_ref=installation.installation_ref.value,
+            account_ref=account.value,
+            profile_ref=profiles[0].profile_id.value,
+            resource_ref=resources[0].resource_id.value,
+            requested_at=datetime.now(UTC),
+        )
+    )
+    assert result.state == "partial", "selected real weekly-only profile required"
+    assert result.value is not None and result.provenance is not None
+    assert result.provenance.adapter_version == "1.0.4"
+    session = next(w for w in result.value.windows if w.window_key == "current_session")
+    weekly = next(
+        w for w in result.value.windows if w.window_key == "current_week_all_models"
+    )
+    assert (
+        session.percent_used.value is None
+        and session.percent_used.availability.state == "unknown"
+    )
+    assert weekly.percent_used.value is not None
+    assert any(item.availability.state == "unknown" for item in result.omissions)
+    after = read_default_profile_identity_v1(installation, managed_profile_root=root)
+    protected_after = read_default_profile_identity_v1(installation)
+    assert after is not None and after.fingerprint == identity.fingerprint
+    assert (
+        protected_after is not None
+        and protected_after.fingerprint == protected_before.fingerprint
+    )
 
 
 def test_managed_adapter_never_labels_managed_data_as_default() -> None:

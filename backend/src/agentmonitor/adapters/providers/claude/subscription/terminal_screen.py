@@ -7,7 +7,11 @@ _CSI = re.compile(r"\x1b\[([0-?]*)([ -/]*)([@-~])")
 
 
 def visible_terminal_lines_v1(
-    text: str, *, height: int = 40, width: int = 160
+    text: str,
+    *,
+    height: int = 40,
+    width: int = 160,
+    reject_seen_label: str | None = None,
 ) -> tuple[str, ...]:
     """Reconstruct only the current PTY surface, without retaining scrollback."""
     rows = [[" "] * width for _ in range(height)]
@@ -144,5 +148,11 @@ def visible_terminal_lines_v1(
                 if size == 2:
                     rows[row][column + 1] = ""
                 column += size
+            if reject_seen_label is not None and reject_seen_label in "".join(
+                rows[row]
+            ):
+                # A later erase/scroll must not turn an observed quota label
+                # into an absent one. Retain no historical rows or content.
+                raise ValueError("usage_terminal_label_seen")
         position += 1
     return tuple(line for cells in rows if (line := "".join(cells).strip()))

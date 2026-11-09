@@ -1,6 +1,7 @@
 # M6 provider-display compatibility correction
 
-Status: Proposed; the Claude missing-window behavior below requires owner approval.
+Status: Approved by the owner on 9 November 2026 ("approve" in response to this
+bounded correction); implementation and live verification in progress.
 Owner: A01 for Claude; integration for official Ollama comparison.
 Requirements: FR-COL-004/006/007/008, NFR-COMP-001, M6-A04/A07/A09,
 AC-LIVE-004/007. Local Ollama remains deferred.
@@ -23,7 +24,7 @@ with that route accepted. The SDK page exposes session/weekly percentages and
 no exact `data-time`, datetime, title or accessibility timestamp was observed.
 The existing verifier therefore cannot claim exact reset equality.
 
-## Proposed bounded behavior
+## Approved bounded behavior
 
 1. Claude: preserve a validated reported all-models weekly percentage when the
    complete bounded usage surface omits the session card. Represent the session
@@ -52,9 +53,9 @@ The existing verifier therefore cannot claim exact reset equality.
 ## Authority and contract impact
 
 The approved [Claude admission plan](claude-managed-account-connection-change.md)
-requires both session and weekly windows with reported percentages. The proposed
-unknown session value changes that explicit behavior; general operational
-authorization is not recorded here as approval of this amendment.
+requires both session and weekly windows with reported percentages. This
+explicitly approved amendment allows the unknown session value only under the
+bounded missing-card conditions above. Historical acceptance is unchanged.
 
 `CLAUDE-SUBSCRIPTION-QUOTA-V1@1.0` already permits an unknown percentage and
 reset while retaining both window identities. Preserve its wire schema and

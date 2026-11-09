@@ -22,10 +22,10 @@ CLAUDE_OTEL_MAPPING_PATH = (
     REPOSITORY_ROOT / "docs/discovery/m0/m0-to-m03-claude-otel-v1.json"
 )
 CLAUDE_QUOTA_ADMISSION_PATH = (
-    REPOSITORY_ROOT / "docs/discovery/m0/m0-to-m03-claude-2.1.289-v1.json"
+    REPOSITORY_ROOT / "docs/discovery/m0/m0-to-m03-claude-2.1.289-v2.json"
 )
 CLAUDE_VERSION_EVIDENCE_PATH = (
-    REPOSITORY_ROOT / "docs/evidence/claude-2.1.289-admission.md"
+    REPOSITORY_ROOT / "docs/evidence/claude-weekly-only-admission-2026-11-09.md"
 )
 
 
@@ -101,8 +101,8 @@ def test_manifest_declares_every_capability_in_the_current_admission() -> None:
 
 def test_quota_version_admission_preserves_parser_provenance() -> None:
     """CLA-PROV-001: changed parsing has a distinct provenance version."""
-    assert CLAUDE_ADAPTER_VERSION == "1.0.3"
-    assert CLAUDE_PARSER_VERSION == "1.0.3"
+    assert CLAUDE_ADAPTER_VERSION == "1.0.4"
+    assert CLAUDE_PARSER_VERSION == "1.0.4"
 
 
 def test_quota_manifest_binds_exact_current_admission_without_widening_otel() -> None:
@@ -132,8 +132,8 @@ def test_quota_manifest_binds_exact_current_admission_without_widening_otel() ->
     assert admission["status"] == "approved"
     assert admission["scope"]["provider_version"] == "2.1.289"
     assert claude_manifest.CLAUDE_PROVIDER_VERSION == "2.1.289"
-    assert claude_manifest.CLAUDE_ADAPTER_VERSION == "1.0.3"
-    assert claude_manifest.CLAUDE_PARSER_VERSION == "1.0.3"
+    assert claude_manifest.CLAUDE_ADAPTER_VERSION == "1.0.4"
+    assert claude_manifest.CLAUDE_PARSER_VERSION == "1.0.4"
     assert claude_manifest.CLAUDE_OTEL_PROVIDER_VERSION == "2.1.282"
     assert admission["scope"]["capabilities"] == [
         {
@@ -186,6 +186,12 @@ def test_quota_manifest_binds_exact_current_admission_without_widening_otel() ->
     }
     assert admission["quota_parser_policy"] == {
         "required_windows": ["current_session", "current_week_all_models"],
+        "required_reported_windows": ["current_week_all_models"],
+        "missing_session": "unknown_after_settled_fresh_deadline_capture",
+        "missing_session_omission_code": "claude_current_session_not_reported",
+        "minimum_quiet_seconds": 1,
+        "post_command_values_must_match_current_surface": True,
+        "session_label_anywhere_in_capture": "fail_closed",
         "fixed_optional_windows": ["current_week_sonnet_only"],
         "missing_reset_display": "field_unknown",
         "model_specific_window": "bounded_omission",

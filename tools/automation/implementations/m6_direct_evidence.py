@@ -64,6 +64,10 @@ DIRECT_EXECUTABLE_SELECTION_V1: tuple[tuple[str, tuple[str, ...]], ...] = (
             "tools.automation.pytest_no_skip",
             "tools/automation/test_m6_controlled_recovery_interval.py",
             "backend/tests/adapters/providers/claude/test_usage_failure_cadence.py",
+            "backend/tests/adapters/providers/claude/test_missing_session.py",
+            "backend/tests/adapters/providers/claude/test_subscription_source_parser.py",
+            "backend/tests/adapters/providers/claude/test_capacity_mapper.py",
+            "backend/tests/adapters/providers/claude/test_manifest.py",
             "backend/tests/collection_control/domain/test_ollama_latest_source_signal.py",
             "backend/tests/collection_control/domain/test_ollama_unknown_recovery.py",
             "backend/tests/provider_system/test_scheduled_source_admission.py",
@@ -196,6 +200,7 @@ _SOURCE_VERSIONS: dict[str, tuple[str, ...]] = {
         "CTR-COL-008:1.2.0",
         "CTR-PROV-003:1.2.0",
         "agentmonitor.m6_controlled_recovery_interval.v1:1.0.0",
+        "A01-M03-CLAUDE-2-1-289-002:1.0.4",
     ),
     "M6-A08": ("CTR-API-001:1.0.0", "CTR-UI-001:1.0.0"),
     "M6-A09": (

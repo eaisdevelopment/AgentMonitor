@@ -349,7 +349,14 @@ class ClaudeAdapterV1:
             return CollectionOutcomeV1.partial(
                 value,
                 omissions=tuple(
-                    MissingFieldV1(code, FieldAvailabilityV1("unsupported"))
+                    MissingFieldV1(
+                        code,
+                        FieldAvailabilityV1(
+                            "unknown"
+                            if code == "claude_current_session_not_reported"
+                            else "unsupported"
+                        ),
+                    )
                     for code in result.omission_codes
                 ),
                 warnings=tuple(
