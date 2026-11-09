@@ -14,10 +14,11 @@ Accepted decisions are historical records. Do not edit an accepted ADR to concea
 | [0008](0008-sqlite-local-persistence.md) | Accepted | SQLite V1 with migration discipline and portability seam |
 | [0009](0009-polling-and-dashboard-notifications.md) | Accepted | Minute-scale polling and dashboard-only V1 notifications |
 | [0010](0010-no-product-telemetry.md) | Accepted | No external AgentMonitor analytics/crash reporting in V1 |
-| [0011](0011-copyright-and-dependency-licenses.md) | Accepted | All rights reserved; permissive dependency admission gate |
+| [0011](0011-copyright-and-dependency-licenses.md) | Accepted; copyright and project terms superseded by 0016 | All rights reserved; permissive dependency admission gate |
 | [0012](0012-cookie-read-origin-proof.md) | Accepted for M2 correction | Origin proof before cookie-authenticated reads |
 | [0013](0013-local-milestone-release-gates.md) | Accepted 2026-09-25 | Technical evidence gates execute local milestones; detached M0 reviews are advisory |
 | [0014](0014-trusted-lan-dashboard.md) | Accepted 2026-09-29 | Explicit private-interface/subnet dashboard access with unchanged default loopback admission |
 | [0015](0015-owner-process-account-associations.md) | Accepted bounded owner request 2026-09-29 | Persistent, explicitly owner-confirmed links between guarded live processes and account records |
+| [0016](0016-eais-copyright-and-personal-use-license.md) | Accepted 2026-11-05 | Essential AI Solutions Ltd holds the copyright; AgentMonitor Personal Use License 1.0, with other use licensed by EAIS |
 
 Use [the ADR template](../templates/adr-template.md) for new decisions.

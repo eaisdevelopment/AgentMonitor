@@ -2,7 +2,7 @@
 
 ## Goal
 
-AgentMonitor may later be distributed to the community while currently remaining all rights reserved. Dependencies must permit lawful local use and future distribution, have acceptable security/maintenance risk, and justify their operational cost.
+AgentMonitor is published under the [AgentMonitor Personal Use License 1.0](../../LICENSE) ([ADR 0016](../decisions/0016-eais-copyright-and-personal-use-license.md)), and Essential AI Solutions Ltd licenses other use. Dependencies must permit lawful local use and future distribution, have acceptable security/maintenance risk, and justify their operational cost.
 
 ## Admission gate
 

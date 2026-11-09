@@ -52,4 +52,4 @@ and commercial use requires a separate written licence from
 This is a source-available project. Public source access does not grant a
 commercial licence. Third-party components retain their own licences.
 
-Copyright (c) 2026 Pavlo Sidelov.
+Copyright (c) 2026 Essential AI Solutions Ltd <support@essentialai.uk>.
