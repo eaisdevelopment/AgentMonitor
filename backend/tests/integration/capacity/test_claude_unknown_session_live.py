@@ -55,7 +55,8 @@ def test_real_unknown_session_replaces_current_and_preserves_history() -> None:
     )
     assert session.collection_run_id == weekly.collection_run_id
     assert session.freshness == weekly.freshness == "fresh"
-    runs = ListCollectionRunsV1(SqliteCollectionRepositoryV1(reference))(
+    collection = SqliteCollectionRepositoryV1(reference)
+    runs = ListCollectionRunsV1(collection)(
         provider_key="claude",
         account_id=account,
         as_of=now,
@@ -67,6 +68,7 @@ def test_real_unknown_session_replaces_current_and_preserves_history() -> None:
     assert {session.current_observation_id, weekly.current_observation_id}.issubset(
         run.observation_ids
     )
+    baseline_run = collection.get_run(OpaqueIdV1(previous["run_id"]))
     history = ListCapacityHistoryV1(repository)(
         CapacityHistoryQueryV1(
             subject_id=account,
@@ -74,7 +76,7 @@ def test_real_unknown_session_replaces_current_and_preserves_history() -> None:
             window_id=None,
             metric="used",
             series_kind="poll_snapshot",
-            range_start=now - timedelta(days=30),
+            range_start=baseline_run.requested_at - timedelta(minutes=1),
             range_before=now,
             as_of=now,
             limit=200,
