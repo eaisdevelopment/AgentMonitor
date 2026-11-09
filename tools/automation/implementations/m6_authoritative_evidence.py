@@ -22,6 +22,7 @@ class AuthoritativeComparisonV1:
     provider_observed_at: str | None
     source_observed_at: str | None
     pairing_provenance: str = "owner_asserted_visible_principal"
+    reset_unavailable_targets: int = 0
 
 
 def parse_authoritative_comparison_v1(
@@ -40,7 +41,10 @@ def parse_authoritative_comparison_v1(
         start = datetime.fromisoformat(result.started_at.replace("Z", "+00:00"))
         end = datetime.fromisoformat(result.completed_at.replace("Z", "+00:00"))
         allowed = {
-            "passed": {"official_usage_compared"},
+            "passed": {
+                "official_usage_compared",
+                "official_usage_balances_compared_reset_unavailable",
+            },
             "failed": {"official_usage_value_mismatch"},
             "not_run": {
                 "official_usage_pairing_unproven",
@@ -56,7 +60,7 @@ def parse_authoritative_comparison_v1(
         }
         if (
             result.record_type != "agentmonitor.m6_authoritative_comparison.v1"
-            or result.schema_version != "1.0.0"
+            or result.schema_version != "1.1.0"
             or result.pairing_provenance != "owner_asserted_visible_principal"
             or result.source_revision != revision
             or re.fullmatch(r"[a-f0-9]{40}", revision) is None
@@ -65,6 +69,8 @@ def parse_authoritative_comparison_v1(
             != {"passed": 0, "failed": 1, "not_run": 3}.get(result.status)
             or type(result.compared_targets) is not int
             or not 0 <= result.compared_targets <= 100
+            or type(result.reset_unavailable_targets) is not int
+            or not 0 <= result.reset_unavailable_targets <= result.compared_targets
             or start.utcoffset() != timedelta(0)
             or end.utcoffset() != timedelta(0)
             or now.utcoffset() != timedelta(0)
@@ -84,6 +90,11 @@ def parse_authoritative_comparison_v1(
                 result.compared_targets < 1
                 or result.provider_observed_at is None
                 or result.source_observed_at is None
+                or (
+                    result.reason_code
+                    == "official_usage_balances_compared_reset_unavailable"
+                )
+                != (result.reset_unavailable_targets > 0)
             ):
                 raise ValueError
             provider = datetime.fromisoformat(

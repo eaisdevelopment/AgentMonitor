@@ -3,7 +3,7 @@
  */
 import { chromium } from '@playwright/test';
 import { createHash } from 'node:crypto';
-import { parseCreditView, parsePercentageView, pairVisibleCreditViews, comparePairedCreditViews } from './authoritative_credit_policy.mjs';
+import { parseCreditView, parsePercentageView, parsePercentageBalanceView, pairVisibleCreditViews, comparePairedCreditViews } from './authoritative_credit_policy.mjs';
 
 const revision = process.argv[2];
 const origin = 'http://127.0.0.1:43110';
@@ -11,10 +11,10 @@ const began = new Date();
 const deadline = Date.now() + 60_000;
 const empty = createHash('sha256').digest('hex');
 const result = {
-  record_type: 'agentmonitor.m6_authoritative_comparison.v1', schema_version: '1.0.0',
+  record_type: 'agentmonitor.m6_authoritative_comparison.v1', schema_version: '1.1.0',
   pairing_provenance: 'owner_asserted_visible_principal',
   status: 'not_run', reason_code: 'official_usage_pairing_unproven', source_revision: revision,
-  compared_targets: 0, current_balance_lineage_sha256: empty, comparison_sha256: empty,
+  compared_targets: 0, reset_unavailable_targets: 0, current_balance_lineage_sha256: empty, comparison_sha256: empty,
   started_at: began.toISOString(), completed_at: began.toISOString(),
   provider_observed_at: null, source_observed_at: null,
 };
@@ -43,7 +43,9 @@ async function currentRevision() {
       || value.source_revision.value !== revision) fail('official_usage_revision_mismatch');
 }
 function providerUrl(page) {
-  try { const url = new URL(page.url()); return url.origin === 'https://ollama.com' && url.pathname === '/settings'; }
+  // Ollama moved its balance cards from Settings to Dashboard in November.
+  // Keep both official routes; card/identity checks below remain mandatory.
+  try { const url = new URL(page.url()); return url.origin === 'https://ollama.com' && ['/settings', '/dashboard'].includes(url.pathname); }
   catch { return false; }
 }
 async function officialView(page) {
@@ -70,6 +72,31 @@ async function officialView(page) {
   if (emails.length !== 1) fail('official_usage_pairing_unproven');
   const button = page.getByRole('button', { name: 'Usage credits breakdown', exact: true });
   if (await button.count() === 0) {
+    if (await page.locator('#dashboard-session').count() === 1) {
+      // Read only the current quota cards, never adjacent request activity.
+      async function dashboardWindow(id, label) {
+        const used = page.locator(id);
+        const card = used.locator('xpath=..');
+        const reset = card.getByText(/^Resets in /);
+        if (await used.count() !== 1 || !await used.isVisible()
+            || await card.getByText(label, { exact: true }).count() !== 1
+            || await reset.count() !== 1 || !await reset.isVisible()) fail('official_usage_credit_view_unavailable');
+        return { used: (await used.innerText({ timeout: timeout() })).replace(/\s+/g, ' ').trim(),
+          reset: await reset.getAttribute('data-time', { timeout: timeout() }) };
+      }
+      const meter = page.locator('#dashboard-meter');
+      const balance = page.locator('#extra-usage-balance');
+      if (await meter.count() !== 1 || !await meter.isVisible()
+          || await balance.count() !== 1 || !await balance.isVisible()) fail('official_usage_credit_view_unavailable');
+      const session = await dashboardWindow('#dashboard-session', 'Session usage');
+      const weekly = await dashboardWindow('#dashboard-weekly', 'Weekly usage');
+      const purchased = (await balance.innerText({ timeout: timeout() })).trim();
+      const view = session.reset === null && weekly.reset === null
+        ? parsePercentageBalanceView(session.used, weekly.used, purchased)
+        : parsePercentageView(session.used, weekly.used, purchased, session.reset, weekly.reset);
+      if (view === null) fail('official_usage_credit_view_unavailable');
+      return { principal: emails[0].toLowerCase(), view, observedAt: new Date().toISOString() };
+    }
     // Read only balance labels and provider-authored reset metadata. Never read
     // the neighboring model/request history, payment controls or page body.
     const heading = page.getByRole('heading', { name: /^Usage credits/ });
@@ -204,6 +231,9 @@ try {
       break;
     }
     result.status = 'passed'; result.reason_code = 'official_usage_compared'; result.compared_targets = comparison.comparedTargets;
+    result.reset_unavailable_targets = pairs.filter(pair =>
+      providerBefore[pair.viewIndices[0]].view.kind === 'percentage_balances').length;
+    if (result.reset_unavailable_targets > 0) result.reason_code = 'official_usage_balances_compared_reset_unavailable';
     result.current_balance_lineage_sha256 = lineage(before);
     result.comparison_sha256 = digest({ revision, pairing: 'owner_asserted_visible_principal',
       snapshots: before, providerBefore, providerAfter, pairs });

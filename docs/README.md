@@ -41,7 +41,11 @@ Current program state:
   Both cloud organizations have verified coverage and fresh balances. The
   [8 November publication checkpoint](evidence/m6-publication-checkpoint-2026-11-08.md)
   records the deployed recovery fixes, passing two-account browser recheck and
-  remaining official usage/Claude continuity checks. M6 is not yet accepted. The owner
+  remaining official usage/Claude continuity checks. The
+  [9 November comparison evidence](evidence/m6-eais-official-comparison-2026-11-09.md)
+  records the new official page support, explicit reset-comparison limitation
+  and authenticated Claude profile whose weekly-only display needs a compatibility
+  decision. M6 is not yet accepted. The owner
   [deferred all local Ollama work](plans/integration/m6-local-ollama-deferral-2026-11-04.md)
   to future versions; model-present and local process evidence no longer block M6.
 - **V1-M7 and V1-M8:** Planned; their canonical gates have not run.

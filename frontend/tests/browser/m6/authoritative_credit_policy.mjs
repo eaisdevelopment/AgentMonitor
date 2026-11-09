@@ -108,23 +108,45 @@ function matchesDisplayedUsed(display, ratio) {
   return (2n * used + ratio.denominator) / (2n * ratio.denominator) === display.coefficient;
 }
 
-export function comparePercentageView(view, source) {
-  if (!exactKeys(view, ['kind', 'sessionUsed', 'weeklyUsed', 'purchased', 'sessionReset', 'weeklyReset'])
-      || view.kind !== 'percentage'
-      || parsePercentageView(view.sessionUsed, view.weeklyUsed, view.purchased, view.sessionReset, view.weeklyReset) === null
-      || !exactKeys(source, ['kind', 'session', 'weekly', 'purchased']) || source.kind !== 'percentage'
+function validPercentageSource(source) {
+  if (!exactKeys(source, ['kind', 'session', 'weekly', 'purchased']) || source.kind !== 'percentage'
       || !exactKeys(source.purchased, ['remaining', 'limit', 'resetAt'])
       || !exactQuantity(source.purchased.remaining, 'usd') || source.purchased.limit !== null
-      || source.purchased.resetAt !== null) return 'unavailable';
+      || source.purchased.resetAt !== null) return false;
   for (const name of ['session', 'weekly']) {
     const window = source[name];
     if (!exactKeys(window, ['remainingRatio', 'resetAt', 'resetPrecision'])
         || remainingRatio(window.remainingRatio) === null || window.resetPrecision !== 'exact'
-        || exactReset(window.resetAt) === null) return 'unavailable';
+        || exactReset(window.resetAt) === null) return false;
   }
+  return true;
+}
+
+export function comparePercentageView(view, source) {
+  if (!exactKeys(view, ['kind', 'sessionUsed', 'weeklyUsed', 'purchased', 'sessionReset', 'weeklyReset'])
+      || view.kind !== 'percentage'
+      || parsePercentageView(view.sessionUsed, view.weeklyUsed, view.purchased, view.sessionReset, view.weeklyReset) === null
+      || !validPercentageSource(source)) return 'unavailable';
   return ['session', 'weekly'].every(name =>
     matchesDisplayedUsed(displayedUsed(view[`${name}Used`]), remainingRatio(source[name].remainingRatio))
       && exactReset(view[`${name}Reset`]) === exactReset(source[name].resetAt))
+    && matchesDisplayedUsd(view.purchased, source.purchased.remaining) ? 'matched' : 'mismatch';
+}
+
+/** The new official Dashboard exposes balances but no exact reset metadata. */
+export function parsePercentageBalanceView(sessionUsed, weeklyUsed, purchased) {
+  if (displayedUsed(sessionUsed) === null || displayedUsed(weeklyUsed) === null
+      || displayedMoney(purchased) === null) return null;
+  return { kind: 'percentage_balances', sessionUsed, weeklyUsed, purchased, resetComparison: 'unavailable' };
+}
+
+export function comparePercentageBalanceView(view, source) {
+  if (!exactKeys(view, ['kind', 'sessionUsed', 'weeklyUsed', 'purchased', 'resetComparison'])
+      || view.kind !== 'percentage_balances' || view.resetComparison !== 'unavailable'
+      || parsePercentageBalanceView(view.sessionUsed, view.weeklyUsed, view.purchased) === null
+      || !validPercentageSource(source)) return 'unavailable';
+  return ['session', 'weekly'].every(name =>
+    matchesDisplayedUsed(displayedUsed(view[`${name}Used`]), remainingRatio(source[name].remainingRatio)))
     && matchesDisplayedUsd(view.purchased, source.purchased.remaining) ? 'matched' : 'mismatch';
 }
 
@@ -169,6 +191,8 @@ export function comparePairedCreditViews(views, pairs, sources) {
     const source = matches[0].amounts;
     if (observed.view?.kind === 'percentage' && source?.kind === 'percentage') {
       decisions.push(comparePercentageView(observed.view, source));
+    } else if (observed.view?.kind === 'percentage_balances' && source?.kind === 'percentage') {
+      decisions.push(comparePercentageBalanceView(observed.view, source));
     } else if (exactKeys(observed.view, ['monthly', 'allowance', 'added', 'refillDate'])
         && exactKeys(source, ['included', 'purchased'])) {
       decisions.push(compareCreditView(observed.view, source));

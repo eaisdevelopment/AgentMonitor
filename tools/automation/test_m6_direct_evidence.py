@@ -74,7 +74,7 @@ def _complete_facts() -> DirectM6FactsV1:
 
     official = AuthoritativeComparisonV1(
         "agentmonitor.m6_authoritative_comparison.v1",
-        "1.0.0",
+        "1.1.0",
         "passed",
         "official_usage_compared",
         "a" * 40,
@@ -159,6 +159,23 @@ def test_direct_policy_can_pass_the_cloud_external_catalog() -> None:
         "sampled_dashboard_and_collection_continuity",
     )
     assert all(item.test_count > 0 for item in outcomes.values())
+
+
+def test_balance_comparison_preserves_unavailable_reset_limitation() -> None:
+    facts = _complete_facts()
+    proof = replace(
+        facts.authoritative_observation,
+        reset_unavailable_targets=1,
+        reason_code="official_usage_balances_compared_reset_unavailable",
+    )
+    outcomes = classify_direct_m6_evidence_v1(
+        replace(facts, authoritative_observation=proof)
+    )
+    assert outcomes["M6-A04"].status == "passed"
+    assert (
+        "official_reset_comparison_unavailable"
+        in outcomes["M6-A04"].declared_limitations
+    )
 
 
 def test_counts_alone_cannot_prove_the_intended_organization_selection() -> None:

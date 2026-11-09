@@ -188,6 +188,7 @@ _SOURCE_VERSIONS: dict[str, tuple[str, ...]] = {
         "ollama.cloud.balance.v1:1.0.0",
         "CTR-COL-008:1.2.0",
         "CTR-CAP-001:1.0.0",
+        "agentmonitor.m6_authoritative_comparison.v1:1.1.0",
     ),
     "M6-A05": ("CTR-CAP-006:1.0.0", "CTR-ALERT-002:1.0.0"),
     "M6-A07": (
@@ -811,7 +812,16 @@ def classify_direct_m6_evidence_v1(
         official = BoundaryCheckV1(
             "not_run", 0, reason_code="official_usage_not_observed"
         )
-    cloud_balance = _combined(outcomes["M6-A03"], cloud_browser, official)
+    comparison_limitations = (
+        ("official_reset_comparison_unavailable",)
+        if proof is not None
+        and proof.status == "passed"
+        and proof.reset_unavailable_targets > 0
+        else ()
+    )
+    cloud_balance = _combined(
+        outcomes["M6-A03"], cloud_browser, official, limitation=comparison_limitations
+    )
     if cloud_balance.status == "passed" and (
         facts.verified_cloud_targets < facts.active_cloud_targets
         or facts.current_balance_targets < facts.active_cloud_targets
@@ -820,7 +830,9 @@ def classify_direct_m6_evidence_v1(
         or proof.compared_targets != facts.authoritative_balance_reconciled_targets
     ):
         outcomes["M6-A04"] = _missing(
-            "authoritative_cloud_balance_not_observed", cloud_balance
+            "authoritative_cloud_balance_not_observed",
+            cloud_balance,
+            limitation=comparison_limitations,
         )
     else:
         outcomes["M6-A04"] = cloud_balance

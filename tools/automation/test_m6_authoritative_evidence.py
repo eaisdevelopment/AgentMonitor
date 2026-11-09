@@ -15,11 +15,12 @@ def document():
     return {
         "record_type": "agentmonitor.m6_authoritative_comparison.v1",
         "pairing_provenance": "owner_asserted_visible_principal",
-        "schema_version": "1.0.0",
+        "schema_version": "1.1.0",
         "status": "passed",
         "reason_code": "official_usage_compared",
         "source_revision": "a" * 40,
         "compared_targets": 1,
+        "reset_unavailable_targets": 0,
         "current_balance_lineage_sha256": "b" * 64,
         "comparison_sha256": "c" * 64,
         "started_at": (NOW - timedelta(seconds=5)).isoformat(),
@@ -63,6 +64,43 @@ def test_unbound_incomplete_or_overlong_comparison_is_rejected(field, value):
 def test_raw_account_or_amount_fields_are_rejected():
     data = document()
     data["monthly_usd"] = "42.38"
+    with pytest.raises(ValueError, match="m6_authoritative_evidence_invalid"):
+        parse_authoritative_comparison_v1(
+            data, revision="a" * 40, return_code=0, now=NOW
+        )
+
+
+def test_new_comparison_declares_unavailable_reset_coverage():
+    data = document()
+    data.update(
+        schema_version="1.1.0",
+        reset_unavailable_targets=1,
+        reason_code="official_usage_balances_compared_reset_unavailable",
+    )
+    result = parse_authoritative_comparison_v1(
+        data, revision="a" * 40, return_code=0, now=NOW
+    )
+    assert result.reset_unavailable_targets == 1
+    assert result.compared_targets == 1
+
+
+@pytest.mark.parametrize("count", [-1, 2, True, "1"])
+def test_reset_coverage_cannot_exceed_compared_targets_or_change_type(count):
+    data = document()
+    data.update(
+        schema_version="1.1.0",
+        reset_unavailable_targets=count,
+        reason_code="official_usage_balances_compared_reset_unavailable",
+    )
+    with pytest.raises(ValueError, match="m6_authoritative_evidence_invalid"):
+        parse_authoritative_comparison_v1(
+            data, revision="a" * 40, return_code=0, now=NOW
+        )
+
+
+def test_unavailable_resets_cannot_claim_all_fields_compared():
+    data = document()
+    data.update(schema_version="1.1.0", reset_unavailable_targets=1)
     with pytest.raises(ValueError, match="m6_authoritative_evidence_invalid"):
         parse_authoritative_comparison_v1(
             data, revision="a" * 40, return_code=0, now=NOW

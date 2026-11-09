@@ -58,7 +58,7 @@
       "selection_policy_id": "M6-SELECTION-A04-V1",
       "source_versions_policy_id": "M6-SOURCE-VERSIONS-A04-V1",
       "selection_sha256": "b8fd9b69d9230bd89cb885069ae3633d7547bd20e0288fd35fb482307f74d2c0",
-      "source_versions_sha256": "4ef72b3a240998e44851c628b0f4f1cf07ccc9e6bc96ea1f164384d57b8101e1",
+      "source_versions_sha256": "f49bd79226bf6bd213f8722796a1f563409408ae8492f30ad22b7eb5bc92f846",
       "required_limitations": []
     },
     {

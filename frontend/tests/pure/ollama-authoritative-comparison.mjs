@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import * as policy from '../browser/m6/authoritative_credit_policy.mjs';
 import { compareCreditView, matchesDisplayedUsd, parseCreditView, pairVisibleCreditViews, comparePairedCreditViews, parsePercentageView, comparePercentageView } from '../browser/m6/authoritative_credit_policy.mjs';
 
 // Constructed values remain entirely inside these pure decimal/date decisions.
@@ -113,6 +114,37 @@ const percentageSource = { kind: 'percentage',
   session: { remainingRatio: ratio('0'), resetAt: percentageView.sessionReset, resetPrecision: 'exact' },
   weekly: { remainingRatio: ratio('7213'), resetAt: percentageView.weeklyReset, resetPrecision: 'exact' },
   purchased: { remaining: money('0', 0), limit: null, resetAt: null } };
+
+test('dashboard balances compare without claiming unavailable resets matched', () => {
+  const balanceView = policy.parsePercentageBalanceView('100% used', '27.9% used', '$0');
+  assert.deepEqual(balanceView, { kind: 'percentage_balances', sessionUsed: '100% used',
+    weeklyUsed: '27.9% used', purchased: '$0', resetComparison: 'unavailable' });
+  assert.equal(policy.comparePercentageBalanceView(balanceView, percentageSource), 'matched');
+  assert.equal(policy.comparePercentageBalanceView({ ...balanceView, weeklyUsed: '72.1% used' }, percentageSource), 'mismatch');
+  assert.equal(policy.comparePercentageBalanceView({ ...balanceView, purchased: '$1' }, percentageSource), 'mismatch');
+  assert.equal(policy.comparePercentageBalanceView({ ...balanceView, resetComparison: 'matched' }, percentageSource), 'unavailable');
+  assert.equal(policy.comparePercentageBalanceView({ ...balanceView, sessionReset: percentageView.sessionReset }, percentageSource), 'unavailable');
+});
+
+test('dashboard balance comparison still rejects invalid source fields and missing amounts', () => {
+  const balanceView = policy.parsePercentageBalanceView('100% used', '27.9% used', '$0');
+  for (const invalid of [null, { ...percentageSource, session: null },
+    { ...percentageSource, weekly: { ...percentageSource.weekly, remainingRatio: ratio('10001') } },
+    { ...percentageSource, purchased: { ...percentageSource.purchased, remaining: null } }]) {
+    assert.equal(policy.comparePercentageBalanceView(balanceView, invalid), 'unavailable');
+  }
+  assert.equal(policy.parsePercentageBalanceView('101% used', '27.9% used', '$0'), null);
+  assert.equal(policy.parsePercentageBalanceView('100% used', '27.9% used', null), null);
+});
+
+test('mixed plan pairing keeps balance-only reset limitation explicit in the view', () => {
+  const balanceView = policy.parsePercentageBalanceView('100% used', '27.9% used', '$0');
+  const views = [visible('one@example.invalid'), visible('two@example.invalid', balanceView)];
+  const pairs = pairVisibleCreditViews(views, [account('one', 'one@example.invalid'), account('two', 'two@example.invalid')]);
+  assert.deepEqual(comparePairedCreditViews(views, pairs, [
+    { accountId: 'one', amounts: source }, { accountId: 'two', amounts: percentageSource },
+  ]), { decision: 'matched', comparedTargets: 2 });
+});
 
 test('paired comparison supports simultaneous USD and percentage plans without changing units', () => {
   const views = [visible('one@example.invalid'), visible('two@example.invalid', percentageView)];
