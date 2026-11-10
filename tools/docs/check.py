@@ -1011,6 +1011,23 @@ def check_m3_acceptance_status(repository_root: Path) -> list[str]:
     return violations
 
 
+def story_blocks_completion(milestone_id: str, story: dict[str, object]) -> bool:
+    """Apply the owner-approved M6 scope to the frozen historical backlog.
+
+    ST-OLL-002 remains unimplemented; the 4 November decision removed it from
+    M6, not from history. Evidence paths are validated by the caller.
+    """
+    if story.get("delivery_state") == "implemented":
+        return False
+    evidence = story.get("evidence_paths")
+    return not (
+        milestone_id == "V1-M6"
+        and story.get("story_id") == "ST-OLL-002"
+        and isinstance(evidence, list)
+        and "docs/evidence/m6-local-ollama-deferral-2026-11-04.md" in evidence
+    )
+
+
 def check_v1_implementation_status(repository_root: Path) -> list[str]:
     """Validate the current delivery overlay against the frozen import backlog."""
 
@@ -1341,7 +1358,7 @@ def check_v1_implementation_status(repository_root: Path) -> list[str]:
             if item.get("milestone_id") == milestone_id
         ]
         if any(
-            item.get("delivery_state") != "implemented" for item in milestone_stories
+            story_blocks_completion(milestone_id, item) for item in milestone_stories
         ):
             reject(f"implemented milestone has an incomplete Story: {milestone_id}")
 

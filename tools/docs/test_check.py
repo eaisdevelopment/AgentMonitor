@@ -22,6 +22,31 @@ from check import (
 
 
 class DocumentationCheckTests(unittest.TestCase):
+    def test_only_documented_m6_local_deferral_excludes_incomplete_story(self) -> None:
+        decision = "docs/evidence/m6-local-ollama-deferral-2026-11-04.md"
+        local = {
+            "story_id": "ST-OLL-002",
+            "delivery_state": "in_progress",
+            "evidence_paths": [decision],
+        }
+        self.assertFalse(docs_check.story_blocks_completion("V1-M6", local))
+        self.assertTrue(docs_check.story_blocks_completion("V1-M7", local))
+        self.assertTrue(
+            docs_check.story_blocks_completion(
+                "V1-M6", {**local, "evidence_paths": []}
+            )
+        )
+        self.assertTrue(
+            docs_check.story_blocks_completion(
+                "V1-M6", {**local, "story_id": "ST-OLL-003"}
+            )
+        )
+        self.assertFalse(
+            docs_check.story_blocks_completion(
+                "V1-M6", {**local, "delivery_state": "implemented"}
+            )
+        )
+
     _M3_CRITERIA = (
         "AC-V1-001",
         "AC-V1-002",

@@ -33,13 +33,13 @@ Current program state:
   browser and technical checks. The [completion record](evidence/m5-completion-2026-10-30.md)
   explains the evidence. The owner accepted M5 on 30 October 2026; see the
   [acceptance record](evidence/m5-owner-acceptance-2026-10-30.md).
-- **V1-M6:** Technical gate passed on clean deployed revision `0f7ca54` on
+- **V1-M6:** Accepted and closed. Technical gate passed on clean deployed revision `0f7ca54` on
   10 November 2026. Both organizations' official cloud balances and history,
   controlled recovery, and Claude/Codex/dashboard continuity passed. The
   [technical completion record](evidence/m6-technical-completion-2026-11-10.md)
   and [receipt](evidence/m6-technical-gate-receipt-2026-11-10.json) give the
-  exact scope and limitations. Thirteen active tickets are done; M6-A10 owner
-  review remains pending. All local Ollama work remains
+  exact scope and limitations. The [owner accepted the result](evidence/m6-owner-acceptance-2026-11-10.md);
+  all fourteen active tickets and M6-A10 are closed. All local Ollama work remains
   [deferred](plans/integration/m6-local-ollama-deferral-2026-11-04.md).
 - **V1-M7 and V1-M8:** Planned; their canonical gates have not run.
 

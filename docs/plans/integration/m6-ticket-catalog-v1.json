@@ -513,7 +513,7 @@
       "id": "M6-T018",
       "story": "ST-OLL-005",
       "title": "Deploy, operate and close M6",
-      "status": "in_progress",
+      "status": "done",
       "owner": "M6 integration steward",
       "depends_on": [
         "M6-T017"
@@ -542,7 +542,8 @@
       "evidence": [
         "docs/evidence/m6-delivery-checkpoint-2026-11-03.md",
         "docs/plans/integration/m6-local-ollama-deferral-2026-11-04.md",
-        "docs/evidence/m6-technical-completion-2026-11-10.md"
+        "docs/evidence/m6-technical-completion-2026-11-10.md",
+        "docs/evidence/m6-owner-acceptance-2026-11-10.md"
       ]
     }
   ],

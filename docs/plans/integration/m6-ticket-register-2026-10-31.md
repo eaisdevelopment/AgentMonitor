@@ -1,6 +1,6 @@
 # M6 ticket register
 
-**State: technical gate passed; final owner review pending.** Thirteen active tickets are done. M6-T018 remains in progress only for the M6-A10 owner review. The [technical completion record](../../evidence/m6-technical-completion-2026-11-10.md) and its exact-revision receipt bind these results. All local Ollama work remains deferred by the owner.
+**State: accepted and closed.** All fourteen active tickets are done. The [owner acceptance](../../evidence/m6-owner-acceptance-2026-11-10.md) closes M6-A10 and M6-T018. The [technical completion record](../../evidence/m6-technical-completion-2026-11-10.md) and its exact-revision receipt bind these results. All local Ollama work remains deferred by the owner.
 
 The [active catalog](m6-ticket-catalog-v1.json) contains 14 tickets across four stories and eight M6 acceptance IDs. [Future local Ollama backlog](future-local-ollama-backlog-v1.json) preserves the local-only tickets and local portions of mixed tickets, with their prior evidence and status. The [scope decision](m6-local-ollama-deferral-2026-11-04.md) governs both.
 
@@ -200,7 +200,7 @@ Technical result: [10 November completion evidence](../../evidence/m6-technical-
 
 ### M6-T018 — Deploy, operate and close M6
 
-- **Status / owner:** in_progress / M6 integration steward
+- **Status / owner:** done / M6 integration steward
 - **Story:** ST-OLL-005; **depends on:** M6-T017.
 - **Requirements:** FR-SAFE-002, FR-COL-008.
 - **Acceptance:** AC-OPS-003, AC-TEST-006; M6: M6-A10.

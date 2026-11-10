@@ -1,6 +1,6 @@
 # M6 technical completion — 10 November 2026
 
-**Technical result: Passed. Owner acceptance: pending M6-A10.**
+**Technical result: Passed. Owner acceptance: [accepted](m6-owner-acceptance-2026-11-10.md).**
 
 `python3 tools/automation/run.py AUTO-M6-EXIT` exited **0** at
 08:52:06 UTC on clean deployed revision
@@ -29,7 +29,7 @@ history, dashboard integration and failure recovery. Local Ollama is deferred.
 | M6-A07 | Controlled request failure followed by ordinary scheduled recovery, with actual Claude and Codex collections in the same interval |
 | M6-A08 / M6-A09 / ST-OLL-005 | Installed browser, source/security and cloud integration checks passed |
 | Build, quality, docs and planning | All four canonical shared checks passed |
-| M6-A10 | Owner review pending; not represented as Passed |
+| M6-A10 | Accepted by the owner after the technical run; recorded separately |
 
 The isolated collector's failed request completed at 08:45:24 UTC. Normal
 scheduled recovery completed at 08:51:24 UTC. Namespace cleanup was confirmed;
@@ -69,9 +69,7 @@ introduced. Public evidence contains no credentials or personal identifiers.
 
 The [operator runbook](../operations/runbook.md#connect-rotate-or-disconnect-an-ollama-cloud-account)
 documents owner-operated connection and credential handling. The ticket
-catalog/register and delivery index now reference this result. Thirteen active
-tickets are done; M6-T018 remains open solely for the owner review required by
-[M6-A10](../plans/integration/m6-execution-plan-2026-10-31.md).
-The only requested final decision is acceptance of the cloud scope and explicit
-limitations above. No further engineering approval, configuration or sign-in is
-currently required.
+catalog/register and delivery index now reference this result. All fourteen active
+tickets are done. The [owner acceptance](m6-owner-acceptance-2026-11-10.md)
+closes M6-A10 and M6-T018 without rewriting the technical receipt.
+No further M6 engineering approval, configuration or sign-in is required.
