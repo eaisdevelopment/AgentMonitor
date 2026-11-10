@@ -1436,6 +1436,9 @@ group-write risk, is documented in the
 
 The real one-account enrollment and subsequent balance/history verification
 are recorded in the [M6 checkpoint](../evidence/m6-delivery-checkpoint-2026-11-03.md).
+The later [10 November technical result](../evidence/m6-technical-completion-2026-11-10.md)
+verifies both configured cloud organizations, official balances, retained history
+and controlled recovery with dashboard/Claude/Codex continuity.
 That evidence does not establish every live rotation, disconnection or failure
 scenario; unexercised scenarios remain Not Run.
 

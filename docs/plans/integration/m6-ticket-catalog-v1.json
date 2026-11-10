@@ -47,14 +47,15 @@
         "git log --oneline --graph --all -30"
       ],
       "evidence": [
-        "docs/evidence/m6-baseline-discovery-2026-11-01.md"
+        "docs/evidence/m6-baseline-discovery-2026-11-01.md",
+        "docs/evidence/m6-technical-completion-2026-11-10.md"
       ]
     },
     {
       "id": "M6-T004",
       "story": "ST-OLL-003",
       "title": "Discover SDK and EAIS account scopes",
-      "status": "in_progress",
+      "status": "done",
       "owner": "A03 adapter",
       "depends_on": [
         "M6-T001"
@@ -80,14 +81,15 @@
         "official account and team views; owner-guided once"
       ],
       "evidence": [
-        "docs/evidence/m6-delivery-checkpoint-2026-11-03.md"
+        "docs/evidence/m6-delivery-checkpoint-2026-11-03.md",
+        "docs/evidence/m6-technical-completion-2026-11-10.md"
       ]
     },
     {
       "id": "M6-T005",
       "story": "ST-OLL-004",
       "title": "Validate official cloud balance behavior",
-      "status": "in_progress",
+      "status": "done",
       "owner": "A03 adapter",
       "depends_on": [
         "M6-T004"
@@ -114,14 +116,15 @@
         "bounded official read-only balance request through approved credentials"
       ],
       "evidence": [
-        "docs/evidence/m6-delivery-checkpoint-2026-11-03.md"
+        "docs/evidence/m6-delivery-checkpoint-2026-11-03.md",
+        "docs/evidence/m6-technical-completion-2026-11-10.md"
       ]
     },
     {
       "id": "M6-T006",
       "story": "ST-OLL-001",
       "title": "Freeze capability and contract decisions",
-      "status": "in_progress",
+      "status": "done",
       "owner": "M6 integration steward",
       "depends_on": [
         "M6-T004",
@@ -154,14 +157,15 @@
         "docs/plans/integration/m6-recovery-evidence-contract-impact.md",
         "docs/plans/integration/m6-ollama-local-vertical-change.md",
         "docs/plans/integration/m6-ollama-process-implementation-change.md",
-        "docs/plans/integration/m6-local-ollama-deferral-2026-11-04.md"
+        "docs/plans/integration/m6-local-ollama-deferral-2026-11-04.md",
+        "docs/evidence/m6-technical-completion-2026-11-10.md"
       ]
     },
     {
       "id": "M6-T007",
       "story": "ST-OLL-005",
       "title": "Define canonical M6 completion gate",
-      "status": "in_progress",
+      "status": "done",
       "owner": "M6 integration steward",
       "depends_on": [
         "M6-T006"
@@ -188,14 +192,15 @@
       "evidence": [
         "tools/automation/m6-exit-catalog-v1.json",
         "tools/automation/implementations/auto_m6_exit.py",
-        "docs/plans/integration/m6-local-ollama-deferral-2026-11-04.md"
+        "docs/plans/integration/m6-local-ollama-deferral-2026-11-04.md",
+        "docs/evidence/m6-technical-completion-2026-11-10.md"
       ]
     },
     {
       "id": "M6-T008",
       "story": "ST-OLL-001",
       "title": "Implement cloud capability admission",
-      "status": "in_progress",
+      "status": "done",
       "owner": "A03 adapter",
       "depends_on": [
         "M6-T006"
@@ -224,14 +229,15 @@
         "docs/evidence/m6-ollama-local-preview-2026-11-01.md",
         "docs/evidence/m6-delivery-checkpoint-2026-11-03.md",
         "docs/evidence/m6-native-usd-account-ui-2026-11-03.md",
-        "docs/plans/integration/m6-local-ollama-deferral-2026-11-04.md"
+        "docs/plans/integration/m6-local-ollama-deferral-2026-11-04.md",
+        "docs/evidence/m6-technical-completion-2026-11-10.md"
       ]
     },
     {
       "id": "M6-T010",
       "story": "ST-OLL-003",
       "title": "Integrate accounts, identity and authentication health",
-      "status": "in_progress",
+      "status": "done",
       "owner": "M02 Registry + A03",
       "depends_on": [
         "M6-T004",
@@ -262,14 +268,15 @@
         "real SQLite/API and real account identity checks (to be defined)"
       ],
       "evidence": [
-        "docs/evidence/m6-delivery-checkpoint-2026-11-03.md"
+        "docs/evidence/m6-delivery-checkpoint-2026-11-03.md",
+        "docs/evidence/m6-technical-completion-2026-11-10.md"
       ]
     },
     {
       "id": "M6-T011",
       "story": "ST-OLL-004",
       "title": "Map real cloud balance and legacy windows",
-      "status": "in_progress",
+      "status": "done",
       "owner": "A03 adapter + M05",
       "depends_on": [
         "M6-T005",
@@ -298,14 +305,15 @@
         "pure mapping tests plus real cloud reconciliation (to be defined)"
       ],
       "evidence": [
-        "docs/evidence/m6-delivery-checkpoint-2026-11-03.md"
+        "docs/evidence/m6-delivery-checkpoint-2026-11-03.md",
+        "docs/evidence/m6-technical-completion-2026-11-10.md"
       ]
     },
     {
       "id": "M6-T012",
       "story": "ST-OLL-004",
       "title": "Persist capacity history and alert events",
-      "status": "in_progress",
+      "status": "done",
       "owner": "M04 collection + M05 capacity + M07 alerts",
       "depends_on": [
         "M6-T011"
@@ -331,14 +339,15 @@
         "real SQLite, HTTP and built-browser history/alert tests (to be defined)"
       ],
       "evidence": [
-        "docs/evidence/m6-delivery-checkpoint-2026-11-03.md"
+        "docs/evidence/m6-delivery-checkpoint-2026-11-03.md",
+        "docs/evidence/m6-technical-completion-2026-11-10.md"
       ]
     },
     {
       "id": "M6-T014",
       "story": "ST-OLL-005",
       "title": "Implement dashboard views and provider filter",
-      "status": "in_progress",
+      "status": "done",
       "owner": "P02 dashboard",
       "depends_on": [
         "M6-T010",
@@ -373,14 +382,15 @@
         "docs/evidence/m6-ollama-local-preview-2026-11-01.md",
         "docs/evidence/m6-delivery-checkpoint-2026-11-03.md",
         "docs/evidence/m6-native-usd-account-ui-2026-11-03.md",
-        "docs/plans/integration/m6-local-ollama-deferral-2026-11-04.md"
+        "docs/plans/integration/m6-local-ollama-deferral-2026-11-04.md",
+        "docs/evidence/m6-technical-completion-2026-11-10.md"
       ]
     },
     {
       "id": "M6-T015",
       "story": "ST-OLL-005",
       "title": "Verify cloud failure isolation and recovery",
-      "status": "in_progress",
+      "status": "done",
       "owner": "M6 integration steward",
       "depends_on": [
         "M6-T010",
@@ -410,14 +420,15 @@
       "evidence": [
         "docs/evidence/m6-delivery-checkpoint-2026-11-03.md",
         "docs/plans/integration/m6-local-ollama-deferral-2026-11-04.md",
-        "docs/plans/integration/m6-cloud-controlled-recovery-proposal-2026-11-04.md"
+        "docs/plans/integration/m6-cloud-controlled-recovery-proposal-2026-11-04.md",
+        "docs/evidence/m6-technical-completion-2026-11-10.md"
       ]
     },
     {
       "id": "M6-T016",
       "story": "ST-OLL-005",
       "title": "Security, compatibility and dependency review",
-      "status": "in_progress",
+      "status": "done",
       "owner": "M6 integration steward",
       "depends_on": [
         "M6-T006",
@@ -450,14 +461,15 @@
       "evidence": [
         "docs/evidence/m6-delivery-checkpoint-2026-11-03.md",
         "docs/evidence/m6-security-privacy-review-2026-11-04.md",
-        "docs/plans/integration/m6-local-ollama-deferral-2026-11-04.md"
+        "docs/plans/integration/m6-local-ollama-deferral-2026-11-04.md",
+        "docs/evidence/m6-technical-completion-2026-11-10.md"
       ]
     },
     {
       "id": "M6-T017",
       "story": "ST-OLL-005",
       "title": "Run live end-to-end M6 scenarios",
-      "status": "in_progress",
+      "status": "done",
       "owner": "M6 integration steward",
       "depends_on": [
         "M6-T007",
@@ -493,7 +505,8 @@
       ],
       "evidence": [
         "docs/evidence/m6-delivery-checkpoint-2026-11-03.md",
-        "docs/plans/integration/m6-local-ollama-deferral-2026-11-04.md"
+        "docs/plans/integration/m6-local-ollama-deferral-2026-11-04.md",
+        "docs/evidence/m6-technical-completion-2026-11-10.md"
       ]
     },
     {
@@ -528,7 +541,8 @@
       ],
       "evidence": [
         "docs/evidence/m6-delivery-checkpoint-2026-11-03.md",
-        "docs/plans/integration/m6-local-ollama-deferral-2026-11-04.md"
+        "docs/plans/integration/m6-local-ollama-deferral-2026-11-04.md",
+        "docs/evidence/m6-technical-completion-2026-11-10.md"
       ]
     }
   ],

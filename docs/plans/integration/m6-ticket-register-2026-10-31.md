@@ -1,6 +1,6 @@
 # M6 ticket register
 
-**State: cloud implementation and verification in progress.** The owner deferred all local Ollama work on 4 November 2026. M6-T001 retains its completed baseline result; this change does not mark any further ticket complete.
+**State: technical gate passed; final owner review pending.** Thirteen active tickets are done. M6-T018 remains in progress only for the M6-A10 owner review. The [technical completion record](../../evidence/m6-technical-completion-2026-11-10.md) and its exact-revision receipt bind these results. All local Ollama work remains deferred by the owner.
 
 The [active catalog](m6-ticket-catalog-v1.json) contains 14 tickets across four stories and eight M6 acceptance IDs. [Future local Ollama backlog](future-local-ollama-backlog-v1.json) preserves the local-only tickets and local portions of mixed tickets, with their prior evidence and status. The [scope decision](m6-local-ollama-deferral-2026-11-04.md) governs both.
 
@@ -38,9 +38,11 @@ Original ticket-hour estimates remain historical planning inputs, not a remainin
 - **Verification:** git status --short --branch; git log --oneline --graph --all -30.
 - **Evidence:** [m6-baseline-discovery-2026-11-01.md](../../../docs/evidence/m6-baseline-discovery-2026-11-01.md).
 
+Technical result: [10 November completion evidence](../../evidence/m6-technical-completion-2026-11-10.md).
+
 ### M6-T004 — Discover SDK and EAIS account scopes
 
-- **Status / owner:** in_progress / A03 adapter
+- **Status / owner:** done / A03 adapter
 - **Story:** ST-OLL-003; **depends on:** M6-T001.
 - **Requirements:** FR-ACC-001, FR-ACC-004, FR-ACC-006.
 - **Acceptance:** AC-LIVE-003; M6: M6-A03.
@@ -49,9 +51,11 @@ Original ticket-hour estimates remain historical planning inputs, not a remainin
 - **Verification:** official account and team views; owner-guided once.
 - **Evidence:** [m6-delivery-checkpoint-2026-11-03.md](../../../docs/evidence/m6-delivery-checkpoint-2026-11-03.md).
 
+Technical result: [10 November completion evidence](../../evidence/m6-technical-completion-2026-11-10.md).
+
 ### M6-T005 — Validate official cloud balance behavior
 
-- **Status / owner:** in_progress / A03 adapter
+- **Status / owner:** done / A03 adapter
 - **Story:** ST-OLL-004; **depends on:** M6-T004.
 - **Requirements:** FR-QUOTA-006, FR-COL-007.
 - **Acceptance:** AC-LIVE-005, AC-OPS-006; M6: M6-A04, M6-A09.
@@ -60,9 +64,11 @@ Original ticket-hour estimates remain historical planning inputs, not a remainin
 - **Verification:** bounded official read-only balance request through approved credentials.
 - **Evidence:** [m6-delivery-checkpoint-2026-11-03.md](../../../docs/evidence/m6-delivery-checkpoint-2026-11-03.md).
 
+Technical result: [10 November completion evidence](../../evidence/m6-technical-completion-2026-11-10.md).
+
 ### M6-T006 — Freeze capability and contract decisions
 
-- **Status / owner:** in_progress / M6 integration steward
+- **Status / owner:** done / M6 integration steward
 - **Story:** ST-OLL-001; **depends on:** M6-T004, M6-T005.
 - **Requirements:** FR-ACC-004, FR-COL-004, FR-COL-006.
 - **Acceptance:** AC-V1-002, AC-UI-006; M6: M6-A09.
@@ -71,9 +77,11 @@ Original ticket-hour estimates remain historical planning inputs, not a remainin
 - **Verification:** python3 tools/automation/run.py AUTO-PLAN-CHECK; python3 tools/automation/run.py AUTO-DOCS-CHECK.
 - **Evidence:** [m6-ollama-cloud-implementation-change.md](../../../docs/plans/integration/m6-ollama-cloud-implementation-change.md), [m6-recovery-evidence-contract-impact.md](../../../docs/plans/integration/m6-recovery-evidence-contract-impact.md), [m6-ollama-local-vertical-change.md](../../../docs/plans/integration/m6-ollama-local-vertical-change.md), [m6-ollama-process-implementation-change.md](../../../docs/plans/integration/m6-ollama-process-implementation-change.md), [m6-local-ollama-deferral-2026-11-04.md](../../../docs/plans/integration/m6-local-ollama-deferral-2026-11-04.md).
 
+Technical result: [10 November completion evidence](../../evidence/m6-technical-completion-2026-11-10.md).
+
 ### M6-T007 — Define canonical M6 completion gate
 
-- **Status / owner:** in_progress / M6 integration steward
+- **Status / owner:** done / M6 integration steward
 - **Story:** ST-OLL-005; **depends on:** M6-T006.
 - **Requirements:** FR-COL-008.
 - **Acceptance:** AC-TEST-001, AC-TEST-006; M6: M6-A10.
@@ -82,9 +90,11 @@ Original ticket-hour estimates remain historical planning inputs, not a remainin
 - **Verification:** python3 tools/automation/run.py AUTO-M6-EXIT.
 - **Evidence:** [m6-exit-catalog-v1.json](../../../tools/automation/m6-exit-catalog-v1.json), [auto_m6_exit.py](../../../tools/automation/implementations/auto_m6_exit.py), [m6-local-ollama-deferral-2026-11-04.md](../../../docs/plans/integration/m6-local-ollama-deferral-2026-11-04.md).
 
+Technical result: [10 November completion evidence](../../evidence/m6-technical-completion-2026-11-10.md).
+
 ### M6-T008 — Implement cloud capability admission
 
-- **Status / owner:** in_progress / A03 adapter
+- **Status / owner:** done / A03 adapter
 - **Story:** ST-OLL-001; **depends on:** M6-T006.
 - **Requirements:** FR-ACC-005, FR-COL-004.
 - **Acceptance:** AC-LIVE-004, AC-TEST-001; M6: M6-A09.
@@ -93,9 +103,11 @@ Original ticket-hour estimates remain historical planning inputs, not a remainin
 - **Verification:** cloud source policy and security tests; real cloud account verification.
 - **Evidence:** [m6-ollama-local-preview-2026-11-01.md](../../../docs/evidence/m6-ollama-local-preview-2026-11-01.md), [m6-delivery-checkpoint-2026-11-03.md](../../../docs/evidence/m6-delivery-checkpoint-2026-11-03.md), [m6-native-usd-account-ui-2026-11-03.md](../../../docs/evidence/m6-native-usd-account-ui-2026-11-03.md), [m6-local-ollama-deferral-2026-11-04.md](../../../docs/plans/integration/m6-local-ollama-deferral-2026-11-04.md).
 
+Technical result: [10 November completion evidence](../../evidence/m6-technical-completion-2026-11-10.md).
+
 ### M6-T010 — Integrate accounts, identity and authentication health
 
-- **Status / owner:** in_progress / M02 Registry + A03
+- **Status / owner:** done / M02 Registry + A03
 - **Story:** ST-OLL-003; **depends on:** M6-T004, M6-T006, M6-T008.
 - **Requirements:** FR-ACC-001, FR-ACC-002, FR-ACC-003, FR-AUTH-001.
 - **Acceptance:** AC-LIVE-003, AC-UI-005; M6: M6-A01, M6-A03.
@@ -104,9 +116,11 @@ Original ticket-hour estimates remain historical planning inputs, not a remainin
 - **Verification:** real SQLite/API and real account identity checks (to be defined).
 - **Evidence:** [m6-delivery-checkpoint-2026-11-03.md](../../../docs/evidence/m6-delivery-checkpoint-2026-11-03.md).
 
+Technical result: [10 November completion evidence](../../evidence/m6-technical-completion-2026-11-10.md).
+
 ### M6-T011 — Map real cloud balance and legacy windows
 
-- **Status / owner:** in_progress / A03 adapter + M05
+- **Status / owner:** done / A03 adapter + M05
 - **Story:** ST-OLL-004; **depends on:** M6-T005, M6-T006, M6-T010.
 - **Requirements:** FR-QUOTA-001, FR-QUOTA-004, FR-COL-003.
 - **Acceptance:** AC-LIVE-005, AC-OPS-006; M6: M6-A04.
@@ -115,9 +129,11 @@ Original ticket-hour estimates remain historical planning inputs, not a remainin
 - **Verification:** pure mapping tests plus real cloud reconciliation (to be defined).
 - **Evidence:** [m6-delivery-checkpoint-2026-11-03.md](../../../docs/evidence/m6-delivery-checkpoint-2026-11-03.md).
 
+Technical result: [10 November completion evidence](../../evidence/m6-technical-completion-2026-11-10.md).
+
 ### M6-T012 — Persist capacity history and alert events
 
-- **Status / owner:** in_progress / M04 collection + M05 capacity + M07 alerts
+- **Status / owner:** done / M04 collection + M05 capacity + M07 alerts
 - **Story:** ST-OLL-004; **depends on:** M6-T011.
 - **Requirements:** FR-COL-005, FR-COL-008.
 - **Acceptance:** AC-HIST-001, AC-ALERT-002; M6: M6-A05.
@@ -126,9 +142,11 @@ Original ticket-hour estimates remain historical planning inputs, not a remainin
 - **Verification:** real SQLite, HTTP and built-browser history/alert tests (to be defined).
 - **Evidence:** [m6-delivery-checkpoint-2026-11-03.md](../../../docs/evidence/m6-delivery-checkpoint-2026-11-03.md).
 
+Technical result: [10 November completion evidence](../../evidence/m6-technical-completion-2026-11-10.md).
+
 ### M6-T014 — Implement dashboard views and provider filter
 
-- **Status / owner:** in_progress / P02 dashboard
+- **Status / owner:** done / P02 dashboard
 - **Story:** ST-OLL-005; **depends on:** M6-T010, M6-T011.
 - **Requirements:** FR-ACC-002, FR-COL-006.
 - **Acceptance:** AC-UI-002, AC-UI-003, AC-UI-004, AC-UI-005, AC-UI-006; M6: M6-A01, M6-A08.
@@ -137,9 +155,11 @@ Original ticket-hour estimates remain historical planning inputs, not a remainin
 - **Verification:** npm --prefix frontend run typecheck; real dashboard browser checks (to be defined).
 - **Evidence:** [m6-ollama-local-preview-2026-11-01.md](../../../docs/evidence/m6-ollama-local-preview-2026-11-01.md), [m6-delivery-checkpoint-2026-11-03.md](../../../docs/evidence/m6-delivery-checkpoint-2026-11-03.md), [m6-native-usd-account-ui-2026-11-03.md](../../../docs/evidence/m6-native-usd-account-ui-2026-11-03.md), [m6-local-ollama-deferral-2026-11-04.md](../../../docs/plans/integration/m6-local-ollama-deferral-2026-11-04.md).
 
+Technical result: [10 November completion evidence](../../evidence/m6-technical-completion-2026-11-10.md).
+
 ### M6-T015 — Verify cloud failure isolation and recovery
 
-- **Status / owner:** in_progress / M6 integration steward
+- **Status / owner:** done / M6 integration steward
 - **Story:** ST-OLL-005; **depends on:** M6-T010, M6-T011, M6-T014.
 - **Requirements:** FR-COL-003, FR-COL-006.
 - **Acceptance:** AC-LIVE-007, AC-OPS-003; M6: M6-A07.
@@ -150,9 +170,11 @@ Original ticket-hour estimates remain historical planning inputs, not a remainin
 
 The [approved controlled-recovery amendment](m6-cloud-controlled-recovery-proposal-2026-11-04.md) governs this bounded alternative. Implementation and live execution are recorded separately.
 
+Technical result: [10 November completion evidence](../../evidence/m6-technical-completion-2026-11-10.md).
+
 ### M6-T016 — Security, compatibility and dependency review
 
-- **Status / owner:** in_progress / M6 integration steward
+- **Status / owner:** done / M6 integration steward
 - **Story:** ST-OLL-005; **depends on:** M6-T006, M6-T010, M6-T011.
 - **Requirements:** FR-SAFE-001, FR-SAFE-002, FR-COL-007.
 - **Acceptance:** AC-V1-005, AC-V1-007, AC-PROC-004; M6: M6-A09.
@@ -161,9 +183,11 @@ The [approved controlled-recovery amendment](m6-cloud-controlled-recovery-propos
 - **Verification:** python3 tools/automation/run.py AUTO-QUALITY; bounded source and existing-evidence security/privacy review.
 - **Evidence:** [m6-delivery-checkpoint-2026-11-03.md](../../../docs/evidence/m6-delivery-checkpoint-2026-11-03.md), [m6-security-privacy-review-2026-11-04.md](../../../docs/evidence/m6-security-privacy-review-2026-11-04.md), [m6-local-ollama-deferral-2026-11-04.md](../../../docs/plans/integration/m6-local-ollama-deferral-2026-11-04.md).
 
+Technical result: [10 November completion evidence](../../evidence/m6-technical-completion-2026-11-10.md).
+
 ### M6-T017 — Run live end-to-end M6 scenarios
 
-- **Status / owner:** in_progress / M6 integration steward
+- **Status / owner:** done / M6 integration steward
 - **Story:** ST-OLL-005; **depends on:** M6-T007, M6-T012, M6-T014, M6-T015, M6-T016.
 - **Requirements:** FR-COL-004, FR-COL-008.
 - **Acceptance:** AC-LIVE-004, AC-LIVE-005, AC-HIST-001, AC-TEST-003, AC-TEST-006; M6: M6-A04, M6-A05, M6-A08.
@@ -171,6 +195,8 @@ The [approved controlled-recovery amendment](m6-cloud-controlled-recovery-propos
 - **Done when:** Record exact observed pass/block outcomes, no hidden skips and no repeated owner attestations for unchanged evidence.
 - **Verification:** python3 tools/automation/run.py AUTO-M6-EXIT.
 - **Evidence:** [m6-delivery-checkpoint-2026-11-03.md](../../../docs/evidence/m6-delivery-checkpoint-2026-11-03.md), [m6-local-ollama-deferral-2026-11-04.md](../../../docs/plans/integration/m6-local-ollama-deferral-2026-11-04.md).
+
+Technical result: [10 November completion evidence](../../evidence/m6-technical-completion-2026-11-10.md).
 
 ### M6-T018 — Deploy, operate and close M6
 
@@ -182,3 +208,5 @@ The [approved controlled-recovery amendment](m6-cloud-controlled-recovery-propos
 - **Done when:** Gate passed at exact revision, service responds, promotion retained, runbook updated, owner reviews once; M7/M8 remain separate.
 - **Verification:** python3 tools/automation/run.py AUTO-M6-EXIT; python3 tools/automation/run.py AUTO-DOCS-CHECK.
 - **Evidence:** [m6-delivery-checkpoint-2026-11-03.md](../../../docs/evidence/m6-delivery-checkpoint-2026-11-03.md), [m6-local-ollama-deferral-2026-11-04.md](../../../docs/plans/integration/m6-local-ollama-deferral-2026-11-04.md).
+
+Technical result: [10 November completion evidence](../../evidence/m6-technical-completion-2026-11-10.md).

@@ -1,6 +1,6 @@
 # M6 execution plan: Ollama cloud monitoring
 
-**State:** execution in progress under the approved [cloud implementation plan](m6-ollama-cloud-implementation-change.md), amended by the owner's [4 November local-scope deferral](m6-local-ollama-deferral-2026-11-04.md). The local-service and process plans are retained as deferred future work, not M6 prerequisites.
+**State:** technical gate passed at `0f7ca54` on 10 November; M6-A10 owner review pending. See the [technical completion record](../../evidence/m6-technical-completion-2026-11-10.md). Scope remains under the approved [cloud implementation plan](m6-ollama-cloud-implementation-change.md), amended by the owner's [4 November local-scope deferral](m6-local-ollama-deferral-2026-11-04.md). The local-service and process plans are retained as deferred future work, not M6 prerequisites.
 
 **Owner:** A03 Ollama adapter; integration steward owns shared contracts, deployment and the completion command. **Prerequisites:** accepted M3 and M5. This plan follows the [SDLC](../../engineering/sdlc.md), [completion gates](../../engineering/completion-and-automation-gates.md) and [sub-agent runbook](../../engineering/subagent-runbook.md).
 
