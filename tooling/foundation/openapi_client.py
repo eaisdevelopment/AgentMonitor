@@ -83,6 +83,7 @@ SOURCE_FILES = (
     "backend/src/agentmonitor/contracts/database_v1.py",
     "backend/src/agentmonitor/contracts/identity_access_v1.py",
     "backend/src/agentmonitor/contracts/registry_v1.py",
+    "backend/src/agentmonitor/contracts/registry_billing_v1.py",
     "backend/src/agentmonitor/contracts/registry_coverage_v1.py",
     "backend/src/agentmonitor/contracts/provider_system_v1.py",
     "backend/src/agentmonitor/contracts/collection_control_v1.py",
@@ -105,6 +106,8 @@ SOURCE_FILES = (
     "backend/src/agentmonitor/adapters/providers/claude/installation.py",
     "backend/src/agentmonitor/adapters/providers/claude/manifest.py",
     "backend/src/agentmonitor/adapters/persistence/registry/sqlite/repository.py",
+    "backend/src/agentmonitor/adapters/persistence/registry/sqlite/billing_connections.py",
+    "backend/src/agentmonitor/modules/registry/domain/billing_connection.py",
     "backend/src/agentmonitor/adapters/persistence/registry/sqlite/coverage.py",
     "backend/src/agentmonitor/adapters/persistence/registry/sqlite/coverage_records.py",
     "backend/src/agentmonitor/adapters/persistence/registry/sqlite/registry_transaction.py",
@@ -156,6 +159,14 @@ IAM_OPERATIONS = {
     ("/api/v1/api-tokens/{token_id}/rotations", "post"): "iam_rotate_api_token_v1",
     ("/api/v1/api-tokens/{token_id}", "delete"): "iam_revoke_api_token_v1",
     ("/api/v1/iam/security-events", "get"): "iam_list_security_events_v1",
+    (
+        "/api/v1/accounts/{account_id}/billing-connections",
+        "get",
+    ): "registry_get_billing_connections_v1",
+    (
+        "/api/v1/accounts/{account_id}/billing-connections",
+        "post",
+    ): "registry_create_billing_connection_v1",
     ("/api/v1/accounts", "get"): "registry_list_accounts_v1",
     ("/api/v1/accounts", "post"): "registry_register_account_v1",
     ("/api/v1/accounts/{account_id}", "get"): "registry_get_account_v1",
@@ -914,6 +925,30 @@ IAM_POLICY: dict[str, IamPolicyRow] = {
         _M2_REQUIRED_ERROR_STATUSES,
         "RegisterAccountInputV1",
     ),
+    "registry_get_billing_connections_v1": (
+        "cookie_or_bearer",
+        "read:accounts",
+        "BillingConnectionPortV1.get",
+        "safe_query_repeat",
+        _COOKIE_BEARER,
+        "200",
+        "AccountBillingConnectionsV1",
+        "SafeProblemV1",
+        _M2_REQUIRED_ERROR_STATUSES,
+        None,
+    ),
+    "registry_create_billing_connection_v1": (
+        "cookie_or_bearer",
+        "write:accounts",
+        "BillingConnectionPortV1.create",
+        "replay_safe_representation",
+        _COOKIE_CSRF_BEARER,
+        "201",
+        "BillingConnectionViewV1",
+        "SafeProblemV1",
+        _M2_REQUIRED_ERROR_STATUSES,
+        "CreateBillingConnectionInputV1",
+    ),
     "registry_get_account_v1": (
         "cookie_or_bearer",
         "read:accounts",
@@ -1420,7 +1455,7 @@ def validate_iam_openapi(document: object) -> tuple[str, ...]:
     if (
         actual != IAM_OPERATIONS
         or set(IAM_POLICY) != set(IAM_OPERATIONS.values())
-        or len(identifiers) != 78
+        or len(identifiers) != 80
     ):
         raise OpenApiGenerationError("operation_surface_invalid")
 

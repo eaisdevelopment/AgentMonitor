@@ -26,6 +26,11 @@ class M7CanonicalExecutionTests(unittest.TestCase):
         if "NOT_RUN" in result.stdout:
             self.assertNotEqual(result.returncode, 0)
         self.assertIn("M7 CHECK pure:", result.stdout)
+        self.assertIn("M7 CHECK registry_metadata:", result.stdout)
+        self.assertNotIn(
+            "M7 CHECK registry_metadata: NOT_RUN (m7_boundary_runner_not_implemented)",
+            result.stdout,
+        )
         self.assertIn("M7 CHECK registry_http:", result.stdout)
 
 
@@ -45,6 +50,23 @@ class M7CompletionPolicyTests(unittest.TestCase):
             evaluate_lane("exit", (CheckResult("technical", "passed"),)).status,
             "blocked",
         )
+
+    def test_metadata_slice_cannot_close_full_registry_flow(self):
+        metadata = CheckResult("registry_metadata", "passed")
+        self.assertEqual(
+            evaluate_lane("registry_metadata", (metadata,)).status, "passed"
+        )
+        checks = (
+            CheckResult("pure", "passed"),
+            metadata,
+            CheckResult("registry_http", "not_run"),
+            CheckResult("persistence", "passed"),
+            CheckResult("collection", "passed"),
+            CheckResult("budget_http", "passed"),
+            CheckResult("compatibility", "passed"),
+            CheckResult("mutation", "passed"),
+        )
+        self.assertEqual(evaluate_lane("technical", checks).status, "blocked")
 
     def test_missing_or_unexecuted_boundary_is_not_a_pass(self):
         for status in ("blocked", "not_run"):

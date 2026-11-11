@@ -115,7 +115,7 @@ Capacity code stays under its domain/application/ports and SQLite adapter.
 P02 extends existing account/overview features and a budget-history component.
 
 Reuse frozen budget/usage tables where their semantics fit. Allocate additive
-M02 revision `v1_0730` after `v1_0720`, M05 `v1_0731`, and M04 `v1_0732` only if
+M02 revisions `v1_0730` and `v1_0731` after `v1_0720`, M05 `v1_0732`, and M04 `v1_0733` only if
 its typed receipt/run change needs schema. Preserve old migration digests.
 Do not automatically create one-to-one tables for every field: use necessary
 additive context columns, a report-coverage relation and signed cost storage.

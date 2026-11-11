@@ -2,6 +2,8 @@ import {
   apiClient,
   apiVersion,
   type AccountCapacityViewV2,
+  type AccountBillingConnectionsV1,
+  type BillingConnectionViewV1,
   type AccountPageV1,
   type AccountViewV1,
   type AlertRuleCommandWireV1,
@@ -59,6 +61,8 @@ export type {
   ApiTokenPageV1,
   ApiTokenSummaryV1,
   AccountCapacityViewV2,
+  AccountBillingConnectionsV1,
+  BillingConnectionViewV1,
   AccountPageV1,
   AccountViewV1,
   AlertRuleCommandWireV1,
@@ -329,10 +333,23 @@ export const registry = Object.freeze({
     }),
   registerAccount: (
     providerKey: string, friendlyName: string, organizationId: string | null,
+    initialConnectionPurpose: "api" | null = null,
   ): Promise<ClientResult<AccountViewV1>> =>
     apiClient.registry_register_account_v1({
-      body: { provider_key: providerKey, friendly_name: friendlyName, organization_id: organizationId },
+      body: { provider_key: providerKey, friendly_name: friendlyName, organization_id: organizationId,
+        ...(initialConnectionPurpose === null ? {} : { initial_connection_purpose: initialConnectionPurpose }),
+      },
       headers: mutationHeaders(undefined, true),
+    }),
+  billingConnections: (accountId: string, signal?: AbortSignal): Promise<ClientResult<AccountBillingConnectionsV1>> =>
+    apiClient.registry_get_billing_connections_v1({ path: { account_id: accountId }, signal }),
+  createBillingConnection: (
+    status: AccountBillingConnectionsV1, scopeId: string | null,
+  ): Promise<ClientResult<BillingConnectionViewV1>> =>
+    apiClient.registry_create_billing_connection_v1({
+      path: { account_id: status.account_id },
+      body: { scope_id: scopeId },
+      headers: mutationHeaders({ id: status.account_id, recordVersion: status.account_record_version }, true),
     }),
   renameAccount: (
     account: AccountViewV1, friendlyName: string,

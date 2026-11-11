@@ -4,6 +4,8 @@ import re
 from datetime import UTC, datetime
 from typing import Literal, cast
 
+from fastapi import APIRouter, Query, Request, Response
+
 from agentmonitor.api.problem import ProblemError
 from agentmonitor.api.v1.dependencies import (
     authorize_request,
@@ -19,11 +21,14 @@ from agentmonitor.api.v1.routers._observation import (
     reject_unknown_query,
 )
 from agentmonitor.api.v1.schemas.registry import (
+    AccountBillingConnectionsV1,
     AccountPageV1,
     AccountViewV1,
     ArchiveAccountInputV1,
     ArchiveOrganizationInputV1,
     AssignAccountOrganizationInputV1,
+    BillingConnectionViewV1,
+    CreateBillingConnectionInputV1,
     CreateOrganizationInputV1,
     MaskedRegistryFieldWireV1,
     OrganizationOrderingViewV1,
@@ -38,6 +43,12 @@ from agentmonitor.api.v1.schemas.registry import (
     SetAccountMonitoringInputV1,
 )
 from agentmonitor.contracts.common_v1 import OpaqueIdV1
+from agentmonitor.contracts.registry_billing_v1 import (
+    BillingConnectionViewV1 as SourceBillingConnectionV1,
+)
+from agentmonitor.contracts.registry_billing_v1 import (
+    CreateBillingConnectionCommandV1,
+)
 from agentmonitor.contracts.registry_v1 import (
     AccountViewV1 as SourceAccountViewV1,
 )
@@ -62,7 +73,6 @@ from agentmonitor.modules.registry.application.organizations import (
     RegistryCommandConflictV1,
     ReorderOrganizationsCommandV1,
 )
-from fastapi import APIRouter, Query, Request, Response
 
 router = APIRouter(tags=["registry"])
 
@@ -758,3 +768,100 @@ def list_provider_installations(
         ),
         availability=availability(result.availability),
     )
+
+
+def _billing_connection(item: SourceBillingConnectionV1) -> BillingConnectionViewV1:
+    return BillingConnectionViewV1(
+        account_id=item.account_id.value,
+        resource_id=item.resource_id.value,
+        provider_key=item.provider_key,
+        scope_id=item.scope_id,
+        scope_evidence=item.scope_evidence,
+        scope_generation=item.scope_generation,
+        monitoring_preference=item.monitoring_preference,
+        lifecycle=item.lifecycle,
+        record_version=item.record_version,
+        registry_revision=item.registry_revision,
+        created_at=item.created_at,
+        updated_at=item.updated_at,
+    )
+
+
+@router.get(
+    "/accounts/{account_id}/billing-connections",
+    operation_id="registry_get_billing_connections_v1",
+    response_model=AccountBillingConnectionsV1,
+    responses=ERROR_RESPONSES,
+    openapi_extra=policy("read:accounts", "BillingConnectionPortV1.get"),
+)
+def get_billing_connections(
+    account_id: str,
+    request: Request,
+    response: Response,
+) -> AccountBillingConnectionsV1:
+    authorize_request(request, "read:accounts")
+    reject_unknown_query(request, frozenset())
+    port = observation_ports(request).billing_connections
+    if port is None:
+        raise ProblemError(503, "registry_repository_unavailable")
+    try:
+        status = port.get(OpaqueIdV1(account_id))
+    except ValueError:
+        raise ProblemError(503, "registry_repository_unavailable") from None
+    if status is None:
+        raise ProblemError(404, "registry_subject_not_found")
+    response.headers["Cache-Control"] = "no-store"
+    response.headers["ETag"] = f'"{account_id}.{status.account_record_version}"'
+    return AccountBillingConnectionsV1(
+        account_id=status.account_id.value,
+        provider_key=status.provider_key,
+        account_lifecycle=status.account_lifecycle,
+        account_record_version=status.account_record_version,
+        can_add_connection=status.can_add_connection,
+        reason_code=status.reason_code,
+        connections=tuple(_billing_connection(item) for item in status.connections),
+    )
+
+
+@router.post(
+    "/accounts/{account_id}/billing-connections",
+    operation_id="registry_create_billing_connection_v1",
+    status_code=201,
+    response_model=BillingConnectionViewV1,
+    responses=ERROR_RESPONSES,
+    openapi_extra=_version_policy("BillingConnectionPortV1.create", idempotent=True),
+)
+def create_billing_connection(
+    account_id: str,
+    input: CreateBillingConnectionInputV1,
+    request: Request,
+    response: Response,
+) -> BillingConnectionViewV1:
+    caller = authorize_request(request, "write:accounts", require_csrf=True)
+    command = CreateBillingConnectionCommandV1(
+        account_id=OpaqueIdV1(account_id),
+        expected_account_version=_expected_version(request, account_id),
+        principal_id=caller.principal.principal_id,
+        command_id=_idempotency_key(request),
+        scope_id=input.scope_id,
+        requested_at=datetime.now(UTC),
+    )
+    port = observation_ports(request).billing_connections
+    if port is None:
+        raise ProblemError(503, "registry_repository_unavailable")
+    try:
+        item = port.create(command)
+    except RegistryCommandConflictV1 as error:
+        code = str(error)
+        if code == "registry_subject_not_found":
+            raise ProblemError(404, code) from None
+        if code == "registry_version_conflict":
+            raise ProblemError(412, code) from None
+        if code not in {"registry_idempotency_conflict", "registry_replay_stale"}:
+            code = "registry_conflict"
+        raise ProblemError(409, code) from None
+    except ValueError:
+        raise ProblemError(503, "registry_repository_unavailable") from None
+    response.headers["Cache-Control"] = "no-store"
+    response.headers["ETag"] = f'"{item.resource_id.value}.{item.record_version}"'
+    return _billing_connection(item)

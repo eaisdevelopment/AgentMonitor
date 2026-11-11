@@ -1308,3 +1308,18 @@ frozen parent plans, technical/full-exit execution or M7 acceptance. Historical
 review records remain unchanged.
 
 Plan snapshot SHA-256: `0aa5032f5caa5069ebb298c8a697808cd3d58784006838ac09efa1c259a1eb97`
+
+
+## 2026-11-11 M7 billing contract registration addendum
+
+Independent read-only reviewer `m7_execution_commands` verified the additive
+CTR-REG-014 registration: 106 unique contract records, M02 producer and exact
+FND/P01/P02/INT consumers. All 20 module-plan entries are unchanged from
+`6a87630`. All nine control hashes match their files; only contract baseline and
+adoption control records changed. The validator count is synchronized at 106.
+This review binds the existing focused M7 implementation authority and does not
+approve the frozen Draft planning corpus or claim live/deployment completion.
+The actual billing metadata test selection passed 25 tests; credential setup,
+provider verification and monitoring remain outside that intermediate result.
+
+Plan snapshot SHA-256: `04e24471cdb559fd2bb1f40c64bcd7fa8e6c92e4056c8bb83910cda25edad9be`

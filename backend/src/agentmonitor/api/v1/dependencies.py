@@ -2,6 +2,8 @@
 
 from dataclasses import dataclass
 
+from fastapi import Request
+
 from agentmonitor.api.problem import ProblemError
 from agentmonitor.api.v1.ollama_cloud_port import OllamaCloudConnectionPortV1
 from agentmonitor.contracts.capacity_v1 import CapacityHealthPolicyV1
@@ -16,6 +18,7 @@ from agentmonitor.contracts.ollama_local_catalog_v1 import (
     LocalCatalogPortV1,
 )
 from agentmonitor.contracts.provider_system_v1 import ProviderConnectionPortV1
+from agentmonitor.contracts.registry_billing_v1 import BillingConnectionPortV1
 from agentmonitor.contracts.registry_coverage_v1 import (
     OrganizationProviderCoverageReadPortV1,
     OrganizationProviderCoverageWritePortV1,
@@ -108,7 +111,6 @@ from agentmonitor.modules.runtime_observation.application.queries import (
     ListAgentSessionsV1,
     ListLiveProcessLocationsV1,
 )
-from fastapi import Request
 
 SESSION_COOKIE = "agentmonitor_session"
 CSRF_COOKIE = "agentmonitor_csrf"
@@ -170,6 +172,7 @@ class ObservationApiPortsV1:
     ollama_cloud_connection: OllamaCloudConnectionPortV1 | None = None
     organization_coverage_read: OrganizationProviderCoverageReadPortV1 | None = None
     organization_coverage_write: OrganizationProviderCoverageWritePortV1 | None = None
+    billing_connections: BillingConnectionPortV1 | None = None
 
 
 @dataclass(frozen=True, slots=True)

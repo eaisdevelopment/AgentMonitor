@@ -3,10 +3,11 @@ import { useCallback, useEffect, useRef, useState, type FormEvent } from "react"
 import { CapacityPanel } from "../command/CapacityPanel";
 import { SessionPanel } from "../sessions/SessionPanel";
 import { AccountWorkspaceSummary } from "./AccountWorkspaceSummary";
+import { BillingConnectionPanel } from "./BillingConnectionPanel";
 import { ProviderConnectionPanel } from "./ClaudeConnectionPanel";
 import { OllamaCloudConnectionView } from "./OllamaCloudConnectionView";
 import { LiveProviderProcesses } from "./LiveClaudeProcesses";
-import { providerDisplayName } from "./providerPresentation";
+import { billingProviderDisplayName, providerDisplayName } from "./providerPresentation";
 import {
   CsrfUnavailableError,
   registry,
@@ -42,6 +43,7 @@ export function AccountPage({
 }>) {
   const [state, setState] = useState<AccountState>({ kind: "loading" });
   const [providerKey, setProviderKey] = useState("");
+  const [creationPurpose, setCreationPurpose] = useState<"api" | null>(null);
   const [accountName, setAccountName] = useState("");
   const [organizationId, setOrganizationId] = useState("");
   const [busy, setBusy] = useState(false);
@@ -101,8 +103,8 @@ export function AccountPage({
   async function mutate(
     operation: () => Promise<ClientResult<AccountViewV1>>,
     successMessage: string,
-  ): Promise<boolean> {
-    if (busy) return false;
+  ): Promise<AccountViewV1 | null> {
+    if (busy) return null;
     setBusy(true);
     setMessage(null);
     try {
@@ -116,15 +118,15 @@ export function AccountPage({
         } else if (result.problem.code === "registry_monitoring_not_eligible") {
           setMessage("Monitoring requires a confirmed identity, compatible profile, and active resource.");
         } else setMessage("The account change was rejected. Check the values and try again.");
-        return false;
+        return null;
       }
       await load();
       setMessage(successMessage);
-      return true;
+      return result.data;
     } catch (error) {
       if (error instanceof CsrfUnavailableError) onProofUnavailable();
       else setMessage("The local service is unavailable. Try again.");
-      return false;
+      return null;
     } finally {
       setBusy(false);
     }
@@ -135,11 +137,14 @@ export function AccountPage({
     if (!providerKey.trim() || !accountName.trim()) return;
     void mutate(
       () => registry.registerAccount(
-        providerKey.trim(), accountName.trim(), organizationId || null,
+        providerKey.trim(), accountName.trim(), organizationId || null, creationPurpose,
       ),
-      "Pending account added. Monitoring remains disabled until identity is confirmed.",
+      creationPurpose === "api" ? "API billing account saved. Setup is pending." : "Pending account added. Monitoring remains disabled until identity is confirmed.",
     ).then((created) => {
-      if (created) setAccountName("");
+      if (created) {
+        setAccountName("");
+        if (creationPurpose === "api") onOpenAccount(created.account_id);
+      }
     });
   }
 
@@ -204,6 +209,7 @@ export function AccountPage({
   );
 
   const selected = accountId === undefined ? undefined : state.selected ?? undefined;
+  const apiOnly = selected?.initial_connection_purpose === "api";
   if (accountId !== undefined && selected === undefined) return (
     <section className="telemetry-panel" aria-labelledby={titleId}>
       <p className="panel-code">REGISTRY / ACCOUNT</p><h1 id={titleId} tabIndex={-1}>Account unavailable</h1>
@@ -219,9 +225,9 @@ export function AccountPage({
       <header className="account-page-heading" aria-labelledby={titleId}>
         <div>
           <nav className="account-breadcrumb" aria-label="Account breadcrumb"><a href="/accounts">Accounts</a><span aria-hidden="true">/</span><span>{state.organizations.items.find((item) => item.organization_id === selected.organization_id)?.name ?? "Ungrouped"}</span></nav>
-          <h1 id={titleId} tabIndex={-1}>{observedEmail ?? selected.friendly_name}</h1>
-          {observedEmail && observedEmail !== selected.friendly_name && <p className="connection-warning">Registered as {selected.friendly_name} · {providerDisplayName(selected.provider_key)} currently reports {observedEmail}. Review this connection before treating it as the registered account.</p>}
-          <p className="account-subtitle"><span className="provider-name">{selected.provider_key}</span><span aria-hidden="true">·</span><span>{selected.provider_key === "ollama" ? (selected.is_effective_monitoring_enabled ? "Monitoring requested" : "Monitoring is off") : (selected.is_effective_monitoring_enabled ? "Quota monitoring is on" : "Quota monitoring is off")}</span></p>
+          <h1 id={titleId} tabIndex={-1}>{apiOnly ? selected.friendly_name : observedEmail ?? selected.friendly_name}</h1>
+          {!apiOnly && observedEmail && observedEmail !== selected.friendly_name && <p className="connection-warning">Registered as {selected.friendly_name} · {providerDisplayName(selected.provider_key)} currently reports {observedEmail}. Review this connection before treating it as the registered account.</p>}
+          <p className="account-subtitle"><span className="provider-name">{apiOnly ? billingProviderDisplayName(selected.provider_key) : selected.provider_key}</span><span aria-hidden="true">·</span><span>{apiOnly ? "API billing" : selected.provider_key === "ollama" ? (selected.is_effective_monitoring_enabled ? "Monitoring requested" : "Monitoring is off") : (selected.is_effective_monitoring_enabled ? "Quota monitoring is on" : "Quota monitoring is off")}</span></p>
         </div>
         <button className="quiet-button" type="button" onClick={() => {
           if (settingsRef.current) {
@@ -230,6 +236,8 @@ export function AccountPage({
           }
         }}>Edit account</button>
       </header>
+      {apiOnly && <BillingConnectionPanel key={`billing-${selected.account_id}`} account={selected} onExpired={onExpired} onProofUnavailable={onProofUnavailable} onAccountReload={reloadAccount} />}
+      {!apiOnly && <>
       {["claude", "codex"].includes(selected.provider_key) && selected.lifecycle !== "archived" && <ProviderConnectionPanel key={`connection-${selected.account_id}`} account={selected} onExpired={onExpired} onProofUnavailable={onProofUnavailable} onAccountReload={reloadAccount} />}
       {selected.provider_key === "ollama" && selected.lifecycle !== "archived" && <OllamaCloudConnectionView key={`ollama-cloud-${selected.account_id}`} account={selected} onExpired={onExpired} onProofUnavailable={onProofUnavailable} onAccountReload={reloadAccount} />}
       <AccountWorkspaceSummary key={selected.account_id} account={selected} organizationName={state.organizations.items.find((item) => item.organization_id === selected.organization_id)?.name ?? "Ungrouped"} liveProcesses={liveProcesses} onExpired={onExpired} onIdentity={updateObservedIdentity} />
@@ -239,11 +247,16 @@ export function AccountPage({
         <summary>Session history <span>Previously observed session records</span></summary>
         <SessionPanel accountId={selected.account_id} displayMode="panel" heading="Session records" onExpired={onExpired} />
       </details>
+      <details className="account-secondary" data-billing-connection="true">
+        <summary>API billing connection</summary>
+        <BillingConnectionPanel key={`billing-${selected.account_id}`} account={selected} onExpired={onExpired} onProofUnavailable={onProofUnavailable} onAccountReload={reloadAccount} />
+      </details>
+      </>}
       <details className="account-settings account-secondary" ref={settingsRef}>
-        <summary>Account settings <span>Name, organization, and monitoring</span></summary>
+        <summary>Account settings <span>{apiOnly ? "Name and organization" : "Name, organization, and monitoring"}</span></summary>
       <section className="account-admin-content" aria-labelledby="account-admin-title">
         <div className="panel-heading"><h2 id="account-admin-title">Account administration</h2></div>
-        <p className="account-settings-hint">Manage this dashboard record. {providerDisplayName(selected.provider_key)}'s detected account identity is shown above.</p>
+        <p className="account-settings-hint">Manage this dashboard record. {apiOnly ? "The dashboard organization does not confirm provider billing scope." : `${providerDisplayName(selected.provider_key)}'s detected account identity is shown above.`}</p>
         <p>Identity is {selected.identity_state.replaceAll("_", " ")}. Editing this record does not confirm provider identity.</p>
         <form key={`name-${selected.record_version}`} onSubmit={(event) => {
           event.preventDefault();
@@ -274,7 +287,7 @@ export function AccountPage({
         ) : (
           <button type="button" className="quiet-button" disabled={busy} onClick={() => { void mutate(() => registry.archiveAccount(selected), "Account archived."); }}>Archive account</button>
         )}
-        {selected.lifecycle === "active" && ["owner_confirmed", "matched"].includes(selected.identity_state) && (
+        {!apiOnly && selected.lifecycle === "active" && ["owner_confirmed", "matched"].includes(selected.identity_state) && (
           <button type="button" disabled={busy} onClick={() => {
             const next = selected.monitoring_preference === "enabled" ? "disabled" : "enabled";
             void mutate(() => registry.setAccountMonitoring(selected, next), `Monitoring preference ${next}.`);
@@ -307,11 +320,18 @@ export function AccountPage({
       </div>
       <p className="provenance-line">{state.data.availability.reason_code.replaceAll("_", " ")} · as of {new Date(state.data.availability.as_of).toLocaleString()}</p>
       {displayMode === "page" && <section aria-labelledby="add-account-title">
-        <h2 id="add-account-title">Add pending account</h2>
-        <p>The record can be grouped now. Monitoring starts after the account is connected.</p>
+        <h2 id="add-account-title">{creationPurpose === "api" ? "Add API billing account" : "Add pending account"}</h2>
+        <div className="account-settings-actions" role="group" aria-label="Account connection purpose">
+          <button type="button" className="quiet-button" aria-pressed={creationPurpose === null} disabled={busy} onClick={() => { setCreationPurpose(null); setProviderKey(""); }}>Add subscription account</button>
+          <button type="button" className="quiet-button" aria-pressed={creationPurpose === "api"} disabled={busy} onClick={() => { setCreationPurpose("api"); setProviderKey(""); }}>Add API billing account</button>
+        </div>
+        <p>{creationPurpose === "api" ? "Create an account record for API usage and spend. Billing setup remains pending." : "The record can be grouped now. Monitoring starts after the account is connected."}</p>
         <form onSubmit={create}>
           <label htmlFor="provider-key">Provider</label>
-          <input id="provider-key" value={providerKey} onChange={(event) => setProviderKey(event.target.value)} maxLength={64} required autoComplete="off" list="provider-options" placeholder="e.g. ollama" aria-describedby="provider-help" />
+          {creationPurpose === "api" ? <select id="provider-key" value={providerKey} onChange={(event) => setProviderKey(event.target.value)} required aria-describedby="provider-help">
+            <option value="">Choose a provider</option>
+            <option value="claude">Anthropic API</option><option value="codex">OpenAI API</option><option value="ollama">Ollama Cloud</option>
+          </select> : <input id="provider-key" value={providerKey} onChange={(event) => setProviderKey(event.target.value)} maxLength={64} required autoComplete="off" list="provider-options" placeholder="e.g. ollama" aria-describedby="provider-help" />}
           <datalist id="provider-options"><option value="ollama" /><option value="claude" /><option value="codex" /></datalist>
           <small id="provider-help">Enter the provider name, not an API key.</small>
           <label htmlFor="account-name">Account name</label>
@@ -323,7 +343,7 @@ export function AccountPage({
               <option key={item.organization_id} value={item.organization_id}>{item.name}</option>
             ))}
           </select>
-          <button type="submit" disabled={busy || !providerKey.trim() || !accountName.trim()}>Add account</button>
+          <button type="submit" disabled={busy || !providerKey.trim() || !accountName.trim()}>{creationPurpose === "api" ? "Create API billing account" : "Add account"}</button>
         </form>
       </section>}
       {message && <p role="status">{message}</p>}
@@ -335,9 +355,9 @@ export function AccountPage({
         <div className="record-grid">{state.data.items.map((account) => (
           <article className="record-card" key={account.account_id}>
             <div><span className={`provider-light ${account.is_effective_monitoring_enabled ? "active" : ""}`} aria-hidden="true" /><strong>{account.friendly_name}</strong></div>
-            <p>{account.provider_key} · {state.organizations.items.find((item) => item.organization_id === account.organization_id)?.name ?? "Ungrouped"}</p>
-            <p className="record-meta">{account.lifecycle} · monitoring {account.is_effective_monitoring_enabled ? "enabled" : "disabled"}</p>
-            {["claude", "codex"].includes(account.provider_key) && account.lifecycle === "pending" && <button type="button" onClick={() => onOpenAccount(account.account_id)}>Connect {providerDisplayName(account.provider_key)}</button>}
+            <p>{account.initial_connection_purpose === "api" ? billingProviderDisplayName(account.provider_key) : account.provider_key} · {state.organizations.items.find((item) => item.organization_id === account.organization_id)?.name ?? "Ungrouped"}</p>
+            <p className="record-meta">{account.lifecycle} · {account.initial_connection_purpose === "api" ? "API billing" : `monitoring ${account.is_effective_monitoring_enabled ? "enabled" : "disabled"}`}</p>
+            {account.initial_connection_purpose !== "api" && ["claude", "codex"].includes(account.provider_key) && account.lifecycle === "pending" && <button type="button" onClick={() => onOpenAccount(account.account_id)}>Connect {providerDisplayName(account.provider_key)}</button>}
             <button type="button" className="quiet-button" onClick={() => onOpenAccount(account.account_id)}>Open account</button>
           </article>
         ))}</div>

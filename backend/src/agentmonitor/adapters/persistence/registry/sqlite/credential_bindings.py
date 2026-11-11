@@ -8,6 +8,9 @@ import secrets
 from datetime import UTC, datetime, timedelta
 from typing import Literal
 
+from sqlalchemy.engine import Connection, RowMapping
+from sqlalchemy.exc import SQLAlchemyError
+
 from agentmonitor.adapters.persistence._shared.sqlite.core.policy import (
     DatabaseRefV1,
     SqlitePolicyError,
@@ -49,8 +52,6 @@ from agentmonitor.modules.registry.domain.credential_binding import (
     prepare_credential_binding,
     resolve_active_credential_binding,
 )
-from sqlalchemy.engine import Connection, RowMapping
-from sqlalchemy.exc import SQLAlchemyError
 
 
 class CredentialBindingRepositoryErrorV1(ValueError):
@@ -141,6 +142,25 @@ def _verification_receipt(
     )
 
 
+def billing_credential_metadata_exists_in_transaction(
+    connection: Connection, account_id: OpaqueIdV1
+) -> bool:
+    """Admit billing metadata without asserting credential or provider access."""
+    if not connection.in_transaction():
+        raise CredentialBindingRepositoryErrorV1(
+            "credential_binding_transaction_required"
+        )
+    return bool(
+        connection.exec_driver_sql(
+            "SELECT EXISTS(SELECT 1 FROM reg_account a "
+            "JOIN reg_billing_connection b ON b.account_id=a.account_id "
+            "WHERE a.account_id=? AND a.provider_key IN ('claude','codex') "
+            "AND b.lifecycle IN ('pending','active'))",
+            (account_id.value,),
+        ).scalar_one()
+    )
+
+
 def _load(
     connection: Connection, account_id: OpaqueIdV1
 ) -> CredentialBindingAggregateV1:
@@ -148,7 +168,12 @@ def _load(
         "SELECT provider_key,lifecycle FROM reg_account WHERE account_id=?",
         (account_id.value,),
     ).first()
-    if account is None or account[0] != "ollama":
+    if account is None or (
+        account[0] != "ollama"
+        and not billing_credential_metadata_exists_in_transaction(
+            connection, account_id
+        )
+    ):
         raise CredentialBindingRepositoryErrorV1(
             "credential_binding_account_unavailable"
         )

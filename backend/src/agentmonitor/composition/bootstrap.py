@@ -26,6 +26,8 @@ from functools import partial
 from pathlib import Path
 
 import uvicorn
+from fastapi import FastAPI
+
 from agentmonitor.adapters.identity_access.argon2_password import Argon2PasswordV1
 from agentmonitor.adapters.persistence._shared.sqlite.core.policy import (
     DatabaseRefV1,
@@ -68,6 +70,9 @@ from agentmonitor.adapters.persistence.identity_access.sqlite.repository import 
 )
 from agentmonitor.adapters.persistence.identity_access.sqlite.sessions import (
     SqliteIdentityAccessSessionRepositoryV1,
+)
+from agentmonitor.adapters.persistence.registry.sqlite.billing_connections import (
+    SqliteBillingConnectionRepositoryV1,
 )
 from agentmonitor.adapters.persistence.registry.sqlite.coverage import (
     SqliteOrganizationProviderCoverageRepositoryV1,
@@ -236,7 +241,6 @@ from agentmonitor.modules.runtime_observation.application.queries import (
     ListAgentSessionsV1,
     ListLiveProcessLocationsV1,
 )
-from fastapi import FastAPI
 
 
 class LoopbackServerError(ValueError):
@@ -577,6 +581,7 @@ def _observation_ports(
         capacity_health_policy=ClassifyCapacityProjectionV1().policy,
         organization_coverage_read=coverage,
         organization_coverage_write=coverage,
+        billing_connections=SqliteBillingConnectionRepositoryV1(reference),
         ollama_local_catalog=read_ollama_local_catalog_v1,
         ollama_cloud_connection=OllamaCloudConnectionServiceV1(
             reference,

@@ -233,3 +233,13 @@ durable global gate remain required. No field or enum is added; unresolved
 outcomes and nonfailed transient signals remain rejected. CTR-COL-010 2.0.0
 retains its existing terminal certainty contract; unknown verification jobs
 remain unresolved rather than being incorrectly rewritten as terminal.
+
+
+## M7 independent billing resource metadata
+
+CTR-REG-014 1.0.0 publishes M02 billing connection metadata and creation under
+focused M7 plan 1.1.0. P01/P02 consume a secret-free GET/POST boundary with
+idempotency and account-version checks. Account subscription identity/monitoring
+are unchanged; a pending connection is not verified access. M6 Ollama resource
+reuse, credential setup and billing monitoring remain separate unfinished work.
+See [contract impact and evidence](../evidence/m7-billing-metadata-contract-2026-11-11.md).

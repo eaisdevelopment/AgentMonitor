@@ -33,6 +33,7 @@ from agentmonitor.modules.registry.application.organizations import (
 
 NOW = datetime(2026, 9, 22, 12, 0, tzinfo=UTC)
 REGISTRY_TABLES = {
+    "reg_billing_connection",
     "reg_registry_state",
     "reg_organization",
     "reg_provider_definition",

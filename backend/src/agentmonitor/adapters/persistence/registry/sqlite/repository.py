@@ -4,6 +4,9 @@
 
 from datetime import datetime, timedelta
 
+from sqlalchemy.engine import Connection, RowMapping
+from sqlalchemy.exc import SQLAlchemyError
+
 from agentmonitor.adapters.persistence._shared.sqlite.core.policy import (
     DatabaseRefV1,
     SqlitePolicyError,
@@ -11,6 +14,7 @@ from agentmonitor.adapters.persistence._shared.sqlite.core.policy import (
 )
 from agentmonitor.adapters.persistence.registry.sqlite.credential_bindings import (
     archive_bindings_in_transaction,
+    billing_credential_metadata_exists_in_transaction,
     ensure_access_target_in_transaction,
     ensure_current_binding_in_transaction,
 )
@@ -79,8 +83,6 @@ from agentmonitor.modules.registry.domain.cloud_verification import (
     decide_cloud_binding_reassertion,
     decide_cloud_owner_assertion,
 )
-from sqlalchemy.engine import Connection, RowMapping
-from sqlalchemy.exc import SQLAlchemyError
 
 
 def _candidate_evidence_set_digest(row: RowMapping) -> str:
@@ -1065,7 +1067,11 @@ class SqliteRegistryRepositoryV1:
     def edit_account(self, command: EditAccountCommandV1) -> AccountViewV1:
         if command.action == "archive":
             account = self.get_account(command.account_id)
-            if account is not None and account.provider_key == "ollama":
+            if account is not None and account.provider_key in {
+                "ollama",
+                "claude",
+                "codex",
+            }:
                 with account_credential_lock(self._database_ref, command.account_id):
                     return self._edit_account_locked(command)
         return self._edit_account_locked(command)
@@ -1223,7 +1229,12 @@ class SqliteRegistryRepositoryV1:
                         connection.rollback()
                         return result
                     version = command.expected_version + 1
-                    if command.action == "archive" and row["provider_key"] == "ollama":
+                    if command.action == "archive" and (
+                        row["provider_key"] == "ollama"
+                        or billing_credential_metadata_exists_in_transaction(
+                            connection, command.account_id
+                        )
+                    ):
                         archive_bindings_in_transaction(connection, command.account_id)
                     revision = _next_revision(connection, instant)
                     connection.exec_driver_sql(

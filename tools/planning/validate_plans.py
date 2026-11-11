@@ -201,10 +201,10 @@ def _validate_contract_baseline(
     contracts = raw.get("contracts", [])
     contract_ids = [item.get("id") for item in contracts]
     expected_count = raw.get("contract_count")
-    if expected_count != 105 or len(contracts) != expected_count:
+    if expected_count != 106 or len(contracts) != expected_count:
         violations.append(
             f"contract baseline count mismatch: metadata={expected_count}, "
-            f"records={len(contracts)}, expected=105"
+            f"records={len(contracts)}, expected=106"
         )
     if len(contract_ids) != len(set(contract_ids)):
         violations.append("contract baseline contains duplicate IDs")

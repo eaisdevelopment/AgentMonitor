@@ -89,3 +89,65 @@ boundary and preserve red/green evidence. Do not equate file existence with a
 passing check. Before final closure, replace every required Not Run result with
 an actual real-boundary execution; conditional source limitations retain the
 approved plan's separate status rules. Keep normal owner acceptance separate.
+
+## Registry metadata/API slice integration
+
+The next T003 increment adds `registry_metadata` to technical execution and as
+an explicit partial lane. It selects the actual account-intent, connection
+metadata and enrollment-HTTP tests:
+
+- `backend/tests/integration/registry/test_billing_account_intent.py`
+- `backend/tests/integration/registry/test_billing_connections.py`
+- `backend/tests/integration/api/test_billing_enrollment_http.py`
+
+This is a subdivision of the existing T002 registry requirement, not an added
+acceptance condition. The full `registry_http` check remains Not Run until the
+credential/setup flow has its required evidence. A metadata slice pass cannot
+close that check. No provider access, credential setup or identity proof is
+claimed by account metadata saved in real isolated SQLite/HTTP tests.
+
+Red: the existing canonical execution test failed because the real command had
+no `M7 CHECK registry_metadata:` outcome. After wiring, the direct partial lane
+reported Not Run and exit 3 while the connection test file had not landed. Missing
+files are no longer described as an executed check; the lane overall is Blocked.
+No missing test was silently omitted and no absent file was treated as Green.
+The new pure scope-policy assertion confirms metadata success plus unexecuted
+full registry flow cannot close the technical gate.
+
+Initial quality: eight pure command-policy tests Passed; Ruff formatting/lint
+and strict mypy Passed.
+
+Once all three selected files existed, actual `--lane registry_metadata`
+execution returned Failed (exit 1): eight tests passed and three failed in
+11.45 seconds. The observed gaps were the missing billing metadata table,
+missing billing metadata repository and enrollment status HTTP 503 rather than
+200 while that implementation was in progress. Existing test files therefore
+did not turn the slice green. These results are real migration/SQLite/HTTP
+execution, with no provider request or deployed-service change. A fresh run is
+required after the owning implementation lands.
+
+The complete command-regression suite then passed: nine tests in 34.889 seconds,
+including actual `AUTO-M7-TEST` execution and explicit preservation of remaining
+Not Run boundaries. This command-regression pass does not override the registry
+slice's failed implementation results above.
+
+## Nonsecret billing binding lifecycle selection
+
+After M02 metadata implementation landed, the unchanged three-file metadata lane
+passed 25 tests in 49.35 seconds during the independent bounded review. That
+supersedes the earlier implementation Red for this slice only.
+
+The existing `registry_metadata` selection now also includes
+`backend/tests/integration/registry/test_billing_credential_binding.py`. Its real
+isolated registry checks cover opaque binding references, reservation/finalization
+metadata and archive/lock behavior. No secret entry, credential activation,
+provider access or full registry setup is claimed. The lane's explanatory text
+now states this scope explicitly. Full `registry_http` remains Not Run; no new
+command, acceptance condition or framework was introduced.
+
+Actual execution of the expanded lane passed **33 tests in 89.13 seconds**,
+exit 0. Its final result explicitly reads: registry metadata and nonsecret
+binding lifecycle only; no secret entry, activation or provider access claim.
+The temporary development-tool context exited and cleaned its owned links before
+root's subsequent build. Ruff formatting/lint passed for the runner change;
+no further test/build helper was started by this agent after the lane completed.

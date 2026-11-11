@@ -1,6 +1,59 @@
 {
   "components": {
     "schemas": {
+      "AccountBillingConnectionsV1": {
+        "additionalProperties": false,
+        "properties": {
+          "account_id": {
+            "title": "Account Id",
+            "type": "string"
+          },
+          "account_lifecycle": {
+            "enum": [
+              "pending",
+              "active",
+              "disabled",
+              "archived"
+            ],
+            "title": "Account Lifecycle",
+            "type": "string"
+          },
+          "account_record_version": {
+            "title": "Account Record Version",
+            "type": "integer"
+          },
+          "can_add_connection": {
+            "title": "Can Add Connection",
+            "type": "boolean"
+          },
+          "connections": {
+            "items": {
+              "$ref": "#/components/schemas/BillingConnectionViewV1"
+            },
+            "title": "Connections",
+            "type": "array"
+          },
+          "provider_key": {
+            "title": "Provider Key",
+            "type": "string"
+          },
+          "reason_code": {
+            "title": "Reason Code",
+            "type": "string"
+          }
+        },
+        "required": [
+          "account_id",
+          "provider_key",
+          "account_lifecycle",
+          "account_record_version",
+          "can_add_connection",
+          "reason_code",
+          "connections"
+        ],
+        "title": "AccountBillingConnectionsV1",
+        "type": "object"
+      },
       "AccountCapacityItemV1": {
         "additionalProperties": false,
         "properties": {
@@ -1668,6 +1721,103 @@
           "as_of"
         ],
         "title": "AvailabilityV1",
+        "type": "object"
+      },
+      "BillingConnectionViewV1": {
+        "additionalProperties": false,
+        "properties": {
+          "account_id": {
+            "title": "Account Id",
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "lifecycle": {
+            "enum": [
+              "pending",
+              "active",
+              "disconnected"
+            ],
+            "title": "Lifecycle",
+            "type": "string"
+          },
+          "monitoring_preference": {
+            "enum": [
+              "enabled",
+              "disabled"
+            ],
+            "title": "Monitoring Preference",
+            "type": "string"
+          },
+          "provider_key": {
+            "enum": [
+              "claude",
+              "codex",
+              "ollama"
+            ],
+            "title": "Provider Key",
+            "type": "string"
+          },
+          "record_version": {
+            "title": "Record Version",
+            "type": "integer"
+          },
+          "registry_revision": {
+            "title": "Registry Revision",
+            "type": "integer"
+          },
+          "resource_id": {
+            "title": "Resource Id",
+            "type": "string"
+          },
+          "scope_evidence": {
+            "enum": [
+              "unresolved",
+              "owner_asserted",
+              "provider_verified"
+            ],
+            "title": "Scope Evidence",
+            "type": "string"
+          },
+          "scope_generation": {
+            "title": "Scope Generation",
+            "type": "integer"
+          },
+          "scope_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Scope Id"
+          },
+          "updated_at": {
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "account_id",
+          "resource_id",
+          "provider_key",
+          "scope_id",
+          "scope_evidence",
+          "scope_generation",
+          "monitoring_preference",
+          "lifecycle",
+          "record_version",
+          "registry_revision",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "BillingConnectionViewV1",
         "type": "object"
       },
       "BrowserSessionPageV1": {
@@ -4011,6 +4161,27 @@
           "scopes"
         ],
         "title": "CreateApiTokenInputV1",
+        "type": "object"
+      },
+      "CreateBillingConnectionInputV1": {
+        "additionalProperties": false,
+        "properties": {
+          "scope_id": {
+            "anyOf": [
+              {
+                "maxLength": 128,
+                "minLength": 1,
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Scope Id"
+          }
+        },
+        "title": "CreateBillingConnectionInputV1",
         "type": "object"
       },
       "CreateOrganizationInputV1": {
@@ -9145,6 +9316,425 @@
           "registry"
         ],
         "x-agentmonitor-application-port": "ArchiveAccountV1",
+        "x-agentmonitor-auth-profile": "cookie_or_bearer",
+        "x-agentmonitor-error-schema": "SafeProblemV1",
+        "x-agentmonitor-replay-policy": "replay_safe_representation",
+        "x-agentmonitor-required-permission": "write:accounts"
+      }
+    },
+    "/api/v1/accounts/{account_id}/billing-connections": {
+      "get": {
+        "operationId": "registry_get_billing_connections_v1",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "account_id",
+            "required": true,
+            "schema": {
+              "title": "Account Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccountBillingConnectionsV1"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          },
+          "405": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          },
+          "412": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          },
+          "413": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          },
+          "415": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          },
+          "428": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          },
+          "429": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          },
+          "500": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          },
+          "504": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          }
+        },
+        "security": [
+          {
+            "BrowserSessionCookieV1": []
+          },
+          {
+            "BearerTokenV1": []
+          }
+        ],
+        "summary": "Get Billing Connections",
+        "tags": [
+          "registry"
+        ],
+        "x-agentmonitor-application-port": "BillingConnectionPortV1.get",
+        "x-agentmonitor-auth-profile": "cookie_or_bearer",
+        "x-agentmonitor-error-schema": "SafeProblemV1",
+        "x-agentmonitor-replay-policy": "safe_query_repeat",
+        "x-agentmonitor-required-permission": "read:accounts"
+      },
+      "post": {
+        "operationId": "registry_create_billing_connection_v1",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "account_id",
+            "required": true,
+            "schema": {
+              "title": "Account Id",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Current resource ETag.",
+            "in": "header",
+            "name": "If-Match",
+            "required": true,
+            "schema": {
+              "maxLength": 160,
+              "type": "string"
+            }
+          },
+          {
+            "description": "Stable operation key for safe retries.",
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": true,
+            "schema": {
+              "pattern": "^[A-Za-z0-9_-]{16,128}$",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateBillingConnectionInputV1"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BillingConnectionViewV1"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          },
+          "405": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          },
+          "412": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          },
+          "413": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          },
+          "415": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          },
+          "428": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          },
+          "429": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          },
+          "500": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          },
+          "504": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          }
+        },
+        "security": [
+          {
+            "BrowserCsrfHeaderV1": [],
+            "BrowserSessionCookieV1": []
+          },
+          {
+            "BearerTokenV1": []
+          }
+        ],
+        "summary": "Create Billing Connection",
+        "tags": [
+          "registry"
+        ],
+        "x-agentmonitor-application-port": "BillingConnectionPortV1.create",
         "x-agentmonitor-auth-profile": "cookie_or_bearer",
         "x-agentmonitor-error-schema": "SafeProblemV1",
         "x-agentmonitor-replay-policy": "replay_safe_representation",
@@ -24792,10 +25382,10 @@
       "starlette": "1.6.0"
     },
     "generator": "agentmonitor-openapi-client",
-    "generator_sha256": "4c428ce43e6720207c45ec1d9351da278969f1ea08b62b1beedc270c8961c7da",
+    "generator_sha256": "a7a7e9f817735c4679e1cff260ce3bcbf19c5c8e38b59ece6a228889d6532a17",
     "generator_version": "2.0.8",
     "openapi_version": "3.1.0",
-    "schema_sha256": "2fadbb6c133b9d6c323714cfc2d95bc50ada9b3832310aba6c47dec78d800fc7",
-    "source_sha256": "585586a5af83e6b85e6b4e1092580929c28dc04c1db0a5edfafe4f4ed6a6bdc9"
+    "schema_sha256": "d134417a2cb800af39610bd32b9dad6135f5ad7735a24a09148e17d3b4682fc1",
+    "source_sha256": "bb41b8ab809c67acc6a731579651d683ce3184bd4aacd25a815735fc44836a98"
   }
 }

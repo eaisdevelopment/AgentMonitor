@@ -81,8 +81,8 @@ asserted; ambiguous overlap prevents invalid totals.
 
 ## 5. Minimum data model and migration
 
-Root allocates M05 `v1_0731` after M02 owner-setup `v1_0730`, which follows
-current `v1_0720`; M04 `v1_0732` follows only if needed. Preserve all old migration contents/digests.
+Root allocates M05 `v1_0732` after M02 owner-setup `v1_0730`/`v1_0731`, which follow
+current `v1_0720`; M04 `v1_0733` follows only if needed. Preserve all old migration contents/digests.
 Use existing budget/usage/provenance facts and receipt keys where semantics fit.
 Add only:
 

@@ -1,7 +1,8 @@
 """Execute bounded M7 checks without treating a partial slice as milestone proof.
 
-Pure calculations and their critical mutation lane execute real tests. Other named
-boundaries remain explicit Not Run results until their real implementation lands.
+Pure calculations, critical mutations and an explicit registry metadata slice
+execute real tests. Full registry setup and other named boundaries remain Not Run
+until their real implementation lands.
 No ticket flag, owner-entered result or historical receipt can make them pass.
 """
 
@@ -20,7 +21,16 @@ from tools.automation.implementations.auto_m6_exit import (
 
 ROOT = Path(__file__).resolve().parents[3]
 Status = Literal["passed", "failed", "blocked", "not_run"]
-Lane = Literal["pure", "mutation", "technical", "live", "browser", "deploy", "exit"]
+Lane = Literal[
+    "pure",
+    "mutation",
+    "registry_metadata",
+    "technical",
+    "live",
+    "browser",
+    "deploy",
+    "exit",
+]
 
 PURE_TARGETS = (
     "backend/tests/capacity/pure/test_budget_exact_arithmetic.py",
@@ -29,11 +39,19 @@ PURE_TARGETS = (
     "backend/tests/capacity/pure/test_budget_report_selection.py",
     "backend/tests/capacity/test_quantity_and_health.py",
 )
+REGISTRY_METADATA_TARGETS = (
+    "backend/tests/integration/registry/test_billing_account_intent.py",
+    "backend/tests/integration/registry/test_billing_connections.py",
+    "backend/tests/integration/registry/test_billing_credential_binding.py",
+    "backend/tests/integration/api/test_billing_enrollment_http.py",
+)
 REQUIRED_CHECKS: dict[str, tuple[str, ...]] = {
     "pure": ("pure",),
     "mutation": ("mutation",),
+    "registry_metadata": ("registry_metadata",),
     "technical": (
         "pure",
+        "registry_metadata",
         "registry_http",
         "persistence",
         "collection",
@@ -87,7 +105,7 @@ def _run_pytest(name: str, targets: tuple[str, ...]) -> CheckResult:
         # Paths are fixed repository-owned selections, not external input.
         for target in missing:
             print(f"M7 REQUIRED SUITE NOT RUN: {target}", flush=True)
-        return CheckResult(name, "blocked", "m7_required_suite_missing")
+        return CheckResult(name, "not_run", "m7_required_suite_missing")
     command = [
         str(ROOT / "backend/.venv/bin/python"),
         "-m",
@@ -124,6 +142,14 @@ def execute_lane(lane: str) -> LaneResult:
             check = _run_pytest(
                 "mutation", ("tools/automation/test_m7_budget_mutation_policies.py",)
             )
+        elif name == "registry_metadata":
+            print(
+                "M7 SLICE: account intent, connection metadata and nonsecret binding "
+                "lifecycle over real SQLite/HTTP; secret entry, credential verification "
+                "and full registry flow remain separate",
+                flush=True,
+            )
+            check = _run_pytest("registry_metadata", REGISTRY_METADATA_TARGETS)
         elif lane == "exit":
             child = execute_lane(name)
             check = CheckResult(name, child.status)
@@ -142,6 +168,11 @@ def main(argv: list[str] | None = None) -> int:
     result = execute_lane(args.lane)
     if result.lane in {"pure", "mutation"}:
         scope = "pure policy verification only; no database, HTTP, browser or provider claim"
+    elif result.lane == "registry_metadata":
+        scope = (
+            "registry metadata and nonsecret binding lifecycle only; "
+            "no secret entry, activation or provider access claim"
+        )
     else:
         scope = f"{result.lane}; no milestone acceptance or publication claim"
     print(f"M7 RESULT: {result.status.upper()} — {scope}", flush=True)

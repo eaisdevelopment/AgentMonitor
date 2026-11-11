@@ -37,3 +37,13 @@ This swaps the two unimplemented allocations without changing existing migration
 bytes, financial meaning, scope or dependencies. M04 retains `v1_0732` if needed.
 The optional `AccountViewV1.initial_connection_purpose` defaults to null for
 existing accounts; api intent does not assert identity or enable monitoring.
+
+
+### Subsequent additive connection metadata allocation
+
+The initial intent migration `v1_0730` is committed and remains immutable. The
+next M02 metadata relation uses `v1_0731`; planned M05 report storage consequently
+uses `v1_0732`, and optional M04 receipt storage `v1_0733`. See the current
+[billing metadata impact](m7-billing-metadata-contract-2026-11-11.md). This is
+internal implementation sequencing within the approved scope, not new owner work
+or a new approval condition.

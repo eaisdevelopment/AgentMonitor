@@ -5,7 +5,7 @@ owner = "integration_steward"
 source_audit = "CAA-2026-09-18-01"
 source_audit_path = "docs/plans/integration/contract-alignment-audit.md"
 contract_version_policy = "Draft contracts propose version 1.0.0 unless an explicit compatible V2 migration retains its published boundary; CTR-COL-010 is the currently reviewed exception."
-contract_count = 105
+contract_count = 106
 owner_approved = false
 implementation_authorized = false
 synchronized = false
@@ -558,6 +558,16 @@ producer = "PLAN-M02"
 consumers = ["PLAN-FND", "PLAN-P01", "PLAN-P02", "PLAN-INT"]
 maturity = "evidence_blocked"
 decision_reference = "Owner-approved M6 cloud plan; additive organization coverage contract review, 2026-11-03"
+checklist = { field_state_null = true, units_time = true, auth = true, side_effects = true, idempotency = true, events = true, retention = true, errors = true, compatibility = true }
+
+[[contracts]]
+id = "CTR-REG-014"
+name = "AccountBillingConnectionsV1"
+version = "1.0.0"
+producer = "PLAN-M02"
+consumers = ["PLAN-FND", "PLAN-P01", "PLAN-P02", "PLAN-INT"]
+maturity = "evidence_blocked"
+decision_reference = "Approved M7 focused plan 1.1.0; billing metadata boundary evidence 2026-11-11"
 checklist = { field_state_null = true, units_time = true, auth = true, side_effects = true, idempotency = true, events = true, retention = true, errors = true, compatibility = true }
 
 # Provider-system contracts

@@ -96,7 +96,11 @@
       "done_when": "Real account metadata/status/eligibility and installed command are tested; no CLI-login misrouting, key disclosure or manual ID entry; live access proof joins the selected provider lane",
       "verification": "python3 tools/automation/run.py AUTO-M7-TEST",
       "evidence": [
-        "docs/evidence/m7-foundation-progress-2026-11-11.md"
+        "docs/evidence/m7-foundation-progress-2026-11-11.md",
+        "docs/evidence/m7-billing-metadata-contract-2026-11-11.md",
+        "docs/evidence/m7-billing-connections-2026-11-11.md",
+        "docs/evidence/m7-api-setup-ui-2026-11-11.md",
+        "docs/evidence/m7-billing-credential-binding-2026-11-11.md"
       ],
       "depends_on_any": [],
       "delivery_slice": "S0",

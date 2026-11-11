@@ -4,6 +4,13 @@ export function providerDisplayName(providerKey: string): string {
   return providerKey.replaceAll("_", " ");
 }
 
+export function billingProviderDisplayName(providerKey: string): string {
+  if (providerKey === "claude") return "Anthropic API";
+  if (providerKey === "codex") return "OpenAI API";
+  if (providerKey === "ollama") return "Ollama Cloud";
+  return providerDisplayName(providerKey);
+}
+
 export function providerConnectionCopy(providerKey: string) {
   const provider = providerDisplayName(providerKey);
   return Object.freeze({

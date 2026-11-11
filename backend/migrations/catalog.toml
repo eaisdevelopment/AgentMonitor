@@ -1,5 +1,5 @@
-version = "1.7.30"
-head = "v1_0730"
+version = "1.7.31"
+head = "v1_0731"
 env_sha256 = "27449e3ed3984acde690510f9e4974eb6412f5f1b7e62af65bc8bb616879a7d7"
 
 [[revisions]]
@@ -882,3 +882,25 @@ backup_prerequisite = "required_existing_database"
 validation_ids = ["single_head", "m02_billing_intent_schema", "foreign_key_check", "full_integrity"]
 recovery_policy = "preserve_failed_database_and_restore_verified_backup_or_forward_fix"
 reviewer = "M02-M7-billing-intent-root-review"
+
+[[revisions]]
+ordinal = 731
+filename = "v1_0731_m02_billing_connections.py"
+sha256 = "03cee77d6b3beca1d545227b72dca0cb7c027e7c3dca8d2c5e48f0c3bfde83ee"
+status = "implemented"
+reviewed_at = "2026-11-11"
+revision = "v1_0731"
+parent_revision = "v1_0730"
+owner = "M02"
+plan_id = "PLAN-M02"
+requirement_ids = ["FR-ACC-001", "FR-BUDGET-001", "M7-A01"]
+schema_range = ["v1_0731", "v1_0731", "v1_0731", "v1_0731", "v1_0731"]
+tables = ["reg_billing_connection"]
+portability_notes = ["One billing metadata row per account, bound to its normalized resource", "Scope identifiers are metadata; credentials never enter this table", "Subscription identity and monitoring columns remain untouched"]
+lock_policy = "exclusive_migration_and_begin_immediate"
+downtime_policy = "offline_additive_schema_migration"
+expected_data_volume = "zero_initial_rows_at_most_one_per_account"
+backup_prerequisite = "required_existing_database"
+validation_ids = ["single_head", "m02_billing_connection_schema", "foreign_key_check", "full_integrity"]
+recovery_policy = "preserve_failed_database_and_restore_verified_backup_or_forward_fix"
+reviewer = "M02-M7-billing-connections-root-review"

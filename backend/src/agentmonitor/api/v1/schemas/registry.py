@@ -146,3 +146,37 @@ class ProviderInstallationPageV1(_ClosedV1):
     items: tuple[ProviderInstallationViewV1, ...]
     page: PageMetaV1
     availability: AvailabilityV1
+
+
+class CreateBillingConnectionInputV1(_ClosedV1):
+    scope_id: str | None = Field(
+        default=None,
+        min_length=1,
+        max_length=128,
+        pattern=r"^[A-Za-z0-9][A-Za-z0-9_.:-]*$",
+    )
+
+
+class BillingConnectionViewV1(_ClosedV1):
+    account_id: str
+    resource_id: str
+    provider_key: Literal["claude", "codex", "ollama"]
+    scope_id: str | None
+    scope_evidence: Literal["unresolved", "owner_asserted", "provider_verified"]
+    scope_generation: int
+    monitoring_preference: Literal["enabled", "disabled"]
+    lifecycle: Literal["pending", "active", "disconnected"]
+    record_version: int
+    registry_revision: int
+    created_at: datetime
+    updated_at: datetime
+
+
+class AccountBillingConnectionsV1(_ClosedV1):
+    account_id: str
+    provider_key: str
+    account_lifecycle: Literal["pending", "active", "disabled", "archived"]
+    account_record_version: int
+    can_add_connection: bool
+    reason_code: str
+    connections: tuple[BillingConnectionViewV1, ...]
