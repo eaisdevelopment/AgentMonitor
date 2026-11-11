@@ -103,3 +103,23 @@ Both were independently matched to SHA-256 of the corresponding old/new OpenAPI
 JSON bytes; these are reviewed nonsecret artifact digests, not API credentials.
 No other finding was reported. The dashboard service remains active and its
 loopback page returned HTTP 200; this is availability, not M7 browser acceptance.
+
+## Subsequent credential-entry increment
+
+The independent billing metadata connection is now implemented, and the
+[safe status projection](m7-billing-credential-status-2026-11-11.md) adds
+CTR-REG-014 1.1.0 lifecycle status through real SQLite, HTTP and the built UI.
+The [provider-neutral protected writer](m7-billing-env-store-2026-11-11.md)
+and [local operator](m7-billing-credential-operator-2026-11-11.md) preserve legacy
+Ollama isolation while adding selected Anthropic/OpenAI owner entry. Real
+empty-file and hidden-terminal cancellation checks do not establish successful
+key storage or provider access. The candidate builds; it is not deployed.
+
+Remaining first-journey work includes the copy-command/installed setup wiring,
+actual provider access, one monetary report through durable storage/collection,
+then detail/history and Overview. The current report contract can represent the
+first ungrouped cost report. Provider credential readers remain provider-specific;
+generic storage alone does not authorize a billing HTTP request. Collection
+integration must handle API-only targets without invented CLI profiles and
+report receipts without invented observations. These remain the existing
+T002/T005/T006/T007 implementation work, not new owner approvals or scope.

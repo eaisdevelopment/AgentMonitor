@@ -78,7 +78,10 @@ def test_api_account_creation_exposes_safe_billing_status(tmp_path: Path) -> Non
             assert isinstance(payload, dict)
             assert payload["account_id"] == account_id
             assert "no-store" in status[1].get("Cache-Control", "")
+            # Account versions fence mutations, not this composite status view.
+            assert "ETag" not in status[1]
             assert payload["connections"] == []
+            assert payload["credential_status"] is None
             assert payload["can_add_connection"] is True
             assert payload["account_lifecycle"] == "pending"
 
@@ -180,6 +183,12 @@ def test_api_account_creation_exposes_safe_billing_status(tmp_path: Path) -> Non
             assert listed[0] == 200
             assert json.loads(listed[2])["connections"] == [connected]
             assert json.loads(listed[2])["can_add_connection"] is False
+            assert json.loads(listed[2])["credential_status"] == {
+                "state": "missing",
+                "active_generation": None,
+                "pending_generation": None,
+                "cleanup_required": False,
+            }
             unchanged = await asyncio.to_thread(
                 _request,
                 origin,

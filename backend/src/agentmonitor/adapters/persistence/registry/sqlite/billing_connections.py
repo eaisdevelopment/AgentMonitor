@@ -11,6 +11,9 @@ from agentmonitor.adapters.persistence._shared.sqlite.core.policy import (
     SqlitePolicyError,
     open_sqlite_database,
 )
+from agentmonitor.adapters.persistence.registry.sqlite.credential_bindings import (
+    read_credential_bindings_in_transaction,
+)
 from agentmonitor.adapters.persistence.registry.sqlite.registry_transaction import (
     RegistryRepositoryErrorV1,
     _append_change,
@@ -32,6 +35,7 @@ from agentmonitor.modules.registry.application.organizations import (
 )
 from agentmonitor.modules.registry.domain.billing_connection import (
     billing_connection_eligibility,
+    billing_credential_status,
 )
 
 _OPERATION = "create_billing_connection"
@@ -88,6 +92,13 @@ def _get(
         can_add_connection=can_add,
         reason_code=reason,
         connections=connections,
+        credential_status=(
+            billing_credential_status(
+                read_credential_bindings_in_transaction(connection, account_id)
+            )
+            if connections
+            else None
+        ),
     )
 
 

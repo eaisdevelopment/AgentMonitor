@@ -181,6 +181,68 @@ assets, creates a fresh migrated temporary database and local IAM session,
 starts a real ephemeral loopback HTTP service, and launches real Chrome.
 Only administrator metadata is created; there is no seeded provider telemetry.
 
+## Credential status increment: CTR-REG-014 1.1.0
+
+This bounded T002/P02 follow-up consumes the root-published optional
+`credential_status` on AccountBillingConnectionsV1. It supports M7-A01 and
+FR-BUDGET-006/FR-ACC-004 without claiming credential enrollment or a first reading.
+The baseline was `e544f8c`; root owns the backend, schema and generated-client
+changes. This UI follow-up changes only BillingConnectionPanel.tsx, the existing
+accounts_admin.mjs scenario and this evidence.
+
+The panel labels actual server states Credential required, Credential entry
+pending, Credential stored, and Credential cleanup required. Stored explicitly
+does not verify provider access. A cleanup flag adds its warning independently
+of the main state, including when a stored active credential remains. Null or
+absent status renders no credential-state claim; it never implies Missing.
+No credential identifier, generation number, location or value is displayed.
+No local command or entry control is invented. The mixed-account panel remains
+collapsed below subscription activity until opened by the owner.
+
+### Red
+
+At 15:47 UTC, after root reported real HTTP status Green and generated types
+ready, the built Chrome/HTTP/SQLite scenario failed at
+`missing_billing_credential`:
+
+```text
+locator.waitFor: Timeout 30000ms exceeded.
+waiting for getByText('Credential required', { exact: true }) to be visible
+```
+
+The scenario had already created an actual API account and billing connection,
+then asserted that the real GET response contained `credential_status.state`
+equal to `missing`. The failure was the absent UI label, before this production
+rendering change. The same scenario checks no inferred Missing before creating
+a binding or for the real Ollama null status, persistence after reload, and
+the missing credential on the separately attached mixed-account binding.
+
+### Green
+
+At 15:48 UTC, strict frontend TypeScript and the rebuilt real browser scenario
+both exited 0:
+
+```text
+P02 ACCOUNTS ADMIN: PASSED — real API, SQLite, and built browser
+P02 BROWSER: PASSED — accounts_admin
+```
+
+The existing API-only, compact mixed-account, metadata persistence,
+subscription-management, capacity-refresh and responsive assertions remained
+enabled and passed. Scoped `git diff --check` passed. No production change
+followed this Green. The temporary-tool context exited and was released back
+to root before its subsequent schema-description regeneration.
+
+The existing reproducible command above runs this increment. The root granted
+an exclusive temporary-tool window to avoid concurrent guarded-link cleanup.
+No temporary network response or lifecycle state was injected.
+
+Stored, pending-entry and cleanup-required browser states are Not Run here:
+this slice does not enter credentials or manufacture lifecycle records to obtain
+those states. Their rendering is implemented, but this evidence proves the real
+missing/null paths only. Provider access and first-reading verification remain
+outside the slice.
+
 ## Security, operations and residual work
 
 No dependency, license, migration, service configuration or owner-runtime

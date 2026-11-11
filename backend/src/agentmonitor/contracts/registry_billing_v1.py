@@ -61,6 +61,47 @@ class BillingConnectionViewV1(TechnicalValueV1):
 
 
 @dataclass(frozen=True, slots=True)
+class BillingCredentialStatusV1(TechnicalValueV1):
+    """Local lifecycle metadata only; stored never proves provider access.
+
+    Generations describe the actual active/pending records, not the aggregate's
+    revocation fence. Cleanup may remain outstanding alongside either record.
+    No credential identifier, location or value is published.
+    """
+
+    CONTRACT_ID: ClassVar[str] = "CTR-REG-014"
+    OWNER: ClassVar[str] = "PLAN-M02"
+    state: Literal["missing", "pending", "stored", "cleanup_required"]
+    active_generation: int | None
+    pending_generation: int | None
+    cleanup_required: bool
+
+    def __post_init__(self) -> None:
+        TechnicalValueV1.__post_init__(self)
+        expected = (
+            "pending"
+            if self.pending_generation is not None
+            else "stored"
+            if self.active_generation is not None
+            else "cleanup_required"
+            if self.cleanup_required
+            else "missing"
+        )
+        if (
+            self.state != expected
+            or type(self.cleanup_required) is not bool
+            or any(
+                value is not None and (type(value) is not int or value < 1)
+                for value in (self.active_generation, self.pending_generation)
+            )
+            or self.active_generation is not None
+            and self.pending_generation is not None
+            and self.pending_generation != self.active_generation + 1
+        ):
+            raise ValueError("registry_billing_credential_status_invalid")
+
+
+@dataclass(frozen=True, slots=True)
 class AccountBillingConnectionsV1(TechnicalValueV1):
     CONTRACT_ID: ClassVar[str] = "CTR-REG-014"
     OWNER: ClassVar[str] = "PLAN-M02"
@@ -71,6 +112,7 @@ class AccountBillingConnectionsV1(TechnicalValueV1):
     can_add_connection: bool
     reason_code: str
     connections: tuple[BillingConnectionViewV1, ...]
+    credential_status: BillingCredentialStatusV1 | None = None
 
     def __post_init__(self) -> None:
         TechnicalValueV1.__post_init__(self)

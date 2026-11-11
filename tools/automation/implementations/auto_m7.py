@@ -40,6 +40,7 @@ PURE_TARGETS = (
     "backend/tests/capacity/test_quantity_and_health.py",
 )
 REGISTRY_METADATA_TARGETS = (
+    "backend/tests/registry/test_billing_credential_status.py",
     "backend/tests/integration/registry/test_billing_account_intent.py",
     "backend/tests/integration/registry/test_billing_connections.py",
     "backend/tests/integration/registry/test_billing_credential_binding.py",

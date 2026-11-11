@@ -49,8 +49,12 @@ try {
   await page.getByRole("heading", { name: "API billing setup", exact: true }).waitFor();
   stage = "create_billing_connection";
   await page.getByLabel("Provider billing scope (optional)").fill("billing-scope-browser");
+  assert.equal(await page.getByText("Credential required", { exact: true }).count(), 0);
   const bindingCreation = page.waitForResponse((response) =>
     response.url().endsWith(`/accounts/${created.account_id}/billing-connections`) && response.request().method() === "POST",
+  );
+  const credentialStatusRead = page.waitForResponse((response) =>
+    response.url().endsWith(`/accounts/${created.account_id}/billing-connections`) && response.request().method() === "GET" && response.status() === 200,
   );
   await page.getByRole("button", { name: "Add API billing connection", exact: true }).click();
   const bindingResponse = await bindingCreation;
@@ -65,6 +69,10 @@ try {
   await page.getByText("billing-scope-browser", { exact: true }).waitFor();
   await page.getByText("API monitoring is off.", { exact: true }).waitFor();
   await page.getByText("Access has not been verified.", { exact: true }).waitFor();
+  stage = "missing_billing_credential";
+  const credentialStatus = await (await credentialStatusRead).json();
+  assert.equal(credentialStatus.credential_status.state, "missing");
+  await page.getByText("Credential required", { exact: true }).waitFor();
   assert.equal(await page.getByRole("button", { name: "Connect Claude", exact: true }).count(), 0);
   assert.equal(await page.locator("details.quota-history, [data-account-sessions]").count(), 0);
   assert.equal(await page.getByRole("heading", { name: "Account activity", exact: true }).count(), 0);
@@ -74,6 +82,7 @@ try {
   await page.reload();
   await page.getByRole("heading", { name: "API billing setup", exact: true }).waitFor();
   await page.getByText("billing-scope-browser", { exact: true }).waitFor();
+  await page.getByText("Credential required", { exact: true }).waitFor();
   assert.equal(await page.getByRole("button", { name: "Add API billing connection", exact: true }).count(), 0);
   stage = "api_only_responsive";
   await page.setViewportSize({ width: 390, height: 844 });
@@ -111,6 +120,7 @@ try {
   assert.equal(mixedBinding.scope_evidence, "unresolved");
   assert.equal(mixedBinding.monitoring_preference, "disabled");
   await page.getByText("Provider billing scope has not been specified.", { exact: true }).waitFor();
+  await page.getByText("Credential required", { exact: true }).waitFor();
   await page.getByRole("heading", { name: "Account activity", exact: true }).waitFor();
   await page.getByRole("button", { name: "Edit account" }).click();
   await page.getByText("Withheld from dashboard", { exact: true }).waitFor();
@@ -145,6 +155,7 @@ try {
   await page.getByRole("heading", { name: "Browser cloud billing account", exact: true }).waitFor();
   await page.getByText("Ollama Cloud billing uses the existing cloud connection flow. API-only setup is not available yet.", { exact: true }).waitFor();
   assert.equal(await page.getByRole("button", { name: "Add API billing connection", exact: true }).count(), 0);
+  assert.equal(await page.getByText("Credential required", { exact: true }).count(), 0);
   await browser.close();
   console.log("P02 ACCOUNTS ADMIN: PASSED — real API, SQLite, and built browser");
 } catch (error) {

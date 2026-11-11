@@ -100,7 +100,10 @@
         "docs/evidence/m7-billing-metadata-contract-2026-11-11.md",
         "docs/evidence/m7-billing-connections-2026-11-11.md",
         "docs/evidence/m7-api-setup-ui-2026-11-11.md",
-        "docs/evidence/m7-billing-credential-binding-2026-11-11.md"
+        "docs/evidence/m7-billing-credential-binding-2026-11-11.md",
+        "docs/evidence/m7-billing-credential-status-2026-11-11.md",
+        "docs/evidence/m7-billing-env-store-2026-11-11.md",
+        "docs/evidence/m7-billing-credential-operator-2026-11-11.md"
       ],
       "depends_on_any": [],
       "delivery_slice": "S0",

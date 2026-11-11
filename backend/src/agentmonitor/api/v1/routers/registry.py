@@ -28,6 +28,7 @@ from agentmonitor.api.v1.schemas.registry import (
     ArchiveOrganizationInputV1,
     AssignAccountOrganizationInputV1,
     BillingConnectionViewV1,
+    BillingCredentialStatusV1,
     CreateBillingConnectionInputV1,
     CreateOrganizationInputV1,
     MaskedRegistryFieldWireV1,
@@ -811,7 +812,9 @@ def get_billing_connections(
     if status is None:
         raise ProblemError(404, "registry_subject_not_found")
     response.headers["Cache-Control"] = "no-store"
-    response.headers["ETag"] = f'"{account_id}.{status.account_record_version}"'
+    # Account record_version fences metadata mutations, but does not version
+    # credential lifecycle changes in this composite view. Do not advertise it
+    # as a strong representation validator.
     return AccountBillingConnectionsV1(
         account_id=status.account_id.value,
         provider_key=status.provider_key,
@@ -820,6 +823,16 @@ def get_billing_connections(
         can_add_connection=status.can_add_connection,
         reason_code=status.reason_code,
         connections=tuple(_billing_connection(item) for item in status.connections),
+        credential_status=(
+            None
+            if status.credential_status is None
+            else BillingCredentialStatusV1(
+                state=status.credential_status.state,
+                active_generation=status.credential_status.active_generation,
+                pending_generation=status.credential_status.pending_generation,
+                cleanup_required=status.credential_status.cleanup_required,
+            )
+        ),
     )
 
 

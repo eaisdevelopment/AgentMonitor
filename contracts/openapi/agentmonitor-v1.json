@@ -33,6 +33,17 @@
             "title": "Connections",
             "type": "array"
           },
+          "credential_status": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/BillingCredentialStatusV1"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Local entry lifecycle; null means not queried/not applicable. Stored records completion of local entry, not provider verification."
+          },
           "provider_key": {
             "title": "Provider Key",
             "type": "string"
@@ -1818,6 +1829,56 @@
           "updated_at"
         ],
         "title": "BillingConnectionViewV1",
+        "type": "object"
+      },
+      "BillingCredentialStatusV1": {
+        "additionalProperties": false,
+        "description": "Local entry metadata, not a credential read or provider access proof.",
+        "properties": {
+          "active_generation": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Active Generation"
+          },
+          "cleanup_required": {
+            "title": "Cleanup Required",
+            "type": "boolean"
+          },
+          "pending_generation": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pending Generation"
+          },
+          "state": {
+            "enum": [
+              "missing",
+              "pending",
+              "stored",
+              "cleanup_required"
+            ],
+            "title": "State",
+            "type": "string"
+          }
+        },
+        "required": [
+          "state",
+          "active_generation",
+          "pending_generation",
+          "cleanup_required"
+        ],
+        "title": "BillingCredentialStatusV1",
         "type": "object"
       },
       "BrowserSessionPageV1": {
@@ -25385,7 +25446,7 @@
     "generator_sha256": "a7a7e9f817735c4679e1cff260ce3bcbf19c5c8e38b59ece6a228889d6532a17",
     "generator_version": "2.0.8",
     "openapi_version": "3.1.0",
-    "schema_sha256": "d134417a2cb800af39610bd32b9dad6135f5ad7735a24a09148e17d3b4682fc1",
-    "source_sha256": "bb41b8ab809c67acc6a731579651d683ce3184bd4aacd25a815735fc44836a98"
+    "schema_sha256": "fb9a9249e70e642f076fa398c2cf42a6d2507e16522a990d0fc73b8869e42db0",
+    "source_sha256": "878d3c98f39a94b372708ec6d4481be670ac46fdcab8a1b58de82047aa153a95"
   }
 }

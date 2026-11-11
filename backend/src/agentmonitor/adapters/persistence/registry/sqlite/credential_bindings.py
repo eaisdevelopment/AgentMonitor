@@ -199,6 +199,17 @@ def _load(
     return result
 
 
+def read_credential_bindings_in_transaction(
+    connection: Connection, account_id: OpaqueIdV1
+) -> CredentialBindingAggregateV1:
+    """M02-local read projection using the caller's consistent transaction."""
+    if not connection.in_transaction():
+        raise CredentialBindingRepositoryErrorV1(
+            "credential_binding_transaction_required"
+        )
+    return _load(connection, account_id)
+
+
 def ensure_active_binding_in_transaction(
     connection: Connection, reference: ActiveCredentialBindingRefV1
 ) -> None:

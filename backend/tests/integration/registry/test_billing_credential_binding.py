@@ -106,6 +106,14 @@ def test_prepare_and_archive_retire_only_pending_binding_metadata(
     initial = bindings.read(account.account_id)
     assert initial.bindings == ()
     assert initial.record_version == initial.binding_generation == 0
+    if provider != "ollama":
+        billing = SqliteBillingConnectionRepositoryV1(reference).get(account.account_id)
+        assert billing is not None
+        assert billing.credential_status is not None
+        assert billing.credential_status.state == "missing"
+        assert billing.credential_status.active_generation is None
+        assert billing.credential_status.pending_generation is None
+        assert not billing.credential_status.cleanup_required
     prepared = bindings.transition(
         account.account_id,
         action="prepare",
@@ -116,6 +124,12 @@ def test_prepare_and_archive_retire_only_pending_binding_metadata(
     pending = prepared.bindings[0]
     assert pending.lifecycle == "pending" and pending.generation == 1
     assert pending.association_provenance == "owner_asserted"
+    if provider != "ollama":
+        billing = SqliteBillingConnectionRepositoryV1(reference).get(account.account_id)
+        assert billing is not None and billing.credential_status is not None
+        assert billing.credential_status.state == "pending"
+        assert billing.credential_status.pending_generation == pending.generation
+        assert billing.credential_status.active_generation is None
     assert SqliteCredentialBindingsV1(reference).read(account.account_id) == prepared
     assert registry.get_account(account.account_id) == original
     assert registry.list_account_resources(account.account_id) == resources
@@ -132,6 +146,13 @@ def test_prepare_and_archive_retire_only_pending_binding_metadata(
     assert retired.bindings[0].binding_id == pending.binding_id
     assert retired.bindings[0].lifecycle == "cleanup_pending"
     assert retired.bindings[0].reason_code == "account_archived"
+    if provider != "ollama":
+        billing = SqliteBillingConnectionRepositoryV1(reference).get(account.account_id)
+        assert billing is not None and billing.credential_status is not None
+        assert billing.credential_status.state == "cleanup_required"
+        assert billing.credential_status.cleanup_required
+        assert billing.credential_status.active_generation is None
+        assert billing.credential_status.pending_generation is None
     assert bindings.has_unfinished_bindings()
     with pytest.raises(
         CredentialBindingRepositoryErrorV1,

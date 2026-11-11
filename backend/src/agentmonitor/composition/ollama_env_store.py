@@ -9,17 +9,20 @@ import stat
 from collections.abc import Callable
 from pathlib import Path
 
+from agentmonitor.adapters.credential_env.format import (
+    MANAGED_VARIABLE_PREFIXES,
+    CredentialProviderKey,
+    credential_variable_name,
+    edit_credential_entry,
+    encode_credential_value,
+    parse_managed_entry_name,
+)
 from agentmonitor.adapters.persistence.registry.sqlite.credential_guard import (
     acquire_credential_staging_guard,
     validate_credential_staging_guard,
 )
 from agentmonitor.adapters.providers.ollama.cloud_balance.env_capability import (
     require_safe_env_parent_metadata_v1,
-)
-from agentmonitor.adapters.providers.ollama.cloud_balance.env_format import (
-    credential_variable_name,
-    edit_credential_entry,
-    encode_credential_value,
 )
 from agentmonitor.adapters.providers.ollama.cloud_balance.env_policy import (
     ENV_AUTHORIZATION_POLICY_V1,
@@ -30,7 +33,7 @@ _STAGING_NAME = re.compile(r"\.ollama-env-tmp-[0-9a-f]{32}\Z")
 _LOCATION_STAGING_NAME = re.compile(r"\.ollama-env-location-tmp-[0-9a-f]{32}\Z")
 _LOCATION_NAME = ".ollama-env-location"
 _IMPORT_NAME = re.compile(rb"[A-Z_][A-Z0-9_]{0,127}\Z")
-_MANAGED_PREFIX = ENV_AUTHORIZATION_POLICY_V1.variable_prefix.encode("ascii")
+_MANAGED_PREFIXES = MANAGED_VARIABLE_PREFIXES
 
 
 def _import_name_bytes(variable_name: str) -> bytes:
@@ -41,7 +44,7 @@ def _import_name_bytes(variable_name: str) -> bytes:
     if (
         type(variable_name) is not str
         or _IMPORT_NAME.fullmatch(name) is None
-        or name.startswith(_MANAGED_PREFIX)
+        or name.startswith(_MANAGED_PREFIXES)
     ):
         raise ValueError("ollama_env_import_name_invalid")
     return name
@@ -293,7 +296,9 @@ def read_env_location(staging_root: Path) -> Path:
         os.close(root)
 
 
-def _managed_binding_ids(env_path: Path) -> tuple[str, ...]:
+def _managed_entries(
+    env_path: Path,
+) -> tuple[tuple[CredentialProviderKey, str], ...]:
     """Scan entry names only; never retain, return or print credential values."""
     root = _open_env_parent(env_path)
     parent_identity = os.fstat(root)
@@ -321,8 +326,7 @@ def _managed_binding_ids(env_path: Path) -> tuple[str, ...]:
         metadata = os.fstat(source)
         if not _private_file(metadata) or metadata.st_size > _MAX_ENV_BYTES:
             raise ValueError("ollama_env_file_invalid")
-        prefix = b"AGENTMONITOR_OLLAMA_API_KEY_AMCB_"
-        bindings: list[str] = []
+        bindings: list[tuple[CredentialProviderKey, str]] = []
         name = bytearray()
         in_value = False
         while byte := os.read(source, 1):
@@ -333,14 +337,14 @@ def _managed_binding_ids(env_path: Path) -> tuple[str, ...]:
                 candidate = bytes(name).strip()
                 if candidate.startswith(b"export "):
                     candidate = candidate[7:].lstrip()
-                if candidate.startswith(prefix):
-                    suffix = candidate[len(prefix) :]
-                    if (
-                        re.fullmatch(rb"[0-9A-F]{32}", suffix) is None
-                        or len(bindings) >= 1000
-                    ):
+                try:
+                    managed = parse_managed_entry_name(candidate)
+                except ValueError:
+                    raise ValueError("ollama_env_entry_name_invalid") from None
+                if managed is not None:
+                    if len(bindings) >= 1000:
                         raise ValueError("ollama_env_entry_name_invalid")
-                    bindings.append("amcb_" + suffix.decode("ascii").lower())
+                    bindings.append(managed)
                 name.clear()
                 in_value = True
             elif not in_value:
@@ -439,7 +443,7 @@ def release_env_location_if_unused(
     try:
         if not _location_matches(root, env_path, create=False):
             return
-        if has_unfinished_bindings() or _managed_binding_ids(env_path):
+        if has_unfinished_bindings() or _managed_entries(env_path):
             return
         _require_no_staging_files(staging_root, env_path, root, lock)
         validate_credential_staging_guard(staging_root, root, lock)
@@ -467,7 +471,7 @@ def recover_env_location_if_unused(
         if not _private_file(entry):
             raise ValueError("ollama_env_location_invalid")
         retained = _read_location_at(root)
-        if _managed_binding_ids(retained):
+        if _managed_entries(retained):
             return
         _require_no_staging_files(staging_root, retained, root, lock)
         validate_credential_staging_guard(staging_root, root, lock)
@@ -673,17 +677,18 @@ def recover_ollama_env_staging(env_path: Path, staging_root: Path) -> None:
         os.close(guard_root)
 
 
-def update_ollama_env(
+def _update_managed_env(
     env_path: Path,
     binding_id: str,
     token: bytearray | None,
     *,
+    provider_key: CredentialProviderKey,
     staging_root: Path,
     _held_guard: tuple[int, int] | None = None,
     _import_variable: str | None = None,
 ) -> None:
     """Set/remove one entry, retaining unrelated bytes and failing closed on races."""
-    name = credential_variable_name(binding_id)
+    name = credential_variable_name(binding_id, provider_key=provider_key)
     if token is not None and _import_variable is not None:
         raise ValueError("ollama_env_import_invalid")
     if _import_variable is not None:
@@ -911,6 +916,67 @@ def update_ollama_env(
                         pass
 
 
+def update_managed_env(
+    env_path: Path,
+    binding_id: str,
+    token: bytearray | None,
+    *,
+    provider_key: CredentialProviderKey,
+    staging_root: Path,
+) -> None:
+    """Set/remove one provider-namespaced entry using the existing shared locks."""
+    _update_managed_env(
+        env_path,
+        binding_id,
+        token,
+        provider_key=provider_key,
+        staging_root=staging_root,
+    )
+
+
+def import_managed_env_variable(
+    env_path: Path,
+    binding_id: str,
+    variable_name: str,
+    *,
+    provider_key: CredentialProviderKey,
+    staging_root: Path,
+) -> None:
+    """Copy one literal entry into the selected provider's managed namespace."""
+    _update_managed_env(
+        env_path,
+        binding_id,
+        None,
+        provider_key=provider_key,
+        staging_root=staging_root,
+        _import_variable=variable_name,
+    )
+
+
+def update_ollama_env(
+    env_path: Path,
+    binding_id: str,
+    token: bytearray | None,
+    *,
+    staging_root: Path,
+    _held_guard: tuple[int, int] | None = None,
+    _import_variable: str | None = None,
+) -> None:
+    """Compatibility wrapper retaining Ollama names and internal guard callers."""
+    try:
+        _update_managed_env(
+            env_path,
+            binding_id,
+            token,
+            provider_key="ollama",
+            staging_root=staging_root,
+            _held_guard=_held_guard,
+            _import_variable=_import_variable,
+        )
+    except ValueError as error:
+        raise ValueError(str(error).replace("credential_env_", "ollama_env_")) from None
+
+
 def import_ollama_env_variable(
     env_path: Path,
     binding_id: str,
@@ -946,15 +1012,16 @@ def cleanup_untracked_env_entries(
             ),
         ):
             raise ValueError("ollama_env_location_mismatch")
-        for binding_id in _managed_binding_ids(env_path):
-            update_ollama_env(
+        for provider_key, binding_id in _managed_entries(env_path):
+            _update_managed_env(
                 env_path,
                 binding_id,
                 None,
                 staging_root=staging_root,
                 _held_guard=(root, lock),
+                provider_key=provider_key,
             )
-        if has_unfinished_bindings() or _managed_binding_ids(env_path):
+        if has_unfinished_bindings() or _managed_entries(env_path):
             raise ValueError("credential_binding_cleanup_busy")
         _require_no_staging_files(staging_root, env_path, root, lock)
         validate_credential_staging_guard(staging_root, root, lock)

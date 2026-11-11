@@ -7,6 +7,13 @@ type BillingState =
   | Readonly<{ kind: "error"; message: string }>
   | Readonly<{ kind: "ready"; status: AccountBillingConnectionsV1 }>;
 
+const credentialStateLabels = {
+  missing: "Credential required",
+  pending: "Credential entry pending",
+  stored: "Credential stored",
+  cleanup_required: "Credential cleanup required",
+} as const;
+
 function unavailableReason(reason: string): string {
   if (reason === "existing_cloud_connection_required") return "Ollama Cloud billing uses the existing cloud connection flow. API-only setup is not available yet.";
   if (reason === "provider_unsupported") return "API billing setup is unsupported for this provider.";
@@ -29,6 +36,7 @@ export function BillingConnectionPanel({ account, onExpired, onProofUnavailable,
   const mounted = useRef(false);
   const expiredHandler = useRef(onExpired);
   expiredHandler.current = onExpired;
+  const credentialStatus = state.kind === "ready" ? state.status.credential_status : null;
 
   useEffect(() => {
     mounted.current = true;
@@ -111,6 +119,10 @@ export function BillingConnectionPanel({ account, onExpired, onProofUnavailable,
         </dl>
         <p>Credential setup and access verification are not available in this step yet.</p>
       </div>)}
+      {credentialStatus != null && <>
+        <p><span className="state-chip state-unavailable">{credentialStateLabels[credentialStatus.state]}</span>{credentialStatus.state === "stored" && " Storage does not verify provider access."}</p>
+        {credentialStatus.cleanup_required && <p className="connection-warning" role="status">Cleanup required: local credential removal has not been confirmed.</p>}
+      </>}
       {state.status.can_add_connection && <form onSubmit={(event) => { void create(event); }}>
         <label htmlFor="billing-scope">Provider billing scope (optional)</label>
         <input id="billing-scope" value={scopeId} onChange={(event) => setScopeId(event.target.value)} maxLength={128} pattern="[A-Za-z0-9][A-Za-z0-9_.:\-]*" autoComplete="off" disabled={busy} aria-describedby="billing-scope-help" />

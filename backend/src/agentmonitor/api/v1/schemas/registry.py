@@ -172,6 +172,15 @@ class BillingConnectionViewV1(_ClosedV1):
     updated_at: datetime
 
 
+class BillingCredentialStatusV1(_ClosedV1):
+    """Local entry metadata, not a credential read or provider access proof."""
+
+    state: Literal["missing", "pending", "stored", "cleanup_required"]
+    active_generation: int | None
+    pending_generation: int | None
+    cleanup_required: bool
+
+
 class AccountBillingConnectionsV1(_ClosedV1):
     account_id: str
     provider_key: str
@@ -180,3 +189,8 @@ class AccountBillingConnectionsV1(_ClosedV1):
     can_add_connection: bool
     reason_code: str
     connections: tuple[BillingConnectionViewV1, ...]
+    credential_status: BillingCredentialStatusV1 | None = Field(
+        default=None,
+        description="Local entry lifecycle; null means not queried/not applicable. "
+        "Stored records completion of local entry, not provider verification.",
+    )
