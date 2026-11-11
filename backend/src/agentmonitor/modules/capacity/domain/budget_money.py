@@ -190,6 +190,18 @@ class MoneyPercentage:
         hundredths = _round_half_even(numerator * 10000, denominator)
         return _fixed(hundredths, self.decimal_places)
 
+    @property
+    def is_low_remaining(self) -> bool:
+        """Classify the exact ratio at or below 20%, before display rounding.
+
+        The positive denominator is validated on construction. Signed and
+        over-limit inputs remain unchanged; this does not infer a provider stop.
+        """
+        scale = max(self.numerator.amount.scale, self.denominator.amount.scale)
+        numerator = _aligned(self.numerator.amount, scale)
+        denominator = _aligned(self.denominator.amount, scale)
+        return numerator * 100 <= denominator * 20
+
 
 def remaining_percentage(
     remaining: ExactMoneyV1 | None,

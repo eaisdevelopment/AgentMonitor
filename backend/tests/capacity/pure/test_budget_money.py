@@ -228,6 +228,51 @@ def test_percentages_are_not_clipped_and_ties_are_half_even(
     assert result.percentage_text == expected
 
 
+@pytest.mark.parametrize(
+    ("remaining", "limit", "display", "low"),
+    [
+        ("20.004", "100", "20.00", False),
+        ("19.996", "100", "20.00", True),
+        ("20", "100", "20.00", True),
+        ("0.10002", "0.5", "20.00", False),
+        ("0.09998", "0.5", "20.00", True),
+        ("0", "100", "0.00", True),
+        ("-10", "100", "-10.00", True),
+        ("120", "100", "120.00", False),
+    ],
+)
+def test_low_remaining_uses_exact_ratio_without_rounding_or_clipping(
+    remaining: str, limit: str, display: str, low: bool
+) -> None:
+    with localcontext() as context:
+        context.prec = 2
+        result = policy.remaining_percentage(
+            _money(remaining), _money(limit), compatible=True
+        )
+        assert result is not None
+        assert result.is_low_remaining is low
+        assert result.percentage_text == display
+        assert result.numerator == _money(remaining)
+        assert result.denominator == _money(limit)
+
+
+def test_low_remaining_preserves_precision_at_maximum_coefficient_size() -> None:
+    limit = "1" + "0" * 77
+    for remaining, low in (
+        ("2" + "0" * 76, True),
+        ("2" + "0" * 75 + "1", False),
+        ("1" + "9" * 76, True),
+    ):
+        with localcontext() as context:
+            context.prec = 2
+            result = policy.remaining_percentage(
+                _money(remaining), _money(limit), compatible=True
+            )
+            assert result is not None
+            assert result.percentage_text == "20.00"
+            assert result.is_low_remaining is low
+
+
 @pytest.mark.parametrize("limit", [None, "0", "-1"])
 def test_missing_or_nonpositive_denominator_has_no_percentage(
     limit: str | None,

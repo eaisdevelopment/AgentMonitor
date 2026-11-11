@@ -103,7 +103,13 @@ def financial_checkout(tmp_path: Path) -> tuple[Path, str]:
     )
     # Commit only the current actual operator sources into an isolated test clone.
     # No provider data, replacement collaborators or installed controls are added.
-    for filename in ("auto_m7.py", "m7_setup_activation.py"):
+    for filename in (
+        "auto_m7.py",
+        "m7_setup_activation.py",
+        "auto_m6_cutover.py",
+        "m6_cutover.py",
+        "m6_cutover_diagnostics.py",
+    ):
         relative = Path("tools/automation/implementations") / filename
         (checkout / relative).write_bytes((ROOT / relative).read_bytes())
         subprocess.run(["/usr/bin/git", "add", str(relative)], cwd=checkout, check=True)

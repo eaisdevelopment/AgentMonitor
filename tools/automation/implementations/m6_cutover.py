@@ -64,6 +64,12 @@ from tools.automation.implementations.m6_candidate_release import (
     prepare_candidate_release,
     verify_candidate_release,
 )
+from tools.automation.implementations.m6_cutover_diagnostics import (
+    PHASES,
+    REASONS,
+    cutover_failure_message,
+    cutover_failure_reason,
+)
 from tools.automation.implementations.m6_migration_recovery import (
     _preserve_interrupted_journal,
     _receipt,
@@ -110,6 +116,13 @@ def _systemd_environment() -> dict[str, str]:
 
 class CutoverError(RuntimeError):
     """A closed transition failure without paths or user data."""
+
+    def __init__(
+        self, code: str, *, phase: str = "preflight", reason: str | None = None
+    ) -> None:
+        self.phase = phase if phase in PHASES else "preflight"
+        self.reason = reason if reason in REASONS else None
+        super().__init__(code)
 
 
 def _ctl(*args: str) -> None:
@@ -420,6 +433,7 @@ def _cutover_engine(
         "invocation_id": baseline_props.get("InvocationID"),
         "start_monotonic": baseline_props.get("ExecMainStartTimestampMonotonic"),
     }
+    phase = "transition_lock"
     try:
         fcntl.flock(lock_fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
         lock_now = os.fstat(lock_fd)
@@ -441,6 +455,7 @@ def _cutover_engine(
         validate_m5_service_activation_lock_v1(shared_lock)
         if _properties(unit).get("Restart") != baseline_restart:
             raise CutoverError("baseline_restart_policy_changed")
+        phase = "journal_create"
         _create(
             journal,
             json.dumps(
@@ -455,9 +470,12 @@ def _cutover_engine(
             + b"\n",
         )
         journal_created = True
+        phase = "guard_create"
         _create(guard, guard_content)
         guard_created = True
+        phase = "guard_reload"
         _ctl("daemon-reload")
+        phase = "guard_verify"
         guarded = _properties(unit)
         if (
             guarded.get("Restart") != "no"
@@ -473,7 +491,9 @@ def _cutover_engine(
             or tree_digest(candidate / "frontend/dist") != build_digest
         ):
             raise CutoverError("candidate_changed")
+        phase = "settings_lock"
         settings_lease = operation_stack.enter_context(_hold_settings_lock(data_root))
+        phase = "write_barrier"
         barrier_handle = barrier_stack.enter_context(
             open_sqlite_database(ref, "runtime_read_write")
         )
@@ -483,6 +503,7 @@ def _cutover_engine(
         retained_baseline = (
             baseline if unit == _FIXED_UNIT and baseline != _FIXED_BASELINE else None
         )
+        phase = "guarded_preflight"
         if unit == _FIXED_UNIT:
             _fixed_unit_preflight(
                 expected_revision,
@@ -493,6 +514,7 @@ def _cutover_engine(
             )
         _journal(journal, "stop_attempted", backup_id, facts=facts)
         stop_attempted = True
+        phase = "stop"
         executable_stat = expected_executable.stat()
         stop_receipt = stop_quiescent_unit(
             unit,
@@ -509,11 +531,13 @@ def _cutover_engine(
         stopped = True
         facts["stop_receipt"] = asdict(stop_receipt)
         _journal(journal, "stopped", backup_id, facts=facts)
+        phase = "quiescence"
         service_lease = operation_stack.enter_context(
             exclusive_service_quiescence(data_root, ref)
         )
         barrier.rollback()
         barrier_stack.close()
+        phase = "migration"
         outcome, actual_backup_id = run_upgrade(
             data_root,
             source,
@@ -542,6 +566,7 @@ def _cutover_engine(
         ):
             raise CutoverError("candidate_changed")
         validate_m5_service_activation_lock_v1(shared_lock)
+        phase = "guarded_preflight"
         if unit == _FIXED_UNIT:
             _fixed_unit_preflight(
                 expected_revision,
@@ -550,9 +575,11 @@ def _cutover_engine(
                 private_baseline=baseline_private and retained_baseline is None,
                 update_baseline=retained_baseline,
             )
+        phase = "candidate_override"
         if not replace_override(override, before, after):
             raise CutoverError("override_changed")
         _ctl("daemon-reload")
+        phase = "guarded_preflight"
         if unit == _FIXED_UNIT:
             _fixed_unit_preflight(
                 expected_revision,
@@ -564,6 +591,7 @@ def _cutover_engine(
         # Mark before submitting the start job; never restore after this point.
         _journal(journal, "candidate_start_attempted", backup_id, facts=facts)
         candidate_start_attempted = True
+        phase = "candidate_start"
         # Keep restart disabled, but permit the intended start after durable boundary.
         if guard.is_symlink() or guard.read_bytes() != guard_content:
             raise CutoverError("restart_override_changed")
@@ -572,6 +600,7 @@ def _cutover_engine(
             raise CutoverError("restart_override_changed")
         guard_content = replacement
         _ctl("daemon-reload")
+        phase = "guarded_preflight"
         if unit == _FIXED_UNIT:
             _fixed_unit_preflight(
                 expected_revision,
@@ -581,8 +610,10 @@ def _cutover_engine(
                 start_block=False,
                 update_baseline=retained_baseline,
             )
+        phase = "candidate_start"
         operation_stack.close()
         _ctl("start", unit)
+        phase = "guarded_preflight"
         if unit == _FIXED_UNIT:
             _fixed_unit_preflight(
                 expected_revision,
@@ -592,6 +623,7 @@ def _cutover_engine(
                 start_block=False,
                 update_baseline=retained_baseline,
             )
+        phase = "candidate_verification"
         current = _properties(unit)
         candidate_pid = int(current.get("MainPID", "0"))
         if (
@@ -608,7 +640,7 @@ def _cutover_engine(
         # Keep restart disabled until a separate real product readiness check.
         return "candidate_started_product_verification_required"
 
-    except Exception:  # noqa: BLE001 -- leave guarded state for reviewed recovery.
+    except Exception as error:  # noqa: BLE001 -- retain only closed failure facts.
         if candidate_start_attempted:
             # Do not signal a process whose identity failed verification. Close
             # the manual-start path and preserve the durable candidate boundary.
@@ -624,7 +656,11 @@ def _cutover_engine(
         # Never infer migration completion from a backup manifest, and never
         # start or restore automatically on an ambiguous partial transition.
         # The durable phase and disabled restart remain available for recovery.
-        raise CutoverError("cutover_incomplete_review_journal") from None
+        raise CutoverError(
+            "cutover_incomplete_review_journal",
+            phase=phase,
+            reason=cutover_failure_reason(error),
+        ) from None
     finally:
         barrier_stack.close()
         operation_stack.close()
@@ -2797,10 +2833,8 @@ def main() -> int:
         return 3
     try:
         result = cutover()
-    except (OSError, ValueError, RuntimeError, subprocess.SubprocessError):
-        print(
-            "M6 CUTOVER: BLOCKED — review private transition journal and service state"
-        )
+    except (OSError, ValueError, RuntimeError, subprocess.SubprocessError) as error:
+        print(cutover_failure_message(error))
         return 3
     print(f"M6 CUTOVER: {result}")
     return 0

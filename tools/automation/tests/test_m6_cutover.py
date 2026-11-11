@@ -946,7 +946,7 @@ with _hold_transition_locks(root) as lease:
                 while not children.read_text().strip() and time.monotonic() < deadline:
                     time.sleep(0.02)
                 assert children.read_text().strip()
-            with pytest.raises(CutoverError):
+            with pytest.raises(CutoverError) as refusal:
                 _cutover_engine(
                     unit=unit,
                     data_root=root,
@@ -959,6 +959,9 @@ with _hold_transition_locks(root) as lease:
                         "/bin/bash" if case == "child" else "/bin/sleep"
                     ),
                 )
+            if case == "writer":
+                assert refusal.value.phase == "write_barrier"
+                assert refusal.value.reason == "persistence_busy"
             if writer is not None:
                 writer.rollback()
                 writer.close()

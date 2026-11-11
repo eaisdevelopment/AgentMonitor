@@ -9,6 +9,7 @@ import {
 } from "../../shared/api/client";
 import { completedPeriod, displayMoney, exactMoneyText } from "./budgetPresentation";
 import { advanceFinancialRead } from "./billingCheckPresentation";
+import { canRetainFinancialReading, type FinancialReadContext } from "./financialReadPresentation";
 
 const readable = (value: string) => value.replaceAll("_", " ");
 const instant = (value: string) => new Date(value).toLocaleString(undefined, { timeZoneName: "short" });
@@ -85,25 +86,25 @@ export function BudgetAccountPanel({ account, showUnconfigured, onExpired, readR
 }>) {
   const [days, setDays] = useState<7 | 30>(7);
   const [query, setQuery] = useState(() => completedPeriod(7, new Date()));
-  const [data, setData] = useState<AccountBudgetCurrentWireV1 | null>(null);
+  const [snapshot, setSnapshot] = useState<Readonly<{ context: FinancialReadContext; data: AccountBudgetCurrentWireV1 }> | null>(null);
   const [busy, setBusy] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const expired = useRef(onExpired);
-  const loadedAccount = useRef(account);
   const lastReadRevision = useRef(readRevision);
   expired.current = onExpired;
+  const context: FinancialReadContext = { account, periodStart: query.period_start, periodEnd: query.period_end, readRevision };
+  // Fence the heading during render too, before an obsolete request's effect is cleaned up.
+  const data = snapshot !== null && canRetainFinancialReading(snapshot.context, context) ? snapshot.data : null;
 
   useEffect(() => {
     if (lastReadRevision.current === readRevision) return;
     lastReadRevision.current = readRevision;
-    setData(null);
     setQuery((current) => advanceFinancialRead(current, new Date()));
   }, [readRevision]);
 
   useEffect(() => {
     const controller = new AbortController();
-    if (loadedAccount.current !== account) setData(null);
-    loadedAccount.current = account;
+    setSnapshot((current) => current !== null && canRetainFinancialReading(current.context, context) ? current : null);
     setBusy(true);
     setError(null);
     void (async () => {
@@ -116,11 +117,10 @@ export function BudgetAccountPanel({ account, showUnconfigured, onExpired, readR
           return;
         }
         if (result.data.account_id !== account.account_id || Date.parse(result.data.period.start) !== Date.parse(query.period_start) || Date.parse(result.data.period.end) !== Date.parse(query.period_end)) {
-          setData(null);
           setError("Financial readings did not match this account and interval. Refresh to try again.");
           return;
         }
-        setData(result.data);
+        setSnapshot({ context, data: result.data });
       } catch {
         if (!controller.signal.aborted) setError("The local service is unavailable. Previous readings have not been refreshed.");
       } finally {
@@ -132,7 +132,6 @@ export function BudgetAccountPanel({ account, showUnconfigured, onExpired, readR
 
   function refresh(nextDays: 7 | 30) {
     const next = completedPeriod(nextDays, new Date());
-    if (next.period_start !== query.period_start || next.period_end !== query.period_end) setData(null);
     setDays(nextDays);
     setQuery(next);
   }

@@ -67,6 +67,31 @@ REGISTRY_METADATA_TARGETS = (
     "backend/tests/integration/registry/test_billing_credential_binding.py",
     "backend/tests/integration/api/test_billing_enrollment_http.py",
 )
+COLLECTION_GUARD_TARGETS = (
+    "backend/tests/contracts/test_billing_schedule.py",
+    "backend/tests/collection_control/pure/test_budget_retry_policy.py",
+    "backend/tests/integration/collection_control/test_budget_run_repository_empty.py",
+    "backend/tests/integration/collection_control/test_budget_dispatch_empty.py",
+    "backend/tests/integration/collection_control/test_billing_action_admission.py",
+    "backend/tests/integration/collection_control/test_billing_schedule_empty.py",
+    "backend/tests/integration/collection_control/test_billing_worker_entrypoint.py",
+    "backend/tests/integration/collection_control/test_billing_worker_supervisor.py",
+)
+BUDGET_HTTP_GUARD_TARGETS = (
+    "backend/tests/integration/api/test_budget_http.py",
+    "backend/tests/integration/api/test_billing_actions_http.py",
+    "backend/tests/integration/api/test_billing_monitoring_http.py",
+)
+GUARD_SCOPES = {
+    "collection_guards": (
+        "pure scheduling/retry policy and real no-credential SQLite/worker guards; "
+        "no successful provider collection or report commit claim"
+    ),
+    "budget_http_guards": (
+        "real IAM/current-read/Check/status/monitoring HTTP guards without reports; "
+        "no populated money, summary, history or browser claim"
+    ),
+}
 REQUIRED_CHECKS: dict[str, tuple[str, ...]] = {
     "pure": ("pure",),
     "mutation": ("mutation",),
@@ -153,6 +178,21 @@ def _run_pytest(name: str, targets: tuple[str, ...]) -> CheckResult:
     return CheckResult(name, "passed")
 
 
+def execute_guard(check: str) -> LaneResult:
+    """Execute one explicit partial boundary without accepting its parent check."""
+    targets = {
+        "collection_guards": COLLECTION_GUARD_TARGETS,
+        "budget_http_guards": BUDGET_HTTP_GUARD_TARGETS,
+    }
+    if check not in targets:
+        raise ValueError("m7_selection_invalid")
+    print(f"M7 SLICE: {GUARD_SCOPES[check]}", flush=True)
+    result = _run_pytest(check, targets[check])
+    reason = f" ({result.reason_code})" if result.reason_code else ""
+    print(f"M7 CHECK {check}: {result.status.upper()}{reason}", flush=True)
+    return LaneResult(f"technical/{check}", result.status, (result,))
+
+
 def execute_lane(lane: str) -> LaneResult:
     """Run implemented boundaries; report the rest without inventing evidence."""
     if lane not in REQUIRED_CHECKS:
@@ -187,6 +227,18 @@ def execute_lane(lane: str) -> LaneResult:
                     "backend/tests/integration/capacity/test_budget_account_empty.py",
                 ),
             )
+        elif lane == "technical" and name in {"collection", "budget_http"}:
+            guards = execute_guard(f"{name}_guards")
+            if guards.status == "passed":
+                missing = {
+                    "collection": "m7_genuine_report_collection_not_implemented",
+                    "budget_http": "m7_populated_budget_http_not_implemented",
+                }
+                check = CheckResult(name, "not_run", missing[name])
+            else:
+                # A real failed guard remains a failure even though successful
+                # populated report verification is independently still missing.
+                check = CheckResult(name, guards.status, guards.checks[0].reason_code)
         elif lane == "exit":
             child = execute_lane(name)
             check = CheckResult(name, child.status)
@@ -199,8 +251,10 @@ def execute_lane(lane: str) -> LaneResult:
 
 
 def validate_selection(lane: str, check: str | None, expected: str | None) -> None:
-    """Only the existing deployment lane admits this explicit operational slice."""
+    """Keep partial technical guards separate from exact-revision activation."""
     if check is None and expected is None:
+        return
+    if lane == "technical" and check in GUARD_SCOPES and expected is None:
         return
     if (
         lane != "deploy"
@@ -263,6 +317,14 @@ def setup_activation_result(
 
 def closed_setup_command_reason(output: bytes) -> str:
     """Expose only exact known wrapper messages as fixed codes, never raw output."""
+    from tools.automation.implementations.m6_cutover_diagnostics import (
+        parse_cutover_failure_message,
+    )
+
+    detail = parse_cutover_failure_message(output)
+    if detail is not None:
+        phase, reason = detail
+        return "m7_cutover_" + phase + "_" + reason
     messages = {
         "M6 CUTOVER: BLOCKED — review the transition journal and service state": (
             "m7_setup_cutover_journal_review"
@@ -430,6 +492,11 @@ def execute_setup_activation(expected: str, *, financial: bool = False) -> LaneR
         installed_ready()
         checks.append(CheckResult(stage, "passed"))
     except (OSError, RuntimeError, ValueError, subprocess.SubprocessError) as error:
+        from tools.automation.implementations.m6_cutover_diagnostics import (
+            PHASES,
+            REASONS,
+        )
+
         known = {
             "m7_setup_cutover_journal_review",
             "m7_setup_finalize_journal_review",
@@ -441,6 +508,11 @@ def execute_setup_activation(expected: str, *, financial: bool = False) -> LaneR
             "m7_setup_schema_selection_invalid",
             "m7_setup_controller_not_retained",
         }
+        known.update(
+            "m7_cutover_" + phase + "_" + reason
+            for phase in PHASES
+            for reason in REASONS
+        )
         reason = (
             str(error)
             if str(error) in known
@@ -461,20 +533,26 @@ def execute_setup_activation(expected: str, *, financial: bool = False) -> LaneR
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--lane", required=True, choices=tuple(REQUIRED_CHECKS))
-    parser.add_argument("--check", choices=("setup_activation", "financial_activation"))
+    parser.add_argument(
+        "--check",
+        choices=("setup_activation", "financial_activation", *GUARD_SCOPES),
+    )
     parser.add_argument("--expected-revision")
     args = parser.parse_args(argv)
     try:
         validate_selection(args.lane, args.check, args.expected_revision)
     except ValueError:
         parser.error(
-            "activation requires --lane deploy and --expected-revision=<40SHA>"
+            "activation requires --lane deploy and --expected-revision=<40SHA>; "
+            "guard checks require --lane technical without --expected-revision"
         )
     result = (
         execute_setup_activation(
             args.expected_revision, financial=args.check == "financial_activation"
         )
         if args.check in {"setup_activation", "financial_activation"}
+        else execute_guard(args.check)
+        if args.check in GUARD_SCOPES
         else execute_lane(args.lane)
     )
     if result.lane == "deploy/financial_activation":
@@ -489,6 +567,8 @@ def main(argv: list[str] | None = None) -> int:
             "backup/recovery proof remain separate; "
             "not full deployment or M7 acceptance"
         )
+    elif args.check in GUARD_SCOPES:
+        scope = GUARD_SCOPES[args.check]
     elif result.lane in {"pure", "mutation"}:
         scope = (
             "pure policy verification only; "

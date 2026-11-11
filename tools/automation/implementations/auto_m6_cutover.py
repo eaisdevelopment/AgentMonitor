@@ -131,8 +131,12 @@ def main() -> int:
             if sys.argv[1:]
             else cutover()
         )
-    except (OSError, ValueError, RuntimeError, subprocess.SubprocessError):
-        print("M6 CUTOVER: BLOCKED — review the transition journal and service state")
+    except (OSError, ValueError, RuntimeError, subprocess.SubprocessError) as error:
+        from tools.automation.implementations.m6_cutover_diagnostics import (
+            cutover_failure_message,
+        )
+
+        print(cutover_failure_message(error))
         return 3
     if status != "candidate_started_product_verification_required":
         print("M6 CUTOVER: BLOCKED — cutover result unverified")

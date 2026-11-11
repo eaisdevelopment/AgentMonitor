@@ -137,9 +137,15 @@ def test_real_setup_selector_reaches_controller_preflight_but_cannot_activate(
     # Run the actual current source from a clean isolated clone, never the fixed
     # retained-release directory. Thus no accepted activation can be reached.
     checkout, _ = selected
-    relative = Path("tools/automation/implementations/auto_m7.py")
-    (checkout / relative).write_bytes((ROOT / relative).read_bytes())
-    subprocess.run(["/usr/bin/git", "add", str(relative)], cwd=checkout, check=True)
+    for filename in (
+        "auto_m7.py",
+        "auto_m6_cutover.py",
+        "m6_cutover.py",
+        "m6_cutover_diagnostics.py",
+    ):
+        relative = Path("tools/automation/implementations") / filename
+        (checkout / relative).write_bytes((ROOT / relative).read_bytes())
+        subprocess.run(["/usr/bin/git", "add", str(relative)], cwd=checkout, check=True)
     subprocess.run(
         [
             "/usr/bin/git",

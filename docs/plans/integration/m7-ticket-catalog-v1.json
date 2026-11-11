@@ -149,12 +149,13 @@
       "deliverable": "Canonical technical/live/browser/exit commands and typed receipt",
       "expected_red": "Canonical M7 command is unavailable and cannot assess required evidence; implement executable checks before delivery claims.",
       "done_when": "Scoped selectors and final aggregate runner fail closed on missing evidence; policy/dispatch tests pass independently of unfinished product tests; selector availability never implies the selected product behavior passed.",
-      "verification": "python3 -m unittest tools.automation.test_m7_commands (existing runner-policy check); scoped dispatch verification is required before declaring its new selectors available, not a pass of unfinished product lanes.",
+      "verification": "python3 -m unittest tools.automation.test_m7_commands; python3 -m tools.automation.implementations.auto_m7 --lane technical --check collection_guards; python3 -m tools.automation.implementations.auto_m7 --lane technical --check budget_http_guards. Guard scopes are implemented; full populated collection/HTTP and remaining final checks still required.",
       "evidence": [
         "docs/evidence/m7-foundation-progress-2026-11-11.md",
         "docs/evidence/m7-setup-activation-selector-2026-11-11.md",
         "docs/evidence/m7-billing-integration-2026-11-11.md",
-        "docs/evidence/m7-plan-refactor-2026-11-11.md"
+        "docs/evidence/m7-plan-refactor-2026-11-11.md",
+        "docs/evidence/m7-canonical-financial-checks-2026-11-11.md"
       ],
       "depends_on_any": [],
       "delivery_slice": "S0",
@@ -206,7 +207,8 @@
         "docs/evidence/m7-foundation-progress-2026-11-11.md",
         "docs/evidence/m7-budget-spend-aggregation-2026-11-11.md",
         "docs/evidence/m7-budget-storage-foundation-2026-11-11.md",
-        "docs/evidence/m7-plan-refactor-2026-11-11.md"
+        "docs/evidence/m7-plan-refactor-2026-11-11.md",
+        "docs/evidence/m7-budget-exact-threshold-2026-11-11.md"
       ],
       "depends_on_any": [],
       "delivery_slice": "S0",
@@ -742,7 +744,8 @@
         "docs/evidence/m7-setup-installed-2026-11-11.md",
         "docs/evidence/m7-financial-schema-recovery-2026-11-11.md",
         "docs/evidence/m7-financial-activation-selector-2026-11-11.md",
-        "docs/evidence/m7-plan-refactor-2026-11-11.md"
+        "docs/evidence/m7-plan-refactor-2026-11-11.md",
+        "docs/evidence/m7-financial-cutover-diagnostics-2026-11-11.md"
       ],
       "depends_on_any": [],
       "delivery_slice": "S1",

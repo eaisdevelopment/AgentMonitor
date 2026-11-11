@@ -111,3 +111,62 @@ first real money-on-screen acceptance result.
 Subsequent same-day [Check UI evidence](m7-billing-check-ui-2026-11-11.md) records
 the action control, status polling and pinned-interval refresh increment. Its
 genuine credential-backed browser path remains explicitly Not Run.
+
+## Same-context refresh correction
+
+T011 correction reviewed against `e40b23f`, 11 November 2026, under the same
+FR-BUDGET-002/004, AC-UI-005/006, M7-A07 and CTR-CAP-006 2.2.0 scope.
+
+The previous Check-completion effect erased the last financial response before
+its replacement read succeeded. Rereading account metadata also erased it merely
+because the object reference changed. The panel now stores the immutable
+response together with its original account/configuration generation and UTC
+interval. Same-context Check/Refresh keeps that snapshot while reading; an error
+or rejected mismatched response leaves its original value, scope labels and
+timestamps. A successful response replaces the entire snapshot, never merges new
+scope metadata with old facts. Both render-time context selection and existing
+request abort guards fence obsolete responses.
+
+The currently available configuration fence is account `record_version`; a
+changed version conservatively invalidates the prior snapshot. An unchanged
+version with a freshly read account object does not. The panel has no separate
+live scope-generation prop: external resource/scope edits are learned through
+the next successful financial response, which replaces the whole snapshot with
+its own scope. This correction introduces no additional registry query or new
+contract and does not claim instant detection of unseen external edits.
+
+Red/Green evidence checkpoint: 20:36:53 UTC. Meaningful Red: extracted the existing object-reference and
+Check-revision invalidation rule into the actual-used pure presentation policy.
+`node frontend/tests/pure/financial-read-presentation.mjs` failed its assertion
+`Check completion must retain the prior same-context reading until its replacement succeeds`
+with `false !== true`. This was a behavior failure, not a missing module.
+
+Green: compare stable account/provider/configuration generation and UTC interval,
+ignoring a Check-completion revision or an equal-version object reload. The same
+command passed; existing `budget-account-presentation.mjs` and
+`billing-check-presentation.mjs` also passed. Pure contexts remain no-I/O inputs;
+no provider report or monetary observation was invented. Test cases additionally
+reject another account/provider, changed generation, seven-to-thirty-day switch
+and moved UTC cutoff while accepting equivalent UTC timestamp encodings.
+
+Post-refactor verification: strict TypeScript, production Vite build and the
+existing dedicated real `frontend/tests/browser/m7/run_budget_account.py`
+scenario all passed; its output was `M7 BUDGET ACCOUNT BROWSER: PASSED`, exit 0.
+The temporary tool helper was used exclusively and released after cleanup.
+The browser exercised actual migrated SQLite/HTTP/IAM, no-report metadata,
+thirty-day selection, Refresh, reload, narrow layouts and read-only behavior.
+It did not contain monetary observations. Reproduce with the existing helper
+command above through the dedicated browser step and run:
+
+```sh
+node frontend/tests/pure/financial-read-presentation.mjs
+node frontend/tests/pure/budget-account-presentation.mjs
+node frontend/tests/pure/billing-check-presentation.mjs
+```
+
+Changed files are this evidence, `BudgetAccountPanel.tsx`, new actual-used
+`financialReadPresentation.ts`, and its pure test. No dependency, schema,
+migration, credential, provider, installed-service or financial formula changes.
+Populated real source/API/DOM behavior after a genuine failed replacement remains
+Not Run until genuine financial reports exist; pure policy evidence is not that
+live verification.

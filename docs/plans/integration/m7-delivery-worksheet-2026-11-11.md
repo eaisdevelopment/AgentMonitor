@@ -128,6 +128,10 @@ cannot silently change the meaning of retained financial history.
 
 Currently executable partial checks in the existing M7 runner:
 `pure`, `mutation`, `registry_metadata`, `persistence_schema`.
+The technical lane also implements `--check collection_guards` and
+`--check budget_http_guards` for real isolated process/SQLite and no-report
+IAM/HTTP assertions. Full collection/HTTP checks remain incomplete until genuine
+populated report proof exists; these guards cannot close them.
 The `deploy` selections `setup_activation` and `financial_activation` also exist
 and require a retained clean controller plus exact revision. They change the
 installed service and are not planning checks.
