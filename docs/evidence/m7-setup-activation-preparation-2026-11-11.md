@@ -112,6 +112,14 @@ Ruff with the backend configuration passed. No installed database was migrated.
 Item 3 and installed verification remain outstanding; the above recorded
 `bfe1e35` preparation outcome remains historical and is not rewritten as Passed.
 
+After commit `30f81d32ecf0ded532f4951b756459bce088f801`, the same four real
+preparation tests passed in 17.81s against a clean clone of that revision. Root
+read the actual private preparation artifact and checked its revision against
+HEAD: status `prepared`, source `v1_0720`, target `v1_0731`, blockers empty.
+This proves the corrected candidate's preparation and migration-policy admission;
+it still does not prove selected-service cutover, installed setup or M7 completion.
+The installed dashboard remained active and root HTTP returned 200 afterward.
+
 The fixed installed preflight expects releases beneath its code-owned releases
 directory. Reuse `prepare_candidate_release` there under transition locks and
 revalidate the selected revision/build; do not redirect its globals or activate
