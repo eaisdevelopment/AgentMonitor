@@ -56,6 +56,7 @@ try {
       query.set("limit", "200");
       if (cursor !== undefined) query.set("cursor", cursor);
       const result = await read(`${path}?${query}`);
+      if (!["available", ...(path === "/api/v1/budgets" ? ["partial"] : [])].includes(result.availability?.state)) stop("blocked", "comparison_source_unavailable");
       requireEvidence(Array.isArray(result.items) && typeof result.page?.has_more === "boolean", "overview_page_invalid");
       if (first === undefined) first = result;
       if (first.registry_revision !== result.registry_revision) stop("blocked", "inventory_changed_during_probe");
@@ -79,6 +80,13 @@ try {
     const digits = (coefficient < 0n ? -coefficient : coefficient).toString().padStart(value.scale + 1, "0");
     return `${coefficient < 0n ? "-" : ""}${value.scale === 0 ? digits : `${digits.slice(0, -value.scale)}.${digits.slice(-value.scale)}`} ${value.currency}`;
   }
+  const quantity = value => money({ ...value, currency: value.unit });
+  const periodText = period => `${period.start.slice(0, 10)} to ${period.end.slice(0, 10)} UTC (end exclusive)`;
+  function microseconds(value) {
+    const match = /^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2})(?:\.(\d{1,6}))?Z$/.exec(value ?? "");
+    requireEvidence(match !== null, "timestamp_invalid");
+    return BigInt(Date.parse(match[1] + "Z")) * 1000n + BigInt((match[2] ?? "").padEnd(6, "0"));
+  }
   async function selector(attribute, value) { return page.evaluate(({ attribute, value }) => `[${attribute}="${CSS.escape(value)}"]`, { attribute, value }); }
   async function settled() { await page.locator(".financial-overview[aria-busy=false]").waitFor(); }
   async function reconcile() {
@@ -90,6 +98,7 @@ try {
       if (value !== null) query.set(key, value);
     }
     const expected = await allPages("/api/v1/budgets", query, row => row.row_id);
+    requireEvidence(microseconds(expected.as_of) === microseconds(query.get("as_of")), "overview_cutoff_mismatch");
     for (let index = 0; index < 100; index += 1) {
       const more = financial.getByRole("button", { name: "Load more financial rows", exact: true });
       if (await more.count() === 0) break;
@@ -105,12 +114,17 @@ try {
       const dom = financial.locator(await selector("data-financial-row", row.row_id));
       requireEvidence(await dom.count() === 1, "financial_row_missing");
       requireEvidence(await dom.getAttribute("data-account-id") === row.account.account_id, "financial_row_account_mismatch");
+      requireEvidence(await dom.getAttribute("data-resource-id") === row.resource_id, "financial_row_resource_mismatch");
       requireEvidence((await dom.textContent()).includes(row.state_code.replaceAll("_", " ")), "financial_state_mismatch");
       requireEvidence(await dom.locator("[data-overview-fund]").count() === row.funds.length, "fund_component_set_mismatch");
       for (const fund of row.funds) {
         const node = dom.locator(await selector("data-overview-fund", fund.component_id));
         requireEvidence(await node.count() === 1, "overview_fund_missing");
-        if (fund.remaining.value !== null) requireEvidence(await node.getByTitle(money(fund.remaining.value), { exact: true }).count() > 0, "overview_funds_amount_mismatch");
+        if (fund.remaining.value !== null) requireEvidence(await node.locator(":scope > span[title]").getAttribute("title") === money(fund.remaining.value), "overview_funds_amount_mismatch");
+        if (fund.limit.value !== null) requireEvidence(await node.locator(":scope > small > span[title]").getAttribute("title") === money(fund.limit.value), "overview_funds_limit_mismatch");
+        const labels = { balance: "Balance", included_credits: "Included credits", purchased_credits: "Purchased credits", soft_limit: "Soft budget", hard_limit: "Hard limit" };
+        requireEvidence((await node.locator(":scope > strong").textContent()).trim() === `${labels[fund.kind]}:`, "overview_funds_kind_mismatch");
+        if (fund.percentage_text !== null) requireEvidence(await node.getByText(`${fund.percentage_text}% remaining${fund.is_low === true ? " · Low" : ""}`, { exact: true }).count() === 1, "overview_percentage_mismatch");
         requireEvidence(await node.locator("time").getAttribute("datetime") === (fund.observed_at ?? fund.collected_at), "overview_funds_time_mismatch");
         requireEvidence((await node.getAttribute("class") ?? "").includes("overview-fund-low") === (fund.is_low === true), "overview_low_flag_mismatch");
       }
@@ -121,17 +135,34 @@ try {
         if (context.spend === null) requireEvidence((await node.textContent()).includes("Spend not reported"), "unreported_spend_hidden");
         else requireEvidence(await node.getByTitle(money(context.spend), { exact: true }).count() === 1, "overview_spend_mismatch");
       }
+      for (const [index, context] of row.contexts.entries()) {
+        const times = dom.locator('td[data-label="Data through"] > div').nth(index);
+        const collected = times.locator("small time");
+        requireEvidence(await collected.getAttribute("datetime") === context.collected_at, "overview_collected_time_mismatch");
+        if (context.source_data_through === null) requireEvidence((await times.locator(":scope > span").textContent()) === "Not reported", "overview_watermark_absence_hidden");
+        else requireEvidence(await times.locator(":scope > span time").getAttribute("datetime") === context.source_data_through, "overview_watermark_mismatch");
+      }
       if (row.contexts.length === 0) requireEvidence((await dom.textContent()).includes("No spending report"), "missing_report_not_explained");
     }
     if (expected.summary_reason !== null) requireEvidence((await financial.textContent()).includes(`Spend totals unavailable: ${expected.summary_reason.replaceAll("_", " ")}`), "unavailable_totals_hidden");
-    const visibleQuotaIds = await quota.locator("tbody tr").evaluateAll(rows => rows.map(row => row.dataset.accountId));
+    const summary = financial.locator('[aria-label="Reported spend summaries"]');
+    for (const [index, item] of expected.summaries.entries()) {
+      const line = summary.locator("p").nth(index);
+      requireEvidence(await line.getByTitle(money(item.total), { exact: true }).count() === 1 && (await line.textContent()).includes(`${item.included_pool_count} included pools · ${item.excluded_resource_count} excluded resources`), "overview_summary_mismatch");
+    }
+    for (const item of expected.exclusions) requireEvidence(await summary.getByText(`${item.count} excluded: ${item.reason_code.replaceAll("_", " ")}.`, { exact: true }).count() === 1, "overview_exclusion_mismatch");
+    const visibleQuotaIds = await page.getByRole("table", { name: "Account quota overview", exact: true, includeHidden: true }).locator("tbody tr").evaluateAll(rows => rows.map(row => row.dataset.accountId));
     requireEvidence(visibleQuotaIds.every(id => expected.subscription_account_ids.includes(id)), "api_only_account_in_subscription_table");
+    if (expected.subscription_account_ids.length > 0) requireEvidence(visibleQuotaIds.length > 0, "working_subscription_rows_missing");
     rowsVerified = Math.max(rowsVerified, expected.items.length);
     return expected;
   }
   let expected = await reconcile();
   if (!expected.items.some(row => row.funds.length > 0 || row.contexts.length > 0)) stop("blocked", "real_financial_readings_required");
   checks.overview = "passed";
+  const quotaSort = quota.getByRole("columnheader", { name: "Quota left", exact: true });
+  await quotaSort.getByRole("button", { name: "Quota left", exact: true }).click();
+  requireEvidence(await quotaSort.getAttribute("aria-sort") === "descending" && new URL(page.url()).searchParams.get("quota_sort") === "quota:descending", "quota_sort_not_retained_in_url");
   const registry = await allPages("/api/v1/accounts", new URLSearchParams(), row => row.account_id);
   const organizations = await allPages("/api/v1/organizations", new URLSearchParams(), row => row.organization_id);
   const provider = page.getByRole("combobox", { name: "Provider", exact: true });
@@ -172,11 +203,35 @@ try {
   const detail = new URL(page.url());
   requireEvidence(detail.searchParams.get("budget_resource") === row.resource_id, "detail_resource_selector_lost");
   requireEvidence(detail.searchParams.get("budget_report") === (row.contexts[0]?.report_id ?? null), "detail_report_selector_lost");
-  requireEvidence(detail.searchParams.get("budget_start") === expected.period.start || Date.parse(detail.searchParams.get("budget_start")) === Date.parse(expected.period.start), "detail_period_lost");
+  requireEvidence(microseconds(detail.searchParams.get("budget_start")) === microseconds(expected.period.start) && microseconds(detail.searchParams.get("budget_end")) === microseconds(expected.period.end), "detail_period_lost");
+  requireEvidence(microseconds(detail.searchParams.get("budget_as_of")) === microseconds(expected.as_of), "detail_cutoff_lost");
   await page.reload({ waitUntil: "domcontentloaded" });
   await page.getByRole("region", { name: "API usage & spend", exact: true }).waitFor();
   requireEvidence(new URL(page.url()).search === detail.search, "detail_selectors_lost_on_reload");
-  if (row.contexts[0] !== undefined) await page.locator(await selector("data-report-id", row.contexts[0].report_id)).waitFor();
+  if (row.contexts[0] !== undefined) {
+    const context = row.contexts[0];
+    const query = new URLSearchParams({ account_id: row.account.account_id, report_id: context.report_id, period_start: detail.searchParams.get("budget_start"), period_end: detail.searchParams.get("budget_end"), as_of: detail.searchParams.get("budget_as_of") });
+    const selected = await read(`/api/v1/budgets/${encodeURIComponent(row.resource_id)}?${query}`);
+    requireEvidence(selected.report.report_id === context.report_id && selected.report.account_id === row.account.account_id && selected.report.resource_id === row.resource_id && microseconds(selected.as_of) === microseconds(expected.as_of), "selected_report_context_mismatch");
+    requireEvidence(JSON.stringify(selected.reported_spend.total) === JSON.stringify(context.spend), "overview_detail_spend_mismatch");
+    const section = page.locator(await selector("data-report-id", context.report_id));
+    await section.waitFor();
+    if (context.spend !== null) requireEvidence(await section.getByTitle(money(context.spend), { exact: true }).count() > 0, "detail_spend_mismatch");
+    else requireEvidence((await section.textContent()).includes(selected.reported_spend.reason_code.replaceAll("_", " ")), "detail_spend_absence_hidden");
+    for (const [key, label, buckets] of [["cost", "Show more cost rows", selected.report.cost_buckets], ["usage", "Show more usage rows", selected.report.usage_buckets]]) {
+      for (let index = 0; index < Math.ceil(buckets.length / 50); index += 1) {
+        const more = section.getByRole("button", { name: label, exact: true });
+        if (await more.count() === 0) break;
+        await more.click();
+      }
+      const table = section.getByRole("region", { name: key === "cost" ? "Exact cost history" : "Exact usage history", exact: true });
+      requireEvidence(await table.locator("tbody tr").count() === buckets.length, "selected_bucket_set_mismatch");
+      for (const [index, bucket] of buckets.entries()) {
+        const cells = table.locator("tbody tr").nth(index).getByRole("cell");
+        requireEvidence(await cells.nth(0).textContent() === periodText(bucket.period) && await cells.nth(1).textContent() === (key === "cost" ? money(bucket.amount) : quantity(bucket.quantity)), "selected_exact_bucket_mismatch");
+      }
+    }
+  }
   await page.goBack({ waitUntil: "domcontentloaded" });
   await financial.waitFor();
   requireEvidence(new URL(page.url()).search === before.search, "overview_filters_lost_on_back");
@@ -184,6 +239,7 @@ try {
   await financial.waitFor();
   await reconcile();
   requireEvidence(new URL(page.url()).search === before.search && await resources.inputValue() === "api" && await provider.inputValue() === chosenProvider, "overview_filters_lost_on_reload");
+  requireEvidence(new URL(page.url()).searchParams.get("quota_sort") === "quota:descending", "quota_sort_lost_after_navigation");
   checks.navigation = "passed";
   for (const viewport of [{ width: 1920, height: 1080 }, { width: 1366, height: 768 }, { width: 768, height: 1024 }]) {
     await page.setViewportSize(viewport);

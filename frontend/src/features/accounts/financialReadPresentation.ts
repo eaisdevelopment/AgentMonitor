@@ -34,12 +34,16 @@ export function selectedFinancialReport(search: string): SelectedFinancialReport
   if (resourceId === null || !safeId.test(resourceId) || (reportId !== null && !safeId.test(reportId))) return { kind: "invalid" };
   const readTime = (key: string) => {
     const value = params.get(key);
-    return value !== null && /Z$/.test(value) ? Date.parse(value) : NaN;
+    if (value === null || !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{1,6})?Z$/.test(value)) return NaN;
+    const parsed = Date.parse(value);
+    return Number.isFinite(parsed) && new Date(parsed).toISOString().slice(0, 19) === value.slice(0, 19) ? parsed : NaN;
   };
   const start = readTime("budget_start"), end = readTime("budget_end"), asOf = readTime("budget_as_of");
   const days = (end - start) / 86_400_000;
   if (![start, end, asOf].every(Number.isFinite) || (days !== 7 && days !== 30) ||
+      !/T00:00:00(?:\.0{1,6})?Z$/.test(params.get("budget_start") ?? "") ||
+      !/T00:00:00(?:\.0{1,6})?Z$/.test(params.get("budget_end") ?? "") ||
       start % 86_400_000 !== 0 || end % 86_400_000 !== 0 || end > asOf) return { kind: "invalid" };
   return { kind: "selected", resourceId, reportId, days,
-    query: { period_start: new Date(start).toISOString(), period_end: new Date(end).toISOString(), as_of: new Date(asOf).toISOString() } };
+    query: { period_start: params.get("budget_start")!, period_end: params.get("budget_end")!, as_of: params.get("budget_as_of")! } };
 }

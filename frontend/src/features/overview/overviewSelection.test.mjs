@@ -37,6 +37,7 @@ for (const malformed of [
   valid.replace("budget_as_of=2026-11-11T12:00:00Z", "budget_as_of=not-a-time"),
   valid.replaceAll("2026-11-04", "2026-02-30").replaceAll("2026-11-11", "2026-03-09"),
   valid.replace("report-1", ""), valid + "&budget_unrecognized=value",
+  valid.replace("budget_start=2026-11-04T00:00:00Z", "budget_start=2026-11-04T00:00:00.000001Z"),
   "budget_selection=invalid", "budget_selection=other", "budget_report=report-1", "budget_start=2026-11-04T00:00:00Z",
 ]) {
   const location = safeLocation(`/accounts/account-1?${malformed}`);
@@ -50,6 +51,17 @@ for (const malformed of [
 }
 const selected = safeLocation(`/accounts/account-1?${valid}`);
 assert.equal(selectedFinancialReport(selected.search).kind, "selected");
+for (const precision of ["123000", "1234", "12345", "123456"]) {
+  const cutoff = `2026-11-11T12:00:00.${precision}Z`;
+  const precise = safeLocation(`/accounts/account-1?${valid.replace("2026-11-11T12:00:00Z", cutoff)}`);
+  assert.equal(new URLSearchParams(precise.search).get("budget_as_of"), cutoff);
+  const parsed = selectedFinancialReport(precise.search);
+  assert.equal(parsed.kind, "selected");
+  assert.equal(parsed.query.as_of, cutoff);
+  const login = new URLSearchParams({ next: precise.route + precise.search });
+  const resumed = safeLocation(login.get("next"));
+  assert.equal(selectedFinancialReport(safeLocation(resumed.route + resumed.search).search).query.as_of, cutoff);
+}
 const fundsOnly = safeLocation(`/accounts/account-1?${valid.replace("budget_report=report-1&", "")}`);
 assert.equal(selectedFinancialReport(fundsOnly.search).kind, "selected");
 assert.equal(selectedFinancialReport(safeLocation("/accounts/account-1?provider_key=ollama").search).kind, "none");

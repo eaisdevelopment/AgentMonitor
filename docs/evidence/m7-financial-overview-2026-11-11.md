@@ -91,3 +91,60 @@ The genuine usage currently demonstrated contains counts, not monetary costs.
 First monetary reporting, other provider/category coverage, complete history
 pagination/analysis, scheduling/recovery and final M7 exit remain outstanding.
 No implementation ticket is closed solely by this increment.
+
+
+## Installed increment at 2090270
+
+The same-schema update succeeded at clean implementation revision
+`209027034c1644c926ef40086d936fc7ea4d6fbe`. Systemd confirms that retained release
+active/running, loopback and LAN return HTTP200, and the update restored the
+original restart policy with no transition journal remaining. Schema remains
+v1_0733. Earlier attempts refused during the stop check; their exact underlying
+reason was not retained and is not retroactively inferred from the later success.
+The existing operator now preserves closed stop diagnostics for future failures.
+
+Real authenticated browser results at 23:11–23:12 UTC on 11 November:
+
+- Setup/revision/Overview continuity passed against exact2090270.
+- Genuine funds source → API → DOM/reload passed for two accounts and three
+  components.
+- Genuine daily usage API → DOM/reload passed for two accounts and fourteen
+  buckets. These observations do not establish monetary costs.
+- Overview API/DOM and shared filters passed for two financial rows, then
+  navigation failed with `detail_resource_selector_lost`. Navigation and
+  responsive verification therefore remain unfinished; no whole-Overview pass.
+- All four probes recorded zero mutation requests and closed only their own tabs.
+
+Commands: `node frontend/tests/browser/m7/verify_setup.mjs <2090270-full-SHA>`,
+`node frontend/tests/browser/m7/verify_funds.mjs`,
+`node frontend/tests/browser/m7/verify_usage.mjs`, and
+`node frontend/tests/browser/m7/verify_overview.mjs`. The last command returned1;
+the other three returned0. The navigation failure is the next focused correction,
+not a missing owner input. No account/key/group configuration was performed.
+
+
+### Drill-down cutoff correction
+
+The installed failure was a real product defect: API UTC timestamps use up to
+six fractional digits, while the Overview sanitizer accepted only three.
+A valid `.123000Z` cutoff became `budget_selection=invalid`; the account parser
+also truncated `.123456Z` to milliseconds. Meaningful pure Red reproduced both
+errors before changing the two presentation helpers. The correction validates
+and preserves the exact accepted timestamp text, rejects invalid calendar dates
+and nonzero fractional-midnight period boundaries, and keeps the same cutoff
+through sign-in/reload. Both pure suites passed afterward.
+
+The actual Overview probe now also compares component kind/limit/percentage,
+report timestamps, summary/exclusion counts, positive subscription presence,
+sort retention and selected-report API values/buckets against detail DOM. An
+unavailable comparison source is explicitly Blocked, not an empty expected set.
+It performs no mutations or fabricated provider responses. Full local quality
+passed after the correction: formatting,686-source typing, zero boundary
+violations,87 compatible operations, frontend typing and production build.
+These are candidate checks; the installed navigation rerun follows deployment.
+
+Read-only authenticated inventory also confirmed13 nonarchived accounts,
+including6 Claude and5 Codex, with zero separate billing connections or stored
+billing credentials for either provider. This does not prove denied access.
+The owner was asked once to create/configure an Anthropic API billing resource
+through the tested Accounts setup; independent implementation continues.

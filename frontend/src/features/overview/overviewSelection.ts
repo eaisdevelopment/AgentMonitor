@@ -39,14 +39,18 @@ export function safeOverviewSearch(search: string, detail = false): string {
     if (present.length > 0) {
       const resource = input.get("budget_resource"), report = input.get("budget_report");
       const selectedTime = (key: string) => {
-        const parsed = time(key);
-        return parsed !== null && parsed.toISOString().slice(0, 19) === input.get(key)?.slice(0, 19) ? parsed : null;
+        const value = input.get(key);
+        if (value === null || !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{1,6})?Z$/.test(value)) return null;
+        const parsed = new Date(value);
+        return Number.isFinite(parsed.getTime()) && parsed.toISOString().slice(0, 19) === value.slice(0, 19) ? parsed : null;
       };
       const selectedStart = selectedTime("budget_start"), selectedEnd = selectedTime("budget_end"), selectedAsOf = selectedTime("budget_as_of");
       const safeId = /^[A-Za-z0-9._:-]{1,256}$/;
       const valid = present.every(key => keys.includes(key) && input.getAll(key).length === 1)
         && resource !== null && safeId.test(resource) && (report === null || safeId.test(report))
         && selectedStart !== null && selectedEnd !== null && selectedAsOf !== null
+        && /T00:00:00(?:\.0{1,6})?Z$/.test(input.get("budget_start") ?? "")
+        && /T00:00:00(?:\.0{1,6})?Z$/.test(input.get("budget_end") ?? "")
         && selectedStart.getTime() % 86400000 === 0 && selectedEnd.getTime() % 86400000 === 0
         && [7, 30].includes((selectedEnd.getTime() - selectedStart.getTime()) / 86400000)
         && selectedEnd <= selectedAsOf;
@@ -54,9 +58,10 @@ export function safeOverviewSearch(search: string, detail = false): string {
       else {
         output.set("budget_resource", resource);
         if (report !== null) output.set("budget_report", report);
-        output.set("budget_start", selectedStart.toISOString());
-        output.set("budget_end", selectedEnd.toISOString());
-        output.set("budget_as_of", selectedAsOf.toISOString());
+        // Keep the validated source strings: Date stores only milliseconds.
+        output.set("budget_start", input.get("budget_start")!);
+        output.set("budget_end", input.get("budget_end")!);
+        output.set("budget_as_of", input.get("budget_as_of")!);
       }
     }
   }
