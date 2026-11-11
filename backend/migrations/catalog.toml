@@ -1,5 +1,5 @@
-version = "1.7.20"
-head = "v1_0720"
+version = "1.7.30"
+head = "v1_0730"
 env_sha256 = "27449e3ed3984acde690510f9e4974eb6412f5f1b7e62af65bc8bb616879a7d7"
 
 [[revisions]]
@@ -860,3 +860,25 @@ backup_prerequisite = "required_existing_database"
 validation_ids = ["single_head", "m04_uncertain_outcome_schema", "foreign_key_check", "full_integrity"]
 recovery_policy = "preserve_failed_database_and_restore_verified_backup_or_forward_fix"
 reviewer = "M04-M6-uncertain-outcome-review"
+
+[[revisions]]
+ordinal = 730
+filename = "v1_0730_m02_billing_intent.py"
+sha256 = "1551ef994156b2815a64bd21205b11cf7b0242e92b5784380c28894a29940bb3"
+status = "implemented"
+reviewed_at = "2026-11-11"
+revision = "v1_0730"
+parent_revision = "v1_0720"
+owner = "M02"
+plan_id = "PLAN-M02"
+requirement_ids = ["FR-ACC-001", "FR-BUDGET-001", "M7-A01"]
+schema_range = ["v1_0730", "v1_0730", "v1_0730", "v1_0730", "v1_0730"]
+tables = ["reg_account"]
+portability_notes = ["Nullable checked purpose preserves existing accounts as unspecified", "Setup intent does not establish provider identity or enable monitoring"]
+lock_policy = "exclusive_migration_and_begin_immediate"
+downtime_policy = "offline_additive_schema_migration"
+expected_data_volume = "one_nullable_column_per_existing_account"
+backup_prerequisite = "required_existing_database"
+validation_ids = ["single_head", "m02_billing_intent_schema", "foreign_key_check", "full_integrity"]
+recovery_policy = "preserve_failed_database_and_restore_verified_backup_or_forward_fix"
+reviewer = "M02-M7-billing-intent-root-review"

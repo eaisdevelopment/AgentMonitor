@@ -54,6 +54,18 @@ Examples: session-signing secret, GitLab token used by development automation, a
 - Default profiles are immutable from AgentMonitor.
 - AgentMonitor-managed profiles are changed only through official user-visible authentication flows.
 
+### Approved managed billing credential exception
+
+The [M7 implementation instruction](../evidence/m7-implementation-authority-2026-11-11.md)
+extends the M6 Ollama exception: owner-entered Anthropic/OpenAI administrative
+billing keys and Ollama usage keys may be stored by the runtime in the selected
+protected managed `.env`. Only the owning adapter receives its selected binding
+for allowlisted official read-only billing calls. Agents never view values.
+No browser key input, key-bearing JSON/arguments/logs, inference spending, raw
+payload persistence, provider mutation or default-profile access is permitted.
+Key rotation and scope changes fence in-flight work; identity/access proof and
+monitoring remain distinct. R-025 applies to all admitted managed billing keys.
+
 ### Stored verification material
 
 - Passwords use an approved memory-hard hash with per-record salt and current parameter metadata.

@@ -2,8 +2,8 @@
   "schema_version": "1.1",
   "milestone": "V1-M7",
   "plan_version": "1.1.0",
-  "status": "draft",
-  "owner_approved": false,
+  "status": "implementing",
+  "owner_approved": true,
   "plan": "docs/plans/integration/m7-execution-plan-2026-11-11.md",
   "story_ids": [
     "ST-BUDGET-001",
@@ -30,7 +30,7 @@
       "story": "ST-BUDGET-001",
       "title": "Freeze provider sources and cross-module contracts",
       "owner": "Integration",
-      "status": "in_progress",
+      "status": "done",
       "depends_on": [],
       "requirements": [
         "FR-BUDGET-001",
@@ -48,7 +48,10 @@
       "expected_red": "Planning ledger lacks a complete dependency and contract allocation; this planning ticket has no production TDD claim.",
       "done_when": "Plan checks pass and owner approval is recorded; no implementation claim",
       "verification": "python3 tools/planning/validate_m7_tickets.py",
-      "evidence": [],
+      "evidence": [
+        "docs/evidence/m7-implementation-authority-2026-11-11.md",
+        "docs/evidence/m7-plan-refactor-2026-11-11.md"
+      ],
       "depends_on_any": [],
       "delivery_slice": "S0",
       "related_plans": [
@@ -66,7 +69,7 @@
       "story": "ST-BUDGET-001",
       "title": "Owner billing setup, API-only eligibility and credential lifecycle",
       "owner": "M02/M03",
-      "status": "planned",
+      "status": "in_progress",
       "depends_on": [
         "M7-T001"
       ],
@@ -92,7 +95,9 @@
       "expected_red": "Real account HTTP/browser lacks billing enrollment and binding status; verify no key can enter a request.",
       "done_when": "Real account metadata/status/eligibility and installed command are tested; no CLI-login misrouting, key disclosure or manual ID entry; live access proof joins the selected provider lane",
       "verification": "python3 tools/automation/run.py AUTO-M7-TEST",
-      "evidence": [],
+      "evidence": [
+        "docs/evidence/m7-foundation-progress-2026-11-11.md"
+      ],
       "depends_on_any": [],
       "delivery_slice": "S0",
       "related_plans": [
@@ -110,7 +115,7 @@
       "story": "ST-BUDGET-005",
       "title": "Implement the fixed M7 executable test and exit catalog",
       "owner": "Integration",
-      "status": "planned",
+      "status": "in_progress",
       "depends_on": [
         "M7-T001"
       ],
@@ -130,7 +135,9 @@
       "expected_red": "Canonical M7 command is unavailable and cannot assess required evidence; implement executable checks before delivery claims.",
       "done_when": "Missing required evidence fails closed; no scope inferred from a passing partial lane",
       "verification": "python3 tools/automation/run.py AUTO-M7-TEST",
-      "evidence": [],
+      "evidence": [
+        "docs/evidence/m7-foundation-progress-2026-11-11.md"
+      ],
       "depends_on_any": [],
       "delivery_slice": "S0",
       "related_plans": [
@@ -148,7 +155,7 @@
       "story": "ST-BUDGET-001",
       "title": "Correct exact decimals and define financial/report policies",
       "owner": "M05",
-      "status": "planned",
+      "status": "in_progress",
       "depends_on": [
         "M7-T001"
       ],
@@ -171,7 +178,9 @@
       "expected_red": "The real pure CanonicalDecimalV1 round-trip rounds a permitted 38-digit value; financial aggregation and report-selection policies are absent",
       "done_when": "Float, currency, overlap and unknown-state checks pass after meaningful Red",
       "verification": "python3 tools/automation/run.py AUTO-M7-TEST",
-      "evidence": [],
+      "evidence": [
+        "docs/evidence/m7-foundation-progress-2026-11-11.md"
+      ],
       "depends_on_any": [],
       "delivery_slice": "S0",
       "related_plans": [
@@ -723,5 +732,6 @@
     "S2",
     "S3",
     "S4"
-  ]
+  ],
+  "approval_evidence": "docs/evidence/m7-implementation-authority-2026-11-11.md"
 }

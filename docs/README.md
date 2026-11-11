@@ -41,7 +41,8 @@ Current program state:
   exact scope and limitations. The [owner accepted the result](evidence/m6-owner-acceptance-2026-11-10.md);
   all fourteen active tickets and M6-A10 are closed. All local Ollama work remains
   [deferred](plans/integration/m6-local-ollama-deferral-2026-11-04.md).
-- **V1-M7 and V1-M8:** Planned; their canonical gates have not run.
+- **V1-M7:** Implementation in progress under approved focused plan 1.1.0; its full exit gate has not passed.
+- **V1-M8:** Planned; its canonical gate has not run.
 
 The approved [M3 scope correction](evidence/m3-scope-correction-2026-10-02.md)
 moves fleet, other-provider, and release-wide outcomes to V1-M4 through V1-M8.
@@ -142,7 +143,7 @@ This index is the entry point for product, architecture, engineering, and operat
 
 ## Governance
 
-- [Focused M7 execution plan](plans/integration/m7-execution-plan-2026-11-11.md): Draft API-budget scope, 16 traceable tickets, provider discovery and proposed credential permission.
+- [Focused M7 execution plan](plans/integration/m7-execution-plan-2026-11-11.md): Approved API-budget scope, 16 traceable tickets, UI/calculation rules and runtime-only credential permission.
 
 - [Roadmap](roadmap.md)
 - [Current V1 implementation status](evidence/v1-implementation-status-v1.json):

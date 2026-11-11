@@ -292,12 +292,14 @@ class AccountViewV1(TechnicalValueV1):
     created_at: datetime
     updated_at: datetime
     archived_at: datetime | None
+    initial_connection_purpose: Literal["api"] | None = None
 
     def __post_init__(self) -> None:
         TechnicalValueV1.__post_init__(self)
         _positive_version(self.record_version, self.registry_revision)
         if (
-            not _bounded(self.provider_key, maximum=64)
+            self.initial_connection_purpose not in {None, "api"}
+            or not _bounded(self.provider_key, maximum=64)
             or not _bounded(self.friendly_name)
             or type(self.is_effective_monitoring_enabled) is not bool
             or not _bounded(self.effective_monitoring_reason, maximum=128)

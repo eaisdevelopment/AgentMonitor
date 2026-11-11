@@ -101,6 +101,7 @@ def _account(item: SourceAccountViewV1) -> AccountViewV1:
         created_at=item.created_at,
         updated_at=item.updated_at,
         archived_at=item.archived_at,
+        initial_connection_purpose=item.initial_connection_purpose,
     )
 
 
@@ -557,6 +558,7 @@ def register_account(
             principal_id=caller.principal.principal_id,
             provider_key=input.provider_key,
             manifest_reference=get_manifest_fingerprint_v1(manifest),
+            initial_connection_purpose=input.initial_connection_purpose,
             friendly_name=input.friendly_name,
             organization_id=(
                 OpaqueIdV1(input.organization_id)

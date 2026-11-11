@@ -259,10 +259,13 @@ Reviewers rerun the gate rather than trusting the author's completion statement.
 ## M7 focused planning and execution commands — 11 November 2026
 
 The [focused M7 plan](../plans/integration/m7-execution-plan-2026-11-11.md)
-and its 16-ticket catalog define the proposed five-story implementation.
+and its 16-ticket catalog define the approved five-story implementation.
 `AUTO-M7-PLAN-CHECK` checks that real checkout's traceability/dependency ledger;
 it never certifies approval, delivery, or live-provider success.
 `AUTO-M7-TEST`, `AUTO-M7-LIVE`, `AUTO-M7-BROWSER`, `AUTO-M7-DEPLOY`, and
-`AUTO-M7-EXIT` are registered fail-closed until their named tickets implement
-and verify them. Registration alone supplies no acceptance evidence. The
+`AUTO-M7-EXIT` execute the scoped M7 runner. Pure calculations and targeted
+mutation checks are connected; missing database/HTTP/live/browser/deployment
+boundaries fail closed until implemented. The explicitly partial command
+`python3 -m tools.automation.implementations.auto_m7 --lane pure` verifies only
+pure calculations. Registration or a partial lane supplies no M7 acceptance. The
 existing accepted M6 receipt and production runtime remain unchanged.

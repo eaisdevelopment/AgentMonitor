@@ -197,6 +197,18 @@
             "title": "Identity State",
             "type": "string"
           },
+          "initial_connection_purpose": {
+            "anyOf": [
+              {
+                "const": "api",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Initial Connection Purpose"
+          },
           "is_effective_monitoring_enabled": {
             "title": "Is Effective Monitoring Enabled",
             "type": "boolean"
@@ -7268,6 +7280,18 @@
             "minLength": 1,
             "title": "Friendly Name",
             "type": "string"
+          },
+          "initial_connection_purpose": {
+            "anyOf": [
+              {
+                "const": "api",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Initial Connection Purpose"
           },
           "organization_id": {
             "anyOf": [
@@ -24771,7 +24795,7 @@
     "generator_sha256": "4c428ce43e6720207c45ec1d9351da278969f1ea08b62b1beedc270c8961c7da",
     "generator_version": "2.0.8",
     "openapi_version": "3.1.0",
-    "schema_sha256": "76f1157334e8ee2f1444b43e711e68a2b19df9173551a665a2ed7235025012a2",
-    "source_sha256": "f4899dae88a7b914e170094c7d8dd07da7bd0a9bf992cf56f1be85cec4b25ce7"
+    "schema_sha256": "2fadbb6c133b9d6c323714cfc2d95bc50ada9b3832310aba6c47dec78d800fc7",
+    "source_sha256": "585586a5af83e6b85e6b4e1092580929c28dc04c1db0a5edfafe4f4ed6a6bdc9"
   }
 }

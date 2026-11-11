@@ -1,6 +1,6 @@
 # M7 UI and user journeys
 
-- Status: Draft; part of focused M7 plan 1.1.0, not implemented screens.
+- Status: Approved under focused M7 plan 1.1.0; screens not yet implemented.
 - Owner: P02; API contract owner P01; billing semantics M05.
 - Requirements: FR-ACC-001..004/006, FR-ORG-001..003, FR-BUDGET-001..006;
   AC-UI-002..006, AC-HIST-001, AC-LIVE-005.

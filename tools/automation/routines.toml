@@ -383,39 +383,39 @@ blockers = []
 [[routines]]
 id = "AUTO-M7-TEST"
 owner = "PLAN-INT"
-status = "blocked"
-scope = "M7 focused API-budget scope; planned, not implemented"
-implementation_command = []
-blockers = ["M7-T003 technical runner and approved contract tests"]
+status = "operational_limited"
+scope = "M7 technical execution; missing required boundaries fail closed; not a milestone completion claim"
+implementation_command = ["python3", "-m", "tools.automation.implementations.auto_m7", "--lane", "technical"]
+blockers = ["M7 registry/persistence/collection/budget HTTP compatibility boundaries remain in progress"]
 
 [[routines]]
 id = "AUTO-M7-LIVE"
 owner = "PLAN-INT"
-status = "blocked"
-scope = "M7 focused API-budget scope; planned, not implemented"
-implementation_command = []
-blockers = ["M7-T003 live runner and real configured billing sources"]
+status = "operational_limited"
+scope = "M7 live execution; missing required boundaries fail closed; not a milestone completion claim"
+implementation_command = ["python3", "-m", "tools.automation.implementations.auto_m7", "--lane", "live"]
+blockers = ["M7 live billing sources, reconciliation and recovery checks remain in progress"]
 
 [[routines]]
 id = "AUTO-M7-BROWSER"
 owner = "PLAN-INT"
-status = "blocked"
-scope = "M7 focused API-budget scope; planned, not implemented"
-implementation_command = []
+status = "operational_limited"
+scope = "M7 browser execution; missing required boundaries fail closed; not a milestone completion claim"
+implementation_command = ["python3", "-m", "tools.automation.implementations.auto_m7", "--lane", "browser"]
 blockers = ["M7-T003 built-browser runner and real API budget screens"]
 
 [[routines]]
 id = "AUTO-M7-DEPLOY"
 owner = "PLAN-INT"
-status = "blocked"
-scope = "M7 focused API-budget scope; planned, not implemented"
-implementation_command = []
+status = "operational_limited"
+scope = "M7 deploy execution; missing required boundaries fail closed; not a milestone completion claim"
+implementation_command = ["python3", "-m", "tools.automation.implementations.auto_m7", "--lane", "deploy"]
 blockers = ["M7-T014 candidate deployment and real recovery evidence"]
 
 [[routines]]
 id = "AUTO-M7-EXIT"
 owner = "PLAN-INT"
-status = "blocked"
-scope = "M7 focused API-budget scope; planned, not implemented"
-implementation_command = []
-blockers = ["M7-T003 executable acceptance catalog and all required live evidence"]
+status = "operational_limited"
+scope = "M7 exit execution; missing required boundaries fail closed; not a milestone completion claim"
+implementation_command = ["python3", "-m", "tools.automation.implementations.auto_m7", "--lane", "exit"]
+blockers = ["M7 technical/live/browser/deployment boundaries must all execute and pass"]

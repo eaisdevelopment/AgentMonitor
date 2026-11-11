@@ -12,6 +12,7 @@ from agentmonitor.contracts.collection_control_v1 import (
 )
 from agentmonitor.contracts.common_quantity_v1 import (
     CanonicalDecimalV1,
+    ExactMoneyV1,
     ExactQuantityV1,
 )
 from agentmonitor.contracts.common_v1 import (
@@ -649,6 +650,365 @@ class BudgetViewV1(TechnicalValueV1):
     subject: CapacitySubjectV1
     state: Literal["available", "unknown", "unsupported", "unavailable", "stale"]
     observed_at: datetime | None
+
+
+@dataclass(frozen=True, slots=True)
+class ExactMoneyFieldV1(TechnicalValueV1):
+    """Money availability is independent of connection and collection state."""
+
+    CONTRACT_ID: ClassVar[str] = "CTR-CAP-002"
+    CONTRACT_VERSION: ClassVar[str] = "2.0.0"
+    OWNER: ClassVar[str] = "PLAN-M05"
+
+    availability: FieldAvailabilityV1
+    value: ExactMoneyV1 | None
+    precision: PrecisionV1
+    confidence: ConfidenceV1
+    value_kind: ValueKindV1
+    reason_code: str | None
+
+    def __post_init__(self) -> None:
+        TechnicalValueV1.__post_init__(self)
+        if self.availability.state not in {
+            "available",
+            "stale",
+            "unknown",
+            "unsupported",
+            "not_applicable",
+            "withheld_or_denied",
+        }:
+            raise InvalidCapacityContractV1("budget_field_availability_invalid")
+        has_value = self.availability.state in {"available", "stale"}
+        if has_value != isinstance(self.value, ExactMoneyV1):
+            raise InvalidCapacityContractV1("budget_field_state_invalid")
+        if has_value and self.reason_code is not None:
+            raise InvalidCapacityContractV1("budget_field_reason_invalid")
+        if not has_value and (
+            self.value is not None
+            or not _token(self.reason_code)
+            or self.precision != "unknown"
+            or self.confidence != "unknown"
+            or self.value_kind != "unknown"
+        ):
+            raise InvalidCapacityContractV1("budget_field_unknown_metadata_invalid")
+
+
+@dataclass(frozen=True, slots=True)
+class BudgetPeriodV1(TechnicalValueV1):
+    """An explicit UTC half-open reporting interval, not a billing renewal."""
+
+    CONTRACT_ID: ClassVar[str] = "CTR-CAP-002"
+    CONTRACT_VERSION: ClassVar[str] = "2.0.0"
+    OWNER: ClassVar[str] = "PLAN-M05"
+
+    start: datetime
+    end: datetime
+
+    def __post_init__(self) -> None:
+        TechnicalValueV1.__post_init__(self)
+        if (
+            not isinstance(self.start, datetime)
+            or not isinstance(self.end, datetime)
+            or self.start >= self.end
+        ):
+            raise InvalidCapacityContractV1("budget_period_invalid")
+
+
+BudgetDimensionKindV1 = Literal[
+    "organization",
+    "project",
+    "workspace",
+    "api_key_id",
+    "model",
+    "token_category",
+    "line_item",
+    "api_source",
+    "user_id",
+    "cost_type",
+]
+_BUDGET_DIMENSIONS = frozenset(
+    {
+        "organization",
+        "project",
+        "workspace",
+        "api_key_id",
+        "model",
+        "token_category",
+        "line_item",
+        "api_source",
+        "user_id",
+        "cost_type",
+    }
+)
+
+
+@dataclass(frozen=True, slots=True)
+class BudgetDimensionV1(TechnicalValueV1):
+    """Allowlisted safe source metadata; api_key_id never holds key material."""
+
+    CONTRACT_ID: ClassVar[str] = "CTR-CAP-002"
+    CONTRACT_VERSION: ClassVar[str] = "2.0.0"
+    OWNER: ClassVar[str] = "PLAN-M05"
+
+    kind: BudgetDimensionKindV1
+    value: str | None
+
+    def __post_init__(self) -> None:
+        TechnicalValueV1.__post_init__(self)
+        if self.value is not None and (
+            type(self.value) is not str
+            or not 1 <= len(self.value) <= 128
+            or self.value != self.value.strip()
+            or not self.value.isprintable()
+        ):
+            raise InvalidCapacityContractV1("budget_dimension_invalid")
+
+
+def _validate_budget_dimensions(dimensions: tuple[BudgetDimensionV1, ...]) -> None:
+    if not isinstance(dimensions, tuple) or any(
+        not isinstance(item, BudgetDimensionV1) for item in dimensions
+    ):
+        raise InvalidCapacityContractV1("budget_dimensions_invalid")
+    names = tuple(item.kind for item in dimensions)
+    if names != tuple(sorted(set(names))):
+        raise InvalidCapacityContractV1("budget_dimensions_invalid")
+
+
+@dataclass(frozen=True, slots=True)
+class BudgetCostBucketV1(TechnicalValueV1):
+    """One exact cost flow; signed adjustments never become cash balances."""
+
+    CONTRACT_ID: ClassVar[str] = "CTR-CAP-002"
+    CONTRACT_VERSION: ClassVar[str] = "2.0.0"
+    OWNER: ClassVar[str] = "PLAN-M05"
+
+    bucket_key: str
+    period: BudgetPeriodV1
+    amount: ExactMoneyV1
+    dimensions: tuple[BudgetDimensionV1, ...]
+    kind: Literal["charge", "adjustment"]
+
+    def __post_init__(self) -> None:
+        TechnicalValueV1.__post_init__(self)
+        _validate_budget_dimensions(self.dimensions)
+        if (
+            not _token(self.bucket_key)
+            or not isinstance(self.period, BudgetPeriodV1)
+            or not isinstance(self.amount, ExactMoneyV1)
+        ):
+            raise InvalidCapacityContractV1("budget_cost_bucket_invalid")
+        if self.kind == "charge" and int(self.amount.amount.coefficient) < 0:
+            raise InvalidCapacityContractV1("budget_negative_charge")
+
+
+@dataclass(frozen=True, slots=True)
+class BudgetUsageBucketV1(TechnicalValueV1):
+    """One source-reported usage count, distinct from a financial cost."""
+
+    CONTRACT_ID: ClassVar[str] = "CTR-CAP-002"
+    CONTRACT_VERSION: ClassVar[str] = "2.0.0"
+    OWNER: ClassVar[str] = "PLAN-M05"
+
+    bucket_key: str
+    period: BudgetPeriodV1
+    quantity: ExactQuantityV1
+    dimensions: tuple[BudgetDimensionV1, ...]
+
+    def __post_init__(self) -> None:
+        TechnicalValueV1.__post_init__(self)
+        _validate_budget_dimensions(self.dimensions)
+        if (
+            not _token(self.bucket_key)
+            or not isinstance(self.period, BudgetPeriodV1)
+            or not isinstance(self.quantity, ExactQuantityV1)
+            or int(self.quantity.amount.coefficient) < 0
+        ):
+            raise InvalidCapacityContractV1("budget_usage_bucket_invalid")
+
+
+@dataclass(frozen=True, slots=True)
+class BudgetReportInputV1(TechnicalValueV1):
+    """Normalized bounded report: replacement coverage plus actual facts.
+
+    Empty complete reports carry coverage without manufactured observation IDs.
+    The adapter supplies only allowlisted fields; raw provider bodies are excluded.
+    """
+
+    CONTRACT_ID: ClassVar[str] = "CTR-CAP-002"
+    CONTRACT_VERSION: ClassVar[str] = "2.0.0"
+    OWNER: ClassVar[str] = "PLAN-M05"
+
+    subject: CapacitySubjectV2
+    binding_id: OpaqueIdV1
+    binding_generation: int
+    scope_generation: int
+    scope_id: OpaqueIdV1 | None
+    scope_evidence: Literal["provider_verified", "owner_asserted", "unresolved"]
+    source_id: str
+    source_category: str
+    cost_basis: str
+    grouping: tuple[BudgetDimensionKindV1, ...]
+    requested_period: BudgetPeriodV1
+    covered_period: BudgetPeriodV1 | None
+    source_data_through: datetime | None
+    collected_at: datetime
+    completeness: CompletenessV1
+    omission_codes: tuple[str, ...]
+    currency: str | None
+    empty_means_zero: bool
+    cost_buckets: tuple[BudgetCostBucketV1, ...]
+    usage_buckets: tuple[BudgetUsageBucketV1, ...]
+
+    def __post_init__(self) -> None:
+        TechnicalValueV1.__post_init__(self)
+        if (
+            not isinstance(self.subject, CapacitySubjectV2)
+            or self.subject.provider_target.target_kind != "cloud_service"
+            or not isinstance(self.binding_id, OpaqueIdV1)
+        ):
+            raise InvalidCapacityContractV1("budget_report_subject_invalid")
+        if type(self.binding_generation) is not int or self.binding_generation < 1:
+            raise InvalidCapacityContractV1("budget_binding_generation_invalid")
+        if type(self.scope_generation) is not int or self.scope_generation < 1:
+            raise InvalidCapacityContractV1("budget_scope_generation_invalid")
+        if (
+            (self.scope_evidence == "unresolved") != (self.scope_id is None)
+            or self.scope_id is not None
+            and not isinstance(self.scope_id, OpaqueIdV1)
+        ):
+            raise InvalidCapacityContractV1("budget_scope_invalid")
+        if not all(
+            _token(item)
+            for item in (self.source_id, self.source_category, self.cost_basis)
+        ):
+            raise InvalidCapacityContractV1("budget_report_source_invalid")
+        if self.grouping != tuple(sorted(set(self.grouping))) or any(
+            item not in _BUDGET_DIMENSIONS for item in self.grouping
+        ):
+            raise InvalidCapacityContractV1("budget_grouping_invalid")
+        if (
+            self.omission_codes != tuple(sorted(set(self.omission_codes)))
+            or any(not _token(item) for item in self.omission_codes)
+            or (self.completeness != "complete") != bool(self.omission_codes)
+        ):
+            raise InvalidCapacityContractV1("budget_report_omissions_invalid")
+        if not isinstance(self.requested_period, BudgetPeriodV1):
+            raise InvalidCapacityContractV1("budget_requested_period_invalid")
+        if self.covered_period is not None and (
+            not isinstance(self.covered_period, BudgetPeriodV1)
+            or self.covered_period.start < self.requested_period.start
+            or self.covered_period.end > self.requested_period.end
+        ):
+            raise InvalidCapacityContractV1("budget_covered_period_invalid")
+        if not isinstance(self.collected_at, datetime) or (
+            self.source_data_through is not None
+            and (
+                not isinstance(self.source_data_through, datetime)
+                or self.source_data_through > self.collected_at
+            )
+        ):
+            raise InvalidCapacityContractV1("budget_report_time_invalid")
+        if self.currency is not None and (
+            type(self.currency) is not str
+            or len(self.currency) != 3
+            or not self.currency.isascii()
+            or not self.currency.isupper()
+            or not self.currency.isalpha()
+        ):
+            raise InvalidCapacityContractV1("budget_report_currency_invalid")
+        if (
+            type(self.empty_means_zero) is not bool
+            or self.empty_means_zero
+            and (
+                self.completeness != "complete"
+                or self.covered_period != self.requested_period
+                or self.currency is None
+                or self.source_data_through is None
+                or self.source_data_through < self.requested_period.end
+            )
+        ):
+            raise InvalidCapacityContractV1("budget_empty_zero_unsupported")
+        if (
+            not isinstance(self.cost_buckets, tuple)
+            or not isinstance(self.usage_buckets, tuple)
+            or len(self.cost_buckets) + len(self.usage_buckets) > 10000
+        ):
+            raise InvalidCapacityContractV1("budget_report_size_invalid")
+        self._validate_buckets()
+
+    def _validate_buckets(self) -> None:
+        for rows, row_type in (
+            (self.cost_buckets, BudgetCostBucketV1),
+            (self.usage_buckets, BudgetUsageBucketV1),
+        ):
+            if any(not isinstance(row, row_type) for row in rows):
+                raise InvalidCapacityContractV1("budget_bucket_type_invalid")
+            keys = tuple(row.bucket_key for row in rows)
+            if len(set(keys)) != len(keys):
+                raise InvalidCapacityContractV1("budget_duplicate_bucket")
+            for row in rows:
+                if (
+                    row.period.start < self.requested_period.start
+                    or row.period.end > self.requested_period.end
+                    or self.covered_period is not None
+                    and (
+                        row.period.start < self.covered_period.start
+                        or row.period.end > self.covered_period.end
+                    )
+                ):
+                    raise InvalidCapacityContractV1("budget_bucket_period_invalid")
+                if (
+                    tuple(dimension.kind for dimension in row.dimensions)
+                    != self.grouping
+                ):
+                    raise InvalidCapacityContractV1("budget_bucket_grouping_invalid")
+        if any(row.amount.currency != self.currency for row in self.cost_buckets):
+            raise InvalidCapacityContractV1("budget_bucket_currency_invalid")
+        intervals: dict[
+            tuple[str, tuple[BudgetDimensionV1, ...]], list[BudgetPeriodV1]
+        ] = {}
+        for cost in self.cost_buckets:
+            # Distinct adjustment IDs may apply to the same interval; identity
+            # deduplication above prevents applying the same adjustment twice.
+            if cost.kind == "adjustment":
+                continue
+            intervals.setdefault(("cost:" + cost.kind, cost.dimensions), []).append(
+                cost.period
+            )
+        for usage in self.usage_buckets:
+            intervals.setdefault(
+                ("usage:" + usage.quantity.unit, usage.dimensions), []
+            ).append(usage.period)
+        for periods in intervals.values():
+            ordered = sorted(periods, key=lambda period: period.start)
+            if any(
+                left.end > right.start
+                for left, right in zip(ordered, ordered[1:], strict=False)
+            ):
+                raise InvalidCapacityContractV1("budget_overlapping_buckets")
+
+
+@dataclass(frozen=True, slots=True)
+class BudgetReportViewV1(TechnicalValueV1):
+    """Immutable committed report identity; corrections append another report."""
+
+    CONTRACT_ID: ClassVar[str] = "CTR-CAP-002"
+    CONTRACT_VERSION: ClassVar[str] = "2.0.0"
+    OWNER: ClassVar[str] = "PLAN-M05"
+
+    report_id: OpaqueIdV1
+    report: BudgetReportInputV1
+    stored_at: datetime
+
+    def __post_init__(self) -> None:
+        TechnicalValueV1.__post_init__(self)
+        if (
+            not isinstance(self.report_id, OpaqueIdV1)
+            or not isinstance(self.report, BudgetReportInputV1)
+            or not isinstance(self.stored_at, datetime)
+            or self.stored_at < self.report.collected_at
+        ):
+            raise InvalidCapacityContractV1("budget_report_view_invalid")
 
 
 CapacityAlertAvailabilityV1 = Literal[

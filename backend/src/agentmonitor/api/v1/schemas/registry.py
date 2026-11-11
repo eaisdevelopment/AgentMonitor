@@ -54,6 +54,7 @@ class AccountViewV1(_ClosedV1):
     created_at: datetime
     updated_at: datetime
     archived_at: datetime | None
+    initial_connection_purpose: Literal["api"] | None = None
 
 
 class AccountPageV1(_ClosedV1):
@@ -66,6 +67,7 @@ class RegisterAccountInputV1(_ClosedV1):
     provider_key: str = Field(min_length=1, max_length=64, pattern=r"^[A-Za-z0-9_-]+$")
     friendly_name: str = Field(min_length=1, max_length=256)
     organization_id: str | None = Field(default=None, min_length=1, max_length=64)
+    initial_connection_purpose: Literal["api"] | None = None
 
 
 class RenameAccountInputV1(_ClosedV1):

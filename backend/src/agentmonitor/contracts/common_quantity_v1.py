@@ -72,7 +72,9 @@ class CanonicalDecimalV1(TechnicalValueV1):
         return cls(coefficient=coefficient, scale=scale)
 
     def as_decimal(self) -> Decimal:
-        return Decimal(self.coefficient).scaleb(-self.scale)
+        # String construction preserves every admitted digit regardless of the
+        # caller's Decimal context; scaleb is arithmetic and may round.
+        return Decimal(f"{self.coefficient}e-{self.scale}")
 
 
 @dataclass(frozen=True, slots=True)

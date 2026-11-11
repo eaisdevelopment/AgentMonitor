@@ -1,6 +1,6 @@
 # M7 calculation and data rules
 
-- Status: Draft; part of focused execution plan 1.1.0.
+- Status: Approved as part of focused execution plan 1.1.0; implementation in progress.
 - Owner: M05; provider field interpretation A01/A02/A03; collection M04.
 - Requirements: FR-BUDGET-001..006, FR-ORG-003; AC-UI-005/006,
   AC-HIST-001, AC-LIVE-005, AC-TEST-001/005.

@@ -58,6 +58,12 @@ Examples include the dashboard bootstrap/password inputs, session signing/encryp
 
 Claude, Codex, Anthropic, OpenAI, and future provider OAuth/API credentials remain in provider-supported stores or explicitly approved AgentMonitor-managed provider profiles. The owner separately approved Ollama cloud API keys in the protected AgentMonitor-managed `.env` on 2 November 2026. Ollama entries are binding-scoped and owner-only; credentials must not appear in logs, database rows, exports, backups, diagnostics, screenshots, arguments, or chat. The default Ollama profile remains untouched. Do not load unrelated `.env` values into the cloud worker's environment.
 
+The subsequent [M7 instruction](../evidence/m7-implementation-authority-2026-11-11.md)
+extends runtime-only binding-scoped custody to Anthropic/OpenAI administrative
+billing keys and official Ollama usage. The same protected-file/local-entry
+controls apply. No coding agent reads key values and no key is accepted in
+browser/API account configuration payloads.
+
 ### Development-service credentials
 
 GitLab tokens or similar development credentials are not application runtime configuration. If the operator places one in `.env` for local tooling, it must use a clearly development-only name, minimum scope, and must never be loaded or exposed by the AgentMonitor service.

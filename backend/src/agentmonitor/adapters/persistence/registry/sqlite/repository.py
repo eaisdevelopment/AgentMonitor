@@ -338,6 +338,7 @@ def _account(row: RowMapping) -> AccountViewV1:
         monitoring_preference=preference,
         is_effective_monitoring_enabled=monitoring.is_enabled,
         effective_monitoring_reason=monitoring.reason_code,
+        initial_connection_purpose=row["initial_connection_purpose"],
         identity_state=identity_state,
         masked_identity=MaskedRegistryFieldV1(
             "withheld", None, "identity_privacy_minimized"
@@ -902,17 +903,22 @@ class SqliteRegistryRepositoryV1:
     ) -> AccountViewV1:
         operation = "register_pending_account"
         command_digest = _digest(command.command_id.value)
-        request_fingerprint = _fingerprint(
-            {
-                "provider_key": command.provider_key,
-                "manifest_reference": command.manifest_reference,
-                "friendly_name": command.friendly_name,
-                "organization_id": (
-                    command.organization_id.value if command.organization_id else None
-                ),
-                "operation": operation,
-            }
-        )
+        request_fields = {
+            "provider_key": command.provider_key,
+            "manifest_reference": command.manifest_reference,
+            "friendly_name": command.friendly_name,
+            "organization_id": (
+                command.organization_id.value if command.organization_id else None
+            ),
+            "operation": operation,
+        }
+        # Omitted/null intent retains the historical receipt grammar. An explicit
+        # API intent changes the request identity and must not replay a legacy one.
+        if command.initial_connection_purpose is not None:
+            request_fields["initial_connection_purpose"] = (
+                command.initial_connection_purpose
+            )
+        request_fingerprint = _fingerprint(request_fields)
         instant = _utc_text(command.requested_at)
         try:
             with open_sqlite_database(
@@ -982,9 +988,9 @@ class SqliteRegistryRepositoryV1:
                         "(account_id, provider_key, friendly_name, normalized_name, "
                         "organization_id, lifecycle, identity_state, monitoring_preference, "
                         "record_version, created_at, updated_at, archived_at, "
-                        "creation_command_digest) "
+                        "creation_command_digest, initial_connection_purpose) "
                         "VALUES (?, ?, ?, ?, ?, 'pending', 'unresolved', 'disabled', "
-                        "1, ?, ?, NULL, ?)",
+                        "1, ?, ?, NULL, ?, ?)",
                         (
                             account_id,
                             command.provider_key,
@@ -996,6 +1002,7 @@ class SqliteRegistryRepositoryV1:
                             instant,
                             instant,
                             command_digest,
+                            command.initial_connection_purpose,
                         ),
                     )
                     _append_change(

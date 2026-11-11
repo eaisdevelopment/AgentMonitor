@@ -1,6 +1,6 @@
 # M05 capacity: focused M7 budget increment
 
-- Status: Draft; no production implementation or credential approval.
+- Status: Approved focused increment under execution plan 1.1.0; implementation in progress.
 - Plan version: 0.3.0; synchronized with focused M7 execution plan 1.1.0.
 - Owner: M05; shared contracts/migration catalog/composition writer: root.
 - Parent: [M05 0.2.0-draft](plan-v1.md), not approved wholesale.
@@ -81,8 +81,8 @@ asserted; ambiguous overlap prevents invalid totals.
 
 ## 5. Minimum data model and migration
 
-Root allocates `v1_0730` after current `v1_0720`, followed by separately owned
-M02/M04 revisions only as needed. Preserve all old migration contents/digests.
+Root allocates M05 `v1_0731` after M02 owner-setup `v1_0730`, which follows
+current `v1_0720`; M04 `v1_0732` follows only if needed. Preserve all old migration contents/digests.
 Use existing budget/usage/provenance facts and receipt keys where semantics fit.
 Add only:
 
@@ -182,7 +182,7 @@ forecast, alert events or all providers.
 
 ## 11. Security and configuration
 
-Only the separately proposed M7 runtime exception authorizes transient local
+Only the approved focused M7 runtime exception authorizes transient local
 credential use. M05 sees no keys, token derivatives, prompts, raw payloads or
 arbitrary environments. Safe key identifiers are independent provider IDs or
 internal opaque references, never key prefixes/suffixes/hashes. Allowlisted
@@ -217,15 +217,14 @@ none is an excuse to invent data, change accounts or halt independent work.
 
 ## 15. Readiness
 
-This is a synchronized proposal, not a production handoff. Source inspection and
-pure arithmetic probe are evidence; M7 live/code tests are Not Run. Root validates
-the plan/catalog, performs one bounded review and presents it to the owner.
-Implementation begins only after focused approval. Publish exact contract types
-before parallel writers, with one migration/contract/composition writer.
+Planning checks and bounded review passed at `a914248`. The owner then directed
+full M7 implementation. Root publishes exact contract types before parallel
+writers, with one migration/contract/composition writer. Product live tests are
+not implied by planning evidence.
 
 ## 16. Approval record
 
-Pending approval of execution plan 1.1.0 and this focused 0.3.0 increment. The
-owner's latest instruction authorized deeper planning and simplification. It
-is not recorded as production or credential approval. Routine internal fixes
-within the approved future scope do not trigger repeated approval ceremonies.
+See [implementation authority](../../../evidence/m7-implementation-authority-2026-11-11.md).
+It applies to this focused 0.3.0 increment and execution plan 1.1.0, not the
+unrelated whole-module Draft parent. Routine internal fixes do not require
+repeated owner approval.

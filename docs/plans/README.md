@@ -226,7 +226,7 @@ Directories are created when an approved planning assignment begins. Drafts stat
   one quota row for fresh identical identities and review links for their
   separate admin connections.
 
-## Focused M7 increment — Draft 1.1.0, 11 November 2026
+## Focused M7 increment — Approved 1.1.0, 11 November 2026
 
 - [Execution plan](integration/m7-execution-plan-2026-11-11.md)
 - [Ticket catalog](integration/m7-ticket-catalog-v1.json)
@@ -236,5 +236,6 @@ Directories are created when an approved planning assignment begins. Drafts stat
 - [M05 budget increment](modules/m05-capacity/m7-budget-increment-2026-11-11.md)
 - [Official provider discovery](../evidence/m7-provider-discovery-2026-11-11.md)
 
-This proposed increment supplements the frozen 20-plan baseline. It does not
-approve that baseline or claim M7 implementation/live verification.
+The owner directed implementation of this focused increment; see the
+[authority record](../evidence/m7-implementation-authority-2026-11-11.md).
+It does not approve the frozen whole-program baseline or claim M7 completion.

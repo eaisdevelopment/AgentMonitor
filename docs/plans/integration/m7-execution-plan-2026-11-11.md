@@ -1,6 +1,6 @@
 # M7 API budgets: deliver a working dashboard first
 
-- Status: Draft for review; planning refactor requested by the owner, not implementation approval.
+- Status: Approved for implementation by the owner’s subsequent active M7 goal; see the authority record.
 - Plan version: 1.1.0; supersedes focused 1.0.0.
 - Owner: root integration; primary financial semantics: M05 Capacity.
 - Baseline: `a47fc53` on `codex/m7-api-budgets`; accepted M6 remains deployed.
@@ -115,7 +115,7 @@ Capacity code stays under its domain/application/ports and SQLite adapter.
 P02 extends existing account/overview features and a budget-history component.
 
 Reuse frozen budget/usage tables where their semantics fit. Allocate additive
-M05 revision `v1_0730` after `v1_0720`, M02 `v1_0731`, and M04 `v1_0732` only if
+M02 revision `v1_0730` after `v1_0720`, M05 `v1_0731`, and M04 `v1_0732` only if
 its typed receipt/run change needs schema. Preserve old migration digests.
 Do not automatically create one-to-one tables for every field: use necessary
 additive context columns, a report-coverage relation and signed cost storage.
@@ -251,8 +251,8 @@ review the dependency causing delay instead of adding more infrastructure.
 
 ## 10. Approval state
 
-This refactor was authorized as planning work. Production implementation and the
-new runtime credential scope are still pending approval of version 1.1.0; the
-previous 1.0.0 question no longer describes the proposed plan. No hidden account
-configuration, production migration, deployed change or new dependency is made
-by preparing these artifacts. After approval record it once and execute S0/S1.
+The owner directed full M7 implementation after receiving this 1.1.0 plan.
+[Implementation authority](../../evidence/m7-implementation-authority-2026-11-11.md)
+records that instruction, the runtime-only credential purpose and retained
+controls. Execute S0/S1 without repeating the approval request. Implementation,
+live verification and milestone acceptance remain separate evidence states.

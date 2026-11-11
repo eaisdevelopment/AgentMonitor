@@ -74,10 +74,18 @@ class CreatePendingAccountCommandV1:
     friendly_name: str
     organization_id: OpaqueIdV1 | None
     requested_at: datetime
+    initial_connection_purpose: Literal["api"] | None = None
 
     def __post_init__(self) -> None:
         if (
-            not 1 <= len(self.provider_key) <= 64
+            (
+                self.initial_connection_purpose is not None
+                and (
+                    type(self.initial_connection_purpose) is not str
+                    or self.initial_connection_purpose != "api"
+                )
+            )
+            or not 1 <= len(self.provider_key) <= 64
             or not self.provider_key.isascii()
             or not self.provider_key.replace("-", "").replace("_", "").isalnum()
             or len(self.manifest_reference) != 32

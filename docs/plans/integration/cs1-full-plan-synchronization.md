@@ -1325,3 +1325,17 @@ Prior audit decisions and accepted M6 evidence remain unchanged.
 Plan snapshot SHA-256: `0f706a081bb1a2694324ed421ade2d0b50eac7e55f6f4f720a62f26cd8ae898f`
 
 Planning validator SHA-256: `8e4333dfc0ed8c8b829b5d7c17179093380b45f5fe69bbcdf32c3ca912633024`
+
+## 2026-11-11 M7 executable selections — bounded control review
+
+Independent reviewer `m7_capacity_plan` compared this snapshot with `a914248`.
+All twenty plan records and seven other control records are unchanged; only the
+automation-routines and automation-standard records changed. All 29 referenced
+hashes and byte counts match the checkout. Command targets exist; seven pure
+completion-policy tests passed. Actual live/browser/deploy selections each
+reported unimplemented boundaries and exited 3. No missing boundary can satisfy
+the exit policy. This is control-binding coherence only, not approval of the
+frozen parent plans, technical/full-exit execution or M7 acceptance. Historical
+review records remain unchanged.
+
+Plan snapshot SHA-256: `0aa5032f5caa5069ebb298c8a697808cd3d58784006838ac09efa1c259a1eb97`

@@ -21,6 +21,27 @@ Contracts: compatible `capacity.v1` extensions to
 `CTR-COL-006`, `CTR-REG-009`, `CTR-EVT-001`.
 Database allocation: `v1_0500..v1_0504`, additive `v1_0703/0704`.
 
+## M7 financial contracts in progress
+
+The approved focused plan 1.1.0 publishes additive CTR-CAP-002 2.0.0 report
+primitives in `contracts/capacity_v1.py`: `ExactMoneyFieldV1`, `BudgetPeriodV1`,
+`BudgetDimensionV1`, `BudgetCostBucketV1`, `BudgetUsageBucketV1`,
+`BudgetReportInputV1` and immutable `BudgetReportViewV1`. The reserved
+`BudgetViewV1` and all quota contracts retain their original semantics.
+
+`budget_money` performs exact scaled-integer arithmetic and declared display
+rounding. `budget_reports.select_current_report` selects an entire compatible
+complete report, so omitted corrected buckets cannot survive as phantom spend.
+Partial attempts do not refresh the previous complete report's watermark.
+Binding rotation preserves compatible history; scope-generation changes cannot
+mix prior scope values. Empty coverage contains no invented observation IDs.
+
+These are internal pure contracts/policies, not working collection, persistence,
+HTTP or dashboard budget delivery. The M7 ticket catalog tracks those remaining
+steps. Source adapter provenance/atomic receipts are added at their owned commit
+boundary. M5/M6 completion authority is the current documentation index; older
+M5 progress descriptions in this module remain historical.
+
 ## Purpose and boundaries
 
 M05 owns immutable capacity observations, exact measures, native quota-window
