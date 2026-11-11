@@ -42,6 +42,11 @@ Use context-independent decimal construction
 and scaled-integer addition/subtraction. Keep the existing 78-digit coefficient /
 18-scale public bounds; reject overflow explicitly, never silently round facts.
 
+Threshold decisions use exact inputs before formatting or clipping. For the
+20% low-remaining threshold, compare scaled numerator/denominator directly;
+20.004% is not low and 19.996% is low even when both display 20.00%. This extends
+M7-MATH-14 and T004/T012 acceptance without changing money representation.
+
 Financial totals remain exact. Division used for rate/ratio is derived:
 retain exact numerator/denominator and input IDs; format a bounded decimal only
 with declared precision/rounding. Display ordinary USD totals to two decimals
@@ -145,7 +150,11 @@ exists. Never promise a year of data on a new connection. Cost bars and balance
 snapshots use separate chart series; no line across missing periods. API queries
 use a fixed report/revision cursor so later corrections do not shuffle pages.
 Retention keeps referenced current/derivation facts; expired cursors request a
-fresh query rather than returning misleading continuity.
+fresh query rather than returning misleading continuity. T010/T011 expose older
+retained seven-/thirty-day windows via Previous/Next and exact UTC cutoffs, with
+No retained report for gaps. Source history retains original scope-epoch labels
+and authorized report references. Retention is not a promise that the provider
+can recollect an arbitrary old interval; history GETs never collect.
 
 The reporting cutoff is not the read snapshot. A completed explicit collection
 advances `as_of` for the stored-data reread while retaining the requested
@@ -167,10 +176,20 @@ from aggregates with a count/reason. Owner-confirmed attribution is disclosed.
 Aggregate by currency, exact interval, cost basis and compatible coverage.
 Do not combine provider list cost with after-discount cost, self with team usage,
 organization with included project rollups, or API spend with subscription fees.
+Current admitted source labels are `discounted_before_credits` (Anthropic),
+`openai_reported_cost` (OpenAI) and `provider_reported_usage_usd` (Ollama).
+A shared currency does not establish equivalent cost bases: initial Overview
+shows separate labelled subtotals, unless an admitted mapping proves equivalence.
+No new conversion or cross-provider accounting layer is required.
 Dashboard organization aggregates follow current owner grouping; moving an
 account preserves source history and does not rewrite provider ownership.
 A shared pool is assigned one primary dashboard group and counted once globally.
 Links from accounts in other groups show Shared pool; not counted again here.
+If only a secondary group is selected, its row says Shared; counted under
+[primary organization] and contributes nothing to that group's subtotal. This
+is an attribution exclusion, not missing financial coverage. Selecting primary
+and secondary groups counts the pool once under the primary. Moving the primary
+group affects current dashboard attribution only, never source history.
 Provide partial-subtotal coverage explicitly; never a reassuring whole total
 when configured accounts failed or later pages have not been loaded.
 
@@ -224,6 +243,14 @@ headroom. Numeric time-left requires **strictly positive** compatible remaining/
 and rate. Zero or negative headroom is an observed zero/exceeded condition,
 never negative time-left or a fabricated historical exhaustion date. A zero
 cash balance does not prove service is blocked if enforcement is unknown.
+Select cost buckets whose ends are no later than both the selected
+balance/headroom observation and query `as_of`. Anchor the projected exhaustion
+to that observation time, not page-load time. Unchanged report inputs therefore
+produce the same projected date after reload; later costs cannot be applied
+retrospectively to an earlier balance. If compatible fresh inputs cannot be
+established, return the existing unavailable reason. Historical estimates are
+labelled as-of estimates, never a live countdown. This is T013/M7-MATH-15/16.
+
 `time_left = remaining / rate`. Label **Estimated at the observed
 rate, as of [balance time]**. Provider lag, current unposted spend and possible
 future top-ups are disclosed; never silently subtract estimated unposted usage.

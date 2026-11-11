@@ -73,8 +73,8 @@ financial domain. No new package or license change.
 | CTR-CAP-002/003/006 | GetBudgetV1, ListBudgetsV1, GetAccountApiCapacityV1, ListBudgetOverviewV1, ListBudgetHistoryV1, ListUsageBreakdownsV1 | Backend exact aggregation, immutable report selection, bounded stable cursors |
 | CTR-CAP-007 budget variant | GetBudgetForecastV1 → BudgetForecastV1 | Pure bounded calculation with inputs/method/as-of or no-value reason; no DB writes |
 
-Focused producer/consumer integration also adds CTR-REG-014 1.3.0
-BillingAccessTargetV1/BillingAccessPortV1: M02 produces current nonsecret authority,
+Focused producer/consumer integration now consumes CTR-REG-014 1.4.0,
+including BillingAccessTargetV1/BillingAccessPortV1 and monitoring proof/ports: M02 produces current nonsecret authority,
 M04 captures it and root composition revalidates it at commit. Existing metadata
 and local setup consumers stay compatible. These focused runtime versions extend
 the historical whole-program Draft register; they do not mark that register

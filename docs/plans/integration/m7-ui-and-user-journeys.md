@@ -150,16 +150,22 @@ Provider-reported scope and dashboard organization are separately named.
 An account connected to a whole provider organization does not imply all its
 spend belongs to that individual email or one running agent.
 
-Default API sort: action needed (denied/setup/failure/stale/partial), then known
-depletion or low remaining capacity, then organization/name/stable ID. Unknown
-remaining capacity is not exhausted. Column headings support organization,
+Default API state/sort uses one server-computed priority: owner action required
+(credential/scope/setup) → latest collection failure → incomplete or stale
+financial evidence → known depletion/low remaining → current. Pending/reading
+and monitoring preference remain secondary labels; retain any lower-priority
+failure/fund facts in row detail. Within a priority sort by organization/name,
+then stable account/resource/context ID. This is a fixed decision table, not a
+configurable ranking engine. Unknown remaining capacity is not exhausted.
+Column headings support organization,
 state and account sorting. Monetary sorting is offered only inside one
 compatible currency/period/basis group; it never compares USD and GBP values.
 
 Remaining percentages/bars appear only with a valid matching denominator.
 Red means remaining **≤20%**, or explicitly reported depletion/exceeded hard
 limit. Show the raw percentage plus a bounded visual bar and text, never just
-color. A high remaining percentage is not low capacity. A cash balance without
+color. Compare the exact ratio before display rounding: 20.004% is not low,
+19.996% is low even if both render as 20.00%. A high remaining percentage is not low capacity. A cash balance without
 a cap shows money, not a made-up percent. No automatic red threshold for spend.
 
 FR-ORG-003 requires organization/global summaries: render compact grouped
@@ -167,7 +173,13 @@ reported-spend totals by currency, exact coverage period and source cost basis.
 Never one mixed-currency grand total. Label included/excluded scope counts;
 unresolved overlap or incomplete inputs produce a clearly labeled partial
 subtotal or no total. Totals cover the filtered set, not merely the loaded page.
-Use server-calculated summaries; no money aggregation in React.
+Use server-calculated summaries; no money aggregation in React. Current
+Anthropic/OpenAI/Ollama adapters report different cost bases, so show separately
+named subtotals even when each currency is USD; do not promise one common USD
+total without proven equivalence. A pool linked from a secondary organization
+shows Shared; counted under [primary organization]. Selecting only that secondary
+group does not add it to that group's subtotal or classify it as missing data;
+selecting both groups counts it once under the primary group.
 
 **Refresh readings** rereads stored API data only. It does not make all accounts
 call their providers. Detail offers the separate **Collect now** action with
@@ -178,7 +190,12 @@ server cooldown. One failed API budget request must leave quota rows usable.
 At the top: owner account name, provider product, dashboard organization,
 provider billing scope, current state, report interval and data-through time.
 The connection status is one compact line with **Manage connection** expandable;
-setup details expand automatically only when action is required.
+setup details expand automatically only when action is required. T010 projects
+supported balance/credits/soft and hard limits, period and availability reasons
+from M05/existing cloud resources through typed API fields. T011 renders those
+actual fields rather than a hardcoded Remaining funds not reported message.
+Cost reports alone cannot establish absence or presence of funds. Reuse the
+existing Ollama balance pool and disclose any incompatible scope/cost basis.
 
 | Section | Required content and behavior |
 |---|---|
@@ -208,6 +225,15 @@ those same buckets for its chart. When the UTC cutoff moves, preserve the
 selected query until explicit refresh; never concatenate overlapping reports
 to fill missing days. A provider without daily buckets shows its actual
 aggregate interval, with daily history unavailable.
+
+Stored history has Previous/Next controls for the selected seven-/thirty-day
+window, showing exact UTC bounds. Next is disabled beyond the latest completed
+cutoff. No retained report means missing stored coverage, not zero usage. These
+reads never fetch a provider. Offer Collect now only for a source-admitted
+interval; no arbitrary historical backfill promise. Source history lists retained
+reports from prior scope epochs with original scope labels; selecting one uses
+its authorized immutable report reference, not an arbitrary caller-selected scope.
+Use existing lists/controls, without a calendar or report-builder dependency.
 
 Start with the exact table in the first usable slice; chart and forecast arrive
 in the later M7 enhancement slice. They are still required before M7 closes.
@@ -253,6 +279,11 @@ an actionable access/collection failure over a green historical reading; show
 the last successful value/time alongside the failure. A successful access check
 without usage is Access verified, not Current usage. Offline dashboard requests
 retain clearly marked old values; they never silently refresh timestamps.
+After a same-context Check completes or Refresh starts, keep the last successful
+amount/table until its replacement GET succeeds. Replace report, amount and
+history together. A failed replacement shows its error beside old values and
+original times; clear old data only for a different account/resource/scope/period.
+T011 specifically tests this transition, not just the initial empty/error view.
 
 P01 assembles collection state from M04 separately from M05 report values. A
 latest denied/failed run may have no stored report; it must not be hidden by a
@@ -265,6 +296,10 @@ An expired dashboard session returns to sign-in and then the same nonsecret
 account/filter URL. Do not replay a mutation after sign-in: fetch actual status
 first and let the owner retry if still needed. Poll only the visible job/status
 while pending, stop on navigation/unmount, and honour server retry times.
+T007/P01 projects the persisted retry instant and current eligibility from M04
+through the existing safe status response. Show Retry after [time/timezone] and
+disable early collection; read-only status refresh remains usable. No client
+invented retry interval or live countdown component is needed.
 
 T011/T012 include the existing shell files `frontend/src/app/DashboardApp.tsx`
 and `frontend/src/app/sessionBootstrap.ts`: the current shell strips query

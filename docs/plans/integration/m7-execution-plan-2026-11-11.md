@@ -4,15 +4,11 @@
 - Plan version: 1.1.0; supersedes focused 1.0.0.
 - Owner: root integration; primary financial semantics: M05 Capacity.
 - Original planning baseline: `a47fc53` on `codex/m7-api-budgets`.
-- Latest local implementation checkpoint: `ad7a04e`; report storage and billing
-  authority/recovery are committed. Uncommitted account GET, Check POST/status
-  GET, worker and Check/detail UI have scoped evidence and passing local quality;
-  full financial API/UI
-  and genuine end-to-end collection remain unfinished. See the current delivery
-  worksheet for exact handoffs; local code is not installed delivery.
-- Installed setup revision: `7e252b8`, schema `v1_0731`; authenticated setup
-  proof remains pending. Financial screens are not delivered. See the
-  [installed evidence](../../evidence/m7-setup-installed-2026-11-11.md).
+- Current implementation and installed-state checkpoint: see the single
+  [delivery worksheet](m7-delivery-worksheet-2026-11-11.md#1-verified-starting-point).
+  Reviewed code is committed at `b69d96a`; installed setup remains `7e252b8`,
+  schema `v1_0731`. The financial activation attempt failed; positive installed
+  source-to-money-to-screen verification remains outstanding.
 - Requirements: FR-BUDGET-001..006, FR-ORG-003, FR-ACC-001..004/006;
   AC-LIVE-004/005/007, AC-UI-002..006, AC-HIST-001, AC-OPS-003/006,
   AC-TEST-001..006.
@@ -106,24 +102,23 @@ and later UI enhancement belong to T013. This removes the earlier UI↔forecast
 completion dependency. T014 begins operational design immediately and supports
 the first installed slice; it does not wait until the last week.
 
-T014 has two increments inside the same ticket: **setup activation before the
-first live report**, then **complete dashboard activation after T010–T012**.
-The present local setup command resolves the installed service executable and
-data root; an isolated candidate cannot claim that command works against an
-older installed binary. First exercise the candidate on isolated real storage
-with no key, prepare a clean compatible build and recoverable migration, and
-activate the tested setup increment through the existing service. Only then
-request owner entry through its actual page. Preserve accepted M6 continuity.
-This partial activation does not close T014 or M7. A failed continuity/recovery
-check prevents activation; it does not permit bypassing service selection or
-manually configuring the owner's account.
+T014 has ordered increments inside one existing ticket: tested setup activation
+before owner entry; tested financial storage/worker activation before the
+installed first report; then complete Overview/detail/history activation and
+verification. The storage/worker increment need not wait for full Overview.
+Only the complete installed financial journey closes T014. Each partial
+activation preserves the existing dashboard and collectors and reports its scope.
 
-Both schema transitions are planned: accepted M6 to setup, then the installed
-setup schema to the financial-storage schema. T014 owns selected-revision
-admission and real recovery for each. The [delivery worksheet](m7-delivery-worksheet-2026-11-11.md)
-records the historical `716cf92` review, the installed `7e252b8` setup increment
-and remaining first-report handoffs. The financial-schema deployment remains
-separate and unexecuted.
+The setup command resolves the selected installed service. Candidate-only
+command tests do not prove installed enrollment. Both schema transitions are
+planned: accepted `0720 → 0731` setup, then `0731 → 0733` financial storage.
+Root reuses the existing selected-revision build, migration, backup and recovery
+routines; there is no additional deployment project or approval ceremony.
+The current failed financial attempt and required diagnostic correction are
+recorded in the worksheet. A generic cutover error does not establish whether
+migration or candidate startup happened: inspect actual service revision,
+schema and transition journal before choosing retry, finalize or recovery.
+Never restore an old database over possible new writes.
 
 First-slice results are explicitly partial M7 delivery. They are not milestone
 completion. The full original three-provider/five-story scope remains required.
@@ -179,8 +174,8 @@ T007's existing first action is
 Read-only `GET /collection-runs/{run_id}/budget`
 (`billing_get_run_status_v1`) is also implemented through M04's public run query.
 Its additive status DTO includes actual `report_id`, account and resource;
-non-budget runs are rejected. The generated client contains 83 compatible
-operations. Real HTTP guards and built no-report/browser controls pass; a
+non-budget runs are rejected. The generated client contains 85 compatible
+operations at `b69d96a`. Real HTTP guards and built no-report/browser controls pass; a
 successful credential-backed report and populated status-to-DOM journey remain
 unverified. See [integration evidence](../../evidence/m7-billing-integration-2026-11-11.md).
 
@@ -188,8 +183,10 @@ This status GET tracks action progress separately from the pinned financial
 snapshot. On completion the UI advances read time, preserves the selected
 reporting interval and replaces report/table together. Existing run-list
 consumers remain compatible; zero-fact reports require no fabricated quota
-observations. Monitoring and Collect now action contracts remain T007's explicit
-work, not capabilities inferred from the implemented Check transport.
+observations. Monitoring GET/PUT and current-generation proof now exist under CTR-REG-014
+1.4.0, with the first seven-day Anthropic due producer. Positive provider-backed
+monitoring, other-provider scheduling, thirty-day/pinned intents and Collect now
+remain T007 work; Check transport alone does not establish them.
 
 T002 owns account billing-connection metadata, credential status and local entry,
 disconnect/rotation eligibility and their HTTP/UI. T007 owns the executable
@@ -350,7 +347,7 @@ separate approval layer. T015/T016 still require the complete aggregate commands
 
 T003/T014's **setup_activation** selection is implemented in the existing M7
 runner and the setup increment is installed at `7e252b8`, schema `v1_0731`.
-Authenticated setup proof remains pending; the financial upgrade is not installed. Its
+Authenticated setup proof remains pending. Its
 [invocation and evidence](../../evidence/m7-setup-activation-selector-2026-11-11.md)
 require the exact clean revision and a sealed controller under the fixed release
 directory. It covers the initial `0720 → 0731` transition only. Operational

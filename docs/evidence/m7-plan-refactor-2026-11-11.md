@@ -512,3 +512,96 @@ acceptance items; AUTO-PLAN-CHECK passed synchronized; AUTO-DOCS-CHECK passed
 367 Markdown files; git diff --check passed. These are planning/static results,
 not an M7 completion or deployed-financial-UI claim. The revised documents are
 local; this reconciliation did not commit, push or deploy them.
+
+## Current bounded refactor against b69d96a
+
+Date: 11 November 2026. Authority: owner's request for deeper UI/calculation
+planning, detailed tasks, fewer surprises and a simple working first release.
+This is a planning-only review within approved focused plan 1.1.0. It does not
+close an implementation ticket or the active full-M7 implementation goal.
+
+Root consolidated the delivery worksheet rather than appending another parallel
+plan. The existing catalog remains sixteen tickets/five stories/ten acceptance
+items; statuses and scope were not inflated. Three read-only module reviews
+covered P01/P02 journeys, M05 calculations and root deployment/verification.
+Root reviewed their findings, applied bounded corrections, and requested one
+recheck of those same findings. No new approval layer or dependency was added.
+
+| Observed problem / source | Correction and owner |
+|---|---|
+| Execution/worksheet described ad7a04e and uncommitted work; current clean implementation was b69d96a with 85 operations | One current checkpoint separates committed, installed and unverified outcomes; root/T001 |
+| `api/v1/schemas/budgets.py` exposes reports/spend while `BudgetAccountPanel.tsx` hardcodes the missing-funds text | Explicit supported balance/credit/limit fields with reasons through M05/P01; T010/T011 |
+| Same-context action completion clears `BudgetAccountPanel` before replacement GET succeeds | Preserve prior values/times until successful atomic replacement; clear for actual context changes; T011 |
+| UI state ordering grouped multiple actionable states without precedence | Fixed server rank: owner action, collection failure, incomplete/stale, low/depleted, current; secondary facts remain; T010/T012 |
+| Retry copy promises a time not yet projected by action/financial status DTOs | Existing persisted M04 retry instant/eligibility to safe status API and UI; no countdown; T007 |
+| T002 closure was too generic for promised scope/shared-pool controls | Explicit metadata/epoch/history/monitoring-invalidation checks; downstream filtered totals stay T010/T012 |
+| 365-day retention but only current seven/thirty-day navigation specified | Previous/Next fixed stored windows and authorized retained report/scope references; no arbitrary backfill or calendar builder; T010/T011 |
+| `budget_money.py` percentage display rounds 20.004% to 20.00 | Exact threshold comparison before formatting; paired 20.004/19.996 pure cases; T004/T012 |
+| Three provider policy modules use different cost-basis identifiers | Separate labelled subtotals even when all are USD unless equivalence is established; T010/T012 |
+| Secondary-organization shared-pool filter semantics were implicit | Show link and primary attribution, omit from secondary subtotal without calling it missing data; both selected counts once; T002 metadata/T010/T012 queries |
+| Forecast time anchoring was implicit | Cost inputs end by funds observation and query as_of; anchor date to observation, invariant on reload; T013 |
+| Full `auto_m7.py` lanes still return m7_boundary_runner_not_implemented | Wire actual suites and missing boundary assertions incrementally in the existing fixed catalog; T003, no new runner |
+| Financial activation order unclear relative to full UI | Setup → storage/worker activation → first real report → full UI verification, all inside T014 |
+| Cutover generic error obscures underlying phase/cause | Safe allowlisted diagnostic and actual revision/schema/journal reconciliation before retry/recovery; T014 |
+
+The UI reviewer found one dependency ambiguity in the proposed ticket update:
+T002's new step included filtered subtotal verification, which depends on later
+Overview/query work. Root removed that requirement from T002 and retained it in
+T010/T012. This preserves independent setup closure and avoids a circular delivery
+expectation. The math and operations rechecks found no introduced contradiction
+within their original findings. Reviews establish planning consistency, not
+implemented behavior or a guarantee that no future defects exist.
+
+### Installed-state observation and activation limitation
+
+The prior financial activation attempt for committed
+`b69d96a03e7013bdd23f30c82f33b5c5c1ba77d6` returned:
+
+```text
+M7 CHECK controller_preflight: PASSED
+M7 CHECK candidate_started: FAILED (m7_setup_cutover_journal_review)
+```
+
+No activation was rerun during this planning review. Root and the operations
+reviewer independently checked current state read-only:
+
+- User service active/running; working directory is retained
+  `7e252b869e28d62582b675f9e3cecc1612d6c5c4`.
+- Read-only `alembic_version`: `v1_0731`.
+- `.m6-cutover-journal.json`: absent.
+- Loopback dashboard: HTTP 200.
+
+`m6_cutover.py` collapses underlying failures into
+`cutover_incomplete_review_journal`; pre-stop cleanup can remove a journal.
+The outer `candidate_started` check name covers the cutover call and does not
+prove startup occurred. The failure's underlying cause remains unproven. No
+restore is justified solely by that generic error. HTTP availability is not an
+authenticated financial acceptance pass. These findings supersede earlier
+"installed activation has not yet run" checkpoint wording only; they do not
+rewrite historical isolated-preparation evidence.
+
+### Validation and impact
+
+Executed against this actual planning diff:
+
+- `python3 tools/automation/run.py AUTO-M7-PLAN-CHECK`: Passed, unchanged
+  sixteen tickets/five stories/ten acceptance items.
+- `python3 tools/automation/run.py AUTO-PLAN-CHECK`: Passed, synchronized.
+- `python3 tools/automation/run.py AUTO-DOCS-CHECK`: Passed, 373 Markdown files.
+- `git diff --check`: Passed.
+
+Owning modules/contracts remain M02/M03/M04/M05/P01/P02/root, including already
+published CTR-REG-014 1.4.0 monitoring and CTR-CAP-006 2.2.0 account queries;
+this review changes no contract implementation/version, schema or dependency.
+Requirements remain FR-BUDGET-001..006, FR-ORG-003, FR-ACC-001..004/006 and the
+existing M7-A01..A10 acceptance mappings. Pure calculation examples are proposed
+test cases, never database/provider fixtures. Production Red/Green is not claimed
+for documentation changes. Live financial/browser verification was not executed.
+
+Changed artifacts: execution plan, delivery worksheet, UI journeys, calculation
+rules, existing ticket catalog, M05 focused contract reference and this evidence.
+No product code, provider/account configuration, secrets, profiles, service or
+running agent was changed. No new security, privacy, migration, license or
+publication effect. Next implementation step is T014's actual failure diagnosis
+and tested financial prerequisite, while independent T010/T011/T012 work proceeds.
+The complete M7 goal remains open.
