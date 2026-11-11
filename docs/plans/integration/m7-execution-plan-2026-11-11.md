@@ -6,9 +6,9 @@
 - Original planning baseline: `a47fc53` on `codex/m7-api-budgets`.
 - Current implementation and installed-state checkpoint: see the single
   [delivery worksheet](m7-delivery-worksheet-2026-11-11.md#1-verified-starting-point).
-  Reviewed code is committed at `b69d96a`; installed setup remains `7e252b8`,
-  schema `v1_0731`. The financial activation attempt failed; positive installed
-  source-to-money-to-screen verification remains outstanding.
+  Reviewed code is committed and installed at `437a232`, schema `v1_0733`.
+  Financial operational activation and authenticated setup-surface checks passed;
+  positive installed source-to-money-to-screen verification remains outstanding.
 - Requirements: FR-BUDGET-001..006, FR-ORG-003, FR-ACC-001..004/006;
   AC-LIVE-004/005/007, AC-UI-002..006, AC-HIST-001, AC-OPS-003/006,
   AC-TEST-001..006.
@@ -114,8 +114,8 @@ command tests do not prove installed enrollment. Both schema transitions are
 planned: accepted `0720 → 0731` setup, then `0731 → 0733` financial storage.
 Root reuses the existing selected-revision build, migration, backup and recovery
 routines; there is no additional deployment project or approval ceremony.
-The current failed financial attempt and required diagnostic correction are
-recorded in the worksheet. A generic cutover error does not establish whether
+The historical failed attempt, checked diagnostic and later successful financial
+activation are recorded in the worksheet. A generic cutover error does not establish whether
 migration or candidate startup happened: inspect actual service revision,
 schema and transition journal before choosing retry, finalize or recovery.
 Never restore an old database over possible new writes.
@@ -346,8 +346,8 @@ their exact invocations remain Planned until implemented. No new runner or
 separate approval layer. T015/T016 still require the complete aggregate commands.
 
 T003/T014's **setup_activation** selection is implemented in the existing M7
-runner and the setup increment is installed at `7e252b8`, schema `v1_0731`.
-Authenticated setup proof remains pending. Its
+runner. Its historical setup increment was installed at `7e252b8`, schema `v1_0731`;
+current financial activation/setup proof is recorded in the worksheet. Its
 [invocation and evidence](../../evidence/m7-setup-activation-selector-2026-11-11.md)
 require the exact clean revision and a sealed controller under the fixed release
 directory. It covers the initial `0720 → 0731` transition only. Operational

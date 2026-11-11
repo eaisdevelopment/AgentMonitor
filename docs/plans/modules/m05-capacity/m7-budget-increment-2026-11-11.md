@@ -91,7 +91,9 @@ asserted; ambiguous overlap prevents invalid totals.
 Root allocates M05 `v1_0732` after M02 owner-setup `v1_0730`/`v1_0731`, which follow
 accepted `v1_0720`; M04 `v1_0733` now supplies its captured billing
 authority and run-to-report reference. Both financial revisions are committed
-locally at `ad7a04e`; installed setup remains `v1_0731`. Preserve all old migration contents/digests.
+locally at `ad7a04e`; the later financial activation at `437a232` installed
+`v1_0733`. Positive monetary integration remains unverified. Preserve all old
+migration contents/digests.
 Use existing budget/usage/provenance facts and receipt keys where semantics fit.
 Add only:
 

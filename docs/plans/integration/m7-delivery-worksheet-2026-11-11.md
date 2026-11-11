@@ -1,7 +1,7 @@
 # M7 delivery worksheet: remaining work and fixed finish line
 
 Status: execution clarification within approved focused plan 1.1.0, reviewed
-against committed `b69d96a` on 11 November 2026. Primary owner: root integration;
+against committed `437a232` on 11 November 2026. Primary owner: root integration;
 financial owner: M05. No new milestone, approval, dependency or completion gate.
 
 The [ticket catalog](m7-ticket-catalog-v1.json) remains the only task tracker:
@@ -14,10 +14,10 @@ semantics. Historical findings remain in [review evidence](../../evidence/m7-pla
 
 | Boundary | Observed checkpoint | What it does not establish |
 |---|---|---|
-| Committed implementation | `b69d96a`, after `32b16fc`: billing authority, report storage, Check/status, account financial read/UI, monitoring eligibility/mutation and first seven-day Anthropic scheduler; 85 generated API operations | Genuine populated financial journey, all providers, Overview and complete history/analysis |
+| Committed implementation | `437a232`, building on `b69d96a`/`32b16fc`: billing authority, report storage, Check/status, account financial read/UI, monitoring eligibility/mutation and first seven-day Anthropic scheduler; 85 generated API operations | Genuine populated financial journey, all providers, Overview and complete history/analysis |
 | Local verification | Scoped pure, real SQLite/HTTP, no-report built-browser tests and aggregate quality recorded in the linked evidence | A missing-key or empty-stack pass is not positive provider-backed monitoring |
-| Installed dashboard | Read-only inspection: active/running, retained `7e252b8`, schema `v1_0731`; loopback HTTP 200 | Installed financial schema/screens or correct monetary values |
-| Attempted financial activation | `b69d96a` preparation passed; installed attempt failed with `m7_setup_cutover_journal_review`; subsequent inspection found no transition journal and the old revision/schema active | Error label `candidate_started` does not prove candidate startup; cause remains unproven; no blind retry or database restore |
+| Installed dashboard | Retained `437a232`, schema `v1_0733`; active/running, loopback/LAN HTTP 200; authenticated setup/Overview/revision probe passed | Genuine monetary values and full financial acceptance |
+| Financial activation | Earlier `b69d96a` attempt failed generically; checked `437a232` passed operational activation/finalization; no active transition journal | Earlier cause remains unproven; full financial/collector/recovery verification is still required |
 | Delivery | No verified installed M7 source-to-money-to-screen journey yet | Code committed locally is neither published nor installed delivery |
 
 Evidence: [integration](../../evidence/m7-billing-integration-2026-11-11.md),
@@ -25,13 +25,16 @@ Evidence: [integration](../../evidence/m7-billing-integration-2026-11-11.md),
 [scheduler](../../evidence/m7-billing-schedule-2026-11-11.md),
 [activation selector](../../evidence/m7-financial-activation-selector-2026-11-11.md),
 [current planning review](../../evidence/m7-plan-refactor-2026-11-11.md).
-No implementation ticket is closed by this planning review.
+No implementation ticket is closed by this planning review. The later
+[installed increment](../../evidence/m7-financial-installed-2026-11-11.md) records
+actual activation and authenticated setup proof. First monetary collection and
+its financial UI demonstration are next; full T014 remains open.
 
 ## 2. Ordered delivery, with an observable result at every checkpoint
 
 | Order | Existing tickets / owner | Work to finish | Demonstration that ends the increment |
 |---|---|---|---|
-| 1. Make installed collection usable | T014 root; T003 verification wiring | Diagnose the failed financial transition with a safe phase/code; reconcile actual revision/schema/journal; test the smallest correction; activate tested storage/worker through existing recovery procedure | Correct installed revision/schema, authenticated account controls, old collectors still work. This partial deployment does not close T014 |
+| 1. Installed collection prerequisite — operational checks passed | T014 root; T003 verification wiring | Checked storage/worker activated at 437a232/schema0733; authenticated setup verified. Complete collector continuity and financial recovery proof with later integration | Correct installed revision/schema and authenticated controls demonstrated. This partial deployment does not close T014 |
 | 2. First real financial journey | T002/T005/T007 + first available T006/T008/T009; M02/M04/M05/provider/root | Owner-configured connection; genuine bounded read; exact atomic report/reopen; positive enable/disable; next due read with browser closed | One real account shows provider scope, interval, amount/currency, source time and useful access state. Check success is backed by its actual stored report |
 | 3. First useful dashboard | T010/T011/T012 + T014; M05/P01/P02/root | Compact current/summary DTOs, supported funds, pinned history, Overview/shared filters, navigation and installed verification | Same report and exact amount in account/detail/history/Overview; group selection and Back/reload work; failed refresh retains prior value |
 | 4. Finish provider coverage | Remaining T006/T008/T009 + T007 | Wire remaining providers, finite usage categories, thirty-day and pinned report intents, shared scope rate limits | Anthropic/OpenAI/Ollama use the same screens with explicit category/field coverage; all active resources accounted for |

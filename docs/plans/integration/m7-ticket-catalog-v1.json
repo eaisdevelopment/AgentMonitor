@@ -735,7 +735,7 @@
       "deliverable": "Ordered increments in the existing service: setup before owner entry, financial storage/worker before the installed first report, then complete Overview/detail/history verification; selected clean candidate, safe phase-specific diagnostics, schema/backup/recovery and browser revision checks; no deployment platform",
       "expected_red": "Existing fixed M6 updater refuses the M7 candidate; verify candidate/backup boundaries before transition.",
       "done_when": "First complete real UI slice is installed and verified with recovery to known-good runtime available; no default provider/profile or user agent disruption",
-      "verification": "Setup operational checks passed on installed 7e252b8/schema0731; financial activation of b69d96a failed with m7_setup_cutover_journal_review. Read-only follow-up: old revision/schema active, no transition journal. Diagnose before another attempt; full financial-slice closure still requires python3 tools/automation/run.py AUTO-M7-DEPLOY.",
+      "verification": "Financial operational activation passed at installed437a232/schema0733; authenticated setup surface/revision passed. Full financial report, collector continuity and recovery remain required for AUTO-M7-DEPLOY; operational selector exits3 until separate proof exists.",
       "evidence": [
         "docs/evidence/m7-setup-activation-preparation-2026-11-11.md",
         "docs/evidence/m7-selected-controller-admission-2026-11-11.md",
@@ -745,7 +745,8 @@
         "docs/evidence/m7-financial-schema-recovery-2026-11-11.md",
         "docs/evidence/m7-financial-activation-selector-2026-11-11.md",
         "docs/evidence/m7-plan-refactor-2026-11-11.md",
-        "docs/evidence/m7-financial-cutover-diagnostics-2026-11-11.md"
+        "docs/evidence/m7-financial-cutover-diagnostics-2026-11-11.md",
+        "docs/evidence/m7-financial-installed-2026-11-11.md"
       ],
       "depends_on_any": [],
       "delivery_slice": "S1",
