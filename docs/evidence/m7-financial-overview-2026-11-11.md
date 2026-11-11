@@ -148,3 +148,22 @@ including6 Claude and5 Codex, with zero separate billing connections or stored
 billing credentials for either provider. This does not prove denied access.
 The owner was asked once to create/configure an Anthropic API billing resource
 through the tested Accounts setup; independent implementation continues.
+
+
+### Installed navigation Green at 93297fc
+
+The canonical same-schema update succeeded at
+`93297fc471d3c3047036d8aa0e21ede96dd90111`; service active, schema0733 retained,
+loopback/LAN HTTP200 and original restart policy restored. The revised real
+Overview probe passed on that exact installed revision at23:25 UTC: authentication,
+API/DOM amounts and metadata for two financial rows, shared filters, exact-report
+navigation and cutoff, detail buckets, Back/reload and widths1920/1366/768.
+It observed zero mutation requests. Root opened the current Overview in a new
+shared-browser tab. This is a real installed funds/counts Overview increment,
+not completion of canonical-pool totals, monetary reporting, accessibility's
+remaining keyboard/zoom cases, history pagination or full M7.
+
+The installed setup/revision/continuity probe also passed93297fc at23:25 UTC,
+with38 read requests and zero mutations. Existing owner configuration and
+subscription controls remain intact; this probe does not establish new billing
+credential access.

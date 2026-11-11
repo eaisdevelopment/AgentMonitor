@@ -1,7 +1,7 @@
 # M7 delivery worksheet: remaining work and fixed finish line
 
 Status: execution clarification within approved focused plan 1.1.0, reviewed
-against committed `e310b82` and installed `ca5f062` on 11 November 2026
+against committed and installed `93297fc` on 11 November 2026
 (schema `v1_0733`). Primary owner: root integration; financial owner:
 M05. No new milestone, approval, dependency or completion gate.
 
@@ -15,21 +15,20 @@ semantics. Historical findings remain in [review evidence](../../evidence/m7-pla
 
 | Boundary | Evidence at this review | Still unfinished |
 |---|---|---|
-| Committed implementation | `e310b82`: financial Overview, shared filters, immutable report drill-down and funds lineage; retains the prior cloud usage increment | Installed browser proof for this revision, canonical pool totals, monetary reporting and full provider/scheduling/analysis coverage |
-| Installed dashboard | `ca5f062`, schema `v1_0733`; source/API/DOM/reload proof for one seven-bucket usage report, plus both existing cloud accounts' three funds components | Actual spend, financial Overview and complete history/analysis |
-| Existing setup | Installed authenticated setup surface and current account funds demonstrated | No verified independent Anthropic/OpenAI billing enrollment; an absent record does not prove unavailable access |
-| Deployment | Same-schema funds update and authenticated shell/Overview continuity passed; accepted financial migrations already installed | Full financial scheduling, recovery and final M7 acceptance; do not rerun the initial migration |
-| Candidate verification | `e310b82`: local quality/build, 489 Python pure checks plus five presentation scripts, ten HTTP guards and five stored-data/empty-storage checks passed | New Overview browser checks remain Not Run against the installed candidate. Existing source reports demonstrate counts, not monetary spend |
-| Publication | This review inspects local artifacts and recorded installation evidence | No new remote-publication or current live-health claim from this planning pass |
+| Committed implementation | `93297fc`: financial Overview/shared filters, exact immutable report links, funds lineage and guarded update correction | Canonical pool totals, real monetary report, full provider/scheduling/history/analysis coverage |
+| Installed dashboard | `93297fc`, schema `v1_0733`; authenticated Overview/API/DOM, exact report navigation, Back/reload and 1920/1366/768 widths passed | Remaining keyboard/zoom checks and complete M7 monetary/analysis experience |
+| Existing setup | Authenticated setup surface verified; two existing cloud accounts have real funds and daily usage | Read-only inventory confirmed no Anthropic/OpenAI billing enrollment. Owner asked once to use the tested setup; absence of enrollment does not prove denied access |
+| Deployment | Same-schema update succeeded; loopback/LAN HTTP200, original restart policy restored; real disposable stop/update regression passed | Full financial scheduling, recovery and final M7 acceptance; do not rerun the initial migration |
+| Candidate verification | Local quality/build, exact timestamp Red/Green, real current Overview browser pass; earlier funds/usage tests cover two accounts and fourteen daily buckets | Demonstrated usage contains counts, not monetary spend; no implementation ticket closes from this increment alone |
+| Publication | Local committed and installed revisions verified | No new remote-publication claim |
 
-The attempted same-schema update to `e310b82` exited 3 with
-`M6 CURRENT UPDATE: BLOCKED — review the transition journal and service state`.
-A subsequent read-only check confirms the old `ca5f062` service is active/running
-and the dashboard returns HTTP 200. That proves availability, not the new UI.
-T014 must diagnose the retained transition state before retry/finalize/recovery;
-this is engineering work, not a request for another owner approval. Do not
-repeat migrations or restore a database on the strength of the generic error.
-See [candidate evidence](../../evidence/m7-financial-overview-2026-11-11.md).
+Earlier Overview update attempts stopped safely. The closed diagnostic exposed
+`unit_has_children_or_not_stopped`; a real disposable regression reproduced a
+frozen parent's inability to reap a short-lived child. The bounded resume/recheck
+correction preserves final child-free proof and long-child refusal. Its checked
+update succeeded. No database restore, credential/account configuration or user
+agent interruption was performed. See [candidate and installed evidence](../../evidence/m7-financial-overview-2026-11-11.md)
+and [deployment correction](../../evidence/m7-financial-cutover-diagnostics-2026-11-11.md).
 
 Evidence: [installed funds](../../evidence/m7-stored-funds-2026-11-11.md),
 [cloud authority and current-query gap](../../evidence/m7-cloud-usage-authority-2026-11-11.md),
@@ -107,19 +106,18 @@ Do not replace the first spend demo with another contract-only increment.
 
 ### Immediate work and release dependencies
 
-The next observable result is the existing committed Overview on the running
-service. Diagnose T014's update failure, install the selected clean candidate,
-then compare its authenticated browser values with the API and stored report.
-Do not hold this funds/usage demonstration for all monetary providers or charts.
-It does not close the monetary checkpoint.
+The funds/usage Overview and immutable report drill-down are now installed and
+verified at93297fc. Reuse that evidence rather than repeating setup or deployment
+diagnosis. The next visible increments are canonical shared-pool attribution/totals
+and the first genuine monetary report; the current counts-only demonstration
+does not close the monetary checkpoint.
 
 In parallel with that integration, establish the first genuine monetary report
 in T006 or T008, using the tested owner workflow if access is missing. An
 existing Claude/Codex subscription login does not establish administrative billing
 access. Record the actual access outcome before giving a monetary-demo date.
 Missing setup blocks that provider's live test only; metadata, exact calculations,
-queries and other connected providers continue. No owner action is currently
-required to refactor the plan or diagnose/install the existing candidate.
+queries and other connected providers continue. The owner setup request is pending; independent pool/query/analysis work proceeds.
 
 Finish canonical pool metadata before declaring organization totals delivered.
 Then finish the same report across detail, history and Overview, remaining

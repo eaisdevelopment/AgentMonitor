@@ -760,7 +760,7 @@
       "deliverable": "Ordered increments in the existing service: setup before owner entry, financial storage/worker before the installed first report, then complete Overview/detail/history verification; selected clean candidate, safe phase-specific diagnostics, schema/backup/recovery and browser revision checks; no deployment platform",
       "expected_red": "Existing fixed M6 updater refuses the M7 candidate; verify candidate/backup boundaries before transition.",
       "done_when": "First complete real UI slice is installed and verified with recovery to known-good runtime available; no default provider/profile or user agent disruption",
-      "verification": "Installed ca5f062/schema0733: genuine funds and daily usage source/HTTP/DOM/reload plus authenticated setup passed. Candidate e310b82 passed local checks but its same-schema update exited 3; old service remains active/HTTP200. Diagnose actual journal before retry/finalize/recovery. Candidate Overview browser proof, full monetary journey, collector continuity and financial recovery remain required; partial installed evidence does not close T014.",
+      "verification": "Installed93297fc/schema0733: real funds/usage Overview, exact report navigation, filters, Back/reload and responsive browser checks passed; setup/current-revision continuity also passed. Safe same-schema update and real disposable transient-child/refusal/writer checks passed. Full monetary journey, financial scheduling/recovery and AUTO-M7-DEPLOY remain required; this installed increment does not close T014.",
       "evidence": [
         "docs/evidence/m7-setup-activation-preparation-2026-11-11.md",
         "docs/evidence/m7-selected-controller-admission-2026-11-11.md",
