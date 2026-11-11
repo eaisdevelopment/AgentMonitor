@@ -194,18 +194,48 @@ try {
   if (await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth + 1)) {
     throw new Error("horizontal_overflow");
   }
-  stage = "ollama_existing_cloud_required";
+  stage = "ollama_existing_cloud_setup";
   await page.setViewportSize({ width: 1280, height: 800 });
   await page.getByRole("button", { name: "Accounts", exact: true }).click();
   await page.getByRole("button", { name: "Add API billing account", exact: true }).click();
   await page.getByLabel("Provider", { exact: true }).selectOption("ollama");
   await page.getByLabel("Account name").fill("Browser cloud billing account");
+  const cloudCreation = page.waitForResponse((response) =>
+    response.url().endsWith("/api/v1/accounts") && response.request().method() === "POST",
+  );
   await page.getByRole("button", { name: "Create API billing account", exact: true }).click();
+  const cloudResponse = await cloudCreation;
+  assert.equal(cloudResponse.status(), 201);
+  const cloudAccount = await cloudResponse.json();
+  assert.equal(cloudAccount.initial_connection_purpose, "api");
   await page.getByRole("heading", { name: "Browser cloud billing account", exact: true }).waitFor();
-  await page.getByText("Ollama Cloud billing uses the existing cloud connection flow. API-only setup is not available yet.", { exact: true }).waitFor();
+  const cloudConnection = page.getByRole("region", { name: "Ollama cloud connection", exact: true });
+  await cloudConnection.getByRole("heading", { name: "Ollama cloud not connected", exact: true }).waitFor();
+  await cloudConnection.getByText("Set up or replace the local key", { exact: true }).waitFor();
+  await cloudConnection.getByRole("button", { name: "Copy setup command", exact: true }).waitFor();
+  assert.ok((await cloudConnection.locator("code").textContent()).includes("agentmonitor.composition.ollama_credential_operator"));
+  const cloudStatusResponse = await page.request.get(`${origin}/api/v1/accounts/${cloudAccount.account_id}/ollama-cloud-connection`, { headers: { Origin: origin } });
+  assert.equal(cloudStatusResponse.status(), 200);
+  const cloudStatus = await cloudStatusResponse.json();
+  assert.equal(cloudStatus.account_id, cloudAccount.account_id);
+  assert.equal(cloudStatus.state, "not_configured");
+  assert.equal(cloudStatus.can_verify, false);
+  const cloudBillingResponse = await page.request.get(`${origin}/api/v1/accounts/${cloudAccount.account_id}/billing-connections`, { headers: { Origin: origin } });
+  assert.equal(cloudBillingResponse.status(), 200);
+  const cloudBilling = await cloudBillingResponse.json();
+  assert.equal(cloudBilling.can_add_connection, false);
+  assert.equal(cloudBilling.reason_code, "existing_cloud_connection_required");
+  assert.equal(cloudBilling.connections.length, 0);
   assert.equal(await page.getByRole("button", { name: "Add API billing connection", exact: true }).count(), 0);
   assert.equal(await page.getByText("Credential required", { exact: true }).count(), 0);
   assert.equal(await page.getByText("Set up or replace local key", { exact: true }).count(), 0);
+  assert.equal(await page.getByText("Ollama Cloud billing uses the existing cloud connection flow. API-only setup is not available yet.", { exact: true }).count(), 0);
+  assert.equal(await page.getByRole("heading", { name: "Account activity", exact: true }).count(), 0);
+  assert.equal(await page.locator("details.quota-history, [data-account-sessions], input[type='password']").count(), 0);
+  await page.reload();
+  await cloudConnection.getByRole("heading", { name: "Ollama cloud not connected", exact: true }).waitFor();
+  await page.setViewportSize({ width: 390, height: 844 });
+  assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth + 1), false);
   await browser.close();
   console.log("P02 ACCOUNTS ADMIN: PASSED — real API, SQLite, and built browser");
 } catch (error) {

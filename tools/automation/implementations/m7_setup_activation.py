@@ -93,7 +93,9 @@ with open_sqlite_database(ref, "migration_existing") as handle:
         backup_digest = _create_sqlite_backup(driver, backup / "agentmonitor.db")
 _verify_sqlite_backup(backup, catalog.digest, source)
 upgrade(catalog.head, "migration_existing")
-view = InspectSchemaCompatibilityV1(ref, application_schema_range(), "runtime_read_write")
+view = InspectSchemaCompatibilityV1(
+    ref, application_schema_range(), "runtime_read_write"
+)
 if (view.state != "compatible" or view.current_revision != catalog.head
     or view.integrity_state != "passed" or view.policy_state != "passed"):
     raise ValueError("m7_setup_rehearsal_invalid")
@@ -170,7 +172,11 @@ def prepare_setup_activation(
     ):
         raise SetupPreparationError("m7_setup_workspace_unsafe")
     release, revision, build = prepare_candidate_release(
-        candidate, workspace / "releases", workspace, tool_modules
+        candidate,
+        workspace / "releases",
+        workspace,
+        tool_modules,
+        expected_revision=expected_revision,
     )
     if revision != expected_revision:
         raise SetupPreparationError("m7_setup_revision_mismatch")

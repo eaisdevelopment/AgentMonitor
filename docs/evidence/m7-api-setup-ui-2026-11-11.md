@@ -362,6 +362,107 @@ Actual LAN HTTP insecure-context clipboard absence and owner credential entry
 are Not Run in this UI slice. No full local enrollment or first-reading claim
 is made from command display/copy evidence.
 
+## API-only Ollama setup routing correction
+
+- Scope: approved T002/M7-A01, FR-ACC-001/004 and FR-BUDGET-006 setup routing.
+- Baseline: `716cf92`; existing API V1 Ollama cloud-connection and billing
+  metadata contracts only. No schema/client, migration or credential change.
+- Files: AccountPage.tsx, one corrected reason string in
+  BillingConnectionPanel.tsx, accounts_admin.mjs and this evidence.
+
+The exact UI defect was that AccountPage placed OllamaCloudConnectionView inside
+the `!apiOnly` section. An API-intent Ollama record instead displayed the generic
+billing panel, whose API correctly refused a second billing connection, leaving
+the owner without the existing cloud setup controls.
+
+At 16:48 UTC, before production changes, the real built `accounts_admin`
+scenario created an actual API-intent Ollama metadata account and failed at
+`ollama_existing_cloud_setup`:
+
+```text
+locator.waitFor: Timeout 30000ms exceeded.
+waiting for getByRole('region', { name: 'Ollama cloud connection', exact: true })
+  .getByRole('heading', { name: 'Ollama cloud not connected', exact: true })
+```
+
+The minimum change lifts the existing OllamaCloudConnectionView outside the
+subscription-only guard and excludes Ollama from the primary generic billing
+panel. Its existing archive guard remains intact. API-only Claude/Codex routing
+and the mixed-account layout retain their existing controls. The generic Ollama
+reason now describes reuse of the existing cloud connection and shared balance,
+instead of claiming API-only setup is unavailable.
+
+The expanded real-browser assertions require the existing not-configured cloud
+state, local operator command and Copy setup command control, and compare the
+real cloud-status response. A separate real billing-status GET must still show
+`existing_cloud_connection_required`, `can_add_connection=false` and zero billing
+connections. No credential entry, verification action, provider login or
+provider collection is performed. The scenario also checks absent subscription
+activity/quota/session panels, reload and the 390px layout.
+
+This proves routing into the existing canonical cloud flow; it does not prove
+live access, a populated financial pool or a first reading. Those require the
+owner's real connection and later live integration evidence.
+
+### Current verification: partial, full scenario Failed
+
+Strict TypeScript passed and the production frontend rebuilt. The first
+post-change browser run reached the existing cloud not-connected heading,
+local setup summary, operator command and Copy setup command control. It then
+failed at `ollama_existing_cloud_setup` with `403 !== 200` on the test's
+separate `page.request.get` call to the cloud-status endpoint. The component's
+own real browser status request had succeeded sufficiently to render its
+not-configured state. The separate request's authorization failure is unresolved;
+it is not evidence that the UI setup rendering failed.
+
+The subsequent separate-billing-response, reload and narrow-layout assertions
+were Not Run in this attempt. No full browser Green or completed Ollama setup
+claim is made. Scoped `git diff --check` passed. The root redirected the task
+to planning during verification; this delegate preserved the scoped edits,
+stopped further implementation/test runs, and released the helper window after
+the failed run exited and its owned links were cleaned up.
+
+### Resumed transport diagnosis
+
+On resumption, source inspection identified the precise 403 cause in
+`backend/src/agentmonitor/api/transport.py`: cookie-authenticated safe requests
+without browser same-origin Fetch Metadata must supply canonical `Origin`.
+Playwright's separate `page.request` client shared the session cookie but sent
+neither browser Fetch Metadata nor an Origin header. The protected service
+therefore correctly rejected it before the application route. The component's
+normal browser request was already using the admitted same-origin path.
+
+The test now supplies `headers: { Origin: origin }` on its two read-only status
+requests, matching the existing ollama_catalog.mjs transport pattern. No
+application security policy, provider adapter, contract or credential behavior
+was changed for this correction. The original 403 failure is retained above.
+
+### Green
+
+At 16:58 UTC, strict frontend TypeScript and the full rebuilt real
+`accounts_admin` scenario exited 0:
+
+```text
+P02 ACCOUNTS ADMIN: PASSED — real API, SQLite, and built browser
+P02 BROWSER: PASSED — accounts_admin
+```
+
+The cloud-status GET returned the actual new account, `not_configured` and
+`can_verify=false`. The separate billing-status GET retained
+`can_add_connection=false`, `existing_cloud_connection_required` and zero
+connections. Existing cloud setup/command/copy controls were visible; the
+unavailable placeholder and subscription activity/quota/session/password
+sections were absent. Reload and the 390px no-overflow check passed. All earlier
+Claude/API-only/mixed-account, clipboard/native-focus and subscription
+administration assertions also passed.
+
+This final run used the reproducible typecheck/build/browser command above with
+the admitted guarded tool environment. The context exited, cleaned its owned
+links and was explicitly released to root immediately afterward. No production
+change followed this Green. No credential entry, provider login or collection
+action occurred, and no commit was made by the delegate. Live cloud access and
+populated-pool/first-reading verification remain separate required evidence.
+
 ## Security, operations and residual work
 
 No dependency, license, migration, service configuration or owner-runtime

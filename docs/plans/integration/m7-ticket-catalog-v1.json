@@ -119,7 +119,7 @@
         "Publish minimal scope correction/shared-pool association and primary-group metadata controls; fence scope epochs and preserve historical attribution.",
         "Deliver copyable candidate local-entry command with host/provider/account context, safe stored/pending/cleanup status, cancellation/retry and rotation/archive fences; no browser key field.",
         "Verify real metadata HTTP/browser and local filesystem/TTY boundaries; actual key entry remains owner-controlled. Hand T007 generation-fenced eligibility and T014 the tested entry point.",
-        "Resolve the currently failing mixed-account browser attachment scenario before setup closure; command rendering/copy is not successful owner credential entry or provider access. Early T014 activation must precede any owner use of the installed-service command."
+        "Retain passed mixed-account and Ollama API-only browser evidence: existing cloud controls, no duplicate billing connection, reload and narrow layout. Rendering/copy is not actual credential entry or verified access. Early T014 activation still precedes owner use of the installed-service command."
       ]
     },
     {
@@ -254,9 +254,11 @@
         "docs/plans/integration/m7-delivery-worksheet-2026-11-11.md"
       ],
       "steps": [
-        "Apply real migration and test absent store/empty outcome",
-        "Commit fresh real provider report atomically",
-        "Retry/reopen and verify immutable selection/coverage"
+        "Publish the additive commit/query receipt contracts before parallel M04/M05 work; root owns shared types and migration catalog.",
+        "Exercise real fresh/upgrade SQLite migration v1_0732, constraints and empty queries before live access; no invented financial rows.",
+        "Commit the first fresh genuine normalized provider report atomically with its coverage and exact signed facts; one successful partial provider cost implementation can feed this step before that provider ticket closes.",
+        "Retry that same in-memory commit, reopen storage and verify the actual receipt, exact query output and generation fences. Preserve genuine correction history and report unavailable natural cases separately.",
+        "Hand the actual report/query ports to P01/P02; do not hold the first usable table for chart, forecast or all-category completion."
       ]
     },
     {
@@ -299,11 +301,11 @@
         "docs/plans/integration/m7-delivery-worksheet-2026-11-11.md"
       ],
       "steps": [
-        "Resolve the demonstrated official-beta source-class contract conflict; keep the source explicitly experimental. Existing pure/process passes do not establish authenticated success.",
+        "Retain the documented-beta classification correction and CTR-PROV-003 1.3.0 evidence from bfe1e35; the source remains explicitly experimental. Existing pure/process passes do not establish authenticated success.",
         "Admit documented source/version/role and bounded request",
         "Map permitted live usage/cost into exact normalized facts",
         "Compare same scope/time with provider; mark gaps explicitly",
-        "Validate the original deadline before clamping; wire the real active credential grant into a supervised worker. Deliver the first ungrouped cost report before the remaining usage/breakdown work; ticket closure still requires full admitted coverage."
+        "Retain finite-before-clamping deadline correction from bfe1e35; wire the real active credential grant into a supervised worker with an outer deadline. Deliver the first ungrouped cost report before remaining usage/breakdown work; ticket closure still requires full admitted coverage."
       ]
     },
     {
@@ -348,7 +350,8 @@
         "Connect T002 metadata to bounded verification; enable monitoring only after access success for the same binding/scope generation; queue first reading.",
         "Reuse schedules, leases and commit reconciliation; disable monitoring independently from subscription; fence rotate/scope/archive in-flight results.",
         "Observe genuine schedule/manual read/restart recovery and source isolation; keep last successful facts and age on failure, respect cooldown and never retry denied credentials indefinitely.",
-        "Publish the minimal API-only billing target and bounded paged-report admission; no fictitious profile. Reuse any complete Check connection report once, then schedule the next due read on enable rather than duplicate a current identical request."
+        "Publish the minimal API-only billing target and bounded paged-report admission; no fictitious profile. Reuse any complete Check connection report once, then schedule the next due read on enable rather than duplicate a current identical request.",
+        "Integrate the published profile-free billing admission and report receipt; if required, M04 owns migration v1_0733 for run-to-report references. Use public M02 fences and M05 commit-status ports, never their private tables. Exercise real supervised worker deadline/recovery on isolated resources before installed use."
       ]
     },
     {
@@ -480,7 +483,8 @@
         "Fail missing current/list/summary/history operations on real HTTP/IAM with migrated SQLite.",
         "Wire typed ports and generate the client; preserve exact amounts, availability, source period and report identity.",
         "Verify filtered summaries include every inventory page and disclose exclusions; no eligible source is unavailable rather than zero.",
-        "Verify permission/CSRF boundaries for associated actions, deterministic snapshot pagination and expired-cursor recovery; defer forecast/breakdown HTTP to T013."
+        "Verify permission/CSRF boundaries for associated actions, deterministic snapshot pagination and expired-cursor recovery; defer forecast/breakdown HTTP to T013.",
+        "Keep exact money/counts and the selected UTC cutoff stable across all pages and chart/table consumers; midnight or a refreshed filter starts a new snapshot. Counts included in another total are not additional spend or usage."
       ]
     },
     {
@@ -525,7 +529,8 @@
         "Demonstrate absent budget/history UI using real source data and built candidate.",
         "Render identity/scope/period first, spend and supported funds separately, then exact history and compact connection controls.",
         "Exercise direct URL/reload and API-only/mixed capability transitions; stored credentials are not verified access and monitoring is not data freshness.",
-        "Verify first-reading, real empty/error states, preserved last values, session-expiry return and mutation reconciliation; no fake network responses."
+        "Verify first-reading, real empty/error states, preserved last values, session-expiry return and mutation reconciliation; no fake network responses.",
+        "Prioritize account/scope, state, spend/period and supported funds; absent funds use one concise reason. Reconcile accepted asynchronous actions and concurrent-edit conflicts before changing connection status; no combined API/subscription percentage."
       ]
     },
     {
@@ -648,7 +653,9 @@
       "done_when": "First complete real UI slice is installed and verified with recovery to known-good runtime available; no default provider/profile or user agent disruption",
       "verification": "Planned setup_activation selection in existing M7 deployment routine: T003 must publish/test exact invocation before early rollout. Full-slice closure: python3 tools/automation/run.py AUTO-M7-DEPLOY.",
       "evidence": [
-        "docs/evidence/m7-setup-activation-preparation-2026-11-11.md"
+        "docs/evidence/m7-setup-activation-preparation-2026-11-11.md",
+        "docs/evidence/m7-selected-controller-admission-2026-11-11.md",
+        "docs/evidence/m7-selected-release-recovery-2026-11-11.md"
       ],
       "depends_on_any": [],
       "delivery_slice": "S1",
@@ -659,10 +666,12 @@
       ],
       "steps": [
         "Prepare and execute the scoped setup_activation selection before requesting owner key entry, after candidate checks and verified recovery/continuity. Current command resolves the installed service, so an older binary cannot be treated as a working setup. This partial result does not close T014; later dependencies govern full closure.",
-        "Check existing fixed-worktree refusal and prepare selected clean candidate, schema compatibility, tested entry point and bounded recovery.",
-        "Exercise fresh/upgrade and isolated database backup/restore; keys are excluded, restored missing entries show Credential required, no blind database rollback after writes.",
+        "Admit explicit clean candidate and expected revision through cutover/update wrappers and runtime re-exec; verify retained revision/schema/build before service stop. Preserve fixed service, executable, environment and lock guards.",
+        "Extend existing real recovery tests to 0731\u21920720 and run actual restore/finalize paths, not only backup reopen. Remove the fixed old-checkout rejection from the same-schema recovery wrapper. Pin recovery to the same M7 controller as deployment; keys remain excluded and no blind rollback is allowed after startup/writes.",
         "Activate through the existing AgentMonitor service path; verify loopback/LAN health, actual installed revision and authenticated Overview/detail with genuine first-provider data.",
-        "Verify existing subscriptions/alerts and browser-closed collection continue; preserve profiles/agents and selected protected env. Record any brief service transition and recovery result."
+        "Verify existing subscriptions/alerts and browser-closed collection continue; preserve profiles/agents and selected protected env. Record any brief service transition and recovery result.",
+        "Preparation at 30f81d3/716cf92 is scoped build/schema evidence only. Before installed transition publish the tested executable setup_activation invocation and exact journal-dependent recovery commands; after transition verify installed setup and continuity before asking for key entry.",
+        "Cover both actual migration transitions: accepted0720 to setup0731, then installed0731 to the selected financial head0732/0733. Admit and exercise each source/target with its pinned migration/recovery controller before activation; initial recovery evidence does not prove the second upgrade."
       ]
     },
     {

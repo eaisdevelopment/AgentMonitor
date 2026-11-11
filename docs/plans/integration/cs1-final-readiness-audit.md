@@ -1354,3 +1354,15 @@ This records the focused M7 authority, not approval of the frozen Draft parent
 plans or live provider/deployment completion.
 
 Plan snapshot SHA-256: `6d5c7c9c9746902631c81d99f44f7b31ed3ba643a876b2986a0411a70e41863d`
+
+
+## 2026-11-11 M7 migration scope snapshot repair
+
+Independent read-only reviewer `m7_execution_commands` compared with `bfe1e35`:
+only AUTO-MIGRATE's scope description changes (source0720, target0731).
+Only the automation-routines snapshot hash/size changes, 23186 to 23195 bytes.
+All twenty plan and nine control hashes/sizes match the actual files; other
+records and metadata are unchanged. This repairs the stale control introduced
+at `30f81d3`; it makes no implementation, installed recovery or acceptance claim.
+
+Plan snapshot SHA-256: `38c97b54b0a45d5b1099105b9ed3d42b0ee1a7f03cf6e091318588fb93e210db`

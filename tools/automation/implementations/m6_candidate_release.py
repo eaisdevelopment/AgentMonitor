@@ -111,9 +111,22 @@ def verify_candidate_release(
 
 
 def prepare_candidate_release(
-    source: Path, releases: Path, data: Path, modules: Path
+    source: Path,
+    releases: Path,
+    data: Path,
+    modules: Path,
+    *,
+    expected_revision: str | None = None,
 ) -> tuple[Path, str, str]:
+    if expected_revision is not None and (
+        re.fullmatch(r"[a-f0-9]{40}", expected_revision) is None
+        or not source.is_absolute()
+        or source.resolve() != source
+    ):
+        raise CandidateReleaseError("candidate_release_selection_invalid")
     revision = _clean_revision(source)
+    if expected_revision is not None and revision != expected_revision:
+        raise CandidateReleaseError("candidate_release_revision_mismatch")
     releases.mkdir(mode=0o700, exist_ok=True)
     info = releases.lstat()
     if (

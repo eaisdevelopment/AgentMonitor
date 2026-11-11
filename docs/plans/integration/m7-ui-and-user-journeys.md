@@ -87,6 +87,14 @@ Owner configures accounts, organizations and secrets; coding agents do not.
 T002 includes all pages of the organization selector. Failed/unloaded name lookup
 shows Organization unavailable, never Ungrouped for an assigned account.
 
+Keep setup inside the existing account page, not a separate wizard. Scope
+choices are restricted to the admitted provider capabilities; no generic
+provider-organization browser is required. If verification reveals a different
+scope, show the mismatch and an explicit correction action before monitoring;
+do not silently reassign the account's group or merge its billing pool.
+The cloud setup panel is shared for Ollama regardless of how the account was
+created. Rendering its command is not proof that enrollment or access succeeded.
+
 Credential state is independent of provider access and monitoring. Show Missing,
 Entry pending, Stored or Cleanup required using safe server metadata. Stored
 does not mean Verified. Cancelled/interrupted entry can be resumed locally;
@@ -159,7 +167,7 @@ setup details expand automatically only when action is required.
 
 | Section | Required content and behavior |
 |---|---|
-| Usage & spend | Reported spend; available spend; prepaid balance; soft budget; hard limit; actual billing/renewal period when exposed. Missing fields have a short reason, not empty cards or zero. Show source cost basis such as before credits |
+| Usage & spend | Reported spend; available balance; prepaid credits; soft budget; hard limit; actual billing/renewal period when exposed. Missing fields have a short reason, not empty cards or zero. Show source cost basis such as before credits |
 | Usage breakdown | One supported dimension at a time: project/workspace, safe key identifier, model, token category or time. Separate money, tokens and requests. Do not fabricate a join between cost and usage reports. Include Other/Unallocated and coverage when reported |
 | Forecast | Derived rate/as-of estimate with assumptions, or precise reason: no limit/balance, insufficient history, scope mismatch, delayed data or corrections. Not a promise that service will stop at that time |
 | History | Bounded period, exact table and then simple chart from the same API facts. Spending per day uses bars; balance snapshots use separate series. Missing intervals are gaps; corrections retain lineage. Load more does not discard earlier rows if a later page fails |
@@ -169,6 +177,14 @@ setup details expand automatically only when action is required.
 Start with the exact table in the first usable slice; chart and forecast arrive
 in the later M7 enhancement slice. They are still required before M7 closes.
 Keep source/diagnostic detail out of the primary table unless it explains a state.
+
+For the first viewport, prioritize account/scope, state, spend/period and
+available funds when known. Never show a combined Subscriptions + API capacity
+percentage. With spend-only data, the main result is still a useful spend figure;
+use **Remaining funds not reported** beside it, not a screen dominated by empty
+budget/credit/limit cards. Funds and limit headroom use distinct labels if both
+exist. Token/request totals never occupy a monetary column. These are rendering
+rules for the existing sections, not additional cards or screens.
 
 ## 5. Complete state/action table
 
@@ -207,6 +223,13 @@ An expired dashboard session returns to sign-in and then the same nonsecret
 account/filter URL. Do not replay a mutation after sign-in: fetch actual status
 first and let the owner retry if still needed. Poll only the visible job/status
 while pending, stop on navigation/unmount, and honour server retry times.
+
+A queued action displays its actual run state until success/failure; HTTP
+acceptance alone must not change the label to Connected. Concurrent edits in
+another tab produce a conflict and a status reread, not last-write-wins account
+configuration. Duplicate clicks join/reconcile the existing operation according
+to the API contract. Exercise these behaviors in T007/T011 using the real
+service; do not simulate a provider failure to manufacture a UI state.
 
 ## 6. UI acceptance, included in tickets
 

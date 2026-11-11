@@ -13,9 +13,16 @@ the fixed scope. The [UI plan](m7-ui-and-user-journeys.md) and
 
 ## 1. Starting position and the finish line
 
-At committed revision `032a43f`, metadata enrollment, safe credential status,
-local entry foundations and pure exact-money/report policies exist. Additional
-uncommitted setup UI, credential reader and Anthropic source work is partial.
+Baseline for this review: committed revision `716cf92`. Metadata enrollment,
+safe credential status, local entry, pure exact-money/report policies and a
+bounded Anthropic cost-source candidate exist. Setup candidate build and an
+isolated `v1_0720` → `v1_0731` migration rehearsal passed. This did not install
+M7 or exercise service restoration. The accepted M6 service remains the target
+to preserve. The subsequent Ollama API-only routing correction now passes the
+full built `accounts_admin` scenario: existing cloud controls, no duplicate
+billing connection, reload and narrow layout. Its intermediate HTTP 403 was a
+test-client Origin omission; application security is unchanged. This is setup
+UI evidence, not installed key entry or provider access.
 There is no verified M7 source → stored report → installed dashboard journey.
 Provider authentication success, monetary persistence, budget screens and the
 full M7 exit must not be inferred from those partial tests.
@@ -57,7 +64,7 @@ Preserve existing quota consumers and generated-wire compatibility.
 
 | Existing constraint | Smallest planned correction | Owner/ticket and proof |
 |---|---|---|
-| `ProviderSourceV1` equates experimental with private/browser source | Permit an official documented beta source to remain explicitly experimental; retain private-source restrictions | Root/M03, T006; pure manifest rejection → accepted documented-beta manifest, old private rules still tested |
+| Documented beta source used to conflict with experimental-source classification | Corrected in `bfe1e35`, CTR-PROV-003 1.3.0; remaining work is actual authenticated collection admission | Root/M03, T006; retain existing Red/Green evidence, do not reopen the classification fix |
 | `CollectionRunAdmissionV2` requires a profile for its cloud target | Add a billing target carrying actual account/resource/binding/scope generations; never create a fictitious CLI profile | Root/M04, T007; pure target validation and real registry/run integration |
 | `ScheduledSourceAdmissionPolicyV1` admits one request only | Add bounded report admission using the existing one-run executor and published request/page/deadline limits | Root/M03/M04, T007; actual admitted source and run counters/deadlines |
 | Successful commit/run contracts require observations/projections/events | Add the already-planned budget receipt with a real report/coverage reference and zero-or-more facts | Root/M05/M04, T004/T005/T007; genuine empty result when available, pure policy always; no invented IDs |
@@ -65,10 +72,33 @@ Preserve existing quota consumers and generated-wire compatibility.
 | Credential presence is not access or scope proof | Recheck actual active binding and scope generations when issuing the worker grant and before commit | M02/root/M04, T002/T007; rotation/disconnect/archive cannot commit an obsolete report |
 | HTTP source has a process-local alarm | Run it only in the existing supervised worker pattern with an outer hard deadline; never in the API process | Root/A01, T006/T007; real timeout/cleanup and dashboard responsiveness |
 
-Current A01 review also identified an original-deadline validation defect:
-validate finite input before clamping it. Keep that specific correction in T006;
-do not widen it into a new timeout framework. Proposed contract additions remain
-unpublished until their types, producers/consumers and registry are synchronized.
+The original-deadline validation defect is also corrected in `bfe1e35`:
+finite input is validated before clamping. The remaining work is the outer
+worker deadline and actual grant, not another timeout framework. Proposed
+contract additions remain unpublished until their types, producers/consumers
+and registry are synchronized. A proposed type name in a plan is not a published
+contract.
+
+### First report: concrete engineering sequence
+
+These are steps inside the existing tickets, not additional tickets or gates.
+Each handoff carries its actual contract version and evidence; root is the only
+writer of shared contracts, composition and migration order.
+
+| Order | Work and owner | Inspectable result / test boundary |
+|---|---|---|
+| 1 | M02/root finish T002 metadata, API-only setup and generation-fenced access target; T014 setup rollout below | Owner can reach the actual setup action. Pure grant rules and real empty-registry/API/browser checks do not require a provider key |
+| 2 | Root publishes additive M04 billing admission and M05 report receipt/query ports, T004/T007 | API-only target needs no CLI profile; empty report needs no invented observation. Old quota consumers remain compatible |
+| 3 | M05 T005 creates the minimal report/signed-fact store in `v1_0732` | Actual fresh/upgrade SQLite integrity and empty reads first. Do not wait for live access to implement these; no seeded spend |
+| 4 | Root/A01, or the first accessible A02/A03 lane, wires the active runtime grant, bounded worker and mapping, T006/T008/T009 | One genuine normalized report in memory, exact scope/period/basis and request counters. No raw response file and no inference request to create spend |
+| 5 | M05 commits that same report once, T005; M04 adds its own report reference if needed in `v1_0733`, T007 | Real commit/retry/reopen and receipt reconciliation. M04 never reads M05 private tables. Genuine complete empty reports retain coverage; financial persistence still needs a monetary fact |
+| 6 | M04/root exposes Check connection, Enable/Disable and Collect now, T007 | Reuse the check's stored report; next due collection works with browser closed. Rotate/disconnect/archive fence obsolete results independently of subscription monitoring |
+| 7 | P01/P02 consume the published current/history ports, T010–T012 | Same report ID and exact values through actual HTTP and built Overview/detail/history. First UI does not wait for all usage categories or a forecast |
+| 8 | Root installs that clean candidate, T014 | Authenticated installed browser, background collection and existing subscription continuity; public publication is still T016 |
+
+Steps 2–3 and independent UI structure may proceed while step 1's installed
+setup is being verified. Meaningful nonempty money tests and live-value UI
+acceptance wait for step 4. Do not turn either dependency into a global stop.
 
 ## 4. UI decisions that prevent an unusable first release
 
@@ -170,6 +200,43 @@ result. No bulk opaque IDs, repeated account attestations or manual test orchest
 No owner input is needed for this planning refactor. Missing access pauses only
 the dependent provider proof; continue other authorized engineering work.
 
+### T014: resolve deployment risks before stopping the installed service
+
+The current preparation result is **prepared**, not **installed** or **recovery
+verified**. The read-only review at `716cf92` found the following exact work:
+
+1. `m6_cutover.cutover()` and `update_current_schema()` still select
+   `m6-signal-composition`. Their CLI wrappers also reject another checkout.
+   Accept the selected clean M7 checkout and expected revision, carry them
+   through runtime re-execution, and verify the retained build before stopping
+   the service. Keep the existing locks, unit, environment and executable checks.
+2. `auto_m6_recover_current_update.py` has the same fixed-checkout restriction.
+   Exercise the recovery command from the same clean M7 controller used for
+   deployment. An older M6 controller can misclassify the new migration journal.
+   Do not leave recovery dependent on a development directory that can change.
+3. The existing real cutover tests lack the `0731 → 0720` predecessor mapping.
+   Extend those tests and run real migration/restore/finalize scenarios on
+   isolated resources. Reopening a backup alone is not a restoration test.
+   There are two deployments: initial `0720 → 0731`, then installed `0731`
+   to the actual financial-schema head (`0732`, or `0733` if required).
+   Admit that second source/target in migration and recovery selection and test
+   it before the second rollout. Do not assume the first transition proves the
+   second, or hardcode the final source without checking the installed schema.
+4. Before installed transition, record the actual baseline, candidate, schema,
+   pinned controller and applicable recovery commands. Before candidate startup,
+   use the tested restoration path; after startup, reconcile the journal and
+   preserve possible writes. Never automatically overwrite post-start data with
+   the old snapshot. A failed post-start check stays an incident until the
+   tested recovery/finalization path restores a usable dashboard.
+5. After startup verify the actual installed revision, loopback and approved
+   LAN reachability, authenticated Overview/account setup, and the existing
+   collector path. HTTP 200 alone does not prove any of those account workflows.
+
+These corrections belong to T003/T014's existing deployment scope. They do not
+justify another installer, generic release platform or owner approval cycle.
+Publish the exact executable invocation when implemented; this plan does not
+invent a presently available command.
+
 ## 8. Reporting and bounded scope
 
 Report: latest visible delivery; exact ticket and evidence; actual remaining
@@ -188,3 +255,20 @@ One bounded final review checks the fixed requirements. Fix demonstrated
 violations; log enhancements in the existing deferred list. No guarantee of
 zero surprises is credible, but surprises must map to a stated requirement,
 evidence and a smallest correction rather than creating another milestone inside M7.
+
+### Handling unknowns without expanding the milestone
+
+| Unknown | Resolve when / responsible ticket | If the answer is unfavorable |
+|---|---|---|
+| Does the owner-selected credential permit an official monetary report? | First working Check connection, T006/T008/T009 with T007 | Show the actual permission remedy; advance another available provider. No successful monetary source means S1 live proof remains blocked, not all engineering |
+| Are remaining funds, limits and enforcement exposed for this scope? | First report and admitted capability mapping, T006/T008/T009 | Display spend and the specific unavailable field; do not require another product or fabricate a percentage |
+| Can two connections share spend? | Scope resolution, T002/T004 | Explicit pool association if owner knows; otherwise exclude uncertain overlap from totals with a reason. No automatic email-based merge |
+| Does the minimum report fit the documented request/time/size bounds? | First real report, T007 | Use a smaller supported interval; if none fits, state that measured limitation and smallest proposed correction once |
+| Does source data permit a numeric forecast or rare live failure check? | Actual source state, T013/T015 | Test the real unavailable path and record the conditional scenario Not Run/Blocked. Do not manufacture usage, invalidate a key or wait indefinitely for depletion |
+| Is the public project the delivered version? | Publication verification, T016 | Compare the actual GitHub default-branch revision and README/run instructions with the released source. Local commit or secondary-mirror success is not publication |
+
+The only owner work is configuration/key entry through the verified flow,
+official login if required, and acceptance after demonstration. A new request
+must name a concrete unavailable input and affected ticket. No re-confirming
+previous logins, opaque-ID paste exercises or mandatory review of internal test
+receipts. Normal authorized fixes remain engineering work.

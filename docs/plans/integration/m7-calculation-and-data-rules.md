@@ -53,6 +53,13 @@ decimal + currency code rather than guess the exponent. Formatting is not
 cross-currency conversion. Rounded rows can differ from rounded total; the
 total is computed from exact inputs and carries an explanation.
 
+Usage counts remain separate from money. Token/request categories are additive
+only when the adapter establishes they are disjoint; a total plus its cached or
+other included subcategory must not be counted twice. Preserve exact integers
+beyond JavaScript's safe-integer range through API formatting. Do not infer a
+price, credit value or monetary subtotal from counts. These are T004/T010
+precision/grouping cases within M7-MATH-10/14, not a new analytics feature.
+
 ## 3. Coverage, corrections and empty reports
 
 A durable report identifies provider endpoint/category, pool/scope, grouping,
@@ -111,6 +118,12 @@ an unexpected gap is Partial/source drift, not permission to prorate. General
 coverage checks still reject genuinely missing intervals for any provider.
 UTC cutoff calculations are independent of browser timezone/DST; display local
 timestamps with the timezone and expose UTC bounds in details.
+
+Keep a selected range's UTC cutoff fixed through pagination, table/chart reads
+and the source comparison. Crossing midnight does not silently retitle yesterday's
+report as today's selection. An explicit range refresh creates a new query and
+discloses missing new-day coverage until collected. This is T010/T012's existing
+snapshot rule and M7-MATH-15, not a new scheduling mechanism.
 
 Initial history fetch is up to 30 days where supported. Retain genuine collected
 history for the existing 365-day policy, showing Coverage begins at… when less

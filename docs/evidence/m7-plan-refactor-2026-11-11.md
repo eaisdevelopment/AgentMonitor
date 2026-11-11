@@ -220,3 +220,63 @@ to the existing FR-BUDGET-001..006, FR-ORG-003, FR-ACC-001..004/006 and
 M7-A01..A10 set. Remaining implementation is named in the worksheet and tickets;
 M7 remains unfinished. The immediate delivery target is tested installed setup,
 then the first real financial report on Overview/detail/history.
+
+## Delivery refinement against 716cf92
+
+The owner requested another deep planning review focused on UI, calculations,
+predictable delivery and simplicity. This revision retains execution plan 1.1.0,
+sixteen existing tickets, five stories and M7-A01..A10. It adds no approval,
+dependency, financial feature or completion gate.
+
+The worksheet now names the actual engineering handoffs from owner setup to
+the first stored report, typed HTTP and installed Overview/detail. It records
+which real empty-stack work can proceed without provider access and which
+nonempty financial assertions must wait for a genuine report. Completed beta
+classification and deadline fixes are no longer described as pending. The
+current uncommitted Ollama browser correction remains explicitly unaccepted:
+controls rendered, but a subsequent test request returned HTTP 403. Historical
+mixed-account browser passes are retained, not relabeled as that new failure.
+
+Read-only execution review found and mapped these concrete T003/T014 hazards:
+selected source ignored by old deployment entry points, fixed old-checkout
+recovery rejection, missing M7 predecessor in actual recovery tests, and backup
+reopen being narrower than service restoration. Its bounded follow-up identified
+the second migration transition after setup; the worksheet and catalog now cover
+both `0720 → 0731` and actual installed `0731 → 0732/0733`. No installed
+transition was performed during this review.
+
+UI clarification keeps setup on the existing account page, shares Ollama cloud
+controls, prioritizes spend/scope/state and avoids empty financial cards. Async
+acceptance and concurrent-edit conflicts must reconcile actual state. Money and
+usage precision rules now explicitly exclude overlapping count categories and
+JavaScript integer rounding; a query's UTC cutoff stays fixed across midnight.
+These map to existing T002/T004/T007/T010–T014 and M7-MATH-10/14/15, rather than
+new tickets or an analytics framework. The worksheet lists each unknown, the
+step that resolves it and the bounded outcome if the source cannot provide it.
+
+Validation found an existing stale snapshot after `30f81d3` changed the
+AUTO-MIGRATE scope description. Initial AUTO-PLAN-CHECK failed with
+`automation-routines: snapshot control SHA-256 mismatch` and
+`automation-routines: snapshot control byte count mismatch`. The canonical
+snapshot renderer changed only that control's hash/size. The subsequent check
+correctly required both review records to bind the new snapshot; no validator
+or required check was weakened.
+
+This planning change affects the focused execution/UI/calculation/worksheet,
+ticket catalog and review records. It does not change published contract
+versions, schemas, dependency/license policy or secret custody. Separate
+in-progress frontend changes and their evidence remain outside the planning
+validation claim. The dashboard service was active and root HTTP returned 200;
+that is availability only, not authenticated M7 acceptance. M7 remains open.
+
+Final verification after the independently reviewed snapshot repair:
+
+- `AUTO-M7-PLAN-CHECK`: Passed; 16 tickets, five stories, ten acceptance items.
+- `AUTO-PLAN-CHECK`: Passed; synchronized baseline.
+- `AUTO-DOCS-CHECK`: Passed; 341 Markdown files.
+- `git diff --check`: Passed.
+
+No new tests were added for these documentation-only corrections. The canonical
+planning/documentation checks exercise the changed artifacts. Planning files
+are saved in `codex/m7-api-budgets`; this review does not claim they are pushed
+or that the partial M7 product is installed.

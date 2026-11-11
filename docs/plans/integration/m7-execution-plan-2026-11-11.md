@@ -105,6 +105,12 @@ This partial activation does not close T014 or M7. A failed continuity/recovery
 check prevents activation; it does not permit bypassing service selection or
 manually configuring the owner's account.
 
+Both schema transitions are planned: accepted M6 to setup, then the installed
+setup schema to the financial-storage schema. T014 owns selected-revision
+admission and real recovery for each. The [delivery worksheet](m7-delivery-worksheet-2026-11-11.md)
+records the current `716cf92` baseline, remaining first-report handoffs and
+observed fixed-M6 deployment restrictions. Preparation is not installation.
+
 First-slice results are explicitly partial M7 delivery. They are not milestone
 completion. The full original three-provider/five-story scope remains required.
 

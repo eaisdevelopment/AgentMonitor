@@ -15,7 +15,7 @@ const credentialStateLabels = {
 } as const;
 
 function unavailableReason(reason: string): string {
-  if (reason === "existing_cloud_connection_required") return "Ollama Cloud billing uses the existing cloud connection flow. API-only setup is not available yet.";
+  if (reason === "existing_cloud_connection_required") return "Ollama Cloud billing uses this account's existing cloud connection and shared balance.";
   if (reason === "provider_unsupported") return "API billing setup is unsupported for this provider.";
   if (reason === "account_unavailable") return "Restore or enable this account before adding a billing connection.";
   return "A billing connection cannot be added in the current account state. Refresh its status before trying again.";

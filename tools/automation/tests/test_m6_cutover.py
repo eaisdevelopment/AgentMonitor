@@ -83,9 +83,11 @@ def test_disposable_unit_and_real_backup_migration(
     if case == "real_source_restore":
         request.addfinalizer(lambda: shutil.rmtree(root) if root.exists() else None)
     ref = DatabaseRefV1(root / "agentmonitor.db", root)
-    source_revision = {"v1_0719": "v1_0718", "v1_0720": "v1_0719"}[
-        load_migration_catalog().head
-    ]
+    source_revision = {
+        "v1_0719": "v1_0718",
+        "v1_0720": "v1_0719",
+        "v1_0731": "v1_0720",
+    }[load_migration_catalog().head]
     if case == "real_source_restore":
         live_uri = "file:/home/dev/.local/share/agentmonitor/agentmonitor.db?mode=ro"
         with (
@@ -1177,7 +1179,10 @@ with _hold_transition_locks(root) as lease:
 
 
 def test_public_cutover_target_is_not_caller_selectable() -> None:
-    assert not inspect.signature(cutover).parameters
+    # Source code may be selected explicitly; service, data and credentials may not.
+    parameters = inspect.signature(cutover).parameters
+    assert set(parameters) == {"candidate", "expected_revision"}
+    assert all(p.kind == inspect.Parameter.KEYWORD_ONLY for p in parameters.values())
     assert not inspect.signature(recover_interrupted_migration).parameters
     assert not inspect.signature(restore_interrupted_migration).parameters
     assert not inspect.signature(start_restored_baseline).parameters

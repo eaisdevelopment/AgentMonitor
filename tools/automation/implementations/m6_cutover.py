@@ -990,15 +990,38 @@ def _verify_fixed_candidate_process(
     )
 
 
-def cutover() -> str:
+def _selected_cutover_source(
+    candidate: Path | None, expected_revision: str | None
+) -> Path:
+    """Select code only; unit, data, credentials and runtime remain fixed."""
+    if candidate is None and expected_revision is None:
+        return _FIXED_SOURCE
+    if (
+        candidate is None
+        or expected_revision is None
+        or re.fullmatch(r"[a-f0-9]{40}", expected_revision) is None
+        or not candidate.is_absolute()
+        or candidate.resolve() != candidate
+    ):
+        raise CutoverError("cutover_selection_invalid")
+    if _revision(candidate) != expected_revision:
+        raise CutoverError("candidate_revision_mismatch")
+    return candidate
+
+
+def cutover(
+    *, candidate: Path | None = None, expected_revision: str | None = None
+) -> str:
     """Cut over only the code-owned AgentMonitor service and pinned releases."""
+    source_checkout = _selected_cutover_source(candidate, expected_revision)
     with _hold_transition_locks(_FIXED_DATA) as transition:
         retained_candidate, candidate_revision, candidate_build = (
             prepare_candidate_release(
-                _FIXED_SOURCE,
+                source_checkout,
                 _FIXED_RELEASES,
                 _FIXED_DATA,
                 TOOL_ROOT / "frontend/node_modules",
+                expected_revision=expected_revision,
             )
         )
         transition.validate(_FIXED_DATA)
@@ -1049,14 +1072,18 @@ def cutover() -> str:
     )
 
 
-def update_current_schema() -> str:
+def update_current_schema(
+    *, candidate: Path | None = None, expected_revision: str | None = None
+) -> str:
     """Prepare one sealed release and update the fixed current-schema service."""
+    source_checkout = _selected_cutover_source(candidate, expected_revision)
     with _hold_transition_locks(_FIXED_DATA) as transition:
         retained, revision, build = prepare_candidate_release(
-            _FIXED_SOURCE,
+            source_checkout,
             _FIXED_RELEASES,
             _FIXED_DATA,
             TOOL_ROOT / "frontend/node_modules",
+            expected_revision=expected_revision,
         )
         transition.validate(_FIXED_DATA)
         baseline = Path(_cwd(_FIXED_UNIT))

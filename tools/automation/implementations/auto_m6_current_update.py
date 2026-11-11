@@ -50,15 +50,27 @@ def _checkout_revision() -> str:
     return revision.stdout.strip()
 
 
+def _admitted_revision(arguments: list[str]) -> str:
+    """Admit this controller before accessing its runtime or installed service."""
+    expected = None
+    if arguments:
+        if (
+            len(arguments) != 1
+            or re.fullmatch(r"--expected-revision=[a-f0-9]{40}", arguments[0]) is None
+        ):
+            raise RuntimeError("operator_arguments_invalid")
+        expected = arguments[0].split("=", 1)[1]
+    elif _ROOT != _FIXED_SOURCE:
+        raise RuntimeError("operator_fixed_checkout_required")
+    revision = _checkout_revision()
+    if expected is not None and revision != expected:
+        raise RuntimeError("operator_checkout_revision_mismatch")
+    return revision
+
+
 def main() -> int:
-    if len(sys.argv) != 1:
-        print("M6 CURRENT UPDATE: BLOCKED — no target arguments are accepted")
-        return 3
-    if _ROOT != _FIXED_SOURCE:
-        print("M6 CURRENT UPDATE: BLOCKED — fixed candidate checkout required")
-        return 3
     try:
-        revision = _checkout_revision()
+        revision = _admitted_revision(sys.argv[1:])
         sys.path.insert(0, str(_ROOT))
         from tools.automation.implementations.m6_runtime_integrity import (
             _runtime_digest,
@@ -78,14 +90,23 @@ def main() -> int:
             != "84112363e7525a6ff42764bfaf7f9dfacbfb22399dfe8275898ac105b3d7edbc"
         ):
             raise RuntimeError("operator_runtime_changed")
-    except (OSError, RuntimeError, ValueError, subprocess.SubprocessError):
-        print("M6 CURRENT UPDATE: BLOCKED — operator checkout or runtime unavailable")
+    except (OSError, RuntimeError, ValueError, subprocess.SubprocessError) as error:
+        reason = {
+            "operator_arguments_invalid": "no target arguments are accepted",
+            "operator_fixed_checkout_required": "fixed candidate checkout required",
+            "operator_checkout_revision_mismatch": "expected revision does not match",
+        }.get(str(error), "operator checkout or runtime unavailable")
+        print("M6 CURRENT UPDATE: BLOCKED — " + reason)
         return 3
     if Path(sys.prefix).resolve() != _RUNTIME:
         try:
             os.execve(
                 str(_RUNTIME / "bin/python"),
-                [str(_RUNTIME / "bin/python"), str(Path(__file__).resolve())],
+                [
+                    str(_RUNTIME / "bin/python"),
+                    str(Path(__file__).resolve()),
+                    *sys.argv[1:],
+                ],
                 {
                     "PATH": "/usr/bin:/bin",
                     "HOME": "/home/dev",
@@ -106,7 +127,13 @@ def main() -> int:
             update_current_schema,
         )
 
-        status = update_current_schema()
+        if _admitted_revision(sys.argv[1:]) != revision:
+            raise RuntimeError("operator_checkout_changed")
+        status = (
+            update_current_schema(candidate=_ROOT, expected_revision=revision)
+            if sys.argv[1:]
+            else update_current_schema()
+        )
         if status == "candidate_started_product_verification_required":
             deadline = time.monotonic() + 15
             while True:
