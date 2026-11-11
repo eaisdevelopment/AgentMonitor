@@ -104,3 +104,30 @@ timestamps, reservation states or provider responses were altered to obtain it.
 The staged secret scan found only old/new generated `openapiArtifactSha256`
 declarations. Both are verified generated hashes, not credentials; no scanner
 rule or ignore list was changed. Installed verification still follows the commit.
+
+## Installed source/API/browser result
+
+At 22:25 UTC, the existing same-schema update installed clean revision
+`ca5f0623587aa77e90b7e2e0c0025e5473524146`, retained schema `v1_0733` and
+restored `Restart=on-failure`. The service is active/running; both loopback and
+trusted LAN return HTTP 200. No user agent/default profile was changed.
+
+- `node frontend/tests/browser/m7/verify_usage.mjs`: Passed on that exact
+  revision. One account's seven actual usage buckets matched API identities,
+  periods and exact quantities in the built DOM and after reload. Counts-only
+  cost absence was explicit; zero mutation requests.
+- `node frontend/tests/browser/m7/verify_funds.mjs`: Passed for both existing
+  cloud accounts and all three eligible components, including source/API/DOM
+  comparison and reload; zero mutation requests.
+- `node frontend/tests/browser/m7/verify_setup.mjs ca5f0623587aa77e90b7e2e0c0025e5473524146`:
+  Passed authenticated installed revision, Overview, setup surface and retained
+  promotion/footer continuity; 35 observed requests, zero mutation requests.
+- The installed worker subsequently stored a second usage report without an
+  owner/browser collection action. This does not yet establish the full
+  recurring/fairness/recovery acceptance matrix or every resource's coverage.
+
+The actual usage account was opened in the shared browser for inspection.
+This is a committed and installed usage increment, not full M7 completion or
+first monetary-report acceptance. Publication and remaining provider/Overview/
+analysis work remain open. The later documentation commit records this exact
+code revision; it does not require repeating owner setup or these comparisons.

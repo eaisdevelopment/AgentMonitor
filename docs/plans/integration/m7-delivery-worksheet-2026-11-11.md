@@ -1,8 +1,8 @@
 # M7 delivery worksheet: remaining work and fixed finish line
 
 Status: execution clarification within approved focused plan 1.1.0, reviewed
-against committed `445b947` on 11 November 2026 (installed funds evidence:
-`14dee16`, schema `v1_0733`). Primary owner: root integration; financial owner:
+against committed and installed `ca5f062` on 11 November 2026 (schema
+`v1_0733`). Primary owner: root integration; financial owner:
 M05. No new milestone, approval, dependency or completion gate.
 
 The [ticket catalog](m7-ticket-catalog-v1.json) remains the only task tracker:
@@ -15,11 +15,11 @@ semantics. Historical findings remain in [review evidence](../../evidence/m7-pla
 
 | Boundary | Evidence at this review | Still unfinished |
 |---|---|---|
-| Committed implementation | `445b947`: cloud report authority/context/codec and unresolved-lineage partition policy, after `14dee16` funds projection | Cloud capture/dispatch/commit integration and active-lineage current selector; published DTOs alone do not enable reads |
-| Installed dashboard | `14dee16`, schema `v1_0733`; genuine stored funds → HTTP → built DOM/reload passed for two existing cloud resources, all three eligible components | New usage report, spend, financial Overview and complete history/analysis |
+| Committed implementation | `ca5f062`: cloud usage dispatch/commit, active-lineage current selection and actual account usage UI | Full provider/scheduling matrix, monetary reporting and remaining financial views |
+| Installed dashboard | `ca5f062`, schema `v1_0733`; source/API/DOM/reload proof for one seven-bucket usage report, plus both existing cloud accounts' three funds components | Actual spend, financial Overview and complete history/analysis |
 | Existing setup | Installed authenticated setup surface and current account funds demonstrated | No verified independent Anthropic/OpenAI billing enrollment; an absent record does not prove unavailable access |
 | Deployment | Same-schema funds update and authenticated shell/Overview continuity passed; accepted financial migrations already installed | Full financial scheduling, recovery and final M7 acceptance; do not rerun the initial migration |
-| Current worktree | Candidate M04 dispatch, M05 active-binding/current-cloud selection and Ollama runtime have collected, committed and queried one genuine self usage report; full local quality/build passes | That report has counts only, not costs. Installed usage UI, first monetary journey and full M7 acceptance remain unverified; see the runtime evidence |
+| Current worktree | Installed evidence is recorded separately from the code revision; full local quality/build and scoped browser checks passed | The demonstrated usage report has counts only, not costs. First monetary journey and full M7 acceptance remain unverified |
 | Publication | This review inspects local artifacts and recorded installation evidence | No new remote-publication or current live-health claim from this planning pass |
 
 Evidence: [installed funds](../../evidence/m7-stored-funds-2026-11-11.md),
