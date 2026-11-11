@@ -40,7 +40,7 @@ class QuiescentStopError(RuntimeError):
     """Closed, non-sensitive inability to establish safe quiescence."""
 
 
-def _properties(unit: str) -> dict[str, str]:
+def _properties(unit: str, *, timeout: float = 5) -> dict[str, str]:
     if re.fullmatch(r"[A-Za-z0-9_.@:-]+\.service", unit) is None:
         raise QuiescentStopError("unit_invalid")
     result = subprocess.run(
@@ -66,7 +66,7 @@ def _properties(unit: str) -> dict[str, str]:
         ],
         capture_output=True,
         text=True,
-        timeout=5,
+        timeout=timeout,
         check=False,
         env=_systemd_environment(),
     )
@@ -185,6 +185,22 @@ def stop_quiescent_unit(
         while time.monotonic() < deadline:
             if _frozen_without_children(pid, cgroup):
                 break
+            # A stopped parent cannot reap a naturally completed child. Let it
+            # run briefly, then re-prove the same invocation before freezing
+            # again. Never signal children or relax the child-free kill proof.
+            signal.pidfd_send_signal(descriptor, signal.SIGCONT)
+            frozen = False
+            time.sleep(0.025)
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                raise QuiescentStopError("unit_has_children_or_not_stopped")
+            if (
+                _properties(unit, timeout=remaining) != props
+                or _process_identity(pid, cgroup) != identity
+            ):
+                raise QuiescentStopError("unit_identity_changed")
+            signal.pidfd_send_signal(descriptor, signal.SIGSTOP)
+            frozen = True
             time.sleep(0.025)
         else:
             raise QuiescentStopError("unit_has_children_or_not_stopped")

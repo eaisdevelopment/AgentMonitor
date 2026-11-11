@@ -94,3 +94,44 @@ diff checks passed. Files: existing current-update wrapper, diagnostic helper,
 its pure regression tests and this evidence. No contract, migration, dependency,
 license, secret or owner-configuration change. The exact stop refusal and new
 installed Overview/browser result still require the next checked attempt.
+
+
+## Bounded stop correction for naturally completed children
+
+With safe diagnostics installed, the e98bc80 update returned
+`M6 CUTOVER: BLOCKED — phase=stop reason=unit_has_children_or_not_stopped; review service and journal state`.
+The original service remained active and the transition cleaned up its journal
+and guard. Read-only process metadata showed transient child creation/completion;
+no process arguments, environment values or provider payloads were inspected.
+
+A real disposable systemd regression reproduced the defect: its parent starts
+an actual short-lived child and waits to reap it. Freezing the parent prevents
+that wait from completing, so the previous three-second check refuses even
+after the child naturally exits. Red:1 failed/5 deselected with the same closed
+reason. This establishes the primitive defect, not the exact identity of every
+child in earlier dashboard refusals.
+
+The primitive now briefly resumes only the already-bound parent through its
+pidfd, rechecks invocation/start/executable/cgroup identity and freezes it again
+within the existing retry window. The systemd query is bounded by remaining
+retry time. It never signals children, extends the retry window, skips the
+final frozen/child-free proof, or changes restart/recovery policy. Long-running
+children still cause refusal and the parent resumes. No user agent/default
+profile is a test target.
+
+Independent review caught a race in the new test's post-reap marker assertion;
+the parent may correctly stop before writing that marker. The corrected test
+requires an observed live child before stopping, its absence afterward and a
+stopped parent. It also led to bounding each retry's systemd query by remaining
+time. After both corrections all6 real quiescent-stop scenarios and17 pure
+diagnostic cases passed (23 total). Scoped lint/type checks and disposable
+full-cutover regression results are recorded with the final check below.
+
+Files: m6_quiescent_stop.py, its existing real-system tests and this evidence.
+No product contract/schema, migration, dependency/license, secret custody or
+owner configuration changes. Existing T014/AC-OPS-003/AC-TEST-001/006 scope.
+
+Final scoped verification: Ruff and mypy passed; the existing disposable real
+systemd/SQLite cutover cases normal, child and writer passed (3 passed,
+21 deselected). Documentation validation and diff checks passed. The installed
+update and authenticated Overview rerun remain separate operational evidence.

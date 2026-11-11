@@ -139,7 +139,8 @@ def test_child_created_by_worker_thread_is_refused() -> None:
     unit = f"agentmonitor-cutover-test-{uuid.uuid4().hex}.service"
     code = (
         "import subprocess,threading,time; "
-        "threading.Thread(target=lambda:(subprocess.Popen(['/bin/sleep','60']),time.sleep(60))).start(); "
+        "threading.Thread(target=lambda:(subprocess.Popen(['/bin/sleep','60']),"
+        "time.sleep(60))).start(); "
         "time.sleep(60)"
     )
     result = subprocess.run(
@@ -278,3 +279,60 @@ def test_mismatched_real_invocation_identity_never_stops_target() -> None:
     finally:
         for unit, directory in zip((first, second), directories, strict=False):
             _cleanup(unit, directory)
+
+
+def test_short_lived_real_child_can_finish_and_be_reaped_before_stop(
+    tmp_path: Path,
+) -> None:
+    """A frozen parent must be allowed to reap its naturally completed child."""
+    import time
+
+    gate, ready, reaped = (tmp_path / name for name in ("start", "ready", "reaped"))
+    unit = f"agentmonitor-cutover-test-{uuid.uuid4().hex}.service"
+    code = "\n".join(
+        (
+            "import subprocess,time,sys",
+            "from pathlib import Path",
+            "gate,ready,reaped=map(Path,sys.argv[1:])",
+            "while not gate.exists(): time.sleep(0.01)",
+            "child=subprocess.Popen(['/bin/sleep','0.5'])",
+            "ready.write_text(str(child.pid))",
+            "child.wait()",
+            "reaped.write_text('reaped')",
+            "time.sleep(60)",
+        )
+    )
+    result = subprocess.run(
+        [
+            "systemd-run",
+            "--user",
+            "--unit",
+            unit,
+            "--property=Restart=no",
+            "/usr/bin/python3",
+            "-c",
+            code,
+            str(gate),
+            str(ready),
+            str(reaped),
+        ],
+        capture_output=True,
+        check=False,
+    )
+    assert result.returncode == 0
+    directory = _arm(unit)
+    try:
+        bound = _bound(unit)
+        gate.touch()
+        deadline = time.monotonic() + 3
+        while not ready.exists() and time.monotonic() < deadline:
+            time.sleep(0.01)
+        assert ready.exists(), "real_child_not_started"
+        child_pid = int(ready.read_text())
+        assert Path(f"/proc/{child_pid}").exists()
+        assert not reaped.exists(), "real_child_finished_before_test"
+        assert stop_quiescent_unit(unit, **bound).unit == unit
+        assert not Path(f"/proc/{child_pid}").exists()
+        assert _properties(unit)["MainPID"] == "0"
+    finally:
+        _cleanup(unit, directory)
