@@ -74,7 +74,7 @@ CONTRACT_VERSION_EXCEPTIONS = {
     "CTR-COL-009": "1.1.0",
     "CTR-COL-010": "2.0.0",
     "CTR-PROV-003": "1.3.0",
-    "CTR-REG-014": "1.3.0",
+    "CTR-REG-014": "1.4.0",
     "CTR-REG-012": "1.1.0",
 }
 # Published supporting values have no independent catalog ID. This closed list
@@ -90,6 +90,8 @@ SUPPORT_SYMBOLS = {
         "BillingAccessPurposeV1",
         "BillingConnectionPortV1",
         "BillingLocalSetupPortV1",
+        "BillingMonitoringRegistryPortV1",
+        "BillingMonitoringPortV1",
     },
     "agentmonitor.contracts.common_v1": {
         "TechnicalValueV1",
@@ -634,6 +636,14 @@ def _approved_owner_adapter_domain_module(source: str, target: str) -> bool:
         (
             ("agentmonitor.adapters.persistence.registry.sqlite.credential_bindings"),
             "agentmonitor.modules.registry.domain.credential_binding",
+        ),
+        (
+            "agentmonitor.adapters.persistence.registry.sqlite.credential_bindings",
+            "agentmonitor.modules.registry.domain.billing_monitoring",
+        ),
+        (
+            "agentmonitor.adapters.persistence.registry.sqlite.billing_connections",
+            "agentmonitor.modules.registry.domain.billing_monitoring",
         ),
         (
             "agentmonitor.adapters.persistence.registry.sqlite.credential_lock",

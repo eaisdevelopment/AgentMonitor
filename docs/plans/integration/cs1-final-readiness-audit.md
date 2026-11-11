@@ -1397,3 +1397,17 @@ whitelisted. The real boundary check passes, and its 191 foundation tests pass.
 This scoped synchronization records no live-provider or installed M7 acceptance.
 
 Plan snapshot SHA-256: `93c94f9822699e38cf20ac79739ba67669bf65303a6476375fc0e4e5d7e34cda`
+
+
+## 2026-11-11 M7 billing monitoring contract synchronization
+
+Independent read-only reviewer `m7_execution_commands` compared with `32b16fc`:
+all twenty parent-plan entries are unchanged; all twenty plan and nine control
+hashes/sizes match actual files. Only contract-baseline and generated adoption
+controls change. The 106-contract catalog advances CTR-REG-014 from 1.3.0 to
+1.4.0 with the same M02 producer and six consumers. The additive monitoring
+intent, proof/status and ports leave existing metadata/read contracts intact.
+No schema or provider credential permission changes. This scoped review does
+not approve historical Draft plans or claim live monitoring/deployment passed.
+
+Plan snapshot SHA-256: `342b869371fc8bb910cbd91a0f609570346fc326174d023eb43af65cbcaacc36`

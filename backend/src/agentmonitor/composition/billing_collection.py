@@ -129,7 +129,26 @@ class BillingCollectionV1:
             operation_family=ANTHROPIC_COST_OPERATION_FAMILY_V1,
         )
         if admission is None:
-            return 0
+            from agentmonitor.composition.billing_schedule import BillingScheduleV1
+
+            scheduled = BillingScheduleV1(self._reference).enqueue_due(
+                deadline_monotonic=self._deadline
+            )
+            if scheduled is None:
+                return 0
+            admission = self._runs.claim_next_budget_run(
+                scheduler_instance_id=self._instance,
+                as_of=datetime.now(UTC),
+                resolve_budget_limit=anthropic_billing_budget_limit,
+                provider_key="claude",
+                capability_id="api.cost",
+                source_id=SOURCE_ID,
+                manifest_fingerprint=anthropic_cost_manifest_fingerprint(),
+                collection_policy_version=ANTHROPIC_COST_COLLECTION_POLICY_VERSION_V1,
+                operation_family=ANTHROPIC_COST_OPERATION_FAMILY_V1,
+            )
+            if admission is None:
+                return 0
         return self._execute(admission)
 
     def _execute(self, admission: BudgetCollectionRunAdmissionV1) -> int:

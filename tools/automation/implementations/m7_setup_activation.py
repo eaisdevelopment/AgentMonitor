@@ -1,4 +1,4 @@
-"""Prepare a selected clean M7 setup candidate without touching installed state.
+"""Prepare a clean M7 setup or financial candidate without installed changes.
 
 Only a newly created workspace is writable. The existing retained-release,
 frontend and SQLite backup helpers perform the work. This is preparation, not
@@ -63,13 +63,18 @@ from tools.automation.implementations.auto_migrate import (
 )
 from tools.automation.implementations.m6_cutover import _retained_migration_source
 
+phase = sys.argv[2] if len(sys.argv) > 2 else "setup"
+if phase not in {"setup", "financial"}:
+    raise ValueError("m7_setup_phase_invalid")
+catalog = load_migration_catalog()
+if phase == "financial" and catalog.head != "v1_0733":
+    raise ValueError("m7_setup_schema_unavailable")
 root = Path(sys.argv[1])
 root.mkdir(mode=0o700)
 backup = root / "backup"
 backup.mkdir(mode=0o700)
 ref = DatabaseRefV1(root / "agentmonitor.db", root)
-catalog = load_migration_catalog()
-source = "v1_0720"
+source = "v1_0731" if phase == "financial" else "v1_0720"
 revisions = tuple(item.revision for item in catalog.revisions)
 if source not in revisions or "v1_0731" not in revisions:
     raise ValueError("m7_setup_schema_unavailable")
@@ -140,12 +145,16 @@ def prepare_setup_activation(
     workspace: Path,
     tool_modules: Path,
     python_executable: Path,
+    phase: str = "setup",
 ) -> SetupPreparation:
     """Retain/build/rehearse one explicit checkout; never activate a service.
 
     Workspace must not exist. Partial failures are retained for inspection;
     this function never deletes evidence or resumes an ambiguous preparation.
     """
+    if phase not in {"setup", "financial"}:
+        raise SetupPreparationError("m7_setup_phase_invalid")
+    source_revision = "v1_0731" if phase == "financial" else "v1_0720"
     paths = (candidate, workspace, tool_modules)
     if (
         any(not path.is_absolute() or path.resolve() != path for path in paths)
@@ -191,10 +200,22 @@ def prepare_setup_activation(
         for flag in ("--account-id", "--resource-id", "--data-root")
     ):
         raise SetupPreparationError("m7_setup_command_unavailable")
+    if phase == "financial":
+        worker_help = _candidate_process(
+            release,
+            python_executable,
+            ["-m", "agentmonitor.composition.billing_worker", "--help"],
+            timeout=30,
+        )
+        if worker_help.returncode or not all(
+            flag in worker_help.stdout
+            for flag in ("--data-root", "--start-authority", "--recovery-only")
+        ):
+            raise SetupPreparationError("m7_setup_worker_unavailable")
     rehearsal = _candidate_process(
         release,
         python_executable,
-        ["-c", _REHEARSAL, str(workspace / "schema-rehearsal")],
+        ["-c", _REHEARSAL, str(workspace / "schema-rehearsal"), phase],
         timeout=180,
     )
     if rehearsal.returncode or len(rehearsal.stdout) > 8192:
@@ -210,7 +231,9 @@ def prepare_setup_activation(
         }:
             raise ValueError
         if (
-            facts["source_revision"] != "v1_0720"
+            facts["source_revision"] != source_revision
+            or phase == "financial"
+            and facts["target_revision"] != "v1_0733"
             or not isinstance(facts["target_revision"], str)
             or re.fullmatch(r"v1_[0-9]{4}", facts["target_revision"]) is None
             or any(
@@ -260,6 +283,7 @@ def prepare_setup_activation(
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--phase", choices=("setup", "financial"), default="setup")
     parser.add_argument("--candidate", required=True, type=Path)
     parser.add_argument("--expected-revision", required=True)
     parser.add_argument("--workspace", required=True, type=Path)

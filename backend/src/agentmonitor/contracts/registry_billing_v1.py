@@ -231,3 +231,150 @@ class BillingAccessPortV1(Protocol):
         resource_id: OpaqueIdV1,
         purpose: BillingAccessPurposeV1,
     ) -> BillingAccessTargetV1 | None: ...
+
+
+@dataclass(frozen=True, slots=True)
+class SetBillingMonitoringCommandV1(TechnicalValueV1):
+    """Owner intent; enabling is fenced to the displayed verification generation."""
+
+    CONTRACT_ID: ClassVar[str] = "CTR-REG-014"
+    CONTRACT_VERSION: ClassVar[str] = "1.4.0"
+    OWNER: ClassVar[str] = "PLAN-M02"
+    account_id: OpaqueIdV1
+    resource_id: OpaqueIdV1
+    expected_account_version: int
+    expected_connection_version: int
+    expected_scope_generation: int
+    expected_binding_generation: int | None
+    monitoring_preference: Literal["enabled", "disabled"]
+    verified_run_id: OpaqueIdV1 | None
+    principal_id: OpaqueIdV1
+    command_id: OpaqueIdV1
+    requested_at: datetime
+
+    def __post_init__(self) -> None:
+        TechnicalValueV1.__post_init__(self)
+        if (
+            any(
+                type(value) is not int or value < 1
+                for value in (
+                    self.expected_account_version,
+                    self.expected_connection_version,
+                    self.expected_scope_generation,
+                )
+            )
+            or self.expected_binding_generation is not None
+            and (
+                type(self.expected_binding_generation) is not int
+                or self.expected_binding_generation < 1
+            )
+            or self.monitoring_preference == "enabled"
+            and (
+                self.expected_binding_generation is None
+                or not isinstance(self.verified_run_id, OpaqueIdV1)
+            )
+            or self.monitoring_preference == "disabled"
+            and self.verified_run_id is not None
+        ):
+            raise ValueError("billing_monitoring_command_invalid")
+
+
+@dataclass(frozen=True, slots=True)
+class BillingMonitoringProofV1(TechnicalValueV1):
+    """Internal evidence assembled from genuine M04/M05 records, never HTTP input.
+
+    current_target is freshly resolved after comparing the immutable report's
+    captured binding/scope. It is rechecked in the M02 mutation transaction.
+    """
+
+    CONTRACT_ID: ClassVar[str] = "CTR-REG-014"
+    CONTRACT_VERSION: ClassVar[str] = "1.4.0"
+    OWNER: ClassVar[str] = "PLAN-M02"
+    current_target: BillingAccessTargetV1
+    run_id: OpaqueIdV1
+    report_id: OpaqueIdV1
+    payload_digest: str
+    verified_at: datetime
+
+    def __post_init__(self) -> None:
+        TechnicalValueV1.__post_init__(self)
+        if (
+            not isinstance(self.current_target, BillingAccessTargetV1)
+            or self.current_target.purpose != "verification"
+            or not isinstance(self.run_id, OpaqueIdV1)
+            or not isinstance(self.report_id, OpaqueIdV1)
+            or type(self.payload_digest) is not str
+            or re.fullmatch(r"[a-f0-9]{64}", self.payload_digest) is None
+            or not isinstance(self.verified_at, datetime)
+        ):
+            raise ValueError("billing_monitoring_proof_invalid")
+
+
+class BillingMonitoringRegistryPortV1(Protocol):
+    """Atomic metadata mutation; the composition supplies verified lineage."""
+
+    def replay_monitoring(
+        self, command: SetBillingMonitoringCommandV1
+    ) -> BillingConnectionViewV1 | None: ...
+
+    def set_monitoring(
+        self,
+        command: SetBillingMonitoringCommandV1,
+        proof: BillingMonitoringProofV1 | None,
+    ) -> BillingConnectionViewV1: ...
+
+
+@dataclass(frozen=True, slots=True)
+class BillingMonitoringStatusV1(TechnicalValueV1):
+    """Current server-derived eligibility; never a browser-cached access claim."""
+
+    CONTRACT_ID: ClassVar[str] = "CTR-REG-014"
+    CONTRACT_VERSION: ClassVar[str] = "1.4.0"
+    OWNER: ClassVar[str] = "PLAN-M02"
+    connection: BillingConnectionViewV1
+    account_record_version: int
+    binding_generation: int | None
+    can_enable: bool
+    can_disable: bool
+    reason_code: str
+    verified_run_id: OpaqueIdV1 | None
+    verified_at: datetime | None
+
+    def __post_init__(self) -> None:
+        TechnicalValueV1.__post_init__(self)
+        if (
+            not isinstance(self.connection, BillingConnectionViewV1)
+            or type(self.account_record_version) is not int
+            or self.account_record_version < 1
+            or self.binding_generation is not None
+            and (
+                type(self.binding_generation) is not int or self.binding_generation < 1
+            )
+            or type(self.can_enable) is not bool
+            or type(self.can_disable) is not bool
+            or self.can_enable
+            and self.can_disable
+            or self.can_enable
+            and (
+                self.verified_run_id is None
+                or self.binding_generation is None
+                or self.connection.monitoring_preference != "disabled"
+            )
+            or self.can_disable
+            and self.connection.monitoring_preference != "enabled"
+            or (self.verified_run_id is None) != (self.verified_at is None)
+            or re.fullmatch(r"[a-z][a-z0-9_]{0,95}", self.reason_code) is None
+        ):
+            raise ValueError("billing_monitoring_status_invalid")
+
+
+class BillingMonitoringPortV1(Protocol):
+    """Safe current eligibility and proof-backed owner actions through composition."""
+
+    def get_status(
+        self, account_id: OpaqueIdV1, resource_id: OpaqueIdV1
+    ) -> BillingMonitoringStatusV1 | None: ...
+
+    def set_monitoring(
+        self, command: SetBillingMonitoringCommandV1
+    ) -> BillingConnectionViewV1: ...

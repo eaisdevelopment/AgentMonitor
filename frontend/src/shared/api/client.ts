@@ -7,6 +7,8 @@ import {
   type ExactMoneyWireV1,
   type BillingCheckRunV1,
   type BudgetRunStatusV1,
+  type BillingMonitoringStatusV1,
+  type BillingMonitoringResultV1,
   type AccountCapacityViewV2,
   type AccountBillingConnectionsV1,
   type BillingConnectionViewV1,
@@ -69,6 +71,8 @@ export type {
   ExactMoneyWireV1,
   BillingCheckRunV1,
   BudgetRunStatusV1,
+  BillingMonitoringStatusV1,
+  BillingMonitoringResultV1,
   ApiTokenCredentialIssueV1,
   ApiTokenPageV1,
   ApiTokenSummaryV1,
@@ -375,6 +379,20 @@ export const registry = Object.freeze({
     }),
   billingRun: (runId: string, signal?: AbortSignal): Promise<ClientResult<BudgetRunStatusV1>> =>
     apiClient.billing_get_run_status_v1({ path: { run_id: runId }, signal }),
+  billingMonitoring: (accountId: string, resourceId: string, signal?: AbortSignal): Promise<ClientResult<BillingMonitoringStatusV1>> =>
+    apiClient.billing_get_monitoring_v1({ path: { account_id: accountId, resource_id: resourceId }, signal }),
+  setBillingMonitoring: (
+    intent: Readonly<{ accountId: string; resourceId: string; accountVersion: number; connectionVersion: number;
+      scopeGeneration: number; bindingGeneration: number | null; verifiedRunId: string | null;
+      preference: "enabled" | "disabled"; idempotencyKey: string }>, signal?: AbortSignal,
+  ): Promise<ClientResult<BillingMonitoringResultV1>> =>
+    apiClient.billing_set_monitoring_v1({
+      path: { account_id: intent.accountId, resource_id: intent.resourceId },
+      body: { expected_connection_version: intent.connectionVersion, expected_scope_generation: intent.scopeGeneration,
+        expected_binding_generation: intent.bindingGeneration, verified_run_id: intent.verifiedRunId,
+        monitoring_preference: intent.preference },
+      headers: { ...mutationHeaders({ id: intent.accountId, recordVersion: intent.accountVersion }), "Idempotency-Key": intent.idempotencyKey }, signal,
+    }),
   renameAccount: (
     account: AccountViewV1, friendlyName: string,
   ): Promise<ClientResult<AccountViewV1>> =>

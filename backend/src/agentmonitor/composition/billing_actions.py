@@ -262,7 +262,10 @@ class BillingCheckActionsV1:
         except CollectionRepositoryErrorV1 as error:
             if error.code == "collection_idempotency_conflict":
                 raise ValueError("billing_check_idempotency_conflict") from None
-            if error.code == "collection_budget_exhausted":
+            if error.code in {
+                "collection_budget_exhausted",
+                "collection_retry_deferred",
+            }:
                 raise ValueError("billing_check_rate_limited") from None
             raise ValueError("billing_check_unavailable") from None
         except BudgetCollectionError:

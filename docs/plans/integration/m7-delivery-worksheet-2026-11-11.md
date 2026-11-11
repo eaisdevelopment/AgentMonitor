@@ -256,7 +256,10 @@ breakdowns/history/conditional forecast; simplification does not silently drop t
 
 T003 connects checks as the corresponding feature lands. Existing runnable
 partial lanes are `pure`, `mutation`, `registry_metadata`, `persistence_schema`,
-and the explicit `deploy --check setup_activation` selection. Remaining full
+and the explicit `deploy --check setup_activation` and
+`deploy --check financial_activation` selections. Financial activation now has
+real isolated migration/build preparation evidence; installed execution remains
+unverified. Neither selector is the full deployment or M7 exit gate. Remaining full
 technical/live/browser/deploy checks are not assumed implemented because their
 names exist. Future scoped selectors are labelled Planned until executable.
 Use `python3 -m tools.automation.implementations.auto_m7 --lane <lane>` only for

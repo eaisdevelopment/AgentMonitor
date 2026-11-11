@@ -9,10 +9,14 @@ from agentmonitor.api.v1.routers._observation import ERROR_RESPONSES, policy
 from agentmonitor.api.v1.schemas.billing_actions import (
     BillingCheckInputV1,
     BillingCheckRunV1,
+    BillingMonitoringResultV1,
+    BillingMonitoringStatusV1,
     BudgetRunStatusV1,
+    SetBillingMonitoringInputV1,
 )
 from agentmonitor.contracts.billing_actions_v1 import BillingCheckCommandV1
 from agentmonitor.contracts.common_v1 import OpaqueIdV1
+from agentmonitor.contracts.registry_billing_v1 import SetBillingMonitoringCommandV1
 from fastapi import APIRouter, Path, Request, Response
 
 router = APIRouter(tags=["billing"])
@@ -161,4 +165,166 @@ def get_billing_run_status(
         started_at=run.started_at,
         completed_at=run.completed_at,
         deadline_at=run.deadline_at,
+    )
+
+
+_MONITORING_ERRORS = {
+    "billing_monitoring_target_unavailable": 404,
+    "registry_subject_not_found": 404,
+    "registry_version_conflict": 412,
+    "billing_monitoring_version_conflict": 412,
+    "billing_monitoring_target_changed": 409,
+    "billing_monitoring_verification_required": 409,
+    "billing_monitoring_credential_required": 409,
+    "billing_monitoring_account_unavailable": 409,
+    "registry_idempotency_conflict": 409,
+    "registry_replay_stale": 409,
+    "billing_monitoring_unavailable": 503,
+    "billing_monitoring_runtime_unavailable": 503,
+}
+
+
+def _monitoring_error(error: Exception) -> ProblemError:
+    code = str(error)
+    code = {
+        "billing_monitoring_proof_required": "billing_monitoring_verification_required",
+        "billing_monitoring_proof_conflict": "billing_monitoring_target_changed",
+        "registry_timestamp_conflict": "billing_monitoring_target_changed",
+    }.get(code, code)
+    if code not in _MONITORING_ERRORS:
+        return ProblemError(503, "billing_monitoring_unavailable")
+    return ProblemError(_MONITORING_ERRORS[code], code)
+
+
+@router.get(
+    "/accounts/{account_id}/billing-connections/{resource_id}/monitoring",
+    response_model=BillingMonitoringStatusV1,
+    operation_id="billing_get_monitoring_v1",
+    responses=ERROR_RESPONSES,
+    openapi_extra=policy("read:telemetry", "BillingMonitoringPortV1.get_status"),
+)
+def get_billing_monitoring(
+    request: Request,
+    response: Response,
+    account_id: str = Path(min_length=1, max_length=64, pattern=r"^[A-Za-z0-9_-]+$"),
+    resource_id: str = Path(min_length=1, max_length=64, pattern=r"^[A-Za-z0-9_-]+$"),
+) -> BillingMonitoringStatusV1:
+    authorize_request(request, "read:telemetry")
+    if request.query_params:
+        raise ProblemError(400, "invalid_filter")
+    service = observation_ports(request).billing_monitoring
+    if service is None:
+        raise ProblemError(503, "billing_monitoring_unavailable")
+    try:
+        status = service.get_status(OpaqueIdV1(account_id), OpaqueIdV1(resource_id))
+    except (ValueError, RuntimeError, OSError) as error:
+        raise _monitoring_error(error) from None
+    if status is None:
+        raise ProblemError(404, "billing_monitoring_target_unavailable")
+    item = status.connection
+    response.headers["Cache-Control"] = "no-store, private"
+    return BillingMonitoringStatusV1(
+        account_id=item.account_id.value,
+        resource_id=item.resource_id.value,
+        account_record_version=status.account_record_version,
+        connection_record_version=item.record_version,
+        scope_generation=item.scope_generation,
+        binding_generation=status.binding_generation,
+        monitoring_preference=item.monitoring_preference,
+        lifecycle=item.lifecycle,
+        can_enable=status.can_enable,
+        can_disable=status.can_disable,
+        reason_code=status.reason_code,
+        verified_run_id=(
+            status.verified_run_id.value if status.verified_run_id else None
+        ),
+        verified_at=status.verified_at,
+    )
+
+
+@router.put(
+    "/accounts/{account_id}/billing-connections/{resource_id}/monitoring",
+    response_model=BillingMonitoringResultV1,
+    operation_id="billing_set_monitoring_v1",
+    responses=ERROR_RESPONSES,
+    openapi_extra={
+        "security": [{"BrowserSessionCookieV1": [], "BrowserCsrfHeaderV1": []}],
+        "x-agentmonitor-auth-profile": "browser_cookie_only",
+        "x-agentmonitor-required-permission": "write:accounts",
+        "x-agentmonitor-application-port": "BillingMonitoringPortV1.set_monitoring",
+        "x-agentmonitor-replay-policy": "replay_safe_representation",
+        "x-agentmonitor-error-schema": "SafeProblemV1",
+        "parameters": [
+            {
+                "name": "If-Match",
+                "in": "header",
+                "required": True,
+                "schema": {"type": "string", "maxLength": 160},
+                "description": "Current account ETag.",
+            },
+            {
+                "name": "Idempotency-Key",
+                "in": "header",
+                "required": True,
+                "schema": {"type": "string", "pattern": "^[A-Za-z0-9_-]{16,128}$"},
+                "description": "Stable key for retrying this monitoring preference.",
+            },
+        ],
+    },
+)
+def set_billing_monitoring(
+    body: SetBillingMonitoringInputV1,
+    request: Request,
+    response: Response,
+    account_id: str = Path(min_length=1, max_length=64, pattern=r"^[A-Za-z0-9_-]+$"),
+    resource_id: str = Path(min_length=1, max_length=64, pattern=r"^[A-Za-z0-9_-]+$"),
+) -> BillingMonitoringResultV1:
+    caller = authorize_request(
+        request, "write:accounts", cookie_only=True, require_csrf=True
+    )
+    if request.query_params:
+        raise ProblemError(400, "invalid_filter")
+    version = _account_version(request, account_id)
+    command_id = request.headers.get("idempotency-key")
+    if command_id is None or re.fullmatch(r"[A-Za-z0-9_-]{16,128}", command_id) is None:
+        raise ProblemError(400, "invalid_idempotency_key")
+    if body.monitoring_preference == "enabled" and (
+        body.verified_run_id is None or body.expected_binding_generation is None
+    ):
+        raise ProblemError(409, "billing_monitoring_verification_required")
+    try:
+        command = SetBillingMonitoringCommandV1(
+            account_id=OpaqueIdV1(account_id),
+            resource_id=OpaqueIdV1(resource_id),
+            expected_account_version=version,
+            expected_connection_version=body.expected_connection_version,
+            expected_scope_generation=body.expected_scope_generation,
+            expected_binding_generation=body.expected_binding_generation,
+            monitoring_preference=body.monitoring_preference,
+            verified_run_id=OpaqueIdV1(body.verified_run_id)
+            if body.verified_run_id
+            else None,
+            principal_id=caller.principal.principal_id,
+            command_id=OpaqueIdV1(command_id),
+            requested_at=datetime.now(UTC),
+        )
+    except ValueError:
+        raise ProblemError(422, "invalid_request_fields") from None
+    service = observation_ports(request).billing_monitoring
+    if service is None:
+        raise ProblemError(503, "billing_monitoring_unavailable")
+    try:
+        item = service.set_monitoring(command)
+    except (ValueError, RuntimeError, OSError) as error:
+        raise _monitoring_error(error) from None
+    response.headers["Cache-Control"] = "no-store, private"
+    return BillingMonitoringResultV1(
+        account_id=item.account_id.value,
+        resource_id=item.resource_id.value,
+        connection_record_version=item.record_version,
+        scope_generation=item.scope_generation,
+        monitoring_preference=item.monitoring_preference,
+        lifecycle=item.lifecycle,
+        registry_revision=item.registry_revision,
+        updated_at=item.updated_at,
     )

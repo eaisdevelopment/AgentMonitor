@@ -71,6 +71,22 @@ _TITLES = {
 # Closed local documentation catalog. Neither the route nor the problem type
 # accepts a code copied from submitted input or an unrecognized port outcome.
 PROBLEM_DESCRIPTIONS: dict[str, str] = {
+    "billing_monitoring_target_unavailable": "The billing connection is unavailable.",
+    "billing_monitoring_version_conflict": (
+        "The billing connection changed. Refresh its status."
+    ),
+    "billing_monitoring_target_changed": "Billing access changed. Refresh its status.",
+    "billing_monitoring_verification_required": (
+        "Complete a successful billing check before enabling monitoring."
+    ),
+    "billing_monitoring_credential_required": (
+        "A stored credential is required for billing monitoring."
+    ),
+    "billing_monitoring_account_unavailable": (
+        "This account cannot enable billing monitoring."
+    ),
+    "billing_monitoring_unavailable": "Billing monitoring is temporarily unavailable.",
+    "billing_monitoring_runtime_unavailable": "The billing collector is unavailable.",
     "billing_check_target_unavailable": "The billing connection is unavailable.",
     "billing_check_version_conflict": "The account changed. Refresh before retrying.",
     "billing_check_authority_unavailable": (

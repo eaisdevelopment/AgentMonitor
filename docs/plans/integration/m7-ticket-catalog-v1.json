@@ -357,7 +357,11 @@
         "docs/evidence/m7-budget-dispatch-2026-11-11.md",
         "docs/evidence/m7-billing-check-action-2026-11-11.md",
         "docs/evidence/m7-billing-check-http-2026-11-11.md",
-        "docs/evidence/m7-billing-check-ui-2026-11-11.md"
+        "docs/evidence/m7-billing-check-ui-2026-11-11.md",
+        "docs/evidence/m7-billing-monitoring-composition-2026-11-11.md",
+        "docs/evidence/m7-billing-monitoring-registry-2026-11-11.md",
+        "docs/evidence/m7-billing-monitoring-http-2026-11-11.md",
+        "docs/evidence/m7-billing-schedule-2026-11-11.md"
       ],
       "depends_on_any": [],
       "delivery_slice": "S1",
@@ -564,7 +568,8 @@
       "verification": "Planned scoped verification: detail_history plus owner_setup through the existing M7 runner (T003 must publish/test the exact selector before closure). The full AUTO-M7-TEST/LIVE/BROWSER results are final integration checks in T015/T016, not this ticket prerequisite.",
       "evidence": [
         "docs/evidence/m7-account-financial-ui-2026-11-11.md",
-        "docs/evidence/m7-billing-check-ui-2026-11-11.md"
+        "docs/evidence/m7-billing-check-ui-2026-11-11.md",
+        "docs/evidence/m7-billing-monitoring-ui-2026-11-11.md"
       ],
       "depends_on_any": [],
       "delivery_slice": "S1",
@@ -713,7 +718,8 @@
         "docs/evidence/m7-selected-release-recovery-2026-11-11.md",
         "docs/evidence/m7-setup-activation-selector-2026-11-11.md",
         "docs/evidence/m7-setup-installed-2026-11-11.md",
-        "docs/evidence/m7-financial-schema-recovery-2026-11-11.md"
+        "docs/evidence/m7-financial-schema-recovery-2026-11-11.md",
+        "docs/evidence/m7-financial-activation-selector-2026-11-11.md"
       ],
       "depends_on_any": [],
       "delivery_slice": "S1",
@@ -725,7 +731,7 @@
       "steps": [
         "Prepare and execute the scoped setup_activation selection before requesting owner key entry, after candidate checks and verified recovery/continuity. Current command resolves the installed service, so an older binary cannot be treated as a working setup. This partial result does not close T014; later dependencies govern full closure.",
         "Admit explicit clean candidate and expected revision through cutover/update wrappers and runtime re-exec; verify retained revision/schema/build before service stop. Preserve fixed service, executable, environment and lock guards.",
-        "Extend existing real recovery tests to 0731\u21920720 and run actual restore/finalize paths, not only backup reopen. Remove the fixed old-checkout rejection from the same-schema recovery wrapper. Pin recovery to the same M7 controller as deployment; keys remain excluded and no blind rollback is allowed after startup/writes.",
+        "Extend existing real recovery tests to 0731→0720 and run actual restore/finalize paths, not only backup reopen. Remove the fixed old-checkout rejection from the same-schema recovery wrapper. Pin recovery to the same M7 controller as deployment; keys remain excluded and no blind rollback is allowed after startup/writes.",
         "Activate through the existing AgentMonitor service path; verify loopback/LAN health, actual installed revision and authenticated Overview/detail with genuine first-provider data.",
         "Verify existing subscriptions/alerts and browser-closed collection continue; preserve profiles/agents and selected protected env. Record any brief service transition and recovery result.",
         "Preparation at c453fe0 is historical scoped build/schema evidence. Setup is now installed at 7e252b8/schema0731; authenticated setup proof remains pending. Preserve its revision and journal-dependent recovery evidence; next prepare and verify the complete financial slice rather than repeating initial setup activation.",

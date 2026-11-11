@@ -6,6 +6,7 @@ from dataclasses import replace
 from datetime import UTC, datetime
 from pathlib import Path
 from threading import Barrier
+from typing import Literal
 
 import pytest
 from agentmonitor.adapters.persistence._shared.sqlite.core.policy import (
@@ -28,6 +29,7 @@ from agentmonitor.contracts.common_v1 import OpaqueIdV1
 from agentmonitor.contracts.registry_billing_v1 import (
     BillingConnectionViewV1,
     CreateBillingConnectionCommandV1,
+    SetBillingMonitoringCommandV1,
 )
 from agentmonitor.contracts.registry_v1 import AccountViewV1
 from agentmonitor.modules.provider_system.application.gateway import (
@@ -93,6 +95,32 @@ def _command(account: AccountViewV1) -> CreateBillingConnectionCommandV1:
         principal_id=OpaqueIdV1("isolated-registry-owner"),
         command_id=OpaqueIdV1(secrets.token_urlsafe(24)),
         scope_id="owner-scope-" + secrets.token_hex(8),
+        requested_at=datetime.now(UTC),
+    )
+
+
+def _monitoring_command(
+    account: AccountViewV1,
+    connection: BillingConnectionViewV1,
+    *,
+    command_id: OpaqueIdV1 | None = None,
+    monitoring_preference: Literal["enabled", "disabled"] = "disabled",
+) -> SetBillingMonitoringCommandV1:
+    return SetBillingMonitoringCommandV1(
+        account_id=account.account_id,
+        resource_id=connection.resource_id,
+        expected_account_version=account.record_version,
+        expected_connection_version=connection.record_version,
+        expected_scope_generation=connection.scope_generation,
+        expected_binding_generation=(1 if monitoring_preference == "enabled" else None),
+        monitoring_preference=monitoring_preference,
+        verified_run_id=(
+            OpaqueIdV1("billing-monitoring-run")
+            if monitoring_preference == "enabled"
+            else None
+        ),
+        principal_id=OpaqueIdV1("isolated-registry-owner"),
+        command_id=command_id or OpaqueIdV1(secrets.token_urlsafe(24)),
         requested_at=datetime.now(UTC),
     )
 
@@ -322,3 +350,76 @@ def test_database_enforces_binding_and_status_constraints(tmp_path: Path) -> Non
                 connection.rollback()
     status = SqliteBillingConnectionRepositoryV1(reference).get(account.account_id)
     assert status is not None and status.connections == (created,)
+
+
+def test_disable_replays_without_credential_or_registry_mutation(
+    tmp_path: Path,
+) -> None:
+    """M7-COL-001: disable is durable and replayable without credential access."""
+    reference = _database(tmp_path)
+    account = _account(reference)
+    repository = SqliteBillingConnectionRepositoryV1(reference)
+    created = repository.create(_command(account))
+    command = _monitoring_command(account, created)
+    before = _counts(reference)
+
+    assert repository.replay_monitoring(command) is None
+    assert repository.set_monitoring(command, None) == created
+    after = _counts(reference)
+    assert after[:4] == before[:4]
+    assert after[4] == before[4] + 1
+    assert after[5] == before[5]
+    assert repository.replay_monitoring(command) == created
+    assert repository.set_monitoring(command, None) == created
+    assert _counts(reference) == after
+
+
+def test_enable_without_current_verified_proof_writes_nothing(tmp_path: Path) -> None:
+    """M7-COL-001: local storage metadata alone never authorizes monitoring."""
+    reference = _database(tmp_path)
+    account = _account(reference)
+    repository = SqliteBillingConnectionRepositoryV1(reference)
+    created = repository.create(_command(account))
+    command = _monitoring_command(account, created, monitoring_preference="enabled")
+    before = _counts(reference)
+
+    with pytest.raises(
+        RegistryCommandConflictV1, match="billing_monitoring_proof_required"
+    ):
+        repository.set_monitoring(command, None)
+    assert repository.replay_monitoring(command) is None
+    assert _counts(reference) == before
+    current = repository.get(account.account_id)
+    assert current is not None and current.connections == (created,)
+
+
+def test_monitoring_replay_is_stale_after_account_archive(tmp_path: Path) -> None:
+    """M7-COL-002: an old owner receipt never revives disconnected authority."""
+    reference = _database(tmp_path)
+    account = _account(reference)
+    repository = SqliteBillingConnectionRepositoryV1(reference)
+    created = repository.create(_command(account))
+    command = _monitoring_command(account, created)
+    assert repository.set_monitoring(command, None) == created
+    with pytest.raises(
+        RegistryCommandConflictV1, match="registry_idempotency_conflict"
+    ):
+        repository.replay_monitoring(replace(command, expected_scope_generation=2))
+
+    archived = SqliteRegistryRepositoryV1(reference).edit_account(
+        EditAccountCommandV1(
+            account_id=account.account_id,
+            expected_version=account.record_version,
+            principal_id=OpaqueIdV1("isolated-registry-owner"),
+            command_id=OpaqueIdV1(secrets.token_urlsafe(24)),
+            action="archive",
+            requested_at=datetime.now(UTC),
+        )
+    )
+    assert archived.lifecycle == "archived"
+    with pytest.raises(RegistryCommandConflictV1, match="registry_replay_stale"):
+        repository.replay_monitoring(command)
+    current = repository.get(account.account_id)
+    assert current is not None
+    assert current.connections[0].lifecycle == "disconnected"
+    assert current.connections[0].monitoring_preference == "disabled"

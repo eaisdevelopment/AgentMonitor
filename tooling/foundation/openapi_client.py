@@ -130,6 +130,14 @@ SOURCE_FILES = (
 )
 
 IAM_OPERATIONS = {
+    (
+        "/api/v1/accounts/{account_id}/billing-connections/{resource_id}/monitoring",
+        "get",
+    ): "billing_get_monitoring_v1",
+    (
+        "/api/v1/accounts/{account_id}/billing-connections/{resource_id}/monitoring",
+        "put",
+    ): "billing_set_monitoring_v1",
     ("/api/v1/collection-runs/{run_id}/budget", "get"): "billing_get_run_status_v1",
     (
         "/api/v1/accounts/{account_id}/billing-connections/{resource_id}/checks",
@@ -1109,6 +1117,30 @@ IAM_POLICY: dict[str, IamPolicyRow] = {
         _M2_REQUIRED_ERROR_STATUSES,
         None,
     ),
+    "billing_get_monitoring_v1": (
+        "cookie_or_bearer",
+        "read:telemetry",
+        "BillingMonitoringPortV1.get_status",
+        "safe_query_repeat",
+        _COOKIE_BEARER,
+        "200",
+        "BillingMonitoringStatusV1",
+        "SafeProblemV1",
+        _M2_REQUIRED_ERROR_STATUSES,
+        None,
+    ),
+    "billing_set_monitoring_v1": (
+        "browser_cookie_only",
+        "write:accounts",
+        "BillingMonitoringPortV1.set_monitoring",
+        "replay_safe_representation",
+        _COOKIE_CSRF,
+        "200",
+        "BillingMonitoringResultV1",
+        "SafeProblemV1",
+        _M2_REQUIRED_ERROR_STATUSES,
+        "SetBillingMonitoringInputV1",
+    ),
     "billing_get_run_status_v1": (
         "cookie_or_bearer",
         "read:telemetry",
@@ -1507,7 +1539,7 @@ def validate_iam_openapi(document: object) -> tuple[str, ...]:
     if (
         actual != IAM_OPERATIONS
         or set(IAM_POLICY) != set(IAM_OPERATIONS.values())
-        or len(identifiers) != 83
+        or len(identifiers) != 85
     ):
         raise OpenApiGenerationError("operation_surface_invalid")
 

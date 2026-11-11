@@ -25,6 +25,41 @@ from agentmonitor.contracts.common_v1 import OpaqueIdV1
 from agentmonitor.contracts.provider_system_v1 import CollectionOutcomeV1
 
 
+def test_empty_retry_lookup_does_not_create_provider_or_collection_rows(
+    tmp_path: Path,
+) -> None:
+    from agentmonitor.adapters.persistence._shared.sqlite.core.policy import (
+        open_sqlite_database,
+    )
+    from agentmonitor.adapters.persistence._shared.sqlite.schema.compatibility import (
+        migrate_to_head,
+    )
+    from agentmonitor.adapters.persistence.collection_control.sqlite.repository import (
+        _budget_retry_after,
+    )
+
+    ref = DatabaseRefV1(tmp_path / "agentmonitor.db", tmp_path)
+    migrate_to_head(ref)
+    with open_sqlite_database(ref, "runtime_read_only") as handle:
+        with handle.connect() as connection:
+            assert (
+                _budget_retry_after(connection, "absent-scope", "requests", "request")
+                is None
+            )
+            assert (
+                connection.exec_driver_sql(
+                    "SELECT count(*) FROM collection_run"
+                ).scalar_one()
+                == 0
+            )
+            assert (
+                connection.exec_driver_sql(
+                    "SELECT count(*) FROM collection_budget_reservation"
+                ).scalar_one()
+                == 0
+            )
+
+
 def test_dispatch_without_registry_fence_refuses_before_database_open(
     tmp_path: Path,
 ) -> None:

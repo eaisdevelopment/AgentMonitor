@@ -29,7 +29,9 @@ from agentmonitor.contracts.registry_billing_v1 import (
     BillingAccessPurposeV1,
     BillingAccessTargetV1,
     BillingConnectionViewV1,
+    BillingMonitoringProofV1,
     CreateBillingConnectionCommandV1,
+    SetBillingMonitoringCommandV1,
 )
 from agentmonitor.contracts.registry_v1 import (
     ProviderAccessTargetV1,
@@ -44,10 +46,34 @@ from agentmonitor.modules.registry.domain.billing_connection import (
     billing_credential_status,
     ensure_billing_access_current,
 )
+from agentmonitor.modules.registry.domain.billing_monitoring import (
+    require_billing_monitoring_proof,
+)
 from sqlalchemy.engine import Connection, RowMapping
 from sqlalchemy.exc import SQLAlchemyError
 
 _OPERATION = "create_billing_connection"
+_MONITORING_OPERATION = "set_billing_monitoring"
+
+
+def _monitoring_fingerprint(command: SetBillingMonitoringCommandV1) -> str:
+    return _fingerprint(
+        {
+            "operation": _MONITORING_OPERATION,
+            "account_id": command.account_id.value,
+            "resource_id": command.resource_id.value,
+            "expected_account_version": command.expected_account_version,
+            "expected_connection_version": command.expected_connection_version,
+            "expected_scope_generation": command.expected_scope_generation,
+            "expected_binding_generation": command.expected_binding_generation,
+            "monitoring_preference": command.monitoring_preference,
+            "verified_run_id": (
+                command.verified_run_id.value
+                if command.verified_run_id is not None
+                else None
+            ),
+        }
+    )
 
 
 def _view(row: RowMapping, provider: str) -> BillingConnectionViewV1:
@@ -111,6 +137,37 @@ def _get(
     )
 
 
+def _replay_monitoring_in_transaction(
+    connection: Connection, command: SetBillingMonitoringCommandV1
+) -> BillingConnectionViewV1 | None:
+    command_digest = _digest(command.command_id.value)
+    receipt = (
+        connection.exec_driver_sql(
+            "SELECT request_fingerprint,outcome_subject_type,outcome_subject_id,"
+            "outcome_record_version FROM reg_command_receipt WHERE principal_id=? "
+            "AND operation_key=? AND idempotency_key_digest=?",
+            (command.principal_id.value, _MONITORING_OPERATION, command_digest),
+        )
+        .mappings()
+        .one_or_none()
+    )
+    if receipt is None:
+        return None
+    if receipt["request_fingerprint"] != _monitoring_fingerprint(command):
+        raise RegistryCommandConflictV1("registry_idempotency_conflict")
+    status = _get(connection, command.account_id)
+    if status is None or len(status.connections) != 1:
+        raise RegistryCommandConflictV1("registry_replay_stale")
+    result = status.connections[0]
+    if (
+        receipt["outcome_subject_type"] != "resource"
+        or receipt["outcome_subject_id"] != result.resource_id.value
+        or int(receipt["outcome_record_version"]) != result.record_version
+    ):
+        raise RegistryCommandConflictV1("registry_replay_stale")
+    return result
+
+
 class SqliteBillingConnectionRepositoryV1:
     """CTR-REG-014 metadata only; never accesses credentials or provider APIs."""
 
@@ -128,6 +185,194 @@ class SqliteBillingConnectionRepositoryV1:
                     connection.rollback()
                     return result
         except (SQLAlchemyError, SqlitePolicyError, ValueError):
+            raise RegistryRepositoryErrorV1() from None
+
+    def replay_monitoring(
+        self, command: SetBillingMonitoringCommandV1
+    ) -> BillingConnectionViewV1 | None:
+        """Replay only the exact current outcome, before any fresh proof lookup."""
+        try:
+            with open_sqlite_database(
+                self._database_ref, "runtime_read_only"
+            ) as handle:
+                with handle.connect() as connection:
+                    connection.exec_driver_sql("BEGIN")
+                    result = _replay_monitoring_in_transaction(connection, command)
+                    connection.rollback()
+                    return result
+        except RegistryCommandConflictV1:
+            raise
+        except (SQLAlchemyError, SqlitePolicyError, ValueError, TypeError):
+            raise RegistryRepositoryErrorV1() from None
+
+    def set_monitoring(
+        self,
+        command: SetBillingMonitoringCommandV1,
+        proof: BillingMonitoringProofV1 | None,
+    ) -> BillingConnectionViewV1:
+        """Apply one proof-fenced owner preference in a short M02 transaction."""
+        instant = _utc_text(command.requested_at)
+        command_digest = _digest(command.command_id.value)
+        fingerprint = _monitoring_fingerprint(command)
+        try:
+            with open_sqlite_database(
+                self._database_ref, "runtime_read_write"
+            ) as handle:
+                with handle.connect() as connection:
+                    connection.exec_driver_sql("BEGIN IMMEDIATE")
+                    replay = _replay_monitoring_in_transaction(connection, command)
+                    if replay is not None:
+                        connection.rollback()
+                        return replay
+                    status = _get(connection, command.account_id)
+                    if status is None or len(status.connections) != 1:
+                        raise RegistryCommandConflictV1("registry_subject_not_found")
+                    selected = status.connections[0]
+                    if selected.resource_id != command.resource_id:
+                        raise RegistryCommandConflictV1(
+                            "billing_monitoring_target_unavailable"
+                        )
+                    if (
+                        status.account_record_version
+                        != command.expected_account_version
+                    ):
+                        raise RegistryCommandConflictV1("registry_version_conflict")
+                    if (
+                        selected.record_version != command.expected_connection_version
+                        or selected.scope_generation
+                        != command.expected_scope_generation
+                    ):
+                        raise RegistryCommandConflictV1("registry_version_conflict")
+                    if selected.lifecycle == "disconnected":
+                        raise RegistryCommandConflictV1(
+                            "billing_monitoring_target_unavailable"
+                        )
+                    current_target = (
+                        resolve_billing_access_in_transaction(
+                            connection,
+                            command.account_id,
+                            command.resource_id,
+                            "verification",
+                        )
+                        if command.monitoring_preference == "enabled"
+                        else None
+                    )
+                    try:
+                        require_billing_monitoring_proof(command, proof, current_target)
+                    except ValueError as error:
+                        raise RegistryCommandConflictV1(str(error)) from None
+
+                    target_lifecycle = (
+                        "active"
+                        if command.monitoring_preference == "enabled"
+                        else selected.lifecycle
+                    )
+                    changed = (
+                        selected.lifecycle != target_lifecycle
+                        or selected.monitoring_preference
+                        != command.monitoring_preference
+                    )
+                    result = selected
+                    revision = selected.registry_revision
+                    if changed:
+                        if command.requested_at < selected.updated_at:
+                            raise RegistryCommandConflictV1(
+                                "registry_timestamp_conflict"
+                            )
+                        version = selected.record_version + 1
+                        revision = _next_revision(connection, instant)
+                        updated = connection.exec_driver_sql(
+                            "UPDATE reg_billing_connection SET lifecycle=?,"
+                            "monitoring_preference=?,record_version=?,"
+                            "registry_revision=?,updated_at=? WHERE resource_id=? "
+                            "AND account_id=? AND scope_generation=? AND lifecycle=? "
+                            "AND monitoring_preference=? AND record_version=? "
+                            "AND registry_revision=? AND updated_at=?",
+                            (
+                                target_lifecycle,
+                                command.monitoring_preference,
+                                version,
+                                revision,
+                                instant,
+                                selected.resource_id.value,
+                                selected.account_id.value,
+                                selected.scope_generation,
+                                selected.lifecycle,
+                                selected.monitoring_preference,
+                                selected.record_version,
+                                selected.registry_revision,
+                                _utc_text(selected.updated_at),
+                            ),
+                        )
+                        if updated.rowcount != 1:
+                            raise RegistryCommandConflictV1("registry_version_conflict")
+                        _append_change(
+                            connection,
+                            subject_type="resource",
+                            subject_id=selected.resource_id.value,
+                            aggregate_version=version,
+                            revision=revision,
+                            change_kind=(
+                                "billing_monitoring_enabled"
+                                if command.monitoring_preference == "enabled"
+                                else "billing_monitoring_disabled"
+                            ),
+                            actor_id=command.principal_id.value,
+                            correlation_id=command.command_id.value,
+                            command_digest=command_digest,
+                            instant=instant,
+                            previous_lifecycle=selected.lifecycle,
+                            new_lifecycle=target_lifecycle,
+                        )
+                        _append_outbox(
+                            connection,
+                            subject_type="resource",
+                            subject_id=selected.resource_id.value,
+                            aggregate_version=version,
+                            revision=revision,
+                            change_kind=(
+                                "billing_monitoring_enabled"
+                                if command.monitoring_preference == "enabled"
+                                else "billing_monitoring_disabled"
+                            ),
+                            correlation_id=command.command_id.value,
+                            causation_id=(
+                                command.verified_run_id.value
+                                if command.verified_run_id is not None
+                                else command.command_id.value
+                            ),
+                            instant=instant,
+                        )
+                        persisted = _get(connection, command.account_id)
+                        if persisted is None or len(persisted.connections) != 1:
+                            raise RegistryRepositoryErrorV1()
+                        result = persisted.connections[0]
+                    connection.exec_driver_sql(
+                        "INSERT INTO reg_command_receipt "
+                        "(receipt_id,principal_id,operation_key,"
+                        "idempotency_key_digest,request_fingerprint,"
+                        "outcome_subject_type,outcome_subject_id,"
+                        "outcome_record_version,registry_revision,created_at,"
+                        "expires_at) "
+                        "VALUES (?,?,?,?,?,'resource',?,?,?,?,?)",
+                        (
+                            _identifier(),
+                            command.principal_id.value,
+                            _MONITORING_OPERATION,
+                            command_digest,
+                            fingerprint,
+                            result.resource_id.value,
+                            result.record_version,
+                            revision,
+                            instant,
+                            _utc_text(command.requested_at + timedelta(days=365)),
+                        ),
+                    )
+                    connection.commit()
+                    return result
+        except RegistryCommandConflictV1:
+            raise
+        except (SQLAlchemyError, SqlitePolicyError, ValueError, TypeError):
             raise RegistryRepositoryErrorV1() from None
 
     def create(

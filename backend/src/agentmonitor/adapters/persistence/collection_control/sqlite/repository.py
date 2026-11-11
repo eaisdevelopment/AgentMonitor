@@ -100,6 +100,33 @@ def _required_utc_value(value: object) -> datetime:
     return result
 
 
+def _budget_retry_deferred(retry_after: datetime | None, as_of: datetime) -> bool:
+    """A retry boundary is inclusive: dispatch is allowed at the stored instant."""
+    _utc_text(as_of)
+    if retry_after is None:
+        return False
+    _utc_text(retry_after)
+    return retry_after > as_of
+
+
+def _schedule_interval_seconds(admission: CollectionRunAdmissionV1OrV2) -> int:
+    return 900 if isinstance(admission, BudgetCollectionRunAdmissionV1) else 300
+
+
+def _budget_retry_after(
+    connection: Connection, scope_digest: str, dimension: str, unit: str
+) -> datetime | None:
+    """Read a scope's persisted budget retry boundary across schedule windows."""
+    value = connection.exec_driver_sql(
+        "SELECT max(r.retry_after) FROM collection_run r "
+        "JOIN collection_budget_reservation b ON b.run_id=r.run_id "
+        "WHERE r.payload_schema='budget.report.v1' "
+        "AND b.scope_key_digest=? AND b.dimension=? AND b.unit=?",
+        (scope_digest, dimension, unit),
+    ).scalar_one()
+    return None if value is None else _required_utc_value(value)
+
+
 def _observation_ids(connection: Connection, run_id: str) -> tuple[OpaqueIdV1, ...]:
     values = connection.exec_driver_sql(
         "SELECT observation_id FROM collection_run_observation_ref "
@@ -260,11 +287,22 @@ class SqliteCollectionRepositoryV1:
                         "JOIN collection_budget_run b ON b.run_id=r.run_id "
                         "JOIN collection_request q ON q.request_id=r.primary_request_id "
                         "JOIN collection_lease l ON l.run_id=r.run_id "
+                        "JOIN collection_budget_reservation current_budget "
+                        "ON current_budget.reservation_id=r.budget_reservation_id "
                         "WHERE r.state='queued' AND r.payload_schema='budget.report.v1' "
                         "AND r.deadline_at>? AND l.expires_at>? AND r.requested_at<=? "
                         "AND r.provider_key=? AND r.capability_id=? AND r.source_id=? "
                         "AND r.manifest_fingerprint=? AND r.collection_policy_version=? "
-                        "AND q.operation_family=? ORDER BY r.requested_at,r.run_id LIMIT 1",
+                        "AND q.operation_family=? "
+                        "AND NOT EXISTS (SELECT 1 FROM collection_run previous_run "
+                        "JOIN collection_budget_reservation previous_budget "
+                        "ON previous_budget.run_id=previous_run.run_id "
+                        "WHERE previous_run.payload_schema='budget.report.v1' "
+                        "AND previous_budget.scope_key_digest=current_budget.scope_key_digest "
+                        "AND previous_budget.dimension=current_budget.dimension "
+                        "AND previous_budget.unit=current_budget.unit "
+                        "AND previous_run.retry_after>?) "
+                        "ORDER BY r.requested_at,r.run_id LIMIT 1",
                         (
                             instant,
                             instant,
@@ -275,6 +313,7 @@ class SqliteCollectionRepositoryV1:
                             manifest_fingerprint,
                             collection_policy_version,
                             operation_family,
+                            instant,
                         ),
                     ).one_or_none()
                     if row is None:
@@ -541,8 +580,8 @@ class SqliteCollectionRepositoryV1:
                             "consecutive_failure_count, last_attempted_run_id, "
                             "last_successful_run_id, last_terminal_outcome_code, "
                             "record_version, created_at, updated_at) VALUES "
-                            "(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'enabled', 'unknown', 300, "
-                            "300, ?, ?, NULL, NULL, 0, 0, ?, NULL, NULL, 1, ?, ?)",
+                            "(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'enabled', 'unknown', ?, "
+                            "?, ?, ?, NULL, NULL, 0, 0, ?, NULL, NULL, 1, ?, ?)",
                             (
                                 admission.schedule_id.value,
                                 admission.target_key_digest,
@@ -560,6 +599,8 @@ class SqliteCollectionRepositoryV1:
                                 if admission.resource_id is not None
                                 else None,
                                 admission.capability_id,
+                                _schedule_interval_seconds(admission),
+                                _schedule_interval_seconds(admission),
                                 admission.target_generation,
                                 instant,
                                 admission.run_id.value,
@@ -650,6 +691,17 @@ class SqliteCollectionRepositoryV1:
                         raise CollectionRepositoryErrorV1(
                             "collection_generation_conflict"
                         )
+                    if isinstance(admission, BudgetCollectionRunAdmissionV1):
+                        retry_after = _budget_retry_after(
+                            connection,
+                            admission.budget_scope_digest,
+                            admission.budget_dimension,
+                            admission.budget_unit,
+                        )
+                        if _budget_retry_deferred(retry_after, datetime.now(UTC)):
+                            raise CollectionRepositoryErrorV1(
+                                "collection_retry_deferred"
+                            )
                     reserved_units = int(
                         connection.exec_driver_sql(
                             "SELECT coalesce(sum(units), 0) FROM "

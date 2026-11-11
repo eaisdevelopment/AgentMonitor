@@ -41,12 +41,18 @@ try {
   await check.waitFor();
   assert.equal(await check.isDisabled(), true);
   await setup.getByText("Store a credential locally before checking connection.", { exact: true }).waitFor();
-  assert.equal(await setup.getByRole("button", { name: "Enable API monitoring", exact: true }).count(), 0);
+  const enable = setup.getByRole("button", { name: "Enable API monitoring", exact: true });
+  await enable.waitFor();
+  assert.equal(await enable.getAttribute("aria-disabled"), "true");
+  await enable.focus();
+  assert.equal(await enable.evaluate((element) => document.activeElement === element), true);
+  await setup.getByText("Store a credential locally, then Check connection before enabling API monitoring.", { exact: true }).waitFor();
   let mutations = 0;
   const observe = (request) => {
     if (!new Set(["GET", "HEAD", "OPTIONS"]).has(request.method())) mutations += 1;
   };
   page.on("request", observe);
+  await enable.press("Enter");
   const [response] = await Promise.all([
     page.waitForResponse((response) => response.url().includes("/api-capacity?") && response.status() === 200),
     panel.getByLabel("Report range", { exact: true }).selectOption("30"),

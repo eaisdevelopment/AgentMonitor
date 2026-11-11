@@ -21,6 +21,7 @@ from agentmonitor.contracts.provider_system_v1 import ProviderConnectionPortV1
 from agentmonitor.contracts.registry_billing_v1 import (
     BillingConnectionPortV1,
     BillingLocalSetupPortV1,
+    BillingMonitoringPortV1,
 )
 from agentmonitor.contracts.registry_coverage_v1 import (
     OrganizationProviderCoverageReadPortV1,
@@ -180,6 +181,7 @@ class ObservationApiPortsV1:
     billing_local_setup: BillingLocalSetupPortV1 | None = None
     get_account_budget_current: AccountBudgetCurrentPortV1 | None = None
     billing_checks: BillingCheckPortV1 | None = None
+    billing_monitoring: BillingMonitoringPortV1 | None = None
 
 
 @dataclass(frozen=True, slots=True)

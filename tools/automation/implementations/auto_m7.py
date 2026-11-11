@@ -204,7 +204,7 @@ def validate_selection(lane: str, check: str | None, expected: str | None) -> No
         return
     if (
         lane != "deploy"
-        or check != "setup_activation"
+        or check not in {"setup_activation", "financial_activation"}
         or expected is None
         or re.fullmatch(r"[a-f0-9]{40}", expected) is None
     ):
@@ -242,14 +242,20 @@ def verify_setup_controller(controller: Path, expected: str) -> None:
         raise RuntimeError("m7_setup_revision_mismatch")
 
 
-def setup_activation_result(checks: tuple[CheckResult, ...]) -> LaneResult:
+def setup_activation_result(
+    checks: tuple[CheckResult, ...], *, financial: bool = False
+) -> LaneResult:
     """Operational readiness alone cannot accept installed product workflows."""
     remaining = tuple(
         CheckResult(name, "not_run", "m7_separate_real_evidence_required")
-        for name in ("authenticated_setup", "collector_continuity", "backup_recovery")
+        for name in (
+            "authenticated_financial" if financial else "authenticated_setup",
+            "collector_continuity",
+            "backup_recovery",
+        )
     )
     return LaneResult(
-        "deploy/setup_activation",
+        "deploy/financial_activation" if financial else "deploy/setup_activation",
         "failed" if any(check.status == "failed" for check in checks) else "blocked",
         checks + remaining,
     )
@@ -313,35 +319,52 @@ def _setup_process(arguments: list[str], *, timeout: int) -> None:
         for flag in (b"--account-id", b"--resource-id", b"--data-root")
     ):
         raise RuntimeError("m7_setup_operator_unavailable")
+    if "agentmonitor.composition.billing_worker" in arguments and not all(
+        flag in completed.stdout
+        for flag in (b"--data-root", b"--start-authority", b"--recovery-only")
+    ):
+        raise RuntimeError("m7_setup_operator_unavailable")
 
 
-def execute_setup_activation(expected: str) -> LaneResult:
-    """Initial 0720→0731 setup rollout only, never complete M7 deployment."""
+def execute_setup_activation(expected: str, *, financial: bool = False) -> LaneResult:
+    """One fixed setup or financial schema transition, never full M7 deployment."""
     checks: list[CheckResult] = []
     stage = "controller_preflight"
     started = False
     try:
         verify_setup_controller(ROOT, expected)
+        from agentmonitor.adapters.persistence._shared.sqlite.core.policy import (
+            DatabaseRefV1,
+        )
+        from agentmonitor.adapters.persistence._shared.sqlite.schema import (
+            compatibility,
+        )
+
         from tools.automation.implementations.auto_m6_local_activate import request
         from tools.automation.implementations.m6_cutover import (
             _FIXED_DATA,
             _FIXED_EXECUTABLE,
             _FIXED_UNIT,
-            DatabaseRefV1,
             _candidate_override,
             _verify_active_source_schema,
             _verify_candidate_runtime,
-            load_migration_catalog,
         )
 
-        if load_migration_catalog().head != "v1_0731":
+        source_revision = "v1_0731" if financial else "v1_0720"
+        target_revision = "v1_0733" if financial else "v1_0731"
+        if compatibility.load_migration_catalog().head != target_revision:
             raise RuntimeError("m7_setup_schema_selection_invalid")
         _verify_active_source_schema(
-            DatabaseRefV1(_FIXED_DATA / "agentmonitor.db", _FIXED_DATA), "v1_0720"
+            DatabaseRefV1(_FIXED_DATA / "agentmonitor.db", _FIXED_DATA), source_revision
         )
         checks.append(CheckResult(stage, "passed"))
         stage = "candidate_started"
-        print("M7 SETUP OPERATION: initial setup activation only", flush=True)
+        print(
+            "M7 FINANCIAL OPERATION: financial schema activation only"
+            if financial
+            else "M7 SETUP OPERATION: initial setup activation only",
+            flush=True,
+        )
         started = True
         _setup_process(
             [
@@ -391,6 +414,13 @@ def execute_setup_activation(expected: str) -> LaneResult:
             timeout=30,
         )
         checks.append(CheckResult(stage, "passed"))
+        if financial:
+            stage = "billing_worker_command"
+            _setup_process(
+                ["-m", "agentmonitor.composition.billing_worker", "--help"],
+                timeout=30,
+            )
+            checks.append(CheckResult(stage, "passed"))
         stage = "lan_readiness"
         status, body = request("http://192.168.1.18:43110", "/login")
         if status != 200 or b"agentmonitor-dashboard-root" not in body:
@@ -421,7 +451,7 @@ def execute_setup_activation(expected: str) -> LaneResult:
             )
         )
         checks.append(CheckResult(stage, "failed" if started else "blocked", reason))
-    result = setup_activation_result(tuple(checks))
+    result = setup_activation_result(tuple(checks), financial=financial)
     for check in result.checks:
         reason = f" ({check.reason_code})" if check.reason_code else ""
         print(f"M7 CHECK {check.name}: {check.status.upper()}{reason}", flush=True)
@@ -431,21 +461,29 @@ def execute_setup_activation(expected: str) -> LaneResult:
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--lane", required=True, choices=tuple(REQUIRED_CHECKS))
-    parser.add_argument("--check", choices=("setup_activation",))
+    parser.add_argument("--check", choices=("setup_activation", "financial_activation"))
     parser.add_argument("--expected-revision")
     args = parser.parse_args(argv)
     try:
         validate_selection(args.lane, args.check, args.expected_revision)
     except ValueError:
         parser.error(
-            "setup_activation requires --lane deploy and --expected-revision=<40SHA>"
+            "activation requires --lane deploy and --expected-revision=<40SHA>"
         )
     result = (
-        execute_setup_activation(args.expected_revision)
-        if args.check == "setup_activation"
+        execute_setup_activation(
+            args.expected_revision, financial=args.check == "financial_activation"
+        )
+        if args.check in {"setup_activation", "financial_activation"}
         else execute_lane(args.lane)
     )
-    if result.lane == "deploy/setup_activation":
+    if result.lane == "deploy/financial_activation":
+        scope = (
+            "financial schema operational slice; authenticated first report, "
+            "collector continuity and backup/recovery proof remain separate; "
+            "not full deployment or M7 acceptance"
+        )
+    elif result.lane == "deploy/setup_activation":
         scope = (
             "setup operational slice; authenticated setup, collector continuity and "
             "backup/recovery proof remain separate; "

@@ -102,6 +102,7 @@ from agentmonitor.api.v1.dependencies import (
 from agentmonitor.composition.alert_delivery import CapacityAlertDeliveryV1
 from agentmonitor.composition.billing_actions import BillingCheckActionsV1
 from agentmonitor.composition.billing_local_setup import InstalledBillingLocalSetupV1
+from agentmonitor.composition.billing_monitoring import BillingMonitoringActionsV1
 from agentmonitor.composition.billing_worker_supervisor import BillingWorkerSupervisorV1
 from agentmonitor.composition.claude_dashboard_collection import (
     ClaudeDashboardCollectorV1,
@@ -591,6 +592,11 @@ def _observation_ports(
         organization_coverage_read=coverage,
         organization_coverage_write=coverage,
         billing_connections=SqliteBillingConnectionRepositoryV1(reference),
+        billing_monitoring=BillingMonitoringActionsV1(
+            reference,
+            can_dispatch=billing_worker.is_monitoring_available,
+            on_enabled=billing_worker.wake,
+        ),
         billing_checks=BillingCheckActionsV1(
             reference,
             on_queued=billing_worker.wake,

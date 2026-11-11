@@ -1,7 +1,7 @@
 "use strict";
 
 import assert from "node:assert/strict";
-import { checkEligibility, pendingRun, matchesCheckRun, advanceFinancialRead, restoreCheckIntent } from "../../src/features/accounts/billingCheckPresentation.ts";
+import { checkEligibility, pendingRun, matchesCheckRun, advanceFinancialRead, restoreCheckIntent, currentCheckEvidence, monitoringReason, restoreMonitoringIntent, buildMonitoringIntent, monitoringStatusCurrent } from "../../src/features/accounts/billingCheckPresentation.ts";
 
 // Pure policy values only: never credentials or simulated external responses.
 const connection = { provider_key: "claude", lifecycle: "pending", account_id: "account", resource_id: "resource" };
@@ -34,4 +34,29 @@ assert.equal(restoreCheckIntent(JSON.stringify({ ...retained, accountVersion: 0 
 assert.equal(restoreCheckIntent(JSON.stringify({ ...retained, runId: "run" }), "account"), null);
 assert.equal(restoreCheckIntent("not-json", "account"), null);
 assert.equal(restoreCheckIntent(" ".repeat(4097), "account"), null);
+const verifiedStatus = { ...status, account_id: "account", credential_status: { state: "stored", active_generation: 1 } };
+const verifiedConnection = { ...connection, scope_generation: 1 };
+assert.equal(currentCheckEvidence(retained, verifiedStatus, verifiedConnection), true);
+assert.equal(currentCheckEvidence(retained, { ...verifiedStatus, credential_status: { state: "stored", active_generation: 2 } }, verifiedConnection), false);
+assert.equal(currentCheckEvidence(retained, verifiedStatus, { ...verifiedConnection, scope_generation: 2 }), false);
+assert.equal(currentCheckEvidence(retained, { ...verifiedStatus, account_id: "different" }, verifiedConnection), false);
+assert.equal(currentCheckEvidence(retained, verifiedStatus, { ...verifiedConnection, lifecycle: "disconnected" }), false);
+assert.equal(currentCheckEvidence(null, verifiedStatus, verifiedConnection), false);
+assert.equal(monitoringReason("billing_monitoring_runtime_unavailable"), "The billing collector is unavailable. Refresh monitoring status to check again.");
+assert.match(monitoringReason("billing_monitoring_credential_required"), /credential locally/);
+const monitoring = { accountId: "account", resourceId: "resource", accountVersion: 1, connectionVersion: 2,
+  scopeGeneration: 1, bindingGeneration: null, verifiedRunId: null, preference: "disabled", idempotencyKey: "b".repeat(32) };
+assert.deepEqual(restoreMonitoringIntent(JSON.stringify(monitoring), "account", "resource"), monitoring);
+assert.equal(restoreMonitoringIntent(JSON.stringify(monitoring), "different", "resource"), null);
+assert.equal(restoreMonitoringIntent(JSON.stringify({ ...monitoring, preference: "enabled" }), "account", "resource"), null);
+assert.equal(restoreMonitoringIntent(JSON.stringify({ ...monitoring, verifiedRunId: "old-proof" }), "account", "resource"), null, "Invalid old Disable intent must not be replayed");
+const confirmed = { account_id: "account", resource_id: "resource", account_record_version: 2, connection_record_version: 3,
+  scope_generation: 1, binding_generation: 1, verified_run_id: "verified-run", monitoring_preference: "enabled" };
+const currentAccount = { ...verifiedStatus, account_record_version: 2 };
+const currentConnection = { ...verifiedConnection, record_version: 3 };
+assert.equal(monitoringStatusCurrent(confirmed, currentAccount, currentConnection), true);
+assert.equal(monitoringStatusCurrent(confirmed, { ...currentAccount, account_record_version: 3 }, currentConnection), false, "Changed account version must suppress stale eligibility");
+assert.equal(monitoringStatusCurrent(confirmed, currentAccount, { ...currentConnection, record_version: 4 }), false, "Changed connection version must suppress stale eligibility");
+assert.equal(buildMonitoringIntent(confirmed, "disabled", "c".repeat(32)).verifiedRunId, null, "Disable must not submit an enable verification proof");
+assert.equal(buildMonitoringIntent(confirmed, "enabled", "c".repeat(32)).verifiedRunId, "verified-run");
 console.log("BILLING CHECK PRESENTATION PURE: PASSED");

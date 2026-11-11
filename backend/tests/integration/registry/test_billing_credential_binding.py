@@ -5,7 +5,10 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 import pytest
-from agentmonitor.adapters.persistence._shared.sqlite.core.policy import DatabaseRefV1
+from agentmonitor.adapters.persistence._shared.sqlite.core.policy import (
+    DatabaseRefV1,
+    open_sqlite_database,
+)
 from agentmonitor.adapters.persistence._shared.sqlite.schema.compatibility import (
     migrate_to_head,
 )
@@ -148,10 +151,36 @@ def test_prepare_and_archive_retire_only_pending_binding_metadata(
     if provider != "ollama":
         billing = SqliteBillingConnectionRepositoryV1(reference).get(account.account_id)
         assert billing is not None and billing.credential_status is not None
+        assert billing.connections[0].lifecycle == "disconnected"
+        assert billing.connections[0].monitoring_preference == "disabled"
+        assert billing.connections[0].record_version == 2
         assert billing.credential_status.state == "cleanup_required"
         assert billing.credential_status.cleanup_required
         assert billing.credential_status.active_generation is None
         assert billing.credential_status.pending_generation is None
+        with open_sqlite_database(reference, "runtime_read_only") as handle:
+            with handle.connect() as connection:
+                change = connection.exec_driver_sql(
+                    "SELECT actor_class,actor_id,previous_lifecycle,new_lifecycle "
+                    "FROM reg_registry_change WHERE subject_id=? AND "
+                    "change_kind='billing_monitoring_invalidated'",
+                    (billing.connections[0].resource_id.value,),
+                ).one()
+                assert change == (
+                    "system",
+                    "agentmonitor",
+                    "pending",
+                    "disconnected",
+                )
+                assert (
+                    connection.exec_driver_sql(
+                        "SELECT count(*) FROM reg_event_outbox WHERE subject_id=? "
+                        "AND json_extract(payload_json,'$.change_kind')="
+                        "'billing_monitoring_invalidated'",
+                        (billing.connections[0].resource_id.value,),
+                    ).scalar_one()
+                    == 1
+                )
     assert bindings.has_unfinished_bindings()
     with pytest.raises(
         CredentialBindingRepositoryErrorV1,

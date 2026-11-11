@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
 
-import { CsrfUnavailableError, registry, type AccountBillingConnectionsV1, type AccountViewV1, type BillingConnectionViewV1, type BudgetRunStatusV1 } from "../../shared/api/client";
-import { checkEligibility, matchesCheckRun, pendingRun, restoreCheckIntent, type BillingCheckIntent } from "./billingCheckPresentation";
+import { CsrfUnavailableError, registry, type AccountBillingConnectionsV1, type AccountViewV1, type BillingConnectionViewV1, type BudgetRunStatusV1, type BillingMonitoringStatusV1 } from "../../shared/api/client";
+import { checkEligibility, matchesCheckRun, pendingRun, restoreCheckIntent, currentCheckEvidence, monitoringReason, restoreMonitoringIntent, buildMonitoringIntent, monitoringStatusCurrent, type BillingCheckIntent, type BillingMonitoringIntent } from "./billingCheckPresentation";
 
 type BillingState =
   | Readonly<{ kind: "loading" }>
@@ -20,6 +20,139 @@ function unavailableReason(reason: string): string {
   if (reason === "provider_unsupported") return "API billing setup is unsupported for this provider.";
   if (reason === "account_unavailable") return "Restore or enable this account before adding a billing connection.";
   return "A billing connection cannot be added in the current account state. Refresh its status before trying again.";
+}
+
+function BillingMonitoringControls({ accountStatus, connection, onExpired, onProofUnavailable, onChanged }: Readonly<{
+  accountStatus: AccountBillingConnectionsV1;
+  connection: BillingConnectionViewV1;
+  onExpired: () => void;
+  onProofUnavailable: () => void;
+  onChanged: () => void;
+}>) {
+  const [status, setStatus] = useState<BillingMonitoringStatusV1 | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [message, setMessage] = useState<string | null>(null);
+  const [revision, setRevision] = useState(0);
+  const [busy, setBusy] = useState(false);
+  const storageKey = `agentmonitor.billing-monitoring.${connection.account_id}.${connection.resource_id}`;
+  const [intent, setIntent] = useState<BillingMonitoringIntent | null>(() => {
+    try { return restoreMonitoringIntent(sessionStorage.getItem(storageKey), connection.account_id, connection.resource_id); }
+    catch { return null; }
+  });
+  const mounted = useRef(false);
+  const mutating = useRef(false);
+  const request = useRef<AbortController | null>(null);
+  const callbacks = useRef({ onExpired, onProofUnavailable, onChanged });
+  callbacks.current = { onExpired, onProofUnavailable, onChanged };
+  useEffect(() => {
+    mounted.current = true;
+    return () => { mounted.current = false; request.current?.abort(); };
+  }, []);
+  useEffect(() => {
+    const controller = new AbortController();
+    setStatus(null);
+    setError(null);
+    void (async () => {
+      try {
+        const result = await registry.billingMonitoring(connection.account_id, connection.resource_id, controller.signal);
+        if (controller.signal.aborted) return;
+        if (!result.ok) {
+          if (result.problem.code === "dashboard_authentication_required") callbacks.current.onExpired();
+          else setError(monitoringReason(result.problem.code));
+          return;
+        }
+        if (result.data.account_id !== connection.account_id || result.data.resource_id !== connection.resource_id || result.data.scope_generation !== connection.scope_generation) {
+          setError("The connection changed. Refresh billing status before changing monitoring.");
+          return;
+        }
+        setStatus(result.data);
+      } catch {
+        if (!controller.signal.aborted) setError("The local monitoring service is unavailable. Refresh to try again.");
+      }
+    })();
+    return () => controller.abort();
+  }, [accountStatus, connection.account_id, connection.resource_id, connection.scope_generation, revision]);
+
+  function retain(value: BillingMonitoringIntent | null): boolean {
+    try {
+      if (value === null) sessionStorage.removeItem(storageKey);
+      else sessionStorage.setItem(storageKey, JSON.stringify(value));
+    } catch {
+      if (value !== null) {
+        setMessage("This tab cannot retain the monitoring request safely. Allow tab storage before changing monitoring.");
+        return false;
+      }
+    }
+    setIntent(value);
+    return true;
+  }
+
+  async function submit(value: BillingMonitoringIntent) {
+    if (mutating.current || !retain(value)) return;
+    mutating.current = true;
+    setBusy(true);
+    setMessage(null);
+    const controller = new AbortController();
+    request.current = controller;
+    try {
+      const result = await registry.setBillingMonitoring(value, controller.signal);
+      if (!mounted.current || controller.signal.aborted) return;
+      if (!result.ok) {
+        if (result.problem.code === "dashboard_authentication_required") callbacks.current.onExpired();
+        else if (result.problem.code === "csrf_validation_failed") callbacks.current.onProofUnavailable();
+        else {
+          const knownRejected = ["registry_version_conflict", "billing_monitoring_version_conflict", "billing_monitoring_target_changed", "billing_monitoring_verification_required", "billing_monitoring_credential_required", "billing_monitoring_account_unavailable", "billing_monitoring_target_unavailable", "registry_replay_stale"].includes(result.problem.code);
+          if (knownRejected) retain(null);
+          setMessage(`${monitoringReason(result.problem.code)}${knownRejected ? "" : " Resolve this request before making another monitoring change."}`);
+          setRevision((current) => current + 1);
+          if (knownRejected) callbacks.current.onChanged();
+        }
+        return;
+      }
+      if (result.data.account_id !== value.accountId || result.data.resource_id !== value.resourceId || result.data.scope_generation !== value.scopeGeneration || result.data.monitoring_preference !== value.preference) {
+        setMessage("The monitoring response did not match this request. Resolve its outcome before changing monitoring again.");
+        setRevision((current) => current + 1);
+        return;
+      }
+      retain(null);
+      setStatus(null);
+      setMessage("Monitoring change recorded. Reading its current server status.");
+      setRevision((current) => current + 1);
+      callbacks.current.onChanged();
+    } catch (caught) {
+      if (!mounted.current || controller.signal.aborted) return;
+      if (caught instanceof CsrfUnavailableError) callbacks.current.onProofUnavailable();
+      else {
+        setMessage("The monitoring change outcome is unknown. Resolve this request with its original identity before changing it again.");
+        setRevision((current) => current + 1);
+      }
+    } finally {
+      mutating.current = false;
+      if (mounted.current) setBusy(false);
+    }
+  }
+
+  const currentStatus = monitoringStatusCurrent(status, accountStatus, connection) ? status : null;
+  const preference = currentStatus?.monitoring_preference === "enabled" ? "disabled" : "enabled";
+  const allowed = currentStatus !== null && (preference === "enabled" ? currentStatus.can_enable : currentStatus.can_disable);
+  const disabled = busy || intent !== null || !allowed;
+  const helpId = `billing-monitoring-help-${connection.resource_id}`;
+  function change() {
+    if (disabled || currentStatus === null) return;
+    void submit(buildMonitoringIntent(currentStatus, preference,
+      Array.from(crypto.getRandomValues(new Uint8Array(16)), (byte) => byte.toString(16).padStart(2, "0")).join("")));
+  }
+  return <div>
+    {currentStatus !== null ? <>
+      <p>{currentStatus.monitoring_preference === "enabled" ? "API monitoring is on." : "API monitoring is off."}</p>
+      <p>{currentStatus.verified_run_id === null ? "Access has not been verified." : "Access is confirmed for the current credential and billing scope."}</p>
+    </> : <p role="status">{error ?? (status === null ? "Reading current API monitoring eligibility…" : "The account or connection changed. Refresh billing status before changing monitoring.")}</p>}
+    <p id={helpId}>{currentStatus === null ? "Refresh monitoring status before changing this setting." : monitoringReason(currentStatus.reason_code)}</p>
+    <button type="button" aria-disabled={disabled} aria-describedby={helpId} onClick={change}>{preference === "enabled" ? "Enable API monitoring" : "Disable API monitoring"}</button>
+    {message !== null && <p role="status">{message}</p>}
+    {intent !== null && <button type="button" className="quiet-button" disabled={busy} onClick={() => { void submit(intent); }}>Resolve monitoring outcome</button>}
+    <button type="button" className="quiet-button" disabled={busy} onClick={() => setRevision((current) => current + 1)}>Refresh monitoring status</button>
+  </div>;
 }
 
 /** Local custody metadata and bounded collection actions remain separate facts. */
@@ -41,6 +174,7 @@ export function BillingConnectionPanel({ account, onExpired, onProofUnavailable,
     catch { return null; }
   });
   const [checkRun, setCheckRun] = useState<BudgetRunStatusV1 | null>(null);
+  const [checkEvidence, setCheckEvidence] = useState<BillingCheckIntent | null>(null);
   const [checkMessage, setCheckMessage] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [pollRevision, setPollRevision] = useState(0);
@@ -118,6 +252,15 @@ export function BillingConnectionPanel({ account, onExpired, onProofUnavailable,
     };
   }, [state.kind]);
 
+  const checkIsCurrent = state.kind === "ready" && checkEvidence !== null && state.status.connections.some((connection) => currentCheckEvidence(checkEvidence, state.status, connection));
+  useEffect(() => {
+    if (state.kind === "ready" && checkEvidence !== null && !checkIsCurrent) {
+      setCheckRun(null);
+      setCheckEvidence(null);
+      setCheckMessage("The credential or billing scope changed. Previous Check success is no longer current.");
+    }
+  }, [state.kind, checkEvidence, checkIsCurrent]);
+
   useEffect(() => {
     if (checkIntent?.runId == null || state.kind !== "ready") return;
     const connection = state.status.connections.find((value) => value.resource_id === checkIntent.resourceId);
@@ -155,6 +298,7 @@ export function BillingConnectionPanel({ account, onExpired, onProofUnavailable,
           return;
         }
         setCheckRun(result.data);
+        setCheckEvidence(checkIntent);
         setCheckMessage(null);
         if (pendingRun(result.data.state)) timer = setTimeout(() => { void poll(); }, 2000);
         else {
@@ -210,6 +354,7 @@ export function BillingConnectionPanel({ account, onExpired, onProofUnavailable,
     const generation = state.status.credential_status?.active_generation;
     if (generation == null) return;
     setCheckRun(null);
+    setCheckEvidence(null);
     void submitCheck({
       accountId: account.account_id, resourceId: connection.resource_id,
       accountVersion: state.status.account_record_version,
@@ -276,8 +421,8 @@ export function BillingConnectionPanel({ account, onExpired, onProofUnavailable,
       </>}
       {state.status.connections.map((connection) => <div key={connection.resource_id}>
         <p><span className="state-chip state-unavailable">Connection {connection.lifecycle}</span></p>
-        <p>{connection.lifecycle === "pending" ? "Access has not been verified." : "Credential access status is not available in this view."}</p>
-        <p>{connection.monitoring_preference === "disabled" ? "API monitoring is off." : "API monitoring preference is enabled."}</p>
+        <BillingMonitoringControls accountStatus={state.status} connection={connection} onExpired={onExpired} onProofUnavailable={onProofUnavailable}
+          onChanged={() => { setRevision((value) => value + 1); onAccountReload(); financialRead.current(); }} />
         <dl className="telemetry-readouts">
           <div><dt>Provider billing scope</dt><dd>{connection.scope_id ?? "Provider billing scope has not been specified."}</dd></div>
           <div><dt>Scope evidence</dt><dd>{connection.scope_evidence.replaceAll("_", " ")}</dd></div>
@@ -286,7 +431,7 @@ export function BillingConnectionPanel({ account, onExpired, onProofUnavailable,
         <button type="button" disabled={busy || submitting || checkIntent !== null || !checkEligibility(state.status, connection).allowed}
           aria-describedby={`billing-check-help-${connection.resource_id}`} onClick={() => startCheck(connection)}>Check connection</button>
       </div>)}
-      {checkRun !== null && <p role="status">Check {checkRun.state.replaceAll("_", " ")}{checkRun.error_code !== null && ` · ${checkRun.error_code.replaceAll("_", " ")}`}. {checkRun.state === "succeeded" ? "Read completed; review financial coverage below. API monitoring has not been enabled." : "This status does not enable API monitoring."}</p>}
+      {checkRun !== null && checkIsCurrent && <p role="status">Check {checkRun.state.replaceAll("_", " ")}{checkRun.error_code !== null && ` · ${checkRun.error_code.replaceAll("_", " ")}`}. Check status does not change the API monitoring preference.</p>}
       {checkMessage !== null && <p role="status">{checkMessage}</p>}
       {checkIntent?.runId === null && <button type="button" className="quiet-button" disabled={submitting} onClick={() => { void submitCheck(checkIntent); }}>Resolve check outcome</button>}
       {checkIntent?.runId != null && <button type="button" className="quiet-button" onClick={() => setPollRevision((value) => value + 1)}>Refresh check status</button>}

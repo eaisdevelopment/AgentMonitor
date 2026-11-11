@@ -13,6 +13,9 @@ from agentmonitor.adapters.persistence._shared.sqlite.core.policy import (
     SqlitePolicyError,
     open_sqlite_database,
 )
+from agentmonitor.adapters.persistence.registry.sqlite.billing_monitoring_state import (
+    invalidate_billing_monitoring_in_transaction,
+)
 from agentmonitor.adapters.persistence.registry.sqlite.credential_guard import (
     acquire_credential_staging_guard,
     validate_credential_staging_guard,
@@ -33,6 +36,9 @@ from agentmonitor.contracts.registry_v1 import (
 from agentmonitor.modules.registry.domain.account import (
     RegistryPolicyErrorV1,
     decide_account_monitoring,
+)
+from agentmonitor.modules.registry.domain.billing_monitoring import (
+    billing_binding_authority_changed,
 )
 from agentmonitor.modules.registry.domain.cloud_verification import (
     require_cloud_verification_enqueue_authority,
@@ -154,7 +160,7 @@ def billing_credential_metadata_exists_in_transaction(
             "SELECT EXISTS(SELECT 1 FROM reg_account a "
             "JOIN reg_billing_connection b ON b.account_id=a.account_id "
             "WHERE a.account_id=? AND a.provider_key IN ('claude','codex') "
-            "AND b.lifecycle IN ('pending','active'))",
+            "AND b.lifecycle IN ('pending','active','disconnected'))",
             (account_id.value,),
         ).scalar_one()
     )
@@ -775,6 +781,9 @@ def archive_bindings_in_transaction(
     new = disconnect_active_credential_binding(
         old, expected_record_version=old.record_version, reason_code="account_archived"
     )
+    invalidate_billing_monitoring_in_transaction(
+        connection, account_id, disconnected=True
+    )
     if new == old:
         return
     updated = connection.exec_driver_sql(
@@ -1167,6 +1176,13 @@ class SqliteCredentialBindingsV1:
                                 "INSERT INTO reg_credential_binding (lifecycle,generation,association_provenance,reason_code,binding_id,account_id) VALUES (?,?,?,?,?,?)",
                                 (*values, item.binding_id.value, account_id.value),
                             )
+                    if billing_binding_authority_changed(
+                        resolve_active_credential_binding(old),
+                        resolve_active_credential_binding(new),
+                    ):
+                        invalidate_billing_monitoring_in_transaction(
+                            connection, account_id, disconnected=False
+                        )
                     connection.commit()
                     return new
         except RegistryPolicyErrorV1:
