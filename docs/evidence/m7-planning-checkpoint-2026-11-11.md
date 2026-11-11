@@ -47,10 +47,41 @@ green run: 66 tests, 13 failures and four errors. The new isolated checkout had
 no linked Python/M0 environments or frontend tools; those prerequisites affect
 historical full-runtime tests. A stale expected routine inventory also omitted
 seven existing M6 routines and the new M7 registrations; that expectation was
-corrected and its focused test passed. The broader suite has not been rerun and
-is not claimed green. M7-T003 must establish the proper isolated test toolchain
-before its technical runner can pass. No service restart or dependency change
-was used to conceal this result.
+corrected and its focused test passed. The follow-up below records the later
+real-environment reruns; this initial failure remains historical evidence.
+No service restart or dependency change was used to conceal this result.
+
+### Isolated toolchain follow-up
+
+The existing `_temporary_tool_environment()` in `auto_m6_exit.py` exposed the
+already admitted development `backend/.venv` and `frontend/node_modules` to this
+isolated checkout. Its existing guarded link helpers also temporarily exposed
+the project's `.venv-m0-g1`. The same 66-test invocation then had one failure:
+the mutation baseline discovered Codex `0.167.0`, while the existing adapter
+admits exactly `0.160.0` (`codex_version_unverified`). This was a real executable
+selection failure, not evidence of a budget implementation defect.
+
+The admitted binary was already installed at
+`/home/dev/.codex/packages/standalone/releases/0.160.0-x86_64-unknown-linux-musl/bin/codex`.
+Prepending only that directory to the test process's PATH allowed the ordinary
+mutation runner to select its actual required binary. No executable, default
+profile, global PATH, installed package or user service was changed.
+
+Using those temporary existing-tool bindings, this exact selection passed:
+
+```text
+backend/.venv/bin/python -m unittest tools.automation.test_run tools.planning.test_validate_plans
+Ran 66 tests in 21.457s
+OK
+```
+
+The invocation used the admitted backend Python, not system Python. All links
+created for this run were removed in `finally` through the identity-checking
+cleanup helper. The checkout was clean after the run. Dashboard service remained
+active and loopback HTTP returned 200. No browser login or provider billing
+request occurred. M7-T003 must reuse this reproducible tool-selection evidence
+when implementing its canonical runner; these are existing automation/planning
+tests, not M7 budget acceptance or approval evidence.
 
 ## Scope and next action
 
