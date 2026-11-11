@@ -61,6 +61,12 @@ PURE_TARGETS = (
     "backend/tests/capacity/pure/test_budget_account_spend.py",
     "backend/tests/collection_control/pure/test_budget_dispatch_policy.py",
     "backend/tests/collection_control/pure/test_cloud_budget_target_codec.py",
+    "backend/tests/collection_control/pure/test_cloud_budget_dispatch_policy.py",
+    "backend/tests/collection_control/pure/test_ollama_usage_run.py",
+    "backend/tests/collection_control/pure/test_ollama_usage_result.py",
+    "backend/tests/collection_control/pure/test_ollama_usage_dispatch.py",
+    "backend/tests/providers/ollama/pure/test_usage_manifest.py",
+    "backend/tests/api/pure/test_budget_cloud_wire.py",
     "backend/tests/capacity/test_quantity_and_health.py",
 )
 REGISTRY_METADATA_TARGETS = (
@@ -80,6 +86,7 @@ COLLECTION_GUARD_TARGETS = (
     "backend/tests/integration/collection_control/test_billing_schedule_empty.py",
     "backend/tests/integration/collection_control/test_billing_worker_entrypoint.py",
     "backend/tests/integration/collection_control/test_billing_worker_supervisor.py",
+    "backend/tests/integration/collection_control/test_cloud_budget_repository_empty.py",
 )
 BUDGET_HTTP_GUARD_TARGETS = (
     "backend/tests/integration/api/test_budget_http.py",

@@ -2,6 +2,7 @@ import {
   apiClient,
   apiVersion,
   type AccountBudgetCurrentWireV1,
+  type BudgetCloudResourceCurrentWireV1,
   type BudgetReportWireV1,
   type BudgetResourceCurrentWireV1,
   type ExactMoneyWireV1,
@@ -66,6 +67,7 @@ import {
 
 export type {
   AccountBudgetCurrentWireV1,
+  BudgetCloudResourceCurrentWireV1,
   BudgetReportWireV1,
   BudgetResourceCurrentWireV1,
   ExactMoneyWireV1,

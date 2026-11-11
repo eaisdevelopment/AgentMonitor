@@ -2,7 +2,7 @@
 
 from collections.abc import Callable
 from datetime import datetime
-from typing import Protocol
+from typing import Protocol, TypeVar
 
 from agentmonitor.contracts.capacity_v1 import (
     BudgetCollectionInputV1,
@@ -14,6 +14,7 @@ from agentmonitor.contracts.collection_control_v1 import (
     BudgetCollectionReceiptV1,
     BudgetCollectionRunAdmissionV1,
     BudgetCollectionRunViewV1,
+    CloudBudgetCollectionRunAdmissionV1,
     CollectionFailedV1,
     CollectionFailurePolicyV1,
     CollectionRunViewV1,
@@ -25,13 +26,16 @@ from agentmonitor.modules.collection_control.application.executor import (
     CollectionRunRepositoryV1,
 )
 
+BudgetAdmission = BudgetCollectionRunAdmissionV1 | CloudBudgetCollectionRunAdmissionV1
+_Admission = TypeVar("_Admission", bound=BudgetAdmission)
+
 
 class BudgetRunRepositoryV1(CollectionRunRepositoryV1, Protocol):
     """Additive internal M04 owner-fenced variants; quota consumers stay intact."""
 
     def assert_claimed_budget_run(
         self,
-        admission: BudgetCollectionRunAdmissionV1,
+        admission: BudgetAdmission,
         as_of: datetime,
     ) -> BudgetCollectionRunViewV1: ...
 
@@ -174,11 +178,11 @@ class ExecuteBudgetCollectionRunV1:
 
     def execute(
         self,
-        admission: BudgetCollectionRunAdmissionV1,
+        admission: _Admission,
         collect: Callable[[], CollectionOutcomeV1[BudgetReportInputV1]],
         normalize: Callable[
             [
-                BudgetCollectionRunAdmissionV1,
+                _Admission,
                 CollectionOutcomeV1[BudgetReportInputV1],
                 datetime,
             ],
@@ -202,17 +206,18 @@ class ExecuteBudgetCollectionRunV1:
             fencing_token=admitted.fencing_token,
             scheduler_instance_id=admission.scheduler_instance_id,
         )
+        admitted = self._repository.assert_claimed_budget_run(admission, started_at)
         return self._collect_and_commit(
             admission, admitted, collect, normalize, completed_at
         )
 
     def execute_claimed(
         self,
-        admission: BudgetCollectionRunAdmissionV1,
+        admission: _Admission,
         collect: Callable[[], CollectionOutcomeV1[BudgetReportInputV1]],
         normalize: Callable[
             [
-                BudgetCollectionRunAdmissionV1,
+                _Admission,
                 CollectionOutcomeV1[BudgetReportInputV1],
                 datetime,
             ],
@@ -232,12 +237,12 @@ class ExecuteBudgetCollectionRunV1:
 
     def _collect_and_commit(
         self,
-        admission: BudgetCollectionRunAdmissionV1,
+        admission: _Admission,
         admitted: BudgetCollectionRunViewV1,
         collect: Callable[[], CollectionOutcomeV1[BudgetReportInputV1]],
         normalize: Callable[
             [
-                BudgetCollectionRunAdmissionV1,
+                _Admission,
                 CollectionOutcomeV1[BudgetReportInputV1],
                 datetime,
             ],
@@ -291,7 +296,7 @@ class ExecuteBudgetCollectionRunV1:
         return receipt
 
     def recover_commit(
-        self, admission: BudgetCollectionRunAdmissionV1, *, completed_at: datetime
+        self, admission: BudgetAdmission, *, completed_at: datetime
     ) -> BudgetCollectionReceiptV1 | CollectionFailedV1:
         admitted = _budget_view(self._repository.admit_run(admission))
         return self._recover_committing(

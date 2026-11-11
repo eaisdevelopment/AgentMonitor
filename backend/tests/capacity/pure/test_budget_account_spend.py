@@ -52,3 +52,16 @@ def test_incomplete_empty_and_grouped_reports_do_not_invent_totals() -> None:
     grouped = replace(report, report=replace(report.report, grouping=("model",)))
     no_double_count = reported_spend(BudgetReportSelectionV1(grouped, grouped))
     assert no_double_count is not None and no_double_count.total is None
+
+
+def test_counts_only_report_explains_absent_cost_instead_of_missing_currency() -> None:
+    from agentmonitor.modules.capacity.domain.budget_account_spend import reported_spend
+
+    stored = _report(1, None)
+    counts_only = replace(
+        stored,
+        report=replace(stored.report, currency=None, empty_means_zero=False),
+    )
+    result = reported_spend(BudgetReportSelectionV1(counts_only, counts_only))
+    assert result is not None and result.total is None
+    assert result.reason_code == "cost_not_reported"

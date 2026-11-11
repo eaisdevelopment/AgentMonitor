@@ -16,8 +16,13 @@ from agentmonitor.adapters.persistence._shared.sqlite.core.policy import (
 from agentmonitor.adapters.persistence.collection_control.sqlite.budget import (
     BillingAdmissionFence,
     BudgetCollectionError,
+    CloudAdmissionFence,
+    CloudBudgetAuthority,
+    budget_target_matches_query,
     capture_billing_target,
+    capture_cloud_budget_target,
     read_billing_target,
+    read_budget_target,
     require_budget_run_lease,
 )
 from agentmonitor.adapters.persistence.collection_control.sqlite.budget_dispatch import (
@@ -28,6 +33,8 @@ from agentmonitor.contracts.collection_control_v1 import (
     BudgetCollectionReceiptV1,
     BudgetCollectionRunAdmissionV1,
     BudgetCollectionRunViewV1,
+    CloudBudgetCollectionRunAdmissionV1,
+    CloudBudgetReportContextV1,
     CollectionCommitReceiptV1,
     CollectionFailedV1,
     CollectionFailurePolicyV1,
@@ -110,7 +117,14 @@ def _budget_retry_deferred(retry_after: datetime | None, as_of: datetime) -> boo
 
 
 def _schedule_interval_seconds(admission: CollectionRunAdmissionV1OrV2) -> int:
-    return 900 if isinstance(admission, BudgetCollectionRunAdmissionV1) else 300
+    return (
+        900
+        if isinstance(
+            admission,
+            (BudgetCollectionRunAdmissionV1, CloudBudgetCollectionRunAdmissionV1),
+        )
+        else 300
+    )
 
 
 def _budget_retry_after(
@@ -218,9 +232,27 @@ class SqliteCollectionRepositoryV1:
         database_ref: DatabaseRefV1,
         *,
         billing_admission_fence: BillingAdmissionFence | None = None,
+        cloud_admission_fence: CloudAdmissionFence | None = None,
     ) -> None:
         self._database_ref = database_ref
         self._billing_admission_fence = billing_admission_fence
+        self._cloud_admission_fence = cloud_admission_fence
+
+    def _require_budget_target_fence(
+        self,
+        connection: Connection,
+        target: BillingAccessTargetV1 | CloudBudgetAuthority,
+    ) -> None:
+        if isinstance(target, BillingAccessTargetV1):
+            if self._billing_admission_fence is None:
+                raise BudgetCollectionError("budget_admission_fence_required")
+            self._billing_admission_fence(connection, target)
+        else:
+            if self._cloud_admission_fence is None:
+                raise BudgetCollectionError("budget_admission_fence_required")
+            self._cloud_admission_fence(connection, *target)
+        if not connection.in_transaction():
+            raise BudgetCollectionError("budget_admission_fence_invalid")
 
     def _capture_billing_target(
         self,
@@ -238,6 +270,14 @@ class SqliteCollectionRepositoryV1:
                 newly_created=newly_created,
                 fence=self._billing_admission_fence,
             )
+        elif isinstance(admission, CloudBudgetCollectionRunAdmissionV1):
+            capture_cloud_budget_target(
+                connection,
+                admission,
+                resolved_run_id=resolved_run_id,
+                newly_created=newly_created,
+                fence=self._cloud_admission_fence,
+            )
 
     def claim_next_budget_run(
         self,
@@ -251,9 +291,12 @@ class SqliteCollectionRepositoryV1:
         manifest_fingerprint: str,
         collection_policy_version: str,
         operation_family: str,
-    ) -> BudgetCollectionRunAdmissionV1 | None:
+    ) -> BudgetCollectionRunAdmissionV1 | CloudBudgetCollectionRunAdmissionV1 | None:
         """Atomically transfer one admitted queued run to its real worker."""
-        if self._billing_admission_fence is None:
+        if (
+            self._billing_admission_fence is None
+            and self._cloud_admission_fence is None
+        ):
             raise BudgetCollectionError("budget_admission_fence_required")
         if (
             not isinstance(scheduler_instance_id, OpaqueIdV1)
@@ -336,7 +379,7 @@ class SqliteCollectionRepositoryV1:
                         as_of=as_of,
                         expected_state="queued",
                     )
-                    self._billing_admission_fence(connection, target)
+                    self._require_budget_target_fence(connection, target)
                     if (
                         connection.exec_driver_sql(
                             "SELECT 1 FROM collection_scheduler_instance WHERE instance_id=?",
@@ -402,14 +445,20 @@ class SqliteCollectionRepositoryV1:
 
     def assert_claimed_budget_run(
         self,
-        admission: BudgetCollectionRunAdmissionV1,
+        admission: BudgetCollectionRunAdmissionV1 | CloudBudgetCollectionRunAdmissionV1,
         as_of: datetime,
     ) -> BudgetCollectionRunViewV1:
         """Fence the reconstructed claim immediately before source I/O."""
-        if self._billing_admission_fence is None:
+        if (
+            self._billing_admission_fence is None
+            and self._cloud_admission_fence is None
+        ):
             raise BudgetCollectionError("budget_admission_fence_required")
         if (
-            not isinstance(admission, BudgetCollectionRunAdmissionV1)
+            not isinstance(
+                admission,
+                (BudgetCollectionRunAdmissionV1, CloudBudgetCollectionRunAdmissionV1),
+            )
             or not isinstance(as_of, datetime)
             or as_of.utcoffset() != timedelta(0)
         ):
@@ -437,7 +486,7 @@ class SqliteCollectionRepositoryV1:
                         as_of=as_of,
                         expected_state="running",
                     )
-                    self._billing_admission_fence(connection, target)
+                    self._require_budget_target_fence(connection, target)
                     row = _select_run(connection, admission.run_id.value)
                     if row is None:
                         raise BudgetCollectionError("budget_run_not_found")
@@ -450,6 +499,19 @@ class SqliteCollectionRepositoryV1:
             raise
         except (SqlitePolicyError, SQLAlchemyError, ValueError, TypeError, KeyError):
             raise BudgetCollectionError("budget_dispatch_unavailable") from None
+
+    def get_budget_target(
+        self, run_id: OpaqueIdV1
+    ) -> BillingAccessTargetV1 | CloudBudgetAuthority:
+        """Read captured authority only; current authorization needs a live fence."""
+        try:
+            with open_sqlite_database(
+                self._database_ref, "runtime_read_only"
+            ) as handle:
+                with handle.connect() as connection:
+                    return read_budget_target(connection, run_id)
+        except (SqlitePolicyError, SQLAlchemyError):
+            raise CollectionRepositoryErrorV1() from None
 
     def get_billing_target(self, run_id: OpaqueIdV1) -> BillingAccessTargetV1:
         """Return the immutable captured authority, never a current-access claim."""
@@ -481,6 +543,9 @@ class SqliteCollectionRepositoryV1:
     def admit_run(self, admission: CollectionRunAdmissionV1OrV2) -> CollectionRunViewV1:
         if isinstance(admission, BudgetCollectionRunAdmissionV1):
             if self._billing_admission_fence is None:
+                raise BudgetCollectionError("budget_admission_fence_required")
+        elif isinstance(admission, CloudBudgetCollectionRunAdmissionV1):
+            if self._cloud_admission_fence is None:
                 raise BudgetCollectionError("budget_admission_fence_required")
         elif admission.payload_schema == "budget.report.v1":
             raise BudgetCollectionError("budget_admission_target_required")
@@ -691,7 +756,13 @@ class SqliteCollectionRepositoryV1:
                         raise CollectionRepositoryErrorV1(
                             "collection_generation_conflict"
                         )
-                    if isinstance(admission, BudgetCollectionRunAdmissionV1):
+                    if isinstance(
+                        admission,
+                        (
+                            BudgetCollectionRunAdmissionV1,
+                            CloudBudgetCollectionRunAdmissionV1,
+                        ),
+                    ):
                         retry_after = _budget_retry_after(
                             connection,
                             admission.budget_scope_digest,
@@ -1152,13 +1223,22 @@ class SqliteCollectionRepositoryV1:
         resource_id: OpaqueIdV1,
         scope_generation: int,
         as_of: datetime,
+        *,
+        report_context: CloudBudgetReportContextV1 | None = None,
     ) -> BudgetCollectionRunViewV1 | None:
-        """Read the latest real billing run for one captured financial scope."""
+        """Read the latest run for a captured financial scope and optional cloud context."""
         if (
             not isinstance(account_id, OpaqueIdV1)
             or not isinstance(resource_id, OpaqueIdV1)
             or type(scope_generation) is not int
             or scope_generation < 1
+            or (
+                report_context is not None
+                and (
+                    not isinstance(report_context, CloudBudgetReportContextV1)
+                    or scope_generation != 1
+                )
+            )
             or not isinstance(as_of, datetime)
             or as_of.utcoffset() != timedelta(0)
         ):
@@ -1176,20 +1256,39 @@ class SqliteCollectionRepositoryV1:
                             "WHERE r.payload_schema='budget.report.v1' "
                             "AND r.account_id=? AND r.resource_id=? "
                             "AND r.requested_at<=? "
-                            "AND json_extract(b.canonical_target_json, "
-                            "'$.connection.account_id')=? "
-                            "AND json_extract(b.canonical_target_json, "
-                            "'$.connection.resource_id')=? "
-                            "AND json_extract(b.canonical_target_json, "
-                            "'$.connection.scope_generation')=? "
+                            "AND ((? IS NULL AND json_extract(b.canonical_target_json, '$.tag') IS NULL "
+                            "AND json_extract(b.canonical_target_json, '$.connection.account_id')=? "
+                            "AND json_extract(b.canonical_target_json, '$.connection.resource_id')=? "
+                            "AND json_extract(b.canonical_target_json, '$.connection.scope_generation')=?) "
+                            "OR (json_extract(b.canonical_target_json, '$.tag')='cloud_budget_target.v1' "
+                            "AND json_extract(b.canonical_target_json, '$.cloud_target.account_id')=? "
+                            "AND json_extract(b.canonical_target_json, '$.cloud_target.resource_id')=? "
+                            "AND ?=1 AND (? IS NULL OR ("
+                            "json_extract(b.canonical_target_json, '$.report_context.scope')=? AND "
+                            "json_extract(b.canonical_target_json, '$.report_context.range_key')=? AND "
+                            "json_extract(b.canonical_target_json, '$.report_context.interval_start')=? AND "
+                            "json_extract(b.canonical_target_json, '$.report_context.interval_end')=?)))) "
                             "ORDER BY r.requested_at DESC, r.run_id LIMIT 1",
                             (
                                 account_id.value,
                                 resource_id.value,
                                 _utc_text(as_of),
+                                report_context.scope if report_context else None,
                                 account_id.value,
                                 resource_id.value,
                                 scope_generation,
+                                account_id.value,
+                                resource_id.value,
+                                scope_generation,
+                                report_context.scope if report_context else None,
+                                report_context.scope if report_context else None,
+                                report_context.range_key if report_context else None,
+                                _utc_text(report_context.interval_start)
+                                if report_context
+                                else None,
+                                _utc_text(report_context.interval_end)
+                                if report_context
+                                else None,
                             ),
                         )
                         .mappings()
@@ -1197,6 +1296,15 @@ class SqliteCollectionRepositoryV1:
                     )
                     if row is None:
                         return None
+                    target = read_budget_target(connection, OpaqueIdV1(row["run_id"]))
+                    if not budget_target_matches_query(
+                        target,
+                        account_id,
+                        resource_id,
+                        scope_generation,
+                        report_context,
+                    ):
+                        raise BudgetCollectionError("budget_dispatch_metadata_invalid")
                     result = _run_view(connection, row)
                     if not isinstance(result, BudgetCollectionRunViewV1):
                         raise CollectionRepositoryErrorV1()

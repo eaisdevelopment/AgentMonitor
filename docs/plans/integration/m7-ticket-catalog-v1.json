@@ -226,7 +226,7 @@
         "Check same-currency/interval/basis grouping, shared pool and epoch boundaries, complete versus partial coverage and rolling UTC range alignment.",
         "Run meaningful money/selection mutations; hand contracts to the first-provider/storage lane without waiting for T013 forecast logic.",
         "Retain already-corrected context-independent conversion evidence; cover canonical signed/exponent zero and overflow without retesting unrelated provider boundaries.",
-        "Compare low-remaining thresholds from exact numerator/positive denominator before display rounding; 20.004% is not low, 19.996% is low, and values outside 0\u2013100 are preserved. Cover in M7-MATH-14; React only renders the computed state.",
+        "Compare low-remaining thresholds from exact numerator/positive denominator before display rounding; 20.004% is not low, 19.996% is low, and values outside 0–100 are preserved. Cover in M7-MATH-14; React only renders the computed state.",
         "Preserve non-constraining fund-component semantics: zero included credits plus positive purchased credits is not account exhaustion. Extend M7-MATH-07/08; no invented spending order or minimum-of-components account health."
       ]
     },
@@ -355,7 +355,7 @@
       "test_ids": "M7-COL-001..004",
       "deliverable": "Executable check-connection, enable/disable API monitoring and collect-now HTTP/UI plus one M04 run per bounded report, empty receipts, per-scope throttling, generation fences and commit-status recovery; no child-run hierarchy",
       "expected_red": "Real scheduler cannot route/commit budget pages or expose incomplete collection without refreshing stale facts.",
-      "done_when": "Genuine first provider is scheduled/committed and safely retried; empty result is truthful; one failure cannot refresh old spend or interrupt dashboard/other providers",
+      "done_when": "First-provider scheduling is an S1 partial result. Final closure requires all frozen provider/range intents, Check/Enable/Disable/Collect now, shared rate/deadline guards, persisted retry eligibility, browser-closed scheduling and real isolated recovery; failures never refresh old spend or interrupt other sources. Natural empty/denied/throttled observations retain explicit conditional dispositions.",
       "verification": "Planned scoped verification: collection plus first-provider scheduling/recovery through the existing M7 runner (T003 must publish/test the exact selector before closure). The full AUTO-M7-TEST/LIVE/BROWSER results are final integration checks in T015/T016, not this ticket prerequisite.",
       "evidence": [
         "docs/evidence/m7-billing-authority-2026-11-11.md",
@@ -388,14 +388,15 @@
         "Integrate the published profile-free billing admission and report receipt with the committed M04 migration v1_0733 run-to-report references; runtime integration and installed verification remain outstanding. Use public M02 fences and M05 commit-status ports, never their private tables. Exercise real supervised worker deadline/recovery on isolated resources before installed use.",
         "Persist the owner-selected source/category/grouping/UTC interval and generation-bound intent in existing M04 request/run storage; expose claim/reclaim through published ports. Complete the fixed billing CLI, queued/running recovery and M05 committing reconciliation; no second queue, fake profile or temporary job-file protocol.",
         "Carry one admitted deadline through authorization, each provider page, normalization and commit, reserving commit time. Retry-After schedules a later job; a supervisor exit alone proves neither report success nor recovery.",
-        "Use the same 64-hex admitted source audit fingerprint in M02 access-target reconciliation, M04 admission and worker claim. Preserve the distinct M03 catalog identifier and actual registered cloud target ID. Real empty-queue success does not prove dispatch of an admitted run.",
+        "For independent billing targets use the admitted source fingerprint consistently in access-target reconciliation, admission and worker claim. For existing Ollama cloud authority preserve and validate the original balance-service fingerprint separately from the usage-source fingerprint (CTR-COL-002 2.2.0). Preserve actual target IDs; an empty queue is not dispatch proof.",
         "Expose actual returned-run status through a minimal read-only M04/P01 query, including genuine zero-fact budget runs; queued HTTP acceptance never means access verified. Publish the planned GET /collection-runs/{run_id}/budget contract with the actual report_id and stored account/resource authorization before its UI consumer.",
         "Complete actual monitoring enable/disable and Collect now controls. Check defaults to seven completed days; Collect now uses the selected supported context/interval. Schedule admitted seven/thirty-day ungrouped reports with existing 15-minute staggered policy and reuse compatible reports rather than duplicate checks.",
         "Fairly drain durable eligible work when wake hints coalesce; isolate throttled scopes, reconcile restart without per-missed-tick catch-up jobs, and verify browser-closed scheduling plus disable/rotation fences.",
         "Preserve the committed public-boundary corrections: M02 access policy via its public application/repository surface, M05 digest via its application surface, worker start authority via shared composition. Do not reintroduce private imports.",
         "Publish the minimal additive durable range context before 30-day/older-cutoff actions: distinct closed 7d/30d operation families plus the exact selected UTC interval; recovery must not derive it from restart time or falsify requested_at. Current admission reconstructs only seven days from requested_at.",
         "Retain the b69d96a monitoring GET/PUT/proof and first seven-day Anthropic due producer. Finish positive provider-backed enable/disable, other-provider/range integration and real browser-closed refresh; committed local tests are not that live proof.",
-        "Project actual persisted retry_after and eligibility into the existing safe status response so UI can state a real retry time. Status GET never collects; no invented client timeout, countdown engine or fake throttled provider response."
+        "Project actual persisted retry_after and eligibility into the existing safe status response so UI can state a real retry time. Status GET never collects; no invented client timeout, countdown engine or fake throttled provider response.",
+        "Select latest collection state by the displayed source, self/team scope, range and exact interval. Keep account-wide credential failures separate; another report context cannot refresh this selection. Reuse additive cloud context2.2 and extend existing billing context only where required."
       ]
     },
     {
@@ -553,7 +554,10 @@
         "Return a single deterministic state rank for owner action, collection failure, incomplete/stale evidence, low/depleted capacity, then current, with stable tie-breaker and secondary facts. Separate differing provider cost bases even when all are USD.",
         "Expose retained-window/cutoff and authorized immutable report selection for Previous/Next stored history and prior scope epochs. Old scope labels stay original; missing coverage is explicit and cannot trigger provider work.",
         "Implement the funds handoff in the M05 increment: enumerate authorized existing cloud resources independently of billing connections, map provider semantics in A03, publish additive CTR-CAP-006 fields and typed API/client. Funds without a spend report remain visible; no new pool/table/account setup. Verify actual stored observation to HTTP lineage.",
-        "Authorize opaque context/report selectors used by Overview links and safe login return; preserve report identity through later collection, reject cross-resource selectors and return explicit expired-selection state. Do not infer historical balances from the current projection."
+        "Authorize opaque context/report selectors used by Overview links and safe login return; preserve report identity through later collection, reject cross-resource selectors and return explicit expired-selection state. Do not infer historical balances from the current projection.",
+        "Before enabling cloud spend, publish/use active-binding current selection for unresolved scope; only the active binding ID/generation is current. Old lineages remain authorized explicit history. Fence a concurrent authority change and never infer scope identity from local epoch, label or matching amount.",
+        "Publish opaque current-lineage context for UI invalidation and select M04 status using matching source/scope/range/interval; no selected-context run means no collection for that selection, not latest account success.",
+        "Expose existing backend-derived percentage text, exact low flag, input lineage/rounding or availability reason where a compatible positive denominator exists; React renders only. Component severity must not imply account exhaustion."
       ]
     },
     {
@@ -613,7 +617,8 @@
         "Wire Check only when source/runtime/current binding are eligible; show useful Missing/Stored/runtime-unavailable states. On terminal run status, reread stored data at new as_of for the same selected interval and replace report/table together. Enable monitoring requires its real mutation and current-generation access proof.",
         "Keep the last successful same-context amount/table during Refresh and terminal Check reread; replace only after the new GET succeeds. A failed replacement retains original timestamps and the error. Clear data for a genuinely different account/resource/scope/period.",
         "Render supported funds and specific missing-field reasons from API; show persisted retry time without a countdown. Navigate retained fixed seven-/thirty-day windows with Previous/Next and original scope labels; no arbitrary historical collection or calendar builder.",
-        "Display each funds timestamp beside its amount; older spend shows Current balance as of rather than implying historical funds. Preserve the same immutable report/context through detail/reload/sign-in. Use Refresh view for stored reads and Collect now for explicit provider collection."
+        "Display each funds timestamp beside its amount; older spend shows Current balance as of rather than implying historical funds. Preserve the same immutable report/context through detail/reload/sign-in. Use Refresh view for stored reads and Collect now for explicit provider collection.",
+        "Invalidate retained current spend/funds when unresolved active binding lineage changes or disappears, even if account/resource/scope epoch/period remain unchanged. Consume opaque API context, keep old values only in explicit history, and show selected-context job status separately from account-wide credential failures."
       ]
     },
     {
@@ -663,7 +668,8 @@
         "Preserve allowlisted organization/provider/resource-type/range/cutoff/sort URL state through the shared shell, Back and reload. Test zero matches and separate failed budget reads without hiding subscription rows.",
         "Distinguish resource/currency/cost-basis/category contexts with labelled subrows and matching detail links. Preserve one canonical pool across access paths and never total alternative cost contexts twice.",
         "Use server-ranked state and exact low-capacity decision, not formatted percentages. Show separate labelled provider cost-basis subtotals; a secondary-group shared row names the primary group without inflating its subtotal or counting as missing financial data.",
-        "Preserve selected immutable report/context in authorized detail links even after a later scheduled report. Name the read-only control Refresh view. Non-constraining low/empty components cannot promote a whole account to exhausted."
+        "Preserve selected immutable report/context in authorized detail links even after a later scheduled report. Name the read-only control Refresh view. Non-constraining low/empty components cannot promote a whole account to exhausted.",
+        "Include existing funds-only cloud resources without duplicate billing enrollment. No spending report is distinct from zero; authorized resource-only links need no invented report/context. Report-bearing rows retain immutable report links. Counts-only observations cannot occupy monetary columns."
       ]
     },
     {
@@ -748,7 +754,7 @@
       "deliverable": "Ordered increments in the existing service: setup before owner entry, financial storage/worker before the installed first report, then complete Overview/detail/history verification; selected clean candidate, safe phase-specific diagnostics, schema/backup/recovery and browser revision checks; no deployment platform",
       "expected_red": "Existing fixed M6 updater refuses the M7 candidate; verify candidate/backup boundaries before transition.",
       "done_when": "First complete real UI slice is installed and verified with recovery to known-good runtime available; no default provider/profile or user agent disruption",
-      "verification": "Financial operational activation passed at installed437a232/schema0733; authenticated setup surface/revision passed. Full financial report, collector continuity and recovery remain required for AUTO-M7-DEPLOY; operational selector exits3 until separate proof exists.",
+      "verification": "Installed14dee16/schema0733: genuine stored funds source/HTTP/DOM and authenticated setup passed; see m7-stored-funds evidence. Full spend, collector continuity and financial recovery remain required for AUTO-M7-DEPLOY; partial installed evidence does not close T014.",
       "evidence": [
         "docs/evidence/m7-setup-activation-preparation-2026-11-11.md",
         "docs/evidence/m7-selected-controller-admission-2026-11-11.md",
@@ -772,13 +778,13 @@
       "steps": [
         "Prepare and execute the scoped setup_activation selection before requesting owner key entry, after candidate checks and verified recovery/continuity. Current command resolves the installed service, so an older binary cannot be treated as a working setup. This partial result does not close T014; later dependencies govern full closure.",
         "Admit explicit clean candidate and expected revision through cutover/update wrappers and runtime re-exec; verify retained revision/schema/build before service stop. Preserve fixed service, executable, environment and lock guards.",
-        "Extend existing real recovery tests to 0731\u21920720 and run actual restore/finalize paths, not only backup reopen. Remove the fixed old-checkout rejection from the same-schema recovery wrapper. Pin recovery to the same M7 controller as deployment; keys remain excluded and no blind rollback is allowed after startup/writes.",
+        "Extend existing real recovery tests to 0731→0720 and run actual restore/finalize paths, not only backup reopen. Remove the fixed old-checkout rejection from the same-schema recovery wrapper. Pin recovery to the same M7 controller as deployment; keys remain excluded and no blind rollback is allowed after startup/writes.",
         "Activate through the existing AgentMonitor service path; verify loopback/LAN health, actual installed revision and authenticated Overview/detail with genuine first-provider data.",
         "Verify existing subscriptions/alerts and browser-closed collection continue; preserve profiles/agents and selected protected env. Record any brief service transition and recovery result.",
         "Historical setup preparation/activation at c453fe0 and 7e252b8/schema0731 is superseded by installed437a232/schema0733 and authenticated setup proof. Consult the worksheet/evidence before any transition. Do not repeat the initial migration; full financial UI, continuity and recovery remain open.",
         "Cover both actual migration transitions: accepted0720 to setup0731, then installed0731 to the selected financial head0732/0733. Admit and exercise each source/target with its pinned migration/recovery controller before activation; initial recovery evidence does not prove the second upgrade.",
         "The earlier b69d96a failure cause remains unproven. The allowlisted phase/code diagnostic and checked437a232 retry passed operational activation; preserve that evidence. Future rollout failures require actual revision/schema/journal inspection, not speculative restore or automatic replay.",
-        "Sequence existing setup \u2192 tested financial storage/worker activation \u2192 real report \u2192 complete Overview/detail/history. Financial activation is a partial T014 prerequisite, not proof of its downstream UI or a new approval cycle."
+        "Sequence existing setup → tested financial storage/worker activation → real report → complete Overview/detail/history. Financial activation is a partial T014 prerequisite, not proof of its downstream UI or a new approval cycle."
       ]
     },
     {
@@ -826,7 +832,7 @@
       "test_ids": "M7-LIVE-001..006",
       "deliverable": "Same-scope/time source comparisons, real built UI, history and continuity report",
       "expected_red": "The real candidate cannot yet supply a complete source-to-API-to-DOM reconciliation; missing accounts are Blocked.",
-      "done_when": "Real billing success for each provider and all configured active resources accounted; numerical forecasts tested only when genuine inputs qualify; natural limitations separated, not concealed",
+      "done_when": "Real billing/usage success for each frozen provider lane and every configured active independent billing or existing Ollama cloud resource accounted for; no duplicate enrollment. Numerical forecasts tested only when genuine inputs qualify; natural limitations separated from missing required success.",
       "verification": "python3 tools/automation/run.py AUTO-M7-LIVE; python3 tools/automation/run.py AUTO-M7-BROWSER",
       "evidence": [],
       "depends_on_any": [],

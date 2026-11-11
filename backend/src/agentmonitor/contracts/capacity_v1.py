@@ -28,6 +28,7 @@ from agentmonitor.contracts.events_v1 import DurableEventBatchV1
 from agentmonitor.contracts.registry_v1 import (
     AccountResourceViewV1,
     AccountViewV1,
+    ActiveCredentialBindingRefV1,
     ProviderTargetRefV1,
     RegistryScopeKindV1,
     RegistryScopeSnapshotV1,
@@ -1057,7 +1058,7 @@ class BudgetCurrentQueryV1(TechnicalValueV1):
     """One account/resource/scope epoch at a fixed coverage and query instant."""
 
     CONTRACT_ID: ClassVar[str] = "CTR-CAP-006"
-    CONTRACT_VERSION: ClassVar[str] = "2.1.0"
+    CONTRACT_VERSION: ClassVar[str] = "2.4.0"
     OWNER: ClassVar[str] = "PLAN-M05"
     account_id: OpaqueIdV1
     resource_id: OpaqueIdV1
@@ -1065,11 +1066,17 @@ class BudgetCurrentQueryV1(TechnicalValueV1):
     period: BudgetPeriodV1
     as_of: datetime
     limit: int = 200
+    active_binding: ActiveCredentialBindingRefV1 | None = None
 
     def __post_init__(self) -> None:
         TechnicalValueV1.__post_init__(self)
         if (
-            not isinstance(self.account_id, OpaqueIdV1)
+            self.active_binding is not None
+            and (
+                not isinstance(self.active_binding, ActiveCredentialBindingRefV1)
+                or self.active_binding.account_id != self.account_id
+            )
+            or not isinstance(self.account_id, OpaqueIdV1)
             or not isinstance(self.resource_id, OpaqueIdV1)
             or not isinstance(self.period, BudgetPeriodV1)
             or not isinstance(self.as_of, datetime)

@@ -664,3 +664,53 @@ running agent was changed. No new security, privacy, migration, license or
 publication effect. Next implementation step is T014's actual failure diagnosis
 and tested financial prerequisite, while independent T010/T011/T012 work proceeds.
 The complete M7 goal remains open.
+
+
+## Delivery handoff reconciliation at committed baseline 445b947
+
+The owner requested a deep planning refactor with proper UI/budget calculation
+coverage, clear tasks and a simple working first result. Root inspected the
+existing plans, catalog, contract/query seams and recorded installed evidence;
+three bounded read-only reviews covered delivery, M05 calculations and P02 UI.
+This refinement retains plan 1.1.0, M05 increment 0.3.0, sixteen tickets, five
+stories and M7-A01..A10. Existing approval is preserved; no new approval requested.
+
+| Finding | Correction within existing scope |
+|---|---|
+| Old `437a232` checkpoint obscured delivered funds | Worksheet/execution now identify installed `14dee16` funds source/HTTP/DOM proof and committed `445b947` authority; spend/Overview/recovery remain open |
+| Existing resource seemed to require new billing enrollment | First demo accepts existing owner-configured cloud resource; only genuinely missing setup actions, T002/T009/T011 |
+| Funds-only rows had no valid immutable spend-report link | Resource-only Overview/detail link and explicit no-spending-report state; no fabricated report, money context or zero, T010/T012 |
+| Unresolved rotation could preserve a previous actor's current UI value | Active binding selection and opaque context invalidation cover current spend/funds; old evidence remains explicit history, T004/T005/T010/T011 |
+| Percentage policy lacked a typed API handoff | Backend existing exact percentage/low flag, lineage/rounding or unavailable reason; component severity does not imply exhausted account, T010/T012 |
+| Latest job could belong to another range or self/team scope | Match collection state to selected source/scope/range/interval; account-wide credential failures stay separate, T007/T010/T011 |
+| T007 same-fingerprint rule contradicted cloud authority 2.2 | Keep balance service and usage-source fingerprints distinct and validate both; no new cloud enrollment, T007/T009 |
+| T007 could close after one provider despite owning remaining scheduling | First provider explicitly partial; final closure includes already-planned range/actions/cooldown/recovery coverage |
+| Final inventory named independent billing resources only | Include reused active cloud resources; pending/disabled remain discoverable, T015 |
+| Large integration tickets hid the route to a working screen | Existing worksheet now names six ordered handoffs, owners, minimum outputs and exact real-boundary demonstrations; no new ticket hierarchy |
+
+Requirement/acceptance mapping remains in the catalog: FR-BUDGET-001..006,
+FR-ORG-003, account/UI/history/operations criteria and M7-MATH-01..16.
+Planning owns no production contract change. It identifies existing
+CTR-COL-002 2.2.0 and CTR-CAP-006 2.3.0 and the necessary next additive current-query
+contract handoff; that future contract is not claimed implemented.
+
+Root planning edits cover execution plan, worksheet, UI journeys, calculation
+rules, M05 increment, ticket catalog and this review record. No dependency,
+license, credential custody, migration or runtime change is introduced here.
+In-flight M04 helper work was held separately, uncommitted and unfinished; its
+local tests do not certify runtime integration or this checkout's full quality.
+No provider/login/account action was needed for the planning review.
+
+Validation executed against this checkout: AUTO-M7-PLAN-CHECK passed all sixteen
+tickets/five stories/ten acceptance items; AUTO-PLAN-CHECK passed synchronized;
+AUTO-DOCS-CHECK passed 379 Markdown files; git diff --check passed. These verify
+planning/document consistency, not implementation, deployment or M7 completion.
+No new product tests were added for this documentation change. Production
+follow-up remains the worksheet's first spend handoff sequence, all three
+provider lanes, retained analysis, installed verification and fixed final exit.
+
+The final bounded consistency review caught a potential accidental dependency:
+populated old-lineage evidence must not demand a real key rotation before the
+first report. The worksheet now requires pure isolation and real current-query
+verification, with naturally unavailable old-lineage history recorded separately.
+No provider state is changed to manufacture that scenario.

@@ -15,6 +15,7 @@ from agentmonitor.api.v1.routers._observation import (
 from agentmonitor.api.v1.schemas.budgets import (
     AccountBudgetCurrentWireV1,
     AccountBudgetFundsWireV1,
+    BudgetCloudResourceCurrentWireV1,
     BudgetCollectionStateWireV1,
     BudgetCostBucketWireV1,
     BudgetDimensionWireV1,
@@ -218,6 +219,50 @@ def account_wire(item: AccountBudgetCurrentV1) -> AccountBudgetCurrentWireV1:
                 collection_availability=availability(resource.collection_availability),
             )
         )
+    cloud_resources = []
+    for cloud in item.cloud_resources:
+        run = cloud.latest_collection
+        cloud_resources.append(
+            BudgetCloudResourceCurrentWireV1(
+                account_id=cloud.target.account_id.value,
+                resource_id=cloud.target.resource_id.value,
+                lifecycle=cloud.target.lifecycle,
+                reports=[
+                    BudgetReportSelectionWireV1(
+                        current=None
+                        if row.current is None
+                        else report_wire(row.current),
+                        latest_attempt=None
+                        if row.latest_attempt is None
+                        else report_wire(row.latest_attempt),
+                    )
+                    for row in cloud.reports
+                ],
+                report_availability=availability(cloud.report_availability),
+                reported_spend=[
+                    BudgetReportedSpendWireV1(
+                        report_id=row.report_id.value,
+                        total=None if row.total is None else _money(row.total),
+                        reason_code=row.reason_code,
+                    )
+                    for row in cloud.reported_spend
+                ],
+                latest_collection=None
+                if run is None
+                else BudgetCollectionStateWireV1(
+                    run_id=run.run_id.value,
+                    state=run.state,
+                    source_id=run.source_id,
+                    requested_at=run.requested_at,
+                    started_at=run.started_at,
+                    completed_at=run.completed_at,
+                    outcome_code=run.outcome_code,
+                    error_code=run.error_code,
+                    report_id=None if run.report_id is None else run.report_id.value,
+                ),
+                collection_availability=availability(cloud.collection_availability),
+            )
+        )
     return AccountBudgetCurrentWireV1(
         account_id=item.account_id.value,
         period=_period(item.period),
@@ -225,6 +270,7 @@ def account_wire(item: AccountBudgetCurrentV1) -> AccountBudgetCurrentWireV1:
         availability=availability(item.availability),
         resources=resources,
         funds=None if item.funds is None else funds_wire(item.funds),
+        cloud_resources=cloud_resources,
     )
 
 

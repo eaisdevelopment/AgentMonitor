@@ -44,6 +44,10 @@ API-only routing must not hide those controls and leave a dead-end account.
 
 The account page then shows these steps, with actual server state:
 
+Reuse completed setup for an existing cloud/billing resource. Expand only the
+step requiring owner action; a working resource is not sent through creation or
+key entry again merely because usage support was added.
+
 1. **Choose billing scope.** Show the scope supported by the provider: whole
    organization, supported project/workspace, or Ollama self/team. The dashboard
    organization label is not evidence of provider organization membership.
@@ -146,6 +150,15 @@ interval. Different contexts use labelled subrows under the same resource;
 linked access paths appear under its label, not as additional money. Account
 name opens its detail at the selected resource and context. A context without
 money can still show its unavailable reason; it is not silently removed.
+Funds-only resources still have an Overview row even before a spending report
+exists. Show **No spending report** in Reported spend, retain the genuine funds
+and their observation time in Available, and link by authorized account/resource.
+Do not invent a report ID, currency context, cost basis or zero spend to make the
+link work. Such a link opens the default supported interval without a pinned
+report until one exists. A row with a report retains the immutable report/context
+selection described below. Counts-only reports likewise show counts in detail
+and **Spend not reported**, never money. This is T010/T011/T012, not another view.
+
 Provider-reported scope and dashboard organization are separately named.
 An account connected to a whole provider organization does not imply all its
 spend belongs to that individual email or one running agent.
@@ -295,10 +308,19 @@ retain clearly marked old values; they never silently refresh timestamps.
 After a same-context Check completes or Refresh starts, keep the last successful
 amount/table until its replacement GET succeeds. Replace report, amount and
 history together. A failed replacement shows its error beside old values and
-original times; clear old data only for a different account/resource/scope/period.
+original times; clear retained current data for a different account/resource/scope/period or
+changed/absent unresolved binding lineage. Use an opaque financial-context
+discriminator from the API, not credential IDs. Old-lineage values remain
+accessible only as explicitly selected historical evidence, excluded from
+current totals. Apply this to funds as well as spend.
 T011 specifically tests this transition, not just the initial empty/error view.
 
-P01 assembles collection state from M04 separately from M05 report values. A
+P01 assembles collection state from M04 separately from M05 report values.
+Select the latest run for the displayed source, self/team scope, range and exact
+interval. A seven-day success cannot refresh the thirty-day view, and a team
+report cannot refresh self usage. No matching run means no collection for that
+selection. Account-wide credential failures remain separately visible. T007/T010
+carry the minimal typed selection; T011 never infers it from latest account activity. A
 latest denied/failed run may have no stored report; it must not be hidden by a
 green old complete report. Likewise, an unknown-currency latest report cannot
 freshen or supply a currency for the earlier monetary value. Publish last

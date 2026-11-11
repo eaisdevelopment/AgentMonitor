@@ -9,6 +9,8 @@ from agentmonitor.modules.capacity.domain.budget_codec import MAX_REPORT_BYTES, 
 # scope ID, source/category/basis, grouping, currency and the binding ID/generation
 # pair only for unresolved scope. Resolved rotations retain their scope context;
 # unresolved rotations cannot replace another access lineage's financial facts.
+# The active binding filter precedes ranking and bounds; None admits no unresolved
+# lineage. validate_current_report_load repeats that rule after body decoding.
 # Only metadata enters the sort; bodies are loaded after bounds checks.
 CURRENT_REPORT_METADATA_SQL = """
 WITH eligible AS (
@@ -40,6 +42,13 @@ WITH eligible AS (
     FROM capacity_budget_report
     WHERE account_id=? AND resource_id=? AND requested_start=? AND requested_end=?
       AND json_extract(canonical_report_json,'$.scope_generation')=?
+      AND (
+          json_extract(canonical_report_json,'$.scope_evidence') != 'unresolved'
+          OR (
+              json_extract(canonical_report_json,'$.binding_id')=?
+              AND json_extract(canonical_report_json,'$.binding_generation')=?
+          )
+      )
       AND collected_at<=? AND stored_at<=?
 ), ranked AS (
     SELECT report_id, report_bytes, context_key, is_complete,
@@ -112,6 +121,12 @@ def validate_current_report_load(
         or report.subject.account_id != query.account_id
         or report.subject.resource_id != query.resource_id
         or report.scope_generation != query.scope_generation
+        or report.scope_evidence == "unresolved"
+        and (
+            query.active_binding is None
+            or report.binding_id != query.active_binding.binding_id
+            or report.binding_generation != query.active_binding.generation
+        )
         or report.requested_period != query.period
         or report.collected_at > query.as_of
         or view.stored_at > query.as_of

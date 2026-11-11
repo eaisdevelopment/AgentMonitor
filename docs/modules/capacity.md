@@ -294,6 +294,16 @@ private temporary SQLite backup of genuine owner data, removed afterward.
 
 ## Operations and incomplete acceptance
 
+### M7 existing cloud usage increment
+
+CTR-CAP-006 2.4.0 adds active credential lineage to current-report selection and
+a separate existing-cloud-resource account projection. It preserves old billing
+resources and funds. Root composition supplies actual registry reads; API output
+excludes credential identifiers. Self usage collection status is selected by
+its exact seven/thirty-day interval. Counts without monetary costs never produce
+a zero-spend assertion. See [runtime evidence](../evidence/m7-cloud-usage-runtime-2026-11-11.md)
+for genuine collection/query proof and the remaining installation/M7 boundaries.
+
 ### M5 quota-witness policy projection
 
 The real `AUTO-M5-QUOTA-WITNESS` attempt against exact `d81afab` completed its

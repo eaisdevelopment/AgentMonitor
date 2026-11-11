@@ -123,6 +123,19 @@ class BudgetResourceCurrentWireV1(_ClosedV1):
     collection_availability: AvailabilityV1
 
 
+class BudgetCloudResourceCurrentWireV1(_ClosedV1):
+    """Safe existing-resource projection; no credential binding identifiers."""
+
+    account_id: str
+    resource_id: str
+    lifecycle: str
+    reports: list[BudgetReportSelectionWireV1]
+    report_availability: AvailabilityV1
+    reported_spend: list[BudgetReportedSpendWireV1]
+    latest_collection: BudgetCollectionStateWireV1 | None
+    collection_availability: AvailabilityV1
+
+
 class ExactMoneyFieldWireV1(_ClosedV1):
     availability: AvailabilityStateV1
     value: ExactMoneyWireV1 | None
@@ -172,3 +185,6 @@ class AccountBudgetCurrentWireV1(_ClosedV1):
     availability: AvailabilityV1
     resources: list[BudgetResourceCurrentWireV1]
     funds: AccountBudgetFundsWireV1 | None = None
+    cloud_resources: list[BudgetCloudResourceCurrentWireV1] = Field(
+        default_factory=list
+    )

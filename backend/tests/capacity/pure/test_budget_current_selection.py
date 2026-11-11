@@ -14,6 +14,7 @@ from agentmonitor.contracts.capacity_v1 import (
     BudgetReportSelectionV1,
 )
 from agentmonitor.contracts.common_v1 import OpaqueIdV1
+from agentmonitor.contracts.registry_v1 import ActiveCredentialBindingRefV1
 from agentmonitor.modules.capacity.domain.budget_codec import (
     encode_budget_report,
     utc_text,
@@ -25,6 +26,91 @@ from backend.tests.capacity.pure.test_budget_report_selection import _report
 
 def test_domain_selection_is_the_published_read_contract() -> None:
     assert isinstance(select_current_report(()), BudgetReportSelectionV1)
+
+
+@pytest.mark.parametrize("authority", ["missing", "other_binding", "other_generation"])
+def test_unresolved_current_load_requires_exact_active_lineage(authority: str) -> None:
+    view = _report(1, "8")
+    binding = ActiveCredentialBindingRefV1(
+        view.report.subject.account_id, OpaqueIdV1("amcb_" + "a" * 32), 2
+    )
+    view = replace(
+        view,
+        report=replace(
+            view.report,
+            scope_id=None,
+            scope_evidence="unresolved",
+            binding_id=binding.binding_id,
+            binding_generation=binding.generation,
+        ),
+    )
+    query = BudgetCurrentQueryV1(
+        view.report.subject.account_id,
+        view.report.subject.resource_id,
+        view.report.scope_generation,
+        view.report.requested_period,
+        view.stored_at,
+        active_binding=binding,
+    )
+    text = encode_budget_report(view.report)
+    validate_current_report_load(
+        query,
+        view,
+        selected_id=view.report_id,
+        selected_bytes=len(text.encode("utf-8")),
+        canonical_text=text,
+        collected_at=utc_text(view.report.collected_at),
+    )
+    if authority == "missing":
+        query = replace(query, active_binding=None)
+    elif authority == "other_binding":
+        query = replace(
+            query,
+            active_binding=replace(binding, binding_id=OpaqueIdV1("amcb_" + "b" * 32)),
+        )
+    else:
+        query = replace(query, active_binding=replace(binding, generation=3))
+    with pytest.raises(ValueError, match="budget_current_metadata_invalid"):
+        validate_current_report_load(
+            query,
+            view,
+            selected_id=view.report_id,
+            selected_bytes=len(text.encode("utf-8")),
+            canonical_text=text,
+            collected_at=utc_text(view.report.collected_at),
+        )
+    # The immutable report stays available to the separate explicit-history path.
+    assert select_current_report((view,)).current == view
+
+
+@pytest.mark.parametrize("active", [False, True])
+def test_resolved_current_scope_does_not_depend_on_the_reading_key(
+    active: bool,
+) -> None:
+    view = _report(1, "8")
+    text = encode_budget_report(view.report)
+    query = BudgetCurrentQueryV1(
+        view.report.subject.account_id,
+        view.report.subject.resource_id,
+        view.report.scope_generation,
+        view.report.requested_period,
+        view.stored_at,
+        active_binding=(
+            ActiveCredentialBindingRefV1(
+                view.report.subject.account_id, OpaqueIdV1("amcb_" + "b" * 32), 8
+            )
+            if active
+            else None
+        ),
+    )
+    validate_current_report_load(
+        query,
+        view,
+        selected_id=view.report_id,
+        selected_bytes=len(text.encode("utf-8")),
+        canonical_text=text,
+        collected_at=utc_text(view.report.collected_at),
+    )
 
 
 def test_more_than_fifty_attempts_cannot_resurrect_superseded_charges() -> None:

@@ -1799,7 +1799,9 @@ class CloudBudgetCollectionRunAdmissionV1(CollectionRunAdmissionV2):
     must revalidate the actual graph/binding and shared request lease.
     """
 
+    CONTRACT_ID: ClassVar[str] = "CTR-COL-002"
     CONTRACT_VERSION: ClassVar[str] = "2.2.0"
+    OWNER: ClassVar[str] = "PLAN-M04"
     cloud_target: CloudMonitoringTargetV1
     service_target: ProviderAccessTargetV1
     report_context: CloudBudgetReportContextV1

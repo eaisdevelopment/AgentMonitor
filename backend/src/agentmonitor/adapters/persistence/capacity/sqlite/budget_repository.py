@@ -290,6 +290,8 @@ class SqliteBudgetReportRepositoryV1:
             utc_text(query.period.start),
             utc_text(query.period.end),
             query.scope_generation,
+            query.active_binding.binding_id.value if query.active_binding else None,
+            query.active_binding.generation if query.active_binding else None,
             instant,
             instant,
         )

@@ -4,10 +4,11 @@ import {
   budgets,
   type AccountBudgetCurrentWireV1,
   type AccountViewV1,
+  type BudgetCloudResourceCurrentWireV1,
   type BudgetReportWireV1,
   type BudgetResourceCurrentWireV1,
 } from "../../shared/api/client";
-import { completedPeriod, displayMoney, exactMoneyText } from "./budgetPresentation";
+import { completedPeriod, displayMoney, exactMoneyText, exactUsageText } from "./budgetPresentation";
 import { advanceFinancialRead } from "./billingCheckPresentation";
 import { canRetainFinancialReading, type FinancialReadContext } from "./financialReadPresentation";
 
@@ -78,11 +79,29 @@ function CostHistory({ report }: Readonly<{ report: BudgetReportWireV1 }>) {
   </>;
 }
 
-function ResourceReading({ resource }: Readonly<{ resource: BudgetResourceCurrentWireV1 }>) {
+function UsageHistory({ report }: Readonly<{ report: BudgetReportWireV1 }>) {
+  const [limit, setLimit] = useState(50);
+  if (report.usage_buckets.length === 0) return null;
+  return <>
+    <div className="table-scroll" tabIndex={0} role="region" aria-label="Exact usage history">
+      <table><caption>Usage history · source intervals, exact quantities</caption>
+        <thead><tr><th scope="col">Period (UTC)</th><th scope="col">Usage</th></tr></thead>
+        <tbody>{report.usage_buckets.slice(0, limit).map((row) => <tr key={row.bucket_key} data-usage-bucket={row.bucket_key}>
+          <td>{bounds(row.period.start, row.period.end)}</td><td>{exactUsageText(row.quantity)}</td>
+        </tr>)}</tbody>
+      </table>
+    </div>
+    {limit < report.usage_buckets.length && <button type="button" className="quiet-button" onClick={() => setLimit((value) => value + 50)}>Show more usage rows</button>}
+  </>;
+}
+
+function ResourceReading({ resource }: Readonly<{ resource: BudgetResourceCurrentWireV1 | BudgetCloudResourceCurrentWireV1 }>) {
   const run = resource.latest_collection;
   return <article>
-    <p><strong>Provider billing scope:</strong> {resource.connection.scope_id ?? "Not established"} · {readable(resource.connection.scope_evidence)}</p>
-    <p>API monitoring: {resource.connection.monitoring_preference === "enabled" ? "on" : "off"}.</p>
+    {"connection" in resource ? <>
+      <p><strong>Provider billing scope:</strong> {resource.connection.scope_id ?? "Not established"} · {readable(resource.connection.scope_evidence)}</p>
+      <p>API monitoring: {resource.connection.monitoring_preference === "enabled" ? "on" : "off"}.</p>
+    </> : <p><strong>Cloud usage</strong> · {readable(resource.lifecycle)}</p>}
     {run !== null && <p role={run.state === "failed" || run.state === "blocked" ? "status" : undefined}>
       Latest collection: {readable(run.state)} · {instant(run.completed_at ?? run.started_at ?? run.requested_at)}
       {run.error_code !== null && ` · ${readable(run.error_code)}`}
@@ -96,14 +115,20 @@ function ResourceReading({ resource }: Readonly<{ resource: BudgetResourceCurren
       const attempt = selection.latest_attempt;
       const key = report?.report_id ?? attempt?.report_id ?? "no-report";
       const spend = resource.reported_spend.find((value) => value.report_id === report?.report_id);
-      return <section key={key}>
+      return <section key={key} data-report-id={report?.report_id}>
         {report === null ? <p>No complete report for this financial context.</p> : <>
-          <p><strong>Reported spend: </strong>{spend?.total != null ? <span title={exactMoneyText(spend.total)}>{displayMoney(spend.total)}</span>
-            : `Unavailable · ${readable(spend?.reason_code ?? "reported_spend_unavailable")}`}</p>
+          {report.currency === null && report.cost_buckets.length === 0 && report.usage_buckets.length > 0
+            ? <p>Provider did not report costs.</p>
+            : <p><strong>Reported spend: </strong>{spend?.total != null ? <span title={exactMoneyText(spend.total)}>{displayMoney(spend.total)}</span>
+              : `Unavailable · ${readable(spend?.reason_code ?? "reported_spend_unavailable")}`}</p>}
+          {!("connection" in resource) && <p><strong>Provider billing scope:</strong> {report.scope_id ?? "Not established"} · {readable(report.scope_evidence)}</p>}
           <p>{bounds(report.requested_period.start, report.requested_period.end)} · {readable(report.cost_basis)} · {readable(report.source_category)}</p>
           <p>Data through: {report.source_data_through === null ? "Not reported" : instant(report.source_data_through)} · Collected: {instant(report.collected_at)}</p>
           {report.cost_buckets.length === 0 && report.usage_buckets.length === 0 && <p>No reported usage in this interval.</p>}
-          {report.grouping.length === 0 && <CostHistory key={report.report_id} report={report} />}
+          {report.grouping.length === 0 && <>
+            {report.cost_buckets.length > 0 && <CostHistory key={`cost-${report.report_id}`} report={report} />}
+            <UsageHistory key={`usage-${report.report_id}`} report={report} />
+          </>}
           <details><summary>Source details</summary>
             <dl className="telemetry-readouts">
               <div><dt>Source</dt><dd>{report.source_id}</dd></div>
@@ -183,8 +208,9 @@ export function BudgetAccountPanel({ account, showUnconfigured, onExpired, readR
   }
 
   const funds = data?.funds;
+  const cloudResources = data?.cloud_resources ?? [];
   const hasFunds = funds !== null && funds !== undefined && funds.components.length > 0;
-  if (!showUnconfigured && !error && !hasFunds && (data === null || data.resources.length === 0)) return null;
+  if (!showUnconfigured && !error && !hasFunds && cloudResources.length === 0 && (data === null || data.resources.length === 0)) return null;
   return <section className="telemetry-panel" aria-labelledby="budget-account-title" aria-busy={busy} style={{ minWidth: 0, overflowWrap: "anywhere" }}>
     <div className="panel-heading"><h2 id="budget-account-title">API usage &amp; spend</h2>
       <button type="button" className="quiet-button" title="Reload stored readings" disabled={busy} onClick={() => refresh(days)}>Refresh view</button>
@@ -199,8 +225,9 @@ export function BudgetAccountPanel({ account, showUnconfigured, onExpired, readR
     {data !== null && <>
       {hasFunds && funds !== null && funds !== undefined ? <FundsReading funds={funds} /> : <p>Remaining funds not reported{funds === null || funds === undefined ? "." : `: ${readable(funds.availability.reason_code)}.`}</p>}
       {data.availability.state !== "available" && !(hasFunds && data.availability.reason_code === "billing_not_configured") && <p role="status">Spend data {data.availability.state}: {readable(data.availability.reason_code)}.</p>}
-      {data.resources.length === 0 && data.availability.reason_code === "billing_not_configured" && <p>{hasFunds ? "No usage report for this interval." : "API billing is not set up."}</p>}
+      {data.resources.length === 0 && cloudResources.length === 0 && data.availability.reason_code === "billing_not_configured" && <p>{hasFunds ? "No usage report for this interval." : "API billing is not set up."}</p>}
       {data.resources.map((resource) => <ResourceReading key={`${resource.connection.resource_id}.${resource.connection.scope_generation}`} resource={resource} />)}
+      {cloudResources.map((resource) => <ResourceReading key={resource.resource_id} resource={resource} />)}
     </>}
   </section>;
 }

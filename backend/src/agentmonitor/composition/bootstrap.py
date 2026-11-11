@@ -78,6 +78,10 @@ from agentmonitor.adapters.persistence.registry.sqlite.billing_connections impor
 from agentmonitor.adapters.persistence.registry.sqlite.coverage import (
     SqliteOrganizationProviderCoverageRepositoryV1,
 )
+from agentmonitor.adapters.persistence.registry.sqlite.credential_bindings import (
+    SqliteCloudCredentialRegistryV1,
+    SqliteCredentialBindingsV1,
+)
 from agentmonitor.adapters.persistence.registry.sqlite.health import (
     GetRegistryComponentHealthV1,
 )
@@ -141,12 +145,14 @@ from agentmonitor.composition.provider_dashboard_connections import (
     ProviderDashboardConnectionsV1,
     ProviderVerifiedQuotaIdentitiesV1,
 )
+from agentmonitor.contracts.common_v1 import OpaqueIdV1
 from agentmonitor.contracts.configuration_v1 import (
     BootstrapConfigurationV1,
     ConfigurationRegistryV1,
 )
 from agentmonitor.contracts.foundation_v1 import BuildMetadataV1
 from agentmonitor.contracts.operations_v1 import ComponentRegistrationV1
+from agentmonitor.contracts.registry_v1 import ActiveCredentialBindingRefV1
 from agentmonitor.foundation.application import (
     ApplicationLifecycleError,
     ComponentFactorySetV1,
@@ -229,6 +235,9 @@ from agentmonitor.modules.registry.application.accounts import (
     ListAccountResourcesV1,
     ListAccountsV1,
     RegisterAccountV1,
+)
+from agentmonitor.modules.registry.application.cloud_connection import (
+    resolve_active_credential_binding,
 )
 from agentmonitor.modules.registry.application.discovery import (
     ListProviderInstallationsV1,
@@ -528,6 +537,20 @@ def _observation_ports(
             return False
 
     registry = SqliteRegistryRepositoryV1(reference)
+    billing_registry = SqliteBillingConnectionRepositoryV1(reference)
+
+    def active_budget_binding(
+        account_id: OpaqueIdV1,
+    ) -> ActiveCredentialBindingRefV1 | None:
+        status = billing_registry.get(account_id)
+        if status is None or (
+            status.provider_key != "ollama" and not status.connections
+        ):
+            return None
+        return resolve_active_credential_binding(
+            SqliteCredentialBindingsV1(reference).read(account_id)
+        )
+
     coverage = SqliteOrganizationProviderCoverageRepositoryV1(reference)
     collection = SqliteCollectionRepositoryV1(reference)
     capacity = SqliteCapacityRepositoryV1(reference)
@@ -610,6 +633,10 @@ def _observation_ports(
             StoredAccountBudgetFundsV1(
                 CapacityScopeMembershipQueryV2(registry), ListQuotaWindowsV1(capacity)
             ),
+            active_binding=active_budget_binding,
+            cloud_target=SqliteCloudCredentialRegistryV1(
+                reference
+            ).read_monitoring_target,
         ),
         billing_local_setup=InstalledBillingLocalSetupV1(
             data_root, socket.gethostname()

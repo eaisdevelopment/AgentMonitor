@@ -6,9 +6,10 @@
 - Original planning baseline: `a47fc53` on `codex/m7-api-budgets`.
 - Current implementation and installed-state checkpoint: see the single
   [delivery worksheet](m7-delivery-worksheet-2026-11-11.md#1-verified-starting-point).
-  Reviewed code is committed and installed at `437a232`, schema `v1_0733`.
-  Financial operational activation and authenticated setup-surface checks passed;
-  positive installed source-to-money-to-screen verification remains outstanding.
+  Committed planning baseline: `445b947`. Installed funds increment: `14dee16`,
+  schema `v1_0733`, with genuine stored balance → HTTP → browser proof.
+  New usage collection, populated spending and the full Overview journey remain
+  unfinished; see the worksheet for evidence and uncommitted work boundaries.
 - Requirements: FR-BUDGET-001..006, FR-ORG-003, FR-ACC-001..004/006;
   AC-LIVE-004/005/007, AC-UI-002..006, AC-HIST-001, AC-OPS-003/006,
   AC-TEST-001..006.
@@ -16,10 +17,12 @@
 
 ## 1. The delivery promise
 
-The owner adds a real billing account, connects it, and sees its reported spend
-on Overview and account detail, with organization, billing scope, period and
-freshness. That whole journey is the first usable slice. Other providers and
-advanced views do not precede that demonstration.
+An existing or newly owner-configured resource shows its reported spend on
+Overview and account detail, with organization, billing scope, period and
+freshness. Existing Ollama cloud connections are reused; request only genuinely
+missing setup, never another account or key entry just to fit the billing path.
+That whole journey is the first usable slice. Other providers and advanced views
+do not precede that demonstration.
 
 The full M7 scope still includes Anthropic, OpenAI and supported Ollama cloud
 usage, provider-exposed budgets/credits/limits, supported breakdowns, history,
@@ -81,15 +84,16 @@ all backend work is finished. Each slice ends with the indicated running result.
 | Slice | Tickets in execution order | Demonstration / exit |
 |---|---|---|
 | S0: known prerequisites | T001; start T003; T004 exactness; T002 owner setup | Plan/contract freeze, scoped test commands, tested setup UI; known access needs identified once |
-| S1: first usable dashboard | First available provider T006/T008/T009 → T005 → T007 → T010 → T011 → T012; T014 deployment | One real owner-created billing account goes through collection, exact history table, Overview/detail and installed browser. No numeric-forecast prerequisite |
+| S1: first usable dashboard | First available provider T006/T008/T009 → T005 → T007 → T010 → T011 → T012; T014 deployment | One existing or newly owner-configured resource goes through collection, exact history table, Overview/detail and installed browser. No numeric-forecast prerequisite |
 | S2: provider coverage | Remaining T006/T008/T009 | All three provider lanes use the same working screens; actual unsupported fields remain explicit |
 | S3: complete M7 views | T013 | One-dimension breakdowns, simple history chart and explainable query-time forecast; later refinements are not added |
 | S4: stabilize and publish | T015 → T016 | Real cross-provider/browser reconciliation, one bounded independent review, one full exit run, remote revision verified and owner demonstration |
 
-First provider defaults to an accessible Anthropic/OpenAI monetary lane.
-Ollama remains eligible after connecting its existing cloud-graph commit fence
-and shared balance/usage rate coordination; its source candidate alone does not
-satisfy that dependency. No provider is dropped from M7. A requests-only
+The next integration targets existing Ollama cloud access while independent
+Anthropic/OpenAI work continues. Ollama becomes eligible for the first spend
+demonstration after connecting its existing cloud-graph commit fence, active
+lineage selection and shared balance/usage rate coordination. Its source
+candidate alone does not satisfy that dependency. No provider is dropped from M7. A requests-only
 legacy source can advance its own usage lane but cannot substitute for the first
 demonstrated monetary report. T005 can integrate one genuine normalized report from a partially completed
 provider ticket; it does not wait for that adapter’s remaining usage categories.
@@ -238,7 +242,9 @@ repeatable implementation/test/deploy actions inside this scope.
 | M7-A10 | Revision-bound install/recovery, existing dashboard/provider continuity and final evidence | T014/T016 |
 
 Required live coverage is one real successful billing report per provider plus
-inventory accounting for every configured active billing resource. No fixed
+inventory accounting for every configured active billing **or existing Ollama
+cloud** resource. Pending/disabled resources remain visible with their state;
+no duplicate billing enrollment is needed for cloud coverage. No fixed
 six/four-account ceremony. Existing comparisons record exact resource, interval,
 source time and precision once; reuse them for documentation changes. Technical
 changes invalidate only affected evidence lanes until the final candidate run.

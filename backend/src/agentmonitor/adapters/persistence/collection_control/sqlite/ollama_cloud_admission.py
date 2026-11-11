@@ -4,6 +4,7 @@
 
 import hashlib
 import secrets
+from collections.abc import Callable
 from datetime import UTC, datetime, timedelta
 from typing import cast
 
@@ -16,6 +17,8 @@ from agentmonitor.adapters.persistence.collection_control.sqlite.repository impo
     SqliteCollectionRepositoryV1,
 )
 from agentmonitor.contracts.collection_control_v1 import (
+    CloudBudgetCollectionRunAdmissionV1,
+    CloudBudgetReportContextV1,
     CollectionRunAdmissionV1OrV2,
     CollectionRunAdmissionV2,
     CollectionRunStateV1,
@@ -42,7 +45,9 @@ from agentmonitor.contracts.collection_control_v1 import (
 )
 from agentmonitor.contracts.common_v1 import OpaqueIdV1
 from agentmonitor.contracts.registry_v1 import (
+    CloudMonitoringTargetV1,
     CredentialBindingVerificationReceiptV1,
+    ProviderAccessTargetV1,
     ProviderTargetRefV1,
 )
 from agentmonitor.modules.collection_control.domain.ollama_rate_policy import (
@@ -444,8 +449,12 @@ def ensure_ollama_run_in_transaction(
         or run.schedule_id != lease.schedule_id
         or run.account_id != lease.account_id
         or run.provider_key != "ollama"
-        or run.capability_id != "subscription.quota"
-        or run.source_id != "ollama.cloud.balance.v1"
+        or (run.capability_id, run.source_id)
+        != (
+            ("api.usage", "ollama.cloud.usage.v1")
+            if isinstance(run, CloudBudgetCollectionRunAdmissionV1)
+            else ("subscription.quota", "ollama.cloud.balance.v1")
+        )
         or row["schedule_id"] != lease.schedule_id.value
         or row["profile_id"] != (run.profile_id.value if run.profile_id else None)
         or row["request_digest"] != run.request_digest
@@ -456,8 +465,8 @@ def ensure_ollama_run_in_transaction(
         or row["deadline_at"] != _utc_text(run.deadline_at)
         or row["account_id"] != lease.account_id.value
         or row["provider_key"] != "ollama"
-        or row["capability_id"] != "subscription.quota"
-        or row["source_id"] != "ollama.cloud.balance.v1"
+        or row["capability_id"] != run.capability_id
+        or row["source_id"] != run.source_id
         or row["installation_id"] != storage_installation_id
         or row["provider_target_kind"]
         != (cloud_target[0] if cloud_target is not None else None)
@@ -477,9 +486,22 @@ class SqliteOllamaCloudRunRepositoryV1(SqliteCollectionRepositoryV1):
     """Narrow M04 port that binds its rate attempt during the admission transaction."""
 
     def __init__(
-        self, reference: DatabaseRefV1, lease: OllamaCloudRequestLeaseV1
+        self,
+        reference: DatabaseRefV1,
+        lease: OllamaCloudRequestLeaseV1,
+        *,
+        cloud_admission_fence: Callable[
+            [
+                Connection,
+                CloudMonitoringTargetV1,
+                ProviderAccessTargetV1,
+                CloudBudgetReportContextV1,
+            ],
+            None,
+        ]
+        | None = None,
     ) -> None:
-        super().__init__(reference)
+        super().__init__(reference, cloud_admission_fence=cloud_admission_fence)
         self._cloud_lease = lease
 
     def _on_admitted(
@@ -1388,8 +1410,12 @@ class SqliteOllamaCloudAdmissionRepositoryV1:
         """Register one genuine target for fair selection without creating a run."""
         if (
             admission.provider_key != _PROVIDER_KEY
-            or admission.capability_id != _CAPABILITY_ID
-            or admission.source_id != "ollama.cloud.balance.v1"
+            or (admission.capability_id, admission.source_id)
+            != (
+                ("api.usage", "ollama.cloud.usage.v1")
+                if isinstance(admission, CloudBudgetCollectionRunAdmissionV1)
+                else (_CAPABILITY_ID, "ollama.cloud.balance.v1")
+            )
             or admission.trigger != "scheduled"
             or admission.account_id is None
             or admission.profile_id is None
@@ -1438,12 +1464,22 @@ class SqliteOllamaCloudAdmissionRepositoryV1:
                             "consecutive_failure_count,last_attempted_run_id,last_successful_run_id,"
                             "last_terminal_outcome_code,record_version,created_at,"
                             "updated_at) "
-                            "VALUES (?,?,?,?,?,?,?,?,?,?,'enabled','unknown',300,300,?,?"
+                            "VALUES (?,?,?,?,?,?,?,?,?,?,'enabled','unknown',?,?,?,?"
                             ",NULL,NULL,"
                             "0,0,NULL,NULL,NULL,1,?,?)",
                             (
                                 admission.schedule_id.value,
                                 *target,
+                                900
+                                if isinstance(
+                                    admission, CloudBudgetCollectionRunAdmissionV1
+                                )
+                                else 300,
+                                900
+                                if isinstance(
+                                    admission, CloudBudgetCollectionRunAdmissionV1
+                                )
+                                else 300,
                                 admission.target_generation,
                                 instant,
                                 instant,
@@ -2775,6 +2811,34 @@ class SqliteOllamaCloudAdmissionRepositoryV1:
         except (SQLAlchemyError, SqlitePolicyError, OSError, ValueError, TypeError):
             raise OllamaCloudAdmissionRepositoryErrorV1() from None
 
+    def acquire_usage(
+        self,
+        request: OllamaCloudRequestAcquireV1,
+        *,
+        admission: CloudBudgetCollectionRunAdmissionV1,
+    ) -> OllamaCloudAdmissionDecisionV1:
+        """Reserve one usage intent through the same durable balance request gate."""
+        if (
+            not isinstance(admission, CloudBudgetCollectionRunAdmissionV1)
+            or request.scheduler_instance_id != admission.scheduler_instance_id
+            or request.requested_at < admission.requested_at
+            or request.lease_expires_at > admission.deadline_at
+        ):
+            raise OllamaCloudAdmissionRepositoryErrorV1("ollama_cloud_schedule_invalid")
+        try:
+            with open_sqlite_database(
+                self._database_ref, "runtime_read_write"
+            ) as handle:
+                with handle.connect() as connection:
+                    connection.exec_driver_sql("BEGIN IMMEDIATE")
+                    result = self._acquire(connection, request, usage=admission)
+                    connection.commit()
+                    return result
+        except OllamaCloudAdmissionRepositoryErrorV1:
+            raise
+        except (SQLAlchemyError, SqlitePolicyError, OSError, ValueError, TypeError):
+            raise OllamaCloudAdmissionRepositoryErrorV1() from None
+
     def acquire_verification(
         self, request: OllamaCloudVerificationAcquireV1
     ) -> OllamaCloudAdmissionDecisionV1:
@@ -2806,6 +2870,7 @@ class SqliteOllamaCloudAdmissionRepositoryV1:
         request: OllamaCloudRequestAcquireV1,
         *,
         verification: OllamaCloudVerificationAcquireV1 | None = None,
+        usage: CloudBudgetCollectionRunAdmissionV1 | None = None,
     ) -> OllamaCloudAdmissionDecisionV1:
         requested_text = _utc_text(request.requested_at)
         existing = _admission_row(connection, request.admission_id.value)
@@ -2814,6 +2879,21 @@ class SqliteOllamaCloudAdmissionRepositoryV1:
             if (
                 gate is None
                 or not _same_acquire(existing, request)
+                or usage is not None
+                and (
+                    existing["schedule_id"] != usage.schedule_id.value
+                    or existing["account_id"] != usage.cloud_target.account_id.value
+                    or connection.exec_driver_sql(
+                        "SELECT 1 FROM collection_schedule s JOIN collection_cloud_schedule_lane l ON l.schedule_id=s.schedule_id "
+                        "WHERE s.schedule_id=? AND s.target_generation=? AND s.capability_id='api.usage' AND l.source_id=?",
+                        (
+                            usage.schedule_id.value,
+                            usage.target_generation,
+                            usage.source_id,
+                        ),
+                    ).first()
+                    is None
+                )
                 or (
                     verification is not None
                     and (
@@ -2906,7 +2986,35 @@ class SqliteOllamaCloudAdmissionRepositoryV1:
             return OllamaCloudAdmissionDecisionV1("not_due", None, next_allowed)
 
         cursor = gate["fair_cursor_schedule_id"]
-        if verification is None:
+        if usage is not None:
+            candidate = (
+                connection.exec_driver_sql(
+                    "SELECT s.schedule_id,s.account_id,s.effective_interval_seconds "
+                    "FROM collection_schedule s JOIN collection_cloud_schedule_lane lane ON lane.schedule_id=s.schedule_id "
+                    "LEFT JOIN collection_lease l ON l.schedule_id=s.schedule_id "
+                    "WHERE s.schedule_id=? AND s.account_id=? AND s.provider_key='ollama' "
+                    "AND s.capability_id='api.usage' AND lane.source_id=? AND s.target_generation=? "
+                    "AND s.provider_target_kind='cloud_service' AND s.provider_target_id=? "
+                    "AND s.profile_id=? AND s.resource_id=? AND s.target_key_digest=? "
+                    "AND s.state='enabled' AND s.next_due_at<=? "
+                    "AND (s.not_before_at IS NULL OR s.not_before_at<=?) AND l.schedule_id IS NULL",
+                    (
+                        usage.schedule_id.value,
+                        usage.cloud_target.account_id.value,
+                        usage.source_id,
+                        usage.target_generation,
+                        usage.provider_target.target_id.value,
+                        usage.cloud_target.profile_id.value,
+                        usage.cloud_target.resource_id.value,
+                        usage.target_key_digest,
+                        requested_text,
+                        requested_text,
+                    ),
+                )
+                .mappings()
+                .one_or_none()
+            )
+        elif verification is None:
             candidate = (
                 connection.exec_driver_sql(
                     "SELECT s.schedule_id,s.account_id,s.effective_interval_seconds "

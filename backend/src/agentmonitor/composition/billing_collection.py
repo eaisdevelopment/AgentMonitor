@@ -102,7 +102,15 @@ class BillingCollectionV1:
             maximum_runs=16,
         )
         if recovery_only:
-            return 0
+            from agentmonitor.composition.ollama_usage_collection import (
+                OllamaUsageCollectionV1,
+            )
+
+            return OllamaUsageCollectionV1(
+                self._data_root,
+                credential_env_file=self._credential_env_file,
+                deadline_monotonic=self._deadline,
+            ).run(recovery_only=True)
         if self._credential_env_file is None:
             return 3
         if time.monotonic() >= self._deadline - 5:
@@ -135,7 +143,15 @@ class BillingCollectionV1:
                 deadline_monotonic=self._deadline
             )
             if scheduled is None:
-                return 0
+                from agentmonitor.composition.ollama_usage_collection import (
+                    OllamaUsageCollectionV1,
+                )
+
+                return OllamaUsageCollectionV1(
+                    self._data_root,
+                    credential_env_file=self._credential_env_file,
+                    deadline_monotonic=self._deadline,
+                ).run()
             admission = self._runs.claim_next_budget_run(
                 scheduler_instance_id=self._instance,
                 as_of=datetime.now(UTC),
@@ -149,6 +165,8 @@ class BillingCollectionV1:
             )
             if admission is None:
                 return 0
+        if not isinstance(admission, BudgetCollectionRunAdmissionV1):
+            raise ValueError("billing_admission_provider_mismatch")
         return self._execute(admission)
 
     def _execute(self, admission: BudgetCollectionRunAdmissionV1) -> int:

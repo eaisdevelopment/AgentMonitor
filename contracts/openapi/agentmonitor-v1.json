@@ -90,6 +90,13 @@
           "availability": {
             "$ref": "#/components/schemas/AvailabilityV1"
           },
+          "cloud_resources": {
+            "items": {
+              "$ref": "#/components/schemas/BudgetCloudResourceCurrentWireV1"
+            },
+            "title": "Cloud Resources",
+            "type": "array"
+          },
           "funds": {
             "anyOf": [
               {
@@ -2284,6 +2291,66 @@
           "page"
         ],
         "title": "BrowserSessionPageV1",
+        "type": "object"
+      },
+      "BudgetCloudResourceCurrentWireV1": {
+        "additionalProperties": false,
+        "description": "Safe existing-resource projection; no credential binding identifiers.",
+        "properties": {
+          "account_id": {
+            "title": "Account Id",
+            "type": "string"
+          },
+          "collection_availability": {
+            "$ref": "#/components/schemas/AvailabilityV1"
+          },
+          "latest_collection": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/BudgetCollectionStateWireV1"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "lifecycle": {
+            "title": "Lifecycle",
+            "type": "string"
+          },
+          "report_availability": {
+            "$ref": "#/components/schemas/AvailabilityV1"
+          },
+          "reported_spend": {
+            "items": {
+              "$ref": "#/components/schemas/BudgetReportedSpendWireV1"
+            },
+            "title": "Reported Spend",
+            "type": "array"
+          },
+          "reports": {
+            "items": {
+              "$ref": "#/components/schemas/BudgetReportSelectionWireV1"
+            },
+            "title": "Reports",
+            "type": "array"
+          },
+          "resource_id": {
+            "title": "Resource Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "account_id",
+          "resource_id",
+          "lifecycle",
+          "reports",
+          "report_availability",
+          "reported_spend",
+          "latest_collection",
+          "collection_availability"
+        ],
+        "title": "BudgetCloudResourceCurrentWireV1",
         "type": "object"
       },
       "BudgetCollectionStateWireV1": {
@@ -27916,7 +27983,7 @@
     "generator_sha256": "18f3e2a914023ec4bae9532cf48bd3b368ac73724f6b997b988d3d841ef8a18b",
     "generator_version": "2.0.8",
     "openapi_version": "3.1.0",
-    "schema_sha256": "0a8c0d6b0df042fafb0e3c988f7076a653e6eab6d65b1404b2cfbffd33a49b64",
-    "source_sha256": "28c25507c74d75901efdb6403e68d255b6a07175d20b2d0e866a6de89e5ccc25"
+    "schema_sha256": "71c91c40d3b0846bf1feb477137007d2087f9c2694c0f7ff6d7ee5f0076d608c",
+    "source_sha256": "5da6b8f282c309f41b3ae6bb64337c3b17f4e4ee4b8b36c6da8cef0a99078c1a"
   }
 }

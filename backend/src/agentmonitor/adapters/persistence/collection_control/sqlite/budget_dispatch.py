@@ -4,33 +4,67 @@ import json
 from collections.abc import Mapping
 from dataclasses import fields
 from datetime import datetime, timedelta
-from typing import Any
+from typing import Any, overload
 
 from agentmonitor.adapters.persistence.collection_control.sqlite.budget import (
     BudgetCollectionError,
-    read_billing_target,
+    CloudBudgetAuthority,
+    read_budget_target,
 )
-from agentmonitor.contracts.collection_control_v1 import BudgetCollectionRunAdmissionV1
+from agentmonitor.contracts.collection_control_v1 import (
+    BudgetCollectionRunAdmissionV1,
+    CloudBudgetCollectionRunAdmissionV1,
+)
 from agentmonitor.contracts.common_v1 import OpaqueIdV1
 from agentmonitor.contracts.registry_billing_v1 import BillingAccessTargetV1
 from agentmonitor.contracts.registry_v1 import ProviderTargetRefV1
 from sqlalchemy.engine import Connection
 
 
+@overload
 def restore_budget_admission(
     raw: Mapping[str, Any],
     target: BillingAccessTargetV1,
     *,
     resolved_budget_limit: int,
-) -> BudgetCollectionRunAdmissionV1:
+) -> BudgetCollectionRunAdmissionV1: ...
+
+
+@overload
+def restore_budget_admission(
+    raw: Mapping[str, Any],
+    target: CloudBudgetAuthority,
+    *,
+    resolved_budget_limit: int,
+) -> CloudBudgetCollectionRunAdmissionV1: ...
+
+
+def restore_budget_admission(
+    raw: Mapping[str, Any],
+    target: BillingAccessTargetV1 | CloudBudgetAuthority,
+    *,
+    resolved_budget_limit: int,
+) -> BudgetCollectionRunAdmissionV1 | CloudBudgetCollectionRunAdmissionV1:
     """Pure reconstruction of M04 metadata, with a separately resolved old policy."""
     try:
         if type(resolved_budget_limit) is not int or resolved_budget_limit < 1:
             raise ValueError()
-        omitted = {"billing_target", "budget_limit_units", "provider_target"}
+        omitted = {
+            "billing_target",
+            "cloud_target",
+            "service_target",
+            "report_context",
+            "budget_limit_units",
+            "provider_target",
+        }
+        admission_type = (
+            BudgetCollectionRunAdmissionV1
+            if isinstance(target, BillingAccessTargetV1)
+            else CloudBudgetCollectionRunAdmissionV1
+        )
         values = {
             field.name: raw[field.name]
-            for field in fields(BudgetCollectionRunAdmissionV1)
+            for field in fields(admission_type)
             if field.name not in omitted
         }
         for name in (
@@ -74,6 +108,15 @@ def restore_budget_admission(
         values["provider_target"] = ProviderTargetRefV1(
             raw["provider_target_kind"], OpaqueIdV1(raw["provider_target_id"])
         )
+        if not isinstance(target, BillingAccessTargetV1):
+            graph, service, context = target
+            return CloudBudgetCollectionRunAdmissionV1(
+                **values,
+                cloud_target=graph,
+                service_target=service,
+                report_context=context,
+                budget_limit_units=resolved_budget_limit,
+            )
         return BudgetCollectionRunAdmissionV1(
             **values, billing_target=target, budget_limit_units=resolved_budget_limit
         )
@@ -83,7 +126,7 @@ def restore_budget_admission(
 
 def read_dispatch_snapshot(
     connection: Connection, run_id: OpaqueIdV1
-) -> tuple[dict[str, Any], BillingAccessTargetV1]:
+) -> tuple[dict[str, Any], BillingAccessTargetV1 | CloudBudgetAuthority]:
     """Read only M04-owned tables inside the caller's transaction."""
     run = (
         connection.exec_driver_sql(
@@ -180,4 +223,4 @@ def read_dispatch_snapshot(
         budget_window_start=reservation["window_start"],
         budget_window_end=reservation["window_end"],
     )
-    return raw, read_billing_target(connection, run_id)
+    return raw, read_budget_target(connection, run_id)

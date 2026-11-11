@@ -52,7 +52,11 @@ and scaled-integer addition/subtraction. Keep the existing 78-digit coefficient 
 
 Threshold decisions use exact inputs before formatting or clipping. For the
 20% low-remaining threshold, compare scaled numerator/denominator directly;
-20.004% is not low and 19.996% is low even when both display 20.00%. This extends
+20.004% is not low and 19.996% is low even when both display 20.00%. T010 publishes the existing
+backend-calculated percentage text, exact low flag, input lineage and declared
+rounding, or a specific missing-denominator reason; P02 renders them without
+reimplementing division/thresholds. Component warnings alone do not establish
+account exhaustion. This extends
 M7-MATH-14 and T004/T012 acceptance without changing money representation.
 
 Financial totals remain exact. Division used for rate/ratio is derived:
@@ -96,6 +100,17 @@ context and cannot make earlier monetary evidence current. Keep last complete
 report, latest persisted attempt and latest collection outcome distinct; failed
 provider calls without reports come from M04, not inferred M05 history. These
 are T004/T005/T010 cases within M7-MATH-04/05/10/15.
+
+Unresolved upstream identity requires both binding ID and generation in current
+selection. Partitioning history by those fields is insufficient: the current
+query must receive the active binding through M02's published metadata boundary
+and exclude other unresolved lineages. If active authority is missing or changes
+during the read, current spend is unavailable/retry, not the newest old actor's
+value or funds. Expose an opaque context discriminator so P02 can invalidate
+retained current values without credential identifiers. Explicit authorized history can still select that old report, labelled
+with its original context. Confirmed compatible scope may preserve history across
+key rotation. Never combine unresolved bindings in totals or forecasts.
+T004/T005/T010 cover this under M7-MATH-04/05/10/11/15; no new history engine.
 
 A complete empty result is a real coverage record, not a fake observation.
 Return No reported usage. A derived zero aggregate is allowed only when official

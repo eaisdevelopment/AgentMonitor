@@ -1,8 +1,9 @@
 # M7 delivery worksheet: remaining work and fixed finish line
 
 Status: execution clarification within approved focused plan 1.1.0, reviewed
-against committed `62b1b9f` on 11 November 2026 (installed code evidence: `437a232`). Primary owner: root integration;
-financial owner: M05. No new milestone, approval, dependency or completion gate.
+against committed `445b947` on 11 November 2026 (installed funds evidence:
+`14dee16`, schema `v1_0733`). Primary owner: root integration; financial owner:
+M05. No new milestone, approval, dependency or completion gate.
 
 The [ticket catalog](m7-ticket-catalog-v1.json) remains the only task tracker:
 16 stable tickets, five stories, M7-A01..A10. This worksheet specifies delivery
@@ -12,30 +13,30 @@ semantics. Historical findings remain in [review evidence](../../evidence/m7-pla
 
 ## 1. Verified starting point
 
-| Boundary | Observed checkpoint | What it does not establish |
+| Boundary | Evidence at this review | Still unfinished |
 |---|---|---|
-| Committed implementation | `437a232`, building on `b69d96a`/`32b16fc`: billing authority, report storage, Check/status, account financial read/UI, monitoring eligibility/mutation and first seven-day Anthropic scheduler; 85 generated API operations | Genuine populated financial journey, all providers, Overview and complete history/analysis |
-| Local verification | Scoped pure, real SQLite/HTTP, no-report built-browser tests and aggregate quality recorded in the linked evidence | A missing-key or empty-stack pass is not positive provider-backed monitoring |
-| Installed dashboard | Retained `437a232`, schema `v1_0733`; active/running, loopback/LAN HTTP 200; authenticated setup/Overview/revision probe passed | Genuine monetary values and full financial acceptance |
-| Financial activation | Earlier `b69d96a` attempt failed generically; checked `437a232` passed operational activation/finalization; no active transition journal | Earlier cause remains unproven; full financial/collector/recovery verification is still required |
-| Delivery | No verified installed M7 source-to-money-to-screen journey yet | Code committed locally is neither published nor installed delivery |
+| Committed implementation | `445b947`: cloud report authority/context/codec and unresolved-lineage partition policy, after `14dee16` funds projection | Cloud capture/dispatch/commit integration and active-lineage current selector; published DTOs alone do not enable reads |
+| Installed dashboard | `14dee16`, schema `v1_0733`; genuine stored funds → HTTP → built DOM/reload passed for two existing cloud resources, all three eligible components | New usage report, spend, financial Overview and complete history/analysis |
+| Existing setup | Installed authenticated setup surface and current account funds demonstrated | No verified independent Anthropic/OpenAI billing enrollment; an absent record does not prove unavailable access |
+| Deployment | Same-schema funds update and authenticated shell/Overview continuity passed; accepted financial migrations already installed | Full financial scheduling, recovery and final M7 acceptance; do not rerun the initial migration |
+| Current worktree | Candidate M04 dispatch, M05 active-binding/current-cloud selection and Ollama runtime have collected, committed and queried one genuine self usage report; full local quality/build passes | That report has counts only, not costs. Installed usage UI, first monetary journey and full M7 acceptance remain unverified; see the runtime evidence |
+| Publication | This review inspects local artifacts and recorded installation evidence | No new remote-publication or current live-health claim from this planning pass |
 
-Evidence: [integration](../../evidence/m7-billing-integration-2026-11-11.md),
-[monitoring](../../evidence/m7-billing-monitoring-composition-2026-11-11.md),
-[scheduler](../../evidence/m7-billing-schedule-2026-11-11.md),
-[activation selector](../../evidence/m7-financial-activation-selector-2026-11-11.md),
-[current planning review](../../evidence/m7-plan-refactor-2026-11-11.md).
-No implementation ticket is closed by this planning review. The later
-[installed increment](../../evidence/m7-financial-installed-2026-11-11.md) records
-actual activation and authenticated setup proof. First monetary collection and
-its financial UI demonstration are next; full T014 remains open.
+Evidence: [installed funds](../../evidence/m7-stored-funds-2026-11-11.md),
+[cloud authority and current-query gap](../../evidence/m7-cloud-usage-authority-2026-11-11.md),
+[current cloud usage runtime](../../evidence/m7-cloud-usage-runtime-2026-11-11.md),
+[financial installation](../../evidence/m7-financial-installed-2026-11-11.md).
+Installed funds are real delivery, but not a usage/spend report. One planning
+ticket is done; eleven implementation tickets are in progress and four planned.
+These counts are tracker state, not percentage complete or elapsed-time estimates.
+No implementation ticket closes through this review.
 
 ## 2. Ordered delivery, with an observable result at every checkpoint
 
 | Order | Existing tickets / owner | Work to finish | Demonstration that ends the increment |
 |---|---|---|---|
-| 1. Installed collection prerequisite — operational checks passed | T014 root; T003 verification wiring | Checked storage/worker activated at 437a232/schema0733; authenticated setup verified. Complete collector continuity and financial recovery proof with later integration | Correct installed revision/schema and authenticated controls demonstrated. This partial deployment does not close T014 |
-| 2. First real financial journey | T002/T005/T007 + first available T006/T008/T009; M02/M04/M05/provider/root | Owner-configured connection; genuine bounded read; exact atomic report/reopen; positive enable/disable; next due read with browser closed | One real account shows provider scope, interval, amount/currency, source time and useful access state. Check success is backed by its actual stored report |
+| 1. Installed collection prerequisite — operational checks passed | T014 root; T003 verification wiring | Storage/worker activated at schema0733; later funds build14dee16 and authenticated setup verified. Complete collector continuity and financial recovery proof with later integration | Correct installed revision/schema and authenticated controls demonstrated. This partial deployment does not close T014 |
+| 2. First real financial journey | T002/T005/T007 + first available T006/T008/T009; M02/M04/M05/provider/root | Existing or newly owner-configured connection; genuine bounded read; exact atomic report/reopen; positive enable/disable; next due read with browser closed | One real account shows provider scope, interval, amount/currency, source time and useful access state. Check success is backed by its actual stored report |
 | 3. First useful dashboard | T010/T011/T012 + T014; M05/P01/P02/root | Compact current/summary DTOs, supported funds, pinned history, Overview/shared filters, navigation and installed verification | Same report and exact amount in account/detail/history/Overview; group selection and Back/reload work; failed refresh retains prior value |
 | 4. Finish provider coverage | Remaining T006/T008/T009 + T007 | Wire remaining providers, finite usage categories, thirty-day and pinned report intents, shared scope rate limits | Anthropic/OpenAI/Ollama use the same screens with explicit category/field coverage; all active resources accounted for |
 | 5. Finish the analysis already promised | T013 with T010/T011 | One supported dimension, daily bars plus exact table, separate balance series, simple observed-rate forecast or precise unavailable reason | Chart/table reconcile to the selected reports; no invented balance, attribution or stop date |
@@ -47,10 +48,42 @@ installed dashboard slice. These are increments inside T014, not three releases
 requiring separate owner approvals. Pure/empty-stack API/UI work continues
 while a particular live provider lane awaits normal owner setup.
 
-Prefer an accessible Anthropic/OpenAI monetary lane first. Ollama is eligible
-once its existing cloud-graph commit fence and balance/usage rate coordination
-are connected. Requests-only data is useful usage but cannot substitute for
+Use the already configured Ollama cloud lane for the next integration; it is
+eligible after cloud-graph commit fencing, active-binding current selection and
+shared balance/usage rate coordination are connected. Anthropic/OpenAI access
+work continues independently. Do not ask for cloud setup already completed.
+Requests-only data is useful usage but cannot substitute for
 the first monetary demonstration. No account names/counts are hardcoded.
+
+### Next increment: finite handoffs before the first spend demonstration
+
+These are ordered work packets inside existing tickets, not extra tickets,
+release gates or approvals. The catalog tracks status; this table specifies the
+handoff and test boundary. Root integrates shared contracts/composition serially.
+Only isolated, contract-stable module work runs in parallel.
+
+| Order / ticket | Owner and smallest output | Evidence ending that packet |
+|---|---|---|
+| 1 — T007/T009 | M04: finish cloud target capture, restored admission, claim and commit fences in existing budget repository/executor. Root retains distinct service and usage fingerprints | Pure restoration Red/Green; actual migrated SQLite with genuine registry graph proves rejection of changed authority and exact retained context. Empty-queue tests alone are insufficient |
+| 2 — T004/T005/T010 | Root publishes minimal active-binding selector through existing current-query contract; M05 filters unresolved current reports. Resolved compatible scope and authorized old history remain available | Pure rotation/isolation Red/Green and real current-query verification. Populated old-lineage exclusion uses naturally available genuine history; otherwise record that case Not Run. No forced credential rotation or delay of the first spend demo solely to manufacture the case |
+| 3 — T007/T009 | Root/A03 connect usage to the existing Ollama request gate and worker, then M05 report sink. One shared gate covers balances and usage; no second queue | One actual permitted usage request under captured generation/interval, real report receipt, exact commit/retry/reopen. Counts-only is recorded honestly and cannot satisfy monetary acceptance |
+| 4 — T010/T011 | M05/P01/P02 project that immutable report into account detail, amount/period/coverage and exact table beside independently timestamped funds | Genuine source → HTTP → built DOM/reload equality; Check/Collect completion rereads the same interval. Missing monetary fields show a reason |
+| 5 — T010/T012/T014 | Compact Overview and backend summaries using that same resource/report; shared filters and detail link; install checked candidate | Installed Overview → detail → Back/reload preserves value/context; funds-only rows work; existing subscription rows/header/footer survive. This ends first useful spend delivery, not full M7 |
+| 6 — T007/T015 | Prove next scheduled read with browser closed, then controlled isolated restart/reconciliation and other-source isolation | Actual due run and receipt, no duplicated commit/request from recovery uncertainty; known-good dashboard retained |
+
+Packets 1 and 2 can proceed independently after root synchronizes their small
+contract changes. Packet 3 consumes both. UI structure and pure calculation
+work need not wait for another provider login; populated acceptance does.
+Existing balance-only delivery is not repeated and does not close packets 3–5.
+After packet 3, use the measured actual provider fields to identify the shortest
+remaining path to the installed demo. If no monetary field exists, continue its
+usage lane and use a genuinely accessible Anthropic/OpenAI cost lane; do not
+convert counts to money, change the finish line or wait without independent work.
+
+Every work report names the packet, last observed output and next demonstration.
+A discovered defect is assigned to its existing ticket with the failing
+requirement/test; it does not create another free-standing improvement project.
+Do not replace the first spend demo with another contract-only increment.
 
 ## 3. Remaining task handoffs (details live in the existing catalog)
 
@@ -89,9 +122,10 @@ panel on Overview. Existing Accounts/Overview/detail pages are sufficient.
 - Detail: identity and provider scope, period, spend and actual supported funds
   first; one compact connection line; exact history; breakdown/chart/forecast
   afterward. Missing funds use one reason, not multiple empty cards.
-- Setup: create/attach → owner local entry with exact host and copyable command
-  → Check → current-generation access evidence → Enable. Existing subscription
-  controls remain independent. No browser key field or opaque IDs to type.
+- Setup for a new resource: create/attach → owner local entry with exact host
+  and copyable command → Check → current-generation access evidence → Enable.
+  Existing valid resources reuse completed steps; only missing actions appear.
+  Existing subscription controls remain independent. No browser key field or opaque IDs to type.
 - State: owner action first, collection failure next, incomplete/stale evidence
   next, then known low capacity, then current. Keep monitoring and source times
   separate; retain secondary facts. Exact percentages determine low status.

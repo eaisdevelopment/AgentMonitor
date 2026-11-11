@@ -69,7 +69,7 @@ financial domain. No new package or license change.
 | CTR-COMMON-003 | Same public exact representation; context-independent conversion implementation correction | No float; same 78-digit/18-scale range; reject arithmetic overflow |
 | CTR-CAP-002 2.0.0 | BudgetViewV2, ExactMoneyFieldV1, typed budget/cost/usage inputs, report coverage/context | Availability, currency, cost basis, period and source watermark stay distinct |
 | CTR-CAP-004 2.1.0 | BudgetCollectionInputV1 and the typed report commit port | One bounded report, fenced binding/scope generation, atomic facts/coverage/receipt |
-| CTR-COL-006 2.0.0 budget variants; CTR-COL-002 2.1.0 run variants | BudgetCollectionReceiptV1, typed commit port, BudgetCollectionRunViewV1 and profile-free admission | Real report reference permits zero facts; old quota receipt/run types unchanged |
+| CTR-COL-006 2.0.0 budget variants; CTR-COL-002 2.2.0 billing/cloud run variants | BudgetCollectionReceiptV1, typed commit port, BudgetCollectionRunViewV1 and profile-free admission | Real report reference permits zero facts; old quota receipt/run types unchanged |
 | CTR-CAP-002/003/006 | GetBudgetV1, ListBudgetsV1, GetAccountApiCapacityV1, ListBudgetOverviewV1, ListBudgetHistoryV1, ListUsageBreakdownsV1 | Backend exact aggregation, immutable report selection, bounded stable cursors |
 | CTR-CAP-007 budget variant | GetBudgetForecastV1 → BudgetForecastV1 | Pure bounded calculation with inputs/method/as-of or no-value reason; no DB writes |
 
@@ -278,7 +278,20 @@ rotating an unverified key cannot merge potentially different actors' spend.
 Confirmed compatible scope preserves the existing cross-rotation history rule.
 Both pure report compatibility and SQL context partitioning must agree. The
 current read must select the active unresolved lineage; older lineages remain
-retained history. Shared totals and forecasts cannot infer scope equivalence.
+retained history. The current query still lacks that selector at `445b947`:
+root must publish an additive authorized active-binding input and opaque UI
+context through CTR-CAP-006 before cloud spend is enabled. No absent/changed
+active lineage may fall back to another actor's spend or funds as current.
+The current implementation adds CTR-CAP-006 2.4.0: optional active-binding
+selection and a separate existing-cloud-resource projection in the account
+query. Older billing resources and funds remain compatible. Runtime composition
+supplies actual binding/graph reads; the API omits credential identifiers.
+The first self-usage read is verified against a genuine retained report;
+installed browser verification and full M7 acceptance remain separate evidence.
+M04 selected-context status must also match source/self-team/range/interval;
+account-wide credential failure remains independent. T010 carries existing
+backend exact percentage/low-state decisions with lineage/rounding or a missing
+denominator reason. P02 does not calculate money or expose credential IDs. Shared totals and forecasts cannot infer scope equivalence.
 
 | Scenario | Expected Red | Green evidence |
 |---|---|---|

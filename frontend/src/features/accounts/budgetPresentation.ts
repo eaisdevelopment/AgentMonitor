@@ -1,4 +1,4 @@
-import type { ExactMoneyWireV1 } from "../../shared/api/client";
+import type { BudgetReportWireV1, ExactMoneyWireV1 } from "../../shared/api/client";
 
 function decimal(coefficient: bigint, scale: number): string {
   const negative = coefficient < 0n;
@@ -9,6 +9,10 @@ function decimal(coefficient: bigint, scale: number): string {
 /** Formatting only; totals and financial availability come from the API. */
 export function exactMoneyText(money: ExactMoneyWireV1): string {
   return `${decimal(BigInt(money.coefficient), money.scale)} ${money.currency}`;
+}
+
+export function exactUsageText(quantity: BudgetReportWireV1["usage_buckets"][number]["quantity"]): string {
+  return `${decimal(BigInt(quantity.coefficient), quantity.scale)} ${quantity.unit}`;
 }
 
 export function displayMoney(money: ExactMoneyWireV1): string {

@@ -12,7 +12,10 @@ from agentmonitor.contracts.capacity_v1 import (
     CompletenessV1,
     ExactMoneyFieldV1,
 )
-from agentmonitor.contracts.collection_control_v1 import BudgetCollectionRunViewV1
+from agentmonitor.contracts.collection_control_v1 import (
+    BudgetCollectionRunViewV1,
+    CloudBudgetReportContextV1,
+)
 from agentmonitor.contracts.common_quantity_v1 import ExactMoneyV1
 from agentmonitor.contracts.common_v1 import (
     OpaqueIdV1,
@@ -20,6 +23,7 @@ from agentmonitor.contracts.common_v1 import (
     TechnicalValueV1,
 )
 from agentmonitor.contracts.registry_billing_v1 import BillingConnectionViewV1
+from agentmonitor.contracts.registry_v1 import CloudMonitoringTargetV1
 
 
 @dataclass(frozen=True, slots=True)
@@ -128,9 +132,24 @@ class BudgetResourceCurrentV1(TechnicalValueV1):
 
 
 @dataclass(frozen=True, slots=True)
+class BudgetCloudResourceCurrentV1(TechnicalValueV1):
+    """Existing cloud resource, without inventing an independent billing enrollment."""
+
+    CONTRACT_ID: ClassVar[str] = "CTR-CAP-006"
+    CONTRACT_VERSION: ClassVar[str] = "2.4.0"
+    OWNER: ClassVar[str] = "PLAN-M05"
+    target: CloudMonitoringTargetV1
+    reports: tuple[BudgetReportSelectionV1, ...]
+    report_availability: QueryAvailabilityV1
+    reported_spend: tuple[BudgetReportedSpendV1, ...]
+    latest_collection: BudgetCollectionRunViewV1 | None
+    collection_availability: QueryAvailabilityV1
+
+
+@dataclass(frozen=True, slots=True)
 class AccountBudgetCurrentV1(TechnicalValueV1):
     CONTRACT_ID: ClassVar[str] = "CTR-CAP-006"
-    CONTRACT_VERSION: ClassVar[str] = "2.3.0"
+    CONTRACT_VERSION: ClassVar[str] = "2.4.0"
     OWNER: ClassVar[str] = "PLAN-M05"
     account_id: OpaqueIdV1
     period: BudgetPeriodV1
@@ -138,6 +157,7 @@ class AccountBudgetCurrentV1(TechnicalValueV1):
     availability: QueryAvailabilityV1
     resources: tuple[BudgetResourceCurrentV1, ...]
     funds: AccountBudgetFundsV1 | None = None
+    cloud_resources: tuple[BudgetCloudResourceCurrentV1, ...] = ()
 
     def __post_init__(self) -> None:
         TechnicalValueV1.__post_init__(self)
@@ -149,6 +169,14 @@ class AccountBudgetCurrentV1(TechnicalValueV1):
             )
             or len({item.connection.resource_id for item in self.resources})
             != len(self.resources)
+            or any(
+                item.target.account_id != self.account_id
+                for item in self.cloud_resources
+            )
+            or len({item.target.resource_id for item in self.cloud_resources})
+            != len(self.cloud_resources)
+            or {item.connection.resource_id for item in self.resources}
+            & {item.target.resource_id for item in self.cloud_resources}
             or self.funds is not None
             and (
                 self.funds.account_id != self.account_id
@@ -171,4 +199,6 @@ class BudgetCollectionStatePortV1(Protocol):
         resource_id: OpaqueIdV1,
         scope_generation: int,
         as_of: datetime,
+        *,
+        report_context: CloudBudgetReportContextV1 | None = None,
     ) -> BudgetCollectionRunViewV1 | None: ...

@@ -21,10 +21,10 @@ def reported_spend(selection: BudgetReportSelectionV1) -> BudgetReportedSpendV1 
         reason = "report_coverage_incomplete"
     elif report.grouping:
         reason = "breakdown_not_total"
-    elif report.currency is None:
-        reason = "currency_unavailable"
     elif not report.cost_buckets and not report.empty_means_zero:
         reason = "cost_not_reported"
+    elif report.currency is None:
+        reason = "currency_unavailable"
     if reason:
         return BudgetReportedSpendV1(selected.report_id, None, reason)
     assert report.currency is not None
