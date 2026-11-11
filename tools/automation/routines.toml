@@ -371,3 +371,51 @@ status = "operational"
 scope = "bounded V1-M5 Codex slice at one clean running-service revision: create only the exact missing owner-only local receipt directory on first use, consume the exact activation/rollback receipt under the shared service-transition guard, verify 0.160.0/schema/mapping admission, pinned owner-only managed-profile roots and effective descendant containment, four private owner outcomes, fresh genuine quota/history, five to six independently verified external processes, recovered source-proven alert lifecycle, production browser and zero-skipped technical/local gates, then retain and revalidate the canonical private receipt inode after every final service and lock check"
 implementation_command = ["backend/.venv/bin/python", "-m", "tools.automation.implementations.auto_m5_current_exit"]
 blockers = []
+
+[[routines]]
+id = "AUTO-M7-PLAN-CHECK"
+owner = "PLAN-INT"
+status = "operational"
+scope = "M7 real-checkout ticket traceability only; no implementation approval or milestone completion"
+implementation_command = ["python3", "tools/planning/validate_m7_tickets.py"]
+blockers = []
+
+[[routines]]
+id = "AUTO-M7-TEST"
+owner = "PLAN-INT"
+status = "blocked"
+scope = "M7 focused API-budget scope; planned, not implemented"
+implementation_command = []
+blockers = ["M7-T003 technical runner and approved contract tests"]
+
+[[routines]]
+id = "AUTO-M7-LIVE"
+owner = "PLAN-INT"
+status = "blocked"
+scope = "M7 focused API-budget scope; planned, not implemented"
+implementation_command = []
+blockers = ["M7-T003 live runner and real configured billing sources"]
+
+[[routines]]
+id = "AUTO-M7-BROWSER"
+owner = "PLAN-INT"
+status = "blocked"
+scope = "M7 focused API-budget scope; planned, not implemented"
+implementation_command = []
+blockers = ["M7-T003 built-browser runner and real API budget screens"]
+
+[[routines]]
+id = "AUTO-M7-DEPLOY"
+owner = "PLAN-INT"
+status = "blocked"
+scope = "M7 focused API-budget scope; planned, not implemented"
+implementation_command = []
+blockers = ["M7-T014 candidate deployment and real recovery evidence"]
+
+[[routines]]
+id = "AUTO-M7-EXIT"
+owner = "PLAN-INT"
+status = "blocked"
+scope = "M7 focused API-budget scope; planned, not implemented"
+implementation_command = []
+blockers = ["M7-T003 executable acceptance catalog and all required live evidence"]

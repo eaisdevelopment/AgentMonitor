@@ -142,6 +142,8 @@ This index is the entry point for product, architecture, engineering, and operat
 
 ## Governance
 
+- [Focused M7 execution plan](plans/integration/m7-execution-plan-2026-11-11.md): Draft API-budget scope, 16 traceable tickets, provider discovery and proposed credential permission.
+
 - [Roadmap](roadmap.md)
 - [Current V1 implementation status](evidence/v1-implementation-status-v1.json):
   evidence-bound delivery, gate, acceptance, and dependency state for all eight

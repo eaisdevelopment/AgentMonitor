@@ -225,3 +225,13 @@ Directories are created when an approved planning assignment begins. Drafts stat
 - [Duplicate identity overview](integration/duplicate-account-overview-change.md):
   one quota row for fresh identical identities and review links for their
   separate admin connections.
+
+## Focused M7 increment — Draft, 11 November 2026
+
+- [Execution plan](integration/m7-execution-plan-2026-11-11.md)
+- [Ticket catalog](integration/m7-ticket-catalog-v1.json)
+- [M05 budget increment](modules/m05-capacity/m7-budget-increment-2026-11-11.md)
+- [Official provider discovery](../evidence/m7-provider-discovery-2026-11-11.md)
+
+This proposed increment supplements the frozen 20-plan baseline. It does not
+approve that baseline or claim M7 implementation/live verification.

@@ -255,3 +255,14 @@ Every handoff records:
 - remaining gates and the authority required to execute them.
 
 Reviewers rerun the gate rather than trusting the author's completion statement.
+
+## M7 focused planning and execution commands — 11 November 2026
+
+The [focused M7 plan](../plans/integration/m7-execution-plan-2026-11-11.md)
+and its 16-ticket catalog define the proposed five-story implementation.
+`AUTO-M7-PLAN-CHECK` checks that real checkout's traceability/dependency ledger;
+it never certifies approval, delivery, or live-provider success.
+`AUTO-M7-TEST`, `AUTO-M7-LIVE`, `AUTO-M7-BROWSER`, `AUTO-M7-DEPLOY`, and
+`AUTO-M7-EXIT` are registered fail-closed until their named tickets implement
+and verify them. Registration alone supplies no acceptance evidence. The
+existing accepted M6 receipt and production runtime remain unchanged.

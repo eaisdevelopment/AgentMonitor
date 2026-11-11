@@ -1314,3 +1314,14 @@ not renewed whole-baseline acceptance or a live milestone result.
 Plan snapshot SHA-256: `bdf15684ae441e8144c894daa9afc7118aae0aec8e119f9367133507a664201e`
 
 Planning validator SHA-256: `9cc9f832a89f08d48dac0d654b2318fd0da029ab88167625fe88ad69bec8446d`
+
+## M7 planning routine synchronization — 11 November 2026
+
+Mechanical synchronization adds the planning-only M7 ledger check and explicitly
+blocked M7 execution routines. No module implementation or provider credential
+exception is approved by this update; the focused M7 plans remain Draft.
+Prior audit decisions and accepted M6 evidence remain unchanged.
+
+Plan snapshot SHA-256: `0f706a081bb1a2694324ed421ade2d0b50eac7e55f6f4f720a62f26cd8ae898f`
+
+Planning validator SHA-256: `8e4333dfc0ed8c8b829b5d7c17179093380b45f5fe69bbcdf32c3ca912633024`
