@@ -1,7 +1,15 @@
 """M02 billing metadata eligibility, independent of provider access."""
 
-from agentmonitor.contracts.registry_billing_v1 import BillingCredentialStatusV1
-from agentmonitor.contracts.registry_v1 import CredentialBindingAggregateV1
+from agentmonitor.contracts.registry_billing_v1 import (
+    BillingAccessPurposeV1,
+    BillingAccessTargetV1,
+    BillingConnectionViewV1,
+    BillingCredentialStatusV1,
+)
+from agentmonitor.contracts.registry_v1 import (
+    ActiveCredentialBindingRefV1,
+    CredentialBindingAggregateV1,
+)
 
 
 def billing_credential_status(
@@ -46,3 +54,27 @@ def billing_connection_eligibility(
     if provider not in {"claude", "codex"}:
         return False, "provider_unsupported"
     return True, "billing_connection_available"
+
+
+def billing_access_target(
+    connection: BillingConnectionViewV1,
+    binding: ActiveCredentialBindingRefV1,
+    *,
+    account_lifecycle: str,
+    resource_lifecycle: str,
+    purpose: BillingAccessPurposeV1,
+) -> BillingAccessTargetV1:
+    """Admit billing independently from CLI identity/subscription monitoring."""
+    if account_lifecycle not in {"pending", "active"}:
+        raise ValueError("billing_account_unavailable")
+    if resource_lifecycle != "active":
+        raise ValueError("billing_resource_unavailable")
+    return BillingAccessTargetV1(connection, binding, purpose)
+
+
+def ensure_billing_access_current(
+    current: BillingAccessTargetV1 | None, expected: BillingAccessTargetV1
+) -> None:
+    """Compare the re-resolved authority before applying a worker's result."""
+    if current is None or current != expected:
+        raise ValueError("billing_access_changed")

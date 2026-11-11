@@ -13,7 +13,7 @@ the fixed scope. The [UI plan](m7-ui-and-user-journeys.md) and
 
 ## 1. Starting position and the finish line
 
-Baseline for this review: committed revision `716cf92`. Metadata enrollment,
+Historical baseline for this review: committed revision `716cf92`. Metadata enrollment,
 safe credential status, local entry, pure exact-money/report policies and a
 bounded Anthropic cost-source candidate exist. Setup candidate build and an
 isolated `v1_0720` → `v1_0731` migration rehearsal passed. This did not install
@@ -23,6 +23,15 @@ full built `accounts_admin` scenario: existing cloud controls, no duplicate
 billing connection, reload and narrow layout. Its intermediate HTTP 403 was a
 test-client Origin omission; application security is unchanged. This is setup
 UI evidence, not installed key entry or provider access.
+Current delivery checkpoint: setup revision `7e252b8` is installed on schema
+`v1_0731`. Selected-revision, loopback/LAN, operator-help and restart checks
+passed; all three existing collectors subsequently recorded observations.
+Authenticated setup proof is still pending, and the activation command retained
+its intermediate result. See the [installed evidence](../../evidence/m7-setup-installed-2026-11-11.md).
+The `v1_0732` storage increment and source candidates are local work, not installed
+financial delivery. Real report writes, runtime access fencing and the financial
+API/screens remain unfinished.
+
 There is no verified M7 source → stored report → installed dashboard journey.
 Provider authentication success, monetary persistence, budget screens and the
 full M7 exit must not be inferred from those partial tests.
@@ -239,11 +248,14 @@ list retains the original findings so the evidence remains traceable:
 Items 1–2 and the initial-transition part of item 3 now have
 [selected-controller evidence](../../evidence/m7-selected-controller-admission-2026-11-11.md)
 and [isolated service-recovery evidence](../../evidence/m7-selected-release-recovery-2026-11-11.md).
-The locally tested [setup selector](../../evidence/m7-setup-activation-selector-2026-11-11.md)
-still needs a clean retained revision before actual use. Its intermediate exit
-must not trigger a second migration attempt after startup. Items 4–5 remain
-installed verification work; authenticated checks currently await dashboard
-sign-in. That affects browser proof only, not independent implementation.
+The [setup selector](../../evidence/m7-setup-activation-selector-2026-11-11.md)
+was subsequently run from retained clean revision `7e252b8`; its operational
+checks passed as recorded in the installed evidence. Its intermediate exit
+must not trigger a second migration attempt after startup. Item 4 was recorded
+for this activation; item 5 has operational and provider-activity evidence,
+with authenticated setup and full account reconciliation still outstanding.
+The second financial-schema transition remains unexecuted. Authenticated checks
+currently await dashboard sign-in. That affects browser proof only, not independent implementation.
 
 These corrections belong to T003/T014's existing deployment scope. They do not
 justify another installer, generic release platform or owner approval cycle.

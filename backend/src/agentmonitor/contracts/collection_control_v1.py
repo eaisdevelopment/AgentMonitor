@@ -8,6 +8,7 @@ from typing import ClassVar, Literal, Protocol, get_args, runtime_checkable
 from agentmonitor.contracts.common_provenance_v1 import ObservationProvenanceV1
 from agentmonitor.contracts.common_v1 import OpaqueIdV1, QueryPageV1, TechnicalValueV1
 from agentmonitor.contracts.provider_system_v1 import OutcomeStateV1, RetryAdviceV1
+from agentmonitor.contracts.registry_billing_v1 import BillingAccessTargetV1
 from agentmonitor.contracts.registry_v1 import ProviderTargetRefV1
 
 CollectionRunStateV1 = Literal[
@@ -1261,6 +1262,7 @@ class CollectionRunAdmissionV2(TechnicalValueV1):
     CONTRACT_ID: ClassVar[str] = "CTR-COL-002"
     CONTRACT_VERSION: ClassVar[str] = "2.0.0"
     OWNER: ClassVar[str] = "PLAN-M04"
+    _CLOUD_PROFILE_REQUIRED: ClassVar[bool] = True
 
     run_id: OpaqueIdV1
     schedule_id: OpaqueIdV1
@@ -1353,7 +1355,7 @@ class CollectionRunAdmissionV2(TechnicalValueV1):
                 self.provider_target.target_kind == "cloud_service"
                 and (
                     self.account_id is None
-                    or self.profile_id is None
+                    or (self.profile_id is None and self._CLOUD_PROFILE_REQUIRED)
                     or self.resource_id is None
                 )
             )
@@ -1472,7 +1474,7 @@ class CollectionRunViewV1(TechnicalValueV1):
                 and self.payload_digest is not None
                 and self.outcome_code == self.state
                 and self.error_code is None
-                and bool(self.observation_ids)
+                and self._has_commit_evidence()
             )
             or (
                 failed
@@ -1487,6 +1489,9 @@ class CollectionRunViewV1(TechnicalValueV1):
         )
         if not valid:
             raise InvalidCollectionControlV1("collection_run_state_invalid")
+
+    def _has_commit_evidence(self) -> bool:
+        return bool(self.observation_ids)
 
 
 @dataclass(frozen=True, slots=True)
@@ -1582,6 +1587,86 @@ class CollectionCommitStatusV1(TechnicalValueV1):
             raise InvalidCollectionControlV1("collection_commit_status_invalid")
 
 
+@dataclass(frozen=True, slots=True)
+class BudgetCollectionReceiptV1(TechnicalValueV1):
+    """One committed report, including real coverage with no returned facts."""
+
+    CONTRACT_ID: ClassVar[str] = "CTR-COL-006"
+    CONTRACT_VERSION: ClassVar[str] = "2.0.0"
+    OWNER: ClassVar[str] = "PLAN-M04"
+
+    run_id: OpaqueIdV1
+    target_generation: int
+    capability_id: str
+    payload_schema: str
+    payload_digest: str
+    consumer_key: str
+    consumer_version: str
+    report_id: OpaqueIdV1
+    fact_ids: tuple[OpaqueIdV1, ...]
+    stored_at: datetime
+    receipt_version: int
+
+    def __post_init__(self) -> None:
+        TechnicalValueV1.__post_init__(self)
+        if (
+            not isinstance(self.run_id, OpaqueIdV1)
+            or not isinstance(self.report_id, OpaqueIdV1)
+            or type(self.target_generation) is not int
+            or self.target_generation < 1
+            or not all(
+                _bounded(value)
+                for value in (
+                    self.capability_id,
+                    self.payload_schema,
+                    self.consumer_key,
+                    self.consumer_version,
+                )
+            )
+            or type(self.payload_digest) is not str
+            or _SHA256.fullmatch(self.payload_digest) is None
+            or not isinstance(self.fact_ids, tuple)
+            or len(self.fact_ids) > 10000
+            or any(not isinstance(value, OpaqueIdV1) for value in self.fact_ids)
+            or len(set(self.fact_ids)) != len(self.fact_ids)
+            or not isinstance(self.stored_at, datetime)
+            or type(self.receipt_version) is not int
+            or self.receipt_version < 1
+        ):
+            raise InvalidCollectionControlV1("budget_receipt_invalid")
+
+
+@dataclass(frozen=True, slots=True)
+class BudgetCollectionCommitStatusV1(TechnicalValueV1):
+    """Durable budget acknowledgement; quota receipt contracts stay unchanged."""
+
+    CONTRACT_ID: ClassVar[str] = "CTR-COL-006"
+    CONTRACT_VERSION: ClassVar[str] = "2.0.0"
+    OWNER: ClassVar[str] = "PLAN-M04"
+
+    state: CollectionCommitStatusStateV1
+    receipt: BudgetCollectionReceiptV1 | None
+
+    def __post_init__(self) -> None:
+        TechnicalValueV1.__post_init__(self)
+        if (self.state == "committed") != (self.receipt is not None) or (
+            self.receipt is not None
+            and not isinstance(self.receipt, BudgetCollectionReceiptV1)
+        ):
+            raise InvalidCollectionControlV1("budget_commit_status_invalid")
+
+
+@runtime_checkable
+class BudgetCollectionCommitPortV1[CommitT: TechnicalValueV1](Protocol):
+    """Typed normalized commit/reconciliation seam; no synthetic observations."""
+
+    def commit(self, request: CommitT) -> BudgetCollectionReceiptV1: ...
+
+    def get_commit_status(
+        self, run_id: OpaqueIdV1, capability_id: str
+    ) -> BudgetCollectionCommitStatusV1: ...
+
+
 @runtime_checkable
 class CollectionOutcomeCommitPortV1[PayloadT: TechnicalValueV1](Protocol):
     def commit(
@@ -1638,3 +1723,53 @@ class CollectorHealthV1(TechnicalValueV1):
             for value in (self.due_count, self.running_count, self.blocked_count)
         ):
             raise InvalidCollectionControlV1("collector_health_count_invalid")
+
+
+@dataclass(frozen=True, slots=True)
+class BudgetCollectionRunAdmissionV1(CollectionRunAdmissionV2):
+    """Additive billing admission; the ordinary cloud/profile rules stay intact."""
+
+    CONTRACT_VERSION: ClassVar[str] = "2.1.0"
+    _CLOUD_PROFILE_REQUIRED: ClassVar[bool] = False
+    billing_target: BillingAccessTargetV1
+
+    def __post_init__(self) -> None:
+        CollectionRunAdmissionV2.__post_init__(self)
+        if not isinstance(self.billing_target, BillingAccessTargetV1):
+            raise InvalidCollectionControlV1("budget_admission_target_invalid")
+        target = self.billing_target
+        if (
+            self.provider_target.target_kind != "cloud_service"
+            or self.profile_id is not None
+            or self.account_id != target.connection.account_id
+            or self.resource_id != target.connection.resource_id
+            or self.provider_key != target.connection.provider_key
+            or self.payload_schema != "budget.report.v1"
+            or (self.trigger == "reauth_verification")
+            != (target.purpose == "verification")
+            or self.budget_unit != "count"
+            or self.budget_dimension != "request"
+            or not 1 <= self.budget_units <= 20
+            or self.deadline_at - self.requested_at > timedelta(seconds=120)
+        ):
+            raise InvalidCollectionControlV1("budget_admission_target_invalid")
+
+
+@dataclass(frozen=True, slots=True)
+class BudgetCollectionRunViewV1(CollectionRunViewV1):
+    """Successful billing coverage has a report even when it contains no facts."""
+
+    CONTRACT_VERSION: ClassVar[str] = "2.1.0"
+    report_id: OpaqueIdV1 | None
+
+    def _has_commit_evidence(self) -> bool:
+        return isinstance(self.report_id, OpaqueIdV1)
+
+    def __post_init__(self) -> None:
+        CollectionRunViewV1.__post_init__(self)
+        if (
+            (self.state in {"succeeded", "partial"}) != (self.report_id is not None)
+            or self.report_id is not None
+            and not isinstance(self.report_id, OpaqueIdV1)
+        ):
+            raise InvalidCollectionControlV1("budget_run_report_invalid")

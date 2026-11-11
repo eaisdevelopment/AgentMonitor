@@ -42,6 +42,15 @@ steps. Source adapter provenance/atomic receipts are added at their owned commit
 boundary. M5/M6 completion authority is the current documentation index; older
 M5 progress descriptions in this module remain historical.
 
+The next additive commit/query seam publishes `BudgetCollectionInputV1`
+(CTR-CAP-004 2.1.0), `BudgetReportHistoryQueryV1` (CTR-CAP-006 2.0.0) and
+`BudgetReportRepositoryV1`. It consumes CTR-COL-006 2.0.0 budget receipt/status
+variants: one actual immutable report reference and zero or more real fact IDs.
+Quota receipt types are unchanged. Required atomic binding/scope fencing belongs
+to the repository transaction; the generic envelope alone is not authorization.
+Queries are account-bound and use bounded pages with a fixed snapshot cursor.
+These published types are not a claim that persistence or collection is complete.
+
 ## Purpose and boundaries
 
 M05 owns immutable capacity observations, exact measures, native quota-window

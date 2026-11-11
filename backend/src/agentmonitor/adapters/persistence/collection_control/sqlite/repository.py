@@ -5,13 +5,24 @@
 import hashlib
 import json
 from datetime import UTC, datetime, timedelta
+from typing import Any
 
 from agentmonitor.adapters.persistence._shared.sqlite.core.policy import (
     DatabaseRefV1,
     SqlitePolicyError,
     open_sqlite_database,
 )
+from agentmonitor.adapters.persistence.collection_control.sqlite.budget import (
+    BillingAdmissionFence,
+    BudgetCollectionError,
+    capture_billing_target,
+    read_billing_target,
+    require_budget_run_lease,
+)
 from agentmonitor.contracts.collection_control_v1 import (
+    BudgetCollectionReceiptV1,
+    BudgetCollectionRunAdmissionV1,
+    BudgetCollectionRunViewV1,
     CollectionCommitReceiptV1,
     CollectionFailedV1,
     CollectionFailurePolicyV1,
@@ -20,6 +31,7 @@ from agentmonitor.contracts.collection_control_v1 import (
     CollectionRunViewV1,
 )
 from agentmonitor.contracts.common_v1 import OpaqueIdV1
+from agentmonitor.contracts.registry_billing_v1 import BillingAccessTargetV1
 from sqlalchemy.engine import Connection, RowMapping
 from sqlalchemy.exc import SQLAlchemyError
 
@@ -93,7 +105,7 @@ def _observation_ids(connection: Connection, run_id: str) -> tuple[OpaqueIdV1, .
 
 
 def _run_view(connection: Connection, row: RowMapping) -> CollectionRunViewV1:
-    return CollectionRunViewV1(
+    values: dict[str, Any] = dict(
         run_id=OpaqueIdV1(str(row["run_id"])),
         schedule_id=OpaqueIdV1(str(row["schedule_id"])),
         provider_key=str(row["provider_key"]),
@@ -135,6 +147,25 @@ def _run_view(connection: Connection, row: RowMapping) -> CollectionRunViewV1:
         observation_ids=_observation_ids(connection, str(row["run_id"])),
     )
 
+    if row["payload_schema"] == "budget.report.v1":
+        budget = (
+            connection.exec_driver_sql(
+                "SELECT report_id FROM collection_budget_run WHERE run_id=?",
+                (row["run_id"],),
+            )
+            .mappings()
+            .one_or_none()
+        )
+        if budget is None:
+            raise BudgetCollectionError("budget_run_not_found")
+        return BudgetCollectionRunViewV1(
+            **values,
+            report_id=OpaqueIdV1(str(budget["report_id"]))
+            if budget["report_id"] is not None
+            else None,
+        )
+    return CollectionRunViewV1(**values)
+
 
 def _select_run(connection: Connection, run_id: str) -> RowMapping | None:
     row = (
@@ -150,8 +181,42 @@ def _select_run(connection: Connection, run_id: str) -> RowMapping | None:
 class SqliteCollectionRepositoryV1:
     """Durably admits and finalizes fenced runs without provider I/O."""
 
-    def __init__(self, database_ref: DatabaseRefV1) -> None:
+    def __init__(
+        self,
+        database_ref: DatabaseRefV1,
+        *,
+        billing_admission_fence: BillingAdmissionFence | None = None,
+    ) -> None:
         self._database_ref = database_ref
+        self._billing_admission_fence = billing_admission_fence
+
+    def _capture_billing_target(
+        self,
+        connection: Connection,
+        admission: CollectionRunAdmissionV1OrV2,
+        *,
+        resolved_run_id: OpaqueIdV1,
+        newly_created: bool,
+    ) -> None:
+        if isinstance(admission, BudgetCollectionRunAdmissionV1):
+            capture_billing_target(
+                connection,
+                admission,
+                resolved_run_id=resolved_run_id,
+                newly_created=newly_created,
+                fence=self._billing_admission_fence,
+            )
+
+    def get_billing_target(self, run_id: OpaqueIdV1) -> BillingAccessTargetV1:
+        """Return the immutable captured authority, never a current-access claim."""
+        try:
+            with open_sqlite_database(
+                self._database_ref, "runtime_read_only"
+            ) as handle:
+                with handle.connect() as connection:
+                    return read_billing_target(connection, run_id)
+        except (SqlitePolicyError, SQLAlchemyError):
+            raise CollectionRepositoryErrorV1() from None
 
     def _finalize_budget(
         self, connection: Connection, run_id: OpaqueIdV1, instant_text: str
@@ -170,6 +235,11 @@ class SqliteCollectionRepositoryV1:
         """Internal adapter hook; ordinary M04 admissions need no extra write."""
 
     def admit_run(self, admission: CollectionRunAdmissionV1OrV2) -> CollectionRunViewV1:
+        if isinstance(admission, BudgetCollectionRunAdmissionV1):
+            if self._billing_admission_fence is None:
+                raise BudgetCollectionError("budget_admission_fence_required")
+        elif admission.payload_schema == "budget.report.v1":
+            raise BudgetCollectionError("budget_admission_target_required")
         try:
             with open_sqlite_database(
                 self._database_ref, "runtime_read_write"
@@ -184,8 +254,14 @@ class SqliteCollectionRepositoryV1:
                                 "collection_idempotency_conflict"
                             )
                         _require_cloud_run_target(connection, admission)
-                        result = _run_view(connection, existing)
+                        self._capture_billing_target(
+                            connection,
+                            admission,
+                            resolved_run_id=admission.run_id,
+                            newly_created=False,
+                        )
                         self._on_admitted(connection, admission)
+                        result = _run_view(connection, existing)
                         connection.commit()
                         return result
                     if (
@@ -226,6 +302,12 @@ class SqliteCollectionRepositoryV1:
                                 raise CollectionRepositoryErrorV1(
                                     "collection_repository_unavailable"
                                 )
+                            self._capture_billing_target(
+                                connection,
+                                admission,
+                                resolved_run_id=OpaqueIdV1(str(linked["run_id"])),
+                                newly_created=False,
+                            )
                             result = _run_view(connection, linked)
                             connection.commit()
                             return result
@@ -553,8 +635,14 @@ class SqliteCollectionRepositoryV1:
                         raise CollectionRepositoryErrorV1(
                             "collection_repository_unavailable"
                         )
-                    result = _run_view(connection, row)
+                    self._capture_billing_target(
+                        connection,
+                        admission,
+                        resolved_run_id=admission.run_id,
+                        newly_created=True,
+                    )
                     self._on_admitted(connection, admission)
+                    result = _run_view(connection, row)
                     connection.commit()
                     return result
         except CollectionRepositoryErrorV1:
@@ -614,6 +702,7 @@ class SqliteCollectionRepositoryV1:
         recovery_instance_id: OpaqueIdV1,
         recovery_lease_expires_at: datetime,
         limit: int,
+        budget_only: bool = False,
     ) -> tuple[CollectionRunViewV1, ...]:
         """Atomically re-fence an oldest-first expired/stale recovery batch."""
         if (
@@ -637,6 +726,11 @@ class SqliteCollectionRepositoryV1:
                 with handle.connect() as connection:
                     connection.exec_driver_sql("BEGIN IMMEDIATE")
                     instant = _utc_text(as_of)
+                    budget_filter = (
+                        "AND EXISTS (SELECT 1 FROM collection_budget_run b WHERE b.run_id=r.run_id) "
+                        if budget_only
+                        else ""
+                    )
                     rows = (
                         connection.exec_driver_sql(
                             "SELECT r.* FROM collection_run AS r "
@@ -647,7 +741,8 @@ class SqliteCollectionRepositoryV1:
                             "AND r.capability_id=? AND r.source_id=? "
                             "AND l.expires_at<=? AND owner.heartbeat_at<=? "
                             "AND l.owner_instance_id<>? "
-                            "ORDER BY r.requested_at, r.run_id LIMIT ?",
+                            + budget_filter
+                            + "ORDER BY r.requested_at, r.run_id LIMIT ?",
                             (
                                 provider_key,
                                 capability_id,
@@ -819,7 +914,12 @@ class SqliteCollectionRepositoryV1:
             raise CollectionRepositoryErrorV1() from None
 
     def mark_running(
-        self, run_id: OpaqueIdV1, started_at: datetime, *, fencing_token: int
+        self,
+        run_id: OpaqueIdV1,
+        started_at: datetime,
+        *,
+        fencing_token: int,
+        scheduler_instance_id: OpaqueIdV1 | None = None,
     ) -> None:
         self._transition(
             run_id,
@@ -829,6 +929,7 @@ class SqliteCollectionRepositoryV1:
             terminal_code=None,
             receipt=None,
             fencing_token=fencing_token,
+            scheduler_instance_id=scheduler_instance_id,
         )
 
     def mark_committing(
@@ -839,6 +940,7 @@ class SqliteCollectionRepositoryV1:
         payload_digest: str,
         committing_at: datetime,
         terminal_state: str,
+        scheduler_instance_id: OpaqueIdV1 | None = None,
     ) -> None:
         if terminal_state not in {"succeeded", "partial"}:
             raise CollectionRepositoryErrorV1("collection_terminal_state_invalid")
@@ -850,6 +952,7 @@ class SqliteCollectionRepositoryV1:
             terminal_code=terminal_state,
             receipt=None,
             fencing_token=fencing_token,
+            scheduler_instance_id=scheduler_instance_id,
             payload_digest=payload_digest,
         )
 
@@ -873,8 +976,39 @@ class SqliteCollectionRepositoryV1:
             fencing_token=fencing_token,
         )
 
+    def finalize_budget_committed(
+        self,
+        receipt: BudgetCollectionReceiptV1,
+        *,
+        terminal_state: str,
+        completed_at: datetime,
+        fencing_token: int,
+        scheduler_instance_id: OpaqueIdV1,
+    ) -> None:
+        if not isinstance(receipt, BudgetCollectionReceiptV1):
+            raise BudgetCollectionError("budget_receipt_required")
+        if (
+            terminal_state not in {"succeeded", "partial"}
+            or completed_at < receipt.stored_at
+        ):
+            raise BudgetCollectionError("budget_finalization_invalid")
+        self._transition(
+            receipt.run_id,
+            expected="committing",
+            state=terminal_state,
+            instant=completed_at,
+            terminal_code=terminal_state,
+            receipt=receipt,
+            fencing_token=fencing_token,
+            scheduler_instance_id=scheduler_instance_id,
+        )
+
     def finalize_before_dispatch(
-        self, failure: CollectionFailedV1, *, fencing_token: int
+        self,
+        failure: CollectionFailedV1,
+        *,
+        fencing_token: int,
+        scheduler_instance_id: OpaqueIdV1 | None = None,
     ) -> None:
         """Close a queued run proven not to have started provider dispatch."""
         self._transition(
@@ -885,6 +1019,7 @@ class SqliteCollectionRepositoryV1:
             terminal_code=failure.error_code,
             receipt=None,
             fencing_token=fencing_token,
+            scheduler_instance_id=scheduler_instance_id,
         )
 
     def finalize_failed(
@@ -893,6 +1028,7 @@ class SqliteCollectionRepositoryV1:
         *,
         fencing_token: int,
         provider_policy: CollectionFailurePolicyV1 | None = None,
+        scheduler_instance_id: OpaqueIdV1 | None = None,
     ) -> None:
         self._transition(
             failure.run_id,
@@ -902,11 +1038,16 @@ class SqliteCollectionRepositoryV1:
             terminal_code=failure.error_code,
             receipt=None,
             fencing_token=fencing_token,
+            scheduler_instance_id=scheduler_instance_id,
             provider_policy=provider_policy,
         )
 
     def finalize_interrupted(
-        self, failure: CollectionFailedV1, *, fencing_token: int
+        self,
+        failure: CollectionFailedV1,
+        *,
+        fencing_token: int,
+        scheduler_instance_id: OpaqueIdV1 | None = None,
     ) -> None:
         self._transition(
             failure.run_id,
@@ -916,6 +1057,7 @@ class SqliteCollectionRepositoryV1:
             terminal_code=failure.error_code,
             receipt=None,
             fencing_token=fencing_token,
+            scheduler_instance_id=scheduler_instance_id,
         )
 
     def _transition(
@@ -926,10 +1068,11 @@ class SqliteCollectionRepositoryV1:
         state: str,
         instant: datetime,
         terminal_code: str | None,
-        receipt: CollectionCommitReceiptV1 | None,
+        receipt: CollectionCommitReceiptV1 | BudgetCollectionReceiptV1 | None,
         fencing_token: int,
         payload_digest: str | None = None,
         provider_policy: CollectionFailurePolicyV1 | None = None,
+        scheduler_instance_id: OpaqueIdV1 | None = None,
     ) -> None:
         try:
             with open_sqlite_database(
@@ -958,6 +1101,43 @@ class SqliteCollectionRepositoryV1:
                     if fence != fencing_token or row["fencing_token"] != fencing_token:
                         raise CollectionRepositoryErrorV1("collection_fencing_conflict")
                     instant_text = _utc_text(instant)
+                    if row["payload_schema"] == "budget.report.v1":
+                        if scheduler_instance_id is None:
+                            raise BudgetCollectionError("budget_scheduler_required")
+                        require_budget_run_lease(
+                            connection,
+                            run_id,
+                            scheduler_instance_id=scheduler_instance_id,
+                            fencing_token=fencing_token,
+                            as_of=datetime.now(UTC),
+                            expected_state=expected,
+                            transition_state=state,
+                        )
+                    if isinstance(receipt, BudgetCollectionReceiptV1):
+                        if (
+                            scheduler_instance_id is None
+                            or row["payload_schema"] != "budget.report.v1"
+                            or row["outcome_code"] != terminal_code
+                        ):
+                            raise BudgetCollectionError("budget_finalization_invalid")
+                        result = connection.exec_driver_sql(
+                            "UPDATE collection_budget_run SET report_id=?,consumer_key=?,consumer_version=?,receipt_version=? "
+                            "WHERE run_id=? AND report_id IS NULL AND consumer_key IS NULL AND consumer_version IS NULL AND receipt_version IS NULL",
+                            (
+                                receipt.report_id.value,
+                                receipt.consumer_key,
+                                receipt.consumer_version,
+                                receipt.receipt_version,
+                                run_id.value,
+                            ),
+                        )
+                        if result.rowcount != 1:
+                            raise BudgetCollectionError("budget_receipt_conflict")
+                    elif (
+                        receipt is not None
+                        and row["payload_schema"] == "budget.report.v1"
+                    ):
+                        raise BudgetCollectionError("budget_receipt_required")
                     if receipt is None:
                         connection.exec_driver_sql(
                             "UPDATE collection_run SET state=?, "
@@ -1046,7 +1226,12 @@ class SqliteCollectionRepositoryV1:
                                 run_id.value,
                             ),
                         )
-                        for observation_id in receipt.observation_ids:
+                        fact_ids = (
+                            receipt.fact_ids
+                            if isinstance(receipt, BudgetCollectionReceiptV1)
+                            else receipt.observation_ids
+                        )
+                        for observation_id in fact_ids:
                             connection.exec_driver_sql(
                                 "INSERT INTO collection_run_observation_ref "
                                 "(run_id, consumer_key, consumer_version, "

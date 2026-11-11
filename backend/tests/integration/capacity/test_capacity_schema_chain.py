@@ -51,6 +51,8 @@ CAPACITY_TABLES = {
     "capacity_derivation_input",
     "capacity_forecast_projection",
     "capacity_retention_run",
+    "capacity_budget_report",
+    "capacity_budget_signed_cost_measure",
 }
 
 

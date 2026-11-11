@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import cast
 
 import pytest
-
+from agentmonitor.adapters.credential_env.format import CredentialProviderKey
 from agentmonitor.adapters.persistence._shared.sqlite.core.policy import DatabaseRefV1
 from agentmonitor.adapters.persistence._shared.sqlite.schema.compatibility import (
     migrate_to_head,
@@ -31,6 +31,7 @@ from agentmonitor.adapters.providers.claude.anthropic_api.source import (
     AnthropicCostAuthorizationV1,
 )
 from agentmonitor.adapters.providers.claude.manifest import build_claude_manifest
+from agentmonitor.adapters.providers.codex.manifest import build_codex_manifest
 from agentmonitor.adapters.providers.ollama.cloud_balance.env_capability import (
     approve_env_credential_file_v1,
     env_credential_file_lease_v1,
@@ -38,6 +39,7 @@ from agentmonitor.adapters.providers.ollama.cloud_balance.env_capability import 
 from agentmonitor.adapters.providers.ollama.cloud_balance.source import (
     CloudBalanceAuthorizationSinkV1,
 )
+from agentmonitor.adapters.providers.ollama.manifest import build_ollama_manifest
 from agentmonitor.composition.billing_env_authorization import (
     AnthropicEnvAuthorizationUnavailable,
     AnthropicEnvAuthorizationV1,
@@ -54,30 +56,39 @@ from agentmonitor.modules.registry.application.accounts import (
 )
 
 
-def _empty_pending_store(tmp_path: Path) -> tuple[DatabaseRefV1, OpaqueIdV1, str, Path]:
+def _empty_pending_store(
+    tmp_path: Path, provider: CredentialProviderKey = "claude"
+) -> tuple[DatabaseRefV1, OpaqueIdV1, str, Path]:
     reference = DatabaseRefV1(tmp_path / "agentmonitor.db", tmp_path)
     migrate_to_head(reference)
     account = RegisterAccountV1(SqliteRegistryRepositoryV1(reference)).pending(
         CreatePendingAccountCommandV1(
             command_id=OpaqueIdV1(secrets.token_urlsafe(24)),
             principal_id=OpaqueIdV1("isolated-authorization-owner"),
-            provider_key="claude",
-            manifest_reference=get_manifest_fingerprint_v1(build_claude_manifest()),
+            provider_key=provider,
+            manifest_reference=get_manifest_fingerprint_v1(
+                {
+                    "claude": build_claude_manifest,
+                    "codex": build_codex_manifest,
+                    "ollama": build_ollama_manifest,
+                }[provider]()
+            ),
             friendly_name="Empty authorization " + secrets.token_urlsafe(8),
             organization_id=None,
             requested_at=datetime.now(UTC),
         )
     )
-    SqliteBillingConnectionRepositoryV1(reference).create(
-        CreateBillingConnectionCommandV1(
-            account_id=account.account_id,
-            expected_account_version=account.record_version,
-            principal_id=OpaqueIdV1("isolated-authorization-owner"),
-            command_id=OpaqueIdV1(secrets.token_urlsafe(24)),
-            scope_id=None,
-            requested_at=datetime.now(UTC),
+    if provider != "ollama":
+        SqliteBillingConnectionRepositoryV1(reference).create(
+            CreateBillingConnectionCommandV1(
+                account_id=account.account_id,
+                expected_account_version=account.record_version,
+                principal_id=OpaqueIdV1("isolated-authorization-owner"),
+                command_id=OpaqueIdV1(secrets.token_urlsafe(24)),
+                scope_id=None,
+                requested_at=datetime.now(UTC),
+            )
         )
-    )
     prepared = SqliteCredentialBindingsV1(reference).transition(
         account.account_id, action="prepare", expected_record_version=0
     )
@@ -90,7 +101,7 @@ def _empty_pending_store(tmp_path: Path) -> tuple[DatabaseRefV1, OpaqueIdV1, str
     descriptor = os.open(selected, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
     os.close(descriptor)
     update_managed_env(
-        selected, binding_id, None, provider_key="claude", staging_root=tmp_path
+        selected, binding_id, None, provider_key=provider, staging_root=tmp_path
     )
     return reference, account.account_id, binding_id, selected
 

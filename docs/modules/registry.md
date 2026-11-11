@@ -292,3 +292,15 @@ account/source-organization choices. An incomplete organization list disables
 shared choices explicitly; no unavailable declaration is selected automatically.
 The editor distinguishes a committed write from a failed refresh. This increment
 remains intermediate until its installed-service and canonical M6 checks pass.
+
+
+## M7 billing runtime authority
+
+The additive `BillingAccessTargetV1` / `BillingAccessPortV1` under CTR-REG-014
+1.3.0 resolve Anthropic/OpenAI billing resource, current credential generation,
+scope epoch and verification/monitoring purpose without a CLI profile or
+subscription identity prerequisite. M02 re-resolves this target in the caller's
+report-write transaction; changed/disconnected/archived authority is rejected.
+This does not prove provider permission or enable monitoring. Ollama usage still
+needs its existing cloud graph adapter. See the
+[billing authority evidence](../evidence/m7-billing-authority-2026-11-11.md).

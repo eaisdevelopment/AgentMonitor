@@ -68,10 +68,17 @@ financial domain. No new package or license change.
 |---|---|---|
 | CTR-COMMON-003 | Same public exact representation; context-independent conversion implementation correction | No float; same 78-digit/18-scale range; reject arithmetic overflow |
 | CTR-CAP-002 2.0.0 | BudgetViewV2, ExactMoneyFieldV1, typed budget/cost/usage inputs, report coverage/context | Availability, currency, cost basis, period and source watermark stay distinct |
-| CTR-CAP-004 | BudgetCollectionInputV1 and CommitBudgetCollectionOutcomeV1 | One bounded report, fenced binding/scope generation, atomic facts/coverage/receipt |
-| CTR-COL-006 2.0.0 budget variants | BudgetCollectionReceiptV1 and BudgetCollectionRunViewV1; V2 query adoption | Real report reference permits zero facts; optional empty projections/events; old quota types unchanged |
+| CTR-CAP-004 2.1.0 | BudgetCollectionInputV1 and the typed report commit port | One bounded report, fenced binding/scope generation, atomic facts/coverage/receipt |
+| CTR-COL-006 2.0.0 budget variants; CTR-COL-002 2.1.0 run variants | BudgetCollectionReceiptV1, typed commit port, BudgetCollectionRunViewV1 and profile-free admission | Real report reference permits zero facts; old quota receipt/run types unchanged |
 | CTR-CAP-002/003/006 | GetBudgetV1, ListBudgetsV1, GetAccountApiCapacityV1, ListBudgetOverviewV1, ListBudgetHistoryV1, ListUsageBreakdownsV1 | Backend exact aggregation, immutable report selection, bounded stable cursors |
 | CTR-CAP-007 budget variant | GetBudgetForecastV1 → BudgetForecastV1 | Pure bounded calculation with inputs/method/as-of or no-value reason; no DB writes |
+
+Focused producer/consumer integration also adds CTR-REG-014 1.3.0
+BillingAccessTargetV1/BillingAccessPortV1: M02 produces current nonsecret authority,
+M04 captures it and root composition revalidates it at commit. Existing metadata
+and local setup consumers stay compatible. These focused runtime versions extend
+the historical whole-program Draft register; they do not mark that register
+approved or replace existing published quota types.
 
 Consume M02 revisioned scope/resource queries, M03 admitted provider output,
 M04 generic commit envelope/generation fence, exact/common provenance and DB UoW.

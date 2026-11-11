@@ -104,7 +104,8 @@
         "docs/evidence/m7-billing-credential-binding-2026-11-11.md",
         "docs/evidence/m7-billing-credential-status-2026-11-11.md",
         "docs/evidence/m7-billing-env-store-2026-11-11.md",
-        "docs/evidence/m7-billing-credential-operator-2026-11-11.md"
+        "docs/evidence/m7-billing-credential-operator-2026-11-11.md",
+        "docs/evidence/m7-billing-authority-2026-11-11.md"
       ],
       "depends_on_any": [],
       "delivery_slice": "S0",
@@ -196,7 +197,8 @@
       "verification": "python3 -m tools.automation.implementations.auto_m7 --lane pure; python3 -m tools.automation.implementations.auto_m7 --lane mutation (existing commands, required policy coverage must be complete before T004 closes).",
       "evidence": [
         "docs/evidence/m7-foundation-progress-2026-11-11.md",
-        "docs/evidence/m7-budget-spend-aggregation-2026-11-11.md"
+        "docs/evidence/m7-budget-spend-aggregation-2026-11-11.md",
+        "docs/evidence/m7-budget-storage-foundation-2026-11-11.md"
       ],
       "depends_on_any": [],
       "delivery_slice": "S0",
@@ -218,7 +220,7 @@
       "story": "ST-BUDGET-001",
       "title": "Store one real report, including signed and empty coverage",
       "owner": "M05/DB",
-      "status": "planned",
+      "status": "in_progress",
       "depends_on": [
         "M7-T004"
       ],
@@ -241,7 +243,9 @@
       "expected_red": "Real migrated SQLite lacks signed cost/context tables and cannot retrieve fresh adapter facts exactly.",
       "done_when": "Fresh output from any completed real provider adapter survives exact commit/retry/reopen; complete-report replacement cannot retain phantom spend; no synthetic zero facts; a monetary fact must be observed before claiming exact monetary I/O verification (requests-only reports do not substitute)",
       "verification": "Planned scoped verification: persistence through the existing M7 runner (T003 must publish/test the exact selector before closure). The full AUTO-M7-TEST/LIVE/BROWSER results are final integration checks in T015/T016, not this ticket prerequisite.",
-      "evidence": [],
+      "evidence": [
+        "docs/evidence/m7-budget-storage-foundation-2026-11-11.md"
+      ],
       "depends_on_any": [
         [
           "M7-T006",
@@ -293,7 +297,8 @@
       "done_when": "Real permitted reads reconciled with authoritative source within documented lag",
       "verification": "Planned scoped verification: anthropic through the existing M7 runner (T003 must publish/test the exact selector before closure). The full AUTO-M7-TEST/LIVE/BROWSER results are final integration checks in T015/T016, not this ticket prerequisite.",
       "evidence": [
-        "docs/evidence/m7-anthropic-cost-source-2026-11-11.md"
+        "docs/evidence/m7-anthropic-cost-source-2026-11-11.md",
+        "docs/evidence/m7-anthropic-tls-keylog-2026-11-11.md"
       ],
       "depends_on_any": [],
       "delivery_slice": "S1_or_S2",
@@ -315,7 +320,7 @@
       "story": "ST-BUDGET-001",
       "title": "Reuse bounded scheduling and reconcile empty/failed reports",
       "owner": "M04",
-      "status": "planned",
+      "status": "in_progress",
       "depends_on": [
         "M7-T002",
         "M7-T003",
@@ -339,7 +344,11 @@
       "expected_red": "Real scheduler cannot route/commit budget pages or expose incomplete collection without refreshing stale facts.",
       "done_when": "Genuine first provider is scheduled/committed and safely retried; empty result is truthful; one failure cannot refresh old spend or interrupt dashboard/other providers",
       "verification": "Planned scoped verification: collection plus first-provider scheduling/recovery through the existing M7 runner (T003 must publish/test the exact selector before closure). The full AUTO-M7-TEST/LIVE/BROWSER results are final integration checks in T015/T016, not this ticket prerequisite.",
-      "evidence": [],
+      "evidence": [
+        "docs/evidence/m7-billing-authority-2026-11-11.md",
+        "docs/evidence/m7-billing-worker-grants-2026-11-11.md",
+        "docs/evidence/m7-budget-collection-control-2026-11-11.md"
+      ],
       "depends_on_any": [],
       "delivery_slice": "S1",
       "related_plans": [
@@ -361,7 +370,7 @@
       "story": "ST-BUDGET-002",
       "title": "OpenAI usage/cost lane (eligible first provider)",
       "owner": "A02",
-      "status": "planned",
+      "status": "in_progress",
       "depends_on": [
         "M7-T002",
         "M7-T004"
@@ -385,7 +394,9 @@
       "expected_red": "With real administrative access, OpenAI costs/categories cannot traverse the production budget adapter.",
       "done_when": "Real source values/dimensions reconcile; unavailable categories remain explicit",
       "verification": "Planned scoped verification: openai through the existing M7 runner (T003 must publish/test the exact selector before closure). The full AUTO-M7-TEST/LIVE/BROWSER results are final integration checks in T015/T016, not this ticket prerequisite.",
-      "evidence": [],
+      "evidence": [
+        "docs/evidence/m7-openai-cost-source-2026-11-11.md"
+      ],
       "depends_on_any": [],
       "delivery_slice": "S1_or_S2",
       "related_plans": [
@@ -429,7 +440,9 @@
       "expected_red": "Real Ollama usage is absent and existing balance must remain one shared canonical pool.",
       "done_when": "Real usage reconciles without duplicating purchased or included balances",
       "verification": "Planned scoped verification: ollama through the existing M7 runner (T003 must publish/test the exact selector before closure). The full AUTO-M7-TEST/LIVE/BROWSER results are final integration checks in T015/T016, not this ticket prerequisite.",
-      "evidence": [],
+      "evidence": [
+        "docs/evidence/m7-ollama-usage-source-2026-11-11.md"
+      ],
       "depends_on_any": [],
       "delivery_slice": "S1_or_S2",
       "related_plans": [
@@ -653,12 +666,14 @@
       "deliverable": "Two increments in the existing service: early tested setup activation before owner entry, then full first-dashboard activation; selected clean candidate, installed entry point, schema/backup/recovery and browser revision checks; no deployment platform",
       "expected_red": "Existing fixed M6 updater refuses the M7 candidate; verify candidate/backup boundaries before transition.",
       "done_when": "First complete real UI slice is installed and verified with recovery to known-good runtime available; no default provider/profile or user agent disruption",
-      "verification": "Initial setup selector implemented/tested locally; exact retained-controller invocation and remaining installed checks: docs/evidence/m7-setup-activation-selector-2026-11-11.md. It is an intermediate initial0720-to0731 result, not full deployment closure. Full-slice closure: python3 tools/automation/run.py AUTO-M7-DEPLOY.",
+      "verification": "Initial setup operational checks passed on installed7e252b8/schema0731; authenticated setup remains pending. Evidence: docs/evidence/m7-setup-installed-2026-11-11.md. Full financial-slice closure still requires python3 tools/automation/run.py AUTO-M7-DEPLOY.",
       "evidence": [
         "docs/evidence/m7-setup-activation-preparation-2026-11-11.md",
         "docs/evidence/m7-selected-controller-admission-2026-11-11.md",
         "docs/evidence/m7-selected-release-recovery-2026-11-11.md",
-        "docs/evidence/m7-setup-activation-selector-2026-11-11.md"
+        "docs/evidence/m7-setup-activation-selector-2026-11-11.md",
+        "docs/evidence/m7-setup-installed-2026-11-11.md",
+        "docs/evidence/m7-financial-schema-recovery-2026-11-11.md"
       ],
       "depends_on_any": [],
       "delivery_slice": "S1",
@@ -670,7 +685,7 @@
       "steps": [
         "Prepare and execute the scoped setup_activation selection before requesting owner key entry, after candidate checks and verified recovery/continuity. Current command resolves the installed service, so an older binary cannot be treated as a working setup. This partial result does not close T014; later dependencies govern full closure.",
         "Admit explicit clean candidate and expected revision through cutover/update wrappers and runtime re-exec; verify retained revision/schema/build before service stop. Preserve fixed service, executable, environment and lock guards.",
-        "Extend existing real recovery tests to 0731\u21920720 and run actual restore/finalize paths, not only backup reopen. Remove the fixed old-checkout rejection from the same-schema recovery wrapper. Pin recovery to the same M7 controller as deployment; keys remain excluded and no blind rollback is allowed after startup/writes.",
+        "Extend existing real recovery tests to 0731→0720 and run actual restore/finalize paths, not only backup reopen. Remove the fixed old-checkout rejection from the same-schema recovery wrapper. Pin recovery to the same M7 controller as deployment; keys remain excluded and no blind rollback is allowed after startup/writes.",
         "Activate through the existing AgentMonitor service path; verify loopback/LAN health, actual installed revision and authenticated Overview/detail with genuine first-provider data.",
         "Verify existing subscriptions/alerts and browser-closed collection continue; preserve profiles/agents and selected protected env. Record any brief service transition and recovery result.",
         "Preparation at c453fe0 is scoped build/schema evidence; selected-revision and initial recovery corrections are tested. Commit and retain the tested setup selector, record its exact revision and journal-dependent recovery commands, then verify actual installed setup/continuity before owner key entry.",

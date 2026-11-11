@@ -28,6 +28,7 @@ Lane = Literal[
     "pure",
     "mutation",
     "registry_metadata",
+    "persistence_schema",
     "technical",
     "live",
     "browser",
@@ -39,12 +40,21 @@ PURE_TARGETS = (
     "backend/tests/capacity/pure/test_budget_exact_arithmetic.py",
     "backend/tests/capacity/pure/test_budget_money.py",
     "backend/tests/capacity/pure/test_budget_aggregation.py",
+    "backend/tests/capacity/pure/test_budget_codec.py",
+    "backend/tests/capacity/pure/test_budget_commit_policy.py",
+    "backend/tests/capacity/pure/test_budget_history_cursor.py",
     "backend/tests/contracts/test_budget_report_contract.py",
+    "backend/tests/contracts/test_budget_commit_contract.py",
+    "backend/tests/contracts/test_budget_run_contract.py",
+    "backend/tests/collection_control/pure/test_budget_run_policy.py",
+    "backend/tests/collection_control/pure/test_budget_executor_policy.py",
+    "backend/tests/registry/test_billing_access_policy.py",
     "backend/tests/capacity/pure/test_budget_report_selection.py",
     "backend/tests/capacity/test_quantity_and_health.py",
 )
 REGISTRY_METADATA_TARGETS = (
     "backend/tests/registry/test_billing_credential_status.py",
+    "backend/tests/integration/registry/test_billing_access_empty.py",
     "backend/tests/integration/registry/test_billing_account_intent.py",
     "backend/tests/integration/registry/test_billing_connections.py",
     "backend/tests/integration/registry/test_billing_credential_binding.py",
@@ -54,6 +64,7 @@ REQUIRED_CHECKS: dict[str, tuple[str, ...]] = {
     "pure": ("pure",),
     "mutation": ("mutation",),
     "registry_metadata": ("registry_metadata",),
+    "persistence_schema": ("persistence_schema",),
     "technical": (
         "pure",
         "registry_metadata",
@@ -156,6 +167,17 @@ def execute_lane(lane: str) -> LaneResult:
                 flush=True,
             )
             check = _run_pytest("registry_metadata", REGISTRY_METADATA_TARGETS)
+        elif name == "persistence_schema":
+            check = _run_pytest(
+                name,
+                (
+                    "backend/tests/integration/capacity/test_budget_report_schema.py",
+                    "backend/tests/integration/collection_control/test_budget_run_schema.py",
+                    "backend/tests/integration/collection_control/test_budget_run_repository_empty.py",
+                    "backend/tests/integration/capacity/test_capacity_schema_chain.py",
+                    "backend/tests/integration/capacity/test_budget_repository_empty.py",
+                ),
+            )
         elif lane == "exit":
             child = execute_lane(name)
             check = CheckResult(name, child.status)
@@ -429,6 +451,11 @@ def main(argv: list[str] | None = None) -> int:
         scope = (
             "registry metadata and nonsecret binding lifecycle only; "
             "no secret entry, activation or provider access claim"
+        )
+    elif result.lane == "persistence_schema":
+        scope = (
+            "fresh and upgraded empty SQLite schema only; "
+            "no provider report commit, installed migration or M7 acceptance claim"
         )
     else:
         scope = f"{result.lane}; no milestone acceptance or publication claim"

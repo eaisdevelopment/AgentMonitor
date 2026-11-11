@@ -6,7 +6,10 @@ from datetime import datetime
 from typing import ClassVar, Literal, Protocol
 
 from agentmonitor.contracts.common_v1 import OpaqueIdV1, TechnicalValueV1
-from agentmonitor.contracts.registry_v1 import RegistryLifecycleV1
+from agentmonitor.contracts.registry_v1 import (
+    ActiveCredentialBindingRefV1,
+    RegistryLifecycleV1,
+)
 
 
 def _scope_valid(scope_id: str | None) -> bool:
@@ -181,3 +184,50 @@ class BillingLocalSetupPortV1(Protocol):
     def describe(
         self, status: AccountBillingConnectionsV1
     ) -> BillingLocalSetupV1 | None: ...
+
+
+BillingAccessPurposeV1 = Literal["verification", "monitoring"]
+
+
+@dataclass(frozen=True, slots=True)
+class BillingAccessTargetV1(TechnicalValueV1):
+    """Profile-free current authority, resolved by M02 before use and commit.
+
+    No credential, provider permission proof or subscription state is carried.
+    Verification can precede enabling billing monitoring. The connection captures
+    resource identity, scope generation and the independent billing lifecycle.
+    """
+
+    CONTRACT_ID: ClassVar[str] = "CTR-REG-014"
+    CONTRACT_VERSION: ClassVar[str] = "1.3.0"
+    OWNER: ClassVar[str] = "PLAN-M02"
+    connection: BillingConnectionViewV1
+    binding: ActiveCredentialBindingRefV1
+    purpose: BillingAccessPurposeV1
+
+    def __post_init__(self) -> None:
+        TechnicalValueV1.__post_init__(self)
+        if (
+            not isinstance(self.connection, BillingConnectionViewV1)
+            or not isinstance(self.binding, ActiveCredentialBindingRefV1)
+            or self.connection.account_id != self.binding.account_id
+        ):
+            raise ValueError("billing_binding_mismatch")
+        if self.connection.lifecycle not in {"pending", "active"}:
+            raise ValueError("billing_connection_unavailable")
+        if self.purpose == "monitoring" and (
+            self.connection.lifecycle != "active"
+            or self.connection.monitoring_preference != "enabled"
+        ):
+            raise ValueError("billing_monitoring_disabled")
+
+
+class BillingAccessPortV1(Protocol):
+    """Safe current-target lookup only; no secret read and no provider request."""
+
+    def resolve(
+        self,
+        account_id: OpaqueIdV1,
+        resource_id: OpaqueIdV1,
+        purpose: BillingAccessPurposeV1,
+    ) -> BillingAccessTargetV1 | None: ...

@@ -1,4 +1,4 @@
-"""Bounded offline AgentMonitor admitted prior-schema to v1_0731 upgrade.
+"""Bounded offline AgentMonitor admitted prior-schema to v1_0733 upgrade.
 
 This operator command never starts/stops the service or restores a database.
 It acts only on an explicitly selected owner-only data root and retains its
@@ -76,8 +76,10 @@ SOURCES = (
     "v1_0718",
     "v1_0719",
     "v1_0720",
+    "v1_0731",
+    "v1_0732",
 )
-TARGET = "v1_0731"
+TARGET = "v1_0733"
 SETTINGS = "owner-process-account-associations-v1.json"
 SETTINGS_LOCK = ".owner-process-account-associations-v1.lock"
 MAX_SETTINGS_BYTES = 1024 * 1024
@@ -493,6 +495,8 @@ def _preflight_catalog(source: str) -> tuple[MigrationCatalogV1, tuple[str, ...]
         "v1_0720",
         "v1_0730",
         "v1_0731",
+        "v1_0732",
+        "v1_0733",
     )
     expected_tail = expected_chain[expected_chain.index(source) + 1 :]
     if tuple(item.revision for item in tail) != expected_tail or any(

@@ -87,6 +87,8 @@ def test_disposable_unit_and_real_backup_migration(
         "v1_0719": "v1_0718",
         "v1_0720": "v1_0719",
         "v1_0731": "v1_0720",
+        "v1_0732": "v1_0731",
+        "v1_0733": "v1_0731",
     }[load_migration_catalog().head]
     if case == "real_source_restore":
         live_uri = "file:/home/dev/.local/share/agentmonitor/agentmonitor.db?mode=ro"

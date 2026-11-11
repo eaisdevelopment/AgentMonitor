@@ -194,6 +194,17 @@ class _Response(http.client.HTTPResponse):
 class _Connection(http.client.HTTPSConnection):
     response_class = _Response
 
+    def __init__(self, host: str) -> None:
+        if host != HOST:
+            raise ValueError("anthropic_cost_destination_invalid")
+        # Construct verified TLS directly: create_default_context enables
+        # environment-requested SSLKEYLOGFILE logging before any connection.
+        context = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
+        context.check_hostname = True
+        context.verify_mode = ssl.CERT_REQUIRED
+        context.load_default_certs(ssl.Purpose.SERVER_AUTH)
+        super().__init__(HOST, port=443, timeout=REQUEST_SECONDS, context=context)
+
 
 class _SourceFailure(Exception):
     def __init__(
@@ -244,9 +255,7 @@ def _read_page(
     authorization: AnthropicCostAuthorizationV1,
     deadline: float,
 ) -> dict[str, object]:
-    connection = _Connection(
-        HOST, port=443, timeout=REQUEST_SECONDS, context=ssl.create_default_context()
-    )
+    connection = _Connection(HOST)
     response: http.client.HTTPResponse | None = None
     sink: AnthropicCostAuthorizationSinkV1 | None = None
     try:

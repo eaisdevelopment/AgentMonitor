@@ -3,7 +3,10 @@
 - Status: Approved for implementation by the owner’s subsequent active M7 goal; see the authority record.
 - Plan version: 1.1.0; supersedes focused 1.0.0.
 - Owner: root integration; primary financial semantics: M05 Capacity.
-- Baseline: `a47fc53` on `codex/m7-api-budgets`; accepted M6 remains deployed.
+- Original planning baseline: `a47fc53` on `codex/m7-api-budgets`.
+- Installed setup revision: `7e252b8`, schema `v1_0731`; authenticated setup
+  proof remains pending. Financial screens are not delivered. See the
+  [installed evidence](../../evidence/m7-setup-installed-2026-11-11.md).
 - Requirements: FR-BUDGET-001..006, FR-ORG-003, FR-ACC-001..004/006;
   AC-LIVE-004/005/007, AC-UI-002..006, AC-HIST-001, AC-OPS-003/006,
   AC-TEST-001..006.
@@ -84,8 +87,10 @@ all backend work is finished. Each slice ends with the indicated running result.
 First provider defaults to Anthropic if access is available; otherwise use a real
 available OpenAI or Ollama lane without dropping Anthropic from M7. A requests-only
 legacy source can advance its own usage lane but cannot substitute for the first
-demonstrated monetary report. T005 depends
-on one completed provider adapter, not a hardcoded account. Missing access to one
+demonstrated monetary report. T005 can integrate one genuine normalized report from a partially completed
+provider ticket; it does not wait for that adapter’s remaining usage categories.
+Its own final live persistence checks still require the actual report. No
+hardcoded account is required. Missing access to one
 lane blocks its live evidence only. No invented demo account or seeded telemetry.
 
 T010 closes the current/list/summary/history HTTP slice; forecast/breakdown HTTP
@@ -108,8 +113,9 @@ manually configuring the owner's account.
 Both schema transitions are planned: accepted M6 to setup, then the installed
 setup schema to the financial-storage schema. T014 owns selected-revision
 admission and real recovery for each. The [delivery worksheet](m7-delivery-worksheet-2026-11-11.md)
-records the current `716cf92` baseline, remaining first-report handoffs and
-observed fixed-M6 deployment restrictions. Preparation is not installation.
+records the historical `716cf92` review, the installed `7e252b8` setup increment
+and remaining first-report handoffs. The financial-schema deployment remains
+separate and unexecuted.
 
 First-slice results are explicitly partial M7 delivery. They are not milestone
 completion. The full original three-provider/five-story scope remains required.

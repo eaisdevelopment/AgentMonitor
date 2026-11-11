@@ -1397,3 +1397,15 @@ records and metadata are unchanged. This repairs the stale control introduced
 at `30f81d3`; it makes no implementation, installed recovery or acceptance claim.
 
 Plan snapshot SHA-256: `38c97b54b0a45d5b1099105b9ed3d42b0ee1a7f03cf6e091318588fb93e210db`
+
+
+## 2026-11-11 M7 financial-schema migration admission
+
+Independent read-only reviewer `m7_execution_commands` compared the canonical
+snapshot with `7e252b8`: all twenty plan entries are unchanged and all 29 file
+hashes/sizes match. Only the automation-routines control changes, from 23,195
+to 23,213 bytes. AUTO-MIGRATE's seventeen source revisions and target `v1_0733`
+match the executable admission. The focused M7 scope/approval is unchanged;
+this records catalog synchronization, not installed financial delivery.
+
+Plan snapshot SHA-256: `6a7723f39acefe0e4bd03ff779e30663654a21d907eef96294775e1eb08e248e`

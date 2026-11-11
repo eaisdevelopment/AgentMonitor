@@ -189,8 +189,8 @@ bytes = 23341
 [[controls]]
 id = "automation-routines"
 path = "tools/automation/routines.toml"
-sha256 = "d2a6c5cc666cdc8381c11fb27f8d35e421a3e71759b17a672ce1cf892266792c"
-bytes = 23195
+sha256 = "23fda5f14f6c79d57aec35e4fa7acbacc0995c50617a4bff6f659e056c3c9abd"
+bytes = 23213
 
 [[controls]]
 id = "automation-standard"

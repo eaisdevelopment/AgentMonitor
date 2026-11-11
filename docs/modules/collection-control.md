@@ -1,5 +1,16 @@
 # M04 collection control
 
+M7 adds a separate CTR-COL-006 2.0.0 budget receipt/status/commit seam in
+`collection_control_v1.py`: real report identity with zero or more fact IDs.
+Existing quota receipt contracts are unchanged. This permits genuine empty
+coverage without manufactured observations; it does not itself implement
+the full worker-to-dashboard journey. The additive CTR-COL-002 2.1.0 billing
+admission/run types capture profile-free authority and permit zero-fact success
+only with a real report ID; old quota run validation remains unchanged.
+`v1_0733` adds M04-owned target metadata/report references without reading M05
+private storage. Worker integration and genuine finalization remain unverified. See the
+[budget storage foundation evidence](../evidence/m7-budget-storage-foundation-2026-11-11.md).
+
 M04 owns collection schedules, durable runs, local event history and current collector conditions. Its versioned public surface is `contracts/collection_control_v1.py`; consumers use these contracts and M04 application facades rather than reading M04 tables.
 
 The M4 alert increment publishes `CollectorAlertConditionV1` with a target-scoped positive generation from `collection_alert_condition.record_version`. The named internal `refresh` command classifies actual M04 schedule/run/reference records and atomically writes a changed condition plus `collector.health_changed.v1` event. Repeated identical evidence does not advance a generation. Read-only `get_current` never invokes a provider or mutates storage; it reports partial availability for missing, mismatched or expired unevaluated projections.

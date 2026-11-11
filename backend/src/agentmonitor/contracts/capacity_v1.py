@@ -6,6 +6,8 @@ from datetime import datetime, timedelta
 from typing import ClassVar, Literal, Protocol
 
 from agentmonitor.contracts.collection_control_v1 import (
+    BudgetCollectionCommitStatusV1,
+    BudgetCollectionReceiptV1,
     CollectionCommitReceiptV1,
     CollectionCommitStatusV1,
     CollectionOutcomeCommitV1,
@@ -1009,6 +1011,62 @@ class BudgetReportViewV1(TechnicalValueV1):
             or self.stored_at < self.report.collected_at
         ):
             raise InvalidCapacityContractV1("budget_report_view_invalid")
+
+
+class BudgetCollectionInputV1(CollectionOutcomeCommitV1[BudgetReportInputV1]):
+    """Typed M05 report commit envelope; binding/scope fences run in its UoW."""
+
+    CONTRACT_ID: ClassVar[str] = "CTR-CAP-004"
+    CONTRACT_VERSION: ClassVar[str] = "2.1.0"
+    OWNER: ClassVar[str] = "PLAN-M05"
+
+
+@dataclass(frozen=True, slots=True)
+class BudgetReportHistoryQueryV1(TechnicalValueV1):
+    """Bounded report history; cursor state must pin the original snapshot."""
+
+    CONTRACT_ID: ClassVar[str] = "CTR-CAP-006"
+    CONTRACT_VERSION: ClassVar[str] = "2.0.0"
+    OWNER: ClassVar[str] = "PLAN-M05"
+
+    account_id: OpaqueIdV1
+    resource_id: OpaqueIdV1
+    period: BudgetPeriodV1
+    limit: int = 50
+    after_key: str | None = None
+
+    def __post_init__(self) -> None:
+        TechnicalValueV1.__post_init__(self)
+        if (
+            not isinstance(self.account_id, OpaqueIdV1)
+            or not isinstance(self.resource_id, OpaqueIdV1)
+            or not isinstance(self.period, BudgetPeriodV1)
+            or type(self.limit) is not int
+            or not 1 <= self.limit <= 200
+            or self.after_key is not None
+            and (
+                type(self.after_key) is not str or not 1 <= len(self.after_key) <= 2048
+            )
+        ):
+            raise InvalidCapacityContractV1("budget_history_query_invalid")
+
+
+class BudgetReportRepositoryV1(Protocol):
+    """M05 durable report boundary; no provider requests from query methods."""
+
+    def commit(self, request: BudgetCollectionInputV1) -> BudgetCollectionReceiptV1: ...
+
+    def get_commit_status(
+        self, run_id: OpaqueIdV1, capability_id: str
+    ) -> BudgetCollectionCommitStatusV1: ...
+
+    def get_report(
+        self, account_id: OpaqueIdV1, report_id: OpaqueIdV1
+    ) -> BudgetReportViewV1 | None: ...
+
+    def list_reports(
+        self, query: BudgetReportHistoryQueryV1
+    ) -> QueryPageV1[BudgetReportViewV1]: ...
 
 
 CapacityAlertAvailabilityV1 = Literal[

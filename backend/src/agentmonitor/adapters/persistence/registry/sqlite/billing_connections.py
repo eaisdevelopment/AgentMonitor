@@ -3,9 +3,6 @@
 from datetime import datetime, timedelta
 from typing import Literal, cast
 
-from sqlalchemy.engine import Connection, RowMapping
-from sqlalchemy.exc import SQLAlchemyError
-
 from agentmonitor.adapters.persistence._shared.sqlite.core.policy import (
     DatabaseRefV1,
     SqlitePolicyError,
@@ -13,6 +10,7 @@ from agentmonitor.adapters.persistence._shared.sqlite.core.policy import (
 )
 from agentmonitor.adapters.persistence.registry.sqlite.credential_bindings import (
     read_credential_bindings_in_transaction,
+    resolve_active_credential_binding_in_transaction,
 )
 from agentmonitor.adapters.persistence.registry.sqlite.registry_transaction import (
     RegistryRepositoryErrorV1,
@@ -27,6 +25,8 @@ from agentmonitor.adapters.persistence.registry.sqlite.registry_transaction impo
 from agentmonitor.contracts.common_v1 import OpaqueIdV1
 from agentmonitor.contracts.registry_billing_v1 import (
     AccountBillingConnectionsV1,
+    BillingAccessPurposeV1,
+    BillingAccessTargetV1,
     BillingConnectionViewV1,
     CreateBillingConnectionCommandV1,
 )
@@ -34,9 +34,13 @@ from agentmonitor.modules.registry.application.organizations import (
     RegistryCommandConflictV1,
 )
 from agentmonitor.modules.registry.domain.billing_connection import (
+    billing_access_target,
     billing_connection_eligibility,
     billing_credential_status,
+    ensure_billing_access_current,
 )
+from sqlalchemy.engine import Connection, RowMapping
+from sqlalchemy.exc import SQLAlchemyError
 
 _OPERATION = "create_billing_connection"
 
@@ -258,5 +262,100 @@ class SqliteBillingConnectionRepositoryV1:
                     return result
         except RegistryCommandConflictV1:
             raise
+        except (SQLAlchemyError, SqlitePolicyError, ValueError):
+            raise RegistryRepositoryErrorV1() from None
+
+
+def resolve_billing_access_in_transaction(
+    connection: Connection,
+    account_id: OpaqueIdV1,
+    resource_id: OpaqueIdV1,
+    purpose: BillingAccessPurposeV1,
+) -> BillingAccessTargetV1 | None:
+    """Resolve metadata and the current binding under one M02 transaction.
+
+    Ollama keeps its existing cloud graph; this port resolves the independent
+    Anthropic/OpenAI billing graph, with no CLI profile or identity prerequisite.
+    """
+    if not connection.in_transaction():
+        raise ValueError("billing_transaction_required")
+    if purpose not in {"verification", "monitoring"}:
+        raise ValueError("billing_purpose_invalid")
+    status = _get(connection, account_id)
+    if (
+        status is None
+        or status.provider_key not in {"claude", "codex"}
+        or status.account_lifecycle not in {"pending", "active"}
+        or not status.connections
+    ):
+        return None
+    selected = status.connections[0]
+    if (
+        selected.resource_id != resource_id
+        or selected.lifecycle not in {"pending", "active"}
+        or purpose == "monitoring"
+        and (
+            selected.lifecycle != "active"
+            or selected.monitoring_preference != "enabled"
+        )
+    ):
+        return None
+    resource = connection.exec_driver_sql(
+        "SELECT lifecycle FROM reg_account_resource "
+        "WHERE resource_id=? AND account_id=?",
+        (resource_id.value, account_id.value),
+    ).one_or_none()
+    if resource is None or resource[0] != "active":
+        return None
+    binding = resolve_active_credential_binding_in_transaction(connection, account_id)
+    if binding is None:
+        return None
+    return billing_access_target(
+        selected,
+        binding,
+        account_lifecycle=status.account_lifecycle,
+        resource_lifecycle=resource[0],
+        purpose=purpose,
+    )
+
+
+def ensure_billing_access_in_transaction(
+    connection: Connection, expected: BillingAccessTargetV1
+) -> None:
+    """Composition calls this M02 adapter in the actual report-write transaction."""
+    ensure_billing_access_current(
+        resolve_billing_access_in_transaction(
+            connection,
+            expected.connection.account_id,
+            expected.connection.resource_id,
+            expected.purpose,
+        ),
+        expected,
+    )
+
+
+class SqliteBillingAccessRepositoryV1:
+    """CTR-REG-014 1.3.0 current billing authority without credential access."""
+
+    def __init__(self, database_ref: DatabaseRefV1) -> None:
+        self._database_ref = database_ref
+
+    def resolve(
+        self,
+        account_id: OpaqueIdV1,
+        resource_id: OpaqueIdV1,
+        purpose: BillingAccessPurposeV1,
+    ) -> BillingAccessTargetV1 | None:
+        try:
+            with open_sqlite_database(
+                self._database_ref, "runtime_read_only"
+            ) as handle:
+                with handle.connect() as connection:
+                    connection.exec_driver_sql("BEGIN")
+                    result = resolve_billing_access_in_transaction(
+                        connection, account_id, resource_id, purpose
+                    )
+                    connection.rollback()
+                    return result
         except (SQLAlchemyError, SqlitePolicyError, ValueError):
             raise RegistryRepositoryErrorV1() from None

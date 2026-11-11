@@ -1,5 +1,5 @@
-version = "1.7.31"
-head = "v1_0731"
+version = "1.7.33"
+head = "v1_0733"
 env_sha256 = "27449e3ed3984acde690510f9e4974eb6412f5f1b7e62af65bc8bb616879a7d7"
 
 [[revisions]]
@@ -904,3 +904,47 @@ backup_prerequisite = "required_existing_database"
 validation_ids = ["single_head", "m02_billing_connection_schema", "foreign_key_check", "full_integrity"]
 recovery_policy = "preserve_failed_database_and_restore_verified_backup_or_forward_fix"
 reviewer = "M02-M7-billing-connections-root-review"
+
+[[revisions]]
+ordinal = 732
+filename = "v1_0732_m05_budget_reports.py"
+sha256 = "de5eb852154b5029c37e57c60b1128deff46b0148c1b4c0898d6d6343f9cd8d9"
+status = "implemented"
+reviewed_at = "2026-11-11"
+revision = "v1_0732"
+parent_revision = "v1_0731"
+owner = "M05"
+plan_id = "PLAN-M05"
+requirement_ids = ["FR-BUDGET-002", "FR-BUDGET-004", "M7-A02"]
+schema_range = ["v1_0732", "v1_0732", "v1_0732", "v1_0732", "v1_0732"]
+tables = ["capacity_budget_report", "capacity_budget_signed_cost_measure"]
+portability_notes = ["Normalized immutable report JSON contains only typed allowlisted fields", "Signed exact cost extends observations without changing old checks", "SQLite report sequence pins bounded history snapshots and is never reused"]
+lock_policy = "exclusive_migration_and_begin_immediate"
+downtime_policy = "offline_additive_schema_migration"
+expected_data_volume = "zero_initial_rows_then_bounded_real_reports"
+backup_prerequisite = "required_existing_database"
+validation_ids = ["single_head", "m05_budget_report_schema", "foreign_key_check", "full_integrity"]
+recovery_policy = "preserve_failed_database_and_restore_verified_backup_or_forward_fix"
+reviewer = "M05-M7-budget-reports-root-review"
+
+[[revisions]]
+ordinal = 733
+filename = "v1_0733_m04_budget_run_reports.py"
+sha256 = "66850c3f1645aec1a9f516bb6d609acbe2292e00337ba7431746bf354bda65b9"
+status = "implemented"
+reviewed_at = "2026-11-11"
+revision = "v1_0733"
+parent_revision = "v1_0732"
+owner = "M04"
+plan_id = "PLAN-M04"
+requirement_ids = ["FR-BUDGET-001", "FR-BUDGET-004", "M7-A02"]
+schema_range = ["v1_0733", "v1_0733", "v1_0733", "v1_0733", "v1_0733"]
+tables = ["collection_budget_run"]
+portability_notes = ["Bounded target JSON contains only typed nonsecret billing authority", "Report references permit genuine empty coverage without fake observations", "No foreign key or private-table access crosses into M05 report storage"]
+lock_policy = "exclusive_migration_and_begin_immediate"
+downtime_policy = "offline_additive_schema_migration"
+expected_data_volume = "zero_initial_rows_then_one_per_billing_run"
+backup_prerequisite = "required_existing_database"
+validation_ids = ["single_head", "m04_budget_run_schema", "foreign_key_check", "full_integrity"]
+recovery_policy = "preserve_failed_database_and_restore_verified_backup_or_forward_fix"
+reviewer = "M04-M7-budget-reports-root-review"
