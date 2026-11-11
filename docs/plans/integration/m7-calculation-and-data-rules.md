@@ -27,6 +27,14 @@ The current integrated sources may not expose all these fields; that is an
 explicit availability result. Local budget editing, FX conversion, invoice/tax
 reconciliation and price-list estimation are outside M7.
 
+Fund components retain their own scope, observation time and constraining
+classification. In the existing Ollama contract, included and purchased credits
+are non-constraining components: one being empty does not prove the account is
+exhausted. Keep them separate; do not assume spending order, add overlapping
+components or derive account severity from their minimum. Unknown companion
+funds means unknown account capacity. M7-MATH-07/08 and T004/T010/T012 cover
+component low/zero labels versus a justified account-level depletion state.
+
 ## 2. Exact representation and display
 
 Use existing coefficient/scale plus ISO currency, never float, SQL REAL/SUM of
@@ -258,7 +266,13 @@ If compatibility/freshness cannot be established, show a reason and no date.
 If a known reset occurs first, say Estimate extends beyond known renewal; do
 not promise exhaustion after that reset. Beyond seven days, show Beyond the
 7-day forecast horizon, not a fabricated precise date. Reported zero balance is
-observed depletion independently of forecasting. Observed per-bucket variability
+observed depletion of that component independently of forecasting, not proof
+that the whole account is blocked. Apply the same bound to known expiry of the
+selected credits: **Credits expire before the estimated consumption date**;
+do not carry expiring funds beyond expiry or assume replacement funds. In pure
+M7-MATH-15/16, 6 USD at 2 USD/day with expiry in one day has no three-day
+consumption date; expiry in four days does not exclude the three-day estimate.
+Observed per-bucket variability
 can be shown in detail; it is not a statistical confidence interval.
 
 Numeric forecasts are conditional on actual available inputs. A correct
@@ -371,7 +385,11 @@ SQLite, actual HTTP and built-browser values. Pure examples never cross I/O.
   appended to it. T010/T012 own this behavior.
 - Chart geometry is approximate presentation, never a second financial
   calculation. Exact API amounts remain the table, label and tooltip authority.
-  Keep adjustments below the zero axis; never clamp negative costs to zero.
+  Plot negative amounts below zero and positive amounts above zero; retain
+  adjustment labels. An adjustment can have either sign: M7-MATH-09 covers
+  cost 10 plus adjustment +2 = 12 and adjustment −2 = 8, with matching chart
+  signs. Both adjusted samples remain forecast-ineligible under section 6.
+  Never clamp negative costs to zero.
   Do not connect balance points across unknown intervals. T013 owns this.
 - Compare the same scope, interval, grouping and cost basis. The provider's
   displayed rounding may differ from stored precision; record the comparison

@@ -69,7 +69,7 @@ known shared pools and disclose missing coverage. No misleading mixed total.
 
 Account detail presents money and its meaning first, then supported breakdowns,
 exact history/chart, and a forecast or reason it is unavailable. Connection and
-source diagnostics are compact/expandable. Refresh readings rereads stored data;
+source diagnostics are compact/expandable. Refresh view rereads stored data;
 Collect now is a separate rate-limited action. See the UI document for exact
 states, sorting, controls, pagination, responsive and accessibility behavior.
 
@@ -145,7 +145,8 @@ P02 extends existing account/overview features and a budget-history component.
 Reuse frozen budget/usage tables where their semantics fit. Allocate additive
 M02 revisions `v1_0730` and `v1_0731` after `v1_0720`, M05 `v1_0732`, and M04 `v1_0733` for its
 run-to-report authority/receipt metadata. These revisions exist in local
-`ad7a04e`; their installed financial transition remains outstanding. Preserve old migration digests.
+`ad7a04e`; installation at `437a232` reached `v1_0733` as recorded in the
+worksheet. Full financial acceptance remains outstanding. Preserve old migration digests.
 Do not automatically create one-to-one tables for every field: use necessary
 additive context columns, a report-coverage relation and signed cost storage.
 No forecast storage table or parent/child job engine. The first real report

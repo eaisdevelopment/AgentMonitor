@@ -14,22 +14,36 @@ from agentmonitor.api.v1.routers._observation import (
 )
 from agentmonitor.api.v1.schemas.budgets import (
     AccountBudgetCurrentWireV1,
+    AccountBudgetFundsWireV1,
     BudgetCollectionStateWireV1,
     BudgetCostBucketWireV1,
     BudgetDimensionWireV1,
+    BudgetFundComponentWireV1,
     BudgetPeriodWireV1,
     BudgetReportedSpendWireV1,
     BudgetReportSelectionWireV1,
     BudgetReportWireV1,
     BudgetResourceCurrentWireV1,
     BudgetUsageBucketWireV1,
+    ExactMoneyFieldWireV1,
     ExactMoneyWireV1,
 )
-from agentmonitor.api.v1.schemas.capacity import ExactQuantityWireV1
+from agentmonitor.api.v1.schemas.capacity import (
+    CapacityObservationProvenanceWireV1,
+    CapacitySubjectWireV2,
+    ExactQuantityWireV1,
+)
 from agentmonitor.api.v1.schemas.registry import BillingConnectionViewV1
 from agentmonitor.api.v1.serialization import technical_wire
-from agentmonitor.contracts.budget_query_v1 import AccountBudgetCurrentV1
-from agentmonitor.contracts.capacity_v1 import BudgetPeriodV1, BudgetReportViewV1
+from agentmonitor.contracts.budget_query_v1 import (
+    AccountBudgetCurrentV1,
+    AccountBudgetFundsV1,
+)
+from agentmonitor.contracts.capacity_v1 import (
+    BudgetPeriodV1,
+    BudgetReportViewV1,
+    ExactMoneyFieldV1,
+)
 from agentmonitor.contracts.common_quantity_v1 import ExactMoneyV1
 from agentmonitor.contracts.common_v1 import OpaqueIdV1
 from agentmonitor.modules.capacity.application.queries import CapacityQueryUnavailableV1
@@ -108,6 +122,57 @@ def report_wire(item: BudgetReportViewV1) -> BudgetReportWireV1:
     )
 
 
+def _money_field(item: ExactMoneyFieldV1) -> ExactMoneyFieldWireV1:
+    return ExactMoneyFieldWireV1(
+        availability=item.availability.state,
+        value=None if item.value is None else _money(item.value),
+        precision=item.precision,
+        confidence=item.confidence,
+        value_kind=item.value_kind,
+        reason_code=item.reason_code,
+    )
+
+
+def funds_wire(item: AccountBudgetFundsV1) -> AccountBudgetFundsWireV1:
+    return AccountBudgetFundsWireV1(
+        account_id=item.account_id.value,
+        as_of=item.as_of,
+        availability=availability(item.availability),
+        registry_revision=item.registry_revision,
+        components=[
+            BudgetFundComponentWireV1(
+                subject=CapacitySubjectWireV2(
+                    provider_key=c.subject.provider_key,
+                    provider_target_kind="cloud_service",
+                    provider_target_id=c.subject.provider_target.target_id.value,
+                    account_id=c.subject.account_id.value,
+                    resource_id=c.subject.resource_id.value,
+                ),
+                component_id=c.component_id.value,
+                kind=c.kind,
+                remaining=_money_field(c.remaining),
+                limit=_money_field(c.limit),
+                period=None if c.period is None else _period(c.period),
+                renewal_at=c.renewal_at,
+                expires_at=c.expires_at,
+                is_constraining=c.is_constraining,
+                scope_evidence=c.scope_evidence,
+                observation_id=c.observation_id.value,
+                collection_run_id=c.collection_run_id.value,
+                observed_at=c.observed_at,
+                collected_at=c.collected_at,
+                stored_at=c.stored_at,
+                freshness=c.freshness,
+                completeness=c.completeness,
+                provenance=CapacityObservationProvenanceWireV1.model_validate(
+                    technical_wire(c.provenance)
+                ),
+            )
+            for c in item.components
+        ],
+    )
+
+
 def account_wire(item: AccountBudgetCurrentV1) -> AccountBudgetCurrentWireV1:
     resources = []
     for resource in item.resources:
@@ -159,6 +224,7 @@ def account_wire(item: AccountBudgetCurrentV1) -> AccountBudgetCurrentWireV1:
         as_of=item.as_of,
         availability=availability(item.availability),
         resources=resources,
+        funds=None if item.funds is None else funds_wire(item.funds),
     )
 
 

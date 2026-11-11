@@ -1,5 +1,64 @@
 # M7 plan refactor: findings and bounded review
 
+## Current review at 62b1b9f — UI, financial meaning and finite delivery
+
+The renewed owner request is a planning refactor. Changes in this review are
+documentation and task/status metadata only; they do not change product code,
+services, accounts, credentials, provider state, dependencies or public code.
+Focused plan 1.1.0 and M05 increment 0.3.0 retain their existing approval and
+scope: sixteen tickets, five stories, ten M7 acceptance items. No new approval
+cycle, gate or framework was introduced.
+
+Root inspected the real CTR-CAP-006 2.2.0 account query, financial React panel,
+runner/checker and installed-increment evidence. Three independent read-only
+reviews, assigned under the SDLC/runbook, covered P02 journeys, M05 math and
+root delivery. Accepted findings were applied to their owning documents and
+the existing ticket catalog:
+
+| Finding | Bounded correction and ownership |
+|---|---|
+| T005 closure waited for a complete provider ticket despite a first-report handoff | Remove whole-provider dependency; require genuine monetary commit/retry/reopen and source lineage in T005's executable persistence check. T015 still requires all providers |
+| Natural correction observations described as both optional and mandatory | Separate mandatory pure policy/real monetary persistence from conditional live corrections/empty results; preserve each non-pass disposition, T003/T005/T015 |
+| Current overlay and T014 steps contradicted installed schema0733 proof | Mark M7/Stories in progress, retain unpassed full exit and unrecorded acceptance; preserve accepted M6 as historical evidence; use worksheet for current state |
+| Existing Ollama funds have no route through billing-connection-only account query | Specify additive CTR-CAP-006 funds read using published cloud membership and quota-window ports, provider mapping in A03, no duplicate account/pool/table, T010/T011 |
+| Shared link/reload state omitted the immutable report selector | Authorize/preserve opaque financial context/report through navigation and sign-in; explicit refresh replaces it, T010/T011/T012 |
+| Historical spending could appear to explain today's balance | Show per-funds observation time beside amount, separate from spending period, T010/T011 |
+| Empty component could imply whole-account exhaustion | Preserve non-constraining fund semantics; separate included/purchased components and account severity, T004/T010/T012 |
+| Forecast ignored known credit expiry | Apply existing renewal bound to selected-credit expiry, T013/M7-MATH-15/16 |
+| Chart put every adjustment below zero | Plot by actual sign; retain adjustment meaning, T013/M7-MATH-09 |
+| Retention promise had no executable handoff | M05 participant, existing M08 invocation, real isolated SQLite cutoff/ref-preservation proof in T013; T015 verifies later installed invocation with existing continuity check |
+| Acceptance mappings omitted test-integrity/interactive evidence and UI/history responsibilities | Map AC-TEST-002/004 and M7-A01/A06 to existing ticket obligations; no repeated account attestation |
+| Read-only refresh could imply provider collection | Plan label Refresh view separately from Collect now; no behavior change in this review |
+
+Follow-up review caught one setup-state contradiction: absence of a separate
+billing binding must not send an existing Ollama cloud account to duplicate
+setup. The state table now tests absence of both usable billing and cloud
+resources and selects the action from published capabilities.
+
+The revised [worksheet](../plans/integration/m7-delivery-worksheet-2026-11-11.md)
+defines mandatory/conditional evidence and ordered visible increments. The
+[catalog](../plans/integration/m7-ticket-catalog-v1.json) remains the only ticket
+tracker. No implementation ticket was closed by this review. The original
+7–12-day estimate is not a measured remaining-work promise; reassessment stays
+at the first installed monetary journey. No additional owner input is needed
+to apply this planning correction.
+
+The initial AUTO-DOCS-CHECK rejected a planning-document path inside the status
+overlay's evidence array. It was replaced with this actual review-evidence
+path; the check was not weakened. No new production tests or Red/Green claim
+apply to these documentation-only edits. Live verification and full M7 exit
+remain outstanding.
+
+Final real-checkout validation: `AUTO-M7-PLAN-CHECK` passed (16 tickets, five
+stories, ten acceptance items); `AUTO-PLAN-CHECK` passed the synchronized
+baseline; `AUTO-DOCS-CHECK` passed (377 Markdown files); `git diff --check`
+passed. The planning checker proves structure/references/dependencies, not
+financial correctness, complete implementation or live acceptance. Independent
+math/delivery follow-up reviews found no remaining contradiction in their
+bounded changes; the UI follow-up correction is recorded above.
+
+---
+
 The original review below is historical planning evidence. The later approved
 implementation is recorded in the authority/progress documents. The follow-up
 planning review at the end records current clarifications without replacing

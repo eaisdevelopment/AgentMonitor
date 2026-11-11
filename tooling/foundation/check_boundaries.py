@@ -84,6 +84,7 @@ SUPPORT_SYMBOLS = {
     "agentmonitor.contracts.billing_actions_v1": {"BillingCheckPortV1"},
     "agentmonitor.contracts.budget_query_v1": {
         "AccountBudgetCurrentPortV1",
+        "AccountBudgetFundsPortV1",
         "BudgetCollectionStatePortV1",
     },
     "agentmonitor.contracts.registry_billing_v1": {

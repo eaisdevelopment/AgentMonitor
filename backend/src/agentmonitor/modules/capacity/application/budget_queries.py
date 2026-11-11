@@ -4,6 +4,7 @@ from datetime import datetime
 
 from agentmonitor.contracts.budget_query_v1 import (
     AccountBudgetCurrentV1,
+    AccountBudgetFundsPortV1,
     BudgetCollectionStatePortV1,
     BudgetResourceCurrentV1,
 )
@@ -23,10 +24,12 @@ class GetAccountBudgetCurrentV1:
         registry: BillingConnectionPortV1,
         reports: BudgetCurrentReportsPortV1,
         collection: BudgetCollectionStatePortV1,
+        funds: AccountBudgetFundsPortV1 | None = None,
     ) -> None:
         self._registry = registry
         self._reports = reports
         self._collection = collection
+        self._funds = funds
 
     def __call__(
         self,
@@ -98,6 +101,7 @@ class GetAccountBudgetCurrentV1:
                     collection_availability,
                 )
             )
+        funds = None if self._funds is None else self._funds(account_id, as_of=as_of)
         # A concurrent scope/archive/rotation change invalidates the assembled
         # metadata snapshot; it must not relabel old money as the new scope.
         try:
@@ -121,8 +125,13 @@ class GetAccountBudgetCurrentV1:
             as_of,
             QueryAvailabilityV1(
                 "available",
-                "budget_account_read" if resources else "billing_not_configured",
+                "budget_account_read"
+                if resources
+                or funds is not None
+                and funds.availability.reason_code != "funds_source_unavailable"
+                else "billing_not_configured",
                 as_of,
             ),
             tuple(resources),
+            funds,
         )

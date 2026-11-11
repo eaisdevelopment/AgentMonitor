@@ -121,12 +121,24 @@ def test_current_budget_configured_empty_account_and_permissions(
                 cookies=jar,
             )
             assert empty[0] == 200, f"Current financial query returned HTTP {empty[0]}"
-            assert json.loads(empty[2])["resources"] == []
-            assert json.loads(empty[2])["availability"]["state"] == "available"
+            empty_payload = json.loads(empty[2])
+            assert empty_payload["resources"] == []
+            assert empty_payload["availability"]["state"] == "available"
             assert (
-                json.loads(empty[2])["availability"]["reason_code"]
-                == "billing_not_configured"
+                empty_payload["availability"]["reason_code"] == "billing_not_configured"
             )
+            assert "funds" in empty_payload, (
+                "Current financial HTTP must expose the independent funds read "
+                "even before a billing connection exists"
+            )
+            funds = empty_payload["funds"]
+            assert funds["account_id"] == account_id
+            assert funds["as_of"] == empty_payload["as_of"]
+            assert funds["availability"]["state"] == "unavailable"
+            assert funds["availability"]["reason_code"] == "funds_source_unavailable"
+            assert funds["availability"]["as_of"] == funds["as_of"]
+            assert funds["components"] == []
+            assert "currency" not in funds
 
             connection = await asyncio.to_thread(
                 _request,
@@ -164,6 +176,12 @@ def test_current_budget_configured_empty_account_and_permissions(
             assert resource["reported_spend"] == []
             assert resource["report_availability"]["state"] == "unavailable"
             assert resource["latest_collection"] is None
+            configured_funds = payload["funds"]
+            assert configured_funds["account_id"] == account_id
+            assert configured_funds["as_of"] == payload["as_of"]
+            assert configured_funds["availability"] == funds["availability"]
+            assert configured_funds["components"] == []
+            assert "currency" not in configured_funds
             assert "no-store" in configured[1].get("Cache-Control", "")
             assert "ETag" not in configured[1]
             assert "binding_id" not in configured[2].decode()

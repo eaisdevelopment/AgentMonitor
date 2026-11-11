@@ -821,7 +821,7 @@ id = "CTR-CAP-006"
 name = "CapacityHistoryQueryV1"
 version = "1.0.0"
 producer = "PLAN-M05"
-consumers = ["PLAN-M08", "PLAN-P01", "PLAN-P02"]
+consumers = ["PLAN-A03", "PLAN-FND", "PLAN-M08", "PLAN-P01", "PLAN-P02"]
 maturity = "evidence_blocked"
 decision_reference = "CAA-2026-09-18-01 sections 5.7 and 9.7"
 checklist = { field_state_null = true, units_time = true, auth = true, side_effects = true, idempotency = true, events = true, retention = true, errors = true, compatibility = true }

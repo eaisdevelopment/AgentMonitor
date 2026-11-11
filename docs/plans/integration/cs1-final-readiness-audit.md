@@ -1411,3 +1411,15 @@ No schema or provider credential permission changes. This scoped review does
 not approve historical Draft plans or claim live monitoring/deployment passed.
 
 Plan snapshot SHA-256: `342b869371fc8bb910cbd91a0f609570346fc326174d023eb43af65cbcaacc36`
+
+
+## 2026-11-11 M7 stored funds contract consumption
+
+Plan snapshot SHA-256: `f4aa9cb936c060a83b8bf2766b375d0e137e553fe815d5eba85a75e72f6f17b1`
+
+The focused M7 plan 1.1.0 adds CTR-CAP-006 consumption for A03
+(the pure stored-window funds projection) and PLAN-FND (the allocated
+composition mechanism). M05 remains the producer. The canonical adoption and
+snapshot generators synchronize those two consumption entries. Historical
+whole-plan Draft status and approval flags remain unchanged; this binding
+is not a new module approval or a product/live completion claim.

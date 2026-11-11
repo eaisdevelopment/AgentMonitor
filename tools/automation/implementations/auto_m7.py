@@ -53,6 +53,8 @@ PURE_TARGETS = (
     "backend/tests/capacity/pure/test_budget_current_selection.py",
     "backend/tests/contracts/test_budget_current_query.py",
     "backend/tests/contracts/test_budget_account_query.py",
+    "backend/tests/contracts/test_budget_funds_query.py",
+    "backend/tests/providers/ollama/pure/test_funds_projection.py",
     "backend/tests/contracts/test_billing_actions.py",
     "backend/tests/contracts/test_anthropic_billing_run.py",
     "backend/tests/capacity/pure/test_budget_account_spend.py",

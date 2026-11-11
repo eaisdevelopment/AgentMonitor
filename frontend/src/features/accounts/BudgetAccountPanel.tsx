@@ -15,6 +15,53 @@ const readable = (value: string) => value.replaceAll("_", " ");
 const instant = (value: string) => new Date(value).toLocaleString(undefined, { timeZoneName: "short" });
 const bounds = (start: string, end: string) => `${start.slice(0, 10)} to ${end.slice(0, 10)} UTC (end exclusive)`;
 
+type Funds = NonNullable<AccountBudgetCurrentWireV1["funds"]>;
+type FundComponent = Funds["components"][number];
+const fundLabels: Readonly<Record<FundComponent["kind"], string>> = {
+  balance: "Balance", included_credits: "Included credits", purchased_credits: "Purchased credits",
+  soft_limit: "Soft budget", hard_limit: "Hard limit",
+};
+
+function FundMoney({ field }: Readonly<{ field: FundComponent["remaining"] }>) {
+  return <>{field.value === null ? readable(field.reason_code ?? field.availability) : <>
+    <span title={exactMoneyText(field.value)}>{displayMoney(field.value)}</span>
+    {field.availability !== "available" && ` · ${readable(field.availability)}`}
+  </>}</>;
+}
+
+function FundsReading({ funds }: Readonly<{ funds: Funds }>) {
+  return <section aria-label="Available funds and limits">
+    <h3>Available funds and limits</h3>
+    {funds.availability.state !== "available" && <p role="status">Funds {funds.availability.state}: {readable(funds.availability.reason_code)}.</p>}
+    {funds.components.map((component) => <article key={`${component.subject.resource_id}:${component.component_id}`} data-fund-resource={component.subject.resource_id} data-fund-component={component.component_id}>
+      <h4>{fundLabels[component.kind]}</h4>
+      <p><strong>{component.kind === "soft_limit" || component.kind === "hard_limit" ? "Remaining headroom" : "Remaining"}: </strong><FundMoney field={component.remaining} /></p>
+      {component.limit.value !== null && <p>Limit: <FundMoney field={component.limit} /></p>}
+      <p>{component.observed_at === null ? "Collected" : `Current ${fundLabels[component.kind].toLowerCase()} as of`} <time dateTime={component.observed_at ?? component.collected_at}>{instant(component.observed_at ?? component.collected_at)}</time>
+        {` · ${readable(component.freshness)} · ${readable(component.completeness)}`}</p>
+      <p>{component.scope_evidence === "unresolved" ? "Scope unresolved" : `Scope ${readable(component.scope_evidence)}`}.</p>
+      {component.is_constraining === false && <p>This component does not determine account availability.</p>}
+      {component.is_constraining === null && <p>Whether this component limits account availability is unknown.</p>}
+      {component.kind === "soft_limit" && <p>A soft budget is a warning threshold, not available cash or an enforced stop.</p>}
+      {component.period !== null && <p>Funds period: {bounds(component.period.start, component.period.end)}</p>}
+      {component.renewal_at !== null && <p>Renewal: <time dateTime={component.renewal_at}>{instant(component.renewal_at)}</time></p>}
+      {component.expires_at !== null && <p>Expiry: <time dateTime={component.expires_at}>{instant(component.expires_at)}</time></p>}
+      <details><summary>Funds source details</summary>
+        <dl className="telemetry-readouts">
+          <div><dt>Source</dt><dd>{component.provenance.source_id}</dd></div>
+          <div><dt>Observation</dt><dd>{component.observation_id}</dd></div>
+          <div><dt>Collected</dt><dd>{instant(component.collected_at)}</dd></div>
+          <div><dt>Value meaning</dt><dd>{readable(component.remaining.value_kind)}</dd></div>
+          <div><dt>Precision</dt><dd>{component.remaining.precision}</dd></div>
+          <div><dt>Confidence</dt><dd>{component.remaining.confidence}</dd></div>
+          {component.remaining.value !== null && <div><dt>Exact remaining</dt><dd>{exactMoneyText(component.remaining.value)}</dd></div>}
+          <div><dt>Adapter version</dt><dd>{component.provenance.adapter_version}</dd></div>
+        </dl>
+      </details>
+    </article>)}
+  </section>;
+}
+
 function CostHistory({ report }: Readonly<{ report: BudgetReportWireV1 }>) {
   const [limit, setLimit] = useState(50);
   if (report.cost_buckets.length === 0) return <p>No reported cost buckets in this interval.</p>;
@@ -74,7 +121,6 @@ function ResourceReading({ resource }: Readonly<{ resource: BudgetResourceCurren
         </p>}
       </section>;
     })}
-    <p>Remaining funds not reported.</p>
   </article>;
 }
 
@@ -136,10 +182,12 @@ export function BudgetAccountPanel({ account, showUnconfigured, onExpired, readR
     setQuery(next);
   }
 
-  if (!showUnconfigured && !error && (data === null || data.resources.length === 0)) return null;
+  const funds = data?.funds;
+  const hasFunds = funds !== null && funds !== undefined && funds.components.length > 0;
+  if (!showUnconfigured && !error && !hasFunds && (data === null || data.resources.length === 0)) return null;
   return <section className="telemetry-panel" aria-labelledby="budget-account-title" aria-busy={busy} style={{ minWidth: 0, overflowWrap: "anywhere" }}>
     <div className="panel-heading"><h2 id="budget-account-title">API usage &amp; spend</h2>
-      <button type="button" className="quiet-button" disabled={busy} onClick={() => refresh(days)}>Refresh readings</button>
+      <button type="button" className="quiet-button" title="Reload stored readings" disabled={busy} onClick={() => refresh(days)}>Refresh view</button>
     </div>
     <label htmlFor="budget-report-range">Report range</label>
     <select id="budget-report-range" value={days} onChange={(event) => refresh(event.target.value === "30" ? 30 : 7)}>
@@ -149,8 +197,9 @@ export function BudgetAccountPanel({ account, showUnconfigured, onExpired, readR
     {busy && <p role="status">Reading stored financial reports…</p>}
     {error && <p role="alert">{error}</p>}
     {data !== null && <>
-      {data.availability.state !== "available" && <p role="status">Financial data {data.availability.state}: {readable(data.availability.reason_code)}.</p>}
-      {data.resources.length === 0 && data.availability.reason_code === "billing_not_configured" && <p>API billing is not set up.</p>}
+      {hasFunds && funds !== null && funds !== undefined ? <FundsReading funds={funds} /> : <p>Remaining funds not reported{funds === null || funds === undefined ? "." : `: ${readable(funds.availability.reason_code)}.`}</p>}
+      {data.availability.state !== "available" && !(hasFunds && data.availability.reason_code === "billing_not_configured") && <p role="status">Spend data {data.availability.state}: {readable(data.availability.reason_code)}.</p>}
+      {data.resources.length === 0 && data.availability.reason_code === "billing_not_configured" && <p>{hasFunds ? "No usage report for this interval." : "API billing is not set up."}</p>}
       {data.resources.map((resource) => <ResourceReading key={`${resource.connection.resource_id}.${resource.connection.scope_generation}`} resource={resource} />)}
     </>}
   </section>;

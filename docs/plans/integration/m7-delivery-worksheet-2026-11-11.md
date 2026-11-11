@@ -1,7 +1,7 @@
 # M7 delivery worksheet: remaining work and fixed finish line
 
 Status: execution clarification within approved focused plan 1.1.0, reviewed
-against committed `437a232` on 11 November 2026. Primary owner: root integration;
+against committed `62b1b9f` on 11 November 2026 (installed code evidence: `437a232`). Primary owner: root integration;
 financial owner: M05. No new milestone, approval, dependency or completion gate.
 
 The [ticket catalog](m7-ticket-catalog-v1.json) remains the only task tracker:
@@ -103,6 +103,14 @@ panel on Overview. Existing Accounts/Overview/detail pages are sufficient.
   mutations; preserve safe URL state through sign-in. One failed API request
   must not remove working subscription rows.
 
+Financial links also retain the authorized immutable report/context, so a later
+scheduled read cannot change the number between Overview, detail and reload.
+Use **Refresh view** for stored reads and **Collect now** for a provider request.
+Funds have their own visible observation time; today's balance is not a balance
+for a historical spending window. Empty non-constraining credit components do
+not imply account exhaustion. Positive adjustments plot above zero; forecasts
+respect known credit expiry as well as renewal.
+
 T010 must carry supported balance/credits/soft/hard-limit fields and their
 availability reasons through the API; T011 must not hardcode Remaining funds
 not reported for every provider. Cash and limit headroom remain separate.
@@ -160,6 +168,30 @@ spending, revoking keys or altering provider data. Required success and full
 coverage cannot be reclassified as optional. Use isolated real systems for
 controlled recovery. Reuse valid comparisons; rerun affected boundaries after
 behavior changes, not owner attestations after documentation edits.
+
+The following distinctions apply inside the existing checks, not a new gate:
+
+| Always required before the relevant ticket closes | Conditional real-provider observation |
+|---|---|
+| T005: one genuine monetary report, atomic commit/retry/reopen, exact public query handoff; pure replacement/empty policies | A provider later corrects/removes a bucket or returns a genuinely empty report |
+| T006/T008/T009 and T015: successful admitted read for each provider, frozen category dispositions and source comparison | A supported optional field/dimension is present on the owner's particular plan |
+| T007/T015: real isolated failure/recovery, durable scheduling, generation fences and other-provider isolation | Natural 401/403/429/depletion; never revoke keys or spend funds to produce it |
+| T013: exact rate/expiry/horizon policy, real history/chart, truthful unavailable forecast and financial retention | A real compatible balance/history sample permits a numeric forecast |
+| T014/T016: installed authenticated UI, required continuity/recovery and fixed full exit | No conditional label excuses these mandatory results |
+
+T003 must retain separate scenario dispositions inside its existing results;
+required-check aggregation remains strict. A natural case stays Not Run/Blocked,
+not Passed. A missing implementation, incomplete required category or denied
+required provider access cannot be excused as a natural optional case.
+T005's real-report evidence is its prerequisite; the catalog no longer waits
+for every usage category in an entire provider ticket to close first. All three
+complete provider tickets are still required by T015.
+
+Financial retention is assigned inside T013 to M05's report/fact participant
+and M08's existing invocation, with root integration. Its real isolated SQLite
+test uses genuine reports and an explicit cutoff; no clock change or seeded old
+telemetry. T015 rechecks installed invocation through the existing deployment
+continuity check after T013, without making the first T014 installation wait.
 
 ## 7. Scope, risks and reporting discipline
 

@@ -3,10 +3,21 @@
 from datetime import datetime
 from typing import Literal
 
-from agentmonitor.api.v1.schemas.capacity import ExactQuantityWireV1
+from agentmonitor.api.v1.schemas.capacity import (
+    CapacityObservationProvenanceWireV1,
+    CapacitySubjectWireV2,
+    ExactQuantityWireV1,
+)
 from agentmonitor.api.v1.schemas.registry import AvailabilityV1, BillingConnectionViewV1
-from agentmonitor.contracts.capacity_v1 import BudgetDimensionKindV1
+from agentmonitor.contracts.capacity_v1 import (
+    BudgetDimensionKindV1,
+    CompletenessV1,
+    ConfidenceV1,
+    ValueKindV1,
+)
 from agentmonitor.contracts.collection_control_v1 import CollectionRunStateV1
+from agentmonitor.contracts.common_provenance_v1 import PrecisionV1
+from agentmonitor.contracts.common_v1 import AvailabilityStateV1
 from pydantic import BaseModel, ConfigDict, Field
 
 
@@ -112,9 +123,52 @@ class BudgetResourceCurrentWireV1(_ClosedV1):
     collection_availability: AvailabilityV1
 
 
+class ExactMoneyFieldWireV1(_ClosedV1):
+    availability: AvailabilityStateV1
+    value: ExactMoneyWireV1 | None
+    precision: PrecisionV1
+    confidence: ConfidenceV1
+    value_kind: ValueKindV1
+    reason_code: str | None
+
+
+class BudgetFundComponentWireV1(_ClosedV1):
+    subject: CapacitySubjectWireV2
+    component_id: str
+    kind: Literal[
+        "balance", "included_credits", "purchased_credits", "soft_limit", "hard_limit"
+    ]
+    remaining: ExactMoneyFieldWireV1
+    limit: ExactMoneyFieldWireV1
+    period: BudgetPeriodWireV1 | None
+    renewal_at: datetime | None
+    expires_at: datetime | None
+    is_constraining: bool | None
+    scope_evidence: Literal["provider_verified", "owner_asserted", "unresolved"]
+    observation_id: str
+    collection_run_id: str
+    observed_at: datetime | None
+    collected_at: datetime
+    stored_at: datetime
+    freshness: Literal[
+        "fresh", "stale", "freshness_unknown", "conflicted", "no_observation"
+    ]
+    completeness: CompletenessV1
+    provenance: CapacityObservationProvenanceWireV1
+
+
+class AccountBudgetFundsWireV1(_ClosedV1):
+    account_id: str
+    as_of: datetime
+    availability: AvailabilityV1
+    components: list[BudgetFundComponentWireV1]
+    registry_revision: int
+
+
 class AccountBudgetCurrentWireV1(_ClosedV1):
     account_id: str
     period: BudgetPeriodWireV1
     as_of: datetime
     availability: AvailabilityV1
     resources: list[BudgetResourceCurrentWireV1]
+    funds: AccountBudgetFundsWireV1 | None = None

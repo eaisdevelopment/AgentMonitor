@@ -104,6 +104,7 @@ from agentmonitor.composition.billing_actions import BillingCheckActionsV1
 from agentmonitor.composition.billing_local_setup import InstalledBillingLocalSetupV1
 from agentmonitor.composition.billing_monitoring import BillingMonitoringActionsV1
 from agentmonitor.composition.billing_worker_supervisor import BillingWorkerSupervisorV1
+from agentmonitor.composition.budget_funds import StoredAccountBudgetFundsV1
 from agentmonitor.composition.claude_dashboard_collection import (
     ClaudeDashboardCollectorV1,
 )
@@ -606,6 +607,9 @@ def _observation_ports(
             SqliteBillingConnectionRepositoryV1(reference),
             SqliteBudgetReportRepositoryV1(reference),
             collection,
+            StoredAccountBudgetFundsV1(
+                CapacityScopeMembershipQueryV2(registry), ListQuotaWindowsV1(capacity)
+            ),
         ),
         billing_local_setup=InstalledBillingLocalSetupV1(
             data_root, socket.gethostname()

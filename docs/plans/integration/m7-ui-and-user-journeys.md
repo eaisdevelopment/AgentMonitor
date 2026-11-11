@@ -133,7 +133,7 @@ Design-only layout, no sample telemetry:
 Organizations [selection]   Provider [selection]   Resources [All]
 Subscription quotas  [existing table]
 
-API usage & spend    Period [Last 7 days]     [Refresh readings]
+API usage & spend    Period [Last 7 days]     [Refresh view]
 [Grouped spend summaries: currency · period · coverage]
 Billing account | Organization | State | Reported spend | Available | Data through
 [owner label]   | [group]      | [text]| [amount + code]| [state]   | [timestamp]
@@ -162,8 +162,12 @@ state and account sorting. Monetary sorting is offered only inside one
 compatible currency/period/basis group; it never compares USD and GBP values.
 
 Remaining percentages/bars appear only with a valid matching denominator.
-Red means remaining **≤20%**, or explicitly reported depletion/exceeded hard
-limit. Show the raw percentage plus a bounded visual bar and text, never just
+Red on a component means remaining **≤20%**, or explicitly reported depletion/exceeded hard
+limit. Account depletion additionally requires established constraining semantics:
+an empty included-credit component does not exhaust an account with a separate
+purchased-credit component. Preserve the existing non-constraining Ollama balance
+classification; do not invent a combined percentage or credit spending order.
+Show the raw percentage plus a bounded visual bar and text, never just
 color. Compare the exact ratio before display rounding: 20.004% is not low,
 19.996% is low even if both render as 20.00%. A high remaining percentage is not low capacity. A cash balance without
 a cap shows money, not a made-up percent. No automatic red threshold for spend.
@@ -181,8 +185,10 @@ shows Shared; counted under [primary organization]. Selecting only that secondar
 group does not add it to that group's subtotal or classify it as missing data;
 selecting both groups counts it once under the primary group.
 
-**Refresh readings** rereads stored API data only. It does not make all accounts
-call their providers. Detail offers the separate **Collect now** action with
+**Refresh view** rereads stored API data only, with the hint **Reload stored
+readings; collect a new report from account detail**. Use the same read-only
+label on detail. It does not make all accounts call their providers.
+Detail offers the separate **Collect now** action with
 server cooldown. One failed API budget request must leave quota rows usable.
 
 ## 4. Account detail: useful information first
@@ -196,6 +202,13 @@ from M05/existing cloud resources through typed API fields. T011 renders those
 actual fields rather than a hardcoded Remaining funds not reported message.
 Cost reports alone cannot establish absence or presence of funds. Reuse the
 existing Ollama balance pool and disclose any incompatible scope/cost basis.
+
+Show the funds observation time beside each balance/credit/headroom amount,
+separately from the spend interval. While browsing older spending, label a latest
+snapshot **Current balance as of [time]**; do not imply it belongs to that old
+window. Funds can be visible before a usage report exists. The absence of an
+Anthropic/OpenAI-style billing binding must not hide existing Ollama balances
+or ask the owner to create a duplicate account. No historical balance is inferred.
 
 | Section | Required content and behavior |
 |---|---|
@@ -251,7 +264,7 @@ rules for the existing sections, not additional cards or screens.
 
 | State | Visible message | Available action |
 |---|---|---|
-| No billing binding | API billing is not set up | Add billing connection |
+| No usable billing or cloud resource | API billing is not set up | Add billing connection or existing cloud setup, as published by the account capability |
 | Missing credential | Credential required on the AgentMonitor computer | Copy setup command; Check connection disabled with reason |
 | Queued/reading | Checking connection / Reading usage | Show progress state; prevent duplicate submission |
 | Access verified, scope owner asserted | Access works; billing scope is owner-confirmed | Review scope; enable monitoring |
@@ -304,9 +317,18 @@ invented retry interval or live countdown component is needed.
 T011/T012 include the existing shell files `frontend/src/app/DashboardApp.tsx`
 and `frontend/src/app/sessionBootstrap.ts`: the current shell strips query
 parameters and expires to `/login`. Preserve only allowlisted nonsecret
-organization/provider/resource/range/cutoff/sort state and a safe return path.
+organization/provider/resource/range/cutoff/sort state, the opaque financial
+context and immutable report selection, and a safe return path.
 Reject arbitrary return URLs; never carry credentials or replay actions. This
 is a small routing correction, not a new router dependency.
+
+The server authorizes those selectors against the account/resource and retained
+scope. Overview → detail → reload/sign-in return preserves the selected report
+and amount even if scheduled collection has since produced a newer report.
+Explicit Refresh view replaces the selection; an expired selection uses the
+existing Selection expired recovery. An unlinked account URL defaults to the
+admitted seven-completed-day view. URLs carry opaque selectors, not emails,
+provider scope names, financial values or credentials.
 
 A queued action displays its actual run state until success/failure; HTTP
 acceptance alone must not change the label to Connected. Concurrent edits in

@@ -212,6 +212,47 @@ event-sourcing subsystem.
 The additive HTTP/client operations are generated; full account/global/history
 coverage remains unfinished. See the worksheet's concrete first-slice contract decisions.
 
+### Funds handoff inside T010, before adding more financial screens
+
+The local increment now implements additive CTR-CAP-006 2.3.0: an optional
+account funds view, typed exact components and its public query port. M02 cloud
+membership and M05 quota reads are composed by root; A03 maps only admitted
+Ollama monetary windows. P01 publishes the compatible field through the existing
+account endpoint; P02 renders it independently of billing reports. A03 and FND
+are declared contract consumers. There is no migration, dependency, collection
+request or owner configuration change. See the
+[scoped evidence](../../../evidence/m7-stored-funds-2026-11-11.md) for actual
+Red/Green and installation/browser status; T010/T011 remain open.
+
+At `62b1b9f`, `GetAccountBudgetCurrentV1` enumerates only billing connections,
+and CTR-CAP-006 2.2.0 carries reports/spend but no funds. Existing Ollama cloud
+resources therefore need a read projection independent of those connections.
+This is an additive contract change within T010, not a second billing registry.
+
+1. Root publishes the next compatible CTR-CAP-006 surface before consumers
+   change: exact amount/currency, component kind, optional limit/period/expiry,
+   constraining semantics, field availability/reason, source observation/run
+   identity and timestamps, scope compatibility and freshness. No guessed values.
+2. Compose M02 `RegistryScopeSnapshotV2` cloud membership with M05's published
+   quota-window query. A03 alone interprets the existing provider window names
+   and maps admitted monetary components; legacy percentage windows are not money.
+   Do not query another module's tables or match records by label/email.
+3. Revalidate resource membership and scope generation on read. Unknown scope
+   permits a labelled individual balance, but not inferred shared-pool totals,
+   spend compatibility or forecast eligibility. Do not present an observation
+   collected after the query snapshot as known then; current projection absence
+   is not a historical zero. No new table or provider request is needed.
+4. P01 maps the typed projection and regenerates its client. P02 can render
+   funds when reports/connections are empty, with separate current-funds time
+   and selected spending interval. Existing balances are not collected again
+   merely to display them. Positive live verification uses the real stored
+   observation → public query → actual HTTP → built DOM lineage.
+
+T010's existing HTTP cases cover funds without spend, spend without funds,
+non-constraining components, unavailable period and stale data. Pure cases cover
+selection/compatibility; missing naturally occurring I/O combinations are
+reported separately, never seeded into the database.
+
 ## 9. Test-first sequence
 
 | Scenario | Expected Red | Green evidence |
@@ -276,6 +317,18 @@ report context. Reuse M08 retention/backup participants; preserve current facts
 and links. Installed rollout needs a compatible binary and verified backup.
 No old migration rewrites or post-write blind restore. T014 owns actual deployed
 rollback; isolated SQLite tests do not claim full M8 backup/restore delivery.
+
+T013 explicitly owns this financial-retention handoff: M05 implements the
+report/fact retention participant and reference-preservation policy; root wires
+it through M08's existing scheduling contract. T015 reuses the T014 continuity
+check to verify installed invocation after T013; the first installation does
+not wait for that later work. T005 supplies the real persisted report used by the isolated SQLite
+test. Pass an explicit future cutoff to that isolated test without changing the
+machine clock, manufacturing old telemetry or touching the owner's database.
+Verify current/derivation references survive, eligible unreferenced report facts
+expire together, and expired cursors cannot return a different report. Add these
+assertions to the existing persistence check, with pure cutoff/mutation coverage.
+This covers only M7-owned storage; M8-wide retention/backup work stays M8.
 
 ## 13. Documentation and handoff
 
