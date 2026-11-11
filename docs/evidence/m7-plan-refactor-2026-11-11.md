@@ -1,5 +1,40 @@
 # M7 plan refactor: findings and bounded review
 
+## Follow-up against 975d6cd: remove repeated prerequisites and closure traps
+
+This pass addresses the owner's request for deeper planning with a simple
+working-first delivery. Root reviewed the current worksheet, UI/calculation
+rules, actual registry contract and routing code. Independent read-only delivery
+and UI reviews supplied the bounded findings below. M05's existing lineage
+review supplied the remaining pool/funds handoff. Only planning documents and
+ticket metadata were edited in this pass; unfinished production changes already
+in the worktree were preserved and are not claimed as integrated or deployed.
+
+| Finding | Applied correction |
+|---|---|
+| T010 depended on closing all-provider T007, despite the first-dashboard delivery promise | Remove the whole-ticket dependency; retain genuine first-provider run/report evidence as its handoff. T015 still requires full T007 |
+| Worksheet and execution plan ordered already installed cloud prerequisites again | Replace obsolete packets with retained ca5f062 evidence and five remaining packets: metadata, money, queries/detail, Overview/install, scheduling/recovery |
+| Browser-closed refresh appeared before and after the first dashboard | Keep missing monetary refresh/recovery proof in packet E once; reuse demonstrated cloud scheduled reading |
+| Partial funds/usage delivery and the first monetary journey were conflated | Next visible Overview can use real retained data; monetary acceptance still requires an actual cost report. No count-to-money inference |
+| Totals require canonical pool/primary-group metadata not present in current CTR-REG-014 | Explicit T002 → T004/T010/T012 handoff; visible exclusions are intermediate, not completed aggregation |
+| Existing Ollama Check proves balance access, not a new usage report | Require the matching actual usage run/report for usage actions; preserve readable stored usage without duplicate setup |
+| First partial report could have all its useful buckets hidden | Detail shows available exact partial evidence without complete total; an older complete report stays separate |
+
+The sixteen tickets, five stories and M7-A01..A10 remain unchanged. No ticket
+status or implementation completion is advanced by this review. Primary owner
+is root integration with M05 financial semantics; impacts are planning and
+handoff clarification for M02/M04/M05/P01/P02/A03. No contract version, migration,
+dependency, license, account, credential or running service changed in this pass.
+Production TDD/live evidence is not claimed for documentation changes.
+
+Validation on this real worktree passed: `AUTO-M7-PLAN-CHECK` (16 tickets,
+five stories, ten acceptance items), `AUTO-PLAN-CHECK` (synchronized),
+`AUTO-DOCS-CHECK` (380 Markdown files) and `git diff --check`. Final independent
+delivery and UI reviews found no material contradiction introduced by the
+six-file diff. These checks validate planning structure/references, not product
+behavior or the final M7 gate. Files remain local; this pass does not claim
+publication or installation.
+
 ## Current review at 62b1b9f — UI, financial meaning and finite delivery
 
 The renewed owner request is a planning refactor. Changes in this review are

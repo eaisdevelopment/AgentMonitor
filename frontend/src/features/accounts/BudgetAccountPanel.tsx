@@ -7,10 +7,11 @@ import {
   type BudgetCloudResourceCurrentWireV1,
   type BudgetReportWireV1,
   type BudgetResourceCurrentWireV1,
+  type BudgetSelectedReportWireV1,
 } from "../../shared/api/client";
 import { completedPeriod, displayMoney, exactMoneyText, exactUsageText } from "./budgetPresentation";
 import { advanceFinancialRead } from "./billingCheckPresentation";
-import { canRetainFinancialReading, type FinancialReadContext } from "./financialReadPresentation";
+import { canRetainFinancialReading, selectedFinancialReport, type FinancialReadContext } from "./financialReadPresentation";
 
 const readable = (value: string) => value.replaceAll("_", " ");
 const instant = (value: string) => new Date(value).toLocaleString(undefined, { timeZoneName: "short" });
@@ -111,11 +112,12 @@ function ResourceReading({ resource }: Readonly<{ resource: BudgetResourceCurren
     {resource.reports.length === 0 && <p>{resource.report_availability.reason_code === "budget_current_reports_absent"
       ? "No report for this interval." : `Reports unavailable: ${readable(resource.report_availability.reason_code)}.`}</p>}
     {resource.reports.map((selection) => {
-      const report = selection.current;
+      const report = selection.current ?? selection.latest_attempt;
       const attempt = selection.latest_attempt;
       const key = report?.report_id ?? attempt?.report_id ?? "no-report";
       const spend = resource.reported_spend.find((value) => value.report_id === report?.report_id);
       return <section key={key} data-report-id={report?.report_id}>
+        {selection.current === null && report !== null && <p>Partial evidence only. No complete-period total is available.</p>}
         {report === null ? <p>No complete report for this financial context.</p> : <>
           {report.currency === null && report.cost_buckets.length === 0 && report.usage_buckets.length > 0
             ? <p>Provider did not report costs.</p>
@@ -149,14 +151,18 @@ function ResourceReading({ resource }: Readonly<{ resource: BudgetResourceCurren
   </article>;
 }
 
-export function BudgetAccountPanel({ account, showUnconfigured, onExpired, readRevision }: Readonly<{
+export function BudgetAccountPanel({ account, showUnconfigured, onExpired, readRevision, financialSearch = "" }: Readonly<{
   account: AccountViewV1;
   showUnconfigured: boolean;
   onExpired: () => void;
   readRevision: number;
+  financialSearch?: string;
 }>) {
-  const [days, setDays] = useState<7 | 30>(7);
-  const [query, setQuery] = useState(() => completedPeriod(7, new Date()));
+  const selection = selectedFinancialReport(financialSearch);
+  const [days, setDays] = useState<7 | 30>(() => selection.kind === "selected" ? selection.days : 7);
+  const [query, setQuery] = useState(() => selection.kind === "selected" ? selection.query : completedPeriod(7, new Date()));
+  const [pinned, setPinned] = useState<BudgetSelectedReportWireV1 | null>(null);
+  const [pinnedError, setPinnedError] = useState<string | null>(null);
   const [snapshot, setSnapshot] = useState<Readonly<{ context: FinancialReadContext; data: AccountBudgetCurrentWireV1 }> | null>(null);
   const [busy, setBusy] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -166,6 +172,26 @@ export function BudgetAccountPanel({ account, showUnconfigured, onExpired, readR
   const context: FinancialReadContext = { account, periodStart: query.period_start, periodEnd: query.period_end, readRevision };
   // Fence the heading during render too, before an obsolete request's effect is cleaned up.
   const data = snapshot !== null && canRetainFinancialReading(snapshot.context, context) ? snapshot.data : null;
+
+  useEffect(() => {
+    if (selection.kind !== "selected" || selection.reportId === null) return;
+    const controller = new AbortController();
+    const reportId = selection.reportId;
+    setPinned(null);
+    setPinnedError(null);
+    void budgets.report(selection.resourceId, { account_id: account.account_id,
+      report_id: reportId, ...selection.query }, controller.signal).then(result => {
+      if (controller.signal.aborted) return;
+      if (!result.ok) {
+        if (result.problem.code === "dashboard_authentication_required") expired.current();
+        else setPinnedError("The selected report is unavailable or no longer retained. Refresh view to select current stored data.");
+      } else if (result.data.report.report_id !== reportId || result.data.report.account_id !== account.account_id ||
+          result.data.report.resource_id !== selection.resourceId) {
+        setPinnedError("The selected report did not match this account and resource.");
+      } else setPinned(result.data);
+    }).catch(() => { if (!controller.signal.aborted) setPinnedError("The selected report could not be read. Try again when the service is available."); });
+    return () => controller.abort();
+  }, [account.account_id, financialSearch]);
 
   useEffect(() => {
     if (lastReadRevision.current === readRevision) return;
@@ -205,12 +231,24 @@ export function BudgetAccountPanel({ account, showUnconfigured, onExpired, readR
     const next = completedPeriod(nextDays, new Date());
     setDays(nextDays);
     setQuery(next);
+    if (selection.kind !== "none") {
+      const search = new URLSearchParams(window.location.search);
+      for (const key of ["budget_selection", "budget_resource", "budget_report", "budget_start", "budget_end", "budget_as_of"]) search.delete(key);
+      if (selection.kind === "selected") {
+        search.set("budget_resource", selection.resourceId);
+        search.set("budget_start", next.period_start);
+        search.set("budget_end", next.period_end);
+        search.set("budget_as_of", next.as_of);
+      }
+      window.history.replaceState(null, "", `${window.location.pathname}${search.size ? `?${search}` : ""}`);
+      window.dispatchEvent(new PopStateEvent("popstate"));
+    }
   }
 
   const funds = data?.funds;
   const cloudResources = data?.cloud_resources ?? [];
   const hasFunds = funds !== null && funds !== undefined && funds.components.length > 0;
-  if (!showUnconfigured && !error && !hasFunds && cloudResources.length === 0 && (data === null || data.resources.length === 0)) return null;
+  if (selection.kind === "none" && !showUnconfigured && !error && !hasFunds && cloudResources.length === 0 && (data === null || data.resources.length === 0)) return null;
   return <section className="telemetry-panel" aria-labelledby="budget-account-title" aria-busy={busy} style={{ minWidth: 0, overflowWrap: "anywhere" }}>
     <div className="panel-heading"><h2 id="budget-account-title">API usage &amp; spend</h2>
       <button type="button" className="quiet-button" title="Reload stored readings" disabled={busy} onClick={() => refresh(days)}>Refresh view</button>
@@ -222,12 +260,36 @@ export function BudgetAccountPanel({ account, showUnconfigured, onExpired, readR
     <p>{bounds(query.period_start, query.period_end)}</p>
     {busy && <p role="status">Reading stored financial reports…</p>}
     {error && <p role="alert">{error}</p>}
-    {data !== null && <>
+    {selection.kind === "invalid" && <p role="alert">This financial link is incomplete or invalid. Refresh view to select current stored data.</p>}
+    {selection.kind === "selected" && selection.reportId !== null && <section aria-label="Selected financial report" data-report-id={pinned?.report.report_id}>
+      <h3>Selected report</h3>
+      <p>This is the report opened from Overview. Refresh view selects current stored readings.</p>
+      {pinnedError !== null ? <p role="alert">{pinnedError}</p> : pinned === null ? <p role="status">Reading the selected report…</p> : <>
+        <p><strong>Reported spend: </strong>{pinned.reported_spend.total === null ? readable(pinned.reported_spend.reason_code) :
+          <span title={exactMoneyText(pinned.reported_spend.total)}>{displayMoney(pinned.reported_spend.total)}</span>}</p>
+        <p>Provider billing scope: {pinned.report.scope_id ?? "Not established"} · {readable(pinned.report.scope_evidence)}</p>
+        <p>{bounds(pinned.report.requested_period.start, pinned.report.requested_period.end)} · {readable(pinned.report.cost_basis)} · {readable(pinned.report.source_category)}</p>
+        <p>Data through: {pinned.report.source_data_through === null ? "Not reported" : instant(pinned.report.source_data_through)} · Collected: {instant(pinned.report.collected_at)} · {pinned.report.completeness}</p>
+        {pinned.report.cost_buckets.length > 0 && <CostHistory report={pinned.report} />}
+        <UsageHistory report={pinned.report} />
+      </>}
+    </section>}
+    {data !== null && selection.kind !== "invalid" && <>
       {hasFunds && funds !== null && funds !== undefined ? <FundsReading funds={funds} /> : <p>Remaining funds not reported{funds === null || funds === undefined ? "." : `: ${readable(funds.availability.reason_code)}.`}</p>}
       {data.availability.state !== "available" && !(hasFunds && data.availability.reason_code === "billing_not_configured") && <p role="status">Spend data {data.availability.state}: {readable(data.availability.reason_code)}.</p>}
       {data.resources.length === 0 && cloudResources.length === 0 && data.availability.reason_code === "billing_not_configured" && <p>{hasFunds ? "No usage report for this interval." : "API billing is not set up."}</p>}
-      {data.resources.map((resource) => <ResourceReading key={`${resource.connection.resource_id}.${resource.connection.scope_generation}`} resource={resource} />)}
-      {cloudResources.map((resource) => <ResourceReading key={resource.resource_id} resource={resource} />)}
+      {selection.kind === "selected" && selection.reportId !== null &&
+        [...data.resources, ...cloudResources].filter(resource => ("connection" in resource ? resource.connection.resource_id : resource.resource_id) === selection.resourceId).map(resource => {
+          const run = resource.latest_collection;
+          return <p key="selected-collection-status" role="status">Collection status for this interval: {run === null ? readable(resource.collection_availability.reason_code) : <>
+            {readable(run.state)} · {instant(run.completed_at ?? run.started_at ?? run.requested_at)}
+            {run.error_code !== null && ` · ${readable(run.error_code)}`}
+          </>}. The selected report remains unchanged.</p>;
+        })}
+      {!(selection.kind === "selected" && selection.reportId !== null) && <>
+        {data.resources.filter(resource => selection.kind !== "selected" || resource.connection.resource_id === selection.resourceId).map((resource) => <ResourceReading key={`${resource.connection.resource_id}.${resource.connection.scope_generation}`} resource={resource} />)}
+        {cloudResources.filter(resource => selection.kind !== "selected" || resource.resource_id === selection.resourceId).map((resource) => <ResourceReading key={resource.resource_id} resource={resource} />)}
+      </>}
     </>}
   </section>;
 }

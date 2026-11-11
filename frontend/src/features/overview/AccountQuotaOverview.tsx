@@ -1,7 +1,7 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import {
-  capacity, providers, registry,
+  capacity, providers,
   type AccountCapacityViewV2, type AccountPageV1, type AccountViewV1,
   type ProviderAccountIdentityViewV1, type OrganizationPageV1,
   type OllamaCloudConnectionStatusV1,
@@ -9,6 +9,11 @@ import {
 import { providerDisplayName } from "../accounts/providerPresentation";
 import { ollamaMonitoringCopy } from "../accounts/ollamaCloudConnection";
 import { exactUsd, isLowQuota, metricAvailability, quotaResetPresentation, remainingPercentage } from "../command/quotaPresentation";
+
+import { allOverviewAccounts, allOverviewOrganizations } from "./registryPages";
+import type { OverviewSelection } from "./overviewSelection";
+
+export type OverviewInventory = Readonly<{ accounts: AccountPageV1; organizations: OrganizationPageV1 | null }>;
 
 type AccountReading = Readonly<{
   account: AccountViewV1;
@@ -34,12 +39,6 @@ const sortOptions: readonly Readonly<{ value: string; label: string; sort: Overv
   { value: "state:ascending", label: "State · A to Z", sort: { key: "state", direction: "ascending" } },
   { value: "state:descending", label: "State · Z to A", sort: { key: "state", direction: "descending" } },
 ];
-
-function organizationFilterKey(account: AccountViewV1, organizations: OrganizationPageV1 | null): string {
-  if (account.organization_id === null) return "ungrouped";
-  return organizations?.items.some(item => item.organization_id === account.organization_id)
-    ? `organization:${account.organization_id}` : "unavailable";
-}
 
 function lowestRemainingPercentage(reading: AccountReading): number {
   return Math.min(Infinity, ...(reading.quota?.items.flatMap(item => item.windows) ?? [])
@@ -129,16 +128,22 @@ function sortDescription(sort: OverviewSort): string {
   return `${label} · ${sort.direction === "ascending" ? "A to Z" : "Z to A"}`;
 }
 
-export function AccountQuotaOverview({ onExpired, onOpenAccount }: Readonly<{
+export function AccountQuotaOverview({ onExpired, onOpenAccount, selection, onSortChange, onInventory, subscriptionIds }: Readonly<{
+  selection: OverviewSelection;
+  onSortChange: (value: string) => void;
+  onInventory: (value: OverviewInventory) => void;
+  subscriptionIds: readonly string[] | null;
   onExpired: () => void;
   onOpenAccount: (accountId: string) => void;
 }>) {
   const [state, setState] = useState<OverviewState>({ kind: "loading" });
   const [refreshKey, setRefreshKey] = useState(0);
   const [busy, setBusy] = useState(false);
-  const [selectedOrganizations, setSelectedOrganizations] = useState<readonly string[] | null>(null);
-  const [selectedProvider, setSelectedProvider] = useState<string | null>(null);
-  const [sort, setSort] = useState<OverviewSort>({ key: "quota", direction: "ascending" });
+  const callbacks = useRef({ onExpired, onInventory });
+  callbacks.current = { onExpired, onInventory };
+  const sort = sortOptions.find(option => option.value === selection.quotaSort)?.sort ?? sortOptions[0]!.sort;
+  const activeProvider = selection.provider;
+  const selectedOrganizations = selection.organizationIds;
 
   useEffect(() => {
     const controller = new AbortController();
@@ -149,14 +154,15 @@ export function AccountQuotaOverview({ onExpired, onOpenAccount }: Readonly<{
       setBusy(true);
       try {
         const [accounts, organizations] = await Promise.all([
-          registry.accounts(controller.signal), registry.organizations(controller.signal),
+          allOverviewAccounts(controller.signal), allOverviewOrganizations(controller.signal),
         ]);
         if (controller.signal.aborted) return;
         if ((!accounts.ok && accounts.problem.code === "dashboard_authentication_required") || (!organizations.ok && organizations.problem.code === "dashboard_authentication_required")) {
-          onExpired();
+          callbacks.current.onExpired();
           return;
         }
         if (!accounts.ok) throw new Error("account_list_unavailable");
+        callbacks.current.onInventory({ accounts: accounts.data, organizations: organizations.ok ? organizations.data : null });
         const visible = accounts.data.items.filter(account => account.lifecycle !== "archived");
         const readings: AccountReading[] = [];
         let expired = false;
@@ -176,7 +182,7 @@ export function AccountQuotaOverview({ onExpired, onOpenAccount }: Readonly<{
             }
           }));
           if (controller.signal.aborted) return;
-          if (expired) { onExpired(); return; }
+          if (expired) { callbacks.current.onExpired(); return; }
           readings.push(...batch);
         }
         setState(current => ({
@@ -200,52 +206,28 @@ export function AccountQuotaOverview({ onExpired, onOpenAccount }: Readonly<{
     void refresh();
     const interval = window.setInterval(() => { void refresh(); }, 30_000);
     return () => { controller.abort(); window.clearInterval(interval); };
-  }, [onExpired, refreshKey]);
+  }, [refreshKey]);
 
-  const organizationOptions = state.kind === "ready" ? [
-    ...(state.organizations?.items.map(item => ({ key: `organization:${item.organization_id}`, name: item.name })) ?? []),
-    ...(state.readings.some(reading => reading.account.organization_id === null) ? [{ key: "ungrouped", name: "Ungrouped" }] : []),
-    ...(state.readings.some(reading => organizationFilterKey(reading.account, state.organizations) === "unavailable") ? [{ key: "unavailable", name: "Unavailable organization" }] : []),
-  ] : [];
-  const providerOptions = state.kind === "ready" ? [...new Set(state.readings.map(reading => reading.account.provider_key))]
-    .sort((left, right) => providerDisplayName(left).localeCompare(providerDisplayName(right))) : [];
-  const activeProvider = selectedProvider !== null && providerOptions.includes(selectedProvider)
-    ? selectedProvider
-    : null;
-  useEffect(() => {
-    if (state.kind === "ready" && selectedProvider !== null && activeProvider === null) setSelectedProvider(null);
-  }, [activeProvider, selectedProvider, state.kind]);
-  const visibleReadings = state.kind === "ready" ? state.readings.filter(reading =>
-    (selectedOrganizations === null || selectedOrganizations.includes(organizationFilterKey(reading.account, state.organizations)))
-    && (activeProvider === null || reading.account.provider_key === activeProvider)) : [];
+  const subscriptionReadings = state.kind === "ready" ? state.readings.filter(reading =>
+    subscriptionIds !== null ? subscriptionIds.includes(reading.account.account_id)
+      : reading.account.initial_connection_purpose !== "api" || (reading.quota?.items.some(item => item.windows.length > 0 && (!("provider_target_kind" in item.subject) || item.subject.provider_target_kind === "provider_installation")) ?? false)) : [];
+  const visibleReadings = subscriptionReadings.filter(reading =>
+    (reading.account.organization_id === null ? selection.includeUngrouped : selectedOrganizations === null || selectedOrganizations.includes(reading.account.organization_id))
+    && (activeProvider === null || reading.account.provider_key === activeProvider));
   const visibleConnections = state.kind === "ready"
     ? [...groupConnections(visibleReadings)].sort((left, right) => compareConnectionGroups(left, right, sort, state.organizations))
     : [];
-  const toggleOrganization = (key: string) => setSelectedOrganizations(current => current === null ? [key] : current.includes(key) ? current.filter(item => item !== key) : [...current, key]);
-  const selectSort = (key: OverviewSortKey) => setSort(current => ({
-    key,
-    direction: current.key === key && current.direction === "ascending" ? "descending" : "ascending",
-  }));
+  const selectSort = (key: OverviewSortKey) => onSortChange(`${key}:${sort.key === key && sort.direction === "ascending" ? "descending" : "ascending"}`);
   const selectSortOption = (value: string) => {
-    const option = sortOptions.find(item => item.value === value);
-    if (option !== undefined) setSort(option.sort);
+    if (sortOptions.some(option => option.value === value)) onSortChange(value);
   };
 
   return (
     <section className="fleet-overview" aria-labelledby="overview-accounts-title" aria-busy={busy}>
       <div className="fleet-overview-heading">
-        <div><h2 id="overview-accounts-title">Accounts</h2><p id="overview-quota-order" aria-live="polite">{sortDescription(sort)} · low ≤20%</p></div>
-        {state.kind === "ready" && organizationOptions.length > 0 && <div className="overview-organization-filters" role="group" aria-labelledby="overview-organizations-label">
-          <span id="overview-organizations-label">Organizations</span>
-          <button type="button" aria-pressed={selectedOrganizations === null} onClick={() => setSelectedOrganizations(null)}>All organizations</button>
-          {organizationOptions.map(option => <button key={option.key} type="button" aria-pressed={selectedOrganizations?.includes(option.key) ?? false} onClick={() => toggleOrganization(option.key)}>{option.name}</button>)}
-        </div>}
-        {state.kind === "ready" && providerOptions.length > 1 && <label className="overview-provider-filter"><span>Provider</span><select value={activeProvider ?? "all"} onChange={(event) => setSelectedProvider(event.target.value === "all" ? null : event.target.value)}>
-          <option value="all">All providers</option>
-          {providerOptions.map(providerKey => <option key={providerKey} value={providerKey}>{providerDisplayName(providerKey)}</option>)}
-        </select></label>}
+        <div><h2 id="overview-accounts-title">Subscription quotas</h2><p id="overview-quota-order" aria-live="polite">{sortDescription(sort)} · low ≤20%</p></div>
         <div className="fleet-overview-controls">
-          {state.kind === "ready" && <span>{visibleConnections.length} account rows · {visibleReadings.length} of {state.readings.length} connections listed</span>}
+          {state.kind === "ready" && <span>{visibleConnections.length} account rows · {visibleReadings.length} of {subscriptionReadings.length} subscription connections listed</span>}
           {state.kind === "ready" && <label className="overview-mobile-sort"><span>Sort accounts</span><select aria-label="Sort accounts" value={`${sort.key}:${sort.direction}`} onChange={(event) => selectSortOption(event.target.value)}>{sortOptions.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}</select></label>}
           <button className="quiet-button" type="button" disabled={busy} onClick={() => setRefreshKey(key => key + 1)}>{busy ? "Refreshing…" : "Refresh overview"}</button>
         </div>
@@ -253,7 +235,7 @@ export function AccountQuotaOverview({ onExpired, onOpenAccount }: Readonly<{
       {state.kind === "loading" && <p className="fleet-overview-notice" role="status">Reading accounts and quota…</p>}
       {state.kind === "error" && <p className="fleet-overview-notice" role="alert">Account readings are unavailable. Refresh to try again.</p>}
       {state.kind === "ready" && <>
-        {state.readings.length === 0 ? <p className="fleet-overview-notice">No accounts are registered. Add an account from Accounts.</p> : visibleReadings.length === 0 ? <p className="fleet-overview-notice" role="status">{selectedOrganizations?.length === 0 ? "No organizations selected. Choose an organization or All organizations." : activeProvider !== null ? `No ${providerDisplayName(activeProvider)} accounts in the selected organizations. Choose another provider or organization.` : "No accounts in the selected organizations. Choose another organization or All organizations."}</p> : (
+        {state.readings.length === 0 ? <p className="fleet-overview-notice">No accounts are registered. Add an account from Accounts.</p> : visibleReadings.length === 0 ? <p className="fleet-overview-notice" role="status">{selectedOrganizations?.length === 0 && !selection.includeUngrouped ? "No organizations selected. Choose an organization or All organizations." : activeProvider !== null ? `No ${providerDisplayName(activeProvider)} accounts in the selected organizations. Choose another provider or organization.` : "No accounts in the selected organizations. Choose another organization or All organizations."}</p> : (
           <table className="fleet-overview-table" aria-label="Account quota overview" aria-describedby="overview-quota-order">
             <thead><tr><th scope="col">Account</th>
               <th scope="col" aria-sort={sort.key === "organization" ? sort.direction : undefined}><button type="button" className="overview-sort-button" onClick={() => selectSort("organization")}>Organization<span aria-hidden="true">{sort.key === "organization" ? sort.direction === "ascending" ? "↑" : "↓" : "↕"}</span></button></th>

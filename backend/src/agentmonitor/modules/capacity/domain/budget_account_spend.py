@@ -1,8 +1,15 @@
 """Exact selected-report spend, independent from cross-resource pool aggregation."""
 
+from datetime import datetime
+
 from agentmonitor.contracts.budget_query_v1 import BudgetReportedSpendV1
-from agentmonitor.contracts.capacity_v1 import BudgetReportSelectionV1
+from agentmonitor.contracts.capacity_v1 import (
+    BudgetPeriodV1,
+    BudgetReportSelectionV1,
+    BudgetReportViewV1,
+)
 from agentmonitor.contracts.common_quantity_v1 import CanonicalDecimalV1, ExactMoneyV1
+from agentmonitor.contracts.common_v1 import OpaqueIdV1
 from agentmonitor.modules.capacity.domain.budget_money import (
     BudgetMoneyError,
     sum_money,
@@ -37,3 +44,24 @@ def reported_spend(selection: BudgetReportSelectionV1) -> BudgetReportedSpendV1 
     except (BudgetMoneyError, ValueError):
         return BudgetReportedSpendV1(selected.report_id, None, "cost_total_unavailable")
     return BudgetReportedSpendV1(selected.report_id, total, "reported_spend_calculated")
+
+
+def matches_selected_report(
+    stored: BudgetReportViewV1 | None,
+    *,
+    account_id: OpaqueIdV1,
+    resource_id: OpaqueIdV1,
+    report_id: OpaqueIdV1,
+    period: BudgetPeriodV1,
+    as_of: datetime,
+) -> bool:
+    """Never replace an expired, cross-resource or future immutable selection."""
+    return (
+        stored is not None
+        and stored.report_id == report_id
+        and stored.report.subject.account_id == account_id
+        and stored.report.subject.resource_id == resource_id
+        and stored.report.requested_period == period
+        and stored.stored_at <= as_of
+        and period.end <= as_of
+    )

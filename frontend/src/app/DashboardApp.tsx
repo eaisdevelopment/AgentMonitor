@@ -15,7 +15,7 @@ import { OperationsPage } from "../features/operations/OperationsPage";
 import { AlertRulesPage } from "../features/alerts/AlertRulesPage";
 import { AlertsPage } from "../features/alerts/AlertsPage";
 import { CsrfUnavailableError, iam, safeProblemMessage, type CurrentSessionViewV1 } from "../shared/api/client";
-import { accountIdFromRoute, accountRoute, safeReturnRoute, safeRoute, sessionBootstrap, type AllowedRoute, type BootstrapState } from "./sessionBootstrap";
+import { accountIdFromRoute, accountRoute, safeLocation, safeRoute, sessionBootstrap, type AllowedRoute, type BootstrapState } from "./sessionBootstrap";
 
 type PasswordLifecycle = "closed" | "draining" | "ready" | "submitting";
 type PasswordCloseFocus = "change-control" | "success-status" | null;
@@ -37,6 +37,8 @@ function initialRoute(): AllowedRoute {
 export function DashboardApp() {
   const [bootstrap, setBootstrap] = useState<BootstrapState | null>(null);
   const [route, setRoute] = useState<AllowedRoute>(initialRoute);
+  const [routeSearch, setRouteSearch] = useState(() => safeLocation(window.location.pathname + window.location.search).search);
+  const overviewSearch = useRef(initialRoute() === "/" ? routeSearch : "");
   const [loginBusy, setLoginBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [session, setSession] = useState<CurrentSessionViewV1 | null>(null);
@@ -55,16 +57,16 @@ export function DashboardApp() {
     token: 0,
     protectedFeatureGeneration: 0,
   });
-  const [returnRoute] = useState<AllowedRoute>(() => {
+  const returnLocation = useRef((() => {
     const query = new URLSearchParams(window.location.search);
     const direct = initialRoute();
-    return direct === "/settings/api-tokens"
-      ? direct : safeReturnRoute(query.get("next"));
-  });
+    return direct === "/login" ? safeLocation(query.get("next")) : safeLocation(window.location.pathname + window.location.search);
+  })());
 
   useEffect(() => {
     if (window.location.search || window.location.hash) {
-      window.history.replaceState(null, "", window.location.pathname);
+      const destination = returnLocation.current.route + returnLocation.current.search;
+      window.history.replaceState(null, "", initialRoute() === "/login" ? destination === "/" ? "/login" : `/login?next=${encodeURIComponent(destination)}` : route + routeSearch);
     }
     let active = true;
     void sessionBootstrap().then((state) => {
@@ -72,8 +74,9 @@ export function DashboardApp() {
       setBootstrap(state);
       setSession(state.kind === "authenticated" ? state.session : null);
       if (state.kind === "authenticated" && initialRoute() === "/login") {
-        window.history.replaceState(null, "", returnRoute);
-        setRoute(returnRoute);
+        window.history.replaceState(null, "", returnLocation.current.route + returnLocation.current.search);
+        setRoute(returnLocation.current.route);
+        setRouteSearch(returnLocation.current.search);
       }
     });
     return () => { active = false; };
@@ -84,9 +87,11 @@ export function DashboardApp() {
       if (passwordLifecycleRef.current !== "closed") {
         window.history.replaceState(null, "", "/");
         setRoute("/");
+        setRouteSearch("");
         return;
       }
       setRoute(initialRoute());
+      setRouteSearch(safeLocation(window.location.pathname + window.location.search).search);
     };
     window.addEventListener("popstate", onPopState);
     return () => window.removeEventListener("popstate", onPopState);
@@ -129,15 +134,20 @@ export function DashboardApp() {
     setPasswordCloseFocus(null);
   }, [passwordCloseFocus, passwordLifecycle]);
 
-  function navigate(next: AllowedRoute, replace = false) {
+  function navigate(next: AllowedRoute, replace = false, search = "") {
     if (passwordLifecycleRef.current !== "closed") {
       window.history.replaceState(null, "", "/");
       setRoute("/");
+      setRouteSearch("");
       return;
     }
-    if (replace) window.history.replaceState(null, "", next);
-    else window.history.pushState(null, "", next);
+    if (route === "/") overviewSearch.current = routeSearch;
+    const safe = safeLocation(next + search);
+    const nextSearch = next === "/login" ? "" : safe.search;
+    if (replace) window.history.replaceState(null, "", next + nextSearch);
+    else window.history.pushState(null, "", next + nextSearch);
     setRoute(next);
+    setRouteSearch(nextSearch);
   }
 
   function resetPasswordLifecycle() {
@@ -149,6 +159,7 @@ export function DashboardApp() {
   function canonicalizePasswordRoute() {
     window.history.replaceState(null, "", "/");
     setRoute("/");
+    setRouteSearch("");
   }
 
   function beginHeaderSessionAction(kind: Exclude<HeaderSessionActionKind, "idle">): HeaderSessionAction | null {
@@ -248,6 +259,7 @@ export function DashboardApp() {
   }
 
   function expire() {
+    returnLocation.current = safeLocation(window.location.pathname + window.location.search);
     protectedFeatureGenerationRef.current += 1;
     invalidateHeaderSessionAction();
     resetPasswordLifecycle();
@@ -256,8 +268,9 @@ export function DashboardApp() {
     setBootstrap({ kind: "login" });
     setMessage("Your dashboard session ended. Sign in again.");
     setMessageRole("alert");
-    window.history.replaceState(null, "", "/login");
+    window.history.replaceState(null, "", `/login?next=${encodeURIComponent(returnLocation.current.route + returnLocation.current.search)}`);
     setRoute("/login");
+    setRouteSearch("");
   }
 
   function lockProtectedView(reason: string) {
@@ -290,7 +303,7 @@ export function DashboardApp() {
       setLockedMessage(null);
       setBootstrap({ kind: "authenticated", session: current.data });
       setNeedsProofRenewal(false);
-      navigate(returnRoute, true);
+      navigate(returnLocation.current.route, true, returnLocation.current.search);
     } catch {
       setMessage("The local service is unavailable. Try again.");
     } finally {
@@ -358,6 +371,7 @@ export function DashboardApp() {
   }
 
   function renewProof() {
+    returnLocation.current = safeLocation(window.location.pathname + window.location.search);
     protectedFeatureGenerationRef.current += 1;
     invalidateHeaderSessionAction();
     resetPasswordLifecycle();
@@ -420,8 +434,8 @@ export function DashboardApp() {
   );
   const protectedExpire = () => { if (protectedCallbackAllowed()) expire(); };
   const protectedProofUnavailable = () => { if (protectedCallbackAllowed()) proofUnavailable(); };
-  const protectedOpenAccount = (accountId: string) => {
-    if (protectedCallbackAllowed()) navigate(accountRoute(accountId));
+  const protectedOpenAccount = (accountId: string, search = "") => {
+    if (protectedCallbackAllowed()) navigate(accountRoute(accountId), false, search);
   };
   const protectedOpenRules = () => { if (protectedCallbackAllowed()) navigate("/alert-rules"); };
   const passwordFlowOpen = passwordLifecycle !== "closed";
@@ -446,7 +460,7 @@ export function DashboardApp() {
           </div>
         </header>
         <nav aria-label="Primary" className="dashboard-nav">
-          <button type="button" disabled={passwordFlowOpen} aria-current={route === "/" ? "page" : undefined} onClick={() => navigate("/")}>Overview</button>
+          <button type="button" disabled={passwordFlowOpen} aria-current={route === "/" ? "page" : undefined} onClick={() => navigate("/", false, overviewSearch.current)}>Overview</button>
           <button type="button" disabled={passwordFlowOpen} aria-current={route.startsWith("/accounts") ? "page" : undefined} onClick={() => navigate("/accounts")}>Accounts</button>
           <button type="button" disabled={passwordFlowOpen} aria-current={route === "/organizations" ? "page" : undefined} onClick={() => navigate("/organizations")}>Organizations</button>
           <button type="button" disabled={passwordFlowOpen} aria-current={route === "/providers" ? "page" : undefined} onClick={() => navigate("/providers")}>Providers</button>
@@ -483,6 +497,7 @@ export function DashboardApp() {
             <OrganizationsPage onExpired={protectedExpire} onProofUnavailable={protectedProofUnavailable} />
           ) : route.startsWith("/accounts") ? (
             <AccountPage
+              financialSearch={routeSearch}
               accountId={accountIdFromRoute(route) ?? undefined}
               onExpired={protectedExpire}
               onOpenAccount={protectedOpenAccount}
@@ -504,6 +519,14 @@ export function DashboardApp() {
               onOpenRules={protectedOpenRules} />
           ) : (
             <OverviewPage
+              search={routeSearch}
+              onSearchChange={(search) => {
+                if (!protectedCallbackAllowed()) return;
+                const safe = safeLocation("/" + search).search;
+                overviewSearch.current = safe;
+                window.history.replaceState(null, "", "/" + safe);
+                setRouteSearch(safe);
+              }}
               onExpired={protectedExpire}
               onOpenAccount={protectedOpenAccount}
               onTogglePassword={openPasswordChange}

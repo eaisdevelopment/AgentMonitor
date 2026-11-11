@@ -89,11 +89,12 @@ all backend work is finished. Each slice ends with the indicated running result.
 | S3: complete M7 views | T013 | One-dimension breakdowns, simple history chart and explainable query-time forecast; later refinements are not added |
 | S4: stabilize and publish | T015 → T016 | Real cross-provider/browser reconciliation, one bounded independent review, one full exit run, remote revision verified and owner demonstration |
 
-The next integration targets existing Ollama cloud access while independent
-Anthropic/OpenAI work continues. Ollama becomes eligible for the first spend
-demonstration after connecting its existing cloud-graph commit fence, active
-lineage selection and shared balance/usage rate coordination. Its source
-candidate alone does not satisfy that dependency. No provider is dropped from M7. A requests-only
+The installed Ollama increment already connects cloud-graph commit fencing,
+active-lineage spend selection and shared balance/usage rate coordination; its
+genuine report contains usage counts, not costs. Reuse that work and evidence.
+Next expose those real funds/usage on Overview while completing the first
+accessible monetary lane, normally Anthropic or OpenAI. No provider is dropped
+from M7. A requests-only
 legacy source can advance its own usage lane but cannot substitute for the first
 demonstrated monetary report. T005 can integrate one genuine normalized report from a partially completed
 provider ticket; it does not wait for that adapter’s remaining usage categories.
@@ -105,6 +106,9 @@ T010 closes the current/list/summary/history HTTP slice; forecast/breakdown HTTP
 and later UI enhancement belong to T013. This removes the earlier UI↔forecast
 completion dependency. T014 begins operational design immediately and supports
 the first installed slice; it does not wait until the last week.
+T010 requires the first provider's genuine collection/run-status handoff, not
+closure of all-provider T007. Full scheduling/range coverage remains required
+by T015. This keeps the first dashboard deliverable before provider expansion.
 
 T014 has ordered increments inside one existing ticket: tested setup activation
 before owner entry; tested financial storage/worker activation before the

@@ -2693,6 +2693,525 @@
         "title": "BudgetFundComponentWireV1",
         "type": "object"
       },
+      "BudgetOverviewContextWireV1": {
+        "additionalProperties": false,
+        "properties": {
+          "collected_at": {
+            "format": "date-time",
+            "title": "Collected At",
+            "type": "string"
+          },
+          "completeness": {
+            "enum": [
+              "complete",
+              "partial",
+              "unknown"
+            ],
+            "title": "Completeness",
+            "type": "string"
+          },
+          "cost_basis": {
+            "title": "Cost Basis",
+            "type": "string"
+          },
+          "currency": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Currency"
+          },
+          "report_id": {
+            "title": "Report Id",
+            "type": "string"
+          },
+          "scope_evidence": {
+            "enum": [
+              "provider_verified",
+              "owner_asserted",
+              "unresolved"
+            ],
+            "title": "Scope Evidence",
+            "type": "string"
+          },
+          "scope_generation": {
+            "title": "Scope Generation",
+            "type": "integer"
+          },
+          "scope_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Scope Id"
+          },
+          "source_category": {
+            "title": "Source Category",
+            "type": "string"
+          },
+          "source_data_through": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Data Through"
+          },
+          "source_id": {
+            "title": "Source Id",
+            "type": "string"
+          },
+          "spend": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ExactMoneyWireV1"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "spend_reason": {
+            "title": "Spend Reason",
+            "type": "string"
+          }
+        },
+        "required": [
+          "report_id",
+          "scope_generation",
+          "scope_id",
+          "scope_evidence",
+          "source_id",
+          "source_category",
+          "cost_basis",
+          "currency",
+          "spend",
+          "spend_reason",
+          "source_data_through",
+          "collected_at",
+          "completeness"
+        ],
+        "title": "BudgetOverviewContextWireV1",
+        "type": "object"
+      },
+      "BudgetOverviewExclusionWireV1": {
+        "additionalProperties": false,
+        "properties": {
+          "count": {
+            "title": "Count",
+            "type": "integer"
+          },
+          "reason_code": {
+            "title": "Reason Code",
+            "type": "string"
+          }
+        },
+        "required": [
+          "reason_code",
+          "count"
+        ],
+        "title": "BudgetOverviewExclusionWireV1",
+        "type": "object"
+      },
+      "BudgetOverviewFundWireV1": {
+        "additionalProperties": false,
+        "properties": {
+          "collected_at": {
+            "format": "date-time",
+            "title": "Collected At",
+            "type": "string"
+          },
+          "component_id": {
+            "title": "Component Id",
+            "type": "string"
+          },
+          "freshness": {
+            "title": "Freshness",
+            "type": "string"
+          },
+          "is_constraining": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Is Constraining"
+          },
+          "is_low": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Is Low"
+          },
+          "kind": {
+            "enum": [
+              "balance",
+              "included_credits",
+              "purchased_credits",
+              "soft_limit",
+              "hard_limit"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "limit": {
+            "$ref": "#/components/schemas/ExactMoneyFieldWireV1"
+          },
+          "observation_id": {
+            "title": "Observation Id",
+            "type": "string"
+          },
+          "observed_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Observed At"
+          },
+          "percentage_decimal_places": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Percentage Decimal Places"
+          },
+          "percentage_method": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Percentage Method"
+          },
+          "percentage_reason": {
+            "title": "Percentage Reason",
+            "type": "string"
+          },
+          "percentage_rounding": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Percentage Rounding"
+          },
+          "percentage_text": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Percentage Text"
+          },
+          "remaining": {
+            "$ref": "#/components/schemas/ExactMoneyFieldWireV1"
+          }
+        },
+        "required": [
+          "component_id",
+          "kind",
+          "remaining",
+          "limit",
+          "percentage_text",
+          "is_low",
+          "percentage_reason",
+          "is_constraining",
+          "collected_at",
+          "observed_at",
+          "freshness",
+          "observation_id",
+          "percentage_method",
+          "percentage_decimal_places",
+          "percentage_rounding"
+        ],
+        "title": "BudgetOverviewFundWireV1",
+        "type": "object"
+      },
+      "BudgetOverviewRowWireV1": {
+        "additionalProperties": false,
+        "properties": {
+          "account": {
+            "$ref": "#/components/schemas/AccountViewV1"
+          },
+          "collection_error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Collection Error"
+          },
+          "collection_state": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Collection State"
+          },
+          "contexts": {
+            "items": {
+              "$ref": "#/components/schemas/BudgetOverviewContextWireV1"
+            },
+            "title": "Contexts",
+            "type": "array"
+          },
+          "funds": {
+            "items": {
+              "$ref": "#/components/schemas/BudgetOverviewFundWireV1"
+            },
+            "title": "Funds",
+            "type": "array"
+          },
+          "funds_reason_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Funds Reason Code"
+          },
+          "monitoring_enabled": {
+            "title": "Monitoring Enabled",
+            "type": "boolean"
+          },
+          "resource_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Resource Id"
+          },
+          "resource_kind": {
+            "enum": [
+              "billing",
+              "cloud",
+              "unconfigured"
+            ],
+            "title": "Resource Kind",
+            "type": "string"
+          },
+          "row_id": {
+            "title": "Row Id",
+            "type": "string"
+          },
+          "state_code": {
+            "title": "State Code",
+            "type": "string"
+          },
+          "state_rank": {
+            "title": "State Rank",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "row_id",
+          "account",
+          "resource_id",
+          "resource_kind",
+          "monitoring_enabled",
+          "state_code",
+          "state_rank",
+          "contexts",
+          "funds",
+          "collection_state",
+          "collection_error",
+          "funds_reason_code"
+        ],
+        "title": "BudgetOverviewRowWireV1",
+        "type": "object"
+      },
+      "BudgetOverviewSummaryWireV1": {
+        "additionalProperties": false,
+        "properties": {
+          "cost_basis": {
+            "title": "Cost Basis",
+            "type": "string"
+          },
+          "currency": {
+            "title": "Currency",
+            "type": "string"
+          },
+          "excluded_resource_count": {
+            "title": "Excluded Resource Count",
+            "type": "integer"
+          },
+          "included_pool_count": {
+            "title": "Included Pool Count",
+            "type": "integer"
+          },
+          "organization_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Organization Id"
+          },
+          "scope_kind": {
+            "enum": [
+              "global",
+              "organization"
+            ],
+            "title": "Scope Kind",
+            "type": "string"
+          },
+          "source_category": {
+            "title": "Source Category",
+            "type": "string"
+          },
+          "total": {
+            "$ref": "#/components/schemas/ExactMoneyWireV1"
+          }
+        },
+        "required": [
+          "scope_kind",
+          "organization_id",
+          "currency",
+          "cost_basis",
+          "source_category",
+          "total",
+          "included_pool_count",
+          "excluded_resource_count"
+        ],
+        "title": "BudgetOverviewSummaryWireV1",
+        "type": "object"
+      },
+      "BudgetOverviewWireV1": {
+        "additionalProperties": false,
+        "properties": {
+          "as_of": {
+            "format": "date-time",
+            "title": "As Of",
+            "type": "string"
+          },
+          "availability": {
+            "$ref": "#/components/schemas/AvailabilityV1"
+          },
+          "exclusions": {
+            "items": {
+              "$ref": "#/components/schemas/BudgetOverviewExclusionWireV1"
+            },
+            "title": "Exclusions",
+            "type": "array"
+          },
+          "inventory_count": {
+            "title": "Inventory Count",
+            "type": "integer"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/BudgetOverviewRowWireV1"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "page": {
+            "$ref": "#/components/schemas/PageMetaV1"
+          },
+          "period": {
+            "$ref": "#/components/schemas/BudgetPeriodWireV1"
+          },
+          "registry_revision": {
+            "title": "Registry Revision",
+            "type": "integer"
+          },
+          "subscription_account_ids": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Subscription Account Ids",
+            "type": "array"
+          },
+          "summaries": {
+            "items": {
+              "$ref": "#/components/schemas/BudgetOverviewSummaryWireV1"
+            },
+            "title": "Summaries",
+            "type": "array"
+          },
+          "summary_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Summary Reason"
+          }
+        },
+        "required": [
+          "period",
+          "as_of",
+          "items",
+          "page",
+          "availability",
+          "summaries",
+          "exclusions",
+          "summary_reason",
+          "inventory_count",
+          "registry_revision",
+          "subscription_account_ids"
+        ],
+        "title": "BudgetOverviewWireV1",
+        "type": "object"
+      },
       "BudgetPeriodWireV1": {
         "additionalProperties": false,
         "description": "UTC half-open reporting interval; not an inferred billing renewal.",
@@ -3122,6 +3641,29 @@
           "report_id"
         ],
         "title": "BudgetRunStatusV1",
+        "type": "object"
+      },
+      "BudgetSelectedReportWireV1": {
+        "additionalProperties": false,
+        "properties": {
+          "as_of": {
+            "format": "date-time",
+            "title": "As Of",
+            "type": "string"
+          },
+          "report": {
+            "$ref": "#/components/schemas/BudgetReportWireV1"
+          },
+          "reported_spend": {
+            "$ref": "#/components/schemas/BudgetReportedSpendWireV1"
+          }
+        },
+        "required": [
+          "report",
+          "reported_spend",
+          "as_of"
+        ],
+        "title": "BudgetSelectedReportWireV1",
         "type": "object"
       },
       "BudgetUsageBucketWireV1": {
@@ -19198,6 +19740,540 @@
         "x-agentmonitor-required-permission": "write:tokens"
       }
     },
+    "/api/v1/budgets": {
+      "get": {
+        "operationId": "capacity_list_budget_overview_v1",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "period_start",
+            "required": true,
+            "schema": {
+              "format": "date-time",
+              "title": "Period Start",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "period_end",
+            "required": true,
+            "schema": {
+              "format": "date-time",
+              "title": "Period End",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "as_of",
+            "required": true,
+            "schema": {
+              "format": "date-time",
+              "title": "As Of",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Comma-separated IDs; absent all, empty none.",
+            "in": "query",
+            "name": "organization_ids",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 26000,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Comma-separated IDs; absent all, empty none.",
+              "title": "Organization Ids"
+            }
+          },
+          {
+            "in": "query",
+            "name": "include_ungrouped",
+            "required": false,
+            "schema": {
+              "default": false,
+              "title": "Include Ungrouped",
+              "type": "boolean"
+            }
+          },
+          {
+            "in": "query",
+            "name": "provider_key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 64,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Provider Key"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "maximum": 200,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "cursor",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 4096,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Cursor"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BudgetOverviewWireV1"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          },
+          "405": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          },
+          "412": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          },
+          "413": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          },
+          "415": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          },
+          "428": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          },
+          "429": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          },
+          "500": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          },
+          "504": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          }
+        },
+        "security": [
+          {
+            "BrowserSessionCookieV1": []
+          },
+          {
+            "BearerTokenV1": []
+          }
+        ],
+        "summary": "List Budget Overview",
+        "tags": [
+          "budgets"
+        ],
+        "x-agentmonitor-application-port": "BudgetOverviewPortV1",
+        "x-agentmonitor-auth-profile": "cookie_or_bearer",
+        "x-agentmonitor-error-schema": "SafeProblemV1",
+        "x-agentmonitor-replay-policy": "safe_query_repeat",
+        "x-agentmonitor-required-permission": "read:telemetry"
+      }
+    },
+    "/api/v1/budgets/{budget_id}": {
+      "get": {
+        "operationId": "capacity_get_budget_v1",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "budget_id",
+            "required": true,
+            "schema": {
+              "title": "Budget Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "account_id",
+            "required": true,
+            "schema": {
+              "title": "Account Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "report_id",
+            "required": true,
+            "schema": {
+              "title": "Report Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "period_start",
+            "required": true,
+            "schema": {
+              "format": "date-time",
+              "title": "Period Start",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "period_end",
+            "required": true,
+            "schema": {
+              "format": "date-time",
+              "title": "Period End",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "as_of",
+            "required": true,
+            "schema": {
+              "format": "date-time",
+              "title": "As Of",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BudgetSelectedReportWireV1"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          },
+          "405": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          },
+          "412": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          },
+          "413": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          },
+          "415": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          },
+          "428": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          },
+          "429": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          },
+          "500": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          },
+          "504": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          }
+        },
+        "security": [
+          {
+            "BrowserSessionCookieV1": []
+          },
+          {
+            "BearerTokenV1": []
+          }
+        ],
+        "summary": "Get Selected Budget Report",
+        "tags": [
+          "budgets"
+        ],
+        "x-agentmonitor-application-port": "BudgetSelectedReportPortV1",
+        "x-agentmonitor-auth-profile": "cookie_or_bearer",
+        "x-agentmonitor-error-schema": "SafeProblemV1",
+        "x-agentmonitor-replay-policy": "safe_query_repeat",
+        "x-agentmonitor-required-permission": "read:telemetry"
+      }
+    },
     "/api/v1/capacity/history": {
       "get": {
         "operationId": "capacity_list_history_v1",
@@ -27980,10 +29056,10 @@
       "starlette": "1.6.0"
     },
     "generator": "agentmonitor-openapi-client",
-    "generator_sha256": "18f3e2a914023ec4bae9532cf48bd3b368ac73724f6b997b988d3d841ef8a18b",
+    "generator_sha256": "5d8e6be8431781bb6e303fdda74512a945e62e18521751631131f425c3e48b40",
     "generator_version": "2.0.8",
     "openapi_version": "3.1.0",
-    "schema_sha256": "71c91c40d3b0846bf1feb477137007d2087f9c2694c0f7ff6d7ee5f0076d608c",
-    "source_sha256": "5da6b8f282c309f41b3ae6bb64337c3b17f4e4ee4b8b36c6da8cef0a99078c1a"
+    "schema_sha256": "df03db16b275b4b3e614e2f8762a4f6eed7543e453bfe7f93d3ca45aa73ca00c",
+    "source_sha256": "5592cdd96d0fc7cd2064169df755d6ec44e124d7c2281ac0a3b7ec4e24b85d52"
   }
 }

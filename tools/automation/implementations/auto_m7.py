@@ -59,6 +59,10 @@ PURE_TARGETS = (
     "backend/tests/contracts/test_billing_actions.py",
     "backend/tests/contracts/test_anthropic_billing_run.py",
     "backend/tests/capacity/pure/test_budget_account_spend.py",
+    "backend/tests/capacity/pure/test_budget_funds_lineage.py",
+    "backend/tests/capacity/pure/test_budget_overview.py",
+    "backend/tests/capacity/pure/test_budget_selected.py",
+    "backend/tests/contracts/test_budget_overview_query.py",
     "backend/tests/collection_control/pure/test_budget_dispatch_policy.py",
     "backend/tests/collection_control/pure/test_cloud_budget_target_codec.py",
     "backend/tests/collection_control/pure/test_cloud_budget_dispatch_policy.py",
@@ -77,6 +81,13 @@ REGISTRY_METADATA_TARGETS = (
     "backend/tests/integration/registry/test_billing_credential_binding.py",
     "backend/tests/integration/api/test_billing_enrollment_http.py",
 )
+PRESENTATION_TARGETS = (
+    "frontend/tests/pure/budget-account-presentation.mjs",
+    "frontend/tests/pure/financial-read-presentation.mjs",
+    "frontend/tests/pure/budget-selection.mjs",
+    "frontend/src/features/overview/overviewSelection.test.mjs",
+    "frontend/src/features/overview/budgetOverviewPresentation.test.mjs",
+)
 COLLECTION_GUARD_TARGETS = (
     "backend/tests/contracts/test_billing_schedule.py",
     "backend/tests/collection_control/pure/test_budget_retry_policy.py",
@@ -90,6 +101,7 @@ COLLECTION_GUARD_TARGETS = (
 )
 BUDGET_HTTP_GUARD_TARGETS = (
     "backend/tests/integration/api/test_budget_http.py",
+    "backend/tests/integration/api/test_budget_overview_http.py",
     "backend/tests/integration/api/test_billing_actions_http.py",
     "backend/tests/integration/api/test_billing_monitoring_http.py",
 )
@@ -204,6 +216,27 @@ def execute_guard(check: str) -> LaneResult:
     return LaneResult(f"technical/{check}", result.status, (result,))
 
 
+def _presentation_checks() -> CheckResult:
+    """Execute actual pure presentation suites, without simulated browser I/O."""
+    for target in PRESENTATION_TARGETS:
+        if not (ROOT / target).is_file():
+            return CheckResult("pure", "not_run", "m7_required_suite_missing")
+        try:
+            result = subprocess.run(
+                ["node", "--experimental-strip-types", target],
+                cwd=ROOT,
+                timeout=30,
+                check=False,
+            )
+        except subprocess.TimeoutExpired:
+            return CheckResult("pure", "failed", "m7_test_timeout")
+        except OSError:
+            return CheckResult("pure", "blocked", "m7_test_toolchain_unavailable")
+        if result.returncode != 0:
+            return CheckResult("pure", "failed", "m7_presentation_test_failed")
+    return CheckResult("pure", "passed")
+
+
 def execute_lane(lane: str) -> LaneResult:
     """Run implemented boundaries; report the rest without inventing evidence."""
     if lane not in REQUIRED_CHECKS:
@@ -212,6 +245,8 @@ def execute_lane(lane: str) -> LaneResult:
     for name in REQUIRED_CHECKS[lane]:
         if name == "pure":
             check = _run_pytest("pure", PURE_TARGETS)
+            if check.status == "passed":
+                check = _presentation_checks()
         elif name == "mutation":
             check = _run_pytest(
                 "mutation", ("tools/automation/test_m7_budget_mutation_policies.py",)

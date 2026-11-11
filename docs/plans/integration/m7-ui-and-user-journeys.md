@@ -86,6 +86,12 @@ was proven for the current binding/scope generation. An unfinished provider
 action is labelled Not yet available in this build, not provider Unsupported.
 T002/T007/T011 own these controls; no inert button is presented as a working step.
 
+For Ollama, the existing balance connection check does not prove usage
+collection. Usage Check/Collect acceptance requires the matching actual usage
+run and retained report. Until that action is wired, label it unavailable in
+this build while stored usage remains readable. Reuse the existing connection;
+do not request a second key or imply that refreshing stored data collected it.
+
 LAN instruction: **Run the setup command on the computer hosting AgentMonitor,
 as the user running its service.** A terminal on the browser's other computer
 does not configure the server. Existing SSH/local terminal access is sufficient;
@@ -291,6 +297,13 @@ rules for the existing sections, not additional cards or screens.
 | Monitoring off | Monitoring off; last reading at its real time | Enable monitoring |
 | Unknown mutation outcome | Connection/update result not confirmed | Reconcile status first; no automatic duplicate write |
 | Disconnected/archived | Monitoring stopped; history retained | Reconnect/restore by owner; never log out provider profiles |
+
+If the first report is partial, display its available exact buckets, coverage
+and omissions as partial evidence, without a complete-period total. If an older
+complete report exists, keep its total and history together, and show the newer
+partial attempt separately; never splice their buckets. This uses the existing
+detail table, not another screen. T010/T011 cover the selection/presentation
+policy; a naturally absent live partial case remains Not Run.
 
 Use existing request-generation fencing: switching accounts, replacing a key,
 changing scope or archiving during a request must not apply the old response to

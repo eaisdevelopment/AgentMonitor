@@ -3,6 +3,9 @@ import {
   apiVersion,
   type AccountBudgetCurrentWireV1,
   type BudgetCloudResourceCurrentWireV1,
+  type BudgetOverviewWireV1,
+  type BudgetOverviewRowWireV1,
+  type BudgetSelectedReportWireV1,
   type BudgetReportWireV1,
   type BudgetResourceCurrentWireV1,
   type ExactMoneyWireV1,
@@ -68,6 +71,9 @@ import {
 export type {
   AccountBudgetCurrentWireV1,
   BudgetCloudResourceCurrentWireV1,
+  BudgetOverviewWireV1,
+  BudgetOverviewRowWireV1,
+  BudgetSelectedReportWireV1,
   BudgetReportWireV1,
   BudgetResourceCurrentWireV1,
   ExactMoneyWireV1,
@@ -308,8 +314,8 @@ export const registry = Object.freeze({
       headers: coverageHeaders(resource),
     }),
 
-  organizations: (signal?: AbortSignal): Promise<ClientResult<OrganizationPageV1>> =>
-    apiClient.registry_list_organizations_v1({ query: { limit: 200 }, signal }),
+  organizations: (signal?: AbortSignal, cursor?: string): Promise<ClientResult<OrganizationPageV1>> =>
+    apiClient.registry_list_organizations_v1({ query: { limit: 200, ...(cursor ? { cursor } : {}) }, signal }),
   createOrganization: (
     name: string, description: string | null,
   ): Promise<ClientResult<OrganizationViewV1>> =>
@@ -557,6 +563,17 @@ export const alerts = Object.freeze({
 });
 
 export const budgets = Object.freeze({
+  report: (
+    resourceId: string,
+    query: Readonly<{ account_id: string; report_id: string; period_start: string; period_end: string; as_of: string }>,
+    signal?: AbortSignal,
+  ): Promise<ClientResult<BudgetSelectedReportWireV1>> =>
+    apiClient.capacity_get_budget_v1({ path: { budget_id: resourceId }, query, signal }),
+  overview: (
+    query: Readonly<{ period_start: string; period_end: string; as_of: string; organization_ids?: string; include_ungrouped?: boolean; provider_key?: string; limit?: number; cursor?: string }>,
+    signal?: AbortSignal,
+  ): Promise<ClientResult<BudgetOverviewWireV1>> =>
+    apiClient.capacity_list_budget_overview_v1({ query, signal }),
   account: (
     accountId: string,
     query: Readonly<{ period_start: string; period_end: string; as_of: string }>,

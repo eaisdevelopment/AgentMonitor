@@ -183,8 +183,14 @@ from agentmonitor.modules.alerting.application.rules import (
     ListAlertRulesV1,
     UpdateAlertRuleV1,
 )
+from agentmonitor.modules.capacity.application.budget_overview import (
+    ListBudgetOverviewV1,
+)
 from agentmonitor.modules.capacity.application.budget_queries import (
     GetAccountBudgetCurrentV1,
+)
+from agentmonitor.modules.capacity.application.budget_selected import (
+    GetSelectedBudgetReportV1,
 )
 from agentmonitor.modules.capacity.application.ports import ClassifyCapacityProjectionV1
 from agentmonitor.modules.capacity.application.queries import (
@@ -572,6 +578,19 @@ def _observation_ports(
             "codex": codex_collector.read_verified_identity,
         },
     )
+    account_budget_current = GetAccountBudgetCurrentV1(
+        SqliteBillingConnectionRepositoryV1(reference),
+        SqliteBudgetReportRepositoryV1(reference),
+        collection,
+        StoredAccountBudgetFundsV1(
+            CapacityScopeMembershipQueryV2(registry),
+            ListQuotaWindowsV1(capacity),
+            active_binding=active_budget_binding,
+            get_run=collection.get_run,
+        ),
+        active_binding=active_budget_binding,
+        cloud_target=SqliteCloudCredentialRegistryV1(reference).read_monitoring_target,
+    )
     return ObservationApiPortsV1(
         CreateOrganizationV1(registry),
         EditOrganizationV1(registry),
@@ -626,17 +645,14 @@ def _observation_ports(
             on_queued=billing_worker.wake,
             can_dispatch=billing_worker.is_monitoring_available,
         ),
-        get_account_budget_current=GetAccountBudgetCurrentV1(
-            SqliteBillingConnectionRepositoryV1(reference),
-            SqliteBudgetReportRepositoryV1(reference),
-            collection,
-            StoredAccountBudgetFundsV1(
-                CapacityScopeMembershipQueryV2(registry), ListQuotaWindowsV1(capacity)
-            ),
-            active_binding=active_budget_binding,
-            cloud_target=SqliteCloudCredentialRegistryV1(
-                reference
-            ).read_monitoring_target,
+        get_account_budget_current=account_budget_current,
+        list_budget_overview=ListBudgetOverviewV1(
+            ListAccountsV1(registry),
+            account_budget_current,
+            ListAccountResourcesV1(registry),
+        ),
+        get_selected_budget_report=GetSelectedBudgetReportV1(
+            get_account, SqliteBudgetReportRepositoryV1(reference)
         ),
         billing_local_setup=InstalledBillingLocalSetupV1(
             data_root, socket.gethostname()

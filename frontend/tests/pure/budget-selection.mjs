@@ -1,0 +1,19 @@
+import assert from "node:assert/strict";
+import * as presentation from "../../src/features/accounts/financialReadPresentation.ts";
+
+assert.equal(typeof presentation.selectedFinancialReport, "function", "pinned financial selection missing");
+const valid = "?budget_resource=resource&budget_report=report&budget_start=2026-11-04T00%3A00%3A00Z&budget_end=2026-11-11T00%3A00%3A00Z&budget_as_of=2026-11-11T01%3A00%3A00Z";
+const parsed = presentation.selectedFinancialReport(valid);
+assert.equal(parsed.kind, "selected");
+assert.equal(parsed.reportId, "report");
+assert.equal(parsed.resourceId, "resource");
+assert.equal(parsed.query.period_start, "2026-11-04T00:00:00.000Z");
+assert.equal(presentation.selectedFinancialReport("").kind, "none");
+assert.equal(presentation.selectedFinancialReport("?budget_report=report").kind, "invalid");
+assert.equal(presentation.selectedFinancialReport(valid + "&budget_report=other").kind, "invalid");
+assert.equal(presentation.selectedFinancialReport(valid.replace("2026-11-04", "2026-11-05")).kind, "invalid");
+assert.equal(presentation.selectedFinancialReport(valid.replace("budget_as_of=2026-11-11", "budget_as_of=2026-11-10")).kind, "invalid");
+const fundsOnly = presentation.selectedFinancialReport(valid.replace("&budget_report=report", ""));
+assert.equal(fundsOnly.kind, "selected");
+assert.equal(fundsOnly.reportId, null);
+console.log("BUDGET SELECTION PURE: PASSED");

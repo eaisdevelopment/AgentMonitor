@@ -5,7 +5,11 @@ from dataclasses import dataclass
 from agentmonitor.api.problem import ProblemError
 from agentmonitor.api.v1.ollama_cloud_port import OllamaCloudConnectionPortV1
 from agentmonitor.contracts.billing_actions_v1 import BillingCheckPortV1
-from agentmonitor.contracts.budget_query_v1 import AccountBudgetCurrentPortV1
+from agentmonitor.contracts.budget_query_v1 import (
+    AccountBudgetCurrentPortV1,
+    BudgetOverviewPortV1,
+    BudgetSelectedReportPortV1,
+)
 from agentmonitor.contracts.capacity_v1 import CapacityHealthPolicyV1
 from agentmonitor.contracts.common_v1 import OpaqueIdV1
 from agentmonitor.contracts.identity_access_v1 import (
@@ -180,6 +184,8 @@ class ObservationApiPortsV1:
     billing_connections: BillingConnectionPortV1 | None = None
     billing_local_setup: BillingLocalSetupPortV1 | None = None
     get_account_budget_current: AccountBudgetCurrentPortV1 | None = None
+    list_budget_overview: BudgetOverviewPortV1 | None = None
+    get_selected_budget_report: BudgetSelectedReportPortV1 | None = None
     billing_checks: BillingCheckPortV1 | None = None
     billing_monitoring: BillingMonitoringPortV1 | None = None
 

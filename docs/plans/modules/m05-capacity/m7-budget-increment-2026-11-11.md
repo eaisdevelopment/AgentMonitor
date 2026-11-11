@@ -293,6 +293,19 @@ account-wide credential failure remains independent. T010 carries existing
 backend exact percentage/low-state decisions with lineage/rounding or a missing
 denominator reason. P02 does not calculate money or expose credential IDs. Shared totals and forecasts cannot infer scope equivalence.
 
+CTR-CAP-006 2.5.0 adds the compact Overview query and explicit retained-report
+selection. P01 exposes `GET /api/v1/budgets` and `GET /api/v1/budgets/{budget_id}`;
+the latter requires account, report, exact period and read instant, returns the
+selected report with backend-calculated spend, and never substitutes latest
+data for a missing selection. Existing account/current DTOs remain compatible.
+Overview drains bounded registry pages, fences metadata changes, projects
+existing billing/cloud resources and exact component percentages, and signs
+context-bound cursors. Independent cloud resources are not subscription pools.
+Until T002 publishes canonical pool attribution, totals explicitly exclude
+unresolved resources; this increment cannot close FR-ORG-003. Funds projection
+also proves the current binding generation against the committed M04 run.
+These changes reuse schema `v1_0733`; no migration or new dependency is needed.
+
 | Scenario | Expected Red | Green evidence |
 |---|---|---|
 | M7-CAP-PURE-001; M7-MATH-01/02/13/14 | Valid large decimal loses digits; cents/rounding/state rules absent | Pure exact conversion, cancellation, bounds, small positive display inputs; no I/O |

@@ -27,7 +27,7 @@ Evidence: [installed funds](../../evidence/m7-stored-funds-2026-11-11.md),
 [current cloud usage runtime](../../evidence/m7-cloud-usage-runtime-2026-11-11.md),
 [financial installation](../../evidence/m7-financial-installed-2026-11-11.md).
 Installed funds are real delivery, but not a usage/spend report. One planning
-ticket is done; eleven implementation tickets are in progress and four planned.
+ticket is done; twelve implementation tickets are in progress and three planned.
 These counts are tracker state, not percentage complete or elapsed-time estimates.
 No implementation ticket closes through this review.
 
@@ -36,7 +36,7 @@ No implementation ticket closes through this review.
 | Order | Existing tickets / owner | Work to finish | Demonstration that ends the increment |
 |---|---|---|---|
 | 1. Installed collection prerequisite — operational checks passed | T014 root; T003 verification wiring | Storage/worker activated at schema0733; later funds build14dee16 and authenticated setup verified. Complete collector continuity and financial recovery proof with later integration | Correct installed revision/schema and authenticated controls demonstrated. This partial deployment does not close T014 |
-| 2. First real financial journey | T002/T005/T007 + first available T006/T008/T009; M02/M04/M05/provider/root | Existing or newly owner-configured connection; genuine bounded read; exact atomic report/reopen; positive enable/disable; next due read with browser closed | One real account shows provider scope, interval, amount/currency, source time and useful access state. Check success is backed by its actual stored report |
+| 2. First real financial journey | T002/T005/T007 + first available T006/T008/T009; M02/M04/M05/provider/root | Existing or newly owner-configured connection; genuine bounded read; exact atomic report/reopen; positive enable/disable | One real account shows provider scope, interval, amount/currency, source time and useful access state. Check success is backed by its actual stored report |
 | 3. First useful dashboard | T010/T011/T012 + T014; M05/P01/P02/root | Compact current/summary DTOs, supported funds, pinned history, Overview/shared filters, navigation and installed verification | Same report and exact amount in account/detail/history/Overview; group selection and Back/reload work; failed refresh retains prior value |
 | 4. Finish provider coverage | Remaining T006/T008/T009 + T007 | Wire remaining providers, finite usage categories, thirty-day and pinned report intents, shared scope rate limits | Anthropic/OpenAI/Ollama use the same screens with explicit category/field coverage; all active resources accounted for |
 | 5. Finish the analysis already promised | T013 with T010/T011 | One supported dimension, daily bars plus exact table, separate balance series, simple observed-rate forecast or precise unavailable reason | Chart/table reconcile to the selected reports; no invented balance, attribution or stop date |
@@ -48,37 +48,48 @@ installed dashboard slice. These are increments inside T014, not three releases
 requiring separate owner approvals. Pure/empty-stack API/UI work continues
 while a particular live provider lane awaits normal owner setup.
 
-Use the already configured Ollama cloud lane for the next integration; it is
-eligible after cloud-graph commit fencing, active-binding current selection and
-shared balance/usage rate coordination are connected. Anthropic/OpenAI access
-work continues independently. Do not ask for cloud setup already completed.
-Requests-only data is useful usage but cannot substitute for
-the first monetary demonstration. No account names/counts are hardcoded.
+Use the already configured Ollama cloud lane and retained evidence to deliver
+the next visible Overview/detail increment; those collection prerequisites are
+connected. Anthropic/OpenAI monetary work continues independently. This early
+funds/usage screen is an intermediate delivery, not closure of checkpoint 3's
+monetary journey. Do not request completed cloud setup again. No account
+names/counts are hardcoded. Browser-closed monetary scheduling and controlled
+recovery are proved once in packet E, after the first visible dashboard.
 
-### Next increment: finite handoffs before the first spend demonstration
+### Retained prerequisites and the next implementation packets
 
 These are ordered work packets inside existing tickets, not extra tickets,
 release gates or approvals. The catalog tracks status; this table specifies the
 handoff and test boundary. Root integrates shared contracts/composition serially.
 Only isolated, contract-stable module work runs in parallel.
 
-| Order / ticket | Owner and smallest output | Evidence ending that packet |
-|---|---|---|
-| 1 — T007/T009 | M04: finish cloud target capture, restored admission, claim and commit fences in existing budget repository/executor. Root retains distinct service and usage fingerprints | Pure restoration Red/Green; actual migrated SQLite with genuine registry graph proves rejection of changed authority and exact retained context. Empty-queue tests alone are insufficient |
-| 2 — T004/T005/T010 | Root publishes minimal active-binding selector through existing current-query contract; M05 filters unresolved current reports. Resolved compatible scope and authorized old history remain available | Pure rotation/isolation Red/Green and real current-query verification. Populated old-lineage exclusion uses naturally available genuine history; otherwise record that case Not Run. No forced credential rotation or delay of the first spend demo solely to manufacture the case |
-| 3 — T007/T009 | Root/A03 connect usage to the existing Ollama request gate and worker, then M05 report sink. One shared gate covers balances and usage; no second queue | One actual permitted usage request under captured generation/interval, real report receipt, exact commit/retry/reopen. Counts-only is recorded honestly and cannot satisfy monetary acceptance |
-| 4 — T010/T011 | M05/P01/P02 project that immutable report into account detail, amount/period/coverage and exact table beside independently timestamped funds | Genuine source → HTTP → built DOM/reload equality; Check/Collect completion rereads the same interval. Missing monetary fields show a reason |
-| 5 — T010/T012/T014 | Compact Overview and backend summaries using that same resource/report; shared filters and detail link; install checked candidate | Installed Overview → detail → Back/reload preserves value/context; funds-only rows work; existing subscription rows/header/footer survive. This ends first useful spend delivery, not full M7 |
-| 6 — T007/T015 | Prove next scheduled read with browser closed, then controlled isolated restart/reconciliation and other-source isolation | Actual due run and receipt, no duplicated commit/request from recovery uncertainty; known-good dashboard retained |
+Already demonstrated at `ca5f062`: cloud authority capture and commit fencing,
+active-binding spend selection, shared balance/usage request coordination,
+stored daily usage, account HTTP/UI/reload and another scheduled usage report.
+Reuse this evidence; these are not fresh prerequisites to build again. They
+prove counts-only usage, not monetary spend or the full scheduling matrix.
 
-Packets 1 and 2 can proceed independently after root synchronizes their small
-contract changes. Packet 3 consumes both. UI structure and pure calculation
-work need not wait for another provider login; populated acceptance does.
-Existing balance-only delivery is not repeated and does not close packets 3–5.
-After packet 3, use the measured actual provider fields to identify the shortest
-remaining path to the installed demo. If no monetary field exists, continue its
-usage lane and use a genuinely accessible Anthropic/OpenAI cost lane; do not
-convert counts to money, change the finish line or wait without independent work.
+| Packet / existing ticket | Owner and smallest remaining output | Evidence ending that packet |
+|---|---|---|
+| A — T002/T004/T010 | M02/M05/root: publish canonical pool and primary-group attribution; finish funds collection-lineage wiring. Keep unresolved resources visible and excluded from totals | Exact shared-pool policy plus real metadata/API evidence; present funds trace to the current binding and committed run. A resource ID, key, label or equal amount cannot stand in for pool identity |
+| B — T006 or T008, T005/T007 | First accessible monetary provider: existing owner setup, one ungrouped cost report, exact atomic commit/reopen and successful monitoring enable | Genuine source amount/currency/scope/interval → stored report. Ollama's demonstrated counts do not satisfy this packet; a later genuine monetary Ollama report may do so without another adapter |
+| C — T010/T011 | M05/P01/P02: compact rows and full-inventory summaries, authorized immutable report/history selection, account detail and safe URL state | Actual HTTP/current/history agree on one report; direct URL, reload, sign-in return and expired selection behave explicitly. No history substitution or full-report bodies in Overview |
+| D — T012/T014 | P02/root: shared filters, API-only subscription exclusion, compact financial table and correct partial subtotals; install checked candidate | Installed Overview → detail → Back/reload preserves report and selection. Funds-only/counts-only/pending rows remain useful; quota/header/footer survive a budget failure |
+| E — T007/T015 | M04/root: monetary browser-closed refresh, controlled isolated restart/reconciliation and other-source isolation | Actual due run and receipt, no duplicated commit from recovery uncertainty; existing dashboard stays usable |
+
+A and B can advance independently. C can begin with genuine retained usage and
+funds while monetary access is prepared, but its monetary acceptance consumes B.
+D consumes C; complete totals also consume A. Rendering truthful unavailable
+summaries is a useful intermediate result, not completion of FR-ORG-003.
+E reuses the existing cloud scheduled-read proof and adds the missing monetary
+and recovery boundaries. These are working packets within existing tickets,
+not another status ledger, gate or approval sequence.
+
+The next user-visible target is D using retained real funds/usage; the complete
+first financial slice additionally requires B's genuine money. If all
+monetary lanes prove inaccessible, name the actual access failure and required
+owner action once; continue A/C and other independent required work. Account
+names, invented telemetry and repeated configuration are not substitutes.
 
 Every work report names the packet, last observed output and next demonstration.
 A discovered defect is assigned to its existing ticket with the failing
@@ -97,7 +108,7 @@ Do not replace the first spend demo with another contract-only increment.
 | T007 M04/root | Other providers; durable selected interval/category/grouping; safe Collect now; persisted retry instant to UI; browser-closed refresh and recovery | Real source/run/receipt, disable/rotation fencing, fair work across accounts; one shared deadline and no second queue |
 | T009 Ollama | Existing cloud connection/pool reused for usage and balance, compatible scope/units and shared rate control | Genuine self/team-authorized report; no duplicate funds or invented monetary values |
 | T010 M05/P01 | Compact list/current/group summaries; supported funds with reasons; authoritative state rank; pinned bounded history; cutoff/as-of isolation | Real IAM/HTTP; exact values and full filtered inventory; no money arithmetic in handlers or React |
-| T011 P02 | Retain old same-context value until replacement succeeds; actionable cooldown; older stored windows; direct URL, Back/reload/sign-in return | Real built account journey; clear only when financial context changes; no mutation replay |
+| T011 P02 | Retain old same-context value until replacement succeeds; expose available first-partial buckets without a complete total; actionable cooldown; older stored windows; direct URL, Back/reload/sign-in return | Real built account journey; clear only when financial context changes; no mutation replay |
 | T012 P02 | Shared organization/provider/resource filters; API table and compatible subtotals; independent quota failure behavior | Same selected report across links; later pages counted; unknown is not zero or depletion |
 | T013 M05/P01/P02 | Table/chart from identical immutable facts; safe supported dimension selection; explicit forecast snapshot and eligibility | Exact history plus conditional real forecast evidence, not a generic analytics engine |
 | T014 root/M08 | Safe failure diagnostics, financial installation, authenticated proof, existing collector continuity and actual recovery | Selected clean build and real service/storage boundaries; no default-profile/user-agent changes |

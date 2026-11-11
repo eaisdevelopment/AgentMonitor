@@ -71,6 +71,10 @@ _TITLES = {
 # Closed local documentation catalog. Neither the route nor the problem type
 # accepts a code copied from submitted input or an unrecognized port outcome.
 PROBLEM_DESCRIPTIONS: dict[str, str] = {
+    "budget_report_not_found": (
+        "The selected financial report is unavailable. "
+        "Refresh the view to select retained data."
+    ),
     "billing_monitoring_target_unavailable": "The billing connection is unavailable.",
     "billing_monitoring_version_conflict": (
         "The billing connection changed. Refresh its status."

@@ -207,6 +207,13 @@ No new conversion or cross-provider accounting layer is required.
 Dashboard organization aggregates follow current owner grouping; moving an
 account preserves source history and does not rewrite provider ownership.
 A shared pool is assigned one primary dashboard group and counted once globally.
+M02 must publish that canonical association and primary-group attribution
+before T010 can include the pool in grouped totals. The current billing
+connection's scope and resource fields alone do not provide that association.
+Unresolved rows may ship visibly with an exclusion reason during the first
+increment; implementing only those exclusions does not complete organization
+aggregation. T002 supplies the metadata, T004 proves the policy and T010/T012
+consume it. No heuristic merging or new identity-resolution service is needed.
 Links from accounts in other groups show Shared pool; not counted again here.
 If only a secondary group is selected, its row says Shared; counted under
 [primary organization] and contributes nothing to that group's subtotal. This

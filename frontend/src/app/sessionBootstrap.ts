@@ -1,4 +1,5 @@
 import { iam, type CurrentSessionViewV1 } from "../shared/api/client";
+import { safeOverviewSearch } from "../features/overview/overviewSelection";
 
 export type BootstrapState =
   | Readonly<{ kind: "setup" }>
@@ -47,12 +48,23 @@ export function accountIdFromRoute(path: AllowedRoute): string | null {
 }
 
 export function safeRoute(path: string | null): AllowedRoute | null {
+  if (path !== null && (path.includes("?") || path.includes("#"))) return null;
   if (path !== null && ALLOWED_ROUTES.some((route) => route === path)) return path as FixedRoute;
   if (path !== null && /^\/accounts\/[^/]{1,512}$/.test(path)) {
     const candidate = path as `/accounts/${string}`;
     return accountIdFromRoute(candidate) === null ? null : candidate;
   }
   return null;
+}
+
+/** Same-origin page destination with only approved presentation selectors. */
+export function safeLocation(value: string | null): Readonly<{ route: AllowedRoute; search: string }> {
+  if (value === null || !value.startsWith("/") || value.startsWith("//") || value.includes("\\")) return { route: "/", search: "" };
+  const path = value.split(/[?#]/, 1)[0] ?? "/";
+  const route = safeRoute(path);
+  if (route === null || route === "/login") return { route: "/", search: "" };
+  const raw = value.includes("?") ? value.slice(value.indexOf("?") + 1).split("#", 1)[0] ?? "" : "";
+  return { route, search: route === "/" || route.startsWith("/accounts/") ? safeOverviewSearch(raw, route.startsWith("/accounts/")) : "" };
 }
 
 /** A login intent can resume only an idempotent authenticated page. */

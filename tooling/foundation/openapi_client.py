@@ -53,6 +53,7 @@ SOURCE_FILES = (
     "backend/src/agentmonitor/api/v1/routers/collection.py",
     "backend/src/agentmonitor/api/v1/routers/capacity.py",
     "backend/src/agentmonitor/api/v1/routers/budgets.py",
+    "backend/src/agentmonitor/api/v1/routers/budget_overview.py",
     "backend/src/agentmonitor/api/v1/routers/billing_actions.py",
     "backend/src/agentmonitor/api/v1/routers/runtime.py",
     "backend/src/agentmonitor/api/v1/routers/operations.py",
@@ -65,6 +66,7 @@ SOURCE_FILES = (
     "backend/src/agentmonitor/api/v1/schemas/collection.py",
     "backend/src/agentmonitor/api/v1/schemas/capacity.py",
     "backend/src/agentmonitor/api/v1/schemas/budgets.py",
+    "backend/src/agentmonitor/api/v1/schemas/budget_overview.py",
     "backend/src/agentmonitor/api/v1/schemas/billing_actions.py",
     "backend/src/agentmonitor/api/v1/schemas/runtime.py",
     "backend/src/agentmonitor/api/v1/schemas/operations.py",
@@ -272,6 +274,8 @@ IAM_OPERATIONS = {
         "/api/v1/accounts/{account_id}/api-capacity",
         "get",
     ): "capacity_get_account_api_budget_v1",
+    ("/api/v1/budgets", "get"): "capacity_list_budget_overview_v1",
+    ("/api/v1/budgets/{budget_id}", "get"): "capacity_get_budget_v1",
     (
         "/api/v1/accounts/{account_id}/quotas/v2",
         "get",
@@ -1165,6 +1169,30 @@ IAM_POLICY: dict[str, IamPolicyRow] = {
         _M2_REQUIRED_ERROR_STATUSES,
         "BillingCheckInputV1",
     ),
+    "capacity_get_budget_v1": (
+        "cookie_or_bearer",
+        "read:telemetry",
+        "BudgetSelectedReportPortV1",
+        "safe_query_repeat",
+        _COOKIE_BEARER,
+        "200",
+        "BudgetSelectedReportWireV1",
+        "SafeProblemV1",
+        _M2_REQUIRED_ERROR_STATUSES,
+        None,
+    ),
+    "capacity_list_budget_overview_v1": (
+        "cookie_or_bearer",
+        "read:telemetry",
+        "BudgetOverviewPortV1",
+        "safe_query_repeat",
+        _COOKIE_BEARER,
+        "200",
+        "BudgetOverviewWireV1",
+        "SafeProblemV1",
+        _M2_REQUIRED_ERROR_STATUSES,
+        None,
+    ),
     "capacity_get_account_api_budget_v1": (
         "cookie_or_bearer",
         "read:telemetry",
@@ -1539,7 +1567,7 @@ def validate_iam_openapi(document: object) -> tuple[str, ...]:
     if (
         actual != IAM_OPERATIONS
         or set(IAM_POLICY) != set(IAM_OPERATIONS.values())
-        or len(identifiers) != 85
+        or len(identifiers) != 87
     ):
         raise OpenApiGenerationError("operation_surface_invalid")
 

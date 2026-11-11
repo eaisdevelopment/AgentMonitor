@@ -1,12 +1,14 @@
 """Additive CTR-CAP-006 account financial read; no transport or I/O behavior."""
 
+import re
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import ClassVar, Literal, Protocol
 
 from agentmonitor.contracts.capacity_v1 import (
     BudgetPeriodV1,
     BudgetReportSelectionV1,
+    BudgetReportViewV1,
     CapacityObservationProvenanceViewV1,
     CapacitySubjectV2,
     CompletenessV1,
@@ -20,10 +22,11 @@ from agentmonitor.contracts.common_quantity_v1 import ExactMoneyV1
 from agentmonitor.contracts.common_v1 import (
     OpaqueIdV1,
     QueryAvailabilityV1,
+    QueryPageV1,
     TechnicalValueV1,
 )
 from agentmonitor.contracts.registry_billing_v1 import BillingConnectionViewV1
-from agentmonitor.contracts.registry_v1 import CloudMonitoringTargetV1
+from agentmonitor.contracts.registry_v1 import AccountViewV1, CloudMonitoringTargetV1
 
 
 @dataclass(frozen=True, slots=True)
@@ -202,3 +205,190 @@ class BudgetCollectionStatePortV1(Protocol):
         *,
         report_context: CloudBudgetReportContextV1 | None = None,
     ) -> BudgetCollectionRunViewV1 | None: ...
+
+
+@dataclass(frozen=True, slots=True)
+class BudgetOverviewQueryV1(TechnicalValueV1):
+    CONTRACT_ID: ClassVar[str] = "CTR-CAP-006"
+    CONTRACT_VERSION: ClassVar[str] = "2.5.0"
+    OWNER: ClassVar[str] = "PLAN-M05"
+    period: BudgetPeriodV1
+    as_of: datetime
+    organization_ids: tuple[OpaqueIdV1, ...] | None = None
+    include_ungrouped: bool = False
+    provider_key: str | None = None
+    limit: int = 50
+    after_key: str | None = None
+
+    def __post_init__(self) -> None:
+        TechnicalValueV1.__post_init__(self)
+        if (
+            self.period.end > self.as_of
+            or self.period.end - self.period.start
+            not in {timedelta(days=7), timedelta(days=30)}
+            or any(
+                v.hour or v.minute or v.second or v.microsecond
+                for v in (self.period.start, self.period.end)
+            )
+            or type(self.limit) is not int
+            or not 1 <= self.limit <= 200
+            or type(self.include_ungrouped) is not bool
+            or self.organization_ids is not None
+            and (
+                not isinstance(self.organization_ids, tuple)
+                or any(
+                    not isinstance(value, OpaqueIdV1) for value in self.organization_ids
+                )
+                or len(self.organization_ids) > 100
+                or len(set(self.organization_ids)) != len(self.organization_ids)
+            )
+            or self.provider_key is not None
+            and self.provider_key not in {"claude", "codex", "ollama"}
+            or self.after_key is not None
+            and re.fullmatch(r"[A-Za-z0-9_-]{1,64}", self.after_key) is None
+        ):
+            raise ValueError("budget_overview_query_invalid")
+
+
+@dataclass(frozen=True, slots=True)
+class BudgetOverviewContextV1(TechnicalValueV1):
+    """Compact report selection; bucket bodies belong only on account/history reads."""
+
+    CONTRACT_ID: ClassVar[str] = "CTR-CAP-006"
+    CONTRACT_VERSION: ClassVar[str] = "2.5.0"
+    OWNER: ClassVar[str] = "PLAN-M05"
+    report_id: OpaqueIdV1
+    scope_generation: int
+    scope_id: str | None
+    scope_evidence: Literal["provider_verified", "owner_asserted", "unresolved"]
+    source_id: str
+    source_category: str
+    cost_basis: str
+    currency: str | None
+    spend: ExactMoneyV1 | None
+    spend_reason: str
+    source_data_through: datetime | None
+    collected_at: datetime
+    completeness: Literal["complete", "partial", "unknown"]
+
+
+@dataclass(frozen=True, slots=True)
+class BudgetOverviewFundV1(TechnicalValueV1):
+    CONTRACT_ID: ClassVar[str] = "CTR-CAP-006"
+    CONTRACT_VERSION: ClassVar[str] = "2.5.0"
+    OWNER: ClassVar[str] = "PLAN-M05"
+    component_id: OpaqueIdV1
+    kind: Literal[
+        "balance", "included_credits", "purchased_credits", "soft_limit", "hard_limit"
+    ]
+    remaining: ExactMoneyFieldV1
+    limit: ExactMoneyFieldV1
+    percentage_text: str | None
+    is_low: bool | None
+    percentage_reason: str
+    is_constraining: bool | None
+    collected_at: datetime
+    observed_at: datetime | None
+    freshness: str
+    observation_id: OpaqueIdV1
+    percentage_method: str | None = None
+    percentage_decimal_places: int | None = None
+    percentage_rounding: str | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class BudgetOverviewRowV1(TechnicalValueV1):
+    CONTRACT_ID: ClassVar[str] = "CTR-CAP-006"
+    CONTRACT_VERSION: ClassVar[str] = "2.5.0"
+    OWNER: ClassVar[str] = "PLAN-M05"
+    row_id: str
+    account: AccountViewV1
+    resource_id: OpaqueIdV1 | None
+    resource_kind: Literal["billing", "cloud", "unconfigured"]
+    monitoring_enabled: bool
+    state_code: str
+    state_rank: int
+    contexts: tuple[BudgetOverviewContextV1, ...]
+    funds: tuple[BudgetOverviewFundV1, ...]
+    collection_state: str | None
+    collection_error: str | None
+    funds_reason_code: str | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class BudgetOverviewSummaryV1(TechnicalValueV1):
+    CONTRACT_ID: ClassVar[str] = "CTR-CAP-006"
+    CONTRACT_VERSION: ClassVar[str] = "2.5.0"
+    OWNER: ClassVar[str] = "PLAN-M05"
+    scope_kind: Literal["global", "organization"]
+    organization_id: OpaqueIdV1 | None
+    currency: str
+    cost_basis: str
+    source_category: str
+    total: ExactMoneyV1
+    included_pool_count: int
+    excluded_resource_count: int
+
+
+@dataclass(frozen=True, slots=True)
+class BudgetOverviewExclusionV1(TechnicalValueV1):
+    CONTRACT_ID: ClassVar[str] = "CTR-CAP-006"
+    CONTRACT_VERSION: ClassVar[str] = "2.5.0"
+    OWNER: ClassVar[str] = "PLAN-M05"
+    reason_code: str
+    count: int
+
+
+@dataclass(frozen=True, slots=True)
+class BudgetOverviewResultV1:
+    CONTRACT_ID: ClassVar[str] = "CTR-CAP-006"
+    CONTRACT_VERSION: ClassVar[str] = "2.5.0"
+    OWNER: ClassVar[str] = "PLAN-M05"
+    period: BudgetPeriodV1
+    as_of: datetime
+    page: QueryPageV1[BudgetOverviewRowV1]
+    summaries: tuple[BudgetOverviewSummaryV1, ...]
+    exclusions: tuple[BudgetOverviewExclusionV1, ...]
+    summary_reason: str | None
+    inventory_count: int
+    registry_revision: int
+    subscription_account_ids: tuple[OpaqueIdV1, ...]
+
+
+class BudgetAccountInventoryPortV1(Protocol):
+    def page(
+        self,
+        provider_key: str | None,
+        *,
+        as_of: datetime,
+        limit: int,
+        after_key: str | None = None,
+    ) -> QueryPageV1[AccountViewV1]: ...
+
+
+class BudgetOverviewPortV1(Protocol):
+    def __call__(self, query: BudgetOverviewQueryV1) -> BudgetOverviewResultV1: ...
+
+
+@dataclass(frozen=True, slots=True)
+class BudgetSelectedReportV1(TechnicalValueV1):
+    """Explicit retained report, distinct from an account's current selection."""
+
+    CONTRACT_ID: ClassVar[str] = "CTR-CAP-006"
+    CONTRACT_VERSION: ClassVar[str] = "2.5.0"
+    OWNER: ClassVar[str] = "PLAN-M05"
+    report: BudgetReportViewV1
+    reported_spend: BudgetReportedSpendV1
+    as_of: datetime
+
+
+class BudgetSelectedReportPortV1(Protocol):
+    def __call__(
+        self,
+        account_id: OpaqueIdV1,
+        resource_id: OpaqueIdV1,
+        report_id: OpaqueIdV1,
+        *,
+        period: BudgetPeriodV1,
+        as_of: datetime,
+    ) -> BudgetSelectedReportV1 | None: ...

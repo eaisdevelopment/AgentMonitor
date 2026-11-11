@@ -86,6 +86,9 @@ SUPPORT_SYMBOLS = {
         "AccountBudgetCurrentPortV1",
         "AccountBudgetFundsPortV1",
         "BudgetCollectionStatePortV1",
+        "BudgetAccountInventoryPortV1",
+        "BudgetOverviewPortV1",
+        "BudgetSelectedReportPortV1",
     },
     "agentmonitor.contracts.registry_billing_v1": {
         "BillingAccessPurposeV1",
@@ -136,6 +139,7 @@ SUPPORT_SYMBOLS = {
         "CoverageInvalidationReasonV1",
     },
     "agentmonitor.contracts.registry_v1": {
+        "ListAccountResourcesV1",
         "RegistryLifecycleV1",
         "ConfirmIdentityAssociationCommandV1",
         "IdentityDecisionStateV1",
@@ -200,6 +204,7 @@ SUPPORT_SYMBOLS = {
         "AlertReasonCodeV1",
     },
     "agentmonitor.contracts.capacity_v1": {
+        "BudgetReportRepositoryV1",
         "BudgetCurrentReportsPortV1",
         "BudgetDimensionKindV1",
         "ConfidenceV1",

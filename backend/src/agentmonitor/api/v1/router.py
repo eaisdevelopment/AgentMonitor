@@ -10,6 +10,9 @@ def create_router(*, iam_mode: bool = False) -> APIRouter:
         from agentmonitor.api.v1.routers.billing_actions import (
             router as billing_actions_router,
         )
+        from agentmonitor.api.v1.routers.budget_overview import (
+            router as budget_overview_router,
+        )
         from agentmonitor.api.v1.routers.budgets import router as budgets_router
         from agentmonitor.api.v1.routers.capacity import router as capacity_router
         from agentmonitor.api.v1.routers.collection import router as collection_router
@@ -31,6 +34,7 @@ def create_router(*, iam_mode: bool = False) -> APIRouter:
         router.include_router(collection_router)
         router.include_router(capacity_router)
         router.include_router(budgets_router)
+        router.include_router(budget_overview_router)
         router.include_router(billing_actions_router)
         router.include_router(alerts_router)
         router.include_router(runtime_router)

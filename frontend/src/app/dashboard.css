@@ -110,6 +110,15 @@ td { font-variant-numeric: tabular-nums; }
 .overview-local-state { display: flex; align-items: center; gap: .5rem; color: #a9bfcc; font-size: .8rem; }
 .overview-local-state .status-light { width: .5rem; height: .5rem; box-shadow: none; }
 .fleet-overview { padding: 0 !important; min-width: 0; overflow: hidden; }
+.overview-shared-filters { display: flex; flex-wrap: wrap; align-items: center; gap: .65rem 1rem; padding: .75rem 1rem; }
+.overview-shared-filters .overview-organization-filters { flex: 1 1 25rem; }
+.financial-summary { padding: .2rem 1rem .65rem; color: #b7c7d1; font-size: .85rem; }
+.financial-summary p { margin: .35rem 0; }
+.financial-overview-table thead th:nth-child(n) { width: auto; }
+.financial-overview-table small { overflow-wrap: anywhere; }
+.financial-overview-table td > div + div { margin-top: .7rem; }
+.financial-overview-table .quiet-button { margin-top: .3rem; padding: .2rem .4rem; font-size: .75rem; }
+.overview-fund-low { color: #ffb6b6; }
 .fleet-overview-heading { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: .5rem 1rem; padding: .7rem 1rem; }
 .fleet-overview-heading h2 { margin: 0; font-size: 1.05rem; }
 .fleet-overview-heading p { margin: .2rem 0 0; color: #9fb6c5; font-size: .78rem; }
