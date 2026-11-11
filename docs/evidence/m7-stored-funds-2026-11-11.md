@@ -1,8 +1,8 @@
 # M7 stored funds projection: bounded implementation evidence
 
-Status: local implementation under approved focused plan 1.1.0 and M05
-increment 0.3.0. Installed source-to-HTTP-to-DOM verification is still required
-at this checkpoint. This is partial T010/T011 delivery, not M7 completion.
+Status: installed at `14dee16ff9b501a07f056d2aea68cfc49e1a3de6` under approved
+focused plan 1.1.0 and M05 increment 0.3.0. Genuine stored source-to-HTTP-to-DOM
+verification passed. This is partial T010/T011 delivery, not M7 completion.
 
 ## Scope and ownership
 
@@ -74,3 +74,30 @@ Financial totals, billing reports, full history/Overview, other providers,
 retention/forecast and full M7 exit remain unfinished. Deployment and populated
 built-browser Green must be recorded after execution, not inferred from these
 tests. The supported-funds increment does not close T010 or T011.
+
+## Installed verification, 11 November 2026, 21:30 UTC
+
+The existing same-schema update command installed clean revision
+`14dee16ff9b501a07f056d2aea68cfc49e1a3de6`. No migration was needed (schema
+`v1_0733`). Earlier attempts refused safely; one traced refusal was
+`unit_has_children_or_not_stopped`. The baseline remained active, HTTP 200,
+and no active transition journal remained. After confirming natural child
+completion, the same canonical update succeeded and restored `Restart=on-failure`.
+No user agent or default provider profile was changed.
+
+- `node frontend/tests/browser/m7/verify_funds.mjs`: **Passed**, real source,
+  financial HTTP, built DOM and reload; two actual Ollama accounts and all
+  three eligible components; zero mutation requests. The source set was read
+  completely before/after each comparison and exact amounts/observation IDs
+  matched. No account names, values or credentials are recorded here.
+- `node frontend/tests/browser/m7/verify_setup.mjs 14dee16ff9b501a07f056d2aea68cfc49e1a3de6`:
+  **Passed**, authenticated revision, Overview, setup form and promotion/footer
+  continuity; 60 observed requests, zero mutations.
+- User service active/running; loopback and LAN login pages both HTTP 200.
+- Staged secret scan flagged two generated `openapiArtifactSha256` declarations
+  (old/new hashes). Both were inspected as generated 64-hex digests, not keys;
+  no scanner rule or ignore list was weakened.
+
+This proves presentation of existing balances. It does not prove new usage
+collection, populated spend, complete T010/T011, financial recovery or M7 exit.
+The code is committed and installed; this checkpoint does not claim publication.

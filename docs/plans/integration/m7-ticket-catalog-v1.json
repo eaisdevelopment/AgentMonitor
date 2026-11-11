@@ -522,7 +522,8 @@
       "evidence": [
         "docs/evidence/m7-budget-http-2026-11-11.md",
         "docs/evidence/m7-account-financial-query-2026-11-11.md",
-        "docs/evidence/m7-plan-refactor-2026-11-11.md"
+        "docs/evidence/m7-plan-refactor-2026-11-11.md",
+        "docs/evidence/m7-stored-funds-2026-11-11.md"
       ],
       "depends_on_any": [],
       "delivery_slice": "S1",
@@ -586,7 +587,8 @@
         "docs/evidence/m7-account-financial-ui-2026-11-11.md",
         "docs/evidence/m7-billing-check-ui-2026-11-11.md",
         "docs/evidence/m7-billing-monitoring-ui-2026-11-11.md",
-        "docs/evidence/m7-plan-refactor-2026-11-11.md"
+        "docs/evidence/m7-plan-refactor-2026-11-11.md",
+        "docs/evidence/m7-stored-funds-2026-11-11.md"
       ],
       "depends_on_any": [],
       "delivery_slice": "S1",
@@ -753,7 +755,8 @@
         "docs/evidence/m7-financial-activation-selector-2026-11-11.md",
         "docs/evidence/m7-plan-refactor-2026-11-11.md",
         "docs/evidence/m7-financial-cutover-diagnostics-2026-11-11.md",
-        "docs/evidence/m7-financial-installed-2026-11-11.md"
+        "docs/evidence/m7-financial-installed-2026-11-11.md",
+        "docs/evidence/m7-stored-funds-2026-11-11.md"
       ],
       "depends_on_any": [],
       "delivery_slice": "S1",
