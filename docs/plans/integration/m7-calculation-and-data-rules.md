@@ -101,6 +101,15 @@ with an unchanged source watermark is not fresh usage. Backfill/revision work
 re-queries supported recent intervals under the normal request budget and retains
 superseded versions. No unbounded full-history import on first connection.
 
+A rolling 7-day response does not necessarily cover seven completed UTC days;
+it can miss the first partial day and include today instead. Select an admitted
+wider native report where supported, then use only complete aligned buckets.
+A rolling 30-day response may still lack the start of a 30-completed-day query.
+Use retained compatible coverage if present, otherwise expose the exact missing
+interval as Partial. Never relabel that rolling total as the selected interval.
+UTC cutoff calculations are independent of browser timezone/DST; display local
+timestamps with the timezone and expose UTC bounds in details.
+
 Initial history fetch is up to 30 days where supported. Retain genuine collected
 history for the existing 365-day policy, showing Coverage begins at… when less
 exists. Never promise a year of data on a new connection. Cost bars and balance
@@ -132,6 +141,20 @@ independently of the returned row page. More than 2,000 selected canonical pools
 returns aggregate unavailable / narrow the filter, not a truncated total.
 Ordinary API pages remain bounded (maximum 200). This is a resource guard, not
 a supported-capacity claim or a reason to omit ordinary later-page accounts.
+
+Each subtotal includes only compatible complete reports for its stated interval.
+Show counts/reasons for missing, partial, stale or unresolved pools; keep their
+last values on their rows. If an older complete report remains after a failed
+refresh, any subtotal using it must disclose that older evidence and its age,
+not claim all sources current. A filtered set with no eligible reports has an
+unavailable total, not zero. Provider totals and dimension breakdowns are
+alternative views of the same spend, never additive contributions.
+
+A request spanning a billing-scope change cannot become one pool total. Split
+by resource epoch and show its coverage. Moving a dashboard group changes
+current grouping only; historical financial scope and source identity stay
+unchanged. Currency or cost-basis changes likewise create separate compatible
+groups rather than an implicit conversion.
 
 ## 6. Small, defensible forecast
 
@@ -224,6 +247,14 @@ These values are solely pure no-I/O test inputs:
 | M7-MATH-14 | 38/78-digit valid coefficient; cancellation; overflow | Exact conversion/sum within bounds; overflow rejected |
 | M7-MATH-15 | Partial day, gap, mixed period, revised data, missing limit | Explicit partial/no-forecast reason; no extrapolated real funds |
 | M7-MATH-16 | 100 USD remaining; daily rate 2 USD | Beyond 7-day horizon, with rate/as-of; no precise stop date |
+
+Existing test families also cover rolling-range alignment and DST boundaries
+(M7-MATH-15), no eligible subtotal versus a genuine zero (M7-MATH-12), scope-epoch
+and currency changes (M7-MATH-10/11), and a last complete report following a
+failed or partial refresh (M7-MATH-04/05/15). T004 owns exact money, availability,
+selection and grouping policies; T013 owns rate/horizon/forecast cases
+M7-MATH-03/16 and the forecast branch of M7-MATH-15. Forecast completion is not
+a prerequisite for first-report storage or the first useful dashboard.
 
 Boundary acceptance independently uses genuine provider reports, migrated
 SQLite, actual HTTP and built-browser values. Pure examples never cross I/O.

@@ -91,10 +91,10 @@
         "M7-A01"
       ],
       "test_ids": "M7-REG-001..004",
-      "deliverable": "Owner creation/attach flow opens detail; resource-purpose UI; installed scoped local setup command; safe status, key rotation generation, monitoring and disconnect/archive controls",
+      "deliverable": "Owner create/attach and scope/pool association, complete organization selector, capability-driven API-only/mixed eligibility, safe credential status, local setup/rotation/disconnect command and metadata lifecycle; executable collection controls belong to T007 and installed proof to T014",
       "expected_red": "Real account HTTP/browser lacks billing enrollment and binding status; verify no key can enter a request.",
-      "done_when": "Real account metadata/status/eligibility and installed command are tested; no CLI-login misrouting, key disclosure or manual ID entry; live access proof joins the selected provider lane",
-      "verification": "python3 tools/automation/run.py AUTO-M7-TEST",
+      "done_when": "Real metadata/status HTTP and built setup UI plus candidate local command pass; Ollama API-only creation reaches its existing cloud setup; no manual ID entry or secret disclosure. This ticket does not wait for provider verification jobs, first readings or installed-service proof.",
+      "verification": "python3 -m tools.automation.implementations.auto_m7 --lane registry_metadata (existing partial check); T003 must add the full scoped registry_http/setup check before T002 completion; installed proof is T014.",
       "evidence": [
         "docs/evidence/m7-foundation-progress-2026-11-11.md",
         "docs/evidence/m7-billing-metadata-contract-2026-11-11.md",
@@ -109,9 +109,11 @@
         "docs/plans/integration/m7-calculation-and-data-rules.md"
       ],
       "steps": [
-        "Test API-only creation/status/LAN setup behavior",
-        "Implement owner metadata, credential status and lifecycle controls",
-        "Test real HTTP/browser and local hidden input without logging values"
+        "Fail real HTTP/browser creation, safe credential-status and purpose-routing tests before their implementation; preserve existing subscription behavior.",
+        "Create/attach and open actual ID; page through organizations; distinguish unavailable group name from Ungrouped; reuse Ollama cloud setup for API-only records.",
+        "Publish minimal scope correction/shared-pool association and primary-group metadata controls; fence scope epochs and preserve historical attribution.",
+        "Deliver copyable candidate local-entry command with host/provider/account context, safe stored/pending/cleanup status, cancellation/retry and rotation/archive fences; no browser key field.",
+        "Verify real metadata HTTP/browser and local filesystem/TTY boundaries; actual key entry remains owner-controlled. Hand T007 generation-fenced eligibility and T014 the tested entry point."
       ]
     },
     {
@@ -137,8 +139,8 @@
       "test_ids": "M7-GATE-001..004",
       "deliverable": "Canonical technical/live/browser/exit commands and typed receipt",
       "expected_red": "Canonical M7 command is unavailable and cannot assess required evidence; implement executable checks before delivery claims.",
-      "done_when": "Missing required evidence fails closed; no scope inferred from a passing partial lane",
-      "verification": "python3 tools/automation/run.py AUTO-M7-TEST",
+      "done_when": "Scoped selectors and final aggregate runner fail closed on missing evidence; policy/dispatch tests pass independently of unfinished product tests; selector availability never implies the selected product behavior passed.",
+      "verification": "python3 -m unittest tools.automation.test_m7_commands (existing runner-policy check); scoped dispatch verification is required before declaring its new selectors available, not a pass of unfinished product lanes.",
       "evidence": [
         "docs/evidence/m7-foundation-progress-2026-11-11.md"
       ],
@@ -149,9 +151,10 @@
         "docs/plans/integration/m7-calculation-and-data-rules.md"
       ],
       "steps": [
-        "Define fixed acceptance lanes and fail-closed missing evidence",
-        "Reuse existing test/browser runners and known tool selection",
-        "Exercise failures and truthful receipts before final acceptance"
+        "Name fixed technical/live/browser/deploy/exit lanes and fail closed on missing evidence; reuse existing runner and admitted toolchain.",
+        "Add narrow named-check selection to this same runner for registry_http, persistence, collection, budget_http, individual providers and browser workflows; keep aggregate exit strict. Publish/test each exact invocation before dependent ticket closure.",
+        "Wire each implemented behavior into its lane as it is delivered; do not wait for final exit coverage before first-provider development.",
+        "Verify partial passes cannot mark M7 complete; final lane completeness is required at T016, with real boundary outcomes and no manual attestation-code workflow."
       ]
     },
     {
@@ -177,11 +180,11 @@
       "m7_acceptance": [
         "M7-A02"
       ],
-      "test_ids": "M7-CAP-PURE-001..003; M7-MATH-01..16",
-      "deliverable": "Context-independent decimal conversion, exact sums/limits, zero/null, signed adjustments, pool identity, report replacement, M7-MATH-01..16 and versioned budget/report/receipt types",
+      "test_ids": "M7-CAP-PURE-001..003; M7-MATH-01/02/04..14; non-forecast M7-MATH-15",
+      "deliverable": "Context-independent decimal conversion, exact sums/limits, zero/null, signed adjustments, pool identity, report replacement and versioned budget/report/receipt types; rate/horizon cases belong to T013",
       "expected_red": "The real pure CanonicalDecimalV1 round-trip rounds a permitted 38-digit value; financial aggregation and report-selection policies are absent",
       "done_when": "Float, currency, overlap and unknown-state checks pass after meaningful Red",
-      "verification": "python3 tools/automation/run.py AUTO-M7-TEST",
+      "verification": "python3 -m tools.automation.implementations.auto_m7 --lane pure; python3 -m tools.automation.implementations.auto_m7 --lane mutation (existing commands, required policy coverage must be complete before T004 closes).",
       "evidence": [
         "docs/evidence/m7-foundation-progress-2026-11-11.md"
       ],
@@ -192,9 +195,10 @@
         "docs/plans/integration/m7-calculation-and-data-rules.md"
       ],
       "steps": [
-        "Reproduce exactness/report-selection failures purely",
-        "Implement smallest approved exact contracts/policies",
-        "Run math vectors and critical mutation checks"
+        "Reproduce context-dependent precision loss and missing financial/report selection policy with pure inputs.",
+        "Implement exact sum/headroom/display and signed correction/replacement semantics; verify overflow, sub-cent values and empty versus unavailable.",
+        "Check same-currency/interval/basis grouping, shared pool and epoch boundaries, complete versus partial coverage and rolling UTC range alignment.",
+        "Run meaningful money/selection mutations; hand contracts to the first-provider/storage lane without waiting for T013 forecast logic."
       ]
     },
     {
@@ -224,7 +228,7 @@
       "deliverable": "Minimal additive report/coverage/signed-cost schema, one atomic exact commit, stable snapshot queries and empty-report receipt",
       "expected_red": "Real migrated SQLite lacks signed cost/context tables and cannot retrieve fresh adapter facts exactly.",
       "done_when": "Fresh output from any completed real provider adapter survives exact commit/retry/reopen; complete-report replacement cannot retain phantom spend; no synthetic zero facts; a monetary fact must be observed before claiming exact monetary I/O verification (requests-only reports do not substitute)",
-      "verification": "python3 tools/automation/run.py AUTO-M7-LIVE",
+      "verification": "Planned scoped verification: persistence through the existing M7 runner (T003 must publish/test the exact selector before closure). The full AUTO-M7-TEST/LIVE/BROWSER results are final integration checks in T015/T016, not this ticket prerequisite.",
       "evidence": [],
       "depends_on_any": [
         [
@@ -272,7 +276,7 @@
       "deliverable": "Admitted analytics usage/cost mapping, exact decimals, paged source coverage",
       "expected_red": "With valid real access, the production adapter cannot emit the required cost/usage batch; absent access is Blocked.",
       "done_when": "Real permitted reads reconciled with authoritative source within documented lag",
-      "verification": "python3 tools/automation/run.py AUTO-M7-LIVE",
+      "verification": "Planned scoped verification: anthropic through the existing M7 runner (T003 must publish/test the exact selector before closure). The full AUTO-M7-TEST/LIVE/BROWSER results are final integration checks in T015/T016, not this ticket prerequisite.",
       "evidence": [],
       "depends_on_any": [],
       "delivery_slice": "S1_or_S2",
@@ -311,10 +315,10 @@
         "M7-A09"
       ],
       "test_ids": "M7-COL-001..004",
-      "deliverable": "One M04 run per bounded report, budget receipt/run variants, per-scope throttling, generation fences and existing commit-status recovery; no child-run hierarchy",
+      "deliverable": "Executable check-connection, enable/disable API monitoring and collect-now HTTP/UI plus one M04 run per bounded report, empty receipts, per-scope throttling, generation fences and commit-status recovery; no child-run hierarchy",
       "expected_red": "Real scheduler cannot route/commit budget pages or expose incomplete collection without refreshing stale facts.",
       "done_when": "Genuine first provider is scheduled/committed and safely retried; empty result is truthful; one failure cannot refresh old spend or interrupt dashboard/other providers",
-      "verification": "python3 tools/automation/run.py AUTO-M7-LIVE",
+      "verification": "Planned scoped verification: collection plus first-provider scheduling/recovery through the existing M7 runner (T003 must publish/test the exact selector before closure). The full AUTO-M7-TEST/LIVE/BROWSER results are final integration checks in T015/T016, not this ticket prerequisite.",
       "evidence": [],
       "depends_on_any": [],
       "delivery_slice": "S1",
@@ -323,9 +327,10 @@
         "docs/plans/integration/m7-calculation-and-data-rules.md"
       ],
       "steps": [
-        "Test missing routing and correct empty-report semantics",
-        "Reuse scheduler/lease and commit reconciliation",
-        "Observe actual schedule/recovery and source isolation"
+        "Fail missing budget routing, verify/enable/collect action and real empty-report finalization at their actual boundaries.",
+        "Connect T002 metadata to bounded verification; enable monitoring only after access success for the same binding/scope generation; queue first reading.",
+        "Reuse schedules, leases and commit reconciliation; disable monitoring independently from subscription; fence rotate/scope/archive in-flight results.",
+        "Observe genuine schedule/manual read/restart recovery and source isolation; keep last successful facts and age on failure, respect cooldown and never retry denied credentials indefinitely."
       ]
     },
     {
@@ -356,7 +361,7 @@
       "deliverable": "Cost report and per-category usage adapters with capability metadata",
       "expected_red": "With real administrative access, OpenAI costs/categories cannot traverse the production budget adapter.",
       "done_when": "Real source values/dimensions reconcile; unavailable categories remain explicit",
-      "verification": "python3 tools/automation/run.py AUTO-M7-LIVE",
+      "verification": "Planned scoped verification: openai through the existing M7 runner (T003 must publish/test the exact selector before closure). The full AUTO-M7-TEST/LIVE/BROWSER results are final integration checks in T015/T016, not this ticket prerequisite.",
       "evidence": [],
       "depends_on_any": [],
       "delivery_slice": "S1_or_S2",
@@ -399,7 +404,7 @@
       "deliverable": "Official usage collector, self/team scope, shared pool links",
       "expected_red": "Real Ollama usage is absent and existing balance must remain one shared canonical pool.",
       "done_when": "Real usage reconciles without duplicating purchased or included balances",
-      "verification": "python3 tools/automation/run.py AUTO-M7-LIVE",
+      "verification": "Planned scoped verification: ollama through the existing M7 runner (T003 must publish/test the exact selector before closure). The full AUTO-M7-TEST/LIVE/BROWSER results are final integration checks in T015/T016, not this ticket prerequisite.",
       "evidence": [],
       "depends_on_any": [],
       "delivery_slice": "S1_or_S2",
@@ -408,9 +413,10 @@
         "docs/plans/integration/m7-calculation-and-data-rules.md"
       ],
       "steps": [
-        "Admit usage purpose and self/team scope",
-        "Reuse balance identity with exact native usage",
-        "Verify no shared-pool duplicate or unsupported attribution"
+        "Admit official usage purpose and actual self/team scope with the existing owner-controlled cloud connection; no new cloud account/key setup.",
+        "Reuse canonical M6 balance identity; map genuine monetary/token/request fields only where present and enforce shared rate limits.",
+        "Align rolling native reports to completed UTC ranges, expose any missing leading interval and never label partial coverage as a complete total.",
+        "Compare real usage and balance without duplicate credit pools or invented agent/key attribution; a request-only report cannot close the first monetary slice."
       ]
     },
     {
@@ -439,9 +445,9 @@
       ],
       "test_ids": "M7-HTTP-001..006",
       "deliverable": "Global filtered budget list with backend grouped summaries, account list/detail/summary and exact history operations; compatible collection-run wire and generated client",
-      "expected_red": "Real HTTP returns missing routes instead of exact budget/history/forecast DTOs and bounded pages.",
+      "expected_red": "Real HTTP returns missing routes instead of exact current/list/summary/history DTOs and bounded pages; forecast/breakdown endpoints are tested in T013.",
       "done_when": "Real HTTP/IAM/current/history/summary and stable pagination pass; this ticket does not wait for forecast/breakdown endpoints assigned to T013",
-      "verification": "python3 tools/automation/run.py AUTO-M7-TEST",
+      "verification": "Planned scoped verification: budget_http through the existing M7 runner (T003 must publish/test the exact selector before closure). The full AUTO-M7-TEST/LIVE/BROWSER results are final integration checks in T015/T016, not this ticket prerequisite.",
       "evidence": [],
       "depends_on_any": [],
       "delivery_slice": "S1",
@@ -450,9 +456,10 @@
         "docs/plans/integration/m7-calculation-and-data-rules.md"
       ],
       "steps": [
-        "Test missing reads with real HTTP/IAM",
-        "Wire typed current/history/group-summary ports and regenerate client",
-        "Verify exact wire, full-filter totals and bounded stable cursors"
+        "Fail missing current/list/summary/history operations on real HTTP/IAM with migrated SQLite.",
+        "Wire typed ports and generate the client; preserve exact amounts, availability, source period and report identity.",
+        "Verify filtered summaries include every inventory page and disclose exclusions; no eligible source is unavailable rather than zero.",
+        "Verify permission/CSRF boundaries for associated actions, deterministic snapshot pagination and expired-cursor recovery; defer forecast/breakdown HTTP to T013."
       ]
     },
     {
@@ -484,7 +491,7 @@
       "deliverable": "Compact purpose-aware detail with reporting period, scope, spend/available reasons, exact history and collapsible connection/source details",
       "expected_red": "The built account page lacks the API budget and history section exposed by the real API.",
       "done_when": "Real built account-detail UI demonstrates owner setup, first reading, direct URL/reload and exact history; Overview navigation belongs to T012 and installed-service proof to T014",
-      "verification": "python3 tools/automation/run.py AUTO-M7-BROWSER",
+      "verification": "Planned scoped verification: detail_history plus owner_setup through the existing M7 runner (T003 must publish/test the exact selector before closure). The full AUTO-M7-TEST/LIVE/BROWSER results are final integration checks in T015/T016, not this ticket prerequisite.",
       "evidence": [],
       "depends_on_any": [],
       "delivery_slice": "S1",
@@ -493,9 +500,10 @@
         "docs/plans/integration/m7-calculation-and-data-rules.md"
       ],
       "steps": [
-        "Assert first source data absent from built detail",
-        "Render current spend, exact table and actionable setup",
-        "Verify purpose routing, direct URL and unchanged subscription behavior"
+        "Demonstrate absent budget/history UI using real source data and built candidate.",
+        "Render identity/scope/period first, spend and supported funds separately, then exact history and compact connection controls.",
+        "Exercise direct URL/reload and API-only/mixed capability transitions; stored credentials are not verified access and monitoring is not data freshness.",
+        "Verify first-reading, real empty/error states, preserved last values, session-expiry return and mutation reconciliation; no fake network responses."
       ]
     },
     {
@@ -526,7 +534,7 @@
       "deliverable": "Shared organization/provider filters, compact API table, valid grouped backend spend summaries, bounded full-inventory/page behavior and accessibility",
       "expected_red": "The built Overview lacks independently filtered API-budget rows and keyboard-readable state.",
       "done_when": "Real built candidate Overview exposes first provider data with correct identity/period/coverage and Overview-to-detail navigation; no invalid totals; quota low-left semantics and header/footer preserved",
-      "verification": "python3 tools/automation/run.py AUTO-M7-BROWSER",
+      "verification": "Planned scoped verification: overview plus accessibility through the existing M7 runner (T003 must publish/test the exact selector before closure). The full AUTO-M7-TEST/LIVE/BROWSER results are final integration checks in T015/T016, not this ticket prerequisite.",
       "evidence": [],
       "depends_on_any": [],
       "delivery_slice": "S1",
@@ -535,9 +543,10 @@
         "docs/plans/integration/m7-calculation-and-data-rules.md"
       ],
       "steps": [
-        "Assert shared filters/summary states absent",
-        "Add compact table and backend-grouped totals",
-        "Verify pages, responsive/keyboard controls and existing header/quota UI"
+        "Fail shared-filter and API table/group-summary behavior in the real built browser.",
+        "Share nonsecret URL filters across quota and API sections; exclude API-only accounts from subscription quota rows; keep pending records discoverable.",
+        "Render server-calculated compatible totals with exclusion counts, meaningful sort and remaining<=20% warning only with an actual denominator.",
+        "Verify later-page inventory, navigation back/reload, keyboard/zoom/narrow layouts and retained header/footer; one budget error leaves quotas usable."
       ]
     },
     {
@@ -570,7 +579,7 @@
       "deliverable": "Supported one-dimension exact breakdowns and HTTP/UI, cost bars/balance series, pure query-time observed rate and conditional as-of exhaustion with inputs/reasons; bounded retention",
       "expected_red": "Pure daily bucket policy produces absent/incorrect rate or real history query loses revision lineage.",
       "done_when": "Chart/table share actual history; formulas and missing-input paths pass; all supported dimensions exposed without combinatorial query builder or persistent forecast/events",
-      "verification": "python3 tools/automation/run.py AUTO-M7-TEST; python3 tools/automation/run.py AUTO-M7-BROWSER",
+      "verification": "Planned scoped verification: forecast/breakdown pure, persistence, HTTP and browser through the existing M7 runner (T003 must publish/test the exact selector before closure). The full AUTO-M7-TEST/LIVE/BROWSER results are final integration checks in T015/T016, not this ticket prerequisite.",
       "evidence": [],
       "depends_on_any": [],
       "delivery_slice": "S3",
@@ -621,9 +630,10 @@
         "docs/plans/integration/m7-calculation-and-data-rules.md"
       ],
       "steps": [
-        "Check existing fixed-worktree refusal and candidate recovery conditions",
-        "Adapt existing service activation to selected clean revision",
-        "Verify installed UI/version, LAN health and safe rollback"
+        "Check existing fixed-worktree refusal and prepare selected clean candidate, schema compatibility, tested entry point and bounded recovery.",
+        "Exercise fresh/upgrade and isolated database backup/restore; keys are excluded, restored missing entries show Credential required, no blind database rollback after writes.",
+        "Activate through the existing AgentMonitor service path; verify loopback/LAN health, actual installed revision and authenticated Overview/detail with genuine first-provider data.",
+        "Verify existing subscriptions/alerts and browser-closed collection continue; preserve profiles/agents and selected protected env. Record any brief service transition and recovery result."
       ]
     },
     {

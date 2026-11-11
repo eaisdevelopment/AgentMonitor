@@ -1,6 +1,6 @@
 # M7 UI and user journeys
 
-- Status: Approved under focused M7 plan 1.1.0; screens not yet implemented.
+- Status: Approved under focused M7 plan 1.1.0; setup metadata UI is partially implemented, the full live journey remains unfinished.
 - Owner: P02; API contract owner P01; billing semantics M05.
 - Requirements: FR-ACC-001..004/006, FR-ORG-001..003, FR-BUDGET-001..006;
   AC-UI-002..006, AC-HIST-001, AC-LIVE-005.
@@ -36,6 +36,11 @@ a separate resource; it does not replace the subscription or start CLI login.
 An API-only account must not show Claude/Codex CLI login, agent activity,
 subscription quota or a misleading disconnected subscription warning.
 Sections are selected from API-published capabilities, not a provider-name test.
+Initial creation intent is only the pending-state fallback. If an API-origin
+account later gains a subscription resource, show both independent sections.
+API-only records never become empty/error subscription rows in Overview.
+Ollama API setup reuses its existing cloud connection controls and balance pool;
+API-only routing must not hide those controls and leave a dead-end account.
 
 The account page then shows these steps, with actual server state:
 
@@ -44,6 +49,12 @@ The account page then shows these steps, with actual server state:
    organization label is not evidence of provider organization membership.
    Existing shared scope can be explicitly associated by the owner instead of
    creating a second financial pool. Do not infer it from equal amounts/emails.
+   Manage connection includes **Change scope** and **Use existing billing pool**
+   with provider/scope labels and a primary dashboard organization. T002 owns
+   these metadata controls and API contracts. Changing scope starts a new epoch;
+   it does not relabel prior financial history or transfer access verification.
+   Existing compatible access paths can share a pool; an unresolved association
+   stays visible but is excluded from totals until resolved.
 2. **Store credential locally.** Give one installed, canonical copyable command
    prefilled with the nonsecret binding ID. It must not require typing IDs or
    choosing from an unrelated account list. The local command confirms provider,
@@ -66,6 +77,16 @@ Use the installed runtime entry point, never a development-worktree path.
 
 No owner step is requested before its button/command exists and is tested.
 Owner configures accounts, organizations and secrets; coding agents do not.
+T002 includes all pages of the organization selector. Failed/unloaded name lookup
+shows Organization unavailable, never Ungrouped for an assigned account.
+
+Credential state is independent of provider access and monitoring. Show Missing,
+Entry pending, Stored or Cleanup required using safe server metadata. Stored
+does not mean Verified. Cancelled/interrupted entry can be resumed locally;
+rotation preserves history and requires a new access check. If old-key cleanup
+fails, report it without claiming the old key was removed. The owner need not
+recreate the account. T007 completes Check connection → Enable API monitoring
+→ Waiting for first reading; T014 proves the installed command/host journey.
 
 ## 3. Overview: compact, understandable rows
 
@@ -165,6 +186,18 @@ the same scope preserves history but invalidates old access verification.
 Disconnect revokes AgentMonitor's binding. It does not revoke the upstream key;
 local credential deletion is an explicit owner action and reports its outcome.
 
+Monitoring and data quality are separate labels. Monitoring on never means
+Current; Monitoring off never erases a last reading. For the main state, prefer
+an actionable access/collection failure over a green historical reading; show
+the last successful value/time alongside the failure. A successful access check
+without usage is Access verified, not Current usage. Offline dashboard requests
+retain clearly marked old values; they never silently refresh timestamps.
+
+An expired dashboard session returns to sign-in and then the same nonsecret
+account/filter URL. Do not replay a mutation after sign-in: fetch actual status
+first and let the owner retry if still needed. Poll only the visible job/status
+while pending, stop on navigation/unmount, and honour server retry times.
+
 ## 6. UI acceptance, included in tickets
 
 Test real creation → direct detail URL/reload → local setup status → first
@@ -184,8 +217,10 @@ loading/error/empty views and LAN clipboard fallback. At narrow widths prioritiz
 account, organization, state and spend; other details can expand. No invisible
 required controls or horizontal page-wide overflow.
 
-Current source seams inspected: `AccountPage.tsx` routes every Claude/Codex
+Pre-implementation source seams inspected: `AccountPage.tsx` routed every Claude/Codex
 account to subscription controls; `AccountQuotaOverview.tsx` owns private filter
-state and requests first-page account lists; `OllamaCloudConnectionView.tsx`
+state and requested first-page account lists; `OllamaCloudConnectionView.tsx`
 already fences stale responses; `OllamaCloudConnectionPanel.tsx` supplies a
 local-only key setup pattern. Source inspection is not a rendered-browser pass.
+The metadata increment at `f21e367` adds creation/attach controls but does not
+close the capability routing, full setup or monitoring journey described here.

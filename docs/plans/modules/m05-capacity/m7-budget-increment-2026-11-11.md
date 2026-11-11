@@ -180,6 +180,14 @@ actual dashboard. Other provider adapters then reuse it. T013 adds breakdown
 query/UI, chart and query-time forecast. The first visible slice does not await
 forecast, alert events or all providers.
 
+T004 completion covers exact money, grouping/availability and report selection,
+not the later rate/horizon cases owned by T013. Use scoped executable checks for
+each ticket; the full technical/live gate includes downstream work and cannot
+be a prerequisite for completing its own inputs. T003 owns publication of the
+remaining selector invocations before dependent ticket closure. Scope epochs,
+rolling UTC-range alignment and subtotal exclusions follow the calculation
+document; setup and installed-service proof follow the execution checkpoints.
+
 ## 11. Security and configuration
 
 Only the approved focused M7 runtime exception authorizes transient local

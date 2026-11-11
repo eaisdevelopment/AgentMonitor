@@ -40,7 +40,7 @@ access. These are known product limitations, not surprises to discover at exit.
 | [Refactor review](../../evidence/m7-plan-refactor-2026-11-11.md) | Actual hazards found, bounded review and validation results |
 
 These focused documents override conflicting implementation instructions in the
-historical M7 plan only within this proposed change: additive money/report
+historical M7 plan only within this approved change: additive money/report
 contracts, necessary new migrations, supported empty results, UI-first delivery
 and simple query-time forecasts. They do not waive the real-boundary/TDD rules.
 Approval covers the synchronized focused set once. Routine fixes inside it do
@@ -139,8 +139,13 @@ use the existing tagged cloud subject; old quota/V1 DTO semantics stay intact.
 | `GET /budgets/{budget_id}/usage-breakdowns` | `capacity_list_usage_breakdowns_v1` | T013 |
 | `GET /budgets/{budget_id}/forecast` | `capacity_get_budget_forecast_v1` | T013 |
 
-T002 owns account billing-connection status/metadata, verify and disconnect
-HTTP/UI; T007 wires verification/collect-now jobs. POST metadata/verify returns
+T002 owns account billing-connection metadata, credential status and local entry,
+disconnect/rotation eligibility and their HTTP/UI. T007 owns the executable
+verification, monitoring-enable and collect-now actions and their HTTP/UI wiring.
+T002 must not wait for those later collection actions or the T014 installed-service
+proof to close. Its local command is exercised against the built candidate;
+T014 verifies that same entry point in the installed service. No nonfunctional
+verify/enable button is presented as usable in the interim. POST metadata/verify returns
 real IDs/status with idempotency and account generation. No key values in JSON.
 M04/M05 expose additive receipt/run variants supporting real empty coverage
 without fictitious observations/events. Existing consumers are tested against
@@ -149,7 +154,7 @@ New budget alert rules are outside M7; do not build forecast events for them.
 
 ## 6. Credential permission and owner work
 
-Proposed extension of the existing protected `.env` mechanism: AgentMonitor
+Approved extension of the existing protected `.env` mechanism: AgentMonitor
 runtime alone can store an owner-entered Anthropic/OpenAI administrative API
 credential and read the binding-specific entry for admitted read-only billing
 GETs, and use Ollama's key for its official usage GET in addition to balance.
@@ -162,8 +167,8 @@ creates records/associations, enters keys locally and enables monitoring. The
 agent builds/tests that experience and opens required pages; it does not ask
 for unavailable buttons or manually configure owner accounts. Key rotation
 invalidates old access proof and in-flight generation without deleting history.
-No new dependency. Approval is needed for this focused plan/permission, once;
-all repeatable implementation/test/deploy actions inside it proceed autonomously.
+No new dependency. The existing focused plan/permission approval covers
+repeatable implementation/test/deploy actions inside this scope.
 
 ## 7. Fixed completion catalog
 
@@ -256,3 +261,59 @@ The owner directed full M7 implementation after receiving this 1.1.0 plan.
 records that instruction, the runtime-only credential purpose and retained
 controls. Execute S0/S1 without repeating the approval request. Implementation,
 live verification and milestone acceptance remain separate evidence states.
+
+## 11. Execution checkpoints and exceptions
+
+The ticket catalog remains the task tracker: stable ticket IDs, module owner,
+prerequisites, test-first steps, verification command and evidence. The checks
+below clarify delivery order within existing tickets; they add no new gate,
+approval or product scope.
+
+| Checkpoint | Concrete result to inspect | What must not delay it |
+|---|---|---|
+| T002 owner setup | Create/attach → actual detail URL → locally entered credential → safe status; cancel/retry/rotation/archive preserve unrelated configuration | Full provider coverage, forecast, installed deployment or a provider success mislabeled as local storage success |
+| T004 exact policy | Exact money and complete-report selection tested, with explicit availability and shared-pool rules | T013 rate/horizon implementation; its math cases are verified there |
+| First T006/T008/T009 lane | One complete real monetary report for one owner-selected resource, with exact coverage and source comparison | An inaccessible second provider, all organizations, all usage dimensions |
+| T005/T007 | That report survives database reopen; scheduled/manual reads use one real run and generation fences; first-reading state resolves | A generic job framework, new alert engine or manufactured rare provider failures |
+| T010–T012 | Real API → detail/history table → filtered Overview; exact same values/scope/period | Charts, numerical forecasts or all providers |
+| T014 | Same candidate installed; health plus authenticated Overview and first detail work; subscriptions remain usable | Final publication and full-milestone acceptance |
+| Remaining providers and T013 | Provider coverage, supported breakdowns, chart and conditional forecast on the working screens | Unsupported balances/limits or artificial spending to obtain history |
+| T015/T016 | Fixed full matrix, safe deployment/recovery, current public revision verified, demonstrated owner acceptance | Unrelated improvements or a failed secondary GitLab mirror |
+
+T003 grows the existing runner alongside each tested behavior. A missing final
+lane stays explicitly Not Run; implementing the whole exit catalog is not a
+prerequisite for writing or running the first provider test. Likewise, a ticket
+dependency constrains its final completion; independent pure/empty-stack work
+may proceed before the dependent live evidence is available.
+
+Ticket closure uses its own executable scope. A provider ticket does not require
+the all-provider LIVE command, and T004 does not require the full technical gate
+which includes its downstream storage/API consumers. Existing `pure`, `mutation`
+and `registry_metadata` selectors remain narrow. T003 adds the other named-check
+selectors to the same runner and tests their dispatch/missing-evidence behavior;
+their exact invocations remain Planned until implemented. No new runner or
+separate approval layer. T015/T016 still require the complete aggregate commands.
+
+When an external prerequisite fails, record the exact ticket, observed error,
+affected test and smallest required action. Keep independent tickets running.
+Request owner action only through a tested workflow with its URL/host and the
+expected outcome. Do not ask again for an account list or acceptance already
+recorded. Credentials and account configuration remain owner-controlled.
+
+Source access is checked before promising a first monetary result. A subscription
+account alone proves neither an API billing organization nor administrative
+access. If no provider can supply a real monetary report, report that specific
+S1 live blocker; an empty setup page or request-count report cannot close S1.
+No silent fallback to scraped/private endpoints or spending to generate data.
+
+Before rollout, distinguish database recovery from secret recovery. Backups
+exclude keys: restored bindings with missing local entries are Credential
+required, not Connected. Preserve the selected protected `.env` during normal
+upgrade, verify binding presence without inspecting values, and test recovery
+on isolated storage. Root owns T014; full multi-host backup tooling remains M8.
+
+Progress reports name the latest visible result, ticket/evidence, remaining
+first-slice work and actual blocker (or none). Report local, committed, pushed
+and installed states separately. Re-estimate at the first installed vertical;
+the 7–12-day planning range is not a guaranteed date or an authorization to
+extend scope. Routine corrections stay under this plan version.
