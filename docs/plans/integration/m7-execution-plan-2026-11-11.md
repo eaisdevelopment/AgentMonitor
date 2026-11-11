@@ -6,10 +6,10 @@
 - Original planning baseline: `a47fc53` on `codex/m7-api-budgets`.
 - Current implementation and installed-state checkpoint: see the single
   [delivery worksheet](m7-delivery-worksheet-2026-11-11.md#1-verified-starting-point).
-  Committed and installed usage increment: `ca5f062`, schema `v1_0733`, with
-  genuine stored balance and daily usage → HTTP → browser/reload proof.
-  The demonstrated usage report contains no costs. Monetary spending and the
-  full financial Overview journey remain unfinished; see the worksheet.
+  The worksheet distinguishes installed usage/funds at `ca5f062` from the
+  committed Overview candidate `e310b82`, its failed update attempt and pending
+  installed-browser proof. Demonstrated usage contains counts, not costs.
+  Monetary spending and full M7 acceptance remain unfinished.
 - Requirements: FR-BUDGET-001..006, FR-ORG-003, FR-ACC-001..004/006;
   AC-LIVE-004/005/007, AC-UI-002..006, AC-HIST-001, AC-OPS-003/006,
   AC-TEST-001..006.

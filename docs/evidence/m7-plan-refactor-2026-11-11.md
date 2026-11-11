@@ -1,5 +1,45 @@
 # M7 plan refactor: findings and bounded review
 
+## Follow-up against e310b82: concrete finish criteria and deployment state
+
+The owner requested deep UI/calculation planning with a working-first approach.
+This follow-up changes planning and evidence only. Root compared the current
+catalog, UI and calculation rules with candidate evidence and the actual
+installed service. The preceding independent UI/math reviews are retained;
+this follow-up does not claim a new independent review or product test pass.
+
+- Reconciled committed Overview `e310b82` with installed `ca5f062`, schema0733.
+  The candidate update returned exit3 and
+  `M6 CURRENT UPDATE: BLOCKED — review the transition journal and service state`.
+  Read-only systemd inspection confirms the old release is active/running;
+  loopback HTTP returns 200. New Overview browser acceptance remains Not Run.
+- T014 owns diagnosis before any retry/finalize/recovery. It is not another
+  owner approval or a reason to repeat the installed migrations.
+- Added a compact situation-to-behavior-to-ticket review table in the existing
+  worksheet, covering shared pools, pagination, access, counts versus money,
+  corrections, failures, navigation/time, configuration changes, precision,
+  historical balances, forecast eligibility and service recovery.
+- Tightened T012's completion wording to require its already-promised canonical
+  grouped totals, complete filtered inventory, navigation and accessibility.
+  The prior short wording could close the ticket after only a first-provider row.
+- Clarified T010/T012's existing sorting requirement: sort the filtered inventory
+  before pagination; loaded-row sorting is an explicitly limited increment.
+  No client fetch-all or new sorting framework is planned.
+- Preserved sixteen tickets, five stories, ten acceptance items, current ticket
+  states, approved plan1.1.0 and deferred scope. Existing cloud setup is reused;
+  no count-to-money conversion, repeated attestation or new owner configuration.
+
+Owning modules remain M05 financial policy, M02 pool metadata, P01 query contract,
+P02 views and root/T014 installation. This pass changes no contract version,
+production source, database, dependency/license, credential, account or service.
+No production Red/Green claim applies. Files changed: execution plan, delivery
+worksheet, UI plan, ticket catalog and this evidence. Full M7 remains unfinished.
+Real-checkout validation passed: `AUTO-M7-PLAN-CHECK` (sixteen tickets,
+five stories, ten acceptance items), `AUTO-PLAN-CHECK` (synchronized),
+`AUTO-DOCS-CHECK` (381 Markdown files), and `git diff --check`. These validate
+planning integrity; they do not pass implementation, deployment or M7 exit.
+
+
 ## Follow-up against 975d6cd: remove repeated prerequisites and closure traps
 
 This pass addresses the owner's request for deeper planning with a simple

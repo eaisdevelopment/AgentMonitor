@@ -179,6 +179,11 @@ configurable ranking engine. Unknown remaining capacity is not exhausted.
 Column headings support organization,
 state and account sorting. Monetary sorting is offered only inside one
 compatible currency/period/basis group; it never compares USD and GBP values.
+Final account/organization/state sorting applies to the complete filtered set
+before pagination, with a stable tie-breaker and a reset cursor when sorting
+changes. A first increment may label sorting as applying only to loaded rows;
+that limitation is not completion of T012. No client fetch-all workaround is
+required. T010 owns the bounded server query and T012 its controls.
 
 Remaining percentages/bars appear only with a valid matching denominator.
 Red on a component means remaining **≤20%**, or explicitly reported depletion/exceeded hard

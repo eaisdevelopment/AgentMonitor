@@ -1,8 +1,8 @@
 # M7 delivery worksheet: remaining work and fixed finish line
 
 Status: execution clarification within approved focused plan 1.1.0, reviewed
-against committed and installed `ca5f062` on 11 November 2026 (schema
-`v1_0733`). Primary owner: root integration; financial owner:
+against committed `e310b82` and installed `ca5f062` on 11 November 2026
+(schema `v1_0733`). Primary owner: root integration; financial owner:
 M05. No new milestone, approval, dependency or completion gate.
 
 The [ticket catalog](m7-ticket-catalog-v1.json) remains the only task tracker:
@@ -15,12 +15,21 @@ semantics. Historical findings remain in [review evidence](../../evidence/m7-pla
 
 | Boundary | Evidence at this review | Still unfinished |
 |---|---|---|
-| Committed implementation | `ca5f062`: cloud usage dispatch/commit, active-lineage current selection and actual account usage UI | Full provider/scheduling matrix, monetary reporting and remaining financial views |
+| Committed implementation | `e310b82`: financial Overview, shared filters, immutable report drill-down and funds lineage; retains the prior cloud usage increment | Installed browser proof for this revision, canonical pool totals, monetary reporting and full provider/scheduling/analysis coverage |
 | Installed dashboard | `ca5f062`, schema `v1_0733`; source/API/DOM/reload proof for one seven-bucket usage report, plus both existing cloud accounts' three funds components | Actual spend, financial Overview and complete history/analysis |
 | Existing setup | Installed authenticated setup surface and current account funds demonstrated | No verified independent Anthropic/OpenAI billing enrollment; an absent record does not prove unavailable access |
 | Deployment | Same-schema funds update and authenticated shell/Overview continuity passed; accepted financial migrations already installed | Full financial scheduling, recovery and final M7 acceptance; do not rerun the initial migration |
-| Current worktree | Installed evidence is recorded separately from the code revision; full local quality/build and scoped browser checks passed | The demonstrated usage report has counts only, not costs. First monetary journey and full M7 acceptance remain unverified |
+| Candidate verification | `e310b82`: local quality/build, 489 Python pure checks plus five presentation scripts, ten HTTP guards and five stored-data/empty-storage checks passed | New Overview browser checks remain Not Run against the installed candidate. Existing source reports demonstrate counts, not monetary spend |
 | Publication | This review inspects local artifacts and recorded installation evidence | No new remote-publication or current live-health claim from this planning pass |
+
+The attempted same-schema update to `e310b82` exited 3 with
+`M6 CURRENT UPDATE: BLOCKED — review the transition journal and service state`.
+A subsequent read-only check confirms the old `ca5f062` service is active/running
+and the dashboard returns HTTP 200. That proves availability, not the new UI.
+T014 must diagnose the retained transition state before retry/finalize/recovery;
+this is engineering work, not a request for another owner approval. Do not
+repeat migrations or restore a database on the strength of the generic error.
+See [candidate evidence](../../evidence/m7-financial-overview-2026-11-11.md).
 
 Evidence: [installed funds](../../evidence/m7-stored-funds-2026-11-11.md),
 [cloud authority and current-query gap](../../evidence/m7-cloud-usage-authority-2026-11-11.md),
@@ -95,6 +104,48 @@ Every work report names the packet, last observed output and next demonstration.
 A discovered defect is assigned to its existing ticket with the failing
 requirement/test; it does not create another free-standing improvement project.
 Do not replace the first spend demo with another contract-only increment.
+
+### Immediate work and release dependencies
+
+The next observable result is the existing committed Overview on the running
+service. Diagnose T014's update failure, install the selected clean candidate,
+then compare its authenticated browser values with the API and stored report.
+Do not hold this funds/usage demonstration for all monetary providers or charts.
+It does not close the monetary checkpoint.
+
+In parallel with that integration, establish the first genuine monetary report
+in T006 or T008, using the tested owner workflow if access is missing. An
+existing Claude/Codex subscription login does not establish administrative billing
+access. Record the actual access outcome before giving a monetary-demo date.
+Missing setup blocks that provider's live test only; metadata, exact calculations,
+queries and other connected providers continue. No owner action is currently
+required to refactor the plan or diagnose/install the existing candidate.
+
+Finish canonical pool metadata before declaring organization totals delivered.
+Then finish the same report across detail, history and Overview, remaining
+provider coverage, analysis, and the fixed release checks. These dependencies
+constrain ticket closure; they do not require unrelated work to stop.
+
+### Surprises to prevent in the existing acceptance tests
+
+| User situation | Required behavior | Existing tickets |
+|---|---|---|
+| Two credentials expose one provider organization | One financial pool, visible access paths and one primary dashboard group; no duplicate total | T002/T004/T010/T012 |
+| More accounts than one page; sort a column | Backend totals cover the full filter; final sort applies before pagination. Intermediate loaded-row sorting must be labelled and cannot close the final sorting check | T010/T012 |
+| Subscription is paid but billing API access is absent | Explain the separate access requirement; preserve working subscription monitoring; never mark billing verified | T002/T006/T008/T011 |
+| A successful read has counts but no costs | Useful usage and actual funds remain visible; spend is not reported, never inferred or zero | T009/T010/T011/T012 |
+| A provider revises yesterday's cost or removes a bucket | Replace the complete current report; retain old history; no double counting | T004/T005/T010 |
+| A read fails while an older report exists | Show the failure and original amount/time together; no green freshness from a failed request | T007/T010/T011/T012 |
+| Midnight, reload, sign-in or a scheduled read occurs during navigation | Preserve interval and pinned report; explicit refresh changes the selection atomically | T007/T010/T011/T012 |
+| An account moves group, rotates a key or disconnects | Preserve original financial history, invalidate stale authority, keep owner configuration separate from collection | T002/T005/T007/T011 |
+| Negative/sub-cent costs, zero denominator, mixed currencies/bases | Exact money, signed adjustment labels, no invented percentage or incompatible grand total | T004/T010/T012 |
+| Current balance appears beside historical spending | Separate timestamps; never suggest that current balance was the historical balance | T010/T011/T013 |
+| No compatible funds or adequate cost history | Specific forecast-unavailable reason; no precise exhaustion date or forced provider spending | T013 |
+| Upgrade/restart or browser closure | Persisted scheduling continues, safe recovery preserves data and protected secrets, authenticated dashboard verified | T007/T014/T015 |
+
+This table is a review index into existing ticket/test obligations, not another
+checklist engine or additional exit gate. Missing implementations remain on
+those tickets; unsupported provider fields do not generate invented features.
 
 ## 3. Remaining task handoffs (details live in the existing catalog)
 
