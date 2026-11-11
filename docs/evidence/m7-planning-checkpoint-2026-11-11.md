@@ -1,5 +1,7 @@
 # M7 planning checkpoint — 11 November 2026
 
+Historical plan 1.0.0 checkpoint. The later [1.1.0 planning refactor](m7-plan-refactor-2026-11-11.md) supersedes the proposed implementation sequence; the test results below remain historical evidence.
+
 - Status: intermediate; production implementation and live M7 verification Not Run.
 - Baseline: `f7a1799b04be762e1eb81c79d83d50d9bbcfcceb`.
 - Worktree: `codex/m7-api-budgets`; accepted M6 runtime unchanged.

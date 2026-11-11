@@ -1,231 +1,258 @@
-# M7 API budgets: focused execution plan
+# M7 API budgets: deliver a working dashboard first
 
-- Status: Draft — prepared for owner approval; no M7 production implementation authorized yet.
-- Plan version: 1.0.0.
-- Owner: root integration steward; primary semantic owner: M05 Capacity.
-- Parent: [M7 five-story plan](../../superpowers/plans/2026-09-19-agentmonitor-v1-m7-api-budgets.md).
-- Requirements: FR-BUDGET-001..006; AC-LIVE-004/005/007;
-  AC-UI-002..006; AC-HIST-001; AC-OPS-003/006; AC-TEST-001..006.
-- Scope ledger: [M7 ticket catalog](m7-ticket-catalog-v1.json).
-- Source evidence: [official provider discovery](../../evidence/m7-provider-discovery-2026-11-11.md).
-- Baseline: `f7a1799b04be762e1eb81c79d83d50d9bbcfcceb` on
-  `codex/m7-api-budgets`. Accepted M6 is not reopened.
+- Status: Draft for review; planning refactor requested by the owner, not implementation approval.
+- Plan version: 1.1.0; supersedes focused 1.0.0.
+- Owner: root integration; primary financial semantics: M05 Capacity.
+- Baseline: `a47fc53` on `codex/m7-api-budgets`; accepted M6 remains deployed.
+- Requirements: FR-BUDGET-001..006, FR-ORG-003, FR-ACC-001..004/006;
+  AC-LIVE-004/005/007, AC-UI-002..006, AC-HIST-001, AC-OPS-003/006,
+  AC-TEST-001..006.
+- Parent scope: [five M7 stories](../../superpowers/plans/2026-09-19-agentmonitor-v1-m7-api-budgets.md).
 
-## Outcome and fixed boundary
+## 1. The delivery promise
 
-The owner can configure real API billing accounts through the dashboard, connect
-their credentials locally without exposing them, and see exact API spend,
-provider-exposed balances/limits, supported breakdowns, history and forecasts.
-Subscription quota remains visibly separate. Unknown data never becomes zero,
-unlimited capacity, a healthy state, or a fabricated exhaustion date.
+The owner adds a real billing account, connects it, and sees its reported spend
+on Overview and account detail, with organization, billing scope, period and
+freshness. That whole journey is the first usable slice. Other providers and
+advanced views do not precede that demonstration.
 
-All five existing stories ST-BUDGET-001..005 remain in scope. Anthropic, OpenAI
-and supported Ollama cloud APIs are included. Account counts and names are
-owner-configured, not hardcoded test conditions. Missing API access is not
-inferred from subscription sign-in state. No local Ollama inventory/activity,
-model execution, inference spending, payments, provider budget mutations,
-agent switching, unrelated UI redesign, or M8 release-wide work is included.
+The full M7 scope still includes Anthropic, OpenAI and supported Ollama cloud
+usage, provider-exposed budgets/credits/limits, supported breakdowns, history,
+forecasts, real comparisons and safe deployment. Names/counts are owner-defined.
+M6 is not reopened. No local Ollama work, agent switching, provider mutations,
+inference spending, invoices/tax/FX, local budget editing or unrelated redesign.
 
-## Current implementation evidence
+Critical expectation: cost APIs may expose spend without exposing remaining
+funds or an enforced limit. In that case M7 shows useful spend/history and a
+clear missing-balance/forecast reason. It must not promise a percentage or date
+that the provider data cannot support. A subscription login is not billing API
+access. These are known product limitations, not surprises to discover at exit.
 
-`BudgetViewV1` is a reserved four-field DTO. Existing exact quantities, tagged
-cloud subjects, collection receipts, provenance, quota history, IAM and real
-browser runner are reusable. Budget write/query ports, HTTP endpoints, budget
-history/forecast contracts and UI panels are absent. Existing quota forecasts
-require an installation/window and cannot be silently reused for cloud money.
+## 2. One authoritative plan set
 
-Existing M6 deployment routines require a fixed M6 checkout. M7 deployment and
-rollback are an explicit ticket now. Historical M7 npm browser/accessibility
-commands do not exist; use the real P02 browser runner behind the new canonical
-M7 commands. No production service changes are part of this planning change.
+| Artifact | Owns |
+|---|---|
+| [UI and user journeys](m7-ui-and-user-journeys.md) | Exact screens, controls, setup, LAN flow, state copy and browser acceptance |
+| [Calculation and data rules](m7-calculation-and-data-rules.md) | Formulas, exactness, time/coverage, shared pools, empty reports, corrections and forecast eligibility |
+| [M05 increment](../modules/m05-capacity/m7-budget-increment-2026-11-11.md) | Contracts, storage, import boundaries and test sequence |
+| [Ticket catalog](m7-ticket-catalog-v1.json) | Sixteen stable ticket IDs, dependencies, delivery slices, acceptance and actual status |
+| [Source discovery](../../evidence/m7-provider-discovery-2026-11-11.md) | Official documentation versus unverified live account facts |
+| [Refactor review](../../evidence/m7-plan-refactor-2026-11-11.md) | Actual hazards found, bounded review and validation results |
 
-## Module ownership and contract synchronization
+These focused documents override conflicting implementation instructions in the
+historical M7 plan only within this proposed change: additive money/report
+contracts, necessary new migrations, supported empty results, UI-first delivery
+and simple query-time forecasts. They do not waive the real-boundary/TDD rules.
+Approval covers the synchronized focused set once. Routine fixes inside it do
+not require a new plan version or owner ceremony. New financial meaning, secret
+custody, dependency, destructive operation or incompatible contract does.
 
-| Owner | Allowed implementation area | Published/consumed contract decision |
+## 3. What the owner sees
+
+Keep existing navigation/header/footer. Accounts gains Add API billing account
+and capability-based sections so an API-only account is not sent to CLI login.
+Setup has a visible connection action, one copied nonsecret local command and
+an explicit Enable API monitoring action. The owner never manually types opaque
+account IDs or supplies repeated account attestations.
+
+Overview keeps subscription quotas and adds a compact API usage & spend table:
+Billing account | Organization | State | Reported spend | Available | Data through.
+Both sections share organization/provider filters. Grouped organization/global
+spend summaries preserve currency, exact period and cost basis, deduplicate
+known shared pools and disclose missing coverage. No misleading mixed total.
+
+Account detail presents money and its meaning first, then supported breakdowns,
+exact history/chart, and a forecast or reason it is unavailable. Connection and
+source diagnostics are compact/expandable. Refresh readings rereads stored data;
+Collect now is a separate rate-limited action. See the UI document for exact
+states, sorting, controls, pagination, responsive and accessibility behavior.
+
+## 4. Delivery slices and checkpoints
+
+Ticket dependencies express prerequisites, not permission to hide all UI until
+all backend work is finished. Each slice ends with the indicated running result.
+
+| Slice | Tickets in execution order | Demonstration / exit |
 |---|---|---|
-| M02 Registry | `modules/registry`, registry persistence and `registry_v1.py` additive types | Owner-created billing resource and credential binding metadata; opaque references only; dashboard organization distinct from provider organization |
-| M03/A01 | `adapters/providers/claude/anthropic_api`, provider contract schema | Typed exact usage/cost batch; official analytics beta admission; no default profile access |
-| M03/A02 | `adapters/providers/codex/openai_api`, provider contract schema | Typed usage/cost batches, per-category capability matrix, administrative API authentication |
-| M03/A03 | `adapters/providers/ollama/api`, approved cloud transport seams | Usage purpose and shared balance references; do not duplicate M6 pools |
-| M04 | `modules/collection_control`, its persistence | Additive capability and result routing through CTR-COL-006; bounded jobs, leases, retry/backoff, independent source failures |
-| M05 | `modules/capacity`, `adapters/persistence/capacity`, additive contracts | CTR-CAP-002 V2 budget views/queries; V2 history/forecast variants and typed budget commits; exact semantics in the linked module plan |
-| P01 | `api/v1/routers`, `api/v1/schemas`, `api/v1/dependencies.py` | Additive `/api/v1` HTTP operations; generated artifact writer is root only |
-| P02 | `frontend/src/features/accounts`, `history`, `overview`, shared client wrapper | API-only budget panels; no browser credential values or provider requests |
-| Integration/M08 | composition, migrations catalog, `tools/automation`, operations documentation | Serial wiring, candidate deployment, backup/recovery and completion evidence |
+| S0: known prerequisites | T001; start T003; T004 exactness; T002 owner setup | Plan/contract freeze, scoped test commands, tested setup UI; known access needs identified once |
+| S1: first usable dashboard | First available provider T006/T008/T009 → T005 → T007 → T010 → T011 → T012; T014 deployment | One real owner-created billing account goes through collection, exact history table, Overview/detail and installed browser. No numeric-forecast prerequisite |
+| S2: provider coverage | Remaining T006/T008/T009 | All three provider lanes use the same working screens; actual unsupported fields remain explicit |
+| S3: complete M7 views | T013 | One-dimension breakdowns, simple history chart and explainable query-time forecast; later refinements are not added |
+| S4: stabilize and publish | T015 → T016 | Real cross-provider/browser reconciliation, one bounded independent review, one full exit run, remote revision verified and owner demonstration |
 
-The [M05 increment](../modules/m05-capacity/m7-budget-increment-2026-11-11.md)
-owns exact DTO fields, arithmetic, persistence and forecast policy. Shared types,
-migration catalog, generated OpenAPI/client and composition have one writer:
-root. Allocate additive migrations after `v1_0720`: M05 `v1_0730`, M02 `v1_0731`,
-M04 `v1_0732` only if its routing requires stored schema. Do not alter old
-migrations or rename existing routes. Freeze the chain before parallel writers.
+First provider defaults to Anthropic if access is available; otherwise use a real
+available OpenAI or Ollama lane without dropping Anthropic from M7. A requests-only
+legacy source can advance its own usage lane but cannot substitute for the first
+demonstrated monetary report. T005 depends
+on one completed provider adapter, not a hardcoded account. Missing access to one
+lane blocks its live evidence only. No invented demo account or seeded telemetry.
 
-New contract definitions are published before their implementation wave.
-`BudgetViewV1` and quota APIs stay compatible; no fabricated installation IDs.
-Existing M07 consumers must tolerate the new event variants without treating
-money as quota percentages. M08 retention/export must preserve budget lineage
-and exclude credentials; release-wide M08 features remain M8 scope.
+T010 closes the current/list/summary/history HTTP slice; forecast/breakdown HTTP
+and later UI enhancement belong to T013. This removes the earlier UI↔forecast
+completion dependency. T014 begins operational design immediately and supports
+the first installed slice; it does not wait until the last week.
 
-### API/UI surface
+First-slice results are explicitly partial M7 delivery. They are not milestone
+completion. The full original three-provider/five-story scope remains required.
 
-All reads require `read:telemetry`; configuration mutations require the existing
-administrative scope, CSRF and concurrency checks. No GET performs collection.
+## 5. Minimal architecture and exact ownership
 
-| Route under `/api/v1` | Stable operation ID | Behavior |
+| Owner | Allowed work / contract |
+|---|---|
+| Foundation/root | Correct context-dependent exact decimal conversion under CTR-COMMON-003 without changing its public range; sole shared contract writer |
+| M02 | Registry account/resource purpose, scope association, opaque credential binding/generation; independent billing monitoring; API-only eligibility and archive/disconnect rules |
+| A01/A02/A03 | Official read-only endpoint allowlists, role/version admission, exact mapping, scope/dimension semantics and source delay; no direct DB writes |
+| M04 | Existing one-run admit/collect/commit/reconcile flow; budget receipt/run variants for empty and observation-only reports; bounded per-report pagination and source throttling |
+| M05 | Exact signed cost, report coverage/replacement, budget/current/history/aggregation query ports and pure forecast policy |
+| P01 | Authenticated typed HTTP, safe action/response states, schema/client generation; no adapter or database access in handlers |
+| P02 | Existing Accounts/Overview/detail components, capability-driven rendering, API-only values and formatting; no financial computation in React |
+| Root/operations | Serial composition/generated files/migration catalog, installed setup command, selected-candidate build/deploy/recovery and canonical verification |
+
+Root owns contracts, migration order, composition and generated artifacts;
+module agents receive nonoverlapping paths after synchronization. Provider-specific
+code stays under `adapters/providers/{claude/anthropic_api,codex/openai_api,ollama/api}`.
+Capacity code stays under its domain/application/ports and SQLite adapter.
+P02 extends existing account/overview features and a budget-history component.
+
+Reuse frozen budget/usage tables where their semantics fit. Allocate additive
+M05 revision `v1_0730` after `v1_0720`, M02 `v1_0731`, and M04 `v1_0732` only if
+its typed receipt/run change needs schema. Preserve old migration digests.
+Do not automatically create one-to-one tables for every field: use necessary
+additive context columns, a report-coverage relation and signed cost storage.
+No forecast storage table or parent/child job engine. The first real report
+measures whether the documented bounds fit; query page size is not a collection
+batch size. Exact details are in the M05 and calculation documents.
+
+### API contract allocation
+
+All telemetry reads require `read:telemetry`; mutations use existing admin/CSRF
+and concurrency controls. GET never starts collection. Additive V2 budget types
+use the existing tagged cloud subject; old quota/V1 DTO semantics stay intact.
+
+| Route under `/api/v1` | Operation | Ticket |
 |---|---|---|
-| `GET /accounts/{account_id}/budgets` | `capacity_list_budgets_v1` | Bounded list of distinct billing pools |
-| `GET /budgets/{budget_id}` | `capacity_get_budget_v1` | Exact current fields and provenance |
-| `GET /budgets/{budget_id}/usage-breakdowns` | `capacity_list_usage_breakdowns_v1` | Allowlisted dimensions, bounded period/cursor |
-| `GET /accounts/{account_id}/api-capacity` | `capacity_get_account_api_budget_v1` | Account summary with explicit completeness |
-| `GET /budgets/{budget_id}/history` | `capacity_list_budget_history_v1` | Immutable monetary observations and revision lineage |
-| `GET /budgets/{budget_id}/forecast` | `capacity_get_budget_forecast_v1` | Method, inputs, confidence or insufficient-input reason |
+| `GET /budgets` | `capacity_list_budget_overview_v1`: filtered rows and backend grouped summaries | T010 |
+| `GET /accounts/{account_id}/budgets` | `capacity_list_budgets_v1` | T010 |
+| `GET /budgets/{budget_id}` | `capacity_get_budget_v1` | T010 |
+| `GET /accounts/{account_id}/api-capacity` | `capacity_get_account_api_budget_v1` | T010 |
+| `GET /budgets/{budget_id}/history` | `capacity_list_budget_history_v1` | T010 |
+| `GET /budgets/{budget_id}/usage-breakdowns` | `capacity_list_usage_breakdowns_v1` | T013 |
+| `GET /budgets/{budget_id}/forecast` | `capacity_get_budget_forecast_v1` | T013 |
 
-M02 billing enrollment uses an additive billing-connection resource under an
-account: GET status, POST create/update metadata, POST verify, DELETE disconnect
-only AgentMonitor's binding. No key value enters these bodies. A local no-echo
-credential command accepts the opaque binding ID and an owner-selected `.env`.
-The account page supplies an actionable command and status before asking the
-owner to connect. Connection verification is queued, bounded and auditable.
-Owner organization/account configuration is never performed by a coding agent.
+T002 owns account billing-connection status/metadata, verify and disconnect
+HTTP/UI; T007 wires verification/collect-now jobs. POST metadata/verify returns
+real IDs/status with idempotency and account generation. No key values in JSON.
+M04/M05 expose additive receipt/run variants supporting real empty coverage
+without fictitious observations/events. Existing consumers are tested against
+new budget capability routing; quota alert semantics remain unchanged.
+New budget alert rules are outside M7; do not build forecast events for them.
 
-Overview gains a compact, separately labeled API-budget section with existing
-organization/provider filters. Account detail preserves subscription quota and
-adds budget, exact breakdown table, history chart/table, and source details.
-Keep promotion, donation link, footer, sorting, low-quota semantics and 24-hour
-session behavior unchanged. No cross-currency or overlapping-pool totals.
+## 6. Credential permission and owner work
 
-## Proposed credential permission — requires this plan's approval
+Proposed extension of the existing protected `.env` mechanism: AgentMonitor
+runtime alone can store an owner-entered Anthropic/OpenAI administrative API
+credential and read the binding-specific entry for admitted read-only billing
+GETs, and use Ollama's key for its official usage GET in addition to balance.
+The coding agent never views keys. No secrets in browser, arguments, source,
+logs, database, evidence, exports or backups. No provider profile read/write,
+key listing, inference or provider mutation. Fixed HTTPS origins, no redirects.
 
-Extend the existing M6 exception only for the AgentMonitor runtime: it may
-store an owner-entered Anthropic administrative API credential, OpenAI
-administrative API credential, or Ollama API key in a selected protected
-AgentMonitor-managed `.env`, then read the binding-specific entry transiently
-for the approved read-only billing requests. The coding agent does not view
-keys. Owner enters them locally without echo; no keys in browser, logs, source,
-database, backups, exports, evidence, shell history or command arguments.
+The account page supplies the exact installed command and host context. Owner
+creates records/associations, enters keys locally and enables monitoring. The
+agent builds/tests that experience and opens required pages; it does not ask
+for unavailable buttons or manually configure owner accounts. Key rotation
+invalidates old access proof and in-flight generation without deleting history.
+No new dependency. Approval is needed for this focused plan/permission, once;
+all repeatable implementation/test/deploy actions inside it proceed autonomously.
 
-Allowed HTTPS destinations are fixed provider origins and documented GET cost/
-usage paths in the discovery record; Ollama balance keeps its existing scope.
-No redirects, arbitrary URLs, provider profile access, inference, key-listing,
-key-creation, budget updates, or authentication changes. Administrative keys
-can be powerful upstream: the local transport nevertheless exposes only the
-read allowlist. Connection status says access verified, not identity verified,
-unless the provider response actually establishes the identity/scope.
+## 7. Fixed completion catalog
 
-No new dependency is proposed. Use existing admitted HTTP/SQLite/frontend tools
-and exact decimal primitives. Changing credential custody or adding a dependency
-requires a separate concrete approval; routine internal fixes do not.
-
-## Delivery tickets and sequence
-
-The linked JSON catalog is the status/dependency ledger, not evidence of
-implementation. Every ticket has a requirement, expected Red, acceptance,
-deliverable and verification command. Sequence:
-
-1. **M7-T001..003:** source/contract freeze, credential enrollment, executable
-   exit-catalog foundation. Start independent pure and empty real-stack tests.
-2. **M7-T004..007:** exact budget core, Anthropic collector, real persistence
-   and scheduling. Demonstrate one complete real API budget slice.
-3. **M7-T008..009:** OpenAI and Ollama collectors through the same contracts.
-   An unavailable account blocks only its live verification lane.
-4. **M7-T013, then M7-T010..012:** exact forecasts and bounded history/retention,
-   HTTP/generated client, account budget/history screens and Overview.
-5. **M7-T014..016:** portable candidate deployment/rollback, real provider/UI
-   reconciliation and continuity, one bounded review, publication and acceptance.
-
-Planning range: roughly 7–12 focused engineering days after plan approval and
-usable billing access, excluding owner/provider wait time. This is an estimate,
-not a completion promise. Re-estimate against delivered tickets after the first
-vertical slice; report the reason and affected tickets rather than extending
-scope silently. Each work session reports delivered behavior, current ticket,
-actual failing test and next observable result.
-
-Enrollment HTTP/UI belongs to M7-T002, including truthful queued/unavailable
-verification status. Its completion does not claim a provider read. M7-T006
-supplies the real Anthropic adapter output used by M7-T005 persistence tests;
-M7-T007 later supplies full scheduler and multi-page completion proof. This
-avoids a store/scheduler completion cycle. HTTP work can start from frozen DTOs,
-but M7-T010 closes only after M7-T013 supplies history and forecast ports.
-
-## Fixed acceptance catalog
-
-| ID | Required observable result | Primary ticket |
+| ID | Required result | Principal tickets |
 |---|---|---|
-| M7-A01 | Owner-controlled enrollment and safe access/status for each configured billing account | M7-T002 |
-| M7-A02 | Exact money, currency, periods, field availability and pool separation end to end | M7-T004 |
-| M7-A03 | Anthropic real permitted collection and authoritative reconciliation | M7-T006 |
-| M7-A04 | OpenAI real permitted collection and authoritative reconciliation | M7-T008 |
-| M7-A05 | Ollama supported real usage with preserved shared balance semantics | M7-T009 |
-| M7-A06 | Supported dimensions/time buckets, immutable revisioned history and truthful forecast | M7-T013 |
-| M7-A07 | Authenticated versioned HTTP/generated client and real accessible built UI | M7-T010 |
-| M7-A08 | Compact filtered Overview/account panels with separate pools and truthful unavailable states | M7-T012 |
-| M7-A09 | Rate/deadline/size bounds, independent failure and scheduled recovery, unchanged default profiles | M7-T007 |
-| M7-A10 | Candidate-bound rollout/rollback, existing provider/dashboard continuity and prepared evidence | M7-T016 |
+| M7-A01 | Owner-created billing setup, API-only/mixed-purpose UI and safe credential lifecycle | T002/T007/T011 |
+| M7-A02 | Exact money, signed corrections, valid totals, periods, availability and separate pools | T004/T005 |
+| M7-A03 | Real Anthropic permitted reports and source comparison | T006/T015 |
+| M7-A04 | Real OpenAI permitted reports and source comparison | T008/T015 |
+| M7-A05 | Real supported Ollama usage with shared balance semantics | T009/T015 |
+| M7-A06 | Supported breakdowns, immutable corrected/empty-report history, chart and conditional forecast | T010/T013 |
+| M7-A07 | Authenticated HTTP/client and built UI; real IAM, keyboard/responsive checks | T010/T011/T012 |
+| M7-A08 | Compact filtered Overview, valid organization/global grouped totals and useful states | T012 |
+| M7-A09 | Rate/size/deadline bounds, one source failure isolation and genuine recovery; protected profiles untouched | T007/T015 |
+| M7-A10 | Revision-bound install/recovery, existing dashboard/provider continuity and final evidence | T014/T016 |
 
-## Test-first sequence and evidence rules
+Required live coverage is one real successful billing report per provider plus
+inventory accounting for every configured active billing resource. No fixed
+six/four-account ceremony. Existing comparisons record exact resource, interval,
+source time and precision once; reuse them for documentation changes. Technical
+changes invalidate only affected evidence lanes until the final candidate run.
 
-| Test IDs | Boundary and expected Red | Green proof |
-|---|---|---|
-| M7-REG-001..004 | Real SQLite/HTTP: billing binding/status absent; missing authority rejected | Owner-created resource, binding isolation, idempotent verification; no key disclosure |
-| M7-CAP-001..008 | Pure exact-domain missing budget policies/typed fields | Money/period/scope/availability/forecast invariants; constructed inputs only here |
-| M7-DB-001..005 | Real migrated SQLite: budget commit/query/history absent | Provider-collected observations round-trip exactly, receipt conflict/replay, revisions retained |
-| M7-PROV-A01..A03 | Real selected provider read: missing collection/mapping capability | Each official source reconciles exact fields, dimensions and completeness; absent access is Blocked, not Red |
-| M7-COL-001..004 | Real scheduler: budget capability not routed | Bounded jobs, safe failures, another provider and dashboard remain live, genuine later success |
-| M7-HTTP-001..006 | Real Uvicorn/IAM: missing budget routes | 401/403, safe errors, bounded pages, schemas, no collection from GET, exact field propagation |
-| M7-UI-001..006 | Built browser: budget sections/actions missing | Real API-to-DOM equality, 1920×1080/responsive/keyboard/table checks and quota continuity |
-| M7-OPS-001..004 | Real candidate: M6 fixed-checkout updater refuses M7 | Reproducible sealed candidate, backup/rollback journal and revision-bound installed browser |
+Numerical forecast validation is conditional on naturally adequate compatible
+source history/remaining funds. Correct unavailable/insufficient-input behavior
+is required and tested when that is the real state. Report the numerical live
+scenario Not Run/Blocked; do not mistake it for a pass or force spend to obtain it.
+Natural 401/403/429/exhaustion cases are listed individually when unobserved;
+required access/reconciliation cannot be silently declared optional. Controlled
+failure/recovery uses isolated real resources without taking the live dashboard
+down, revoking credentials or restarting owner agents.
 
-No recorded provider payloads, network fakes or inserted telemetry. Fresh empty
-SQLite is valid for migration/empty/IAM tests, not proof of budget collection.
-Provider-only cases await actual provider conditions. Exhaustion, 401/403/429
-and provider revisions need not be induced; unobserved cases stay explicit.
-Required core coverage cannot be silently converted to optional coverage.
-Compare a single authoritative observation with the same scope, period and
-source freshness; reuse that timestamped evidence without repeated attestations.
+## 8. Testing, deployment and closure without an endless loop
 
-## Completion and operations
+T003 implements one runner with technical/live/browser/exit selections behind
+the registered canonical commands; reuse existing checks. No new general gate
+framework, detached approval hierarchy or manual owner-code paste workflow.
+Start each changed behavior with meaningful Red at its real boundary. The money
+rules document provides exact pure test cases; I/O proof uses real provider
+reports, real SQLite/migrations, real HTTP and a real built browser.
 
-`python3 tools/planning/validate_m7_tickets.py` is the planning-only check.
-M7-T003 implements `AUTO-M7-TEST`, `AUTO-M7-LIVE`, `AUTO-M7-BROWSER` and
-`AUTO-M7-EXIT`; they are unavailable until implemented, never presumed passing.
-The exit command must check all ten acceptance items, all five stories, real
-checkout/deployed lineage, Red/Green evidence and required live lanes. Optional
-natural-state limitations are listed separately. One report suffices; no manual
-account-ID paste ceremony. Gate state and milestone owner acceptance are distinct.
-
-Use additive migrations, backup before migration and preserve a sealed previous
-runtime. Validate rollback compatibility before service transition. Never
+T014 is limited to this AgentMonitor user service and an explicitly selected
+clean revision. Reuse build sealing/locks/backup/recovery helpers, remove only
+the M6 fixed-worktree assumption. Do not build a general deployment platform.
+Before transition verify schema/backup/rollback, then loopback/LAN readiness and
+installed revision. On failure restore the known-good runtime safely. Never
 restore an old database after new writes without explicit recovery authority.
-The live dashboard stays on accepted M6 until the candidate passes the relevant
-checks; never stop the service merely to gather evidence. M7-T014 must include
-recovery after interrupted activation and loopback/LAN health verification.
+Promotion/support/footer/quota/filter behavior must survive each rollout.
 
-Update module/API/provider docs, security permission, configuration/runbook,
-traceability, generated artifacts and current status overlay with each slice.
-At stabilization, freeze the known defect batch, run one full exit gate and one
-independent review under the existing convergence rule. Only a demonstrated
-scope/invariant violation reopens the batch. Publish the current branch's actual
-code to GitHub main with existing user authority and verify remote revision;
-do not call a locally staged tree published. GitLab authentication does not
-block GitHub delivery. M8 remains the final release-wide milestone.
+After S3, freeze known defects. Run one full `AUTO-M7-EXIT` and one bounded
+independent review. New blockers must prove a stated requirement/invariant is
+violated and name the smallest fix. Enhancements go to the deferred list below;
+no silent gate expansion. T015 uses live/browser lanes; T016 runs the technical
+exit, publishes current code to GitHub, verifies remote revision, demonstrates
+the result and records acceptance separately. Publication never gates itself.
+GitLab mirror authentication cannot block authorized GitHub delivery.
 
-M7-T015 closes on the candidate-bound live and browser lanes. M7-T016 runs the
-full technical exit gate, then publishes the verified revision and records
-remote verification and owner acceptance. Publication is not a prerequisite of
-the technical gate; it remains a required T016 completion condition. The gate
-checks scenario evidence rather than requiring its own closing ticket already
-be marked done.
+Planning check: `python3 tools/automation/run.py AUTO-M7-PLAN-CHECK`.
+Documentation, quality, Git preflight and synchronized baseline checks retain
+their existing commands. M7 execution commands remain fail-closed until built.
+The already-passing 66 automation/planning tests are prerequisites, not M7 proof.
 
-## Approval and stopping rules
+## 9. Risks, scope control and estimates
 
-Approval of this 1.0.0 plan covers the bounded cross-module increments and the
-runtime credential exception above, not provider mutations or new dependencies.
-The existing blanket system-action authorization does not fabricate an M7
-module-plan approval. Record the owner's actual approval once; do not request
-it again for internal corrections within this scope.
+Known risks are now explicit: administrative access, absent balances/limits,
+provider lag, complete-empty/corrected reports, shared pools, exact-decimal
+context, oversized minimum reports, API-only account eligibility, later-page
+accounts and installed setup/deployment. Each maps to a named ticket and test.
+Provider documentation proves a supported interface, not owner credentials or
+live behavior. Missing input pauses its dependent lane only.
 
-A new real secret exposure, destructive migration, incompatible public contract
-or missing required authentication pauses that affected action only. Identify
-the exact evidence, continue independent authorized work, and ask only for the
-smallest required user input. A draft document, assumed account name or
-unavailable optional natural-state test is not authority to halt all work.
+Deferred improvements: user-set budgets, FX/invoice reconciliation, arbitrary
+multi-dimension query builder, custom reports, advanced/statistical forecasts,
+new budget alert policies, durable page/child-job orchestration without proven
+need, remote secret entry, additional top-level history screens, general
+multi-host deployment and all local Ollama work. These are not exit conditions.
+Existing supported one-dimension breakdowns, aggregation, chart and conditional
+forecast are retained in M7; they are not removed under the word simplification.
+
+Effort estimate, not promise: S0/S1 about 3–5 focused engineering days after
+usable access; S2 2–3; S3 1–2; S4 1–2. Total 7–12, excluding provider/owner wait.
+The first installed vertical is the checkpoint to revise estimates from measured
+work. Report completed tickets and visible behavior, current failing test and
+next demo every work session. If two sessions produce no new user-visible slice,
+review the dependency causing delay instead of adding more infrastructure.
+
+## 10. Approval state
+
+This refactor was authorized as planning work. Production implementation and the
+new runtime credential scope are still pending approval of version 1.1.0; the
+previous 1.0.0 question no longer describes the proposed plan. No hidden account
+configuration, production migration, deployed change or new dependency is made
+by preparing these artifacts. After approval record it once and execute S0/S1.

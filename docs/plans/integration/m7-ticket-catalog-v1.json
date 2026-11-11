@@ -1,7 +1,7 @@
 {
-  "schema_version": "1.0",
+  "schema_version": "1.1",
   "milestone": "V1-M7",
-  "plan_version": "1.0.0",
+  "plan_version": "1.1.0",
   "status": "draft",
   "owner_approved": false,
   "plan": "docs/plans/integration/m7-execution-plan-2026-11-11.md",
@@ -44,16 +44,27 @@
         "M7-A10"
       ],
       "test_ids": "M7-PLAN-001",
-      "deliverable": "Source/contract decisions, focused module plan, credential exception and fixed acceptance catalog",
+      "deliverable": "Refactored focused plan 1.1.0, UI journeys, exact calculation rules, provider facts and owner approval record",
       "expected_red": "Planning ledger lacks a complete dependency and contract allocation; this planning ticket has no production TDD claim.",
       "done_when": "Plan checks pass and owner approval is recorded; no implementation claim",
       "verification": "python3 tools/planning/validate_m7_tickets.py",
-      "evidence": []
+      "evidence": [],
+      "depends_on_any": [],
+      "delivery_slice": "S0",
+      "related_plans": [
+        "docs/plans/integration/m7-ui-and-user-journeys.md",
+        "docs/plans/integration/m7-calculation-and-data-rules.md"
+      ],
+      "steps": [
+        "Review actual source and provider contracts",
+        "Resolve UI/math/empty-report dependency decisions",
+        "Validate and present one scoped approval packet"
+      ]
     },
     {
       "id": "M7-T002",
       "story": "ST-BUDGET-001",
-      "title": "Owner-controlled API billing enrollment",
+      "title": "Owner billing setup, API-only eligibility and credential lifecycle",
       "owner": "M02/M03",
       "status": "planned",
       "depends_on": [
@@ -61,7 +72,12 @@
       ],
       "requirements": [
         "FR-BUDGET-001",
-        "FR-BUDGET-006"
+        "FR-BUDGET-006",
+        "FR-ACC-001",
+        "FR-ACC-002",
+        "FR-ACC-003",
+        "FR-ACC-004",
+        "FR-ACC-006"
       ],
       "acceptance_criteria": [
         "AC-TEST-001",
@@ -72,11 +88,22 @@
         "M7-A01"
       ],
       "test_ids": "M7-REG-001..004",
-      "deliverable": "Enrollment HTTP and dashboard metadata/status controls, queued verification contract and local no-echo credential binding; provider verification is integrated in M7-T007",
+      "deliverable": "Owner creation/attach flow opens detail; resource-purpose UI; installed scoped local setup command; safe status, key rotation generation, monitoring and disconnect/archive controls",
       "expected_red": "Real account HTTP/browser lacks billing enrollment and binding status; verify no key can enter a request.",
-      "done_when": "Real owner-created billing metadata and binding status work through HTTP/browser without key disclosure; queued verification remains explicitly unavailable until the provider collector is integrated",
+      "done_when": "Real account metadata/status/eligibility and installed command are tested; no CLI-login misrouting, key disclosure or manual ID entry; live access proof joins the selected provider lane",
       "verification": "python3 tools/automation/run.py AUTO-M7-TEST",
-      "evidence": []
+      "evidence": [],
+      "depends_on_any": [],
+      "delivery_slice": "S0",
+      "related_plans": [
+        "docs/plans/integration/m7-ui-and-user-journeys.md",
+        "docs/plans/integration/m7-calculation-and-data-rules.md"
+      ],
+      "steps": [
+        "Test API-only creation/status/LAN setup behavior",
+        "Implement owner metadata, credential status and lifecycle controls",
+        "Test real HTTP/browser and local hidden input without logging values"
+      ]
     },
     {
       "id": "M7-T003",
@@ -103,12 +130,23 @@
       "expected_red": "Canonical M7 command is unavailable and cannot assess required evidence; implement executable checks before delivery claims.",
       "done_when": "Missing required evidence fails closed; no scope inferred from a passing partial lane",
       "verification": "python3 tools/automation/run.py AUTO-M7-TEST",
-      "evidence": []
+      "evidence": [],
+      "depends_on_any": [],
+      "delivery_slice": "S0",
+      "related_plans": [
+        "docs/plans/integration/m7-ui-and-user-journeys.md",
+        "docs/plans/integration/m7-calculation-and-data-rules.md"
+      ],
+      "steps": [
+        "Define fixed acceptance lanes and fail-closed missing evidence",
+        "Reuse existing test/browser runners and known tool selection",
+        "Exercise failures and truthful receipts before final acceptance"
+      ]
     },
     {
       "id": "M7-T004",
       "story": "ST-BUDGET-001",
-      "title": "Exact budget values, resource pools and public ports",
+      "title": "Correct exact decimals and define financial/report policies",
       "owner": "M05",
       "status": "planned",
       "depends_on": [
@@ -128,22 +166,32 @@
       "m7_acceptance": [
         "M7-A02"
       ],
-      "test_ids": "M7-CAP-PURE-001..003",
-      "deliverable": "Versioned exact input/view/query/commit contracts and domain rules",
-      "expected_red": "Pure budget policy cannot represent distinct exact money/availability or prevent mixed-pool aggregation.",
+      "test_ids": "M7-CAP-PURE-001..003; M7-MATH-01..16",
+      "deliverable": "Context-independent decimal conversion, exact sums/limits, zero/null, signed adjustments, pool identity, report replacement, M7-MATH-01..16 and versioned budget/report/receipt types",
+      "expected_red": "The real pure CanonicalDecimalV1 round-trip rounds a permitted 38-digit value; financial aggregation and report-selection policies are absent",
       "done_when": "Float, currency, overlap and unknown-state checks pass after meaningful Red",
       "verification": "python3 tools/automation/run.py AUTO-M7-TEST",
-      "evidence": []
+      "evidence": [],
+      "depends_on_any": [],
+      "delivery_slice": "S0",
+      "related_plans": [
+        "docs/plans/integration/m7-ui-and-user-journeys.md",
+        "docs/plans/integration/m7-calculation-and-data-rules.md"
+      ],
+      "steps": [
+        "Reproduce exactness/report-selection failures purely",
+        "Implement smallest approved exact contracts/policies",
+        "Run math vectors and critical mutation checks"
+      ]
     },
     {
       "id": "M7-T005",
       "story": "ST-BUDGET-001",
-      "title": "Immutable budget persistence and additive migration",
+      "title": "Store one real report, including signed and empty coverage",
       "owner": "M05/DB",
       "status": "planned",
       "depends_on": [
-        "M7-T004",
-        "M7-T006"
+        "M7-T004"
       ],
       "requirements": [
         "FR-BUDGET-003",
@@ -159,17 +207,34 @@
         "M7-A02",
         "M7-A06"
       ],
-      "test_ids": "M7-CAP-DB-001..002",
-      "deliverable": "v1_0730 companions, exact commit receipts and bounded queries",
+      "test_ids": "M7-CAP-DB-001..004; M7-EMPTY-001",
+      "deliverable": "Minimal additive report/coverage/signed-cost schema, one atomic exact commit, stable snapshot queries and empty-report receipt",
       "expected_red": "Real migrated SQLite lacks signed cost/context tables and cannot retrieve fresh adapter facts exactly.",
-      "done_when": "Fresh real Anthropic adapter output commits through the production M05 port and survives retry/reopen with exact lineage; full scheduler/parent manifest proof belongs to M7-T007",
+      "done_when": "Fresh output from any completed real provider adapter survives exact commit/retry/reopen; complete-report replacement cannot retain phantom spend; no synthetic zero facts; a monetary fact must be observed before claiming exact monetary I/O verification (requests-only reports do not substitute)",
       "verification": "python3 tools/automation/run.py AUTO-M7-LIVE",
-      "evidence": []
+      "evidence": [],
+      "depends_on_any": [
+        [
+          "M7-T006",
+          "M7-T008",
+          "M7-T009"
+        ]
+      ],
+      "delivery_slice": "S1",
+      "related_plans": [
+        "docs/plans/integration/m7-ui-and-user-journeys.md",
+        "docs/plans/integration/m7-calculation-and-data-rules.md"
+      ],
+      "steps": [
+        "Apply real migration and test absent store/empty outcome",
+        "Commit fresh real provider report atomically",
+        "Retry/reopen and verify immutable selection/coverage"
+      ]
     },
     {
       "id": "M7-T006",
       "story": "ST-BUDGET-001",
-      "title": "Anthropic administrative billing collector",
+      "title": "Anthropic usage/cost lane (eligible first provider)",
       "owner": "A01",
       "status": "planned",
       "depends_on": [
@@ -195,18 +260,29 @@
       "expected_red": "With valid real access, the production adapter cannot emit the required cost/usage batch; absent access is Blocked.",
       "done_when": "Real permitted reads reconciled with authoritative source within documented lag",
       "verification": "python3 tools/automation/run.py AUTO-M7-LIVE",
-      "evidence": []
+      "evidence": [],
+      "depends_on_any": [],
+      "delivery_slice": "S1_or_S2",
+      "related_plans": [
+        "docs/plans/integration/m7-ui-and-user-journeys.md",
+        "docs/plans/integration/m7-calculation-and-data-rules.md"
+      ],
+      "steps": [
+        "Admit documented source/version/role and bounded request",
+        "Map permitted live usage/cost into exact normalized facts",
+        "Compare same scope/time with provider; mark gaps explicitly"
+      ]
     },
     {
       "id": "M7-T007",
       "story": "ST-BUDGET-001",
-      "title": "Schedule and commit independent budget collections",
+      "title": "Reuse bounded scheduling and reconcile empty/failed reports",
       "owner": "M04",
       "status": "planned",
       "depends_on": [
+        "M7-T002",
         "M7-T003",
-        "M7-T005",
-        "M7-T006"
+        "M7-T005"
       ],
       "requirements": [
         "FR-BUDGET-001",
@@ -222,16 +298,27 @@
         "M7-A09"
       ],
       "test_ids": "M7-COL-001..004",
-      "deliverable": "Bounded jobs, unique chunk receipts, parent completeness, safe failures/backoff",
+      "deliverable": "One M04 run per bounded report, budget receipt/run variants, per-scope throttling, generation fences and existing commit-status recovery; no child-run hierarchy",
       "expected_red": "Real scheduler cannot route/commit budget pages or expose incomplete collection without refreshing stale facts.",
-      "done_when": "Real scheduled collection and recovery preserve other providers and dashboard",
+      "done_when": "Genuine first provider is scheduled/committed and safely retried; empty result is truthful; one failure cannot refresh old spend or interrupt dashboard/other providers",
       "verification": "python3 tools/automation/run.py AUTO-M7-LIVE",
-      "evidence": []
+      "evidence": [],
+      "depends_on_any": [],
+      "delivery_slice": "S1",
+      "related_plans": [
+        "docs/plans/integration/m7-ui-and-user-journeys.md",
+        "docs/plans/integration/m7-calculation-and-data-rules.md"
+      ],
+      "steps": [
+        "Test missing routing and correct empty-report semantics",
+        "Reuse scheduler/lease and commit reconciliation",
+        "Observe actual schedule/recovery and source isolation"
+      ]
     },
     {
       "id": "M7-T008",
       "story": "ST-BUDGET-002",
-      "title": "OpenAI administrative usage and costs collector",
+      "title": "OpenAI usage/cost lane (eligible first provider)",
       "owner": "A02",
       "status": "planned",
       "depends_on": [
@@ -257,12 +344,23 @@
       "expected_red": "With real administrative access, OpenAI costs/categories cannot traverse the production budget adapter.",
       "done_when": "Real source values/dimensions reconcile; unavailable categories remain explicit",
       "verification": "python3 tools/automation/run.py AUTO-M7-LIVE",
-      "evidence": []
+      "evidence": [],
+      "depends_on_any": [],
+      "delivery_slice": "S1_or_S2",
+      "related_plans": [
+        "docs/plans/integration/m7-ui-and-user-journeys.md",
+        "docs/plans/integration/m7-calculation-and-data-rules.md"
+      ],
+      "steps": [
+        "Admit OpenAI role and per-category coverage",
+        "Collect official costs and supported usage without inference",
+        "Reconcile totals/breakdowns and category omissions"
+      ]
     },
     {
       "id": "M7-T009",
       "story": "ST-BUDGET-002",
-      "title": "Ollama cloud usage with existing balance identity",
+      "title": "Ollama usage/shared balance lane (eligible first provider)",
       "owner": "A03",
       "status": "planned",
       "depends_on": [
@@ -289,22 +387,34 @@
       "expected_red": "Real Ollama usage is absent and existing balance must remain one shared canonical pool.",
       "done_when": "Real usage reconciles without duplicating purchased or included balances",
       "verification": "python3 tools/automation/run.py AUTO-M7-LIVE",
-      "evidence": []
+      "evidence": [],
+      "depends_on_any": [],
+      "delivery_slice": "S1_or_S2",
+      "related_plans": [
+        "docs/plans/integration/m7-ui-and-user-journeys.md",
+        "docs/plans/integration/m7-calculation-and-data-rules.md"
+      ],
+      "steps": [
+        "Admit usage purpose and self/team scope",
+        "Reuse balance identity with exact native usage",
+        "Verify no shared-pool duplicate or unsupported attribution"
+      ]
     },
     {
       "id": "M7-T010",
       "story": "ST-BUDGET-003",
-      "title": "Budget HTTP boundary and generated client",
+      "title": "Current budget, grouped totals and history HTTP/client",
       "owner": "P01",
       "status": "planned",
       "depends_on": [
         "M7-T005",
-        "M7-T013"
+        "M7-T007"
       ],
       "requirements": [
         "FR-BUDGET-002",
         "FR-BUDGET-003",
-        "FR-BUDGET-004"
+        "FR-BUDGET-004",
+        "FR-ORG-003"
       ],
       "acceptance_criteria": [
         "AC-TEST-001",
@@ -315,16 +425,27 @@
         "M7-A07"
       ],
       "test_ids": "M7-HTTP-001..006",
-      "deliverable": "Six budget read operations and generated schemas/client; enrollment HTTP is owned by M7-T002",
+      "deliverable": "Global filtered budget list with backend grouped summaries, account list/detail/summary and exact history operations; compatible collection-run wire and generated client",
       "expected_red": "Real HTTP returns missing routes instead of exact budget/history/forecast DTOs and bounded pages.",
-      "done_when": "Real Uvicorn IAM, exact fields, pagination and no-collection GET checks pass",
+      "done_when": "Real HTTP/IAM/current/history/summary and stable pagination pass; this ticket does not wait for forecast/breakdown endpoints assigned to T013",
       "verification": "python3 tools/automation/run.py AUTO-M7-TEST",
-      "evidence": []
+      "evidence": [],
+      "depends_on_any": [],
+      "delivery_slice": "S1",
+      "related_plans": [
+        "docs/plans/integration/m7-ui-and-user-journeys.md",
+        "docs/plans/integration/m7-calculation-and-data-rules.md"
+      ],
+      "steps": [
+        "Test missing reads with real HTTP/IAM",
+        "Wire typed current/history/group-summary ports and regenerate client",
+        "Verify exact wire, full-filter totals and bounded stable cursors"
+      ]
     },
     {
       "id": "M7-T011",
       "story": "ST-BUDGET-004",
-      "title": "Account budget and history screens",
+      "title": "First account spend and exact history table in built UI",
       "owner": "P02",
       "status": "planned",
       "depends_on": [
@@ -347,16 +468,27 @@
         "M7-A08"
       ],
       "test_ids": "M7-UI-001..004",
-      "deliverable": "Separate budget section, details, breakdown/history chart and exact table",
+      "deliverable": "Compact purpose-aware detail with reporting period, scope, spend/available reasons, exact history and collapsible connection/source details",
       "expected_red": "The built account page lacks the API budget and history section exposed by the real API.",
-      "done_when": "Real browser renders API values, actionable setup and truthful missing states",
+      "done_when": "Real built account-detail UI demonstrates owner setup, first reading, direct URL/reload and exact history; Overview navigation belongs to T012 and installed-service proof to T014",
       "verification": "python3 tools/automation/run.py AUTO-M7-BROWSER",
-      "evidence": []
+      "evidence": [],
+      "depends_on_any": [],
+      "delivery_slice": "S1",
+      "related_plans": [
+        "docs/plans/integration/m7-ui-and-user-journeys.md",
+        "docs/plans/integration/m7-calculation-and-data-rules.md"
+      ],
+      "steps": [
+        "Assert first source data absent from built detail",
+        "Render current spend, exact table and actionable setup",
+        "Verify purpose routing, direct URL and unchanged subscription behavior"
+      ]
     },
     {
       "id": "M7-T012",
       "story": "ST-BUDGET-004",
-      "title": "Compact API-budget Overview and accessibility",
+      "title": "First compact Overview, shared filters and organization totals",
       "owner": "P02",
       "status": "planned",
       "depends_on": [
@@ -364,31 +496,48 @@
       ],
       "requirements": [
         "FR-BUDGET-002",
-        "FR-BUDGET-005"
+        "FR-BUDGET-005",
+        "FR-ORG-003"
       ],
       "acceptance_criteria": [
         "AC-TEST-001",
         "AC-UI-003",
-        "AC-UI-004"
+        "AC-UI-004",
+        "AC-UI-002",
+        "AC-UI-005"
       ],
       "m7_acceptance": [
         "M7-A08"
       ],
       "test_ids": "M7-UI-005..006",
-      "deliverable": "Compact separate pool section using existing provider/org filters",
+      "deliverable": "Shared organization/provider filters, compact API table, valid grouped backend spend summaries, bounded full-inventory/page behavior and accessibility",
       "expected_red": "The built Overview lacks independently filtered API-budget rows and keyboard-readable state.",
-      "done_when": "Responsive/keyboard and real DOM checks preserve quota, promotion and support UI",
+      "done_when": "Real built candidate Overview exposes first provider data with correct identity/period/coverage and Overview-to-detail navigation; no invalid totals; quota low-left semantics and header/footer preserved",
       "verification": "python3 tools/automation/run.py AUTO-M7-BROWSER",
-      "evidence": []
+      "evidence": [],
+      "depends_on_any": [],
+      "delivery_slice": "S1",
+      "related_plans": [
+        "docs/plans/integration/m7-ui-and-user-journeys.md",
+        "docs/plans/integration/m7-calculation-and-data-rules.md"
+      ],
+      "steps": [
+        "Assert shared filters/summary states absent",
+        "Add compact table and backend-grouped totals",
+        "Verify pages, responsive/keyboard controls and existing header/quota UI"
+      ]
     },
     {
       "id": "M7-T013",
       "story": "ST-BUDGET-001",
-      "title": "Budget forecasts, revisions and retained history",
-      "owner": "M05",
+      "title": "Complete breakdowns, history chart and simple query-time forecast",
+      "owner": "M05/P01/P02 (serial root integration)",
       "status": "planned",
       "depends_on": [
-        "M7-T005"
+        "M7-T006",
+        "M7-T008",
+        "M7-T009",
+        "M7-T012"
       ],
       "requirements": [
         "FR-BUDGET-002",
@@ -404,22 +553,35 @@
       "m7_acceptance": [
         "M7-A06"
       ],
-      "test_ids": "M7-CAP-PURE-004; M7-CAP-DB-003..004",
-      "deliverable": "Exact budget-specific forecast, lineage, revised buckets and retention",
+      "test_ids": "M7-CAP-PURE-004; M7-MATH-03/15/16; M7-CAP-DB-003..004; M7-UI-004",
+      "deliverable": "Supported one-dimension exact breakdowns and HTTP/UI, cost bars/balance series, pure query-time observed rate and conditional as-of exhaustion with inputs/reasons; bounded retention",
       "expected_red": "Pure daily bucket policy produces absent/incorrect rate or real history query loses revision lineage.",
-      "done_when": "No invented exhaustion; genuine history yields explainable result or insufficient inputs",
-      "verification": "python3 tools/automation/run.py AUTO-M7-TEST",
-      "evidence": []
+      "done_when": "Chart/table share actual history; formulas and missing-input paths pass; all supported dimensions exposed without combinatorial query builder or persistent forecast/events",
+      "verification": "python3 tools/automation/run.py AUTO-M7-TEST; python3 tools/automation/run.py AUTO-M7-BROWSER",
+      "evidence": [],
+      "depends_on_any": [],
+      "delivery_slice": "S3",
+      "related_plans": [
+        "docs/plans/integration/m7-ui-and-user-journeys.md",
+        "docs/plans/integration/m7-calculation-and-data-rules.md"
+      ],
+      "steps": [
+        "Test wrong bucket math/missing input states",
+        "Add simple pure forecast plus breakdown/chart UI",
+        "Reconcile real chart/table, allowed dimensions and retained lineage"
+      ]
     },
     {
       "id": "M7-T014",
       "story": "ST-BUDGET-005",
-      "title": "Candidate-safe deployment and rollback",
+      "title": "Install the first working slice with scoped recovery",
       "owner": "Integration/M08",
       "status": "planned",
       "depends_on": [
         "M7-T003",
-        "M7-T010"
+        "M7-T010",
+        "M7-T011",
+        "M7-T012"
       ],
       "requirements": [
         "FR-BUDGET-001",
@@ -434,11 +596,22 @@
         "M7-A10"
       ],
       "test_ids": "M7-OPS-001..004",
-      "deliverable": "Canonical selected-candidate activation, migration backup and recovery journal",
+      "deliverable": "Existing fixed AgentMonitor service accepts a selected sealed candidate; installed setup entry point, schema/backup/recovery and browser revision checks; no general deployment platform",
       "expected_red": "Existing fixed M6 updater refuses the M7 candidate; verify candidate/backup boundaries before transition.",
-      "done_when": "Real sealed M7 candidate can activate/recover with schema and service verification",
+      "done_when": "First complete real UI slice is installed and verified with recovery to known-good runtime available; no default provider/profile or user agent disruption",
       "verification": "python3 tools/automation/run.py AUTO-M7-DEPLOY",
-      "evidence": []
+      "evidence": [],
+      "depends_on_any": [],
+      "delivery_slice": "S1",
+      "related_plans": [
+        "docs/plans/integration/m7-ui-and-user-journeys.md",
+        "docs/plans/integration/m7-calculation-and-data-rules.md"
+      ],
+      "steps": [
+        "Check existing fixed-worktree refusal and candidate recovery conditions",
+        "Adapt existing service activation to selected clean revision",
+        "Verify installed UI/version, LAN health and safe rollback"
+      ]
     },
     {
       "id": "M7-T015",
@@ -447,6 +620,7 @@
       "owner": "Integration",
       "status": "planned",
       "depends_on": [
+        "M7-T006",
         "M7-T007",
         "M7-T008",
         "M7-T009",
@@ -483,9 +657,20 @@
       "test_ids": "M7-LIVE-001..006",
       "deliverable": "Same-scope/time source comparisons, real built UI, history and continuity report",
       "expected_red": "The real candidate cannot yet supply a complete source-to-API-to-DOM reconciliation; missing accounts are Blocked.",
-      "done_when": "Required three-provider lanes pass; natural-state limitations remain separately explicit",
+      "done_when": "Real billing success for each provider and all configured active resources accounted; numerical forecasts tested only when genuine inputs qualify; natural limitations separated, not concealed",
       "verification": "python3 tools/automation/run.py AUTO-M7-LIVE; python3 tools/automation/run.py AUTO-M7-BROWSER",
-      "evidence": []
+      "evidence": [],
+      "depends_on_any": [],
+      "delivery_slice": "S4",
+      "related_plans": [
+        "docs/plans/integration/m7-ui-and-user-journeys.md",
+        "docs/plans/integration/m7-calculation-and-data-rules.md"
+      ],
+      "steps": [
+        "Record candidate/account/source coverage once",
+        "Run source comparisons and actual browser/continuity lanes",
+        "Freeze real failures only; do not create new acceptance requirements"
+      ]
     },
     {
       "id": "M7-T016",
@@ -513,7 +698,30 @@
       "expected_red": "Required technical/live evidence is absent; publication and acceptance remain Not Run until demonstrated.",
       "done_when": "Gate passes against deployed revision; remote verified; owner accepts demonstrated scope",
       "verification": "python3 tools/automation/run.py AUTO-M7-EXIT",
-      "evidence": []
+      "evidence": [],
+      "depends_on_any": [],
+      "delivery_slice": "S4",
+      "related_plans": [
+        "docs/plans/integration/m7-ui-and-user-journeys.md",
+        "docs/plans/integration/m7-calculation-and-data-rules.md"
+      ],
+      "steps": [
+        "Run fixed exit command and one bounded review",
+        "Fix demonstrated blockers; publish verified current revision",
+        "Verify remote and installed result, show owner and record acceptance"
+      ]
     }
+  ],
+  "supporting_plans": [
+    "docs/plans/integration/m7-ui-and-user-journeys.md",
+    "docs/plans/integration/m7-calculation-and-data-rules.md",
+    "docs/plans/modules/m05-capacity/m7-budget-increment-2026-11-11.md"
+  ],
+  "delivery_slices": [
+    "S0",
+    "S1",
+    "S2",
+    "S3",
+    "S4"
   ]
 }

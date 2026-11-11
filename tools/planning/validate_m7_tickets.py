@@ -10,17 +10,51 @@ ROOT = Path(__file__).resolve().parents[2]
 CATALOG = ROOT / "docs/plans/integration/m7-ticket-catalog-v1.json"
 
 
+def prerequisite_errors(key: str, item: dict, tickets: dict[str, dict]) -> list[str]:
+    """Require all ordinary prerequisites and one choice in each alternative group."""
+    errors: list[str] = []
+    for dependency in item["depends_on"]:
+        if dependency not in tickets or dependency == key:
+            errors.append(f"{key}: invalid_dependency")
+        elif item["status"] == "done" and tickets[dependency]["status"] != "done":
+            errors.append(f"{key}: unfinished_dependency")
+    groups = item.get("depends_on_any", [])
+    if not isinstance(groups, list):
+        return errors + [f"{key}: invalid_alternative_dependency"]
+    for group in groups:
+        if (
+            not isinstance(group, list)
+            or not group
+            or any(
+                not isinstance(dep, str) or dep not in tickets or dep == key
+                for dep in group
+            )
+        ):
+            errors.append(f"{key}: invalid_alternative_dependency")
+        elif item["status"] == "done" and not any(
+            tickets[dep]["status"] == "done" for dep in group
+        ):
+            errors.append(f"{key}: provider_prerequisite_unfinished")
+    return errors
+
+
 def validate() -> list[str]:
     """Resolve traceability and dependencies against this actual checkout."""
     data = json.loads(CATALOG.read_text())
     errors: list[str] = []
-    if data.get("schema_version") != "1.0" or data.get("milestone") != "V1-M7":
+    if data.get("schema_version") != "1.1" or data.get("milestone") != "V1-M7":
         return ["invalid_catalog"]
     stories = {f"ST-BUDGET-{i:03}" for i in range(1, 6)}
     acceptance = {f"M7-A{i:02}" for i in range(1, 11)}
     if set(data["story_ids"]) != stories or set(data["acceptance_ids"]) != acceptance:
         errors.append("scope_changed")
     plan = (ROOT / data["plan"]).read_text()
+    if f"Plan version: {data['plan_version']}" not in plan:
+        errors.append("plan_version_mismatch")
+    for reference in data["supporting_plans"]:
+        path = (ROOT / reference).resolve()
+        if not path.is_relative_to(ROOT) or not path.is_file():
+            errors.append("supporting_plan_missing")
     requirements = (ROOT / "docs/product/requirements.md").read_text()
     criteria = (ROOT / "docs/product/v1-acceptance-criteria.md").read_text()
     backlog = (ROOT / "docs/superpowers/plans/implementation-backlog.toml").read_text()
@@ -36,6 +70,14 @@ def validate() -> list[str]:
         if item["story"] not in stories or item["story"] not in backlog:
             errors.append(f"{key}: unknown_story")
         covered_stories.add(item["story"])
+        if item.get("delivery_slice") not in {"S0", "S1", "S1_or_S2", "S2", "S3", "S4"}:
+            errors.append(f"{key}: missing_delivery_slice")
+        if (
+            not isinstance(item.get("steps"), list)
+            or len(item["steps"]) < 3
+            or not all(isinstance(step, str) and step.strip() for step in item["steps"])
+        ):
+            errors.append(f"{key}: missing_test_first_steps")
         for field in (
             "title",
             "owner",
@@ -69,11 +111,7 @@ def validate() -> list[str]:
         ):
             errors.append(f"{key}: invalid_links")
             continue
-        for dependency in item["depends_on"]:
-            if dependency not in by_id or dependency == key:
-                errors.append(f"{key}: invalid_dependency")
-            elif item["status"] == "done" and by_id[dependency]["status"] != "done":
-                errors.append(f"{key}: unfinished_dependency")
+        errors.extend(prerequisite_errors(key, item, by_id))
         if item["status"] == "done" and not item["evidence"]:
             errors.append(f"{key}: missing_completion_evidence")
         for evidence in item["evidence"]:
@@ -92,7 +130,11 @@ def validate() -> list[str]:
         if key in visited:
             return
         active.add(key)
-        for dependency in by_id[key]["depends_on"]:
+        alternatives = by_id[key].get("depends_on_any", [])
+        edges = by_id[key]["depends_on"] + [
+            dep for group in alternatives for dep in group
+        ]
+        for dependency in edges:
             if dependency in by_id:
                 visit(dependency)
         active.remove(key)
