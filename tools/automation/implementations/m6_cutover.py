@@ -248,7 +248,11 @@ def _verify_active_source_schema(reference: DatabaseRefV1, source: str) -> None:
 
 def _retained_migration_source(catalog_head: str) -> str | None:
     """Return the exact admitted predecessor, never a guessed schema range."""
-    return {"v1_0719": "v1_0718", "v1_0720": "v1_0719"}.get(catalog_head)
+    return {
+        "v1_0719": "v1_0718",
+        "v1_0720": "v1_0719",
+        "v1_0731": "v1_0720",
+    }.get(catalog_head)
 
 
 def _cutover_engine(

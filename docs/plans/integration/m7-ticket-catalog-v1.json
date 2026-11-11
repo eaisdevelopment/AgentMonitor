@@ -623,7 +623,7 @@
       "story": "ST-BUDGET-005",
       "title": "Install the first working slice with scoped recovery",
       "owner": "Integration/M08",
-      "status": "planned",
+      "status": "in_progress",
       "depends_on": [
         "M7-T003",
         "M7-T010",
@@ -647,7 +647,9 @@
       "expected_red": "Existing fixed M6 updater refuses the M7 candidate; verify candidate/backup boundaries before transition.",
       "done_when": "First complete real UI slice is installed and verified with recovery to known-good runtime available; no default provider/profile or user agent disruption",
       "verification": "Planned setup_activation selection in existing M7 deployment routine: T003 must publish/test exact invocation before early rollout. Full-slice closure: python3 tools/automation/run.py AUTO-M7-DEPLOY.",
-      "evidence": [],
+      "evidence": [
+        "docs/evidence/m7-setup-activation-preparation-2026-11-11.md"
+      ],
       "depends_on_any": [],
       "delivery_slice": "S1",
       "related_plans": [

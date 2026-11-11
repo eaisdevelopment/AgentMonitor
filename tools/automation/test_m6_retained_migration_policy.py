@@ -7,7 +7,7 @@ from tools.automation.implementations.m6_cutover import _retained_migration_sour
 
 @pytest.mark.parametrize(
     ("target", "source"),
-    [("v1_0719", "v1_0718"), ("v1_0720", "v1_0719")],
+    [("v1_0719", "v1_0718"), ("v1_0720", "v1_0719"), ("v1_0731", "v1_0720")],
 )
 def test_only_reviewed_retained_schema_predecessors(target: str, source: str) -> None:
     assert _retained_migration_source(target) == source
