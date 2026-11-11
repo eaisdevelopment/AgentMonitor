@@ -280,3 +280,25 @@ No new tests were added for these documentation-only corrections. The canonical
 planning/documentation checks exercise the changed artifacts. Planning files
 are saved in `codex/m7-api-budgets`; this review does not claim they are pushed
 or that the partial M7 product is installed.
+
+## Execution-state reconciliation after c453fe0
+
+The focused execution plan, worksheet and ticket catalog now distinguish the
+locally tested initial setup selector from its still-unexecuted installed
+transition. They retain both schema upgrades, partial-result handling and
+journal-based recovery. The worksheet's earlier deployment findings remain
+historical; links identify the selected-controller and real isolated recovery
+corrections already tested. T004 links its aggregation evidence, and T009 is
+In progress for the bounded Ollama source work, not live-verified or complete.
+
+The fixed scope, UI/calculation decisions, contract versions, dependencies and
+owner permissions are unchanged. This reconciliation adds no gate or approval.
+Dashboard sign-in affects authenticated browser proof only; independent work
+continues. No installed activation or account configuration was performed by
+this documentation update.
+
+Validation: AUTO-M7-PLAN-CHECK passed with 16 tickets, five stories and ten
+acceptance items; AUTO-PLAN-CHECK passed synchronized; AUTO-DOCS-CHECK passed
+346 Markdown files; git diff --check passed. These are planning checks, not a
+claim that M7 is delivered. The updated documents remain local and uncommitted
+at this checkpoint.

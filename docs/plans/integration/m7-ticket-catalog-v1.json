@@ -148,7 +148,8 @@
       "done_when": "Scoped selectors and final aggregate runner fail closed on missing evidence; policy/dispatch tests pass independently of unfinished product tests; selector availability never implies the selected product behavior passed.",
       "verification": "python3 -m unittest tools.automation.test_m7_commands (existing runner-policy check); scoped dispatch verification is required before declaring its new selectors available, not a pass of unfinished product lanes.",
       "evidence": [
-        "docs/evidence/m7-foundation-progress-2026-11-11.md"
+        "docs/evidence/m7-foundation-progress-2026-11-11.md",
+        "docs/evidence/m7-setup-activation-selector-2026-11-11.md"
       ],
       "depends_on_any": [],
       "delivery_slice": "S0",
@@ -194,7 +195,8 @@
       "done_when": "Float, currency, overlap and unknown-state checks pass after meaningful Red",
       "verification": "python3 -m tools.automation.implementations.auto_m7 --lane pure; python3 -m tools.automation.implementations.auto_m7 --lane mutation (existing commands, required policy coverage must be complete before T004 closes).",
       "evidence": [
-        "docs/evidence/m7-foundation-progress-2026-11-11.md"
+        "docs/evidence/m7-foundation-progress-2026-11-11.md",
+        "docs/evidence/m7-budget-spend-aggregation-2026-11-11.md"
       ],
       "depends_on_any": [],
       "delivery_slice": "S0",
@@ -402,7 +404,7 @@
       "story": "ST-BUDGET-002",
       "title": "Ollama usage/shared balance lane (eligible first provider)",
       "owner": "A03",
-      "status": "planned",
+      "status": "in_progress",
       "depends_on": [
         "M7-T002",
         "M7-T004"
@@ -651,11 +653,12 @@
       "deliverable": "Two increments in the existing service: early tested setup activation before owner entry, then full first-dashboard activation; selected clean candidate, installed entry point, schema/backup/recovery and browser revision checks; no deployment platform",
       "expected_red": "Existing fixed M6 updater refuses the M7 candidate; verify candidate/backup boundaries before transition.",
       "done_when": "First complete real UI slice is installed and verified with recovery to known-good runtime available; no default provider/profile or user agent disruption",
-      "verification": "Planned setup_activation selection in existing M7 deployment routine: T003 must publish/test exact invocation before early rollout. Full-slice closure: python3 tools/automation/run.py AUTO-M7-DEPLOY.",
+      "verification": "Initial setup selector implemented/tested locally; exact retained-controller invocation and remaining installed checks: docs/evidence/m7-setup-activation-selector-2026-11-11.md. It is an intermediate initial0720-to0731 result, not full deployment closure. Full-slice closure: python3 tools/automation/run.py AUTO-M7-DEPLOY.",
       "evidence": [
         "docs/evidence/m7-setup-activation-preparation-2026-11-11.md",
         "docs/evidence/m7-selected-controller-admission-2026-11-11.md",
-        "docs/evidence/m7-selected-release-recovery-2026-11-11.md"
+        "docs/evidence/m7-selected-release-recovery-2026-11-11.md",
+        "docs/evidence/m7-setup-activation-selector-2026-11-11.md"
       ],
       "depends_on_any": [],
       "delivery_slice": "S1",
@@ -670,7 +673,7 @@
         "Extend existing real recovery tests to 0731\u21920720 and run actual restore/finalize paths, not only backup reopen. Remove the fixed old-checkout rejection from the same-schema recovery wrapper. Pin recovery to the same M7 controller as deployment; keys remain excluded and no blind rollback is allowed after startup/writes.",
         "Activate through the existing AgentMonitor service path; verify loopback/LAN health, actual installed revision and authenticated Overview/detail with genuine first-provider data.",
         "Verify existing subscriptions/alerts and browser-closed collection continue; preserve profiles/agents and selected protected env. Record any brief service transition and recovery result.",
-        "Preparation at 30f81d3/716cf92 is scoped build/schema evidence only. Before installed transition publish the tested executable setup_activation invocation and exact journal-dependent recovery commands; after transition verify installed setup and continuity before asking for key entry.",
+        "Preparation at c453fe0 is scoped build/schema evidence; selected-revision and initial recovery corrections are tested. Commit and retain the tested setup selector, record its exact revision and journal-dependent recovery commands, then verify actual installed setup/continuity before owner key entry.",
         "Cover both actual migration transitions: accepted0720 to setup0731, then installed0731 to the selected financial head0732/0733. Admit and exercise each source/target with its pinned migration/recovery controller before activation; initial recovery evidence does not prove the second upgrade."
       ]
     },

@@ -315,14 +315,18 @@ selectors to the same runner and tests their dispatch/missing-evidence behavior;
 their exact invocations remain Planned until implemented. No new runner or
 separate approval layer. T015/T016 still require the complete aggregate commands.
 
-T003/T014 must add the **setup_activation** scoped selection to the existing M7
-deployment routine. It is **Planned, not executable yet**: publish/test its exact
-invocation before rollout. It requires clean candidate/schema/recovery and
-installed command/dashboard-continuity evidence, but not unfinished budget
-charts or the first provider's money. Its pass permits only the partial setup
-activation. `AUTO-M7-DEPLOY` full-slice verification and T014 closure retain
-their later dashboard requirements. This is one routine with explicit scope,
-not a new deployment framework or permission ceremony.
+T003/T014's **setup_activation** selection is implemented and locally tested in
+the existing M7 runner; it is not yet committed, retained or installed. Its
+[invocation and evidence](../../evidence/m7-setup-activation-selector-2026-11-11.md)
+require the exact clean revision and a sealed controller under the fixed release
+directory. It covers the initial `0720 → 0731` transition only. Operational
+success remains an intermediate result until authenticated setup, collector
+continuity and recovery evidence are reconciled. Exit 3 does not authorize
+retrying a migration that already started; inspect its actual journal and use
+the applicable recovery path. Unfinished budget charts or the first provider's
+money do not prevent this setup increment. `AUTO-M7-DEPLOY` full-slice verification
+and T014 closure retain their later dashboard requirements. This is one routine
+with explicit scope, not a new deployment framework or permission ceremony.
 
 When an external prerequisite fails, record the exact ticket, observed error,
 affected test and smallest required action. Keep independent tickets running.

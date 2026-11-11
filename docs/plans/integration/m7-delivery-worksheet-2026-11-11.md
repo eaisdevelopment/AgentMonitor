@@ -202,8 +202,12 @@ the dependent provider proof; continue other authorized engineering work.
 
 ### T014: resolve deployment risks before stopping the installed service
 
-The current preparation result is **prepared**, not **installed** or **recovery
-verified**. The read-only review at `716cf92` found the following exact work:
+The preparation result is **prepared**, not **installed**. The review at
+`716cf92` identified the work below. Commit `c453fe0` subsequently corrected
+selected-revision admission and passed isolated real migration/service recovery
+tests; its clean setup build also passed preparation. Those results do not prove
+an installed transition or the later financial-schema upgrade. The numbered
+list retains the original findings so the evidence remains traceable:
 
 1. `m6_cutover.cutover()` and `update_current_schema()` still select
    `m6-signal-composition`. Their CLI wrappers also reject another checkout.
@@ -232,10 +236,17 @@ verified**. The read-only review at `716cf92` found the following exact work:
    LAN reachability, authenticated Overview/account setup, and the existing
    collector path. HTTP 200 alone does not prove any of those account workflows.
 
+Items 1–2 and the initial-transition part of item 3 now have
+[selected-controller evidence](../../evidence/m7-selected-controller-admission-2026-11-11.md)
+and [isolated service-recovery evidence](../../evidence/m7-selected-release-recovery-2026-11-11.md).
+The locally tested [setup selector](../../evidence/m7-setup-activation-selector-2026-11-11.md)
+still needs a clean retained revision before actual use. Its intermediate exit
+must not trigger a second migration attempt after startup. Items 4–5 remain
+installed verification work; authenticated checks currently await dashboard
+sign-in. That affects browser proof only, not independent implementation.
+
 These corrections belong to T003/T014's existing deployment scope. They do not
 justify another installer, generic release platform or owner approval cycle.
-Publish the exact executable invocation when implemented; this plan does not
-invent a presently available command.
 
 ## 8. Reporting and bounded scope
 
