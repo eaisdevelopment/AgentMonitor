@@ -56,7 +56,8 @@ The account page then shows these steps, with actual server state:
    Existing compatible access paths can share a pool; an unresolved association
    stays visible but is excluded from totals until resolved.
 2. **Store credential locally.** Give one installed, canonical copyable command
-   prefilled with the nonsecret binding ID. It must not require typing IDs or
+   prefilled with the nonsecret account/resource selectors. The installed
+   command resolves the current binding locally; no manual IDs are needed. It must not require typing IDs or
    choosing from an unrelated account list. The local command confirms provider,
    account label and dashboard organization, then accepts the key without echo.
    It writes only the selected managed `.env` entry. No key textbox in the browser.
@@ -70,6 +71,16 @@ The account page then shows these steps, with actual server state:
    immediately issuing an identical request; schedule its next due refresh.
    Show Waiting for first reading only when appropriate. Successful access with
    an empty report is valid.
+
+For the first provider increment, action eligibility comes from the admitted
+runtime and current credential/binding metadata. Missing credentials keep Check
+disabled with the local-entry instruction. Stored credentials enable Check only
+for an admitted source with a working collection runtime. A runtime-unavailable
+response retains Stored and gives the safe retry reason; it never becomes
+Connected. Enable stays disabled until its actual mutation exists and access
+was proven for the current binding/scope generation. An unfinished provider
+action is labelled Not yet available in this build, not provider Unsupported.
+T002/T007/T011 own these controls; no inert button is presented as a working step.
 
 LAN instruction: **Run the setup command on the computer hosting AgentMonitor,
 as the user running its service.** A terminal on the browser's other computer
@@ -129,8 +140,12 @@ Billing account | Organization | State | Reported spend | Available | Data throu
  provider · billing scope                      reporting interval
 ```
 
-Each row is one canonical billing resource and currency; linked access paths
-appear under its label. Account name opens its detail at the selected resource.
+Each row identifies a canonical billing resource and compatible financial
+context: currency, cost basis and admitted total-cost category for the selected
+interval. Different contexts use labelled subrows under the same resource;
+linked access paths appear under its label, not as additional money. Account
+name opens its detail at the selected resource and context. A context without
+money can still show its unavailable reason; it is not silently removed.
 Provider-reported scope and dashboard organization are separately named.
 An account connected to a whole provider organization does not imply all its
 spend belongs to that individual email or one running agent.
@@ -173,6 +188,26 @@ setup details expand automatically only when action is required.
 | History | Bounded period, exact table and then simple chart from the same API facts. Spending per day uses bars; balance snapshots use separate series. Missing intervals are gaps; corrections retain lineage. Load more does not discard earlier rows if a later page fails |
 | Source details | Collapsed: source/version, checked/data-through times, exact value, precision, observed/derived meaning, report coverage, omissions and inputs |
 | Settings | Rename, move group, API monitoring on/off, replace key, disconnect/archive. Existing subscription monitoring remains independent |
+
+The first history table is daily buckets from the pinned selected complete
+report: period, exact amount/currency, coverage and report provenance. The
+existing `list_reports` query returns revisions of an exact interval; it is not
+a daily-spend series. Keep revisions in expandable source history. The first
+visible increment may render bounded daily buckets already returned with the
+selected immutable report by the current GET; this is now locally tested for
+the empty state. It must not fetch every report revision or claim server
+pagination from local Load more. T010/T011 closure still requires the dedicated
+bounded financial history query, authorized report selection and cursor/expiry
+behavior. This does not delay showing the first genuine money in the existing
+table or permit closing those tickets early. The new
+financial detail identity resolves to the canonical billing resource; each
+current financial context supplies its immutable report ID. History and its
+pages stay on that report until explicit refresh. If retention removed it,
+show Selection expired with Refresh, rather than silently changing the numbers. T013 uses
+those same buckets for its chart. When the UTC cutoff moves, preserve the
+selected query until explicit refresh; never concatenate overlapping reports
+to fill missing days. A provider without daily buckets shows its actual
+aggregate interval, with daily history unavailable.
 
 Start with the exact table in the first usable slice; chart and forecast arrive
 in the later M7 enhancement slice. They are still required before M7 closes.
@@ -219,10 +254,24 @@ the last successful value/time alongside the failure. A successful access check
 without usage is Access verified, not Current usage. Offline dashboard requests
 retain clearly marked old values; they never silently refresh timestamps.
 
+P01 assembles collection state from M04 separately from M05 report values. A
+latest denied/failed run may have no stored report; it must not be hidden by a
+green old complete report. Likewise, an unknown-currency latest report cannot
+freshen or supply a currency for the earlier monetary value. Publish last
+successful report identity/time, latest collection state/time, covered interval
+and source watermark as distinct typed fields.
+
 An expired dashboard session returns to sign-in and then the same nonsecret
 account/filter URL. Do not replay a mutation after sign-in: fetch actual status
 first and let the owner retry if still needed. Poll only the visible job/status
 while pending, stop on navigation/unmount, and honour server retry times.
+
+T011/T012 include the existing shell files `frontend/src/app/DashboardApp.tsx`
+and `frontend/src/app/sessionBootstrap.ts`: the current shell strips query
+parameters and expires to `/login`. Preserve only allowlisted nonsecret
+organization/provider/resource/range/cutoff/sort state and a safe return path.
+Reject arbitrary return URLs; never carry credentials or replay actions. This
+is a small routing correction, not a new router dependency.
 
 A queued action displays its actual run state until success/failure; HTTP
 acceptance alone must not change the label to Connected. Concurrent edits in
@@ -230,6 +279,26 @@ another tab produce a conflict and a status reread, not last-write-wins account
 configuration. Duplicate clicks join/reconcile the existing operation according
 to the API contract. Exercise these behaviors in T007/T011 using the real
 service; do not simulate a provider failure to manufacture a UI state.
+
+Keep three time selections distinct: the reporting interval, the read snapshot
+(`as_of`), and the live action status. Check/Collect progress follows the returned
+run ID through a safe status GET, including after reload; a fixed old financial
+snapshot cannot show a newly completed run. On terminal status, reread stored
+financial data with a new `as_of` but the **same reporting interval**. Replace
+the selected report/table together and reset its history cursor. Do not move
+the interval to a new UTC day, replay the action, or issue a second provider
+read. Explicit range refresh may advance the UTC cutoff. An unrelated later
+collection does not reshuffle a history page already being read. T007/T010/T011
+test completion across midnight and account/scope changes within the existing
+collection, HTTP and UI scenario families.
+
+Default Check reads the admitted seven-completed-day report (cost for the first
+monetary lane; Ollama uses its admitted cloud usage/balance flow). Collect now
+targets the currently selected supported interval/context and says which one
+will be read; a seven-day Check result is not displayed under a thirty-day
+selection. Supported but not collected means No report for this interval, with
+the real collection action. Unknown/unimplemented range support is named before
+dispatch; changing a range or opening a detail page never starts provider work.
 
 ## 6. UI acceptance, included in tickets
 

@@ -1409,3 +1409,22 @@ match the executable admission. The focused M7 scope/approval is unchanged;
 this records catalog synchronization, not installed financial delivery.
 
 Plan snapshot SHA-256: `6a7723f39acefe0e4bd03ff779e30663654a21d907eef96294775e1eb08e248e`
+
+
+## 2026-11-11 M7 billing integration declaration synchronization
+
+Independent read-only reviewer `a01_impl_preflight` verified the scoped root
+metadata correction against the current checkout. Only contract-baseline,
+rendered contract-adoption and parallel-ownership controls change; all twenty
+parent-plan records/hashes remain unchanged. CTR-REG-014 and CTR-PROV-003 are
+1.3.0; exact M04/M05/FND and provider consumers match the published billing
+ports. Three new contract paths have a shared writer, and the credential-env
+adapter has explicit M02 ownership. Historical Draft flags remain unchanged.
+
+The import checker retains narrow owner/module declarations and domain I/O
+restrictions; stdlib email.utils is no longer confused with a forbidden internal
+utils module. Three actual private imports were separately refactored, not
+whitelisted. The real boundary check passes, and its 191 foundation tests pass.
+This scoped synchronization records no live-provider or installed M7 acceptance.
+
+Plan snapshot SHA-256: `93c94f9822699e38cf20ac79739ba67669bf65303a6476375fc0e4e5d7e34cda`

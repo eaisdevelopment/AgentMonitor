@@ -1,9 +1,9 @@
 """M7 exact monetary policy; constructed values stay in these pure tests."""
 
 from decimal import Decimal, localcontext
+from typing import Literal, cast
 
 import pytest
-
 from agentmonitor.contracts.common_quantity_v1 import CanonicalDecimalV1, ExactMoneyV1
 from agentmonitor.modules.capacity.domain import budget_money as policy
 
@@ -98,7 +98,8 @@ def test_documented_cents_conversion_is_exact_and_context_independent() -> None:
 @pytest.mark.parametrize("exponent", [True, 1.0, -19, 19])
 def test_scaling_rejects_unbounded_or_noninteger_exponents(exponent: object) -> None:
     with pytest.raises(policy.BudgetMoneyError, match="budget_money_exponent_invalid"):
-        policy.scale_decimal(CanonicalDecimalV1("1", 0), exponent=exponent)
+        # Deliberately bypass static typing to exercise runtime input rejection.
+        policy.scale_decimal(CanonicalDecimalV1("1", 0), exponent=cast(int, exponent))
 
 
 def test_scaling_never_rounds_out_of_contract_precision() -> None:
@@ -137,33 +138,35 @@ def test_other_currencies_keep_exact_decimal_without_guessing_exponent() -> None
 
 
 @pytest.mark.parametrize("kind", ["soft", "hard"])
-def test_headroom_retains_limit_kind_and_exceeded_amount(kind: str) -> None:
+def test_headroom_retains_limit_kind_and_exceeded_amount(
+    kind: Literal["soft", "hard"],
+) -> None:
     headroom = policy.budget_headroom(
         _money("100"), _money("110"), kind=kind, compatible=True
     )
+    assert headroom is not None
     assert headroom.kind == kind
     assert headroom.amount == _money("-10")
     assert headroom.state == "exceeded"
     assert headroom.method_id == "matching-limit-minus-spend-v1"
     assert not hasattr(headroom, "cash_balance")
-    assert (
-        policy.budget_headroom(
-            _money("100"), _money("20"), kind=kind, compatible=True
-        ).state
-        == "remaining"
+    remaining = policy.budget_headroom(
+        _money("100"), _money("20"), kind=kind, compatible=True
     )
-    assert (
-        policy.budget_headroom(
-            _money("100"), _money("100"), kind=kind, compatible=True
-        ).state
-        == "at_limit"
+    assert remaining is not None
+    assert remaining.state == "remaining"
+    at_limit = policy.budget_headroom(
+        _money("100"), _money("100"), kind=kind, compatible=True
     )
+    assert at_limit is not None
+    assert at_limit.state == "at_limit"
 
 
 def test_soft_headroom_never_implies_cash_and_missing_inputs_stay_absent() -> None:
     result = policy.budget_headroom(
         _money("100"), _money("20"), kind="soft", compatible=True
     )
+    assert result is not None
     assert result.amount == _money("80")
     assert result.kind == "soft"
     for limit, spend, compatible in (
@@ -183,13 +186,20 @@ def test_negative_limit_or_unknown_limit_kind_cannot_create_headroom() -> None:
     with pytest.raises(
         policy.BudgetMoneyError, match="budget_money_limit_kind_invalid"
     ):
-        policy.budget_headroom(_money("1"), _money("0"), kind="cash", compatible=True)
+        # The cast preserves the invalid runtime value for this negative case.
+        policy.budget_headroom(
+            _money("1"),
+            _money("0"),
+            kind=cast(Literal["soft", "hard"], "cash"),
+            compatible=True,
+        )
 
 
 def test_ratio_preserves_exact_inputs_and_declares_rounding() -> None:
     with localcontext() as context:
         context.prec = 2
         result = policy.remaining_percentage(_money("1"), _money("3"), compatible=True)
+    assert result is not None
     assert result.numerator == _money("1")
     assert result.denominator == _money("3")
     assert result.percentage_text == "33.33"
@@ -214,6 +224,7 @@ def test_percentages_are_not_clipped_and_ties_are_half_even(
     result = policy.remaining_percentage(
         _money(remaining), _money(limit), compatible=True
     )
+    assert result is not None
     assert result.percentage_text == expected
 
 
@@ -243,6 +254,12 @@ def test_compatibility_requires_an_actual_boolean(operation: str) -> None:
         policy.BudgetMoneyError, match="budget_money_compatibility_invalid"
     ):
         if operation == "headroom":
-            policy.budget_headroom(_money("10"), _money("2"), kind="hard", compatible=1)
+            # A cast does not coerce 1: the runtime must reject this non-bool.
+            policy.budget_headroom(
+                _money("10"), _money("2"), kind="hard", compatible=cast(bool, 1)
+            )
         else:
-            policy.remaining_percentage(_money("2"), _money("10"), compatible=1)
+            # Preserve the same invalid input for the percentage policy.
+            policy.remaining_percentage(
+                _money("2"), _money("10"), compatible=cast(bool, 1)
+            )

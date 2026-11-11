@@ -3,7 +3,6 @@
 from decimal import Decimal, Inexact, localcontext
 
 import pytest
-
 from agentmonitor.contracts.common_quantity_v1 import CanonicalDecimalV1
 
 

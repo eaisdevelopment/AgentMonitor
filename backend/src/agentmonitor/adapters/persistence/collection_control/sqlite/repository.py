@@ -4,6 +4,7 @@
 
 import hashlib
 import json
+from collections.abc import Callable
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
@@ -18,6 +19,10 @@ from agentmonitor.adapters.persistence.collection_control.sqlite.budget import (
     capture_billing_target,
     read_billing_target,
     require_budget_run_lease,
+)
+from agentmonitor.adapters.persistence.collection_control.sqlite.budget_dispatch import (
+    read_dispatch_snapshot,
+    restore_budget_admission,
 )
 from agentmonitor.contracts.collection_control_v1 import (
     BudgetCollectionReceiptV1,
@@ -206,6 +211,206 @@ class SqliteCollectionRepositoryV1:
                 newly_created=newly_created,
                 fence=self._billing_admission_fence,
             )
+
+    def claim_next_budget_run(
+        self,
+        *,
+        scheduler_instance_id: OpaqueIdV1,
+        as_of: datetime,
+        resolve_budget_limit: Callable[[str, str], int],
+        provider_key: str,
+        capability_id: str,
+        source_id: str,
+        manifest_fingerprint: str,
+        collection_policy_version: str,
+        operation_family: str,
+    ) -> BudgetCollectionRunAdmissionV1 | None:
+        """Atomically transfer one admitted queued run to its real worker."""
+        if self._billing_admission_fence is None:
+            raise BudgetCollectionError("budget_admission_fence_required")
+        if (
+            not isinstance(scheduler_instance_id, OpaqueIdV1)
+            or not isinstance(as_of, datetime)
+            or as_of.utcoffset() != timedelta(0)
+            or not callable(resolve_budget_limit)
+            or any(
+                type(value) is not str or not 1 <= len(value) <= 128
+                for value in (
+                    provider_key,
+                    capability_id,
+                    source_id,
+                    collection_policy_version,
+                    operation_family,
+                )
+            )
+            or type(manifest_fingerprint) is not str
+            or len(manifest_fingerprint) != 64
+            or any(char not in "0123456789abcdef" for char in manifest_fingerprint)
+        ):
+            raise BudgetCollectionError("budget_dispatch_query_invalid")
+        try:
+            with open_sqlite_database(
+                self._database_ref, "runtime_read_write"
+            ) as handle:
+                with handle.connect() as connection:
+                    connection.exec_driver_sql("BEGIN IMMEDIATE")
+                    instant = _utc_text(as_of)
+                    row = connection.exec_driver_sql(
+                        "SELECT r.run_id FROM collection_run r "
+                        "JOIN collection_budget_run b ON b.run_id=r.run_id "
+                        "JOIN collection_request q ON q.request_id=r.primary_request_id "
+                        "JOIN collection_lease l ON l.run_id=r.run_id "
+                        "WHERE r.state='queued' AND r.payload_schema='budget.report.v1' "
+                        "AND r.deadline_at>? AND l.expires_at>? AND r.requested_at<=? "
+                        "AND r.provider_key=? AND r.capability_id=? AND r.source_id=? "
+                        "AND r.manifest_fingerprint=? AND r.collection_policy_version=? "
+                        "AND q.operation_family=? ORDER BY r.requested_at,r.run_id LIMIT 1",
+                        (
+                            instant,
+                            instant,
+                            instant,
+                            provider_key,
+                            capability_id,
+                            source_id,
+                            manifest_fingerprint,
+                            collection_policy_version,
+                            operation_family,
+                        ),
+                    ).one_or_none()
+                    if row is None:
+                        connection.commit()
+                        return None
+                    run_id = OpaqueIdV1(str(row[0]))
+                    raw, target = read_dispatch_snapshot(connection, run_id)
+                    limit = resolve_budget_limit(
+                        raw["budget_policy_id"], raw["budget_policy_version"]
+                    )
+                    original = restore_budget_admission(
+                        raw, target, resolved_budget_limit=limit
+                    )
+                    prior_fence = raw["fencing_token"]
+                    require_budget_run_lease(
+                        connection,
+                        run_id,
+                        scheduler_instance_id=original.scheduler_instance_id,
+                        fencing_token=prior_fence,
+                        as_of=as_of,
+                        expected_state="queued",
+                    )
+                    self._billing_admission_fence(connection, target)
+                    if (
+                        connection.exec_driver_sql(
+                            "SELECT 1 FROM collection_scheduler_instance WHERE instance_id=?",
+                            (scheduler_instance_id.value,),
+                        ).first()
+                        is not None
+                    ):
+                        raise BudgetCollectionError("budget_dispatch_worker_reused")
+                    next_fence = int(
+                        connection.exec_driver_sql(
+                            "SELECT coalesce(max(fencing_token),0)+1 FROM collection_run WHERE schedule_id=?",
+                            (original.schedule_id.value,),
+                        ).scalar_one()
+                    )
+                    connection.exec_driver_sql(
+                        "INSERT INTO collection_scheduler_instance "
+                        "(instance_id,service_version,started_at,heartbeat_at,stopping_at,completed_at,lifecycle_state,last_health_code) "
+                        "VALUES (?, '1.0.0', ?, ?, NULL, NULL, 'running', NULL)",
+                        (scheduler_instance_id.value, instant, instant),
+                    )
+                    changed = connection.exec_driver_sql(
+                        "UPDATE collection_lease SET owner_instance_id=?,fencing_token=?,acquired_at=?,heartbeat_at=? "
+                        "WHERE run_id=? AND fencing_token=? AND owner_instance_id=? AND expires_at>?",
+                        (
+                            scheduler_instance_id.value,
+                            next_fence,
+                            instant,
+                            instant,
+                            run_id.value,
+                            prior_fence,
+                            original.scheduler_instance_id.value,
+                            instant,
+                        ),
+                    )
+                    if changed.rowcount != 1:
+                        raise BudgetCollectionError("budget_run_fencing_conflict")
+                    changed = connection.exec_driver_sql(
+                        "UPDATE collection_run SET state='running',started_at=?,fencing_token=?,record_version=record_version+1 "
+                        "WHERE run_id=? AND state='queued' AND fencing_token=?",
+                        (instant, next_fence, run_id.value, prior_fence),
+                    )
+                    if changed.rowcount != 1:
+                        raise BudgetCollectionError("budget_run_fencing_conflict")
+                    changed = connection.exec_driver_sql(
+                        "UPDATE collection_budget_reservation SET state='dispatched',updated_at=? "
+                        "WHERE reservation_id=? AND run_id=? AND state='reserved'",
+                        (instant, raw["budget_reservation_id"], run_id.value),
+                    )
+                    if changed.rowcount != 1:
+                        raise BudgetCollectionError(
+                            "budget_dispatch_reservation_invalid"
+                        )
+                    updated, target = read_dispatch_snapshot(connection, run_id)
+                    result = restore_budget_admission(
+                        updated, target, resolved_budget_limit=limit
+                    )
+                    connection.commit()
+                    return result
+        except BudgetCollectionError:
+            raise
+        except (SqlitePolicyError, SQLAlchemyError, ValueError, TypeError, KeyError):
+            raise BudgetCollectionError("budget_dispatch_unavailable") from None
+
+    def assert_claimed_budget_run(
+        self,
+        admission: BudgetCollectionRunAdmissionV1,
+        as_of: datetime,
+    ) -> BudgetCollectionRunViewV1:
+        """Fence the reconstructed claim immediately before source I/O."""
+        if self._billing_admission_fence is None:
+            raise BudgetCollectionError("budget_admission_fence_required")
+        if (
+            not isinstance(admission, BudgetCollectionRunAdmissionV1)
+            or not isinstance(as_of, datetime)
+            or as_of.utcoffset() != timedelta(0)
+        ):
+            raise BudgetCollectionError("budget_dispatch_query_invalid")
+        try:
+            with open_sqlite_database(
+                self._database_ref, "runtime_read_write"
+            ) as handle:
+                with handle.connect() as connection:
+                    connection.exec_driver_sql("BEGIN IMMEDIATE")
+                    raw, target = read_dispatch_snapshot(connection, admission.run_id)
+                    actual = restore_budget_admission(
+                        raw, target, resolved_budget_limit=admission.budget_limit_units
+                    )
+                    if (
+                        actual != admission
+                        or not admission.requested_at <= as_of < admission.deadline_at
+                    ):
+                        raise BudgetCollectionError("budget_dispatch_admission_changed")
+                    require_budget_run_lease(
+                        connection,
+                        admission.run_id,
+                        scheduler_instance_id=admission.scheduler_instance_id,
+                        fencing_token=raw["fencing_token"],
+                        as_of=as_of,
+                        expected_state="running",
+                    )
+                    self._billing_admission_fence(connection, target)
+                    row = _select_run(connection, admission.run_id.value)
+                    if row is None:
+                        raise BudgetCollectionError("budget_run_not_found")
+                    result = _run_view(connection, row)
+                    if not isinstance(result, BudgetCollectionRunViewV1):
+                        raise BudgetCollectionError("budget_dispatch_metadata_invalid")
+                    connection.commit()
+                    return result
+        except BudgetCollectionError:
+            raise
+        except (SqlitePolicyError, SQLAlchemyError, ValueError, TypeError, KeyError):
+            raise BudgetCollectionError("budget_dispatch_unavailable") from None
 
     def get_billing_target(self, run_id: OpaqueIdV1) -> BillingAccessTargetV1:
         """Return the immutable captured authority, never a current-access claim."""
@@ -704,6 +909,64 @@ class SqliteCollectionRepositoryV1:
         limit: int,
         budget_only: bool = False,
     ) -> tuple[CollectionRunViewV1, ...]:
+        return self._claim_expired_runs(
+            provider_key=provider_key,
+            capability_id=capability_id,
+            source_id=source_id,
+            as_of=as_of,
+            owner_stale_before=owner_stale_before,
+            recovery_instance_id=recovery_instance_id,
+            recovery_lease_expires_at=recovery_lease_expires_at,
+            limit=limit,
+            budget_only=budget_only,
+        )
+
+    def claim_expired_budget_runs(
+        self,
+        *,
+        provider_key: str,
+        capability_id: str,
+        source_id: str,
+        as_of: datetime,
+        owner_stale_before: datetime,
+        recovery_instance_id: OpaqueIdV1,
+        recovery_lease_expires_at: datetime,
+        limit: int,
+    ) -> tuple[BudgetCollectionRunViewV1, ...]:
+        """Re-fence expired queued/running work without touching committing runs."""
+        rows = self._claim_expired_runs(
+            provider_key=provider_key,
+            capability_id=capability_id,
+            source_id=source_id,
+            as_of=as_of,
+            owner_stale_before=owner_stale_before,
+            recovery_instance_id=recovery_instance_id,
+            recovery_lease_expires_at=recovery_lease_expires_at,
+            limit=limit,
+            budget_only=True,
+            pre_commit=True,
+        )
+        result: list[BudgetCollectionRunViewV1] = []
+        for row in rows:
+            if not isinstance(row, BudgetCollectionRunViewV1):
+                raise BudgetCollectionError("budget_dispatch_metadata_invalid")
+            result.append(row)
+        return tuple(result)
+
+    def _claim_expired_runs(
+        self,
+        *,
+        provider_key: str,
+        capability_id: str,
+        source_id: str,
+        as_of: datetime,
+        owner_stale_before: datetime,
+        recovery_instance_id: OpaqueIdV1,
+        recovery_lease_expires_at: datetime,
+        limit: int,
+        budget_only: bool = False,
+        pre_commit: bool = False,
+    ) -> tuple[CollectionRunViewV1, ...]:
         """Atomically re-fence an oldest-first expired/stale recovery batch."""
         if (
             not provider_key
@@ -731,19 +994,25 @@ class SqliteCollectionRepositoryV1:
                         if budget_only
                         else ""
                     )
+                    state_predicate = (
+                        "r.state IN ('queued','running') AND r.deadline_at<=? "
+                        if pre_commit
+                        else "r.state='committing' "
+                    )
                     rows = (
                         connection.exec_driver_sql(
                             "SELECT r.* FROM collection_run AS r "
                             "JOIN collection_lease AS l ON l.run_id=r.run_id "
                             "JOIN collection_scheduler_instance AS owner "
                             "ON owner.instance_id=l.owner_instance_id "
-                            "WHERE r.state='committing' AND r.provider_key=? "
+                            "WHERE " + state_predicate + "AND r.provider_key=? "
                             "AND r.capability_id=? AND r.source_id=? "
                             "AND l.expires_at<=? AND owner.heartbeat_at<=? "
                             "AND l.owner_instance_id<>? "
                             + budget_filter
                             + "ORDER BY r.requested_at, r.run_id LIMIT ?",
                             (
+                                *((instant,) if pre_commit else ()),
                                 provider_key,
                                 capability_id,
                                 source_id,
@@ -805,8 +1074,8 @@ class SqliteCollectionRepositoryV1:
                         run_result = connection.exec_driver_sql(
                             "UPDATE collection_run SET fencing_token=?, "
                             "record_version=record_version+1 WHERE run_id=? "
-                            "AND state='committing' AND fencing_token=?",
-                            (next_fence, row["run_id"], prior_fence),
+                            "AND state=? AND fencing_token=?",
+                            (next_fence, row["run_id"], row["state"], prior_fence),
                         )
                         if run_result.rowcount != 1:
                             raise CollectionRepositoryErrorV1(
@@ -822,6 +1091,64 @@ class SqliteCollectionRepositoryV1:
                     return tuple(claimed)
         except CollectionRepositoryErrorV1:
             raise
+        except (SqlitePolicyError, SQLAlchemyError, ValueError, TypeError):
+            raise CollectionRepositoryErrorV1() from None
+
+    def get_latest_budget_run(
+        self,
+        account_id: OpaqueIdV1,
+        resource_id: OpaqueIdV1,
+        scope_generation: int,
+        as_of: datetime,
+    ) -> BudgetCollectionRunViewV1 | None:
+        """Read the latest real billing run for one captured financial scope."""
+        if (
+            not isinstance(account_id, OpaqueIdV1)
+            or not isinstance(resource_id, OpaqueIdV1)
+            or type(scope_generation) is not int
+            or scope_generation < 1
+            or not isinstance(as_of, datetime)
+            or as_of.utcoffset() != timedelta(0)
+        ):
+            raise CollectionRepositoryErrorV1("collection_query_invalid")
+        try:
+            with open_sqlite_database(
+                self._database_ref, "runtime_read_only"
+            ) as handle:
+                with handle.connect() as connection:
+                    connection.exec_driver_sql("BEGIN")
+                    row = (
+                        connection.exec_driver_sql(
+                            "SELECT r.* FROM collection_run r "
+                            "JOIN collection_budget_run b ON b.run_id=r.run_id "
+                            "WHERE r.payload_schema='budget.report.v1' "
+                            "AND r.account_id=? AND r.resource_id=? "
+                            "AND r.requested_at<=? "
+                            "AND json_extract(b.canonical_target_json, "
+                            "'$.connection.account_id')=? "
+                            "AND json_extract(b.canonical_target_json, "
+                            "'$.connection.resource_id')=? "
+                            "AND json_extract(b.canonical_target_json, "
+                            "'$.connection.scope_generation')=? "
+                            "ORDER BY r.requested_at DESC, r.run_id LIMIT 1",
+                            (
+                                account_id.value,
+                                resource_id.value,
+                                _utc_text(as_of),
+                                account_id.value,
+                                resource_id.value,
+                                scope_generation,
+                            ),
+                        )
+                        .mappings()
+                        .one_or_none()
+                    )
+                    if row is None:
+                        return None
+                    result = _run_view(connection, row)
+                    if not isinstance(result, BudgetCollectionRunViewV1):
+                        raise CollectionRepositoryErrorV1()
+                    return result
         except (SqlitePolicyError, SQLAlchemyError, ValueError, TypeError):
             raise CollectionRepositoryErrorV1() from None
 

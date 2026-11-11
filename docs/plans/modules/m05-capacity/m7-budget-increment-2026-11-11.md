@@ -89,7 +89,9 @@ asserted; ambiguous overlap prevents invalid totals.
 ## 5. Minimum data model and migration
 
 Root allocates M05 `v1_0732` after M02 owner-setup `v1_0730`/`v1_0731`, which follow
-current `v1_0720`; M04 `v1_0733` follows only if needed. Preserve all old migration contents/digests.
+accepted `v1_0720`; M04 `v1_0733` now supplies its captured billing
+authority and run-to-report reference. Both financial revisions are committed
+locally at `ad7a04e`; installed setup remains `v1_0731`. Preserve all old migration contents/digests.
 Use existing budget/usage/provenance facts and receipt keys where semantics fit.
 Add only:
 
@@ -153,9 +155,60 @@ returns the observed zero/exceeded state with no calculated date. Rate zero,
 missing limits, unsupported scope or delayed/incompatible data yield precise
 no-value states. The linked rules define rounding, horizons and renewal handling.
 
+The existing report-history repository lists revisions for an exact requested
+interval. T010 needs an explicit daily-bucket projection from the pinned current
+report for the final history interface, and T013 uses that same projection for
+the chart. The first visible table may use bounded buckets already supplied by
+the selected immutable report in the current GET; local Load more is not server
+pagination. T010/T011 still require the authorized bounded history query and
+cursor/expiry behavior before closure. Revision rows are provenance, not additive daily spend. Latest M04 run
+state is a separate query input: a failed run can have no M05 report. Current
+selection must consider every compatible revision within its declared query
+bounds, not only a first history page; overflow stays explicit unavailable.
+
 Budget history/breakdowns are distinct from quota metrics; add ports, do not
 extend old enums silently. P01 carries exact values/report IDs and stable
 snapshot cursors; P02 charts/tables share those same values and gaps.
+
+### First account application view (T010)
+
+CTR-CAP-006 2.1.0 supplies repository-level current report selection. The local
+additive CTR-CAP-006 2.2.0 account application view and first P01 GET now exist
+in `contracts/budget_query_v1.py`; genuine monetary HTTP verification remains
+Not Run. See [query evidence](../../../evidence/m7-account-financial-query-2026-11-11.md). Resolve M02 resource/scope authority, obtain
+M05 selected reports, and compose M04 latest collection state through public
+ports. M05 supplies exact reported-spend totals, their compatible groups,
+coverage/exclusions and report inputs; P01/React do not sum raw report buckets.
+Expose current complete report and latest persisted attempt separately from
+collection status. No-run, failed status lookup and actual failed run remain
+different states.
+
+The existing aggregation policy accepts one selection per resource. Current
+queries can return several categories, currencies and groupings. The application
+must select an admitted total cost context per compatible group, then invoke
+the policy separately for each group. Reject ambiguous overlaps; never sum a
+total with its breakdown or choose the first returned context. Retain the
+same selected report identity for detail, Overview and daily history. Extend
+existing published types rather than add a parallel financial query framework.
+Overview rows retain the currency/basis/category context in addition to resource
+identity. Summary/list DTOs carry exact calculated values and report selectors;
+they must not ship every report body/bucket for every account. Detail/history
+remain bounded independently. Measure real returned size and query behavior
+with available genuine data; do not invent financial records for a capacity claim.
+For these additive financial routes, `budget_id` resolves to the existing
+canonical billing resource, not a new table or a report revision. Current
+output publishes selected report IDs per context. Daily-history input pins one
+selected report plus authorized resource/scope/period; its cursor cannot switch
+reports after a newer collection. Expired retained data requests a new selection
+explicitly. Existing reserved budget types retain their original meaning.
+An explicit action's terminal result advances the read `as_of` while preserving
+its selected UTC reporting interval, replacing report/table and resetting the
+cursor together. Read action progress through M04 separately. A mutable run that
+completed after a historical cutoff is not evidence of success at that cutoff;
+return only the status/time semantics actually supported, without building an
+event-sourcing subsystem.
+The additive HTTP/client operations are generated; full account/global/history
+coverage remains unfinished. See the worksheet's concrete first-slice contract decisions.
 
 ## 9. Test-first sequence
 

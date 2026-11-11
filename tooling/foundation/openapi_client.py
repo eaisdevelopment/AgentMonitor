@@ -52,6 +52,8 @@ SOURCE_FILES = (
     "backend/src/agentmonitor/api/v1/routers/provider_connections.py",
     "backend/src/agentmonitor/api/v1/routers/collection.py",
     "backend/src/agentmonitor/api/v1/routers/capacity.py",
+    "backend/src/agentmonitor/api/v1/routers/budgets.py",
+    "backend/src/agentmonitor/api/v1/routers/billing_actions.py",
     "backend/src/agentmonitor/api/v1/routers/runtime.py",
     "backend/src/agentmonitor/api/v1/routers/operations.py",
     "backend/src/agentmonitor/api/v1/routers/alerts.py",
@@ -62,6 +64,8 @@ SOURCE_FILES = (
     "backend/src/agentmonitor/api/v1/schemas/providers.py",
     "backend/src/agentmonitor/api/v1/schemas/collection.py",
     "backend/src/agentmonitor/api/v1/schemas/capacity.py",
+    "backend/src/agentmonitor/api/v1/schemas/budgets.py",
+    "backend/src/agentmonitor/api/v1/schemas/billing_actions.py",
     "backend/src/agentmonitor/api/v1/schemas/runtime.py",
     "backend/src/agentmonitor/api/v1/schemas/operations.py",
     "backend/src/agentmonitor/api/v1/schemas/alerts.py",
@@ -88,6 +92,8 @@ SOURCE_FILES = (
     "backend/src/agentmonitor/contracts/provider_system_v1.py",
     "backend/src/agentmonitor/contracts/collection_control_v1.py",
     "backend/src/agentmonitor/contracts/capacity_v1.py",
+    "backend/src/agentmonitor/contracts/budget_query_v1.py",
+    "backend/src/agentmonitor/contracts/billing_actions_v1.py",
     "backend/src/agentmonitor/contracts/runtime_observation_v1.py",
     "backend/src/agentmonitor/contracts/operations_v1.py",
     "backend/src/agentmonitor/contracts/alerting_v1.py",
@@ -124,6 +130,11 @@ SOURCE_FILES = (
 )
 
 IAM_OPERATIONS = {
+    ("/api/v1/collection-runs/{run_id}/budget", "get"): "billing_get_run_status_v1",
+    (
+        "/api/v1/accounts/{account_id}/billing-connections/{resource_id}/checks",
+        "post",
+    ): "billing_check_connection_v1",
     (
         "/api/v1/provider-coverage/{provider_key}",
         "get",
@@ -249,6 +260,10 @@ IAM_OPERATIONS = {
     ): "provider_cancel_connection_v1",
     ("/api/v1/collection-runs", "get"): "collection_list_runs_v1",
     ("/api/v1/accounts/{account_id}/capacity/v2", "get"): "capacity_get_account_v2",
+    (
+        "/api/v1/accounts/{account_id}/api-capacity",
+        "get",
+    ): "capacity_get_account_api_budget_v1",
     (
         "/api/v1/accounts/{account_id}/quotas/v2",
         "get",
@@ -1094,6 +1109,42 @@ IAM_POLICY: dict[str, IamPolicyRow] = {
         _M2_REQUIRED_ERROR_STATUSES,
         None,
     ),
+    "billing_get_run_status_v1": (
+        "cookie_or_bearer",
+        "read:telemetry",
+        "BillingCheckPortV1.get_status",
+        "safe_query_repeat",
+        _COOKIE_BEARER,
+        "200",
+        "BudgetRunStatusV1",
+        "SafeProblemV1",
+        _M2_REQUIRED_ERROR_STATUSES,
+        None,
+    ),
+    "billing_check_connection_v1": (
+        "browser_cookie_only",
+        "write:accounts",
+        "BillingCheckPortV1.check",
+        "replay_safe_representation",
+        _COOKIE_CSRF,
+        "202",
+        "BillingCheckRunV1",
+        "SafeProblemV1",
+        _M2_REQUIRED_ERROR_STATUSES,
+        "BillingCheckInputV1",
+    ),
+    "capacity_get_account_api_budget_v1": (
+        "cookie_or_bearer",
+        "read:telemetry",
+        "AccountBudgetCurrentPortV1",
+        "safe_query_repeat",
+        _COOKIE_BEARER,
+        "200",
+        "AccountBudgetCurrentWireV1",
+        "SafeProblemV1",
+        _M2_REQUIRED_ERROR_STATUSES,
+        None,
+    ),
     "capacity_get_account_v2": (
         "cookie_or_bearer",
         "read:telemetry",
@@ -1456,7 +1507,7 @@ def validate_iam_openapi(document: object) -> tuple[str, ...]:
     if (
         actual != IAM_OPERATIONS
         or set(IAM_POLICY) != set(IAM_OPERATIONS.values())
-        or len(identifiers) != 80
+        or len(identifiers) != 83
     ):
         raise OpenApiGenerationError("operation_surface_invalid")
 

@@ -4,6 +4,12 @@
 - Plan version: 1.1.0; supersedes focused 1.0.0.
 - Owner: root integration; primary financial semantics: M05 Capacity.
 - Original planning baseline: `a47fc53` on `codex/m7-api-budgets`.
+- Latest local implementation checkpoint: `ad7a04e`; report storage and billing
+  authority/recovery are committed. Uncommitted account GET, Check POST/status
+  GET, worker and Check/detail UI have scoped evidence and passing local quality;
+  full financial API/UI
+  and genuine end-to-end collection remain unfinished. See the current delivery
+  worksheet for exact handoffs; local code is not installed delivery.
 - Installed setup revision: `7e252b8`, schema `v1_0731`; authenticated setup
   proof remains pending. Financial screens are not delivered. See the
   [installed evidence](../../evidence/m7-setup-installed-2026-11-11.md).
@@ -84,8 +90,10 @@ all backend work is finished. Each slice ends with the indicated running result.
 | S3: complete M7 views | T013 | One-dimension breakdowns, simple history chart and explainable query-time forecast; later refinements are not added |
 | S4: stabilize and publish | T015 → T016 | Real cross-provider/browser reconciliation, one bounded independent review, one full exit run, remote revision verified and owner demonstration |
 
-First provider defaults to Anthropic if access is available; otherwise use a real
-available OpenAI or Ollama lane without dropping Anthropic from M7. A requests-only
+First provider defaults to an accessible Anthropic/OpenAI monetary lane.
+Ollama remains eligible after connecting its existing cloud-graph commit fence
+and shared balance/usage rate coordination; its source candidate alone does not
+satisfy that dependency. No provider is dropped from M7. A requests-only
 legacy source can advance its own usage lane but cannot substitute for the first
 demonstrated monetary report. T005 can integrate one genuine normalized report from a partially completed
 provider ticket; it does not wait for that adapter’s remaining usage categories.
@@ -140,8 +148,9 @@ Capacity code stays under its domain/application/ports and SQLite adapter.
 P02 extends existing account/overview features and a budget-history component.
 
 Reuse frozen budget/usage tables where their semantics fit. Allocate additive
-M02 revisions `v1_0730` and `v1_0731` after `v1_0720`, M05 `v1_0732`, and M04 `v1_0733` only if
-its typed receipt/run change needs schema. Preserve old migration digests.
+M02 revisions `v1_0730` and `v1_0731` after `v1_0720`, M05 `v1_0732`, and M04 `v1_0733` for its
+run-to-report authority/receipt metadata. These revisions exist in local
+`ad7a04e`; their installed financial transition remains outstanding. Preserve old migration digests.
 Do not automatically create one-to-one tables for every field: use necessary
 additive context columns, a report-coverage relation and signed cost storage.
 No forecast storage table or parent/child job engine. The first real report
@@ -163,6 +172,24 @@ use the existing tagged cloud subject; old quota/V1 DTO semantics stay intact.
 | `GET /budgets/{budget_id}/history` | `capacity_list_budget_history_v1` | T010 |
 | `GET /budgets/{budget_id}/usage-breakdowns` | `capacity_list_usage_breakdowns_v1` | T013 |
 | `GET /budgets/{budget_id}/forecast` | `capacity_get_budget_forecast_v1` | T013 |
+
+T007's existing first action is
+`POST /accounts/{account_id}/billing-connections/{resource_id}/checks`
+(`billing_check_connection_v1`). Its guarded transport and Check UI exist locally.
+Read-only `GET /collection-runs/{run_id}/budget`
+(`billing_get_run_status_v1`) is also implemented through M04's public run query.
+Its additive status DTO includes actual `report_id`, account and resource;
+non-budget runs are rejected. The generated client contains 83 compatible
+operations. Real HTTP guards and built no-report/browser controls pass; a
+successful credential-backed report and populated status-to-DOM journey remain
+unverified. See [integration evidence](../../evidence/m7-billing-integration-2026-11-11.md).
+
+This status GET tracks action progress separately from the pinned financial
+snapshot. On completion the UI advances read time, preserves the selected
+reporting interval and replaces report/table together. Existing run-list
+consumers remain compatible; zero-fact reports require no fabricated quota
+observations. Monitoring and Collect now action contracts remain T007's explicit
+work, not capabilities inferred from the implemented Check transport.
 
 T002 owns account billing-connection metadata, credential status and local entry,
 disconnect/rotation eligibility and their HTTP/UI. T007 owns the executable
@@ -274,7 +301,7 @@ multi-host deployment and all local Ollama work. These are not exit conditions.
 Existing supported one-dimension breakdowns, aggregation, chart and conditional
 forecast are retained in M7; they are not removed under the word simplification.
 
-Effort estimate, not promise: S0/S1 about 3–5 focused engineering days after
+Original effort estimate, not a measured remaining-work estimate: S0/S1 about 3–5 focused engineering days after
 usable access; S2 2–3; S3 1–2; S4 1–2. Total 7–12, excluding provider/owner wait.
 The first installed vertical is the checkpoint to revise estimates from measured
 work. Report completed tickets and visible behavior, current failing test and
@@ -321,8 +348,9 @@ selectors to the same runner and tests their dispatch/missing-evidence behavior;
 their exact invocations remain Planned until implemented. No new runner or
 separate approval layer. T015/T016 still require the complete aggregate commands.
 
-T003/T014's **setup_activation** selection is implemented and locally tested in
-the existing M7 runner; it is not yet committed, retained or installed. Its
+T003/T014's **setup_activation** selection is implemented in the existing M7
+runner and the setup increment is installed at `7e252b8`, schema `v1_0731`.
+Authenticated setup proof remains pending; the financial upgrade is not installed. Its
 [invocation and evidence](../../evidence/m7-setup-activation-selector-2026-11-11.md)
 require the exact clean revision and a sealed controller under the fixed release
 directory. It covers the initial `0720 → 0731` transition only. Operational

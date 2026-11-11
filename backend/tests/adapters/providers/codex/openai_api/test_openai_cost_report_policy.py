@@ -7,13 +7,16 @@ import pytest
 from agentmonitor.adapters.providers.codex.openai_api.policy import money_from_number
 from agentmonitor.adapters.providers.codex.openai_api.source import _report
 from agentmonitor.contracts.capacity_v1 import BudgetCostBucketV1, BudgetPeriodV1
-from test_openai_cost_request_policy import request
+
+from backend.tests.adapters.providers.codex.openai_api import (
+    test_openai_cost_request_policy as request_policy,
+)
 
 COLLECTED = datetime(2026, 11, 11, 16, 45, tzinfo=UTC)
 
 
 def test_empty_coverage_is_not_fabricated_currency_or_zero() -> None:
-    target = request()
+    target = request_policy.request()
     report = _report(target, [], set(), set(), collected_at=COLLECTED)
     assert report.completeness == "complete"
     assert report.covered_period == target.period
@@ -27,7 +30,11 @@ def test_empty_coverage_is_not_fabricated_currency_or_zero() -> None:
 
 def test_pagination_failure_cannot_be_complete_empty() -> None:
     report = _report(
-        request(), [], set(), {"page_budget_exceeded"}, collected_at=COLLECTED
+        request_policy.request(),
+        [],
+        set(),
+        {"page_budget_exceeded"},
+        collected_at=COLLECTED,
     )
     assert report.completeness == "partial"
     assert report.covered_period is None
@@ -36,7 +43,7 @@ def test_pagination_failure_cannot_be_complete_empty() -> None:
 
 
 def test_complete_daily_coverage_preserves_actual_money_and_unknown_freshness() -> None:
-    target = request()
+    target = request_policy.request()
     starts = {target.period.start + timedelta(days=day) for day in range(7)}
     rows = [
         BudgetCostBucketV1(
@@ -59,7 +66,7 @@ def test_complete_daily_coverage_preserves_actual_money_and_unknown_freshness() 
 
 
 def test_missing_daily_coverage_is_not_zero_filled() -> None:
-    target = request()
+    target = request_policy.request()
     omissions: set[str] = set()
     report = _report(
         target, [], {target.period.start}, omissions, collected_at=COLLECTED
@@ -72,7 +79,7 @@ def test_missing_daily_coverage_is_not_zero_filled() -> None:
 
 
 def test_mixed_currencies_are_not_combined() -> None:
-    target = request()
+    target = request_policy.request()
     rows = [
         BudgetCostBucketV1(
             bucket_key="daily_" + str(day),

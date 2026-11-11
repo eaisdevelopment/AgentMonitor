@@ -60,3 +60,26 @@ def test_transaction_is_required_before_target_lookup(tmp_path: Path) -> None:
                     OpaqueIdV1("absent"),
                     "verification",
                 )
+
+
+def test_absent_billing_service_target_cannot_authorize_a_report(
+    tmp_path: Path,
+) -> None:
+    from agentmonitor.contracts.registry_v1 import ProviderTargetRefV1
+
+    reference = DatabaseRefV1(tmp_path / "agentmonitor.db", tmp_path)
+    migrate_to_head(reference)
+    absent = ProviderTargetRefV1("cloud_service", OpaqueIdV1("amat_" + "0" * 32))
+    with open_sqlite_database(reference, "runtime_read_only") as handle:
+        with handle.connect() as connection:
+            connection.exec_driver_sql("BEGIN")
+            assert (
+                storage.read_billing_provider_target_in_transaction(connection, absent)
+                is None
+            )
+            assert (
+                connection.exec_driver_sql(
+                    "SELECT count(*) FROM reg_provider_access_target"
+                ).scalar_one()
+                == 0
+            )

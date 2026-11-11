@@ -3,7 +3,6 @@
 import shlex
 
 import pytest
-
 from agentmonitor.composition.billing_local_setup import billing_local_command
 from agentmonitor.contracts.common_v1 import OpaqueIdV1
 

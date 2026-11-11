@@ -29,6 +29,12 @@ from agentmonitor.modules.collection_control.application.executor import (
 class BudgetRunRepositoryV1(CollectionRunRepositoryV1, Protocol):
     """Additive internal M04 owner-fenced variants; quota consumers stay intact."""
 
+    def assert_claimed_budget_run(
+        self,
+        admission: BudgetCollectionRunAdmissionV1,
+        as_of: datetime,
+    ) -> BudgetCollectionRunViewV1: ...
+
     def mark_running(
         self,
         run_id: OpaqueIdV1,
@@ -58,6 +64,14 @@ class BudgetRunRepositoryV1(CollectionRunRepositoryV1, Protocol):
         scheduler_instance_id: OpaqueIdV1 | None = None,
     ) -> None: ...
 
+    def finalize_before_dispatch(
+        self,
+        failure: CollectionFailedV1,
+        *,
+        fencing_token: int,
+        scheduler_instance_id: OpaqueIdV1 | None = None,
+    ) -> None: ...
+
     def finalize_interrupted(
         self,
         failure: CollectionFailedV1,
@@ -75,6 +89,19 @@ class BudgetRunRepositoryV1(CollectionRunRepositoryV1, Protocol):
         fencing_token: int,
         scheduler_instance_id: OpaqueIdV1,
     ) -> None: ...
+
+    def claim_expired_budget_runs(
+        self,
+        *,
+        provider_key: str,
+        capability_id: str,
+        source_id: str,
+        as_of: datetime,
+        owner_stale_before: datetime,
+        recovery_instance_id: OpaqueIdV1,
+        recovery_lease_expires_at: datetime,
+        limit: int,
+    ) -> tuple[BudgetCollectionRunViewV1, ...]: ...
 
     def claim_expired_committing_runs(
         self,
@@ -175,6 +202,49 @@ class ExecuteBudgetCollectionRunV1:
             fencing_token=admitted.fencing_token,
             scheduler_instance_id=admission.scheduler_instance_id,
         )
+        return self._collect_and_commit(
+            admission, admitted, collect, normalize, completed_at
+        )
+
+    def execute_claimed(
+        self,
+        admission: BudgetCollectionRunAdmissionV1,
+        collect: Callable[[], CollectionOutcomeV1[BudgetReportInputV1]],
+        normalize: Callable[
+            [
+                BudgetCollectionRunAdmissionV1,
+                CollectionOutcomeV1[BudgetReportInputV1],
+                datetime,
+            ],
+            BudgetCollectionInputV1 | CollectionFailedV1,
+        ],
+        *,
+        as_of: datetime,
+        completed_at: datetime | Callable[[], datetime],
+    ) -> BudgetCollectionReceiptV1 | CollectionFailedV1:
+        """Use an atomically running claim; never admit or dispatch it a second time."""
+        admitted = self._repository.assert_claimed_budget_run(admission, as_of)
+        if admitted.state != "running" or admitted.run_id != admission.run_id:
+            raise CollectionExecutionErrorV1("collection_run_not_dispatchable")
+        return self._collect_and_commit(
+            admission, admitted, collect, normalize, completed_at
+        )
+
+    def _collect_and_commit(
+        self,
+        admission: BudgetCollectionRunAdmissionV1,
+        admitted: BudgetCollectionRunViewV1,
+        collect: Callable[[], CollectionOutcomeV1[BudgetReportInputV1]],
+        normalize: Callable[
+            [
+                BudgetCollectionRunAdmissionV1,
+                CollectionOutcomeV1[BudgetReportInputV1],
+                datetime,
+            ],
+            BudgetCollectionInputV1 | CollectionFailedV1,
+        ],
+        completed_at: datetime | Callable[[], datetime],
+    ) -> BudgetCollectionReceiptV1 | CollectionFailedV1:
         collected = collect()
         completion = completed_at() if callable(completed_at) else completed_at
         outcome = normalize(admission, collected, completion)
@@ -227,6 +297,62 @@ class ExecuteBudgetCollectionRunV1:
         return self._recover_committing(
             admitted, completed_at, admission.scheduler_instance_id
         )
+
+    def recover_expired_runs(
+        self,
+        *,
+        provider_key: str,
+        capability_id: str,
+        source_id: str,
+        as_of: datetime,
+        owner_stale_before: datetime,
+        recovery_instance_id: OpaqueIdV1,
+        recovery_lease_expires_at: datetime,
+        maximum_runs: int,
+    ) -> tuple[CollectionFailedV1, ...]:
+        """Finish interrupted pre-commit work; never assert a provider outcome."""
+        if type(maximum_runs) is not int or not 1 <= maximum_runs <= 64:
+            raise CollectionExecutionErrorV1("collection_commit_recovery_limit_invalid")
+        pending = self._repository.claim_expired_budget_runs(
+            provider_key=provider_key,
+            capability_id=capability_id,
+            source_id=source_id,
+            as_of=as_of,
+            owner_stale_before=owner_stale_before,
+            recovery_instance_id=recovery_instance_id,
+            recovery_lease_expires_at=recovery_lease_expires_at,
+            limit=maximum_runs,
+        )
+        results: list[CollectionFailedV1] = []
+        for run in pending:
+            if run.state not in {"queued", "running"}:
+                raise CollectionExecutionErrorV1("collection_run_not_recoverable")
+            failure = CollectionFailedV1(
+                run.run_id,
+                "failed",
+                "collection_queued_expired"
+                if run.state == "queued"
+                else "collection_worker_interrupted",
+                as_of,
+            )
+            if run.state == "queued":
+                self._repository.finalize_before_dispatch(
+                    failure,
+                    fencing_token=run.fencing_token,
+                    scheduler_instance_id=recovery_instance_id,
+                )
+            else:
+                self._repository.finalize_failed(
+                    failure,
+                    fencing_token=run.fencing_token,
+                    scheduler_instance_id=recovery_instance_id,
+                )
+            results.append(failure)
+        if len(pending) == maximum_runs:
+            raise CollectionExecutionErrorV1(
+                "collection_commit_recovery_batch_incomplete"
+            )
+        return tuple(results)
 
     def recover_pending_commits(
         self,

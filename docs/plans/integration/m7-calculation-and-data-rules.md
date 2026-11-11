@@ -77,6 +77,13 @@ Do not use latest-row-per-bucket alone: that retains phantom spend after a
 provider correction. A distinct signed adjustment is included once; a replacement
 bucket supersedes its predecessor instead. Adapters declare which semantics apply.
 
+Current selection scans all matching compatible revisions, not merely the
+first history page. A newer attempt with unknown currency is a different
+context and cannot make earlier monetary evidence current. Keep last complete
+report, latest persisted attempt and latest collection outcome distinct; failed
+provider calls without reports come from M04, not inferred M05 history. These
+are T004/T005/T010 cases within M7-MATH-04/05/10/15.
+
 A complete empty result is a real coverage record, not a fake observation.
 Return No reported usage. A derived zero aggregate is allowed only when official
 source semantics establish that empty complete coverage means zero; its input
@@ -119,6 +126,13 @@ coverage checks still reject genuinely missing intervals for any provider.
 UTC cutoff calculations are independent of browser timezone/DST; display local
 timestamps with the timezone and expose UTC bounds in details.
 
+Daily history is selected-report bucket history, not collection-run or report
+revision history. Repeated full reports describe the same spend and must not
+be summed into a time series. For ranges that need multiple reports, choose
+compatible disjoint complete intervals or report missing coverage; never splice
+a revised bucket into an older total without its report context. T010 provides
+the first table query; T013 adds the chart from the same exact values.
+
 Keep a selected range's UTC cutoff fixed through pagination, table/chart reads
 and the source comparison. Crossing midnight does not silently retitle yesterday's
 report as today's selection. An explicit range refresh creates a new query and
@@ -132,6 +146,15 @@ snapshots use separate chart series; no line across missing periods. API queries
 use a fixed report/revision cursor so later corrections do not shuffle pages.
 Retention keeps referenced current/derivation facts; expired cursors request a
 fresh query rather than returning misleading continuity.
+
+The reporting cutoff is not the read snapshot. A completed explicit collection
+advances `as_of` for the stored-data reread while retaining the requested
+`[start,end)`; otherwise the report can be permanently excluded by the page's
+pre-action snapshot. Update selected report, derived total and history cursor
+together. Live run progress is queried separately through M04. If a run starts
+before an `as_of` but completes afterward, do not represent its later result as
+an outcome known at that earlier time. This clarification is within
+M7-MATH-15 and T007/T010/T011, not temporal event-sourcing machinery.
 
 ## 5. Aggregation and shared identity
 
@@ -164,6 +187,13 @@ refresh, any subtotal using it must disclose that older evidence and its age,
 not claim all sources current. A filtered set with no eligible reports has an
 unavailable total, not zero. Provider totals and dimension breakdowns are
 alternative views of the same spend, never additive contributions.
+
+Overview identity includes cost basis/category as well as canonical resource
+and currency. Render multiple compatible groups as labelled subrows, retaining
+their context on detail links. Group labels do not prove financial disjointness:
+two source categories that cover overlapping cost must still be excluded or
+represented as alternative views. Prefer the admitted ungrouped total, not the
+sum of every context returned by a repository.
 
 A request spanning a billing-scope change cannot become one pool total. Split
 by resource epoch and show its coverage. Moving a dashboard group changes
@@ -224,10 +254,42 @@ conservative implementation budgets to measure in the first real vertical,
 not provider limits. Enforce normalized size while mapping, before allocation
 grows unbounded. Never trust `limit` as a bound on expanded provider rows.
 
+The deadline covers the admitted work, not a fresh allowance per request.
+Pass remaining time to each request and leave time for normalization/commit;
+20 requests is a maximum, not a promise that 20 ten-second pages fit. Retry-After
+causes a later scheduled attempt, not sleeping past the current deadline.
+Expired queued/running work is reclaimed through existing M04 ownership rules;
+committing work first reconciles the M05 receipt. Never recollect while a live
+owner could still commit. T007 tests these separately from supervisor exit.
+
 Rate control is per known provider user/shared scope, across local bindings and
 balance/usage jobs; respect Retry-After. Use the stricter admitted provider limit.
 Default periodic report refresh is 15 minutes with jitter; Ollama balance keeps
 its existing schedule. Report categories/groupings are staggered, not a burst.
+T007 schedules the supported ungrouped seven- and thirty-completed-day reports
+needed by the two initial selectors, with first thirty-day collection bounded
+as above. Reuse a wider source response for a shorter view only when the
+adapter's complete daily buckets and M05 exact-coverage policy prove that
+projection; otherwise retain distinct report intents under the same existing
+scheduler. Check initially collects the seven-day report, not every category.
+Persist distinct closed seven-/thirty-day operation families and the exact
+selected UTC interval/cutoff in the existing durable request context. Current
+admission reconstructs seven days from `requested_at`; it cannot yet encode a
+thirty-day or older pinned selection. T007 publishes the minimal additive typed
+request context before exposing those collection actions. Recovered work uses
+the captured intent, never the restart clock; do not falsify `requested_at` to
+represent an older cutoff. No new queue or report-job schema is implied.
+Additional supported breakdowns use explicit collection and the same cooldown;
+opening or changing a view never silently enables background work.
+
+Durable eligible work drives dispatch; an in-memory wake signal is only a hint.
+Drain admitted work fairly across successive claims, retaining one worker and
+existing per-scope limits, so coalesced wakes
+cannot strand a second account's job. One throttled or failed scope must not
+block another due scope. On restart, reconcile retained runs and resume current
+due work without launching one job for every missed polling tick. Disable stops
+new automatic admission; any running job follows the generation/commit fence
+and retains truthful history. No new queue, catch-up engine or tuning screen.
 M7 never intentionally produces requests/spend to make data appear. Views and
 history queries do not synchronously fetch providers. A supported breakdown can
 queue an explicit bounded collection when its report is not yet present.

@@ -4,9 +4,6 @@
 
 from datetime import datetime, timedelta
 
-from sqlalchemy.engine import Connection, RowMapping
-from sqlalchemy.exc import SQLAlchemyError
-
 from agentmonitor.adapters.persistence._shared.sqlite.core.policy import (
     DatabaseRefV1,
     SqlitePolicyError,
@@ -83,6 +80,8 @@ from agentmonitor.modules.registry.domain.cloud_verification import (
     decide_cloud_binding_reassertion,
     decide_cloud_owner_assertion,
 )
+from sqlalchemy.engine import Connection, RowMapping
+from sqlalchemy.exc import SQLAlchemyError
 
 
 def _candidate_evidence_set_digest(row: RowMapping) -> str:

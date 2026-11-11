@@ -71,6 +71,29 @@ _TITLES = {
 # Closed local documentation catalog. Neither the route nor the problem type
 # accepts a code copied from submitted input or an unrecognized port outcome.
 PROBLEM_DESCRIPTIONS: dict[str, str] = {
+    "billing_check_target_unavailable": "The billing connection is unavailable.",
+    "billing_check_version_conflict": "The account changed. Refresh before retrying.",
+    "billing_check_authority_unavailable": (
+        "Store a billing credential before checking access."
+    ),
+    "billing_check_target_changed": (
+        "The billing connection changed. Refresh its status."
+    ),
+    "billing_check_idempotency_conflict": (
+        "This request key belongs to a different billing check."
+    ),
+    "billing_check_provider_unsupported": (
+        "Billing checks for this provider are not yet available."
+    ),
+    "billing_check_rate_limited": (
+        "The billing read budget is currently exhausted. Try later."
+    ),
+    "billing_check_unavailable": (
+        "The billing check could not be admitted. Refresh its status."
+    ),
+    "billing_check_service_unavailable": (
+        "The billing worker is unavailable. Check service status."
+    ),
     "capacity_v2_required": "This capacity reading requires the V2 endpoint.",
     "credential_update_in_progress": "Another account update is in progress.",
     "ollama_cloud_connection_unavailable": "Ollama cloud connection is unavailable.",

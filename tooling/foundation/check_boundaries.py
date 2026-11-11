@@ -46,6 +46,9 @@ CONTRACT_MODULES = frozenset(
         "identity_access_v1",
         "registry_v1",
         "registry_coverage_v1",
+        "registry_billing_v1",
+        "billing_actions_v1",
+        "budget_query_v1",
         "provider_system_v1",
         "common_provenance_v1",
         "collection_control_v1",
@@ -63,19 +66,31 @@ CONTRACT_MODULES = frozenset(
         "ollama_local_catalog_v1",
     }
 )
-# Reviewed compatible/versioned M6 contract revisions. Every other published
+# Reviewed compatible/versioned M6/M7 contract revisions. Every other published
 # contract remains pinned to the V1 baseline below; this closed map prevents a
 # generic semantic-version allowance from weakening the catalog check.
 CONTRACT_VERSION_EXCEPTIONS = {
     "CTR-COL-008": "1.2.0",
     "CTR-COL-009": "1.1.0",
     "CTR-COL-010": "2.0.0",
-    "CTR-PROV-003": "1.2.0",
+    "CTR-PROV-003": "1.3.0",
+    "CTR-REG-014": "1.3.0",
     "CTR-REG-012": "1.1.0",
 }
 # Published supporting values have no independent catalog ID. This closed list
 # prevents arbitrary aliases/re-exports from masquerading as support metadata.
 SUPPORT_SYMBOLS = {
+    "agentmonitor.contracts.common_quantity_v1": {"InvalidExactQuantityV1"},
+    "agentmonitor.contracts.billing_actions_v1": {"BillingCheckPortV1"},
+    "agentmonitor.contracts.budget_query_v1": {
+        "AccountBudgetCurrentPortV1",
+        "BudgetCollectionStatePortV1",
+    },
+    "agentmonitor.contracts.registry_billing_v1": {
+        "BillingAccessPurposeV1",
+        "BillingConnectionPortV1",
+        "BillingLocalSetupPortV1",
+    },
     "agentmonitor.contracts.common_v1": {
         "TechnicalValueV1",
         "AvailabilityStateV1",
@@ -88,6 +103,7 @@ SUPPORT_SYMBOLS = {
         "DatabaseHealthReasonV1",
     },
     "agentmonitor.contracts.provider_system_v1": {
+        "FailureOutcomeStateV1",
         "CapabilityDecisionStateV1",
         "OutcomeStateV1",
         "ProviderConnectionStateV1",
@@ -96,6 +112,10 @@ SUPPORT_SYMBOLS = {
         "ScheduledSourceSignalRunStateV1",
     },
     "agentmonitor.contracts.collection_control_v1": {
+        "BudgetCollectionCommitPortV1",
+        "BudgetCollectionRunAdmissionV1",
+        "BudgetCollectionRunViewV1",
+        "CollectionTriggerV1",
         "CollectorHealthStateV1",
         "CollectorFreshnessStateV1",
         "CollectorRetryCategoryV1",
@@ -113,6 +133,7 @@ SUPPORT_SYMBOLS = {
         "CoverageInvalidationReasonV1",
     },
     "agentmonitor.contracts.registry_v1": {
+        "RegistryLifecycleV1",
         "ConfirmIdentityAssociationCommandV1",
         "IdentityDecisionStateV1",
         "IdentityEvidenceClassV1",
@@ -176,6 +197,8 @@ SUPPORT_SYMBOLS = {
         "AlertReasonCodeV1",
     },
     "agentmonitor.contracts.capacity_v1": {
+        "BudgetCurrentReportsPortV1",
+        "BudgetDimensionKindV1",
         "ConfidenceV1",
         "CompletenessV1",
         "CapacityAvailabilityStateV1",
@@ -551,6 +574,38 @@ def _bounded_health_read_module(source: str, target: str) -> bool:
 def _approved_owner_adapter_domain_module(source: str, target: str) -> bool:
     return (source, target) in {
         (
+            "agentmonitor.adapters.credential_env.stream",
+            "agentmonitor.adapters.credential_env.format",
+        ),
+        (
+            "agentmonitor.adapters.providers.ollama.cloud_balance.env_format",
+            "agentmonitor.adapters.credential_env",
+        ),
+        (
+            "agentmonitor.adapters.providers.ollama.cloud_balance.env_stream",
+            "agentmonitor.adapters.credential_env.stream",
+        ),
+        (
+            "agentmonitor.adapters.persistence.capacity.sqlite.budget_current_query",
+            "agentmonitor.modules.capacity.domain.budget_codec",
+        ),
+        (
+            "agentmonitor.adapters.persistence.capacity.sqlite.budget_repository",
+            "agentmonitor.modules.capacity.application.budget_commit",
+        ),
+        (
+            "agentmonitor.adapters.persistence.capacity.sqlite.budget_repository",
+            "agentmonitor.modules.capacity.domain.budget_codec",
+        ),
+        (
+            "agentmonitor.adapters.persistence.capacity.sqlite.budget_repository",
+            "agentmonitor.modules.capacity.domain.budget_reports",
+        ),
+        (
+            "agentmonitor.adapters.persistence.registry.sqlite.billing_connections",
+            "agentmonitor.modules.registry.domain.billing_connection",
+        ),
+        (
             "agentmonitor.adapters.persistence.capacity.sqlite.repository",
             "agentmonitor.modules.capacity.domain.credential_fence",
         ),
@@ -625,7 +680,10 @@ def _approved_owner_adapter_domain_module(source: str, target: str) -> bool:
 
 def _allowed(source: str, target: str, *, symbol_import: bool = False) -> bool:
     src, dst = source.split("."), target.split(".")
-    if "utils" in dst or dst[0] in {"frontend", "backend"}:
+    if (dst[0] == "agentmonitor" and "utils" in dst) or dst[0] in {
+        "frontend",
+        "backend",
+    }:
         return False
     pure = src[1:2] == ["contracts"] or (
         src[1:2] == ["modules"] and src[3:4] == ["domain"]

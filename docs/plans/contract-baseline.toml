@@ -1,5 +1,5 @@
 schema_version = "1.0"
-baseline_version = "0.2.2"
+baseline_version = "0.2.3"
 status = "draft_aligned"
 owner = "integration_steward"
 source_audit = "CAA-2026-09-18-01"
@@ -535,7 +535,7 @@ id = "CTR-REG-011"
 name = "CredentialBindingAggregateV1"
 version = "1.0.0"
 producer = "PLAN-M02"
-consumers = ["PLAN-FND", "PLAN-M03", "PLAN-M04", "PLAN-M05", "PLAN-A03", "PLAN-M08", "PLAN-INT"]
+consumers = ["PLAN-FND", "PLAN-M03", "PLAN-M04", "PLAN-M05", "PLAN-A03", "PLAN-M08", "PLAN-INT", "PLAN-A01", "PLAN-A02"]
 maturity = "evidence_blocked"
 decision_reference = "Owner-approved M6 Ollama cloud plan and contract review, 2026-11-02"
 checklist = { field_state_null = true, units_time = true, auth = true, side_effects = true, idempotency = true, events = true, retention = true, errors = true, compatibility = true }
@@ -563,9 +563,9 @@ checklist = { field_state_null = true, units_time = true, auth = true, side_effe
 [[contracts]]
 id = "CTR-REG-014"
 name = "AccountBillingConnectionsV1"
-version = "1.2.0"
+version = "1.3.0"
 producer = "PLAN-M02"
-consumers = ["PLAN-FND", "PLAN-P01", "PLAN-P02", "PLAN-INT"]
+consumers = ["PLAN-FND", "PLAN-P01", "PLAN-P02", "PLAN-INT", "PLAN-M04", "PLAN-M05"]
 maturity = "evidence_blocked"
 decision_reference = "Approved M7 focused plan 1.1.0; billing metadata boundary evidence 2026-11-11"
 checklist = { field_state_null = true, units_time = true, auth = true, side_effects = true, idempotency = true, events = true, retention = true, errors = true, compatibility = true }
@@ -781,7 +781,7 @@ id = "CTR-CAP-002"
 name = "BudgetViewV1"
 version = "1.0.0"
 producer = "PLAN-M05"
-consumers = ["PLAN-M07", "PLAN-M08", "PLAN-A01", "PLAN-A02", "PLAN-A03", "PLAN-P01", "PLAN-P02"]
+consumers = ["PLAN-M07", "PLAN-M08", "PLAN-A01", "PLAN-A02", "PLAN-A03", "PLAN-P01", "PLAN-P02", "PLAN-FND", "PLAN-M04"]
 maturity = "evidence_blocked"
 decision_reference = "CAA-2026-09-18-01 sections 5.7, 8, and 9.2"
 checklist = { field_state_null = true, units_time = true, auth = true, side_effects = true, idempotency = true, events = true, retention = true, errors = true, compatibility = true }
@@ -801,7 +801,7 @@ id = "CTR-CAP-004"
 name = "CapacityObservationRecordedV1"
 version = "1.0.0"
 producer = "PLAN-M05"
-consumers = ["PLAN-FND", "PLAN-M07", "PLAN-M08"]
+consumers = ["PLAN-FND", "PLAN-M07", "PLAN-M08", "PLAN-M04"]
 maturity = "evidence_blocked"
 decision_reference = "CAA-2026-09-18-01 sections 5.7 and 9.6"
 checklist = { field_state_null = true, units_time = true, auth = true, side_effects = true, idempotency = true, events = true, retention = true, errors = true, compatibility = true }

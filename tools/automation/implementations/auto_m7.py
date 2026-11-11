@@ -50,6 +50,13 @@ PURE_TARGETS = (
     "backend/tests/collection_control/pure/test_budget_executor_policy.py",
     "backend/tests/registry/test_billing_access_policy.py",
     "backend/tests/capacity/pure/test_budget_report_selection.py",
+    "backend/tests/capacity/pure/test_budget_current_selection.py",
+    "backend/tests/contracts/test_budget_current_query.py",
+    "backend/tests/contracts/test_budget_account_query.py",
+    "backend/tests/contracts/test_billing_actions.py",
+    "backend/tests/contracts/test_anthropic_billing_run.py",
+    "backend/tests/capacity/pure/test_budget_account_spend.py",
+    "backend/tests/collection_control/pure/test_budget_dispatch_policy.py",
     "backend/tests/capacity/test_quantity_and_health.py",
 )
 REGISTRY_METADATA_TARGETS = (
@@ -176,6 +183,8 @@ def execute_lane(lane: str) -> LaneResult:
                     "backend/tests/integration/collection_control/test_budget_run_repository_empty.py",
                     "backend/tests/integration/capacity/test_capacity_schema_chain.py",
                     "backend/tests/integration/capacity/test_budget_repository_empty.py",
+                    "backend/tests/integration/capacity/test_budget_current_empty.py",
+                    "backend/tests/integration/capacity/test_budget_account_empty.py",
                 ),
             )
         elif lane == "exit":

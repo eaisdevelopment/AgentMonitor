@@ -7,7 +7,6 @@ import stat
 from pathlib import Path
 
 import pytest
-
 from agentmonitor.adapters.credential_env.format import CredentialProviderKey
 from agentmonitor.composition.ollama_env_store import (
     _managed_entries,

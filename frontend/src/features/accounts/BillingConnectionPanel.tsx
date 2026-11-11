@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
 
-import { CsrfUnavailableError, registry, type AccountBillingConnectionsV1, type AccountViewV1 } from "../../shared/api/client";
+import { CsrfUnavailableError, registry, type AccountBillingConnectionsV1, type AccountViewV1, type BillingConnectionViewV1, type BudgetRunStatusV1 } from "../../shared/api/client";
+import { checkEligibility, matchesCheckRun, pendingRun, restoreCheckIntent, type BillingCheckIntent } from "./billingCheckPresentation";
 
 type BillingState =
   | Readonly<{ kind: "loading" }>
@@ -21,18 +22,33 @@ function unavailableReason(reason: string): string {
   return "A billing connection cannot be added in the current account state. Refresh its status before trying again.";
 }
 
-/** Registry metadata only: access verification and credential custody are separate. */
-export function BillingConnectionPanel({ account, onExpired, onProofUnavailable, onAccountReload }: Readonly<{
+/** Local custody metadata and bounded collection actions remain separate facts. */
+export function BillingConnectionPanel({ account, onExpired, onProofUnavailable, onAccountReload, onFinancialRead }: Readonly<{
   account: AccountViewV1;
   onExpired: () => void;
   onProofUnavailable: () => void;
   onAccountReload: () => void;
+  onFinancialRead: () => void;
 }>) {
   const [state, setState] = useState<BillingState>({ kind: "loading" });
   const [revision, setRevision] = useState(0);
   const [scopeId, setScopeId] = useState("");
   const [busy, setBusy] = useState(false);
   const [copyStatus, setCopyStatus] = useState("");
+  const storageKey = `agentmonitor.billing-check.${account.account_id}`;
+  const [checkIntent, setCheckIntent] = useState<BillingCheckIntent | null>(() => {
+    try { return restoreCheckIntent(sessionStorage.getItem(storageKey), account.account_id); }
+    catch { return null; }
+  });
+  const [checkRun, setCheckRun] = useState<BudgetRunStatusV1 | null>(null);
+  const [checkMessage, setCheckMessage] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+  const [pollRevision, setPollRevision] = useState(0);
+  const checkBusy = useRef(false);
+  const checkRequest = useRef<AbortController | null>(null);
+  const panel = useRef<HTMLElement>(null);
+  const financialRead = useRef(onFinancialRead);
+  financialRead.current = onFinancialRead;
   const mutating = useRef(false);
   const reading = useRef(false);
   const mounted = useRef(false);
@@ -43,8 +59,22 @@ export function BillingConnectionPanel({ account, onExpired, onProofUnavailable,
 
   useEffect(() => {
     mounted.current = true;
-    return () => { mounted.current = false; };
+    return () => { mounted.current = false; checkRequest.current?.abort(); };
   }, []);
+
+  function retainIntent(intent: BillingCheckIntent | null): boolean {
+    try {
+      if (intent === null) sessionStorage.removeItem(storageKey);
+      else sessionStorage.setItem(storageKey, JSON.stringify(intent));
+    } catch {
+      if (intent !== null) {
+        setCheckMessage("This tab cannot retain the check request safely. Allow tab storage before checking.");
+        return false;
+      }
+    }
+    setCheckIntent(intent);
+    return true;
+  }
 
   useEffect(() => {
     const controller = new AbortController();
@@ -87,6 +117,109 @@ export function BillingConnectionPanel({ account, onExpired, onProofUnavailable,
       document.removeEventListener("visibilitychange", onReturn);
     };
   }, [state.kind]);
+
+  useEffect(() => {
+    if (checkIntent?.runId == null || state.kind !== "ready") return;
+    const connection = state.status.connections.find((value) => value.resource_id === checkIntent.resourceId);
+    if (!connection || connection.scope_generation !== checkIntent.scopeGeneration || state.status.credential_status?.active_generation !== checkIntent.credentialGeneration || !["pending", "active"].includes(connection.lifecycle) || !["pending", "active"].includes(state.status.account_lifecycle)) {
+      retainIntent(null);
+      setCheckRun(null);
+      setCheckMessage("The connection or credential changed. The previous check will not update this account view.");
+      return;
+    }
+    const controller = new AbortController();
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    let reads = 0;
+    const stopAt = Math.min(Date.parse(checkIntent.deadlineAt!), Date.now() + 125000) + 5000;
+    const poll = async () => {
+      if (controller.signal.aborted) return;
+      if (reads > 0 && Date.now() > stopAt) {
+        setCheckMessage("Check result is not confirmed. Refresh check status to reconcile the existing run.");
+        return;
+      }
+      if (document.visibilityState !== "visible" || panel.current?.getClientRects().length === 0) {
+        if (Date.now() <= stopAt) timer = setTimeout(() => { void poll(); }, 2000);
+        return;
+      }
+      reads += 1;
+      try {
+        const result = await registry.billingRun(checkIntent.runId!, controller.signal);
+        if (controller.signal.aborted) return;
+        if (!result.ok) {
+          if (result.problem.code === "dashboard_authentication_required") expiredHandler.current();
+          else setCheckMessage("Check status could not be read. Refresh check status; do not start a duplicate check.");
+          return;
+        }
+        if (!matchesCheckRun(checkIntent, result.data)) {
+          setCheckMessage("Check status did not match this account and resource. No financial reading was changed.");
+          return;
+        }
+        setCheckRun(result.data);
+        setCheckMessage(null);
+        if (pendingRun(result.data.state)) timer = setTimeout(() => { void poll(); }, 2000);
+        else {
+          retainIntent(null);
+          setRevision((value) => value + 1);
+          financialRead.current();
+        }
+      } catch {
+        if (!controller.signal.aborted) setCheckMessage("The local service is unavailable. Refresh check status to reconcile the existing run.");
+      }
+    };
+    void poll();
+    return () => { controller.abort(); if (timer !== undefined) clearTimeout(timer); };
+  }, [checkIntent, pollRevision, state]);
+
+  async function submitCheck(intent: BillingCheckIntent) {
+    if (checkBusy.current || !retainIntent(intent)) return;
+    checkBusy.current = true;
+    setSubmitting(true);
+    setCheckMessage(null);
+    const controller = new AbortController();
+    checkRequest.current = controller;
+    try {
+      const result = await registry.checkBillingConnection(intent, controller.signal);
+      if (!mounted.current || controller.signal.aborted) return;
+      if (!result.ok) {
+        if (result.problem.code === "dashboard_authentication_required") expiredHandler.current();
+        else if (result.problem.code === "csrf_validation_failed") onProofUnavailable();
+        else if (["billing_check_version_conflict", "billing_check_target_changed", "billing_check_target_unavailable", "billing_check_authority_unavailable"].includes(result.problem.code)) {
+          retainIntent(null);
+          setRevision((value) => value + 1);
+          setCheckMessage("The check was not admitted because this connection changed. Review refreshed status before checking again.");
+        }
+        else setCheckMessage(result.problem.status === 503
+          ? "Collection runtime is unavailable. Credential storage has not changed. Resolve this check outcome before trying a new check."
+          : "Check outcome is not confirmed. Resolve this request with its original identity before starting another check.");
+        return;
+      }
+      if (!retainIntent({ ...intent, runId: result.data.run_id, deadlineAt: result.data.deadline_at })) return;
+      setCheckMessage("Check accepted. Reading its actual run status; acceptance is not verified access.");
+    } catch (error) {
+      if (!mounted.current || controller.signal.aborted) return;
+      if (error instanceof CsrfUnavailableError) onProofUnavailable();
+      else setCheckMessage("Check outcome is unknown. Resolve this request before starting another check.");
+    } finally {
+      checkBusy.current = false;
+      if (mounted.current) setSubmitting(false);
+    }
+  }
+
+  function startCheck(connection: BillingConnectionViewV1) {
+    if (state.kind !== "ready" || checkIntent !== null || checkBusy.current || !checkEligibility(state.status, connection).allowed) return;
+    const generation = state.status.credential_status?.active_generation;
+    if (generation == null) return;
+    setCheckRun(null);
+    void submitCheck({
+      accountId: account.account_id, resourceId: connection.resource_id,
+      accountVersion: state.status.account_record_version,
+      connectionVersion: connection.record_version,
+      scopeGeneration: connection.scope_generation,
+      credentialGeneration: generation,
+      idempotencyKey: Array.from(crypto.getRandomValues(new Uint8Array(16)), (byte) => byte.toString(16).padStart(2, "0")).join(""),
+      runId: null, deadlineAt: null,
+    });
+  }
 
   async function copyCommand() {
     if (localSetup == null) return;
@@ -132,7 +265,7 @@ export function BillingConnectionPanel({ account, onExpired, onProofUnavailable,
     }
   }
 
-  return <section className="telemetry-panel" aria-labelledby="api-billing-setup-title" aria-busy={busy || state.kind === "loading"}>
+  return <section ref={panel} className="telemetry-panel" aria-labelledby="api-billing-setup-title" aria-busy={busy || submitting || state.kind === "loading"}>
     <div className="panel-heading"><h2 id="api-billing-setup-title">API billing setup</h2></div>
     {state.kind === "loading" && <p role="status">Reading billing connection status…</p>}
     {state.kind === "error" && <p role="alert">{state.message}</p>}
@@ -149,8 +282,14 @@ export function BillingConnectionPanel({ account, onExpired, onProofUnavailable,
           <div><dt>Provider billing scope</dt><dd>{connection.scope_id ?? "Provider billing scope has not been specified."}</dd></div>
           <div><dt>Scope evidence</dt><dd>{connection.scope_evidence.replaceAll("_", " ")}</dd></div>
         </dl>
-        <p>{localSetup == null ? "Credential setup and access verification are not available in this step yet." : "Access verification is not available in this step yet."}</p>
+        <p id={`billing-check-help-${connection.resource_id}`}>{checkEligibility(state.status, connection).reason}</p>
+        <button type="button" disabled={busy || submitting || checkIntent !== null || !checkEligibility(state.status, connection).allowed}
+          aria-describedby={`billing-check-help-${connection.resource_id}`} onClick={() => startCheck(connection)}>Check connection</button>
       </div>)}
+      {checkRun !== null && <p role="status">Check {checkRun.state.replaceAll("_", " ")}{checkRun.error_code !== null && ` · ${checkRun.error_code.replaceAll("_", " ")}`}. {checkRun.state === "succeeded" ? "Read completed; review financial coverage below. API monitoring has not been enabled." : "This status does not enable API monitoring."}</p>}
+      {checkMessage !== null && <p role="status">{checkMessage}</p>}
+      {checkIntent?.runId === null && <button type="button" className="quiet-button" disabled={submitting} onClick={() => { void submitCheck(checkIntent); }}>Resolve check outcome</button>}
+      {checkIntent?.runId != null && <button type="button" className="quiet-button" onClick={() => setPollRevision((value) => value + 1)}>Refresh check status</button>}
       {credentialStatus != null && <>
         <p><span className="state-chip state-unavailable">{credentialStateLabels[credentialStatus.state]}</span>{credentialStatus.state === "stored" && " Storage does not verify provider access."}</p>
         {credentialStatus.cleanup_required && <p className="connection-warning" role="status">Cleanup required: local credential removal has not been confirmed.</p>}

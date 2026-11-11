@@ -1,9 +1,9 @@
 """Pure M7 source admission: documented beta is distinct from private access."""
 
 from dataclasses import replace
+from typing import Literal
 
 import pytest
-
 from agentmonitor.contracts.provider_system_v1 import (
     InvalidProviderContract,
     ProviderSourceV1,
@@ -35,7 +35,9 @@ def test_documented_beta_remains_official_and_explicitly_experimental() -> None:
 
 
 @pytest.mark.parametrize("stability", ["documented", "supported", "unknown"])
-def test_documented_experimental_flag_requires_beta_stability(stability: str) -> None:
+def test_documented_experimental_flag_requires_beta_stability(
+    stability: Literal["documented", "supported", "unknown"],
+) -> None:
     with pytest.raises(
         InvalidProviderContract, match="provider_source_experimental_invalid"
     ):
@@ -58,7 +60,7 @@ def test_private_source_cannot_lose_experimental_restriction() -> None:
 
 @pytest.mark.parametrize("source_class", ["supported_cli", "approved_local_metadata"])
 def test_beta_exception_does_not_reclassify_cli_or_local_sources(
-    source_class: str,
+    source_class: Literal["supported_cli", "approved_local_metadata"],
 ) -> None:
     with pytest.raises(
         InvalidProviderContract, match="provider_source_experimental_invalid"

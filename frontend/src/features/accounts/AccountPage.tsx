@@ -4,6 +4,7 @@ import { CapacityPanel } from "../command/CapacityPanel";
 import { SessionPanel } from "../sessions/SessionPanel";
 import { AccountWorkspaceSummary } from "./AccountWorkspaceSummary";
 import { BillingConnectionPanel } from "./BillingConnectionPanel";
+import { BudgetAccountPanel } from "./BudgetAccountPanel";
 import { ProviderConnectionPanel } from "./ClaudeConnectionPanel";
 import { OllamaCloudConnectionView } from "./OllamaCloudConnectionView";
 import { LiveProviderProcesses } from "./LiveClaudeProcesses";
@@ -50,6 +51,7 @@ export function AccountPage({
   const [paginationBusy, setPaginationBusy] = useState(false);
   const [paginationMessage, setPaginationMessage] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
+  const [financialReadRevision, setFinancialReadRevision] = useState(0);
   const settingsRef = useRef<HTMLDetailsElement>(null);
   const [liveProcesses, setLiveProcesses] = useState<LiveProcessLocationPageV1 | null>(null);
   const [observedIdentity, setObservedIdentity] = useState<Readonly<{ accountId: string | undefined; email: string | null }> | null>(null);
@@ -93,6 +95,7 @@ export function AccountPage({
   }, [accountId, onExpired]);
 
   const reloadAccount = useCallback(() => { void load(); }, [load]);
+  const refreshFinancialRead = useCallback(() => setFinancialReadRevision((value) => value + 1), []);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -236,20 +239,22 @@ export function AccountPage({
           }
         }}>Edit account</button>
       </header>
-      {apiOnly && selected.provider_key !== "ollama" && <BillingConnectionPanel key={`billing-${selected.account_id}`} account={selected} onExpired={onExpired} onProofUnavailable={onProofUnavailable} onAccountReload={reloadAccount} />}
+      {apiOnly && <BudgetAccountPanel key={`budget-${selected.account_id}`} account={selected} readRevision={financialReadRevision} showUnconfigured={selected.provider_key !== "ollama"} onExpired={onExpired} />}
+      {apiOnly && selected.provider_key !== "ollama" && <BillingConnectionPanel key={`billing-${selected.account_id}`} account={selected} onExpired={onExpired} onProofUnavailable={onProofUnavailable} onAccountReload={reloadAccount} onFinancialRead={refreshFinancialRead} />}
       {selected.provider_key === "ollama" && selected.lifecycle !== "archived" && <OllamaCloudConnectionView key={`ollama-cloud-${selected.account_id}`} account={selected} onExpired={onExpired} onProofUnavailable={onProofUnavailable} onAccountReload={reloadAccount} />}
       {!apiOnly && <>
       {["claude", "codex"].includes(selected.provider_key) && selected.lifecycle !== "archived" && <ProviderConnectionPanel key={`connection-${selected.account_id}`} account={selected} onExpired={onExpired} onProofUnavailable={onProofUnavailable} onAccountReload={reloadAccount} />}
       <AccountWorkspaceSummary key={selected.account_id} account={selected} organizationName={state.organizations.items.find((item) => item.organization_id === selected.organization_id)?.name ?? "Ungrouped"} liveProcesses={liveProcesses} onExpired={onExpired} onIdentity={updateObservedIdentity} />
       {["claude", "codex"].includes(selected.provider_key) && <LiveProviderProcesses key={`processes-${selected.account_id}`} account={selected} accounts={detailAccounts} organizations={state.organizations.items} onExpired={onExpired} onProofUnavailable={onProofUnavailable} onRead={setLiveProcesses} />}
       <CapacityPanel accountId={selected.account_id} onExpired={onExpired} />
+      <BudgetAccountPanel key={`budget-${selected.account_id}`} account={selected} readRevision={financialReadRevision} showUnconfigured={false} onExpired={onExpired} />
       <details className="account-secondary" data-account-sessions="true">
         <summary>Session history <span>Previously observed session records</span></summary>
         <SessionPanel accountId={selected.account_id} displayMode="panel" heading="Session records" onExpired={onExpired} />
       </details>
       <details className="account-secondary" data-billing-connection="true">
         <summary>API billing connection</summary>
-        <BillingConnectionPanel key={`billing-${selected.account_id}`} account={selected} onExpired={onExpired} onProofUnavailable={onProofUnavailable} onAccountReload={reloadAccount} />
+        <BillingConnectionPanel key={`billing-${selected.account_id}`} account={selected} onExpired={onExpired} onProofUnavailable={onProofUnavailable} onAccountReload={reloadAccount} onFinancialRead={refreshFinancialRead} />
       </details>
       </>}
       <details className="account-settings account-secondary" ref={settingsRef}>

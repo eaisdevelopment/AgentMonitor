@@ -8,8 +8,6 @@ from pathlib import Path
 from threading import Barrier
 
 import pytest
-from sqlalchemy.exc import IntegrityError
-
 from agentmonitor.adapters.persistence._shared.sqlite.core.policy import (
     DatabaseRefV1,
     open_sqlite_database,
@@ -46,6 +44,7 @@ from agentmonitor.modules.registry.application.organizations import (
 from agentmonitor.modules.registry.domain.billing_connection import (
     billing_connection_eligibility,
 )
+from sqlalchemy.exc import IntegrityError
 
 
 def _database(tmp_path: Path) -> DatabaseRefV1:

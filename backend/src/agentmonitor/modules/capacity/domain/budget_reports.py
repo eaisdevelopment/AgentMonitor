@@ -1,16 +1,13 @@
 """Select immutable complete coverage without retaining superseded charges."""
 
-from dataclasses import dataclass
+from agentmonitor.contracts.capacity_v1 import (
+    BudgetReportInputV1,
+    BudgetReportSelectionV1,
+    BudgetReportViewV1,
+)
 
-from agentmonitor.contracts.capacity_v1 import BudgetReportInputV1, BudgetReportViewV1
-
-
-@dataclass(frozen=True, slots=True)
-class BudgetReportSelection:
-    """Last complete coverage and latest attempt have independent freshness."""
-
-    current: BudgetReportViewV1 | None
-    latest_attempt: BudgetReportViewV1 | None
+# Preserve the internal import name while publishing one immutable DTO shape.
+BudgetReportSelection = BudgetReportSelectionV1
 
 
 def _same_context(left: BudgetReportInputV1, right: BudgetReportInputV1) -> bool:

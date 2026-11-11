@@ -9,6 +9,7 @@ from agentmonitor.adapters.persistence._shared.sqlite.core.policy import (
     open_sqlite_database,
 )
 from agentmonitor.adapters.persistence.registry.sqlite.credential_bindings import (
+    _access_target,
     read_credential_bindings_in_transaction,
     resolve_active_credential_binding_in_transaction,
 )
@@ -29,6 +30,10 @@ from agentmonitor.contracts.registry_billing_v1 import (
     BillingAccessTargetV1,
     BillingConnectionViewV1,
     CreateBillingConnectionCommandV1,
+)
+from agentmonitor.contracts.registry_v1 import (
+    ProviderAccessTargetV1,
+    ProviderTargetRefV1,
 )
 from agentmonitor.modules.registry.application.organizations import (
     RegistryCommandConflictV1,
@@ -359,3 +364,37 @@ class SqliteBillingAccessRepositoryV1:
                     return result
         except (SQLAlchemyError, SqlitePolicyError, ValueError):
             raise RegistryRepositoryErrorV1() from None
+
+    def ensure_current(self, expected: BillingAccessTargetV1) -> None:
+        """Re-resolve and compare one captured authority through M02's boundary."""
+        ensure_billing_access_current(
+            self.resolve(
+                expected.connection.account_id,
+                expected.connection.resource_id,
+                expected.purpose,
+            ),
+            expected,
+        )
+
+
+def read_billing_provider_target_in_transaction(
+    connection: Connection, target: ProviderTargetRefV1
+) -> ProviderAccessTargetV1 | None:
+    """Read an actual active billing service endpoint, never alias a resource ID."""
+    if not connection.in_transaction():
+        raise ValueError("billing_transaction_required")
+    if target.target_kind != "cloud_service":
+        raise ValueError("billing_provider_target_invalid")
+    row = (
+        connection.exec_driver_sql(
+            "SELECT t.* FROM reg_provider_access_target t "
+            "JOIN reg_provider_definition p ON p.provider_key=t.provider_key "
+            "WHERE t.access_target_id=? AND t.provider_key IN ('claude','codex') "
+            "AND t.target_kind='cloud_service' AND t.lifecycle='active' "
+            "AND p.lifecycle='active'",
+            (target.target_id.value,),
+        )
+        .mappings()
+        .one_or_none()
+    )
+    return None if row is None else _access_target(row)

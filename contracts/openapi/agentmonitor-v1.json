@@ -75,6 +75,42 @@
         "title": "AccountBillingConnectionsV1",
         "type": "object"
       },
+      "AccountBudgetCurrentWireV1": {
+        "additionalProperties": false,
+        "properties": {
+          "account_id": {
+            "title": "Account Id",
+            "type": "string"
+          },
+          "as_of": {
+            "format": "date-time",
+            "title": "As Of",
+            "type": "string"
+          },
+          "availability": {
+            "$ref": "#/components/schemas/AvailabilityV1"
+          },
+          "period": {
+            "$ref": "#/components/schemas/BudgetPeriodWireV1"
+          },
+          "resources": {
+            "items": {
+              "$ref": "#/components/schemas/BudgetResourceCurrentWireV1"
+            },
+            "title": "Resources",
+            "type": "array"
+          }
+        },
+        "required": [
+          "account_id",
+          "period",
+          "as_of",
+          "availability",
+          "resources"
+        ],
+        "title": "AccountBudgetCurrentWireV1",
+        "type": "object"
+      },
       "AccountCapacityItemV1": {
         "additionalProperties": false,
         "properties": {
@@ -1744,6 +1780,114 @@
         "title": "AvailabilityV1",
         "type": "object"
       },
+      "BillingCheckInputV1": {
+        "additionalProperties": false,
+        "properties": {
+          "expected_connection_version": {
+            "minimum": 1.0,
+            "title": "Expected Connection Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "expected_connection_version"
+        ],
+        "title": "BillingCheckInputV1",
+        "type": "object"
+      },
+      "BillingCheckRunV1": {
+        "additionalProperties": false,
+        "properties": {
+          "completed_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Completed At"
+          },
+          "deadline_at": {
+            "format": "date-time",
+            "title": "Deadline At",
+            "type": "string"
+          },
+          "error_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error Code"
+          },
+          "outcome_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Outcome Code"
+          },
+          "requested_at": {
+            "format": "date-time",
+            "title": "Requested At",
+            "type": "string"
+          },
+          "run_id": {
+            "title": "Run Id",
+            "type": "string"
+          },
+          "started_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Started At"
+          },
+          "state": {
+            "enum": [
+              "requested",
+              "queued",
+              "running",
+              "committing",
+              "succeeded",
+              "partial",
+              "failed",
+              "blocked",
+              "cancelled",
+              "unsupported"
+            ],
+            "title": "State",
+            "type": "string"
+          }
+        },
+        "required": [
+          "run_id",
+          "state",
+          "outcome_code",
+          "error_code",
+          "requested_at",
+          "started_at",
+          "completed_at",
+          "deadline_at"
+        ],
+        "title": "BillingCheckRunV1",
+        "type": "object"
+      },
       "BillingConnectionViewV1": {
         "additionalProperties": false,
         "properties": {
@@ -1929,6 +2073,649 @@
           "page"
         ],
         "title": "BrowserSessionPageV1",
+        "type": "object"
+      },
+      "BudgetCollectionStateWireV1": {
+        "additionalProperties": false,
+        "description": "Latest collection can fail without producing a report.",
+        "properties": {
+          "completed_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Completed At"
+          },
+          "error_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error Code"
+          },
+          "outcome_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Outcome Code"
+          },
+          "report_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Report Id"
+          },
+          "requested_at": {
+            "format": "date-time",
+            "title": "Requested At",
+            "type": "string"
+          },
+          "run_id": {
+            "title": "Run Id",
+            "type": "string"
+          },
+          "source_id": {
+            "title": "Source Id",
+            "type": "string"
+          },
+          "started_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Started At"
+          },
+          "state": {
+            "enum": [
+              "requested",
+              "queued",
+              "running",
+              "committing",
+              "succeeded",
+              "partial",
+              "failed",
+              "blocked",
+              "cancelled",
+              "unsupported"
+            ],
+            "title": "State",
+            "type": "string"
+          }
+        },
+        "required": [
+          "run_id",
+          "state",
+          "source_id",
+          "requested_at",
+          "started_at",
+          "completed_at",
+          "outcome_code",
+          "error_code",
+          "report_id"
+        ],
+        "title": "BudgetCollectionStateWireV1",
+        "type": "object"
+      },
+      "BudgetCostBucketWireV1": {
+        "additionalProperties": false,
+        "properties": {
+          "amount": {
+            "$ref": "#/components/schemas/ExactMoneyWireV1"
+          },
+          "bucket_key": {
+            "title": "Bucket Key",
+            "type": "string"
+          },
+          "dimensions": {
+            "items": {
+              "$ref": "#/components/schemas/BudgetDimensionWireV1"
+            },
+            "title": "Dimensions",
+            "type": "array"
+          },
+          "kind": {
+            "enum": [
+              "charge",
+              "adjustment"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "period": {
+            "$ref": "#/components/schemas/BudgetPeriodWireV1"
+          }
+        },
+        "required": [
+          "bucket_key",
+          "period",
+          "amount",
+          "dimensions",
+          "kind"
+        ],
+        "title": "BudgetCostBucketWireV1",
+        "type": "object"
+      },
+      "BudgetDimensionWireV1": {
+        "additionalProperties": false,
+        "properties": {
+          "kind": {
+            "enum": [
+              "organization",
+              "project",
+              "workspace",
+              "api_key_id",
+              "model",
+              "token_category",
+              "line_item",
+              "api_source",
+              "user_id",
+              "cost_type"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "value": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Value"
+          }
+        },
+        "required": [
+          "kind",
+          "value"
+        ],
+        "title": "BudgetDimensionWireV1",
+        "type": "object"
+      },
+      "BudgetPeriodWireV1": {
+        "additionalProperties": false,
+        "description": "UTC half-open reporting interval; not an inferred billing renewal.",
+        "properties": {
+          "end": {
+            "format": "date-time",
+            "title": "End",
+            "type": "string"
+          },
+          "start": {
+            "format": "date-time",
+            "title": "Start",
+            "type": "string"
+          }
+        },
+        "required": [
+          "start",
+          "end"
+        ],
+        "title": "BudgetPeriodWireV1",
+        "type": "object"
+      },
+      "BudgetReportSelectionWireV1": {
+        "additionalProperties": false,
+        "properties": {
+          "current": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/BudgetReportWireV1"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "latest_attempt": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/BudgetReportWireV1"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "current",
+          "latest_attempt"
+        ],
+        "title": "BudgetReportSelectionWireV1",
+        "type": "object"
+      },
+      "BudgetReportWireV1": {
+        "additionalProperties": false,
+        "description": "Immutable safe report facts; credential binding details are excluded.",
+        "properties": {
+          "account_id": {
+            "title": "Account Id",
+            "type": "string"
+          },
+          "collected_at": {
+            "format": "date-time",
+            "title": "Collected At",
+            "type": "string"
+          },
+          "completeness": {
+            "enum": [
+              "complete",
+              "partial",
+              "unknown"
+            ],
+            "title": "Completeness",
+            "type": "string"
+          },
+          "cost_basis": {
+            "title": "Cost Basis",
+            "type": "string"
+          },
+          "cost_buckets": {
+            "items": {
+              "$ref": "#/components/schemas/BudgetCostBucketWireV1"
+            },
+            "title": "Cost Buckets",
+            "type": "array"
+          },
+          "covered_period": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/BudgetPeriodWireV1"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "currency": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Currency"
+          },
+          "empty_means_zero": {
+            "title": "Empty Means Zero",
+            "type": "boolean"
+          },
+          "grouping": {
+            "items": {
+              "enum": [
+                "organization",
+                "project",
+                "workspace",
+                "api_key_id",
+                "model",
+                "token_category",
+                "line_item",
+                "api_source",
+                "user_id",
+                "cost_type"
+              ],
+              "type": "string"
+            },
+            "title": "Grouping",
+            "type": "array"
+          },
+          "omission_codes": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Omission Codes",
+            "type": "array"
+          },
+          "provider_key": {
+            "title": "Provider Key",
+            "type": "string"
+          },
+          "report_id": {
+            "title": "Report Id",
+            "type": "string"
+          },
+          "requested_period": {
+            "$ref": "#/components/schemas/BudgetPeriodWireV1"
+          },
+          "resource_id": {
+            "title": "Resource Id",
+            "type": "string"
+          },
+          "scope_evidence": {
+            "enum": [
+              "provider_verified",
+              "owner_asserted",
+              "unresolved"
+            ],
+            "title": "Scope Evidence",
+            "type": "string"
+          },
+          "scope_generation": {
+            "title": "Scope Generation",
+            "type": "integer"
+          },
+          "scope_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Scope Id"
+          },
+          "source_category": {
+            "title": "Source Category",
+            "type": "string"
+          },
+          "source_data_through": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Data Through"
+          },
+          "source_id": {
+            "title": "Source Id",
+            "type": "string"
+          },
+          "stored_at": {
+            "format": "date-time",
+            "title": "Stored At",
+            "type": "string"
+          },
+          "usage_buckets": {
+            "items": {
+              "$ref": "#/components/schemas/BudgetUsageBucketWireV1"
+            },
+            "title": "Usage Buckets",
+            "type": "array"
+          }
+        },
+        "required": [
+          "report_id",
+          "account_id",
+          "resource_id",
+          "provider_key",
+          "scope_generation",
+          "scope_id",
+          "scope_evidence",
+          "source_id",
+          "source_category",
+          "cost_basis",
+          "grouping",
+          "requested_period",
+          "covered_period",
+          "source_data_through",
+          "collected_at",
+          "stored_at",
+          "completeness",
+          "omission_codes",
+          "currency",
+          "empty_means_zero",
+          "cost_buckets",
+          "usage_buckets"
+        ],
+        "title": "BudgetReportWireV1",
+        "type": "object"
+      },
+      "BudgetReportedSpendWireV1": {
+        "additionalProperties": false,
+        "description": "Application-calculated total for one report; null is never zero.",
+        "properties": {
+          "reason_code": {
+            "title": "Reason Code",
+            "type": "string"
+          },
+          "report_id": {
+            "title": "Report Id",
+            "type": "string"
+          },
+          "total": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ExactMoneyWireV1"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "report_id",
+          "total",
+          "reason_code"
+        ],
+        "title": "BudgetReportedSpendWireV1",
+        "type": "object"
+      },
+      "BudgetResourceCurrentWireV1": {
+        "additionalProperties": false,
+        "properties": {
+          "collection_availability": {
+            "$ref": "#/components/schemas/AvailabilityV1"
+          },
+          "connection": {
+            "$ref": "#/components/schemas/BillingConnectionViewV1"
+          },
+          "latest_collection": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/BudgetCollectionStateWireV1"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "report_availability": {
+            "$ref": "#/components/schemas/AvailabilityV1"
+          },
+          "reported_spend": {
+            "items": {
+              "$ref": "#/components/schemas/BudgetReportedSpendWireV1"
+            },
+            "title": "Reported Spend",
+            "type": "array"
+          },
+          "reports": {
+            "items": {
+              "$ref": "#/components/schemas/BudgetReportSelectionWireV1"
+            },
+            "title": "Reports",
+            "type": "array"
+          }
+        },
+        "required": [
+          "connection",
+          "reports",
+          "report_availability",
+          "reported_spend",
+          "latest_collection",
+          "collection_availability"
+        ],
+        "title": "BudgetResourceCurrentWireV1",
+        "type": "object"
+      },
+      "BudgetRunStatusV1": {
+        "additionalProperties": false,
+        "description": "Durable billing run and optional committed report; no credential state.",
+        "properties": {
+          "account_id": {
+            "title": "Account Id",
+            "type": "string"
+          },
+          "completed_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Completed At"
+          },
+          "deadline_at": {
+            "format": "date-time",
+            "title": "Deadline At",
+            "type": "string"
+          },
+          "error_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error Code"
+          },
+          "outcome_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Outcome Code"
+          },
+          "report_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Report Id"
+          },
+          "requested_at": {
+            "format": "date-time",
+            "title": "Requested At",
+            "type": "string"
+          },
+          "resource_id": {
+            "title": "Resource Id",
+            "type": "string"
+          },
+          "run_id": {
+            "title": "Run Id",
+            "type": "string"
+          },
+          "started_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Started At"
+          },
+          "state": {
+            "enum": [
+              "requested",
+              "queued",
+              "running",
+              "committing",
+              "succeeded",
+              "partial",
+              "failed",
+              "blocked",
+              "cancelled",
+              "unsupported"
+            ],
+            "title": "State",
+            "type": "string"
+          }
+        },
+        "required": [
+          "run_id",
+          "state",
+          "outcome_code",
+          "error_code",
+          "requested_at",
+          "started_at",
+          "completed_at",
+          "deadline_at",
+          "account_id",
+          "resource_id",
+          "report_id"
+        ],
+        "title": "BudgetRunStatusV1",
+        "type": "object"
+      },
+      "BudgetUsageBucketWireV1": {
+        "additionalProperties": false,
+        "properties": {
+          "bucket_key": {
+            "title": "Bucket Key",
+            "type": "string"
+          },
+          "dimensions": {
+            "items": {
+              "$ref": "#/components/schemas/BudgetDimensionWireV1"
+            },
+            "title": "Dimensions",
+            "type": "array"
+          },
+          "period": {
+            "$ref": "#/components/schemas/BudgetPeriodWireV1"
+          },
+          "quantity": {
+            "$ref": "#/components/schemas/ExactQuantityWireV1"
+          }
+        },
+        "required": [
+          "bucket_key",
+          "period",
+          "quantity",
+          "dimensions"
+        ],
+        "title": "BudgetUsageBucketWireV1",
         "type": "object"
       },
       "CancelProviderConnectionInputV1": {
@@ -4438,6 +5225,35 @@
           "reason_code"
         ],
         "title": "ExactMetricFieldWireV1",
+        "type": "object"
+      },
+      "ExactMoneyWireV1": {
+        "additionalProperties": false,
+        "description": "Currency units equal coefficient \u00d7 10**(-scale); signed costs preserved.",
+        "properties": {
+          "coefficient": {
+            "pattern": "^-?(0|[1-9][0-9]{0,77})$",
+            "title": "Coefficient",
+            "type": "string"
+          },
+          "currency": {
+            "pattern": "^[A-Z]{3}$",
+            "title": "Currency",
+            "type": "string"
+          },
+          "scale": {
+            "maximum": 18.0,
+            "minimum": 0.0,
+            "title": "Scale",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "coefficient",
+          "scale",
+          "currency"
+        ],
+        "title": "ExactMoneyWireV1",
         "type": "object"
       },
       "ExactQuantityWireV1": {
@@ -8980,6 +9796,237 @@
         "x-agentmonitor-required-permission": "write:accounts"
       }
     },
+    "/api/v1/accounts/{account_id}/api-capacity": {
+      "get": {
+        "operationId": "capacity_get_account_api_budget_v1",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "account_id",
+            "required": true,
+            "schema": {
+              "title": "Account Id",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Inclusive UTC reporting start.",
+            "in": "query",
+            "name": "period_start",
+            "required": true,
+            "schema": {
+              "description": "Inclusive UTC reporting start.",
+              "format": "date-time",
+              "title": "Period Start",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Exclusive UTC reporting end.",
+            "in": "query",
+            "name": "period_end",
+            "required": true,
+            "schema": {
+              "description": "Exclusive UTC reporting end.",
+              "format": "date-time",
+              "title": "Period End",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Pinned UTC read instant; no provider collection.",
+            "in": "query",
+            "name": "as_of",
+            "required": true,
+            "schema": {
+              "description": "Pinned UTC read instant; no provider collection.",
+              "format": "date-time",
+              "title": "As Of",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccountBudgetCurrentWireV1"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          },
+          "405": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          },
+          "412": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          },
+          "413": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          },
+          "415": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          },
+          "428": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          },
+          "429": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          },
+          "500": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          },
+          "504": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          }
+        },
+        "security": [
+          {
+            "BrowserSessionCookieV1": []
+          },
+          {
+            "BearerTokenV1": []
+          }
+        ],
+        "summary": "Get Account Budget",
+        "tags": [
+          "budgets"
+        ],
+        "x-agentmonitor-application-port": "AccountBudgetCurrentPortV1",
+        "x-agentmonitor-auth-profile": "cookie_or_bearer",
+        "x-agentmonitor-error-schema": "SafeProblemV1",
+        "x-agentmonitor-replay-policy": "safe_query_repeat",
+        "x-agentmonitor-required-permission": "read:telemetry"
+      }
+    },
     "/api/v1/accounts/{account_id}/archival": {
       "delete": {
         "operationId": "registry_restore_account_v1",
@@ -9826,6 +10873,244 @@
         ],
         "x-agentmonitor-application-port": "BillingConnectionPortV1.create",
         "x-agentmonitor-auth-profile": "cookie_or_bearer",
+        "x-agentmonitor-error-schema": "SafeProblemV1",
+        "x-agentmonitor-replay-policy": "replay_safe_representation",
+        "x-agentmonitor-required-permission": "write:accounts"
+      }
+    },
+    "/api/v1/accounts/{account_id}/billing-connections/{resource_id}/checks": {
+      "post": {
+        "operationId": "billing_check_connection_v1",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "account_id",
+            "required": true,
+            "schema": {
+              "maxLength": 64,
+              "minLength": 1,
+              "pattern": "^[A-Za-z0-9_-]+$",
+              "title": "Account Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "resource_id",
+            "required": true,
+            "schema": {
+              "maxLength": 64,
+              "minLength": 1,
+              "pattern": "^[A-Za-z0-9_-]+$",
+              "title": "Resource Id",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Current account ETag.",
+            "in": "header",
+            "name": "If-Match",
+            "required": true,
+            "schema": {
+              "maxLength": 160,
+              "type": "string"
+            }
+          },
+          {
+            "description": "Stable key for retrying this billing check.",
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": true,
+            "schema": {
+              "pattern": "^[A-Za-z0-9_-]{16,128}$",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BillingCheckInputV1"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BillingCheckRunV1"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          },
+          "405": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          },
+          "412": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          },
+          "413": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          },
+          "415": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          },
+          "428": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          },
+          "429": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          },
+          "500": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          },
+          "504": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          }
+        },
+        "security": [
+          {
+            "BrowserCsrfHeaderV1": [],
+            "BrowserSessionCookieV1": []
+          }
+        ],
+        "summary": "Check Billing",
+        "tags": [
+          "billing"
+        ],
+        "x-agentmonitor-application-port": "BillingCheckPortV1.check",
+        "x-agentmonitor-auth-profile": "browser_cookie_only",
         "x-agentmonitor-error-schema": "SafeProblemV1",
         "x-agentmonitor-replay-policy": "replay_safe_representation",
         "x-agentmonitor-required-permission": "write:accounts"
@@ -18271,6 +19556,204 @@
         "x-agentmonitor-required-permission": "read:telemetry"
       }
     },
+    "/api/v1/collection-runs/{run_id}/budget": {
+      "get": {
+        "operationId": "billing_get_run_status_v1",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "run_id",
+            "required": true,
+            "schema": {
+              "maxLength": 256,
+              "minLength": 1,
+              "pattern": "^[A-Za-z0-9._:-]+$",
+              "title": "Run Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BudgetRunStatusV1"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          },
+          "405": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          },
+          "412": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          },
+          "413": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          },
+          "415": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          },
+          "428": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          },
+          "429": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          },
+          "500": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          },
+          "504": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          }
+        },
+        "security": [
+          {
+            "BrowserSessionCookieV1": []
+          },
+          {
+            "BearerTokenV1": []
+          }
+        ],
+        "summary": "Get Billing Run Status",
+        "tags": [
+          "billing"
+        ],
+        "x-agentmonitor-application-port": "BillingCheckPortV1.get_status",
+        "x-agentmonitor-auth-profile": "cookie_or_bearer",
+        "x-agentmonitor-error-schema": "SafeProblemV1",
+        "x-agentmonitor-replay-policy": "safe_query_repeat",
+        "x-agentmonitor-required-permission": "read:telemetry"
+      }
+    },
     "/api/v1/iam/initialization": {
       "get": {
         "operationId": "iam_get_initialization_v1",
@@ -25472,10 +26955,10 @@
       "starlette": "1.6.0"
     },
     "generator": "agentmonitor-openapi-client",
-    "generator_sha256": "25bfabef15c185ac617acb1ae0194bf327ad2827239eb0bc0d61ff4d02009136",
+    "generator_sha256": "18b94c1a39c5da5e6264e78a9194ee140e6707ba1728ede85dac5bf5c2a16223",
     "generator_version": "2.0.8",
     "openapi_version": "3.1.0",
-    "schema_sha256": "15d4a5fa3d1ad1c8f9c4b785a33f35824c28f90a0bd3231a351d707e047f6bad",
-    "source_sha256": "2525f3c0787fb020b05ab9606552612a9af5dcbc5bfc364787932ab237f17ba9"
+    "schema_sha256": "68121e9ccca51c5790255f73dd8d0f11e3a1b1d65f3899965ab8a5c05ddd7d09",
+    "source_sha256": "750735517f488160ee12fb1ac901facd5f65540e570c84b8c6d6fd5458a94604"
   }
 }

@@ -13,9 +13,16 @@ from agentmonitor.adapters.persistence._shared.sqlite.core.policy import (
     SqlitePolicyError,
     open_sqlite_database,
 )
+from agentmonitor.adapters.persistence.capacity.sqlite.budget_current_query import (
+    CURRENT_REPORT_METADATA_SQL,
+    bounded_current_report_ids,
+    validate_current_report_load,
+)
 from agentmonitor.contracts.capacity_v1 import (
     BudgetCollectionInputV1,
+    BudgetCurrentQueryV1,
     BudgetReportHistoryQueryV1,
+    BudgetReportSelectionV1,
     BudgetReportViewV1,
 )
 from agentmonitor.contracts.collection_control_v1 import (
@@ -25,6 +32,7 @@ from agentmonitor.contracts.collection_control_v1 import (
 from agentmonitor.contracts.common_v1 import (
     OpaqueIdV1,
     QueryAvailabilityV1,
+    QueryCollectionV1,
     QueryPageV1,
 )
 from agentmonitor.modules.capacity.application.budget_commit import (
@@ -36,6 +44,7 @@ from agentmonitor.modules.capacity.domain.budget_codec import (
     encode_budget_provenance,
     utc_text,
 )
+from agentmonitor.modules.capacity.domain.budget_reports import select_current_report
 from sqlalchemy.engine import Connection, RowMapping
 from sqlalchemy.exc import SQLAlchemyError
 
@@ -263,6 +272,123 @@ class SqliteBudgetReportRepositoryV1:
                     return _view(row) if row is not None else None
         except (SqlitePolicyError, SQLAlchemyError):
             raise BudgetRepositoryError() from None
+
+    def get_current_reports(
+        self,
+        query: BudgetCurrentQueryV1,
+    ) -> QueryCollectionV1[BudgetReportSelectionV1]:
+        """Rank all matching revisions, then load only bounded complete/attempt pairs.
+
+        Overflow returns unavailable with no subtotal. Both collection and
+        durable storage must precede the query instant; a read transaction pins
+        all metadata and body loads to one SQLite snapshot.
+        """
+        instant = utc_text(query.as_of)
+        selectors = (
+            query.account_id.value,
+            query.resource_id.value,
+            utc_text(query.period.start),
+            utc_text(query.period.end),
+            query.scope_generation,
+            instant,
+            instant,
+        )
+
+        def unavailable(reason: str) -> QueryCollectionV1[BudgetReportSelectionV1]:
+            return QueryCollectionV1(
+                (), QueryAvailabilityV1("unavailable", reason, query.as_of)
+            )
+
+        try:
+            with open_sqlite_database(
+                self._database_ref, "runtime_read_only"
+            ) as handle:
+                with handle.connect() as connection:
+                    connection.exec_driver_sql("BEGIN")
+                    contexts = (
+                        connection.exec_driver_sql(
+                            CURRENT_REPORT_METADATA_SQL, (*selectors, query.limit + 1)
+                        )
+                        .mappings()
+                        .all()
+                    )
+                    if not contexts:
+                        return unavailable("budget_current_reports_absent")
+                    if len(contexts) > query.limit:
+                        return unavailable("budget_current_context_limit")
+                    references: list[tuple[OpaqueIdV1, int]] = []
+                    for context in contexts:
+                        references.append(
+                            (
+                                OpaqueIdV1(str(context["latest_id"])),
+                                int(context["latest_bytes"]),
+                            )
+                        )
+                        if context["current_id"] is not None:
+                            references.append(
+                                (
+                                    OpaqueIdV1(str(context["current_id"])),
+                                    int(context["current_bytes"]),
+                                )
+                            )
+                    ids = bounded_current_report_ids(tuple(references))
+                    if ids is None:
+                        return unavailable("budget_current_byte_limit")
+                    selected_sizes = dict(references)
+                    reports: dict[OpaqueIdV1, BudgetReportViewV1] = {}
+                    for identity in ids:
+                        row = (
+                            connection.exec_driver_sql(
+                                "SELECT * FROM capacity_budget_report "
+                                "WHERE account_id=? AND resource_id=? AND report_id=?",
+                                (
+                                    query.account_id.value,
+                                    query.resource_id.value,
+                                    identity.value,
+                                ),
+                            )
+                            .mappings()
+                            .one()
+                        )
+                        view = _view(row)
+                        validate_current_report_load(
+                            query,
+                            view,
+                            selected_id=identity,
+                            selected_bytes=selected_sizes[identity],
+                            canonical_text=str(row["canonical_report_json"]),
+                            collected_at=str(row["collected_at"]),
+                        )
+                        reports[identity] = view
+                    selections: list[BudgetReportSelectionV1] = []
+                    for context in contexts:
+                        latest_id = OpaqueIdV1(str(context["latest_id"]))
+                        selected = [reports[latest_id]]
+                        if context["current_id"] is not None:
+                            current_id = OpaqueIdV1(str(context["current_id"]))
+                            if current_id != latest_id:
+                                selected.append(reports[current_id])
+                        selection = select_current_report(tuple(selected))
+                        if (
+                            selection.latest_attempt is None
+                            or selection.latest_attempt.report_id != latest_id
+                            or (
+                                selection.current.report_id.value
+                                if selection.current
+                                else None
+                            )
+                            != context["current_id"]
+                        ):
+                            raise BudgetRepositoryError("budget_report_storage_invalid")
+                        selections.append(selection)
+                    return QueryCollectionV1(
+                        tuple(selections),
+                        QueryAvailabilityV1(
+                            "available", "budget_current_reports_read", query.as_of
+                        ),
+                    )
+        except (SqlitePolicyError, SQLAlchemyError, ValueError, TypeError):
+            return unavailable("budget_current_query_unavailable")
 
     def list_reports(
         self, query: BudgetReportHistoryQueryV1

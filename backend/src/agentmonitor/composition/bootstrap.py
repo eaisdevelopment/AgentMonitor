@@ -26,8 +26,6 @@ from functools import partial
 from pathlib import Path
 
 import uvicorn
-from fastapi import FastAPI
-
 from agentmonitor.adapters.identity_access.argon2_password import Argon2PasswordV1
 from agentmonitor.adapters.persistence._shared.sqlite.core.policy import (
     DatabaseRefV1,
@@ -49,6 +47,9 @@ from agentmonitor.adapters.persistence.alerting.sqlite.actions import (
 )
 from agentmonitor.adapters.persistence.alerting.sqlite.repository import (
     SqliteAlertingRepositoryV1,
+)
+from agentmonitor.adapters.persistence.capacity.sqlite.budget_repository import (
+    SqliteBudgetReportRepositoryV1,
 )
 from agentmonitor.adapters.persistence.capacity.sqlite.repository import (
     SqliteCapacityRepositoryV1,
@@ -99,7 +100,9 @@ from agentmonitor.api.v1.dependencies import (
     ObservationApiPortsV1,
 )
 from agentmonitor.composition.alert_delivery import CapacityAlertDeliveryV1
+from agentmonitor.composition.billing_actions import BillingCheckActionsV1
 from agentmonitor.composition.billing_local_setup import InstalledBillingLocalSetupV1
+from agentmonitor.composition.billing_worker_supervisor import BillingWorkerSupervisorV1
 from agentmonitor.composition.claude_dashboard_collection import (
     ClaudeDashboardCollectorV1,
 )
@@ -172,6 +175,9 @@ from agentmonitor.modules.alerting.application.rules import (
     ListAlertRulesV1,
     UpdateAlertRuleV1,
 )
+from agentmonitor.modules.capacity.application.budget_queries import (
+    GetAccountBudgetCurrentV1,
+)
 from agentmonitor.modules.capacity.application.ports import ClassifyCapacityProjectionV1
 from agentmonitor.modules.capacity.application.queries import (
     GetAccountCapacityV1,
@@ -242,6 +248,7 @@ from agentmonitor.modules.runtime_observation.application.queries import (
     ListAgentSessionsV1,
     ListLiveProcessLocationsV1,
 )
+from fastapi import FastAPI
 
 
 class LoopbackServerError(ValueError):
@@ -507,6 +514,7 @@ def _observation_ports(
     codex_connections: CodexDashboardConnectionV1,
     data_root: Path,
     ollama_cloud_worker: OllamaCloudWorkerSupervisorV1,
+    billing_worker: BillingWorkerSupervisorV1,
 ) -> ObservationApiPortsV1:
     def current_ollama_env_location() -> bool:
         selected = ollama_cloud_worker.credential_env_file()
@@ -583,6 +591,16 @@ def _observation_ports(
         organization_coverage_read=coverage,
         organization_coverage_write=coverage,
         billing_connections=SqliteBillingConnectionRepositoryV1(reference),
+        billing_checks=BillingCheckActionsV1(
+            reference,
+            on_queued=billing_worker.wake,
+            can_dispatch=billing_worker.is_monitoring_available,
+        ),
+        get_account_budget_current=GetAccountBudgetCurrentV1(
+            SqliteBillingConnectionRepositoryV1(reference),
+            SqliteBudgetReportRepositoryV1(reference),
+            collection,
+        ),
         billing_local_setup=InstalledBillingLocalSetupV1(
             data_root, socket.gethostname()
         ),
@@ -624,6 +642,9 @@ def create_iam_application(
     ollama_cloud_worker = OllamaCloudWorkerSupervisorV1(
         data_root, credential_env_file=credential_env_file
     )
+    billing_worker = BillingWorkerSupervisorV1(
+        data_root, credential_env_file=credential_env_file
+    )
     claude_connections = ClaudeDashboardConnectionV1(reference, data_root)
     codex_connections = CodexDashboardConnectionV1(reference, data_root)
     alert_delivery = CapacityAlertDeliveryV1(reference)
@@ -635,6 +656,7 @@ def create_iam_application(
             codex_collector.run,
             ollama_runtime_collector.run,
             ollama_cloud_worker.run,
+            billing_worker.run,
             claude_connections.run,
             codex_connections.run,
             alert_delivery.run,
@@ -667,6 +689,7 @@ def create_iam_application(
             codex_connections,
             data_root,
             ollama_cloud_worker,
+            billing_worker,
         ),
         service_lock_path=data_root / ".agentmonitor-service.lock",
     )

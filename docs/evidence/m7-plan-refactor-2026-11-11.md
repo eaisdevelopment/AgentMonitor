@@ -302,3 +302,213 @@ acceptance items; AUTO-PLAN-CHECK passed synchronized; AUTO-DOCS-CHECK passed
 346 Markdown files; git diff --check passed. These are planning checks, not a
 claim that M7 is delivered. The updated documents remain local and uncommitted
 at this checkpoint.
+
+
+## Current delivery refactor against ad7a04e
+
+The latest owner request is planning refinement: proper UI, budget calculations,
+concrete detail and a simple working-first sequence. Implementation agents stopped
+and preserved their existing uncommitted supervisor/current-query work. This
+review changes planning documents and the existing ticket ledger only.
+
+The delivery worksheet is consolidated around the actual checkpoint instead of
+accumulating historical blockers. Locally committed `ad7a04e` contains financial
+storage and billing authority/recovery; installed setup remains `7e252b8` on
+`v1_0731`. Billing CLI integration, genuine monetary persistence and financial
+HTTP/UI remain unfinished. Uncommitted query/supervisor code is not promoted to
+delivered by this review.
+
+Two independent read-only reviews checked actual P01/P02 routing/history and
+M04/operations integration. Root inspected the relevant code and owning financial
+plan. The resulting corrections are assigned inside the existing tickets:
+
+| Finding | Smallest planned correction |
+|---|---|
+| No defined durable billing action-to-worker handoff | T007 reuses M04 request/run/lease storage and public claim/reclaim ports, capturing the exact source/range/generations; complete the fixed CLI |
+| Request, adapter and supervisor deadlines could restart independently | T007 propagates remaining admitted time, reserves commit time and schedules Retry-After outside the current run |
+| Ollama source candidate cannot use the Anthropic/OpenAI commit fence yet | T009/T007 connect the existing cloud-graph fence and shared balance/usage rate policy; no duplicate account/pool |
+| Old report can hide latest failed call with no report | T010 composes M04 collection state separately from M05 selected monetary evidence |
+| Revision history is not daily spend history | T010/T011 project pinned-report financial buckets; T013 charts the same facts; overlapping revisions are never summed |
+| Shell strips query state and expiry loses safe return state | T011/T012 include DashboardApp.tsx and sessionBootstrap.ts, preserving allowlisted nonsecret selection only |
+| Setup plan named a binding selector, but command uses account/resource | UI wording now matches the installed command resolver; owner types no IDs |
+| Seven-day-only Anthropic candidate could be presented under thirty-day UI | T006 explicitly includes thirty-day admission; T010 keeps requested/actual coverage truthful |
+| Open-ended provider category work could expand late | Existing discovery inventory fixes the category set; new future endpoints are later scope; supported-but-unimplemented remains unfinished |
+| Registered checks could be mistaken for executable financial coverage | T003 wires each existing named check with the corresponding real boundary; schema-only evidence stays distinct |
+
+The UI review follow-up confirmed its three findings addressed and found one
+remaining midnight wording conflict in T010; corrected to preserve the pinned
+cutoff until explicit range/filter refresh. The execution reviewer confirmed all five critical findings addressed; stale
+T003 setup-activation and T007 migration wording was also corrected to their
+implemented-local state. Existing formulas, safety rules,
+16 tickets, five stories, ten acceptance items and approvals remain unchanged.
+No new architecture, dependencies, migrations, contract versions, licensing or
+secret custody are introduced by this planning change. No provider calls,
+owner configuration, publication or service transition were performed.
+
+Validation is recorded after the final corrections below. No new tests were
+added for documentation-only changes. Existing production/test edits were
+preserved separately and are not certified by planning checks.
+
+
+Planning validation for this refactor:
+
+- `AUTO-M7-PLAN-CHECK`: Passed; 16 tickets, five stories, ten acceptance items.
+- `AUTO-PLAN-CHECK`: Passed; synchronized baseline, no snapshot repair needed.
+- `AUTO-DOCS-CHECK`: Passed; 357 Markdown files.
+- `git diff --check`: Passed.
+
+Changed files: focused execution plan, delivery worksheet, UI journeys,
+calculation rules, M05 increment, ticket catalog and this evidence. They map to
+FR-BUDGET-001..006, FR-ORG-003, FR-ACC-001..004/006 and M7-A01..A10. Published
+contract versions are unchanged. The planning refactor is saved locally; no
+commit, push or installation is claimed. The next implementation result remains
+a genuine stored report followed by its installed Overview/detail/history.
+M7 itself remains unfinished.
+
+
+## Planning reconciliation of the current uncommitted integration
+
+The owner requested deep planning with proper UI, budget calculations and a
+simple working-first delivery. Root reviewed the actual current source and
+commissioned one bounded read-only P01/P02 handoff review under the runbook.
+Existing implementation work is preserved; this planning pass makes no further
+production, service, account, credential or publication changes.
+
+The worksheet now reflects the actual uncommitted CLI/run factory/dispatch and
+current-query increments. Their scoped pure and empty-boundary evidence is
+linked without promoting it to genuine provider, populated SQL or browser
+proof. T010 is In progress based on the retained real missing-route HTTP Red;
+no implementation ticket is newly closed. Stale setup-not-installed wording is
+corrected to the recorded installed `7e252b8`/`v1_0731` checkpoint.
+
+| Observed gap | Existing ticket and bounded decision |
+|---|---|
+| Run factory uses a 64-hex audit fingerprint while worker claim still passes the 32-hex M03 catalog ID | T007 root must use the same admitted helper for service-target reconciliation, admission and claim; no weakening old quota contracts |
+| Current-report repository output lacks the spend and latest collection result needed by the UI | T010 publishes one application result composed through public ports; M05 computes money, P01 maps, P02 renders |
+| Several current report contexts can violate the aggregation policy's one-input-per-resource contract | T004/T010 select admitted ungrouped cost contexts per compatible group before aggregation; no total-plus-breakdown double counting |
+| Planned budget routes and daily history lack a concrete selection identity | T005/T010/T011 use the existing canonical billing resource and pin history to the selected immutable report; no new storage entity |
+| Provider category inventory could remain open-ended | Worksheet names the finite categories from recorded discovery; later provider additions are future scope |
+
+The independent reviewer identified the application result, aggregation
+cardinality and history-identity gaps. Their minimum fixes are now included in
+the worksheet, owning M05/UI plan and ticket steps. No new gate, approval,
+dependency, schema, financial feature or contract version is declared by this
+review. Runtime-only secret custody, license and migration policy are unchanged.
+Existing requirements FR-BUDGET-001..006, FR-ORG-003 and M7-A01..A10 still govern.
+
+The first delivery remains one genuine report on installed Overview/detail,
+followed by all required providers, supported analysis and the fixed exit.
+No calendar completion claim is derived from test counts. The previous 7–12
+focused-day figure remains an initial estimate, not a restarted countdown.
+Validation results for this planning reconciliation follow below.
+
+Independent bounded recheck confirmed all three consumer-contract findings
+addressed consistently, with no remaining contradiction within that scope.
+That is a planning review result, not a product pass.
+
+Validation executed on this worktree:
+
+- `AUTO-M7-PLAN-CHECK`: Passed; 16 tickets, five stories, ten acceptance items.
+- `AUTO-PLAN-CHECK`: Passed; synchronized baseline.
+- `AUTO-DOCS-CHECK`: Passed; 361 Markdown files.
+- `git diff --check`: Passed.
+
+This reconciliation edits the execution plan, delivery worksheet, UI journeys,
+M05 increment, ticket catalog and this evidence. The earlier calculation-rule
+refactor remains preserved. No new tests were added for these documentation
+changes; existing canonical checks validate them. No commit, push, deployment,
+new live financial verification or M7 completion is claimed.
+
+## User-journey and delivery review after the first account panel
+
+This planning-only pass responds to the owner's request for detailed UI and
+budget planning without another expanding M5 cycle. It preserves the approved
+1.1.0 scope, 16 tickets, five stories and M7-A01..A10. Current catalog state is
+one planning ticket done, eleven in progress and four planned. No implementation
+ticket is closed by this review. Existing uncommitted production work is preserved.
+
+Root inspected the current account panel, query/action contracts, collection
+routes and runner, and read the governing requirements, SDLC and runbook.
+Bounded read-only P02 and boundary reviews supplied specific findings:
+
+| Finding | Decision and existing owner |
+|---|---|
+| A newly completed Check can be excluded by the page's old `as_of` | T007/T010/T011: read live action status separately, then advance read time while keeping the selected reporting interval and replacing report/table together |
+| History wording would discard an already useful bounded table | T010/T011: permit current-GET buckets for the initial visible increment; dedicated authorized history/cursors remain ticket closure requirements |
+| Resource/currency alone cannot identify several cost bases/categories | T010/T012: label context subrows and carry context into detail; aggregate compatible ungrouped totals only |
+| First Check transport exists but UI and monitoring mutation are unfinished | T007/T011: publish eligibility and actual run status, wire controls, retain Stored on runtime failure; never label 202 as Connected |
+| Periodic 7/30-day behavior and coalesced wake handling need explicit implementation | T007: bounded staggered reports, durable fair dispatch, no missed-tick catch-up engine, browser-closed scheduled proof |
+| Summary responses could multiply whole report bodies across accounts | T010: compact calculated values/selectors; separate bounded detail/history, measured using genuine available data |
+| Boundary command reports 76 violations | Read-only review classifies 73 stale/missing declarations and three real private imports. T003/T007 repair exact declarations and owning application/composition surfaces; checkout remains red until rerun |
+
+The three private imports are in `composition/billing_collection.py` (M02 access
+policy), `composition/billing_run.py` (M05 codec) and
+`composition/billing_worker.py` (Ollama worker start authority). Root confirmed
+these source references. No production refactor or checker relaxation occurred
+in this planning pass. The worksheet now distinguishes these remaining tasks
+from the fingerprint/application query/action transport already corrected locally.
+
+The planned run-status GET extends the existing T007 action workflow through
+M04; its exact DTO/policy publication precedes implementation. It does not add
+a queue or a new acceptance gate. This pass changes no published contract,
+schema, dependency, license, credential custody or owner account configuration.
+
+The next batch is fixed: integrate the current candidate and Check/status;
+produce a genuine report with normal monitoring; show that same report on
+Overview/detail and install it. Other providers, chart/breakdowns/conditional
+forecast and release remain the existing later slices. No new approval request,
+account list or repeated attestation is required by this planning work.
+
+Changed planning files: execution plan, delivery worksheet, UI journeys,
+calculation rules, M05 increment, ticket catalog and this evidence. Traceability
+remains FR-BUDGET-001..006, FR-ORG-003, FR-ACC-001..004/006 and M7-A01..A10.
+No new tests were added for documentation-only edits. Canonical plan/doc checks
+are run against the saved files; their final results are recorded below.
+
+The bounded integration recheck found no scope conflict and identified two
+contract details now made explicit: durable range intent must distinguish
+seven/thirty days and preserve the selected cutoff; a zero-fact successful run
+needs its real `report_id` in the budget status DTO. The planned route is
+`GET /collection-runs/{run_id}/budget`, leaving the generic list unchanged.
+Root also checked that today's admission reconstructs only seven days from
+`requested_at`; older pinned selections need an additive request context, not
+a falsified timestamp. Fair dispatch means no starvation across successive
+claims with the existing worker, not a new parallel scheduler.
+
+Final planning verification (all exit 0):
+
+- `python3 tools/automation/run.py AUTO-M7-PLAN-CHECK`: Passed, 16 tickets,
+  five stories, ten acceptance items.
+- `python3 tools/automation/run.py AUTO-PLAN-CHECK`: Passed, synchronized.
+- `python3 tools/automation/run.py AUTO-DOCS-CHECK`: Passed, 365 Markdown files.
+- `git diff --check`: Passed.
+
+These results validate the planning artifacts only. Product import-boundary
+corrections, genuine financial source/API/DOM evidence and installed financial
+delivery remain unfinished. This planning pass made no commit, push or service
+transition and did not configure owner accounts. The prior 7–12 focused-day
+estimate is not reset or represented as measured remaining work.
+
+
+## Reconciliation after the local Check/status integration
+
+The current worksheet and execution plan now distinguish locally implemented
+Check/status and passing boundary/build checks from the still-unverified genuine
+financial journey. Stale statements that the status route is only planned or
+that the current import boundary is red no longer describe the current candidate.
+Historical failures above remain unchanged as evidence.
+
+The plan remains 16 tickets, five stories and ten acceptance items. Its first
+visible result remains a real monetary report on installed Overview/detail,
+with normal monitoring; remaining provider coverage, history/breakdowns/chart,
+conditional forecast, installation and release are still explicit existing work.
+No new ticket, approval, feature, dependency or scope reduction was introduced.
+No owner configuration or production implementation was performed by this
+reconciliation. Existing uncommitted implementation was preserved and its local
+quality command was rerun with captured output; see the integration evidence.
+
+Validation: AUTO-M7-PLAN-CHECK passed all 16 tickets / five stories / ten
+acceptance items; AUTO-PLAN-CHECK passed synchronized; AUTO-DOCS-CHECK passed
+367 Markdown files; git diff --check passed. These are planning/static results,
+not an M7 completion or deployed-financial-UI claim. The revised documents are
+local; this reconciliation did not commit, push or deploy them.

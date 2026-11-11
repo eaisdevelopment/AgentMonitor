@@ -5,7 +5,6 @@ from datetime import UTC, datetime, timedelta
 from decimal import Decimal, localcontext
 
 import pytest
-
 from agentmonitor.adapters.providers.claude.anthropic_api.policy import (
     AnthropicCostRequestV1,
     bounded_deadline,

@@ -13,7 +13,9 @@ from agentmonitor.modules.registry.domain.credential_binding import (
 )
 
 
-def test_rotation_reports_pending_and_cleanup_without_losing_active_generation():
+def test_rotation_reports_pending_and_cleanup_without_losing_active_generation() -> (
+    None
+):
     """No state implies provider access; old cleanup remains independently visible."""
     first = OpaqueIdV1("amcb_" + "a" * 32)
     second = OpaqueIdV1("amcb_" + "b" * 32)

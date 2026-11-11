@@ -1,12 +1,12 @@
 """Pure request, money and resource-admission policy; no provider payloads."""
 
-import importlib
 from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal, localcontext
 from urllib.parse import parse_qs, urlsplit
 
 import pytest
+from agentmonitor.adapters.providers.codex.openai_api import policy as policy_module
 from agentmonitor.contracts.capacity_v1 import BudgetPeriodV1, CapacitySubjectV2
 from agentmonitor.contracts.common_v1 import OpaqueIdV1
 from agentmonitor.contracts.registry_v1 import (
@@ -15,16 +15,9 @@ from agentmonitor.contracts.registry_v1 import (
 )
 
 
-def policy():
-    return importlib.import_module(
-        "agentmonitor.adapters.providers.codex.openai_api.policy"
-    )
-
-
-def request(days=7):
-    p = policy()
+def request(days: int = 7) -> policy_module.OpenAICostRequestV1:
     instant = datetime(2026, 11, 11, 16, 38, tzinfo=UTC)
-    return p.OpenAICostRequestV1(
+    return policy_module.OpenAICostRequestV1(
         subject=CapacitySubjectV2(
             "codex",
             ProviderTargetRefV1("cloud_service", OpaqueIdV1("amat_" + "a" * 32)),
@@ -37,35 +30,35 @@ def request(days=7):
         scope_id=None,
         scope_evidence="unresolved",
         scope_generation=1,
-        period=p.completed_period(instant, days),
+        period=policy_module.completed_period(instant, days),
         requested_at=instant,
     )
 
 
 @pytest.mark.parametrize("days", [7, 30])
-def test_completed_utc_period_excludes_today_across_month_boundary(days):
+def test_completed_utc_period_excludes_today_across_month_boundary(days: int) -> None:
     instant = datetime(2026, 11, 2, 23, 45, tzinfo=UTC)
     end = datetime(2026, 11, 2, tzinfo=UTC)
-    assert policy().completed_period(instant, days) == BudgetPeriodV1(
+    assert policy_module.completed_period(instant, days) == BudgetPeriodV1(
         end - timedelta(days=days), end
     )
 
 
 @pytest.mark.parametrize("days", [True, 0, 1, 31, 365])
-def test_unadmitted_range_refused(days):
+def test_unadmitted_range_refused(days: int) -> None:
     with pytest.raises(ValueError):
-        policy().completed_period(datetime(2026, 11, 11, tzinfo=UTC), days)
+        policy_module.completed_period(datetime(2026, 11, 11, tzinfo=UTC), days)
 
 
-def test_naive_time_refused():
+def test_naive_time_refused() -> None:
     with pytest.raises(ValueError):
-        policy().completed_period(datetime(2026, 11, 11), 7)
+        policy_module.completed_period(datetime(2026, 11, 11), 7)
 
 
 @pytest.mark.parametrize(
     "change", ["provider", "binding", "scope", "generation", "range", "current_day"]
 )
-def test_wrong_authority_or_period_refused(change):
+def test_wrong_authority_or_period_refused(change: str) -> None:
     value = request()
     with pytest.raises(ValueError):
         if change == "provider":
@@ -91,9 +84,9 @@ def test_wrong_authority_or_period_refused(change):
             )
 
 
-def test_fixed_get_query_contains_only_admitted_fields_and_encoded_cursor():
+def test_fixed_get_query_contains_only_admitted_fields_and_encoded_cursor() -> None:
     value = request(30)
-    path = policy().request_path(value, "opaque/+?=&cursor")
+    path = policy_module.request_path(value, "opaque/+?=&cursor")
     parsed = urlsplit(path)
     assert parsed.path == "/v1/organization/costs"
     assert not parsed.scheme and not parsed.netloc
@@ -107,9 +100,9 @@ def test_fixed_get_query_contains_only_admitted_fields_and_encoded_cursor():
 
 
 @pytest.mark.parametrize("cursor", ["", "x\r\ny", "x" * 1025])
-def test_cursor_is_a_bounded_query_value(cursor):
+def test_cursor_is_a_bounded_query_value(cursor: str) -> None:
     with pytest.raises(ValueError):
-        policy().request_path(request(), cursor)
+        policy_module.request_path(request(), cursor)
 
 
 @pytest.mark.parametrize(
@@ -123,11 +116,11 @@ def test_cursor_is_a_bounded_query_value(cursor):
         "123456789012345678901234567890.123456",
     ],
 )
-def test_numeric_lexeme_is_exact_without_scaling_or_float(value):
+def test_numeric_lexeme_is_exact_without_scaling_or_float(value: str) -> None:
     with localcontext() as context:
         context.prec = 6
-        number = policy().decimal_number(value)
-        money = policy().money_from_number(number, "gbp")
+        number = policy_module.decimal_number(value)
+        money = policy_module.money_from_number(number, "gbp")
         assert money.amount.as_decimal() == Decimal(value)
         assert money.currency == "GBP"
 
@@ -135,9 +128,9 @@ def test_numeric_lexeme_is_exact_without_scaling_or_float(value):
 @pytest.mark.parametrize(
     "value", ["NaN", "Infinity", " 1.0", "+1", "01", "1e999999", "9" * 129]
 )
-def test_unadmitted_numeric_lexeme_refused(value):
+def test_unadmitted_numeric_lexeme_refused(value: str) -> None:
     with pytest.raises(ValueError):
-        policy().decimal_number(value)
+        policy_module.decimal_number(value)
 
 
 @pytest.mark.parametrize(
@@ -153,26 +146,27 @@ def test_unadmitted_numeric_lexeme_refused(value):
         (1, "unknown"),
     ],
 )
-def test_missing_precision_or_currency_is_not_invented(number, currency):
+def test_missing_precision_or_currency_is_not_invented(
+    number: object, currency: object
+) -> None:
     with pytest.raises(ValueError):
-        policy().money_from_number(number, currency)
+        policy_module.money_from_number(number, currency)
 
 
 @pytest.mark.parametrize("supplied", [float("nan"), float("inf"), float("-inf")])
-def test_nonfinite_deadline_refused_before_clamp(supplied):
+def test_nonfinite_deadline_refused_before_clamp(supplied: float) -> None:
     with pytest.raises(TimeoutError):
-        policy().bounded_deadline(1000.0, supplied, 120)
+        policy_module.bounded_deadline(1000.0, supplied, 120)
 
 
-def test_earlier_deadline_wins_and_later_deadline_is_capped():
-    p = policy()
-    assert p.bounded_deadline(1000.0, 1003.0, 120) == 1003.0
-    assert p.bounded_deadline(1000.0, 9999.0, 120) == 1120.0
+def test_earlier_deadline_wins_and_later_deadline_is_capped() -> None:
+    assert policy_module.bounded_deadline(1000.0, 1003.0, 120) == 1003.0
+    assert policy_module.bounded_deadline(1000.0, 9999.0, 120) == 1120.0
     with pytest.raises(TimeoutError):
-        p.bounded_deadline(1000.0, 1000.0, 10)
+        policy_module.bounded_deadline(1000.0, 1000.0, 10)
 
 
-def test_absent_runtime_grant_refuses_without_provider_dispatch():
+def test_absent_runtime_grant_refuses_without_provider_dispatch() -> None:
     from agentmonitor.adapters.providers.codex.openai_api.source import (
         collect_cost_report_in_worker_v1,
     )

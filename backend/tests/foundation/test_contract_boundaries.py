@@ -1228,3 +1228,16 @@ def test_checker_cli_runs_real_checkout_and_fails_closed(tmp_path: Path) -> None
         assert result.returncode == expected, result.stdout
         assert result.stderr == ""
         assert str(root) not in result.stdout
+
+
+def test_provider_retry_after_date_parser_keeps_domain_io_boundary() -> None:
+    policy = checker()
+    adapter = "agentmonitor.adapters.providers.claude.anthropic_api.source"
+    assert policy._allowed(adapter, "email.utils")
+    assert not policy._allowed(
+        "agentmonitor.modules.capacity.domain.budget_money", "email.utils"
+    )
+    assert not policy._allowed(adapter, "agentmonitor.utils")
+    assert not policy._allowed(
+        adapter, "agentmonitor.modules.registry.domain.billing_connection"
+    )

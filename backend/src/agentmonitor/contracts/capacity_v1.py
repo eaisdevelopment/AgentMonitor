@@ -20,6 +20,7 @@ from agentmonitor.contracts.common_quantity_v1 import (
 from agentmonitor.contracts.common_v1 import (
     FieldAvailabilityV1,
     OpaqueIdV1,
+    QueryCollectionV1,
     QueryPageV1,
     TechnicalValueV1,
 )
@@ -1049,6 +1050,54 @@ class BudgetReportHistoryQueryV1(TechnicalValueV1):
             )
         ):
             raise InvalidCapacityContractV1("budget_history_query_invalid")
+
+
+@dataclass(frozen=True, slots=True)
+class BudgetCurrentQueryV1(TechnicalValueV1):
+    """One account/resource/scope epoch at a fixed coverage and query instant."""
+
+    CONTRACT_ID: ClassVar[str] = "CTR-CAP-006"
+    CONTRACT_VERSION: ClassVar[str] = "2.1.0"
+    OWNER: ClassVar[str] = "PLAN-M05"
+    account_id: OpaqueIdV1
+    resource_id: OpaqueIdV1
+    scope_generation: int
+    period: BudgetPeriodV1
+    as_of: datetime
+    limit: int = 200
+
+    def __post_init__(self) -> None:
+        TechnicalValueV1.__post_init__(self)
+        if (
+            not isinstance(self.account_id, OpaqueIdV1)
+            or not isinstance(self.resource_id, OpaqueIdV1)
+            or not isinstance(self.period, BudgetPeriodV1)
+            or not isinstance(self.as_of, datetime)
+            or type(self.scope_generation) is not int
+            or self.scope_generation < 1
+            or type(self.limit) is not int
+            or not 1 <= self.limit <= 200
+        ):
+            raise InvalidCapacityContractV1("budget_current_query_invalid")
+
+
+@dataclass(frozen=True, slots=True)
+class BudgetReportSelectionV1(TechnicalValueV1):
+    """Newest whole complete report and latest report for the same context."""
+
+    CONTRACT_ID: ClassVar[str] = "CTR-CAP-006"
+    CONTRACT_VERSION: ClassVar[str] = "2.1.0"
+    OWNER: ClassVar[str] = "PLAN-M05"
+    current: BudgetReportViewV1 | None
+    latest_attempt: BudgetReportViewV1 | None
+
+
+class BudgetCurrentReportsPortV1(Protocol):
+    """No provider fetch; bounded compatible contexts and explicit query coverage."""
+
+    def get_current_reports(
+        self, query: BudgetCurrentQueryV1
+    ) -> QueryCollectionV1[BudgetReportSelectionV1]: ...
 
 
 class BudgetReportRepositoryV1(Protocol):

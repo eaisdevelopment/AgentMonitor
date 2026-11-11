@@ -7,7 +7,6 @@ from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 
 import pytest
-
 from agentmonitor.contracts import capacity_v1 as contracts
 from agentmonitor.contracts.common_quantity_v1 import CanonicalDecimalV1, ExactMoneyV1
 from agentmonitor.contracts.common_v1 import OpaqueIdV1

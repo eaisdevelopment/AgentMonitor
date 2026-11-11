@@ -4,6 +4,7 @@ import http.client
 import os
 from contextlib import ExitStack
 from pathlib import Path
+from typing import Literal
 
 import pytest
 from agentmonitor.adapters.persistence.registry.sqlite.credential_bindings import (
@@ -43,7 +44,7 @@ from backend.tests.registry.test_billing_env_authorization import _empty_pending
     ],
 )
 def test_provider_grant_refuses_actual_custody_failure_without_header(
-    tmp_path: Path, provider: str, boundary: str
+    tmp_path: Path, provider: Literal["codex", "ollama"], boundary: str
 ) -> None:
     reference, account_id, binding_id, selected = _empty_pending_store(
         tmp_path, provider

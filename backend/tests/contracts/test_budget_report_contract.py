@@ -7,7 +7,6 @@ from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 
 import pytest
-
 from agentmonitor.contracts import capacity_v1 as contracts
 from agentmonitor.contracts.common_quantity_v1 import CanonicalDecimalV1, ExactMoneyV1
 from agentmonitor.contracts.common_v1 import FieldAvailabilityV1, OpaqueIdV1
@@ -67,7 +66,8 @@ def _cost(value: str = "1.25") -> contracts.BudgetCostBucketV1:
 
 def test_real_empty_report_contract_needs_coverage_not_dummy_observations() -> None:
     report = _report()
-    assert report.cost_buckets == report.usage_buckets == ()
+    assert report.cost_buckets == ()
+    assert report.usage_buckets == ()
     assert report.covered_period == report.requested_period
     assert report.empty_means_zero
 

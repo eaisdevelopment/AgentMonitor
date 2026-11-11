@@ -13,7 +13,6 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 import pytest
-
 from agentmonitor.adapters.credential_env.format import CredentialProviderKey
 from agentmonitor.adapters.persistence._shared.sqlite.core.policy import DatabaseRefV1
 from agentmonitor.adapters.persistence._shared.sqlite.schema.compatibility import (

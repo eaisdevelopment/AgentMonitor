@@ -1,6 +1,9 @@
 """Pure admission checks for the normalized budget report commit envelope."""
 
-from agentmonitor.contracts.capacity_v1 import BudgetCollectionInputV1
+from agentmonitor.contracts.capacity_v1 import (
+    BudgetCollectionInputV1,
+    BudgetReportInputV1,
+)
 from agentmonitor.modules.capacity.domain.budget_codec import (
     MAX_REPORT_BYTES,
     budget_report_digest,
@@ -20,6 +23,11 @@ class BudgetCommitError(ValueError):
         super().__init__(code)
 
 
+def budget_report_payload_digest(report: BudgetReportInputV1) -> str:
+    """Expose M05's canonical report digest without leaking its codec boundary."""
+    return budget_report_digest(report)
+
+
 def validate_budget_commit(request: BudgetCollectionInputV1) -> str:
     """Return canonical report text only when envelope and lineage agree.
 
@@ -32,7 +40,7 @@ def validate_budget_commit(request: BudgetCollectionInputV1) -> str:
         raise BudgetCommitError("budget_payload_schema_invalid")
     report = request.payload
     encoded = encode_budget_report(report)
-    if budget_report_digest(report) != request.payload_digest:
+    if budget_report_payload_digest(report) != request.payload_digest:
         raise BudgetCommitError("budget_digest_mismatch")
     provenance = request.provenance
     encode_budget_provenance(provenance)

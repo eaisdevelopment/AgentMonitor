@@ -4,7 +4,6 @@ from collections.abc import Iterable, Iterator
 from typing import cast
 
 import pytest
-
 from agentmonitor.adapters.credential_env.format import (
     CredentialProviderKey,
     credential_variable_name,

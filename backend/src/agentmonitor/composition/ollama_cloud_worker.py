@@ -7,11 +7,9 @@ import asyncio
 import fcntl
 import hashlib
 import os
-import select
 import shlex
 import stat
 import sys
-import time
 import uuid
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
@@ -29,9 +27,12 @@ from agentmonitor.composition.ollama_env_store import (
     recover_env_location_if_unused,
     recover_ollama_env_staging,
 )
+from agentmonitor.composition.worker_start_authority import (
+    consume_worker_start_authority_v1,
+    valid_worker_start_token_v1,
+)
 
 _PREFIX = "agentmonitor-cloud-worker-"
-_MAX_MARKER_BYTES = len(_PREFIX) + 64 + 1 + 32 + len(".service\n")
 _SYSTEMCTL = "/usr/bin/systemctl"
 _SYSTEMD_RUN = "/usr/bin/systemd-run"
 
@@ -50,7 +51,6 @@ def _manager_environment() -> dict[str, str]:
 
 _COMMAND_TIMEOUT_SECONDS = 8
 _CLEANUP_TIMEOUT_SECONDS = 20
-_START_AUTHORITY_TIMEOUT_SECONDS = 8
 _START_AUTHORIZATION_REVOKED_EXIT = 5
 _T = TypeVar("_T")
 
@@ -60,43 +60,16 @@ def recovery_exit_code(rate_state: str) -> int:
     return 0 if rate_state in {"idle", "recovered"} else 4
 
 
-def _valid_start_token(token: str) -> bool:
-    return len(token) == 32 and all(
-        character in "0123456789abcdef" for character in token
-    )
-
-
-def _consume_start_authority(token: str) -> bool:
-    """Consume one parent-issued start grant before opening any owned state."""
-    if not _valid_start_token(token):
-        return False
-    expected = ("START " + token + "\n").encode("ascii")
-    received = bytearray()
-    deadline = time.monotonic() + _START_AUTHORITY_TIMEOUT_SECONDS
-    while len(received) <= len(expected):
-        remaining = deadline - time.monotonic()
-        if remaining <= 0:
-            return False
-        try:
-            ready, _, _ = select.select([sys.stdin.fileno()], [], [], remaining)
-        except (OSError, ValueError):
-            return False
-        if not ready:
-            return False
-        try:
-            chunk = os.read(sys.stdin.fileno(), len(expected) + 1 - len(received))
-        except OSError:
-            return False
-        if not chunk:
-            return False
-        received.extend(chunk)
-        if b"\n" in received:
-            return bytes(received) == expected
-    return False
-
-
 class OllamaCloudWorkerSupervisorV1:
     """Supervise a uniquely named systemd user unit, never an agent process."""
+
+    _name_prefix = _PREFIX
+    _lock_name = ".ollama-cloud-worker.lock"
+    _worker_module = "agentmonitor.composition.ollama_cloud_worker"
+    _description_prefix = "AgentMonitor cloud worker "
+    _runtime_seconds = 30
+    _runtime_identity = "30s"
+    _allow_legacy_marker = True
 
     def __init__(
         self, data_root: Path, *, credential_env_file: Path | None = None
@@ -108,8 +81,11 @@ class OllamaCloudWorkerSupervisorV1:
         ):
             raise ValueError("ollama_cloud_data_root_invalid")
         self._data_root = data_root
+        self._max_marker_bytes = (
+            len(self._name_prefix) + 64 + 1 + 32 + len(".service\n")
+        )
         self._unit_prefix = (
-            _PREFIX + hashlib.sha256(os.fsencode(data_root)).hexdigest() + "-"
+            self._name_prefix + hashlib.sha256(os.fsencode(data_root)).hexdigest() + "-"
         )
         if credential_env_file is not None and (
             not credential_env_file.is_absolute()
@@ -161,7 +137,7 @@ class OllamaCloudWorkerSupervisorV1:
                 return False
             try:
                 lock_fd = os.open(
-                    ".ollama-cloud-worker.lock",
+                    self._lock_name,
                     os.O_RDONLY | os.O_NOFOLLOW,
                     dir_fd=root_fd,
                 )
@@ -171,7 +147,7 @@ class OllamaCloudWorkerSupervisorV1:
             fcntl.flock(lock_fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
             current_root = os.stat(self._data_root, follow_symlinks=False)
             current_lock = os.stat(
-                ".ollama-cloud-worker.lock", dir_fd=root_fd, follow_symlinks=False
+                self._lock_name, dir_fd=root_fd, follow_symlinks=False
             )
             return (
                 stat.S_ISREG(lock.st_mode)
@@ -283,7 +259,7 @@ class OllamaCloudWorkerSupervisorV1:
         expected_argv = [
             executable,
             "-m",
-            "agentmonitor.composition.ollama_cloud_worker",
+            self._worker_module,
             "--data-root",
             str(self._data_root),
         ]
@@ -298,7 +274,7 @@ class OllamaCloudWorkerSupervisorV1:
             or properties.get("Transient") != "yes"
             or properties.get("FragmentPath") != fragment
             or properties.get("KillMode") != "control-group"
-            or properties.get("RuntimeMaxUSec") != "30s"
+            or properties.get("RuntimeMaxUSec") != self._runtime_identity
             or properties.get("LimitCORE") != "0"
             or properties.get("TimeoutStopUSec") != "3s"
             or properties.get("RemainAfterExit") != "yes"
@@ -452,7 +428,7 @@ class OllamaCloudWorkerSupervisorV1:
             if root.st_uid != os.getuid() or stat.S_IMODE(root.st_mode) != 0o700:
                 raise ValueError("ollama_cloud_root_unsafe")
             descriptor = os.open(
-                ".ollama-cloud-worker.lock",
+                self._lock_name,
                 os.O_CREAT | os.O_RDWR | os.O_NOFOLLOW | os.O_CLOEXEC,
                 0o600,
                 dir_fd=directory,
@@ -464,7 +440,7 @@ class OllamaCloudWorkerSupervisorV1:
                 or state.st_uid != os.getuid()
                 or state.st_nlink != 1
                 or stat.S_IMODE(state.st_mode) != 0o600
-                or state.st_size > _MAX_MARKER_BYTES
+                or state.st_size > self._max_marker_bytes
             ):
                 raise ValueError("ollama_cloud_lock_unsafe")
             fcntl.flock(descriptor, fcntl.LOCK_EX | fcntl.LOCK_NB)
@@ -488,7 +464,7 @@ class OllamaCloudWorkerSupervisorV1:
         path_root = os.stat(self._data_root, follow_symlinks=False)
         pinned_lock = os.fstat(self._lock_fd)
         path_lock = os.stat(
-            ".ollama-cloud-worker.lock", dir_fd=self._root_fd, follow_symlinks=False
+            self._lock_name, dir_fd=self._root_fd, follow_symlinks=False
         )
         if (
             not stat.S_ISDIR(path_root.st_mode)
@@ -521,8 +497,8 @@ class OllamaCloudWorkerSupervisorV1:
             raise ValueError("ollama_cloud_lock_missing")
         self._verify_lock()
         os.lseek(self._lock_fd, 0, os.SEEK_SET)
-        data = os.read(self._lock_fd, _MAX_MARKER_BYTES + 1)
-        if len(data) > _MAX_MARKER_BYTES:
+        data = os.read(self._lock_fd, self._max_marker_bytes + 1)
+        if len(data) > self._max_marker_bytes:
             raise ValueError("ollama_cloud_marker_invalid")
         try:
             marker = data.decode("ascii")
@@ -547,12 +523,12 @@ class OllamaCloudWorkerSupervisorV1:
     def _unit_token(self, unit: str, *, allow_legacy: bool = False) -> str:
         suffix = ".service"
         prefix = self._unit_prefix
-        if allow_legacy and not unit.startswith(prefix):
-            prefix = _PREFIX
+        if allow_legacy and self._allow_legacy_marker and not unit.startswith(prefix):
+            prefix = self._name_prefix
         if not unit.startswith(prefix) or not unit.endswith(suffix):
             raise ValueError("ollama_cloud_unit_identity_invalid")
         token = unit[len(prefix) : -len(suffix)]
-        if not _valid_start_token(token):
+        if not valid_worker_start_token_v1(token):
             raise ValueError("ollama_cloud_unit_identity_invalid")
         return token
 
@@ -560,7 +536,7 @@ class OllamaCloudWorkerSupervisorV1:
         self, unit: str, *, allow_legacy: bool = False
     ) -> bool:
         token = self._unit_token(unit, allow_legacy=allow_legacy)
-        description = "AgentMonitor cloud worker " + token
+        description = self._description_prefix + token
         properties = await self._show(unit)
         if (
             properties.get("LoadState") == "not-found"
@@ -655,7 +631,7 @@ class OllamaCloudWorkerSupervisorV1:
         token = uuid.uuid4().hex
         unit = self._unit_prefix + token + ".service"
         self.last_unit = unit
-        description = "AgentMonitor cloud worker " + token
+        description = self._description_prefix + token
         environment = _manager_environment()
         environment["PYTHONPATH"] = str(Path(__file__).resolve().parents[2])
         command = [
@@ -666,7 +642,7 @@ class OllamaCloudWorkerSupervisorV1:
             "--unit=" + unit,
             "--description=" + description,
             "--property=KillMode=control-group",
-            "--property=RuntimeMaxSec=30s",
+            f"--property=RuntimeMaxSec={self._runtime_seconds}s",
             "--property=LimitCORE=0",
             "--property=TimeoutStopSec=3s",
             "--property=RemainAfterExit=yes",
@@ -677,7 +653,7 @@ class OllamaCloudWorkerSupervisorV1:
         command += [
             sys.executable,
             "-m",
-            "agentmonitor.composition.ollama_cloud_worker",
+            self._worker_module,
             "--data-root",
             str(self._data_root),
         ]
@@ -715,7 +691,7 @@ class OllamaCloudWorkerSupervisorV1:
                 raise ValueError("ollama_cloud_start_authority_write_failed")
             os.close(authority_writer)
             authority_writer = -1
-            for _ in range(300):
+            for _ in range(self._runtime_seconds * 10):
                 properties = await self._show(unit)
                 if self._identity(unit, description, token, properties) != invocation:
                     raise ValueError("ollama_cloud_unit_identity_changed")
@@ -808,7 +784,7 @@ def main() -> int:
     args = parser.parse_args()
     if not args.data_root.is_absolute() or args.data_root in {Path("/"), Path.home()}:
         return 2
-    if not _consume_start_authority(args.start_authority):
+    if not consume_worker_start_authority_v1(args.start_authority):
         return _START_AUTHORIZATION_REVOKED_EXIT
     if not (args.data_root / "agentmonitor.db").is_file():
         return 3
