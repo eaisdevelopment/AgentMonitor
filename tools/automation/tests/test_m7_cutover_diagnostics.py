@@ -67,3 +67,35 @@ def test_m7_retains_closed_phase_reason() -> None:
         closed_setup_command_reason(cutover_failure_message(error).encode())
         == "m7_cutover_write_barrier_persistence_busy"
     )
+
+
+@pytest.mark.parametrize(
+    "reason",
+    [
+        "unit_not_quiescent_ready",
+        "unit_identity_changed",
+        "unit_identity_unavailable",
+        "unit_has_children_or_not_stopped",
+        "unit_changed",
+        "unit_invocation_changed",
+        "unit_stop_unconfirmed",
+        "unit_signal_unavailable",
+        "unit_unavailable",
+        "unit_uid_mismatch",
+        "unit_cgroup_mismatch",
+    ],
+)
+def test_quiescent_stop_retains_closed_reason_without_process_details(
+    reason: str,
+) -> None:
+    from tools.automation.implementations.m6_quiescent_stop import QuiescentStopError
+
+    error = QuiescentStopError(reason)
+    safe_reason = cutover_failure_reason(error)
+    assert safe_reason == reason
+    transition = CutoverError(
+        "cutover_incomplete_review_journal", phase="stop", reason=safe_reason
+    )
+    assert parse_cutover_failure_message(
+        cutover_failure_message(transition).encode()
+    ) == ("stop", reason)

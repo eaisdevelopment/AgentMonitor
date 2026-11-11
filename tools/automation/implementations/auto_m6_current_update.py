@@ -152,11 +152,12 @@ def main() -> int:
                     ):
                         raise
                     time.sleep(0.1)
-    except (OSError, ValueError, RuntimeError, subprocess.SubprocessError):
-        print(
-            "M6 CURRENT UPDATE: BLOCKED — review the transition journal "
-            "and service state"
+    except (OSError, ValueError, RuntimeError, subprocess.SubprocessError) as error:
+        from tools.automation.implementations.m6_cutover_diagnostics import (
+            cutover_failure_message,
         )
+
+        print(cutover_failure_message(error))
         return 3
     if status != "candidate_ready_restart_restored":
         print("M6 CURRENT UPDATE: BLOCKED — cutover result unverified")

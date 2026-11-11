@@ -72,3 +72,25 @@ Final selector/diagnostic/preparation regression after packaging correction:
 financial migration/build rehearsal. No provider success or installed transition
 is inferred. The earlier selected real cutover/recovery cases were already green;
 the corrected selector failure was rerun in this final selection.
+
+
+## Same-schema Overview follow-up
+
+The e310b82 and b617268 Overview update attempts returned the old generic
+same-schema wrapper message. The second real attempt identified a
+`QuiescentStopError` in the stop phase, but the closed formatter omitted its
+reason and the wrapper omitted the formatted diagnostic. The dashboard remained
+on ca5f062, active/running, with no retained transition journal or restart guard;
+its original on-failure restart policy was restored. Read-only release/unit/
+process checks passed. No database restore was performed.
+
+The same-schema wrapper now uses the existing safe formatter. Its fixed reason
+vocabulary includes eleven existing quiescent-stop refusals; no raw exception,
+PID, command line or provider detail is emitted. Stop/recovery decisions are
+unchanged. Pure Red: eleven reason-preservation cases failed with
+`unexpected_failure`. Green: all seventeen diagnostic cases plus twenty-one
+real clean/dirty/revision controller checks passed (38 total). Scoped Ruff and
+diff checks passed. Files: existing current-update wrapper, diagnostic helper,
+its pure regression tests and this evidence. No contract, migration, dependency,
+license, secret or owner-configuration change. The exact stop refusal and new
+installed Overview/browser result still require the next checked attempt.

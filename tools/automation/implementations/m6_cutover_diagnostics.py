@@ -29,6 +29,17 @@ PHASES = frozenset(
 REASONS = frozenset(
     {
         "unexpected_failure",
+        "unit_not_quiescent_ready",
+        "unit_identity_changed",
+        "unit_identity_unavailable",
+        "unit_has_children_or_not_stopped",
+        "unit_changed",
+        "unit_invocation_changed",
+        "unit_stop_unconfirmed",
+        "unit_signal_unavailable",
+        "unit_unavailable",
+        "unit_uid_mismatch",
+        "unit_cgroup_mismatch",
         "operation_timeout",
         "lock_occupied",
         "file_already_exists",
