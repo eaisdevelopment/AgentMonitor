@@ -99,6 +99,7 @@ from agentmonitor.api.v1.dependencies import (
     ObservationApiPortsV1,
 )
 from agentmonitor.composition.alert_delivery import CapacityAlertDeliveryV1
+from agentmonitor.composition.billing_local_setup import InstalledBillingLocalSetupV1
 from agentmonitor.composition.claude_dashboard_collection import (
     ClaudeDashboardCollectorV1,
 )
@@ -582,6 +583,9 @@ def _observation_ports(
         organization_coverage_read=coverage,
         organization_coverage_write=coverage,
         billing_connections=SqliteBillingConnectionRepositoryV1(reference),
+        billing_local_setup=InstalledBillingLocalSetupV1(
+            data_root, socket.gethostname()
+        ),
         ollama_local_catalog=read_ollama_local_catalog_v1,
         ollama_cloud_connection=OllamaCloudConnectionServiceV1(
             reference,

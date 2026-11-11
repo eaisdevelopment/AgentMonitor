@@ -34,10 +34,11 @@ decimal text, `parseFloat`, `Number` or browser arithmetic for money. Decode JSO
 numbers directly to Decimal; convert documented cents to currency units by exact
 base-10 scaling in the provider adapter. Preserve source precision separately.
 
-The existing `CanonicalDecimalV1.as_decimal()` uses context-sensitive `scaleb`;
-it rounds a permitted 38-digit coefficient under the default 28-digit context.
-T004 includes the small shared-primitive correction and regression tests before
-budget calculations depend on it. Use context-independent decimal construction
+The initial inspection found that `CanonicalDecimalV1.as_decimal()` used
+context-sensitive `scaleb`, rounding a permitted 38-digit coefficient under the
+default 28-digit context. T004 corrected conversion at `6a87630`; retain its
+regression evidence rather than treating that defect as still unimplemented.
+Use context-independent decimal construction
 and scaled-integer addition/subtraction. Keep the existing 78-digit coefficient /
 18-scale public bounds; reject overflow explicitly, never silently round facts.
 
@@ -101,12 +102,13 @@ with an unchanged source watermark is not fresh usage. Backfill/revision work
 re-queries supported recent intervals under the normal request budget and retains
 superseded versions. No unbounded full-history import on first connection.
 
-A rolling 7-day response does not necessarily cover seven completed UTC days;
-it can miss the first partial day and include today instead. Select an admitted
-wider native report where supported, then use only complete aligned buckets.
-A rolling 30-day response may still lack the start of a 30-completed-day query.
-Use retained compatible coverage if present, otherwise expose the exact missing
-interval as Partial. Never relabel that rolling total as the selected interval.
+The [Ollama usage reference](https://docs.ollama.com/api/cloud-usage), rechecked
+on 11 November 2026, explicitly defines `7d` and `30d` as seven/thirty completed
+UTC days plus today's partial bucket. Use the matching native range and exclude
+today from the completed-day total. No wider-range workaround or extra backfill
+is required by that documented shape. Verify the actual returned boundaries;
+an unexpected gap is Partial/source drift, not permission to prorate. General
+coverage checks still reject genuinely missing intervals for any provider.
 UTC cutoff calculations are independent of browser timezone/DST; display local
 timestamps with the timezone and expose UTC bounds in details.
 
@@ -248,7 +250,7 @@ These values are solely pure no-I/O test inputs:
 | M7-MATH-15 | Partial day, gap, mixed period, revised data, missing limit | Explicit partial/no-forecast reason; no extrapolated real funds |
 | M7-MATH-16 | 100 USD remaining; daily rate 2 USD | Beyond 7-day horizon, with rate/as-of; no precise stop date |
 
-Existing test families also cover rolling-range alignment and DST boundaries
+Existing test families also cover native-range alignment and DST boundaries
 (M7-MATH-15), no eligible subtotal versus a genuine zero (M7-MATH-12), scope-epoch
 and currency changes (M7-MATH-10/11), and a last complete report following a
 failed or partial refresh (M7-MATH-04/05/15). T004 owns exact money, availability,
@@ -258,3 +260,28 @@ a prerequisite for first-report storage or the first useful dashboard.
 
 Boundary acceptance independently uses genuine provider reports, migrated
 SQLite, actual HTTP and built-browser values. Pure examples never cross I/O.
+
+## 9. Presentation and reconciliation decisions
+
+- Sort exact amounts in the backend within a compatible currency/period/basis
+  group, with a stable ID tie-breaker and unavailable amounts last. Changing
+  period or filters starts a new snapshot query; previous pages cannot be
+  appended to it. T010/T012 own this behavior.
+- Chart geometry is approximate presentation, never a second financial
+  calculation. Exact API amounts remain the table, label and tooltip authority.
+  Keep adjustments below the zero axis; never clamp negative costs to zero.
+  Do not connect balance points across unknown intervals. T013 owns this.
+- Compare the same scope, interval, grouping and cost basis. The provider's
+  displayed rounding may differ from stored precision; record the comparison
+  precision and source watermark. No universal percentage tolerance and no
+  arbitrary rounding to make a discrepancy pass. T015 owns reconciliation.
+- Collection success, coverage and provider update time are separate facts.
+  A successful unchanged report can be a healthy collector with delayed source
+  data. A complete interval is not a promise that the provider will never revise
+  it. Keep source freshness policy in each admitted adapter; do not impose
+  subscription reset/freshness assumptions on financial reports.
+- The first successful genuine report supplies both access evidence and report
+  data for its exact binding/scope generation. Persist it once and reuse it;
+  enabling monitoring schedules the next due read instead of immediately
+  repeating a still-current identical request. Metadata-only access checks do
+  not count as reports. T005/T007 own this distinction.

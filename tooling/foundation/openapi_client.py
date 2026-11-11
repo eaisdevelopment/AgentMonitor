@@ -108,6 +108,7 @@ SOURCE_FILES = (
     "backend/src/agentmonitor/adapters/persistence/registry/sqlite/repository.py",
     "backend/src/agentmonitor/adapters/persistence/registry/sqlite/billing_connections.py",
     "backend/src/agentmonitor/modules/registry/domain/billing_connection.py",
+    "backend/src/agentmonitor/composition/billing_local_setup.py",
     "backend/src/agentmonitor/adapters/persistence/registry/sqlite/coverage.py",
     "backend/src/agentmonitor/adapters/persistence/registry/sqlite/coverage_records.py",
     "backend/src/agentmonitor/adapters/persistence/registry/sqlite/registry_transaction.py",

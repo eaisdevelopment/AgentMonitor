@@ -52,6 +52,9 @@ class CanonicalDecimalV1(TechnicalValueV1):
             raise InvalidExactQuantityV1("exact_decimal_required")
         if not value.is_finite():
             raise InvalidExactQuantityV1("exact_decimal_finite_required")
+        if value.is_zero():
+            # Source scale/sign do not change zero; avoid expanding its exponent.
+            return cls(coefficient="0", scale=0)
         sign, digits, exponent = value.as_tuple()
         if not isinstance(exponent, int):
             raise InvalidExactQuantityV1("exact_decimal_finite_required")

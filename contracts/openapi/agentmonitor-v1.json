@@ -44,6 +44,16 @@
             ],
             "description": "Local entry lifecycle; null means not queried/not applicable. Stored records completion of local entry, not provider verification."
           },
+          "local_setup": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/BillingLocalSetupV1"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "provider_key": {
             "title": "Provider Key",
             "type": "string"
@@ -1879,6 +1889,25 @@
           "cleanup_required"
         ],
         "title": "BillingCredentialStatusV1",
+        "type": "object"
+      },
+      "BillingLocalSetupV1": {
+        "additionalProperties": false,
+        "properties": {
+          "command": {
+            "title": "Command",
+            "type": "string"
+          },
+          "host_label": {
+            "title": "Host Label",
+            "type": "string"
+          }
+        },
+        "required": [
+          "host_label",
+          "command"
+        ],
+        "title": "BillingLocalSetupV1",
         "type": "object"
       },
       "BrowserSessionPageV1": {
@@ -25443,10 +25472,10 @@
       "starlette": "1.6.0"
     },
     "generator": "agentmonitor-openapi-client",
-    "generator_sha256": "a7a7e9f817735c4679e1cff260ce3bcbf19c5c8e38b59ece6a228889d6532a17",
+    "generator_sha256": "25bfabef15c185ac617acb1ae0194bf327ad2827239eb0bc0d61ff4d02009136",
     "generator_version": "2.0.8",
     "openapi_version": "3.1.0",
-    "schema_sha256": "fb9a9249e70e642f076fa398c2cf42a6d2507e16522a990d0fc73b8869e42db0",
-    "source_sha256": "878d3c98f39a94b372708ec6d4481be670ac46fdcab8a1b58de82047aa153a95"
+    "schema_sha256": "15d4a5fa3d1ad1c8f9c4b785a33f35824c28f90a0bd3231a351d707e047f6bad",
+    "source_sha256": "2525f3c0787fb020b05ab9606552612a9af5dcbc5bfc364787932ab237f17ba9"
   }
 }

@@ -56,7 +56,8 @@
       "delivery_slice": "S0",
       "related_plans": [
         "docs/plans/integration/m7-ui-and-user-journeys.md",
-        "docs/plans/integration/m7-calculation-and-data-rules.md"
+        "docs/plans/integration/m7-calculation-and-data-rules.md",
+        "docs/plans/integration/m7-delivery-worksheet-2026-11-11.md"
       ],
       "steps": [
         "Review actual source and provider contracts",
@@ -109,14 +110,16 @@
       "delivery_slice": "S0",
       "related_plans": [
         "docs/plans/integration/m7-ui-and-user-journeys.md",
-        "docs/plans/integration/m7-calculation-and-data-rules.md"
+        "docs/plans/integration/m7-calculation-and-data-rules.md",
+        "docs/plans/integration/m7-delivery-worksheet-2026-11-11.md"
       ],
       "steps": [
         "Fail real HTTP/browser creation, safe credential-status and purpose-routing tests before their implementation; preserve existing subscription behavior.",
         "Create/attach and open actual ID; page through organizations; distinguish unavailable group name from Ungrouped; reuse Ollama cloud setup for API-only records.",
         "Publish minimal scope correction/shared-pool association and primary-group metadata controls; fence scope epochs and preserve historical attribution.",
         "Deliver copyable candidate local-entry command with host/provider/account context, safe stored/pending/cleanup status, cancellation/retry and rotation/archive fences; no browser key field.",
-        "Verify real metadata HTTP/browser and local filesystem/TTY boundaries; actual key entry remains owner-controlled. Hand T007 generation-fenced eligibility and T014 the tested entry point."
+        "Verify real metadata HTTP/browser and local filesystem/TTY boundaries; actual key entry remains owner-controlled. Hand T007 generation-fenced eligibility and T014 the tested entry point.",
+        "Resolve the currently failing mixed-account browser attachment scenario before setup closure; command rendering/copy is not successful owner credential entry or provider access. Early T014 activation must precede any owner use of the installed-service command."
       ]
     },
     {
@@ -151,13 +154,15 @@
       "delivery_slice": "S0",
       "related_plans": [
         "docs/plans/integration/m7-ui-and-user-journeys.md",
-        "docs/plans/integration/m7-calculation-and-data-rules.md"
+        "docs/plans/integration/m7-calculation-and-data-rules.md",
+        "docs/plans/integration/m7-delivery-worksheet-2026-11-11.md"
       ],
       "steps": [
         "Name fixed technical/live/browser/deploy/exit lanes and fail closed on missing evidence; reuse existing runner and admitted toolchain.",
         "Add narrow named-check selection to this same runner for registry_http, persistence, collection, budget_http, individual providers and browser workflows; keep aggregate exit strict. Publish/test each exact invocation before dependent ticket closure.",
         "Wire each implemented behavior into its lane as it is delivered; do not wait for final exit coverage before first-provider development.",
-        "Verify partial passes cannot mark M7 complete; final lane completeness is required at T016, with real boundary outcomes and no manual attestation-code workflow."
+        "Verify partial passes cannot mark M7 complete; final lane completeness is required at T016, with real boundary outcomes and no manual attestation-code workflow.",
+        "Add a Planned setup_activation selection to the existing deployment routine; publish/test its exact invocation before early T014 rollout. Its scoped pass never closes full T014 or M7."
       ]
     },
     {
@@ -195,13 +200,15 @@
       "delivery_slice": "S0",
       "related_plans": [
         "docs/plans/integration/m7-ui-and-user-journeys.md",
-        "docs/plans/integration/m7-calculation-and-data-rules.md"
+        "docs/plans/integration/m7-calculation-and-data-rules.md",
+        "docs/plans/integration/m7-delivery-worksheet-2026-11-11.md"
       ],
       "steps": [
         "Reproduce context-dependent precision loss and missing financial/report selection policy with pure inputs.",
         "Implement exact sum/headroom/display and signed correction/replacement semantics; verify overflow, sub-cent values and empty versus unavailable.",
         "Check same-currency/interval/basis grouping, shared pool and epoch boundaries, complete versus partial coverage and rolling UTC range alignment.",
-        "Run meaningful money/selection mutations; hand contracts to the first-provider/storage lane without waiting for T013 forecast logic."
+        "Run meaningful money/selection mutations; hand contracts to the first-provider/storage lane without waiting for T013 forecast logic.",
+        "Retain already-corrected context-independent conversion evidence; cover canonical signed/exponent zero and overflow without retesting unrelated provider boundaries."
       ]
     },
     {
@@ -243,7 +250,8 @@
       "delivery_slice": "S1",
       "related_plans": [
         "docs/plans/integration/m7-ui-and-user-journeys.md",
-        "docs/plans/integration/m7-calculation-and-data-rules.md"
+        "docs/plans/integration/m7-calculation-and-data-rules.md",
+        "docs/plans/integration/m7-delivery-worksheet-2026-11-11.md"
       ],
       "steps": [
         "Apply real migration and test absent store/empty outcome",
@@ -256,7 +264,7 @@
       "story": "ST-BUDGET-001",
       "title": "Anthropic usage/cost lane (eligible first provider)",
       "owner": "A01",
-      "status": "planned",
+      "status": "in_progress",
       "depends_on": [
         "M7-T002",
         "M7-T004"
@@ -280,17 +288,22 @@
       "expected_red": "With valid real access, the production adapter cannot emit the required cost/usage batch; absent access is Blocked.",
       "done_when": "Real permitted reads reconciled with authoritative source within documented lag",
       "verification": "Planned scoped verification: anthropic through the existing M7 runner (T003 must publish/test the exact selector before closure). The full AUTO-M7-TEST/LIVE/BROWSER results are final integration checks in T015/T016, not this ticket prerequisite.",
-      "evidence": [],
+      "evidence": [
+        "docs/evidence/m7-anthropic-cost-source-2026-11-11.md"
+      ],
       "depends_on_any": [],
       "delivery_slice": "S1_or_S2",
       "related_plans": [
         "docs/plans/integration/m7-ui-and-user-journeys.md",
-        "docs/plans/integration/m7-calculation-and-data-rules.md"
+        "docs/plans/integration/m7-calculation-and-data-rules.md",
+        "docs/plans/integration/m7-delivery-worksheet-2026-11-11.md"
       ],
       "steps": [
+        "Resolve the demonstrated official-beta source-class contract conflict; keep the source explicitly experimental. Existing pure/process passes do not establish authenticated success.",
         "Admit documented source/version/role and bounded request",
         "Map permitted live usage/cost into exact normalized facts",
-        "Compare same scope/time with provider; mark gaps explicitly"
+        "Compare same scope/time with provider; mark gaps explicitly",
+        "Validate the original deadline before clamping; wire the real active credential grant into a supervised worker. Deliver the first ungrouped cost report before the remaining usage/breakdown work; ticket closure still requires full admitted coverage."
       ]
     },
     {
@@ -327,13 +340,15 @@
       "delivery_slice": "S1",
       "related_plans": [
         "docs/plans/integration/m7-ui-and-user-journeys.md",
-        "docs/plans/integration/m7-calculation-and-data-rules.md"
+        "docs/plans/integration/m7-calculation-and-data-rules.md",
+        "docs/plans/integration/m7-delivery-worksheet-2026-11-11.md"
       ],
       "steps": [
         "Fail missing budget routing, verify/enable/collect action and real empty-report finalization at their actual boundaries.",
         "Connect T002 metadata to bounded verification; enable monitoring only after access success for the same binding/scope generation; queue first reading.",
         "Reuse schedules, leases and commit reconciliation; disable monitoring independently from subscription; fence rotate/scope/archive in-flight results.",
-        "Observe genuine schedule/manual read/restart recovery and source isolation; keep last successful facts and age on failure, respect cooldown and never retry denied credentials indefinitely."
+        "Observe genuine schedule/manual read/restart recovery and source isolation; keep last successful facts and age on failure, respect cooldown and never retry denied credentials indefinitely.",
+        "Publish the minimal API-only billing target and bounded paged-report admission; no fictitious profile. Reuse any complete Check connection report once, then schedule the next due read on enable rather than duplicate a current identical request."
       ]
     },
     {
@@ -370,7 +385,8 @@
       "delivery_slice": "S1_or_S2",
       "related_plans": [
         "docs/plans/integration/m7-ui-and-user-journeys.md",
-        "docs/plans/integration/m7-calculation-and-data-rules.md"
+        "docs/plans/integration/m7-calculation-and-data-rules.md",
+        "docs/plans/integration/m7-delivery-worksheet-2026-11-11.md"
       ],
       "steps": [
         "Admit OpenAI role and per-category coverage",
@@ -413,12 +429,13 @@
       "delivery_slice": "S1_or_S2",
       "related_plans": [
         "docs/plans/integration/m7-ui-and-user-journeys.md",
-        "docs/plans/integration/m7-calculation-and-data-rules.md"
+        "docs/plans/integration/m7-calculation-and-data-rules.md",
+        "docs/plans/integration/m7-delivery-worksheet-2026-11-11.md"
       ],
       "steps": [
         "Admit official usage purpose and actual self/team scope with the existing owner-controlled cloud connection; no new cloud account/key setup.",
         "Reuse canonical M6 balance identity; map genuine monetary/token/request fields only where present and enforce shared rate limits.",
-        "Align rolling native reports to completed UTC ranges, expose any missing leading interval and never label partial coverage as a complete total.",
+        "Use documented native 7d/30d completed UTC days plus the current partial day; exclude today from the selected completed-day total, validate actual boundaries and expose unexpected gaps. No speculative wider-range workaround.",
         "Compare real usage and balance without duplicate credit pools or invented agent/key attribution; a request-only report cannot close the first monetary slice."
       ]
     },
@@ -456,7 +473,8 @@
       "delivery_slice": "S1",
       "related_plans": [
         "docs/plans/integration/m7-ui-and-user-journeys.md",
-        "docs/plans/integration/m7-calculation-and-data-rules.md"
+        "docs/plans/integration/m7-calculation-and-data-rules.md",
+        "docs/plans/integration/m7-delivery-worksheet-2026-11-11.md"
       ],
       "steps": [
         "Fail missing current/list/summary/history operations on real HTTP/IAM with migrated SQLite.",
@@ -500,7 +518,8 @@
       "delivery_slice": "S1",
       "related_plans": [
         "docs/plans/integration/m7-ui-and-user-journeys.md",
-        "docs/plans/integration/m7-calculation-and-data-rules.md"
+        "docs/plans/integration/m7-calculation-and-data-rules.md",
+        "docs/plans/integration/m7-delivery-worksheet-2026-11-11.md"
       ],
       "steps": [
         "Demonstrate absent budget/history UI using real source data and built candidate.",
@@ -543,11 +562,12 @@
       "delivery_slice": "S1",
       "related_plans": [
         "docs/plans/integration/m7-ui-and-user-journeys.md",
-        "docs/plans/integration/m7-calculation-and-data-rules.md"
+        "docs/plans/integration/m7-calculation-and-data-rules.md",
+        "docs/plans/integration/m7-delivery-worksheet-2026-11-11.md"
       ],
       "steps": [
         "Fail shared-filter and API table/group-summary behavior in the real built browser.",
-        "Share nonsecret URL filters across quota and API sections; exclude API-only accounts from subscription quota rows; keep pending records discoverable.",
+        "Share nonsecret URL organization/provider/resource-type filters (All, Subscriptions, API billing) with section counts; exclude API-only accounts from quota rows; keep pending records discoverable and reset snapshot/cursor on filter changes.",
         "Render server-calculated compatible totals with exclusion counts, meaningful sort and remaining<=20% warning only with an actual denominator.",
         "Verify later-page inventory, navigation back/reload, keyboard/zoom/narrow layouts and retained header/footer; one budget error leaves quotas usable."
       ]
@@ -588,12 +608,14 @@
       "delivery_slice": "S3",
       "related_plans": [
         "docs/plans/integration/m7-ui-and-user-journeys.md",
-        "docs/plans/integration/m7-calculation-and-data-rules.md"
+        "docs/plans/integration/m7-calculation-and-data-rules.md",
+        "docs/plans/integration/m7-delivery-worksheet-2026-11-11.md"
       ],
       "steps": [
         "Test wrong bucket math/missing input states",
         "Add simple pure forecast plus breakdown/chart UI",
-        "Reconcile real chart/table, allowed dimensions and retained lineage"
+        "Reconcile real chart/table, allowed dimensions and retained lineage",
+        "Begin independent math/chart work once first real history exists; do not idle for another provider access lane. Keep final supported-provider/dimension coverage as the closure condition."
       ]
     },
     {
@@ -621,18 +643,20 @@
         "M7-A10"
       ],
       "test_ids": "M7-OPS-001..004",
-      "deliverable": "Existing fixed AgentMonitor service accepts a selected sealed candidate; installed setup entry point, schema/backup/recovery and browser revision checks; no general deployment platform",
+      "deliverable": "Two increments in the existing service: early tested setup activation before owner entry, then full first-dashboard activation; selected clean candidate, installed entry point, schema/backup/recovery and browser revision checks; no deployment platform",
       "expected_red": "Existing fixed M6 updater refuses the M7 candidate; verify candidate/backup boundaries before transition.",
       "done_when": "First complete real UI slice is installed and verified with recovery to known-good runtime available; no default provider/profile or user agent disruption",
-      "verification": "python3 tools/automation/run.py AUTO-M7-DEPLOY",
+      "verification": "Planned setup_activation selection in existing M7 deployment routine: T003 must publish/test exact invocation before early rollout. Full-slice closure: python3 tools/automation/run.py AUTO-M7-DEPLOY.",
       "evidence": [],
       "depends_on_any": [],
       "delivery_slice": "S1",
       "related_plans": [
         "docs/plans/integration/m7-ui-and-user-journeys.md",
-        "docs/plans/integration/m7-calculation-and-data-rules.md"
+        "docs/plans/integration/m7-calculation-and-data-rules.md",
+        "docs/plans/integration/m7-delivery-worksheet-2026-11-11.md"
       ],
       "steps": [
+        "Prepare and execute the scoped setup_activation selection before requesting owner key entry, after candidate checks and verified recovery/continuity. Current command resolves the installed service, so an older binary cannot be treated as a working setup. This partial result does not close T014; later dependencies govern full closure.",
         "Check existing fixed-worktree refusal and prepare selected clean candidate, schema compatibility, tested entry point and bounded recovery.",
         "Exercise fresh/upgrade and isolated database backup/restore; keys are excluded, restored missing entries show Credential required, no blind database rollback after writes.",
         "Activate through the existing AgentMonitor service path; verify loopback/LAN health, actual installed revision and authenticated Overview/detail with genuine first-provider data.",
@@ -690,7 +714,8 @@
       "delivery_slice": "S4",
       "related_plans": [
         "docs/plans/integration/m7-ui-and-user-journeys.md",
-        "docs/plans/integration/m7-calculation-and-data-rules.md"
+        "docs/plans/integration/m7-calculation-and-data-rules.md",
+        "docs/plans/integration/m7-delivery-worksheet-2026-11-11.md"
       ],
       "steps": [
         "Record candidate/account/source coverage once",
@@ -729,7 +754,8 @@
       "delivery_slice": "S4",
       "related_plans": [
         "docs/plans/integration/m7-ui-and-user-journeys.md",
-        "docs/plans/integration/m7-calculation-and-data-rules.md"
+        "docs/plans/integration/m7-calculation-and-data-rules.md",
+        "docs/plans/integration/m7-delivery-worksheet-2026-11-11.md"
       ],
       "steps": [
         "Run fixed exit command and one bounded review",
@@ -741,7 +767,8 @@
   "supporting_plans": [
     "docs/plans/integration/m7-ui-and-user-journeys.md",
     "docs/plans/integration/m7-calculation-and-data-rules.md",
-    "docs/plans/modules/m05-capacity/m7-budget-increment-2026-11-11.md"
+    "docs/plans/modules/m05-capacity/m7-budget-increment-2026-11-11.md",
+    "docs/plans/integration/m7-delivery-worksheet-2026-11-11.md"
   ],
   "delivery_slices": [
     "S0",

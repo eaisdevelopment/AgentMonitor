@@ -34,3 +34,13 @@ def test_exact_conversion_does_not_depend_on_callers_decimal_context() -> None:
         context.traps[Inexact] = True
         assert value.as_decimal() == Decimal("1234.56789")
         assert not context.flags[Inexact]
+
+
+@pytest.mark.parametrize("source", ["0.00000000", "-0.00", "0E-999999", "0E+999999"])
+def test_exact_zero_canonicalizes_without_precision_or_exponent_artifacts(
+    source: str,
+) -> None:
+    """A reported numeric zero remains zero independently of source formatting."""
+    assert CanonicalDecimalV1.from_decimal(Decimal(source)) == CanonicalDecimalV1(
+        "0", 0
+    )

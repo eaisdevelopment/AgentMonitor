@@ -243,6 +243,125 @@ those states. Their rendering is implemented, but this evidence proves the real
 missing/null paths only. Provider access and first-reading verification remain
 outside the slice.
 
+## Server-provided local setup command increment
+
+This follow-up to T002/M7-A01 consumes optional AccountBillingConnectionsV1
+`local_setup` from the root-owned API: safe host label and exact command. The
+baseline was `032a43f`. Only BillingConnectionPanel.tsx, accounts_admin.mjs and
+this evidence were edited by the UI delegate; no API wrapper, schema, generated
+client, environment, installed service or dependency was changed by this work.
+
+When the server supplies setup, the existing billing panel contains a collapsed
+Set up or replace local key section. It identifies the AgentMonitor host and
+service user, renders the server command as escaped selectable code, and offers
+Copy setup command. It never assembles, modifies or executes the command.
+Clipboard failure leaves the exact command available for keyboard/manual
+selection. Null/absent setup hides the section. Existing mixed-account billing
+remains collapsed below subscription activity.
+
+Returning focus/visibility while status is ready triggers one safe metadata GET,
+with an in-flight guard and listener cleanup on unmount. It starts no provider
+verification or collection. Existing ready content remains visible during that
+read, preserving the expanded setup section. The panel no longer says credential
+setup is unavailable when the command exists; access verification remains
+explicitly unavailable in this increment.
+
+### Red and intermediate result
+
+At 16:12 UTC, before adding the setup rendering, the rebuilt real browser had
+read a nonnull `local_setup.command` and `host_label` from the actual API but
+failed at `local_setup_command`:
+
+```text
+locator.click: Timeout 30000ms exceeded.
+waiting for getByText('Set up or replace local key', { exact: true })
+```
+
+The first post-change run reached actual API-to-DOM command equality, successful
+copy, real Chrome clipboard-write denial and manual code selection, then failed
+at the tab-return harness with `Please use browser.newContext()`. The original
+single-page browser convenience context did not support creating another tab.
+The test now uses an explicit real browser context; no network or clipboard
+function was replaced, and no assertion was removed.
+
+A second run timed out waiting for the status GET on tab return. Real isolated
+headless and headed probes showed no blur/focus events: installed Playwright's
+`playwright-core/lib/coreBundle.js` automatically enables focus emulation.
+The scenario now disables that default override for its own two pages, restoring
+native focus rather than injecting a DOM event. A real headless probe then
+observed `hasFocus=false` while away, `hasFocus=true` after return, and one native
+focus event. The original return-status assertion remains in the scenario.
+
+The next full run still found `hasFocus=true` while away (`true !== false`),
+so the test removes the focus override on the final loaded documents immediately
+before switching tabs; the earlier pre-navigation reset did not suffice.
+
+### Latest verification: Failed, not Green
+
+At 16:19 UTC, the real built-browser run passed exact API-to-DOM command/host,
+successful clipboard copying, real permission-denied fallback, manual command
+selection, native blur and the metadata GET on return focus. It then failed at
+the existing mixed-account check:
+
+```text
+P02 ACCOUNTS ADMIN: FAILED — subscription_billing_collapsed:
+locator.waitFor: Timeout 30000ms exceeded.
+waiting for getByRole('button', {
+  name: 'Add API billing connection', exact: true, includeHidden: true
+})
+```
+
+The cause of the missing mixed-account action remains unresolved. This is not
+a passing full browser scenario, and the assertions were retained. Strict
+TypeScript passed during this increment; scoped `git diff --check` passed.
+No complete-slice or first-reading claim follows from those narrower results.
+
+The root redirected work to planning and instructed this delegate to finish
+current verification/cleanup only. Implementation stopped after this failed
+run. The temporary-tool context exited, removed its owned links, and was
+explicitly released to root. No test/browser process from the run remains active.
+
+### Resumed mixed-account verification
+
+After root resumed implementation, the existing failed assertion was retained.
+The scenario now also awaits the actual subscription-account POST, asserts HTTP
+201 and null initial API purpose, and awaits that exact account's billing GET
+before testing the collapsed control. The GET must report
+`can_add_connection=true` with no existing bindings.
+
+The rebuilt diagnostic run passed the entire scenario. Safe DOM counts showed
+the section closed, `aria-busy=false`, one Add billing button, one scope input
+and no alert. Temporary diagnostic output was then removed. At 16:31 UTC the
+same full scenario, against those already-built production assets, passed again:
+
+```text
+P02 ACCOUNTS ADMIN: PASSED — real API, SQLite, and built browser
+P02 BROWSER: PASSED — accounts_admin
+```
+
+This final follow-up used the existing command with `accounts_admin --no-build`;
+it still created a new real SQLite/IAM/HTTP installation and real Chrome context.
+All mixed-account, command equality, real clipboard success/denial, manual
+selection, native return-focus GET, reload, subscription administration,
+capacity refresh and responsive assertions remained active. Scoped
+`git diff --check` passed. The exclusive tool window was released after cleanup.
+
+No additional production change was needed in this follow-up. The test had
+previously synchronized only to Account activity rather than the actual
+account-specific billing response; the added boundary checks remove that
+ambiguity. The precise cause of the historical timeout is not established by
+the retained evidence. Do not describe this as a proven production defect and
+fix. Current end-to-end behavior is Green; the earlier failed run remains part
+of the record. This does not close the wider T002 or first-reading journey.
+
+The scenario uses real Chrome permission changes for clipboard success/denial
+and a real second tab for return-focus refresh. It never executes the displayed
+command or enters a credential. Clipboard contents are compared inside the
+browser only after a successful copy; output records no clipboard text.
+Actual LAN HTTP insecure-context clipboard absence and owner credential entry
+are Not Run in this UI slice. No full local enrollment or first-reading claim
+is made from command display/copy evidence.
+
 ## Security, operations and residual work
 
 No dependency, license, migration, service configuration or owner-runtime

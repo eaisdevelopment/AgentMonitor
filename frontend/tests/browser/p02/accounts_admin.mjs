@@ -11,7 +11,10 @@ let stage = "browser_launch";
 
 try {
   browser = await chromium.launch({ channel: "chrome", headless: true });
-  const page = await browser.newPage({ baseURL: origin, viewport: { width: 1280, height: 800 } });
+  const context = await browser.newContext({ baseURL: origin, viewport: { width: 1280, height: 800 } });
+  const page = await context.newPage();
+  // Remove Playwright's default focus emulation; tab-return checks use native focus.
+  await (await context.newCDPSession(page)).send("Emulation.setFocusEmulationEnabled", { enabled: false });
   stage = "login";
   await page.goto(`${origin}/login`);
   await page.getByLabel("Administrator password").fill(credential);
@@ -73,6 +76,39 @@ try {
   const credentialStatus = await (await credentialStatusRead).json();
   assert.equal(credentialStatus.credential_status.state, "missing");
   await page.getByText("Credential required", { exact: true }).waitFor();
+  stage = "local_setup_command";
+  assert.ok(credentialStatus.local_setup?.command);
+  assert.ok(credentialStatus.local_setup?.host_label);
+  await page.getByText("Set up or replace local key", { exact: true }).click();
+  const setupCommand = page.getByLabel("Local credential setup command", { exact: true });
+  await setupCommand.waitFor();
+  assert.equal(await setupCommand.textContent(), credentialStatus.local_setup.command);
+  await page.locator("details[data-billing-local-setup]").getByText(credentialStatus.local_setup.host_label, { exact: true }).waitFor();
+  await page.context().grantPermissions(["clipboard-read", "clipboard-write"], { origin });
+  await page.getByRole("button", { name: "Copy setup command", exact: true }).click();
+  await page.getByText("Command copied.", { exact: true }).waitFor();
+  assert.equal(await page.evaluate(async (expected) => (await navigator.clipboard.readText()) === expected, credentialStatus.local_setup.command), true);
+  stage = "local_setup_copy_fallback";
+  await page.context().clearPermissions();
+  await page.context().grantPermissions(["clipboard-read"], { origin });
+  assert.equal(await page.evaluate(async () => (await navigator.permissions.query({ name: "clipboard-write" })).state), "denied");
+  await page.getByRole("button", { name: "Copy setup command", exact: true }).click();
+  await page.getByText("Select the command to copy it manually.", { exact: true }).waitFor();
+  await setupCommand.focus();
+  assert.equal(await page.evaluate(() => window.getSelection()?.toString()), credentialStatus.local_setup.command);
+  stage = "local_setup_return_refresh";
+  await (await context.newCDPSession(page)).send("Emulation.setFocusEmulationEnabled", { enabled: false });
+  const away = await page.context().newPage();
+  await away.goto("about:blank");
+  await (await context.newCDPSession(away)).send("Emulation.setFocusEmulationEnabled", { enabled: false });
+  await away.bringToFront();
+  assert.equal(await page.evaluate(() => document.hasFocus()), false);
+  const returnStatus = page.waitForResponse((response) =>
+    response.url().endsWith(`/accounts/${created.account_id}/billing-connections`) && response.request().method() === "GET" && response.status() === 200,
+  );
+  await page.bringToFront();
+  assert.equal((await (await returnStatus).json()).credential_status.state, "missing");
+  await away.close();
   assert.equal(await page.getByRole("button", { name: "Connect Claude", exact: true }).count(), 0);
   assert.equal(await page.locator("details.quota-history, [data-account-sessions]").count(), 0);
   assert.equal(await page.getByRole("heading", { name: "Account activity", exact: true }).count(), 0);
@@ -95,14 +131,27 @@ try {
   await page.getByLabel("Provider", { exact: true }).fill("claude");
   await page.getByLabel("Account name").fill("Browser account");
   await page.getByLabel("Organization", { exact: true }).selectOption({ label: "Browser organization" });
+  const subscriptionCreation = page.waitForResponse((response) =>
+    response.url().endsWith("/api/v1/accounts") && response.request().method() === "POST",
+  );
   await page.getByRole("button", { name: "Add account" }).click();
+  const subscriptionResponse = await subscriptionCreation;
+  assert.equal(subscriptionResponse.status(), 201);
+  const subscription = await subscriptionResponse.json();
+  assert.equal(subscription.initial_connection_purpose, null);
   await page.getByText("Browser account", { exact: true }).waitFor();
   const subscriptionCard = page.getByRole("article").filter({ hasText: "Browser account" });
   await subscriptionCard.getByText("pending · monitoring disabled").waitFor();
   stage = "account_edit";
+  const subscriptionStatusRead = page.waitForResponse((response) =>
+    response.url().endsWith(`/accounts/${subscription.account_id}/billing-connections`) && response.request().method() === "GET" && response.status() === 200,
+  );
   await subscriptionCard.getByRole("button", { name: "Open account" }).click();
   stage = "subscription_billing_collapsed";
   await page.getByRole("heading", { name: "Account activity", exact: true }).waitFor();
+  const subscriptionStatus = await (await subscriptionStatusRead).json();
+  assert.equal(subscriptionStatus.can_add_connection, true);
+  assert.equal(subscriptionStatus.connections.length, 0);
   const subscriptionBillingAction = page.getByRole("button", { name: "Add API billing connection", exact: true, includeHidden: true });
   await subscriptionBillingAction.waitFor({ state: "attached" });
   assert.equal(await subscriptionBillingAction.isVisible(), false);
@@ -156,6 +205,7 @@ try {
   await page.getByText("Ollama Cloud billing uses the existing cloud connection flow. API-only setup is not available yet.", { exact: true }).waitFor();
   assert.equal(await page.getByRole("button", { name: "Add API billing connection", exact: true }).count(), 0);
   assert.equal(await page.getByText("Credential required", { exact: true }).count(), 0);
+  assert.equal(await page.getByText("Set up or replace local key", { exact: true }).count(), 0);
   await browser.close();
   console.log("P02 ACCOUNTS ADMIN: PASSED — real API, SQLite, and built browser");
 } catch (error) {

@@ -32,11 +32,14 @@ export function BillingConnectionPanel({ account, onExpired, onProofUnavailable,
   const [revision, setRevision] = useState(0);
   const [scopeId, setScopeId] = useState("");
   const [busy, setBusy] = useState(false);
+  const [copyStatus, setCopyStatus] = useState("");
   const mutating = useRef(false);
+  const reading = useRef(false);
   const mounted = useRef(false);
   const expiredHandler = useRef(onExpired);
   expiredHandler.current = onExpired;
   const credentialStatus = state.kind === "ready" ? state.status.credential_status : null;
+  const localSetup = state.kind === "ready" ? state.status.local_setup : null;
 
   useEffect(() => {
     mounted.current = true;
@@ -45,7 +48,8 @@ export function BillingConnectionPanel({ account, onExpired, onProofUnavailable,
 
   useEffect(() => {
     const controller = new AbortController();
-    setState({ kind: "loading" });
+    reading.current = true;
+    setState((current) => current.kind === "ready" ? current : { kind: "loading" });
     void (async () => {
       try {
         const result = await registry.billingConnections(account.account_id, controller.signal);
@@ -62,10 +66,38 @@ export function BillingConnectionPanel({ account, onExpired, onProofUnavailable,
         setState({ kind: "ready", status: result.data });
       } catch {
         if (!controller.signal.aborted) setState({ kind: "error", message: "The local billing registry is unavailable. Refresh to try again." });
+      } finally {
+        if (!controller.signal.aborted) reading.current = false;
       }
     })();
     return () => controller.abort();
   }, [account.account_id, account.provider_key, account.record_version, revision]);
+
+  useEffect(() => {
+    if (state.kind !== "ready") return;
+    const onReturn = () => {
+      if (document.visibilityState !== "visible" || mutating.current || reading.current) return;
+      reading.current = true;
+      setRevision((current) => current + 1);
+    };
+    window.addEventListener("focus", onReturn);
+    document.addEventListener("visibilitychange", onReturn);
+    return () => {
+      window.removeEventListener("focus", onReturn);
+      document.removeEventListener("visibilitychange", onReturn);
+    };
+  }, [state.kind]);
+
+  async function copyCommand() {
+    if (localSetup == null) return;
+    try {
+      if (!navigator.clipboard) throw new Error("clipboard_unavailable");
+      await navigator.clipboard.writeText(localSetup.command);
+      if (mounted.current) setCopyStatus("Command copied.");
+    } catch {
+      if (mounted.current) setCopyStatus("Select the command to copy it manually.");
+    }
+  }
 
   async function create(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -117,12 +149,25 @@ export function BillingConnectionPanel({ account, onExpired, onProofUnavailable,
           <div><dt>Provider billing scope</dt><dd>{connection.scope_id ?? "Provider billing scope has not been specified."}</dd></div>
           <div><dt>Scope evidence</dt><dd>{connection.scope_evidence.replaceAll("_", " ")}</dd></div>
         </dl>
-        <p>Credential setup and access verification are not available in this step yet.</p>
+        <p>{localSetup == null ? "Credential setup and access verification are not available in this step yet." : "Access verification is not available in this step yet."}</p>
       </div>)}
       {credentialStatus != null && <>
         <p><span className="state-chip state-unavailable">{credentialStateLabels[credentialStatus.state]}</span>{credentialStatus.state === "stored" && " Storage does not verify provider access."}</p>
         {credentialStatus.cleanup_required && <p className="connection-warning" role="status">Cleanup required: local credential removal has not been confirmed.</p>}
       </>}
+      {localSetup != null && <details className="account-secondary" data-billing-local-setup="true">
+        <summary>Set up or replace local key</summary>
+        <p>Run this command on <strong>{localSetup.host_label}</strong>, the computer hosting AgentMonitor, as the user running its service.</p>
+        <code className="ollama-setup-command" aria-label="Local credential setup command" tabIndex={0} onFocus={(event) => {
+          const selection = window.getSelection();
+          const range = document.createRange();
+          range.selectNodeContents(event.currentTarget);
+          selection?.removeAllRanges();
+          selection?.addRange(range);
+        }}>{localSetup.command}</code>
+        <button type="button" className="quiet-button" onClick={() => { void copyCommand(); }}>Copy setup command</button>
+        {copyStatus && <p role="status">{copyStatus}</p>}
+      </details>}
       {state.status.can_add_connection && <form onSubmit={(event) => { void create(event); }}>
         <label htmlFor="billing-scope">Provider billing scope (optional)</label>
         <input id="billing-scope" value={scopeId} onChange={(event) => setScopeId(event.target.value)} maxLength={128} pattern="[A-Za-z0-9][A-Za-z0-9_.:\-]*" autoComplete="off" disabled={busy} aria-describedby="billing-scope-help" />

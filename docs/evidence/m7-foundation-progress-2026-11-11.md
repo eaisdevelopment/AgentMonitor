@@ -123,3 +123,74 @@ generic storage alone does not authorize a billing HTTP request. Collection
 integration must handle API-only targets without invented CLI profiles and
 report receipts without invented observations. These remain the existing
 T002/T005/T006/T007 implementation work, not new owner approvals or scope.
+
+## Local setup display and first billing-source foundation
+
+Requirements: FR-ACC-001..004/006, FR-BUDGET-001/004/006; M7-A01/A02/A03/A07/A09.
+Owning modules: M02 safe metadata, A01 official source, root composition, P01
+transport and P02 setup. CTR-REG-014 1.2.0 adds an optional nonsecret local
+command/host DTO; CTR-PROV-003 1.3.0 admits explicitly experimental documented
+API sources without removing private-source or scoped-grant controls.
+
+The account GET now supplies the command using the selected installed service,
+quoted equals-form account/resource arguments and safe host context. The panel
+shows expandable setup, copy/manual-selection fallback and a safe status GET
+on native browser return. No credential appears in HTTP. Command rendering does
+not establish that the currently installed M6 runtime contains the M7 operator;
+the planned early T014 activation must precede owner entry.
+
+The HTTP Red was `KeyError: 'local_setup'` (one failed, one passed); the same
+two real HTTP tests became Green after the typed port/response wiring. Six pure
+command tests additionally check literal arguments with spaces/metacharacters
+and leading-dash opaque IDs, and invalid-root rejection without executing commands.
+The complete built Accounts scenario is Green; see the
+[UI evidence](m7-api-setup-ui-2026-11-11.md) for exact Red history, real clipboard
+denial/native-focus testing and the mixed-account timeout's unresolved historical
+cause. The successful reruns required no additional production UI fix.
+
+The shared exact-decimal converter also normalizes finite zero before exponent
+expansion. Four pure cases (scaled, signed and extreme-exponent zero) were Red
+with noncanonical/coefficient-bound errors and became Green; nonzero public
+bounds and rounding semantics are unchanged. This is CTR-COMMON-003 behavior
+correction, not a new monetary representation.
+
+The official Anthropic source and [bounded credential reader](m7-billing-env-authorization-2026-11-11.md)
+are candidate components, not a connected scheduled collector. The reader is
+tested only with genuine empty protected files/locks; no owner key was read.
+[A01 evidence](m7-anthropic-cost-source-2026-11-11.md) records 34 source policy,
+process and manifest tests, including the finite-deadline correction.
+
+Documented-beta admission Red: two tests failed with
+`provider_source_experimental_invalid`, while six restriction tests passed.
+After the minimal relaxation, 84 protocol/manifest/restriction tests passed.
+An additional pure resolver regression confirms the official beta is denied
+without its scoped grant and resolves only with that grant. Neither test
+authorizes a network request or asserts real administrative access.
+
+Combined root verification: 257 selected provider/protocol, credential
+empty-file/lock, command and exact-money tests passed; strict mypy passed eleven
+changed source files. Generated OpenAPI is compatible with 80 operations.
+Independent registration review preserves all 20 frozen plans and 106 contract
+identities/owners/consumers; see the appended synchronization record.
+
+No new dependency, license or migration. Legacy Ollama credential namespace and
+physical lock protections are retained. No default profiles, running agents,
+owner configuration, installed service or public repository changed in this
+increment. No raw provider response, secret or fake telemetry was retained.
+Local source changes, generated API/client, tests, evidence and focused planning
+clarifications form this handoff; installation and publication remain separate.
+
+Remaining: full setup lifecycle/capability routing, early setup activation,
+actual active-binding/scope-fenced billing worker, genuine provider access,
+atomic report storage/recovery and the real budget Overview/detail/history.
+Other providers, supported analysis views and full M7 exit remain required.
+These results do not close T002, T006 or M7.
+
+Commit checkpoint: canonical registry metadata/HTTP selection passed 34 tests;
+AUTO-BUILD passed generated contract, TypeScript and production frontend checks
+(fresh-install/release publication remains Not Run). Ruff checks/format passed
+26 changed Python files. AUTO-M7-PLAN-CHECK, AUTO-PLAN-CHECK,
+AUTO-DOCS-CHECK and local AUTO-GIT-PREFLIGHT passed. Staged secret scan found
+only two generated OpenAPI digests, each independently matched to its actual
+old/staged artifact; no other finding remained. The independent setup-activation
+preparation being developed next is excluded from this commit checkpoint.

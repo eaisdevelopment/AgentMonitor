@@ -36,6 +36,7 @@ access. These are known product limitations, not surprises to discover at exit.
 | [Calculation and data rules](m7-calculation-and-data-rules.md) | Formulas, exactness, time/coverage, shared pools, empty reports, corrections and forecast eligibility |
 | [M05 increment](../modules/m05-capacity/m7-budget-increment-2026-11-11.md) | Contracts, storage, import boundaries and test sequence |
 | [Ticket catalog](m7-ticket-catalog-v1.json) | Sixteen stable ticket IDs, dependencies, delivery slices, acceptance and actual status |
+| [Delivery worksheet](m7-delivery-worksheet-2026-11-11.md) | Ordered demonstrable increments, concrete unresolved integration work, test boundaries and owner participation |
 | [Source discovery](../../evidence/m7-provider-discovery-2026-11-11.md) | Official documentation versus unverified live account facts |
 | [Refactor review](../../evidence/m7-plan-refactor-2026-11-11.md) | Actual hazards found, bounded review and validation results |
 
@@ -92,6 +93,18 @@ and later UI enhancement belong to T013. This removes the earlier UI↔forecast
 completion dependency. T014 begins operational design immediately and supports
 the first installed slice; it does not wait until the last week.
 
+T014 has two increments inside the same ticket: **setup activation before the
+first live report**, then **complete dashboard activation after T010–T012**.
+The present local setup command resolves the installed service executable and
+data root; an isolated candidate cannot claim that command works against an
+older installed binary. First exercise the candidate on isolated real storage
+with no key, prepare a clean compatible build and recoverable migration, and
+activate the tested setup increment through the existing service. Only then
+request owner entry through its actual page. Preserve accepted M6 continuity.
+This partial activation does not close T014 or M7. A failed continuity/recovery
+check prevents activation; it does not permit bypassing service selection or
+manually configuring the owner's account.
+
 First-slice results are explicitly partial M7 delivery. They are not milestone
 completion. The full original three-provider/five-story scope remains required.
 
@@ -142,9 +155,11 @@ use the existing tagged cloud subject; old quota/V1 DTO semantics stay intact.
 T002 owns account billing-connection metadata, credential status and local entry,
 disconnect/rotation eligibility and their HTTP/UI. T007 owns the executable
 verification, monitoring-enable and collect-now actions and their HTTP/UI wiring.
-T002 must not wait for those later collection actions or the T014 installed-service
-proof to close. Its local command is exercised against the built candidate;
-T014 verifies that same entry point in the installed service. No nonfunctional
+T002's metadata/status tests can advance independently. Its command boundary is
+tested against the built candidate on isolated real storage; that is not a
+successful installed command or real-key enrollment claim. T014's early setup
+activation verifies the selected-service entry point before owner entry; full
+T014 closure still follows the first dashboard slice. No nonfunctional
 verify/enable button is presented as usable in the interim. POST metadata/verify returns
 real IDs/status with idempotency and account generation. No key values in JSON.
 M04/M05 expose additive receipt/run variants supporting real empty coverage
@@ -271,7 +286,7 @@ approval or product scope.
 
 | Checkpoint | Concrete result to inspect | What must not delay it |
 |---|---|---|
-| T002 owner setup | Create/attach → actual detail URL → locally entered credential → safe status; cancel/retry/rotation/archive preserve unrelated configuration | Full provider coverage, forecast, installed deployment or a provider success mislabeled as local storage success |
+| T002 owner setup | Create/attach → actual detail URL → locally entered credential → safe status; early T014 setup activation precedes owner entry; cancel/retry/rotation/archive preserve unrelated configuration | Full provider coverage, forecast, final full-dashboard deployment or a provider success mislabeled as local storage success |
 | T004 exact policy | Exact money and complete-report selection tested, with explicit availability and shared-pool rules | T013 rate/horizon implementation; its math cases are verified there |
 | First T006/T008/T009 lane | One complete real monetary report for one owner-selected resource, with exact coverage and source comparison | An inaccessible second provider, all organizations, all usage dimensions |
 | T005/T007 | That report survives database reopen; scheduled/manual reads use one real run and generation fences; first-reading state resolves | A generic job framework, new alert engine or manufactured rare provider failures |
@@ -293,6 +308,15 @@ and `registry_metadata` selectors remain narrow. T003 adds the other named-check
 selectors to the same runner and tests their dispatch/missing-evidence behavior;
 their exact invocations remain Planned until implemented. No new runner or
 separate approval layer. T015/T016 still require the complete aggregate commands.
+
+T003/T014 must add the **setup_activation** scoped selection to the existing M7
+deployment routine. It is **Planned, not executable yet**: publish/test its exact
+invocation before rollout. It requires clean candidate/schema/recovery and
+installed command/dashboard-continuity evidence, but not unfinished budget
+charts or the first provider's money. Its pass permits only the partial setup
+activation. `AUTO-M7-DEPLOY` full-slice verification and T014 closure retain
+their later dashboard requirements. This is one routine with explicit scope,
+not a new deployment framework or permission ceremony.
 
 When an external prerequisite fails, record the exact ticket, observed error,
 affected test and smallest required action. Keep independent tickets running.

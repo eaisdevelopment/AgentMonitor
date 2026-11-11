@@ -82,6 +82,7 @@ def test_api_account_creation_exposes_safe_billing_status(tmp_path: Path) -> Non
             assert "ETag" not in status[1]
             assert payload["connections"] == []
             assert payload["credential_status"] is None
+            assert payload["local_setup"] is None
             assert payload["can_add_connection"] is True
             assert payload["account_lifecycle"] == "pending"
 
@@ -189,6 +190,17 @@ def test_api_account_creation_exposes_safe_billing_status(tmp_path: Path) -> Non
                 "pending_generation": None,
                 "cleanup_required": False,
             }
+            setup = json.loads(listed[2])["local_setup"]
+            assert setup["host_label"]
+            assert (
+                "agentmonitor.composition.billing_credential_operator"
+                in setup["command"]
+            )
+            assert "--account-id=" + account_id in setup["command"]
+            assert "--resource-id=" + connected["resource_id"] in setup["command"]
+            assert str(tmp_path) in setup["command"]
+            assert "agentmonitor-dashboard.service" in setup["command"]
+            assert "/worktrees/" not in setup["command"]
             unchanged = await asyncio.to_thread(
                 _request,
                 origin,

@@ -28,10 +28,10 @@ Existing quota/history/event consumers remain compatible. No local Ollama work.
 
 - `capacity_v1.py` has a four-field reserved BudgetViewV1; preserve it and add
   BudgetViewV2 with existing CapacitySubjectV2 tagged cloud identity.
-- `common_quantity_v1.py` supports exact coefficient/scale and currency, but
-  `as_decimal()` uses context-sensitive Decimal.scaleb. A pure probe rounds a
-  valid 38-digit value at default precision. T004 must correct this shared leaf
-  primitive and exact aggregation before the budget implementation uses it.
+- Historical inspection: `common_quantity_v1.py` used context-sensitive
+  Decimal.scaleb in `as_decimal()`, rounding a valid 38-digit input. T004 corrected
+  conversion at `6a87630`. Retain the regression and remaining exactness checks;
+  this corrected defect is not new outstanding implementation work.
 - Existing quota commit/query/forecast ports are quota typed. Do not disguise
   budget money as quota units or manufacture an installation/window ID.
 - Frozen `v1_0500` provides budget and usage tables; `v1_0501` receipts/current
@@ -187,6 +187,13 @@ be a prerequisite for completing its own inputs. T003 owns publication of the
 remaining selector invocations before dependent ticket closure. Scope epochs,
 rolling UTC-range alignment and subtotal exclusions follow the calculation
 document; setup and installed-service proof follow the execution checkpoints.
+
+Use the [delivery worksheet](../../integration/m7-delivery-worksheet-2026-11-11.md)
+for early setup activation and the observed documented-beta/API-only/paged-run
+contract gaps. T014 begins with the tested setup increment before real owner key
+entry; its full dashboard closure follows the stored-report/API/UI work. A
+complete provider ticket is not a prerequisite for starting first-report storage
+with its verified monetary increment. No placeholder data crosses that boundary.
 
 ## 11. Security and configuration
 

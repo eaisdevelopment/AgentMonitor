@@ -18,7 +18,10 @@ from agentmonitor.contracts.ollama_local_catalog_v1 import (
     LocalCatalogPortV1,
 )
 from agentmonitor.contracts.provider_system_v1 import ProviderConnectionPortV1
-from agentmonitor.contracts.registry_billing_v1 import BillingConnectionPortV1
+from agentmonitor.contracts.registry_billing_v1 import (
+    BillingConnectionPortV1,
+    BillingLocalSetupPortV1,
+)
 from agentmonitor.contracts.registry_coverage_v1 import (
     OrganizationProviderCoverageReadPortV1,
     OrganizationProviderCoverageWritePortV1,
@@ -173,6 +176,7 @@ class ObservationApiPortsV1:
     organization_coverage_read: OrganizationProviderCoverageReadPortV1 | None = None
     organization_coverage_write: OrganizationProviderCoverageWritePortV1 | None = None
     billing_connections: BillingConnectionPortV1 | None = None
+    billing_local_setup: BillingLocalSetupPortV1 | None = None
 
 
 @dataclass(frozen=True, slots=True)

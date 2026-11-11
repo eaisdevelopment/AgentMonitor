@@ -163,3 +163,21 @@ class BillingConnectionPortV1(Protocol):
     def create(
         self, command: CreateBillingConnectionCommandV1
     ) -> BillingConnectionViewV1: ...
+
+
+@dataclass(frozen=True, slots=True)
+class BillingLocalSetupV1(TechnicalValueV1):
+    """Nonsecret owner command for the service host; never a browser key input."""
+
+    CONTRACT_ID: ClassVar[str] = "CTR-REG-014"
+    OWNER: ClassVar[str] = "PLAN-M02"
+    host_label: str
+    command: str
+
+
+class BillingLocalSetupPortV1(Protocol):
+    """Composition supplies installation context, independently of registry storage."""
+
+    def describe(
+        self, status: AccountBillingConnectionsV1
+    ) -> BillingLocalSetupV1 | None: ...

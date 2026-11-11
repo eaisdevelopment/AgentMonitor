@@ -65,8 +65,11 @@ The account page then shows these steps, with actual server state:
    Returning focus refreshes safe status automatically. Distinguish connection
    access from data availability and identity verification.
 4. **Enable API monitoring.** Explicit owner action after successful access;
-   immediately queue the first reading. Show Waiting for first reading, then
-   replace it with real data. Successful access with an empty report is valid.
+   queue the first reading if no compatible report was collected by Check
+   connection. Reuse and display a genuine report from that check rather than
+   immediately issuing an identical request; schedule its next due refresh.
+   Show Waiting for first reading only when appropriate. Successful access with
+   an empty report is valid.
 
 LAN instruction: **Run the setup command on the computer hosting AgentMonitor,
 as the user running its service.** A terminal on the browser's other computer
@@ -76,6 +79,10 @@ and selectable command text when LAN HTTP clipboard APIs are unavailable.
 Use the installed runtime entry point, never a development-worktree path.
 
 No owner step is requested before its button/command exists and is tested.
+T014's setup activation must precede requesting key entry: the command resolves
+the selected installed service, so displaying it from a candidate with an older
+installed service is not a working enrollment demonstration. Candidate-only
+tests and full later dashboard activation remain distinct evidence.
 Owner configures accounts, organizations and secrets; coding agents do not.
 T002 includes all pages of the organization selector. Failed/unloaded name lookup
 shows Organization unavailable, never Ungrouped for an assigned account.
@@ -93,6 +100,9 @@ recreate the account. T007 completes Check connection → Enable API monitoring
 Keep subscription quotas and API billing as two labeled sections with one
 shared organization multi-select and provider filter. Lift only filter state
 out of the existing `AccountQuotaOverview`; retain its quota sorting behavior.
+Add a compact resource-type filter **All / Subscriptions / API billing**, default
+All, with section counts and nonsecret URL state. This keeps API records reachable
+without scrolling through a large subscription list. It adds no top-level page.
 Add a report-range selector inside **API usage & spend**. Initial ranges are
 Last 7 completed UTC days and Last 30 completed UTC days, ending at a shared
 UTC-midnight cutoff; display the actual bounds, not a misleading billing-month label.
@@ -101,7 +111,7 @@ Source-native partial periods and data coverage remain visible per row.
 Design-only layout, no sample telemetry:
 
 ```text
-Organizations [selection]   Provider [selection]
+Organizations [selection]   Provider [selection]   Resources [All]
 Subscription quotas  [existing table]
 
 API usage & spend    Period [Last 7 days]     [Refresh readings]

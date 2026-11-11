@@ -165,3 +165,58 @@ review. No new dependency, contract version, migration or test framework is
 introduced. Pending scoped commands are explicitly Planned rather than invented
 as available commands. The next implementation result remains the complete
 first monetary account journey, followed by the retained full M7 scope.
+
+## Further delivery review against 032a43f and the current candidate
+
+This section records the owner's renewed request for deeper planning and simple
+delivery. Earlier approvals remain applicable; focused plan 1.1.0, five stories,
+sixteen tickets and ten acceptance items are unchanged. The new
+[delivery worksheet](../plans/integration/m7-delivery-worksheet-2026-11-11.md)
+is an explanation of execution order, not another gate or task tracker.
+
+Root inspected the current billing command/service selection, provider source,
+collection admission and receipt contracts, current ticket dependencies and
+the owning UI/calculation plans. Independent A01 and P02 reviews were read-only;
+the credential/financial agent also supplied a bounded implementation handoff.
+
+| Finding | Resolution in the planning set |
+|---|---|
+| Owner entry command selects installed M6 while installation waited for first M7 data | T014 has an early setup activation increment, with a Planned scoped selection owned by T003/T014; full dashboard activation and ticket closure remain later |
+| Existing checkpoint text still excluded all installed deployment | Corrected to exclude only final full-dashboard deployment; early setup activation remains required before owner key entry |
+| Provider ticket completion could delay its own first-report consumers | Closure prerequisites remain strict; verified partial provider cost output can feed storage/UI before remaining categories/dimensions close |
+| Official-beta manifest, profile-required billing target, one-request admission and nonempty receipt restrictions | Concrete smallest contract changes, owner, ticket and evidence are enumerated; no fake profile, private-source relabeling or new scheduler |
+| Last UI verification failed in mixed-account attach flow | T002 explicitly retains the unresolved browser failure; command/copy/focus successes are not full setup acceptance |
+| Large quota list could bury API billing | Existing shared filter area gains All/Subscriptions/API billing choice and counts; no extra navigation/application |
+| Check connection can already return a genuine report | Persist/reuse that result once; enable schedules next due read instead of an unnecessary identical immediate request |
+| Financial charts/reconciliation could silently round or misgroup | Exact API figures remain authoritative; signed chart values, snapshot changes and same-scope/time/basis/precision comparison are explicit |
+| Calculation/M05 text still described corrected decimal conversion as broken | Marked historical with `6a87630`; outstanding exactness work remains separate |
+| Speculative native-range gap could cause extra collection complexity | Rechecked official Ollama boundaries and corrected the calculation plan; actual unexpected gaps remain explicit source drift |
+
+The independent execution reviewer identified the checkpoint contradiction and
+missing scoped setup-selection allocation; both are corrected. The UI reviewer
+reported no additional critical omission in its bounded review and confirmed
+the mixed-account regression remains an implementation item. Neither review
+claims product completion or absence of future bugs.
+
+Verification on the real worktree after these planning edits:
+
+- `AUTO-M7-PLAN-CHECK`: Passed; 16 tickets, five stories, ten acceptance items.
+- `AUTO-PLAN-CHECK`: Passed; synchronized baseline.
+- `AUTO-DOCS-CHECK`: Passed; 340 Markdown files.
+- `git diff --check`: Passed.
+- Installed `agentmonitor-dashboard.service`: active; root HTTP 200. This is
+  availability only, not an authenticated M7 dashboard or provider pass.
+
+No new test is needed for this documentation-only refactor. Existing catalog
+and documentation checks validate the changed artifacts. No contract version,
+migration, dependency, secret custody, license or deployment was changed by
+these planning edits. Existing unfinished production/test/generated changes in
+the worktree are preserved separately and are not certified by these passes.
+No account/key configuration or publication occurred in this review.
+
+Changed planning artifacts: execution plan, UI journeys, calculation rules,
+M05 increment, ticket catalog, delivery worksheet and this evidence. All map
+to the existing FR-BUDGET-001..006, FR-ORG-003, FR-ACC-001..004/006 and
+M7-A01..A10 set. Remaining implementation is named in the worksheet and tickets;
+M7 remains unfinished. The immediate delivery target is tested installed setup,
+then the first real financial report on Overview/detail/history.

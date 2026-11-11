@@ -1367,3 +1367,21 @@ nonsecret credential-status projection. This does not approve the frozen Draft
 parent plans or claim live-provider/deployment completion.
 
 Plan snapshot SHA-256: `3d33d57e16e1f97c73f324e7cfd71c6e24df6cf0bbf1e086dd7067ba42de59f2`
+
+
+## 2026-11-11 M7 local setup and documented-beta contract review
+
+Independent read-only reviewer `m7_execution_commands` compared the current
+snapshot with `032a43f`. All twenty plan entries are unchanged; every plan and
+all nine control SHA/byte counts match. Only contract-baseline and
+contract-adoption controls changed. The 106 contract IDs, producers, consumers
+and twenty exact module adoptions remain stable.
+
+CTR-REG-014 advances compatibly to 1.2.0 for the optional nonsecret local-setup
+DTO/port. CTR-PROV-003 advances to 1.3.0 for documented API sources explicitly
+marked experimental; private-source restrictions and scoped experimental-grant
+resolution remain enforced. Existing quota source interpretation is unchanged.
+This records the focused M7 authority, not approval of the frozen Draft parent
+plans or live provider/deployment completion.
+
+Plan snapshot SHA-256: `6d5c7c9c9746902631c81d99f44f7b31ed3ba643a876b2986a0411a70e41863d`

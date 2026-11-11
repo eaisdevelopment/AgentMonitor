@@ -181,6 +181,11 @@ class BillingCredentialStatusV1(_ClosedV1):
     cleanup_required: bool
 
 
+class BillingLocalSetupV1(_ClosedV1):
+    host_label: str
+    command: str
+
+
 class AccountBillingConnectionsV1(_ClosedV1):
     account_id: str
     provider_key: str
@@ -194,3 +199,4 @@ class AccountBillingConnectionsV1(_ClosedV1):
         description="Local entry lifecycle; null means not queried/not applicable. "
         "Stored records completion of local entry, not provider verification.",
     )
+    local_setup: BillingLocalSetupV1 | None = None

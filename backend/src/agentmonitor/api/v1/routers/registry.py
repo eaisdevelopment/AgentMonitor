@@ -29,6 +29,7 @@ from agentmonitor.api.v1.schemas.registry import (
     AssignAccountOrganizationInputV1,
     BillingConnectionViewV1,
     BillingCredentialStatusV1,
+    BillingLocalSetupV1,
     CreateBillingConnectionInputV1,
     CreateOrganizationInputV1,
     MaskedRegistryFieldWireV1,
@@ -815,6 +816,8 @@ def get_billing_connections(
     # Account record_version fences metadata mutations, but does not version
     # credential lifecycle changes in this composite view. Do not advertise it
     # as a strong representation validator.
+    setup_port = observation_ports(request).billing_local_setup
+    setup = None if setup_port is None else setup_port.describe(status)
     return AccountBillingConnectionsV1(
         account_id=status.account_id.value,
         provider_key=status.provider_key,
@@ -823,6 +826,14 @@ def get_billing_connections(
         can_add_connection=status.can_add_connection,
         reason_code=status.reason_code,
         connections=tuple(_billing_connection(item) for item in status.connections),
+        local_setup=(
+            None
+            if setup is None
+            else BillingLocalSetupV1(
+                host_label=setup.host_label,
+                command=setup.command,
+            )
+        ),
         credential_status=(
             None
             if status.credential_status is None

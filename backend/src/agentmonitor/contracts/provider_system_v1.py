@@ -327,8 +327,14 @@ class ProviderSourceV1(TechnicalValueV1):
         ):
             if not _bounded_token(value):
                 raise InvalidProviderContract("provider_source_invalid")
-        if type(self.is_experimental) is not bool or self.is_experimental != (
-            self.source_class == "experimental_private_or_browser"
+        private_source = self.source_class == "experimental_private_or_browser"
+        documented_beta = (
+            self.source_class == "documented_api" and self.stability == "experimental"
+        )
+        if (
+            type(self.is_experimental) is not bool
+            or (private_source and not self.is_experimental)
+            or (self.is_experimental and not (private_source or documented_beta))
         ):
             raise InvalidProviderContract("provider_source_experimental_invalid")
 
