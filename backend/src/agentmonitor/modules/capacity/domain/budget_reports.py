@@ -11,12 +11,25 @@ BudgetReportSelection = BudgetReportSelectionV1
 
 
 def _same_context(left: BudgetReportInputV1, right: BudgetReportInputV1) -> bool:
-    # Credential rotation changes access, not the identity of historical spend.
-    # Scope generation changes do invalidate compatibility with earlier reports.
+    # Rotation preserves resolved financial scope, but an unresolved new binding
+    # may access a different actor. Keep that access lineage as its own context.
+    # budget_current_query.CURRENT_REPORT_METADATA_SQL uses the same conditional
+    # binding pair, alongside the same scope/source/period/currency dimensions.
+    left_lineage = (
+        (left.binding_id, left.binding_generation)
+        if left.scope_evidence == "unresolved"
+        else None
+    )
+    right_lineage = (
+        (right.binding_id, right.binding_generation)
+        if right.scope_evidence == "unresolved"
+        else None
+    )
     return (
         left.subject == right.subject
         and left.scope_id == right.scope_id
         and left.scope_generation == right.scope_generation
+        and left_lineage == right_lineage
         and left.source_id == right.source_id
         and left.source_category == right.source_category
         and left.cost_basis == right.cost_basis

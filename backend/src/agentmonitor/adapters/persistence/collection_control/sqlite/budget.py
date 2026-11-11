@@ -7,13 +7,20 @@ from datetime import UTC, datetime, timedelta
 from typing import Any, cast
 
 from agentmonitor.contracts.capacity_v1 import BudgetCollectionInputV1
-from agentmonitor.contracts.collection_control_v1 import BudgetCollectionRunAdmissionV1
+from agentmonitor.contracts.collection_control_v1 import (
+    BudgetCollectionRunAdmissionV1,
+    CloudBudgetReportContextV1,
+)
 from agentmonitor.contracts.common_v1 import OpaqueIdV1
 from agentmonitor.contracts.registry_billing_v1 import (
     BillingAccessTargetV1,
     BillingConnectionViewV1,
 )
-from agentmonitor.contracts.registry_v1 import ActiveCredentialBindingRefV1
+from agentmonitor.contracts.registry_v1 import (
+    ActiveCredentialBindingRefV1,
+    CloudMonitoringTargetV1,
+    ProviderAccessTargetV1,
+)
 from sqlalchemy.engine import Connection
 
 BillingAdmissionFence = Callable[[Connection, BillingAccessTargetV1], None]
@@ -137,6 +144,134 @@ def decode_billing_target(text: str) -> BillingAccessTargetV1:
         if encode_billing_target(target) != text:
             raise BudgetCollectionError()
         return target
+    except (ValueError, TypeError, KeyError, AttributeError, RecursionError):
+        raise BudgetCollectionError() from None
+
+
+CloudBudgetAuthority = tuple[
+    CloudMonitoringTargetV1, ProviderAccessTargetV1, CloudBudgetReportContextV1
+]
+
+
+def _cloud_value(value: object) -> object:
+    if type(value) in (
+        CloudMonitoringTargetV1,
+        ProviderAccessTargetV1,
+        CloudBudgetReportContextV1,
+    ):
+        return {
+            field.name: _cloud_value(getattr(value, field.name))
+            for field in fields(cast(Any, value))
+        }
+    return _encode(value)
+
+
+def _cloud_document(authority: CloudBudgetAuthority) -> dict[str, object]:
+    graph, service, context = authority
+    if (
+        type(graph) is not CloudMonitoringTargetV1
+        or type(service) is not ProviderAccessTargetV1
+        or type(context) is not CloudBudgetReportContextV1
+    ):
+        raise BudgetCollectionError()
+    return {
+        "tag": "cloud_budget_target.v1",
+        "cloud_target": _cloud_value(graph),
+        "service_target": _cloud_value(service),
+        "report_context": _cloud_value(context),
+    }
+
+
+def _cloud_timestamp(value: Any) -> datetime:
+    if type(value) is not str:
+        raise BudgetCollectionError()
+    result = datetime.fromisoformat(value)
+    if _utc(result) != value:
+        raise BudgetCollectionError()
+    return result
+
+
+def _decode_cloud(value: Any) -> CloudBudgetAuthority:
+    if (
+        type(value) is not dict
+        or set(value) != {"tag", "cloud_target", "service_target", "report_context"}
+        or value["tag"] != "cloud_budget_target.v1"
+    ):
+        raise BudgetCollectionError()
+    graph = dict(_object(value["cloud_target"], CloudMonitoringTargetV1))
+    binding = dict(_object(graph["binding"], ActiveCredentialBindingRefV1))
+    service = dict(_object(value["service_target"], ProviderAccessTargetV1))
+    context = dict(_object(value["report_context"], CloudBudgetReportContextV1))
+    for name in (
+        "profile_id",
+        "resource_id",
+        "account_id",
+        "access_target_id",
+        "owner_principal_id",
+    ):
+        graph[name] = OpaqueIdV1(graph[name])
+    for name in ("account_id", "binding_id"):
+        binding[name] = OpaqueIdV1(binding[name])
+    graph["binding"] = ActiveCredentialBindingRefV1(**binding)
+    graph["owner_asserted_at"] = _cloud_timestamp(graph["owner_asserted_at"])
+    service["access_target_id"] = OpaqueIdV1(service["access_target_id"])
+    for name in ("interval_start", "interval_end"):
+        context[name] = _cloud_timestamp(context[name])
+    target = CloudMonitoringTargetV1(**graph)
+    provider = ProviderAccessTargetV1(**service)
+    report_context = CloudBudgetReportContextV1(**context)
+    if (
+        target.lifecycle != "active"
+        or target.identity_state != "owner_confirmed"
+        or provider.lifecycle != "active"
+        or provider.provider_key != "ollama"
+        or provider.target_kind != "cloud_service"
+        or provider.authority_id != "ollama.com"
+        or target.access_target_id != provider.access_target_id
+    ):
+        raise BudgetCollectionError()
+    return target, provider, report_context
+
+
+def encode_cloud_budget_target(
+    cloud_target: CloudMonitoringTargetV1,
+    service_target: ProviderAccessTargetV1,
+    report_context: CloudBudgetReportContextV1,
+) -> str:
+    """Encode captured authority only; this never proves it remains current."""
+    try:
+        normalized = _decode_cloud(
+            _cloud_document((cloud_target, service_target, report_context))
+        )
+        text = json.dumps(
+            _cloud_document(normalized),
+            ensure_ascii=True,
+            sort_keys=True,
+            separators=(",", ":"),
+        )
+        if len(text) > 8192:
+            raise BudgetCollectionError()
+        return text
+    except (ValueError, TypeError, KeyError, AttributeError, RecursionError):
+        raise BudgetCollectionError() from None
+
+
+def decode_cloud_budget_target(text: str) -> CloudBudgetAuthority:
+    """Require the exact tagged canonical representation before restoring DTOs."""
+    try:
+        if type(text) is not str or not 2 <= len(text) <= 8192 or not text.isascii():
+            raise BudgetCollectionError()
+        authority = _decode_cloud(
+            json.loads(
+                text,
+                object_pairs_hook=_pairs,
+                parse_float=_reject_number,
+                parse_constant=_reject_number,
+            )
+        )
+        if encode_cloud_budget_target(*authority) != text:
+            raise BudgetCollectionError()
+        return authority
     except (ValueError, TypeError, KeyError, AttributeError, RecursionError):
         raise BudgetCollectionError() from None
 

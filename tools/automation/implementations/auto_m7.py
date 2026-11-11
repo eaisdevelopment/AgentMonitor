@@ -46,6 +46,7 @@ PURE_TARGETS = (
     "backend/tests/contracts/test_budget_report_contract.py",
     "backend/tests/contracts/test_budget_commit_contract.py",
     "backend/tests/contracts/test_budget_run_contract.py",
+    "backend/tests/contracts/test_cloud_budget_run_contract.py",
     "backend/tests/collection_control/pure/test_budget_run_policy.py",
     "backend/tests/collection_control/pure/test_budget_executor_policy.py",
     "backend/tests/registry/test_billing_access_policy.py",
@@ -59,6 +60,7 @@ PURE_TARGETS = (
     "backend/tests/contracts/test_anthropic_billing_run.py",
     "backend/tests/capacity/pure/test_budget_account_spend.py",
     "backend/tests/collection_control/pure/test_budget_dispatch_policy.py",
+    "backend/tests/collection_control/pure/test_cloud_budget_target_codec.py",
     "backend/tests/capacity/test_quantity_and_health.py",
 )
 REGISTRY_METADATA_TARGETS = (

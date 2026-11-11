@@ -210,7 +210,8 @@
         "docs/evidence/m7-budget-spend-aggregation-2026-11-11.md",
         "docs/evidence/m7-budget-storage-foundation-2026-11-11.md",
         "docs/evidence/m7-plan-refactor-2026-11-11.md",
-        "docs/evidence/m7-budget-exact-threshold-2026-11-11.md"
+        "docs/evidence/m7-budget-exact-threshold-2026-11-11.md",
+        "docs/evidence/m7-cloud-usage-authority-2026-11-11.md"
       ],
       "depends_on_any": [],
       "delivery_slice": "S0",
@@ -259,7 +260,8 @@
       "verification": "Planned scoped verification: persistence through the existing M7 runner (T003 must publish/test the exact selector before closure). The full AUTO-M7-TEST/LIVE/BROWSER results are final integration checks in T015/T016, not this ticket prerequisite.",
       "evidence": [
         "docs/evidence/m7-budget-storage-foundation-2026-11-11.md",
-        "docs/evidence/m7-budget-current-query-2026-11-11.md"
+        "docs/evidence/m7-budget-current-query-2026-11-11.md",
+        "docs/evidence/m7-cloud-usage-authority-2026-11-11.md"
       ],
       "depends_on_any": [],
       "delivery_slice": "S1",
@@ -367,7 +369,8 @@
         "docs/evidence/m7-billing-monitoring-registry-2026-11-11.md",
         "docs/evidence/m7-billing-monitoring-http-2026-11-11.md",
         "docs/evidence/m7-billing-schedule-2026-11-11.md",
-        "docs/evidence/m7-plan-refactor-2026-11-11.md"
+        "docs/evidence/m7-plan-refactor-2026-11-11.md",
+        "docs/evidence/m7-cloud-usage-authority-2026-11-11.md"
       ],
       "depends_on_any": [],
       "delivery_slice": "S1",
@@ -472,7 +475,8 @@
       "done_when": "Real usage reconciles without duplicating purchased or included balances",
       "verification": "Planned scoped verification: ollama through the existing M7 runner (T003 must publish/test the exact selector before closure). The full AUTO-M7-TEST/LIVE/BROWSER results are final integration checks in T015/T016, not this ticket prerequisite.",
       "evidence": [
-        "docs/evidence/m7-ollama-usage-source-2026-11-11.md"
+        "docs/evidence/m7-ollama-usage-source-2026-11-11.md",
+        "docs/evidence/m7-cloud-usage-authority-2026-11-11.md"
       ],
       "depends_on_any": [],
       "delivery_slice": "S1_or_S2",

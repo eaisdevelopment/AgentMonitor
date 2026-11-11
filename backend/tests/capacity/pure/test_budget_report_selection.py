@@ -5,6 +5,7 @@ from __future__ import annotations
 from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
+from typing import Literal
 
 import pytest
 from agentmonitor.contracts import capacity_v1 as contracts
@@ -132,6 +133,54 @@ def test_binding_rotation_does_not_erase_same_scope_history() -> None:
         ),
     )
     assert select_current_report((old, rotated)).current == rotated
+
+
+def _unresolved(sequence: int, value: str | None) -> contracts.BudgetReportViewV1:
+    view = _report(sequence, value)
+    return replace(
+        view,
+        report=replace(view.report, scope_id=None, scope_evidence="unresolved"),
+    )
+
+
+@pytest.mark.parametrize("changed", ["binding_id", "binding_generation"])
+def test_unresolved_rotation_cannot_replace_another_access_lineages_spend(
+    changed: str,
+) -> None:
+    old, newer = _unresolved(1, "8"), _unresolved(2, None)
+    if changed == "binding_id":
+        payload = replace(newer.report, binding_id=OpaqueIdV1("other-binding"))
+    else:
+        payload = replace(newer.report, binding_generation=2)
+    newer = replace(newer, report=payload)
+    for reports in ((old, newer), (newer, old)):
+        with pytest.raises(ValueError, match="budget_incompatible_report_context"):
+            select_current_report(reports)
+    # Each original remains selectable as its own immutable history context.
+    assert select_current_report((old,)).current == old
+    assert select_current_report((newer,)).current == newer
+    assert old.report.cost_buckets[0].amount.amount.as_decimal() == Decimal("8")
+
+
+def test_same_unresolved_access_lineage_still_accepts_a_complete_correction() -> None:
+    old, newer = _unresolved(1, "8"), _unresolved(2, "6")
+    selected = select_current_report((old, newer))
+    assert selected.current == newer
+    amount = selected.current.report.cost_buckets[0].amount.amount.as_decimal()
+    assert amount == Decimal("6")
+
+
+@pytest.mark.parametrize("evidence", ["owner_asserted", "provider_verified"])
+def test_resolution_cannot_relabel_unresolved_history_even_with_the_same_key(
+    evidence: Literal["owner_asserted", "provider_verified"],
+) -> None:
+    unresolved, scoped = _unresolved(1, "8"), _report(2, "6")
+    scoped = replace(scoped, report=replace(scoped.report, scope_evidence=evidence))
+    assert unresolved.report.binding_id == scoped.report.binding_id
+    assert unresolved.report.binding_generation == scoped.report.binding_generation
+    for reports in ((unresolved, scoped), (scoped, unresolved)):
+        with pytest.raises(ValueError, match="budget_incompatible_report_context"):
+            select_current_report(reports)
 
 
 def test_no_reports_means_no_values_and_partial_alone_is_not_current() -> None:

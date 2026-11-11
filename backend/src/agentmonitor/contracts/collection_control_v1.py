@@ -9,7 +9,11 @@ from agentmonitor.contracts.common_provenance_v1 import ObservationProvenanceV1
 from agentmonitor.contracts.common_v1 import OpaqueIdV1, QueryPageV1, TechnicalValueV1
 from agentmonitor.contracts.provider_system_v1 import OutcomeStateV1, RetryAdviceV1
 from agentmonitor.contracts.registry_billing_v1 import BillingAccessTargetV1
-from agentmonitor.contracts.registry_v1 import ProviderTargetRefV1
+from agentmonitor.contracts.registry_v1 import (
+    CloudMonitoringTargetV1,
+    ProviderAccessTargetV1,
+    ProviderTargetRefV1,
+)
 
 CollectionRunStateV1 = Literal[
     "requested",
@@ -1753,6 +1757,89 @@ class BudgetCollectionRunAdmissionV1(CollectionRunAdmissionV2):
             or self.deadline_at - self.requested_at > timedelta(seconds=120)
         ):
             raise InvalidCollectionControlV1("budget_admission_target_invalid")
+
+
+@dataclass(frozen=True, slots=True)
+class CloudBudgetReportContextV1(TechnicalValueV1):
+    """Immutable requested coverage; recovery never substitutes today's range."""
+
+    CONTRACT_ID: ClassVar[str] = "CTR-COL-002"
+    CONTRACT_VERSION: ClassVar[str] = "2.2.0"
+    OWNER: ClassVar[str] = "PLAN-M04"
+
+    scope: Literal["self", "team"]
+    range_key: Literal["7d", "30d"]
+    interval_start: datetime
+    interval_end: datetime
+
+    def __post_init__(self) -> None:
+        TechnicalValueV1.__post_init__(self)
+        if (
+            self.scope not in {"self", "team"}
+            or self.range_key not in {"7d", "30d"}
+            or not _utc(self.interval_start)
+            or not _utc(self.interval_end)
+            or any(
+                value.hour or value.minute or value.second or value.microsecond
+                for value in (self.interval_start, self.interval_end)
+            )
+            or self.interval_end - self.interval_start
+            != timedelta(days=7 if self.range_key == "7d" else 30)
+        ):
+            raise InvalidCollectionControlV1("cloud_budget_context_invalid")
+
+
+@dataclass(frozen=True, slots=True)
+class CloudBudgetCollectionRunAdmissionV1(CollectionRunAdmissionV2):
+    """Usage authority over an existing cloud graph, without billing enrollment.
+
+    The service target remains the balance target. Its fingerprint and the
+    usage source fingerprint have distinct meanings and are captured separately.
+    This DTO proves consistency, not current authorization: dispatch and commit
+    must revalidate the actual graph/binding and shared request lease.
+    """
+
+    CONTRACT_VERSION: ClassVar[str] = "2.2.0"
+    cloud_target: CloudMonitoringTargetV1
+    service_target: ProviderAccessTargetV1
+    report_context: CloudBudgetReportContextV1
+
+    def __post_init__(self) -> None:
+        CollectionRunAdmissionV2.__post_init__(self)
+        if (
+            not isinstance(self.cloud_target, CloudMonitoringTargetV1)
+            or not isinstance(self.service_target, ProviderAccessTargetV1)
+            or not isinstance(self.report_context, CloudBudgetReportContextV1)
+        ):
+            raise InvalidCollectionControlV1("cloud_budget_admission_invalid")
+        graph, service = self.cloud_target, self.service_target
+        if (
+            graph.lifecycle != "active"
+            or graph.identity_state != "owner_confirmed"
+            or service.lifecycle != "active"
+            or service.provider_key != "ollama"
+            or service.authority_id != "ollama.com"
+            or service.target_kind != "cloud_service"
+            or self.provider_key != service.provider_key
+            or self.provider_target.target_kind != "cloud_service"
+            or self.provider_target.target_id != service.access_target_id
+            or graph.access_target_id != service.access_target_id
+            or self.profile_id != graph.profile_id
+            or self.account_id != graph.account_id
+            or self.resource_id != graph.resource_id
+            or self.target_generation != graph.binding.generation
+            or self.payload_schema != "budget.report.v1"
+            or self.capability_id != "api.usage"
+            or self.requested_capability_ids != ("api.usage",)
+            or self.source_id != "ollama.cloud.usage.v1"
+            or self.trigger == "reauth_verification"
+            or self.budget_unit != "count"
+            or self.budget_dimension != "request"
+            or self.budget_units != 1
+            or self.deadline_at - self.requested_at > timedelta(seconds=120)
+            or self.requested_at < self.report_context.interval_end
+        ):
+            raise InvalidCollectionControlV1("cloud_budget_admission_invalid")
 
 
 @dataclass(frozen=True, slots=True)

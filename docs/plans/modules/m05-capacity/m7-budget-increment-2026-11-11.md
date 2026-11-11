@@ -255,6 +255,31 @@ reported separately, never seeded into the database.
 
 ## 9. Test-first sequence
 
+### Existing Ollama cloud authority for T009
+
+The next integration uses additive CTR-COL-002 2.2.0
+`CloudBudgetCollectionRunAdmissionV1` and `CloudBudgetReportContextV1`.
+Existing CTR-REG-012 graph/service DTOs suffice: no new billing enrollment,
+registry wrapper or secret store. The cloud profile/resource/binding are
+captured intact. The original balance-service fingerprint remains distinct
+from the usage-source fingerprint. Scope (self/team), native range (7d/30d)
+and exact UTC completed-day interval are immutable request context, including
+after recovery. Usage cannot produce balance-verification receipts.
+
+The existing M04 budget target JSON gains a tagged cloud authority encoding;
+old billing records retain their decoding. Dispatch/commit must revalidate
+the live graph and binding through M02-owned fences, and usage must share
+Ollama's existing request gate with balances. No second queue or rate limiter.
+Publishing the contract/codec alone does not enable collection or close T009.
+
+A resource-local scope epoch is not proof of upstream identity. Unresolved
+reports must remain partitioned by their existing binding ID/generation;
+rotating an unverified key cannot merge potentially different actors' spend.
+Confirmed compatible scope preserves the existing cross-rotation history rule.
+Both pure report compatibility and SQL context partitioning must agree. The
+current read must select the active unresolved lineage; older lineages remain
+retained history. Shared totals and forecasts cannot infer scope equivalence.
+
 | Scenario | Expected Red | Green evidence |
 |---|---|---|
 | M7-CAP-PURE-001; M7-MATH-01/02/13/14 | Valid large decimal loses digits; cents/rounding/state rules absent | Pure exact conversion, cancellation, bounds, small positive display inputs; no I/O |

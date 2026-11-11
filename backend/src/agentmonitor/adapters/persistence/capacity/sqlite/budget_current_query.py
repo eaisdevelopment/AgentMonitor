@@ -6,9 +6,10 @@ from agentmonitor.modules.capacity.domain.budget_codec import MAX_REPORT_BYTES, 
 
 # Account, resource, scope epoch and requested period are fixed by the query.
 # The remaining partition is exactly budget_reports._same_context: subject,
-# scope ID, source/category/basis, grouping and currency. Binding generation and
-# scope evidence do not change historical money identity. Only metadata enters
-# the window sort; the canonical report bodies are loaded after bounds checks.
+# scope ID, source/category/basis, grouping, currency and the binding ID/generation
+# pair only for unresolved scope. Resolved rotations retain their scope context;
+# unresolved rotations cannot replace another access lineage's financial facts.
+# Only metadata enters the sort; bodies are loaded after bounds checks.
 CURRENT_REPORT_METADATA_SQL = """
 WITH eligible AS (
     SELECT report_id, collected_at, stored_at,
@@ -16,6 +17,14 @@ WITH eligible AS (
            json_array(
                json_extract(canonical_report_json,'$.subject'),
                json_extract(canonical_report_json,'$.scope_id'),
+               CASE WHEN json_extract(canonical_report_json,'$.scope_evidence')
+                         = 'unresolved'
+                    THEN json_extract(canonical_report_json,'$.binding_id')
+                    ELSE NULL END,
+               CASE WHEN json_extract(canonical_report_json,'$.scope_evidence')
+                         = 'unresolved'
+                    THEN json_extract(canonical_report_json,'$.binding_generation')
+                    ELSE NULL END,
                json_extract(canonical_report_json,'$.source_id'),
                json_extract(canonical_report_json,'$.source_category'),
                json_extract(canonical_report_json,'$.cost_basis'),
