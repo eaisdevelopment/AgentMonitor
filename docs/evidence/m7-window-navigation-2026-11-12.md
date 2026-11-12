@@ -1,6 +1,7 @@
 # M7 stored-window navigation and captured collection intent
 
-Status: local implementation; installed verification pending. Requirements
+Status: committed, installed and published increment at `ba2717e`; installed
+browser verification passed with the earlier failure retained below. Requirements
 FR-BUDGET-001/002/004, FR-HIST-001, FR-COL-004/008; tickets T007/T010/T011,
 M7-A06/A07/A09. This increment does not close those tickets or M7.
 
@@ -74,5 +75,32 @@ AUTO-QUALITY at 02:16 UTC passed Ruff773, mypy712, zero import violations,
 The boundary checker needed only the new inherited AdmissionV2 symbol registered.
 UI review then added the remount correction above; the final AUTO-QUALITY rerun
 at 02:20:35 UTC passed the same static/type/generated checks and production build.
-Candidate installation and real browser Green remain pending. GitHub
-publication and installed state will be recorded separately after verification.
+
+## Installed and published checkpoint
+
+The canonical current-update command installed
+`ba2717e9faba9d332ca72c4b81445baf20f4dec2` successfully; schema remains
+`v1_0734`, service active and dashboard HTTP 200. No migration or owner
+configuration change was needed.
+
+- Installed Overview probe at 02:23:44.148 UTC failed with
+  `overview_probe_boundary_failed` after authentication, Overview and filters.
+  That probe did not capture the precise failing stage; cause remains unresolved.
+- Added bounded stage/error-kind diagnostics only, without raw exception text.
+  At 02:24:59.358 UTC the same installed implementation passed authentication,
+  Overview, filters, navigation, stored windows, responsive, pool controls and
+  read-only checks: two genuine rows, zero unsafe requests. This passing rerun
+  does not erase or explain the preceding failure.
+- Setup probe at 02:25:53.657 UTC passed revision, authentication, Overview,
+  setup form, continuity and read-only checks: 38 requests, zero unsafe requests.
+- Git preflight passed. The staged-patch secret scan reported two generated
+  OpenAPI SHA256 declarations (removed/added). Both were verified against their
+  respective artifact bytes; neither was a credential. No secret output retained.
+- GitHub `main` was independently confirmed by `git ls-remote github refs/heads/main`
+  at the full implementation revision above. Follow-up documentation/probe
+  diagnostics do not change the installed product revision.
+
+The original browser failure needs localization if it recurs; do not claim
+repeatability or the full M7 exit from this increment. Genuine monetary proof,
+manual collection/cooldown, source-history discovery and remaining provider/
+analysis coverage are still open in the delivery worksheet.

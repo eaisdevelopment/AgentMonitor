@@ -93,7 +93,8 @@ The approved selected-range behavior uses additive CTR-COL-002 2.3.0:
 source category and at most one grouping; `BudgetCollectionRunAdmissionV2`
 retains that context alongside the existing V1 authority; `BillingBudgetAuthorityV1`
 is the durable target/context envelope. Existing V1 and cloud admissions keep
- their meanings. These types exist locally; they are not installed yet.
+their meanings. This foundation is installed at `ba2717e`; Collect now and
+complete action/scheduling integration remain unfinished T007 work.
 
 M04 stores the tagged envelope in its existing canonical target JSON, reconstructs
 it on claim/recovery and filters latest runs by context before ordering/limit.

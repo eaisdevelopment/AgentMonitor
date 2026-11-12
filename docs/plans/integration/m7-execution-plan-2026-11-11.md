@@ -6,9 +6,9 @@
 - Original planning baseline: `a47fc53` on `codex/m7-api-budgets`.
 - Current implementation and installed-state checkpoint: see the single
   [delivery worksheet](m7-delivery-worksheet-2026-11-11.md#1-verified-starting-point).
-  Recorded installed code is `ff285c4`, schema `v1_0734`: pool controls,
+  Recorded installed code is `ba2717e`, schema `v1_0734`: pool controls,
   pool-aware Overview, full-inventory sorting, bounded daily history, compact
-  summaries and OpenAI cost runtime wiring are
+  summaries, older-window navigation, captured collection-context foundation and OpenAI cost runtime wiring are
   delivered increments.
   Genuine monetary evidence, complete provider/history/analysis coverage and
   full M7 acceptance remain unfinished. The worksheet alone owns current order.
@@ -140,7 +140,8 @@ active-lineage spend selection and shared balance/usage rate coordination; its
 genuine report contains usage counts, not costs. Reuse that work and evidence.
 Those funds/usage are now visible on the installed Overview and detail.
 Retain the installed canonical pool attribution and OpenAI cost runtime. Next
-finish captured collection intervals and older stored-window navigation while
+wire the installed captured-interval foundation into Collect now, cooldown and
+context-aware status; complete prior-scope report discovery while
 integrating the first accessible monetary lane, normally Anthropic or OpenAI.
 No provider is dropped
 from M7. A requests-only

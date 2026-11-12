@@ -9,6 +9,8 @@ let reason = "browser_unavailable";
 let mutations = 0;
 let sourceRevision = null;
 let rowsVerified = 0;
+let stage = "overview";
+let errorKind = null;
 const renderedReadPaths = [];
 const checks = { authentication: "not_run", overview: "not_run", filters: "not_run", navigation: "not_run", history_windows: "not_run", responsive: "not_run", pool_controls: "not_run", read_only: "not_run" };
 function stop(outcome, code) { status = outcome; reason = code; throw new Error("probe_stopped"); }
@@ -299,6 +301,7 @@ try {
     }
   }
   const accountBudget = page.getByRole("region", { name: "API usage & spend", exact: true });
+  stage = "retained_refresh";
   const retainedPanel = await accountBudget.elementHandle();
   const refreshResponse = page.waitForResponse(response => new URL(response.url()).pathname === `/api/v1/accounts/${encodeURIComponent(reportAccount)}/budgets`);
   await accountBudget.getByRole("button", { name: "Refresh view", exact: true }).click();
@@ -333,28 +336,35 @@ try {
     requireEvidence(await accountBudget.getByRole("alert").count() === 0, "window_read_error");
     return current;
   }
+  stage = "initial_window";
   const initialWindow = await windowState();
   const initialDays = (Date.parse(initialWindow.end) - Date.parse(initialWindow.start)) / DAY;
+  stage = "previous_window";
   const priorWindow = await changeWindow(() => accountBudget.getByRole("button", { name: "Previous window", exact: true }).click());
   sameWindow(priorWindow, { start: new Date(Date.parse(initialWindow.start) - initialDays * DAY).toISOString(), end: initialWindow.start, asOf: initialWindow.asOf }, "previous_window_mismatch");
   await page.reload({ waitUntil: "domcontentloaded" });
   await windowMarker.waitFor();
   sameWindow(await windowState(), priorWindow, "previous_window_lost_on_reload");
+  stage = "refresh_window";
   const refreshedWindow = await changeWindow(() => accountBudget.getByRole("button", { name: "Refresh view", exact: true }).click());
   requireEvidence(microseconds(refreshedWindow.asOf) > microseconds(priorWindow.asOf), "refresh_did_not_advance_read_snapshot");
   sameWindow(refreshedWindow, { ...priorWindow, asOf: refreshedWindow.asOf }, "refresh_changed_interval");
+  stage = "next_window";
   const nextWindow = await changeWindow(() => accountBudget.getByRole("button", { name: "Next window", exact: true }).click());
   sameWindow(nextWindow, { ...initialWindow, asOf: refreshedWindow.asOf }, "next_window_mismatch");
   requireEvidence(await accountBudget.getByRole("button", { name: "Next window", exact: true }).isDisabled(), "next_crosses_completed_cutoff");
+  stage = "wide_window";
   const wideWindow = await changeWindow(() => accountBudget.getByLabel("Report range", { exact: true }).selectOption("30"));
   sameWindow(wideWindow, { start: new Date(Date.parse(nextWindow.end) - 30 * DAY).toISOString(), end: nextWindow.end, asOf: nextWindow.asOf }, "resize_changed_cutoff");
   await changeWindow(() => accountBudget.getByRole("button", { name: "Previous window", exact: true }).click());
+  stage = "latest_window";
   const latestWindow = await changeWindow(() => accountBudget.getByRole("button", { name: "Latest completed window", exact: true }).click());
   const latestEnd = Math.floor(Date.parse(latestWindow.asOf) / DAY) * DAY;
   sameWindow(latestWindow, { start: new Date(latestEnd - 30 * DAY).toISOString(), end: new Date(latestEnd).toISOString(), asOf: latestWindow.asOf }, "latest_window_mismatch");
   requireEvidence(await accountBudget.getByRole("button", { name: "Next window", exact: true }).isDisabled(), "latest_allows_future_window");
   // The same real account also supports a period-only deep link, without
   // inventing a resource/report selector or changing provider state.
+  stage = "period_only_reload";
   const periodOnlyUrl = new URL(page.url());
   periodOnlyUrl.searchParams.delete("budget_resource");
   await page.evaluate(url => { history.replaceState(null, "", url); }, periodOnlyUrl.pathname + periodOnlyUrl.search);
@@ -363,6 +373,7 @@ try {
   sameWindow(await windowState(), latestWindow, "period_only_window_lost_on_reload");
   requireEvidence(new URL(page.url()).searchParams.get("budget_resource") === null && !new URL(page.url()).searchParams.has("budget_selection") && await accountBudget.getByRole("alert").count() === 0, "period_only_link_invalid");
   checks.history_windows = "passed";
+  stage = "overview_back";
   await page.goBack({ waitUntil: "domcontentloaded" });
   await financial.waitFor();
   requireEvidence(new URL(page.url()).search === before.search, "overview_filters_lost_on_back");
@@ -405,10 +416,11 @@ try {
   status = "passed";
   reason = "real_overview_api_dom_navigation_verified";
 } catch (error) {
+  errorKind = error?.name === "TimeoutError" ? "timeout" : "assertion_or_error";
   if (error?.message !== "probe_stopped" && checks.authentication === "passed") { status = "failed"; reason = "overview_probe_boundary_failed"; }
 } finally {
   if (page !== undefined) await page.close().catch(() => { status = "failed"; reason = "probe_page_cleanup_failed"; });
   checks.read_only = page === undefined ? "not_run" : mutations === 0 ? "passed" : "failed";
   if (mutations !== 0) { status = "failed"; reason = "unexpected_mutation_request"; }
 }
-process.stdout.write(JSON.stringify({ record_type: "agentmonitor.m7_overview_probe.v1", status, reason_code: reason, source_revision: sourceRevision, checks, rows_verified: rowsVerified, unsafe_requests: mutations, observed_at: new Date().toISOString() }) + "\n", () => process.exit(status === "passed" ? 0 : status === "failed" ? 1 : 3));
+process.stdout.write(JSON.stringify({ record_type: "agentmonitor.m7_overview_probe.v1", status, reason_code: reason, stage, error_kind: errorKind, source_revision: sourceRevision, checks, rows_verified: rowsVerified, unsafe_requests: mutations, observed_at: new Date().toISOString() }) + "\n", () => process.exit(status === "passed" ? 0 : status === "failed" ? 1 : 3));
