@@ -1,7 +1,7 @@
 # M7 delivery worksheet: remaining work and fixed finish line
 
 Status: execution clarification within approved focused plan 1.1.0, reviewed
-against installed code revision `54eab61` on 12 November 2026. Primary owner:
+against installed code revision `ff285c4` on 12 November 2026. Primary owner:
 root integration; financial semantics: M05. No new scope, approval or gate.
 
 The [ticket catalog](m7-ticket-catalog-v1.json) is the only task tracker:
@@ -16,15 +16,16 @@ independent work while another ticket awaits live access.
 
 | Boundary | Recorded result | What it does not prove |
 |---|---|---|
-| Installed code | `54eab61`, schema `v1_0734`; full-inventory Overview sorting plus retained OpenAI/Anthropic cost runtime | Successful administrative billing access or a genuine cost report |
+| Installed code | `ff285c4`, schema `v1_0734`; compact summaries, pinned daily-history paging, full-inventory Overview sorting and retained OpenAI/Anthropic cost runtime | Successful administrative billing access or a genuine cost report |
 | Owner controls and aggregation | Pool create/join/unlink/primary-group controls, pool-aware Overview and exact attribution installed with `3c65e1d`; retained in current release | Genuine shared monetary totals, source-scope editing or every final setup case |
-| Dashboard | Authenticated real Overview API/DOM ordering, filters, report links, Back/reload, pool controls and responsive layouts passed at54eab61; six sorts and >50-row paging passed against isolated real metadata | Bounded history, genuine monetary totals, complete accessibility and analysis acceptance |
+| Dashboard | Authenticated real Overview API/DOM ordering, filters, report links, Back/reload, pool controls and responsive layouts passed atff285c4; six sorts and >50-row paging passed against isolated real metadata | Genuine monetary totals, older-window navigation, complete accessibility and analysis acceptance |
 | Live data | Existing Ollama cloud balances and daily usage; demonstrated usage is counts-only | Counts are not monetary spend. No conversion or invented zero |
 | Monetary prerequisite | Latest read-only inventory records no Anthropic/OpenAI billing connections; tested owner setup request pending | No enrollment is not evidence of denied provider access |
-| Publication | GitHub main verified at `54eab61`; later documentation commits do not change installed production code | Full M7 exit or owner acceptance |
-| Latest verification | Installed Overview and setup/shell probes passed at54eab61; see sorting evidence | Not successful monetary provider access |
+| Publication | GitHub main verified at `ff285c4`; later documentation commits do not change installed production code | Full M7 exit or owner acceptance |
+| Latest verification | Installed Overview/history and setup/shell probes passed atff285c4; see bounded-history evidence | Not successful monetary provider access |
 
-Evidence: [installed sorting](../../evidence/m7-overview-sorting-2026-11-12.md),
+Evidence: [bounded history](../../evidence/m7-bounded-history-2026-11-12.md),
+[installed sorting](../../evidence/m7-overview-sorting-2026-11-12.md),
 [pool delivery](../../evidence/m7-financial-pools-2026-11-12.md),
 [OpenAI installed checkpoint](../../evidence/m7-openai-cost-source-2026-11-11.md),
 [Overview](../../evidence/m7-financial-overview-2026-11-11.md),
@@ -43,8 +44,8 @@ integrate the first real monetary report as soon as it does.
 
 | Order / existing tickets | Smallest remaining result | Demonstration and closure boundary |
 |---|---|---|
-| 1 — T010/T011/T012; T005/T006/T008 live in parallel | Sorting is installed; retain its six-direction/pagination/navigation evidence. Next complete bounded history and remaining detail states; use the installed monetary adapters for the first permitted cost report when owner setup exists | Click account/organization/state, load another page, open detail and return: stable ordering, same interval/report. Genuine source amount/scope/currency → atomic stored report/reopen → existing API/Overview/detail. The live part alone waits for owner setup |
-| 2 — T002/T007/T010/T011 | Finish source-scope lifecycle, captured seven-/thirty-day collection intent, Collect now/cooldown, safe refresh and bounded immutable daily-history query | Owner edits scope without relabelling old money; collect the selected interval, reload during collection, see one result with original interval; history pages remain pinned and expire explicitly. No generic workflow or backfill engine |
+| 1 — T010/T011/T012; T005/T006/T008 live in parallel | Sorting and selected-report daily history are installed; retain their pagination/navigation evidence. Next complete remaining detail states; use the installed monetary adapters for the first permitted cost report when owner setup exists | Click account/organization/state, load another page, open detail and return: stable ordering, same interval/report. Genuine source amount/scope/currency → atomic stored report/reopen → existing API/Overview/detail. The live part alone waits for owner setup |
+| 2 — T002/T007/T010/T011 | Finish source-scope lifecycle, captured seven-/thirty-day collection intent, Collect now/cooldown, safe refresh and older stored-window navigation using the installed bounded daily-history query | Owner edits scope without relabelling old money; collect the selected interval, reload during collection, see one result with original interval; history pages remain pinned and expire explicitly. No generic workflow or backfill engine |
 | 3 — T006/T007/T008/T009 | Complete the frozen provider usage/category/dimension coverage, supported ranges, fair background dispatch and isolated recovery | All three provider lanes reuse the same screens. A queued/throttled account cannot strand another; browser-closed refresh and restart reconcile actual reports. Supported-but-unimplemented remains unfinished |
 | 4 — T013 | One supported breakdown at a time, daily chart from the exact history table, conditional observed-rate forecast and existing retention integration | Source/API/table/chart agree; unsupported funds give a reason, not a forecast date. Real retained data survives/retires correctly. No custom analytics or new forecasting framework |
 | 5 — T003/T014/T015/T016 | Complete existing check selectors as features land, then fixed source/API/DOM matrix, upgrade/recovery/continuity, bounded review, full exit and publication | Exact installed candidate, required checks passed, matching GitHub revision and owner demonstration against M7-A01..A10; acceptance recorded separately |
@@ -82,8 +83,9 @@ count, new owner attestation or manufactured spending is introduced.
   reasons through M05 ports; retain exact input IDs. No arithmetic in React,
   forecast storage, extra queue or new dependency.
 
-Current published Overview contract is CTR-CAP-006 2.7.0 and registry/pool contract
-CTR-REG-014 1.5.0. Proposed changes are synchronized in the owning M05/module
+Current published Overview contract is CTR-CAP-006 2.7.0, history is CTR-CAP-006
+2.8.0 and registry/pool contract is CTR-REG-014 1.5.0. Proposed changes are
+synchronized in the owning M05/module
 plan and generated API before parallel implementation. This planning edit does
 not itself publish a new contract or allocate a database migration.
 
@@ -103,8 +105,8 @@ requirements, dependencies and evidence. No ticket is closed by this review.
 | T007 M04/root | Captured ranges/groupings, Collect now, persisted retry, positive enable/disable, fair dispatch, browser-closed monetary refresh and safe recovery |
 | T008 A02 | Real OpenAI cost success and remaining frozen usage/dimensions/ranges; retain installed cost runtime wiring |
 | T009 A03 | Complete admitted cloud usage ranges/model breakdown/manual collection and source comparison; reuse existing key/pool/balance/usage evidence |
-| T010 M05/P01 | Retain installed full-list sorting; finish bounded pinned daily history and remaining funds/state/context API cases; genuine populated monetary reconciliation |
-| T011 P02 | Complete scope/history/collection interactions, retained-value failure behavior, direct URL/sign-in return and remaining accessibility checks |
+| T010 M05/P01 | Retain installed full-list sorting and bounded pinned daily history; finish older-window selection and remaining funds/state/context API cases; genuine populated monetary reconciliation |
+| T011 P02 | Complete scope/older-window/collection interactions, retained-value failure behavior, direct URL/sign-in return and remaining accessibility checks |
 | T012 P02 | Retain installed server sorting; finish full-filter totals with genuine money, navigation and quota-failure isolation; retain installed compact table and filters |
 | T013 M05/P01/P02, M08 invocation | One-dimension breakdown, exact chart, small conditional forecast and financial retention using existing scheduler |
 | T014 root/M08 | Complete monetary installed journey, recovery and existing collector continuity; retain delivered schema0734/update/browser proof |

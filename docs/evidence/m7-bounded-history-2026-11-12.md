@@ -1,6 +1,7 @@
 # M7 compact account summaries and bounded daily history
 
-Status: implementation verification in progress; not full M7 completion.
+Status: bounded history increment installed and published at `ff285c4`;
+not full M7 completion.
 Requirements FR-BUDGET-002/004/005, FR-HIST-001/002, AC-HIST-001,
 AC-UI-002/005/006, AC-TEST-001/003/006; T010/T011, M7-A06/A07/A08.
 M05 owns exact history selection, P01 transport, P02 rendering; root owns
@@ -65,9 +66,9 @@ Pure presentation failure retention is not a manufactured browser outage test.
 
 ## Remaining integration
 
-Complete generated-client/static checks, scoped canonical tests, actual HTTP
-continuations and installed browser verification. Record the exact installed
-and public revisions separately. T010/T011 still include remaining financial
+Generated-client/static checks, scoped canonical tests, actual HTTP
+continuations and installed browser verification passed as recorded below.
+T010/T011 still include remaining financial
 states/contexts, older-window navigation, monetary evidence and accessibility;
 this increment does not close those whole tickets or the M7 goal.
 
@@ -101,3 +102,40 @@ in `FinancialPoolPanel.tsx` still requested the old full account report solely
 to extract resource IDs. The correction switches that read to the compact
 summary; its resource metadata is unchanged. This is an observed browser Red,
 not a claim that the first installed candidate passed the complete probe.
+
+## Installed and published result
+
+The corrected candidate passed AUTO-QUALITY again at01:40:35UTC. Two update
+attempts returned `phase=stop reason=unit_has_children_or_not_stopped`. Read-only
+inspection found the prior2081169 service active/HTTP200 and no incomplete
+journal. Observed child PIDs naturally exited; the next canonical update
+succeeded. No child was killed, no restart policy relaxed and no owner
+monitoring setting changed. The installed schema remains `v1_0734`.
+
+At01:44:45UTC the authenticated installed Overview probe passed all seven
+checks at `ff285c46a05897f0d3a9a3e7634d85d11cf004db`: two real financial rows,
+exact API/DOM history, direct limit-one server continuations, compact-only UI
+reads, filters, pinned report navigation/Back/reload, responsive layout and pool
+controls. Zero unsafe requests. Actual history had fewer than50 facts; the
+browser did not exercise a naturally populated second default-size page.
+Pure append/failure tests and real limit-one HTTP paging cover their respective
+boundaries without claiming that unobserved UI case passed.
+
+At01:45:11UTC the installed setup/shell probe passed all six checks at the same
+revision,38 requests and zero unsafe requests: authentication, revision,
+Overview, setup form and header/footer continuity.
+
+Pinned Gitleaks8.30.0 scanned98cdd87..ff285c4. Raw exit1 had one generic-key
+finding on the generated `openapiArtifactSha256` constant. Root compared the
+exact line with the committed OpenAPI file's actual SHA-256; it is the artifact
+checksum, not a credential. No finding was suppressed or misreported as exit0.
+GitHub main fast-forwarded and `git ls-remote` verified the exact ff285c4
+revision. Later documentation commits do not change this installed code.
+
+Files changed span the additive query contract, M05 projection/application,
+P01 schemas/routes/port bundle, root composition/generator/boundary allowlist,
+P02 account/history/pool views and shared client, pure/real HTTP/private-copy
+tests, canonical test inventory, installed browser probe and these planning
+records. There is no new security/privacy/license/migration effect.
+Next: captured collection intervals, scope lifecycle and older stored-window
+navigation; genuine monetary comparisons proceed when owner billing setup exists.
