@@ -8,6 +8,7 @@ from typing import ClassVar, Literal, Protocol
 from agentmonitor.contracts.capacity_v1 import (
     BudgetCostBucketV1,
     BudgetPeriodV1,
+    BudgetReportHistoryQueryV1,
     BudgetReportSelectionV1,
     BudgetReportViewV1,
     BudgetUsageBucketV1,
@@ -494,3 +495,11 @@ class BudgetHistoryResultV1:
 
 class BudgetHistoryPortV1(Protocol):
     def __call__(self, query: BudgetHistoryQueryV1) -> BudgetHistoryResultV1 | None: ...
+
+
+class BudgetReportHistoryPortV1(Protocol):
+    """CTR-CAP-006 2.9.0: authorized retained revisions, never current authority."""
+
+    def __call__(
+        self, query: BudgetReportHistoryQueryV1
+    ) -> QueryPageV1[BudgetReportViewV1] | None: ...

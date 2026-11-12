@@ -65,7 +65,7 @@ function History({ context, onExpired, showSummary = false }: Props) {
       {report.currency === null && report.cost_bucket_count === 0 && report.usage_bucket_count > 0 ? <p>Provider did not report costs.</p> :
         <p><strong>Reported spend: </strong>{value.reported_spend.total === null ? readable(value.reported_spend.reason_code) :
           <span title={exactMoneyText(value.reported_spend.total)}>{displayMoney(value.reported_spend.total)}</span>}</p>}
-      <p>Provider billing scope: {report.scope_id ?? "Not established"} · {readable(report.scope_evidence)}</p>
+      <p>Provider billing scope: {report.scope_id ?? "Not established"} · {readable(report.scope_evidence)} · Scope generation {report.scope_generation}</p>
       <p>{bounds(report.requested_period.start, report.requested_period.end)} · {readable(report.cost_basis)} · {readable(report.source_category)}</p>
       <p>Data through: {report.source_data_through === null ? "Not reported" : instant(report.source_data_through)} · Collected: {instant(report.collected_at)} · {report.completeness}</p>
     </>}

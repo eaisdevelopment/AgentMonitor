@@ -194,6 +194,7 @@ from agentmonitor.modules.capacity.application.budget_overview import (
 from agentmonitor.modules.capacity.application.budget_queries import (
     GetAccountBudgetCurrentV1,
 )
+from agentmonitor.modules.capacity.application.budget_reports import ListBudgetReportsV1
 from agentmonitor.modules.capacity.application.budget_selected import (
     GetSelectedBudgetReportV1,
 )
@@ -669,6 +670,9 @@ def _observation_ports(
         ),
         get_selected_budget_report=selected_budget_report,
         list_budget_history=ListBudgetHistoryV1(selected_budget_report),
+        list_budget_reports=ListBudgetReportsV1(
+            get_account, SqliteBudgetReportRepositoryV1(reference)
+        ),
         billing_local_setup=InstalledBillingLocalSetupV1(
             data_root, socket.gethostname()
         ),

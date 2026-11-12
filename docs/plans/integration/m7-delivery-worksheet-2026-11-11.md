@@ -128,7 +128,10 @@ to bypass source limits. Exact collection rules stay in calculation section 7.
 Callable now on `python3 -m tools.automation.implementations.auto_m7` with its
 admitted tool context: `--lane pure`, `mutation`, `registry_metadata`,
 `persistence_schema`; `--lane technical --check collection_guards` or
-`budget_http_guards`; `--lane browser --check owner_pool_controls`.
+`budget_http_guards`; `--lane browser --check owner_pool_controls`. The new
+`--lane browser --check source_history` runs genuine retained-report HTTP and
+built-browser discovery in isolation; full monetary/detail-history acceptance
+remains separate.
 `--lane browser --check overview --expected-revision=<installed-40SHA>` runs
 bounded genuine metadata/concurrent installed reads but exits nonzero while
 full monetary Overview remains Not Run. Other names above are **planned
@@ -141,7 +144,9 @@ Commands owning temporary tool links run serially; app reads remain concurrent.
 Retain installed CTR-COL-002 2.6.0 collection context/status, CTR-CAP-006 2.7.0
 Overview and 2.8.0 history, CTR-REG-014 1.5.0 pool/monitoring metadata and
 CTR-REG-002 1.1.0 resource presence. Scope editing is installed under
-CTR-REG-014 1.6.0; its evidence is linked above. Remaining additive handoffs:
+CTR-REG-014 1.6.0; its evidence is linked above. Retained-report discovery now has a local CTR-CAP-006 2.9.0 implementation
+([evidence](../../evidence/m7-source-history-2026-11-12.md)); its installed
+verification remains pending. Remaining additive handoffs:
 
 - M02/P01/P02: scope/lifecycle controls invalidate old current authority without
   rewriting original reports; M05/P01 provides authorized prior-scope discovery.

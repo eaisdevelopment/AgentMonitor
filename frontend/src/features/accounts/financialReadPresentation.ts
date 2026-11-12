@@ -1,4 +1,4 @@
-import type { AccountViewV1, BudgetResourceSummaryWireV1 } from "../../shared/api/client";
+import type { AccountViewV1, BudgetCloudResourceSummaryWireV1, BudgetResourceSummaryWireV1 } from "../../shared/api/client";
 
 export type FinancialReadContext = Readonly<{
   account: Pick<AccountViewV1, "account_id" | "provider_key" | "record_version">;
@@ -23,6 +23,19 @@ type SelectedFinancialReport =
   | Readonly<{ kind: "period"; days: 7 | 30; query: { period_start: string; period_end: string; as_of: string } }>
   | Readonly<{ kind: "selected"; resourceId: string; reportId: string | null;
       days: 7 | 30; query: { period_start: string; period_end: string; as_of: string } }>;
+
+export function cloudReportCollectable(selection: SelectedFinancialReport, resource: Pick<BudgetCloudResourceSummaryWireV1, "account_id" | "resource_id" | "reports">): boolean {
+  if (selection.kind === "invalid") return false;
+  if (selection.kind !== "selected") return true;
+  if (selection.resourceId !== resource.resource_id) return false;
+  if (selection.reportId === null) return true;
+  // Only the current projection proves active binding lineage. Discovery lists
+  // retained history and cannot authorize collection with today's credential.
+  return resource.reports.some(value => [value.current, value.latest_attempt].some(report =>
+    report !== null && report.report_id === selection.reportId && report.account_id === resource.account_id
+    && report.resource_id === resource.resource_id && report.provider_key === "ollama"
+    && ["self_requests_and_cost", "team_requests_and_cost"].includes(report.source_category)));
+}
 
 export function billingReportCollectable(selection: SelectedFinancialReport, resource: Pick<BudgetResourceSummaryWireV1, "connection" | "reports">): boolean {
   if (selection.kind === "invalid") return false;

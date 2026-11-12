@@ -9,6 +9,7 @@ from agentmonitor.contracts.budget_query_v1 import (
     AccountBudgetCurrentPortV1,
     BudgetHistoryPortV1,
     BudgetOverviewPortV1,
+    BudgetReportHistoryPortV1,
     BudgetSelectedReportPortV1,
 )
 from agentmonitor.contracts.capacity_v1 import CapacityHealthPolicyV1
@@ -191,6 +192,7 @@ class ObservationApiPortsV1:
     list_budget_overview: BudgetOverviewPortV1 | None = None
     get_selected_budget_report: BudgetSelectedReportPortV1 | None = None
     list_budget_history: BudgetHistoryPortV1 | None = None
+    list_budget_reports: BudgetReportHistoryPortV1 | None = None
     cloud_usage: CloudUsageActionsPortV1 | None = None
     billing_checks: BillingCheckPortV1 | None = None
     billing_monitoring: BillingMonitoringPortV1 | None = None

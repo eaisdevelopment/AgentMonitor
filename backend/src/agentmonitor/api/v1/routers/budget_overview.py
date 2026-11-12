@@ -38,6 +38,7 @@ from agentmonitor.api.v1.schemas.budgets import (
     BudgetHistoryRowWireV1,
     BudgetHistoryWireV1,
     BudgetReportedSpendWireV1,
+    BudgetReportListWireV1,
 )
 from agentmonitor.api.v1.schemas.registry import AccountViewV1
 from agentmonitor.api.v1.serialization import technical_wire
@@ -46,7 +47,10 @@ from agentmonitor.contracts.budget_query_v1 import (
     BudgetOverviewQueryV1,
     BudgetOverviewRowV1,
 )
-from agentmonitor.contracts.capacity_v1 import BudgetPeriodV1
+from agentmonitor.contracts.capacity_v1 import (
+    BudgetPeriodV1,
+    BudgetReportHistoryQueryV1,
+)
 from agentmonitor.contracts.common_v1 import OpaqueIdV1
 from agentmonitor.modules.capacity.application.queries import CapacityQueryUnavailableV1
 from fastapi import APIRouter, Query, Request
@@ -418,4 +422,88 @@ def list_budget_history(
             filters=filters,
         ),
         availability=availability(result.page.availability),
+    )
+
+
+@router.get(
+    "/budgets/{budget_id}/reports",
+    operation_id="capacity_list_budget_reports_v1",
+    response_model=BudgetReportListWireV1,
+    responses=ERROR_RESPONSES,
+    openapi_extra=policy("read:telemetry", "BudgetReportHistoryPortV1"),
+)
+def list_budget_reports(
+    budget_id: str,
+    request: Request,
+    account_id: str,
+    period_start: Annotated[datetime, Query()],
+    period_end: Annotated[datetime, Query()],
+    as_of: Annotated[datetime, Query()],
+    limit: Annotated[int, Query(ge=1, le=200)] = 50,
+    cursor: Annotated[str | None, Query(max_length=4096)] = None,
+) -> BudgetReportListWireV1:
+    caller = authorize_request(request, "read:telemetry")
+    reject_unknown_query(
+        request,
+        frozenset(
+            {"account_id", "period_start", "period_end", "as_of", "limit", "cursor"}
+        ),
+    )
+    for value in (budget_id, account_id):
+        require_opaque_selector(value)
+    if any(
+        v.utcoffset() != UTC.utcoffset(v) for v in (period_start, period_end, as_of)
+    ):
+        raise ProblemError(400, "invalid_filter")
+    operation = "capacity_list_budget_reports_v1"
+    filters: dict[str, str | None] = {
+        "budget_id": budget_id,
+        "account_id": account_id,
+        "period_start": period_start.isoformat(),
+        "period_end": period_end.isoformat(),
+        "as_of": as_of.isoformat(),
+    }
+    after_key = decode_cursor(
+        request, caller, cursor, operation_id=operation, limit=limit, filters=filters
+    )
+    try:
+        query = BudgetReportHistoryQueryV1(
+            OpaqueIdV1(account_id),
+            OpaqueIdV1(budget_id),
+            BudgetPeriodV1(period_start, period_end),
+            limit,
+            after_key,
+            as_of,
+        )
+    except (TypeError, ValueError):
+        raise ProblemError(400, "invalid_filter") from None
+    port = observation_ports(request).list_budget_reports
+    if port is None:
+        raise ProblemError(503, "observation_data_unavailable")
+    try:
+        result = port(query)
+    except CapacityQueryUnavailableV1:
+        raise ProblemError(503, "observation_repository_unavailable") from None
+    except ValueError as error:
+        if str(error) == "budget_history_cursor_invalid":
+            raise ProblemError(400, "invalid_cursor") from None
+        raise ProblemError(503, "observation_repository_unavailable") from None
+    if result is None:
+        raise ProblemError(404, "registry_subject_not_found")
+    return BudgetReportListWireV1(
+        account_id=account_id,
+        resource_id=budget_id,
+        period=_period(query.period),
+        as_of=as_of,
+        items=[report_summary_wire(item) for item in result.items],
+        page=page_meta(
+            request,
+            caller,
+            operation_id=operation,
+            limit=limit,
+            has_more=result.has_more,
+            next_key=result.next_key,
+            filters=filters,
+        ),
+        availability=availability(result.availability),
     )

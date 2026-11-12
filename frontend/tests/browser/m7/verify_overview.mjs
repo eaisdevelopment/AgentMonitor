@@ -15,7 +15,7 @@ let rowSetDiagnostic = null;
 let entryDiagnostic = null;
 const overviewResponseStatuses = [];
 const renderedReadPaths = [];
-const checks = { authentication: "not_run", overview: "not_run", filters: "not_run", navigation: "not_run", financial_entry: "not_run", history_windows: "not_run", responsive: "not_run", pool_controls: "not_run", read_only: "not_run" };
+const checks = { authentication: "not_run", overview: "not_run", filters: "not_run", navigation: "not_run", financial_entry: "not_run", source_history: "not_run", history_windows: "not_run", responsive: "not_run", pool_controls: "not_run", read_only: "not_run" };
 function stop(outcome, code) { status = outcome; reason = code; throw new Error("probe_stopped"); }
 function requireEvidence(condition, code) { if (!condition) stop("failed", code); }
 try {
@@ -281,6 +281,29 @@ try {
         }
       }
     }
+    stage = "source_history";
+    const sourceHistory = page.locator(await selector("data-source-history", reportResource));
+    requireEvidence(await sourceHistory.count() === 1, "source_history_disclosure_missing");
+    const sourcePath = `/api/v1/budgets/${encodeURIComponent(reportResource)}/reports`;
+    const sourceQuery = new URLSearchParams(query);
+    sourceQuery.delete("report_id"); sourceQuery.set("limit", "50");
+    const sourcePage = await read(`${sourcePath}?${sourceQuery}`);
+    requireEvidence(sourcePage.account_id === reportAccount && sourcePage.resource_id === reportResource && microseconds(sourcePage.as_of) === microseconds(selected.as_of), "source_history_context_mismatch");
+    const sourceResponse = page.waitForResponse(response => new URL(response.url()).pathname === sourcePath);
+    await sourceHistory.getByText("Source history", { exact: true }).click();
+    requireEvidence((await sourceResponse).status() === 200, "source_history_read_failed");
+    await sourceHistory.locator('[data-source-history-content][aria-busy="false"]').waitFor();
+    const sourceRows = sourceHistory.locator("[data-source-report]");
+    requireEvidence(JSON.stringify(await sourceRows.evaluateAll(nodes => nodes.map(node => node.getAttribute("data-source-report")))) === JSON.stringify(sourcePage.items.map(item => item.report_id)), "source_history_rows_mismatch");
+    for (const report of sourcePage.items) {
+      const entry = sourceHistory.locator(await selector("data-source-report", report.report_id));
+      const text = await entry.textContent();
+      requireEvidence(text.includes(report.scope_id ?? "Not established") && text.includes(`Scope generation ${report.scope_generation}`), "source_history_scope_mismatch");
+      const link = new URL(await entry.getByRole("link", { name: "View report", exact: true }).getAttribute("href"), origin);
+      requireEvidence(link.searchParams.get("budget_report") === report.report_id && link.searchParams.get("budget_resource") === reportResource && microseconds(link.searchParams.get("budget_as_of")) === microseconds(selected.as_of), "source_history_selection_mismatch");
+    }
+    checks.source_history = "passed";
+    stage = "financial_entry";
     const historyPath = `/api/v1/budgets/${encodeURIComponent(reportResource)}/history`;
     const history = section.locator("[data-budget-history]");
     await history.waitFor();

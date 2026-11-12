@@ -320,6 +320,7 @@ IAM_OPERATIONS = {
     ("/api/v1/budgets/{budget_id}", "get"): "capacity_get_budget_v1",
     ("/api/v1/accounts/{account_id}/budgets", "get"): "capacity_list_budgets_v1",
     ("/api/v1/budgets/{budget_id}/history", "get"): "capacity_list_budget_history_v1",
+    ("/api/v1/budgets/{budget_id}/reports", "get"): "capacity_list_budget_reports_v1",
     (
         "/api/v1/accounts/{account_id}/quotas/v2",
         "get",
@@ -1357,6 +1358,18 @@ IAM_POLICY: dict[str, IamPolicyRow] = {
         _M2_REQUIRED_ERROR_STATUSES,
         None,
     ),
+    "capacity_list_budget_reports_v1": (
+        "cookie_or_bearer",
+        "read:telemetry",
+        "BudgetReportHistoryPortV1",
+        "safe_query_repeat",
+        _COOKIE_BEARER,
+        "200",
+        "BudgetReportListWireV1",
+        "SafeProblemV1",
+        _M2_REQUIRED_ERROR_STATUSES,
+        None,
+    ),
     "capacity_list_budget_history_v1": (
         "cookie_or_bearer",
         "read:telemetry",
@@ -1755,7 +1768,7 @@ def validate_iam_openapi(document: object) -> tuple[str, ...]:
     if (
         actual != IAM_OPERATIONS
         or set(IAM_POLICY) != set(IAM_OPERATIONS.values())
-        or len(identifiers) != 99
+        or len(identifiers) != 100
     ):
         raise OpenApiGenerationError("operation_surface_invalid")
 

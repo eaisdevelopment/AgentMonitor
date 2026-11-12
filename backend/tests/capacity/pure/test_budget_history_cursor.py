@@ -3,7 +3,7 @@
 import base64
 import json
 from dataclasses import replace
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from typing import Any, cast
 
 import pytest
@@ -65,3 +65,18 @@ def test_cursor_rejects_noninteger_or_invalid_bounds(
     ).decode()
     with pytest.raises(BudgetRepositoryError, match="budget_history_cursor_invalid"):
         _read_cursor(replace(query, after_key=modified))
+
+
+def test_pinned_snapshot_cursor_fits_public_envelope_and_rejects_new_read_time() -> (
+    None
+):
+    query = replace(_query(), as_of=datetime(2026, 11, 9, tzinfo=UTC))
+    assert query.as_of is not None
+    encoded = _cursor(query, 2**63 - 1, 2**63 - 2)
+    assert len(encoded) <= 64 and all(c.isalnum() or c in "_-" for c in encoded)
+    continued = replace(query, after_key=encoded)
+    assert _read_cursor(continued) == (2**63 - 1, 2**63 - 2)
+    with pytest.raises(BudgetRepositoryError, match="budget_history_cursor_invalid"):
+        _read_cursor(replace(continued, as_of=query.as_of + timedelta(microseconds=1)))
+    with pytest.raises(BudgetRepositoryError, match="budget_history_cursor_invalid"):
+        _read_cursor(replace(continued, as_of=None))

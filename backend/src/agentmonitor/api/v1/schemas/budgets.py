@@ -271,3 +271,13 @@ class BudgetHistoryWireV1(_ClosedV1):
     items: list[BudgetHistoryRowWireV1]
     page: PageMetaV1
     availability: AvailabilityV1
+
+
+class BudgetReportListWireV1(_ClosedV1):
+    account_id: str
+    resource_id: str
+    period: BudgetPeriodWireV1
+    as_of: datetime
+    items: list[BudgetReportSummaryWireV1]
+    page: PageMetaV1
+    availability: AvailabilityV1

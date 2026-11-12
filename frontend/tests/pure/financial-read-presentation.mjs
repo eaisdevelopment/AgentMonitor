@@ -1,7 +1,8 @@
 "use strict";
 
 import assert from "node:assert/strict";
-import { billingReportCollectable, canRetainFinancialReading, selectedFinancialReport } from "../../src/features/accounts/financialReadPresentation.ts";
+import * as financial from "../../src/features/accounts/financialReadPresentation.ts";
+const { billingReportCollectable, canRetainFinancialReading, selectedFinancialReport } = financial;
 
 // Pure presentation contexts only, with no telemetry or simulated I/O.
 const context = {
@@ -41,6 +42,16 @@ assert.equal(billingReportCollectable(selected, { ...resource, reports: [{ curre
 assert.equal(billingReportCollectable({ ...selected, reportId: null }, resource), true);
 assert.equal(billingReportCollectable({ kind: "none" }, resource), true);
 assert.equal(billingReportCollectable({ kind: "invalid" }, resource), false);
+assert.equal(typeof financial.cloudReportCollectable, "function", "Historical cloud report selections need a current-authority collection guard");
+const cloudReport = { ...report, provider_key: "ollama", source_category: "team_requests_and_cost" };
+const cloud = { account_id: "account", resource_id: "resource-1", reports: [{ current: cloudReport, latest_attempt: cloudReport }] };
+assert.equal(financial.cloudReportCollectable(selected, cloud), true);
+assert.equal(financial.cloudReportCollectable(selected, { ...cloud, reports: [] }), false, "A retained old report does not establish current cloud authority");
+assert.equal(financial.cloudReportCollectable(selected, { ...cloud, account_id: "another-account" }), false);
+assert.equal(financial.cloudReportCollectable(selected, { ...cloud, reports: [{ current: { ...cloudReport, source_category: "unknown" }, latest_attempt: null }] }), false);
+assert.equal(financial.cloudReportCollectable({ ...selected, reportId: null }, cloud), true);
+assert.equal(financial.cloudReportCollectable({ kind: "none" }, cloud), true);
+assert.equal(financial.cloudReportCollectable({ kind: "invalid" }, cloud), false);
 for (const invalid of ["2026-11-04T00:00:00.000001Z", "2026-02-30T00:00:00Z", "2026-11-03T24:00:00Z"]) {
   const query = new URLSearchParams(selection); query.set("budget_start", invalid);
   assert.equal(selectedFinancialReport(query.toString()).kind, "invalid");

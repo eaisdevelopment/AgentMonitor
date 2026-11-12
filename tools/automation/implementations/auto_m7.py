@@ -138,6 +138,7 @@ BUDGET_HTTP_GUARD_TARGETS = (
     "backend/tests/integration/api/test_budget_http.py",
     "backend/tests/integration/api/test_budget_overview_http.py",
     "backend/tests/integration/api/test_budget_history_http.py",
+    "backend/tests/integration/api/test_budget_report_discovery_http.py",
     "backend/tests/integration/api/test_billing_actions_http.py",
     "backend/tests/integration/api/test_billing_monitoring_http.py",
 )
@@ -273,9 +274,10 @@ def _presentation_checks() -> CheckResult:
     return CheckResult("pure", "passed")
 
 
-def execute_pool_browser() -> LaneResult:
+def execute_pool_browser(name: str = "owner_pool_controls") -> LaneResult:
     """Build actual sources and exercise owner metadata with real IAM/SQLite."""
-    name = "owner_pool_controls"
+    if name not in {"owner_pool_controls", "source_history"}:
+        raise ValueError("m7_selection_invalid")
     status: Status = "passed"
     reason = None
     try:
@@ -287,13 +289,29 @@ def execute_pool_browser() -> LaneResult:
                 ],
                 [
                     str(ROOT / "backend/.venv/bin/python"),
-                    "frontend/tests/browser/m7/run_financial_pools.py",
+                    *(
+                        ["frontend/tests/browser/m7/run_financial_pools.py"]
+                        if name == "owner_pool_controls"
+                        else [
+                            "-m",
+                            "pytest",
+                            "-c",
+                            "backend/pyproject.toml",
+                            "-q",
+                            "--tb=short",
+                            "-p",
+                            "tools.automation.pytest_no_skip",
+                            "backend/tests/integration/api/test_budget_report_discovery_http.py",
+                            "backend/tests/live/ollama/test_budget_history_http_live.py",
+                            "backend/tests/live/ollama/test_source_history_browser.py",
+                        ]
+                    ),
                 ],
             )
             for command in commands:
                 result = subprocess.run(command, cwd=ROOT, timeout=480, check=False)
                 if result.returncode:
-                    status, reason = "failed", "m7_pool_browser_failed"
+                    status, reason = "failed", "m7_built_browser_failed"
                     break
     except subprocess.TimeoutExpired:
         status, reason = "failed", "m7_test_timeout"
@@ -301,7 +319,7 @@ def execute_pool_browser() -> LaneResult:
         status, reason = "blocked", "m7_test_toolchain_unavailable"
     check = CheckResult(name, status, reason)
     print(f"M7 CHECK {name}: {status.upper()}", flush=True)
-    return LaneResult("browser/owner_pool_controls", status, (check,))
+    return LaneResult(f"browser/{name}", status, (check,))
 
 
 def execute_lane(lane: str) -> LaneResult:
@@ -419,7 +437,11 @@ def validate_selection(lane: str, check: str | None, expected: str | None) -> No
     """Keep partial technical guards separate from exact-revision activation."""
     if check is None and expected is None:
         return
-    if lane == "browser" and check == "owner_pool_controls" and expected is None:
+    if (
+        lane == "browser"
+        and check in {"owner_pool_controls", "source_history"}
+        and expected is None
+    ):
         return
     if (
         lane == "browser"
@@ -713,6 +735,7 @@ def main(argv: list[str] | None = None) -> int:
             "setup_activation",
             "financial_activation",
             "owner_pool_controls",
+            "source_history",
             "overview",
             *GUARD_SCOPES,
         ),
@@ -731,8 +754,8 @@ def main(argv: list[str] | None = None) -> int:
             args.expected_revision, financial=args.check == "financial_activation"
         )
         if args.check in {"setup_activation", "financial_activation"}
-        else execute_pool_browser()
-        if args.check == "owner_pool_controls"
+        else execute_pool_browser(args.check)
+        if args.check in {"owner_pool_controls", "source_history"}
         else execute_overview_browser(args.expected_revision)
         if args.check == "overview"
         else execute_guard(args.check)
@@ -755,6 +778,11 @@ def main(argv: list[str] | None = None) -> int:
         scope = (
             "isolated built-browser owner pool metadata; "
             "no provider, money or full M7 acceptance claim"
+        )
+    elif args.check == "source_history":
+        scope = (
+            "genuine retained report metadata and built-browser navigation; "
+            "no monetary reconciliation or full detail_history acceptance"
         )
     elif args.check == "overview":
         scope = (

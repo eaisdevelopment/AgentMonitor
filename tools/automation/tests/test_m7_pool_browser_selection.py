@@ -9,14 +9,15 @@ from tools.automation.implementations.auto_m7 import (
 )
 
 
-def test_pool_browser_slice_is_explicit_and_cannot_close_browser() -> None:
-    validate_selection("browser", "owner_pool_controls", None)
+@pytest.mark.parametrize("check", ["owner_pool_controls", "source_history"])
+def test_pool_browser_slice_is_explicit_and_cannot_close_browser(check: str) -> None:
+    validate_selection("browser", check, None)
     assert (
         evaluate_lane("browser", (CheckResult("owner_setup", "passed"),)).status
         != "passed"
     )
     for lane in ("technical", "exit", "live", "deploy"):
         with pytest.raises(ValueError, match="m7_selection_invalid"):
-            validate_selection(lane, "owner_pool_controls", None)
+            validate_selection(lane, check, None)
     with pytest.raises(ValueError, match="m7_selection_invalid"):
-        validate_selection("browser", "owner_pool_controls", "a" * 40)
+        validate_selection("browser", check, "a" * 40)

@@ -119,6 +119,7 @@ financial domain. No new package or license change.
 | CTR-CAP-004 2.1.0 | BudgetCollectionInputV1 and the typed report commit port | One bounded report, fenced binding/scope generation, atomic facts/coverage/receipt |
 | CTR-COL-006 2.0.0 budget variants; CTR-COL-002 2.2.0 billing/cloud run variants | BudgetCollectionReceiptV1, typed commit port, BudgetCollectionRunViewV1 and profile-free admission | Real report reference permits zero facts; old quota receipt/run types unchanged |
 | CTR-CAP-002/003/006 | GetBudgetV1, ListBudgetsV1, GetAccountApiCapacityV1, ListBudgetOverviewV1, ListBudgetHistoryV1, ListUsageBreakdownsV1 | Backend exact aggregation, immutable report selection, bounded stable cursors |
+| CTR-CAP-006 2.9.0 | BudgetReportHistoryPortV1 and optional pinned as_of on report-list query | Authorized original-scope summaries, no current-authority inference or provider fetch |
 | CTR-CAP-007 budget variant | GetBudgetForecastV1 → BudgetForecastV1 | Pure bounded calculation with inputs/method/as-of or no-value reason; no DB writes |
 
 Focused producer/consumer integration now consumes CTR-REG-014 1.5.0,
@@ -295,6 +296,29 @@ failed; admit the new due interval separately. No fabricated success from timeou
 Failed/partial calls leave prior complete current data visibly unchanged/stale. Source snapshot consistency is checked
 across pages when the provider supplies a watermark. One provenance envelope
 must not pretend several endpoint/category/time snapshots are identical.
+
+### T010/T011 retained report discovery handoff (12 November)
+
+Additive CTR-CAP-006 2.9.0 extends `BudgetReportHistoryQueryV1` with optional
+`as_of` (legacy callers retain their current behavior) and publishes
+`BudgetReportHistoryPortV1`. M05 authorizes the account before and after its
+existing bounded repository query. SQLite filters stored report time at the
+pinned read snapshot, retains original scope generations, and binds continuation
+to that snapshot. No schema change or provider request. P01 adds authenticated
+`GET /budgets/{budget_id}/reports`, operation `capacity_list_budget_reports_v1`,
+with account, exact period, as_of, limit and caller-bound cursor. Response contains
+existing allowlisted report summaries, not bucket bodies or credential bindings.
+P02 adds collapsed Source history on existing resource details, using the current
+financial route to select immutable report IDs. Failed later pages retain loaded
+rows; switching account/resource/period/as_of resets the list. Historic selection
+never supplies current collection authority. No new dependency or approval.
+
+Red/Green: real IAM route authorization/filter/cursor guards; genuine retained
+Ollama report snapshot through SQLite/application/HTTP, including before-store
+as_of exclusion and immutable scope metadata; built browser discovery/select/
+Back/reload without mutations. Genuine Ollama data proves provider-independent
+history, not the still-required monetary source comparison. Root owns contracts,
+repository/application/P01/generated client; P02 receives only this published API.
 
 ## 8. Forecast and history design
 

@@ -12,6 +12,18 @@ from tooling.foundation.openapi_client import (
 )
 
 EXPECTED_SUCCESS = {
+    "registry_change_billing_scope_v1": ("200", "BillingConnectionViewV1"),
+    "capacity_list_budgets_v1": ("200", "AccountBudgetSummaryWireV1"),
+    "capacity_list_budget_history_v1": ("200", "BudgetHistoryWireV1"),
+    "capacity_list_budget_reports_v1": ("200", "BudgetReportListWireV1"),
+    "billing_collect_now_v1": ("202", "BillingCheckRunV1"),
+    "billing_get_collection_eligibility_v1": (
+        "200",
+        "BillingCollectionEligibilityWireV1",
+    ),
+    "cloud_usage_collect_v1": ("202", "CloudUsageRunStatusV1"),
+    "cloud_usage_eligibility_v1": ("200", "CloudUsageEligibilityWireV1"),
+    "cloud_usage_status_v1": ("200", "CloudUsageRunStatusV1"),
     "registry_get_billing_connections_v1": ("200", "AccountBillingConnectionsV1"),
     "registry_create_billing_connection_v1": ("201", "BillingConnectionViewV1"),
     "capacity_get_account_api_budget_v1": ("200", "AccountBudgetCurrentWireV1"),
@@ -139,6 +151,9 @@ EXPECTED_ERRORS = frozenset(
     }
 )
 EXPECTED_REQUESTS = {
+    "registry_change_billing_scope_v1": "ChangeBillingScopeInputV1",
+    "billing_collect_now_v1": "BillingCollectInputV1",
+    "cloud_usage_collect_v1": "CloudUsageCollectInputV1",
     "registry_create_billing_connection_v1": "CreateBillingConnectionInputV1",
     "billing_check_connection_v1": "BillingCheckInputV1",
     "billing_set_monitoring_v1": "SetBillingMonitoringInputV1",
@@ -194,7 +209,7 @@ def test_generator_rejects_changed_policy_on_every_frozen_operation() -> None:
 
 def test_generator_rejects_success_schema_drift_for_all_operations() -> None:
     schema = create_iam_schema_application().openapi()
-    assert len(validate_iam_openapi(schema)) == len(EXPECTED_SUCCESS) == 91
+    assert len(validate_iam_openapi(schema)) == len(EXPECTED_SUCCESS) == 100
     seen: set[str] = set()
     for path, methods in schema["paths"].items():
         for method, operation in methods.items():

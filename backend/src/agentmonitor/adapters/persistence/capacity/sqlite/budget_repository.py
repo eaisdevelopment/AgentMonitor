@@ -84,6 +84,16 @@ def _selector(query: BudgetReportHistoryQueryV1) -> tuple[str, str, str, str]:
 
 
 def _cursor(query: BudgetReportHistoryQueryV1, snapshot: int, last: int) -> str:
+    if query.as_of is not None:
+        context = json.dumps(
+            [*_selector(query), utc_text(query.as_of)], separators=(",", ":")
+        ).encode("ascii")
+        raw = (
+            hashlib.sha256(context).digest()[:16]
+            + snapshot.to_bytes(8)
+            + last.to_bytes(8)
+        )
+        return "r2_" + base64.urlsafe_b64encode(raw).rstrip(b"=").decode("ascii")
     data = [1, *_selector(query), snapshot, last]
     return base64.urlsafe_b64encode(
         json.dumps(data, separators=(",", ":"), ensure_ascii=True).encode("ascii")
@@ -94,6 +104,20 @@ def _read_cursor(query: BudgetReportHistoryQueryV1) -> tuple[int, int] | None:
     if query.after_key is None:
         return None
     try:
+        if query.as_of is not None:
+            if not query.after_key.startswith("r2_") or len(query.after_key) != 46:
+                raise ValueError
+            raw = base64.b64decode(
+                query.after_key[3:] + "=", altchars=b"-_", validate=True
+            )
+            snapshot, last = int.from_bytes(raw[16:24]), int.from_bytes(raw[24:])
+            if (
+                len(raw) != 32
+                or not 0 < last <= snapshot <= 9223372036854775807
+                or _cursor(query, snapshot, last) != query.after_key
+            ):
+                raise ValueError
+            return snapshot, last
         data = json.loads(
             base64.b64decode(query.after_key, altchars=b"-_", validate=True)
         )
@@ -399,7 +423,10 @@ class SqliteBudgetReportRepositoryV1:
         where = (
             "account_id=? AND resource_id=? AND requested_start=? AND requested_end=?"
         )
-        selectors = _selector(query)
+        selectors: tuple[str, ...] = _selector(query)
+        if query.as_of is not None:
+            where += " AND stored_at<=?"
+            selectors = (*selectors, utc_text(query.as_of))
         try:
             with open_sqlite_database(
                 self._database_ref, "runtime_read_only"
@@ -456,7 +483,9 @@ class SqliteBudgetReportRepositoryV1:
                         has_more,
                         _cursor(query, snapshot, last_returned) if has_more else None,
                         QueryAvailabilityV1(
-                            "available", "budget_history_read", datetime.now(UTC)
+                            "available",
+                            "budget_history_read",
+                            query.as_of or datetime.now(UTC),
                         ),
                     )
         except (SqlitePolicyError, SQLAlchemyError):

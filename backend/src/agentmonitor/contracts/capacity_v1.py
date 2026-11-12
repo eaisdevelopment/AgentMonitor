@@ -1028,7 +1028,7 @@ class BudgetReportHistoryQueryV1(TechnicalValueV1):
     """Bounded report history; cursor state must pin the original snapshot."""
 
     CONTRACT_ID: ClassVar[str] = "CTR-CAP-006"
-    CONTRACT_VERSION: ClassVar[str] = "2.0.0"
+    CONTRACT_VERSION: ClassVar[str] = "2.9.0"
     OWNER: ClassVar[str] = "PLAN-M05"
 
     account_id: OpaqueIdV1
@@ -1036,6 +1036,7 @@ class BudgetReportHistoryQueryV1(TechnicalValueV1):
     period: BudgetPeriodV1
     limit: int = 50
     after_key: str | None = None
+    as_of: datetime | None = None
 
     def __post_init__(self) -> None:
         TechnicalValueV1.__post_init__(self)
@@ -1043,6 +1044,8 @@ class BudgetReportHistoryQueryV1(TechnicalValueV1):
             not isinstance(self.account_id, OpaqueIdV1)
             or not isinstance(self.resource_id, OpaqueIdV1)
             or not isinstance(self.period, BudgetPeriodV1)
+            or self.as_of is not None
+            and (self.as_of.utcoffset() != timedelta(0) or self.period.end > self.as_of)
             or type(self.limit) is not int
             or not 1 <= self.limit <= 200
             or self.after_key is not None

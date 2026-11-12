@@ -9,13 +9,14 @@ import {
 } from "../../shared/api/client";
 import { completedPeriod, displayMoney, exactMoneyText } from "./budgetPresentation";
 import { BudgetDailyHistory } from "./BudgetDailyHistory";
+import { BudgetSourceHistory } from "./BudgetSourceHistory";
 import { BillingCollectControl } from "./BillingCollectControl";
 import { collectionContext } from "./billingCollectPresentation";
 import { CloudUsageCollectControl } from "./CloudUsageCollectControl";
 import { cloudUsageContext, cloudUsageScope } from "./cloudUsageCollectPresentation";
 import { budgetWindowDays, budgetWindowSearch, latestBudgetWindow, resizeBudgetWindow, shiftBudgetWindow, type BudgetWindow } from "./budgetWindowNavigation";
 import { advanceFinancialRead } from "./billingCheckPresentation";
-import { billingReportCollectable, canRetainFinancialReading, selectedFinancialReport, type FinancialReadContext } from "./financialReadPresentation";
+import { billingReportCollectable, cloudReportCollectable, canRetainFinancialReading, selectedFinancialReport, type FinancialReadContext } from "./financialReadPresentation";
 
 const readable = (value: string) => value.replaceAll("_", " ");
 const instant = (value: string) => new Date(value).toLocaleString(undefined, { timeZoneName: "short" });
@@ -199,6 +200,17 @@ export function BudgetAccountPanel({ account, showUnconfigured, onExpired, readR
     window.dispatchEvent(new PopStateEvent("popstate"));
   }
 
+  function reportHref(resourceId: string, reportId: string): string {
+    const search = new URLSearchParams(budgetWindowSearch(window.location.search, query, resourceId));
+    search.set("budget_report", reportId);
+    return `${window.location.pathname}?${search}`;
+  }
+
+  function selectReport(resourceId: string, reportId: string) {
+    window.history.pushState(null, "", reportHref(resourceId, reportId));
+    window.dispatchEvent(new PopStateEvent("popstate"));
+  }
+
   const previousWindow = shiftBudgetWindow(query, -1);
   const nextWindow = shiftBudgetWindow(query, 1);
 
@@ -226,7 +238,7 @@ export function BudgetAccountPanel({ account, showUnconfigured, onExpired, readR
     {selection.kind === "invalid" && <p role="alert">This financial link is incomplete or invalid. Refresh view to select current stored data.</p>}
     {selection.kind === "selected" && selection.reportId !== null && <section aria-label="Selected financial report" data-report-id={selection.reportId}>
       <h3>Selected report</h3>
-      <p>This is the report opened from Overview. Refresh view selects current stored readings.</p>
+      <p>This report is pinned to its original scope and stored snapshot. Refresh view selects current stored readings.</p>
       <BudgetDailyHistory context={{ accountId: account.account_id, resourceId: selection.resourceId,
         reportId: selection.reportId, periodStart: selection.query.period_start,
         periodEnd: selection.query.period_end, asOf: selection.query.as_of }} onExpired={onExpired} showSummary />
@@ -245,7 +257,13 @@ export function BudgetAccountPanel({ account, showUnconfigured, onExpired, readR
         key={`${account.account_id}.${account.record_version}.${resource.connection.resource_id}.${resource.connection.record_version}.${resource.connection.scope_generation}.${query.period_start}.${query.period_end}`}
         account={account} connection={resource.connection} reportContext={collectionContext(query.period_start, query.period_end)}
         onExpired={onExpired} onCollected={() => selectWindow(advanceFinancialRead(query, new Date()))} />)}
-      {cloudResources.filter(resource => selection.kind !== "selected" || resource.resource_id === selection.resourceId).map(resource => {
+      {selection.kind === "selected" && selection.reportId !== null && cloudResources
+        .filter(resource => resource.resource_id === selection.resourceId && !cloudReportCollectable(selection, resource))
+        .map(resource => <div key={`historical-${resource.resource_id}`} data-historical-scope="true">
+          <button type="button" disabled>Collect usage</button>
+          <p role="status">Historical or unconfirmed scope — return to current scope to collect. Use Latest completed window.</p>
+        </div>)}
+      {cloudResources.filter(resource => cloudReportCollectable(selection, resource)).map(resource => {
         const selectedReport = selection.kind === "selected" && selection.reportId !== null
           ? resource.reports.flatMap(value => [value.current, value.latest_attempt]).find(report => report?.report_id === selection.reportId) : undefined;
         const scope = cloudUsageScope(selectedReport?.source_category);
@@ -265,6 +283,10 @@ export function BudgetAccountPanel({ account, showUnconfigured, onExpired, readR
         {data.resources.filter(resource => selection.kind !== "selected" || resource.connection.resource_id === selection.resourceId).map((resource) => <ResourceReading key={`${resource.connection.resource_id}.${resource.connection.scope_generation}`} resource={resource} accountId={account.account_id} asOf={data.as_of} onExpired={onExpired} />)}
         {cloudResources.filter(resource => selection.kind !== "selected" || resource.resource_id === selection.resourceId).map((resource) => <ResourceReading key={resource.resource_id} resource={resource} accountId={account.account_id} asOf={data.as_of} onExpired={onExpired} />)}
       </>}
+      {[...new Set([...data.resources.map(resource => resource.connection.resource_id), ...cloudResources.map(resource => resource.resource_id)])]
+        .filter(resourceId => selection.kind !== "selected" || resourceId === selection.resourceId)
+        .map(resourceId => <BudgetSourceHistory key={resourceId} accountId={account.account_id} resourceId={resourceId} query={query} onExpired={onExpired}
+          reportHref={reportId => reportHref(resourceId, reportId)} onSelect={reportId => selectReport(resourceId, reportId)} />)}
     </>}
   </section>;
 }

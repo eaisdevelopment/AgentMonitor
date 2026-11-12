@@ -101,6 +101,10 @@ def test_genuine_history_pages_and_compact_summary_over_real_http(
     def active_binding(account_id: OpaqueIdV1) -> ActiveCredentialBindingRefV1 | None:
         return resolve_active_credential_binding(bindings.read(account_id))
 
+    from agentmonitor.modules.capacity.application.budget_reports import (
+        ListBudgetReportsV1,
+    )
+
     selected = GetSelectedBudgetReportV1(GetAccountV1(registry), reports)
     current = GetAccountBudgetCurrentV1(
         SqliteBillingConnectionRepositoryV1(reference),
@@ -122,6 +126,7 @@ def test_genuine_history_pages_and_compact_summary_over_real_http(
         get_account_budget_current=current,
         get_selected_budget_report=selected,
         list_budget_history=ListBudgetHistoryV1(selected),
+        list_budget_reports=ListBudgetReportsV1(GetAccountV1(registry), reports),
     )
     account_id = stored.report.subject.account_id.value
     resource_id = stored.report.subject.resource_id.value
@@ -169,6 +174,99 @@ def test_genuine_history_pages_and_compact_summary_over_real_http(
                 cost_bucket_count=len(report["cost_buckets"]),
                 usage_bucket_count=len(report["usage_buckets"]),
             )
+            discovery_query = {
+                key: value for key, value in selection.items() if key != "report_id"
+            }
+            discovery_route = f"/api/v1/budgets/{resource_id}/reports?"
+            discovered = await asyncio.to_thread(
+                _request,
+                origin,
+                "GET",
+                discovery_route
+                + urllib.parse.urlencode({**discovery_query, "limit": "1"}),
+                cookies=jar,
+            )
+            assert discovered[0] == 200, "report_discovery_genuine_http_failed"
+            discovery_page = json.loads(discovered[2])
+            assert discovery_page["account_id"] == account_id
+            assert discovery_page["resource_id"] == resource_id
+            assert discovery_page["availability"]["state"] == "available"
+            assert len(discovery_page["items"]) == 1
+            discovered_report = discovery_page["items"][0]
+            original = reports.get_report(
+                OpaqueIdV1(account_id), OpaqueIdV1(discovered_report["report_id"])
+            )
+            assert original is not None
+            assert (
+                discovered_report["scope_generation"]
+                == original.report.scope_generation
+            )
+            assert discovered_report["scope_id"] == (
+                original.report.scope_id.value if original.report.scope_id else None
+            )
+            assert (
+                "cost_buckets" not in discovered_report
+                and "usage_buckets" not in discovered_report
+            )
+            assert (
+                "binding_id" not in discovered[2].decode()
+                and "binding_generation" not in discovered[2].decode()
+            )
+            cutoff = stored.stored_at - timedelta(microseconds=1)
+            earlier = await asyncio.to_thread(
+                _request,
+                origin,
+                "GET",
+                discovery_route
+                + urllib.parse.urlencode(
+                    {**discovery_query, "as_of": cutoff.isoformat()}
+                ),
+                cookies=jar,
+            )
+            assert earlier[0] == 200
+            assert all(
+                datetime.fromisoformat(item["stored_at"].replace("Z", "+00:00"))
+                <= cutoff
+                for item in json.loads(earlier[2])["items"]
+            ), "report_discovery_leaked_future_snapshot"
+            next_cursor = discovery_page["page"]["next_cursor"]
+            assert next_cursor is not None, "multiple_genuine_revisions_required"
+            next_query = {**discovery_query, "limit": "1", "cursor": next_cursor}
+            following_report = await asyncio.to_thread(
+                _request,
+                origin,
+                "GET",
+                discovery_route + urllib.parse.urlencode(next_query),
+                cookies=jar,
+            )
+            assert following_report[0] == 200
+            assert (
+                json.loads(following_report[2])["items"][0]["report_id"]
+                != discovered_report["report_id"]
+            )
+            for changes in (
+                {"account_id": "other"},
+                {"limit": "2"},
+                {"as_of": (now + timedelta(seconds=1)).isoformat()},
+            ):
+                mismatch = await asyncio.to_thread(
+                    _request,
+                    origin,
+                    "GET",
+                    discovery_route + urllib.parse.urlencode({**next_query, **changes}),
+                    cookies=jar,
+                )
+                assert mismatch[0] == 400
+                assert json.loads(mismatch[2])["code"] == "cursor_query_mismatch"
+            other_caller = await asyncio.to_thread(
+                _request,
+                origin,
+                "GET",
+                discovery_route + urllib.parse.urlencode(next_query),
+                cookies=jars[1],
+            )
+            assert other_caller[0] == 400
+            assert json.loads(other_caller[2])["code"] == "cursor_query_mismatch"
             assert report["report_id"] == stored.report_id.value
             assert len(report["cost_buckets"]) == len(stored.report.cost_buckets)
             assert len(report["usage_buckets"]) == len(stored.report.usage_buckets)

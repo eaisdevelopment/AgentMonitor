@@ -95,6 +95,7 @@ SUPPORT_SYMBOLS = {
         "BudgetOverviewPortV1",
         "BudgetSelectedReportPortV1",
         "BudgetHistoryPortV1",
+        "BudgetReportHistoryPortV1",
     },
     "agentmonitor.contracts.registry_billing_v1": {
         "BillingAccessPurposeV1",
