@@ -15,12 +15,12 @@ Link to those decisions rather than maintaining competing copies here.
 
 ## Read this first: next result and finish line
 
-**Next independent delivery:** integrate the existing owner-facing billing
-disconnect/local cleanup candidate (T002/T011), then the first-source history
-chart and rate-only calculation in T013. The maintenance candidate has isolated
-SQLite/PTY/browser [evidence](../../evidence/m7-billing-maintenance-2026-11-12.md)
-but is not yet installed or published; final quality,
-installed checks and delivery remain. Real active-key rotation/deletion evidence
+**Next independent delivery:** the first-source history chart and rate-only
+calculation in T013. Billing disconnect/local cleanup and status-to-financial
+refresh are installed and published at `d985cc7`; their
+[evidence](../../evidence/m7-billing-maintenance-2026-11-12.md) records 95 registry
+tests, isolated SQLite/PTY/browser Red/Green, local quality and concurrent
+authenticated installed checks. Real active-key rotation/deletion evidence
 is separate and waits only for its actual credential, not all independent work.
 The archive/restore reconnect
 path is installed at `c1c8e8d`: it retains source/history metadata, keeps
@@ -57,11 +57,11 @@ valid. No repeated owner account attestations or new plan-version ceremony.
 
 | Boundary | Recorded result | Still unproved |
 |---|---|---|
-| Installed implementation | `c1c8e8d`, schema `v1_0734`; restored-account billing reconnect, retained Source history, scope-edit controls with authority/pool/history fences, resource-based account sections, organization pagination, pool controls, fair 7/30-day scheduling, manual collection, sorted Overview and pinned daily history | Full monetary journey and complete lifecycle/analysis |
-| Public code | GitHub implementation `c1c8e8d`, independently verified | Later documentation-only receipts do not change installed code |
+| Installed implementation | `d985cc7`, schema `v1_0734`; local billing disconnect/cleanup and status-to-financial refresh, restored-account billing reconnect, retained Source history, scope-edit controls with authority/pool/history fences, resource-based account sections, organization pagination, pool controls, fair 7/30-day scheduling, manual collection, sorted Overview and pinned daily history | Full monetary journey and complete lifecycle/analysis |
+| Public code | GitHub implementation `d985cc7`, independently verified | Later documentation-only receipts do not change installed code |
 | Live reports | Genuine Ollama balances/counts, one manual 30-day report and scheduled 30-day reports on two real resources | Seven-day manual success remained rate-limited before POST; monetary reports and remaining provider matrix |
 | Browser reliability | Actual installed concurrent Overview/setup/cloud reads passed; isolated real owner metadata covered pool controls, later organization pages and full-list sorting | Monetary totals, full accessibility and final acceptance |
-| Source access | Latest recorded inventory has no Anthropic/OpenAI administrative billing connection | Subscription logins do not prove billing access; absence is not a provider denial |
+| Source access | Read-only installed inventory at 08:11:53 UTC, 12 November: zero Anthropic/OpenAI billing connections, stored bindings or enabled billing connections | Subscription logins do not prove billing access; absence is not a provider denial |
 | Tracker | 2 done, 11 in progress, 3 planned | Counts are not percentage complete |
 
 Evidence: [resource layout](../../evidence/m7-account-resource-layout-2026-11-12.md),
@@ -76,9 +76,9 @@ These are bounded historical results, not a fresh runtime check or full M7 pass.
 ## 2. One remaining delivery sequence
 
 Retain the following eight batches inside the existing tickets. Their numbers
-identify work, not strict serial prerequisites. Finish the bounded candidate
-already in flight (batch 3); batch 2 takes priority as soon as monetary access is
-ready. Otherwise start batch 6's pure rate/daily-chart work using existing
+identify work, not strict serial prerequisites. The batch 3 maintenance candidate
+is installed; retain its evidence. Batch 2 takes priority as soon as monetary
+access is ready. Otherwise start batch 6's pure rate/daily-chart work using existing
 history contracts, alongside available batch 1/4 provider verification. Batch 5
 travels with every visible increment, not a late UI cleanup phase. Complete
 batch 7's recovery with the first genuine money, then batch 8. No need to finish
@@ -91,7 +91,7 @@ Red/Green, actual check wiring and visible installed result where applicable.
 |---|---|---|
 | 1 — T007/T009/T011 | Finish seven-day manual cloud proof when eligible and original-request/context recovery | Actual action/run/report linkage, reload and no duplicate request; retain installed 30-day proof, balance and shared cooldown. No owner setup repetition |
 | 2 — T005/T006 or T008/T010–T012/T014 | First monetary source through exact storage, Overview, detail and history | One complete genuine report survives commit/retry/reopen and matches authenticated API/DOM at the same context. Needs actual admitted billing access, not completion of every provider ticket |
-| 3 — T002/T010/T011 | Retain installed scope editing, report discovery and restored-account reconnect; finish disconnect/local cleanup and real rotation evidence | Old authority cannot commit; group-only edits preserve access; historic scope label survives reload; historical-scope Collect disabled and return-to-current works. Real isolated metadata tests are separate from populated history and actual secret-removal evidence |
+| 3 — T002/T010/T011 | Retain installed scope editing, report discovery, reconnect and local disconnect/cleanup; finish real rotation/deletion evidence | Old authority cannot commit; group-only edits preserve access; historic scope label survives reload; historical-scope Collect disabled and return-to-current works. Real isolated metadata tests are separate from populated history and actual secret-removal evidence |
 | 4 — T006/T007/T008/T009 | Finish frozen endpoints, both ranges, supported dimensions and bounded fairness/recovery | Each mapping has its native unit/coverage and actual source result. Unsupported, denied, unimplemented and genuine empty success remain distinct. No new provider API additions |
 | 5 — T004/T010/T011/T012 | Finish totals, navigation, refresh failure and accessibility | Compatible full-filter subtotal, one shared pool, no false zero, source/API/DOM exactness, keyboard/zoom/widths, preserved quota rows on financial error; retain delivered server sorting/concurrent-read fix |
 | 6 — T013 | Same-fact daily chart, one supported dimension at a time, observed-rate/conditional exhaustion and retention | Uses existing history, backend math and existing retention scheduler. No generic analytics engine. Missing funds can prevent a date without hiding a valid observed rate |
@@ -117,7 +117,7 @@ scope, not eleven simultaneous priorities.
 
 | Start work with | Required before claiming that result | Existing owner / tickets |
 |---|---|---|
-| Current tested maintenance candidate | Quality, clean install and actual rendered status; active-key deletion/rotation only when real credentials are available | M02/P01/P02, T002/T011/T014 |
+| Installed maintenance controls | Retain quality/install/browser evidence; actual active-key deletion/rotation only when real credentials are available | M02/P01/P02, T002/T011/T014 |
 | One successful admitted monetary report, even if its adapter ticket is incomplete | Exact same report/context in storage, HTTP, Overview, detail and history; genuine evidence, no mock balance | M05/P01/P02, T005/T010–T012/T014 |
 | Current immutable history contracts plus pure domain inputs | Same-fact chart, exact daily aggregation and rate tests; monetary browser proof once a genuine report exists | M05/P01/P02, T013 |
 | Each frozen provider's existing source contract | Complete required mapping/access/range inventory for that provider; other providers do not block its implementation | A01/A02/A03/M04, T006–T009 |

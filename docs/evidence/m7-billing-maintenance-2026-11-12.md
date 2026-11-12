@@ -1,6 +1,6 @@
 # M7 local billing disconnect and cleanup
 
-Status: implementation and bounded verification in progress under approved
+Status: bounded implementation installed and published under approved
 focused plan 1.1.0. T002/T011, FR-ACC-001/004/006, FR-BUDGET-006;
 M7-A01/A09, AC-UI-005/006, AC-TEST-001/003/006. M02 owns registry revocation;
 composition owns local credential-file use; P01/P02 publish safe instructions.
@@ -110,3 +110,24 @@ Changed areas: CTR-REG-014; M02 credential bindings and tests; local operator,
 enrollment/cleanup and command descriptor; registry HTTP schema/GET and generated
 client; account maintenance UI; canonical registry/browser/probe selectors;
 module handoff, operations and evidence. No schema, license or dependency change.
+
+## Installed and public verification
+
+Implementation `d985cc7672a0e7035dc51e6bde7653e41e1ba4eb` was installed through
+the existing selected-revision updater. Schema remains `v1_0734`; original
+service restart policy was restored. The service was active and loopback returned
+HTTP 200. No account, organization, credential, monitoring preference, provider
+profile or running user agent was configured by the coding agent.
+
+At **08:10:52.761 UTC on 12 November 2026**, the real authenticated concurrent
+Overview/setup/cloud-controls probe passed all three checks at that exact
+revision with zero mutation requests. It resolved the earlier installed
+`billing_maintenance_contract_missing` Red. Isolated browser evidence above
+proves command/state rendering; absent real billing enrollment means this
+installed read-only probe is not proof of an owner executing a real-key cleanup.
+
+GitHub `main` was pushed and independently queried with `git ls-remote`:
+`d985cc7672a0e7035dc51e6bde7653e41e1ba4eb`. The staged Gitleaks scan had two
+findings, both verified generated OpenAPI SHA-256 values matching the old/new
+artifacts, and zero unclassified findings. The subsequent documentation receipt
+does not change the installed implementation. Full M7 remains unfinished.
