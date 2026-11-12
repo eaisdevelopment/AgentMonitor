@@ -15,9 +15,9 @@ from agentmonitor.adapters.persistence._shared.sqlite.core.policy import (
 )
 from agentmonitor.adapters.persistence.collection_control.sqlite.budget import (
     BillingAdmissionFence,
+    BudgetAuthority,
     BudgetCollectionError,
     CloudAdmissionFence,
-    CloudBudgetAuthority,
     budget_target_matches_query,
     capture_billing_target,
     capture_cloud_budget_target,
@@ -30,6 +30,8 @@ from agentmonitor.adapters.persistence.collection_control.sqlite.budget_dispatch
     restore_budget_admission,
 )
 from agentmonitor.contracts.collection_control_v1 import (
+    BillingBudgetAuthorityV1,
+    BillingBudgetReportContextV1,
     BudgetCollectionReceiptV1,
     BudgetCollectionRunAdmissionV1,
     BudgetCollectionRunViewV1,
@@ -241,8 +243,10 @@ class SqliteCollectionRepositoryV1:
     def _require_budget_target_fence(
         self,
         connection: Connection,
-        target: BillingAccessTargetV1 | CloudBudgetAuthority,
+        target: BudgetAuthority,
     ) -> None:
+        if isinstance(target, BillingBudgetAuthorityV1):
+            target = target.target
         if isinstance(target, BillingAccessTargetV1):
             if self._billing_admission_fence is None:
                 raise BudgetCollectionError("budget_admission_fence_required")
@@ -500,9 +504,7 @@ class SqliteCollectionRepositoryV1:
         except (SqlitePolicyError, SQLAlchemyError, ValueError, TypeError, KeyError):
             raise BudgetCollectionError("budget_dispatch_unavailable") from None
 
-    def get_budget_target(
-        self, run_id: OpaqueIdV1
-    ) -> BillingAccessTargetV1 | CloudBudgetAuthority:
+    def get_budget_target(self, run_id: OpaqueIdV1) -> BudgetAuthority:
         """Read captured authority only; current authorization needs a live fence."""
         try:
             with open_sqlite_database(
@@ -1224,9 +1226,11 @@ class SqliteCollectionRepositoryV1:
         scope_generation: int,
         as_of: datetime,
         *,
-        report_context: CloudBudgetReportContextV1 | None = None,
+        report_context: BillingBudgetReportContextV1
+        | CloudBudgetReportContextV1
+        | None = None,
     ) -> BudgetCollectionRunViewV1 | None:
-        """Read the latest run for a captured financial scope and optional cloud context."""
+        """Filter captured financial identity and context before choosing the latest run."""
         if (
             not isinstance(account_id, OpaqueIdV1)
             or not isinstance(resource_id, OpaqueIdV1)
@@ -1235,14 +1239,71 @@ class SqliteCollectionRepositoryV1:
             or (
                 report_context is not None
                 and (
-                    not isinstance(report_context, CloudBudgetReportContextV1)
-                    or scope_generation != 1
+                    not isinstance(
+                        report_context,
+                        (BillingBudgetReportContextV1, CloudBudgetReportContextV1),
+                    )
+                    or isinstance(report_context, CloudBudgetReportContextV1)
+                    and scope_generation != 1
                 )
             )
             or not isinstance(as_of, datetime)
             or as_of.utcoffset() != timedelta(0)
         ):
             raise CollectionRepositoryErrorV1("collection_query_invalid")
+        raw_billing_sql = (
+            "(json_extract(b.canonical_target_json, '$.tag') IS NULL "
+            "AND json_extract(b.canonical_target_json, '$.connection.account_id')=r.account_id "
+            "AND json_extract(b.canonical_target_json, '$.connection.resource_id')=r.resource_id "
+            "AND json_extract(b.canonical_target_json, '$.connection.scope_generation')=?)"
+        )
+        billing_sql = (
+            "(json_extract(b.canonical_target_json, '$.tag')='billing_budget_target.v2' "
+            "AND json_extract(b.canonical_target_json, '$.target.connection.account_id')=r.account_id "
+            "AND json_extract(b.canonical_target_json, '$.target.connection.resource_id')=r.resource_id "
+            "AND json_extract(b.canonical_target_json, '$.target.connection.scope_generation')=?)"
+        )
+        cloud_sql = (
+            "(json_extract(b.canonical_target_json, '$.tag')='cloud_budget_target.v1' "
+            "AND json_extract(b.canonical_target_json, '$.cloud_target.account_id')=r.account_id "
+            "AND json_extract(b.canonical_target_json, '$.cloud_target.resource_id')=r.resource_id "
+            "AND ?=1)"
+        )
+        authority_parameters: tuple[object, ...] = (scope_generation,)
+        context_parameters: tuple[object, ...] = ()
+        context_sql = ""
+        if isinstance(report_context, BillingBudgetReportContextV1):
+            authority_sql = billing_sql
+            context_sql = (
+                " AND json_extract(b.canonical_target_json, '$.report_context.source_category')=?"
+                " AND json_extract(b.canonical_target_json, '$.report_context.grouping')=?"
+            )
+            context_parameters = (
+                report_context.source_category,
+                json.dumps(report_context.grouping, separators=(",", ":")),
+            )
+        elif isinstance(report_context, CloudBudgetReportContextV1):
+            authority_sql = cloud_sql
+            context_sql = (
+                " AND json_extract(b.canonical_target_json, '$.report_context.scope')=?"
+            )
+            context_parameters = (report_context.scope,)
+        else:
+            authority_sql = (
+                "(" + raw_billing_sql + " OR " + billing_sql + " OR " + cloud_sql + ")"
+            )
+            authority_parameters = (scope_generation,) * 3
+        if report_context is not None:
+            context_sql += (
+                " AND json_extract(b.canonical_target_json, '$.report_context.range_key')=?"
+                " AND json_extract(b.canonical_target_json, '$.report_context.interval_start')=?"
+                " AND json_extract(b.canonical_target_json, '$.report_context.interval_end')=?"
+            )
+            context_parameters += (
+                report_context.range_key,
+                _utc_text(report_context.interval_start),
+                _utc_text(report_context.interval_end),
+            )
         try:
             with open_sqlite_database(
                 self._database_ref, "runtime_read_only"
@@ -1256,39 +1317,16 @@ class SqliteCollectionRepositoryV1:
                             "WHERE r.payload_schema='budget.report.v1' "
                             "AND r.account_id=? AND r.resource_id=? "
                             "AND r.requested_at<=? "
-                            "AND ((? IS NULL AND json_extract(b.canonical_target_json, '$.tag') IS NULL "
-                            "AND json_extract(b.canonical_target_json, '$.connection.account_id')=? "
-                            "AND json_extract(b.canonical_target_json, '$.connection.resource_id')=? "
-                            "AND json_extract(b.canonical_target_json, '$.connection.scope_generation')=?) "
-                            "OR (json_extract(b.canonical_target_json, '$.tag')='cloud_budget_target.v1' "
-                            "AND json_extract(b.canonical_target_json, '$.cloud_target.account_id')=? "
-                            "AND json_extract(b.canonical_target_json, '$.cloud_target.resource_id')=? "
-                            "AND ?=1 AND (? IS NULL OR ("
-                            "json_extract(b.canonical_target_json, '$.report_context.scope')=? AND "
-                            "json_extract(b.canonical_target_json, '$.report_context.range_key')=? AND "
-                            "json_extract(b.canonical_target_json, '$.report_context.interval_start')=? AND "
-                            "json_extract(b.canonical_target_json, '$.report_context.interval_end')=?)))) "
-                            "ORDER BY r.requested_at DESC, r.run_id LIMIT 1",
+                            "AND "
+                            + authority_sql
+                            + context_sql
+                            + " ORDER BY r.requested_at DESC, r.run_id LIMIT 1",
                             (
                                 account_id.value,
                                 resource_id.value,
                                 _utc_text(as_of),
-                                report_context.scope if report_context else None,
-                                account_id.value,
-                                resource_id.value,
-                                scope_generation,
-                                account_id.value,
-                                resource_id.value,
-                                scope_generation,
-                                report_context.scope if report_context else None,
-                                report_context.scope if report_context else None,
-                                report_context.range_key if report_context else None,
-                                _utc_text(report_context.interval_start)
-                                if report_context
-                                else None,
-                                _utc_text(report_context.interval_end)
-                                if report_context
-                                else None,
+                                *authority_parameters,
+                                *context_parameters,
                             ),
                         )
                         .mappings()

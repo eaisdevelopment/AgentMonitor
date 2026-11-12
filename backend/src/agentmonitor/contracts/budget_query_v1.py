@@ -17,6 +17,7 @@ from agentmonitor.contracts.capacity_v1 import (
     ExactMoneyFieldV1,
 )
 from agentmonitor.contracts.collection_control_v1 import (
+    BillingBudgetReportContextV1,
     BudgetCollectionRunViewV1,
     CloudBudgetReportContextV1,
 )
@@ -205,7 +206,9 @@ class BudgetCollectionStatePortV1(Protocol):
         scope_generation: int,
         as_of: datetime,
         *,
-        report_context: CloudBudgetReportContextV1 | None = None,
+        report_context: BillingBudgetReportContextV1
+        | CloudBudgetReportContextV1
+        | None = None,
     ) -> BudgetCollectionRunViewV1 | None: ...
 
 

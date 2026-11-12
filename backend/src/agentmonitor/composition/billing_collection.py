@@ -1,6 +1,6 @@
 """Connect an admitted billing run to its source and fenced report sink.
 
-Anthropic and OpenAI completed-week costs use the same fenced run lifecycle.
+Anthropic and OpenAI completed 7/30-day costs use the same fenced run lifecycle.
 Other categories still require explicit integration and live verification.
 """
 
@@ -62,6 +62,27 @@ from agentmonitor.contracts.provider_system_v1 import CollectionOutcomeV1
 from agentmonitor.modules.collection_control.application.budget_executor import (
     ExecuteBudgetCollectionRunV1,
 )
+
+
+def billing_cost_operation_families(provider_key: str) -> tuple[str, ...]:
+    """Closed claim allowlist shared by legacy and captured cost admissions."""
+    from agentmonitor.composition.billing_run import (
+        ANTHROPIC_COST_30D_OPERATION_FAMILY_V1,
+        ANTHROPIC_COST_OPERATION_FAMILY_V1,
+    )
+    from agentmonitor.composition.openai_billing_run import (
+        OPENAI_COST_30D_OPERATION_FAMILY_V1,
+        OPENAI_COST_OPERATION_FAMILY_V1,
+    )
+
+    if provider_key == "claude":
+        return (
+            ANTHROPIC_COST_OPERATION_FAMILY_V1,
+            ANTHROPIC_COST_30D_OPERATION_FAMILY_V1,
+        )
+    if provider_key == "codex":
+        return OPENAI_COST_OPERATION_FAMILY_V1, OPENAI_COST_30D_OPERATION_FAMILY_V1
+    raise ValueError("billing_cost_provider_invalid")
 
 
 class BillingCollectionV1:
@@ -132,26 +153,23 @@ class BillingCollectionV1:
     def _claim_one(self) -> BudgetCollectionRunAdmissionV1 | None:
         from agentmonitor.composition.billing_run import (
             ANTHROPIC_COST_COLLECTION_POLICY_VERSION_V1,
-            ANTHROPIC_COST_OPERATION_FAMILY_V1,
             anthropic_billing_budget_limit,
             anthropic_cost_manifest_fingerprint,
         )
         from agentmonitor.composition.openai_billing_run import (
             OPENAI_COST_COLLECTION_POLICY_VERSION_V1,
-            OPENAI_COST_OPERATION_FAMILY_V1,
             openai_billing_budget_limit,
             openai_cost_manifest_fingerprint,
         )
 
         # Drain both existing queues before admitting any fresh scheduled work.
         # Each repository claim retains the source-specific authority/rate fence.
-        for provider, source, fingerprint, policy, operation, limit in (
+        for provider, source, fingerprint, policy, limit in (
             (
                 "claude",
                 SOURCE_ID,
                 anthropic_cost_manifest_fingerprint(),
                 ANTHROPIC_COST_COLLECTION_POLICY_VERSION_V1,
-                ANTHROPIC_COST_OPERATION_FAMILY_V1,
                 anthropic_billing_budget_limit,
             ),
             (
@@ -159,25 +177,25 @@ class BillingCollectionV1:
                 OPENAI_SOURCE_ID,
                 openai_cost_manifest_fingerprint(),
                 OPENAI_COST_COLLECTION_POLICY_VERSION_V1,
-                OPENAI_COST_OPERATION_FAMILY_V1,
                 openai_billing_budget_limit,
             ),
         ):
-            admission = self._runs.claim_next_budget_run(
-                scheduler_instance_id=self._instance,
-                as_of=datetime.now(UTC),
-                resolve_budget_limit=limit,
-                provider_key=provider,
-                capability_id="api.cost",
-                source_id=source,
-                manifest_fingerprint=fingerprint,
-                collection_policy_version=policy,
-                operation_family=operation,
-            )
-            if admission is not None:
-                if not isinstance(admission, BudgetCollectionRunAdmissionV1):
-                    raise ValueError("billing_admission_provider_mismatch")
-                return admission
+            for operation in billing_cost_operation_families(provider):
+                admission = self._runs.claim_next_budget_run(
+                    scheduler_instance_id=self._instance,
+                    as_of=datetime.now(UTC),
+                    resolve_budget_limit=limit,
+                    provider_key=provider,
+                    capability_id="api.cost",
+                    source_id=source,
+                    manifest_fingerprint=fingerprint,
+                    collection_policy_version=policy,
+                    operation_family=operation,
+                )
+                if admission is not None:
+                    if not isinstance(admission, BudgetCollectionRunAdmissionV1):
+                        raise ValueError("billing_admission_provider_mismatch")
+                    return admission
         return None
 
     def _dispatch_one(self) -> int:

@@ -1,6 +1,6 @@
 # M7 delivery worksheet: remaining work and fixed finish line
 
-Status: execution clarification within approved focused plan 1.1.0, reviewed
+Status: execution clarification within approved focused plan 1.1.0, planning re-review 12 November 2026; recorded baseline
 against installed code revision `ff285c4` on 12 November 2026. Primary owner:
 root integration; financial semantics: M05. No new scope, approval or gate.
 
@@ -12,17 +12,20 @@ meaning. Earlier delivery checkpoints live in linked evidence, not competing
 “next step” lists here. Ticket dependencies govern closure; they do not prohibit
 independent work while another ticket awaits live access.
 
+This re-review and its validation are recorded in the
+[12 November planning evidence](../../evidence/m7-planning-recheck-2026-11-12.md).
+
 ## 1. Verified starting point
 
 | Boundary | Recorded result | What it does not prove |
 |---|---|---|
 | Installed code | `ff285c4`, schema `v1_0734`; compact summaries, pinned daily-history paging, full-inventory Overview sorting and retained OpenAI/Anthropic cost runtime | Successful administrative billing access or a genuine cost report |
 | Owner controls and aggregation | Pool create/join/unlink/primary-group controls, pool-aware Overview and exact attribution installed with `3c65e1d`; retained in current release | Genuine shared monetary totals, source-scope editing or every final setup case |
-| Dashboard | Authenticated real Overview API/DOM ordering, filters, report links, Back/reload, pool controls and responsive layouts passed atff285c4; six sorts and >50-row paging passed against isolated real metadata | Genuine monetary totals, older-window navigation, complete accessibility and analysis acceptance |
+| Dashboard | Authenticated real Overview API/DOM ordering, filters, report links, Back/reload, pool controls and responsive layouts passed at `ff285c4`; six sorts and >50-row paging passed against isolated real metadata | Genuine monetary totals, older-window navigation, complete accessibility and analysis acceptance |
 | Live data | Existing Ollama cloud balances and daily usage; demonstrated usage is counts-only | Counts are not monetary spend. No conversion or invented zero |
 | Monetary prerequisite | Latest read-only inventory records no Anthropic/OpenAI billing connections; tested owner setup request pending | No enrollment is not evidence of denied provider access |
-| Publication | GitHub main verified at `ff285c4`; later documentation commits do not change installed production code | Full M7 exit or owner acceptance |
-| Latest verification | Installed Overview/history and setup/shell probes passed atff285c4; see bounded-history evidence | Not successful monetary provider access |
+| Publication | Recorded GitHub main `e68e7d2`, documentation following installed `ff285c4`; this review does not claim a new remote or runtime check | Full M7 exit or owner acceptance |
+| Latest verification | Installed Overview/history and setup/shell probes passed at `ff285c4`; see bounded-history evidence | Not successful monetary provider access |
 
 Evidence: [bounded history](../../evidence/m7-bounded-history-2026-11-12.md),
 [installed sorting](../../evidence/m7-overview-sorting-2026-11-12.md),
@@ -45,7 +48,7 @@ integrate the first real monetary report as soon as it does.
 | Order / existing tickets | Smallest remaining result | Demonstration and closure boundary |
 |---|---|---|
 | 1 — T010/T011/T012; T005/T006/T008 live in parallel | Sorting and selected-report daily history are installed; retain their pagination/navigation evidence. Next complete remaining detail states; use the installed monetary adapters for the first permitted cost report when owner setup exists | Click account/organization/state, load another page, open detail and return: stable ordering, same interval/report. Genuine source amount/scope/currency → atomic stored report/reopen → existing API/Overview/detail. The live part alone waits for owner setup |
-| 2 — T002/T007/T010/T011 | Finish source-scope lifecycle, captured seven-/thirty-day collection intent, Collect now/cooldown, safe refresh and older stored-window navigation using the installed bounded daily-history query | Owner edits scope without relabelling old money; collect the selected interval, reload during collection, see one result with original interval; history pages remain pinned and expire explicitly. No generic workflow or backfill engine |
+| 2 — T002/T007/T010/T011 | Finish source-scope lifecycle, captured seven-/thirty-day collection intent, Collect now/cooldown, safe refresh and older stored-window navigation using the installed bounded daily-history query | Owner edits scope without relabelling old money; collect only a source-admitted selected interval, reload during collection, see one result with original interval; history pages remain pinned and expire explicitly. No generic workflow or backfill engine |
 | 3 — T006/T007/T008/T009 | Complete the frozen provider usage/category/dimension coverage, supported ranges, fair background dispatch and isolated recovery | All three provider lanes reuse the same screens. A queued/throttled account cannot strand another; browser-closed refresh and restart reconcile actual reports. Supported-but-unimplemented remains unfinished |
 | 4 — T013 | One supported breakdown at a time, daily chart from the exact history table, conditional observed-rate forecast and existing retention integration | Source/API/table/chart agree; unsupported funds give a reason, not a forecast date. Real retained data survives/retires correctly. No custom analytics or new forecasting framework |
 | 5 — T003/T014/T015/T016 | Complete existing check selectors as features land, then fixed source/API/DOM matrix, upgrade/recovery/continuity, bounded review, full exit and publication | Exact installed candidate, required checks passed, matching GitHub revision and owner demonstration against M7-A01..A10; acceptance recorded separately |
@@ -63,9 +66,36 @@ work. For final M7 closure, both Anthropic and OpenAI cost/usage success plus
 Ollama supported usage/balance continuity are still required. No fixed account
 count, new owner attestation or manufactured spending is introduced.
 
+### Completion checks travel with the feature
+
+T003 owns wiring, not a separate late testing phase. The runner currently returns
+`m7_boundary_runner_not_implemented` for several required selections; guards
+also leave populated collection/HTTP Not Run. This is known implementation work,
+not a new owner prerequisite. The following are **existing check names**, not
+claims that they currently execute or proposed extra commands.
+
+| Delivery increment above | T003 integrates these existing checks | Concrete evidence before that increment can close |
+|---|---|---|
+| 1: detail and first monetary report | `persistence`, `budget_http`, `detail_history`, first `anthropic` or `openai` | Genuine report → exact atomic commit/reopen → authenticated HTTP → built detail/table. Extend existing budget-history HTTP and installed Overview probes; counts-only remains separate |
+| 2: lifecycle and collection controls | `registry_http`, `owner_setup`, `collection` | Actual scope/rotation lifecycle; captured interval survives reload/restart; no duplicate write; actual cooldown. Extend billing-action/monitoring tests, not a fake provider harness |
+| 3: provider coverage and recovery | `anthropic`, `openai`, `ollama`, `configured_inventory`, `recovery` | Finite source matrix, both ranges, actual active inventory and isolated recovery. Distinguish no credential, denied access, absent source field and unfinished mapping |
+| 4: analysis and retention | Extend `pure`, `mutation`, `persistence`, `budget_http`, `detail_history` | Exact table/chart/breakdown, rate-only and conditional date, actual retained report expiry on isolated storage |
+| 5: final release | `compatibility`, `overview`, `accessibility`, `candidate`, `backup_recovery`, `installed_revision`, `continuity`, then aggregate `exit` | Generated API/client agree; real keyboard/zoom/layout; existing quotas/alerts/collectors remain usable; exact installed/public candidate |
+
+The executable entry points already exist as AUTO-M7-TEST/LIVE/BROWSER/DEPLOY/
+EXIT. Their current limited implementation is recorded honestly. Extend those
+runners; do not add a second verification registry. T003's own runner-policy tests
+must cover dispatch and missing evidence; product checks prove product behavior.
+
+A demo is a small acceptance scenario, not a claim that every ticket it touches
+is closed. End each increment with the installed URL, visible result and the
+specific unfinished scenarios. Do not accumulate backend-only work until a
+large final merge. One integration/deployment at a time; independent pure work
+may proceed while a provider's required access is unavailable.
+
 ### Contract handoffs before each increment
 
-- T010/T012 sorting: add optional sort field/direction to the versioned query;
+- T010/T012 sorting: retain the installed optional sort field/direction in the versioned query;
   use canonical pool name and primary-group name, stable ID tie-breakers, and
   bind sort/metadata revision into the cursor. Root synchronizes API/client;
   P02 renders server order. No fetch-all workaround or currency sorting engine.
@@ -73,8 +103,9 @@ count, new owner attestation or manufactured spending is introduced.
   grouping intent and persisted retry instant before enabling controls. Capture
   once; restart and midnight cannot reconstruct a different request. Existing
   run/status/receipt and one worker remain the implementation boundary.
-- T010 history: authorize account/resource/context/report and page immutable
-  daily facts. Report revisions are a separate expandable source view, not a
+- T010 history: retain installed authorized paging of immutable daily facts.
+  Add bounded authorized metadata discovery for prior-scope reports in the
+  existing Source history disclosure, with original scope labels. Report revisions are a separate expandable source view, not a
   time series. T013 consumes this same query for chart and forecast inputs.
 - T002 source scope: retain current pool metadata and controls. Scope edits
   fence old access/commit authority; group-only changes do not collect or rotate
@@ -132,9 +163,11 @@ panel on Overview. Existing Accounts/Overview/detail pages are sufficient.
 - State: owner action first, collection failure next, incomplete/stale evidence
   next, then known low capacity, then current. Keep monitoring and source times
   separate; retain secondary facts. Exact percentages determine low status.
-- History: Last 7/30 completed UTC days plus Previous/Next fixed windows over
-  retained reports. Show exact bounds; missing history is No retained report.
-  Reading history never triggers collection. No date-picker/query builder.
+- History: 7/30 completed UTC days plus Previous/Next fixed windows over
+  retained reports. Keep the read snapshot on navigation; keep the end when
+  changing width. Refresh rereads the same interval at a new snapshot; only
+  Latest completed window moves to today's cutoff. Show exact bounds; missing
+  history is No retained report. No date-picker, backfill or query builder.
 - Reliability: preserve old same-context money while refreshing or on failed
   replacement; invalidate old-account/scope responses; reconcile unknown
   mutations; preserve safe URL state through sign-in. One failed API request
@@ -165,7 +198,7 @@ retry time. These are missing handoffs for existing requirements, not new featur
 | Do providers share one USD total? | Not by default. Current adapters expose different cost bases; show labelled separate subtotals unless equivalence is established |
 | What does zero mean? | Genuine supported zero/qualified empty coverage only; denied/missing/partial data are not zero |
 | What is history? | Selected-report daily buckets, not the sum of repeated collection snapshots; retain corrections without duplicating spend |
-| Can we forecast? | Only compatible positive funds/headroom and adequate complete cost history; source time and assumptions visible; otherwise a specific reason |
+| Can we forecast? | Adequate complete cost history can give an observed daily rate without funds. A projected date additionally requires compatible positive funds/headroom; otherwise state why no date is available |
 
 Exact formulas, rounding/overflow, input lineage and M7-MATH-01..16 remain in
 the calculation document. API returns computed values; chart geometry and text
@@ -217,7 +250,7 @@ Known risks have bounded responses in existing tickets:
 | Minimum report exceeds admitted bounds | Preserve old values, disclose actual limit and request the smallest source-supported interval; no speculative child-job engine |
 | Upgrade fails | Inspect real revision/schema/journal, preserve possible new writes, use tested recovery; never blindly replay migration |
 
-Provider scope is frozen in [discovery](../../evidence/m7-provider-discovery-2026-11-11.md).
+The finite provider inventory is in [execution-plan coverage](m7-execution-plan-2026-11-11.md#finite-provider-coverage-for-this-milestone), grounded in [discovery](../../evidence/m7-provider-discovery-2026-11-11.md).
 Future provider additions are later scope. Supported-but-unimplemented remains
 unfinished; source absent and access denied are different outcomes. Keep local
 Ollama, user-defined budgets, FX/invoices/tax, price-list spend, new budget alerts,

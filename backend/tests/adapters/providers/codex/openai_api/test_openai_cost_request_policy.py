@@ -55,6 +55,20 @@ def test_naive_time_refused() -> None:
         policy_module.completed_period(datetime(2026, 11, 11), 7)
 
 
+@pytest.mark.parametrize("days", [7, 30])
+def test_captured_past_interval_keeps_actual_request_time(days: int) -> None:
+    original = request(days)
+    period = BudgetPeriodV1(
+        original.period.start - timedelta(days=14),
+        original.period.end - timedelta(days=14),
+    )
+    selected = replace(original, period=period)
+    assert selected.requested_at == original.requested_at
+    query = parse_qs(urlsplit(policy_module.request_path(selected, None)).query)
+    assert query["start_time"] == [str(int(period.start.timestamp()))]
+    assert query["end_time"] == [str(int(period.end.timestamp()))]
+
+
 @pytest.mark.parametrize(
     "change", ["provider", "binding", "scope", "generation", "range", "current_day"]
 )

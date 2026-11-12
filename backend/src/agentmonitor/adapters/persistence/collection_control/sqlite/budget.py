@@ -11,7 +11,10 @@ from agentmonitor.contracts.capacity_v1 import (
     BudgetReportInputV1,
 )
 from agentmonitor.contracts.collection_control_v1 import (
+    BillingBudgetAuthorityV1,
+    BillingBudgetReportContextV1,
     BudgetCollectionRunAdmissionV1,
+    BudgetCollectionRunAdmissionV2,
     CloudBudgetCollectionRunAdmissionV1,
     CloudBudgetReportContextV1,
 )
@@ -164,6 +167,81 @@ def decode_billing_target(text: str) -> BillingAccessTargetV1:
 CloudBudgetAuthority = tuple[
     CloudMonitoringTargetV1, ProviderAccessTargetV1, CloudBudgetReportContextV1
 ]
+BudgetAuthority = (
+    BillingAccessTargetV1 | BillingBudgetAuthorityV1 | CloudBudgetAuthority
+)
+
+
+def _billing_document(authority: BillingBudgetAuthorityV1) -> dict[str, object]:
+    context = authority.report_context
+    return {
+        "tag": "billing_budget_target.v2",
+        "target": _encode(authority.target),
+        "report_context": {
+            "range_key": context.range_key,
+            "interval_start": _utc(context.interval_start),
+            "interval_end": _utc(context.interval_end),
+            "source_category": context.source_category,
+            "grouping": list(context.grouping),
+        },
+    }
+
+
+def _decode_billing_budget(value: Any) -> BillingBudgetAuthorityV1:
+    if (
+        type(value) is not dict
+        or set(value) != {"tag", "target", "report_context"}
+        or value["tag"] != "billing_budget_target.v2"
+    ):
+        raise BudgetCollectionError()
+    context = dict(_object(value["report_context"], BillingBudgetReportContextV1))
+    for name in ("interval_start", "interval_end"):
+        context[name] = _cloud_timestamp(context[name])
+    if type(context["grouping"]) is not list:
+        raise BudgetCollectionError()
+    context["grouping"] = tuple(context["grouping"])
+    return BillingBudgetAuthorityV1(
+        _decode(value["target"]), BillingBudgetReportContextV1(**context)
+    )
+
+
+def encode_billing_budget_target(authority: BillingBudgetAuthorityV1) -> str:
+    """Capture exact request intent alongside the existing billing authority."""
+    try:
+        if type(authority) is not BillingBudgetAuthorityV1:
+            raise BudgetCollectionError()
+        normalized = _decode_billing_budget(_billing_document(authority))
+        text = json.dumps(
+            _billing_document(normalized),
+            ensure_ascii=True,
+            sort_keys=True,
+            separators=(",", ":"),
+        )
+        if len(text) > 8192:
+            raise BudgetCollectionError()
+        return text
+    except (ValueError, TypeError, KeyError, AttributeError, RecursionError):
+        raise BudgetCollectionError() from None
+
+
+def decode_billing_budget_target(text: str) -> BillingBudgetAuthorityV1:
+    """Reject unknown fields, duplicate keys and noncanonical stored timestamps."""
+    try:
+        if type(text) is not str or not 2 <= len(text) <= 8192 or not text.isascii():
+            raise BudgetCollectionError()
+        authority = _decode_billing_budget(
+            json.loads(
+                text,
+                object_pairs_hook=_pairs,
+                parse_float=_reject_number,
+                parse_constant=_reject_number,
+            )
+        )
+        if encode_billing_budget_target(authority) != text:
+            raise BudgetCollectionError()
+        return authority
+    except (ValueError, TypeError, KeyError, AttributeError, RecursionError):
+        raise BudgetCollectionError() from None
 
 
 def _cloud_value(value: object) -> object:
@@ -289,7 +367,7 @@ def decode_cloud_budget_target(text: str) -> CloudBudgetAuthority:
         raise BudgetCollectionError() from None
 
 
-def decode_budget_target(text: str) -> BillingAccessTargetV1 | CloudBudgetAuthority:
+def decode_budget_target(text: str) -> BudgetAuthority:
     """Select the closed tagged authority; never reinterpret an unknown tag."""
     try:
         if type(text) is not str or not text.isascii() or len(text) > 8192:
@@ -298,6 +376,8 @@ def decode_budget_target(text: str) -> BillingAccessTargetV1 | CloudBudgetAuthor
         if type(value) is not dict:
             raise BudgetCollectionError()
         if "tag" in value:
+            if value["tag"] == "billing_budget_target.v2":
+                return decode_billing_budget_target(text)
             return decode_cloud_budget_target(text)
         return decode_billing_target(text)
     except (ValueError, TypeError, RecursionError):
@@ -353,14 +433,18 @@ def capture_billing_target(
 ) -> None:
     if fence is None:
         raise BudgetCollectionError("budget_admission_fence_required")
-    encoded = encode_billing_target(admission.billing_target)
+    encoded = (
+        encode_billing_budget_target(
+            BillingBudgetAuthorityV1(admission.billing_target, admission.report_context)
+        )
+        if isinstance(admission, BudgetCollectionRunAdmissionV2)
+        else encode_billing_target(admission.billing_target)
+    )
     fence(connection, admission.billing_target)
     _capture_target(connection, encoded, resolved_run_id, newly_created)
 
 
-def read_budget_target(
-    connection: Connection, run_id: OpaqueIdV1
-) -> BillingAccessTargetV1 | CloudBudgetAuthority:
+def read_budget_target(connection: Connection, run_id: OpaqueIdV1) -> BudgetAuthority:
     encoded = connection.exec_driver_sql(
         "SELECT canonical_target_json FROM collection_budget_run WHERE run_id=?",
         (run_id.value,),
@@ -374,6 +458,8 @@ def read_billing_target(
     connection: Connection, run_id: OpaqueIdV1
 ) -> BillingAccessTargetV1:
     target = read_budget_target(connection, run_id)
+    if isinstance(target, BillingBudgetAuthorityV1):
+        return target.target
     if not isinstance(target, BillingAccessTargetV1):
         raise BudgetCollectionError()
     return target
@@ -493,7 +579,7 @@ def _require_budget_commit_authority(
     scheduler_instance_id: OpaqueIdV1,
     fencing_token: int,
     as_of: datetime,
-) -> BillingAccessTargetV1 | CloudBudgetAuthority:
+) -> BudgetAuthority:
     """M04 half of M05's transaction fence; composition must also check M02."""
     require_budget_run_lease(
         connection,
@@ -534,13 +620,21 @@ def _require_budget_commit_authority(
 
 
 def budget_target_matches_query(
-    target: BillingAccessTargetV1 | CloudBudgetAuthority,
+    target: BudgetAuthority,
     account_id: OpaqueIdV1,
     resource_id: OpaqueIdV1,
     scope_generation: int,
-    report_context: CloudBudgetReportContextV1 | None = None,
+    report_context: BillingBudgetReportContextV1
+    | CloudBudgetReportContextV1
+    | None = None,
 ) -> bool:
     """Match captured financial identity; key generation never becomes scope epoch."""
+    if isinstance(target, BillingBudgetAuthorityV1):
+        return (
+            report_context is None or target.report_context == report_context
+        ) and budget_target_matches_query(
+            target.target, account_id, resource_id, scope_generation
+        )
     if isinstance(target, BillingAccessTargetV1):
         return (
             target.connection.account_id == account_id
@@ -558,10 +652,12 @@ def budget_target_matches_query(
 
 
 def require_budget_run_authority(
-    target: BillingAccessTargetV1 | CloudBudgetAuthority,
+    target: BudgetAuthority,
     raw: Mapping[str, object],
 ) -> None:
     """Keep stored run identity tied to its captured graph, including profile."""
+    if isinstance(target, BillingBudgetAuthorityV1):
+        target = target.target
     if isinstance(target, BillingAccessTargetV1):
         matches = (
             raw.get("account_id") == target.connection.account_id.value
@@ -587,9 +683,19 @@ def require_budget_run_authority(
 
 
 def require_budget_report_authority(
-    target: BillingAccessTargetV1 | CloudBudgetAuthority, report: BudgetReportInputV1
+    target: BudgetAuthority, report: BudgetReportInputV1
 ) -> None:
     """Pure exact captured-authority policy; current M02 access remains separate."""
+    if isinstance(target, BillingBudgetAuthorityV1):
+        billing_context = target.report_context
+        if (
+            report.requested_period.start != billing_context.interval_start
+            or report.requested_period.end != billing_context.interval_end
+            or report.source_category != billing_context.source_category
+            or report.grouping != billing_context.grouping
+        ):
+            raise BudgetCollectionError("budget_commit_run_mismatch")
+        target = target.target
     if isinstance(target, BillingAccessTargetV1):
         matches = (
             report.binding_id == target.binding.binding_id
@@ -636,6 +742,8 @@ def require_budget_commit_authority(
         fencing_token=fencing_token,
         as_of=as_of,
     )
+    if isinstance(target, BillingBudgetAuthorityV1):
+        return target.target
     if not isinstance(target, BillingAccessTargetV1):
         raise BudgetCollectionError("budget_commit_run_mismatch")
     return target
@@ -656,6 +764,6 @@ def require_cloud_budget_commit_authority(
         fencing_token=fencing_token,
         as_of=as_of,
     )
-    if isinstance(target, BillingAccessTargetV1):
+    if isinstance(target, (BillingAccessTargetV1, BillingBudgetAuthorityV1)):
         raise BudgetCollectionError("budget_commit_run_mismatch")
     return target

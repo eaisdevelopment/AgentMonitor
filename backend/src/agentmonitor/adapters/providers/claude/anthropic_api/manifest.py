@@ -25,7 +25,11 @@ EVIDENCE_REFERENCE = "M7-A01-ANTHROPIC-DOCS-2026-11-11"
 
 
 def build_anthropic_cost_manifest() -> CapabilityManifestV1:
-    """Describe one cost-only candidate; no usage/balance capability is implied."""
+    """Admit cost-only completed 7/30-day reads under the typed request policy.
+
+    Source/request budgets and the serialized manifest remain unchanged; selected
+    past intervals require the same policy and are not live-verified here.
+    """
     source = ProviderSourceV1(
         source_id=SOURCE_ID,
         provider_key="claude",

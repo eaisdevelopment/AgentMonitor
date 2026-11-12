@@ -169,7 +169,7 @@ the first table query; T013 adds the chart from the same exact values.
 
 Keep a selected range's UTC cutoff fixed through pagination, table/chart reads
 and the source comparison. Crossing midnight does not silently retitle yesterday's
-report as today's selection. An explicit range refresh creates a new query and
+report as today's selection. An explicit stored-data refresh preserves the interval, creates a new read snapshot and
 discloses missing new-day coverage until collected. This is T010/T012's existing
 snapshot rule and M7-MATH-15, not a new scheduling mechanism.
 
@@ -296,6 +296,25 @@ Equal positive daily costs therefore yield a positive rate. Rate zero produces
 No consumption in observed interval, not an infinite forecast. No rate estimate
 is taken from a changing cash balance, since top-ups and expiries may change it.
 
+Missing funds or limits prevents an exhaustion estimate, not a qualified
+observed spending rate. Publish rate and exhaustion availability separately.
+Counts-only data supports neither monetary rate nor an inferred cost.
+
+An exhaustion estimate requires costs attributable to the selected funds
+component. Whole-pool spending cannot predict separate included/purchased-credit
+depletion without source-established allocation. Owner pool association does
+not supply that evidence. Show the balances and observed whole-pool rate;
+do not invent spending order, a combined balance or account-stop date.
+
+Exhaustion also requires fresh selected funds and an admitted cost-source
+freshness policy evaluated against the pinned forecast context. Missing source
+watermark or missing admitted freshness policy means freshness unknown and no
+exhaustion date. A successful recent poll and the fifteen-minute collection
+cadence are not evidence of fresh underlying financial data. Keep an otherwise
+qualified historical rate labelled with its actual interval. T006/T008/T009
+supply source metadata; T013 owns this existing eligibility decision, with no
+new universal freshness threshold or subsystem.
+
 Exhaustion needs a compatible authoritative remaining amount or enforced limit
 headroom. Numeric time-left requires **strictly positive** compatible remaining/headroom
 and rate. Zero or negative headroom is an observed zero/exceeded condition,
@@ -415,6 +434,14 @@ These values are solely pure no-I/O test inputs:
 | M7-MATH-14 | 38/78-digit valid coefficient; cancellation; overflow | Exact conversion/sum within bounds; overflow rejected |
 | M7-MATH-15 | Partial day, gap, mixed period, revised data, missing limit | Explicit partial/no-forecast reason; no extrapolated real funds |
 | M7-MATH-16 | 100 USD remaining; daily rate 2 USD | Beyond 7-day horizon, with rate/as-of; no precise stop date |
+
+Additional cases within the same IDs (no new acceptance inventory):
+
+| Existing IDs | Pure input | Required result |
+|---|---|---|
+| M7-MATH-03/15/16 | Three complete days at 2 USD/day; no balance/limit | Rate 2 USD/day with sample bounds; no exhaustion date; Remaining funds not reported |
+| M7-MATH-07/08/15/16 | Included credits 10 USD, purchased 30 USD; whole-pool rate 2 USD/day; allocation unknown | Show components and rate separately; no component date, assumed combined balance or account-stop claim |
+| M7-MATH-15/16 | Same complete costs fetched twice; source watermark unknown | Later retrieval alone cannot enable an exhaustion date or move a previously pinned estimate |
 
 Existing test families also cover native-range alignment and DST boundaries
 (M7-MATH-15), no eligible subtotal versus a genuine zero (M7-MATH-12), scope-epoch

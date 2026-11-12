@@ -66,4 +66,13 @@ const fundsOnly = safeLocation(`/accounts/account-1?${valid.replace("budget_repo
 assert.equal(selectedFinancialReport(fundsOnly.search).kind, "selected");
 assert.equal(selectedFinancialReport(safeLocation("/accounts/account-1?provider_key=ollama").search).kind, "none");
 assert.equal(safeOverviewSearch("?quota_sort=quota:descending&financial_sort=state:ascending&budget_resource=resource-1&budget_report=report-1&range=30", true), "?range=30&quota_sort=quota%3Adescending&financial_sort=state%3Aascending&budget_selection=invalid");
+const periodOnly = valid.replace("budget_resource=resource-1&budget_report=report-1&", "");
+const periodLocation = safeLocation(`/accounts/account-1?${periodOnly}`);
+assert.equal(selectedFinancialReport(periodLocation.search).kind, "period");
+const periodReload = safeLocation(periodLocation.route + periodLocation.search);
+assert.equal(selectedFinancialReport(periodReload.search).kind, "period");
+assert.equal(selectedFinancialReport(periodReload.search).query.as_of, "2026-11-11T12:00:00Z");
+for (const malformed of [periodOnly + "&budget_start=2026-11-04T00:00:00Z", periodOnly.replace("budget_as_of=2026-11-11T12:00:00Z", ""), periodOnly + "&budget_report=report"]) {
+  assert.equal(safeLocation(`/accounts/account-1?${malformed}`).search, "?budget_selection=invalid");
+}
 console.log("OVERVIEW SELECTION PURE: PASSED");

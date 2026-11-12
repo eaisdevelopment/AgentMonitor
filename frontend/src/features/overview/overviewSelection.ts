@@ -47,7 +47,7 @@ export function safeOverviewSearch(search: string, detail = false): string {
       const selectedStart = selectedTime("budget_start"), selectedEnd = selectedTime("budget_end"), selectedAsOf = selectedTime("budget_as_of");
       const safeId = /^[A-Za-z0-9._:-]{1,256}$/;
       const valid = present.every(key => keys.includes(key) && input.getAll(key).length === 1)
-        && resource !== null && safeId.test(resource) && (report === null || safeId.test(report))
+        && (resource === null || safeId.test(resource)) && (report === null || (resource !== null && safeId.test(report)))
         && selectedStart !== null && selectedEnd !== null && selectedAsOf !== null
         && /T00:00:00(?:\.0{1,6})?Z$/.test(input.get("budget_start") ?? "")
         && /T00:00:00(?:\.0{1,6})?Z$/.test(input.get("budget_end") ?? "")
@@ -56,7 +56,7 @@ export function safeOverviewSearch(search: string, detail = false): string {
         && selectedEnd <= selectedAsOf;
       if (!valid) output.set("budget_selection", "invalid");
       else {
-        output.set("budget_resource", resource);
+        if (resource !== null) output.set("budget_resource", resource);
         if (report !== null) output.set("budget_report", report);
         // Keep the validated source strings: Date stores only milliseconds.
         output.set("budget_start", input.get("budget_start")!);

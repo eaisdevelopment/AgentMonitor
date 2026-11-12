@@ -86,6 +86,26 @@ Adapters cannot write M05 tables. Queries cannot collect. A successful access
 check is not provider identity proof. Scope must be verified or explicitly owner
 asserted; ambiguous overlap prevents invalid totals.
 
+### T007 captured-interval handoff (12 November)
+
+The approved selected-range behavior uses additive CTR-COL-002 2.3.0:
+`BillingBudgetReportContextV1` captures exact 7/30 completed UTC-day bounds,
+source category and at most one grouping; `BudgetCollectionRunAdmissionV2`
+retains that context alongside the existing V1 authority; `BillingBudgetAuthorityV1`
+is the durable target/context envelope. Existing V1 and cloud admissions keep
+ their meanings. These types exist locally; they are not installed yet.
+
+M04 stores the tagged envelope in its existing canonical target JSON, reconstructs
+it on claim/recovery and filters latest runs by context before ordering/limit.
+An omitted context preserves legacy query behavior; explicit context does not
+invent coverage for old records. M05's run-state port consumes the additive
+billing/cloud union. A01/A02 builders bind admitted interval/category/grouping
+into request identity and validate it on reconstruction. Only admitted cost
+requests are enabled by this increment; unsupported categories remain rejected.
+Root owns typed contracts and composition integration. No migration, new queue,
+credential access, account mutation or dependency is required. The first nine
+pure contract cases passed; positive provider evidence remains separate.
+
 ## 5. Minimum data model and migration
 
 Root allocates M05 `v1_0732` after M02 owner-setup `v1_0730`/`v1_0731`, which follow
@@ -172,17 +192,23 @@ Three complete compatible buckets over ≥24h, no unknown gaps or signed
 adjustments, at most 200 buckets from seven complete days. Cost sum divided by
 covered duration; not subtraction of independent buckets. Authoritative compatible
 remaining/headroom is required for an as-of exhaustion estimate. Nonpositive remaining
-returns the observed zero/exceeded state with no calculated date. Rate zero,
-missing limits, unsupported scope or delayed/incompatible data yield precise
-no-value states. The linked rules define rounding, horizons and renewal handling.
+returns the observed zero/exceeded state with no calculated date. A zero rate
+means No consumption in the observed interval, with no exhaustion date. Missing
+funds/limits prevent a date but not an otherwise qualified observed rate. Rate and exhaustion have separate availability. Matching funds/cost coverage and source/funds freshness must be established
+before a date is returned. When multiple funding components share a spending
+stream, individual depletion requires source-established allocation; recent retrieval alone is insufficient. The linked rules define
+rounding, horizons and renewal handling.
 
 The existing report-history repository lists revisions for an exact requested
-interval. T010 needs an explicit daily-bucket projection from the pinned current
-report for the final history interface, and T013 uses that same projection for
-the chart. The first visible table may use bounded buckets already supplied by
-the selected immutable report in the current GET; local Load more is not server
-pagination. T010/T011 still require the authorized bounded history query and
-cursor/expiry behavior before closure. Revision rows are provenance, not additive daily spend. Latest M04 run
+interval. T010's installed CTR-CAP-006 2.8.0 supplies bounded daily-fact paging
+from a
+known immutable report; T013 reuses it for the chart. Remaining historical
+scope discovery needs a bounded authorized metadata query over retained reports
+(original scope epoch, interval, source, observation/collection times and report
+ID), consumed by Source history. Reuse existing report-list machinery; version
+the minimal additive query before implementation. Known-report paging alone
+does not discover old scopes. Revision rows are provenance, not additive spend.
+Latest M04 run
 state is a separate query input: a failed run can have no M05 report. Current
 selection must consider every compatible revision within its declared query
 bounds, not only a first history page; overflow stays explicit unavailable.

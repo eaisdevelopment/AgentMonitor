@@ -18,6 +18,7 @@ export function canRetainFinancialReading(previous: FinancialReadContext, next: 
 
 type SelectedFinancialReport =
   | Readonly<{ kind: "none" | "invalid" }>
+  | Readonly<{ kind: "period"; days: 7 | 30; query: { period_start: string; period_end: string; as_of: string } }>
   | Readonly<{ kind: "selected"; resourceId: string; reportId: string | null;
       days: 7 | 30; query: { period_start: string; period_end: string; as_of: string } }>;
 
@@ -31,7 +32,7 @@ export function selectedFinancialReport(search: string): SelectedFinancialReport
   const resourceId = params.get("budget_resource");
   const reportId = params.get("budget_report");
   const safeId = /^[A-Za-z0-9._:-]{1,256}$/;
-  if (resourceId === null || !safeId.test(resourceId) || (reportId !== null && !safeId.test(reportId))) return { kind: "invalid" };
+  if ((resourceId !== null && !safeId.test(resourceId)) || (reportId !== null && (resourceId === null || !safeId.test(reportId)))) return { kind: "invalid" };
   const readTime = (key: string) => {
     const value = params.get(key);
     if (value === null || !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{1,6})?Z$/.test(value)) return NaN;
@@ -44,6 +45,6 @@ export function selectedFinancialReport(search: string): SelectedFinancialReport
       !/T00:00:00(?:\.0{1,6})?Z$/.test(params.get("budget_start") ?? "") ||
       !/T00:00:00(?:\.0{1,6})?Z$/.test(params.get("budget_end") ?? "") ||
       start % 86_400_000 !== 0 || end % 86_400_000 !== 0 || end > asOf) return { kind: "invalid" };
-  return { kind: "selected", resourceId, reportId, days,
-    query: { period_start: params.get("budget_start")!, period_end: params.get("budget_end")!, as_of: params.get("budget_as_of")! } };
+  const query = { period_start: params.get("budget_start")!, period_end: params.get("budget_end")!, as_of: params.get("budget_as_of")! };
+  return resourceId === null ? { kind: "period", days, query } : { kind: "selected", resourceId, reportId, days, query };
 }

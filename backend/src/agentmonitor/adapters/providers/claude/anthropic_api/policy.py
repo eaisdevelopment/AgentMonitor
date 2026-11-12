@@ -1,4 +1,4 @@
-"""Pure A01 admission and units for one ungrouped completed-week cost report."""
+"""Pure A01 admission and units for ungrouped completed 7/30-day cost reports."""
 
 import math
 import re
@@ -39,6 +39,28 @@ def completed_week(instant: datetime) -> BudgetPeriodV1:
     return BudgetPeriodV1(start, end)
 
 
+def validate_period(period: BudgetPeriodV1, requested_at: datetime) -> None:
+    """Admit captured completed 7/30-day coverage without changing request time."""
+    if (
+        not isinstance(period, BudgetPeriodV1)
+        or not isinstance(requested_at, datetime)
+        or requested_at.utcoffset() != timedelta(0)
+        or any(
+            value.utcoffset() != timedelta(0)
+            or value.hour
+            or value.minute
+            or value.second
+            or value.microsecond
+            for value in (period.start, period.end)
+        )
+        or period.end - period.start not in (timedelta(days=7), timedelta(days=30))
+        or period.start < datetime(2026, 1, 1, tzinfo=UTC)
+        or requested_at - period.start > timedelta(days=365)
+        or period.end > requested_at
+    ):
+        raise ValueError("anthropic_cost_request_invalid")
+
+
 @dataclass(frozen=True, slots=True)
 class AnthropicCostRequestV1(TechnicalValueV1):
     """Captured local authority; scope labels do not prove provider identity."""
@@ -64,9 +86,9 @@ class AnthropicCostRequestV1(TechnicalValueV1):
             or (self.scope_evidence == "unresolved") != (self.scope_id is None)
             or self.scope_id is not None
             and not isinstance(self.scope_id, OpaqueIdV1)
-            or self.period != completed_week(self.requested_at)
         ):
             raise ValueError("anthropic_cost_request_invalid")
+        validate_period(self.period, self.requested_at)
 
 
 def request_path(request: AnthropicCostRequestV1, cursor: str | None) -> str:

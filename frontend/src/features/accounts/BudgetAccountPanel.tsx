@@ -9,6 +9,7 @@ import {
 } from "../../shared/api/client";
 import { completedPeriod, displayMoney, exactMoneyText } from "./budgetPresentation";
 import { BudgetDailyHistory } from "./BudgetDailyHistory";
+import { budgetWindowDays, budgetWindowSearch, latestBudgetWindow, resizeBudgetWindow, shiftBudgetWindow, type BudgetWindow } from "./budgetWindowNavigation";
 import { advanceFinancialRead } from "./billingCheckPresentation";
 import { canRetainFinancialReading, selectedFinancialReport, type FinancialReadContext } from "./financialReadPresentation";
 
@@ -77,7 +78,7 @@ function ResourceReading({ resource, accountId, asOf, onExpired }: Readonly<{ re
     {run === null && <p>{resource.collection_availability.reason_code === "budget_collection_not_started"
       ? "No collection has started." : "Collection status is unavailable."}</p>}
     {resource.reports.length === 0 && <p>{resource.report_availability.reason_code === "budget_current_reports_absent"
-      ? "No report for this interval." : `Reports unavailable: ${readable(resource.report_availability.reason_code)}.`}</p>}
+      ? "No retained report for this interval." : `Reports unavailable: ${readable(resource.report_availability.reason_code)}.`}</p>}
     {resource.reports.map((selection) => {
       const report = selection.current ?? selection.latest_attempt;
       const attempt = selection.latest_attempt;
@@ -126,17 +127,30 @@ export function BudgetAccountPanel({ account, showUnconfigured, onExpired, readR
   financialSearch?: string;
 }>) {
   const selection = selectedFinancialReport(financialSearch);
-  const [days, setDays] = useState<7 | 30>(() => selection.kind === "selected" ? selection.days : 7);
-  const [query, setQuery] = useState(() => selection.kind === "selected" ? selection.query : completedPeriod(7, new Date()));
+  const [days, setDays] = useState<7 | 30>(() => (selection.kind === "selected" || selection.kind === "period") ? selection.days : 7);
+  const [query, setQuery] = useState(() => (selection.kind === "selected" || selection.kind === "period") ? selection.query : completedPeriod(7, new Date()));
   const [snapshot, setSnapshot] = useState<Readonly<{ context: FinancialReadContext; data: AccountBudgetSummaryWireV1 }> | null>(null);
   const [busy, setBusy] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const expired = useRef(onExpired);
   const lastReadRevision = useRef(readRevision);
+  const lastFinancialSearch = useRef(financialSearch);
   expired.current = onExpired;
   const context: FinancialReadContext = { account, periodStart: query.period_start, periodEnd: query.period_end, readRevision };
   // Fence the heading during render too, before an obsolete request's effect is cleaned up.
   const data = snapshot !== null && canRetainFinancialReading(snapshot.context, context) ? snapshot.data : null;
+
+  useEffect(() => {
+    const changed = lastFinancialSearch.current !== financialSearch;
+    lastFinancialSearch.current = financialSearch;
+    if (selection.kind === "none" && changed) {
+      setDays(7);
+      setQuery(completedPeriod(7, new Date()));
+    } else if (selection.kind === "selected" || selection.kind === "period") {
+      setDays(selection.days);
+      setQuery((current) => current.period_start === selection.query.period_start && current.period_end === selection.query.period_end && current.as_of === selection.query.as_of ? current : selection.query);
+    }
+  }, [financialSearch]);
 
   useEffect(() => {
     if (lastReadRevision.current === readRevision) return;
@@ -172,23 +186,16 @@ export function BudgetAccountPanel({ account, showUnconfigured, onExpired, readR
     return () => controller.abort();
   }, [account, query]);
 
-  function refresh(nextDays: 7 | 30) {
-    const next = completedPeriod(nextDays, new Date());
-    setDays(nextDays);
+  function selectWindow(next: BudgetWindow) {
+    setDays(budgetWindowDays(next));
     setQuery(next);
-    if (selection.kind !== "none") {
-      const search = new URLSearchParams(window.location.search);
-      for (const key of ["budget_selection", "budget_resource", "budget_report", "budget_start", "budget_end", "budget_as_of"]) search.delete(key);
-      if (selection.kind === "selected") {
-        search.set("budget_resource", selection.resourceId);
-        search.set("budget_start", next.period_start);
-        search.set("budget_end", next.period_end);
-        search.set("budget_as_of", next.as_of);
-      }
-      window.history.replaceState(null, "", `${window.location.pathname}${search.size ? `?${search}` : ""}`);
-      window.dispatchEvent(new PopStateEvent("popstate"));
-    }
+    const search = budgetWindowSearch(window.location.search, next, selection.kind === "selected" ? selection.resourceId : null);
+    window.history.replaceState(null, "", `${window.location.pathname}${search}`);
+    window.dispatchEvent(new PopStateEvent("popstate"));
   }
+
+  const previousWindow = shiftBudgetWindow(query, -1);
+  const nextWindow = shiftBudgetWindow(query, 1);
 
   const funds = data?.funds;
   const cloudResources = data?.cloud_resources ?? [];
@@ -196,13 +203,19 @@ export function BudgetAccountPanel({ account, showUnconfigured, onExpired, readR
   if (selection.kind === "none" && !showUnconfigured && !error && !hasFunds && cloudResources.length === 0 && (data === null || data.resources.length === 0)) return null;
   return <section className="telemetry-panel" aria-labelledby="budget-account-title" aria-busy={busy} style={{ minWidth: 0, overflowWrap: "anywhere" }}>
     <div className="panel-heading"><h2 id="budget-account-title">API usage &amp; spend</h2>
-      <button type="button" className="quiet-button" title="Reload stored readings" disabled={busy} onClick={() => refresh(days)}>Refresh view</button>
+      <button type="button" className="quiet-button" title="Reload stored readings" disabled={busy} onClick={() => selectWindow(advanceFinancialRead(query, new Date()))}>Refresh view</button>
     </div>
     <label htmlFor="budget-report-range">Report range</label>
-    <select id="budget-report-range" value={days} onChange={(event) => refresh(event.target.value === "30" ? 30 : 7)}>
-      <option value="7">Last 7 completed UTC days</option><option value="30">Last 30 completed UTC days</option>
+    <select id="budget-report-range" value={days} disabled={busy} onChange={(event) => selectWindow(resizeBudgetWindow(query, event.target.value === "30" ? 30 : 7))}>
+      <option value="7">7 completed UTC days</option><option value="30">30 completed UTC days</option>
     </select>
-    <p>{bounds(query.period_start, query.period_end)}</p>
+    <p data-budget-window data-period-start={query.period_start} data-period-end={query.period_end} data-read-as-of={query.as_of}>{bounds(query.period_start, query.period_end)}</p>
+    <div role="group" aria-label="Stored history windows">
+      <button type="button" className="quiet-button" disabled={busy || selection.kind === "invalid" || previousWindow === null} onClick={() => { if (previousWindow !== null) selectWindow(previousWindow); }}>Previous window</button>
+      <button type="button" className="quiet-button" disabled={busy || selection.kind === "invalid" || nextWindow === null} onClick={() => { if (nextWindow !== null) selectWindow(nextWindow); }}>Next window</button>
+      <button type="button" className="quiet-button" disabled={busy} onClick={() => selectWindow(latestBudgetWindow(days, new Date().toISOString()))}>Latest completed window</button>
+    </div>
+    <p>Stored readings as of <time dateTime={query.as_of}>{instant(query.as_of)}</time>. Window navigation does not collect provider data.</p>
     {busy && <p role="status">Reading stored financial reports…</p>}
     {error && <p role="alert">{error}</p>}
     {selection.kind === "invalid" && <p role="alert">This financial link is incomplete or invalid. Refresh view to select current stored data.</p>}

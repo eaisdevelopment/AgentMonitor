@@ -42,6 +42,27 @@ def completed_period(instant: datetime, days: int) -> BudgetPeriodV1:
     return BudgetPeriodV1(start, end)
 
 
+def validate_period(period: BudgetPeriodV1, requested_at: datetime) -> None:
+    """Admit captured completed 7/30-day coverage without changing request time."""
+    if (
+        not isinstance(period, BudgetPeriodV1)
+        or not isinstance(requested_at, datetime)
+        or requested_at.utcoffset() != timedelta(0)
+        or any(
+            value.utcoffset() != timedelta(0)
+            or value.hour
+            or value.minute
+            or value.second
+            or value.microsecond
+            for value in (period.start, period.end)
+        )
+        or period.end - period.start not in (timedelta(days=7), timedelta(days=30))
+        or period.start < datetime(1970, 1, 1, tzinfo=UTC)
+        or period.end > requested_at
+    ):
+        raise ValueError("openai_cost_request_invalid")
+
+
 @dataclass(frozen=True, slots=True)
 class OpenAICostRequestV1(TechnicalValueV1):
     """Captured local authority; scope labels do not prove provider identity."""
@@ -67,13 +88,9 @@ class OpenAICostRequestV1(TechnicalValueV1):
             or (self.scope_evidence == "unresolved") != (self.scope_id is None)
             or self.scope_id is not None
             and not isinstance(self.scope_id, OpaqueIdV1)
-            or self.period
-            not in (
-                completed_period(self.requested_at, 7),
-                completed_period(self.requested_at, 30),
-            )
         ):
             raise ValueError("openai_cost_request_invalid")
+        validate_period(self.period, self.requested_at)
 
 
 def request_path(request: OpenAICostRequestV1, cursor: str | None) -> str:

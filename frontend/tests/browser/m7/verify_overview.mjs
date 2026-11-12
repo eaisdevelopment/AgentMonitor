@@ -10,7 +10,7 @@ let mutations = 0;
 let sourceRevision = null;
 let rowsVerified = 0;
 const renderedReadPaths = [];
-const checks = { authentication: "not_run", overview: "not_run", filters: "not_run", navigation: "not_run", responsive: "not_run", pool_controls: "not_run", read_only: "not_run" };
+const checks = { authentication: "not_run", overview: "not_run", filters: "not_run", navigation: "not_run", history_windows: "not_run", responsive: "not_run", pool_controls: "not_run", read_only: "not_run" };
 function stop(outcome, code) { status = outcome; reason = code; throw new Error("probe_stopped"); }
 function requireEvidence(condition, code) { if (!condition) stop("failed", code); }
 try {
@@ -298,6 +298,71 @@ try {
       }
     }
   }
+  const accountBudget = page.getByRole("region", { name: "API usage & spend", exact: true });
+  const retainedPanel = await accountBudget.elementHandle();
+  const refreshResponse = page.waitForResponse(response => new URL(response.url()).pathname === `/api/v1/accounts/${encodeURIComponent(reportAccount)}/budgets`);
+  await accountBudget.getByRole("button", { name: "Refresh view", exact: true }).click();
+  requireEvidence((await refreshResponse).ok(), "initial_refresh_request_failed");
+  requireEvidence(await retainedPanel.evaluate(node => node.isConnected), "same_context_refresh_remounted_panel");
+  requireEvidence(await accountBudget.getByRole("group", { name: "Stored history windows", exact: true }).count() === 1, "stored_window_controls_missing");
+  const windowMarker = accountBudget.locator("[data-budget-window]");
+  const DAY = 86400000;
+  async function windowState() {
+    await page.waitForFunction(() => document.querySelector('[aria-labelledby="budget-account-title"]')?.getAttribute("aria-busy") === "false");
+    return { start: await windowMarker.getAttribute("data-period-start"), end: await windowMarker.getAttribute("data-period-end"), asOf: await windowMarker.getAttribute("data-read-as-of") };
+  }
+  function sameWindow(actual, wanted, code) {
+    requireEvidence(microseconds(actual.start) === microseconds(wanted.start) && microseconds(actual.end) === microseconds(wanted.end) && microseconds(actual.asOf) === microseconds(wanted.asOf), code);
+  }
+  async function changeWindow(action) {
+    const response = page.waitForResponse(response => {
+      const request = new URL(response.url()), selected = new URL(page.url());
+      return request.pathname === `/api/v1/accounts/${encodeURIComponent(reportAccount)}/budgets` &&
+        [["period_start", "budget_start"], ["period_end", "budget_end"], ["as_of", "budget_as_of"]].every(([wire, url]) =>
+          request.searchParams.get(wire) === selected.searchParams.get(url));
+    });
+    await action();
+    const result = await response;
+    requireEvidence(result.ok(), "window_summary_request_failed");
+    const summary = await result.json();
+    const current = await windowState();
+    sameWindow(current, { start: summary.period.start, end: summary.period.end, asOf: summary.as_of }, "window_dom_api_mismatch");
+    const url = new URL(page.url());
+    requireEvidence(url.searchParams.get("budget_report") === null && url.searchParams.get("budget_resource") === reportResource, "window_selection_not_reset");
+    sameWindow(current, { start: url.searchParams.get("budget_start"), end: url.searchParams.get("budget_end"), asOf: url.searchParams.get("budget_as_of") }, "window_url_mismatch");
+    requireEvidence(await accountBudget.getByRole("alert").count() === 0, "window_read_error");
+    return current;
+  }
+  const initialWindow = await windowState();
+  const initialDays = (Date.parse(initialWindow.end) - Date.parse(initialWindow.start)) / DAY;
+  const priorWindow = await changeWindow(() => accountBudget.getByRole("button", { name: "Previous window", exact: true }).click());
+  sameWindow(priorWindow, { start: new Date(Date.parse(initialWindow.start) - initialDays * DAY).toISOString(), end: initialWindow.start, asOf: initialWindow.asOf }, "previous_window_mismatch");
+  await page.reload({ waitUntil: "domcontentloaded" });
+  await windowMarker.waitFor();
+  sameWindow(await windowState(), priorWindow, "previous_window_lost_on_reload");
+  const refreshedWindow = await changeWindow(() => accountBudget.getByRole("button", { name: "Refresh view", exact: true }).click());
+  requireEvidence(microseconds(refreshedWindow.asOf) > microseconds(priorWindow.asOf), "refresh_did_not_advance_read_snapshot");
+  sameWindow(refreshedWindow, { ...priorWindow, asOf: refreshedWindow.asOf }, "refresh_changed_interval");
+  const nextWindow = await changeWindow(() => accountBudget.getByRole("button", { name: "Next window", exact: true }).click());
+  sameWindow(nextWindow, { ...initialWindow, asOf: refreshedWindow.asOf }, "next_window_mismatch");
+  requireEvidence(await accountBudget.getByRole("button", { name: "Next window", exact: true }).isDisabled(), "next_crosses_completed_cutoff");
+  const wideWindow = await changeWindow(() => accountBudget.getByLabel("Report range", { exact: true }).selectOption("30"));
+  sameWindow(wideWindow, { start: new Date(Date.parse(nextWindow.end) - 30 * DAY).toISOString(), end: nextWindow.end, asOf: nextWindow.asOf }, "resize_changed_cutoff");
+  await changeWindow(() => accountBudget.getByRole("button", { name: "Previous window", exact: true }).click());
+  const latestWindow = await changeWindow(() => accountBudget.getByRole("button", { name: "Latest completed window", exact: true }).click());
+  const latestEnd = Math.floor(Date.parse(latestWindow.asOf) / DAY) * DAY;
+  sameWindow(latestWindow, { start: new Date(latestEnd - 30 * DAY).toISOString(), end: new Date(latestEnd).toISOString(), asOf: latestWindow.asOf }, "latest_window_mismatch");
+  requireEvidence(await accountBudget.getByRole("button", { name: "Next window", exact: true }).isDisabled(), "latest_allows_future_window");
+  // The same real account also supports a period-only deep link, without
+  // inventing a resource/report selector or changing provider state.
+  const periodOnlyUrl = new URL(page.url());
+  periodOnlyUrl.searchParams.delete("budget_resource");
+  await page.evaluate(url => { history.replaceState(null, "", url); }, periodOnlyUrl.pathname + periodOnlyUrl.search);
+  await page.reload({ waitUntil: "domcontentloaded" });
+  await windowMarker.waitFor();
+  sameWindow(await windowState(), latestWindow, "period_only_window_lost_on_reload");
+  requireEvidence(new URL(page.url()).searchParams.get("budget_resource") === null && !new URL(page.url()).searchParams.has("budget_selection") && await accountBudget.getByRole("alert").count() === 0, "period_only_link_invalid");
+  checks.history_windows = "passed";
   await page.goBack({ waitUntil: "domcontentloaded" });
   await financial.waitFor();
   requireEvidence(new URL(page.url()).search === before.search, "overview_filters_lost_on_back");

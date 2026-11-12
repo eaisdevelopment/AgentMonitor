@@ -123,6 +123,7 @@ SUPPORT_SYMBOLS = {
     "agentmonitor.contracts.collection_control_v1": {
         "BudgetCollectionCommitPortV1",
         "BudgetCollectionRunAdmissionV1",
+        "BudgetCollectionRunAdmissionV2",
         "BudgetCollectionRunViewV1",
         "CollectionTriggerV1",
         "CollectorHealthStateV1",

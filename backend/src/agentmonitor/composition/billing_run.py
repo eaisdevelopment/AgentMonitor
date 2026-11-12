@@ -1,6 +1,7 @@
 """Compose one bounded Anthropic cost report with published M02--M05 types."""
 
 import hashlib
+from dataclasses import fields
 from datetime import datetime, timedelta
 from typing import Literal
 
@@ -18,17 +19,21 @@ from agentmonitor.adapters.providers.claude.anthropic_api.policy import (
     SOURCE_ID,
     AnthropicCostRequestV1,
     completed_week,
+    validate_period,
 )
 from agentmonitor.adapters.providers.claude.anthropic_api.source import (
     AnthropicCostResultV1,
 )
 from agentmonitor.contracts.capacity_v1 import (
     BudgetCollectionInputV1,
+    BudgetPeriodV1,
     BudgetReportInputV1,
     CapacitySubjectV2,
 )
 from agentmonitor.contracts.collection_control_v1 import (
+    BillingBudgetReportContextV1,
     BudgetCollectionRunAdmissionV1,
+    BudgetCollectionRunAdmissionV2,
     CollectionFailedV1,
     CollectionTriggerV1,
 )
@@ -54,6 +59,7 @@ from agentmonitor.modules.provider_system.application.gateway import (
 )
 
 ANTHROPIC_COST_OPERATION_FAMILY_V1 = "billing.anthropic.cost.7d"
+ANTHROPIC_COST_30D_OPERATION_FAMILY_V1 = "billing.anthropic.cost.30d"
 ANTHROPIC_COST_BUDGET_POLICY_ID_V1 = "anthropic-cost-report-requests-v1"
 ANTHROPIC_COST_BUDGET_POLICY_VERSION_V1 = "1.0.0"
 ANTHROPIC_COST_COLLECTION_POLICY_VERSION_V1 = "1.0.0"
@@ -123,6 +129,30 @@ def _budget_scope_digest(
     )
 
 
+def _report_period(
+    requested_at: datetime, context: BillingBudgetReportContextV1 | None
+) -> BudgetPeriodV1:
+    if context is None:
+        return completed_week(requested_at)
+    if (
+        not isinstance(context, BillingBudgetReportContextV1)
+        or context.source_category != "cost"
+        or context.grouping != ()
+    ):
+        raise ValueError("anthropic_billing_run_invalid")
+    period = BudgetPeriodV1(context.interval_start, context.interval_end)
+    validate_period(period, requested_at)
+    return period
+
+
+def _operation_family(context: BillingBudgetReportContextV1 | None) -> str:
+    return (
+        ANTHROPIC_COST_30D_OPERATION_FAMILY_V1
+        if context is not None and context.range_key == "30d"
+        else ANTHROPIC_COST_OPERATION_FAMILY_V1
+    )
+
+
 def _request_digest(
     *,
     target_key_digest: str,
@@ -131,18 +161,30 @@ def _request_digest(
     idempotency_key_digest: str | None,
     requested_at: datetime,
     attempt_ordinal: int,
+    report_context: BillingBudgetReportContextV1 | None = None,
 ) -> str:
-    period = completed_week(requested_at)
+    period = _report_period(requested_at, report_context)
     return _digest(
-        "anthropic-cost-request-v1",
+        "anthropic-cost-request-v1"
+        if report_context is None
+        else "anthropic-cost-request-v2",
         target_key_digest,
-        ANTHROPIC_COST_OPERATION_FAMILY_V1,
+        _operation_family(report_context),
         trigger,
         "" if request_principal_id is None else request_principal_id.value,
         idempotency_key_digest or "",
         period.start.isoformat(),
         period.end.isoformat(),
         str(attempt_ordinal),
+        *(
+            (
+                report_context.range_key,
+                report_context.source_category,
+                *report_context.grouping,
+            )
+            if report_context is not None
+            else ()
+        ),
     )
 
 
@@ -195,8 +237,9 @@ def build_anthropic_billing_run(
     requested_at: datetime,
     deadline_at: datetime,
     attempt_ordinal: int = 1,
+    report_context: BillingBudgetReportContextV1 | None = None,
 ) -> BudgetCollectionRunAdmissionV1:
-    """Capture an actual M02 target as one reconstructable seven-day run."""
+    """Capture authority and optional explicit coverage; no context retains V1."""
     fingerprint = anthropic_cost_manifest_fingerprint()
     if (
         not isinstance(target, BillingAccessTargetV1)
@@ -227,19 +270,19 @@ def build_anthropic_billing_run(
     ):
         raise ValueError("anthropic_billing_run_invalid")
     # Validate the completed interval before any durable admission is built.
-    completed_week(requested_at)
+    _report_period(requested_at, report_context)
     budget_window_start, budget_window_end = _budget_window(requested_at)
     provider_target = ProviderTargetRefV1(
         "cloud_service", access_target.access_target_id
     )
     target_digest = _target_digest(target, provider_target)
-    return BudgetCollectionRunAdmissionV1(
+    admission = BudgetCollectionRunAdmissionV1(
         billing_target=target,
         run_id=run_id,
         schedule_id=schedule_id,
         request_id=request_id,
         trigger=trigger,
-        operation_family=ANTHROPIC_COST_OPERATION_FAMILY_V1,
+        operation_family=_operation_family(report_context),
         requested_capability_ids=(_CAPABILITY_ID,),
         capability_set_version=_CAPABILITY_SCHEMA_VERSION,
         request_auth_method=(
@@ -285,9 +328,17 @@ def build_anthropic_billing_run(
             idempotency_key_digest=idempotency_key_digest,
             requested_at=requested_at,
             attempt_ordinal=attempt_ordinal,
+            report_context=report_context,
         ),
         requested_at=requested_at,
         deadline_at=deadline_at,
+    )
+
+    if report_context is None:
+        return admission
+    return BudgetCollectionRunAdmissionV2(
+        **{field.name: getattr(admission, field.name) for field in fields(admission)},
+        report_context=report_context,
     )
 
 
@@ -296,6 +347,11 @@ def _require_anthropic_admission(
 ) -> None:
     if not isinstance(admission, BudgetCollectionRunAdmissionV1):
         raise ValueError("anthropic_billing_run_invalid")
+    context = (
+        admission.report_context
+        if isinstance(admission, BudgetCollectionRunAdmissionV2)
+        else None
+    )
     target = admission.billing_target
     expected_target_digest = _target_digest(target, admission.provider_target)
     expected_request_digest = _request_digest(
@@ -305,10 +361,11 @@ def _require_anthropic_admission(
         idempotency_key_digest=admission.idempotency_key_digest,
         requested_at=admission.requested_at,
         attempt_ordinal=admission.attempt_ordinal,
+        report_context=context,
     )
     expected_budget_window = _budget_window(admission.requested_at)
     if (
-        admission.operation_family != ANTHROPIC_COST_OPERATION_FAMILY_V1
+        admission.operation_family != _operation_family(context)
         or admission.requested_capability_ids != (_CAPABILITY_ID,)
         or admission.capability_set_version != _CAPABILITY_SCHEMA_VERSION
         or admission.provider_key != "claude"
@@ -384,7 +441,12 @@ def anthropic_billing_request(
         ),
         scope_evidence=connection.scope_evidence,
         scope_generation=connection.scope_generation,
-        period=completed_week(admission.requested_at),
+        period=_report_period(
+            admission.requested_at,
+            admission.report_context
+            if isinstance(admission, BudgetCollectionRunAdmissionV2)
+            else None,
+        ),
         requested_at=admission.requested_at,
     )
 
@@ -603,7 +665,7 @@ def normalize_anthropic_billing_outcome(
     completed_at: datetime,
 ) -> BudgetCollectionInputV1 | CollectionFailedV1:
     """Prepare one exact M05 commit or one sanitized M04 terminal failure."""
-    anthropic_billing_request(admission)
+    request = anthropic_billing_request(admission)
     if not isinstance(completed_at, datetime) or completed_at.utcoffset() != timedelta(
         0
     ):
@@ -631,6 +693,7 @@ def normalize_anthropic_billing_outcome(
     report = outcome.value
     if (
         not isinstance(report, BudgetReportInputV1)
+        or report.requested_period != request.period
         or outcome.provenance != _provenance(admission, report)
         or (outcome.state == "success")
         != (

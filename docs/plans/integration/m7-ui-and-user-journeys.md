@@ -273,17 +273,30 @@ current financial context supplies its immutable report ID. History and its
 pages stay on that report until explicit refresh. If retention removed it,
 show Selection expired with Refresh, rather than silently changing the numbers. T013 uses
 those same buckets for its chart. When the UTC cutoff moves, preserve the
-selected query until explicit refresh; never concatenate overlapping reports
+selected reporting interval until Latest completed window is chosen; never
+concatenate overlapping reports
 to fill missing days. A provider without daily buckets shows its actual
 aggregate interval, with daily history unavailable.
 
-Stored history has Previous/Next controls for the selected seven-/thirty-day
-window, showing exact UTC bounds. Next is disabled beyond the latest completed
-cutoff. No retained report means missing stored coverage, not zero usage. These
+Stored history has **Previous window**, **Next window**, and **Latest completed
+window** controls with exact UTC bounds. Previous/Next and changing 7/30-day
+width preserve the read snapshot; width changes keep the selected end. Next is
+disabled beyond that snapshot's latest completed UTC cutoff. **Refresh view**
+rereads the same interval with a new read snapshot. Only **Latest completed
+window** deliberately moves to today's completed cutoff. An explicit selection
+change clears the old report selector/history cursor, retains the selected
+resource and never starts collection. Use 7/30 completed UTC days as width
+labels; Last is misleading when the owner browses an older window. No retained
+report means missing stored coverage, not zero usage. These
 reads never fetch a provider. Offer Collect now only for a source-admitted
 interval; no arbitrary historical backfill promise. Source history lists retained
 reports from prior scope epochs with original scope labels; selecting one uses
 its authorized immutable report reference, not an arbitrary caller-selected scope.
+T010 supplies a bounded authorized report-metadata list for that existing Source
+history disclosure (report ID, original scope epoch, interval, source and
+observation/collection times); T011 renders it. Paging daily facts of a known
+report does not supply this discovery flow. Reuse the existing report-list port
+where possible; no separate history application or provider call.
 When an older report is selected, its main financial scope/epoch label comes
 from that report, including after reload. The current connection scope belongs
 separately in Manage connection; current funds retain their own scope/time.
@@ -408,7 +421,8 @@ snapshot cannot show a newly completed run. On terminal status, reread stored
 financial data with a new `as_of` but the **same reporting interval**. Replace
 the selected report/table together and reset its history cursor. Do not move
 the interval to a new UTC day, replay the action, or issue a second provider
-read. Explicit range refresh may advance the UTC cutoff. An unrelated later
+read. Previous/Next move within the pinned snapshot
+bound; Latest completed window selects today's completed UTC cutoff. An unrelated later
 collection does not reshuffle a history page already being read. T007/T010/T011
 test completion across midnight and account/scope changes within the existing
 collection, HTTP and UI scenario families.
@@ -416,7 +430,11 @@ collection, HTTP and UI scenario families.
 Default Check reads the admitted seven-completed-day report (cost for the first
 monetary lane; Ollama uses its admitted cloud usage/balance flow). Collect now
 targets the currently selected supported interval/context and says which one
-will be read; a seven-day Check result is not displayed under a thirty-day
+will be read. Place it beside the named scope/category and UTC interval, using
+server-published eligibility and retry time. An empty view needs an authorized
+resource and admitted request context, never an invented report ID. When there
+are multiple report contexts, each action identifies exactly one target; a
+seven-day Check result is not displayed under a thirty-day
 selection. Supported but not collected means No report for this interval, with
 the real collection action. Unknown/unimplemented range support is named before
 dispatch; changing a range or opening a detail page never starts provider work.

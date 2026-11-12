@@ -241,7 +241,7 @@ export function AccountPage({
           }
         }}>Edit account</button>
       </header>
-      {apiOnly && <BudgetAccountPanel financialSearch={financialSearch} key={`budget-${selected.account_id}-${financialSearch}`} account={selected} readRevision={financialReadRevision} showUnconfigured={selected.provider_key !== "ollama"} onExpired={onExpired} />}
+      {apiOnly && <BudgetAccountPanel financialSearch={financialSearch} key={`budget-${selected.account_id}`} account={selected} readRevision={financialReadRevision} showUnconfigured={selected.provider_key !== "ollama"} onExpired={onExpired} />}
       {apiOnly && selected.provider_key !== "ollama" && <BillingConnectionPanel key={`billing-${selected.account_id}`} account={selected} onExpired={onExpired} onProofUnavailable={onProofUnavailable} onAccountReload={reloadAccount} onFinancialRead={refreshFinancialRead} />}
       {selected.provider_key === "ollama" && selected.lifecycle !== "archived" && <OllamaCloudConnectionView key={`ollama-cloud-${selected.account_id}`} account={selected} onExpired={onExpired} onProofUnavailable={onProofUnavailable} onAccountReload={reloadAccount} />}
       {!apiOnly && <>
@@ -249,7 +249,7 @@ export function AccountPage({
       <AccountWorkspaceSummary key={selected.account_id} account={selected} organizationName={state.organizations.items.find((item) => item.organization_id === selected.organization_id)?.name ?? "Ungrouped"} liveProcesses={liveProcesses} onExpired={onExpired} onIdentity={updateObservedIdentity} />
       {["claude", "codex"].includes(selected.provider_key) && <LiveProviderProcesses key={`processes-${selected.account_id}`} account={selected} accounts={detailAccounts} organizations={state.organizations.items} onExpired={onExpired} onProofUnavailable={onProofUnavailable} onRead={setLiveProcesses} />}
       <CapacityPanel accountId={selected.account_id} onExpired={onExpired} />
-      <BudgetAccountPanel financialSearch={financialSearch} key={`budget-${selected.account_id}-${financialSearch}`} account={selected} readRevision={financialReadRevision} showUnconfigured={false} onExpired={onExpired} />
+      <BudgetAccountPanel financialSearch={financialSearch} key={`budget-${selected.account_id}`} account={selected} readRevision={financialReadRevision} showUnconfigured={false} onExpired={onExpired} />
       <details className="account-secondary" data-account-sessions="true">
         <summary>Session history <span>Previously observed session records</span></summary>
         <SessionPanel accountId={selected.account_id} displayMode="panel" heading="Session records" onExpired={onExpired} />

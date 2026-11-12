@@ -38,6 +38,50 @@ clear missing-balance/forecast reason. It must not promise a percentage or date
 that the provider data cannot support. A subscription login is not billing API
 access. These are known product limitations, not surprises to discover at exit.
 
+### Finite provider coverage for this milestone
+
+This is the implementation inventory for T006/T008/T009 and the downstream
+T013/T015 comparisons. It refines FR-BUDGET-001/003 within the approved scope;
+it is not a promise to implement every feature added to provider APIs later.
+The linked discovery proves documented interfaces, not successful account access.
+
+| Ticket / source | Required reports and ranges | Required single-dimension views when exposed | Current implementation boundary |
+|---|---|---|---|
+| T006 Anthropic Console analytics | Cost and usage, daily buckets, 7/30 completed UTC days; token/request measures retain their types | Workspace, safe API-key identifier, model, token category; organization/account remain source scope and owner grouping | Ungrouped seven-day cost path exists; thirty-day, usage and grouped collection remain to finish and verify |
+| T008 OpenAI organization | Costs plus the eleven usage categories listed below; daily 7/30-day reports | Project, safe API-key identifier, model, token category where that endpoint exposes them; time is the daily bucket | Ungrouped cost path exists; admitted thirty-day requests still need durable dispatch; usage/grouped lanes remain to finish and verify |
+| T009 Ollama cloud | Native 7d/30d self/team usage; retain actual covered bounds and partial buckets; existing balance collection | Model plus provider-reported remainder; monetary and token fields only when supplied | Self seven-day counts and balance evidence exist; remaining range/scope/model/manual paths still require completion |
+
+OpenAI's fixed usage list is **completions, embeddings, moderations, images,
+audio speeches, audio transcriptions, code-interpreter sessions, vector stores,
+file-search calls, web-search calls, decisions**. Each is accounted for in the
+same adapter ticket; a completions-only report is never called all API usage.
+An endpoint's native unit is retained: tokens, requests, images, duration,
+sessions or storage are not interchangeable and are never priced locally.
+
+Before implementing a grouped request, its adapter records the exact allowlisted
+field, unit, grouping parameter and applicable role in its existing source
+manifest/tests. An unsupported endpoint/dimension combination is disabled with
+a reason; an unimplemented supported combination remains unfinished. No Cartesian
+product of every dimension, range and account is required. Verify each distinct
+supported mapping and both ranges, then account for every active resource through
+its actual supported lane. Real empty responses can prove access/coverage under
+that source's contract; they cannot prove a nonempty dimension mapping.
+
+The Anthropic documentation rechecked on 12 November lists separate usage and
+cost endpoints with common model/workspace/key dimensions and a cost token-type
+split. It permits up to 31 days per request. Its reported costs exclude some
+commitment fees, and data can arrive late. Therefore these are **reported API
+costs**, not an invoice or a complete financial liability. These are documented
+capabilities, not new live evidence. [Official analytics documentation](https://platform.claude.com/docs/en/manage-claude/usage-cost-analytics-api).
+The fixed OpenAI category inventory is checked against its [official usage
+reference](https://developers.openai.com/api/reference/resources/admin/subresources/organization/subresources/usage).
+
+New provider dimensions/categories, Enterprise/AWS authentication, 24h Ollama
+views and arbitrary historical backfill are not added by this review. Existing
+source omissions are disclosed; scraping or additional financial endpoints are
+not required to fill missing funds/limits. Source discovery/admission changes
+must identify the affected existing requirement before becoming delivery work.
+
 ## 2. One authoritative plan set
 
 | Artifact | Owns |
@@ -190,8 +234,8 @@ T007's existing first action is
 Read-only `GET /collection-runs/{run_id}/budget`
 (`billing_get_run_status_v1`) is also implemented through M04's public run query.
 Its additive status DTO includes actual `report_id`, account and resource;
-non-budget runs are rejected. The current installed contract/client has 91
-operations. This is compatibility metadata, not coverage. Real HTTP guards and
+non-budget runs are rejected. The bounded-history contract/client checkpoint has 93
+operations; the delivery worksheet owns the current installed revision. This is compatibility metadata, not coverage. Real HTTP guards and
 built no-report/browser controls pass; a
 successful credential-backed report and populated status-to-DOM journey remain
 unverified. See [integration evidence](../../evidence/m7-billing-integration-2026-11-11.md).

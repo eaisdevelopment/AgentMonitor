@@ -1,6 +1,7 @@
 """Compose one bounded OpenAI cost report with published M02--M05 types."""
 
 import hashlib
+from dataclasses import fields
 from datetime import datetime, timedelta
 from typing import Literal
 
@@ -18,17 +19,21 @@ from agentmonitor.adapters.providers.codex.openai_api.policy import (
     SOURCE_ID,
     OpenAICostRequestV1,
     completed_period,
+    validate_period,
 )
 from agentmonitor.adapters.providers.codex.openai_api.source import (
     OpenAICostResultV1,
 )
 from agentmonitor.contracts.capacity_v1 import (
     BudgetCollectionInputV1,
+    BudgetPeriodV1,
     BudgetReportInputV1,
     CapacitySubjectV2,
 )
 from agentmonitor.contracts.collection_control_v1 import (
+    BillingBudgetReportContextV1,
     BudgetCollectionRunAdmissionV1,
+    BudgetCollectionRunAdmissionV2,
     CollectionFailedV1,
     CollectionTriggerV1,
 )
@@ -54,6 +59,7 @@ from agentmonitor.modules.provider_system.application.gateway import (
 )
 
 OPENAI_COST_OPERATION_FAMILY_V1 = "billing.openai.cost.7d"
+OPENAI_COST_30D_OPERATION_FAMILY_V1 = "billing.openai.cost.30d"
 OPENAI_COST_BUDGET_POLICY_ID_V1 = "openai-cost-report-requests-v1"
 OPENAI_COST_BUDGET_POLICY_VERSION_V1 = "1.0.0"
 OPENAI_COST_COLLECTION_POLICY_VERSION_V1 = "1.0.0"
@@ -124,6 +130,30 @@ def _budget_scope_digest(
     )
 
 
+def _report_period(
+    requested_at: datetime, context: BillingBudgetReportContextV1 | None
+) -> BudgetPeriodV1:
+    if context is None:
+        return completed_period(requested_at, 7)
+    if (
+        not isinstance(context, BillingBudgetReportContextV1)
+        or context.source_category != "cost"
+        or context.grouping != ()
+    ):
+        raise ValueError("openai_billing_run_invalid")
+    period = BudgetPeriodV1(context.interval_start, context.interval_end)
+    validate_period(period, requested_at)
+    return period
+
+
+def _operation_family(context: BillingBudgetReportContextV1 | None) -> str:
+    return (
+        OPENAI_COST_30D_OPERATION_FAMILY_V1
+        if context is not None and context.range_key == "30d"
+        else OPENAI_COST_OPERATION_FAMILY_V1
+    )
+
+
 def _request_digest(
     *,
     target_key_digest: str,
@@ -132,18 +162,30 @@ def _request_digest(
     idempotency_key_digest: str | None,
     requested_at: datetime,
     attempt_ordinal: int,
+    report_context: BillingBudgetReportContextV1 | None = None,
 ) -> str:
-    period = completed_period(requested_at, 7)
+    period = _report_period(requested_at, report_context)
     return _digest(
-        "openai-cost-request-v1",
+        "openai-cost-request-v1"
+        if report_context is None
+        else "openai-cost-request-v2",
         target_key_digest,
-        OPENAI_COST_OPERATION_FAMILY_V1,
+        _operation_family(report_context),
         trigger,
         "" if request_principal_id is None else request_principal_id.value,
         idempotency_key_digest or "",
         period.start.isoformat(),
         period.end.isoformat(),
         str(attempt_ordinal),
+        *(
+            (
+                report_context.range_key,
+                report_context.source_category,
+                *report_context.grouping,
+            )
+            if report_context is not None
+            else ()
+        ),
     )
 
 
@@ -196,8 +238,9 @@ def build_openai_billing_run(
     requested_at: datetime,
     deadline_at: datetime,
     attempt_ordinal: int = 1,
+    report_context: BillingBudgetReportContextV1 | None = None,
 ) -> BudgetCollectionRunAdmissionV1:
-    """Capture an actual M02 target as one reconstructable seven-day run."""
+    """Capture authority and optional explicit coverage; no context retains V1."""
     fingerprint = openai_cost_manifest_fingerprint()
     if (
         not isinstance(target, BillingAccessTargetV1)
@@ -228,19 +271,19 @@ def build_openai_billing_run(
     ):
         raise ValueError("openai_billing_run_invalid")
     # Validate the completed interval before any durable admission is built.
-    completed_period(requested_at, 7)
+    _report_period(requested_at, report_context)
     budget_window_start, budget_window_end = _budget_window(requested_at)
     provider_target = ProviderTargetRefV1(
         "cloud_service", access_target.access_target_id
     )
     target_digest = _target_digest(target, provider_target)
-    return BudgetCollectionRunAdmissionV1(
+    admission = BudgetCollectionRunAdmissionV1(
         billing_target=target,
         run_id=run_id,
         schedule_id=schedule_id,
         request_id=request_id,
         trigger=trigger,
-        operation_family=OPENAI_COST_OPERATION_FAMILY_V1,
+        operation_family=_operation_family(report_context),
         requested_capability_ids=(_CAPABILITY_ID,),
         capability_set_version=_CAPABILITY_SCHEMA_VERSION,
         request_auth_method=(
@@ -286,9 +329,17 @@ def build_openai_billing_run(
             idempotency_key_digest=idempotency_key_digest,
             requested_at=requested_at,
             attempt_ordinal=attempt_ordinal,
+            report_context=report_context,
         ),
         requested_at=requested_at,
         deadline_at=deadline_at,
+    )
+
+    if report_context is None:
+        return admission
+    return BudgetCollectionRunAdmissionV2(
+        **{field.name: getattr(admission, field.name) for field in fields(admission)},
+        report_context=report_context,
     )
 
 
@@ -297,6 +348,11 @@ def _require_openai_admission(
 ) -> None:
     if not isinstance(admission, BudgetCollectionRunAdmissionV1):
         raise ValueError("openai_billing_run_invalid")
+    context = (
+        admission.report_context
+        if isinstance(admission, BudgetCollectionRunAdmissionV2)
+        else None
+    )
     target = admission.billing_target
     expected_target_digest = _target_digest(target, admission.provider_target)
     expected_request_digest = _request_digest(
@@ -306,10 +362,11 @@ def _require_openai_admission(
         idempotency_key_digest=admission.idempotency_key_digest,
         requested_at=admission.requested_at,
         attempt_ordinal=admission.attempt_ordinal,
+        report_context=context,
     )
     expected_budget_window = _budget_window(admission.requested_at)
     if (
-        admission.operation_family != OPENAI_COST_OPERATION_FAMILY_V1
+        admission.operation_family != _operation_family(context)
         or admission.requested_capability_ids != (_CAPABILITY_ID,)
         or admission.capability_set_version != _CAPABILITY_SCHEMA_VERSION
         or admission.provider_key != "codex"
@@ -385,7 +442,12 @@ def openai_billing_request(
         ),
         scope_evidence=connection.scope_evidence,
         scope_generation=connection.scope_generation,
-        period=completed_period(admission.requested_at, 7),
+        period=_report_period(
+            admission.requested_at,
+            admission.report_context
+            if isinstance(admission, BudgetCollectionRunAdmissionV2)
+            else None,
+        ),
         requested_at=admission.requested_at,
     )
 

@@ -93,6 +93,19 @@ def test_query_keeps_opaque_cursor_inside_one_fixed_path() -> None:
     assert "group_by" not in path
 
 
+@pytest.mark.parametrize("days", [7, 30])
+@pytest.mark.parametrize("age", [0, 14])
+def test_explicit_completed_interval_keeps_actual_request_time(
+    days: int, age: int
+) -> None:
+    original = request()
+    end = original.period.end - timedelta(days=age)
+    selected = replace(original, period=BudgetPeriodV1(end - timedelta(days=days), end))
+    assert selected.requested_at == original.requested_at
+    assert selected.period.end == end
+    assert "time_bucket_width=1d" in request_path(selected, None)
+
+
 @pytest.mark.parametrize("cursor", ["", "a\r\nb", "x" * 1025])
 def test_query_rejects_invalid_cursor(cursor: str) -> None:
     with pytest.raises(ValueError):
@@ -143,3 +156,22 @@ def test_deadline_preserves_earlier_caller_bound_and_caps_later_bound() -> None:
     assert bounded_deadline(1000.0, 1003.0, 10) == 1003.0
     with pytest.raises(TimeoutError):
         bounded_deadline(1000.0, 1000.0, 10)
+
+
+def test_captured_range_respects_source_trailing_year_as_well_as_launch_date() -> None:
+    start = datetime(2026, 1, 1, tzinfo=UTC)
+    at_boundary = replace(
+        request(),
+        requested_at=start + timedelta(days=365),
+        period=BudgetPeriodV1(start, start + timedelta(days=7)),
+    )
+    assert at_boundary.period.start == start
+    with pytest.raises(ValueError):
+        replace(
+            at_boundary, requested_at=at_boundary.requested_at + timedelta(seconds=1)
+        )
+    with pytest.raises(ValueError):
+        replace(
+            request(),
+            period=BudgetPeriodV1(start - timedelta(days=1), start + timedelta(days=6)),
+        )

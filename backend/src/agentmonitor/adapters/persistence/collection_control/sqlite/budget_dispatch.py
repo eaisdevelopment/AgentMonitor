@@ -7,18 +7,30 @@ from datetime import datetime, timedelta
 from typing import Any, overload
 
 from agentmonitor.adapters.persistence.collection_control.sqlite.budget import (
+    BudgetAuthority,
     BudgetCollectionError,
     CloudBudgetAuthority,
     read_budget_target,
 )
 from agentmonitor.contracts.collection_control_v1 import (
+    BillingBudgetAuthorityV1,
     BudgetCollectionRunAdmissionV1,
+    BudgetCollectionRunAdmissionV2,
     CloudBudgetCollectionRunAdmissionV1,
 )
 from agentmonitor.contracts.common_v1 import OpaqueIdV1
 from agentmonitor.contracts.registry_billing_v1 import BillingAccessTargetV1
 from agentmonitor.contracts.registry_v1 import ProviderTargetRefV1
 from sqlalchemy.engine import Connection
+
+
+@overload
+def restore_budget_admission(
+    raw: Mapping[str, Any],
+    target: BillingBudgetAuthorityV1,
+    *,
+    resolved_budget_limit: int,
+) -> BudgetCollectionRunAdmissionV2: ...
 
 
 @overload
@@ -41,7 +53,7 @@ def restore_budget_admission(
 
 def restore_budget_admission(
     raw: Mapping[str, Any],
-    target: BillingAccessTargetV1 | CloudBudgetAuthority,
+    target: BudgetAuthority,
     *,
     resolved_budget_limit: int,
 ) -> BudgetCollectionRunAdmissionV1 | CloudBudgetCollectionRunAdmissionV1:
@@ -58,7 +70,9 @@ def restore_budget_admission(
             "provider_target",
         }
         admission_type = (
-            BudgetCollectionRunAdmissionV1
+            BudgetCollectionRunAdmissionV2
+            if isinstance(target, BillingBudgetAuthorityV1)
+            else BudgetCollectionRunAdmissionV1
             if isinstance(target, BillingAccessTargetV1)
             else CloudBudgetCollectionRunAdmissionV1
         )
@@ -108,6 +122,13 @@ def restore_budget_admission(
         values["provider_target"] = ProviderTargetRefV1(
             raw["provider_target_kind"], OpaqueIdV1(raw["provider_target_id"])
         )
+        if isinstance(target, BillingBudgetAuthorityV1):
+            return BudgetCollectionRunAdmissionV2(
+                **values,
+                billing_target=target.target,
+                report_context=target.report_context,
+                budget_limit_units=resolved_budget_limit,
+            )
         if not isinstance(target, BillingAccessTargetV1):
             graph, service, context = target
             return CloudBudgetCollectionRunAdmissionV1(
@@ -126,7 +147,7 @@ def restore_budget_admission(
 
 def read_dispatch_snapshot(
     connection: Connection, run_id: OpaqueIdV1
-) -> tuple[dict[str, Any], BillingAccessTargetV1 | CloudBudgetAuthority]:
+) -> tuple[dict[str, Any], BudgetAuthority]:
     """Read only M04-owned tables inside the caller's transaction."""
     run = (
         connection.exec_driver_sql(

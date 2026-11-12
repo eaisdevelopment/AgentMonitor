@@ -1760,6 +1760,76 @@ class BudgetCollectionRunAdmissionV1(CollectionRunAdmissionV2):
 
 
 @dataclass(frozen=True, slots=True)
+class BillingBudgetReportContextV1(TechnicalValueV1):
+    """Captured source intent, not a permission to call an arbitrary source."""
+
+    CONTRACT_ID: ClassVar[str] = "CTR-COL-002"
+    CONTRACT_VERSION: ClassVar[str] = "2.3.0"
+    OWNER: ClassVar[str] = "PLAN-M04"
+    range_key: Literal["7d", "30d"]
+    interval_start: datetime
+    interval_end: datetime
+    source_category: str
+    grouping: tuple[str, ...] = ()
+
+    def __post_init__(self) -> None:
+        TechnicalValueV1.__post_init__(self)
+        if (
+            not _utc(self.interval_start)
+            or not _utc(self.interval_end)
+            or any(
+                value.hour or value.minute or value.second or value.microsecond
+                for value in (self.interval_start, self.interval_end)
+            )
+            or self.interval_end - self.interval_start
+            != timedelta(days=7 if self.range_key == "7d" else 30)
+            or type(self.source_category) is not str
+            or _SAFE_CODE.fullmatch(self.source_category) is None
+            or type(self.grouping) is not tuple
+            or len(self.grouping) > 1
+            or any(
+                type(value) is not str or _SAFE_CODE.fullmatch(value) is None
+                for value in self.grouping
+            )
+        ):
+            raise InvalidCollectionControlV1("billing_budget_context_invalid")
+
+
+@dataclass(frozen=True, slots=True)
+class BudgetCollectionRunAdmissionV2(BudgetCollectionRunAdmissionV1):
+    """Additive explicit interval; legacy V1 admissions keep their exact meaning."""
+
+    CONTRACT_VERSION: ClassVar[str] = "2.3.0"
+    report_context: BillingBudgetReportContextV1
+
+    def __post_init__(self) -> None:
+        BudgetCollectionRunAdmissionV1.__post_init__(self)
+        if (
+            not isinstance(self.report_context, BillingBudgetReportContextV1)
+            or self.requested_at < self.report_context.interval_end
+        ):
+            raise InvalidCollectionControlV1("billing_budget_admission_invalid")
+
+
+@dataclass(frozen=True, slots=True)
+class BillingBudgetAuthorityV1(TechnicalValueV1):
+    """Durable authority and captured report selection, without credential values."""
+
+    CONTRACT_ID: ClassVar[str] = "CTR-COL-002"
+    CONTRACT_VERSION: ClassVar[str] = "2.3.0"
+    OWNER: ClassVar[str] = "PLAN-M04"
+    target: BillingAccessTargetV1
+    report_context: BillingBudgetReportContextV1
+
+    def __post_init__(self) -> None:
+        TechnicalValueV1.__post_init__(self)
+        if not isinstance(self.target, BillingAccessTargetV1) or not isinstance(
+            self.report_context, BillingBudgetReportContextV1
+        ):
+            raise InvalidCollectionControlV1("billing_budget_authority_invalid")
+
+
+@dataclass(frozen=True, slots=True)
 class CloudBudgetReportContextV1(TechnicalValueV1):
     """Immutable requested coverage; recovery never substitutes today's range."""
 

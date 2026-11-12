@@ -177,7 +177,8 @@
         "Connect the existing named persistence, collection, budget_http and browser checks as each boundary lands. Their current NotRun dispatch is an implementation task; a runnable schema-only lane is not monetary persistence.",
         "Preserve the committed exact ownership/contract adoption and public-boundary corrections; local boundary checks now report zero violations. Recheck affected declarations when adding remaining ports; no new approval gate.",
         "At b69d96a full technical/live/browser/deploy checks still return m7_boundary_runner_not_implemented. Attach existing actual tests plus missing boundary assertions incrementally; publish/test exact named selection before dependent closure. Do not equate direct pytest success or a registered command with complete canonical coverage.",
-        "Keep mandatory success assertions and conditional natural-provider scenarios distinct inside the existing named checks. Never demand a manufactured correction/throttle/exhaustion event or turn its absence into Passed; missing required provider success still blocks full acceptance."
+        "Keep mandatory success assertions and conditional natural-provider scenarios distinct inside the existing named checks. Never demand a manufactured correction/throttle/exhaustion event or turn its absence into Passed; missing required provider success still blocks full acceptance.",
+        "Wire each existing named check in the delivery worksheet with its feature increment. Several required selections currently return m7_boundary_runner_not_implemented; guards alone leave populated collection/HTTP Not Run. This is agent-owned implementation work; no additional verification framework or owner ceremony."
       ]
     },
     {
@@ -231,7 +232,7 @@
         "Check same-currency/interval/basis grouping, shared pool and epoch boundaries, complete versus partial coverage and rolling UTC range alignment.",
         "Run meaningful money/selection mutations; hand contracts to the first-provider/storage lane without waiting for T013 forecast logic.",
         "Retain already-corrected context-independent conversion evidence; cover canonical signed/exponent zero and overflow without retesting unrelated provider boundaries.",
-        "Compare low-remaining thresholds from exact numerator/positive denominator before display rounding; 20.004% is not low, 19.996% is low, and values outside 0–100 are preserved. Cover in M7-MATH-14; React only renders the computed state.",
+        "Compare low-remaining thresholds from exact numerator/positive denominator before display rounding; 20.004% is not low, 19.996% is low, and values outside 0\u2013100 are preserved. Cover in M7-MATH-14; React only renders the computed state.",
         "Preserve non-constraining fund-component semantics: zero included credits plus positive purchased credits is not account exhaustion. Extend M7-MATH-07/08; no invented spending order or minimum-of-components account health.",
         "Extend existing M7-MATH-10/11/12 cases: same-pool alternative access is counted once, restricted child coverage cannot represent its parent, matching breakdown plus reported remainder reconciles without fabricated attribution, and qualified monetary zero differs from counts-only missing cost.",
         "Clarify M7-MATH-11/12/15: complete empty coverage with unknown money/watermark stays complete, unassociated unresolved bindings cannot be merged while an explicit pool may select one current compatible report, and registry edit time cannot split a financial bucket. No new test family or I/O fixtures."
@@ -332,7 +333,8 @@
         "Map permitted live usage/cost into exact normalized facts",
         "Compare same scope/time with provider; mark gaps explicitly",
         "Retain finite-before-clamping deadline correction from bfe1e35; wire the real active credential grant into a supervised worker with an outer deadline. Deliver the first ungrouped cost report before remaining usage/breakdown work; ticket closure still requires full admitted coverage.",
-        "Extend the current seven-completed-day-only cost admission to the planned thirty-day range before presenting that range as supported. Bind each enabled usage category/dimension to the finite inventory in m7-provider-discovery-2026-11-11.md; future provider additions are later scope."
+        "Extend the current seven-completed-day-only cost admission to the planned thirty-day range before presenting that range as supported. Bind each enabled usage category/dimension to the finite inventory in m7-provider-discovery-2026-11-11.md; future provider additions are later scope.",
+        "Use the finite provider inventory in execution-plan section 1: daily cost and typed usage, 7/30-day intervals, supported single workspace/key/model/token-category views. Publish exact admitted mappings before each request; retain experimental source label and source omissions. No future provider feature automatically expands M7."
       ]
     },
     {
@@ -401,10 +403,11 @@
         "Complete actual monitoring enable/disable and Collect now controls. Check defaults to seven completed days; Collect now uses the selected supported context/interval. Schedule admitted seven/thirty-day ungrouped reports with existing 15-minute staggered policy and reuse compatible reports rather than duplicate checks.",
         "Fairly drain durable eligible work when wake hints coalesce; isolate throttled scopes, reconcile restart without per-missed-tick catch-up jobs, and verify browser-closed scheduling plus disable/rotation fences.",
         "Preserve the committed public-boundary corrections: M02 access policy via its public application/repository surface, M05 digest via its application surface, worker start authority via shared composition. Do not reintroduce private imports.",
-        "Publish the minimal additive durable range context before 30-day/older-cutoff actions: distinct closed 7d/30d operation families plus the exact selected UTC interval; recovery must not derive it from restart time or falsify requested_at. Current admission reconstructs only seven days from requested_at.",
+        "Publish the minimal additive durable range context before 30-day and source-admitted older-cutoff actions: distinct closed 7d/30d operation families plus the exact selected UTC interval; recovery must not derive it from restart time or falsify requested_at. Current admission reconstructs only seven days from requested_at.",
         "Retain the b69d96a monitoring GET/PUT/proof and first seven-day Anthropic due producer. Finish positive provider-backed enable/disable, other-provider/range integration and real browser-closed refresh; committed local tests are not that live proof.",
         "Project actual persisted retry_after and eligibility into the existing safe status response so UI can state a real retry time. Status GET never collects; no invented client timeout, countdown engine or fake throttled provider response.",
-        "Select latest collection state by the displayed source, self/team scope, range and exact interval. Keep account-wide credential failures separate; another report context cannot refresh this selection. Reuse additive cloud context2.2 and extend existing billing context only where required."
+        "Select latest collection state by the displayed source, self/team scope, range and exact interval. Keep account-wide credential failures separate; another report context cannot refresh this selection. Reuse additive cloud context2.2 and extend existing billing context only where required.",
+        "Collect now targets one named resource/scope/category/admitted interval with server eligibility, including a no-report view. Never require a fabricated report ID. Expose persisted billing retry_after and cloud next_allowed_at through the public status seam. Historical navigation is read-only; no arbitrary backfill."
       ]
     },
     {
@@ -450,7 +453,8 @@
         "Admit OpenAI role and per-category coverage",
         "Collect official costs and supported usage without inference",
         "Reconcile totals/breakdowns and category omissions",
-        "Use the finite OpenAI usage-category inventory recorded in discovery. Each category has a supported/unsupported/access-unavailable/unfinished disposition and admitted dimensions; future API additions do not silently expand M7."
+        "Use the finite OpenAI usage-category inventory recorded in discovery. Each category has a supported/unsupported/access-unavailable/unfinished disposition and admitted dimensions; future API additions do not silently expand M7.",
+        "Account for the eleven named usage categories in execution-plan section 1 plus costs, 7/30-day intervals and supported per-endpoint single dimensions. Do not label completions as all usage or treat missing implementation as absent provider support. Preserve native units; no inferred cost."
       ]
     },
     {
@@ -499,7 +503,8 @@
         "Reuse canonical M6 balance identity; map genuine monetary/token/request fields only where present and enforce shared rate limits.",
         "Use documented native 7d/30d completed UTC days plus the current partial day; exclude today from the selected completed-day total, validate actual boundaries and expose unexpected gaps. No speculative wider-range workaround.",
         "Compare real usage and balance without duplicate credit pools or invented agent/key attribution; a request-only report cannot close the first monetary slice.",
-        "Retain installed ca5f062 cloud-graph capture/commit fencing, active-binding spend selection and shared balance/usage request gate evidence. Continue team selection, remaining usage actions and full scope/range verification; do not rebuild or repeat completed cloud setup. Counts-only reports remain separate from monetary acceptance."
+        "Retain installed ca5f062 cloud-graph capture/commit fencing, active-binding spend selection and shared balance/usage request gate evidence. Continue team selection, remaining usage actions and full scope/range verification; do not rebuild or repeat completed cloud setup. Counts-only reports remain separate from monetary acceptance.",
+        "Retain fixed 7d/30d self/team usage and model/remainder scope; 24h and arbitrary historical collection are deferred. Preserve native covered intervals; a stale rolling request fails explicitly rather than being shifted on restart."
       ]
     },
     {
@@ -572,7 +577,8 @@
         "Consume first-provider genuine report and matching run/status evidence from the T007 increment; do not require whole-ticket all-provider scheduling closure. Full T007 remains a T015 prerequisite. Before totals include shared pools, consume the explicit T002 canonical association and primary-group contract; exclusions alone do not close aggregation.",
         "Apply the admitted account/organization/state sort to the full filtered inventory before page slicing, with a stable tie-breaker and sort-bound cursor; changing sort resets pagination. Keep incompatible money groups separate. This completes existing list/sort semantics without a fetch-all browser query.",
         "Resolve eligible pool evidence across authorized access paths before primary-group filtering; test primary-only, secondary-only and combined selections. Use one registry revision for rows/attribution/summaries. Return the contributing report owning account/resource tuple for links, not another access-path ID; conflict rereads stored data.",
-        "Finish full-inventory sorting with optional account/organization/state and direction; canonical pool label/primary group, stable IDs, metadata revision and order bound into cursors. Root owns contract/API/client synchronization. History uses bounded immutable daily facts, not report revisions."
+        "Finish full-inventory sorting with optional account/organization/state and direction; canonical pool label/primary group, stable IDs, metadata revision and order bound into cursors. Root owns contract/API/client synchronization. History uses bounded immutable daily facts, not report revisions.",
+        "Publish bounded authorized prior-scope report metadata discovery for existing Source history; reuse report-list machinery. Installed known-report daily paging is retained and does not satisfy discovery. Old report headings retain original source scope after current scope changes."
       ]
     },
     {
@@ -639,7 +645,8 @@
         "Invalidate retained current spend/funds when unresolved active binding lineage changes or disappears, even if account/resource/scope epoch/period remain unchanged. Consume opaque API context, keep old values only in explicit history, and show selected-context job status separately from account-wide credential failures.",
         "Show exact available buckets from a first partial report without claiming a complete-period total; keep an older complete report separate from a newer partial attempt. Ollama balance Check is not usage Check: the latter requires its actual usage run/report. Stored view refresh never proves new collection.",
         "For an explicitly selected old report, use its immutable financial scope/epoch in the main heading and preserve it on reload; current connection scope and current funds remain separately labelled. A later scope edit must not relabel old spending.",
-        "Funds-only Overview links preserve selected interval/read cutoff without a fabricated report ID; only a direct URL without selection defaults to seven completed days. Complete empty report may show Cost not reported without claiming partial coverage."
+        "Funds-only Overview links preserve selected interval/read cutoff without a fabricated report ID; only a direct URL without selection defaults to seven completed days. Complete empty report may show Cost not reported without claiming partial coverage.",
+        "Use Previous/Next and 7/30 width changes with pinned read snapshot; width preserves end. Refresh rereads the same interval with a new snapshot; Previous/Next move within the pinned snapshot bound, while Latest completed window selects today's completed UTC cutoff. Explicit selection changes clear report/cursor but retain resource. Cover empty period-only URLs and safe sign-in return."
       ]
     },
     {
@@ -751,7 +758,8 @@
         "Extend M7-MATH-09/15/16: positive adjustments plot above zero, negative below; known selected-credit expiry bounds the consumption forecast exactly like renewal. Natural expiry observations remain conditional; pure numerical policies always run.",
         "M05 owns bounded report/fact retention and referenced-fact preservation; M08 invokes its public participant through the existing scheduler, root integrates. Use genuine persisted reports with an explicit future cutoff in isolated SQLite, never change the clock or seed old telemetry. Verify 365-day expiry, surviving current/derivation references and expired cursors; T015 rechecks installed invocation with the T014 continuity lane after this increment.",
         "Reconcile a supported breakdown only with a matching complete same-snapshot total; include actual Other/Unallocated once. Label incomplete/top-N coverage without inventing a remainder or allocating money to agents/accounts by proportions.",
-        "Pin forecast candidate days to the funds observation UTC cutoff bounded by as_of (rate-only: as_of); use at most 200 buckets in seven completed days, a contiguous observed sample of at least three buckets spanning24h. Return actual coverage, apply freshness, never bridge gaps, and require monetary zero evidence rather than zero request counts for duration."
+        "Pin forecast candidate days to the funds observation UTC cutoff bounded by as_of (rate-only: as_of); use at most 200 buckets in seven completed days, a contiguous observed sample of at least three buckets spanning24h. Return actual coverage, apply freshness, never bridge gaps, and require monetary zero evidence rather than zero request counts for duration.",
+        "Separate observed-rate availability from exhaustion availability. Require matching funds/cost coverage, fresh funds and admitted source freshness for a date. Individual funding-component depletion additionally requires source-established allocation when components share a spending stream. Unknown watermark/unknown freshness and new poll time cannot enable a date. Add existing M7-MATH-03/07/08/15/16 cases from calculation rules."
       ]
     },
     {
@@ -782,7 +790,7 @@
       "deliverable": "Ordered increments in the existing service: setup before owner entry, financial storage/worker before the installed first report, then complete Overview/detail/history verification; selected clean candidate, safe phase-specific diagnostics, schema/backup/recovery and browser revision checks; no deployment platform",
       "expected_red": "Existing fixed M6 updater refuses the M7 candidate; verify candidate/backup boundaries before transition.",
       "done_when": "First complete real UI slice is installed and verified with recovery to known-good runtime available; no default provider/profile or user agent disruption",
-      "verification": "Recorded installed54eab61/schema0734: full-inventory sorting, pool controls, funds/usage Overview, exact report navigation, filters, Back/reload and responsive/setup browser checks passed. Earlier0733→0734 migration and same-schema update evidence retained. Full genuine monetary journey, continuity/recovery and AUTO-M7-DEPLOY remain required; this increment does not close T014.",
+      "verification": "Recorded installed ff285c4/schema0734: sorting, pools, compact summaries, pinned daily history and setup/Overview probes passed; see bounded-history evidence and current delivery worksheet. Full genuine monetary journey, continuity/recovery and AUTO-M7-DEPLOY remain required. Historical revisions are evidence, not current deployment targets.",
       "evidence": [
         "docs/evidence/m7-setup-activation-preparation-2026-11-11.md",
         "docs/evidence/m7-selected-controller-admission-2026-11-11.md",
@@ -798,7 +806,8 @@
         "docs/evidence/m7-financial-overview-2026-11-11.md",
         "docs/evidence/m7-financial-pools-2026-11-12.md",
         "docs/evidence/m7-openai-cost-source-2026-11-11.md",
-        "docs/evidence/m7-overview-sorting-2026-11-12.md"
+        "docs/evidence/m7-overview-sorting-2026-11-12.md",
+        "docs/evidence/m7-bounded-history-2026-11-12.md"
       ],
       "depends_on_any": [],
       "delivery_slice": "S1",
@@ -808,7 +817,7 @@
         "docs/plans/integration/m7-delivery-worksheet-2026-11-11.md"
       ],
       "steps": [
-        "Retain delivered setup0731, financial0733 and pool0734 migration/recovery/activation evidence. Current installed implementation46b8d9d uses schema0734. Do not replay initial migrations or rebuild pool/OpenAI runtime work.",
+        "Retain delivered setup0731, financial0733 and pool0734 migration/recovery/activation evidence. The delivery worksheet owns current installed revision (recorded ff285c4/schema0734 at this review). Do not replay initial migrations or rebuild pool/OpenAI/history runtime work.",
         "For each actual remaining change select a clean candidate and exact expected revision through existing build/update/recovery commands; root synchronizes catalog and controller only if its schema/contract requires it. No deployment framework or new approval.",
         "Before any transition verify source/target schema compatibility, protected-env preservation and secret-excluding backup; test that specific changed migration/recovery on isolated real storage. Preserve old migration digests.",
         "On failed update inspect actual revision/schema/transition journal before retry/finalize/recovery; never restore over possible new writes. Retain existing disposable child/refusal/writer regression evidence.",

@@ -32,4 +32,13 @@ for (const invalid of ["2026-11-04T00:00:00.000001Z", "2026-02-30T00:00:00Z", "2
   const query = new URLSearchParams(selection); query.set("budget_start", invalid);
   assert.equal(selectedFinancialReport(query.toString()).kind, "invalid");
 }
+const periodSelection = new URLSearchParams(selection);
+periodSelection.delete("budget_resource"); periodSelection.delete("budget_report");
+assert.equal(selectedFinancialReport(periodSelection.toString()).kind, "period");
+for (const missing of ["budget_start", "budget_end", "budget_as_of"]) {
+  const invalid = new URLSearchParams(periodSelection); invalid.delete(missing);
+  assert.equal(selectedFinancialReport(invalid.toString()).kind, "invalid");
+}
+const reportWithoutResource = new URLSearchParams(periodSelection); reportWithoutResource.set("budget_report", "report");
+assert.equal(selectedFinancialReport(reportWithoutResource.toString()).kind, "invalid");
 console.log("FINANCIAL READ PRESENTATION PURE: PASSED");

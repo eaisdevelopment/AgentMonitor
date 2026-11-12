@@ -50,6 +50,9 @@ PURE_TARGETS = (
     "backend/tests/contracts/test_budget_report_contract.py",
     "backend/tests/contracts/test_budget_commit_contract.py",
     "backend/tests/contracts/test_budget_run_contract.py",
+    "backend/tests/contracts/test_billing_report_context.py",
+    "backend/tests/unit/collection_control/test_billing_budget_context.py",
+    "backend/tests/unit/composition/test_billing_captured_intervals.py",
     "backend/tests/contracts/test_cloud_budget_run_contract.py",
     "backend/tests/collection_control/pure/test_budget_run_policy.py",
     "backend/tests/collection_control/pure/test_budget_executor_policy.py",
@@ -98,11 +101,13 @@ PRESENTATION_TARGETS = (
     "frontend/tests/pure/budget-account-presentation.mjs",
     "frontend/tests/pure/financial-read-presentation.mjs",
     "frontend/tests/pure/budget-history-pagination.mjs",
+    "frontend/tests/pure/budget-window-navigation.mjs",
     "frontend/tests/pure/budget-selection.mjs",
     "frontend/src/features/overview/overviewSelection.test.mjs",
     "frontend/src/features/overview/budgetOverviewPresentation.test.mjs",
 )
 COLLECTION_GUARD_TARGETS = (
+    "backend/tests/integration/collection_control/test_billing_budget_context_empty.py",
     "backend/tests/integration/registry/test_billing_monitoring_status.py",
     "backend/tests/contracts/test_billing_schedule.py",
     "backend/tests/collection_control/pure/test_budget_retry_policy.py",
