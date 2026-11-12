@@ -193,3 +193,21 @@ actions/collection/schedule/monitoring; P02 Check presentation; pure and actual
 metadata/worker tests; existing M7 runner suite registrations. Reuses
 CTR-REG-0141.3+, CTR-COL-0022.1, CTR-CAP-0022.0 and current API schemas without
 breaking changes. Security custody, license and database shape are unchanged.
+
+### Installed checkpoint
+
+Clean implementation revision `46b8d9d5dd546e0d46aa07e1c20cfc8bd26f9a06`
+passed the existing same-schema update command on12 November2026:
+`python3 tools/automation/implementations/auto_m6_current_update.py
+--expected-revision=46b8d9d5dd546e0d46aa07e1c20cfc8bd26f9a06`.
+It retained schema0734 and restored the original restart policy. Service active,
+loopback HTTP200, exact installed revision and authenticated browser were verified.
+At00:45UTC the Overview probe passed all seven checks, two real rows and zero
+unsafe requests; setup/shell probe passed all six checks with64 requests and zero
+unsafe requests. These prove installed continuity and controls, not OpenAI costs.
+
+The54 existing OpenAI pure/actual TLS/alarm checks passed again in1.93s. Pinned
+Gitleaks8.30.0 scanned the new publication range: exit0, no findings. GitHub main
+was fast-forwarded and `git ls-remote` confirmed exact revision46b8d9d.
+No account, group, credential, monitoring preference or provider profile was
+changed. Required monetary source evidence and full M7 remain unfinished.
