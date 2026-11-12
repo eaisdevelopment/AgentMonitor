@@ -37,6 +37,7 @@ Lane = Literal[
 ]
 
 PURE_TARGETS = (
+    "backend/tests/contracts/test_cloud_usage_actions.py",
     "backend/tests/contracts/test_budget_pool_projection.py",
     "backend/tests/capacity/pure/test_budget_pool_overview.py",
     "backend/tests/capacity/pure/test_budget_exact_arithmetic.py",
@@ -98,6 +99,7 @@ REGISTRY_METADATA_TARGETS = (
     "backend/tests/integration/api/test_billing_enrollment_http.py",
 )
 PRESENTATION_TARGETS = (
+    "frontend/tests/pure/cloud-usage-collect-presentation.mjs",
     "frontend/tests/pure/billing-collect-presentation.mjs",
     "frontend/tests/pure/billing-check-presentation.mjs",
     "frontend/tests/pure/financial-pool-presentation.mjs",
@@ -110,6 +112,8 @@ PRESENTATION_TARGETS = (
     "frontend/src/features/overview/budgetOverviewPresentation.test.mjs",
 )
 COLLECTION_GUARD_TARGETS = (
+    "backend/tests/integration/collection_control/test_cloud_usage_actions_empty.py",
+    "backend/tests/integration/collection_control/test_ollama_usage_queue_empty.py",
     "backend/tests/integration/collection_control/test_billing_cooldown_empty.py",
     "backend/tests/integration/collection_control/test_billing_budget_context_empty.py",
     "backend/tests/integration/registry/test_billing_monitoring_status.py",
@@ -124,6 +128,7 @@ COLLECTION_GUARD_TARGETS = (
     "backend/tests/integration/collection_control/test_cloud_budget_repository_empty.py",
 )
 BUDGET_HTTP_GUARD_TARGETS = (
+    "backend/tests/integration/api/test_cloud_usage_actions_http.py",
     "backend/tests/integration/capacity/test_budget_billing_collection_context.py",
     "backend/tests/integration/capacity/test_budget_overview_empty.py",
     "backend/tests/integration/api/test_budget_http.py",

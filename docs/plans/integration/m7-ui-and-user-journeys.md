@@ -231,6 +231,13 @@ server cooldown. One failed API budget request must leave quota rows usable.
 
 ## 4. Account detail: useful information first
 
+Opening an Overview financial link on a mixed subscription/API account brings
+the selected financial section into view, with a visible heading/focus target.
+Ordinary account entry retains the subscription-first layout. Both sections
+remain available; no new account page or router is needed. T011 verifies the
+financial entry, Back, reload and keyboard/narrow-layout journey rather than
+requiring the owner to scroll past unrelated processes to find the amount.
+
 At the top: owner account name, provider product, dashboard organization,
 provider billing scope, current state, report interval and data-through time.
 The connection status is one compact line with **Manage connection** expandable;
@@ -257,17 +264,13 @@ or ask the owner to create a duplicate account. No historical balance is inferre
 | Source details | Collapsed: source/version, checked/data-through times, exact value, precision, observed/derived meaning, report coverage, omissions and inputs |
 | Settings | Rename, move group, API monitoring on/off, replace key, disconnect/archive. Existing subscription monitoring remains independent |
 
-The first history table is daily buckets from the pinned selected complete
-report: period, exact amount/currency, coverage and report provenance. The
-existing `list_reports` query returns revisions of an exact interval; it is not
-a daily-spend series. Keep revisions in expandable source history. The first
-visible increment may render bounded daily buckets already returned with the
-selected immutable report by the current GET; this is now locally tested for
-the empty state. It must not fetch every report revision or claim server
-pagination from local Load more. T010/T011 closure still requires the dedicated
-bounded financial history query, authorized report selection and cursor/expiry
-behavior. This does not delay showing the first genuine money in the existing
-table or permit closing those tickets early. The new
+The installed history table uses server-paged daily facts from a pinned report:
+period, exact amount/currency, coverage and report provenance. Retain that query,
+authorized report selection and explicit cursor/expiry behavior. The existing
+`list_reports` query describes report revisions, not a daily-spend series;
+revisions belong in expandable Source history. Remaining work extends these
+installed components to prior-scope discovery and genuine monetary acceptance,
+not another pagination implementation. The
 financial detail identity resolves to the canonical billing resource; each
 current financial context supplies its immutable report ID. History and its
 pages stay on that report until explicit refresh. If retention removed it,
@@ -308,6 +311,22 @@ Use existing lists/controls, without a calendar or report-builder dependency.
 Start with the exact table in the first usable slice; chart and forecast arrive
 in the later M7 enhancement slice. They are still required before M7 closes.
 Keep source/diagnostic detail out of the primary table unless it explains a state.
+
+Chart and table use the same loaded immutable facts. While pages remain, label
+the view **More history available**; an unloaded day is neither zero nor a source
+gap. Load more updates both, and a failed page preserves both. A daily aggregate
+must be supplied by M05; React never sums financial rows. Do not require automatic
+fetch-all to draw the chart. The complete selected-report total remains distinct
+from the displayed page, and forecast inputs are selected independently by M05.
+
+Usage breakdown has one source/category selector followed by one supported
+dimension selector. Adapters/P01 publish the admitted combinations, native units
+and availability reasons through a versioned surface before P02 enables them.
+Do not infer support from a provider name or combine category measures. Changing
+a selector reads stored data only; Unsupported differs from Not yet collected.
+An explicit Collect action names that exact source/category/dimension/interval.
+T006–T009/T013 own this handoff; T007 supplies the existing collection action.
+No query builder, nested grouping or new page is required.
 
 For the first viewport, prioritize account/scope, state, spend/period and
 available funds when known. Never show a combined Subscriptions + API capacity
@@ -387,9 +406,10 @@ through the existing safe status response. Show Retry after [time/timezone] and
 disable early collection; read-only status refresh remains usable. No client
 invented retry interval or live countdown component is needed.
 
-T011/T012 include the existing shell files `frontend/src/app/DashboardApp.tsx`
-and `frontend/src/app/sessionBootstrap.ts`: the current shell strips query
-parameters and expires to `/login`. Preserve only allowlisted nonsecret
+T011/T012 retain the installed allowlisted routing in
+`frontend/src/app/DashboardApp.tsx` and `frontend/src/app/sessionBootstrap.ts`;
+extend its remaining sign-in-return and financial-selection evidence rather
+than replacing the router. Preserve only allowlisted nonsecret
 organization/provider/resource/range/cutoff/sort state, the opaque financial
 context and immutable report selection, and a safe return path.
 Reject arbitrary return URLs; never carry credentials or replay actions. This

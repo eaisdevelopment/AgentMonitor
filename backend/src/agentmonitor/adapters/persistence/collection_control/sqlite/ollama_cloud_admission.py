@@ -13,10 +13,14 @@ from agentmonitor.adapters.persistence._shared.sqlite.core.policy import (
     SqlitePolicyError,
     open_sqlite_database,
 )
+from agentmonitor.adapters.persistence.collection_control.sqlite.budget import (
+    CloudAdmissionFence,
+)
 from agentmonitor.adapters.persistence.collection_control.sqlite.repository import (
     SqliteCollectionRepositoryV1,
 )
 from agentmonitor.contracts.collection_control_v1 import (
+    BudgetCollectionRunAdmissionV1,
     CloudBudgetCollectionRunAdmissionV1,
     CloudBudgetReportContextV1,
     CollectionRunAdmissionV1OrV2,
@@ -539,11 +543,137 @@ class SqliteOllamaNoResponseRunRepositoryV1(SqliteCollectionRepositoryV1):
         )
 
 
+class _UsageClaimDeferred(Exception):
+    """Rollback the uncommitted claim when no provider request may start."""
+
+
+class _UsageQueueClaimRepository(SqliteCollectionRepositoryV1):
+    """Per-call adapter joining the existing collection and shared rate writes."""
+
+    def __init__(
+        self,
+        reference: DatabaseRefV1,
+        *,
+        gate: "SqliteOllamaCloudAdmissionRepositoryV1",
+        cloud_admission_fence: CloudAdmissionFence | None,
+        jitter_seconds: int,
+    ) -> None:
+        super().__init__(reference, cloud_admission_fence=cloud_admission_fence)
+        self._gate = gate
+        self._jitter_seconds = jitter_seconds
+        self.lease: OllamaCloudRequestLeaseV1 | None = None
+
+    def _on_budget_claimed(
+        self,
+        connection: Connection,
+        admission: BudgetCollectionRunAdmissionV1 | CloudBudgetCollectionRunAdmissionV1,
+        as_of: datetime,
+    ) -> None:
+        if not isinstance(admission, CloudBudgetCollectionRunAdmissionV1):
+            raise OllamaCloudAdmissionRepositoryErrorV1(
+                "ollama_cloud_run_fencing_conflict"
+            )
+        request = OllamaCloudRequestAcquireV1(
+            OpaqueIdV1("usage-admission-" + secrets.token_hex(16)),
+            admission.scheduler_instance_id,
+            as_of,
+            min(admission.deadline_at, as_of + timedelta(seconds=60)),
+            self._jitter_seconds,
+        )
+        decision = self._gate._acquire(connection, request, claimed_usage=admission)
+        if decision.lease is None:
+            raise _UsageClaimDeferred
+        lease = decision.lease
+        ensure_ollama_lease_in_transaction(connection, lease, as_of)
+        # _acquire proved this exact running collection lease in this transaction;
+        # the journal binding is committed together with that ownership transfer.
+        changed = connection.exec_driver_sql(
+            "UPDATE collection_cloud_attempt_journal SET run_id=? "
+            "WHERE admission_id=? AND phase='reserved' AND run_id IS NULL",
+            (admission.run_id.value, lease.admission_id.value),
+        )
+        if changed.rowcount != 1:
+            raise OllamaCloudAdmissionRepositoryErrorV1(
+                "ollama_cloud_run_fencing_conflict"
+            )
+        self.lease = lease
+
+
 class SqliteOllamaCloudAdmissionRepositoryV1:
     """Atomically rotate due accounts through one durable request gate."""
 
     def __init__(self, database_ref: DatabaseRefV1) -> None:
         self._database_ref = database_ref
+
+    def read_usage_gate_status(self, as_of: datetime) -> tuple[str, datetime | None]:
+        """Read shared rate eligibility without creating or recovering any state."""
+        if not isinstance(as_of, datetime) or as_of.utcoffset() != timedelta(0):
+            raise OllamaCloudAdmissionRepositoryErrorV1(
+                "ollama_cloud_admission_query_invalid"
+            )
+        try:
+            with open_sqlite_database(
+                self._database_ref, "runtime_read_only"
+            ) as handle:
+                with handle.connect() as connection:
+                    connection.exec_driver_sql("BEGIN")
+                    return _gate_status(connection, as_of)
+        except OllamaCloudAdmissionRepositoryErrorV1:
+            raise
+        except (SQLAlchemyError, SqlitePolicyError, OSError, ValueError, TypeError):
+            raise OllamaCloudAdmissionRepositoryErrorV1() from None
+
+    def claim_next_usage_run(
+        self,
+        *,
+        scheduler_instance_id: OpaqueIdV1,
+        as_of: datetime,
+        resolve_budget_limit: Callable[[str, str], int],
+        manifest_fingerprint: str,
+        collection_policy_version: str,
+        operation_family: str,
+        cloud_admission_fence: CloudAdmissionFence | None,
+        jitter_seconds: int,
+    ) -> tuple[CloudBudgetCollectionRunAdmissionV1, OllamaCloudRequestLeaseV1] | None:
+        """Claim and bind one queued usage run in the same SQLite transaction.
+
+        A busy rate gate rolls back ownership, reservation and scheduler writes;
+        no provider lease is held while the durable request waits in the queue.
+        """
+        if type(jitter_seconds) is not int or not 0 <= jitter_seconds <= 10:
+            raise OllamaCloudAdmissionRepositoryErrorV1(
+                "ollama_cloud_admission_query_invalid"
+            )
+        runs = _UsageQueueClaimRepository(
+            self._database_ref,
+            gate=self,
+            cloud_admission_fence=cloud_admission_fence,
+            jitter_seconds=jitter_seconds,
+        )
+        try:
+            run = runs.claim_next_budget_run(
+                scheduler_instance_id=scheduler_instance_id,
+                as_of=as_of,
+                resolve_budget_limit=resolve_budget_limit,
+                provider_key="ollama",
+                capability_id="api.usage",
+                source_id="ollama.cloud.usage.v1",
+                manifest_fingerprint=manifest_fingerprint,
+                collection_policy_version=collection_policy_version,
+                operation_family=operation_family,
+            )
+        except _UsageClaimDeferred:
+            return None
+        if run is None:
+            return None
+        if (
+            not isinstance(run, CloudBudgetCollectionRunAdmissionV1)
+            or runs.lease is None
+        ):
+            raise OllamaCloudAdmissionRepositoryErrorV1(
+                "ollama_cloud_run_fencing_conflict"
+            )
+        return run, runs.lease
 
     def _fence_new_verification_job(
         self,
@@ -2871,6 +3001,7 @@ class SqliteOllamaCloudAdmissionRepositoryV1:
         *,
         verification: OllamaCloudVerificationAcquireV1 | None = None,
         usage: CloudBudgetCollectionRunAdmissionV1 | None = None,
+        claimed_usage: CloudBudgetCollectionRunAdmissionV1 | None = None,
     ) -> OllamaCloudAdmissionDecisionV1:
         requested_text = _utc_text(request.requested_at)
         existing = _admission_row(connection, request.admission_id.value)
@@ -2986,7 +3117,48 @@ class SqliteOllamaCloudAdmissionRepositoryV1:
             return OllamaCloudAdmissionDecisionV1("not_due", None, next_allowed)
 
         cursor = gate["fair_cursor_schedule_id"]
-        if usage is not None:
+        if claimed_usage is not None:
+            # This path is reachable only from the post-claim transaction hook.
+            # The exact running lease replaces the scheduled no-lease condition;
+            # no relaxation is made to ordinary scheduled or verification reads.
+            candidate = (
+                connection.exec_driver_sql(
+                    "SELECT s.schedule_id,s.account_id,s.effective_interval_seconds "
+                    "FROM collection_run r JOIN collection_lease l ON l.run_id=r.run_id "
+                    "JOIN collection_schedule s ON s.schedule_id=r.schedule_id "
+                    "WHERE r.run_id=? AND r.state='running' AND r.payload_schema='budget.report.v1' "
+                    "AND r.provider_key='ollama' AND r.capability_id='api.usage' AND r.source_id=? "
+                    "AND r.request_digest=? AND r.deadline_at=? AND r.target_generation=? "
+                    "AND r.account_id=? AND r.profile_id=? AND r.resource_id=? "
+                    "AND r.schedule_id=? AND r.provider_target_kind='cloud_service' "
+                    "AND r.provider_target_id=? AND l.schedule_id=r.schedule_id "
+                    "AND l.owner_instance_id=? AND l.fencing_token=r.fencing_token "
+                    "AND l.expires_at>? AND s.target_generation=r.target_generation "
+                    "AND s.target_key_digest=? AND s.state='enabled'",
+                    (
+                        claimed_usage.run_id.value,
+                        claimed_usage.source_id,
+                        claimed_usage.request_digest,
+                        _utc_text(claimed_usage.deadline_at),
+                        claimed_usage.target_generation,
+                        claimed_usage.cloud_target.account_id.value,
+                        claimed_usage.cloud_target.profile_id.value,
+                        claimed_usage.cloud_target.resource_id.value,
+                        claimed_usage.schedule_id.value,
+                        claimed_usage.provider_target.target_id.value,
+                        request.scheduler_instance_id.value,
+                        requested_text,
+                        claimed_usage.target_key_digest,
+                    ),
+                )
+                .mappings()
+                .one_or_none()
+            )
+            if candidate is None:
+                raise OllamaCloudAdmissionRepositoryErrorV1(
+                    "ollama_cloud_run_fencing_conflict"
+                )
+        elif usage is not None:
             candidate = (
                 connection.exec_driver_sql(
                     "SELECT s.schedule_id,s.account_id,s.effective_interval_seconds "

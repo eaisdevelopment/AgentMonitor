@@ -201,6 +201,16 @@ class BillingCollectionV1:
     def _dispatch_one(self) -> int:
         admission = self._claim_one()
         if admission is None:
+            from agentmonitor.composition.ollama_usage_collection import (
+                OllamaUsageCollectionV1,
+            )
+
+            if OllamaUsageCollectionV1(
+                self._data_root,
+                credential_env_file=self._credential_env_file,
+                deadline_monotonic=self._deadline,
+            ).dispatch_manual():
+                return 0
             from agentmonitor.composition.billing_schedule import BillingScheduleV1
 
             scheduled = BillingScheduleV1(self._reference).enqueue_due(

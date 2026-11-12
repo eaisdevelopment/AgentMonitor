@@ -15,6 +15,9 @@ import {
   type BudgetResourceCurrentWireV1,
   type ExactMoneyWireV1,
   type BillingCheckRunV1,
+  type CloudUsageContextV1,
+  type CloudUsageEligibilityWireV1,
+  type CloudUsageRunStatusV1,
   type BillingReportContextV1,
   type BillingCollectionEligibilityWireV1,
   type BudgetRunStatusV1,
@@ -95,6 +98,9 @@ export type {
   BudgetResourceCurrentWireV1,
   ExactMoneyWireV1,
   BillingCheckRunV1,
+  CloudUsageContextV1,
+  CloudUsageEligibilityWireV1,
+  CloudUsageRunStatusV1,
   BillingReportContextV1,
   BillingCollectionEligibilityWireV1,
   BudgetRunStatusV1,
@@ -740,3 +746,15 @@ export function safeProblemMessage(problem: SafeProblemV1): string {
     ? problem.correlation_id : "unavailable";
   return `${explanation} Code: ${code}. Reference: ${reference}.`;
 }
+
+export const cloudUsage = {
+  eligibility: (accountId: string, resourceId: string, context: CloudUsageContextV1, signal?: AbortSignal): Promise<ClientResult<CloudUsageEligibilityWireV1>> =>
+    apiClient.cloud_usage_eligibility_v1({ path: { account_id: accountId, resource_id: resourceId }, query: { ...context }, signal }),
+  collect: (accountId: string, resourceId: string, accountVersion: number, targetVersion: number,
+    context: CloudUsageContextV1, idempotencyKey: string, signal?: AbortSignal): Promise<ClientResult<CloudUsageRunStatusV1>> =>
+    apiClient.cloud_usage_collect_v1({ path: { account_id: accountId, resource_id: resourceId },
+      body: { expected_target_version: targetVersion, report_context: context },
+      headers: { ...mutationHeaders({ id: accountId, recordVersion: accountVersion }), "Idempotency-Key": idempotencyKey }, signal }),
+  status: (accountId: string, resourceId: string, runId: string, signal?: AbortSignal): Promise<ClientResult<CloudUsageRunStatusV1>> =>
+    apiClient.cloud_usage_status_v1({ path: { account_id: accountId, resource_id: resourceId, run_id: runId }, signal }),
+};

@@ -1432,3 +1432,15 @@ existing M7 contract. Regenerated adoption and snapshot bind this additive
 change; this is not an independent acceptance or an installed UI claim.
 
 Plan snapshot SHA-256: `a8c8a123438d692e9baa15faccdebd229445265100322bd45a4cd953fbd8a6dc`
+
+## 2026-11-12 M7 cloud manual contract ownership
+
+Independent read-only reviewer `m7_collect_boundary_review` checked the exact
+ownership/control diff: only cloud_usage_actions_v1.py is added to the existing
+root contract write set; PLAN-M04 remains the semantic producer. The boundary
+checker admits only this contract module and its named public port. No wildcard
+or private-import exemption was introduced. All twenty parent plans are unchanged;
+the ownership digest/byte count match the actual 23638-byte control file.
+This is bounded contract-registration review, not runtime or M7 acceptance.
+
+Plan snapshot SHA-256: `3c4af50d356940f65122f26431409f7a613e6443ff33c715f231148e29b1c052`

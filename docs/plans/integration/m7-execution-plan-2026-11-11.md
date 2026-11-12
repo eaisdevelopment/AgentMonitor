@@ -47,8 +47,8 @@ The linked discovery proves documented interfaces, not successful account access
 
 | Ticket / source | Required reports and ranges | Required single-dimension views when exposed | Current implementation boundary |
 |---|---|---|---|
-| T006 Anthropic Console analytics | Cost and usage, daily buckets, 7/30 completed UTC days; token/request measures retain their types | Workspace, safe API-key identifier, model, token category; organization/account remain source scope and owner grouping | Ungrouped seven-day cost path exists; thirty-day, usage and grouped collection remain to finish and verify |
-| T008 OpenAI organization | Costs plus the eleven usage categories listed below; daily 7/30-day reports | Project, safe API-key identifier, model, token category where that endpoint exposes them; time is the daily bucket | Ungrouped cost path exists; admitted thirty-day requests still need durable dispatch; usage/grouped lanes remain to finish and verify |
+| T006 Anthropic Console analytics | Cost and usage, daily buckets, 7/30 completed UTC days; token/request measures retain their types | Workspace, safe API-key identifier, model, token category; organization/account remain source scope and owner grouping | Ungrouped cost and captured 7/30-day manual dispatch are installed; successful live costs, scheduled thirty-day coverage, usage and grouped collection remain unfinished |
+| T008 OpenAI organization | Costs plus the eleven usage categories listed below; daily 7/30-day reports | Project, safe API-key identifier, model, token category where that endpoint exposes them; time is the daily bucket | Ungrouped cost and captured 7/30-day manual dispatch are installed; successful live costs, scheduled thirty-day coverage and usage/grouped lanes remain unfinished |
 | T009 Ollama cloud | Native 7d/30d self/team usage; retain actual covered bounds and partial buckets; existing balance collection | Model plus provider-reported remainder; monetary and token fields only when supplied | Self seven-day counts and balance evidence exist; remaining range/scope/model/manual paths still require completion |
 
 OpenAI's fixed usage list is **completions, embeddings, moderations, images,
@@ -66,6 +66,15 @@ product of every dimension, range and account is required. Verify each distinct
 supported mapping and both ranges, then account for every active resource through
 its actual supported lane. Real empty responses can prove access/coverage under
 that source's contract; they cannot prove a nonempty dimension mapping.
+For each row of this finite matrix, record implemented request/mapping, admitted
+unit/dimension, successful access/coverage, and populated-example evidence
+separately in T015. Mandatory implementation and required successful provider
+lanes cannot be waived. A category that naturally returns a genuine empty
+success has no populated example: that scenario remains conditional Not Run,
+not a claim of populated mapping verification and not a requirement to buy or
+manufacture usage. A denied request is not an empty success. Preserve the
+mandatory monetary source proof described in section 7; counts-only or missing
+currency cannot satisfy it. Future API additions do not enter this matrix.
 
 The Anthropic documentation rechecked on 12 November lists separate usage and
 cost endpoints with common model/workspace/key dimensions and a cost token-type

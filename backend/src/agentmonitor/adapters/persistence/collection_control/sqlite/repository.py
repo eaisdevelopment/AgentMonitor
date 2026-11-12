@@ -457,12 +457,21 @@ class SqliteCollectionRepositoryV1:
                     result = restore_budget_admission(
                         updated, target, resolved_budget_limit=limit
                     )
+                    self._on_budget_claimed(connection, result, as_of)
                     connection.commit()
                     return result
         except BudgetCollectionError:
             raise
         except (SqlitePolicyError, SQLAlchemyError, ValueError, TypeError, KeyError):
             raise BudgetCollectionError("budget_dispatch_unavailable") from None
+
+    def _on_budget_claimed(
+        self,
+        connection: Connection,
+        admission: BudgetCollectionRunAdmissionV1 | CloudBudgetCollectionRunAdmissionV1,
+        as_of: datetime,
+    ) -> None:
+        """Allow an owning M04 adapter to bind its request gate before commit."""
 
     def assert_claimed_budget_run(
         self,

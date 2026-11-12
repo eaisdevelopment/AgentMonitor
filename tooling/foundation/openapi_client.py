@@ -29,7 +29,7 @@ from fastapi.openapi.models import OpenAPI
 from pydantic import ValidationError
 
 FACTORY_REF = "agentmonitor.composition.bootstrap:create_iam_schema_application"
-GENERATOR_VERSION = "2.0.12"
+GENERATOR_VERSION = "2.0.13"
 OPENAPI_RELATIVE = Path("contracts/openapi/agentmonitor-v1.json")
 CLIENT_RELATIVE = Path("frontend/src/generated/api/index.ts")
 METHODS = frozenset(
@@ -55,6 +55,7 @@ SOURCE_FILES = (
     "backend/src/agentmonitor/api/v1/routers/budgets.py",
     "backend/src/agentmonitor/api/v1/routers/budget_overview.py",
     "backend/src/agentmonitor/api/v1/routers/billing_actions.py",
+    "backend/src/agentmonitor/api/v1/routers/cloud_usage_actions.py",
     "backend/src/agentmonitor/api/v1/routers/financial_pools.py",
     "backend/src/agentmonitor/api/v1/routers/runtime.py",
     "backend/src/agentmonitor/api/v1/routers/operations.py",
@@ -69,6 +70,7 @@ SOURCE_FILES = (
     "backend/src/agentmonitor/api/v1/schemas/budgets.py",
     "backend/src/agentmonitor/api/v1/schemas/budget_overview.py",
     "backend/src/agentmonitor/api/v1/schemas/billing_actions.py",
+    "backend/src/agentmonitor/api/v1/schemas/cloud_usage_actions.py",
     "backend/src/agentmonitor/api/v1/schemas/financial_pools.py",
     "backend/src/agentmonitor/api/v1/schemas/runtime.py",
     "backend/src/agentmonitor/api/v1/schemas/operations.py",
@@ -169,6 +171,18 @@ IAM_OPERATIONS = {
         "/api/v1/accounts/{account_id}/billing-connections/{resource_id}/collection-eligibility",
         "get",
     ): "billing_get_collection_eligibility_v1",
+    (
+        "/api/v1/accounts/{account_id}/cloud-usage/{resource_id}/collections",
+        "post",
+    ): "cloud_usage_collect_v1",
+    (
+        "/api/v1/accounts/{account_id}/cloud-usage/{resource_id}/collection-eligibility",
+        "get",
+    ): "cloud_usage_eligibility_v1",
+    (
+        "/api/v1/accounts/{account_id}/cloud-usage/{resource_id}/runs/{run_id}",
+        "get",
+    ): "cloud_usage_status_v1",
     (
         "/api/v1/provider-coverage/{provider_key}",
         "get",
@@ -1255,6 +1269,42 @@ IAM_POLICY: dict[str, IamPolicyRow] = {
         _M2_REQUIRED_ERROR_STATUSES,
         None,
     ),
+    "cloud_usage_collect_v1": (
+        "browser_cookie_only",
+        "write:accounts",
+        "CloudUsageActionsPortV1.collect",
+        "replay_safe_representation",
+        _COOKIE_CSRF,
+        "202",
+        "CloudUsageRunStatusV1",
+        "SafeProblemV1",
+        _M2_REQUIRED_ERROR_STATUSES,
+        "CloudUsageCollectInputV1",
+    ),
+    "cloud_usage_eligibility_v1": (
+        "cookie_or_bearer",
+        "read:telemetry",
+        "CloudUsageActionsPortV1.eligibility",
+        "safe_query_repeat",
+        _COOKIE_BEARER,
+        "200",
+        "CloudUsageEligibilityWireV1",
+        "SafeProblemV1",
+        _M2_REQUIRED_ERROR_STATUSES,
+        None,
+    ),
+    "cloud_usage_status_v1": (
+        "cookie_or_bearer",
+        "read:telemetry",
+        "CloudUsageActionsPortV1.get_status",
+        "safe_query_repeat",
+        _COOKIE_BEARER,
+        "200",
+        "CloudUsageRunStatusV1",
+        "SafeProblemV1",
+        _M2_REQUIRED_ERROR_STATUSES,
+        None,
+    ),
     "billing_check_connection_v1": (
         "browser_cookie_only",
         "write:accounts",
@@ -1689,7 +1739,7 @@ def validate_iam_openapi(document: object) -> tuple[str, ...]:
     if (
         actual != IAM_OPERATIONS
         or set(IAM_POLICY) != set(IAM_OPERATIONS.values())
-        or len(identifiers) != 95
+        or len(identifiers) != 98
     ):
         raise OpenApiGenerationError("operation_surface_invalid")
 

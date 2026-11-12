@@ -48,6 +48,7 @@ CONTRACT_MODULES = frozenset(
         "registry_coverage_v1",
         "registry_billing_v1",
         "billing_actions_v1",
+        "cloud_usage_actions_v1",
         "budget_query_v1",
         "provider_system_v1",
         "common_provenance_v1",
@@ -80,6 +81,7 @@ CONTRACT_VERSION_EXCEPTIONS = {
 # Published supporting values have no independent catalog ID. This closed list
 # prevents arbitrary aliases/re-exports from masquerading as support metadata.
 SUPPORT_SYMBOLS = {
+    "agentmonitor.contracts.cloud_usage_actions_v1": {"CloudUsageActionsPortV1"},
     "agentmonitor.contracts.common_quantity_v1": {"InvalidExactQuantityV1"},
     "agentmonitor.contracts.billing_actions_v1": {
         "BillingCheckPortV1",

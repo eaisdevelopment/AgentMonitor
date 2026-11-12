@@ -38,7 +38,7 @@ component low/zero labels versus a justified account-level depletion state.
 ## 2. Exact representation and display
 
 Use existing coefficient/scale plus ISO currency, never float, SQL REAL/SUM of
-decimal text, `parseFloat`, `Number` or browser arithmetic for money. Decode JSON
+decimal text, `parseFloat` or `Number` for financial arithmetic. Decode JSON
 numbers directly to Decimal; convert documented cents to currency units by exact
 base-10 scaling in the provider adapter. Preserve source precision separately.
 
@@ -66,9 +66,12 @@ using half-even rounding, and positive sub-cent values as `<0.01 USD` with the
 exact source amount available in details. Negative sub-cent adjustments get an
 explicit negative label. Never display unqualified zero for nonzero money.
 For currencies without an admitted display-minor-unit rule, display exact
-decimal + currency code rather than guess the exponent. Formatting is not
-cross-currency conversion. Rounded rows can differ from rounded total; the
-total is computed from exact inputs and carries an explanation.
+decimal + currency code rather than guess the exponent. Exact presentation-only
+formatting of API amounts (including existing BigInt half-even rounding) is allowed in P02. It never changes the source amount or
+computes spend totals, headroom, ratios, severity or forecasts. Matching display
+vectors cover half-even ties, signed/sub-cent amounts and large coefficients.
+Formatting is not cross-currency conversion. Rounded rows can differ from the
+rounded total; the total is computed from exact inputs and carries an explanation.
 
 Usage counts remain separate from money. Token/request categories are additive
 only when the adapter establishes they are disjoint; a total plus its cached or
@@ -121,6 +124,10 @@ source semantics establish that empty complete coverage means zero; its input
 is the real report receipt, and it is labeled derived. Complete empty coverage
 stays complete even when currency or watermark is unknown. Without admitted monetary-zero semantics, show Cost not reported and
 Data through not reported as applicable; do not relabel complete coverage Partial.
+In particular, a complete counts-only report is not Incomplete merely because
+`spend` is absent. T004/T010/T012 must correct the current Overview classification
+that uses missing spend as a proxy for incomplete coverage: report Complete
+coverage / Cost not reported, while a genuinely missing page stays Partial.
 Denied access and missing pages are separate unsuccessful/incomplete outcomes,
 never monetary zero.
 Do not create dummy observation/projection/event IDs to satisfy old receipts.
@@ -355,7 +362,12 @@ Use one existing M04 run per report: endpoint/category, scope, one grouping and
 bounded interval. Paginate sequentially, normalize allowlisted fields, discard
 raw bodies, and perform one atomic M05 commit of facts and report coverage.
 Reuse run leases, idempotent receipts and get-commit-status recovery. A crash
-before commit recollects; a crash during commit reconciles the receipt.
+during commit reconciles the receipt before any recollection. Expired queued or
+running authority gets a truthful terminal outcome. Recollection is permitted
+only when the source still admits the exact captured interval and current
+authority permits it. A rolling Ollama interval lost across midnight remains a
+failed old request; a new due interval is admitted separately, never relabelled
+as recovery of the old one.
 
 Initial admission bounds per report: 20 pages/requests, 2 MiB per response,
 16 MiB normalized total, 10,000 normalized records, 120-second run deadline,
@@ -384,11 +396,14 @@ projection; otherwise retain distinct report intents under the same existing
 scheduler. Check initially collects the seven-day report, not every category.
 Persist distinct closed seven-/thirty-day operation families and the exact
 selected UTC interval/cutoff in the existing durable request context. Current
-admission reconstructs seven days from `requested_at`; it cannot yet encode a
-thirty-day or older pinned selection. T007 publishes the minimal additive typed
-request context before exposing those collection actions. Recovered work uses
+billing admission now retains that context through CTR-COL-002 2.4.0; selected
+7/30-day ungrouped billing actions are installed at `ef8fa86`. Remaining T007
+work is scheduled range/category coverage and the cloud manual action. Reuse
+the installed billing context rather than rebuilding it. Recovered work uses
 the captured intent, never the restart clock; do not falsify `requested_at` to
-represent an older cutoff. No new queue or report-job schema is implied.
+represent an older cutoff. A native rolling source that cannot still serve that
+captured interval must report it as no longer collectable, not silently move it.
+No new queue or report-job schema is implied.
 Additional supported breakdowns use explicit collection and the same cooldown;
 opening or changing a view never silently enables background work.
 
@@ -456,10 +471,13 @@ SQLite, actual HTTP and built-browser values. Pure examples never cross I/O.
 
 ## 9. Presentation and reconciliation decisions
 
-- Sort exact amounts in the backend within a compatible currency/period/basis
-  group, with a stable ID tie-breaker and unavailable amounts last. Changing
-  period or filters starts a new snapshot query; previous pages cannot be
-  appended to it. T010/T012 own this behavior.
+- M7 sorts account, organization and state across the full filtered inventory
+  with stable ID tie-breakers. Monetary sorting is deferred, matching the UI
+  plan; exact arithmetic does not introduce another sort feature. Changing
+  filters starts a new snapshot query. Stored-window/width navigation invalidates
+  report/cursor selection but preserves read `as_of` as defined in section 4.
+  Neither change may append pages from the prior selection. T010/T012 own this
+  behavior.
 - Chart geometry is approximate presentation, never a second financial
   calculation. Exact API amounts remain the table, label and tooltip authority.
   Plot negative amounts below zero and positive amounts above zero; retain

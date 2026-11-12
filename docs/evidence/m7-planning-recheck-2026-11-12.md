@@ -60,3 +60,53 @@ owns status/dependencies. No ticket was closed by this review. Owner/provider
 access affects its live lane only; independent work must continue. Numeric
 forecast and naturally unavailable error cases keep explicit conditional
 outcomes. New enhancements remain deferred, not added to acceptance.
+
+## Follow-up after installed manual billing controls
+
+The owner requested deeper advance planning, proper UIs and budget calculations
+without another expanding milestone. This follow-up inspected clean code baseline
+`7083e43` (installed implementation recorded at `ef8fa86`) and refactored the
+existing six plan/catalog files. No production changes, provider requests, owner
+configuration, runtime changes or publication were performed in this pass.
+
+| Concrete finding | Correction / existing owner | Rejected alternative |
+|---|---|---|
+| Repeated ticket steps still request installed routing, history and captured-context work | Consolidate packets, retain evidence and name only unfinished scenarios; T003/T006/T007/T010–T014 | Rebuild delivered components or add another tracker |
+| Missing money is treated as incomplete in `capacity/domain/budget_overview.py` | Record exact complete-counts-only versus partial acceptance; T004/T010/T012 | Zero money or false incomplete coverage |
+| Calculation rules demand a sort excluded by the UI plan | Keep account/organization/state sorts; monetary sort deferred; T010/T012 | New monetary ordering feature |
+| Blanket credential-free restriction blocks pure ticket closure | Close T004 on its own pure/mutation scope; monetary I/O still requires genuine reports | Require credentials for mathematical policy tests |
+| Browser formatting prohibition contradicts existing exact BigInt presentation | Allow presentation rounding only; prohibit client totals/ratios/forecasts | New API fields solely to move existing correct formatting |
+| Mixed-account financial links land above unrelated process/quota content | Financial selection brings financial section into view; T011 | A new financial account page |
+| Partly loaded chart can look like zero/missing source data | Same loaded immutable facts, explicit more-data state, M05 daily aggregation; T013 | Fetch-all requirement or client money summation |
+| Usage categories/dimensions lack an explicit control handoff | Publish admitted source/category/dimension/unit choices; T006–T009/T013 | Hardcoded frontend capability guesses/query builder |
+| Named check catalog exceeds actual CLI selectors | T003 adds each existing selector with its feature; current callable versus planned is explicit | Another runner or late testing phase |
+| Final aggregate lacks a revision-bound persisted result | Minimal sanitized receipt binds clean checkout/installed revision/schema and named required/conditional outcomes; T003/T016 | Short-lived owner attestations or a new gate hierarchy |
+| Empty source categories risk demanding manufactured activity | Required implementation/access separate from conditional populated examples; T015 | Treat absent examples as passed or spend to generate them |
+| Provider-first/first-not-due dispatch risks starvation | Bounded fair eligible selection and later-resource proof; T007 | More workers or new queue infrastructure |
+| Unconditional recollection conflicts with rolling intervals | Reconcile commit receipt; terminal expired authority; exact supported retry or separate new window; T007/T009 | Shift the request at restart |
+| Historical setup transitions could be reused as final deployment proof | Same-schema current update plus real isolated restore/continuity; T014 | Replay installed migrations |
+
+Read-only independent P02, M05 and collection/completion reviews supplied these
+findings. Root inspected the cited code and reconciled the planning diff. A
+bounded follow-up corrected ambiguous wording about unavailable totals; no new
+feature or acceptance ID was added. Security/privacy/license/migration impact:
+none from these document changes. Proposed additive contract handoffs are assigned
+before implementation; this revision publishes no runtime contract version.
+
+The worksheet now has eight delivery batches inside the same sixteen tickets,
+with explicit UI demonstrations, integration prerequisites and check ownership.
+The catalog retains all requirement/acceptance IDs, ticket statuses and dependency
+edges. Mandatory scope remains five stories/M7-A01..A10; no milestone ticket is
+closed by this planning pass. Existing monetary owner setup remains pending;
+independent connected-provider, policy, UI and operational work does not wait.
+
+Validation for this follow-up:
+
+- `python3 tools/automation/run.py AUTO-M7-PLAN-CHECK`: Passed.
+- `python3 tools/automation/run.py AUTO-DOCS-CHECK`: Passed.
+- `python3 tools/automation/run.py AUTO-PLAN-CHECK`: Passed (synchronized baseline).
+- `git diff --check`: Passed.
+
+These are planning/documentation results, not production Red/Green, live-provider
+acceptance or M7 completion. The edited plans remain local in the M7 worktree;
+installed/public implementation was not changed by this planning task.

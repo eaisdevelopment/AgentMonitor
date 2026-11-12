@@ -11,6 +11,8 @@ import { completedPeriod, displayMoney, exactMoneyText } from "./budgetPresentat
 import { BudgetDailyHistory } from "./BudgetDailyHistory";
 import { BillingCollectControl } from "./BillingCollectControl";
 import { collectionContext } from "./billingCollectPresentation";
+import { CloudUsageCollectControl } from "./CloudUsageCollectControl";
+import { cloudUsageContext, cloudUsageScope } from "./cloudUsageCollectPresentation";
 import { budgetWindowDays, budgetWindowSearch, latestBudgetWindow, resizeBudgetWindow, shiftBudgetWindow, type BudgetWindow } from "./budgetWindowNavigation";
 import { advanceFinancialRead } from "./billingCheckPresentation";
 import { canRetainFinancialReading, selectedFinancialReport, type FinancialReadContext } from "./financialReadPresentation";
@@ -236,6 +238,14 @@ export function BudgetAccountPanel({ account, showUnconfigured, onExpired, readR
         key={`${account.account_id}.${account.record_version}.${resource.connection.resource_id}.${resource.connection.record_version}.${resource.connection.scope_generation}.${query.period_start}.${query.period_end}`}
         account={account} connection={resource.connection} reportContext={collectionContext(query.period_start, query.period_end)}
         onExpired={onExpired} onCollected={() => selectWindow(advanceFinancialRead(query, new Date()))} />)}
+      {cloudResources.filter(resource => selection.kind !== "selected" || resource.resource_id === selection.resourceId).map(resource => {
+        const selectedReport = selection.kind === "selected" && selection.reportId !== null
+          ? resource.reports.flatMap(value => [value.current, value.latest_attempt]).find(report => report?.report_id === selection.reportId) : undefined;
+        const scope = cloudUsageScope(selectedReport?.source_category);
+        return <CloudUsageCollectControl key={`${account.account_id}.${account.record_version}.${resource.resource_id}.${scope}.${query.period_start}.${query.period_end}`}
+          account={account} resourceId={resource.resource_id} reportContext={cloudUsageContext(query.period_start, query.period_end, scope)}
+          onExpired={onExpired} onCollected={() => selectWindow(advanceFinancialRead(query, new Date()))} />;
+      })}
       {selection.kind === "selected" && selection.reportId !== null &&
         [...data.resources, ...cloudResources].filter(resource => ("connection" in resource ? resource.connection.resource_id : resource.resource_id) === selection.resourceId).map(resource => {
           const run = resource.latest_collection;

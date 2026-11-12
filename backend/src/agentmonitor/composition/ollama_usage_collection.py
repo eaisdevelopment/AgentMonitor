@@ -52,7 +52,10 @@ from agentmonitor.composition.ollama_usage_result import (
     usage_outcome,
 )
 from agentmonitor.composition.ollama_usage_run import (
+    POLICY_VERSION,
     build_ollama_usage_run,
+    usage_budget_limit,
+    usage_manifest_fingerprint,
     usage_request_for_run,
 )
 from agentmonitor.contracts.capacity_v1 import BudgetReportInputV1
@@ -99,13 +102,18 @@ class OllamaUsageCollectionV1:
         self._env_file = credential_env_file
         self._deadline = deadline_monotonic
         self._instance = OpaqueIdV1("usage-worker-" + uuid.uuid4().hex)
+        self._recovered = False
         self._gate = cloud_admission.SqliteOllamaCloudAdmissionRepositoryV1(
             self._reference
         )
 
-    def run(self, *, recovery_only: bool = False) -> int:
+    def _recover(self) -> None:
+        """Reconcile expired authority before either queued or scheduled work."""
+        if self._recovered:
+            return
         now = datetime.now(UTC)
         stale = now - timedelta(seconds=120)
+        recovery_owner = OpaqueIdV1("usage-recovery-" + uuid.uuid4().hex)
         self._gate.recover_rate_gate(now, owner_stale_before=stale)
         runs = SqliteCollectionRepositoryV1(
             self._reference, cloud_admission_fence=cloud_usage_fence
@@ -119,7 +127,7 @@ class OllamaUsageCollectionV1:
             source_id=SOURCE_ID,
             as_of=now,
             owner_stale_before=stale,
-            recovery_instance_id=self._instance,
+            recovery_instance_id=recovery_owner,
             recovery_lease_expires_at=now + timedelta(seconds=30),
             maximum_runs=16,
         )
@@ -129,14 +137,20 @@ class OllamaUsageCollectionV1:
             source_id=SOURCE_ID,
             as_of=now,
             owner_stale_before=stale,
-            recovery_instance_id=self._instance,
+            recovery_instance_id=recovery_owner,
             recovery_lease_expires_at=now + timedelta(seconds=30),
             maximum_runs=16,
         )
+        self._recovered = True
+
+    def run(self, *, recovery_only: bool = False) -> int:
+        self._recover()
         if recovery_only:
             return 0
         if self._env_file is None:
             return 3
+        if self.dispatch_manual():
+            return 0
         registry = SqliteRegistryRepositoryV1(self._reference)
         cloud = SqliteCloudCredentialRegistryV1(self._reference)
         cursor = None
@@ -197,8 +211,33 @@ class OllamaUsageCollectionV1:
             cursor = accounts[-1].account_id.value
         raise ValueError("ollama_usage_target_limit")
 
+    def dispatch_manual(self) -> bool:
+        """Claim durable owner work and shared rate authority in one transaction."""
+        self._recover()
+        if self._env_file is None or time.monotonic() >= self._deadline - 20:
+            return False
+        for range_key in ("7d", "30d"):
+            claimed = self._gate.claim_next_usage_run(
+                scheduler_instance_id=self._instance,
+                as_of=datetime.now(UTC),
+                resolve_budget_limit=usage_budget_limit,
+                manifest_fingerprint=usage_manifest_fingerprint(),
+                collection_policy_version=POLICY_VERSION,
+                operation_family="collect.ollama.usage." + range_key,
+                cloud_admission_fence=cloud_usage_fence,
+                jitter_seconds=secrets.randbelow(11),
+            )
+            if claimed is not None:
+                self._execute(*claimed, claimed=True)
+                return True
+        return False
+
     def _execute(
-        self, run: CloudBudgetCollectionRunAdmissionV1, lease: OllamaCloudRequestLeaseV1
+        self,
+        run: CloudBudgetCollectionRunAdmissionV1,
+        lease: OllamaCloudRequestLeaseV1,
+        *,
+        claimed: bool = False,
     ) -> None:
         completion: OllamaCloudRequestCompletionV1 | None = None
         runs = cloud_admission.SqliteOllamaCloudRunRepositoryV1(
@@ -227,13 +266,16 @@ class OllamaUsageCollectionV1:
                     lock.inherited_lock(run.cloud_target.account_id),
                     file.inherited_file(),
                 )
-                admitted = runs.admit_run(run)
-                runs.mark_running(
-                    run.run_id,
-                    datetime.now(UTC),
-                    fencing_token=admitted.fencing_token,
-                    scheduler_instance_id=self._instance,
-                )
+                admitted = runs.get_run(run.run_id) if claimed else runs.admit_run(run)
+                if claimed:
+                    runs.assert_claimed_budget_run(run, as_of=datetime.now(UTC))
+                else:
+                    runs.mark_running(
+                        run.run_id,
+                        datetime.now(UTC),
+                        fencing_token=admitted.fencing_token,
+                        scheduler_instance_id=self._instance,
+                    )
                 executor = ExecuteBudgetCollectionRunV1(
                     runs,
                     usage_capacity_repository(
@@ -248,7 +290,7 @@ class OllamaUsageCollectionV1:
                     nonlocal completion
                     self._gate.mark_dispatched(lease, datetime.now(UTC))
                     remaining = (
-                        run.deadline_at - datetime.now(UTC)
+                        min(run.deadline_at, lease.lease_expires_at) - datetime.now(UTC)
                     ).total_seconds() - 5
                     result = collect_usage_report_in_worker_v1(
                         request,

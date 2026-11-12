@@ -192,6 +192,88 @@ def test_pending_api_without_data_is_preserved_and_never_subscription() -> None:
     assert rows[0].contexts == ()
 
 
+@pytest.mark.parametrize("has_counts", [False, True])
+@pytest.mark.parametrize("has_watermark", [False, True])
+def test_complete_coverage_without_money_is_not_incomplete(
+    has_counts: bool, has_watermark: bool
+) -> None:
+    from agentmonitor.contracts.capacity_v1 import BudgetUsageBucketV1
+    from agentmonitor.contracts.common_quantity_v1 import (
+        CanonicalDecimalV1,
+        ExactQuantityV1,
+    )
+    from agentmonitor.modules.capacity.domain.budget_overview import project_budget_rows
+
+    current = _current(counts_only=True)
+    original = current.resources[0].reports[0].current
+    assert original is not None
+    counts = BudgetUsageBucketV1(
+        "requests", PERIOD, ExactQuantityV1(CanonicalDecimalV1("42", 0), "request"), ()
+    )
+    report = replace(
+        original,
+        report=replace(
+            original.report,
+            usage_buckets=(counts,) if has_counts else (),
+            source_data_through=PERIOD.end if has_watermark else None,
+        ),
+    )
+    current = replace(
+        current,
+        resources=(
+            replace(
+                current.resources[0], reports=(BudgetReportSelectionV1(report, report),)
+            ),
+        ),
+    )
+    row = project_budget_rows(
+        _account(), (_resource(),), current, BudgetOverviewQueryV1(PERIOD, NOW)
+    )[0]
+    assert row.state_code == ("current" if has_watermark else "freshness_unknown")
+    assert row.contexts[0].completeness == "complete"
+    assert row.contexts[0].spend is None
+    assert row.contexts[0].spend_reason == "cost_not_reported"
+    assert row.contexts[0].source_data_through == (
+        PERIOD.end if has_watermark else None
+    )
+
+
+@pytest.mark.parametrize("short_coverage", [False, True])
+def test_missing_money_does_not_hide_genuinely_incomplete_coverage(
+    short_coverage: bool,
+) -> None:
+    from agentmonitor.modules.capacity.domain.budget_overview import project_budget_rows
+
+    current = _current(counts_only=True)
+    original = current.resources[0].reports[0].current
+    assert original is not None
+    payload = (
+        replace(
+            original.report,
+            covered_period=BudgetPeriodV1(PERIOD.start, PERIOD.end - timedelta(days=1)),
+        )
+        if short_coverage
+        else replace(
+            original.report, completeness="partial", omission_codes=("missing_page",)
+        )
+    )
+    report = replace(original, report=payload)
+    current = replace(
+        current,
+        resources=(
+            replace(
+                current.resources[0], reports=(BudgetReportSelectionV1(None, report),)
+            ),
+        ),
+    )
+    row = project_budget_rows(
+        _account(), (_resource(),), current, BudgetOverviewQueryV1(PERIOD, NOW)
+    )[0]
+    assert row.state_code == "incomplete"
+    assert row.contexts[0].spend is None
+    assert row.contexts[0].spend_reason == "report_incomplete"
+
+
 def test_inventory_pages_reject_revision_changes_duplicates_and_overflow() -> None:
     from agentmonitor.modules.capacity.domain.budget_overview import (
         append_inventory_page,
@@ -404,7 +486,10 @@ def test_projection_rejects_cross_provider_funds_and_wrong_report_resource() -> 
         project_budget_rows(_account(), (_resource(),), billing, query)
 
 
-def test_owner_action_failure_and_future_run_priority_preserve_last_report() -> None:
+@pytest.mark.parametrize("counts_only", [False, True])
+def test_owner_action_failure_and_future_run_priority_preserve_last_report(
+    counts_only: bool,
+) -> None:
     from dataclasses import asdict
 
     from agentmonitor.contracts.collection_control_v1 import BudgetCollectionRunViewV1
@@ -425,13 +510,13 @@ def test_owner_action_failure_and_future_run_priority_preserve_last_report() -> 
         error_code="budget_source_unavailable",
     )
     failed = BudgetCollectionRunViewV1(**fields, report_id=None)
-    current = _current()
+    current = _current(counts_only=counts_only)
     resource = replace(current.resources[0], latest_collection=failed)
     current = replace(current, resources=(resource,))
     query = BudgetOverviewQueryV1(PERIOD, NOW)
     row = project_budget_rows(_account(), (_resource(),), current, query)[0]
     assert row.state_code == "collection_failed" and row.state_rank == 1
-    assert row.contexts[0].spend is not None
+    assert (row.contexts[0].spend is None) == counts_only
     disabled = replace(
         resource,
         connection=replace(resource.connection, monitoring_preference="disabled"),

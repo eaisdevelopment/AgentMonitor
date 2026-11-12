@@ -93,8 +93,10 @@ The approved selected-range behavior uses additive CTR-COL-002 2.3.0:
 source category and at most one grouping; `BudgetCollectionRunAdmissionV2`
 retains that context alongside the existing V1 authority; `BillingBudgetAuthorityV1`
 is the durable target/context envelope. Existing V1 and cloud admissions keep
-their meanings. This foundation is installed at `ba2717e`; Collect now and
-complete action/scheduling integration remain unfinished T007 work.
+their meanings. This foundation was installed at `ba2717e`; the subsequent
+`ef8fa86` increment installed selected-period billing Collect now/status/
+eligibility under 2.4.0 below. Positive monetary collection, cloud manual usage
+and complete scheduling coverage remain unfinished T007 work.
 
 M04 stores the tagged envelope in its existing canonical target JSON, reconstructs
 it on claim/recovery and filters latest runs by context before ordering/limit.
@@ -124,6 +126,38 @@ M04 owns read-only cooldown projection. No new table, provider mutation,
 dependency or second collector is introduced. Browser controls follow the
 server's capability/eligibility and retain action identity across reload.
 This additive handoff does not claim populated collection or full T007 evidence.
+
+### T007/T009 cloud manual action handoff (12 November)
+
+Additive CTR-COL-002 2.5.0 publishes `CloudUsageCollectCommandV1`,
+`CloudUsageEligibilityV1` and `CloudUsageActionsPortV1`. Root owns contract,
+composition and P01 generation; M04 owns atomic queued claim plus shared rate
+acquisition; P02 consumes only the generated API. Existing cloud admissions and
+CTR-COL-008 1.2.0 remain unchanged. Account/resource, account/target versions,
+owner command identity and exact self/team 7d/30d completed-day context are
+captured. Replay returns the existing run before evaluating today's interval or
+cooldown. A different target/context under that identity conflicts.
+
+P01 provides authenticated eligibility/status GETs and an admin-cookie/CSRF
+collection POST with If-Match and Idempotency-Key. GETs never collect. Plain
+manual admission persists the run without holding a provider lease; the worker
+claims the run, acquires the existing balance/usage rate gate and binds its
+journal in one SQLite transaction. Busy admission rolls back the whole claim.
+Execution is bounded by both run deadline and the shorter shared-rate lease.
+Expired authority is recovered before another claim; rolling native windows
+are never silently shifted during retry/recovery.
+
+This cloud action uses the existing active monitoring authority, unlike the
+billing verification action above. Eligibility explicitly explains disabled
+monitoring and directs the owner to the existing controls; collection never
+changes the preference. No new account, credential entry, provider mutation,
+dependency, queue or migration is introduced. P02 preserves an unresolved
+intent through reload, never automatically POSTs, and advances the stored-data
+snapshot only after a matching successful run. Balance remains separate.
+
+Evidence and remaining live boundaries are recorded in
+[cloud manual collection](../../../evidence/m7-cloud-manual-collection-2026-11-12.md).
+This handoff is not complete provider coverage or T007/T009 closure.
 
 ## 5. Minimum data model and migration
 
@@ -178,9 +212,12 @@ notices. Same run/generation/schema/digest returns the prior receipt. Conflict
 preserves the first commit. Key rotation/scope change/archive invalidate stale
 in-flight generation through the published fence, not private-table access.
 
-A restart before commit recollects. During committing, M04 asks get_commit_status.
-No fabricated success from timeout. Failed/partial calls leave prior complete
-current data visibly unchanged/stale. Source snapshot consistency is checked
+During committing, M04 asks get_commit_status before any recollection. Expired
+queued/running authority gets a truthful terminal outcome. A precommit retry
+recollects only the exact captured interval still supported by the source and
+current authority. A rolling interval no longer available after midnight stays
+failed; admit the new due interval separately. No fabricated success from timeout.
+Failed/partial calls leave prior complete current data visibly unchanged/stale. Source snapshot consistency is checked
 across pages when the provider supplies a watermark. One provenance envelope
 must not pretend several endpoint/category/time snapshots are identical.
 

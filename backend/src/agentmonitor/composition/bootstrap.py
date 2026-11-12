@@ -118,6 +118,7 @@ from agentmonitor.composition.claude_dashboard_collection import (
 from agentmonitor.composition.claude_dashboard_connection import (
     ClaudeDashboardConnectionV1,
 )
+from agentmonitor.composition.cloud_usage_actions import CloudUsageActionsV1
 from agentmonitor.composition.codex_dashboard_collection import (
     CodexDashboardCollectorV1,
 )
@@ -647,6 +648,11 @@ def _observation_ports(
             reference,
             can_dispatch=billing_worker.is_monitoring_available,
             on_enabled=billing_worker.wake,
+        ),
+        cloud_usage=CloudUsageActionsV1(
+            reference,
+            on_queued=billing_worker.wake,
+            can_dispatch=billing_worker.is_monitoring_available,
         ),
         billing_checks=BillingCheckActionsV1(
             reference,

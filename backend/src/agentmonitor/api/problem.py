@@ -121,6 +121,36 @@ PROBLEM_DESCRIPTIONS: dict[str, str] = {
     "billing_check_provider_unsupported": (
         "Billing checks for this provider are not yet available."
     ),
+    "cloud_usage_target_unavailable": (
+        "The selected cloud usage resource or run is unavailable."
+    ),
+    "cloud_usage_version_conflict": (
+        "The account or cloud connection changed. Refresh its status."
+    ),
+    "cloud_usage_target_changed": (
+        "Cloud authority changed. Refresh the connection status."
+    ),
+    "cloud_usage_idempotency_conflict": (
+        "This collection key belongs to a different request."
+    ),
+    "cloud_usage_interval_unavailable": (
+        "The source can no longer collect this selected rolling interval."
+    ),
+    "cloud_usage_monitoring_disabled": (
+        "Cloud monitoring is disabled. Enable it in account settings."
+    ),
+    "cloud_usage_credential_required": (
+        "The current cloud credential is not connected."
+    ),
+    "cloud_usage_authority_unavailable": ("The selected cloud source is unavailable."),
+    "cloud_usage_rate_limited": (
+        "Cloud collection is waiting for the shared request limit."
+    ),
+    "cloud_usage_request_unresolved": (
+        "A previous cloud request is still being reconciled."
+    ),
+    "cloud_usage_service_unavailable": ("The cloud usage worker is unavailable."),
+    "cloud_usage_unavailable": ("Cloud usage status could not be read."),
     "billing_collect_context_unsupported": (
         "The source does not admit this report interval or context."
     ),

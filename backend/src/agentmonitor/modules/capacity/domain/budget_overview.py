@@ -227,7 +227,11 @@ def _state(
     if run is not None and not run_visible:
         return "collection_history_unavailable", 2, None, None
     if (
-        any(c.completeness != "complete" or c.spend is None for c in contexts)
+        any(
+            c.completeness != "complete"
+            or c.spend_reason in {"report_incomplete", "report_coverage_incomplete"}
+            for c in contexts
+        )
         or collection_state == "partial"
         or funds_incomplete
     ):

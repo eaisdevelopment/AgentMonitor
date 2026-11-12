@@ -1463,3 +1463,12 @@ association/attribution. The exact contract adoption and snapshot were regenerat
 This synchronization does not close M7 or establish installed UI evidence.
 
 Plan snapshot SHA-256: `a8c8a123438d692e9baa15faccdebd229445265100322bd45a4cd953fbd8a6dc`
+
+## 2026-11-12 M7 cloud manual contract ownership
+
+Added the exact cloud_usage_actions_v1 contract path to root integration ownership.
+CTR-COL-002 2.5.0 is an additive handoff within approved M7 plan 1.1.0; no
+module ownership or dependency edge changes. All twenty baseline plans remain
+unchanged. Snapshot regeneration updates only the parallel-ownership control.
+
+Plan snapshot SHA-256: `3c4af50d356940f65122f26431409f7a613e6443ff33c715f231148e29b1c052`

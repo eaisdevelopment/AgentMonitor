@@ -9,6 +9,7 @@ import { ProviderConnectionPanel } from "./ClaudeConnectionPanel";
 import { OllamaCloudConnectionView } from "./OllamaCloudConnectionView";
 import { LiveProviderProcesses } from "./LiveClaudeProcesses";
 import { billingProviderDisplayName, providerDisplayName } from "./providerPresentation";
+import { selectedFinancialReport } from "./financialReadPresentation";
 import {
   CsrfUnavailableError,
   registry,
@@ -55,6 +56,17 @@ export function AccountPage({
   const [message, setMessage] = useState<string | null>(null);
   const [financialReadRevision, setFinancialReadRevision] = useState(0);
   const settingsRef = useRef<HTMLDetailsElement>(null);
+  const financialSectionRef = useRef<HTMLDivElement>(null);
+  const focusedFinancialAccount = useRef<string | null>(null);
+  const financialSelection = selectedFinancialReport(financialSearch);
+  const entryContext = useRef({ accountId, financial: financialSelection.kind === "selected" || financialSelection.kind === "period" });
+  if (entryContext.current.accountId !== accountId) {
+    entryContext.current = { accountId, financial: financialSelection.kind === "selected" || financialSelection.kind === "period" };
+  }
+  // In-page Refresh/window controls update the URL, but must not move/remount
+  // the panel. Returning through Overview mounts a new account entry.
+  const financialEntry = entryContext.current.financial;
+  const readyAccountId = state.kind === "ready" ? state.selected?.account_id : undefined;
   const [liveProcesses, setLiveProcesses] = useState<LiveProcessLocationPageV1 | null>(null);
   const [observedIdentity, setObservedIdentity] = useState<Readonly<{ accountId: string | undefined; email: string | null }> | null>(null);
   const observedEmail = observedIdentity?.accountId === accountId ? observedIdentity?.email : null;
@@ -104,6 +116,25 @@ export function AccountPage({
     void load(controller.signal);
     return () => controller.abort();
   }, [load]);
+
+  useEffect(() => {
+    if (!financialEntry) {
+      focusedFinancialAccount.current = null;
+      return;
+    }
+    if (accountId === undefined || readyAccountId !== accountId || focusedFinancialAccount.current === accountId) return;
+    // Wait for the shell's route focus, then focus this explicit financial entry
+    // once. Refresh, paging and interval controls retain their keyboard focus.
+    const frame = requestAnimationFrame(() => {
+      const heading = financialSectionRef.current?.querySelector<HTMLHeadingElement>("#budget-account-title");
+      if (!heading) return;
+      heading.tabIndex = -1;
+      heading.focus({ preventScroll: true });
+      heading.scrollIntoView({ block: "start", behavior: "auto" });
+      focusedFinancialAccount.current = accountId;
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [accountId, readyAccountId, financialEntry]);
 
   async function mutate(
     operation: () => Promise<ClientResult<AccountViewV1>>,
@@ -224,6 +255,7 @@ export function AccountPage({
   const detailAccounts = selected === undefined || state.data.items.some(
     (account) => account.account_id === selected.account_id,
   ) ? state.data.items : [...state.data.items, selected];
+  const financialFirst = apiOnly || financialEntry;
 
   if (selected !== undefined) return (
     <div className="feature-page account-page">
@@ -241,7 +273,7 @@ export function AccountPage({
           }
         }}>Edit account</button>
       </header>
-      {apiOnly && <BudgetAccountPanel financialSearch={financialSearch} key={`budget-${selected.account_id}`} account={selected} readRevision={financialReadRevision} showUnconfigured={selected.provider_key !== "ollama"} onExpired={onExpired} />}
+      {financialFirst && <div ref={financialSectionRef}><BudgetAccountPanel financialSearch={financialSearch} key={`budget-${selected.account_id}`} account={selected} readRevision={financialReadRevision} showUnconfigured={apiOnly && selected.provider_key !== "ollama"} onExpired={onExpired} /></div>}
       {apiOnly && selected.provider_key !== "ollama" && <BillingConnectionPanel key={`billing-${selected.account_id}`} account={selected} onExpired={onExpired} onProofUnavailable={onProofUnavailable} onAccountReload={reloadAccount} onFinancialRead={refreshFinancialRead} />}
       {selected.provider_key === "ollama" && selected.lifecycle !== "archived" && <OllamaCloudConnectionView key={`ollama-cloud-${selected.account_id}`} account={selected} onExpired={onExpired} onProofUnavailable={onProofUnavailable} onAccountReload={reloadAccount} />}
       {!apiOnly && <>
@@ -249,7 +281,7 @@ export function AccountPage({
       <AccountWorkspaceSummary key={selected.account_id} account={selected} organizationName={state.organizations.items.find((item) => item.organization_id === selected.organization_id)?.name ?? "Ungrouped"} liveProcesses={liveProcesses} onExpired={onExpired} onIdentity={updateObservedIdentity} />
       {["claude", "codex"].includes(selected.provider_key) && <LiveProviderProcesses key={`processes-${selected.account_id}`} account={selected} accounts={detailAccounts} organizations={state.organizations.items} onExpired={onExpired} onProofUnavailable={onProofUnavailable} onRead={setLiveProcesses} />}
       <CapacityPanel accountId={selected.account_id} onExpired={onExpired} />
-      <BudgetAccountPanel financialSearch={financialSearch} key={`budget-${selected.account_id}`} account={selected} readRevision={financialReadRevision} showUnconfigured={false} onExpired={onExpired} />
+      {!financialFirst && <div ref={financialSectionRef}><BudgetAccountPanel financialSearch={financialSearch} key={`budget-${selected.account_id}`} account={selected} readRevision={financialReadRevision} showUnconfigured={false} onExpired={onExpired} /></div>}
       <details className="account-secondary" data-account-sessions="true">
         <summary>Session history <span>Previously observed session records</span></summary>
         <SessionPanel accountId={selected.account_id} displayMode="panel" heading="Session records" onExpired={onExpired} />

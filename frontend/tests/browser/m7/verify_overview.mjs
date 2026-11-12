@@ -12,7 +12,7 @@ let rowsVerified = 0;
 let stage = "overview";
 let errorKind = null;
 const renderedReadPaths = [];
-const checks = { authentication: "not_run", overview: "not_run", filters: "not_run", navigation: "not_run", history_windows: "not_run", responsive: "not_run", pool_controls: "not_run", read_only: "not_run" };
+const checks = { authentication: "not_run", overview: "not_run", filters: "not_run", navigation: "not_run", financial_entry: "not_run", history_windows: "not_run", responsive: "not_run", pool_controls: "not_run", read_only: "not_run" };
 function stop(outcome, code) { status = outcome; reason = code; throw new Error("probe_stopped"); }
 function requireEvidence(condition, code) { if (!condition) stop("failed", code); }
 try {
@@ -206,8 +206,9 @@ try {
   }
   await resources.selectOption("api");
   checks.filters = "passed";
-  const row = expected.items.find(item => item.contexts.length > 0) ?? expected.items.find(item => item.funds.length > 0);
-  if (row === undefined) stop("blocked", "filtered_financial_link_unavailable");
+  const mixedRows = expected.items.filter(item => registry.items.some(account => account.account_id === (item.contexts[0]?.report_account_id ?? item.account.account_id) && account.initial_connection_purpose !== "api"));
+  const row = mixedRows.find(item => item.contexts.length > 0) ?? mixedRows.find(item => item.funds.length > 0);
+  if (row === undefined) stop("blocked", "mixed_financial_account_required");
   const before = new URL(page.url());
   const dom = financial.locator(await selector("data-financial-row", row.row_id));
   const reportAccount = row.contexts[0]?.report_account_id ?? row.account.account_id;
@@ -219,8 +220,26 @@ try {
   requireEvidence(detail.searchParams.get("budget_report") === (row.contexts[0]?.report_id ?? null), "detail_report_selector_lost");
   requireEvidence(microseconds(detail.searchParams.get("budget_start")) === microseconds(expected.period.start) && microseconds(detail.searchParams.get("budget_end")) === microseconds(expected.period.end), "detail_period_lost");
   requireEvidence(microseconds(detail.searchParams.get("budget_as_of")) === microseconds(expected.as_of), "detail_cutoff_lost");
+  async function financialEntry() {
+    await page.getByRole("heading", { name: "API usage & spend", exact: true }).waitFor();
+    try { await page.waitForFunction(() => document.activeElement?.id === "budget-account-title", undefined, { timeout: 3000 }); }
+    catch { stop("failed", "financial_entry_focus_missing"); }
+    requireEvidence(await page.evaluate(() => {
+      const heading = document.getElementById("budget-account-title");
+      const activity = document.getElementById("account-activity-title");
+      const quota = document.getElementById("quota-title");
+      const box = heading.getBoundingClientRect();
+      return box.top >= 0 && box.bottom <= innerHeight && activity !== null && quota !== null &&
+        Boolean(heading.compareDocumentPosition(activity) & Node.DOCUMENT_POSITION_FOLLOWING) &&
+        Boolean(heading.compareDocumentPosition(quota) & Node.DOCUMENT_POSITION_FOLLOWING);
+    }), "financial_entry_not_visible_before_subscription");
+  }
+  stage = "financial_entry";
+  await financialEntry();
+  await page.setViewportSize({ width: 768, height: 1024 });
   await page.reload({ waitUntil: "domcontentloaded" });
   await page.getByRole("region", { name: "API usage & spend", exact: true }).waitFor();
+  await financialEntry();
   requireEvidence(new URL(page.url()).search === detail.search, "detail_selectors_lost_on_reload");
   if (row.contexts[0] !== undefined) {
     const context = row.contexts[0];
@@ -307,6 +326,7 @@ try {
   await accountBudget.getByRole("button", { name: "Refresh view", exact: true }).click();
   requireEvidence((await refreshResponse).ok(), "initial_refresh_request_failed");
   requireEvidence(await retainedPanel.evaluate(node => node.isConnected), "same_context_refresh_remounted_panel");
+  requireEvidence(await page.evaluate(() => document.activeElement?.id !== "budget-account-title"), "financial_refresh_stole_focus");
   requireEvidence(await accountBudget.getByRole("group", { name: "Stored history windows", exact: true }).count() === 1, "stored_window_controls_missing");
   const windowMarker = accountBudget.locator("[data-budget-window]");
   const DAY = 86400000;
@@ -373,6 +393,25 @@ try {
   sameWindow(await windowState(), latestWindow, "period_only_window_lost_on_reload");
   requireEvidence(new URL(page.url()).searchParams.get("budget_resource") === null && !new URL(page.url()).searchParams.has("budget_selection") && await accountBudget.getByRole("alert").count() === 0, "period_only_link_invalid");
   checks.history_windows = "passed";
+  stage = "ordinary_account_entry";
+  await page.goto(`${origin}/accounts/${encodeURIComponent(reportAccount)}`, { waitUntil: "domcontentloaded" });
+  await page.getByRole("heading", { name: "API usage & spend", exact: true }).waitFor();
+  requireEvidence(await page.evaluate(() => {
+    const heading = document.getElementById("budget-account-title");
+    const quota = document.getElementById("quota-title");
+    return quota !== null && document.activeElement !== heading && Boolean(quota.compareDocumentPosition(heading) & Node.DOCUMENT_POSITION_FOLLOWING);
+  }), "ordinary_account_entry_reordered");
+  const ordinaryPanel = await accountBudget.elementHandle();
+  const ordinaryRefresh = page.waitForResponse(response => new URL(response.url()).pathname === `/api/v1/accounts/${encodeURIComponent(reportAccount)}/budgets`);
+  await accountBudget.getByRole("button", { name: "Refresh view", exact: true }).click();
+  requireEvidence((await ordinaryRefresh).ok(), "ordinary_refresh_request_failed");
+  await page.locator('.telemetry-panel[aria-labelledby="budget-account-title"][aria-busy="false"]').waitFor();
+  requireEvidence(await ordinaryPanel.evaluate(node => node.isConnected), "ordinary_refresh_remounted_panel");
+  requireEvidence(await page.evaluate(() => document.activeElement?.id !== "budget-account-title" &&
+    Boolean(document.getElementById("quota-title").compareDocumentPosition(document.getElementById("budget-account-title")) & Node.DOCUMENT_POSITION_FOLLOWING)), "ordinary_refresh_reordered_or_refocused");
+  await page.goBack({ waitUntil: "domcontentloaded" });
+  await financialEntry();
+  checks.financial_entry = "passed";
   stage = "overview_back";
   await page.goBack({ waitUntil: "domcontentloaded" });
   await financial.waitFor();
