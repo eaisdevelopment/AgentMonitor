@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type FormEvent } from "react";
 
 import { CsrfUnavailableError, registry, type AccountBillingConnectionsV1, type AccountViewV1, type BillingConnectionViewV1, type BudgetRunStatusV1, type BillingMonitoringStatusV1 } from "../../shared/api/client";
 import { checkEligibility, matchesCheckRun, pendingRun, restoreCheckIntent, currentCheckEvidence, monitoringReason, restoreMonitoringIntent, buildMonitoringIntent, monitoringStatusCurrent, type BillingCheckIntent, type BillingMonitoringIntent } from "./billingCheckPresentation";
+import { FinancialPoolPanel } from "./FinancialPoolPanel";
 
 type BillingState =
   | Readonly<{ kind: "loading" }>
@@ -420,6 +421,7 @@ export function BillingConnectionPanel({ account, onExpired, onProofUnavailable,
         {!state.status.can_add_connection && <p>{unavailableReason(state.status.reason_code)}</p>}
       </>}
       {state.status.connections.map((connection) => <div key={connection.resource_id}>
+        <FinancialPoolPanel account={account} resourceId={connection.resource_id} selector="billing" onExpired={onExpired} onProofUnavailable={onProofUnavailable} onChanged={() => { onAccountReload(); financialRead.current(); }} />
         <p><span className="state-chip state-unavailable">Connection {connection.lifecycle}</span></p>
         <BillingMonitoringControls accountStatus={state.status} connection={connection} onExpired={onExpired} onProofUnavailable={onProofUnavailable}
           onChanged={() => { setRevision((value) => value + 1); onAccountReload(); financialRead.current(); }} />

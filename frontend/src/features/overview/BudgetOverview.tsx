@@ -4,7 +4,7 @@ import { budgets, type BudgetOverviewWireV1, type BudgetOverviewRowWireV1, type 
 import { completedPeriod, displayMoney, exactMoneyText } from "../accounts/budgetPresentation";
 import { billingProviderDisplayName } from "../accounts/providerPresentation";
 import { changeOverviewSearch, overviewSelection, safeOverviewSearch } from "./overviewSelection";
-import { canReplaceFinancialOverview, financialAccountSelectors } from "./budgetOverviewPresentation";
+import { canReplaceFinancialOverview, financialAccountSelectors, financialReportDestination } from "./budgetOverviewPresentation";
 
 const readable = (value: string) => value.replaceAll("_", " ");
 const instant = (value: string) => new Date(value).toLocaleString(undefined, { timeZoneName: "short" });
@@ -97,10 +97,10 @@ export function BudgetOverview({ search, onSearchChange, onExpired, onOpenAccoun
   const [sortKey = "state", direction = "ascending"] = selection.financialSort.split(":");
   const rows = [...(data?.items ?? [])].sort((left, right) => {
     const primary = sortKey === "state" ? left.state_rank - right.state_rank : sortKey === "organization"
-      ? organizationName(left.account.organization_id).localeCompare(organizationName(right.account.organization_id))
+      ? organizationName(left.pool_id ? left.primary_organization_id ?? null : left.account.organization_id).localeCompare(organizationName(right.pool_id ? right.primary_organization_id ?? null : right.account.organization_id))
       : left.account.friendly_name.localeCompare(right.account.friendly_name);
     return (direction === "descending" ? -primary : primary)
-      || organizationName(left.account.organization_id).localeCompare(organizationName(right.account.organization_id))
+      || organizationName(left.pool_id ? left.primary_organization_id ?? null : left.account.organization_id).localeCompare(organizationName(right.pool_id ? right.primary_organization_id ?? null : right.account.organization_id))
       || left.account.friendly_name.localeCompare(right.account.friendly_name) || left.row_id.localeCompare(right.row_id);
   });
   const sort = (key: string) => callbacks.current.onSearchChange(changeOverviewSearch(search, { financial_sort: `${key}:${sortKey === key && direction === "ascending" ? "descending" : "ascending"}` }));
@@ -109,9 +109,13 @@ export function BudgetOverview({ search, onSearchChange, onExpired, onOpenAccoun
     callbacks.current.onSearchChange(changeOverviewSearch(search, { range: String(days), ...completedPeriod(days, new Date()) }));
   }
   function open(row: BudgetOverviewRowWireV1, reportId?: string) {
+    const context = reportId === undefined ? undefined : row.contexts.find(item => item.report_id === reportId);
+    if (reportId !== undefined && context === undefined) return;
+    const destination = financialReportDestination(row.account.account_id, row.resource_id, context);
+    if (destination === null) return;
     const link = new URLSearchParams(safeOverviewSearch(search));
-    for (const [key, value] of Object.entries(financialAccountSelectors(row.resource_id, reportId, { start: periodStart, end: periodEnd }, data?.as_of ?? asOf))) link.set(key, value);
-    onOpenAccount(row.account.account_id, safeOverviewSearch(link.toString(), true));
+    for (const [key, value] of Object.entries(financialAccountSelectors(destination.resourceId, destination.reportId, { start: periodStart, end: periodEnd }, data?.as_of ?? asOf))) link.set(key, value);
+    onOpenAccount(destination.accountId, safeOverviewSearch(link.toString(), true));
   }
   return <section className="fleet-overview financial-overview" aria-labelledby="overview-budget-title" aria-busy={busy}>
     <div className="fleet-overview-heading">
@@ -128,10 +132,10 @@ export function BudgetOverview({ search, onSearchChange, onExpired, onOpenAccoun
           <span title={exactMoneyText(summary.total)}>{displayMoney(summary.total)}</span> · {readable(summary.cost_basis)} · {readable(summary.source_category)}
           {` · ${summary.included_pool_count} included pools · ${summary.excluded_resource_count} excluded resources`}
         </p>)}
-        {data.summary_reason !== null && <p>Spend totals unavailable: {readable(data.summary_reason)}.</p>}
+        {data.summary_reason !== null && <p>{data.summaries.length === 0 ? "Spend totals unavailable" : "Spend subtotals are partial"}: {readable(data.summary_reason)}.</p>}
         {data.exclusions.map(item => <p key={item.reason_code}>{item.count} excluded: {readable(item.reason_code)}.</p>)}
       </div>
-      <div className="fleet-overview-heading"><p>{rows.length} financial resource rows loaded · {data.inventory_count} accounts in filtered inventory</p>
+      <div className="fleet-overview-heading"><p>{rows.length} financial resource rows loaded · {data.inventory_count} accounts in selected scope</p>
         <label className="overview-provider-filter"><span>Sort financial rows</span><select value={selection.financialSort} onChange={event => onSearchChange(changeOverviewSearch(search, { financial_sort: event.target.value }))}>
           <option value="state:ascending">State · action required first</option><option value="state:descending">State · current first</option>
           <option value="organization:ascending">Organization · A to Z</option><option value="organization:descending">Organization · Z to A</option>
@@ -146,8 +150,18 @@ export function BudgetOverview({ search, onSearchChange, onExpired, onOpenAccoun
           <th scope="col">Reported spend</th><th scope="col">Available</th><th scope="col">Data through</th>
         </tr></thead>
         <tbody>{rows.map(row => <tr key={row.row_id} data-financial-row={row.row_id} data-account-id={row.account.account_id} data-resource-id={row.resource_id ?? undefined}>
-          <th scope="row" data-label="Billing account"><button type="button" className="overview-account-link" onClick={() => open(row, row.contexts[0]?.report_id)}>{row.account.friendly_name}</button><small>{billingProviderDisplayName(row.account.provider_key)}</small></th>
-          <td data-label="Organization"><span>{organizationName(row.account.organization_id)}</span></td>
+          <th scope="row" data-label="Billing account"><button type="button" className="overview-account-link" onClick={() => open(row, row.contexts[0]?.report_id)}>{row.pool_name ?? row.account.friendly_name}</button><small>{billingProviderDisplayName(row.account.provider_key)}{row.pool_selector ? ` · ${row.pool_selector}` : ""}</small>
+            {row.pool_id && <small>Shared billing pool · {readable(row.association_evidence ?? "owner asserted")}</small>}
+            {(row.access_paths?.length ?? 0) > 0 && <details><summary>{row.access_paths!.length} connected {row.access_paths!.length === 1 ? "account" : "accounts"}</summary>
+              <ul>{row.access_paths!.map(path => <li key={`${path.account.account_id}:${path.resource_id}`}>
+                <button type="button" className="overview-account-link" onClick={() => onOpenAccount(path.account.account_id, safeOverviewSearch(search))}>{path.account.friendly_name}</button>
+                <small>{organizationName(path.account.organization_id)} · {readable(path.state_code)} · Monitoring {path.monitoring_enabled ? "on" : "off"}{path.collection_error ? ` · ${readable(path.collection_error)}` : ""}</small>
+              </li>)}</ul>
+            </details>}
+          </th>
+          <td data-label="Organization"><span>{organizationName(row.pool_id ? row.primary_organization_id ?? null : row.account.organization_id)}</span>
+            {row.pool_id && <small>Counted under this organization{row.counted_in_selection === false ? " · Outside selected totals" : ""}</small>}
+          </td>
           <td data-label="State"><span>{readable(row.state_code)}</span><small>API monitoring {row.monitoring_enabled ? "on" : "off"}</small>{row.collection_state !== null && <small>Collection: {readable(row.collection_state)}{row.collection_error !== null && ` · ${readable(row.collection_error)}`}</small>}</td>
           <td data-label="Reported spend">{row.contexts.length === 0 ? <span>No spending report</span> : row.contexts.map(context => <div key={context.report_id} data-overview-report={context.report_id}>
             {context.spend === null ? <span>Spend not reported · {readable(context.spend_reason)}</span> : <span title={exactMoneyText(context.spend)}>{displayMoney(context.spend)}</span>}
@@ -159,6 +173,7 @@ export function BudgetOverview({ search, onSearchChange, onExpired, onOpenAccoun
             <strong>{fundLabels[fund.kind]}: </strong>{fund.remaining.value === null ? <span>{readable(fund.remaining.reason_code ?? fund.remaining.availability)}</span> : <span title={exactMoneyText(fund.remaining.value)}>{displayMoney(fund.remaining.value)}</span>}
             {fund.limit.value !== null && <small>Limit: <span title={exactMoneyText(fund.limit.value)}>{displayMoney(fund.limit.value)}</span></small>}
             {fund.percentage_text !== null && <small title={[fund.percentage_method, fund.percentage_rounding, fund.percentage_decimal_places === null ? null : `${fund.percentage_decimal_places} decimal places`].filter(value => value !== null).join(" · ")}>{fund.percentage_text}% remaining{fund.is_low === true ? " · Low" : ""}</small>}
+            {row.pool_id && fund.source_account_id && <small>Funds from {row.access_paths?.find(path => path.account.account_id === fund.source_account_id)?.account.friendly_name ?? row.account.friendly_name}</small>}
             <small>Current as of <time dateTime={fund.observed_at ?? fund.collected_at}>{instant(fund.observed_at ?? fund.collected_at)}</time> · {readable(fund.freshness)}</small>
             {fund.is_constraining === false && <small>Does not determine account availability.</small>}
           </div>)}</td>

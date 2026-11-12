@@ -100,3 +100,68 @@ installed UI are not claimed by these checks.
 Canonical M7 registry_metadata lane passed58 tests in33.94s after integration.
 This covers real owner metadata/nonsecret lifecycle only; it does not claim
 credential entry, provider access, owner controls or full M7 acceptance.
+
+## Owner controls and pool-aware Overview increment
+
+Scope: existing T002/T004/T010/T011/T012 and their T003/T014 verification,
+FR-BUDGET-001/002/005, FR-ORG-003, AC-UI-005 and AC-TEST-001/003.
+M02 remains the metadata authority (CTR-REG-0141.5.0). M05 publishes optional
+pool/access-path and contributing-report fields in CTR-CAP-0062.6.0, consumed
+through P01/generated client by P02. The additive schema remains0734; no new
+dependency, credential mechanism, provider mutation or migration is introduced
+by the UI/query changes.
+
+The account page has collapsed owner controls to create/join/unlink a billing
+pool and change its primary dashboard organization. All organization/pool
+pages are read before presenting choices. Mutation revision/idempotency is
+retained across an uncertain result and reload; retries are explicit. Existing
+Ollama self/team metadata controls use its cloud resources, without creating
+an Anthropic/OpenAI-style connection or claiming team usage collection exists.
+
+Overview resolves compatible access paths before primary-group attribution,
+keeps each connection's error/monitoring state, chooses one whole funds source,
+and uses the actual contributing account/resource/report in financial links.
+Compatible totals are calculated in M05 over the filtered inventory before
+pagination. Unknown overlap, incompatible contexts and absent monetary reports
+remain explicit exclusions. Counts-only reports never become money. Final
+server-side user-selected sorting and complete team/category coverage remain
+unfinished on their existing tickets.
+
+Test-first and current evidence:
+
+- Pure pool policy: initial eleven missing-module failures, then two review
+  failures for metadata-before-first-report and overflow exclusion counts;
+  corrected. Twenty-four new policy cases pass, including exact lineage,
+  source/target conflicts, primary/secondary/both-group selection, immutable
+  corrections, currencies, empty/partial reports and whole funds provenance.
+- Optional contract fields: two expected missing-projection/link failures,
+  then two passes. Real SQLite Overview integration first rejected the absent
+  financial-pools port, then passed primary-only and secondary-only metadata
+  projection without inserting financial telemetry.
+- Browser Red: `pool_controls_missing`. Canonical command
+  `python -m tools.automation.implementations.auto_m7 --lane browser --check
+  owner_pool_controls` now passes against the built application and isolated
+  real IAM/SQLite. It exercises create/join/edit/unlink, a shared Overview row
+  with two access paths, reload/keyboard/768px, 203 organization choices and
+  more than50 pool choices, conflict and real browser-offline recovery with
+  the original idempotency key. No request interception/provider substitutes.
+- Canonical `--lane pure`:515 Python tests plus all six presentation suites
+  pass. Its first run exposed an older timestamp test expecting `.000Z` although
+  the existing accepted parser preserves exact source text. Corrected that
+  assertion and added a six-digit fractional as-of preservation assertion;
+  no production timestamp change was needed.
+- Canonical `--lane technical --check budget_http_guards`:12 pass on actual
+  IAM/HTTP/SQLite. This remains metadata/no-report evidence, not a real monetary
+  source-to-screen comparison.
+- AUTO-QUALITY passed at00:27:26UTC: strict mypy695 files, Ruff756 formatted
+  files, zero boundary violations, compatible91-operation generated client,
+  frontend typecheck and production build. Planning/documentation checks also
+  passed; those results are not a full M7 exit.
+
+Changed files: M05 Overview contract/domain/application and pure/integration
+tests; P01 Overview schema/router and root composition; generated OpenAPI/client;
+P02 account pool controls, API helpers, Overview provenance and presentation
+tests; the scoped existing M7 runner and isolated built-browser harness; focused
+module/worksheet documentation. Owner configuration and provider profiles are
+unchanged. Installed activation, authenticated installed controls, genuine
+shared monetary totals and public revision are not claimed by this local packet.

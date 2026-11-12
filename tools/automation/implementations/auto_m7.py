@@ -37,6 +37,8 @@ Lane = Literal[
 ]
 
 PURE_TARGETS = (
+    "backend/tests/contracts/test_budget_pool_projection.py",
+    "backend/tests/capacity/pure/test_budget_pool_overview.py",
     "backend/tests/capacity/pure/test_budget_exact_arithmetic.py",
     "backend/tests/capacity/pure/test_budget_money.py",
     "backend/tests/capacity/pure/test_budget_aggregation.py",
@@ -85,6 +87,7 @@ REGISTRY_METADATA_TARGETS = (
     "backend/tests/integration/api/test_billing_enrollment_http.py",
 )
 PRESENTATION_TARGETS = (
+    "frontend/tests/pure/financial-pool-presentation.mjs",
     "frontend/tests/pure/budget-account-presentation.mjs",
     "frontend/tests/pure/financial-read-presentation.mjs",
     "frontend/tests/pure/budget-selection.mjs",
@@ -103,6 +106,7 @@ COLLECTION_GUARD_TARGETS = (
     "backend/tests/integration/collection_control/test_cloud_budget_repository_empty.py",
 )
 BUDGET_HTTP_GUARD_TARGETS = (
+    "backend/tests/integration/capacity/test_budget_overview_empty.py",
     "backend/tests/integration/api/test_budget_http.py",
     "backend/tests/integration/api/test_budget_overview_http.py",
     "backend/tests/integration/api/test_billing_actions_http.py",
@@ -240,6 +244,37 @@ def _presentation_checks() -> CheckResult:
     return CheckResult("pure", "passed")
 
 
+def execute_pool_browser() -> LaneResult:
+    """Build actual sources and exercise owner metadata with real IAM/SQLite."""
+    name = "owner_pool_controls"
+    status: Status = "passed"
+    reason = None
+    try:
+        with _temporary_tool_environment():
+            commands = (
+                [
+                    str(ROOT / "backend/.venv/bin/python"),
+                    "tools/automation/implementations/auto_build.py",
+                ],
+                [
+                    str(ROOT / "backend/.venv/bin/python"),
+                    "frontend/tests/browser/m7/run_financial_pools.py",
+                ],
+            )
+            for command in commands:
+                result = subprocess.run(command, cwd=ROOT, timeout=480, check=False)
+                if result.returncode:
+                    status, reason = "failed", "m7_pool_browser_failed"
+                    break
+    except subprocess.TimeoutExpired:
+        status, reason = "failed", "m7_test_timeout"
+    except (OSError, M6ExitErrorV1):
+        status, reason = "blocked", "m7_test_toolchain_unavailable"
+    check = CheckResult(name, status, reason)
+    print(f"M7 CHECK {name}: {status.upper()}", flush=True)
+    return LaneResult("browser/owner_pool_controls", status, (check,))
+
+
 def execute_lane(lane: str) -> LaneResult:
     """Run implemented boundaries; report the rest without inventing evidence."""
     if lane not in REQUIRED_CHECKS:
@@ -288,6 +323,15 @@ def execute_lane(lane: str) -> LaneResult:
                 # A real failed guard remains a failure even though successful
                 # populated report verification is independently still missing.
                 check = CheckResult(name, guards.status, guards.checks[0].reason_code)
+        elif lane == "browser" and name == "owner_setup":
+            proof = execute_pool_browser()
+            check = CheckResult(
+                name,
+                "not_run" if proof.status == "passed" else proof.status,
+                "m7_full_credential_setup_browser_required"
+                if proof.status == "passed"
+                else proof.checks[0].reason_code,
+            )
         elif lane == "exit":
             child = execute_lane(name)
             check = CheckResult(name, child.status)
@@ -302,6 +346,8 @@ def execute_lane(lane: str) -> LaneResult:
 def validate_selection(lane: str, check: str | None, expected: str | None) -> None:
     """Keep partial technical guards separate from exact-revision activation."""
     if check is None and expected is None:
+        return
+    if lane == "browser" and check == "owner_pool_controls" and expected is None:
         return
     if lane == "technical" and check in GUARD_SCOPES and expected is None:
         return
@@ -584,7 +630,12 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--lane", required=True, choices=tuple(REQUIRED_CHECKS))
     parser.add_argument(
         "--check",
-        choices=("setup_activation", "financial_activation", *GUARD_SCOPES),
+        choices=(
+            "setup_activation",
+            "financial_activation",
+            "owner_pool_controls",
+            *GUARD_SCOPES,
+        ),
     )
     parser.add_argument("--expected-revision")
     args = parser.parse_args(argv)
@@ -600,6 +651,8 @@ def main(argv: list[str] | None = None) -> int:
             args.expected_revision, financial=args.check == "financial_activation"
         )
         if args.check in {"setup_activation", "financial_activation"}
+        else execute_pool_browser()
+        if args.check == "owner_pool_controls"
         else execute_guard(args.check)
         if args.check in GUARD_SCOPES
         else execute_lane(args.lane)
@@ -615,6 +668,11 @@ def main(argv: list[str] | None = None) -> int:
             "setup operational slice; authenticated setup, collector continuity and "
             "backup/recovery proof remain separate; "
             "not full deployment or M7 acceptance"
+        )
+    elif args.check == "owner_pool_controls":
+        scope = (
+            "isolated built-browser owner pool metadata; "
+            "no provider, money or full M7 acceptance claim"
         )
     elif args.check in GUARD_SCOPES:
         scope = GUARD_SCOPES[args.check]

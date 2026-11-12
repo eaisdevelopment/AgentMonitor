@@ -1,8 +1,8 @@
 # M7 delivery worksheet: remaining work and fixed finish line
 
 Status: execution clarification within approved focused plan 1.1.0, reviewed
-against committed and installed `93297fc` on 11 November 2026
-(schema `v1_0733`). Primary owner: root integration; financial owner:
+against committed `afcd9b5` and the still-installed `93297fc` on 12 November 2026
+(installed schema `v1_0733`; committed migration target `v1_0734`). Primary owner: root integration; financial owner:
 M05. No new milestone, approval, dependency or completion gate.
 
 The [ticket catalog](m7-ticket-catalog-v1.json) remains the only task tracker:
@@ -10,6 +10,48 @@ The [ticket catalog](m7-ticket-catalog-v1.json) remains the only task tracker:
 order and cross-module handoffs. The [UI plan](m7-ui-and-user-journeys.md) owns
 screen behavior; [calculation rules](m7-calculation-and-data-rules.md) own money
 semantics. Historical findings remain in [review evidence](../../evidence/m7-plan-refactor-2026-11-11.md).
+
+## Delivery summary for the owner
+
+The result is a working API-finance view alongside the existing subscription
+dashboard: identify the organization and billing scope, show reported spend and
+real available funds, explain missing/stale data, and open the matching history.
+The finish line remains the same sixteen tickets and ten acceptance items.
+The table below groups their delivery; it does not create additional tasks.
+
+| Delivery order | Existing tickets | Result the owner can inspect |
+|---|---|---|
+| 1. Shared pools and first money | T002/T004/T005/T006/T007/T008/T010 | Owner can associate compatible connections; a shared balance is counted once. First accessible monetary provider produces a genuine stored report. These two results proceed independently |
+| 2. Complete the everyday screens | T010/T011/T012/T014 | Compact Overview, group/provider/resource filters, correct full-list sorting and totals; click into the same account/report, reload and return without losing context |
+| 3. Complete provider and collection coverage | T006/T007/T008/T009 | Anthropic, OpenAI and Ollama supported reports; seven-/thirty-day selection, explicit collection, background refresh, useful errors and preserved last good readings |
+| 4. Add the promised analysis | T010/T013 | Exact daily table and matching chart, one supported breakdown at a time, simple forecast only when real compatible inputs permit it |
+| 5. Release and close | T003/T014/T015/T016 | Required real-system checks, safe upgrade/recovery, working installed dashboard, matching published revision and a demonstration against M7-A01..A10 |
+
+T001's scope/contract planning is recorded done. The other tickets are not
+closed by this summary. Tests and deployment accompany each visible increment;
+the final row completes the existing acceptance matrix, not a new testing phase
+discovered after implementation.
+
+**Current implementation boundary:** pool storage/API and its additive migration
+are committed at `afcd9b5`. Pool controls, pool-aware Overview and their tests
+are working changes, not installed delivery. The last installed screen evidence
+remains `93297fc`, with real Ollama funds and counts-only usage. No genuine
+Anthropic/OpenAI monetary report has yet been demonstrated. See the
+[pool evidence](../../evidence/m7-financial-pools-2026-11-12.md) for the committed
+boundary; do not infer a deployed feature from a local test.
+
+**First live dependency:** the recorded owner billing-setup request remains
+pending. Administrative billing access is separate from subscription sign-in.
+This affects that provider's live monetary demonstration only; it does not
+stop the pool, calculation, query, history or UI work. No account names, new
+attestation ceremony or repeated approval are needed for planning.
+
+**Scope control:** fix failures against the existing ticket and acceptance
+criterion; put enhancements in the deferred list in section 7. Keep one
+integration packet active, with independently testable provider work where
+useful. The next demonstration is installed pool controls/Overview or the first
+genuine monetary report, whichever becomes usable first. Do not spend another
+increment expanding documentation or gate machinery instead of that result.
 
 ## 1. Verified starting point
 

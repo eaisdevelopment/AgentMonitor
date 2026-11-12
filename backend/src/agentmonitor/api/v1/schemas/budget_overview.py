@@ -36,6 +36,8 @@ class BudgetOverviewContextWireV1(_ClosedV1):
     source_data_through: datetime | None
     collected_at: datetime
     completeness: Literal["complete", "partial", "unknown"]
+    report_account_id: str | None = None
+    report_resource_id: str | None = None
 
 
 class BudgetOverviewFundWireV1(_ClosedV1):
@@ -56,6 +58,16 @@ class BudgetOverviewFundWireV1(_ClosedV1):
     percentage_method: str | None
     percentage_decimal_places: int | None
     percentage_rounding: str | None
+    source_account_id: str | None = None
+    source_resource_id: str | None = None
+
+
+class BudgetOverviewAccessPathWireV1(_ClosedV1):
+    account: AccountViewV1
+    resource_id: str
+    state_code: str
+    monitoring_enabled: bool
+    collection_error: str | None
 
 
 class BudgetOverviewRowWireV1(_ClosedV1):
@@ -71,6 +83,13 @@ class BudgetOverviewRowWireV1(_ClosedV1):
     collection_state: str | None
     collection_error: str | None
     funds_reason_code: str | None
+    pool_id: str | None = None
+    pool_name: str | None = None
+    pool_selector: Literal["billing", "self", "team"] | None = None
+    primary_organization_id: str | None = None
+    association_evidence: Literal["owner_asserted", "provider_verified"] | None = None
+    counted_in_selection: bool = True
+    access_paths: tuple[BudgetOverviewAccessPathWireV1, ...] = ()
 
 
 class BudgetOverviewSummaryWireV1(_ClosedV1):

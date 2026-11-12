@@ -16,6 +16,11 @@ import {
   type AccountCapacityViewV2,
   type AccountBillingConnectionsV1,
   type BillingConnectionViewV1,
+  type FinancialPoolConfigurationV1,
+  type FinancialPoolPageV1,
+  type FinancialPoolViewV1,
+  type AssignFinancialPoolInputV1,
+  type EditFinancialPoolInputV1,
   type AccountPageV1,
   type AccountViewV1,
   type AlertRuleCommandWireV1,
@@ -87,6 +92,9 @@ export type {
   AccountCapacityViewV2,
   AccountBillingConnectionsV1,
   BillingConnectionViewV1,
+  FinancialPoolConfigurationV1,
+  FinancialPoolPageV1,
+  FinancialPoolViewV1,
   AccountPageV1,
   AccountViewV1,
   AlertRuleCommandWireV1,
@@ -560,6 +568,22 @@ export const alerts = Object.freeze({
       headers: mutationHeaders({ id: rule.rule_id, recordVersion: rule.record_version }, true),
     });
   },
+});
+
+function financialPoolHeaders(revision: number, idempotencyKey: string): Readonly<Record<string, string>> {
+  if (!Number.isSafeInteger(revision) || revision < 1 || !/^[A-Za-z0-9_-]{1,64}$/.test(idempotencyKey)) throw new Error("financial_pool_request_invalid");
+  return { ...csrfHeader(), "If-Match": `"registry.${revision}"`, "Idempotency-Key": idempotencyKey };
+}
+
+export const financialPools = Object.freeze({
+  configuration: (accountId: string, resourceId: string, selector: "billing" | "self" | "team", signal?: AbortSignal): Promise<ClientResult<FinancialPoolConfigurationV1>> =>
+    apiClient.registry_get_financial_pool_configuration_v1({ path: { account_id: accountId, resource_id: resourceId, selector }, signal }),
+  list: (providerKey: "claude" | "codex" | "ollama", revision: number, after?: string, signal?: AbortSignal): Promise<ClientResult<FinancialPoolPageV1>> =>
+    apiClient.registry_list_financial_pools_v1({ query: { provider_key: providerKey, limit: 50, expected_registry_revision: revision, ...(after ? { after_pool_id: after } : {}) }, signal }),
+  assign: (accountId: string, resourceId: string, selector: "billing" | "self" | "team", body: AssignFinancialPoolInputV1, revision: number, idempotencyKey: string, signal?: AbortSignal): Promise<ClientResult<FinancialPoolConfigurationV1>> =>
+    apiClient.registry_assign_financial_pool_v1({ path: { account_id: accountId, resource_id: resourceId, selector }, body, headers: financialPoolHeaders(revision, idempotencyKey), signal }),
+  edit: (poolId: string, body: EditFinancialPoolInputV1, revision: number, idempotencyKey: string, signal?: AbortSignal): Promise<ClientResult<FinancialPoolViewV1>> =>
+    apiClient.registry_edit_financial_pool_attribution_v1({ path: { pool_id: poolId }, body, headers: financialPoolHeaders(revision, idempotencyKey), signal }),
 });
 
 export const budgets = Object.freeze({

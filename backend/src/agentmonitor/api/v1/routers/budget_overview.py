@@ -21,6 +21,7 @@ from agentmonitor.api.v1.routers.budgets import (
     report_wire,
 )
 from agentmonitor.api.v1.schemas.budget_overview import (
+    BudgetOverviewAccessPathWireV1,
     BudgetOverviewContextWireV1,
     BudgetOverviewExclusionWireV1,
     BudgetOverviewFundWireV1,
@@ -69,6 +70,12 @@ def overview_row_wire(row: BudgetOverviewRowV1) -> BudgetOverviewRowWireV1:
                 source_data_through=c.source_data_through,
                 collected_at=c.collected_at,
                 completeness=c.completeness,
+                report_account_id=c.report_account_id.value
+                if c.report_account_id
+                else None,
+                report_resource_id=c.report_resource_id.value
+                if c.report_resource_id
+                else None,
             )
             for c in row.contexts
         ],
@@ -89,12 +96,36 @@ def overview_row_wire(row: BudgetOverviewRowV1) -> BudgetOverviewRowWireV1:
                 percentage_method=f.percentage_method,
                 percentage_decimal_places=f.percentage_decimal_places,
                 percentage_rounding=f.percentage_rounding,
+                source_account_id=f.source_account_id.value
+                if f.source_account_id
+                else None,
+                source_resource_id=f.source_resource_id.value
+                if f.source_resource_id
+                else None,
             )
             for f in row.funds
         ],
         collection_state=row.collection_state,
         collection_error=row.collection_error,
         funds_reason_code=row.funds_reason_code,
+        pool_id=row.pool_id.value if row.pool_id else None,
+        pool_name=row.pool_name,
+        pool_selector=row.pool_selector,
+        primary_organization_id=row.primary_organization_id.value
+        if row.primary_organization_id
+        else None,
+        association_evidence=row.association_evidence,
+        counted_in_selection=row.counted_in_selection,
+        access_paths=tuple(
+            BudgetOverviewAccessPathWireV1(
+                account=AccountViewV1.model_validate(technical_wire(path.account)),
+                resource_id=path.resource_id.value,
+                state_code=path.state_code,
+                monitoring_enabled=path.monitoring_enabled,
+                collection_error=path.collection_error,
+            )
+            for path in row.access_paths
+        ),
     )
 
 

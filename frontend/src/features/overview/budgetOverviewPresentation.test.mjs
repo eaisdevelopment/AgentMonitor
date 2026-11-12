@@ -11,4 +11,17 @@ assert.deepEqual(financialAccountSelectors("resource-a", undefined, period, peri
   budget_resource: "resource-a", budget_start: period.start, budget_end: period.end, budget_as_of: period.end,
 });
 assert.equal(financialAccountSelectors("resource-a", "report-a", period, period.end).budget_report, "report-a");
+assert.equal(typeof presentation.financialReportDestination, 'function', 'shared_report_destination_missing');
+assert.deepEqual(presentation.financialReportDestination('account-a', 'resource-a', {
+  report_id: 'report-b', report_account_id: 'account-b', report_resource_id: 'resource-b',
+}), { accountId: 'account-b', resourceId: 'resource-b', reportId: 'report-b' });
+assert.deepEqual(presentation.financialReportDestination('account-a', 'resource-a', {
+  report_id: 'report-a',
+}), { accountId: 'account-a', resourceId: 'resource-a', reportId: 'report-a' });
+assert.equal(presentation.financialReportDestination('account-a', 'resource-a', {
+  report_id: 'report-b', report_account_id: 'account-b',
+}), null);
+assert.deepEqual(presentation.financialReportDestination('account-a', null), {
+  accountId: 'account-a', resourceId: null, reportId: undefined,
+});
 console.log("FINANCIAL OVERVIEW PRESENTATION PURE: PASSED");

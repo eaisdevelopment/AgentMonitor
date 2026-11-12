@@ -654,6 +654,7 @@ def _observation_ports(
             ListAccountsV1(registry),
             account_budget_current,
             ListAccountResourcesV1(registry),
+            financial_pools=SqliteFinancialPoolRepositoryV1(reference),
         ),
         get_selected_budget_report=GetSelectedBudgetReportV1(
             get_account, SqliteBudgetReportRepositoryV1(reference)

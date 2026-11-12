@@ -430,3 +430,18 @@ head before installation. No dependency or secret-custody change. T002/T004/T010
 T012/T014 retain their existing requirement and acceptance mappings; the
 [implementation evidence](../../../evidence/m7-financial-pools-2026-11-12.md)
 records actual tests and remaining integration.
+
+
+### Shared-pool Overview projection (CTR-CAP-006 2.6.0)
+
+Additive optional row metadata exposes canonical pool, primary group, owner
+association evidence and all connected access paths. Compact report/funds links
+carry their actual authorized account/resource IDs. M05 resolves the full
+provider inventory through one CTR-REG-0141.5 snapshot before organization
+filtering, then selects compatible pool evidence and computes exact subtotals.
+Primary-only selection may use a secondary path; secondary-only rows disclose
+where the pool is counted without adding it to that subtotal or calling it
+missing. No source identity or coverage is inferred from labels/equal values.
+P01 serializes these fields; P02 renders source-owned links and attribution.
+Existing2.5 rows remain readable with no-pool defaults. T004/T010/T012 own pure
+selection, actual HTTP/metadata and built-browser evidence respectively.

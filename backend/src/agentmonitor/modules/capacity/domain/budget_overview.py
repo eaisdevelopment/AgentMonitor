@@ -16,6 +16,7 @@ from agentmonitor.contracts.budget_query_v1 import (
     BudgetOverviewQueryV1,
     BudgetOverviewResultV1,
     BudgetOverviewRowV1,
+    BudgetOverviewSummaryV1,
     BudgetResourceCurrentV1,
 )
 from agentmonitor.contracts.common_v1 import (
@@ -119,6 +120,8 @@ def _fund(component: BudgetFundComponentV1) -> BudgetOverviewFundV1:
         percentage_method=ratio.method_id if ratio else None,
         percentage_decimal_places=ratio.decimal_places if ratio else None,
         percentage_rounding=ratio.rounding if ratio else None,
+        source_account_id=component.subject.account_id,
+        source_resource_id=component.subject.resource_id,
     )
 
 
@@ -164,6 +167,8 @@ def _contexts(
                 report.source_data_through,
                 report.collected_at,
                 report.completeness,
+                report_account_id=report.subject.account_id,
+                report_resource_id=report.subject.resource_id,
             )
         )
     if len({c.report_id for c in result}) != len(result):
@@ -380,6 +385,9 @@ def overview_result(
     registry_revision: int,
     inventory_count: int,
     subscription_account_ids: tuple[OpaqueIdV1, ...],
+    summaries: tuple[BudgetOverviewSummaryV1, ...] = (),
+    exclusions: tuple[BudgetOverviewExclusionV1, ...] | None = None,
+    summary_reason: str | None = None,
 ) -> BudgetOverviewResultV1:
     ordered = tuple(
         sorted(
@@ -404,6 +412,9 @@ def overview_result(
             inventory_count,
             tuple(i.value for i in subscription_account_ids),
             tuple(asdict(row) for row in ordered),
+            tuple(asdict(summary) for summary in summaries),
+            None if exclusions is None else tuple(asdict(e) for e in exclusions),
+            summary_reason,
         )
     )
     cursors = tuple(_hash((snapshot, row.row_id)) for row in ordered)
@@ -429,11 +440,17 @@ def overview_result(
             cursors[start + len(items) - 1] if more else None,
             QueryAvailabilityV1("available", "budget_overview_read", query.as_of),
         ),
-        (),
-        (BudgetOverviewExclusionV1("unresolved_overlap", excluded),)
-        if excluded
-        else (),
-        "unresolved_overlap" if excluded else None,
+        summaries,
+        exclusions
+        if exclusions is not None
+        else (
+            (BudgetOverviewExclusionV1("unresolved_overlap", excluded),)
+            if excluded
+            else ()
+        ),
+        summary_reason
+        if exclusions is not None
+        else ("unresolved_overlap" if excluded else None),
         inventory_count,
         registry_revision,
         subscription_account_ids,

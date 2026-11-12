@@ -1,13 +1,17 @@
 """Full-inventory financial Overview through published query ports only."""
 
+from dataclasses import replace
+
 from agentmonitor.contracts.budget_query_v1 import (
     AccountBudgetCurrentPortV1,
+    AccountBudgetCurrentV1,
     BudgetAccountInventoryPortV1,
     BudgetOverviewQueryV1,
     BudgetOverviewResultV1,
     BudgetOverviewRowV1,
 )
 from agentmonitor.contracts.common_v1 import QueryAvailabilityV1, QueryPageV1
+from agentmonitor.contracts.registry_billing_v1 import FinancialPoolReadPortV1
 from agentmonitor.contracts.registry_v1 import AccountViewV1, ListAccountResourcesV1
 from agentmonitor.modules.capacity.domain.budget_overview import (
     BudgetOverviewError,
@@ -17,6 +21,9 @@ from agentmonitor.modules.capacity.domain.budget_overview import (
     overview_result,
     project_budget_rows,
 )
+from agentmonitor.modules.capacity.domain.budget_pool_overview import (
+    resolve_overview_pools,
+)
 
 
 class ListBudgetOverviewV1:
@@ -25,10 +32,12 @@ class ListBudgetOverviewV1:
         accounts: BudgetAccountInventoryPortV1,
         current: AccountBudgetCurrentPortV1,
         resources: ListAccountResourcesV1,
+        financial_pools: FinancialPoolReadPortV1 | None = None,
     ) -> None:
         self._accounts = accounts
         self._current = current
         self._resources = resources
+        self._financial_pools = financial_pools
 
     def _inventory(self, query: BudgetOverviewQueryV1) -> tuple[AccountViewV1, ...]:
         inventory: tuple[AccountViewV1, ...] = ()
@@ -51,10 +60,13 @@ class ListBudgetOverviewV1:
             inventory = self._inventory(query)
             revision = inventory[0].registry_revision if inventory else 0
             selected = tuple(a for a in inventory if account_matches(a, query))
+            full_query = replace(query, organization_ids=None, include_ungrouped=False)
+            authorized = tuple(a for a in inventory if account_matches(a, full_query))
+            currents: list[AccountBudgetCurrentV1] = []
             rows: list[BudgetOverviewRowV1] = []
             subscriptions = []
             snapshots = {}
-            for account in selected:
+            for account in authorized:
                 resources = self._resources(account.account_id)
                 if any(r.registry_revision != revision for r in resources):
                     raise BudgetOverviewError("budget_overview_registry_changed")
@@ -62,7 +74,7 @@ class ListBudgetOverviewV1:
                 current = self._current(
                     account.account_id, period=query.period, as_of=query.as_of
                 )
-                if has_subscription(
+                if account_matches(account, query) and has_subscription(
                     account,
                     resources,
                     has_cloud_resources=current is not None
@@ -82,7 +94,47 @@ class ListBudgetOverviewV1:
                     and current.funds.registry_revision != revision
                 ):
                     raise BudgetOverviewError("budget_overview_registry_changed")
-                rows.extend(project_budget_rows(account, resources, current, query))
+                if current is not None:
+                    currents.append(current)
+                rows.extend(
+                    project_budget_rows(account, resources, current, full_query)
+                )
+            resource_ids = tuple(
+                sorted(
+                    {
+                        r.connection.resource_id
+                        for current in currents
+                        for r in current.resources
+                    }
+                    | {
+                        r.target.resource_id
+                        for current in currents
+                        for r in current.cloud_resources
+                    },
+                    key=lambda value: value.value,
+                )
+            )
+            pool_snapshot = None
+            projection = None
+            if self._financial_pools is not None and resource_ids:
+                pool_snapshot = self._financial_pools(
+                    resource_ids,
+                    expected_registry_revision=revision,
+                    as_of=query.as_of,
+                )
+                if (
+                    pool_snapshot.availability.state != "available"
+                    or pool_snapshot.registry_revision != revision
+                    or pool_snapshot.as_of != query.as_of
+                    or pool_snapshot.resource_ids != resource_ids
+                ):
+                    raise BudgetOverviewError("budget_overview_registry_changed")
+                projection = resolve_overview_pools(
+                    tuple(rows),
+                    tuple(currents),
+                    pool_snapshot,
+                    query,
+                )
             if self._inventory(query) != inventory:
                 raise BudgetOverviewError("budget_overview_registry_changed")
             if any(
@@ -90,11 +142,35 @@ class ListBudgetOverviewV1:
                 for account_id, resources in snapshots.items()
             ):
                 raise BudgetOverviewError("budget_overview_registry_changed")
+            if pool_snapshot is not None and self._financial_pools is not None:
+                if (
+                    self._financial_pools(
+                        resource_ids,
+                        expected_registry_revision=revision,
+                        as_of=query.as_of,
+                    )
+                    != pool_snapshot
+                ):
+                    raise BudgetOverviewError("budget_overview_registry_changed")
             return overview_result(
-                tuple(rows),
+                projection.rows
+                if projection is not None
+                else tuple(row for row in rows if account_matches(row.account, query)),
                 query,
                 registry_revision=revision,
-                inventory_count=len(selected),
+                inventory_count=len(
+                    {account.account_id for account in selected}
+                    | {
+                        path.account.account_id
+                        for row in (projection.rows if projection else ())
+                        for path in row.access_paths
+                    }
+                ),
+                summaries=projection.summaries if projection is not None else (),
+                exclusions=projection.exclusions if projection is not None else None,
+                summary_reason=projection.summary_reason
+                if projection is not None
+                else None,
                 subscription_account_ids=tuple(
                     sorted(subscriptions, key=lambda i: i.value)
                 ),
