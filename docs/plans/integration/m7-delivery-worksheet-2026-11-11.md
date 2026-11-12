@@ -15,8 +15,13 @@ Link to those decisions rather than maintaining competing copies here.
 
 ## Read this first: next result and finish line
 
-**Next independent delivery:** remaining rotation/disconnect/archive lifecycle
-(T002/T011). Retained report discovery is installed at `540ab8b`; its
+**Next independent delivery:** owner-facing billing disconnect/local cleanup and
+remaining real rotation evidence (T002/T011). The archive/restore reconnect
+path is installed at `c1c8e8d`: it retains source/history metadata, keeps
+monitoring off and requires new key setup/access verification. Its
+[evidence](../../evidence/m7-billing-reconnect-2026-11-12.md) distinguishes the
+actual isolated browser journey from read-only installed checks and unperformed
+secret deletion/replacement. Retained report discovery is installed at `540ab8b`; its
 [evidence](../../evidence/m7-source-history-2026-11-12.md) records genuine HTTP,
 built-browser and installed checks, with original scope labels and historical
 collection guards. Preserve this delivered path. Scope editing
@@ -46,8 +51,8 @@ valid. No repeated owner account attestations or new plan-version ceremony.
 
 | Boundary | Recorded result | Still unproved |
 |---|---|---|
-| Installed implementation | `540ab8b`, schema `v1_0734`; retained Source history, scope-edit controls with authority/pool/history fences, resource-based account sections, organization pagination, pool controls, fair 7/30-day scheduling, manual collection, sorted Overview and pinned daily history | Full monetary journey and complete lifecycle/analysis |
-| Public code | GitHub implementation `540ab8b`, independently verified | Later documentation-only receipts do not change installed code |
+| Installed implementation | `c1c8e8d`, schema `v1_0734`; restored-account billing reconnect, retained Source history, scope-edit controls with authority/pool/history fences, resource-based account sections, organization pagination, pool controls, fair 7/30-day scheduling, manual collection, sorted Overview and pinned daily history | Full monetary journey and complete lifecycle/analysis |
+| Public code | GitHub implementation `c1c8e8d`, independently verified | Later documentation-only receipts do not change installed code |
 | Live reports | Genuine Ollama balances/counts, one manual 30-day report and scheduled 30-day reports on two real resources | Seven-day manual success remained rate-limited before POST; monetary reports and remaining provider matrix |
 | Browser reliability | Actual installed concurrent Overview/setup/cloud reads passed; isolated real owner metadata covered pool controls, later organization pages and full-list sorting | Monetary totals, full accessibility and final acceptance |
 | Source access | Latest recorded inventory has no Anthropic/OpenAI administrative billing connection | Subscription logins do not prove billing access; absence is not a provider denial |
@@ -75,7 +80,7 @@ Red/Green, actual check wiring and visible installed result where applicable.
 |---|---|---|
 | 1 — T007/T009/T011 | Finish seven-day manual cloud proof when eligible and original-request/context recovery | Actual action/run/report linkage, reload and no duplicate request; retain installed 30-day proof, balance and shared cooldown. No owner setup repetition |
 | 2 — T005/T006 or T008/T010–T012/T014 | First monetary source through exact storage, Overview, detail and history | One complete genuine report survives commit/retry/reopen and matches authenticated API/DOM at the same context. Needs actual admitted billing access, not completion of every provider ticket |
-| 3 — T002/T010/T011 | Retain installed scope editing and report discovery; finish rotation/disconnect/archive | Old authority cannot commit; group-only edits preserve access; historic scope label survives reload; historical-scope Collect disabled and return-to-current works. Real isolated metadata tests are separate from populated history evidence |
+| 3 — T002/T010/T011 | Retain installed scope editing, report discovery and restored-account reconnect; finish disconnect/local cleanup and real rotation evidence | Old authority cannot commit; group-only edits preserve access; historic scope label survives reload; historical-scope Collect disabled and return-to-current works. Real isolated metadata tests are separate from populated history and actual secret-removal evidence |
 | 4 — T006/T007/T008/T009 | Finish frozen endpoints, both ranges, supported dimensions and bounded fairness/recovery | Each mapping has its native unit/coverage and actual source result. Unsupported, denied, unimplemented and genuine empty success remain distinct. No new provider API additions |
 | 5 — T004/T010/T011/T012 | Finish totals, navigation, refresh failure and accessibility | Compatible full-filter subtotal, one shared pool, no false zero, source/API/DOM exactness, keyboard/zoom/widths, preserved quota rows on financial error; retain delivered server sorting/concurrent-read fix |
 | 6 — T013 | Same-fact daily chart, one supported dimension at a time, observed-rate/conditional exhaustion and retention | Uses existing history, backend math and existing retention scheduler. No generic analytics engine. Missing funds can prevent a date without hiding a valid observed rate |

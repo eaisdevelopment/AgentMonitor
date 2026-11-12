@@ -1,7 +1,7 @@
 # M7 restored billing connection
 
-Status: local bounded verification passed; installed verification follows under
-approved focused plan 1.1.0. M7 and T002/T010/T011 remain open. This packet fixes the
+Status: bounded increment installed and published at `c1c8e8d` under approved
+focused plan 1.1.0. M7 and T002/T010/T011 remain open. This packet fixes the
 archive/restore dead end; it does not claim the complete credential lifecycle.
 
 Requirements: FR-ACC-001/004/006, FR-BUDGET-006; M7-A01/A09,
@@ -92,3 +92,22 @@ Changed areas: registry_billing_v1 contract; M02 billing_connections repository;
 P01 registry schema/router and explicit OpenAPI policy; generated contract/client;
 P02 billing control/client/panel; real registry/HTTP/browser tests and existing
 canonical runner; module handoff, UI behavior and operational documentation.
+
+## Installed and public verification
+
+Implementation `c1c8e8d553f1fdf99ade9d3b0f8e96daa75fb437` was installed with the
+existing selected-revision updater; candidate readiness passed and original
+restart policy was restored. No migration or owner configuration mutation.
+The service was active and the dashboard returned HTTP 200.
+
+At 07:19:42.475 UTC the existing concurrent installed browser probe passed
+Overview, setup (including the reconnect route/schema) and cloud controls at
+that exact implementation revision, with zero mutation requests. The actual
+reconnect button journey was exercised on isolated real registry/HTTP/browser
+boundaries; the installed read-only probe did not archive an owner's account.
+
+GitHub push completed and independent `git ls-remote github refs/heads/main`
+confirmed the exact implementation hash. The staged secret scan reported two
+findings, both verified old/new generated OpenAPI SHA-256 identifiers, with zero
+unresolved findings. No suppressions were added. This documentation-only receipt
+does not change the installed implementation revision.
