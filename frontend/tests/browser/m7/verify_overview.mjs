@@ -97,6 +97,9 @@ try {
       const value = address.searchParams.get(key);
       if (value !== null) query.set(key, value);
     }
+    const [sortBy, sortDirection] = (address.searchParams.get("financial_sort") ?? "state:ascending").split(":");
+    query.set("sort_by", sortBy);
+    query.set("sort_direction", sortDirection);
     const expected = await allPages("/api/v1/budgets", query, row => row.row_id);
     requireEvidence(microseconds(expected.as_of) === microseconds(query.get("as_of")), "overview_cutoff_mismatch");
     for (let index = 0; index < 100; index += 1) {
@@ -109,7 +112,9 @@ try {
       await settled();
       if (index === 99) stop("blocked", "dom_pagination_bound_exceeded");
     }
-    requireEvidence(await financial.locator("[data-financial-row]").count() === expected.items.length, "financial_row_set_mismatch");
+    const actualRowIds = await financial.locator("[data-financial-row]").evaluateAll(rows => rows.map(row => row.getAttribute("data-financial-row")));
+    requireEvidence(actualRowIds.length === expected.items.length, "financial_row_set_mismatch");
+    requireEvidence(actualRowIds.every((id, index) => id === expected.items[index].row_id), "financial_server_order_mismatch");
     for (const row of expected.items) {
       const dom = financial.locator(await selector("data-financial-row", row.row_id));
       requireEvidence(await dom.count() === 1, "financial_row_missing");

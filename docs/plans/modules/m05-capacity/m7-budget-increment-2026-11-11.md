@@ -445,3 +445,31 @@ missing. No source identity or coverage is inferred from labels/equal values.
 P01 serializes these fields; P02 renders source-owned links and attribution.
 Existing2.5 rows remain readable with no-pool defaults. T004/T010/T012 own pure
 selection, actual HTTP/metadata and built-browser evidence respectively.
+
+
+## 12 November: full-inventory Overview sorting (T010/T012)
+
+Compatible CTR-CAP-006 Overview query/types advance from2.6.0 to2.7.0:
+optional `sort_by` account/organization/state (default state), and
+`sort_direction` ascending/descending (default ascending). Response shape and
+existing detail/history contracts remain unchanged. Root owns shared contract,
+API/generated client and composition; M05 sorts before pagination, P02 renders
+server order. Organization names come through the existing CTR-REG-001
+OrganizationViewV1 callable composed from GetOrganizationV1, never a table read.
+Primary-pool organization and canonical pool label determine visible sort keys.
+Stable ascending ID ties remain stable when primary direction reverses.
+Cursor identity includes query order and revision-consistent resolved group
+labels; concurrent metadata edits require a fresh stored-data query.
+
+Red: nine pure cases initially failed because the query lacked sort fields.
+Real metadata HTTP tests and built isolated browser cover page-boundary winners,
+both directions, cursor mismatch, navigation and selected filters. No fabricated
+provider telemetry. No new dependency, migration, secret handling, owner-account
+mutation or production provider call. Genuine monetary acceptance remains open.
+
+The existing CTR-FND-005 generator's operation equality check rejected this
+compatible optional-query addition. Root's bounded correction permits new
+optional query parameters only while preserving every old parameter, response
+and security field. Required additions, duplicates, removals, changed existing
+parameters and non-query additions remain rejected. Generator2.0.10; no new tool
+or dependency. Pure schema Red/Green and real production generation verify it.

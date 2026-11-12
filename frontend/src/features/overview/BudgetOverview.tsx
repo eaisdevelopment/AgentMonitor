@@ -28,17 +28,22 @@ export function BudgetOverview({ search, onSearchChange, onExpired, onOpenAccoun
   const periodStart = params.get("period_start") ?? fallback.period_start;
   const periodEnd = params.get("period_end") ?? fallback.period_end;
   const asOf = params.get("as_of") ?? fallback.as_of;
+  const [selectedSort, selectedDirection] = selection.financialSort.split(":");
+  const sortKey = selectedSort === "account" || selectedSort === "organization" ? selectedSort : "state";
+  const direction = selectedDirection === "descending" ? "descending" : "ascending";
   const query = {
     period_start: periodStart, period_end: periodEnd, as_of: asOf,
+    sort_by: sortKey, sort_direction: direction,
     ...(selection.organizationIds === null ? {} : { organization_ids: selection.organizationIds.join(",") }),
     include_ungrouped: selection.includeUngrouped,
     ...(selection.provider === null ? {} : { provider_key: selection.provider }),
     limit: 50,
-  };
+  } as const;
   const queryKey = JSON.stringify(query);
   const contextKey = JSON.stringify({ ...query, as_of: null });
   const [pageRequest, setPageRequest] = useState<Readonly<{ query: string; cursor: string; attempt: number }> | null>(null);
   const cursor = pageRequest?.query === queryKey ? pageRequest.cursor : undefined;
+  const pageAttempt = pageRequest?.query === queryKey ? pageRequest.attempt : undefined;
   const [snapshot, setSnapshot] = useState<Snapshot | null>(null);
   const snapshotRef = useRef(snapshot);
   snapshotRef.current = snapshot;
@@ -53,6 +58,8 @@ export function BudgetOverview({ search, onSearchChange, onExpired, onOpenAccoun
       callbacks.current.onSearchChange(changeOverviewSearch(search, { period_start: periodStart, period_end: periodEnd, as_of: asOf }));
     }
   }, [search, periodStart, periodEnd, asOf]);
+
+  useEffect(() => { setPageRequest(null); }, [queryKey]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -91,18 +98,10 @@ export function BudgetOverview({ search, onSearchChange, onExpired, onOpenAccoun
       }
     })();
     return () => controller.abort();
-  }, [queryKey, cursor, pageRequest?.attempt]);
+  }, [queryKey, cursor, pageAttempt]);
 
   const organizationName = (id: string | null) => id === null ? "Ungrouped" : organizations.find(item => item.organization_id === id)?.name ?? "Organization unavailable";
-  const [sortKey = "state", direction = "ascending"] = selection.financialSort.split(":");
-  const rows = [...(data?.items ?? [])].sort((left, right) => {
-    const primary = sortKey === "state" ? left.state_rank - right.state_rank : sortKey === "organization"
-      ? organizationName(left.pool_id ? left.primary_organization_id ?? null : left.account.organization_id).localeCompare(organizationName(right.pool_id ? right.primary_organization_id ?? null : right.account.organization_id))
-      : left.account.friendly_name.localeCompare(right.account.friendly_name);
-    return (direction === "descending" ? -primary : primary)
-      || organizationName(left.pool_id ? left.primary_organization_id ?? null : left.account.organization_id).localeCompare(organizationName(right.pool_id ? right.primary_organization_id ?? null : right.account.organization_id))
-      || left.account.friendly_name.localeCompare(right.account.friendly_name) || left.row_id.localeCompare(right.row_id);
-  });
+  const rows = data?.items ?? [];
   const sort = (key: string) => callbacks.current.onSearchChange(changeOverviewSearch(search, { financial_sort: `${key}:${sortKey === key && direction === "ascending" ? "descending" : "ascending"}` }));
   function refresh(days: 7 | 30) {
     setPageRequest(null);
@@ -180,7 +179,7 @@ export function BudgetOverview({ search, onSearchChange, onExpired, onOpenAccoun
           <td data-label="Data through">{row.contexts.length === 0 ? <span>No spending report</span> : row.contexts.map(context => <div key={context.report_id}><span>{context.source_data_through === null ? "Not reported" : <time dateTime={context.source_data_through}>{instant(context.source_data_through)}</time>}</span><small>Collected <time dateTime={context.collected_at}>{instant(context.collected_at)}</time></small></div>)}</td>
         </tr>)}</tbody>
       </table>}
-      {data.page.has_more && <div className="financial-summary"><p>Sorting applies to loaded rows. Summaries cover the filtered inventory.</p><button type="button" className="quiet-button" disabled={busy || data.page.next_cursor === null} onClick={() => { if (data.page.next_cursor !== null) setPageRequest(current => ({ query: queryKey, cursor: data.page.next_cursor!, attempt: (current?.attempt ?? 0) + 1 })); }}>Load more financial rows</button></div>}
+      {data.page.has_more && <div className="financial-summary"><p>Sorting and summaries cover the filtered inventory.</p><button type="button" className="quiet-button" disabled={busy || data.page.next_cursor === null} onClick={() => { if (data.page.next_cursor !== null) setPageRequest(current => ({ query: queryKey, cursor: data.page.next_cursor!, attempt: (current?.attempt ?? 0) + 1 })); }}>Load more financial rows</button></div>}
       {data.availability.state !== "available" && <p className="fleet-overview-notice" role="status">Financial coverage {data.availability.state}: {readable(data.availability.reason_code)}.</p>}
     </>}
   </section>;

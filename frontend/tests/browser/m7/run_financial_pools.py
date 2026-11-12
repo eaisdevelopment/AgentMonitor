@@ -25,6 +25,11 @@ STAGES = {
     "uncertain_outcome",
     "reload_keyboard_narrow",
     "no_provider_work",
+    "overview_sort_source",
+    "overview_sort_first_page",
+    "overview_sort_pagination",
+    "overview_sort_reset",
+    "overview_sort_reload",
 }
 
 

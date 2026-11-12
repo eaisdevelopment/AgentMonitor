@@ -29,7 +29,7 @@ from fastapi.openapi.models import OpenAPI
 from pydantic import ValidationError
 
 FACTORY_REF = "agentmonitor.composition.bootstrap:create_iam_schema_application"
-GENERATOR_VERSION = "2.0.9"
+GENERATOR_VERSION = "2.0.10"
 OPENAPI_RELATIVE = Path("contracts/openapi/agentmonitor-v1.json")
 CLIENT_RELATIVE = Path("frontend/src/generated/api/index.ts")
 METHODS = frozenset(
@@ -1654,10 +1654,54 @@ def validate_iam_openapi(document: object) -> tuple[str, ...]:
     return identifiers
 
 
+def _compatible_operation(previous: object, current: object) -> bool:
+    """Preserve every old field; admit only additional optional query inputs."""
+    if previous == current:
+        return True
+    if not isinstance(previous, dict) or not isinstance(current, dict):
+        return False
+    old, new = _object(previous), _object(current)
+    if {k: v for k, v in old.items() if k != "parameters"} != {
+        k: v for k, v in new.items() if k != "parameters"
+    }:
+        return False
+    old_parameters, new_parameters = (
+        old.get("parameters", []),
+        new.get("parameters", []),
+    )
+    if not isinstance(old_parameters, list) or not isinstance(new_parameters, list):
+        return False
+    old_by_key = {}
+    for parameter in old_parameters:
+        if not isinstance(parameter, dict) or "$ref" in parameter:
+            return False
+        key = (parameter.get("in"), parameter.get("name"))
+        if key in old_by_key:
+            return False
+        old_by_key[key] = parameter
+    seen = set()
+    for parameter in new_parameters:
+        if not isinstance(parameter, dict) or "$ref" in parameter:
+            return False
+        key = (parameter.get("in"), parameter.get("name"))
+        if key in seen:
+            return False
+        seen.add(key)
+        if key in old_by_key:
+            if parameter != old_by_key[key]:
+                return False
+        elif (
+            parameter.get("in") != "query"
+            or parameter.get("required", False) is not False
+        ):
+            return False
+    return set(old_by_key) <= seen
+
+
 def classify_compatibility(
     previous: object, current: object
 ) -> Literal["compatible", "breaking"]:
-    """Conservative V1 diff: removals/changes to any old operation are breaking.
+    """Conservative V1 diff allowing optional query/response-field additions.
 
     Additions are compatible only at the comparison layer; the bounded compiler
     still refuses unadmitted operations. Source/tool provenance is not API meaning.
@@ -1695,7 +1739,9 @@ def classify_compatibility(
         if path not in new_paths:
             return "breaking"
         for method, operation in _object(item).items():
-            if _object(new_paths[path]).get(method) != operation:
+            if not _compatible_operation(
+                operation, _object(new_paths[path]).get(method)
+            ):
                 return "breaking"
     first_public_version = not old_paths and "components" not in old
     if not first_public_version:

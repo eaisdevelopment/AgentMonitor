@@ -1,7 +1,7 @@
 """Read-only financial Overview; M05 owns selection, state and arithmetic."""
 
 from datetime import UTC, datetime
-from typing import Annotated
+from typing import Annotated, Literal
 
 from agentmonitor.api.problem import ProblemError
 from agentmonitor.api.v1.dependencies import authorize_request, observation_ports
@@ -149,6 +149,8 @@ def list_budget_overview(
     ] = None,
     include_ungrouped: bool = False,
     provider_key: Annotated[str | None, Query(max_length=64)] = None,
+    sort_by: Literal["account", "organization", "state"] = "state",
+    sort_direction: Literal["ascending", "descending"] = "ascending",
     limit: Annotated[int, Query(ge=1, le=200)] = 50,
     cursor: Annotated[str | None, Query(max_length=4096)] = None,
 ) -> BudgetOverviewWireV1:
@@ -163,6 +165,8 @@ def list_budget_overview(
                 "organization_ids",
                 "include_ungrouped",
                 "provider_key",
+                "sort_by",
+                "sort_direction",
                 "limit",
                 "cursor",
             }
@@ -185,6 +189,8 @@ def list_budget_overview(
         "organization_ids": organization_ids,
         "include_ungrouped": str(include_ungrouped),
         "provider_key": provider_key,
+        "sort_by": sort_by,
+        "sort_direction": sort_direction,
     }
     after_key = decode_cursor(
         request, caller, cursor, operation_id=OPERATION, limit=limit, filters=filters
@@ -196,6 +202,8 @@ def list_budget_overview(
             organization_ids=groups,
             include_ungrouped=include_ungrouped,
             provider_key=provider_key,
+            sort_by=sort_by,
+            sort_direction=sort_direction,
             limit=limit,
             after_key=after_key,
         )

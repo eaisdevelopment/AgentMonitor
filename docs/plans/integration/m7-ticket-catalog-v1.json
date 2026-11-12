@@ -158,7 +158,8 @@
         "docs/evidence/m7-setup-activation-selector-2026-11-11.md",
         "docs/evidence/m7-billing-integration-2026-11-11.md",
         "docs/evidence/m7-plan-refactor-2026-11-11.md",
-        "docs/evidence/m7-canonical-financial-checks-2026-11-11.md"
+        "docs/evidence/m7-canonical-financial-checks-2026-11-11.md",
+        "docs/evidence/m7-overview-sorting-2026-11-12.md"
       ],
       "depends_on_any": [],
       "delivery_slice": "S0",
@@ -536,7 +537,8 @@
         "docs/evidence/m7-plan-refactor-2026-11-11.md",
         "docs/evidence/m7-stored-funds-2026-11-11.md",
         "docs/evidence/m7-financial-overview-2026-11-11.md",
-        "docs/evidence/m7-financial-pools-2026-11-12.md"
+        "docs/evidence/m7-financial-pools-2026-11-12.md",
+        "docs/evidence/m7-overview-sorting-2026-11-12.md"
       ],
       "depends_on_any": [],
       "delivery_slice": "S1",
@@ -670,7 +672,8 @@
       "evidence": [
         "docs/evidence/m7-plan-refactor-2026-11-11.md",
         "docs/evidence/m7-financial-overview-2026-11-11.md",
-        "docs/evidence/m7-financial-pools-2026-11-12.md"
+        "docs/evidence/m7-financial-pools-2026-11-12.md",
+        "docs/evidence/m7-overview-sorting-2026-11-12.md"
       ],
       "depends_on_any": [],
       "delivery_slice": "S1",
@@ -792,7 +795,8 @@
         "docs/evidence/m7-stored-funds-2026-11-11.md",
         "docs/evidence/m7-financial-overview-2026-11-11.md",
         "docs/evidence/m7-financial-pools-2026-11-12.md",
-        "docs/evidence/m7-openai-cost-source-2026-11-11.md"
+        "docs/evidence/m7-openai-cost-source-2026-11-11.md",
+        "docs/evidence/m7-overview-sorting-2026-11-12.md"
       ],
       "depends_on_any": [],
       "delivery_slice": "S1",

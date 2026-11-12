@@ -594,7 +594,7 @@ export const budgets = Object.freeze({
   ): Promise<ClientResult<BudgetSelectedReportWireV1>> =>
     apiClient.capacity_get_budget_v1({ path: { budget_id: resourceId }, query, signal }),
   overview: (
-    query: Readonly<{ period_start: string; period_end: string; as_of: string; organization_ids?: string; include_ungrouped?: boolean; provider_key?: string; limit?: number; cursor?: string }>,
+    query: Readonly<{ period_start: string; period_end: string; as_of: string; organization_ids?: string; include_ungrouped?: boolean; provider_key?: string; sort_by?: "account" | "organization" | "state"; sort_direction?: "ascending" | "descending"; limit?: number; cursor?: string }>,
     signal?: AbortSignal,
   ): Promise<ClientResult<BudgetOverviewWireV1>> =>
     apiClient.capacity_list_budget_overview_v1({ query, signal }),

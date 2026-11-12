@@ -20756,6 +20756,35 @@
           },
           {
             "in": "query",
+            "name": "sort_by",
+            "required": false,
+            "schema": {
+              "default": "state",
+              "enum": [
+                "account",
+                "organization",
+                "state"
+              ],
+              "title": "Sort By",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "sort_direction",
+            "required": false,
+            "schema": {
+              "default": "ascending",
+              "enum": [
+                "ascending",
+                "descending"
+              ],
+              "title": "Sort Direction",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
             "name": "limit",
             "required": false,
             "schema": {
@@ -30467,10 +30496,10 @@
       "starlette": "1.6.0"
     },
     "generator": "agentmonitor-openapi-client",
-    "generator_sha256": "e89247441b4382358b8eebfc4f566d9feb22515b9d63bc7987cbdb2130d85e68",
-    "generator_version": "2.0.9",
+    "generator_sha256": "4baf5195d05e49ba261456c47b914a163b64086ebd90a8f4ce026676fea4c5f9",
+    "generator_version": "2.0.10",
     "openapi_version": "3.1.0",
-    "schema_sha256": "8a4becc220e0e361509c75ccfc568cc2fc1feccc73ba6aa51a795b6e722f5b71",
-    "source_sha256": "6d15ab5693b98a1d31d79e4c85bbf7bc683d30fbcc590fc7af185d225d0e9136"
+    "schema_sha256": "ad617d91f2dd9c0617b1df174d6b288600f8fad91a57cea62b716c1e43d1f687",
+    "source_sha256": "27821f31ff592850d35ddc364410b7da1bc78e0ad962109510e50ff9395a1fbc"
   }
 }

@@ -178,6 +178,79 @@ try {
   stage = "no_provider_work";
   assert.equal((await call("GET", `/api/v1/accounts/${first.account.account_id}/billing-connections`)).body.credential_status.state, "missing");
   assert.equal((await call("GET", `/api/v1/accounts/${second.account.account_id}/billing-connections`)).body.connections[0].monitoring_preference, "disabled");
+  stage = "overview_sort_source";
+  // Actual isolated owner metadata gives the first page a later-page winner.
+  for (let index = 0; index < 51; index += 1) {
+    const account = await call("POST", "/api/v1/accounts", { provider_key: "claude", friendly_name: `Sort account ${String(index).padStart(3, "0")}`, organization_id: index % 2 === 0 ? organization.body.organization_id : null, initial_connection_purpose: "api" }, { "Idempotency-Key": key() });
+    assert.equal(account.status, 201);
+  }
+  const sortQuery = new URLSearchParams(query);
+  sortQuery.delete("organization_ids");
+  sortQuery.set("include_ungrouped", "true");
+  sortQuery.set("as_of", new Date().toISOString());
+  sortQuery.set("limit", "50");
+  async function sortedPage(sortBy, direction, cursor = null) {
+    const params = new URLSearchParams(sortQuery);
+    params.set("sort_by", sortBy); params.set("sort_direction", direction);
+    if (cursor !== null) params.set("cursor", cursor);
+    const result = await call("GET", `/api/v1/budgets?${params}`);
+    assert.equal(result.status, 200);
+    assert.equal(result.body.availability.state, "available");
+    return result.body;
+  }
+  const descending = await sortedPage("account", "descending");
+  assert.equal(descending.items.length, 50);
+  assert.equal(descending.page.has_more, true);
+  assert.equal(descending.items[0].account.friendly_name, "Sort account 050");
+  const financial = page.getByRole("region", { name: "API usage & spend", exact: true });
+  const rowIds = () => financial.locator("tr[data-financial-row]").evaluateAll((rows) => rows.map((row) => row.getAttribute("data-financial-row")));
+  const responseFor = (field, direction, cursor = null) => page.waitForResponse((response) => {
+    const url = new URL(response.url());
+    return url.pathname === "/api/v1/budgets" && url.searchParams.get("sort_by") === field && url.searchParams.get("sort_direction") === direction && url.searchParams.get("cursor") === cursor;
+  });
+  const settled = () => page.locator(".financial-overview[aria-busy=false]").waitFor();
+  stage = "overview_sort_first_page";
+  const firstResponse = responseFor("account", "descending");
+  await page.goto(`/?${sortQuery}&resource_type=api&financial_sort=account:descending`);
+  const renderedFirstResponse = await firstResponse;
+  assert.equal(renderedFirstResponse.status(), 200);
+  const renderedFirstPage = await renderedFirstResponse.json();
+  await settled();
+  assert.deepEqual(await rowIds(), descending.items.map((item) => item.row_id));
+  stage = "overview_sort_pagination";
+  const following = await sortedPage("account", "descending", descending.page.next_cursor);
+  assert.equal(following.page.has_more, false);
+  // Signed cursor expiry belongs to the actual UI response, not another read.
+  const moreResponse = responseFor("account", "descending", renderedFirstPage.page.next_cursor);
+  await financial.getByRole("button", { name: "Load more financial rows", exact: true }).click();
+  assert.equal((await moreResponse).status(), 200);
+  await settled();
+  assert.deepEqual(await rowIds(), [...descending.items, ...following.items].map((item) => item.row_id));
+  stage = "overview_sort_reset";
+  for (const [field, direction] of [["account", "ascending"], ["organization", "ascending"], ["organization", "descending"], ["state", "ascending"], ["account", "descending"], ["state", "descending"]]) {
+    const expected = await sortedPage(field, direction);
+    const changedResponse = responseFor(field, direction);
+    await financial.getByRole("combobox", { name: "Sort financial rows", exact: true }).selectOption(`${field}:${direction}`);
+    assert.equal((await changedResponse).status(), 200);
+    await settled();
+    assert.deepEqual(await rowIds(), expected.items.map((item) => item.row_id));
+    assert.equal(new URL(page.url()).searchParams.get("financial_sort"), `${field}:${direction}`);
+  }
+  stage = "overview_sort_reload";
+  const finalPage = await sortedPage("state", "descending");
+  const reloadResponse = responseFor("state", "descending");
+  await page.reload();
+  assert.equal((await reloadResponse).status(), 200);
+  await settled();
+  assert.deepEqual(await rowIds(), finalPage.items.map((item) => item.row_id));
+  await financial.locator("tr[data-financial-row] .overview-account-link").first().click();
+  await page.waitForURL((url) => url.pathname.startsWith("/accounts/"));
+  assert.equal(new URL(page.url()).searchParams.get("financial_sort"), "state:descending");
+  const backResponse = responseFor("state", "descending");
+  await page.goBack();
+  assert.equal((await backResponse).status(), 200);
+  await settled();
+  assert.deepEqual(await rowIds(), finalPage.items.map((item) => item.row_id));
   console.log("M7 FINANCIAL POOLS BROWSER: PASSED");
 } catch {
   console.error(`M7 FINANCIAL POOLS BROWSER: FAILED — ${stage}`);

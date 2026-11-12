@@ -2,6 +2,7 @@
 
 import hashlib
 import json
+from collections.abc import Mapping
 from dataclasses import asdict
 from datetime import datetime
 from typing import Literal
@@ -388,17 +389,45 @@ def overview_result(
     summaries: tuple[BudgetOverviewSummaryV1, ...] = (),
     exclusions: tuple[BudgetOverviewExclusionV1, ...] | None = None,
     summary_reason: str | None = None,
+    organization_labels: Mapping[OpaqueIdV1, str | None] | None = None,
 ) -> BudgetOverviewResultV1:
+    labels = organization_labels or {}
+
+    def group_name(row: BudgetOverviewRowV1) -> str:
+        identity = (
+            row.primary_organization_id if row.pool_id else row.account.organization_id
+        )
+        return (
+            "Ungrouped"
+            if identity is None
+            else labels.get(identity) or "Organization unavailable"
+        ).casefold()
+
+    def account_name(row: BudgetOverviewRowV1) -> str:
+        return (row.pool_name or row.account.friendly_name).casefold()
+
+    # A direction change reverses the chosen field, never its deterministic ties.
+    stable = sorted(
+        rows,
+        key=lambda row: (
+            group_name(row),
+            account_name(row),
+            row.account.account_id.value,
+            row.resource_id.value if row.resource_id else "",
+            row.row_id,
+        ),
+    )
     ordered = tuple(
         sorted(
-            rows,
-            key=lambda r: (
-                r.state_rank,
-                r.account.friendly_name.casefold(),
-                r.account.account_id.value,
-                r.resource_id.value if r.resource_id else "",
-                r.row_id,
+            stable,
+            key=lambda row: (
+                row.state_rank
+                if query.sort_by == "state"
+                else group_name(row)
+                if query.sort_by == "organization"
+                else account_name(row)
             ),
+            reverse=query.sort_direction == "descending",
         )
     )
     if len({r.row_id for r in ordered}) != len(ordered):
@@ -409,6 +438,7 @@ def overview_result(
         (
             selection,
             registry_revision,
+            tuple(sorted((key.value, value) for key, value in labels.items())),
             inventory_count,
             tuple(i.value for i in subscription_account_ids),
             tuple(asdict(row) for row in ordered),

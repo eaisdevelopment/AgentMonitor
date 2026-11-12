@@ -210,7 +210,7 @@ class BudgetCollectionStatePortV1(Protocol):
 @dataclass(frozen=True, slots=True)
 class BudgetOverviewQueryV1(TechnicalValueV1):
     CONTRACT_ID: ClassVar[str] = "CTR-CAP-006"
-    CONTRACT_VERSION: ClassVar[str] = "2.6.0"
+    CONTRACT_VERSION: ClassVar[str] = "2.7.0"
     OWNER: ClassVar[str] = "PLAN-M05"
     period: BudgetPeriodV1
     as_of: datetime
@@ -219,11 +219,15 @@ class BudgetOverviewQueryV1(TechnicalValueV1):
     provider_key: str | None = None
     limit: int = 50
     after_key: str | None = None
+    sort_by: Literal["account", "organization", "state"] = "state"
+    sort_direction: Literal["ascending", "descending"] = "ascending"
 
     def __post_init__(self) -> None:
         TechnicalValueV1.__post_init__(self)
         if (
-            self.period.end > self.as_of
+            self.sort_by not in {"account", "organization", "state"}
+            or self.sort_direction not in {"ascending", "descending"}
+            or self.period.end > self.as_of
             or self.period.end - self.period.start
             not in {timedelta(days=7), timedelta(days=30)}
             or any(
@@ -255,7 +259,7 @@ class BudgetOverviewContextV1(TechnicalValueV1):
     """Compact report selection; bucket bodies belong only on account/history reads."""
 
     CONTRACT_ID: ClassVar[str] = "CTR-CAP-006"
-    CONTRACT_VERSION: ClassVar[str] = "2.6.0"
+    CONTRACT_VERSION: ClassVar[str] = "2.7.0"
     OWNER: ClassVar[str] = "PLAN-M05"
     report_id: OpaqueIdV1
     scope_generation: int
@@ -277,7 +281,7 @@ class BudgetOverviewContextV1(TechnicalValueV1):
 @dataclass(frozen=True, slots=True)
 class BudgetOverviewFundV1(TechnicalValueV1):
     CONTRACT_ID: ClassVar[str] = "CTR-CAP-006"
-    CONTRACT_VERSION: ClassVar[str] = "2.6.0"
+    CONTRACT_VERSION: ClassVar[str] = "2.7.0"
     OWNER: ClassVar[str] = "PLAN-M05"
     component_id: OpaqueIdV1
     kind: Literal[
@@ -303,7 +307,7 @@ class BudgetOverviewFundV1(TechnicalValueV1):
 @dataclass(frozen=True, slots=True)
 class BudgetOverviewAccessPathV1(TechnicalValueV1):
     CONTRACT_ID: ClassVar[str] = "CTR-CAP-006"
-    CONTRACT_VERSION: ClassVar[str] = "2.6.0"
+    CONTRACT_VERSION: ClassVar[str] = "2.7.0"
     OWNER: ClassVar[str] = "PLAN-M05"
     account: AccountViewV1
     resource_id: OpaqueIdV1
@@ -315,7 +319,7 @@ class BudgetOverviewAccessPathV1(TechnicalValueV1):
 @dataclass(frozen=True, slots=True)
 class BudgetOverviewRowV1(TechnicalValueV1):
     CONTRACT_ID: ClassVar[str] = "CTR-CAP-006"
-    CONTRACT_VERSION: ClassVar[str] = "2.6.0"
+    CONTRACT_VERSION: ClassVar[str] = "2.7.0"
     OWNER: ClassVar[str] = "PLAN-M05"
     row_id: str
     account: AccountViewV1
@@ -341,7 +345,7 @@ class BudgetOverviewRowV1(TechnicalValueV1):
 @dataclass(frozen=True, slots=True)
 class BudgetOverviewSummaryV1(TechnicalValueV1):
     CONTRACT_ID: ClassVar[str] = "CTR-CAP-006"
-    CONTRACT_VERSION: ClassVar[str] = "2.6.0"
+    CONTRACT_VERSION: ClassVar[str] = "2.7.0"
     OWNER: ClassVar[str] = "PLAN-M05"
     scope_kind: Literal["global", "organization"]
     organization_id: OpaqueIdV1 | None
@@ -356,7 +360,7 @@ class BudgetOverviewSummaryV1(TechnicalValueV1):
 @dataclass(frozen=True, slots=True)
 class BudgetOverviewExclusionV1(TechnicalValueV1):
     CONTRACT_ID: ClassVar[str] = "CTR-CAP-006"
-    CONTRACT_VERSION: ClassVar[str] = "2.6.0"
+    CONTRACT_VERSION: ClassVar[str] = "2.7.0"
     OWNER: ClassVar[str] = "PLAN-M05"
     reason_code: str
     count: int
@@ -365,7 +369,7 @@ class BudgetOverviewExclusionV1(TechnicalValueV1):
 @dataclass(frozen=True, slots=True)
 class BudgetOverviewResultV1:
     CONTRACT_ID: ClassVar[str] = "CTR-CAP-006"
-    CONTRACT_VERSION: ClassVar[str] = "2.6.0"
+    CONTRACT_VERSION: ClassVar[str] = "2.7.0"
     OWNER: ClassVar[str] = "PLAN-M05"
     period: BudgetPeriodV1
     as_of: datetime

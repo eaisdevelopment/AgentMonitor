@@ -1,5 +1,6 @@
 """Full-inventory financial Overview through published query ports only."""
 
+from collections.abc import Callable
 from dataclasses import replace
 
 from agentmonitor.contracts.budget_query_v1 import (
@@ -10,9 +11,17 @@ from agentmonitor.contracts.budget_query_v1 import (
     BudgetOverviewResultV1,
     BudgetOverviewRowV1,
 )
-from agentmonitor.contracts.common_v1 import QueryAvailabilityV1, QueryPageV1
+from agentmonitor.contracts.common_v1 import (
+    OpaqueIdV1,
+    QueryAvailabilityV1,
+    QueryPageV1,
+)
 from agentmonitor.contracts.registry_billing_v1 import FinancialPoolReadPortV1
-from agentmonitor.contracts.registry_v1 import AccountViewV1, ListAccountResourcesV1
+from agentmonitor.contracts.registry_v1 import (
+    AccountViewV1,
+    ListAccountResourcesV1,
+    OrganizationViewV1,
+)
 from agentmonitor.modules.capacity.domain.budget_overview import (
     BudgetOverviewError,
     account_matches,
@@ -33,11 +42,13 @@ class ListBudgetOverviewV1:
         current: AccountBudgetCurrentPortV1,
         resources: ListAccountResourcesV1,
         financial_pools: FinancialPoolReadPortV1 | None = None,
+        organization: Callable[[OpaqueIdV1], OrganizationViewV1 | None] | None = None,
     ) -> None:
         self._accounts = accounts
         self._current = current
         self._resources = resources
         self._financial_pools = financial_pools
+        self._organization = organization
 
     def _inventory(self, query: BudgetOverviewQueryV1) -> tuple[AccountViewV1, ...]:
         inventory: tuple[AccountViewV1, ...] = ()
@@ -135,6 +146,29 @@ class ListBudgetOverviewV1:
                     pool_snapshot,
                     query,
                 )
+            visible_rows = (
+                projection.rows
+                if projection is not None
+                else tuple(row for row in rows if account_matches(row.account, query))
+            )
+            organization_ids = {
+                row.primary_organization_id
+                if row.pool_id
+                else row.account.organization_id
+                for row in visible_rows
+            } - {None}
+            organizations = {}
+            if self._organization is not None:
+                for identity in organization_ids:
+                    if identity is None:
+                        continue
+                    view = self._organization(identity)
+                    if view is not None and (
+                        view.organization_id != identity
+                        or view.registry_revision != revision
+                    ):
+                        raise BudgetOverviewError("budget_overview_registry_changed")
+                    organizations[identity] = view
             if self._inventory(query) != inventory:
                 raise BudgetOverviewError("budget_overview_registry_changed")
             if any(
@@ -152,12 +186,19 @@ class ListBudgetOverviewV1:
                     != pool_snapshot
                 ):
                     raise BudgetOverviewError("budget_overview_registry_changed")
+            if self._organization is not None and any(
+                self._organization(identity) != view
+                for identity, view in organizations.items()
+            ):
+                raise BudgetOverviewError("budget_overview_registry_changed")
             return overview_result(
-                projection.rows
-                if projection is not None
-                else tuple(row for row in rows if account_matches(row.account, query)),
+                visible_rows,
                 query,
                 registry_revision=revision,
+                organization_labels={
+                    identity: view.name if view is not None else None
+                    for identity, view in organizations.items()
+                },
                 inventory_count=len(
                     {account.account_id for account in selected}
                     | {

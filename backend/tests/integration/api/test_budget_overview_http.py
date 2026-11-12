@@ -8,6 +8,7 @@ import json
 import secrets
 import urllib.parse
 from pathlib import Path
+from typing import Any
 
 from backend.tests.integration.api.test_iam_http import (
     _installation,
@@ -313,5 +314,178 @@ def test_overview_cursor_is_bound_to_filters_and_preserves_full_inventory(
             assert none_selected[0] == 200
             assert json.loads(none_selected[2])["inventory_count"] == 0
             assert json.loads(none_selected[2])["items"] == []
+
+    asyncio.run(exercise())
+
+
+def test_overview_sort_precedes_pagination_and_uses_organization_names(
+    tmp_path: Path,
+) -> None:
+    """Real owner metadata only; no provider readings or collection states inserted."""
+    app, credential = _installation(tmp_path)
+
+    async def exercise() -> None:
+        async with _running(app) as origin:
+            jar = http.cookiejar.CookieJar()
+            login = await asyncio.to_thread(
+                _request,
+                origin,
+                "POST",
+                "/api/v1/session",
+                body={"password": credential},
+                headers={"Origin": origin},
+                cookies=jar,
+            )
+            assert login[0] == 204
+            headers = {
+                "Origin": origin,
+                "X-CSRF-Token": _session_cookies(jar)["agentmonitor_csrf"],
+            }
+            organizations: list[tuple[str, str]] = []
+            for name in ("Initial first", "Initial second"):
+                created = await asyncio.to_thread(
+                    _request,
+                    origin,
+                    "POST",
+                    "/api/v1/organizations",
+                    body={"name": name, "description": None},
+                    headers=headers | {"Idempotency-Key": secrets.token_urlsafe(24)},
+                    cookies=jar,
+                )
+                assert created[0] == 201
+                organizations.append(
+                    (json.loads(created[2])["organization_id"], created[1]["ETag"])
+                )
+            # Make alphabetical organization order contradict opaque ID order.
+            organizations.sort()
+            organization_names = {}
+            for (organization_id, etag), name in zip(
+                organizations, ("Zulu group", "Alpha group"), strict=True
+            ):
+                renamed = await asyncio.to_thread(
+                    _request,
+                    origin,
+                    "PATCH",
+                    f"/api/v1/organizations/{organization_id}",
+                    body={"name": name},
+                    headers=headers
+                    | {"If-Match": etag, "Idempotency-Key": secrets.token_urlsafe(24)},
+                    cookies=jar,
+                )
+                assert renamed[0] == 200
+                organization_names[organization_id] = name
+            for index, name in enumerate(
+                ("Alpha account", "Bravo account", "Charlie account", "Zulu account")
+            ):
+                created = await asyncio.to_thread(
+                    _request,
+                    origin,
+                    "POST",
+                    "/api/v1/accounts",
+                    body={
+                        "provider_key": "claude",
+                        "friendly_name": name,
+                        "organization_id": organizations[index // 2][0],
+                        "initial_connection_purpose": "api",
+                    },
+                    headers=headers | {"Idempotency-Key": secrets.token_urlsafe(24)},
+                    cookies=jar,
+                )
+                assert created[0] == 201
+
+            async def get(**query: str) -> dict[str, Any]:
+                response = await asyncio.to_thread(
+                    _request, origin, "GET", _overview_path(**query), cookies=jar
+                )
+                assert response[0] == 200, "overview_sort_http_unavailable"
+                payload: dict[str, Any] = json.loads(response[2])
+                return payload
+
+            default = await get(limit="1")
+            assert default["inventory_count"] == 4
+            for field in ("account", "organization", "state"):
+                for direction in ("ascending", "descending"):
+                    query = {
+                        "sort_by": field,
+                        "sort_direction": direction,
+                        "limit": "1",
+                    }
+                    first = await get(**query)
+                    all_items = list(first["items"])
+                    page = first
+                    while page["page"]["has_more"]:
+                        page = await get(**query, cursor=page["page"]["next_cursor"])
+                        assert page["inventory_count"] == 4
+                        assert page["summaries"] == first["summaries"]
+                        all_items.extend(page["items"])
+                        assert len(all_items) <= 4
+                    assert len(all_items) == 4
+                    assert len({item["row_id"] for item in all_items}) == 4
+                    if field == "account":
+                        names = [item["account"]["friendly_name"] for item in all_items]
+                        assert names == sorted(names, reverse=direction == "descending")
+                        if direction == "descending":
+                            assert (
+                                first["items"][0]["account"]["friendly_name"]
+                                == "Zulu account"
+                            )
+                    elif field == "organization":
+                        names = [
+                            organization_names[item["account"]["organization_id"]]
+                            for item in all_items
+                        ]
+                        assert names == sorted(names, reverse=direction == "descending")
+                        if direction == "ascending":
+                            assert first["items"][0]["account"]["friendly_name"] in {
+                                "Charlie account",
+                                "Zulu account",
+                            }
+                    elif direction == "ascending":
+                        assert first["items"] == default["items"]
+                        assert first["summaries"] == default["summaries"]
+                        assert first["inventory_count"] == default["inventory_count"]
+                        assert first["page"]["has_more"] == default["page"]["has_more"]
+                        default_following = await get(
+                            **query, cursor=default["page"]["next_cursor"]
+                        )
+                        assert default_following["items"] == all_items[1:2]
+
+                    for changed in (
+                        {
+                            **query,
+                            "sort_by": "organization"
+                            if field != "organization"
+                            else "account",
+                        },
+                        {
+                            **query,
+                            "sort_direction": "descending"
+                            if direction == "ascending"
+                            else "ascending",
+                        },
+                    ):
+                        response = await asyncio.to_thread(
+                            _request,
+                            origin,
+                            "GET",
+                            _overview_path(
+                                **changed, cursor=first["page"]["next_cursor"]
+                            ),
+                            cookies=jar,
+                        )
+                        assert response[0] == 400
+                        assert (
+                            json.loads(response[2])["code"] == "cursor_query_mismatch"
+                        )
+
+            for changes in ({"sort_by": "spend"}, {"sort_direction": "sideways"}):
+                invalid = await asyncio.to_thread(
+                    _request, origin, "GET", _overview_path(**changes), cookies=jar
+                )
+                assert invalid[0] in {400, 422}
+                assert json.loads(invalid[2])["code"] in {
+                    "invalid_filter",
+                    "invalid_request_fields",
+                }
 
     asyncio.run(exercise())
