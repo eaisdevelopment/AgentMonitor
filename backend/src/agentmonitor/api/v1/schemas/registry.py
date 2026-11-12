@@ -158,6 +158,14 @@ class CreateBillingConnectionInputV1(_ClosedV1):
     )
 
 
+class ChangeBillingScopeInputV1(_ClosedV1):
+    scope_id: str | None = Field(
+        min_length=1, max_length=128, pattern=r"^[A-Za-z0-9][A-Za-z0-9_.:-]*$"
+    )
+    expected_account_version: int = Field(ge=1)
+    expected_scope_generation: int = Field(ge=1)
+
+
 class BillingConnectionViewV1(_ClosedV1):
     account_id: str
     resource_id: str

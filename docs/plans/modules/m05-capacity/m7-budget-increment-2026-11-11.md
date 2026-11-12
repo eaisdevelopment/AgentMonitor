@@ -45,6 +45,33 @@ loading later options must retain the assignment, never implicitly choose
 Ungrouped. Failed or inconsistent continuation retains loaded choices. These
 are T002/T011 account-organization cases, not a new settings screen or endpoint.
 
+### T002/T010/T011 source-scope correction handoff (12 November)
+
+The existing approved lifecycle packet adds CTR-REG-014 1.6.0
+`ChangeBillingScopeCommandV1` and a scope mutation on the existing M02 billing
+port. P01 exposes PUT on the selected connection's `/scope` resource; the typed
+body includes expected account/scope versions, the connection version uses
+If-Match, and the mutation requires CSRF/write authority plus idempotency key.
+P02 renders Change scope in the existing connection panel with the actual scope
+and a warning that monitoring/access must be checked again. No automatic retry
+or provider read follows the mutation; uncertain outcomes require status reread.
+
+M02 alone changes its tables in one transaction: fence account/connection/scope,
+invalidate monitoring with the existing M02 hook, advance the scope generation,
+record the new owner-asserted or unresolved scope, close any current billing-pool
+membership without deleting its history, and retain a replay receipt/audit event.
+An unchanged scope is a no-op; old-generation collection/access evidence cannot
+become current. Credentials, account grouping and M05 facts/reports are untouched.
+No new schema, dependency or approval. The next history packet exposes retained
+original-scope report metadata through M05/P01; a successful metadata edit alone
+does not claim populated historical-money verification.
+
+Red/Green covers real isolated HTTP guards/scope mutation/replay/conflicts and
+real M02 pool membership history with no fabricated provider identity or money;
+built-browser editing/reload, explicit access recheck, no provider request and
+actual offline status reconciliation. Existing genuine monetary and full
+connection-disconnect/reconnect acceptance remain in T002/T010/T011.
+
 ## 2. Actual source inventory and hazards
 
 - `capacity_v1.py` has a four-field reserved BudgetViewV1; preserve it and add
@@ -106,6 +133,27 @@ M04 generic commit envelope/generation fence, exact/common provenance and DB UoW
 Adapters cannot write M05 tables. Queries cannot collect. A successful access
 check is not provider identity proof. Scope must be verified or explicitly owner
 asserted; ambiguous overlap prevents invalid totals.
+
+### Remaining financial/UI handoffs: bounded decisions
+
+T010 keeps existing `BudgetFundComponentV1` source observations distinct from
+derived headroom. A derived value needs explicit compatible report inputs,
+scope/period/currency/basis/enforcement and lineage in its additive contract;
+the presence of `limit` and `remaining` fields is not that proof. With only a
+reported limit, return unavailable headroom and continue spend/history delivery.
+
+T010/T011 prior-scope discovery supplies immutable authorized report context.
+Historical scope cannot authorize a current Collect; return to current scope
+through the existing window control. T007/T013 supplies an admitted nonsecret
+category/dimension selection even before a report exists. Reuse the current
+route/status mechanisms; only matching successful collection updates the chosen
+financial view. Neither report selection nor reload retargets a submitted job.
+
+T013 samples independently of history pagination but within the selected
+financial scope/epoch/currency/basis. Original sample bounds and fund compatibility
+remain explicit. Direct 7/30-day reports satisfy T005/T010; a generic multi-report
+assembler is not required. These clarify existing work; publish exact additive
+versions with the affected producer/consumer change, not from this plan alone.
 
 ### T007 captured-interval handoff (12 November)
 

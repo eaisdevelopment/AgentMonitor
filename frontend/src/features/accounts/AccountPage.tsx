@@ -59,6 +59,7 @@ export function AccountPage({
   const [paginationMessage, setPaginationMessage] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [financialReadRevision, setFinancialReadRevision] = useState(0);
+  const [financialAuthorityRevision, setFinancialAuthorityRevision] = useState(0);
   const settingsRef = useRef<HTMLDetailsElement>(null);
   const financialSectionRef = useRef<HTMLDivElement>(null);
   const focusedFinancialAccount = useRef<string | null>(null);
@@ -117,6 +118,10 @@ export function AccountPage({
 
   const reloadAccount = useCallback(() => { void load(); }, [load]);
   const refreshFinancialRead = useCallback(() => setFinancialReadRevision((value) => value + 1), []);
+  const invalidateFinancialRead = useCallback(() => {
+    setFinancialAuthorityRevision(value => value + 1);
+    setFinancialReadRevision(value => value + 1);
+  }, []);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -326,22 +331,22 @@ export function AccountPage({
           }
         }}>Edit account</button>
       </header>
-      {financialFirst && <div ref={financialSectionRef}><BudgetAccountPanel financialSearch={financialSearch} key={`budget-${selected.account_id}`} account={selected} readRevision={financialReadRevision} showUnconfigured={apiOnly && selected.provider_key !== "ollama"} onExpired={onExpired} /></div>}
-      {apiOnly && selected.provider_key !== "ollama" && <BillingConnectionPanel key={`billing-${selected.account_id}`} account={selected} onExpired={onExpired} onProofUnavailable={onProofUnavailable} onAccountReload={reloadAccount} onFinancialRead={refreshFinancialRead} />}
+      {financialFirst && <div ref={financialSectionRef}><BudgetAccountPanel financialSearch={financialSearch} key={`budget-${selected.account_id}`} account={selected} readRevision={financialReadRevision} authorityRevision={financialAuthorityRevision} showUnconfigured={apiOnly && selected.provider_key !== "ollama"} onExpired={onExpired} /></div>}
+      {apiOnly && selected.provider_key !== "ollama" && <BillingConnectionPanel key={`billing-${selected.account_id}`} account={selected} onExpired={onExpired} onProofUnavailable={onProofUnavailable} onAccountReload={reloadAccount} onFinancialRead={refreshFinancialRead} onScopeMutation={invalidateFinancialRead} />}
       {selected.provider_key === "ollama" && selected.lifecycle !== "archived" && <OllamaCloudConnectionView key={`ollama-cloud-${selected.account_id}`} account={selected} onExpired={onExpired} onProofUnavailable={onProofUnavailable} onAccountReload={reloadAccount} />}
       {!apiOnly && <>
       {["claude", "codex"].includes(selected.provider_key) && selected.lifecycle !== "archived" && <ProviderConnectionPanel key={`connection-${selected.account_id}`} account={selected} onExpired={onExpired} onProofUnavailable={onProofUnavailable} onAccountReload={reloadAccount} />}
       <AccountWorkspaceSummary key={selected.account_id} account={selected} organizationName={accountOrganizationName(selected.organization_id, state.organizations.items)} liveProcesses={liveProcesses} onExpired={onExpired} onIdentity={updateObservedIdentity} />
       {["claude", "codex"].includes(selected.provider_key) && <LiveProviderProcesses key={`processes-${selected.account_id}`} account={selected} accounts={detailAccounts} organizations={state.organizations.items} onExpired={onExpired} onProofUnavailable={onProofUnavailable} onRead={setLiveProcesses} />}
       <CapacityPanel accountId={selected.account_id} onExpired={onExpired} />
-      {!financialFirst && <div ref={financialSectionRef}><BudgetAccountPanel financialSearch={financialSearch} key={`budget-${selected.account_id}`} account={selected} readRevision={financialReadRevision} showUnconfigured={false} onExpired={onExpired} /></div>}
+      {!financialFirst && <div ref={financialSectionRef}><BudgetAccountPanel financialSearch={financialSearch} key={`budget-${selected.account_id}`} account={selected} readRevision={financialReadRevision} authorityRevision={financialAuthorityRevision} showUnconfigured={false} onExpired={onExpired} /></div>}
       <details className="account-secondary" data-account-sessions="true">
         <summary>Session history <span>Previously observed session records</span></summary>
         <SessionPanel accountId={selected.account_id} displayMode="panel" heading="Session records" onExpired={onExpired} />
       </details>
       <details className="account-secondary" data-billing-connection="true">
         <summary>API billing connection</summary>
-        <BillingConnectionPanel key={`billing-${selected.account_id}`} account={selected} onExpired={onExpired} onProofUnavailable={onProofUnavailable} onAccountReload={reloadAccount} onFinancialRead={refreshFinancialRead} />
+        <BillingConnectionPanel key={`billing-${selected.account_id}`} account={selected} onExpired={onExpired} onProofUnavailable={onProofUnavailable} onAccountReload={reloadAccount} onFinancialRead={refreshFinancialRead} onScopeMutation={invalidateFinancialRead} />
       </details>
       </>}
       <details className="account-settings account-secondary" ref={settingsRef}>

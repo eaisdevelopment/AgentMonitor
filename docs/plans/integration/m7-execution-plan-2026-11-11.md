@@ -109,6 +109,13 @@ Approval covers the synchronized focused set once. Routine fixes inside it do
 not require a new plan version or owner ceremony. New financial meaning, secret
 custody, dependency, destructive operation or incompatible contract does.
 
+The worksheet also fixes the remaining finite fairness/recovery demonstrations
+and final candidate inventory. The UI/calculation documents resolve historical
+scope actions, matching collection completion, uncollected breakdown selection,
+observed limits versus derived headroom and forecast identity. Direct admitted
+7/30-day reports suffice; no generic interval assembly is a prerequisite.
+These are clarifications of existing tickets, not additional release features.
+
 ## 3. What the owner sees
 
 Keep existing navigation/header/footer. Accounts gains Add API billing account
@@ -406,7 +413,7 @@ approval or product scope.
 |---|---|---|
 | T002 owner setup | Create/attach → actual detail URL → locally entered credential → safe status; early T014 setup activation precedes owner entry; cancel/retry/rotation/archive preserve unrelated configuration | Full provider coverage, forecast, final full-dashboard deployment or a provider success mislabeled as local storage success |
 | T004 exact policy | Exact money and complete-report selection tested, with explicit availability and shared-pool rules | T013 rate/horizon implementation; its math cases are verified there |
-| First T006/T008/T009 lane | One complete real monetary report for one owner-selected resource, with exact coverage and source comparison | An inaccessible second provider, all organizations, all usage dimensions |
+| First T006/T008 monetary lane | One complete real monetary report for one owner-selected resource, with exact coverage and source comparison; T009 counts/balances retain their separate cloud evidence | An inaccessible second provider, all organizations, all usage dimensions |
 | T005/T007 | That report survives database reopen; scheduled/manual reads use one real run and generation fences; first-reading state resolves | A generic job framework, new alert engine or manufactured rare provider failures |
 | T010–T012 | Real API → detail/history table → filtered Overview; exact same values/scope/period | Charts, numerical forecasts or all providers |
 | T014 | Same candidate installed; health plus authenticated Overview and first detail work; subscriptions remain usable | Final publication and full-milestone acceptance |

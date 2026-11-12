@@ -8,6 +8,9 @@ from agentmonitor.adapters.persistence._shared.sqlite.core.policy import (
     SqlitePolicyError,
     open_sqlite_database,
 )
+from agentmonitor.adapters.persistence.registry.sqlite.billing_monitoring_state import (
+    invalidate_billing_monitoring_in_transaction,
+)
 from agentmonitor.adapters.persistence.registry.sqlite.credential_bindings import (
     _access_target,
     read_credential_bindings_in_transaction,
@@ -30,6 +33,7 @@ from agentmonitor.contracts.registry_billing_v1 import (
     BillingAccessTargetV1,
     BillingConnectionViewV1,
     BillingMonitoringProofV1,
+    ChangeBillingScopeCommandV1,
     CreateBillingConnectionCommandV1,
     SetBillingMonitoringCommandV1,
 )
@@ -185,6 +189,189 @@ class SqliteBillingConnectionRepositoryV1:
                     connection.rollback()
                     return result
         except (SQLAlchemyError, SqlitePolicyError, ValueError):
+            raise RegistryRepositoryErrorV1() from None
+
+    def change_scope(
+        self, command: ChangeBillingScopeCommandV1
+    ) -> BillingConnectionViewV1:
+        """Fence authority and close the old association atomically, without secrets."""
+        operation = "change_billing_scope"
+        digest = _digest(command.command_id.value)
+        fingerprint = _fingerprint(
+            {
+                "operation": operation,
+                "account_id": command.account_id.value,
+                "resource_id": command.resource_id.value,
+                "expected_account_version": command.expected_account_version,
+                "expected_connection_version": command.expected_connection_version,
+                "expected_scope_generation": command.expected_scope_generation,
+                "scope_id": command.scope_id,
+            }
+        )
+        try:
+            with open_sqlite_database(
+                self._database_ref, "runtime_read_write"
+            ) as handle:
+                with handle.connect() as connection:
+                    connection.exec_driver_sql("BEGIN IMMEDIATE")
+                    receipt = (
+                        connection.exec_driver_sql(
+                            "SELECT request_fingerprint,outcome_subject_id,"
+                            "outcome_record_version FROM reg_command_receipt WHERE "
+                            "principal_id=? AND operation_key=? AND "
+                            "idempotency_key_digest=?",
+                            (command.principal_id.value, operation, digest),
+                        )
+                        .mappings()
+                        .one_or_none()
+                    )
+                    status = _get(connection, command.account_id)
+                    if (
+                        receipt is not None
+                        and receipt["request_fingerprint"] != fingerprint
+                    ):
+                        raise RegistryCommandConflictV1("registry_idempotency_conflict")
+                    if (
+                        status is None
+                        or not status.connections
+                        or status.connections[0].resource_id != command.resource_id
+                    ):
+                        raise RegistryCommandConflictV1("registry_subject_not_found")
+                    selected = status.connections[0]
+                    if receipt is not None:
+                        if (
+                            receipt["outcome_subject_id"] != selected.resource_id.value
+                            or receipt["outcome_record_version"]
+                            != selected.record_version
+                        ):
+                            raise RegistryCommandConflictV1("registry_replay_stale")
+                        connection.rollback()
+                        return selected
+                    if (
+                        status.account_record_version
+                        != command.expected_account_version
+                        or selected.record_version
+                        != command.expected_connection_version
+                        or selected.scope_generation
+                        != command.expected_scope_generation
+                    ):
+                        raise RegistryCommandConflictV1("registry_version_conflict")
+                    if (
+                        status.account_lifecycle not in {"pending", "active"}
+                        or selected.lifecycle == "disconnected"
+                    ):
+                        raise RegistryCommandConflictV1(
+                            "billing_connection_unavailable"
+                        )
+                    if command.requested_at < selected.updated_at:
+                        raise RegistryCommandConflictV1("billing_scope_time_conflict")
+                    instant = _utc_text(command.requested_at)
+                    if selected.scope_id != command.scope_id:
+                        invalidate_billing_monitoring_in_transaction(
+                            connection, command.account_id, disconnected=False
+                        )
+                        refreshed = _get(connection, command.account_id)
+                        if refreshed is None or not refreshed.connections:
+                            raise RegistryRepositoryErrorV1()
+                        selected = refreshed.connections[0]
+                        instant = _utc_text(
+                            max(command.requested_at, selected.updated_at)
+                        )
+                        membership = connection.exec_driver_sql(
+                            "SELECT valid_from FROM reg_financial_pool_membership "
+                            "WHERE resource_id=? AND selector='billing' AND "
+                            "valid_until IS NULL",
+                            (command.resource_id.value,),
+                        ).scalar_one_or_none()
+                        if membership is not None and datetime.fromisoformat(
+                            membership.replace("Z", "+00:00")
+                        ) >= datetime.fromisoformat(instant.replace("Z", "+00:00")):
+                            raise RegistryCommandConflictV1(
+                                "financial_pool_time_conflict"
+                            )
+                        revision = _next_revision(connection, instant)
+                        version = selected.record_version + 1
+                        connection.exec_driver_sql(
+                            "UPDATE reg_financial_pool_membership SET valid_until=?,"
+                            "record_version=record_version+1,registry_revision=? WHERE "
+                            "resource_id=? AND selector='billing' AND valid_until IS "
+                            "NULL",
+                            (instant, revision, command.resource_id.value),
+                        )
+                        changed = connection.exec_driver_sql(
+                            "UPDATE reg_billing_connection SET scope_id=?,"
+                            "scope_evidence=?,scope_generation=scope_generation+1,"
+                            "monitoring_preference='disabled',lifecycle='pending',"
+                            "record_version=?,registry_revision=?,updated_at=? WHERE "
+                            "resource_id=? AND account_id=? AND record_version=? AND "
+                            "scope_generation=?",
+                            (
+                                command.scope_id,
+                                "unresolved"
+                                if command.scope_id is None
+                                else "owner_asserted",
+                                version,
+                                revision,
+                                instant,
+                                command.resource_id.value,
+                                command.account_id.value,
+                                selected.record_version,
+                                command.expected_scope_generation,
+                            ),
+                        )
+                        if changed.rowcount != 1:
+                            raise RegistryCommandConflictV1("registry_version_conflict")
+                        _append_change(
+                            connection,
+                            subject_type="resource",
+                            subject_id=command.resource_id.value,
+                            aggregate_version=version,
+                            revision=revision,
+                            change_kind="billing_scope_changed",
+                            actor_id=command.principal_id.value,
+                            correlation_id=command.command_id.value,
+                            command_digest=digest,
+                            instant=instant,
+                        )
+                        _append_outbox(
+                            connection,
+                            subject_type="resource",
+                            subject_id=command.resource_id.value,
+                            aggregate_version=version,
+                            revision=revision,
+                            change_kind="billing_scope_changed",
+                            correlation_id=command.command_id.value,
+                            causation_id=command.command_id.value,
+                            instant=instant,
+                        )
+                    current = _get(connection, command.account_id)
+                    if current is None or not current.connections:
+                        raise RegistryRepositoryErrorV1()
+                    result = current.connections[0]
+                    connection.exec_driver_sql(
+                        "INSERT INTO reg_command_receipt (receipt_id,principal_id,"
+                        "operation_key,idempotency_key_digest,request_fingerprint,"
+                        "outcome_subject_type,outcome_subject_id,"
+                        "outcome_record_version,registry_revision,created_at,"
+                        "expires_at) VALUES (?,?,?,?,?,'resource',?,?,?,?,?)",
+                        (
+                            _identifier(),
+                            command.principal_id.value,
+                            operation,
+                            digest,
+                            fingerprint,
+                            command.resource_id.value,
+                            result.record_version,
+                            result.registry_revision,
+                            instant,
+                            _utc_text(command.requested_at + timedelta(days=365)),
+                        ),
+                    )
+                    connection.commit()
+                    return result
+        except RegistryCommandConflictV1:
+            raise
+        except (SQLAlchemyError, SqlitePolicyError, ValueError, TypeError):
             raise RegistryRepositoryErrorV1() from None
 
     def replay_monitoring(

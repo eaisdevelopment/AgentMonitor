@@ -213,6 +213,140 @@ def test_api_account_creation_exposes_safe_billing_status(tmp_path: Path) -> Non
             assert json.loads(unchanged[2])["identity_state"] == "unresolved"
             assert json.loads(unchanged[2])["monitoring_preference"] == "disabled"
 
+            scope_path = (
+                f"/api/v1/accounts/{account_id}/billing-connections/"
+                f"{connected['resource_id']}/scope"
+            )
+            scope_headers = {
+                "Origin": origin,
+                "X-CSRF-Token": _session_cookies(jar)["agentmonitor_csrf"],
+                "If-Match": connection[1]["ETag"],
+                "Idempotency-Key": secrets.token_urlsafe(24),
+            }
+            scope_body = {
+                "scope_id": "owner-asserted-updated-scope",
+                "expected_account_version": account["record_version"],
+                "expected_scope_generation": connected["scope_generation"],
+            }
+            changed = await asyncio.to_thread(
+                _request,
+                origin,
+                "PUT",
+                scope_path,
+                body=scope_body,
+                headers=scope_headers,
+                cookies=jar,
+            )
+            assert changed[0] == 200, "billing_scope_edit_must_be_available"
+            updated_scope = json.loads(changed[2])
+            assert updated_scope["scope_id"] == scope_body["scope_id"]
+            assert updated_scope["scope_generation"] == 2
+            assert updated_scope["scope_evidence"] == "owner_asserted"
+            assert updated_scope["monitoring_preference"] == "disabled"
+            assert updated_scope["lifecycle"] == "pending"
+            for omit, expected_status in (
+                ("X-CSRF-Token", 403),
+                ("If-Match", 428),
+                ("Idempotency-Key", 400),
+            ):
+                denied = await asyncio.to_thread(
+                    _request,
+                    origin,
+                    "PUT",
+                    scope_path,
+                    body=scope_body,
+                    headers={k: v for k, v in scope_headers.items() if k != omit},
+                    cookies=jar,
+                )
+                assert denied[0] == expected_status
+            repeated = await asyncio.to_thread(
+                _request,
+                origin,
+                "PUT",
+                scope_path,
+                body=scope_body,
+                headers=scope_headers,
+                cookies=jar,
+            )
+            assert repeated[0] == 200 and json.loads(repeated[2]) == updated_scope
+            stale = await asyncio.to_thread(
+                _request,
+                origin,
+                "PUT",
+                scope_path,
+                body=scope_body,
+                headers={**scope_headers, "Idempotency-Key": secrets.token_urlsafe(24)},
+                cookies=jar,
+            )
+            assert stale[0] == 412
+            fresh_headers = {
+                **scope_headers,
+                "If-Match": changed[1]["ETag"],
+                "Idempotency-Key": secrets.token_urlsafe(24),
+            }
+            no_op = await asyncio.to_thread(
+                _request,
+                origin,
+                "PUT",
+                scope_path,
+                body={**scope_body, "expected_scope_generation": 2},
+                headers=fresh_headers,
+                cookies=jar,
+            )
+            assert no_op[0] == 200 and json.loads(no_op[2]) == updated_scope
+            omitted_scope = await asyncio.to_thread(
+                _request,
+                origin,
+                "PUT",
+                scope_path,
+                body={
+                    "expected_account_version": account["record_version"],
+                    "expected_scope_generation": 2,
+                },
+                headers={**fresh_headers, "Idempotency-Key": secrets.token_urlsafe(24)},
+                cookies=jar,
+            )
+            assert omitted_scope[0] == 422, "scope_edit_requires_explicit_scope_or_null"
+            invalid = await asyncio.to_thread(
+                _request,
+                origin,
+                "PUT",
+                scope_path,
+                body={**scope_body, "api_key": None},
+                headers=fresh_headers,
+                cookies=jar,
+            )
+            assert invalid[0] == 422
+            cleared = await asyncio.to_thread(
+                _request,
+                origin,
+                "PUT",
+                scope_path,
+                body={
+                    **scope_body,
+                    "scope_id": None,
+                    "expected_scope_generation": 2,
+                },
+                headers={**fresh_headers, "Idempotency-Key": secrets.token_urlsafe(24)},
+                cookies=jar,
+            )
+            assert cleared[0] == 200
+            unresolved = json.loads(cleared[2])
+            assert unresolved["scope_id"] is None
+            assert unresolved["scope_evidence"] == "unresolved"
+            assert unresolved["scope_generation"] == 3
+            stale_replay = await asyncio.to_thread(
+                _request,
+                origin,
+                "PUT",
+                scope_path,
+                body=scope_body,
+                headers=scope_headers,
+                cookies=jar,
+            )
+            assert stale_replay[0] == 409
+            assert json.loads(stale_replay[2])["code"] == "registry_replay_stale"
+
     asyncio.run(exercise())
 
 

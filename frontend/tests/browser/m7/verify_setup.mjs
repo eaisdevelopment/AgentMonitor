@@ -3,7 +3,7 @@
 // Installed setup surface only. Never submit configuration or inspect credentials.
 const origin = "http://127.0.0.1:43110";
 const expectedRevision = /^[a-f0-9]{40}$/.test(process.argv[2] ?? "") ? process.argv[2] : null;
-const checks = { authentication: "not_run", revision: "not_run", overview: "not_run", setup_form: "not_run", account_layout: "not_run", continuity: "not_run", read_only: "not_run" };
+const checks = { authentication: "not_run", revision: "not_run", overview: "not_run", setup_form: "not_run", account_layout: "not_run", scope_contract: "not_run", continuity: "not_run", read_only: "not_run" };
 let page;
 let status = "blocked";
 let reasonCode = "browser_unavailable";
@@ -114,6 +114,19 @@ try {
   await noOverflow();
   checks.account_layout = "passed";
 
+  stage = "scope_contract";
+  requestsObserved += 1;
+  const contractResponse = await page.request.get(`${origin}/openapi.json`, {
+    headers: { Origin: origin }, timeout: 10000, failOnStatusCode: false,
+  });
+  requireEvidence(contractResponse.status() === 200, "installed_openapi_unavailable");
+  const contract = await contractResponse.json();
+  const scopeOperation = contract.paths?.["/api/v1/accounts/{account_id}/billing-connections/{resource_id}/scope"]?.put;
+  requireEvidence(scopeOperation?.operationId === "registry_change_billing_scope_v1", "billing_scope_contract_missing");
+  const scopeInput = contract.components?.schemas?.ChangeBillingScopeInputV1;
+  requireEvidence(scopeInput?.additionalProperties === false && ["scope_id", "expected_account_version", "expected_scope_generation"].every(field => scopeInput.required?.includes(field)), "billing_scope_contract_invalid");
+  checks.scope_contract = "passed";
+
   stage = "continuity";
   const overview = page.getByRole("button", { name: "Overview", exact: true });
   requireEvidence(await overview.getAttribute("type") === "button", "overview_navigation_not_safe");
@@ -138,6 +151,7 @@ try {
       authentication: "dashboard_unavailable", revision: "revision_unavailable",
       overview: "overview_unavailable", setup_form: "setup_form_unavailable",
       continuity: "continuity_unavailable", account_layout: "account_layout_unavailable",
+      scope_contract: "scope_contract_unavailable",
     }[stage];
   }
   if (checks[stage] === "not_run") checks[stage] = status;

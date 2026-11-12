@@ -28,6 +28,7 @@ from agentmonitor.api.v1.schemas.registry import (
     BillingConnectionViewV1,
     BillingCredentialStatusV1,
     BillingLocalSetupV1,
+    ChangeBillingScopeInputV1,
     CreateBillingConnectionInputV1,
     CreateOrganizationInputV1,
     MaskedRegistryFieldWireV1,
@@ -47,6 +48,7 @@ from agentmonitor.contracts.registry_billing_v1 import (
     BillingConnectionViewV1 as SourceBillingConnectionV1,
 )
 from agentmonitor.contracts.registry_billing_v1 import (
+    ChangeBillingScopeCommandV1,
     CreateBillingConnectionCommandV1,
 )
 from agentmonitor.contracts.registry_v1 import (
@@ -875,6 +877,56 @@ def create_billing_connection(
         raise ProblemError(503, "registry_repository_unavailable")
     try:
         item = port.create(command)
+    except RegistryCommandConflictV1 as error:
+        code = str(error)
+        if code == "registry_subject_not_found":
+            raise ProblemError(404, code) from None
+        if code == "registry_version_conflict":
+            raise ProblemError(412, code) from None
+        if code not in {"registry_idempotency_conflict", "registry_replay_stale"}:
+            code = "registry_conflict"
+        raise ProblemError(409, code) from None
+    except ValueError:
+        raise ProblemError(503, "registry_repository_unavailable") from None
+    response.headers["Cache-Control"] = "no-store"
+    response.headers["ETag"] = f'"{item.resource_id.value}.{item.record_version}"'
+    return _billing_connection(item)
+
+
+@router.put(
+    "/accounts/{account_id}/billing-connections/{resource_id}/scope",
+    operation_id="registry_change_billing_scope_v1",
+    response_model=BillingConnectionViewV1,
+    responses=ERROR_RESPONSES,
+    openapi_extra=_version_policy(
+        "BillingConnectionPortV1.change_scope", idempotent=True
+    ),
+)
+def change_billing_scope(
+    account_id: str,
+    resource_id: str,
+    input: ChangeBillingScopeInputV1,
+    request: Request,
+    response: Response,
+) -> BillingConnectionViewV1:
+    caller = authorize_request(request, "write:accounts", require_csrf=True)
+    reject_unknown_query(request, frozenset())
+    command = ChangeBillingScopeCommandV1(
+        account_id=OpaqueIdV1(account_id),
+        resource_id=OpaqueIdV1(resource_id),
+        expected_account_version=input.expected_account_version,
+        expected_connection_version=_expected_version(request, resource_id),
+        expected_scope_generation=input.expected_scope_generation,
+        scope_id=input.scope_id,
+        principal_id=caller.principal.principal_id,
+        command_id=_idempotency_key(request),
+        requested_at=datetime.now(UTC),
+    )
+    port = observation_ports(request).billing_connections
+    if port is None:
+        raise ProblemError(503, "registry_repository_unavailable")
+    try:
+        item = port.change_scope(command)
     except RegistryCommandConflictV1 as error:
         code = str(error)
         if code == "registry_subject_not_found":

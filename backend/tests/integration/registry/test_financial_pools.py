@@ -31,6 +31,7 @@ from agentmonitor.contracts.common_v1 import OpaqueIdV1
 from agentmonitor.contracts.registry_billing_v1 import (
     AssignFinancialPoolCommandV1,
     BillingConnectionViewV1,
+    ChangeBillingScopeCommandV1,
     CreateBillingConnectionCommandV1,
     EditFinancialPoolCommandV1,
     FinancialPoolConfigurationV1,
@@ -584,3 +585,66 @@ def test_noop_join_and_unlink_do_not_create_false_epochs(tmp_path: Path) -> None
     assert same == created
     assert _counts(reference)[:4] == before[:4]
     assert _counts(reference)[4] == before[4] + 1
+
+
+def test_scope_edit_closes_membership_without_rewriting_original_scope(
+    tmp_path: Path,
+) -> None:
+    reference = _database(tmp_path)
+    account, connection = _source(reference)
+    pools = _repository(reference)
+    membership_command = _assign(pools, account, connection)
+    associated = pools.assign(membership_command)
+    assert associated.membership is not None and associated.pool is not None
+    registry = SqliteBillingConnectionRepositoryV1(reference)
+    command = ChangeBillingScopeCommandV1(
+        account.account_id,
+        connection.resource_id,
+        account.record_version,
+        connection.record_version,
+        connection.scope_generation,
+        "owner-corrected-scope",
+        OWNER,
+        _id(),
+        datetime.now(UTC),
+    )
+    changed = registry.change_scope(command)
+    assert changed.scope_generation == connection.scope_generation + 1
+    assert (
+        changed.monitoring_preference == "disabled" and changed.lifecycle == "pending"
+    )
+    current = pools.get_configuration(
+        account.account_id, connection.resource_id, "billing"
+    )
+    assert current is not None and current.scope is not None
+    assert current.scope.provider_scope_id == "owner-corrected-scope"
+    assert current.membership is None and current.pool is None
+    with open_sqlite_database(reference, "runtime_read_only") as handle:
+        with handle.connect() as database:
+            retained = database.exec_driver_sql(
+                "SELECT provider_scope_id,scope_generation,valid_until "
+                "FROM reg_financial_pool_membership WHERE association_id=?",
+                (associated.membership.association_id.value,),
+            ).one()
+    assert (
+        retained[0] == connection.scope_id
+        and retained[1] == connection.scope_generation
+    )
+    assert retained[2] is not None
+    with pytest.raises(RegistryCommandConflictV1, match="registry_replay_stale"):
+        pools.assign(membership_command)
+    before = _counts(reference)
+    assert registry.change_scope(command) == changed
+    assert _counts(reference) == before
+    with pytest.raises(
+        RegistryCommandConflictV1, match="registry_idempotency_conflict"
+    ):
+        registry.change_scope(replace(command, scope_id="different-command"))
+    with pytest.raises(RegistryCommandConflictV1, match="registry_version_conflict"):
+        registry.change_scope(replace(command, command_id=_id()))
+    reopened = SqliteBillingConnectionRepositoryV1(reference).get(account.account_id)
+    assert reopened is not None and reopened.connections == (changed,)
+    assert (
+        reopened.credential_status is not None
+        and reopened.credential_status.state == "missing"
+    )

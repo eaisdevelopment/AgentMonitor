@@ -3,11 +3,12 @@ import { useEffect, useRef, useState, type FormEvent } from "react";
 import { CsrfUnavailableError, registry, type AccountBillingConnectionsV1, type AccountViewV1, type BillingConnectionViewV1, type BudgetRunStatusV1, type BillingMonitoringStatusV1 } from "../../shared/api/client";
 import { checkEligibility, matchesCheckRun, pendingRun, restoreCheckIntent, currentCheckEvidence, monitoringReason, restoreMonitoringIntent, buildMonitoringIntent, monitoringStatusCurrent, type BillingCheckIntent, type BillingMonitoringIntent } from "./billingCheckPresentation";
 import { FinancialPoolPanel } from "./FinancialPoolPanel";
+import { BillingScopeControls } from "./BillingScopeControls";
 
 type BillingState =
   | Readonly<{ kind: "loading" }>
   | Readonly<{ kind: "error"; message: string }>
-  | Readonly<{ kind: "ready"; status: AccountBillingConnectionsV1 }>;
+  | Readonly<{ kind: "ready"; status: AccountBillingConnectionsV1; readRevision: number }>;
 
 const credentialStateLabels = {
   missing: "Credential required",
@@ -157,18 +158,20 @@ function BillingMonitoringControls({ accountStatus, connection, onExpired, onPro
 }
 
 /** Local custody metadata and bounded collection actions remain separate facts. */
-export function BillingConnectionPanel({ account, onExpired, onProofUnavailable, onAccountReload, onFinancialRead }: Readonly<{
+export function BillingConnectionPanel({ account, onExpired, onProofUnavailable, onAccountReload, onFinancialRead, onScopeMutation }: Readonly<{
   account: AccountViewV1;
   onExpired: () => void;
   onProofUnavailable: () => void;
   onAccountReload: () => void;
   onFinancialRead: () => void;
+  onScopeMutation?: () => void;
 }>) {
   const [state, setState] = useState<BillingState>({ kind: "loading" });
   const [revision, setRevision] = useState(0);
   const [scopeId, setScopeId] = useState("");
   const [busy, setBusy] = useState(false);
   const [copyStatus, setCopyStatus] = useState("");
+  const [statusReading, setStatusReading] = useState(true);
   const storageKey = `agentmonitor.billing-check.${account.account_id}`;
   const [checkIntent, setCheckIntent] = useState<BillingCheckIntent | null>(() => {
     try { return restoreCheckIntent(sessionStorage.getItem(storageKey), account.account_id); }
@@ -214,6 +217,7 @@ export function BillingConnectionPanel({ account, onExpired, onProofUnavailable,
   useEffect(() => {
     const controller = new AbortController();
     reading.current = true;
+    setStatusReading(true);
     setState((current) => current.kind === "ready" ? current : { kind: "loading" });
     void (async () => {
       try {
@@ -228,11 +232,11 @@ export function BillingConnectionPanel({ account, onExpired, onProofUnavailable,
           setState({ kind: "error", message: "Billing connection status did not match this account. Refresh to try again." });
           return;
         }
-        setState({ kind: "ready", status: result.data });
+        setState({ kind: "ready", status: result.data, readRevision: revision });
       } catch {
         if (!controller.signal.aborted) setState({ kind: "error", message: "The local billing registry is unavailable. Refresh to try again." });
       } finally {
-        if (!controller.signal.aborted) reading.current = false;
+        if (!controller.signal.aborted) { reading.current = false; setStatusReading(false); }
       }
     })();
     return () => controller.abort();
@@ -421,7 +425,7 @@ export function BillingConnectionPanel({ account, onExpired, onProofUnavailable,
         {!state.status.can_add_connection && <p>{unavailableReason(state.status.reason_code)}</p>}
       </>}
       {state.status.connections.map((connection) => <div key={connection.resource_id}>
-        <FinancialPoolPanel account={account} resourceId={connection.resource_id} selector="billing" onExpired={onExpired} onProofUnavailable={onProofUnavailable} onChanged={() => { onAccountReload(); financialRead.current(); }} />
+        <FinancialPoolPanel key={`${connection.resource_id}:${connection.scope_generation}`} account={account} resourceId={connection.resource_id} selector="billing" onExpired={onExpired} onProofUnavailable={onProofUnavailable} onChanged={() => { onAccountReload(); financialRead.current(); }} />
         <p><span className="state-chip state-unavailable">Connection {connection.lifecycle}</span></p>
         <BillingMonitoringControls accountStatus={state.status} connection={connection} onExpired={onExpired} onProofUnavailable={onProofUnavailable}
           onChanged={() => { setRevision((value) => value + 1); onAccountReload(); financialRead.current(); }} />
@@ -429,6 +433,11 @@ export function BillingConnectionPanel({ account, onExpired, onProofUnavailable,
           <div><dt>Provider billing scope</dt><dd>{connection.scope_id ?? "Provider billing scope has not been specified."}</dd></div>
           <div><dt>Scope evidence</dt><dd>{connection.scope_evidence.replaceAll("_", " ")}</dd></div>
         </dl>
+        <BillingScopeControls accountStatus={state.status} connection={connection} disabled={busy || submitting || statusReading}
+          refreshRevision={revision} statusReadRevision={state.readRevision}
+          onBusyChange={(value) => { if (mounted.current) { mutating.current = value; setBusy(value); } }}
+          onExpired={onExpired} onProofUnavailable={onProofUnavailable} onScopeMutation={onScopeMutation}
+          onChanged={() => { setRevision((value) => value + 1); onAccountReload(); financialRead.current(); }} />
         <p id={`billing-check-help-${connection.resource_id}`}>{checkEligibility(state.status, connection).reason}</p>
         <button type="button" disabled={busy || submitting || checkIntent !== null || !checkEligibility(state.status, connection).allowed}
           aria-describedby={`billing-check-help-${connection.resource_id}`} onClick={() => startCheck(connection)}>Check connection</button>

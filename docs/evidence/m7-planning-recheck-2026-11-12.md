@@ -174,3 +174,48 @@ Validation for this follow-up:
 
 Result: planning clarification saved locally. No ticket is newly complete, no
 new live test is claimed and no installed/public revision changed in this pass.
+
+## Consolidation after the scope-editor draft
+
+Reviewed committed baseline `23fd185` and preserved the uncommitted scope-editor
+implementation. This pass changes planning artifacts only. The draft's separate
+real HTTP/registry run completed with 38 tests passing; that is not its missing
+built-browser Green, installation or M7 acceptance.
+
+Three independent read-only reviews covered P02 journeys, M05 calculations and
+M04/completion boundaries. Root checked the fund contract, runner dispatch and
+existing test/helper paths. Material decisions, all inside existing tickets:
+
+| Gap | Decision | Rejected alternative |
+|---|---|---|
+| Terminal status can overwrite a different selection | Only successful matching resource/authority/category/grouping/interval refreshes that financial view; T007/T011 | Replace values on every terminal event |
+| Historical scope beside current Collect authority | Historical selection is read-only; existing Latest control returns to current scope; T010/T011 | Collect old scope with new credentials |
+| No report yet for chosen breakdown | Preserve admitted nonsecret selection through existing routing; T007/T010/T013 | Dummy report ID or second router |
+| Limit fields can imply unsupported headroom | Publish compatible calculation inputs/lineage before subtraction; T010 | Infer cash or headroom from same-currency amounts |
+| Forecast paging independence can lose identity | Pin selected financial context, disclose sample bounds, reject incompatible funds; T013 | New-scope balance forecasting old-scope spend |
+| Range composition sounds mandatory | Direct admitted 7/30-day reports suffice; T005/T010 | Generic interval assembler before useful money |
+| Fairness has no finite proof | Fixed eligible-set two-round pure proof plus real successive eligible claims/ranges; T007 | Indefinite soak or artificial provider load |
+| Recovery is too broad | Name five real boundary demonstrations using existing helpers; T007/T014 | New disaster-test platform |
+| Final inventory/evidence moves indefinitely | Pin relevant configuration, invalidate affected resources only, separate source time from candidate verification; T015/T016 | Repeat every owner comparison after each metadata/doc change |
+| Competing delivery instructions | Shorten worksheet; catalog alone owns status/steps, UI/math own rules | Another tracker or appended gate hierarchy |
+
+No requirement, acceptance ID, provider inventory, ticket dependency/status or
+approval changed. Primary owner remains root/M05; module/API handoffs are
+assigned, not published as new runtime contracts by this edit. No secret access,
+provider call, owner configuration, deployment, migration, dependency or license
+change occurred. The first monetary source remains an external live prerequisite;
+independent work remains executable. Final read-only review found no remaining
+financial-identity/evidence contradiction. Its two wording corrections distinguish
+mandatory local recovery from conditional provider failures and repeated eligible
+contexts from concurrently active work under the single worker.
+
+Validation for this consolidation:
+
+- `python3 tools/automation/run.py AUTO-M7-PLAN-CHECK`: Passed.
+- `python3 tools/automation/run.py AUTO-DOCS-CHECK`: Passed (392 Markdown files).
+- `python3 tools/automation/run.py AUTO-PLAN-CHECK`: Passed (synchronized).
+- `git diff --check`: Passed.
+
+Saved locally in the M7 worktree. No installed/public revision changed and no
+production completion is claimed. The implementation goal remains unfinished;
+the worksheet names the next implementation packet and fixed completion scope.

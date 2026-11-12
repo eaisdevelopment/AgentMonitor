@@ -15,7 +15,7 @@ import { CloudUsageCollectControl } from "./CloudUsageCollectControl";
 import { cloudUsageContext, cloudUsageScope } from "./cloudUsageCollectPresentation";
 import { budgetWindowDays, budgetWindowSearch, latestBudgetWindow, resizeBudgetWindow, shiftBudgetWindow, type BudgetWindow } from "./budgetWindowNavigation";
 import { advanceFinancialRead } from "./billingCheckPresentation";
-import { canRetainFinancialReading, selectedFinancialReport, type FinancialReadContext } from "./financialReadPresentation";
+import { billingReportCollectable, canRetainFinancialReading, selectedFinancialReport, type FinancialReadContext } from "./financialReadPresentation";
 
 const readable = (value: string) => value.replaceAll("_", " ");
 const instant = (value: string) => new Date(value).toLocaleString(undefined, { timeZoneName: "short" });
@@ -123,11 +123,12 @@ function ResourceReading({ resource, accountId, asOf, onExpired }: Readonly<{ re
   </article>;
 }
 
-export function BudgetAccountPanel({ account, showUnconfigured, onExpired, readRevision, financialSearch = "" }: Readonly<{
+export function BudgetAccountPanel({ account, showUnconfigured, onExpired, readRevision, authorityRevision = 0, financialSearch = "" }: Readonly<{
   account: AccountViewV1;
   showUnconfigured: boolean;
   onExpired: () => void;
   readRevision: number;
+  authorityRevision?: number;
   financialSearch?: string;
 }>) {
   const selection = selectedFinancialReport(financialSearch);
@@ -140,7 +141,7 @@ export function BudgetAccountPanel({ account, showUnconfigured, onExpired, readR
   const lastReadRevision = useRef(readRevision);
   const lastFinancialSearch = useRef(financialSearch);
   expired.current = onExpired;
-  const context: FinancialReadContext = { account, periodStart: query.period_start, periodEnd: query.period_end, readRevision };
+  const context: FinancialReadContext = { account, periodStart: query.period_start, periodEnd: query.period_end, readRevision, authorityRevision };
   // Fence the heading during render too, before an obsolete request's effect is cleaned up.
   const data = snapshot !== null && canRetainFinancialReading(snapshot.context, context) ? snapshot.data : null;
 
@@ -188,7 +189,7 @@ export function BudgetAccountPanel({ account, showUnconfigured, onExpired, readR
       }
     })();
     return () => controller.abort();
-  }, [account, query]);
+  }, [account, query, authorityRevision]);
 
   function selectWindow(next: BudgetWindow) {
     setDays(budgetWindowDays(next));
@@ -234,7 +235,13 @@ export function BudgetAccountPanel({ account, showUnconfigured, onExpired, readR
       {hasFunds && funds !== null && funds !== undefined ? <FundsReading funds={funds} /> : <p>Remaining funds not reported{funds === null || funds === undefined ? "." : `: ${readable(funds.availability.reason_code)}.`}</p>}
       {data.availability.state !== "available" && !(hasFunds && data.availability.reason_code === "billing_not_configured") && <p role="status">Spend data {data.availability.state}: {readable(data.availability.reason_code)}.</p>}
       {data.resources.length === 0 && cloudResources.length === 0 && data.availability.reason_code === "billing_not_configured" && <p>{hasFunds ? "No usage report for this interval." : "API billing is not set up."}</p>}
-      {data.resources.filter(resource => selection.kind !== "selected" || resource.connection.resource_id === selection.resourceId).map(resource => <BillingCollectControl
+      {selection.kind === "selected" && selection.reportId !== null && data.resources
+        .filter(resource => resource.connection.resource_id === selection.resourceId && !billingReportCollectable(selection, resource))
+        .map(resource => <div key={`historical-${resource.connection.resource_id}`} data-historical-scope="true">
+          <button type="button" disabled>Collect now</button>
+          <p role="status">Historical or unconfirmed scope — return to current scope to collect. Use Latest completed window.</p>
+        </div>)}
+      {data.resources.filter(resource => billingReportCollectable(selection, resource)).map(resource => <BillingCollectControl
         key={`${account.account_id}.${account.record_version}.${resource.connection.resource_id}.${resource.connection.record_version}.${resource.connection.scope_generation}.${query.period_start}.${query.period_end}`}
         account={account} connection={resource.connection} reportContext={collectionContext(query.period_start, query.period_end)}
         onExpired={onExpired} onCollected={() => selectWindow(advanceFinancialRead(query, new Date()))} />)}

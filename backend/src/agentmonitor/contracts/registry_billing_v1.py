@@ -162,6 +162,36 @@ class CreateBillingConnectionCommandV1(TechnicalValueV1):
             raise ValueError("registry_billing_command_invalid")
 
 
+@dataclass(frozen=True, slots=True)
+class ChangeBillingScopeCommandV1(TechnicalValueV1):
+    """Explicit owner scope correction; never proof of provider access."""
+
+    CONTRACT_ID: ClassVar[str] = "CTR-REG-014"
+    CONTRACT_VERSION: ClassVar[str] = "1.6.0"
+    OWNER: ClassVar[str] = "PLAN-M02"
+    account_id: OpaqueIdV1
+    resource_id: OpaqueIdV1
+    expected_account_version: int
+    expected_connection_version: int
+    expected_scope_generation: int
+    scope_id: str | None
+    principal_id: OpaqueIdV1
+    command_id: OpaqueIdV1
+    requested_at: datetime
+
+    def __post_init__(self) -> None:
+        TechnicalValueV1.__post_init__(self)
+        if not _scope_valid(self.scope_id) or any(
+            type(value) is not int or value < 1
+            for value in (
+                self.expected_account_version,
+                self.expected_connection_version,
+                self.expected_scope_generation,
+            )
+        ):
+            raise ValueError("billing_scope_command_invalid")
+
+
 class BillingConnectionPortV1(Protocol):
     """Registry metadata only. No call reads a secret or contacts a provider."""
 
@@ -169,6 +199,10 @@ class BillingConnectionPortV1(Protocol):
 
     def create(
         self, command: CreateBillingConnectionCommandV1
+    ) -> BillingConnectionViewV1: ...
+
+    def change_scope(
+        self, command: ChangeBillingScopeCommandV1
     ) -> BillingConnectionViewV1: ...
 
 

@@ -27,6 +27,14 @@ The current integrated sources may not expose all these fields; that is an
 explicit availability result. Local budget editing, FX conversion, invoice/tax
 reconciliation and price-list estimation are outside M7.
 
+T010 distinguishes source-reported fields from calculated headroom. Existing
+fund components can carry an observed limit/remaining value; deriving headroom
+from a separate report additionally needs explicit compatible period, scope,
+currency, cost basis, enforcement and input-report lineage in the additive
+contract. Without that evidence, show the reported limit and Headroom unavailable.
+Do not calculate a plausible subtraction merely because the amounts share a
+currency. This does not delay spend/history or require another financial API.
+
 Fund components retain their own scope, observation time and constraining
 classification. In the existing Ollama contract, included and purchased credits
 are non-constraining components: one being empty does not prove the account is
@@ -148,6 +156,12 @@ partial-day reading separately labeled in detail. No partial bucket prorating.
 Ollama native ranges are not a billing-month total. Account detail may show a
 separate provider billing period; incompatible period spend cannot derive its
 limit headroom.
+
+Direct admitted 7/30-day reports satisfy the required selectors. Wider-report
+projection and composition of disjoint report intervals are optional reuse
+strategies, subject to the compatibility rules; M7 does not require a general
+interval-stitching engine. Missing retained exact-period coverage is explicit.
+Forecast sampling follows section 6 and is not a backfill mechanism.
 
 No interpolation or prorating across incomplete daily boundaries. Request only
 source-supported boundaries; unsupported selection returns a clear reason.
@@ -306,6 +320,13 @@ is taken from a changing cash balance, since top-ups and expiries may change it.
 Missing funds or limits prevents an exhaustion estimate, not a qualified
 observed spending rate. Publish rate and exhaustion availability separately.
 Counts-only data supports neither monetary rate nor an inferred cost.
+
+Forecast sampling is independent of the history page size, but not of the
+selected financial identity. An explicit historical report fixes its scope/epoch,
+currency and cost basis. Sample only compatible inputs under that selection and
+disclose the actual interval; a current balance from another scope epoch cannot
+supply a date without established compatibility. M7-MATH-15 covers an old-scope
+report plus new-scope funds: no exhaustion date. No new history mechanism.
 
 An exhaustion estimate requires costs attributable to the selected funds
 component. Whole-pool spending cannot predict separate included/purchased-credit

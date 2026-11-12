@@ -317,6 +317,13 @@ separately in Manage connection; current funds retain their own scope/time.
 Never put an old amount under the newly configured scope's heading. T002/T010/T011
 cover scope change followed by old-report selection; naturally unavailable live
 history is recorded separately from pure selection/presentation evidence.
+An old-scope report is read-only historical evidence. Its Collect action is
+disabled with **Historical or unconfirmed scope — return to current scope to collect**.
+Unconfirmed covers a pinned report absent from current published evidence without
+asserting that its epoch definitely differs. The
+existing **Latest completed window** action clears that historical selection
+and returns to the current resource scope; it still does not collect. Never
+submit current credentials for the old scope merely because its report is open.
 Use existing lists/controls, without a calendar or report-builder dependency.
 
 Start with the exact table in the first usable slice; chart and forecast arrive
@@ -329,6 +336,10 @@ gap. Load more updates both, and a failed page preserves both. A daily aggregate
 must be supplied by M05; React never sums financial rows. Do not require automatic
 fetch-all to draw the chart. The complete selected-report total remains distinct
 from the displayed page, and forecast inputs are selected independently by M05.
+That independence concerns pagination, not identity: a forecast stays in the
+selected report's financial scope/epoch and states its actual sample interval.
+Current funds from a different epoch cannot supply its exhaustion date without
+established compatibility. Historical rate/estimate labels remain historical.
 
 Usage breakdown has one source/category selector followed by one supported
 dimension selector. Adapters/P01 publish the admitted combinations, native units
@@ -338,6 +349,11 @@ a selector reads stored data only; Unsupported differs from Not yet collected.
 An explicit Collect action names that exact source/category/dimension/interval.
 T006–T009/T013 own this handoff; T007 supplies the existing collection action.
 No query builder, nested grouping or new page is required.
+The API publishes an admitted nonsecret selection identity even when no report
+exists. Back/reload/sign-in preserves that selection through the existing URL
+allowlist. Changing category/dimension clears incompatible report/history
+cursors; it never retargets a submitted collection. No dummy report ID or second
+routing mechanism is needed. T007/T010/T011/T013 share this contract handoff.
 
 For the first viewport, prioritize account/scope, state, spend/period and
 available funds when known. Never show a combined Subscriptions + API capacity
@@ -448,9 +464,13 @@ service; do not simulate a provider failure to manufacture a UI state.
 Keep three time selections distinct: the reporting interval, the read snapshot
 (`as_of`), and the live action status. Check/Collect progress follows the returned
 run ID through a safe status GET, including after reload; a fixed old financial
-snapshot cannot show a newly completed run. On terminal status, reread stored
-financial data with a new `as_of` but the **same reporting interval**. Replace
-the selected report/table together and reset its history cursor. Do not move
+snapshot cannot show a newly completed run. Only successful completion matching
+the currently selected resource, authority,
+category/grouping and interval rereads financial data with a new `as_of` and the
+**same reporting interval**. Replace the selected report/table together and
+reset its history cursor. Failure retains prior facts and their times alongside
+the failure. Completion for another selection updates that original request's
+status without replacing the displayed financial selection. Do not move
 the interval to a new UTC day, replay the action, or issue a second provider
 read. Previous/Next move within the pinned snapshot
 bound; Latest completed window selects today's completed UTC cutoff. An unrelated later
