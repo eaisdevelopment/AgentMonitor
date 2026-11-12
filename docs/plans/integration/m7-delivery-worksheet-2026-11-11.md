@@ -15,17 +15,15 @@ Link to those decisions rather than maintaining competing copies here.
 
 ## Read this first: next result and finish line
 
-**Immediate repair within T007:** the real seven-day manual run expired before
-dispatch on 12 November. Its persisted `collection_queued_expired` outcome has
-no start time or duration, but the run reader rejects that legitimate state;
-run status and collection history consequently return 503. Add a failing
-regression, admit precisely the truthful pre-dispatch expiry, and verify the
-same existing run and history return readable outcomes after installation.
-Do not manufacture a start time, recollect to hide the failure, or count this as
-successful seven-day provider collection. This is batch 1's existing recovery
-scope, not a new ticket or owner prerequisite.
+**Installed repair within T007:** `d73c171` makes the genuine queued-expiry
+outcome readable through run status and Collection / History, preserving its
+null start/duration and failed outcome. The original seven-day run expired before
+dispatch; repairing its reads is not successful provider collection. Retain its
+17-case genuine/pure check, 73-case regression and installed browser evidence.
 The [repair evidence](../../evidence/m7-queued-expiry-history-2026-11-12.md)
-records the genuine Red and local Green; installation remains separate.
+also records failed broad concurrent continuity probes and an observed browser
+network interruption. Reverify that broader boundary; independent T013 work
+continues. This remains existing recovery scope, not a new owner prerequisite.
 
 **Next independent delivery:** the first-source history chart and rate-only
 calculation in T013. Billing disconnect/local cleanup and status-to-financial
@@ -69,10 +67,10 @@ valid. No repeated owner account attestations or new plan-version ceremony.
 
 | Boundary | Recorded result | Still unproved |
 |---|---|---|
-| Installed implementation | `d985cc7`, schema `v1_0734`; local billing disconnect/cleanup and status-to-financial refresh, restored-account billing reconnect, retained Source history, scope-edit controls with authority/pool/history fences, resource-based account sections, organization pagination, pool controls, fair 7/30-day scheduling, manual collection, sorted Overview and pinned daily history | Full monetary journey and complete lifecycle/analysis |
-| Public code | GitHub implementation `d985cc7`, independently verified | Later documentation-only receipts do not change installed code |
+| Installed implementation | `d73c171`, schema `v1_0734`; readable queued expiry plus local billing disconnect/cleanup and status-to-financial refresh, restored-account billing reconnect, retained Source history, scope-edit controls with authority/pool/history fences, resource-based account sections, organization pagination, pool controls, fair 7/30-day scheduling, manual collection, sorted Overview and pinned daily history | Full monetary journey, complete lifecycle/analysis and current broad concurrent continuity |
+| Public code | GitHub implementation `d73c171`, independently verified | Later documentation/probe-only receipts do not change installed code |
 | Live reports | Genuine Ollama balances/counts, one manual 30-day report and scheduled 30-day reports on two real resources | Later seven-day probe made one POST; the queued run expired before dispatch and its status/history read failed. Successful seven-day manual collection, monetary reports and remaining provider matrix are unproved |
-| Browser reliability | Actual installed concurrent Overview/setup/cloud reads passed; isolated real owner metadata covered pool controls, later organization pages and full-list sorting | Monetary totals, full accessibility and final acceptance |
+| Browser reliability | Prior installed concurrent Overview/setup/cloud reads passed; current expired-run/history UI passes; isolated real owner metadata covered pool controls, later organization pages and full-list sorting | Current broad concurrent probe failed; later inspection observed browser network interruption. Monetary totals, full accessibility and final acceptance remain open |
 | Source access | Read-only installed inventory at 08:11:53 UTC, 12 November: zero Anthropic/OpenAI billing connections, stored bindings or enabled billing connections | Subscription logins do not prove billing access; absence is not a provider denial |
 | Tracker | 2 done, 11 in progress, 3 planned | Counts are not percentage complete |
 

@@ -1,7 +1,7 @@
 # M7 queued-expiry history repair
 
-Status: local implementation verified; installation and public verification
-remain pending. T007/T009/T010/T014; FR-BUDGET-006, AC-TEST-001/003/006,
+Status: bounded repair installed and published; broader concurrent browser
+continuity remains failed. T007/T009/T010/T014; FR-BUDGET-006, AC-TEST-001/003/006,
 M7-A05/A07/A09. M04 owns run semantics; P01 and the existing history UI consume
 the corrected reads. Approved focused plan 1.1.0 already includes queued expiry.
 
@@ -67,3 +67,34 @@ test, canonical runner/selection test, read-only browser probe, contract registe
 delivery worksheet and this evidence. Follow-up: verify the same failed run on
 the installed candidate, publish/verify that revision, and continue independent
 T013 work. Successful manual seven-day collection remains a separate open item.
+
+## Installed and public result
+
+Implementation `d73c1717eca0c3968c45044bf9fe0a8747ae8d68` passed the existing
+selected-revision updater, retaining schema `v1_0734` and restoring the normal
+restart policy. Independent M04 review found no correctness defect in the
+writer/read match. Staged secret scan found only two generated OpenAPI artifact
+hashes, verified against actual old/new artifact bytes; zero unresolved findings.
+
+At 08:34:37 UTC the installed probe passed original expired-run history and
+status GETs and the rendered Collection / History page, with zero mutations.
+Its first installed attempt passed both APIs but used the wrong navigation
+label (`Collection/History` instead of the actual `Collection / History`);
+correcting that locator made the same installed production code pass. No
+provider request, start time, report or success was manufactured.
+GitHub main was independently verified at the full implementation revision.
+
+The wider concurrent Overview/setup/cloud probe is **not passed** on this
+revision. The 08:34 attempt reported `comparison_source_unavailable` and
+`cloud_collect_control_missing`; the 08:36 attempt reported
+`overview_probe_boundary_failed`, `setup_form_unavailable` and the missing
+cloud control. Intermediate direct reads returned available Overview and both
+cloud accounts, with both cloud controls rendered. A subsequent browser network
+inspection observed `net::ERR_NETWORK_CHANGED` on several genuine reads;
+successful reads still rendered two financial rows and a quota table. This
+does not establish the cause of every earlier failed assertion. Retain the
+failures and verify concurrent continuity when the browser boundary is stable;
+do not declare the broad probe passed from the narrower history result.
+
+The navigation-locator correction and this receipt are successors to installed
+production. No additional installation is needed for a probe/document change.

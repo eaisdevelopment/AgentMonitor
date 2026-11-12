@@ -44,7 +44,7 @@ try {
   requireEvidence(run.state === "failed" && run.error_code === selected.error_code && run.started_at === null && run.report_id === null && run.completed_at === selected.completed_at, "expired_status_changed_meaning");
   checks.run_status = true;
   await page.goto(origin, { waitUntil: "domcontentloaded" });
-  await page.getByRole("button", { name: "Collection/History", exact: true }).click();
+  await page.getByRole("button", { name: "Collection / History", exact: true }).click();
   const panel = page.getByRole("region", { name: "Collection runs", exact: true });
   await panel.locator(".state-available").waitFor();
   requireEvidence(await panel.locator("[data-collection-run]").count() > 0, "history_rows_missing");
