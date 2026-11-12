@@ -1,7 +1,7 @@
 # M7 delivery worksheet: remaining work and fixed finish line
 
 Status: execution clarification within approved focused plan 1.1.0, planning re-review 12 November 2026; recorded baseline
-against installed code revision `79821bf` on 12 November 2026. Primary owner:
+against installed code revision `cd4f566` on 12 November 2026. Primary owner:
 root integration; financial semantics: M05. No new scope, approval or gate.
 
 The [ticket catalog](m7-ticket-catalog-v1.json) is the only task tracker:
@@ -21,13 +21,13 @@ records the immediate reliability priority and corrections to stale instructions
 
 | Boundary | Recorded result | What it does not prove |
 |---|---|---|
-| Installed code | `79821bf`, schema `v1_0734`; fair queued/scheduled selection, independent 7/30-day billing intent and manual cloud usage, financial-entry focus, counts-only state correction, compact summaries, pinned daily-history paging, older-window navigation, selected-period billing actions/eligibility/cooldown, captured Check/scheduled context, full-inventory Overview sorting and retained OpenAI/Anthropic cost runtime | Successful administrative billing access or a genuine cost report |
+| Installed code | `cd4f566`, schema `v1_0734`; fair queued/scheduled selection, independent 7/30-day billing intent and manual cloud usage, financial-entry focus, counts-only state correction, compact summaries, pinned daily-history paging, older-window navigation, selected-period billing actions/eligibility/cooldown, captured Check/scheduled context, full-inventory Overview sorting and retained OpenAI/Anthropic cost runtime | Successful administrative billing access or a genuine cost report |
 | Owner controls and aggregation | Pool create/join/unlink/primary-group controls, pool-aware Overview and exact attribution installed with `3c65e1d`; retained in current release | Genuine shared monetary totals, source-scope editing or every final setup case |
 | Dashboard | Authenticated real Overview API/DOM ordering, filters, report links, Back/reload, pool controls and responsive layouts passed at `ef8fa86`; six sorts and >50-row paging passed against isolated real metadata | Genuine monetary totals, complete accessibility and analysis acceptance |
 | Live data | Existing Ollama cloud balances and daily usage; demonstrated usage is counts-only | Counts are not monetary spend. No conversion or invented zero |
 | Monetary prerequisite | Latest read-only inventory records no Anthropic/OpenAI billing connections; tested owner setup request pending | No enrollment is not evidence of denied provider access |
-| Publication | GitHub main verified at installed implementation `79821bf`; documentation-only successors do not alter runtime code | Full M7 exit, current runtime re-verification or owner acceptance |
-| Latest verification | Installed serial Overview/history, setup and cloud controls passed at `79821bf`; two distinct real accounts completed scheduled 30-day usage. Seven-day manual attempt remained rate-limited before POST. Concurrent Overview 504 remains T012 reliability work; earlier 30-day manual evidence is retained | Not successful monetary provider access |
+| Publication | GitHub main verified at installed implementation `cd4f566`; documentation-only successors do not alter runtime code | Full M7 exit, current runtime re-verification or owner acceptance |
+| Latest verification | Installed serial Overview/history, setup and cloud controls passed at `79821bf`; two distinct real accounts completed scheduled 30-day usage. Seven-day manual attempt remained rate-limited before POST. Concurrent Overview/setup/cloud reads passed after the query correction at `cd4f566`; earlier 30-day manual evidence is retained | Not successful monetary provider access |
 
 Evidence: [stored-window navigation](../../evidence/m7-window-navigation-2026-11-12.md),
 [bounded history](../../evidence/m7-bounded-history-2026-11-12.md),
@@ -60,9 +60,10 @@ integration change proceeds at a time; independent module work uses stable
 contracts and separate files. Source access may arrive during any increment;
 integrate the first real monetary report as soon as it does.
 
-**Immediate next packet: T010/T012 concurrent Overview reliability.** The
-installed concurrent-browser 504 is a known defect, so pull this part of batch 5
-forward before further UI expansion. Reproduce concurrent authenticated Overview,
+**Delivered reliability packet: T010/T012 concurrent Overview reads.** The
+query correction at `cd4f566` passed the exact-revision concurrent browser check;
+see [evidence](../../evidence/m7-overview-query-reliability-2026-11-12.md). Retain
+this reproduction as regression coverage before further UI expansion: concurrent authenticated Overview,
 account-detail and setup reads while ordinary collection continues. Measure
 query time and repeated metadata access; make the smallest measured correction.
 Preserve complete inventory, pool attribution and final registry revision checks.
@@ -73,6 +74,10 @@ failure, reduced inventory, global cache or new worker is the default solution.
 T003 incorporates this reproduction into the existing Overview/browser scope;
 serial ownership of temporary tool links does not prohibit concurrent app reads.
 This is an existing acceptance defect, not a ninth delivery batch.
+
+Next independent implementation packet: T002/T011 capability-based mixed-account
+routing. The first genuine monetary report remains the priority whenever owner
+billing access becomes available; no repeated setup request is needed.
 
 | Order / existing tickets | Smallest remaining result and owner | Required demonstration before moving the result to delivered |
 |---|---|---|
@@ -262,7 +267,7 @@ requirements, dependencies and evidence. No ticket is closed by this review.
 | T009 A03 | Complete admitted cloud usage ranges/model breakdown/manual collection and source comparison; reuse existing key/pool/balance/usage evidence |
 | T010 M05/P01 | Retain installed full-list sorting and bounded pinned daily history; retain installed older-window selection; finish prior-scope report discovery and remaining funds/state/context API cases; genuine populated monetary reconciliation |
 | T011 P02 | Retain installed older-window controls; finish API-origin account gaining subscription resources, scope/collection interactions, retained-value failure behavior, direct URL/sign-in return and remaining accessibility checks |
-| T012 P02 | Fix observed concurrent Overview 504 first; retain installed server sorting/table/filters; finish full-filter totals with genuine money, navigation and quota-failure isolation |
+| T012 P02 | Retain the installed concurrent-read correction and server sorting/table/filters; finish full-filter totals with genuine money, navigation and quota-failure isolation |
 | T013 M05/P01/P02, M08 invocation | One-dimension breakdown, exact chart, small conditional forecast and financial retention using existing scheduler |
 | T014 root/M08 | Complete monetary installed journey, recovery and existing collector continuity; retain delivered schema0734/update/browser proof |
 | T015 root | Required per-provider and active-resource accounting; same-scope/period source/API/DOM reconciliation; conditional cases separately labelled |

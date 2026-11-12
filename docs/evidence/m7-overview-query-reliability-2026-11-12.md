@@ -1,7 +1,7 @@
 # M7 Overview query reliability
 
-Status: local implementation with bounded verification; installed concurrent
-verification remains pending. T010/T012, supporting T003; FR-BUDGET-002/005,
+Status: implementation `cd4f566de137370a44978696cf22543e1581928c` installed
+and published, with passing concurrent verification below. T010/T012, supporting T003; FR-BUDGET-002/005,
 NFR-PERF-001, AC-UI-002/003/005, AC-TEST-001/002/006, M7-A07/A08.
 M05 owns query eligibility and projection; root owns runner integration.
 
@@ -80,3 +80,26 @@ and a scoped selection in the existing M7 runner. The accompanying planning
 clarification retains all sixteen tickets. Deployment uses the existing
 same-schema update/recovery command; installed evidence will be appended after
 the exact candidate is exercised.
+
+## Installed result
+
+The canonical same-schema update passed for clean implementation revision
+`cd4f566de137370a44978696cf22543e1581928c`, restoring the normal service
+restart policy. The exact-revision browser selection then passed its three
+genuine private-copy tests and all three concurrent installed probes at
+05:20:04 UTC: Overview API/DOM, filters, financial entry/history/navigation,
+responsive/pool controls; installed setup; and cloud usage read-only controls.
+Each child verified the selected revision and zero unsafe requests. There was
+no automatic retry of the earlier failed run; the production query changed.
+
+`overview_concurrency` is Passed. The selection intentionally exits 3 with
+`overview: NOT_RUN (m7_monetary_overview_required)` because the available cloud
+data is counts-only; this does not close full T012 or M7. The observed 504
+reproduction now passes; this is not an unlimited-load or all-financial-state
+performance claim. Service is active and Dashboard HTTP 200 after verification.
+GitHub `refs/heads/main` was verified at that implementation revision.
+
+The staged secret scan initially flagged the documentation words describing
+unknown/empty/mixed resources. Exact in-memory comparison confirmed ordinary
+prose, not a credential; wording was clarified and the final scan passed with
+zero findings. No scanner suppression was added.
