@@ -1,7 +1,7 @@
 # M7 retained report discovery
 
-Status: implementation in progress under approved focused plan 1.1.0; not yet
-installed or published. T010/T011, FR-BUDGET-006, FR-HIST-001, M7-A06/A07.
+Status: bounded increment installed and published at `540ab8b` under approved
+focused plan 1.1.0. T010/T011, FR-BUDGET-006, FR-HIST-001, M7-A06/A07.
 M05 owns retained report semantics; P01 the HTTP boundary; P02 presentation.
 This increment does not close the full tickets or milestone.
 
@@ -109,3 +109,21 @@ The installed dashboard remained HTTP 200 throughout these isolated checks.
   seconds after the production rebuild at 06:52:45 UTC. It selects the second
   genuine retained report, verifies exact facts and scope labels after reload/
   Back/Forward, and tests page-scoped offline retention without owner mutations.
+
+## Installed and published result
+
+Implementation `540ab8bf001e1eabb64fd38f544bac4f24f209e3` was installed with the
+existing selected same-schema updater; it verified readiness and restored the
+original restart policy. Schema remains `v1_0734`. The service is active and
+Dashboard HTTP is 200. At 06:55:59 UTC, the concurrent installed probe passed
+Overview/API/DOM/navigation (including Source history), setup and cloud controls
+against that exact revision with zero mutations. This supplies the installed
+Green after the explicit `71185cf` missing-disclosure Red.
+
+GitHub main was pushed and independently verified with `git ls-remote` at the
+full implementation revision above. The staged secret scan's two findings were
+verified old/new generated OpenAPI artifact hashes; zero unresolved findings,
+no suppression. This documentation-only receipt does not change installed code.
+Next: remaining rotation/disconnect/archive lifecycle and the required monetary
+source-to-dashboard proof when owner billing configuration exists. The full
+M7 objective and fixed acceptance inventory remain open.
