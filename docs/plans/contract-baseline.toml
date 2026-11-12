@@ -563,7 +563,7 @@ checklist = { field_state_null = true, units_time = true, auth = true, side_effe
 [[contracts]]
 id = "CTR-REG-014"
 name = "AccountBillingConnectionsV1"
-version = "1.4.0"
+version = "1.5.0"
 producer = "PLAN-M02"
 consumers = ["PLAN-FND", "PLAN-P01", "PLAN-P02", "PLAN-INT", "PLAN-M04", "PLAN-M05"]
 maturity = "evidence_blocked"

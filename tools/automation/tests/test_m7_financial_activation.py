@@ -34,12 +34,12 @@ def test_financial_rehearsal_uses_real_installed_predecessor(tmp_path: Path) -> 
     )
     assert result.returncode == 0, "actual empty migration rehearsal must execute"
     facts = json.loads(result.stdout)
-    assert facts["source_revision"] == "v1_0731"
-    assert facts["target_revision"] == "v1_0733"
+    assert facts["source_revision"] == "v1_0733"
+    assert facts["target_revision"] == "v1_0734"
     assert facts["blockers"] == []
     for location, revision in (
-        (workspace / "agentmonitor.db", "v1_0733"),
-        (workspace / "backup/agentmonitor.db", "v1_0731"),
+        (workspace / "agentmonitor.db", "v1_0734"),
+        (workspace / "backup/agentmonitor.db", "v1_0733"),
     ):
         with sqlite3.connect(f"{location.as_uri()}?mode=ro", uri=True) as connection:
             assert connection.execute("PRAGMA integrity_check").fetchall() == [("ok",)]
@@ -187,8 +187,8 @@ def test_financial_candidate_build_and_backup_rehearsal(
     )
     assert result.status == "prepared"
     assert result.blockers == ()
-    assert result.source_revision == "v1_0731"
-    assert result.target_revision == "v1_0733"
+    assert result.source_revision == "v1_0733"
+    assert result.target_revision == "v1_0734"
     assert result.revision == revision
     release = Path(result.release)
     assert verify_candidate_release(
@@ -212,8 +212,8 @@ def test_financial_candidate_build_and_backup_rehearsal(
         == b""
     )
     for location, expected in (
-        (workspace / "schema-rehearsal/agentmonitor.db", "v1_0733"),
-        (workspace / "schema-rehearsal/backup/agentmonitor.db", "v1_0731"),
+        (workspace / "schema-rehearsal/agentmonitor.db", "v1_0734"),
+        (workspace / "schema-rehearsal/backup/agentmonitor.db", "v1_0733"),
     ):
         with sqlite3.connect(f"{location.as_uri()}?mode=ro", uri=True) as connection:
             assert connection.execute("PRAGMA integrity_check").fetchall() == [("ok",)]

@@ -789,3 +789,56 @@ populated old-lineage evidence must not demand a real key rotation before the
 first report. The worksheet now requires pure isolation and real current-query
 verification, with naturally unavailable old-lineage history recorded separately.
 No provider state is changed to manufacture that scenario.
+
+
+## Final planning review against 441a3b8
+
+This review follows the owner's request for detailed UI and budget planning,
+with a simple first working result and a fixed finish line. It refines the
+existing plan 1.1.0 and catalog; it adds no tickets, approvals, dependencies or
+completion gates. M7 remains unfinished. Installed93297fc is recorded evidence
+from the preceding delivery, not a new live verification performed in this review.
+
+Root reviewed the current worksheet, UI/calculation rules, provider discovery,
+ticket dependency graph and aggregation implementation. A read-only independent
+P02 review identified primary-only filtering, shared-row link ownership and
+historical scope-heading gaps. All three were addressed in the existing plans.
+
+| Finding | Decision and traceability |
+|---|---|
+| Completed Overview work still described as next | Reconcile execution/worksheet with recorded installed evidence. Next results are pool totals and genuine monetary spend; publish whichever is usable first |
+| Many partially implemented tickets obscure priorities | One integration packet at a time; independent work only on stable contracts. T003/T014 accompany product delivery, not a separate framework project |
+| Counts-only Ollama could be mistaken for a failed mandatory cost case | Explicit provider-specific success criteria; retain monetary evidence for Anthropic/OpenAI. Genuine qualified zero is valid, missing cost is not zero; T005/T006/T008/T009/T015 |
+| Primary-only group selection could filter away the pool's usable evidence | Resolve authorized compatible access paths before group attribution; test primary-only/secondary-only/both, T004/T010/T012 |
+| Shared financial link could combine another account ID with the chosen report | API supplies the actual report-owning account/resource tuple; other access paths use their own links, T010/T012 |
+| Old report could appear beneath a new scope heading | Financial heading comes from immutable selected report; current connection and funds stay separately labelled, T002/T010/T011 |
+| Concurrent group edits could mix rows and totals | One revisioned metadata snapshot and bounded reread/conflict behavior, T002/T010; no new event-sourcing mechanism |
+| Pool storage needs another upgrade beyond installed0733 | Plan additive M02 migration, compatibility and real isolated recovery with T014; previous installation does not prove the future schema |
+| Breakdown could manufacture allocation or a remainder | Reconcile only compatible complete disjoint facts; actual Other/Unallocated once; partial stays partial, T004/T013/T015 |
+| One review could be mistaken for only one allowed test attempt | Freeze acceptance scope, fix demonstrated defects, rerun affected checks and final aggregate on corrected candidate, T016 |
+
+Requirements remain FR-BUDGET-001..006, FR-ORG-003 and the catalog's account,
+UI/history/operations mappings, with the existing M7-A01..A10 and test families.
+These refinements address R-007/R-008/R-014/R-017/R-019/R-020 without declaring
+those risks closed. M02 owns association metadata, M05 financial policies,
+P01/P02 API/UI and root migration/deployment integration. Published contract
+versions are unchanged by this planning edit; pending financial-pool types are
+unfinished working changes, not a synchronized new contract release.
+
+Validation on the actual planning diff:
+
+- `python3 tools/automation/run.py AUTO-M7-PLAN-CHECK`: Passed, sixteen tickets,
+  five stories, ten acceptance items and dependency/traceability checks.
+- `python3 tools/automation/run.py AUTO-PLAN-CHECK`: Passed, synchronized.
+- `python3 tools/automation/run.py AUTO-DOCS-CHECK`: Passed, 381 Markdown files.
+- `git diff --check`: Passed.
+
+Changed planning artifacts: execution plan, delivery worksheet, UI journeys,
+calculation rules, ticket catalog and this evidence. No production code was
+edited during this review; the pre-existing uncommitted contract/test work was
+preserved. No runtime, account configuration, secrets, dependency/license,
+provider profile, deployment or publication changes. No new product TDD or live
+pass is claimed for documentation edits. All unfinished implementation and
+required live checks remain attached to the original tickets. The recorded
+administrative billing setup request affects its monetary live lane only;
+no owner action is needed to complete this planning review.

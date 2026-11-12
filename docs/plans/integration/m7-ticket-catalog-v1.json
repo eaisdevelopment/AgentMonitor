@@ -122,7 +122,8 @@
         "Deliver copyable candidate local-entry command with host/provider/account context, safe stored/pending/cleanup status, cancellation/retry and rotation/archive fences; no browser key field.",
         "Verify real metadata HTTP/browser and local filesystem/TTY boundaries; actual key entry remains owner-controlled. Hand T007 generation-fenced eligibility and T014 the tested entry point.",
         "Retain passed mixed-account and Ollama API-only browser evidence: existing cloud controls, no duplicate billing connection, reload and narrow layout. Rendering/copy is not actual credential entry or verified access. Early T014 activation still precedes owner use of the installed-service command.",
-        "Verify stored shared-pool/primary-group metadata and original history are preserved through owner association and scope edits; scope changes use the existing atomic monitoring invalidation hook. Filtered subtotal acceptance belongs to downstream T010/T012 and does not block T002 closure."
+        "Verify stored shared-pool/primary-group metadata and original history are preserved through owner association and scope edits; scope changes use the existing atomic monitoring invalidation hook. Filtered subtotal acceptance belongs to downstream T010/T012 and does not block T002 closure.",
+        "Keep pool association distinct from source-scope proof; group/primary-attribution changes do not collect or invalidate same-scope credentials. Source changes fence monitoring/commits and retain original history. Plan the necessary additive M02 pool migration beyond installed0733 with root/T014 before activation; existing migration evidence does not cover it."
       ]
     },
     {
@@ -228,7 +229,8 @@
         "Run meaningful money/selection mutations; hand contracts to the first-provider/storage lane without waiting for T013 forecast logic.",
         "Retain already-corrected context-independent conversion evidence; cover canonical signed/exponent zero and overflow without retesting unrelated provider boundaries.",
         "Compare low-remaining thresholds from exact numerator/positive denominator before display rounding; 20.004% is not low, 19.996% is low, and values outside 0–100 are preserved. Cover in M7-MATH-14; React only renders the computed state.",
-        "Preserve non-constraining fund-component semantics: zero included credits plus positive purchased credits is not account exhaustion. Extend M7-MATH-07/08; no invented spending order or minimum-of-components account health."
+        "Preserve non-constraining fund-component semantics: zero included credits plus positive purchased credits is not account exhaustion. Extend M7-MATH-07/08; no invented spending order or minimum-of-components account health.",
+        "Extend existing M7-MATH-10/11/12 cases: same-pool alternative access is counted once, restricted child coverage cannot represent its parent, matching breakdown plus reported remainder reconciles without fabricated attribution, and qualified monetary zero differs from counts-only missing cost."
       ]
     },
     {
@@ -560,7 +562,8 @@
         "Publish opaque current-lineage context for UI invalidation and select M04 status using matching source/scope/range/interval; no selected-context run means no collection for that selection, not latest account success.",
         "Expose existing backend-derived percentage text, exact low flag, input lineage/rounding or availability reason where a compatible positive denominator exists; React renders only. Component severity must not imply account exhaustion.",
         "Consume first-provider genuine report and matching run/status evidence from the T007 increment; do not require whole-ticket all-provider scheduling closure. Full T007 remains a T015 prerequisite. Before totals include shared pools, consume the explicit T002 canonical association and primary-group contract; exclusions alone do not close aggregation.",
-        "Apply the admitted account/organization/state sort to the full filtered inventory before page slicing, with a stable tie-breaker and sort-bound cursor; changing sort resets pagination. Keep incompatible money groups separate. This completes existing list/sort semantics without a fetch-all browser query."
+        "Apply the admitted account/organization/state sort to the full filtered inventory before page slicing, with a stable tie-breaker and sort-bound cursor; changing sort resets pagination. Keep incompatible money groups separate. This completes existing list/sort semantics without a fetch-all browser query.",
+        "Resolve eligible pool evidence across authorized access paths before primary-group filtering; test primary-only, secondary-only and combined selections. Use one registry revision for rows/attribution/summaries. Return the contributing report owning account/resource tuple for links, not another access-path ID; conflict rereads stored data."
       ]
     },
     {
@@ -623,7 +626,8 @@
         "Render supported funds and specific missing-field reasons from API; show persisted retry time without a countdown. Navigate retained fixed seven-/thirty-day windows with Previous/Next and original scope labels; no arbitrary historical collection or calendar builder.",
         "Display each funds timestamp beside its amount; older spend shows Current balance as of rather than implying historical funds. Preserve the same immutable report/context through detail/reload/sign-in. Use Refresh view for stored reads and Collect now for explicit provider collection.",
         "Invalidate retained current spend/funds when unresolved active binding lineage changes or disappears, even if account/resource/scope epoch/period remain unchanged. Consume opaque API context, keep old values only in explicit history, and show selected-context job status separately from account-wide credential failures.",
-        "Show exact available buckets from a first partial report without claiming a complete-period total; keep an older complete report separate from a newer partial attempt. Ollama balance Check is not usage Check: the latter requires its actual usage run/report. Stored view refresh never proves new collection."
+        "Show exact available buckets from a first partial report without claiming a complete-period total; keep an older complete report separate from a newer partial attempt. Ollama balance Check is not usage Check: the latter requires its actual usage run/report. Stored view refresh never proves new collection.",
+        "For an explicitly selected old report, use its immutable financial scope/epoch in the main heading and preserve it on reload; current connection scope and current funds remain separately labelled. A later scope edit must not relabel old spending."
       ]
     },
     {
@@ -675,7 +679,8 @@
         "Distinguish resource/currency/cost-basis/category contexts with labelled subrows and matching detail links. Preserve one canonical pool across access paths and never total alternative cost contexts twice.",
         "Use server-ranked state and exact low-capacity decision, not formatted percentages. Show separate labelled provider cost-basis subtotals; a secondary-group shared row names the primary group without inflating its subtotal or counting as missing financial data.",
         "Preserve selected immutable report/context in authorized detail links even after a later scheduled report. Name the read-only control Refresh view. Non-constraining low/empty components cannot promote a whole account to exhausted.",
-        "Include existing funds-only cloud resources without duplicate billing enrollment. No spending report is distinct from zero; authorized resource-only links need no invented report/context. Report-bearing rows retain immutable report links. Counts-only observations cannot occupy monetary columns."
+        "Include existing funds-only cloud resources without duplicate billing enrollment. No spending report is distinct from zero; authorized resource-only links need no invented report/context. Report-bearing rows retain immutable report links. Counts-only observations cannot occupy monetary columns.",
+        "Test primary-only selection when a valid pool report belongs to a secondary-group account, the canonical financial link versus other connection links, and Back/reload. Keep connection failures visible separately from valid same-pool evidence and count the primary subtotal once."
       ]
     },
     {
@@ -729,7 +734,8 @@
         "Use the same pinned daily-bucket financial history as the exact table, not list_reports revision rows. Support gaps and signed corrections without duplicate spend.",
         "Anchor forecast to the selected authoritative funds/headroom observation; use compatible cost buckets ending no later than it and query as_of. Reloading unchanged inputs must not move exhaustion time; future costs cannot be applied to old balance. Missing freshness/compatibility gives a reason, not a date (M7-MATH-15/16).",
         "Extend M7-MATH-09/15/16: positive adjustments plot above zero, negative below; known selected-credit expiry bounds the consumption forecast exactly like renewal. Natural expiry observations remain conditional; pure numerical policies always run.",
-        "M05 owns bounded report/fact retention and referenced-fact preservation; M08 invokes its public participant through the existing scheduler, root integrates. Use genuine persisted reports with an explicit future cutoff in isolated SQLite, never change the clock or seed old telemetry. Verify 365-day expiry, surviving current/derivation references and expired cursors; T015 rechecks installed invocation with the T014 continuity lane after this increment."
+        "M05 owns bounded report/fact retention and referenced-fact preservation; M08 invokes its public participant through the existing scheduler, root integrates. Use genuine persisted reports with an explicit future cutoff in isolated SQLite, never change the clock or seed old telemetry. Verify 365-day expiry, surviving current/derivation references and expired cursors; T015 rechecks installed invocation with the T014 continuity lane after this increment.",
+        "Reconcile a supported breakdown only with a matching complete same-snapshot total; include actual Other/Unallocated once. Label incomplete/top-N coverage without inventing a remainder or allocating money to agents/accounts by proportions."
       ]
     },
     {
@@ -791,7 +797,8 @@
         "Historical setup preparation/activation at c453fe0 and 7e252b8/schema0731 is superseded by installed437a232/schema0733 and authenticated setup proof. Consult the worksheet/evidence before any transition. Do not repeat the initial migration; full financial UI, continuity and recovery remain open.",
         "Cover both actual migration transitions: accepted0720 to setup0731, then installed0731 to the selected financial head0732/0733. Admit and exercise each source/target with its pinned migration/recovery controller before activation; initial recovery evidence does not prove the second upgrade.",
         "The earlier b69d96a failure cause remains unproven. The allowlisted phase/code diagnostic and checked437a232 retry passed operational activation; preserve that evidence. Future rollout failures require actual revision/schema/journal inspection, not speculative restore or automatic replay.",
-        "Sequence existing setup → tested financial storage/worker activation → real report → complete Overview/detail/history. Financial activation is a partial T014 prerequisite, not proof of its downstream UI or a new approval cycle."
+        "Sequence existing setup → tested financial storage/worker activation → real report → complete Overview/detail/history. Financial activation is a partial T014 prerequisite, not proof of its downstream UI or a new approval cycle.",
+        "Any new pool-metadata schema after installed0733 requires the existing candidate compatibility, real migration and isolated recovery checks for that specific source/target. No replay of prior migration or assumption that the previous financial deployment proves the new one."
       ]
     },
     {
@@ -854,7 +861,8 @@
         "Run source comparisons and actual browser/continuity lanes",
         "Freeze real failures only; do not create new acceptance requirements",
         "Reconcile only matching report context/interval/basis and visible source precision; classify missing optional fields separately from supported but unimplemented categories. Reuse valid observations without asking for repeat owner attestations.",
-        "Record sanitized provider/version/resource-alias/interval/observation-time evidence and reuse the applicable owner confirmation where authentication was interactive. Do not introduce another account-code attestation workflow. Recheck installed financial retention invocation after T013, using the existing continuity selection."
+        "Record sanitized provider/version/resource-alias/interval/observation-time evidence and reuse the applicable owner confirmation where authentication was interactive. Do not introduce another account-code attestation workflow. Recheck installed financial retention invocation after T013, using the existing continuity selection.",
+        "Require Anthropic/OpenAI admitted cost and supported usage reports; accept actual counts-only Ollama usage as that lane, never as a substitute for monetary proof. A genuine supported empty cost report may prove qualified zero with currency/basis and complete coverage; never create provider spend to obtain a test."
       ]
     },
     {
@@ -896,7 +904,8 @@
         "Run fixed exit command and one bounded review",
         "Fix demonstrated blockers; publish verified current revision",
         "Verify remote and installed result, show owner and record acceptance",
-        "Review absence of prohibited mocks/fixtures and inspect required versus conditional result coverage. No Unfinished implementation or denied required access is relabelled Unsupported; natural unobserved cases retain their own non-pass disposition."
+        "Review absence of prohibited mocks/fixtures and inspect required versus conditional result coverage. No Unfinished implementation or denied required access is relabelled Unsupported; natural unobserved cases retain their own non-pass disposition.",
+        "Freeze the existing acceptance inventory, not a one-attempt test limit. After any code correction rerun affected checks and the final aggregate on the actual clean release candidate; publish only the verified candidate and keep installation/publication/acceptance distinct."
       ]
     }
   ],

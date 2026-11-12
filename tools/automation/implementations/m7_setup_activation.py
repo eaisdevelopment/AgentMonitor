@@ -67,14 +67,14 @@ phase = sys.argv[2] if len(sys.argv) > 2 else "setup"
 if phase not in {"setup", "financial"}:
     raise ValueError("m7_setup_phase_invalid")
 catalog = load_migration_catalog()
-if phase == "financial" and catalog.head != "v1_0733":
+if phase == "financial" and catalog.head != "v1_0734":
     raise ValueError("m7_setup_schema_unavailable")
 root = Path(sys.argv[1])
 root.mkdir(mode=0o700)
 backup = root / "backup"
 backup.mkdir(mode=0o700)
 ref = DatabaseRefV1(root / "agentmonitor.db", root)
-source = "v1_0731" if phase == "financial" else "v1_0720"
+source = "v1_0733" if phase == "financial" else "v1_0720"
 revisions = tuple(item.revision for item in catalog.revisions)
 if source not in revisions or "v1_0731" not in revisions:
     raise ValueError("m7_setup_schema_unavailable")
@@ -154,7 +154,7 @@ def prepare_setup_activation(
     """
     if phase not in {"setup", "financial"}:
         raise SetupPreparationError("m7_setup_phase_invalid")
-    source_revision = "v1_0731" if phase == "financial" else "v1_0720"
+    source_revision = "v1_0733" if phase == "financial" else "v1_0720"
     paths = (candidate, workspace, tool_modules)
     if (
         any(not path.is_absolute() or path.resolve() != path for path in paths)
@@ -233,7 +233,7 @@ def prepare_setup_activation(
         if (
             facts["source_revision"] != source_revision
             or phase == "financial"
-            and facts["target_revision"] != "v1_0733"
+            and facts["target_revision"] != "v1_0734"
             or not isinstance(facts["target_revision"], str)
             or re.fullmatch(r"v1_[0-9]{4}", facts["target_revision"]) is None
             or any(

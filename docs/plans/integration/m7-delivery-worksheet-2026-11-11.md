@@ -41,6 +41,27 @@ No implementation ticket closes through this review.
 
 ## 2. Ordered delivery, with an observable result at every checkpoint
 
+### Execution order from the current checkpoint
+
+The six rows below remain the delivery sequence, not six new work streams.
+Foundations and funds/usage screens already demonstrated are retained. **Next:
+finish the owner pool controls and totals, and connect one genuine monetary
+report to the existing screen.** These are independent visible results: show
+whichever works first. Genuine spending does not wait for completed totals,
+charts or the second provider. Do not restart setup or redesign the shell.
+
+Work on one integration packet at a time, with independent provider/pure-test
+work only where its contracts are stable. Twelve `in_progress` tickets record
+partial implementation, not twelve simultaneous priorities. T003 verification
+wiring and T014 deployment accompany the feature being delivered; they are not
+separate infrastructure projects. End each packet with its stated demonstration
+or identify the exact failing boundary and continue other authorized work.
+
+A ticket's dependency is its **closure** prerequisite, not a blanket prohibition
+on independent implementation. Pending provider access does not stop pool
+metadata, exact calculations, history or UI work. No new account list, repeated
+owner attestation or new plan approval is needed for routine work in this scope.
+
 | Order | Existing tickets / owner | Work to finish | Demonstration that ends the increment |
 |---|---|---|---|
 | 1. Installed collection prerequisite — operational checks passed | T014 root; T003 verification wiring | Storage/worker activated at schema0733; later funds build14dee16 and authenticated setup verified. Complete collector continuity and financial recovery proof with later integration | Correct installed revision/schema and authenticated controls demonstrated. This partial deployment does not close T014 |
@@ -56,9 +77,10 @@ installed dashboard slice. These are increments inside T014, not three releases
 requiring separate owner approvals. Pure/empty-stack API/UI work continues
 while a particular live provider lane awaits normal owner setup.
 
-Use the already configured Ollama cloud lane and retained evidence to deliver
-the next visible Overview/detail increment; those collection prerequisites are
-connected. Anthropic/OpenAI monetary work continues independently. This early
+The configured Ollama cloud lane has delivered the installed Overview/detail
+increment at `93297fc`; retain its evidence and complete only the remaining
+monetary, pool-total and full-view acceptance. Anthropic/OpenAI monetary work
+continues independently. This early
 funds/usage screen is an intermediate delivery, not closure of checkpoint 3's
 monetary journey. Do not request completed cloud setup again. No account
 names/counts are hardcoded. Browser-closed monetary scheduling and controlled
@@ -93,8 +115,9 @@ E reuses the existing cloud scheduled-read proof and adds the missing monetary
 and recovery boundaries. These are working packets within existing tickets,
 not another status ledger, gate or approval sequence.
 
-The next user-visible target is D using retained real funds/usage; the complete
-first financial slice additionally requires B's genuine money. If all
+Packet D's funds/usage screen is installed; it is no longer the next target.
+The remaining first financial slice requires A's usable attribution/totals and
+B's genuine money, carried through C/D's existing views. If all
 monetary lanes prove inaccessible, name the actual access failure and required
 owner action once; continue A/C and other independent required work. Account
 names, invented telemetry and repeated configuration are not substitutes.
@@ -286,6 +309,22 @@ and M08's existing invocation, with root integration. Its real isolated SQLite
 test uses genuine reports and an explicit cutoff; no clock change or seeded old
 telemetry. T015 rechecks installed invocation through the existing deployment
 continuity check after T013, without making the first T014 installation wait.
+
+### Cross-module decisions to settle in these tickets
+
+| Decision | Simple implementation boundary | Required evidence / owner |
+|---|---|---|
+| Duplicate access paths | Resolve eligible current reports across the canonical pool before attributing it to its primary group. One failed key does not erase a healthy same-scope report from another key; preserve failure on that connection | M7-MATH-11 and M7-HTTP-001..006; T002/T004/T010 |
+| Scope versus group edit | Source-scope change invalidates access/monitoring proof; group/primary-attribution edit does not trigger provider calls or rewrite old reports. Metadata and totals use one registry revision; conflict rereads, never mixed revisions | M7-REG-001..004 and M7-HTTP-001..006; T002/T010 |
+| Pool persistence upgrade | New M02 association storage needs its own additive migration after installed0733, compatibility and isolated recovery. Allocate/version it with the actual contract; do not imply existing0733 deployment proves this future upgrade | M7-OPS-001..004; T002/T014, root owns catalog |
+| Empty cost report | A qualified complete report with declared currency/basis and official empty-means-zero semantics is valid monetary zero. Missing costs in a counts-only report are not zero; never create spend for a test | M7-MATH-12, M7-EMPTY-001, M7-PROV-A01..A03; T004/T005/providers |
+| More than one browser tab | Account/scope/primary-group changes conflict or invalidate the current snapshot; a still-open page cannot apply an old mutation/result under the new configuration | Existing M7-REG/HTTP/UI scenarios; T002/T007/T010/T011 |
+| Shared-row and old-history links | Financial links use the contributing report's authorized account/resource tuple. Primary-only filters retain eligible secondary-path evidence. An old report displays its original scope, with current configuration/funds separately labelled | Existing M7-HTTP/UI scenarios, AC-UI-006 and AC-HIST-001; T002/T010/T011/T012 |
+| Breakdown completeness | One dimension at a time, including actual unallocated/remainder where reported. Sum only disjoint fully covered rows; otherwise show partial coverage without asserting equality to a different total | M7-MATH-10 and M7-UI-004; T004/T013/T015 |
+
+These are detailed cases within existing acceptance IDs, not new tickets or
+extra manual exit checks. They identify necessary producer/consumer handoffs
+before implementation rather than discovering them at final acceptance.
 
 ## 7. Scope, risks and reporting discipline
 

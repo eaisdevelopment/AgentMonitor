@@ -74,6 +74,9 @@ PURE_TARGETS = (
     "backend/tests/capacity/test_quantity_and_health.py",
 )
 REGISTRY_METADATA_TARGETS = (
+    "backend/tests/contracts/test_registry_financial.py",
+    "backend/tests/integration/registry/test_financial_pools.py",
+    "backend/tests/integration/api/test_financial_pools_http.py",
     "backend/tests/registry/test_billing_credential_status.py",
     "backend/tests/integration/registry/test_billing_access_empty.py",
     "backend/tests/integration/registry/test_billing_account_intent.py",
@@ -458,8 +461,8 @@ def execute_setup_activation(expected: str, *, financial: bool = False) -> LaneR
             _verify_candidate_runtime,
         )
 
-        source_revision = "v1_0731" if financial else "v1_0720"
-        target_revision = "v1_0733" if financial else "v1_0731"
+        source_revision = "v1_0733" if financial else "v1_0720"
+        target_revision = "v1_0734" if financial else "v1_0731"
         if compatibility.load_migration_catalog().head != target_revision:
             raise RuntimeError("m7_setup_schema_selection_invalid")
         _verify_active_source_schema(

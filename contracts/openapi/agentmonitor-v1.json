@@ -1802,6 +1802,53 @@
         "title": "AssignAccountOrganizationInputV1",
         "type": "object"
       },
+      "AssignFinancialPoolInputV1": {
+        "additionalProperties": false,
+        "properties": {
+          "action": {
+            "enum": [
+              "create",
+              "join",
+              "unlink"
+            ],
+            "title": "Action",
+            "type": "string"
+          },
+          "pool_id": {
+            "anyOf": [
+              {
+                "maxLength": 64,
+                "minLength": 1,
+                "pattern": "^[A-Za-z0-9_-]+$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pool Id"
+          },
+          "primary_organization_id": {
+            "anyOf": [
+              {
+                "maxLength": 64,
+                "minLength": 1,
+                "pattern": "^[A-Za-z0-9_-]+$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Primary Organization Id"
+          }
+        },
+        "required": [
+          "action"
+        ],
+        "title": "AssignFinancialPoolInputV1",
+        "type": "object"
+      },
       "AvailabilityV1": {
         "additionalProperties": false,
         "properties": {
@@ -6120,6 +6167,36 @@
         "title": "CurrentSessionViewV1",
         "type": "object"
       },
+      "EditFinancialPoolInputV1": {
+        "additionalProperties": false,
+        "properties": {
+          "expected_record_version": {
+            "minimum": 1.0,
+            "title": "Expected Record Version",
+            "type": "integer"
+          },
+          "primary_organization_id": {
+            "anyOf": [
+              {
+                "maxLength": 64,
+                "minLength": 1,
+                "pattern": "^[A-Za-z0-9_-]+$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Primary Organization Id"
+          }
+        },
+        "required": [
+          "expected_record_version",
+          "primary_organization_id"
+        ],
+        "title": "EditFinancialPoolInputV1",
+        "type": "object"
+      },
       "ExactMetricFieldWireV1": {
         "additionalProperties": false,
         "properties": {
@@ -6386,6 +6463,225 @@
           "state"
         ],
         "title": "FieldAvailabilityWireV1",
+        "type": "object"
+      },
+      "FinancialPoolConfigurationV1": {
+        "additionalProperties": false,
+        "properties": {
+          "account_id": {
+            "title": "Account Id",
+            "type": "string"
+          },
+          "association_evidence": {
+            "anyOf": [
+              {
+                "enum": [
+                  "owner_asserted",
+                  "provider_verified"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Association Evidence"
+          },
+          "can_assign": {
+            "title": "Can Assign",
+            "type": "boolean"
+          },
+          "pool": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/FinancialPoolViewV1"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "provider_scope_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Provider Scope Id"
+          },
+          "reason_code": {
+            "title": "Reason Code",
+            "type": "string"
+          },
+          "registry_revision": {
+            "title": "Registry Revision",
+            "type": "integer"
+          },
+          "resource_id": {
+            "title": "Resource Id",
+            "type": "string"
+          },
+          "scope_evidence": {
+            "anyOf": [
+              {
+                "enum": [
+                  "unresolved",
+                  "owner_asserted",
+                  "provider_verified"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Scope Evidence"
+          },
+          "scope_generation": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Scope Generation"
+          },
+          "selector": {
+            "enum": [
+              "billing",
+              "self",
+              "team"
+            ],
+            "title": "Selector",
+            "type": "string"
+          }
+        },
+        "required": [
+          "account_id",
+          "resource_id",
+          "selector",
+          "provider_scope_id",
+          "scope_evidence",
+          "scope_generation",
+          "pool",
+          "association_evidence",
+          "can_assign",
+          "registry_revision",
+          "reason_code"
+        ],
+        "title": "FinancialPoolConfigurationV1",
+        "type": "object"
+      },
+      "FinancialPoolPageV1": {
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/FinancialPoolViewV1"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "next_pool_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Pool Id"
+          },
+          "registry_revision": {
+            "title": "Registry Revision",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "next_pool_id",
+          "registry_revision"
+        ],
+        "title": "FinancialPoolPageV1",
+        "type": "object"
+      },
+      "FinancialPoolViewV1": {
+        "additionalProperties": false,
+        "properties": {
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "display_name": {
+            "title": "Display Name",
+            "type": "string"
+          },
+          "pool_id": {
+            "title": "Pool Id",
+            "type": "string"
+          },
+          "primary_organization_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Primary Organization Id"
+          },
+          "provider_key": {
+            "enum": [
+              "claude",
+              "codex",
+              "ollama"
+            ],
+            "title": "Provider Key",
+            "type": "string"
+          },
+          "record_version": {
+            "title": "Record Version",
+            "type": "integer"
+          },
+          "registry_revision": {
+            "title": "Registry Revision",
+            "type": "integer"
+          },
+          "selector": {
+            "enum": [
+              "billing",
+              "self",
+              "team"
+            ],
+            "title": "Selector",
+            "type": "string"
+          },
+          "updated_at": {
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "pool_id",
+          "provider_key",
+          "selector",
+          "display_name",
+          "primary_organization_id",
+          "record_version",
+          "registry_revision",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "FinancialPoolViewV1",
         "type": "object"
       },
       "IamInitializationStateV1": {
@@ -13697,6 +13993,483 @@
         "x-agentmonitor-error-schema": "SafeProblemV1",
         "x-agentmonitor-replay-policy": "replay_safe_connection_receipt",
         "x-agentmonitor-required-permission": "write:reauth"
+      }
+    },
+    "/api/v1/accounts/{account_id}/financial-pools/{resource_id}/{selector}": {
+      "get": {
+        "operationId": "registry_get_financial_pool_configuration_v1",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "selector",
+            "required": true,
+            "schema": {
+              "enum": [
+                "billing",
+                "self",
+                "team"
+              ],
+              "title": "Selector",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "account_id",
+            "required": true,
+            "schema": {
+              "maxLength": 64,
+              "minLength": 1,
+              "pattern": "^[A-Za-z0-9_-]+$",
+              "title": "Account Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "resource_id",
+            "required": true,
+            "schema": {
+              "maxLength": 64,
+              "minLength": 1,
+              "pattern": "^[A-Za-z0-9_-]+$",
+              "title": "Resource Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FinancialPoolConfigurationV1"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          },
+          "405": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          },
+          "412": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          },
+          "413": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          },
+          "415": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          },
+          "428": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          },
+          "429": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          },
+          "500": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          },
+          "504": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          }
+        },
+        "security": [
+          {
+            "BrowserSessionCookieV1": []
+          },
+          {
+            "BearerTokenV1": []
+          }
+        ],
+        "summary": "Get Configuration",
+        "tags": [
+          "registry"
+        ],
+        "x-agentmonitor-application-port": "FinancialPoolRegistryPortV1.get_configuration",
+        "x-agentmonitor-auth-profile": "cookie_or_bearer",
+        "x-agentmonitor-error-schema": "SafeProblemV1",
+        "x-agentmonitor-replay-policy": "safe_query_repeat",
+        "x-agentmonitor-required-permission": "read:accounts"
+      },
+      "post": {
+        "operationId": "registry_assign_financial_pool_v1",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "selector",
+            "required": true,
+            "schema": {
+              "enum": [
+                "billing",
+                "self",
+                "team"
+              ],
+              "title": "Selector",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "account_id",
+            "required": true,
+            "schema": {
+              "maxLength": 64,
+              "minLength": 1,
+              "pattern": "^[A-Za-z0-9_-]+$",
+              "title": "Account Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "resource_id",
+            "required": true,
+            "schema": {
+              "maxLength": 64,
+              "minLength": 1,
+              "pattern": "^[A-Za-z0-9_-]+$",
+              "title": "Resource Id",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Current resource ETag.",
+            "in": "header",
+            "name": "If-Match",
+            "required": true,
+            "schema": {
+              "maxLength": 160,
+              "type": "string"
+            }
+          },
+          {
+            "description": "Stable operation key for safe retries.",
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": true,
+            "schema": {
+              "pattern": "^[A-Za-z0-9_-]{16,128}$",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AssignFinancialPoolInputV1"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FinancialPoolConfigurationV1"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          },
+          "405": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          },
+          "412": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          },
+          "413": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          },
+          "415": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          },
+          "428": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          },
+          "429": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          },
+          "500": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          },
+          "504": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          }
+        },
+        "security": [
+          {
+            "BrowserCsrfHeaderV1": [],
+            "BrowserSessionCookieV1": []
+          },
+          {
+            "BearerTokenV1": []
+          }
+        ],
+        "summary": "Assign Pool",
+        "tags": [
+          "registry"
+        ],
+        "x-agentmonitor-application-port": "FinancialPoolRegistryPortV1.assign",
+        "x-agentmonitor-auth-profile": "cookie_or_bearer",
+        "x-agentmonitor-error-schema": "SafeProblemV1",
+        "x-agentmonitor-replay-policy": "replay_safe_representation",
+        "x-agentmonitor-required-permission": "write:accounts"
       }
     },
     "/api/v1/accounts/{account_id}/forecasts": {
@@ -21855,6 +22628,483 @@
         "x-agentmonitor-required-permission": "read:telemetry"
       }
     },
+    "/api/v1/financial-pools": {
+      "get": {
+        "operationId": "registry_list_financial_pools_v1",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "provider_key",
+            "required": true,
+            "schema": {
+              "enum": [
+                "claude",
+                "codex",
+                "ollama"
+              ],
+              "title": "Provider Key",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "maximum": 200,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "after_pool_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 64,
+                  "minLength": 1,
+                  "pattern": "^[A-Za-z0-9_-]+$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "After Pool Id"
+            }
+          },
+          {
+            "in": "query",
+            "name": "expected_registry_revision",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Expected Registry Revision"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FinancialPoolPageV1"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          },
+          "405": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          },
+          "412": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          },
+          "413": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          },
+          "415": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          },
+          "428": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          },
+          "429": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          },
+          "500": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          },
+          "504": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          }
+        },
+        "security": [
+          {
+            "BrowserSessionCookieV1": []
+          },
+          {
+            "BearerTokenV1": []
+          }
+        ],
+        "summary": "List Pools",
+        "tags": [
+          "registry"
+        ],
+        "x-agentmonitor-application-port": "FinancialPoolRegistryPortV1.list_pools",
+        "x-agentmonitor-auth-profile": "cookie_or_bearer",
+        "x-agentmonitor-error-schema": "SafeProblemV1",
+        "x-agentmonitor-replay-policy": "safe_query_repeat",
+        "x-agentmonitor-required-permission": "read:accounts"
+      }
+    },
+    "/api/v1/financial-pools/{pool_id}/attribution": {
+      "put": {
+        "operationId": "registry_edit_financial_pool_attribution_v1",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "pool_id",
+            "required": true,
+            "schema": {
+              "maxLength": 64,
+              "minLength": 1,
+              "pattern": "^[A-Za-z0-9_-]+$",
+              "title": "Pool Id",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Current resource ETag.",
+            "in": "header",
+            "name": "If-Match",
+            "required": true,
+            "schema": {
+              "maxLength": 160,
+              "type": "string"
+            }
+          },
+          {
+            "description": "Stable operation key for safe retries.",
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": true,
+            "schema": {
+              "pattern": "^[A-Za-z0-9_-]{16,128}$",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EditFinancialPoolInputV1"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FinancialPoolViewV1"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          },
+          "405": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          },
+          "412": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          },
+          "413": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          },
+          "415": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          },
+          "428": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          },
+          "429": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          },
+          "500": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          },
+          "504": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeProblemV1"
+                }
+              }
+            },
+            "description": "SafeProblemV1"
+          }
+        },
+        "security": [
+          {
+            "BrowserCsrfHeaderV1": [],
+            "BrowserSessionCookieV1": []
+          },
+          {
+            "BearerTokenV1": []
+          }
+        ],
+        "summary": "Edit Attribution",
+        "tags": [
+          "registry"
+        ],
+        "x-agentmonitor-application-port": "FinancialPoolRegistryPortV1.edit",
+        "x-agentmonitor-auth-profile": "cookie_or_bearer",
+        "x-agentmonitor-error-schema": "SafeProblemV1",
+        "x-agentmonitor-replay-policy": "replay_safe_representation",
+        "x-agentmonitor-required-permission": "write:accounts"
+      }
+    },
     "/api/v1/iam/initialization": {
       "get": {
         "operationId": "iam_get_initialization_v1",
@@ -29056,10 +30306,10 @@
       "starlette": "1.6.0"
     },
     "generator": "agentmonitor-openapi-client",
-    "generator_sha256": "5d8e6be8431781bb6e303fdda74512a945e62e18521751631131f425c3e48b40",
-    "generator_version": "2.0.8",
+    "generator_sha256": "e89247441b4382358b8eebfc4f566d9feb22515b9d63bc7987cbdb2130d85e68",
+    "generator_version": "2.0.9",
     "openapi_version": "3.1.0",
-    "schema_sha256": "df03db16b275b4b3e614e2f8762a4f6eed7543e453bfe7f93d3ca45aa73ca00c",
-    "source_sha256": "5592cdd96d0fc7cd2064169df755d6ec44e124d7c2281ac0a3b7ec4e24b85d52"
+    "schema_sha256": "9a63e8f69bc53c06d3954d6c3773bfbd8a502e346835b26bb8b81d752b36bcae",
+    "source_sha256": "166deb1929e21b784a52f20400bd6afe6e6e6ff9970db94976150ad424d66113"
   }
 }

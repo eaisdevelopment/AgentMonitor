@@ -71,6 +71,22 @@ _TITLES = {
 # Closed local documentation catalog. Neither the route nor the problem type
 # accepts a code copied from submitted input or an unrecognized port outcome.
 PROBLEM_DESCRIPTIONS: dict[str, str] = {
+    "financial_pool_scope_changed": (
+        "Financial scope or credential authority changed. Refresh its configuration."
+    ),
+    "financial_pool_incompatible": (
+        "The selected pool has a different provider or financial scope."
+    ),
+    "financial_pool_organization_unavailable": (
+        "The selected primary organization is unavailable."
+    ),
+    "financial_pool_unavailable": ("The selected billing pool is unavailable."),
+    "financial_pool_time_conflict": (
+        "The request predates the latest pool configuration."
+    ),
+    "financial_pool_query_unavailable": (
+        "Billing pool configuration is temporarily unavailable."
+    ),
     "budget_report_not_found": (
         "The selected financial report is unavailable. "
         "Refresh the view to select retained data."

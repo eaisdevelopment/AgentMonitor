@@ -29,7 +29,7 @@ from alembic.config import Config
 from sqlalchemy.engine import Connection
 
 MIGRATIONS_PATH = Path(__file__).resolve().parents[7] / "migrations"
-CATALOG_SHA256 = "06f74722b3d533f111248c986886735d923faa23ef308b11ce1e4f4dc3e93046"
+CATALOG_SHA256 = "d3e862d0bbf1e84c8ccbad5bb1fec824eaadc25f83e2baced64290d2f0966f78"
 IAM_TABLES = frozenset(
     {
         "iam_administrator",
@@ -389,6 +389,7 @@ REVISION_ORDER = {
     "v1_0731": 731,
     "v1_0732": 732,
     "v1_0733": 733,
+    "v1_0734": 734,
 }
 ApplicationSchemaRangeV1 = SchemaCompatibilityV1
 SchemaState = Literal[
@@ -551,10 +552,10 @@ def load_migration_catalog(
             raise SchemaCompatibilityError("migration_catalog_invalid")
         records = document["revisions"]
         if (
-            document["version"] != "1.7.33"
-            or document["head"] != "v1_0733"
+            document["version"] != "1.7.34"
+            or document["head"] != "v1_0734"
             or not isinstance(records, list)
-            or len(records) != 43
+            or len(records) != 44
             or not all(isinstance(record, dict) for record in records)
         ):
             raise SchemaCompatibilityError("migration_catalog_invalid")
@@ -603,6 +604,7 @@ def load_migration_catalog(
             "v1_0731_m02_billing_connections.py",
             "v1_0732_m05_budget_reports.py",
             "v1_0733_m04_budget_run_reports.py",
+            "v1_0734_m02_financial_pools.py",
         ) or tuple(record.get("ordinal") for record in records) != (
             0,
             100,
@@ -647,6 +649,7 @@ def load_migration_catalog(
             731,
             732,
             733,
+            734,
         ):
             raise SchemaCompatibilityError("migration_catalog_invalid")
         inventory = {path.name for path in (migrations_path / "versions").glob("*.py")}
@@ -849,6 +852,12 @@ def load_migration_catalog(
             or metadata[42].plan_id != "PLAN-M04"
             or set(metadata[42].tables) != {"collection_budget_run"}
             or records[42].get("status") != "implemented"
+            or metadata[43].parent_revision != "v1_0733"
+            or metadata[43].owner != "M02"
+            or metadata[43].plan_id != "PLAN-M02"
+            or set(metadata[43].tables)
+            != {"reg_financial_pool", "reg_financial_pool_membership"}
+            or records[43].get("status") != "implemented"
             or any(record.get("status") != "shared" for record in records[18:35])
             or records[35].get("status") not in {"implemented", "shared"}
             or records[36].get("status") not in {"implemented", "shared"}
@@ -859,7 +868,7 @@ def load_migration_catalog(
             )
         ):
             raise SchemaCompatibilityError("migration_catalog_invalid")
-        result = MigrationCatalogV1("1.7.33", digest, "v1_0733", metadata)
+        result = MigrationCatalogV1("1.7.34", digest, "v1_0734", metadata)
     except SchemaCompatibilityError as error:
         failure = error.code
     except (OSError, ValueError, KeyError, TypeError, SyntaxError, UnicodeError):
@@ -1059,6 +1068,7 @@ def _inspect(
         "v1_0731",
         "v1_0732",
         "v1_0733",
+        "v1_0734",
     }:
         table_names = {name for kind, name in objects if kind == "table"}
         explicit_indexes = {
@@ -1105,6 +1115,7 @@ def _inspect(
             "v1_0731",
             "v1_0732",
             "v1_0733",
+            "v1_0734",
         }
         collector_guarded = current in {
             "v1_0706",
@@ -1126,6 +1137,7 @@ def _inspect(
             "v1_0731",
             "v1_0732",
             "v1_0733",
+            "v1_0734",
         }
         projection_guarded = current in {
             "v1_0707",
@@ -1146,6 +1158,7 @@ def _inspect(
             "v1_0731",
             "v1_0732",
             "v1_0733",
+            "v1_0734",
         }
         ollama_admission_guarded = current in {
             "v1_0708",
@@ -1165,6 +1178,7 @@ def _inspect(
             "v1_0731",
             "v1_0732",
             "v1_0733",
+            "v1_0734",
         }
         expected_triggers = (
             (ALERT_CONFIGURATION_TRIGGERS if guarded else frozenset())
@@ -1181,6 +1195,7 @@ def _inspect(
                     "v1_0731",
                     "v1_0732",
                     "v1_0733",
+                    "v1_0734",
                 }
                 else frozenset()
             )
@@ -1213,6 +1228,7 @@ def _inspect(
                     "v1_0731",
                     "v1_0732",
                     "v1_0733",
+                    "v1_0734",
                 }
                 else frozenset()
             )
@@ -1239,6 +1255,7 @@ def _inspect(
                     "v1_0731",
                     "v1_0732",
                     "v1_0733",
+                    "v1_0734",
                 }
                 else frozenset()
             )
@@ -1262,6 +1279,7 @@ def _inspect(
                     "v1_0731",
                     "v1_0732",
                     "v1_0733",
+                    "v1_0734",
                 }
                 else frozenset()
             )
@@ -1287,6 +1305,7 @@ def _inspect(
                     "v1_0731",
                     "v1_0732",
                     "v1_0733",
+                    "v1_0734",
                 }
                 else frozenset()
             )
@@ -1303,6 +1322,7 @@ def _inspect(
                     "v1_0731",
                     "v1_0732",
                     "v1_0733",
+                    "v1_0734",
                 }
                 else frozenset()
             )
@@ -1317,6 +1337,7 @@ def _inspect(
                     "v1_0731",
                     "v1_0732",
                     "v1_0733",
+                    "v1_0734",
                 }
                 else frozenset()
             )
@@ -1365,6 +1386,7 @@ def _inspect(
                     "v1_0731",
                     "v1_0732",
                     "v1_0733",
+                    "v1_0734",
                 }
                 else frozenset()
             )
@@ -1385,6 +1407,7 @@ def _inspect(
                     "v1_0731",
                     "v1_0732",
                     "v1_0733",
+                    "v1_0734",
                 }
                 else frozenset()
             )
@@ -1411,6 +1434,7 @@ def _inspect(
                     "v1_0731",
                     "v1_0732",
                     "v1_0733",
+                    "v1_0734",
                 }
                 else frozenset()
             )
@@ -1434,6 +1458,7 @@ def _inspect(
                     "v1_0731",
                     "v1_0732",
                     "v1_0733",
+                    "v1_0734",
                 }
                 else frozenset()
             )
@@ -1456,6 +1481,7 @@ def _inspect(
                     "v1_0731",
                     "v1_0732",
                     "v1_0733",
+                    "v1_0734",
                 }
                 else frozenset()
             )
@@ -1481,6 +1507,7 @@ def _inspect(
                     "v1_0731",
                     "v1_0732",
                     "v1_0733",
+                    "v1_0734",
                 }
                 else frozenset()
             )
@@ -1495,6 +1522,7 @@ def _inspect(
                     "v1_0731",
                     "v1_0732",
                     "v1_0733",
+                    "v1_0734",
                 }
                 else frozenset()
             )
@@ -1511,6 +1539,7 @@ def _inspect(
             "v1_0731",
             "v1_0732",
             "v1_0733",
+            "v1_0734",
         }:
             expected_triggers |= frozenset(
                 {
@@ -1532,13 +1561,20 @@ def _inspect(
                     "ix_reg_coverage_provider",
                 }
             )
-        if current in {"v1_0720", "v1_0730", "v1_0731", "v1_0732", "v1_0733"}:
+        if current in {
+            "v1_0720",
+            "v1_0730",
+            "v1_0731",
+            "v1_0732",
+            "v1_0733",
+            "v1_0734",
+        }:
             additional_tables = additional_tables | frozenset(
                 {"collection_cloud_uncertain_outcome"}
             )
-        if current in {"v1_0731", "v1_0732", "v1_0733"}:
+        if current in {"v1_0731", "v1_0732", "v1_0733", "v1_0734"}:
             additional_tables |= frozenset({"reg_billing_connection"})
-        if current in {"v1_0732", "v1_0733"}:
+        if current in {"v1_0732", "v1_0733", "v1_0734"}:
             additional_tables |= frozenset(
                 {
                     "capacity_budget_report",
@@ -1547,8 +1583,21 @@ def _inspect(
                 }
             )
             additional_indexes |= frozenset({"ix_capacity_budget_report_history"})
-        if current == "v1_0733":
+        if current in {"v1_0733", "v1_0734"}:
             additional_tables |= frozenset({"collection_budget_run"})
+        if current == "v1_0734":
+            additional_tables |= frozenset(
+                {"reg_financial_pool", "reg_financial_pool_membership"}
+            )
+            additional_indexes |= frozenset(
+                {
+                    "uq_reg_billing_pool_resource",
+                    "uq_reg_cloud_pool_resource",
+                    "ix_reg_financial_pool_provider",
+                    "uq_reg_financial_membership_current",
+                    "ix_reg_financial_membership_pool",
+                }
+            )
         triggers = {name for kind, name in objects if kind == "trigger"}
         if (
             table_names != expected_tables | additional_tables | {"alembic_version"}
@@ -1557,7 +1606,9 @@ def _inspect(
             or any(kind not in {"table", "index", "trigger"} for kind, _ in objects)
             or not _m4_owned_structure_is_valid(
                 connection,
-                "dbbe227917e387ab3d7823d4c383fc2c11c5adbf139115d2a646536692fac4ab"
+                "09df41156c09bef12ae168545eb619e5fe7ef09fc58e968d8c9c9053615fd0a5"
+                if current == "v1_0734"
+                else "dbbe227917e387ab3d7823d4c383fc2c11c5adbf139115d2a646536692fac4ab"
                 if current == "v1_0733"
                 else "c9dd10a741b012e226bf9e9781effd6850ee4ea40b41287e8a571d616e62170d"
                 if current == "v1_0732"

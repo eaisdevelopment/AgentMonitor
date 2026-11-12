@@ -1,5 +1,5 @@
-version = "1.7.33"
-head = "v1_0733"
+version = "1.7.34"
+head = "v1_0734"
 env_sha256 = "27449e3ed3984acde690510f9e4974eb6412f5f1b7e62af65bc8bb616879a7d7"
 
 [[revisions]]
@@ -948,3 +948,25 @@ backup_prerequisite = "required_existing_database"
 validation_ids = ["single_head", "m04_budget_run_schema", "foreign_key_check", "full_integrity"]
 recovery_policy = "preserve_failed_database_and_restore_verified_backup_or_forward_fix"
 reviewer = "M04-M7-budget-reports-root-review"
+
+[[revisions]]
+ordinal = 734
+filename = "v1_0734_m02_financial_pools.py"
+sha256 = "14353f3d487c8c28bed729ce6638bd9f45558c70e358752031a211af92ea5a76"
+status = "implemented"
+reviewed_at = "2026-11-12"
+revision = "v1_0734"
+parent_revision = "v1_0733"
+owner = "M02"
+plan_id = "PLAN-M02"
+requirement_ids = ["FR-ORG-003", "FR-BUDGET-001", "M7-A01", "M7-A08"]
+schema_range = ["v1_0734", "v1_0734", "v1_0734", "v1_0734", "v1_0734"]
+tables = ["reg_financial_pool", "reg_financial_pool_membership"]
+portability_notes = ["Explicit owner metadata only; no inferred pool backfill", "Billing and cloud memberships reference their actual source graphs", "Unresolved scope retains exact nonsecret credential binding lineage"]
+lock_policy = "exclusive_migration_and_begin_immediate"
+downtime_policy = "offline_additive_schema_migration"
+expected_data_volume = "zero_initial_rows;retained_membership_epochs"
+backup_prerequisite = "required_existing_database"
+validation_ids = ["single_head", "m02_financial_pool_schema", "foreign_key_check", "full_integrity"]
+recovery_policy = "preserve_failed_database_and_restore_verified_backup_or_forward_fix"
+reviewer = "M02-M7-financial-pools-root-review"

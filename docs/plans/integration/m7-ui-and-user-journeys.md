@@ -205,9 +205,22 @@ Use server-calculated summaries; no money aggregation in React. Current
 Anthropic/OpenAI/Ollama adapters report different cost bases, so show separately
 named subtotals even when each currency is USD; do not promise one common USD
 total without proven equivalence. A pool linked from a secondary organization
-shows Shared; counted under [primary organization]. Selecting only that secondary
+shows Shared; counted under [primary organization]. Its canonical row identifies
+the pool's scope and counted-under group first; connected account labels remain
+visible as access paths, so a whole organization's spend is never presented as
+one person's consumption. Expanding access paths or opening account detail
+shows each connection's own failure/monitoring state separately from the pool's
+financial evidence. A healthy compatible path may supply the pool's reading
+without concealing another connection's error. Selecting only that secondary
 group does not add it to that group's subtotal or classify it as missing data;
-selecting both groups counts it once under the primary group.
+selecting both groups counts it once under the primary group. Selecting only
+the primary group still resolves eligible evidence from all of that pool's
+authorized access paths before attribution; filtering out a secondary account
+must not remove the pool's valid report. The financial-value link uses the
+contributing report's authorized account/resource/report tuple returned by the
+API. Other access-path links open their own account details without borrowing
+that report selector. T010/T012 test primary-only, secondary-only and both-group
+selections plus each link's Back/reload behavior.
 
 **Refresh view** rereads stored API data only, with the hint **Reload stored
 readings; collect a new report from account detail**. Use the same read-only
@@ -270,6 +283,12 @@ reads never fetch a provider. Offer Collect now only for a source-admitted
 interval; no arbitrary historical backfill promise. Source history lists retained
 reports from prior scope epochs with original scope labels; selecting one uses
 its authorized immutable report reference, not an arbitrary caller-selected scope.
+When an older report is selected, its main financial scope/epoch label comes
+from that report, including after reload. The current connection scope belongs
+separately in Manage connection; current funds retain their own scope/time.
+Never put an old amount under the newly configured scope's heading. T002/T010/T011
+cover scope change followed by old-report selection; naturally unavailable live
+history is recorded separately from pure selection/presentation evidence.
 Use existing lists/controls, without a calendar or report-builder dependency.
 
 Start with the exact table in the first usable slice; chart and forecast arrive
@@ -373,7 +392,11 @@ provider scope names, financial values or credentials.
 A queued action displays its actual run state until success/failure; HTTP
 acceptance alone must not change the label to Connected. Concurrent edits in
 another tab produce a conflict and a status reread, not last-write-wins account
-configuration. Duplicate clicks join/reconcile the existing operation according
+configuration. Group/primary-pool attribution edits refresh rows and subtotals
+from one registry revision. If metadata changes between summary and row reads,
+restart that stored-data snapshot; do not show a row in its new group with a
+subtotal from its old group. This never starts provider collection or rewrites
+historical source identity. Duplicate clicks join/reconcile the existing operation according
 to the API contract. Exercise these behaviors in T007/T011 using the real
 service; do not simulate a provider failure to manufacture a UI state.
 

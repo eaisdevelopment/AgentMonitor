@@ -82,6 +82,9 @@ from agentmonitor.adapters.persistence.registry.sqlite.credential_bindings impor
     SqliteCloudCredentialRegistryV1,
     SqliteCredentialBindingsV1,
 )
+from agentmonitor.adapters.persistence.registry.sqlite.financial_pools import (
+    SqliteFinancialPoolRepositoryV1,
+)
 from agentmonitor.adapters.persistence.registry.sqlite.health import (
     GetRegistryComponentHealthV1,
 )
@@ -635,6 +638,7 @@ def _observation_ports(
         organization_coverage_read=coverage,
         organization_coverage_write=coverage,
         billing_connections=SqliteBillingConnectionRepositoryV1(reference),
+        financial_pools=SqliteFinancialPoolRepositoryV1(reference),
         billing_monitoring=BillingMonitoringActionsV1(
             reference,
             can_dispatch=billing_worker.is_monitoring_available,

@@ -5,7 +5,11 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import ClassVar, Literal, Protocol
 
-from agentmonitor.contracts.common_v1 import OpaqueIdV1, TechnicalValueV1
+from agentmonitor.contracts.common_v1 import (
+    OpaqueIdV1,
+    QueryAvailabilityV1,
+    TechnicalValueV1,
+)
 from agentmonitor.contracts.registry_v1 import (
     ActiveCredentialBindingRefV1,
     RegistryLifecycleV1,
@@ -378,3 +382,350 @@ class BillingMonitoringPortV1(Protocol):
     def set_monitoring(
         self, command: SetBillingMonitoringCommandV1
     ) -> BillingConnectionViewV1: ...
+
+
+@dataclass(frozen=True, slots=True)
+class FinancialResourceScopeV1(TechnicalValueV1):
+    """Source identity covered by an association, never a credential value.
+
+    Unresolved identities are binding-specific. A known stable provider scope
+    has no binding dependency; rotating its credential does not rename the pool.
+    Existing cloud resources keep their own IDs rather than billing duplicates.
+    """
+
+    CONTRACT_ID: ClassVar[str] = "CTR-REG-014"
+    CONTRACT_VERSION: ClassVar[str] = "1.5.0"
+    OWNER: ClassVar[str] = "PLAN-M02"
+    account_id: OpaqueIdV1
+    resource_id: OpaqueIdV1
+    provider_key: Literal["claude", "codex", "ollama"]
+    selector: Literal["billing", "self", "team"]
+    scope_generation: int
+    provider_scope_id: str | None
+    scope_evidence: Literal["unresolved", "owner_asserted", "provider_verified"]
+    binding_id: OpaqueIdV1 | None
+    binding_generation: int | None
+
+    def __post_init__(self) -> None:
+        TechnicalValueV1.__post_init__(self)
+        unresolved = self.scope_evidence == "unresolved"
+        if (
+            not isinstance(self.account_id, OpaqueIdV1)
+            or not isinstance(self.resource_id, OpaqueIdV1)
+            or self.provider_key not in {"claude", "codex", "ollama"}
+            or self.selector not in {"billing", "self", "team"}
+            or (self.provider_key == "ollama") != (self.selector != "billing")
+            or type(self.scope_generation) is not int
+            or self.scope_generation < 1
+            or self.scope_evidence
+            not in {"unresolved", "owner_asserted", "provider_verified"}
+            or not _scope_valid(self.provider_scope_id)
+            or (self.provider_scope_id is None) != unresolved
+            or unresolved
+            and (
+                not isinstance(self.binding_id, OpaqueIdV1)
+                or type(self.binding_generation) is not int
+                or self.binding_generation < 1
+            )
+            or not unresolved
+            and (self.binding_id is not None or self.binding_generation is not None)
+        ):
+            raise ValueError("financial_resource_scope_invalid")
+
+
+@dataclass(frozen=True, slots=True)
+class FinancialPoolViewV1(TechnicalValueV1):
+    """Canonical pool identity and explicit primary dashboard attribution."""
+
+    CONTRACT_ID: ClassVar[str] = "CTR-REG-014"
+    CONTRACT_VERSION: ClassVar[str] = "1.5.0"
+    OWNER: ClassVar[str] = "PLAN-M02"
+    pool_id: OpaqueIdV1
+    provider_key: Literal["claude", "codex", "ollama"]
+    primary_organization_id: OpaqueIdV1 | None
+    record_version: int
+    registry_revision: int
+    created_at: datetime
+    updated_at: datetime
+    display_name: str
+    selector: Literal["billing", "self", "team"]
+
+    def __post_init__(self) -> None:
+        TechnicalValueV1.__post_init__(self)
+        if (
+            not isinstance(self.pool_id, OpaqueIdV1)
+            or self.provider_key not in {"claude", "codex", "ollama"}
+            or self.primary_organization_id is not None
+            and not isinstance(self.primary_organization_id, OpaqueIdV1)
+            or any(
+                type(value) is not int or value < 1
+                for value in (self.record_version, self.registry_revision)
+            )
+            or self.updated_at < self.created_at
+            or (self.provider_key == "ollama") != (self.selector != "billing")
+            or type(self.display_name) is not str
+            or not 1 <= len(self.display_name.strip()) <= 256
+        ):
+            raise ValueError("financial_pool_invalid")
+
+
+@dataclass(frozen=True, slots=True)
+class FinancialPoolMembershipV1(TechnicalValueV1):
+    """Immutable association epoch; owner assertion is not verified access."""
+
+    CONTRACT_ID: ClassVar[str] = "CTR-REG-014"
+    CONTRACT_VERSION: ClassVar[str] = "1.5.0"
+    OWNER: ClassVar[str] = "PLAN-M02"
+    association_id: OpaqueIdV1
+    scope: FinancialResourceScopeV1
+    pool_id: OpaqueIdV1
+    association_evidence: Literal["owner_asserted", "provider_verified"]
+    valid_from: datetime
+    valid_until: datetime | None
+    record_version: int
+    registry_revision: int
+
+    def __post_init__(self) -> None:
+        TechnicalValueV1.__post_init__(self)
+        if (
+            not isinstance(self.association_id, OpaqueIdV1)
+            or not isinstance(self.scope, FinancialResourceScopeV1)
+            or not isinstance(self.pool_id, OpaqueIdV1)
+            or self.association_evidence not in {"owner_asserted", "provider_verified"}
+            or self.valid_until is not None
+            and self.valid_until <= self.valid_from
+            or any(
+                type(value) is not int or value < 1
+                for value in (self.record_version, self.registry_revision)
+            )
+        ):
+            raise ValueError("financial_pool_membership_invalid")
+
+
+@dataclass(frozen=True, slots=True)
+class FinancialPoolSnapshotV1(TechnicalValueV1):
+    """Bounded atomic metadata; missing memberships mean unresolved, not zero."""
+
+    CONTRACT_ID: ClassVar[str] = "CTR-REG-014"
+    CONTRACT_VERSION: ClassVar[str] = "1.5.0"
+    OWNER: ClassVar[str] = "PLAN-M02"
+    resource_ids: tuple[OpaqueIdV1, ...]
+    pools: tuple[FinancialPoolViewV1, ...]
+    memberships: tuple[FinancialPoolMembershipV1, ...]
+    registry_revision: int
+    as_of: datetime
+    availability: QueryAvailabilityV1
+
+    def __post_init__(self) -> None:
+        TechnicalValueV1.__post_init__(self)
+        pools = {pool.pool_id: pool for pool in self.pools}
+        keys = {
+            (member.scope.resource_id, member.scope.selector)
+            for member in self.memberships
+        }
+        if (
+            len(self.resource_ids) > 2000
+            or len(set(self.resource_ids)) != len(self.resource_ids)
+            or any(not isinstance(value, OpaqueIdV1) for value in self.resource_ids)
+            or len(pools) != len(self.pools)
+            or len(keys) != len(self.memberships)
+            or len(self.pools) > 2000
+            or len(self.memberships) > 4000
+            or type(self.registry_revision) is not int
+            or self.registry_revision < 0
+            or self.availability.as_of != self.as_of
+            or self.availability.state not in {"available", "unavailable"}
+            or self.availability.state != "available"
+            and bool(self.pools or self.memberships)
+            or any(
+                pool.registry_revision > self.registry_revision
+                or pool.updated_at > self.as_of
+                for pool in self.pools
+            )
+            or any(
+                member.scope.resource_id not in self.resource_ids
+                or member.pool_id not in pools
+                or pools[member.pool_id].provider_key != member.scope.provider_key
+                or pools[member.pool_id].selector != member.scope.selector
+                or member.registry_revision > self.registry_revision
+                or member.valid_from > self.as_of
+                or member.valid_until is not None
+                and member.valid_until <= self.as_of
+                for member in self.memberships
+            )
+        ):
+            raise ValueError("financial_pool_snapshot_invalid")
+
+
+class FinancialPoolReadPortV1(Protocol):
+    """Resolve only requested resources, checking their atomic registry revision."""
+
+    def __call__(
+        self,
+        resource_ids: tuple[OpaqueIdV1, ...],
+        *,
+        expected_registry_revision: int,
+        as_of: datetime,
+    ) -> FinancialPoolSnapshotV1: ...
+
+
+@dataclass(frozen=True, slots=True)
+class AssignFinancialPoolCommandV1(TechnicalValueV1):
+    """Owner association; source authority is resolved server-side, not HTTP input."""
+
+    CONTRACT_ID: ClassVar[str] = "CTR-REG-014"
+    CONTRACT_VERSION: ClassVar[str] = "1.5.0"
+    OWNER: ClassVar[str] = "PLAN-M02"
+    scope: FinancialResourceScopeV1
+    expected_registry_revision: int
+    action: Literal["create", "join", "unlink"]
+    pool_id: OpaqueIdV1 | None
+    primary_organization_id: OpaqueIdV1 | None
+    principal_id: OpaqueIdV1
+    command_id: OpaqueIdV1
+    requested_at: datetime
+
+    def __post_init__(self) -> None:
+        TechnicalValueV1.__post_init__(self)
+        if (
+            not isinstance(self.scope, FinancialResourceScopeV1)
+            or type(self.expected_registry_revision) is not int
+            or self.expected_registry_revision < 1
+            or (self.action == "join") != isinstance(self.pool_id, OpaqueIdV1)
+            or self.action != "join"
+            and self.pool_id is not None
+            or self.action != "create"
+            and self.primary_organization_id is not None
+            or self.primary_organization_id is not None
+            and not isinstance(self.primary_organization_id, OpaqueIdV1)
+        ):
+            raise ValueError("financial_pool_command_invalid")
+
+
+@dataclass(frozen=True, slots=True)
+class EditFinancialPoolCommandV1(TechnicalValueV1):
+    """Change attribution only; no credential, source, monitoring or report edit."""
+
+    CONTRACT_ID: ClassVar[str] = "CTR-REG-014"
+    CONTRACT_VERSION: ClassVar[str] = "1.5.0"
+    OWNER: ClassVar[str] = "PLAN-M02"
+    pool_id: OpaqueIdV1
+    expected_record_version: int
+    expected_registry_revision: int
+    primary_organization_id: OpaqueIdV1 | None
+    principal_id: OpaqueIdV1
+    command_id: OpaqueIdV1
+    requested_at: datetime
+
+    def __post_init__(self) -> None:
+        TechnicalValueV1.__post_init__(self)
+        if (
+            not isinstance(self.pool_id, OpaqueIdV1)
+            or any(
+                type(value) is not int or value < 1
+                for value in (
+                    self.expected_record_version,
+                    self.expected_registry_revision,
+                )
+            )
+            or self.primary_organization_id is not None
+            and not isinstance(self.primary_organization_id, OpaqueIdV1)
+        ):
+            raise ValueError("financial_pool_command_invalid")
+
+
+@dataclass(frozen=True, slots=True)
+class FinancialPoolConfigurationV1(TechnicalValueV1):
+    """Current metadata; unresolved identity is usable only with an active binding.
+
+    scope may be absent while credentials or the resource are unavailable.
+    Old associations remain stored but are not current authority after rotation.
+    """
+
+    CONTRACT_ID: ClassVar[str] = "CTR-REG-014"
+    CONTRACT_VERSION: ClassVar[str] = "1.5.0"
+    OWNER: ClassVar[str] = "PLAN-M02"
+    account_id: OpaqueIdV1
+    resource_id: OpaqueIdV1
+    selector: Literal["billing", "self", "team"]
+    scope: FinancialResourceScopeV1 | None
+    membership: FinancialPoolMembershipV1 | None
+    pool: FinancialPoolViewV1 | None
+    registry_revision: int
+    reason_code: str
+
+    def __post_init__(self) -> None:
+        TechnicalValueV1.__post_init__(self)
+        if (
+            type(self.registry_revision) is not int
+            or self.registry_revision < 1
+            or (self.membership is None) != (self.pool is None)
+            or self.scope is not None
+            and (
+                self.scope.account_id != self.account_id
+                or self.scope.resource_id != self.resource_id
+                or self.scope.selector != self.selector
+            )
+            or self.membership is not None
+            and (
+                self.membership.scope != self.scope
+                or self.pool is None
+                or self.membership.pool_id != self.pool.pool_id
+                or self.pool.provider_key != self.membership.scope.provider_key
+                or self.pool.selector != self.membership.scope.selector
+                or self.membership.valid_until is not None
+            )
+            or re.fullmatch(r"[a-z][a-z0-9_]{0,95}", self.reason_code) is None
+        ):
+            raise ValueError("financial_pool_configuration_invalid")
+
+
+@dataclass(frozen=True, slots=True)
+class FinancialPoolPageV1(TechnicalValueV1):
+    """Bounded same-provider choices, ordered by opaque pool ID, revision-fenced."""
+
+    CONTRACT_ID: ClassVar[str] = "CTR-REG-014"
+    CONTRACT_VERSION: ClassVar[str] = "1.5.0"
+    OWNER: ClassVar[str] = "PLAN-M02"
+    pools: tuple[FinancialPoolViewV1, ...]
+    next_pool_id: OpaqueIdV1 | None
+    registry_revision: int
+
+    def __post_init__(self) -> None:
+        TechnicalValueV1.__post_init__(self)
+        if (
+            len(self.pools) > 200
+            or len({p.pool_id for p in self.pools}) != len(self.pools)
+            or type(self.registry_revision) is not int
+            or self.registry_revision < 0
+            or any(p.registry_revision > self.registry_revision for p in self.pools)
+            or self.next_pool_id is not None
+            and (not self.pools or self.pools[-1].pool_id != self.next_pool_id)
+        ):
+            raise ValueError("financial_pool_page_invalid")
+
+
+class FinancialPoolRegistryPortV1(FinancialPoolReadPortV1, Protocol):
+    """M02-only metadata. No secret reads, provider requests or automatic setup."""
+
+    def get_configuration(
+        self,
+        account_id: OpaqueIdV1,
+        resource_id: OpaqueIdV1,
+        selector: Literal["billing", "self", "team"],
+    ) -> FinancialPoolConfigurationV1 | None: ...
+
+    def list_pools(
+        self,
+        provider_key: Literal["claude", "codex", "ollama"],
+        *,
+        limit: int = 50,
+        after: OpaqueIdV1 | None = None,
+        expected_registry_revision: int | None = None,
+    ) -> FinancialPoolPageV1: ...
+
+    def assign(
+        self, command: AssignFinancialPoolCommandV1
+    ) -> FinancialPoolConfigurationV1: ...
+
+    def edit(self, command: EditFinancialPoolCommandV1) -> FinancialPoolViewV1: ...

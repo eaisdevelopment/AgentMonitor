@@ -192,7 +192,14 @@ M7-MATH-15 and T007/T010/T011, not temporal event-sourcing machinery.
 
 A credential binding proves an access path, not an independent pot of money.
 Use safe provider scope IDs where supplied; otherwise the owner may explicitly
-associate a shared resource. Do not deduplicate by email, label or equal amounts.
+associate a shared resource. Association declares identity, not coverage: a
+project-restricted report is not a whole-organization report merely because
+both use the same pool. Self/team and parent/project coverage remain separate.
+Resolve eligible current reports for the pool before primary-group attribution;
+a healthy compatible access path can supply its one contribution even if a
+second path fails. Keep the failed connection's state visible. Use the existing
+deterministic newest-complete-report policy, with retained input identity; do
+not sum alternative reads or require another key merely to verify duplication. Do not deduplicate by email, label or equal amounts.
 If overlap is unresolved, keep observations visible and omit the ambiguous pool
 from aggregates with a count/reason. Owner-confirmed attribution is disclosed.
 
@@ -234,7 +241,10 @@ Show counts/reasons for missing, partial, stale or unresolved pools; keep their
 last values on their rows. If an older complete report remains after a failed
 refresh, any subtotal using it must disclose that older evidence and its age,
 not claim all sources current. A filtered set with no eligible reports has an
-unavailable total, not zero. Provider totals and dimension breakdowns are
+unavailable total, not zero. Rows, eligible-pool selection and primary-group
+attribution consume one revisioned registry snapshot. A concurrent edit causes
+a retry of stored queries, not a partly old/partly new financial total. This is
+ordinary optimistic consistency within the existing query, not event sourcing. Provider totals and dimension breakdowns are
 alternative views of the same spend, never additive contributions.
 
 Overview identity includes cost basis/category as well as canonical resource
@@ -413,6 +423,12 @@ SQLite, actual HTTP and built-browser values. Pure examples never cross I/O.
   signs. Both adjusted samples remain forecast-ineligible under section 6.
   Never clamp negative costs to zero.
   Do not connect balance points across unknown intervals. T013 owns this.
+- A dimension breakdown reconciles to its matching total only when the source
+  establishes disjoint, complete coverage for the same snapshot. Include a
+  reported Unallocated/Other remainder once. A partial or top-N list without
+  a complete remainder is labelled partial; do not manufacture an Other value
+  or allocate organization cost to an agent, email or key by proportions.
+  This is M7-MATH-10 and T013/T015, not a new accounting dimension.
 - Compare the same scope, interval, grouping and cost basis. The provider's
   displayed rounding may differ from stored precision; record the comparison
   precision and source watermark. No universal percentage tolerance and no

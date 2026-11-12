@@ -73,7 +73,7 @@ financial domain. No new package or license change.
 | CTR-CAP-002/003/006 | GetBudgetV1, ListBudgetsV1, GetAccountApiCapacityV1, ListBudgetOverviewV1, ListBudgetHistoryV1, ListUsageBreakdownsV1 | Backend exact aggregation, immutable report selection, bounded stable cursors |
 | CTR-CAP-007 budget variant | GetBudgetForecastV1 → BudgetForecastV1 | Pure bounded calculation with inputs/method/as-of or no-value reason; no DB writes |
 
-Focused producer/consumer integration now consumes CTR-REG-014 1.4.0,
+Focused producer/consumer integration now consumes CTR-REG-014 1.5.0,
 including BillingAccessTargetV1/BillingAccessPortV1 and monitoring proof/ports: M02 produces current nonsecret authority,
 M04 captures it and root composition revalidates it at commit. Existing metadata
 and local setup consumers stay compatible. These focused runtime versions extend
@@ -409,3 +409,24 @@ See [implementation authority](../../../evidence/m7-implementation-authority-202
 It applies to this focused 0.3.0 increment and execution plan 1.1.0, not the
 unrelated whole-module Draft parent. Routine internal fixes do not require
 repeated owner approval.
+
+
+### Canonical pool metadata increment
+
+CTR-REG-014 1.5.0 adds a bounded revisioned financial-pool snapshot, owner
+association/attribution commands and configuration/page views in the existing
+`registry_billing_v1.py` contract. M02 produces, M05/P01/P02/root consume; existing
+1.4.0 billing/access/monitoring types retain their meaning. Source scope and
+credential lineage are internal authority, never browser-supplied proof. M02
+validates create/join/unlink and primary-group changes atomically, preserving
+superseded associations. Known scopes survive key rotation; unresolved scopes
+require the exact active binding and generation. An owner association is not
+provider-verified identity or billing access.
+
+Root allocates additive M02 `v1_0734` after installed0733 for pool and association
+metadata, with no telemetry backfill or owner configuration migration. The real
+catalog/compatibility and isolated upgrade/recovery checks must cover this new
+head before installation. No dependency or secret-custody change. T002/T004/T010/
+T012/T014 retain their existing requirement and acceptance mappings; the
+[implementation evidence](../../../evidence/m7-financial-pools-2026-11-12.md)
+records actual tests and remaining integration.

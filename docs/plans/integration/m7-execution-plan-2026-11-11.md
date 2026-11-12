@@ -92,8 +92,9 @@ all backend work is finished. Each slice ends with the indicated running result.
 The installed Ollama increment already connects cloud-graph commit fencing,
 active-lineage spend selection and shared balance/usage rate coordination; its
 genuine report contains usage counts, not costs. Reuse that work and evidence.
-Next expose those real funds/usage on Overview while completing the first
-accessible monetary lane, normally Anthropic or OpenAI. No provider is dropped
+Those funds/usage are now visible on the installed Overview and detail.
+Next complete canonical pool attribution/totals and the first accessible
+monetary lane, normally Anthropic or OpenAI. No provider is dropped
 from M7. A requests-only
 legacy source can advance its own usage lane but cannot substitute for the first
 demonstrated monetary report. T005 can integrate one genuine normalized report from a partially completed
@@ -245,9 +246,12 @@ repeatable implementation/test/deploy actions inside this scope.
 | M7-A09 | Rate/size/deadline bounds, one source failure isolation and genuine recovery; protected profiles untouched | T007/T015 |
 | M7-A10 | Revision-bound install/recovery, existing dashboard/provider continuity and final evidence | T014/T016 |
 
-Required live coverage is one real successful billing report per provider plus
-inventory accounting for every configured active billing **or existing Ollama
-cloud** resource. Pending/disabled resources remain visible with their state;
+Required live coverage is a successful admitted cost report and supported usage
+for Anthropic/OpenAI, and a successful supported usage report for Ollama plus its
+existing balance continuity. Counts-only Ollama is valid for that provider's
+actual capability, but cannot replace monetary verification. Every configured
+active billing **or existing Ollama cloud** resource is accounted for.
+Pending/disabled resources remain visible with their state;
 no duplicate billing enrollment is needed for cloud coverage. No fixed
 six/four-account ceremony. Existing comparisons record exact resource, interval,
 source time and precision once; reuse them for documentation changes. Technical
@@ -279,8 +283,12 @@ installed revision. On failure restore the known-good runtime safely. Never
 restore an old database after new writes without explicit recovery authority.
 Promotion/support/footer/quota/filter behavior must survive each rollout.
 
-After S3, freeze known defects. Run one full `AUTO-M7-EXIT` and one bounded
-independent review. New blockers must prove a stated requirement/invariant is
+After S3, freeze known defects and the required check inventory. Run
+`AUTO-M7-EXIT` and one bounded independent review. If a defect changes code,
+rerun its affected checks and the final aggregate on the corrected candidate;
+"one review" never means accepting a failing check or reusing another revision's
+receipt. Findings repair existing requirements; they do not expand scope.
+New blockers must prove a stated requirement/invariant is
 violated and name the smallest fix. Enhancements go to the deferred list below;
 no silent gate expansion. T015 uses live/browser lanes; T016 runs the technical
 exit, publishes current code to GitHub, verifies remote revision, demonstrates

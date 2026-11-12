@@ -26,6 +26,7 @@ from agentmonitor.contracts.registry_billing_v1 import (
     BillingConnectionPortV1,
     BillingLocalSetupPortV1,
     BillingMonitoringPortV1,
+    FinancialPoolRegistryPortV1,
 )
 from agentmonitor.contracts.registry_coverage_v1 import (
     OrganizationProviderCoverageReadPortV1,
@@ -182,6 +183,7 @@ class ObservationApiPortsV1:
     organization_coverage_read: OrganizationProviderCoverageReadPortV1 | None = None
     organization_coverage_write: OrganizationProviderCoverageWritePortV1 | None = None
     billing_connections: BillingConnectionPortV1 | None = None
+    financial_pools: FinancialPoolRegistryPortV1 | None = None
     billing_local_setup: BillingLocalSetupPortV1 | None = None
     get_account_budget_current: AccountBudgetCurrentPortV1 | None = None
     list_budget_overview: BudgetOverviewPortV1 | None = None

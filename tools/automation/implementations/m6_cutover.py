@@ -267,6 +267,7 @@ def _retained_migration_source(catalog_head: str) -> str | None:
         "v1_0731": "v1_0720",
         "v1_0732": "v1_0731",
         "v1_0733": "v1_0731",
+        "v1_0734": "v1_0733",
     }.get(catalog_head)
 
 

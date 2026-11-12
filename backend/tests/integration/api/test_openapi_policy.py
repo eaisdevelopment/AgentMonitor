@@ -12,6 +12,22 @@ from tooling.foundation.openapi_client import (
 )
 
 EXPECTED_SUCCESS = {
+    "registry_get_billing_connections_v1": ("200", "AccountBillingConnectionsV1"),
+    "registry_create_billing_connection_v1": ("201", "BillingConnectionViewV1"),
+    "capacity_get_account_api_budget_v1": ("200", "AccountBudgetCurrentWireV1"),
+    "capacity_list_budget_overview_v1": ("200", "BudgetOverviewWireV1"),
+    "capacity_get_budget_v1": ("200", "BudgetSelectedReportWireV1"),
+    "billing_check_connection_v1": ("202", "BillingCheckRunV1"),
+    "billing_get_run_status_v1": ("200", "BudgetRunStatusV1"),
+    "billing_get_monitoring_v1": ("200", "BillingMonitoringStatusV1"),
+    "billing_set_monitoring_v1": ("200", "BillingMonitoringResultV1"),
+    "registry_list_financial_pools_v1": ("200", "FinancialPoolPageV1"),
+    "registry_get_financial_pool_configuration_v1": (
+        "200",
+        "FinancialPoolConfigurationV1",
+    ),
+    "registry_assign_financial_pool_v1": ("200", "FinancialPoolConfigurationV1"),
+    "registry_edit_financial_pool_attribution_v1": ("200", "FinancialPoolViewV1"),
     "registry_list_organization_coverage_v1": (
         "200",
         "OrganizationCoverageSnapshotWireV1",
@@ -123,6 +139,11 @@ EXPECTED_ERRORS = frozenset(
     }
 )
 EXPECTED_REQUESTS = {
+    "registry_create_billing_connection_v1": "CreateBillingConnectionInputV1",
+    "billing_check_connection_v1": "BillingCheckInputV1",
+    "billing_set_monitoring_v1": "SetBillingMonitoringInputV1",
+    "registry_assign_financial_pool_v1": "AssignFinancialPoolInputV1",
+    "registry_edit_financial_pool_attribution_v1": "EditFinancialPoolInputV1",
     "registry_set_organization_coverage_v1": "SetOrganizationCoverageInputV1",
     "runtime_set_process_account_association_v1": "SetProcessAccountAssociationInputV1",
     "provider_start_connection_v1": "StartProviderConnectionInputV1",
@@ -173,7 +194,7 @@ def test_generator_rejects_changed_policy_on_every_frozen_operation() -> None:
 
 def test_generator_rejects_success_schema_drift_for_all_operations() -> None:
     schema = create_iam_schema_application().openapi()
-    assert len(validate_iam_openapi(schema)) == len(EXPECTED_SUCCESS) == 78
+    assert len(validate_iam_openapi(schema)) == len(EXPECTED_SUCCESS) == 91
     seen: set[str] = set()
     for path, methods in schema["paths"].items():
         for method, operation in methods.items():

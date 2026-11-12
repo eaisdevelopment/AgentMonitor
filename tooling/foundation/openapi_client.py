@@ -29,7 +29,7 @@ from fastapi.openapi.models import OpenAPI
 from pydantic import ValidationError
 
 FACTORY_REF = "agentmonitor.composition.bootstrap:create_iam_schema_application"
-GENERATOR_VERSION = "2.0.8"
+GENERATOR_VERSION = "2.0.9"
 OPENAPI_RELATIVE = Path("contracts/openapi/agentmonitor-v1.json")
 CLIENT_RELATIVE = Path("frontend/src/generated/api/index.ts")
 METHODS = frozenset(
@@ -55,6 +55,7 @@ SOURCE_FILES = (
     "backend/src/agentmonitor/api/v1/routers/budgets.py",
     "backend/src/agentmonitor/api/v1/routers/budget_overview.py",
     "backend/src/agentmonitor/api/v1/routers/billing_actions.py",
+    "backend/src/agentmonitor/api/v1/routers/financial_pools.py",
     "backend/src/agentmonitor/api/v1/routers/runtime.py",
     "backend/src/agentmonitor/api/v1/routers/operations.py",
     "backend/src/agentmonitor/api/v1/routers/alerts.py",
@@ -68,6 +69,7 @@ SOURCE_FILES = (
     "backend/src/agentmonitor/api/v1/schemas/budgets.py",
     "backend/src/agentmonitor/api/v1/schemas/budget_overview.py",
     "backend/src/agentmonitor/api/v1/schemas/billing_actions.py",
+    "backend/src/agentmonitor/api/v1/schemas/financial_pools.py",
     "backend/src/agentmonitor/api/v1/schemas/runtime.py",
     "backend/src/agentmonitor/api/v1/schemas/operations.py",
     "backend/src/agentmonitor/api/v1/schemas/alerts.py",
@@ -115,6 +117,7 @@ SOURCE_FILES = (
     "backend/src/agentmonitor/adapters/providers/claude/manifest.py",
     "backend/src/agentmonitor/adapters/persistence/registry/sqlite/repository.py",
     "backend/src/agentmonitor/adapters/persistence/registry/sqlite/billing_connections.py",
+    "backend/src/agentmonitor/adapters/persistence/registry/sqlite/financial_pools.py",
     "backend/src/agentmonitor/modules/registry/domain/billing_connection.py",
     "backend/src/agentmonitor/composition/billing_local_setup.py",
     "backend/src/agentmonitor/adapters/persistence/registry/sqlite/coverage.py",
@@ -132,6 +135,19 @@ SOURCE_FILES = (
 )
 
 IAM_OPERATIONS = {
+    (
+        "/api/v1/financial-pools/{pool_id}/attribution",
+        "put",
+    ): "registry_edit_financial_pool_attribution_v1",
+    (
+        "/api/v1/accounts/{account_id}/financial-pools/{resource_id}/{selector}",
+        "post",
+    ): "registry_assign_financial_pool_v1",
+    (
+        "/api/v1/accounts/{account_id}/financial-pools/{resource_id}/{selector}",
+        "get",
+    ): "registry_get_financial_pool_configuration_v1",
+    ("/api/v1/financial-pools", "get"): "registry_list_financial_pools_v1",
     (
         "/api/v1/accounts/{account_id}/billing-connections/{resource_id}/monitoring",
         "get",
@@ -341,6 +357,54 @@ IamPolicyRow = tuple[
     str | None,
 ]
 IAM_POLICY: dict[str, IamPolicyRow] = {
+    "registry_edit_financial_pool_attribution_v1": (
+        "cookie_or_bearer",
+        "write:accounts",
+        "FinancialPoolRegistryPortV1.edit",
+        "replay_safe_representation",
+        _COOKIE_CSRF_BEARER,
+        "200",
+        "FinancialPoolViewV1",
+        "SafeProblemV1",
+        _M2_REQUIRED_ERROR_STATUSES,
+        "EditFinancialPoolInputV1",
+    ),
+    "registry_assign_financial_pool_v1": (
+        "cookie_or_bearer",
+        "write:accounts",
+        "FinancialPoolRegistryPortV1.assign",
+        "replay_safe_representation",
+        _COOKIE_CSRF_BEARER,
+        "200",
+        "FinancialPoolConfigurationV1",
+        "SafeProblemV1",
+        _M2_REQUIRED_ERROR_STATUSES,
+        "AssignFinancialPoolInputV1",
+    ),
+    "registry_get_financial_pool_configuration_v1": (
+        "cookie_or_bearer",
+        "read:accounts",
+        "FinancialPoolRegistryPortV1.get_configuration",
+        "safe_query_repeat",
+        _COOKIE_BEARER,
+        "200",
+        "FinancialPoolConfigurationV1",
+        "SafeProblemV1",
+        _M2_REQUIRED_ERROR_STATUSES,
+        None,
+    ),
+    "registry_list_financial_pools_v1": (
+        "cookie_or_bearer",
+        "read:accounts",
+        "FinancialPoolRegistryPortV1.list_pools",
+        "safe_query_repeat",
+        _COOKIE_BEARER,
+        "200",
+        "FinancialPoolPageV1",
+        "SafeProblemV1",
+        _M2_REQUIRED_ERROR_STATUSES,
+        None,
+    ),
     "alert_list_alerts_v1": (
         "cookie_or_bearer",
         "read:alerts",
@@ -1567,7 +1631,7 @@ def validate_iam_openapi(document: object) -> tuple[str, ...]:
     if (
         actual != IAM_OPERATIONS
         or set(IAM_POLICY) != set(IAM_OPERATIONS.values())
-        or len(identifiers) != 87
+        or len(identifiers) != 91
     ):
         raise OpenApiGenerationError("operation_surface_invalid")
 

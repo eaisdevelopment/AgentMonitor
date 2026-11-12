@@ -237,7 +237,7 @@ def _validate_contract_baseline(
             "CTR-COL-010": "2.0.0",
             "CTR-PROV-003": "1.3.0",
             "CTR-REG-012": "1.1.0",
-            "CTR-REG-014": "1.4.0",
+            "CTR-REG-014": "1.5.0",
         }.get(contract_id, "1.0.0")
         if item.get("version") != expected_version:
             violations.append(

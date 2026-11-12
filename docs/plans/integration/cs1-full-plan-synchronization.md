@@ -1454,3 +1454,12 @@ composition mechanism). M05 remains the producer. The canonical adoption and
 snapshot generators synchronize those two consumption entries. Historical
 whole-plan Draft status and approval flags remain unchanged; this binding
 is not a new module approval or a product/live completion claim.
+
+
+## M7 financial-pool contract synchronization
+
+CTR-REG-014 1.5.0 preserves billing contracts and adds owner-managed pool
+association/attribution. The exact contract adoption and snapshot were regenerated.
+This synchronization does not close M7 or establish installed UI evidence.
+
+Plan snapshot SHA-256: `a8c8a123438d692e9baa15faccdebd229445265100322bd45a4cd953fbd8a6dc`
